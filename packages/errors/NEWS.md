@@ -2,6 +2,8 @@ User-visible changes in `@endo/errors`:
 
 # Next release
 
+- Exports `assert.details` under its own name (i.e., `details`).
+
 - `hideAndHardenFunction` - If a function `foo` is first frozen with `hideAndHardenFunction(foo)` rather than `freeze(foo)` or `harden(foo)`, then `foo.name` is changed from `'foo'` to `'__HIDE_foo'`. When `stackFiltering: 'concise'` or `stackFiltering: 'omit-frames'`, then (currently only on v8), the stack frames for that function are omitted from the stacks reported by our causal console.
 
 - The new `Rejector` type supports the confirmFoo/reject pattern:
