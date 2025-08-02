@@ -52,9 +52,9 @@ if (missing.length > 0) {
 // and also updates the names of the utility functions.
 const {
   bare,
-  details: redacted,
+  details,
   error,
-  Fail: throwRedacted,
+  Fail,
   makeAssert: _omittedMakeAssert,
   makeError,
   note,
@@ -79,17 +79,19 @@ const bestMakeError = makeError || error;
 export {
   // assertions
   assert,
-  // related utilities that aren't assertions
+  // non-assertion utilities that appear as properties of `assert`
   bareOrQuote as bare,
   bestMakeError as makeError,
+  details,
   note,
   quote,
-  redacted,
-  throwRedacted,
-  // conventional abbreviations and aliases
+  Fail,
+  // conventional abbreviations
   bareOrQuote as b,
+  details as X,
   quote as q,
-  redacted as X,
-  throwRedacted as Fail,
+  // other aliases
   note as annotateError,
+  details as redacted,
+  Fail as throwRedacted,
 };
