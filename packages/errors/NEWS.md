@@ -1,5 +1,9 @@
 User-visible changes in `@endo/errors`:
 
+# Next release
+
+- Exports `assert.details` under its own name (i.e., `details`).
+
 # v1.1.0 (2024-02-22)
 
 - `AggegateError` support

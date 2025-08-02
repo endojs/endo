@@ -47,24 +47,28 @@ import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
- * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, StringablePayload, DetailsToken, MakeAssert} from '../../types.js'
- * @import {LogArgs, NoteCallback, LoggedErrorHandler} from "./internal-types.js";
+ * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, DeprecatedAssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../../types.js';
+ * @import {LogArgs, NoteCallback, LoggedErrorHandler} from './internal-types.js';
  */
 
-// For our internal debugging purposes, uncomment
+// For internal debugging purposes, uncomment
 // const internalDebugConsole = console;
 
 // /////////////////////////////////////////////////////////////////////////////
 
-/** @type {WeakMap<StringablePayload, any>} */
+/**
+ * Maps the result of a `quote` or `bare` call back to its input value.
+ *
+ * @type {WeakMap<Stringable, any>}
+ */
 const declassifiers = new WeakMap();
 
 /** @type {AssertionUtilities['quote']} */
-const quote = (payload, spaces = undefined) => {
+const quote = (value, spaces = undefined) => {
   const result = freeze({
-    toString: freeze(() => bestEffortStringify(payload, spaces)),
+    toString: freeze(() => bestEffortStringify(value, spaces)),
   });
-  weakmapSet(declassifiers, result, payload);
+  weakmapSet(declassifiers, result, value);
   return result;
 };
 freeze(quote);
@@ -74,14 +78,14 @@ const canBeBare = freeze(/^[\w:-]( ?[\w:-])*$/);
 /**
  * @type {AssertionUtilities['bare']}
  */
-const bare = (payload, spaces = undefined) => {
-  if (typeof payload !== 'string' || !regexpTest(canBeBare, payload)) {
-    return quote(payload, spaces);
+const bare = (text, spaces = undefined) => {
+  if (typeof text !== 'string' || !regexpTest(canBeBare, text)) {
+    return quote(text, spaces);
   }
   const result = freeze({
-    toString: freeze(() => payload),
+    toString: freeze(() => text),
   });
-  weakmapSet(declassifiers, result, payload);
+  weakmapSet(declassifiers, result, text);
   return result;
 };
 freeze(bare);
@@ -89,24 +93,28 @@ freeze(bare);
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
- * @typedef {object} HiddenDetails
+ * @typedef {{ template: TemplateStringsArray | string[], args: any[] }} DetailsParts
  *
- * Captures the arguments passed to the `details` template string tag.
+ * The contents of a `details` template literal tag: literal strings (always at
+ * least one) and arbitrary substitution values from in between them.
  *
- * @property {TemplateStringsArray | string[]} template
- * @property {any[]} args
+ * Unquoted substitution values are sensitive (and are redacted in error
+ * `message` strings), so a DetailsPart must not leak outside of this file.
  */
 
 /**
- * @type {WeakMap<DetailsToken, HiddenDetails>}
+ * Maps the result of a `details` tagged template literal back to a record of
+ * that template literal's contents.
  *
- * Maps from a details token which a `details` template literal returned
- * to a record of the contents of that template literal expression.
+ * @type {WeakMap<DetailsToken, DetailsParts>}
  */
 const hiddenDetailsMap = new WeakMap();
 
 /**
- * @param {HiddenDetails} hiddenDetails
+ * Construct an error message string from `details` template literal contents,
+ * replacing unquoted substitution values with redactions.
+ *
+ * @param {DetailsParts} hiddenDetails
  * @returns {string}
  */
 const getMessageString = ({ template, args }) => {
@@ -127,16 +135,14 @@ const getMessageString = ({ template, args }) => {
 };
 
 /**
- * Give detailsTokens a toString behavior. To minimize the overhead of
- * creating new detailsTokens, we do this with an
- * inherited `this` sensitive `toString` method, even though we normally
- * avoid `this` sensitivity. To protect the method from inappropriate
- * `this` application, it does something interesting only for objects
- * registered in `redactedDetails`, which should be exactly the detailsTokens.
+ * Define `toString` behavior for DetailsToken. To minimize the overhead of
+ * creating new instances, we do this with an inherited `this`-sensitive method,
+ * even though we normally avoid such sensitivity. To protect the method from
+ * inappropriate application, it verifies that `this` is registered in
+ * `redactedDetails` before doing interesting work.
  *
- * The printing behavior must not reveal anything redacted, so we just use
- * the same `getMessageString` we use to construct the redacted message
- * string for a thrown assertion error.
+ * The behavior must not reveal anything redacted, so we use `getMessageString`
+ * to return the same value as the message for a thrown assertion-failure error.
  */
 const DetailsTokenProto = freeze({
   toString() {
@@ -156,16 +162,15 @@ freeze(DetailsTokenProto.toString);
  * given to `lockdown`, then `unredactedDetails` is used instead.
  *
  * There are some unconditional uses of `redactedDetails` in this module. All
- * of them should be uses where the template literal has no redacted
- * substitution values. In those cases, the two are equivalent.
+ * of them should be uses where the template literal has no redacted (unquoted)
+ * substitution values. In those cases, `redactedDetails` is equivalent to
+ * `unredactedDetails`.
  *
  * @type {AssertionUtilities['details']}
  */
 const redactedDetails = (template, ...args) => {
-  // Keep in mind that the vast majority of calls to `details` creates
-  // a details token that is never used, so this path must remain as fast as
-  // possible. Hence we store what we've got with little processing, postponing
-  // all the work to happen only if needed, for example, if an assertion fails.
+  // In case the result of this call is never used, perform as little processing
+  // as possible here to keep things fast.
   const detailsToken = freeze({ __proto__: DetailsTokenProto });
   weakmapSet(hiddenDetailsMap, detailsToken, { template, args });
   return /** @type {DetailsToken} */ (/** @type {unknown} */ (detailsToken));
@@ -196,7 +201,11 @@ freeze(unredactedDetails);
 export { unredactedDetails };
 
 /**
- * @param {HiddenDetails} hiddenDetails
+ * Get arguments suitable for a console logger function (e.g., `console.error`)
+ * from `details` template literal contents, unquoting quoted substitution
+ * values.
+ *
+ * @param {DetailsParts} hiddenDetails
  * @returns {LogArgs}
  */
 const getLogArgs = ({ template, args }) => {
@@ -206,14 +215,14 @@ const getLogArgs = ({ template, args }) => {
     if (weakmapHas(declassifiers, arg)) {
       arg = weakmapGet(declassifiers, arg);
     }
-    // Remove the extra spaces (since console.error puts them
-    // between each cause).
-    const priorWithoutSpace = stringReplace(arrayPop(logArgs) || '', / $/, '');
-    if (priorWithoutSpace !== '') {
-      arrayPush(logArgs, priorWithoutSpace);
+    // Remove substitution-adjacent spaces from template fixed-string parts
+    // (since console logging inserts its own argument-separating spaces).
+    const prevLiteralPart = stringReplace(arrayPop(logArgs) || '', / $/, '');
+    if (prevLiteralPart !== '') {
+      arrayPush(logArgs, prevLiteralPart);
     }
-    const nextWithoutSpace = stringReplace(template[i + 1], /^ /, '');
-    arrayPush(logArgs, arg, nextWithoutSpace);
+    const nextLiteralPart = stringReplace(template[i + 1], /^ /, '');
+    arrayPush(logArgs, arg, nextLiteralPart);
   }
   if (logArgs[logArgs.length - 1] === '') {
     arrayPop(logArgs);
@@ -222,11 +231,11 @@ const getLogArgs = ({ template, args }) => {
 };
 
 /**
- * @type {WeakMap<Error, LogArgs>}
+ * Maps from an error object to arguments suitable for a privileged console
+ * logger function such as `console.error`, including values that may be
+ * redacted in the error's `message`.
  *
- * Maps from an error object to the log args that are a more informative
- * alternative message for that error. When logging the error, these
- * log args should be preferred to `error.message`.
+ * @type {WeakMap<Error, LogArgs>}
  */
 const hiddenMessageLogArgs = new WeakMap();
 
@@ -297,27 +306,24 @@ export const sanitizeError = error => {
     for (const name of restNames) {
       delete error[name];
     }
-    const droppedNote = create(objectPrototype, restDescs);
+    const dropped = create(objectPrototype, restDescs);
+    const droppedDetails = redactedDetails`originally with properties ${quote(dropped)}`;
     // eslint-disable-next-line no-use-before-define
-    note(
-      error,
-      redactedDetails`originally with properties ${quote(droppedNote)}`,
-    );
+    note(error, droppedDetails);
   }
   for (const name of ownKeys(error)) {
-    // @ts-expect-error TS still confused by symbols as property names
+    // @ts-expect-error TypeScript is still confused by symbols as property keys
     const desc = descs[name];
     if (desc && hasOwn(desc, 'get')) {
-      defineProperty(error, name, {
-        value: error[name], // invoke the getter to convert to data property
-      });
+      const value = error[name]; // invokes the getter
+      defineProperty(error, name, { value });
     }
   }
   freeze(error);
 };
 
 /**
- * @type {AssertionUtilities['error']}
+ * @type {AssertionUtilities['makeError']}
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
@@ -329,9 +335,9 @@ const makeError = (
     sanitize = true,
   } = {},
 ) => {
+  // Promote string-valued `optDetails` into a minimal DetailsParts
+  // consisting of that string as the sole literal part with no substitutions.
   if (typeof optDetails === 'string') {
-    // If it is a string, use it as the literal part of the template so
-    // it doesn't get quoted.
     optDetails = redactedDetails([optDetails]);
   }
   const hiddenDetails = weakmapGet(hiddenDetailsMap, optDetails);
@@ -347,13 +353,11 @@ const makeError = (
   ) {
     error = AggregateError(errors || [], messageString, opts);
   } else {
-    error = /** @type {ErrorConstructor} */ (errConstructor)(
-      messageString,
-      opts,
-    );
+    const ErrorCtor = /** @type {ErrorConstructor} */ (errConstructor);
+    error = ErrorCtor(messageString, opts);
+    // Since we need to tolerate `errors` on an AggregateError, we may as well
+    // tolerate it on all errors.
     if (errors !== undefined) {
-      // Since we need to tolerate `errors` on an AggregateError, may as
-      // well tolerate it on all errors.
       defineProperty(error, 'errors', {
         value: errors,
         writable: true,
@@ -376,11 +380,10 @@ freeze(makeError);
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const { addLogArgs, takeLogArgsArray } = makeNoteLogArgsArrayKit();
+const { addLogArgs: addNoteLogArgs, takeLogArgsArray: takeAllNoteLogArgs } =
+  makeNoteLogArgsArrayKit();
 
 /**
- * @type {WeakMap<Error, NoteCallback[]>}
- *
  * An augmented console will normally only take the hidden noteArgs array once,
  * when it logs the error being annotated. Once that happens, further
  * annotations of that error should go to the console immediately. We arrange
@@ -389,14 +392,16 @@ const { addLogArgs, takeLogArgsArray } = makeNoteLogArgsArrayKit();
  * callback per error, but that depends on console behavior which we should not
  * assume. We make this an array of callbacks so multiple registrations
  * are independent.
+ *
+ * @type {WeakMap<Error, NoteCallback[]>}
  */
-const hiddenNoteCallbackArrays = new WeakMap();
+const hiddenNoteCallbacks = new WeakMap();
 
 /** @type {AssertionUtilities['note']} */
 const note = (error, detailsNote) => {
+  // Promote string-valued `detailsNote` into a minimal DetailsParts consisting
+  // of that string as the sole literal part with no substitutions.
   if (typeof detailsNote === 'string') {
-    // If it is a string, use it as the literal part of the template so
-    // it doesn't get quoted.
     detailsNote = redactedDetails([detailsNote]);
   }
   const hiddenDetails = weakmapGet(hiddenDetailsMap, detailsNote);
@@ -404,13 +409,13 @@ const note = (error, detailsNote) => {
     throw TypeError(`unrecognized details ${quote(detailsNote)}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
-  const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);
+  const callbacks = weakmapGet(hiddenNoteCallbacks, error);
   if (callbacks !== undefined) {
     for (const callback of callbacks) {
       callback(error, logArgs);
     }
   } else {
-    addLogArgs(error, logArgs);
+    addNoteLogArgs(error, logArgs);
   }
 };
 freeze(note);
@@ -444,21 +449,21 @@ const loggedErrorHandler = {
   },
   getMessageLogArgs: error => weakmapGet(hiddenMessageLogArgs, error),
   takeMessageLogArgs: error => {
-    const result = weakmapGet(hiddenMessageLogArgs, error);
+    const logArgs = weakmapGet(hiddenMessageLogArgs, error);
     weakmapDelete(hiddenMessageLogArgs, error);
-    return result;
+    return logArgs;
   },
   takeNoteLogArgsArray: (error, callback) => {
-    const result = takeLogArgsArray(error);
+    const logArgsArray = takeAllNoteLogArgs(error);
     if (callback !== undefined) {
-      const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);
+      const callbacks = weakmapGet(hiddenNoteCallbacks, error);
       if (callbacks) {
         arrayPush(callbacks, callback);
       } else {
-        weakmapSet(hiddenNoteCallbackArrays, error, [callback]);
+        weakmapSet(hiddenNoteCallbacks, error, [callback]);
       }
     }
-    return result || [];
+    return logArgsArray || [];
   },
 };
 freeze(loggedErrorHandler);
@@ -469,7 +474,7 @@ export { loggedErrorHandler };
 /**
  * @type {MakeAssert}
  */
-const makeAssert = (optRaise = undefined, unredacted = false) => {
+export const makeAssert = (optRaise = undefined, unredacted = false) => {
   const details = unredacted ? unredactedDetails : redactedDetails;
   const assertFailedDetails = details`Check failed`;
 
@@ -481,7 +486,6 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   ) => {
     const reason = makeError(optDetails, errConstructor, options);
     if (optRaise !== undefined) {
-      // @ts-ignore returns `never` doesn't mean it isn't callable
       optRaise(reason);
     }
     throw reason;
@@ -491,18 +495,16 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {AssertionUtilities['Fail']} */
   const Fail = (template, ...args) => fail(details(template, ...args));
 
-  // Don't freeze or export `baseAssert` until we add methods.
-  // TODO If I change this from a `function` function to an arrow
-  // function, I seem to get type errors from TypeScript. Why?
+  // Don't freeze or export `assert` until we add methods.
   /** @type {BaseAssert} */
-  function baseAssert(
-    flag,
+  const assert = (
+    condition,
     optDetails = undefined,
     errConstructor = undefined,
     options = undefined,
-  ) {
-    flag || fail(optDetails, errConstructor, options);
-  }
+  ) => {
+    condition || fail(optDetails, errConstructor, options);
+  };
 
   /** @type {AssertionFunctions['equal']} */
   const equal = (
@@ -544,25 +546,36 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   const assertString = (specimen, optDetails = undefined) =>
     assertTypeof(specimen, 'string', optDetails);
 
-  // Note that "assert === baseAssert"
-  /** @type {Assert} */
-  const assert = assign(baseAssert, {
-    error: makeError,
-    fail,
+  /** @type {Pick<AssertionFunctions, keyof AssertionFunctions>} */
+  const assertionFunctions = {
     equal,
     typeof: assertTypeof,
     string: assertString,
+    fail,
+  };
+
+  /** @type {AssertionUtilities} */
+  const assertionUtilities = {
+    makeError,
     note,
     details,
     Fail,
     quote,
     bare,
-    makeAssert,
+  };
+
+  /** @type {DeprecatedAssertionUtilities} */
+  const deprecated = { error: makeError, makeAssert };
+
+  /** @type {Assert} */
+  const finishedAssert = assign(assert, {
+    ...assertionFunctions,
+    ...assertionUtilities,
+    ...deprecated,
   });
-  return freeze(assert);
+  return freeze(finishedAssert);
 };
 freeze(makeAssert);
-export { makeAssert };
 
 /** @type {Assert} */
 const assert = makeAssert();

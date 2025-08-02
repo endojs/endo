@@ -2,7 +2,7 @@ import test from 'ava';
 import { assertLogs, throwsAndLogs } from './_throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
-const { details: X, quote: q, bare: b, error: makeError, Fail } = assert;
+const { details: X, quote: q, bare: b, makeError, Fail } = assert;
 
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
@@ -252,6 +252,10 @@ test('assert.typeof', t => {
   ]);
 });
 
+test('assert.error', t => {
+  t.is(assert.error, makeError);
+});
+
 test('makeError default type', t => {
   const err = makeError(X`<${'bar'},${q('baz')}>`);
   t.is(err.message, '<(a string),"baz">');
@@ -390,6 +394,7 @@ test('assert.bare', t => {
     ['log', 'Caught', Error],
   ]);
   // Non-strings also fall back.
+  // @ts-expect-error intentional bad input
   throwsAndLogs(t, () => Fail`${b(undefined)}`, '"[undefined]"', [
     ['log', 'Caught', Error],
   ]);
