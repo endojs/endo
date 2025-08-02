@@ -476,8 +476,13 @@ export interface AssertionUtilities {
    * ```js
    * actual === expected || Fail`${actual} should be ${q(expected)}`;
    * ```
+   *
+   * The optional `space` parameter matches that of `JSON.stringify`, and is
+   * used to request insertion of non-semantic line feeds, indentation, and
+   * separating spaces in the output for improving readability of objects and
+   * arrays.
    */
-  quote(value: any, spaces?: string | number): Stringable;
+  quote(value: any, space?: string | number): Stringable;
 
   /**
    * Wrap a string such that its use as a substitution value in a template
