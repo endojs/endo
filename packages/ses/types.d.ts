@@ -191,6 +191,9 @@ interface Stringable {
   toString(): string;
 }
 
+/** @deprecated */
+type StringPayload = Stringable;
+
 /**
  * A call to the {@link details} template literal makes and returns a fresh
  * DetailsToken, which is a frozen empty object associated with the arguments of
