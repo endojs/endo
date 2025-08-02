@@ -197,12 +197,15 @@ interface Stringable {
 type StringPayload = Stringable;
 
 /**
- * A call to the `details` template literal makes and returns a fresh details
- * token, which is a frozen empty object associated with the arguments of that
- * `details` template literal expression.
+ * A call to the {@link details} template literal makes and returns a fresh
+ * DetailsToken, which is a frozen empty object associated with the arguments of
+ * that expression.
  */
 export type DetailsToken = Record<any, never>;
-/** Either a plain string, or made by the `details` template literal tag. */
+/**
+ * A plain string, or a {@link DetailsToken} from the {@link details} template
+ * literal tag.
+ */
 export type Details = string | DetailsToken;
 
 export interface AssertMakeErrorOptions {
@@ -368,7 +371,7 @@ export interface AssertionFunctions extends BaseAssert {
   ): asserts specimen is string;
 
   /**
-   * Fail an assertion, raising an exception with a message in which unquoted
+   * Fail an assertion, raising an exception with a `message` in which unquoted
    * `details` substitution values may have been redacted into `typeof` types
    * but are still available for logging to an associated console.
    */
@@ -383,9 +386,9 @@ export interface AssertionFunctions extends BaseAssert {
 
 export interface AssertionUtilities {
   /**
-   * Create an error with a message in which unquoted `details` substitution
-   * values may have been redacted into `typeof` types but are still available
-   * for logging to an associated console.
+   * Create an error with a `message` in which unquoted {@link details}
+   * substitution values may have been redacted into lossy `typeof` output but
+   * are still available for logging to an associated console.
    */
   makeError(
     /** The details of what was asserted */
@@ -396,16 +399,17 @@ export interface AssertionUtilities {
   ): Error;
 
   /**
-   * Associate details when an error, potentially to be logged by an associated
+   * Associate `details` with `error`, potentially to be logged by an associated
    * console for providing extra information about the error.
    */
   note(error: Error, details: Details): void;
 
   /**
-   * Use as a template literal tag to create an opaque DetailsToken for use with
-   * other assertion functions that might redact unquoted substitution values
-   * (i.e., those that are not output from the `quote` function) into `typeof`
-   * types but still preserve them for logging to an associated console.
+   * Use as a template literal tag to create an opaque {@link DetailsToken} for
+   * use with other assertion functions that might redact unquoted substitution
+   * values (i.e., those that are not output from the {@link quote} function)
+   * into lossy `typeof` output but still preserve them for logging to an
+   * associated console.
    *
    * The normal convention is to locally rename `details` to `X` like
    * `const { details: X, quote: q, Fail } = assert;`.
@@ -413,7 +417,7 @@ export interface AssertionUtilities {
    * template literal tag (which has the same input signature but automatically
    * creates and throws an error):
    * ```js
-   * sky.isBlue() || assert.Fail`${sky.color} should be "blue"`;
+   * sky.isBlue() || Fail`${sky.color} should be "blue"`;
    * ```
    *
    * The `raw` property of an input template array is ignored, so a simple
@@ -425,17 +429,20 @@ export interface AssertionUtilities {
   ): DetailsToken;
 
   /**
-   * Use as a template literal tag to create and throw an error in whose message
-   * unquoted substitution values (i.e., those that are not output from the
-   * `quote` function) may have been redacted into `typeof` types but are still
-   * available for logging to an associated console:
+   * Use as a template literal tag to create and throw an error in whose
+   * `message` unquoted substitution values (i.e., those that are not output
+   * from the {@link quote} function) may have been redacted into lossy `typeof`
+   * output but are still available for logging to an associated console.
+   *
+   * For example, using the normal convention to locally rename properties like
+   * `const { quote: q, Fail } = assert;`:
    * ```js
    * sky.isBlue() || Fail`${sky.color} should be "blue"`;
    * ```
    *
-   * This `||` pattern saves the cost of creating DetailsToken and/or error
-   * instances when the asserted condition holds, but can weaken TypeScript
-   * static reasoning due to
+   * This `||` pattern saves the cost of creating {@link DetailsToken} and/or
+   * error instances when the asserted condition holds, but can weaken
+   * TypeScript static reasoning due to
    * https://github.com/microsoft/TypeScript/issues/51426 . Where this is a
    * problem, instead express the assertion as
    * ```js
@@ -453,15 +460,18 @@ export interface AssertionUtilities {
 
   /**
    * Wrap a value such that its use as a substitution value in a template
-   * literal tagged with `details` or `Fail` will result in it appearing quoted
-   * (in a way similar to but more general than `JSON.stringify`) rather than
-   * redacted in the message of errors based on the resulting DetailsToken.
-   * This does not affect representation in an associated console, which still
-   * logs the value as it would without `quote`.
+   * literal tagged with {@link details} or {@link Fail} will result in it
+   * appearing quoted (in a way similar to but more general than
+   * `JSON.stringify`) rather than redacted in the `message` of errors based on
+   * the resulting {@link DetailsToken}.
    *
-   * For example, the following will reveal the expected value, but not the
-   * actual incorrect value, in the thrown error's message (using the normal
-   * convention to locally rename properties like
+   * This does not affect representation in output of an associated console,
+   * which still logs the value as it would without `quote`, but *does* reveal
+   * it to functions in the propagation path of such errors.
+   *
+   * For example, the following will reveal the expected value in the thrown
+   * error's `message`, but only the _type_ of the actual incorrect value (using
+   * the normal convention to locally rename properties like
    * `const { quote: q, Fail } = assert;`):
    * ```js
    * actual === expected || Fail`${actual} should be ${q(expected)}`;
@@ -471,10 +481,12 @@ export interface AssertionUtilities {
 
   /**
    * Wrap a string such that its use as a substitution value in a template
-   * literal tagged with `details` or `Fail` will be treated literally rather
-   * than being quoted or redacted.
+   * literal tagged with {@link details} or {@link Fail} will be treated
+   * literally rather than being quoted or redacted.
+   *
    * To avoid injection attacks that exploit quoting confusion, this must NEVER
    * be used with data that is possibly attacker-controlled.
+   *
    * As a further safeguard, we fall back to quoting any input that is not a
    * string of sufficiently word-like parts separated by isolated spaces (rather
    * than throwing an exception, which could hide the original problem for which
@@ -496,13 +508,13 @@ export interface DeprecatedAssertionUtilities {
  * Assert that `condition` is truthy, with optional details associated with
  * assertion failure (falsy condition).
  *
- * The literal portions of the template used to make a DetailsToken are assumed
- * non-sensitive, as are the `typeof` types of the substitution values. These
- * are assembled into the error message. The actual contents of the substitution
- * values are assumed sensitive and usually redacted, to be revealed only to an
- * associated console. We assume only the virtual platform's owner can read what
- * is written to the console, where the owner is in a privileged position over
- * computation running on that platform.
+ * The literal portions of the template used to make a {@link DetailsToken} are
+ * assumed non-sensitive, as are the `typeof` output for substitution values.
+ * These are assembled into the error `message`. The actual contents of the
+ * substitution values are assumed sensitive and usually redacted, to be
+ * revealed only to an associated console. We assume only the virtual platform's
+ * owner can read what is written to the console, where the owner is in a
+ * privileged position over computation running on that platform.
  */
 export type Assert = AssertionFunctions &
   AssertionUtilities &
