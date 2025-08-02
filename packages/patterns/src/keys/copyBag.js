@@ -1,5 +1,5 @@
+import { Fail } from '@endo/errors';
 import {
-  assertChecker,
   makeTagged,
   passStyleOf,
   compareAntiRank,
@@ -10,12 +10,11 @@ import {
 
 /// <reference types="ses"/>
 
-import { X } from '@endo/errors';
-
 /**
- * @import {Passable} from '@endo/pass-style'
- * @import {Checker, FullCompare} from '@endo/marshal'
- * @import {CopyBag, Key} from '../types.js'
+ * @import {Rejector} from '@endo/errors/rejector.js';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {FullCompare} from '@endo/marshal';
+ * @import {CopyBag, Key} from '../types.js';
  */
 
 /**
@@ -29,10 +28,10 @@ import { X } from '@endo/errors';
  * TODO: If doing this reduntantly turns out to be expensive, we
  * could memoize this no-duplicate-keys finding as well, independent
  * of the `fullOrder` use to reach this finding.
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-const checkNoDuplicateKeys = (bagEntries, fullCompare, check) => {
+const confirmNoDuplicateKeys = (bagEntries, fullCompare, reject) => {
   // This fullOrder contains history dependent state. It is specific
   // to this one call and does not survive it.
   // TODO Once all our tooling is ready for `&&=`, the following
@@ -48,7 +47,7 @@ const checkNoDuplicateKeys = (bagEntries, fullCompare, check) => {
     const k0 = bagEntries[i - 1][0];
     const k1 = bagEntries[i][0];
     if (fullCompare(k0, k1) === 0) {
-      return check(false, X`value has duplicate keys: ${k0}`);
+      return reject && reject`value has duplicate keys: ${k0}`;
     }
   }
   return true;
@@ -61,25 +60,25 @@ const checkNoDuplicateKeys = (bagEntries, fullCompare, check) => {
  * @returns {void}
  */
 export const assertNoDuplicateKeys = (bagEntries, fullCompare = undefined) => {
-  checkNoDuplicateKeys(bagEntries, fullCompare, assertChecker);
+  confirmNoDuplicateKeys(bagEntries, fullCompare, Fail);
 };
 
 /**
  * @param {[Passable,bigint][]} bagEntries
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkBagEntries = (bagEntries, check) => {
+export const confirmBagEntries = (bagEntries, reject) => {
   if (passStyleOf(bagEntries) !== 'copyArray') {
-    return check(
-      false,
-      X`The entries of a copyBag must be a copyArray: ${bagEntries}`,
+    return (
+      reject &&
+      reject`The entries of a copyBag must be a copyArray: ${bagEntries}`
     );
   }
   if (!isRankSorted(bagEntries, compareAntiRank)) {
-    return check(
-      false,
-      X`The entries of a copyBag must be sorted in reverse rank order: ${bagEntries}`,
+    return (
+      reject &&
+      reject`The entries of a copyBag must be sorted in reverse rank order: ${bagEntries}`
     );
   }
   for (const entry of bagEntries) {
@@ -88,22 +87,22 @@ export const checkBagEntries = (bagEntries, check) => {
       entry.length !== 2 ||
       typeof entry[1] !== 'bigint'
     ) {
-      return check(
-        false,
-        X`Each entry of a copyBag must be pair of a key and a bigint representing a count: ${entry}`,
+      return (
+        reject &&
+        reject`Each entry of a copyBag must be pair of a key and a bigint representing a count: ${entry}`
       );
     }
     if (entry[1] < 1) {
-      return check(
-        false,
-        X`Each entry of a copyBag must have a positive count: ${entry}`,
+      return (
+        reject &&
+        reject`Each entry of a copyBag must have a positive count: ${entry}`
       );
     }
   }
   // @ts-expect-error XXX Key types
-  return checkNoDuplicateKeys(bagEntries, undefined, check);
+  return confirmNoDuplicateKeys(bagEntries, undefined, reject);
 };
-harden(checkBagEntries);
+harden(confirmBagEntries);
 
 // eslint-disable-next-line jsdoc/require-returns-check -- doesn't understand asserts
 /**
@@ -111,7 +110,7 @@ harden(checkBagEntries);
  * @returns {asserts bagEntries is [Passable,bigint][]}
  */
 export const assertBagEntries = bagEntries => {
-  checkBagEntries(bagEntries, assertChecker);
+  confirmBagEntries(bagEntries, Fail);
 };
 harden(assertBagEntries);
 
