@@ -1,6 +1,14 @@
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
-import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
+import {
+  q,
+  b,
+  X,
+  Fail,
+  makeError,
+  annotateError,
+  hideAndHardenFunction,
+} from '@endo/errors';
 import { identChecker } from '@endo/common/ident-checker.js';
 import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
 import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
@@ -428,6 +436,7 @@ const makePatternKit = () => {
   const checkMatches = (specimen, pattern, check, label = undefined) =>
     // eslint-disable-next-line no-use-before-define
     applyLabelingError(checkMatchesInternal, [specimen, pattern, check], label);
+  hideAndHardenFunction(checkMatches);
 
   /**
    * @param {any} specimen
