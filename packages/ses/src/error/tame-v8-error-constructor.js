@@ -222,6 +222,10 @@ export const tameV8ErrorConstructor = (
   const callSiteFilter = callSite => {
     if (omitFrames) {
       // eslint-disable-next-line @endo/no-polymorphic-call
+      if (callSite.getFunctionName()?.startsWith('__HIDE_')) {
+        return false;
+      }
+      // eslint-disable-next-line @endo/no-polymorphic-call
       return filterFileName(callSite.getFileName());
     }
     return true;
