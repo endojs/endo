@@ -1,5 +1,5 @@
+import { Fail } from '@endo/errors';
 import {
-  assertChecker,
   makeTagged,
   passStyleOf,
   compareAntiRank,
@@ -10,12 +10,11 @@ import {
 
 /// <reference types="ses"/>
 
-import { X } from '@endo/errors';
-
 /**
- * @import {Passable} from '@endo/pass-style'
- * @import {Checker, FullCompare} from '@endo/marshal'
- * @import {CopySet, Key} from '../types.js'
+ * @import {Rejector} from '@endo/errors/rejector.js';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {FullCompare} from '@endo/marshal';
+ * @import {CopySet, Key} from '../types.js';
  */
 
 /**
@@ -29,10 +28,10 @@ import { X } from '@endo/errors';
  * TODO: If doing this reduntantly turns out to be expensive, we
  * could memoize this no-duplicate finding as well, independent
  * of the `fullOrder` use to reach this finding.
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-const checkNoDuplicates = (elements, fullCompare, check) => {
+const confirmNoDuplicates = (elements, fullCompare, reject) => {
   // This fullOrder contains history dependent state. It is specific
   // to this one call and does not survive it.
   // TODO Once all our tooling is ready for `&&=`, the following
@@ -45,7 +44,7 @@ const checkNoDuplicates = (elements, fullCompare, check) => {
     const k0 = elements[i - 1];
     const k1 = elements[i];
     if (fullCompare(k0, k1) === 0) {
-      return check(false, X`value has duplicate keys: ${k0}`);
+      return reject && reject`value has duplicate keys: ${k0}`;
     }
   }
   return true;
@@ -58,33 +57,33 @@ const checkNoDuplicates = (elements, fullCompare, check) => {
  * @returns {void}
  */
 export const assertNoDuplicates = (elements, fullCompare = undefined) => {
-  checkNoDuplicates(elements, fullCompare, assertChecker);
+  confirmNoDuplicates(elements, fullCompare, Fail);
 };
 
 /**
  * @param {Passable[]} elements
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkElements = (elements, check) => {
+export const confirmElements = (elements, reject) => {
   if (passStyleOf(elements) !== 'copyArray') {
-    return check(
-      false,
-      X`The keys of a copySet or copyMap must be a copyArray: ${elements}`,
+    return (
+      reject &&
+      reject`The keys of a copySet or copyMap must be a copyArray: ${elements}`
     );
   }
   if (!isRankSorted(elements, compareAntiRank)) {
-    return check(
-      false,
-      X`The keys of a copySet or copyMap must be sorted in reverse rank order: ${elements}`,
+    return (
+      reject &&
+      reject`The keys of a copySet or copyMap must be sorted in reverse rank order: ${elements}`
     );
   }
-  return checkNoDuplicates(elements, undefined, check);
+  return confirmNoDuplicates(elements, undefined, reject);
 };
-harden(checkElements);
+harden(confirmElements);
 
 export const assertElements = elements => {
-  checkElements(elements, assertChecker);
+  confirmElements(elements, Fail);
 };
 harden(assertElements);
 
