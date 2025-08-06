@@ -7,6 +7,7 @@ import tseslint from 'typescript-eslint';
 import jsdoc from 'eslint-plugin-jsdoc';
 import importPlugin from 'eslint-plugin-import';
 import jessie from '@jessie.js/eslint-plugin';
+import endoPlugin from '@endo/eslint-plugin';
 
 export default [
   // Apply base recommended rules
@@ -24,6 +25,7 @@ export default [
       jsdoc,
       import: importPlugin,
       '@jessie.js': jessie,
+      '@endo': endoPlugin,
     },
     
     languageOptions: {
@@ -146,6 +148,9 @@ export default [
       
       // Jessie.js rules (set as warn to avoid breaking build)  
       '@jessie.js/safe-await-separator': 'warn',
+      
+      // Endo-specific rules (only the ones used in recommended/strict configs)
+      '@endo/assert-fail-as-throw': 'error',
     },
     
     settings: {
@@ -160,6 +165,51 @@ export default [
     files: ['**/*.ts'],
     rules: {
       'import/no-unresolved': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        args: 'none',
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+      // Relax some strict TypeScript rules to match original config behavior
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unnecessary-type-constraint': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/no-wrapper-object-types': 'off',
+    },
+  },
+  
+  // JavaScript specific overrides (also apply TS rules to JS)
+  {
+    files: ['**/*.js'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', {
+        args: 'none',
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+      '@typescript-eslint/no-unused-expressions': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-redeclare': ['error', { builtinGlobals: false }],
+    },
+  },
+  
+  // ESLint config file itself
+  {
+    files: ['eslint.config.js'],
+    rules: {
+      'import/no-extraneous-dependencies': 'off',
+      'import/no-unresolved': 'off',
+    },
+  },
+  
+  // TypeScript declaration test files (*.test-d.ts) are more permissive
+  {
+    files: ['**/*.test-d.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
       'no-unused-vars': 'off',
     },
   },
@@ -196,6 +246,57 @@ export default [
       '!packages/stream/types.d.ts',
       '!packages/trampoline/types.d.ts',
       '!packages/where/types.d.ts',
+      // Ignore test262 directory which has non-standard test files
+      '**/test262/**',
+      // Ignore output directories
+      '**/output/**',
+      'bundles/**',
+      'tmp/**',
     ],
+  },
+  
+  // CommonJS files (.cjs) need Node.js environment
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        global: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  
+  // Node.js script files need Node.js environment
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}', 'browser-test/**/*.js'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        global: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'import/no-extraneous-dependencies': 'off',
+      'no-undef': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
   },
 ];
