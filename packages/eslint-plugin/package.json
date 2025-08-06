@@ -52,6 +52,17 @@
     "tools"
   ],
   "eslintConfig": {
-    "root": false
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "parserOptions": {
+      "sourceType": "script"
+    },
+    "rules": {
+      "import/extensions": "off"
+    },
+    "env": {
+      "node": true
+    }
   }
 }
