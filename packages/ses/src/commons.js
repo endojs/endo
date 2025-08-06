@@ -77,7 +77,6 @@ export const {
   setPrototypeOf,
   values,
   fromEntries,
-  hasOwn,
 } = Object;
 
 export const {
@@ -166,6 +165,17 @@ const { bind } = functionPrototype;
  * @type {<F extends (this: any, ...args: any[]) => any>(fn: F) => ((thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>)}
  */
 export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
+
+if (!('hasOwn' in Object)) {
+  defineProperty(Object, 'hasOwn', {
+    value: uncurryThis(objectPrototype.hasOwnProperty),
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+}
+
+export const { hasOwn } = Object;
 
 /**
  * @deprecated Use `hasOwn` instead
