@@ -1,39 +1,32 @@
 /// <reference types="ses"/>
 
-import { X, q, Fail } from '@endo/errors';
-import { identChecker } from '@endo/common/ident-checker.js';
-import {
-  assertChecker,
-  Far,
-  getTag,
-  makeTagged,
-  passStyleOf,
-  isAtom,
-} from '@endo/pass-style';
+import { Fail, q } from '@endo/errors';
+import { Far, getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
 import {
   compareAntiRank,
   makeFullOrderComparatorKit,
   sortByRank,
 } from '@endo/marshal';
 
-import { checkElements, makeSetOfElements } from './copySet.js';
-import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
+import { confirmElements, makeSetOfElements } from './copySet.js';
+import { confirmBagEntries, makeBagOfEntries } from './copyBag.js';
 
 const { ownKeys } = Reflect;
 
 /**
- * @import {Passable, Atom, Checker} from '@endo/pass-style'
- * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js'
+ * @import {Rejector} from '@endo/errors/rejector.js';
+ * @import {Passable, Atom} from '@endo/pass-style';
+ * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js';
  */
 
 // ////////////////// Atom and Scalar keys ////////////////////////////////
 
 /**
  * @param {any} val
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkScalarKey = (val, check) => {
+export const confirmScalarKey = (val, reject) => {
   if (isAtom(val)) {
     return true;
   }
@@ -41,14 +34,14 @@ export const checkScalarKey = (val, check) => {
   if (passStyle === 'remotable') {
     return true;
   }
-  return check(false, X`A ${q(passStyle)} cannot be a scalar key: ${val}`);
+  return reject && reject`A ${q(passStyle)} cannot be a scalar key: ${val}`;
 };
 
 /**
  * @param {any} val
  * @returns {val is ScalarKey}
  */
-export const isScalarKey = val => checkScalarKey(val, identChecker);
+export const isScalarKey = val => confirmScalarKey(val, false);
 harden(isScalarKey);
 
 /**
@@ -56,7 +49,7 @@ harden(isScalarKey);
  * @returns {asserts val is ScalarKey}
  */
 export const assertScalarKey = val => {
-  checkScalarKey(val, assertChecker);
+  confirmScalarKey(val, Fail);
 };
 harden(assertScalarKey);
 
@@ -69,10 +62,10 @@ const keyMemo = new WeakSet();
 
 /**
  * @param {unknown} val
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkKey = (val, check) => {
+export const confirmKey = (val, reject) => {
   if (isAtom(val)) {
     return true;
   }
@@ -81,18 +74,18 @@ export const checkKey = (val, check) => {
     return true;
   }
   // eslint-disable-next-line no-use-before-define
-  const result = checkKeyInternal(val, check);
+  const result = confirmKeyInternal(val, reject);
   if (result) {
     // Don't cache the undefined cases, so that if it is tried again
-    // with `assertChecker` it'll throw a diagnostic again
+    // with `Fail` it'll throw a diagnostic again
     // @ts-expect-error narrowed
     keyMemo.add(val);
   }
-  // Note that we do not memoize a negative judgement, so that if it is tried
-  // again with a checker, it will still produce a useful diagnostic.
+  // Note that we must not memoize a negative judgement, so that if it is tried
+  // again with `Fail`, it will still produce a useful diagnostic.
   return result;
 };
-harden(checkKey);
+harden(confirmKey);
 
 /**
  * @type {{
@@ -100,7 +93,7 @@ harden(checkKey);
  *   (val: any): boolean;
  * }}
  */
-export const isKey = val => checkKey(val, identChecker);
+export const isKey = val => confirmKey(val, false);
 harden(isKey);
 
 /**
@@ -108,7 +101,7 @@ harden(isKey);
  * @returns {asserts val is Key}
  */
 export const assertKey = val => {
-  checkKey(val, assertChecker);
+  confirmKey(val, Fail);
 };
 harden(assertKey);
 
@@ -122,30 +115,30 @@ const copySetMemo = new WeakSet();
 
 /**
  * @param {any} s
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkCopySet = (s, check) => {
+export const confirmCopySet = (s, reject) => {
   if (copySetMemo.has(s)) {
     return true;
   }
   const result =
     ((passStyleOf(s) === 'tagged' && getTag(s) === 'copySet') ||
-      check(false, X`Not a copySet: ${s}`)) &&
-    checkElements(s.payload, check) &&
-    checkKey(s.payload, check);
+      (reject && reject`Not a copySet: ${s}`)) &&
+    confirmElements(s.payload, reject) &&
+    confirmKey(s.payload, reject);
   if (result) {
     copySetMemo.add(s);
   }
   return result;
 };
-harden(checkCopySet);
+harden(confirmCopySet);
 
 /**
  * @param {any} s
  * @returns {s is CopySet}
  */
-export const isCopySet = s => checkCopySet(s, identChecker);
+export const isCopySet = s => confirmCopySet(s, false);
 harden(isCopySet);
 
 /**
@@ -156,7 +149,7 @@ harden(isCopySet);
 
 /** @type {AssertCopySet} */
 export const assertCopySet = s => {
-  checkCopySet(s, assertChecker);
+  confirmCopySet(s, Fail);
 };
 harden(assertCopySet);
 
@@ -203,30 +196,30 @@ const copyBagMemo = new WeakSet();
 
 /**
  * @param {any} b
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkCopyBag = (b, check) => {
+export const confirmCopyBag = (b, reject) => {
   if (copyBagMemo.has(b)) {
     return true;
   }
   const result =
     ((passStyleOf(b) === 'tagged' && getTag(b) === 'copyBag') ||
-      check(false, X`Not a copyBag: ${b}`)) &&
-    checkBagEntries(b.payload, check) &&
-    checkKey(b.payload, check);
+      (reject && reject`Not a copyBag: ${b}`)) &&
+    confirmBagEntries(b.payload, reject) &&
+    confirmKey(b.payload, reject);
   if (result) {
     copyBagMemo.add(b);
   }
   return result;
 };
-harden(checkCopyBag);
+harden(confirmCopyBag);
 
 /**
  * @param {any} b
  * @returns {b is CopyBag}
  */
-export const isCopyBag = b => checkCopyBag(b, identChecker);
+export const isCopyBag = b => confirmCopyBag(b, false);
 harden(isCopyBag);
 
 /**
@@ -237,7 +230,7 @@ harden(isCopyBag);
 
 /** @type {AssertCopyBag} */
 export const assertCopyBag = b => {
-  checkCopyBag(b, assertChecker);
+  confirmCopyBag(b, Fail);
 };
 harden(assertCopyBag);
 
@@ -309,48 +302,44 @@ const copyMapMemo = new WeakSet();
 
 /**
  * @param {any} m
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-export const checkCopyMap = (m, check) => {
+export const confirmCopyMap = (m, reject) => {
   if (copyMapMemo.has(m)) {
     return true;
   }
   if (!(passStyleOf(m) === 'tagged' && getTag(m) === 'copyMap')) {
-    return check(false, X`Not a copyMap: ${m}`);
+    return reject && reject`Not a copyMap: ${m}`;
   }
   const { payload } = m;
   if (passStyleOf(payload) !== 'copyRecord') {
-    return check(false, X`A copyMap's payload must be a record: ${m}`);
+    return reject && reject`A copyMap's payload must be a record: ${m}`;
   }
   const { keys, values, ...rest } = payload;
   const result =
     (ownKeys(rest).length === 0 ||
-      check(
-        false,
-        X`A copyMap's payload must only have .keys and .values: ${m}`,
-      )) &&
-    checkElements(keys, check) &&
-    checkKey(keys, check) &&
+      (reject &&
+        reject`A copyMap's payload must only have .keys and .values: ${m}`)) &&
+    confirmElements(keys, reject) &&
+    confirmKey(keys, reject) &&
     (passStyleOf(values) === 'copyArray' ||
-      check(false, X`A copyMap's .values must be a copyArray: ${m}`)) &&
+      (reject && reject`A copyMap's .values must be a copyArray: ${m}`)) &&
     (keys.length === values.length ||
-      check(
-        false,
-        X`A copyMap must have the same number of keys and values: ${m}`,
-      ));
+      (reject &&
+        reject`A copyMap must have the same number of keys and values: ${m}`));
   if (result) {
     copyMapMemo.add(m);
   }
   return result;
 };
-harden(checkCopyMap);
+harden(confirmCopyMap);
 
 /**
  * @param {any} m
  * @returns {m is CopyMap<Key, Passable>}
  */
-export const isCopyMap = m => checkCopyMap(m, identChecker);
+export const isCopyMap = m => confirmCopyMap(m, false);
 harden(isCopyMap);
 
 /**
@@ -358,7 +347,7 @@ harden(isCopyMap);
  * @returns {asserts m is CopyMap<Key, Passable>}
  */
 export const assertCopyMap = m => {
-  checkCopyMap(m, assertChecker);
+  confirmCopyMap(m, Fail);
 };
 harden(assertCopyMap);
 
@@ -497,14 +486,14 @@ harden(makeCopyMap);
 // //////////////////////// Keys Recur /////////////////////////////////////////
 
 /**
- * `checkKeyInternal` is only called if `val` is Passable but is not an Atom.
+ * `confirmKeyInternal` is only called if `val` is Passable but is not an Atom.
  *
  * @param {any} val
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
-const checkKeyInternal = (val, check) => {
-  const checkIt = child => checkKey(child, check);
+const confirmKeyInternal = (val, reject) => {
+  const checkIt = child => confirmKey(child, reject);
 
   const passStyle = passStyleOf(val);
   switch (passStyle) {
@@ -524,31 +513,30 @@ const checkKeyInternal = (val, check) => {
       const tag = getTag(val);
       switch (tag) {
         case 'copySet': {
-          return checkCopySet(val, check);
+          return confirmCopySet(val, reject);
         }
         case 'copyBag': {
-          return checkCopyBag(val, check);
+          return confirmCopyBag(val, reject);
         }
         case 'copyMap': {
           return (
-            checkCopyMap(val, check) &&
+            confirmCopyMap(val, reject) &&
             // For a copyMap to be a key, all its keys and values must
-            // be keys. Keys already checked by `checkCopyMap` since
+            // be keys. Keys already checked by `confirmCopyMap` since
             // that's a copyMap requirement in general.
             everyCopyMapValue(val, checkIt)
           );
         }
         default: {
           return (
-            check !== identChecker &&
-            check(false, X`A passable tagged ${q(tag)} is not a key: ${val}`)
+            reject && reject`A passable tagged ${q(tag)} is not a key: ${val}`
           );
         }
       }
     }
     case 'error':
     case 'promise': {
-      return check(false, X`A ${q(passStyle)} cannot be a key`);
+      return reject && reject`A ${q(passStyle)} cannot be a key`;
     }
     default: {
       // Unexpected tags are just non-keys, but an unexpected passStyle

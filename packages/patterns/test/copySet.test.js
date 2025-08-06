@@ -198,7 +198,10 @@ test('matching', t => {
         copySet,
         makeTagged('copySet', [...getCopySetKeys(copySet)].reverse()),
       ),
-    { message: /pattern expected/ },
+    {
+      message:
+        'The keys of a copySet or copyMap must be sorted in reverse rank order: ["a","b","c","z"]',
+    },
     'key-reversed pattern is rejected',
   );
   t.is(

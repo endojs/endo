@@ -2,10 +2,12 @@
 
 export {};
 
-// NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
+// NB: as of TS 5.5 nightly, TS thinks RankCover and Rejector
+// "is declared but never read" but they are
 /**
- * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Atom, RemotableObject} from '@endo/pass-style';
- * @import {PartialCompare, PartialComparison, RankCompare, RankCover} from '@endo/marshal';
+ * @import {Rejector} from '@endo/errors/rejector.js';
+ * @import {CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Atom, RemotableObject} from '@endo/pass-style';
+ * @import {PartialCompare, PartialComparison, RankCover} from '@endo/marshal';
  */
 
 // Re-exported types.
@@ -191,9 +193,9 @@ export {};
  */
 
 /**
- * @callback CheckPattern
+ * @callback ConfirmPattern
  * @param {Passable} allegedPattern
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 
