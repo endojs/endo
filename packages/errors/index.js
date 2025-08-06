@@ -11,6 +11,8 @@
 // The assertions re-exported here are defined in
 // https://github.com/endojs/endo/blob/HEAD/packages/ses/src/error/assert.js
 
+const { defineProperty } = Object;
+
 const globalAssert = globalThis.assert;
 
 if (globalAssert === undefined) {
@@ -86,4 +88,31 @@ export {
   redacted as X,
   throwRedacted as Fail,
   note as annotateError,
+};
+
+/**
+ * `stackFiltering: 'omit-frames'` and `stackFiltering: 'concise'` omit frames
+ * not only of "obvious" infrastructure functions, but also of functions
+ * whose `name` property begins with `'__HIDE_'`. (Note: currently
+ * these options only work on v8.)
+ *
+ * Given that `func` is not yet frozen, then `hideAndHardenFunction(func)`
+ * will prifix `func.name` with an additional `'__HIDE_'`, so that under
+ * those stack filtering options, frames for calls to such functions are
+ * not reported.
+ *
+ * Then the function is hardened and returned. Thus, you can say
+ * `hideAndHardenFunction(func)` where you would normally first say
+ * `harden(func)`.
+ *
+ * @param {Function} func
+ */
+export const hideAndHardenFunction = func => {
+  typeof func === 'function' || throwRedacted`${func} must be a function`;
+  const { name } = func;
+  defineProperty(func, 'name', {
+    // Use `String` in case `name` is a symbol.
+    value: `__HIDE_${String(name)}`,
+  });
+  return harden(func);
 };

@@ -4,7 +4,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '../src/make-far.js';
 
-// Example from test-deep-send.js in @endo/eventual-send
+// Example from test-deep-send.js in @endo/errors
 
 const carol = Far('Carol', {
   bar: () => console.log('Wut?'),

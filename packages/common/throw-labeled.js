@@ -1,4 +1,9 @@
-import { X, makeError, annotateError } from '@endo/errors';
+import {
+  X,
+  makeError,
+  annotateError,
+  hideAndHardenFunction,
+} from '@endo/errors';
 
 /**
  * Given an error `innerErr` and a `label`, throws a similar
@@ -28,4 +33,4 @@ export const throwLabeled = (
   annotateError(outerErr, X`Caused by ${innerErr}`);
   throw outerErr;
 };
-harden(throwLabeled);
+hideAndHardenFunction(throwLabeled);
