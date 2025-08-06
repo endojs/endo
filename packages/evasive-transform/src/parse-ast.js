@@ -24,11 +24,13 @@ const { parse: parseBabel } = babelParser;
  * @internal
  */
 
+// XXX returns `any` to work around: The inferred type of 'parseAst' cannot be named without a reference to '@babel/parser/node_modules/@babel/types'. This is likely not portable. A type annotation is necessary.
 /**
  * Adapter for parsing an AST.
  *
  * @param {string} source - Source code
  * @param {ParseAstOptions} [opts] - Options for underlying parser
+ * @returns {any}
  * @internal
  */
 export function parseAst(source, opts = {}) {
