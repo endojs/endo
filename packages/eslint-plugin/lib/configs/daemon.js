@@ -1,2 +1,4 @@
 // @deprecated use @endo/internal
-module.exports = [];
+module.exports = {
+  extends: ['plugin:@endo/internal'],
+};
