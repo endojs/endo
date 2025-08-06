@@ -33,7 +33,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/generator@npm:^7.26.3, @babel/generator@npm:^7.28.0":
+"@babel/generator@npm:^7.28.0":
   version: 7.28.0
   resolution: "@babel/generator@npm:7.28.0"
   dependencies:
@@ -145,7 +145,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/types@npm:^7.0.0, @babel/types@npm:^7.20.7, @babel/types@npm:^7.7.0, @babel/types@npm:^7.8.3":
+"@babel/types@npm:^7.0.0, @babel/types@npm:^7.7.0, @babel/types@npm:^7.8.3":
   version: 7.26.9
   resolution: "@babel/types@npm:7.26.9"
   dependencies:
@@ -155,13 +155,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/types@npm:^7.27.1, @babel/types@npm:^7.28.0, @babel/types@npm:~7.28.1":
+"@babel/types@npm:^7.27.1, @babel/types@npm:^7.28.0":
   version: 7.28.1
   resolution: "@babel/types@npm:7.28.1"
   dependencies:
     "@babel/helper-string-parser": "npm:^7.27.1"
     "@babel/helper-validator-identifier": "npm:^7.27.1"
   checksum: 10c0/5e99b346c11ee42ffb0cadc28159fe0b184d865a2cc1593df79b199772a534f6453969b4942aa5e4a55a3081863096e1cc3fc1c724d826926dc787cf229b845d
+  languageName: node
+  linkType: hard
+
+"@babel/types@npm:^7.28.2, @babel/types@npm:~7.28.2":
+  version: 7.28.2
+  resolution: "@babel/types@npm:7.28.2"
+  dependencies:
+    "@babel/helper-string-parser": "npm:^7.27.1"
+    "@babel/helper-validator-identifier": "npm:^7.27.1"
+  checksum: 10c0/24b11c9368e7e2c291fe3c1bcd1ed66f6593a3975f479cbb9dd7b8c8d8eab8a962b0d2fca616c043396ce82500ac7d23d594fbbbd013828182c01596370a0b10
   languageName: node
   linkType: hard
 
@@ -498,13 +508,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/evasive-transform@workspace:packages/evasive-transform"
   dependencies:
-    "@babel/generator": "npm:^7.26.3"
+    "@babel/generator": "npm:^7.28.0"
     "@babel/parser": "npm:~7.28.0"
     "@babel/traverse": "npm:~7.28.0"
-    "@babel/types": "npm:~7.28.1"
+    "@babel/types": "npm:~7.28.2"
     "@endo/ses-ava": "workspace:^"
-    "@types/babel__generator": "npm:^7.6.8"
-    "@types/babel__traverse": "npm:^7.20.6"
+    "@types/babel__generator": "npm:^7.27.0"
+    "@types/babel__traverse": "npm:^7.28.0"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -696,10 +706,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/module-source@workspace:packages/module-source"
   dependencies:
-    "@babel/generator": "npm:^7.26.3"
+    "@babel/generator": "npm:^7.28.0"
     "@babel/parser": "npm:~7.28.0"
     "@babel/traverse": "npm:~7.28.0"
-    "@babel/types": "npm:~7.28.1"
+    "@babel/types": "npm:~7.28.2"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     benchmark: "npm:^2.1.4"
@@ -2350,7 +2360,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/babel__generator@npm:^7.6.8":
+"@types/babel__generator@npm:^7.27.0":
   version: 7.27.0
   resolution: "@types/babel__generator@npm:7.27.0"
   dependencies:
@@ -2359,12 +2369,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/babel__traverse@npm:^7.20.5, @types/babel__traverse@npm:^7.20.6":
-  version: 7.20.7
-  resolution: "@types/babel__traverse@npm:7.20.7"
+"@types/babel__traverse@npm:^7.28.0":
+  version: 7.28.0
+  resolution: "@types/babel__traverse@npm:7.28.0"
   dependencies:
-    "@babel/types": "npm:^7.20.7"
-  checksum: 10c0/5386f0af44f8746b063b87418f06129a814e16bb2686965a575e9d7376b360b088b89177778d8c426012abc43dd1a2d8ec3218bfc382280c898682746ce2ffbd
+    "@babel/types": "npm:^7.28.2"
+  checksum: 10c0/b52d7d4e8fc6a9018fe7361c4062c1c190f5778cf2466817cb9ed19d69fbbb54f9a85ffedeb748ed8062d2cf7d4cc088ee739848f47c57740de1c48cbf0d0994
   languageName: node
   linkType: hard
 
@@ -10763,17 +10773,17 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ses@workspace:packages/ses"
   dependencies:
-    "@babel/generator": "npm:^7.26.3"
+    "@babel/generator": "npm:^7.28.0"
     "@babel/parser": "npm:~7.28.0"
     "@babel/traverse": "npm:~7.28.0"
-    "@babel/types": "npm:~7.28.1"
+    "@babel/types": "npm:~7.28.2"
     "@endo/cache-map": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/env-options": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/module-source": "workspace:^"
     "@endo/test262-runner": "workspace:^"
-    "@types/babel__traverse": "npm:^7.20.5"
+    "@types/babel__traverse": "npm:^7.28.0"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
