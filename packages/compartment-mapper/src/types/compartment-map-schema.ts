@@ -84,6 +84,13 @@ export type ModuleDescriptor = {
   exit?: string;
   deferredError?: string;
   retained?: boolean;
+  /**
+   * If `true`, this `ModuleDescriptor` was explicitly added by policy.
+   *
+   * Currently, this is only for traceability purposes and has no effect upon
+   * behavior.
+   */
+  fromPolicy?: boolean;
 };
 
 /**

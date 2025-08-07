@@ -154,7 +154,7 @@ test('intra-package dynamic require with inter-package absolute path works witho
     resources: {
       sprunt: {
         packages: {
-          'node-tammy-build': true,
+          'sprunt>node-tammy-build': true,
         },
       },
     },
@@ -209,7 +209,7 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
     resources: {
       badsprunt: {
         packages: {
-          'node-tammy-build': true,
+          'badsprunt>node-tammy-build': true,
         },
       },
       'badsprunt>node-tammy-build': {
@@ -249,7 +249,7 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
         resources: {
           dynamic: {
             packages: {
-              'is-ok': true,
+              'dynamic>is-ok': true,
             },
           },
         },
@@ -281,7 +281,7 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
         resources: {
           dynamic: {
             packages: {
-              'is-ok': true,
+              'dynamic>is-ok': true,
             },
           },
         },
@@ -338,7 +338,7 @@ test('inter-package and exit module dynamic require works', async t => {
       resources: {
         hooked: {
           packages: {
-            dynamic: true,
+            'hooked>dynamic': true,
           },
         },
         'hooked>dynamic': {
@@ -412,7 +412,7 @@ test('inter-package and exit module dynamic require policy is enforced', async t
         resources: {
           hooked: {
             packages: {
-              dynamic: true,
+              'hooked>dynamic': true,
             },
           },
           'hooked>dynamic': {
@@ -479,7 +479,7 @@ test('inter-package and exit module dynamic require works ("node:"-namespaced)',
       resources: {
         hooked: {
           packages: {
-            dynamic: true,
+            'hooked>dynamic': true,
           },
         },
         'hooked>dynamic': {
@@ -689,8 +689,8 @@ test('dynamic require of ancestor', async t => {
           },
           packages: {
             'pantspack>pantspack-folder-runner': true,
-            'webpackish-app': true,
           },
+          allowEntry: true,
         },
         'pantspack>pantspack-folder-runner': {
           packages: {
@@ -716,6 +716,7 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
     import.meta.url,
   ).href;
 
+  /** @type {Policy} */
   const policy = {
     entry: {
       packages: WILDCARD_POLICY_VALUE,
@@ -731,8 +732,8 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
         },
         packages: {
           'pantspack>pantspack-folder-runner': true,
-          'webpackish-app': true,
         },
+        allowEntry: true,
       },
       'pantspack>pantspack-folder-runner': {
         packages: {
