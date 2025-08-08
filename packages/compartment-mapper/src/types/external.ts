@@ -135,10 +135,26 @@ export type CompartmentMapForNodeModulesOptions = Omit<
   'conditions' | 'tags'
 >;
 
+/**
+ * Options for `captureFromMap()`
+ */
 export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
   PolicyOption &
-  LogOptions;
+  LogOptions &
+  ForceLoadOption;
+
+/**
+ * Options bag containing a `forceLoad` array.
+ */
+export interface ForceLoadOption {
+  /**
+   * List of compartment names (the keys of
+   * {@link CompartmentMapDescriptor.compartments}) to force-load _after_ the
+   * entry compartment and any attenuators.
+   */
+  forceLoad?: Array<string>;
+}
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
