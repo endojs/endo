@@ -1,5 +1,7 @@
 import { X, makeError, annotateError } from '@endo/errors';
 
+const { defineProperty } = Object;
+
 /**
  * Given an error `innerErr` and a `label`, throws a similar
  * error whose message string is `${label}: ${innerErr.message}`.
@@ -28,4 +30,7 @@ export const throwLabeled = (
   annotateError(outerErr, X`Caused by ${innerErr}`);
   throw outerErr;
 };
+defineProperty(throwLabeled, 'name', {
+  value: '__HIDE_throwLabeled__',
+});
 harden(throwLabeled);

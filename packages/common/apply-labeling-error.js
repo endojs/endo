@@ -2,6 +2,8 @@ import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 import { throwLabeled } from './throw-labeled.js';
 
+const { defineProperty } = Object;
+
 /**
  * Calls `func(...args)`, but annotating any failure error with `label`.
  *
@@ -57,4 +59,7 @@ export const applyLabelingError = (func, args, label = undefined) => {
     return result;
   }
 };
+defineProperty(applyLabelingError, 'name', {
+  value: '__HIDE_applyLabelingError__',
+});
 harden(applyLabelingError);
