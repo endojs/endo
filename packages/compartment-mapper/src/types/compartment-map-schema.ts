@@ -8,6 +8,7 @@
 
 /* eslint-disable no-use-before-define */
 
+import type { PackageDescriptor } from './external.js';
 import type { SomePackagePolicy } from './policy-schema.js';
 import type { LiteralUnion } from './typescript.js';
 
@@ -62,9 +63,11 @@ export type CompartmentDescriptor = {
   /** language for module specifier */
   types: LanguageForModuleSpecifier;
   /** policy specific to compartment */
-  policy: SomePackagePolicy;
+  policy: SomePackagePolicy; // FIXME: optional in the output of mapNodeModules
   /** List of compartment names this Compartment depends upon */
   compartments: Set<string>;
+  /** `package.json` */
+  packageDescriptor?: PackageDescriptor;
 };
 
 /**
@@ -81,6 +84,13 @@ export type ModuleDescriptor = {
   exit?: string;
   deferredError?: string;
   retained?: boolean;
+  /**
+   * If `true`, this `ModuleDescriptor` was explicitly added by policy.
+   *
+   * Currently, this is only for traceability purposes and has no effect upon
+   * behavior.
+   */
+  fromPolicy?: boolean;
 };
 
 /**

@@ -16,13 +16,6 @@ import type {
   ModuleDescriptor,
 } from './compartment-map-schema.js';
 import type {
-  MaybeReadFn,
-  MaybeReadNowFn,
-  ReadFn,
-  ReadPowers,
-} from './powers.js';
-import type { DeferredAttenuatorsProvider } from './policy.js';
-import type {
   ArchiveOnlyOption,
   AsyncParseFn,
   CompartmentSources,
@@ -32,6 +25,7 @@ import type {
   ExitModuleImportNowHookOption,
   LogOptions,
   ModuleTransforms,
+  PackageDescriptor,
   ParseFn,
   ParserForLanguage,
   SearchSuffixesOption,
@@ -40,6 +34,13 @@ import type {
   Sources,
   SyncModuleTransforms,
 } from './external.js';
+import type { DeferredAttenuatorsProvider } from './policy.js';
+import type {
+  MaybeReadFn,
+  MaybeReadNowFn,
+  ReadFn,
+  ReadPowers,
+} from './powers.js';
 
 export type LinkOptions = {
   resolve?: ResolveHook;
@@ -275,37 +276,6 @@ export type ReadDescriptorFn<T = PackageDescriptor> = (
 export type MaybeReadDescriptorFn<T = PackageDescriptor> = (
   location: string,
 ) => Promise<T | undefined>;
-
-/**
- * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
- */
-export interface PackageDescriptor {
-  /**
-   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
-   */
-  name: string;
-  version?: string;
-  /**
-   * TODO: Update with proper type when this field is handled.
-   */
-  exports?: unknown;
-  type?: 'module' | 'commonjs';
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-  bundleDependencies?: string[];
-  peerDependenciesMeta?: Record<
-    string,
-    { optional?: boolean; [k: string]: unknown }
-  >;
-  module?: string;
-  browser?: Record<string, string> | string;
-
-  main?: string;
-
-  [k: string]: unknown;
-}
 
 /**
  * Function returning a set of module names (scoped to the compartment) whose

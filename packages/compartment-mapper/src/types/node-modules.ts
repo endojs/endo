@@ -1,10 +1,13 @@
+import type {
+  PackageDescriptor,
+  FileUrlString,
+  LogOptions,
+} from './external.js';
 import type { GenericGraph } from '../generic-graph.js';
 import type {
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
-import type { LogOptions, FileUrlString } from './external.js';
-import type { PackageDescriptor } from './internal.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -26,9 +29,7 @@ export type CommonDependencyDescriptorsOptions = {
 /**
  * Options for `graphPackage()`
  */
-export type GraphPackageOptions = {
-  logicalPath?: string[];
-} & LogOptions &
+export type GraphPackageOptions = LogOptions &
   CommonDependencyDescriptorsOptions;
 
 /**
@@ -40,7 +41,6 @@ export type GraphPackagesOptions = LogOptions;
  * Options for `gatherDependency()`
  */
 export type GatherDependencyOptions = {
-  childLogicalPath?: string[];
   /**
    * If `true` the dependency is optional
    */
@@ -57,8 +57,12 @@ export interface Node {
    * Package name
    */
   name: string;
+  /**
+   * Used to compute the canonical name for the compartment.
+   *
+   * Will be `undefined` until the shortest paths have been computed.
+   */
   path: Array<string>;
-  logicalPath: Array<string>;
   /**
    * `true` if the package's {@link PackageDescriptor} has an `exports` field
    */
@@ -80,18 +84,24 @@ export interface Node {
   dependencyLocations: Record<string, string>;
   parsers: LanguageForExtension;
   types: Record<string, Language>;
+  packageDescriptor: PackageDescriptor;
 }
+
+/**
+ * Type of keys in {@link Graph}.
+ *
+ *  Keys may either be a file URL string to a package or the special
+ * `<ATTENUATORS>` string.
+ */
+export type GraphKey = LiteralUnion<'<ATTENUATORS>', FileUrlString>;
 
 /**
  * The graph is an intermediate object model that the functions of this module
  * build by exploring the `node_modules` tree dropped by tools like npm and
  * consumed by tools like Node.js. This gets translated finally into a
  * compartment map.
- *
- * Keys may either be a file URL string to a package or the special
- * `<ATTENUATORS>` string.
  */
-export type Graph = Record<LiteralUnion<'<ATTENUATORS>', FileUrlString>, Node>;
+export type Graph = Record<GraphKey, Node>;
 
 export interface LanguageOptions {
   commonjsLanguageForExtension: LanguageForExtension;

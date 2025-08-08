@@ -347,6 +347,11 @@ const isBuiltins = or([
 ]);
 
 /**
+ * Type guard for {@link PackagePolicy.allowEntry}
+ */
+const isAllowEntry = or([isUndefined, isBoolean]);
+
+/**
  * Type guard for an empty object
  *
  * TODO: Shouldn't need type assertions here
@@ -405,6 +410,7 @@ export const assertPackagePolicy = (allegedPackagePolicy, keypath, url) => {
     builtins,
     globals,
     noGlobalFreeze,
+    allowEntry,
     defaultAttenuator: _ignore, // a carve out for the default attenuator in compartment map
     // eslint-disable-next-line no-unused-vars
     options, // any extra options
@@ -443,6 +449,13 @@ export const assertPackagePolicy = (allegedPackagePolicy, keypath, url) => {
     isBuiltins(builtins),
     `${keypath}.builtins must be a record of booleans or attenuations, got ${q({
       builtins,
+    })}${inUrl}`,
+  );
+
+  assert(
+    isAllowEntry(allowEntry),
+    `${keypath}.allowEntry must be a boolean, got ${q({
+      allowEntry,
     })}${inUrl}`,
   );
 };
