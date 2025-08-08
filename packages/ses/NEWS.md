@@ -1,5 +1,10 @@
 User-visible changes in `ses`
 
+# Next release
+
+- Adds `assert.makeError` and deprecates `assert.error` as an alias, matching
+  the API already exported from `@endo/errors`.
+
 # v1.13.0 (2025-06-02)
 
 - Two new `stackFiltering:` options are added
