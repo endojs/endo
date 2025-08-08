@@ -3,8 +3,9 @@
 export {};
 
 /**
- * @import {Passable, Checker} from '@endo/pass-style'
- * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types.js'
+ * @import {Rejector} from '@endo/errors/rejector.js';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types.js';
  */
 
 /**
@@ -14,15 +15,15 @@ export {};
  * enforced by the common calling logic.
  *
  * @property {(allegedPayload: Passable,
- *             check: Checker
- * ) => boolean} checkIsWellFormed
+ *             reject: Rejector
+ * ) => boolean} confirmIsWellFormed
  * Reports whether `allegedPayload` is valid as the payload of a CopyTagged
  * whose tag corresponds with this MatchHelper's Matchers.
  *
  * @property {(specimen: Passable,
  *             matcherPayload: Passable,
- *             check: Checker,
- * ) => boolean} checkMatches
+ *             reject: Rejector,
+ * ) => boolean} confirmMatches
  * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
  * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
  *
@@ -39,14 +40,14 @@ export {};
  * @typedef {object} PatternKit
  * @property {(specimen: any,
  *             patt: Passable,
- *             check: Checker,
+ *             reject: Rejector,
  *             label?: string|number
- * ) => boolean} checkMatches
+ * ) => boolean} confirmMatches
  * @property {(specimen: any, patt: Pattern) => boolean} matches
  * @property {(specimen: any, patt: Pattern, label?: string|number) => void} mustMatch
  * @property {(patt: Pattern) => void} assertPattern
  * @property {(patt: any) => boolean} isPattern
  * @property {GetRankCover} getRankCover
  * @property {MatcherNamespace} M
- * @property {(specimen: Passable, check?: Checker) => Kind | undefined} kindOf
+ * @property {(specimen: Passable, reject: Rejector) => Kind | undefined} kindOf
  */
