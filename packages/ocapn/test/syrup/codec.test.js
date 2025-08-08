@@ -14,8 +14,9 @@ import {
 
 /** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
 
-const textDecoder = new TextDecoder();
+const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const textEncoder = new TextEncoder();
+
 // zoo.bin from https://github.com/ocapn/syrup/tree/2214cbb7c0ee081699fdef64edbc2444af2bb1d2/test-data
 // eslint-disable-next-line no-underscore-dangle
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -39,10 +40,10 @@ test('simple string codec', t => {
 });
 
 test('basic record codec cases', t => {
-  const codec = makeRecordCodecFromDefinition('test', 'selector', [
-    ['field1', 'string'],
-    ['field2', 'integer'],
-  ]);
+  const codec = makeRecordCodecFromDefinition('TestCodec', 'test', 'selector', {
+    field1: 'string',
+    field2: 'integer',
+  });
   const value = {
     type: 'test',
     field1: 'hello',
@@ -52,15 +53,25 @@ test('basic record codec cases', t => {
 });
 
 test('record union codec', t => {
-  const codec = makeRecordUnionCodec({
-    testA: makeRecordCodecFromDefinition('testA', 'selector', [
-      ['field1', 'string'],
-      ['field2', 'integer'],
-    ]),
-    testB: makeRecordCodecFromDefinition('testB', 'selector', [
-      ['field1', 'string'],
-      ['field2', 'integer'],
-    ]),
+  const codec = makeRecordUnionCodec('TestUnionCodec', {
+    testA: makeRecordCodecFromDefinition(
+      'TestUnionACodec',
+      'testA',
+      'selector',
+      {
+        field1: 'string',
+        field2: 'integer',
+      },
+    ),
+    testB: makeRecordCodecFromDefinition(
+      'TestUnionBCodec',
+      'testB',
+      'selector',
+      {
+        field1: 'string',
+        field2: 'integer',
+      },
+    ),
   });
   const value = {
     type: 'testA',
@@ -118,12 +129,20 @@ test('zoo.bin', t => {
     },
   };
 
-  const inhabitantListCodec = makeListCodecFromEntryCodec(inhabitantCodec);
+  const inhabitantListCodec = makeListCodecFromEntryCodec(
+    'SyrupInhabitantListCodec',
+    inhabitantCodec,
+  );
 
-  const zooCodec = makeRecordCodecFromDefinition('zoo', 'bytestring', [
-    ['title', 'string'],
-    ['inhabitants', inhabitantListCodec],
-  ]);
+  const zooCodec = makeRecordCodecFromDefinition(
+    'ZooCodex',
+    'zoo',
+    'bytestring',
+    {
+      title: 'string',
+      inhabitants: inhabitantListCodec,
+    },
+  );
 
   const reader = makeSyrupReader(zooBin, { name: 'zoo' });
   const value = zooCodec.read(reader);
@@ -160,7 +179,11 @@ test('zoo.bin', t => {
   const writer = makeSyrupWriter();
   zooCodec.write(value, writer);
   const bytes = writer.getBytes();
-  const resultSyrup = textDecoder.decode(bytes);
-  const originalSyrup = textDecoder.decode(zooBin);
-  t.deepEqual(resultSyrup, originalSyrup);
+  // When debugging a mismatch, its easier to compare the string representations,
+  // but requires a less-strict TextDecoder
+  // const debugDecoder = new TextDecoder('utf-8', { fatal: false })
+  // const resultSyrup = debugDecoder.decode(bytes);
+  // const originalSyrup = debugDecoder.decode(zooBin);
+  // t.deepEqual(resultSyrup, originalSyrup);
+  t.deepEqual(bytes, zooBin);
 });
