@@ -184,7 +184,7 @@ if (!('hasOwn' in Object)) {
     enumerable: false,
     configurable: true,
   });
-};
+}
 
 export const { hasOwn } = Object;
 
