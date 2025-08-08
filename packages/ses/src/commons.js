@@ -77,7 +77,6 @@ export const {
   setPrototypeOf,
   values,
   fromEntries,
-  hasOwn,
 } = Object;
 
 export const {
@@ -166,6 +165,28 @@ const { bind } = functionPrototype;
  * @type {<F extends (this: any, ...args: any[]) => any>(fn: F) => ((thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>)}
  */
 export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
+
+// See https://github.com/endojs/endo/issues/2930
+if (!('hasOwn' in Object)) {
+  const ObjectPrototypeHasOwnProperty = objectPrototype.hasOwnProperty;
+  const hasOwnShim = (obj, key) => {
+    if (obj === undefined || obj === null) {
+      // We need to add this extra test because of differences in
+      // the order in which `hasOwn` vs `hasOwnProperty` validates
+      // arguments.
+      throw TypeError('Cannot convert undefined or null to object');
+    }
+    return apply(ObjectPrototypeHasOwnProperty, obj, [key]);
+  };
+  defineProperty(Object, 'hasOwn', {
+    value: hasOwnShim,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+}
+
+export const { hasOwn } = Object;
 
 /**
  * @deprecated Use `hasOwn` instead
