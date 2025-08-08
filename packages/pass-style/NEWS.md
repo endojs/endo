@@ -1,5 +1,9 @@
 User-visible changes in `@endo/pass-style`:
 
+# Next release
+
+- TODO explain `SuppressedError` support
+
 # 1.6.3 (2025-07-11)
 
 - The exported function name `isObject` is ambiguous. It is unclear whether it
