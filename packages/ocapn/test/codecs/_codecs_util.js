@@ -204,7 +204,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     sendDepositGift,
   );
   const descCodecs = makeDescCodecs(tableKit);
-  const passableCodecs = makePassableCodecs(descCodecs);
+  const passableCodecs = makePassableCodecs(descCodecs, []);
   const { OcapnMessageUnionCodec } = makeOcapnOperationsCodecs(
     descCodecs,
     passableCodecs,

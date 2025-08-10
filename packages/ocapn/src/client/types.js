@@ -84,6 +84,12 @@
  */
 
 /**
+ * @typedef {object} MarshalPlugin
+ * @property {(value: any) => any} encode
+ * @property {(value: any) => any} decode
+ */
+
+/**
  * @typedef {object} Client
  * @property {Logger} logger
  * @property {string} debugLabel

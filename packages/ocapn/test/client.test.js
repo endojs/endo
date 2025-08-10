@@ -2,6 +2,7 @@
 
 /** @typedef {import('../src/codecs/components.js').OcapnLocation} OcapnLocation */
 /** @typedef {import('../src/client/types.js').Client} Client */
+/** @typedef {import('../src/client/types.js').MarshalPlugin} MarshalPlugin */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/eventual-send';
@@ -11,16 +12,23 @@ import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../src/client/index.js';
 import { testWithErrorUnwrapping } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
+import { makeTagged, passStyleOf } from '../src/pass-style-helpers.js';
 
 /**
  * @param {string} debugLabel
  * @param {() => Map<string, any>} [makeDefaultSwissnumTable]
+ * @param {MarshalPlugin[]} [marshalPlugins]
  * @returns {Promise<{ client: Client, location: OcapnLocation }>}
  */
-const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
+const makeTestClient = async (
+  debugLabel,
+  makeDefaultSwissnumTable,
+  marshalPlugins,
+) => {
   const client = makeClient({
     debugLabel,
     swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
+    marshalPlugins,
   });
   const tcpNetlayer = await makeTcpNetLayer({ client });
   client.registerNetlayer(tcpNetlayer);
@@ -28,14 +36,21 @@ const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
   return { client, location };
 };
 
-const makeTestClientPair = async makeDefaultSwissnumTable => {
+/**
+ * @param {() => Map<string, any>} makeDefaultSwissnumTable
+ * @param {MarshalPlugin[]} [marshalPlugins]
+ * @returns {Promise<{ clientA: Client, clientB: Client, locationB: OcapnLocation, shutdownBoth: () => void, ocapnA: Ocapn, bootstrapB: any }>}
+ */
+const makeTestClientPair = async (makeDefaultSwissnumTable, marshalPlugins) => {
   const { client: clientA } = await makeTestClient(
     'A',
     makeDefaultSwissnumTable,
+    marshalPlugins,
   );
   const { client: clientB, location: locationB } = await makeTestClient(
     'B',
     makeDefaultSwissnumTable,
+    marshalPlugins,
   );
   const shutdownBoth = () => {
     clientA.shutdown();
@@ -134,3 +149,51 @@ testWithErrorUnwrapping(
     shutdownBoth();
   },
 );
+
+test('marshal plugins roundtrip', async t => {
+  class Greeble {
+    constructor(id) {
+      this.id = id;
+    }
+  }
+
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'GreebleMaker',
+    Far('makeGreeble', id => {
+      return new Greeble(id);
+    }),
+  );
+
+  const GreeblePlugin = {
+    encode: value => {
+      if (value instanceof Greeble) {
+        return makeTagged('Greeble', value.id);
+      }
+      return undefined;
+    },
+    decode: value => {
+      if (
+        passStyleOf(value) === 'tagged' &&
+        value[Symbol.toStringTag] === 'Greeble'
+      ) {
+        return new Greeble(value.payload);
+      }
+      return undefined;
+    },
+  };
+
+  const { bootstrapB: bootstrap, shutdownBoth } = await makeTestClientPair(
+    () => testObjectTable,
+    [GreeblePlugin],
+  );
+
+  const makeGreeble = E(bootstrap).fetch(encodeSwissnum('GreebleMaker'));
+  const greeble = await E(makeGreeble)(123n);
+
+  // Sanity check
+  t.is(greeble.id, 123n, 'Greeble id is 123');
+  t.truthy(greeble instanceof Greeble, 'Greeble is a Greeble');
+
+  shutdownBoth();
+});

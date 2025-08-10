@@ -11,6 +11,7 @@
  * @typedef {import('./types.js').LocationId} LocationId
  * @typedef {import('./types.js').OcapnPublicKey} OcapnPublicKey
  * @typedef {import('./types.js').Session} Session
+ * @typedef {import('./types.js').MarshalPlugin} MarshalPlugin
  * @typedef {import('../captp/captp-engine.js').CapTPEngine} CapTPEngine
  * @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader
  * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
@@ -424,11 +425,12 @@ const makeMakeRemoteKit = ({
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  *
  * @param {TableKit} tableKit
+ * @param {MarshalPlugin[]} marshalPlugins
  * @returns {CodecKit}
  */
-const makeCodecKit = tableKit => {
+const makeCodecKit = (tableKit, marshalPlugins) => {
   const descCodecs = makeDescCodecs(tableKit);
-  const passableCodecs = makePassableCodecs(descCodecs);
+  const passableCodecs = makePassableCodecs(descCodecs, marshalPlugins);
   const { readOcapnMessage, writeOcapnMessage } = makeOcapnOperationsCodecs(
     descCodecs,
     passableCodecs,
@@ -815,6 +817,7 @@ const makeBootstrapObject = (
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
  * @param {string} [ourIdLabel]
+ * @param {MarshalPlugin[]} [marshalPlugins]
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -829,6 +832,7 @@ export const makeOcapn = (
   swissnumTable,
   giftTable,
   ourIdLabel = 'OCapN',
+  marshalPlugins = [],
 ) => {
   const commitSendSlots = () => {
     logger.info(`commitSendSlots`);
@@ -1145,7 +1149,10 @@ export const makeOcapn = (
     sendDepositGift,
   );
 
-  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(tableKit);
+  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(
+    tableKit,
+    marshalPlugins,
+  );
 
   function serializeAndSendMessage(message) {
     // If we dont catch the error here it gets swallowed.
