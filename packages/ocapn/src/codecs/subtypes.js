@@ -1,4 +1,6 @@
+import { isByteArray } from '../pass-style-helpers.js';
 import { makeCodec } from '../syrup/codec.js';
+import { ByteArrayCodec } from './atoms.js';
 
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 
@@ -38,3 +40,29 @@ export const FalseCodec = makeCodec('False', {
     return value;
   },
 });
+
+/**
+ * @param {string} codecName
+ * @param {number} length
+ * @returns {SyrupCodec}
+ */
+export const makeExpectedLengthByteArrayCodec = (codecName, length) => {
+  return makeCodec(codecName, {
+    read: syrupReader => {
+      const bytestring = ByteArrayCodec.read(syrupReader);
+      if (bytestring.length !== length) {
+        throw Error(`Expected length ${length}, got ${bytestring.length}`);
+      }
+      return bytestring;
+    },
+    write: (value, syrupWriter) => {
+      if (!isByteArray(value)) {
+        throw Error(`Expected ByteArray, got ${typeof value}`);
+      }
+      if (value.length !== length) {
+        throw Error(`Expected length ${length}, got ${value.length}`);
+      }
+      ByteArrayCodec.write(value, syrupWriter);
+    },
+  });
+};

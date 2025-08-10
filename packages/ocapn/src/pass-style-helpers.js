@@ -49,3 +49,37 @@ export const getSelectorName = selector => {
  * OCapN "selector" pass style.
  */
 export const passStyleOf = value => value[PASS_STYLE] || 'unknown';
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {ArrayBuffer}
+ */
+export const makeByteArray = bytes => {
+  if (!(bytes instanceof Uint8Array)) {
+    throw Error(`Expected Uint8Array, got ${typeof bytes}`);
+  }
+  return /** @type {ArrayBuffer} */ (ArrayBuffer.prototype.slice.call(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ));
+};
+
+/**
+ * @param {ArrayBuffer} buffer
+ * @returns {Uint8Array}
+ */
+export const makeUint8ArrayFromByteArray = buffer => {
+  if (!(buffer instanceof ArrayBuffer)) {
+    throw Error(`Expected ArrayBuffer, got ${typeof buffer}`);
+  }
+  return new Uint8Array(buffer);
+};
+
+/**
+ * @param {any} value
+ * @returns {boolean}
+ */
+export const isByteArray = value => {
+  return value instanceof ArrayBuffer;
+};

@@ -3,7 +3,6 @@
 import { passableSymbolForName } from '@endo/pass-style';
 import {
   BooleanCodec,
-  BytestringCodec,
   Float64Codec,
   IntegerCodec,
   makeCodec,
@@ -34,6 +33,12 @@ const { ownKeys } = Reflect;
 const quote = JSON.stringify;
 
 export const SYRUP_SELECTOR_PREFIX = 'syrup:';
+
+/** @type {SyrupCodec} */
+export const BytestringCodec = makeCodec('Bytestring', {
+  write: (value, syrupWriter) => syrupWriter.writeBytestring(value),
+  read: syrupReader => syrupReader.readBytestring(),
+});
 
 // To be used as keys, syrup selectors must be javascript symbols.
 // To avoid an otherwise meaningful symbol name, we prefix it with 'syrup:'.

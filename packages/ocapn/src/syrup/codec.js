@@ -80,12 +80,6 @@ export const StringCodec = makeCodec('String', {
 });
 
 /** @type {SyrupCodec} */
-export const BytestringCodec = makeCodec('Bytestring', {
-  write: (value, syrupWriter) => syrupWriter.writeBytestring(value),
-  read: syrupReader => syrupReader.readBytestring(),
-});
-
-/** @type {SyrupCodec} */
 export const BooleanCodec = makeCodec('Boolean', {
   write: (value, syrupWriter) => syrupWriter.writeBoolean(value),
   read: syrupReader => syrupReader.readBoolean(),
@@ -109,7 +103,6 @@ const SimpleValueCodecs = {
   float64: Float64Codec,
   string: StringCodec,
   selector: SelectorAsStringCodec,
-  bytestring: BytestringCodec,
 };
 
 /**
@@ -138,32 +131,6 @@ export const makeExactSelectorCodec = (codecName, selector) => {
         );
       }
       syrupWriter.writeSelectorFromString(value);
-    },
-  });
-};
-
-/**
- * @param {string} codecName
- * @param {number} length
- * @returns {SyrupCodec}
- */
-export const makeExpectedLengthBytestringCodec = (codecName, length) => {
-  return makeCodec(codecName, {
-    read: syrupReader => {
-      const bytestring = syrupReader.readBytestring();
-      if (bytestring.length !== length) {
-        throw Error(`Expected length ${length}, got ${bytestring.length}`);
-      }
-      return bytestring;
-    },
-    write: (value, syrupWriter) => {
-      if (!(value instanceof Uint8Array)) {
-        throw Error(`Expected Uint8Array, got ${typeof value}`);
-      }
-      if (value.length !== length) {
-        throw Error(`Expected length ${length}, got ${value.length}`);
-      }
-      syrupWriter.writeBytestring(value);
     },
   });
 };

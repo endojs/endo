@@ -36,7 +36,7 @@ import { compareByteArrays } from '../syrup/compare.js';
 import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
-import { locationToLocationId, toHex } from './util.js';
+import { locationToLocationId, uint8ArrayToHex } from './util.js';
 
 /**
  * @param {OcapnLocation} location
@@ -406,7 +406,7 @@ const makeSessionManager = () => {
       }
       activeSessions.set(locationId, session);
       connectionToSession.set(connection, session);
-      sessionIdToPeerPublicKey.set(toHex(session.id), session.peer.publicKey);
+      sessionIdToPeerPublicKey.set(uint8ArrayToHex(session.id), session.peer.publicKey);
       const pendingSession = pendingSessions.get(locationId);
       if (pendingSession !== undefined) {
         pendingSession.resolve(session);
@@ -446,7 +446,7 @@ const makeSessionManager = () => {
       return pendingSession;
     },
     getPeerPublicKeyForSessionId: sessionId => {
-      return sessionIdToPeerPublicKey.get(toHex(sessionId));
+      return sessionIdToPeerPublicKey.get(uint8ArrayToHex(sessionId));
     },
   });
 };

@@ -9,13 +9,11 @@ import {
   makeTagged,
   makeSelector,
   passStyleOf,
+  isByteArray,
+  makeByteArray,
+  makeUint8ArrayFromByteArray,
 } from '../pass-style-helpers.js';
 import {
-  BooleanCodec,
-  IntegerCodec,
-  Float64Codec,
-  StringCodec,
-  BytestringCodec,
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
   makeListCodecFromEntryCodec,
@@ -25,58 +23,9 @@ import {
   makeOcapnRecordCodec,
   makeOcapnRecordCodecFromDefinition,
 } from './util.js';
+import { AtomCodecs } from './atoms.js';
 
 const quote = JSON.stringify;
-
-// OCapN Passable Atoms
-
-const UndefinedCodec = makeOcapnRecordCodec(
-  'Undefined',
-  'void',
-  // readBody
-  syrupReader => {
-    return undefined;
-  },
-  // writeBody
-  (value, syrupWriter) => {
-    // body is empty
-  },
-);
-
-const NullCodec = makeOcapnRecordCodec(
-  'Null',
-  'null',
-  // readBody
-  syrupReader => {
-    return null;
-  },
-  // writeBody
-  (value, syrupWriter) => {
-    // body is empty
-  },
-);
-
-const OcapnSelectorCodec = makeCodec('OcapnSelector', {
-  read(syrupReader) {
-    const name = syrupReader.readSelectorAsString();
-    return makeSelector(name);
-  },
-  write(value, syrupWriter) {
-    const name = value[Symbol.toStringTag];
-    syrupWriter.writeSelectorFromString(name);
-  },
-});
-
-const AtomCodecs = {
-  undefined: UndefinedCodec,
-  null: NullCodec,
-  boolean: BooleanCodec,
-  integer: IntegerCodec,
-  float64: Float64Codec,
-  string: StringCodec,
-  selector: OcapnSelectorCodec,
-  byteArray: BytestringCodec,
-};
 
 /**
  * @typedef {object} PassableCodecs
@@ -172,8 +121,8 @@ export const makePassableCodecs = descCodecs => {
   const OcapnPassableRecordUnionCodec = makeRecordUnionCodec(
     'OcapnPassableRecordUnion',
     {
-      UndefinedCodec,
-      NullCodec,
+      UndefinedCodec: AtomCodecs.undefined,
+      NullCodec: AtomCodecs.null,
       OcapnTaggedCodec,
       OcapnErrorCodec,
       ...ReferenceCodec.getChildCodecs(),
@@ -185,8 +134,11 @@ export const makePassableCodecs = descCodecs => {
     {
       read(syrupReader) {
         const { type, value } = syrupReader.readTypeAndMaybeValue();
-        if (type === 'integer' || type === 'string' || type === 'bytestring') {
+        if (type === 'integer' || type === 'string') {
           return value;
+        }
+        if (type === 'bytestring') {
+          return makeByteArray(value);
         }
         if (type === 'selector') {
           return makeSelector(value);
@@ -200,8 +152,9 @@ export const makePassableCodecs = descCodecs => {
           syrupWriter.writeString(value);
         } else if (typeof value === 'bigint') {
           syrupWriter.writeInteger(value);
-        } else if (value instanceof Uint8Array) {
-          syrupWriter.writeBytestring(value);
+        } else if (isByteArray(value)) {
+          const buffer = makeUint8ArrayFromByteArray(value);
+          syrupWriter.writeBytestring(buffer);
         } else {
           throw new Error(
             `Unexpected value ${value} for OcapnPassableNumberPrefixUnionCodec`,
@@ -237,7 +190,7 @@ export const makePassableCodecs = descCodecs => {
         if (value === null) {
           return AtomCodecs.null;
         }
-        if (value instanceof Uint8Array) {
+        if (isByteArray(value)) {
           return AtomCodecs.byteArray;
         }
         if (Array.isArray(value)) {

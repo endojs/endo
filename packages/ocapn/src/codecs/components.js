@@ -3,8 +3,8 @@
 import {
   makeExactListCodec as exactList,
   makeExactSelectorCodec as exactSelector,
-  makeExpectedLengthBytestringCodec as bytestringWithLength,
 } from '../syrup/codec.js';
+import { makeExpectedLengthByteArrayCodec as byteArrayWithLength } from './subtypes.js';
 import {
   makeOcapnListComponentCodec,
   makeOcapnRecordCodecFromDefinition,
@@ -46,11 +46,11 @@ const OcapnSignatureEddsaCodec = exactList('OcapnSignatureEddsa', [
   exactSelector('OcapnSignatureEddsaScheme', 'eddsa'),
   exactList('OcapnSignatureEddsaR', [
     exactSelector('OcapnSignatureEddsaRLabel', 'r'),
-    bytestringWithLength('OcapnSignatureEddsaRValue', 32),
+    byteArrayWithLength('OcapnSignatureEddsaRValue', 32),
   ]),
   exactList('OcapnSignatureEddsaS', [
     exactSelector('OcapnSignatureEddsaSLabel', 's'),
-    bytestringWithLength('OcapnSignatureEddsaSValue', 32),
+    byteArrayWithLength('OcapnSignatureEddsaSValue', 32),
   ]),
 ]);
 
@@ -100,7 +100,7 @@ const OcapnPublicKeyEccCodec = exactList('OcapnPublicKeyEcc', [
   ]),
   exactList('OcapnPublicKeyEccQ', [
     exactSelector('OcapnPublicKeyEccQLabel', 'q'),
-    bytestringWithLength('OcapnPublicKeyEccQValue', 32),
+    byteArrayWithLength('OcapnPublicKeyEccQValue', 32),
   ]),
 ]);
 

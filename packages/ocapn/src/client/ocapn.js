@@ -34,7 +34,7 @@ import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
 import { getSelectorName, makeSelector } from '../pass-style-helpers.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
-import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
+import { arrayBufferToHex, decodeSwissnum, locationToLocationId, uint8ArrayToHex } from './util.js';
 import {
   makePublicKeyId,
   publicKeyDataToPublicKey,
@@ -661,7 +661,7 @@ const makeBootstrapObject = (
   const usedGiftHandoffs = new Set();
   return OcapnFar(`${label}:bootstrap`, {
     /**
-     * @param {Uint8Array} swissnum
+     * @param {ArrayBuffer} swissnum
      * @returns {Promise<any>}
      */
     fetch: swissnum => {
@@ -675,11 +675,11 @@ const makeBootstrapObject = (
       return object;
     },
     /**
-     * @param {Uint8Array} giftId
+     * @param {ArrayBuffer} giftId
      * @param {any} gift
      */
     'deposit-gift': (giftId, gift) => {
-      const giftKey = `${toHex(sessionId)}:${toHex(giftId)}`;
+      const giftKey = `${uint8ArrayToHex(sessionId)}:${arrayBufferToHex(giftId)}`;
       logger.info('deposit-gift', { giftKey, gift });
       const pendingGiftKey = `pending:${giftKey}`;
       const promiseKit = giftTable.get(pendingGiftKey);
@@ -723,7 +723,7 @@ const makeBootstrapObject = (
       const peerPublicKey = getPeerPublicKeyForSessionId(sessionId);
       if (!peerPublicKey) {
         throw Error(
-          `${label}: Bootstrap withdraw-gift: No peer public key for session id: ${toHex(sessionId)}. This should never happen.`,
+          `${label}: Bootstrap withdraw-gift: No peer public key for session id: ${uint8ArrayToHex(sessionId)}. This should never happen.`,
         );
       }
       if (
@@ -743,7 +743,7 @@ const makeBootstrapObject = (
       );
       if (!gifterKeyForExporter) {
         throw Error(
-          `${label}: Bootstrap withdraw-gift: No session with id: ${toHex(gifterExporterSessionId)}`,
+          `${label}: Bootstrap withdraw-gift: No session with id: ${uint8ArrayToHex(gifterExporterSessionId)}`,
         );
       }
       const handoffGiveBytes = serializeHandoffGive(handoffGive);
@@ -778,7 +778,7 @@ const makeBootstrapObject = (
       }
 
       // Return the gift or a promise that resolves to the gift.
-      const giftKey = `${toHex(gifterExporterSessionId)}:${toHex(giftId)}`;
+      const giftKey = `${uint8ArrayToHex(gifterExporterSessionId)}:${uint8ArrayToHex(giftId)}`;
       const gift = giftTable.get(giftKey);
       logger.info('withdraw-gift', { giftKey, gift, handoffCount });
       if (gift) {

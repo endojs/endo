@@ -20,6 +20,7 @@ import {
   makeOcapnRecordCodecFromDefinition,
   makeValueInfoRecordUnionCodec,
 } from './util.js';
+import { ByteArrayCodec } from './atoms.js';
 import { NonNegativeIntegerCodec } from './subtypes.js';
 import {
   OcapnNodeCodec,
@@ -80,11 +81,11 @@ const DescHandoffGiveCodec = makeOcapnRecordCodecFromDefinition(
     receiverKey: OcapnPublicKeyCodec,
     exporterLocation: OcapnNodeCodec,
     // Gifter-Exporter Session ID
-    exporterSessionId: 'bytestring',
+    exporterSessionId: ByteArrayCodec,
     // gifterKeyForExporter Public ID
-    gifterSideId: 'bytestring',
+    gifterSideId: ByteArrayCodec,
     // Gifter-specified gift ID
-    giftId: 'bytestring',
+    giftId: ByteArrayCodec,
   },
 );
 
@@ -101,8 +102,8 @@ const DescHandoffReceiveCodec = makeOcapnRecordCodecFromDefinition(
   'DescHandoffReceive',
   'desc:handoff-receive',
   {
-    receivingSession: 'bytestring',
-    receivingSide: 'bytestring',
+    receivingSession: ByteArrayCodec,
+    receivingSide: ByteArrayCodec,
     handoffCount: NonNegativeIntegerCodec,
     signedGive: DescHandoffGiveSigEnvelopeCodec,
   },

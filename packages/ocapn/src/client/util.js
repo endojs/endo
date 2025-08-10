@@ -6,12 +6,25 @@
  */
 
 import { Buffer } from 'buffer';
+import {
+  isByteArray,
+  makeByteArray,
+  makeUint8ArrayFromByteArray,
+} from '../pass-style-helpers.js';
 
 /**
  * @param {Uint8Array} value
  * @returns {string}
  */
-export const toHex = value => {
+export const uint8ArrayToHex = value => {
+  return Buffer.from(value).toString('hex');
+};
+
+/**
+ * @param {ArrayBuffer} value
+ * @returns {string}
+ */
+export const arrayBufferToHex = value => {
   return Buffer.from(value).toString('hex');
 };
 
@@ -27,16 +40,20 @@ const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
 const swissnumEncoder = new TextEncoder();
 
 /**
- * @param {Uint8Array} value
+ * @param {ArrayBuffer} value
  * @returns {string}
  */
 export const decodeSwissnum = value => {
-  return swissnumDecoder.decode(value);
+  if (!isByteArray(value)) {
+    throw Error(`Expected ByteArray, got ${typeof value}`);
+  }
+  const buffer = makeUint8ArrayFromByteArray(value);
+  return swissnumDecoder.decode(buffer);
 };
 
 /**
  * @param {string} value
- * @returns {Uint8Array}
+ * @returns {ArrayBuffer}
  */
 export const encodeSwissnum = value => {
   // Validate the value is strictly valid ASCII
@@ -48,5 +65,6 @@ export const encodeSwissnum = value => {
       );
     }
   }
-  return swissnumEncoder.encode(value);
+  const bytes = swissnumEncoder.encode(value);
+  return makeByteArray(bytes);
 };
