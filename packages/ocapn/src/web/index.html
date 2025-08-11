@@ -42,11 +42,72 @@
       h1 {
         color: #333;
         margin-bottom: 20px;
+        text-align: center;
       }
 
       p {
         color: #666;
         line-height: 1.6;
+      }
+
+      .button-container {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        align-items: center;
+        margin-top: 30px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 15px 30px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 200px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      #manipulate-lightbulb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      #manipulate-lightbulb:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      }
+
+      #shutdown {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+      }
+
+      #shutdown:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      @media (max-width: 600px) {
+        .button-container {
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        button {
+          min-width: 180px;
+          padding: 12px 24px;
+        }
       }
     </style>
     <script type="module" src="./endoify.js"></script>
@@ -55,8 +116,10 @@
   <body>
     <div id="root">
       <h1>Ocap Industrial Complex Lightbulb Manipulator</h1>
-      <button id="manipulate-lightbulb">Manipulate Lightbulb</button>
-      <button id="shutdown">Shutdown</button>
+      <div class="button-container">
+        <button id="manipulate-lightbulb">Manipulate Lightbulb</button>
+        <button id="shutdown">Shutdown</button>
+      </div>
     </div>
   </body>
 </html>
