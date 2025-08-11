@@ -666,6 +666,7 @@ const makeBootstrapObject = (
      */
     fetch: swissnum => {
       const swissnumString = decodeSwissnum(swissnum);
+      console.log('Bootstrap fetch:', swissnumString, swissnumTable);
       const object = swissnumTable.get(swissnumString);
       if (!object) {
         throw Error(

@@ -310,6 +310,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/capricorn@workspace:packages/capricorn":
+  version: 0.0.0-use.local
+  resolution: "@endo/capricorn@workspace:packages/capricorn"
+  dependencies:
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ocapn": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@types/ws": "npm:^8"
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    eslint: "npm:^8.57.0"
+    tsd: "npm:^0.31.2"
+    typescript: "npm:~5.6.3"
+    ws: "npm:^8.18.3"
+  languageName: unknown
+  linkType: soft
+
 "@endo/captp@workspace:^, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"
@@ -775,7 +793,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/ocapn@workspace:packages/ocapn":
+"@endo/ocapn@workspace:^, @endo/ocapn@workspace:packages/ocapn":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
@@ -2633,6 +2651,15 @@ __metadata:
   version: 3.0.3
   resolution: "@types/unist@npm:3.0.3"
   checksum: 10c0/2b1e4adcab78388e088fcc3c0ae8700f76619dbcb4741d7d201f87e2cb346bfc29a89003cfea2d76c996e1061452e14fcd737e8b25aacf949c1f2d6b2bc3dd60
+  languageName: node
+  linkType: hard
+
+"@types/ws@npm:^8":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
   languageName: node
   linkType: hard
 
@@ -11552,6 +11579,21 @@ __metadata:
     utf-8-validate:
       optional: true
   checksum: 10c0/a7783bb421c648b1e622b423409cb2a58ac5839521d2f689e84bc9dc41d59379c692dd405b15a997ea1d4c0c2e5314ad707332d0c558f15232d2bc07c0b4618a
+  languageName: node
+  linkType: hard
+
+"ws@npm:^8.18.3":
+  version: 8.18.3
+  resolution: "ws@npm:8.18.3"
+  peerDependencies:
+    bufferutil: ^4.0.1
+    utf-8-validate: ">=5.0.2"
+  peerDependenciesMeta:
+    bufferutil:
+      optional: true
+    utf-8-validate:
+      optional: true
+  checksum: 10c0/eac918213de265ef7cb3d4ca348b891a51a520d839aa51cdb8ca93d4fa7ff9f6ccb339ccee89e4075324097f0a55157c89fa3f7147bde9d8d7e90335dc087b53
   languageName: node
   linkType: hard
 
