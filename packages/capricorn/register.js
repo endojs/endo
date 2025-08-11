@@ -43,7 +43,7 @@ const main = async () => {
   const adminFacet = await E(bootstrap).fetch(encodeSwissnum(adminFacetSwissnum));
 
   // Install a simple route that toggles a light using the file contents
-  const routeCode = await fs.readFile(new URL('./toggle-light.js', import.meta.url), 'utf8');
+  const routeCode = await fs.readFile(new URL('./route-payload.js', import.meta.url), 'utf8');
 
   const routeSwissnum = await E(adminFacet).createRoute(routeCode);
   // eslint-disable-next-line no-console
