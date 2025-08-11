@@ -1,7 +1,7 @@
 import { E, Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { setupZone } from './zone.js';
-import { makeDefineDurableFactory } from './custom-kind.js';
+import { makeCustomDurableKindWithMapStore, makeDefineDurableFactory } from './custom-kind.js';
 
 const incubationsKey = 'incubations';
 
@@ -204,6 +204,11 @@ export const makeVatSupervisor = (label, vatState) => {
     return Array.from(fakeStore.entries());
   };
 
+  const defineCustomDurableKindWithMapStore = (name, kindDefinition) => {
+    const kindZone = zone.subZone(name);
+    return makeCustomDurableKindWithMapStore(fakeVomKit, kindZone, kindDefinition);
+  }
+
   return {
     initialize,
     zone,
@@ -213,6 +218,7 @@ export const makeVatSupervisor = (label, vatState) => {
     registerClass,
     defineClass,
     defineJsClass,
+    defineCustomDurableKindWithMapStore,
     fakeStore,
     fakeVomKit,
     serializeState,

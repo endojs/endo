@@ -1,17 +1,80 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { E, Far } from '@endo/captp';
 
+// should these be exo classes?
+// read-only may be trickier to implement
+// maybe just a loss of method optimizations
+
+const makeWeakRefArray = (store) => {
+  if (!store.has('refs')) {
+    store.init('refs', []);
+  }
+
+  const push = value => {
+    const ref = new WeakRef(value);
+    const refs = [
+      ...store.get('refs'),
+      ref,
+    ];
+    store.set('refs', refs);
+  }
+
+  const removeRef = ref => {
+    const refs = [...store.get('refs')];
+    const index = refs.indexOf(ref);
+    if (index !== -1) {
+      refs.splice(index, 1);
+      store.set('refs', refs);
+    }
+  }
+  
+  function * entries () {
+    const refs = store.get('refs');
+    for (const ref of refs) {
+      const value = ref.deref();
+      if (value !== undefined) {
+        yield value;
+      } else {
+        removeRef(ref);
+      }
+    }
+  }
+
+  const remove = value => {
+    const refs = store.get('refs');
+    const ref = refs.find(ref => ref.deref() === value);
+    if (ref) {
+      removeRef(ref);
+    }
+  }
+
+  const empty = () => {
+    store.set('refs', []);
+  }
+
+  return {
+    push,
+    remove,
+    entries,
+    empty,
+    [Symbol.iterator]() {
+      return entries();
+    },
+  };
+}
+
 const makeGrainFromStore = (label, store) => {
-  let subscribers = [];
+  const subscribers = makeWeakRefArray(store);
   return Far(`Grain:${label}`, {
     getValue() {
       return store.get('value');
     },
-    subscribeEphemeral(callbackObj) {
+    subscribeWeakly(callbackObj) {
       subscribers.push(callbackObj);
       E(callbackObj)(store.get('value'));
+      // TODO: should be durable?
       return Far('Unsubscribe', () => {
-        subscribers = subscribers.filter(subscriber => subscriber !== callbackObj);
+        subscribers.remove(callbackObj);
       })
     },
     setValue(newValue) {
@@ -25,7 +88,8 @@ const makeGrainFromStore = (label, store) => {
     follow() {
       const { promise, resolve } = makePromiseKit();
       let latestValue = store.get('value');
-      this.subscribeEphemeral(value => {
+      // TODO: this wont work bc handlers must be durable
+      this.subscribeWeakly(value => {
           latestValue = value;
           resolve(value);
         },
@@ -42,12 +106,12 @@ const makeGrainFromStore = (label, store) => {
       };
     },
     destroy() {
-      subscribers = [];
+      subscribers.empty();
     },
     readonly() {
       return Far(`Grain:${label}:readonly`, {
         getValue: () => this.getValue(),
-        subscribeEphemeral: callbackObj => this.subscribeEphemeral(callbackObj),
+        subscribeWeakly: callbackObj => this.subscribeWeakly(callbackObj),
         follow: () => this.follow(),
       });
     },

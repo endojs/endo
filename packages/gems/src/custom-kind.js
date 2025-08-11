@@ -217,6 +217,59 @@ export const makeCustomDurableKindWithMapStore = (
 
 /**
  * Creates a custom durable kind with specified make, reanimate, and optional cleanup functions.
+ * These functions are provided with a mapStore exclusive to the instance.
+ *
+ * @param {object} fakeVomKit - vomKit interface.
+ * @param {object} zone - A durable zone exclusive to this kind.
+ * @param {object} options - Options for creating the custom durable kind.
+ * @param {(Object, ...any) => any} options.make - A function to create a new instance.
+ * @param {(object, string) => any} options.reanimate - A function to reanimate an existing instance.
+ * @param {(object, string) => boolean} [options.cleanup] - An optional function to clean up an instance.
+ * @returns {Function} - A function to create new instances of the custom durable kind.
+ */
+export const makeCustomDurableKindWithWeakMapStore = (
+  fakeVomKit,
+  zone,
+  {
+    make: customMake,
+    reanimate: customReanimate,
+    cleanup: customCleanup = undefined,
+  },
+) => {
+  const storeForInstanceZone = new Map();
+  const getStoreForInstanceZone = instanceZone => {
+    if (!storeForInstanceZone.has(instanceZone)) {
+      const store = instanceZone.weakMapStore('store');
+      storeForInstanceZone.set(instanceZone, store);
+    }
+    return storeForInstanceZone.get(instanceZone);
+  };
+
+  const makeWithStore = (instanceZone, ...args) => {
+    const store = getStoreForInstanceZone(instanceZone);
+    return customMake(store, ...args);
+  };
+  const reanimateWithStore = (instanceZone, instanceSlot) => {
+    const store = getStoreForInstanceZone(instanceZone);
+    return customReanimate(store, instanceSlot);
+  };
+  const cleanupWithStore = (instanceZone, instanceSlot) => {
+    const store = getStoreForInstanceZone(instanceZone);
+    const moreCleanupNeed = customCleanup?.(store, instanceSlot) || false;
+    storeForInstanceZone.delete(instanceZone);
+    // NOTE: makeCustomDurableKindWithZone cant clear the zone, so we clear the store here
+    store.clear();
+    return moreCleanupNeed;
+  };
+  return makeCustomDurableKindWithZone(fakeVomKit, zone, {
+    make: makeWithStore,
+    reanimate: reanimateWithStore,
+    cleanup: cleanupWithStore,
+  });
+};
+
+/**
+ * Creates a custom durable kind with specified make, reanimate, and optional cleanup functions.
  * These functions are provided with a mapStore based Proxy object exclusive to the instance.
  *
  * @param {object} fakeVomKit - vomKit interface.
