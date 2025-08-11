@@ -37,44 +37,47 @@ export const makeCapricornServer = async (debugLabel, storageProvider) => {
     swissnumTable.set(swissnum, object);
   };
 
-  const createRoute = (codeString, fnContextObject = {}) => {
-    console.log('CreateRoute received a message:', codeString, fnContextObject);
+  const materializeRoute = (swissnum, codeString) => {
     // Expose platform fetch
-    const platformContextObject = {
-      fetch: globalThis.fetch,
-    };
     const contextObject = {
-      ...fnContextObject,
-      ...platformContextObject,
+      fetch: globalThis.fetch,
     };
     const compartment = new Compartment(contextObject);
     const routeFn = compartment.evaluate(codeString);
     if (typeof routeFn !== 'function') {
-      throw new Error('Route function is not a function');
+      throw new Error(`Route function is not a function, got: ${typeof routeFn}`);
     }
     const routeFarFn = Far('routeFn', routeFn);
+    exposeSturdyref(swissnum, routeFarFn);
+    return routeFarFn;
+  }
+
+  // Creates a new route
+  const createRoute = (codeString) => {
+    console.log('CreateRoute received a message:', codeString);
     const routeSwissnum = randomSwissnum();
-    exposeSturdyref(routeSwissnum, routeFarFn);
+    materializeRoute(routeSwissnum, codeString);
+    // Record the route in state
+    state.routes[routeSwissnum] = { codeString };
+    storageProvider.set(state);
     return routeSwissnum;
   };
 
+  const adminFacetSwissnum = state.admin || randomSwissnum();
+  const adminFacet = Far('adminFacet', {
+    createRoute,
+  });
+  exposeSturdyref(adminFacetSwissnum, adminFacet);
+
   if (isInitialized) {
     // Reinitialize state
-    for (const [swissnum, object] of Object.entries(state.routes)) {
-      exposeSturdyref(swissnum, object);
-    }
-    if (state.admin) {
-      exposeSturdyref(state.admin, state.admin);
+    for (const [swissnum, { codeString }] of Object.entries(state.routes)) {
+      materializeRoute(swissnum, codeString);
     }
   } else {
-    // Make admin object
-    const adminFacetSwissnum = randomSwissnum();
+    // Record the admin swissnum
     state.admin = adminFacetSwissnum;
     storageProvider.set(state);
-    const adminFacet = Far('adminFacet', {
-      createRoute,
-    });
-    exposeSturdyref(adminFacetSwissnum, adminFacet);
   }
 
   const client = makeClient({
