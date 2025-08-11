@@ -2,18 +2,61 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>ocapn web</title>
+    <title>Ocap Industrial Complex Lightbulb Manipulator</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        background: linear-gradient(-45deg, #f0f8ff, #f5f5dc, #f0fff0, #fff0f5);
+        background-size: 400% 400%;
+        animation: gradientShift 8s ease-in-out infinite;
+      }
+
+      @keyframes gradientShift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      #root {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      p {
+        color: #666;
+        line-height: 1.6;
+      }
+    </style>
     <script type="module" src="./endoify.js"></script>
     <script type="module" src="./index.js"></script>
   </head>
   <body>
     <div id="root">
-      <h1>Hello Ocapn</h1>
-      <p>window.ocapn: <span id="ocapn-client"></span></p>
+      <h1>Ocap Industrial Complex Lightbulb Manipulator</h1>
+      <button id="manipulate-lightbulb">Manipulate Lightbulb</button>
+      <button id="shutdown">Shutdown</button>
     </div>
-    <script type="module">
-      document.getElementById('ocapn-client').textContent = JSON.stringify(window.ocapn, null, 2);
-    </script>
   </body>
 </html>

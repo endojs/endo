@@ -86,7 +86,6 @@ export const makeWebSocketServerNetLayer = async ({
    * @returns {Connection}
    */
   const connect = location => {
-    console.log('x: connect: ws server');
     logger.info('Connecting to', location);
 
     if (location.transport !== 'websocket') {
