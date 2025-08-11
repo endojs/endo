@@ -150,6 +150,8 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
  */
 const randomBytes = (length) => {
   const array = new Uint8Array(length);
+  // crypto is defined on ~*~my machine~*~
+  // eslint-disable-next-line no-undef
   crypto.getRandomValues(array);
   return array;
 }
