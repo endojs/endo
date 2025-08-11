@@ -2,6 +2,7 @@
 
 import '@endo/init';
 import process from 'node:process';
+import fs from 'node:fs/promises';
 import { E, makeClient, makeTcpNetLayer, encodeSwissnum } from '@endo/ocapn';
 
 /** @returns {string} */
@@ -41,12 +42,8 @@ const main = async () => {
   const bootstrap = await ocapn.getBootstrap();
   const adminFacet = await E(bootstrap).fetch(encodeSwissnum(adminFacetSwissnum));
 
-  // Install a simple route that toggles a light
-  const routeCode = `
-    async () => {
-      // code goes here...
-    }
-  `;
+  // Install a simple route that toggles a light using the file contents
+  const routeCode = await fs.readFile(new URL('./toggle-light.js', import.meta.url), 'utf8');
 
   const routeSwissnum = await E(adminFacet).createRoute(routeCode);
   // eslint-disable-next-line no-console
