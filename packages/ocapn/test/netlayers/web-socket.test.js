@@ -52,7 +52,7 @@ const makeTestWebSocketClient = async (
   });
   const webSocketNetlayer = await makeWebSocketClientNetLayer({
     client,
-    specifiedUrl: `ws://localhost:${port}`,
+    url: `ws://localhost:${port}`,
   });
   client.registerNetlayer(webSocketNetlayer);
   const { location } = webSocketNetlayer;

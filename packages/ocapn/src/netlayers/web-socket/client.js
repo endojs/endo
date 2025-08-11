@@ -44,14 +44,18 @@ const makeConnection = (netlayer, socket, isOutgoing) => {
 };
 
 /**
+ * @typedef {`ws://`|`wss://`} WebSocketProtocol
+ */
+
+/**
  * @param {object} options
  * @param {Client} options.client
- * @param {string} [options.specifiedUrl]
+ * @param {`${WebSocketProtocol}${string}:${number}`} [options.url]
  * @returns {Promise<NetLayer>}
  */
 export const makeWebSocketClientNetLayer = async ({
   client,
-  specifiedUrl = 'ws://localhost:8080',
+  url = 'ws://localhost:8080',
 }) => {
   const { logger } = client;
 
@@ -63,7 +67,7 @@ export const makeWebSocketClientNetLayer = async ({
   const localLocation = {
     type: 'ocapn-node',
     transport: 'websocket',
-    address: specifiedUrl,
+    address: url,
     hints: false,
   };
 
