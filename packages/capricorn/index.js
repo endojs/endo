@@ -17,11 +17,11 @@ const storageFilePath =
 const startCapricornServer = async () => {
   const storageProvider = makeFileStorageProvider(storageFilePath);
   const debugLabel = 'Capricorn';
-  const { location, adminFacetSwissnum } = await makeCapricornServer(
+  const { tcpLocation, webSocketLocation, adminFacetSwissnum } = await makeCapricornServer(
     debugLabel,
     storageProvider,
   );
-  console.log('Capricorn server started:', location);
+  console.log('Capricorn server started:', tcpLocation, webSocketLocation);
   console.log('Admin facet swissnum:', adminFacetSwissnum);
 };
 

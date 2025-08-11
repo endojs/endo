@@ -4,7 +4,7 @@
 /** @typedef {import('@endo/ocapn').OcapnLocation} OcapnLocation */
 /** @typedef {import('@endo/ocapn').Client} Client */
 
-import { makeClient, makeTcpNetLayer, Far } from '@endo/ocapn';
+import { makeClient, makeTcpNetLayer, Far, makeWebSocketServerNetLayer } from '@endo/ocapn';
 
 const makeDefaultState = () => ({
   routes: {},
@@ -24,7 +24,7 @@ const randomSwissnum = () => {
 /**
  * @param {string} debugLabel
  * @param {StorageProvider} storageProvider
- * @returns {Promise<{ client: Client, location: OcapnLocation, adminFacetSwissnum: string }>}
+ * @returns {Promise<{ client: Client, tcpLocation: OcapnLocation, webSocketLocation: OcapnLocation, adminFacetSwissnum: string }>}
  */
 export const makeCapricornServer = async (debugLabel, storageProvider) => {
   const initialState = storageProvider.get();
@@ -84,9 +84,18 @@ export const makeCapricornServer = async (debugLabel, storageProvider) => {
     debugLabel,
     swissnumTable,
   });
-  const tcpNetlayer = await makeTcpNetLayer({ client });
+  const tcpNetlayer = await makeTcpNetLayer({
+    client,
+    specifiedHostname: '192.168.50.96',
+  });
   client.registerNetlayer(tcpNetlayer);
-  const { location } = tcpNetlayer;
+  const webSocketNetlayer = await makeWebSocketServerNetLayer({
+    client,
+    hostname: '192.168.50.96',
+  });
+  client.registerNetlayer(webSocketNetlayer);
+  const { location: tcpLocation } = tcpNetlayer;
+  const { location: webSocketLocation } = webSocketNetlayer;
 
-  return { client, location, adminFacetSwissnum: state.admin };
+  return { client, tcpLocation, webSocketLocation, adminFacetSwissnum: state.admin };
 };

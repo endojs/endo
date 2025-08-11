@@ -10,3 +10,5 @@ import { OcapnFar as Far } from './src/client/ocapn.js';
 import { E } from '@endo/eventual-send';
 
 export { makeClient, makeTcpNetLayer, encodeSwissnum, Far, E };
+
+export { makeWebSocketServerNetLayer } from './src/netlayers/web-socket/server.js';

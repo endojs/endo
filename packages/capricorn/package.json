@@ -37,6 +37,7 @@
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
+    "@types/ws": "^8",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "eslint": "^8.57.0",
@@ -70,6 +71,7 @@
   },
   "dependencies": {
     "@endo/init": "workspace:^",
-    "@endo/ocapn": "workspace:^"
+    "@endo/ocapn": "workspace:^",
+    "ws": "^8.18.3"
   }
 }
