@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ocapn web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script type="module" src="./endoify.js"></script>
+    <script type="module" src="./index.js"></script>
+  </head>
+  <body>
+    <div id="root">
+      <h1>Hello Ocapn</h1>
+      <p>window.ocapn: <span id="ocapn-client"></span></p>
+    </div>
+    <script type="module">
+      document.getElementById('ocapn-client').textContent = JSON.stringify(window.ocapn, null, 2);
+    </script>
+  </body>
+</html>

@@ -1,6 +1,4 @@
 // @ts-check
-import { randomBytes } from 'node:crypto';
-
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 
@@ -145,6 +143,16 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
   // Double SHA256 hash the resulting string
   return sha256(sha256(inputBytes));
 };
+
+/**
+ * @param {number} length
+ * @returns {Uint8Array}
+ */
+const randomBytes = (length) => {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return array;
+}
 
 /**
  * @returns {Uint8Array}
