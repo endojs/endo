@@ -30,7 +30,7 @@ scaffold(
   assertionCount,
   {
     strict: true,
-    knownFailure: true,
+    shouldFailBeforeArchiveOperations: true,
     onError(t, { error }) {
       t.true(error.message.includes('Cannot find dependency no-such-package'));
     },
