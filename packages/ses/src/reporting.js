@@ -21,14 +21,14 @@ const consoleReporter = {
   error(...args) {
     globalThis.console.error(...args);
   },
-  ...(globalThis.console.groupCollapsed
+  ...(globalThis.console?.groupCollapsed
     ? {
         groupCollapsed(...args) {
           globalThis.console.groupCollapsed(...args);
         },
       }
     : undefined),
-  ...(globalThis.console.groupEnd
+  ...(globalThis.console?.groupEnd
     ? {
         groupEnd() {
           globalThis.console.groupEnd();
