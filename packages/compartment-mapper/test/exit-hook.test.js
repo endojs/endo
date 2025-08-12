@@ -13,6 +13,7 @@ scaffold(
   test,
   fixture,
   (t, { namespace }) => {
+    // @ts-ignore - namespace has rootExists property from fixture
     t.is(namespace.rootExists, true);
   },
   1, // expected number of assertions

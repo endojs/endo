@@ -32,7 +32,7 @@ scaffold(
     strict: true,
     knownFailure: true,
     onError(t, { error }) {
-      t.ok(error.message.contains('Cannot find dependency no-such-package'));
+      t.true(error.message.includes('Cannot find dependency no-such-package'));
     },
   },
 );

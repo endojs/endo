@@ -18,6 +18,8 @@ scaffold(
   test,
   new URL('fixtures-strictly-inconsistent-packages/main.js', import.meta.url)
     .href,
-  t => t.pass(),
+  t => {
+    t.pass();
+  },
   1,
 );
