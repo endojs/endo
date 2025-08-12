@@ -582,6 +582,7 @@ export function scaffold(
   );
 
   if (!onError) {
+    // @ts-expect-error XXX TS2345
     test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async (t, Compartment) => {
       t.plan(1);
       await setup();
@@ -638,6 +639,7 @@ export function scaffold(
       t.is(computedSha512, expectedSha512);
     });
 
+    // @ts-expect-error XXX TS2345
     test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async (t, Compartment) => {
       t.plan(1);
       await setup();

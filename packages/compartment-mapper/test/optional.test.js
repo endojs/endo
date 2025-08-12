@@ -20,6 +20,7 @@ scaffold(
   test,
   fixtureOptionalDepsEsm,
   async (t, { namespace }) => {
+    // @ts-ignore - namespace has tryOptionalDeps property from fixture
     const { tryOptionalDeps } = namespace;
     const result = await tryOptionalDeps();
     t.deepEqual(
@@ -50,6 +51,7 @@ scaffold(
   test,
   fixtureOptionalDepsCjs,
   (t, { namespace }) => {
+    // @ts-ignore - namespace has tryOptionalDeps property from fixture
     const { tryOptionalDeps } = namespace;
     const result = tryOptionalDeps();
     t.deepEqual(
