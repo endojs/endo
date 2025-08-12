@@ -20,6 +20,7 @@
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
+    "@eslint-community/eslint-utils": "^4.7.0",
     "requireindex": "~1.2.0",
     "tsutils": "~3.21.0",
     "typescript": "~5.9.2",
