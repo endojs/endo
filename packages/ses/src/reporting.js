@@ -1,5 +1,3 @@
-/* eslint-disable @endo/no-polymorphic-call */
-// import { functionBind, globalThis } from './commons.js';
 import { globalThis } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -7,8 +5,9 @@ import { assert } from './error/assert.js';
  * @import {Reporter, GroupReporter} from './reporting-types.js'
  */
 
+/* eslint-disable @endo/no-polymorphic-call */
 /**
- * As a workaround of https://github.com/endojs/endo/issues/2908,
+ * To address https://github.com/endojs/endo/issues/2908,
  * the `consoleReporter` uses the current `console` rather
  * than the original one.
  *
@@ -36,6 +35,7 @@ const consoleReporter = {
       }
     : undefined),
 };
+/* eslint-enable @endo/no-polymorphic-call */
 
 /**
  * Creates a suitable reporter for internal errors and warnings out of the
