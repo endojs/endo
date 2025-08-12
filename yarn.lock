@@ -466,6 +466,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/eslint-plugin@workspace:packages/eslint-plugin"
   dependencies:
+    "@eslint-community/eslint-utils": "npm:^4.7.0"
     "@types/mocha": "npm:^10"
     eslint: "npm:^8.57.1"
     mocha: "npm:^10.6.0"
