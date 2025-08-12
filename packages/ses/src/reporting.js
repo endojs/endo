@@ -1,3 +1,4 @@
+/* eslint-disable @endo/no-polymorphic-call */
 // import { functionBind, globalThis } from './commons.js';
 import { globalThis } from './commons.js';
 import { assert } from './error/assert.js';
@@ -5,6 +6,36 @@ import { assert } from './error/assert.js';
 /**
  * @import {Reporter, GroupReporter} from './reporting-types.js'
  */
+
+/**
+ * As a workaround of https://github.com/endojs/endo/issues/2908,
+ * the `consoleReporter` uses the current `console` rather
+ * than the original one.
+ *
+ * @type {GroupReporter}
+ */
+const consoleReporter = {
+  warn(...args) {
+    globalThis.console.warn(...args);
+  },
+  error(...args) {
+    globalThis.console.error(...args);
+  },
+  ...(globalThis.console.groupCollapsed
+    ? {
+        groupCollapsed(...args) {
+          globalThis.console.groupCollapsed(...args);
+        },
+      }
+    : undefined),
+  ...(globalThis.console.groupEnd
+    ? {
+        groupEnd() {
+          globalThis.console.groupEnd();
+        },
+      }
+    : undefined),
+};
 
 /**
  * Creates a suitable reporter for internal errors and warnings out of the
@@ -49,23 +80,19 @@ const mute = () => {};
  * @param {"platform" | "console" | "none"} reporting
  */
 export const chooseReporter = reporting => {
-  // // On Node.js, we send all feedback to stderr, regardless of purported level.
-  // As a workaround of https://github.com/endojs/endo/issues/2908,
-  // the `consoleError` function uses the current `console` rather than the
-  // original one.
-  // eslint-disable-next-line @endo/no-polymorphic-call
-  const consoleError = (...args) => globalThis.console.error(...args);
-
   if (reporting === 'none') {
     return makeReportPrinter(mute);
   }
   if (
     reporting === 'console' ||
     globalThis.window === globalThis ||
-    globalThis.importScripts !== undefined ||
-    globalThis.console !== undefined
+    globalThis.importScripts !== undefined
   ) {
-    return makeReportPrinter(consoleError);
+    return consoleReporter;
+  }
+  if (globalThis.console !== undefined) {
+    // On Node.js, we send all feedback to stderr, regardless of purported level.
+    return makeReportPrinter(consoleReporter.error);
   }
   if (globalThis.print !== undefined) {
     return makeReportPrinter(globalThis.print);
