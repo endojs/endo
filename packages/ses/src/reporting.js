@@ -84,11 +84,20 @@ export const chooseReporter = reporting => {
     return makeReportPrinter(mute);
   }
   if (globalThis.console !== undefined) {
-    if (reporting === 'console') {
+    if (
+      reporting === 'console' || // asks for console explicitly
+      globalThis.window === globalThis || // likely on browser
+      globalThis.importScripts !== undefined // likely on worker
+    ) {
+      // reporter just delegates directly to the current console
       return consoleReporter;
     }
     assert(reporting === 'platform');
     // On Node.js, we send all feedback to stderr, regardless of purported level.
+    // This uses `consoleReporter.error` instead of `console.error` because we
+    // want the constructed reporter to use the `console.error` of the current
+    // `console`, not the `console` that was installed when the reporter
+    // was created.
     return makeReportPrinter(consoleReporter.error);
   }
   if (globalThis.print !== undefined) {
