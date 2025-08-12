@@ -105,7 +105,7 @@ const writeBundle = async ({ buildType } = {}) => {
 };
 
 const main = async () => {
-  const buildType = process.argv[2];
+  const buildType = process.argv[2] || 'vanilla';
   await writeBundle({ buildType });
 };
 
