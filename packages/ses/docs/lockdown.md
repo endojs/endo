@@ -492,19 +492,22 @@ LOCKDOWN_REPORTING=none
 - The default behavior is `'platform'` which will detect the platform and
   report warnings according to whether a web `console`, Node.js `console`, or
   `print` are available.
-  The web platform is distinguished by the existence of `window` or
-  `importScripts` (WebWorker).
-  The Node.js behavior is to report all warnings to `stderr` visually
-  consistent with use of a console group.
-  SES will use `print` in the absence of a `console`.
-  Captures the platform `console` at the time `lockdown` or `repairIntrinsics`
-  are called, not at the time `ses` initializes.
-- The `'console'` option forces the web platform behavior.
-  On Node.js, this results in group labels being reported to `stdout`.
-  The global `console` can be replaced before `lockdown` so using this option
+  - The web platform is distinguished by the existence of `window` or
+    `importScripts` (WebWorker), in which case the current console (at the time
+    of reporting) is used.
+  - The Node.js behavior is to report all warnings to `stderr` visually
+    consistent with use of a console group. To do this, it actually
+    reports using the `console.error` method of the current console (at
+    the time of reporting).
+  - SES will use `print` in the absence of a `console`.
+- The `'console'` option forces the web platform behavior, in which the current
+  console (at time of reporting) is used directly.
+  On Node.js, this results in group labels being reported to `stdout`, because
+  that is the unalterable behavior of Node's `console.group*` methods.
+  The global `console` can be replaced, so using this option
   will drive use of `console.groupCollapsed`, `console.groupEnd`,
   `console.warn`, and `console.error` assuming that console is suited for
-  reporting arbitrary diagnostics rather than also being suited to generate
+  reporting arbitrary diagnostics, rather than also being suited to generate
   machine-readable `stdout`.
 - The `'none'` option mutes warnings.
 

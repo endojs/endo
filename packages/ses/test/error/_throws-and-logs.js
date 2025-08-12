@@ -12,9 +12,6 @@ import {
 // const internalDebugConsole = console;
 
 const defaultCompareLogs = freeze((t, log, goldenLog) => {
-  // For our internal debugging purposes
-  // internalDebugConsole.log('LOG', log);
-
   t.is(log.length, goldenLog.length, 'wrong log length');
   log.forEach((logRecord, i) => {
     const goldenRecord = goldenLog[i];
@@ -107,6 +104,8 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
     globalThis.console = priorConsole;
     if (checkLogs) {
       const log = takeLog();
+      // For our internal debugging purposes
+      // internalDebugConsole.log('LOG', log);
       compareLogs(t, log, goldenLog);
     }
   }
