@@ -49,24 +49,23 @@ const mute = () => {};
  * @param {"platform" | "console" | "none"} reporting
  */
 export const chooseReporter = reporting => {
+  // // On Node.js, we send all feedback to stderr, regardless of purported level.
+  // As a workaround of https://github.com/endojs/endo/issues/2908,
+  // the `consoleError` function uses the current `console` rather than the
+  // original one.
+  // eslint-disable-next-line @endo/no-polymorphic-call
+  const consoleError = (...args) => globalThis.console.error(...args);
+
   if (reporting === 'none') {
     return makeReportPrinter(mute);
   }
   if (
     reporting === 'console' ||
     globalThis.window === globalThis ||
-    globalThis.importScripts !== undefined
+    globalThis.importScripts !== undefined ||
+    globalThis.console !== undefined
   ) {
-    return console;
-  }
-  if (globalThis.console !== undefined) {
-    // // On Node.js, we send all feedback to stderr, regardless of purported level.
-    // As a workaround of https://github.com/endojs/endo/issues/2908,
-    // the `print` function uses the current `console` rather than the
-    // original one.
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    const print = (...args) => globalThis.console.error(...args);
-    return makeReportPrinter(print);
+    return makeReportPrinter(consoleError);
   }
   if (globalThis.print !== undefined) {
     return makeReportPrinter(globalThis.print);
