@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
 const srcDir = path.resolve(rootDir, 'src/web/lockdown');
-const distDir = path.resolve(rootDir, 'dist');
+const distDir = path.resolve(rootDir, 'dist/web');
 const shimName = 'endoify.js';
 
 await mkdir(distDir, { recursive: true });

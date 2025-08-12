@@ -1,5 +1,5 @@
 // @ts-check
-/* global document */
+/* global document,window */
 
 import { E } from '@endo/eventual-send';
 
@@ -8,14 +8,25 @@ import { makeClient } from '../client/index.js';
 import { encodeSwissnum } from '../client/util.js';
 
 const main = async () => {
+  // Config
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const wsAddress = urlParams.get('ws') || 'ws://localhost:8080';
+  const fnSwissnum = urlParams.get('fnSwissnum');
+  if (!fnSwissnum) {
+    console.error('swissnum is required');
+    return;
+  }
+
   const location = {
     /** @type {import('../codecs/components.js').OcapnLocation['type']} */
     type: 'ocapn-node',
     transport: 'websocket',
-    address: 'ws://', // TODO: Insert
+    address: wsAddress,
     hints: false,
   };
-  const fnSwissnum = ''; // TODO: Insert
+
+  // Initialization
 
   const client = makeClient({ debugLabel: 'LightbulbManipulator' });
   const webSocketNetlayer = await makeWebSocketClientNetLayer({ client });
@@ -28,6 +39,8 @@ const main = async () => {
   console.log('got bootstrap');
   const routeFn = await E(bootstrap).fetch(encodeSwissnum(fnSwissnum));
   console.log('got routeFn');
+
+  // UI instrumentation
 
   const manipulateLightbulbButton = document.getElementById('manipulate-lightbulb');
   if (!manipulateLightbulbButton) {

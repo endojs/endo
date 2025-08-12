@@ -26,7 +26,7 @@
     "build": "yarn build:pre && vite build --config vite.config.js",
     "build:dev": "yarn build:pre && vite build --config vite.config.js --mode development",
     "build:pre": "rm -rf dist && node scripts/bundle.js",
-    "start": "yarn build:dev --watch & vite serve dist",
+    "start": "yarn build:dev --watch & vite serve dist/web",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",

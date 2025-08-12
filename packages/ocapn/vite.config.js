@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: false,
       // Disable Vite's module preload, which may cause SES-dependent code to run before lockdown.
       modulePreload: false,
-      outDir: path.resolve(dirname, 'dist'),
+      outDir: path.resolve(dirname, 'dist/web'),
       minify: !isDev,
       sourcemap: isDev ? 'inline' : false,
       rollupOptions: {
