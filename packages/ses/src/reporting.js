@@ -83,14 +83,11 @@ export const chooseReporter = reporting => {
   if (reporting === 'none') {
     return makeReportPrinter(mute);
   }
-  if (
-    reporting === 'console' ||
-    globalThis.window === globalThis ||
-    globalThis.importScripts !== undefined
-  ) {
-    return consoleReporter;
-  }
   if (globalThis.console !== undefined) {
+    if (reporting === 'console') {
+      return consoleReporter;
+    }
+    assert(reporting === 'platform');
     // On Node.js, we send all feedback to stderr, regardless of purported level.
     return makeReportPrinter(consoleReporter.error);
   }
