@@ -1,4 +1,5 @@
-import { functionBind, globalThis } from './commons.js';
+// import { functionBind, globalThis } from './commons.js';
+import { globalThis } from './commons.js';
 import { assert } from './error/assert.js';
 
 /**
@@ -7,7 +8,7 @@ import { assert } from './error/assert.js';
 
 /**
  * Creates a suitable reporter for internal errors and warnings out of the
- * Node.js console.error to ensure all messages to go stderr, including the
+ * Node.js console.error to ensure all messages go to stderr, including the
  * group label.
  * Accounts for the extra space introduced by console.error as a delimiter
  * between the indent and subsequent arguments.
@@ -59,10 +60,13 @@ export const chooseReporter = reporting => {
     return console;
   }
   if (globalThis.console !== undefined) {
-    // On Node.js, we send all feedback to stderr, regardless of purported level.
-    const console = globalThis.console;
-    const error = functionBind(console.error, console);
-    return makeReportPrinter(error);
+    // // On Node.js, we send all feedback to stderr, regardless of purported level.
+    // As a workaround of https://github.com/endojs/endo/issues/2908,
+    // the `print` function uses the current `console` rather than the
+    // original one.
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    const print = (...args) => globalThis.console.error(...args);
+    return makeReportPrinter(print);
   }
   if (globalThis.print !== undefined) {
     return makeReportPrinter(globalThis.print);
