@@ -17,8 +17,8 @@ lib-cov
 # Coverage directory used by tools like istanbul
 coverage
 
-# nyc test coverage
-.nyc_output
+# LLM tools
+.claude/*.local.*
 
 # Platform metadata
 .DS_Store
