@@ -19,14 +19,12 @@
 /**
  * @import {
  *   Application,
- *   ComputeSourceLocationHook,
- *   ComputeSourceMapLocationHook,
  *   ExecuteOptions,
- *   ExitModuleImportHook,
- *   HashFn,
  *   LoadArchiveOptions,
  *   ReadPowers,
  *   ParserForLanguage,
+ *   ParseArchiveOptions,
+ *   ReadFn,
  * } from './types.js'
  */
 
@@ -39,28 +37,10 @@ import {
 
 const { assign, create, freeze } = Object;
 
-// Must give the type of Compartment a name to capture the external meaning of
-// Compartment Otherwise @param {typeof Compartment} takes the Compartment to
-// mean the const variable defined within the function.
-//
-/** @typedef {typeof Compartment} CompartmentConstructor */
-
-/**
- * @typedef {object} Options
- * @property {string} [expectedSha512]
- * @property {HashFn} [computeSha512]
- * @property {Record<string, unknown>} [modules]
- * @property {ExitModuleImportHook} [importHook]
- * @property {CompartmentConstructor} [Compartment]
- * @property {ComputeSourceLocationHook} [computeSourceLocation]
- * @property {ComputeSourceMapLocationHook} [computeSourceMapLocation]
- * @property {ParserForLanguage} [parserForLanguage]
- */
-
 /**
  * Add the default parserForLanguage option.
- * @param {Options} [options]
- * @returns {Options}
+ * @param {ParseArchiveOptions} [options]
+ * @returns {ParseArchiveOptions}
  */
 const assignParserForLanguage = (options = {}) => {
   const { parserForLanguage: parserForLanguageOption, ...rest } = options;
@@ -74,7 +54,7 @@ const assignParserForLanguage = (options = {}) => {
 /**
  * @param {Uint8Array} archiveBytes
  * @param {string} [archiveLocation]
- * @param {Options} [options]
+ * @param {ParseArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (
@@ -89,7 +69,7 @@ export const parseArchive = async (
   );
 
 /**
- * @param {import('@endo/zip').ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {LoadArchiveOptions} [options]
  * @returns {Promise<Application>}
@@ -102,7 +82,7 @@ export const loadArchive = async (readPowers, archiveLocation, options) =>
   );
 
 /**
- * @param {import('@endo/zip').ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {ExecuteOptions & LoadArchiveOptions} options
  * @returns {Promise<object>}

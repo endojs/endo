@@ -82,6 +82,7 @@ export const loadLocation = async (
     commonDependencies,
     policy,
     parserForLanguage,
+    log,
     languages,
     languageForExtension,
     commonjsLanguageForExtension,
@@ -107,9 +108,11 @@ export const loadLocation = async (
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
     languages,
+    log,
   });
   return loadFromMap(readPowers, compartmentMap, {
     parserForLanguage,
+    log,
     ...otherOptions,
   });
 };

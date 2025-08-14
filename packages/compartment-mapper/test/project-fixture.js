@@ -1,3 +1,4 @@
+/* eslint-disable no-shadow */
 /**
  * Utilities for working with {@link ProjectFixture} objects
  *
@@ -15,19 +16,29 @@ import nodeUrl from 'node:url';
 import { inspect } from 'node:util';
 import { makeReadPowers } from '../node-powers.js';
 import { GenericGraph } from '../src/generic-graph.js';
+import {
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+  WILDCARD_POLICY_VALUE,
+} from '../src/policy-format.js';
 
 /**
  * @import {MakeMaybeReadProjectFixtureOptions,
  *  MakeProjectFixtureReadPowersOptions,
  *  MakeMaybeReadProjectFixtureOptionsWithRandomDelay,
  *  ProjectFixture,
- *  RestParameters} from './test.types.js'
- * @import {CompartmentMapDescriptor, LogFn, MaybeReadFn, PackageDescriptor} from '../src/types.js'
+ *  FixedCustomInspectFunction,
+ *  RestParameters,
+ *  CustomInspectStyles} from './test.types.js'
+ * @import {CompartmentMapDescriptor,
+ *  LogFn,
+ *  MaybeReadFn,
+ *  PackageDescriptor,
+ *  PackagePolicy} from '../src/types.js'
  * @import {ExecutionContext} from 'ava'
- * @import {CustomInspectFunction} from 'node:util'
  */
 
-const { entries, fromEntries, assign, getPrototypeOf } = Object;
+const { entries, fromEntries, getPrototypeOf, freeze, keys } = Object;
 
 /**
  * Pretty-prints a {@link ProjectFixture} as an ASCII tree.
@@ -87,6 +98,17 @@ const MIN_DELAY = 10;
  * Maximum random delay in milliseconds for {@link makeMaybeReadProjectFixture}.
  */
 const MAX_DELAY = 100;
+
+const customStyles = freeze(
+  /** @type {CustomInspectStyles} */ ({
+    ...inspect.styles,
+    name: 'white',
+    undefined: 'dim',
+    endoKind: 'magenta',
+    endoCanonical: 'cyanBright',
+    endoConstant: 'magentaBright',
+  }),
+);
 
 /**
  * Creates a `maybeRead` function for use with a {@link ProjectFixture} having a
@@ -188,34 +210,103 @@ export const makeProjectFixtureReadPowers = (
  *
  * Otherwise this function is just the identity
  *
- * @param {unknown} value
- * @returns {unknown}
+ * @template T
+ * @param {T} value
+ * @returns {T}
  */
-const styleObject = value => {
-  if (value && getPrototypeOf(value) === null) {
-    return fromEntries(entries(value).map(([k, v]) => [k, styleObject(v)]));
+const unnullify = value => {
+  if (value === undefined) {
+    return value;
+  }
+  if (value !== null && getPrototypeOf(value) === null) {
+    return entries(value).reduce(
+      (acc, [k, v]) => ({
+        ...acc,
+        [k]: unnullify(v),
+      }),
+      /** @type {T} */ ({}),
+    );
   }
   return value;
 };
 
 /**
- * Prepends a `CompartmentDescriptor.path` with the computed canonical name (or "[Root]" if entry compartment).
+ * Prepares a {@link PackagePolicy} for inspection by {@link dumpCompartmentMap}.
  *
- * Returns a shallow copy of `path` with a {@link CustomInspectFunction}.
- *
- * @param {string[]} path
+ * @template {PackagePolicy|undefined} T
+ * @param {T} packagePolicy
+ * @returns {T}
  */
-const stylePath = path => {
-  const fancyPath = [...path];
-  assign(fancyPath, {
-    /** @type {CustomInspectFunction} */
-    [inspect.custom]: (_, { stylize }) =>
-      path.length
-        ? `[${stylize('Canonical', 'date')}: ${stylize(path.join('>'), 'special')}] ${inspect(path)}`
-        : `[${stylize('Root', 'date')}]`,
-  });
-  return fancyPath;
+const stylePackagePolicy = packagePolicy => {
+  if (packagePolicy === undefined) {
+    return packagePolicy;
+  }
+  const policy = unnullify(packagePolicy);
+  return {
+    ...policy,
+    /** @type {FixedCustomInspectFunction} */
+    [inspect.custom]: (_, options, inspect) => {
+      for (const [key, value] of entries(policy)) {
+        if (value === WILDCARD_POLICY_VALUE) {
+          // styles value as a constant. this could also be done by mutating styles,
+          // but since the value is just a string, we don't need to. we _do_ however
+          // need to turn it into an object so that it can have a custom inspect function.
+          policy[key] = {
+            /** @type {FixedCustomInspectFunction} */
+            [inspect.custom]: (_, options) =>
+              options.stylize(value, 'endoConstant'),
+          };
+        } else if (
+          key === 'packages' &&
+          typeof value === 'object' &&
+          keys(/** @type {any} */ (value)).length
+        ) {
+          // styles non-empty `packages` prop; all object keys are temporarily
+          // styled as canonical names. I was unable to find a nicer way to do
+          // this (e.g. with `stylize`), since the `inspect()` call will want to
+          // apply its own colors.
+          policy[key] = /** @type {any} */ ({
+            ...value,
+            /** @type {FixedCustomInspectFunction} */
+            [inspect.custom]: (_, options, inspect) => {
+              const { styles } = inspect;
+              try {
+                inspect.styles = /** @type {any} */ ({
+                  ...customStyles,
+                  string: 'cyanBright',
+                  name: 'cyanBright',
+                });
+                return inspect(value, options);
+              } finally {
+                inspect.styles = styles;
+              }
+            },
+          });
+        }
+      }
+      return `${options.stylize('PackagePolicy', 'endoKind')}(${inspect(policy, { ...options })})`;
+    },
+  };
 };
+
+/**
+ *
+ * @param {string} label
+ */
+const styleLabel = label => ({
+  /** @type {FixedCustomInspectFunction} */
+  [inspect.custom]: (_, options) => {
+    const { stylize } = options;
+    const kind = stylize('Canonical', 'endoKind');
+    if (label === ATTENUATORS_COMPARTMENT) {
+      return `${kind}(${stylize('Attenuators', 'endoConstant')})`;
+    }
+    if (label === ENTRY_COMPARTMENT) {
+      return `${kind}(${stylize('Entry', 'endoConstant')})`;
+    }
+    return `${kind}(${stylize(label, 'endoCanonical')})`;
+  },
+});
 
 /**
  * Dump a {@link CompartmentMapDescriptor}, omitting some fields.
@@ -233,43 +324,55 @@ const stylePath = path => {
  * @returns {void}
  */
 export const dumpCompartmentMap = (logger, compartmentMap) => {
-  const compartmentMapForInspect = {
-    ...compartmentMap,
-    /** @type {CustomInspectFunction} */
-    [inspect.custom]: () => ({
-      compartments: fromEntries(
-        entries(compartmentMap.compartments).map(
-          ([
-            compartmentName,
-            {
-              label,
-              name,
-              scopes,
-              location,
-              sourceDirname,
-              modules,
-              path = [],
-            },
-          ]) => [
-            compartmentName,
-            {
-              label,
-              name,
-              scopes: styleObject(scopes),
-              location: styleObject(location),
-              sourceDirname,
-              modules: styleObject(modules),
-              path: stylePath(path),
-            },
-          ],
-        ),
-      ),
+  const originalStyles = inspect.styles;
 
-      entry: styleObject(compartmentMap.entry),
-    }),
-  };
+  inspect.styles = customStyles;
+
+  let inspected;
+  try {
+    const compartmentMapForInspect = {
+      ...compartmentMap,
+      /** @type {FixedCustomInspectFunction} */
+      [inspect.custom]: () => {
+        return {
+          compartments: fromEntries(
+            entries(compartmentMap.compartments).map(
+              ([
+                compartmentName,
+                {
+                  label,
+                  name,
+                  scopes,
+                  location,
+                  sourceDirname,
+                  modules,
+                  policy,
+                  ...rest
+                },
+              ]) => [
+                compartmentName,
+                {
+                  label: styleLabel(label),
+                  name,
+                  location, // TODO: style if file URL
+                  policy: stylePackagePolicy(policy),
+                  sourceDirname,
+                  ...unnullify(rest),
+                },
+              ],
+            ),
+          ),
+
+          entry: unnullify(compartmentMap.entry),
+        };
+      },
+    };
+    inspected = inspect(compartmentMapForInspect, { depth: 4, colors: true });
+  } finally {
+    inspect.styles = originalStyles;
+  }
   logger.log(
-    `Compartment map for entry compartment at "${compartmentMap.entry.compartment}":\n${inspect(compartmentMapForInspect, false, 4, true)}`,
+    `Compartment map for entry compartment at "${compartmentMap.entry.compartment}":\n${inspected}`,
   );
 };
 

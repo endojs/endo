@@ -19,7 +19,10 @@ import path from 'node:path';
 import url from 'node:url';
 import { importLocation } from '../src/import.js';
 import { makeReadNowPowers } from '../src/node-powers.js';
-import { WILDCARD_POLICY_VALUE } from '../src/policy-format.js';
+import {
+  ENTRY_COMPARTMENT,
+  WILDCARD_POLICY_VALUE,
+} from '../src/policy-format.js';
 
 const readPowers = makeReadNowPowers({ fs, url, path });
 const { freeze, keys, assign } = Object;
@@ -52,7 +55,7 @@ const defaultImportHook = async (specifier, packageLocation) => {
   return defaultImportNowHook(specifier, packageLocation);
 };
 
-test('intra-package dynamic require works without invoking the exitModuleImportNowHook', async t => {
+test('dynamic require avoids exitModuleImportNowHook', async t => {
   t.plan(2);
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
@@ -96,6 +99,11 @@ test('intra-package dynamic require works without invoking the exitModuleImportN
           'dynamic>is-ok>is-not-ok': true,
         },
       },
+      'sprunt>node-tammy-build': {
+        packages: {
+          sprunt: true,
+        },
+      },
     },
   };
   const { namespace } = await importLocation(readPowers, fixture, {
@@ -119,7 +127,7 @@ test('intra-package dynamic require works without invoking the exitModuleImportN
 // figures out what file to require within that directory. there is no
 // reciprocal dependency on wherever that directory lives (usually it's
 // somewhere in the dependent package)
-test('intra-package dynamic require with inter-package absolute path works without invoking the exitModuleImportNowHook', async t => {
+test('dynamic require using absolute path avoids exitModuleImportNowHook', async t => {
   t.plan(2);
   const fixture = new URL(
     'fixtures-dynamic/node_modules/absolute-app/index.js',
@@ -144,7 +152,12 @@ test('intra-package dynamic require with inter-package absolute path works witho
       }),
     );
   };
-  /** @type {Policy} */
+
+  /**
+   * This policy allows bidirectional access between `sprunt` and
+   * `sprunt>node-tammy-build`
+   * @type {Policy}
+   */
   const policy = {
     entry: {
       packages: WILDCARD_POLICY_VALUE,
@@ -152,9 +165,14 @@ test('intra-package dynamic require with inter-package absolute path works witho
       builtins: WILDCARD_POLICY_VALUE,
     },
     resources: {
+      'sprunt>node-tammy-build': {
+        packages: {
+          sprunt: true,
+        },
+      },
       sprunt: {
         packages: {
-          'node-tammy-build': true,
+          'sprunt>node-tammy-build': true,
         },
       },
     },
@@ -177,7 +195,7 @@ test('intra-package dynamic require with inter-package absolute path works witho
   t.is(importNowHookCallCount, 0);
 });
 
-test('intra-package dynamic require using known-but-restricted absolute path fails', async t => {
+test('dynamic require of disallowed package', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/broken-app/index.js',
     import.meta.url,
@@ -209,7 +227,7 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
     resources: {
       badsprunt: {
         packages: {
-          'node-tammy-build': true,
+          'badsprunt>node-tammy-build': true,
         },
       },
       'badsprunt>node-tammy-build': {
@@ -224,7 +242,7 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
       importNowHook,
     }),
     {
-      message: /Blocked in importNow hook by relationship/,
+      message: /Blocked in importNow hook by package policy/,
     },
   );
 });
@@ -249,7 +267,7 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
         resources: {
           dynamic: {
             packages: {
-              'is-ok': true,
+              'dynamic>is-ok': true,
             },
           },
         },
@@ -281,7 +299,7 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
         resources: {
           dynamic: {
             packages: {
-              'is-ok': true,
+              'dynamic>is-ok': true,
             },
           },
         },
@@ -338,7 +356,7 @@ test('inter-package and exit module dynamic require works', async t => {
       resources: {
         hooked: {
           packages: {
-            dynamic: true,
+            'hooked>dynamic': true,
           },
         },
         'hooked>dynamic': {
@@ -412,7 +430,7 @@ test('inter-package and exit module dynamic require policy is enforced', async t
         resources: {
           hooked: {
             packages: {
-              dynamic: true,
+              'hooked>dynamic': true,
             },
           },
           'hooked>dynamic': {
@@ -479,7 +497,7 @@ test('inter-package and exit module dynamic require works ("node:"-namespaced)',
       resources: {
         hooked: {
           packages: {
-            dynamic: true,
+            'hooked>dynamic': true,
           },
         },
         'hooked>dynamic': {
@@ -612,7 +630,7 @@ test('dynamic require of missing module falls through to importNowHook', async t
 
   await t.throwsAsync(
     importLocation(readPowers, fixture, {
-      policy: { entry: { builtins: 'any' }, resources: {} },
+      policy: { entry: { builtins: WILDCARD_POLICY_VALUE }, resources: {} },
       importNowHook: (specifier, _packageLocation) => {
         throw new Error(`Blocked exit module: ${specifier}`);
       },
@@ -635,7 +653,7 @@ test('dynamic require of package missing an optional module', async t => {
   t.like(namespace, { isOk: true, default: { isOk: true } });
 });
 
-test('dynamic require of ancestor relative path within known compartment should succeed', async t => {
+test('dynamic require of ancestor relative path', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/grabby-app/index.js',
     import.meta.url,
@@ -648,6 +666,20 @@ test('dynamic require of ancestor relative path within known compartment should 
 
   const { namespace } = await importLocation(readPowers, fixture, {
     importNowHook,
+    policy: {
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        grabby: {
+          packages: {
+            [ENTRY_COMPARTMENT]: true,
+          },
+        },
+      },
+    },
   });
   t.like(namespace, { value: 'buried treasure' });
 });
@@ -689,12 +721,20 @@ test('dynamic require of ancestor', async t => {
           },
           packages: {
             'pantspack>pantspack-folder-runner': true,
-            'webpackish-app': true,
+            [ENTRY_COMPARTMENT]: true,
+          },
+          globals: {
+            'process.exitCode': true,
           },
         },
         'pantspack>pantspack-folder-runner': {
           packages: {
             'jorts-folder': true,
+          },
+        },
+        'jorts-folder': {
+          packages: {
+            [ENTRY_COMPARTMENT]: true,
           },
         },
       },
@@ -716,6 +756,7 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
     import.meta.url,
   ).href;
 
+  /** @type {Policy} */
   const policy = {
     entry: {
       packages: WILDCARD_POLICY_VALUE,
@@ -731,7 +772,10 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
         },
         packages: {
           'pantspack>pantspack-folder-runner': true,
-          'webpackish-app': true,
+          [ENTRY_COMPARTMENT]: true,
+        },
+        globals: {
+          'process.exitCode': true,
         },
       },
       'pantspack>pantspack-folder-runner': {
@@ -756,7 +800,7 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
     t.regex(
       err.cause.message,
       new RegExp(
-        `Importing "jorts-folder" in resource "jorts-folder" in "pantspack-folder-runner-v1\\.0\\.0" was not allowed by "packages" policy: ${JSON.stringify(policy.resources['pantspack>pantspack-folder-runner'].packages)}`,
+        `Importing "jorts-folder" in resource "jorts-folder" in "pantspack>pantspack-folder-runner" was not allowed by "packages" policy: ${JSON.stringify(policy.resources['pantspack>pantspack-folder-runner'].packages)}`,
       ),
     );
   }
@@ -769,16 +813,14 @@ test('dynamic require of ancestor disallowed if policy omitted', async t => {
     import.meta.url,
   ).href;
 
-  try {
-    // eslint-disable-next-line @jessie.js/safe-await-separator
-    await importLocation(readPowers, fixture, {
+  await t.throwsAsync(
+    importLocation(readPowers, fixture, {
       dev: true,
       importNowHook: defaultImportNowHook,
       importHook: defaultImportHook,
-    });
-    t.fail('importLocation should have rejected');
-  } catch (err) {
-    t.regex(err.message, /Could not require pantsFolder "jorts-folder"/);
-    t.regex(err.cause.message, /Could not import module/);
-  }
+    }),
+    {
+      message: /Could not import module.+webpackish-app\/pantspack\.config\.js/,
+    },
+  );
 });

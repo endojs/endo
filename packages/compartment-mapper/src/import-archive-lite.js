@@ -23,7 +23,7 @@
  * } from 'ses';
  * @import {
  *   Application,
- *   CompartmentDescriptor,
+ *   FileCompartmentDescriptor,
  *   ComputeSourceLocationHook,
  *   ComputeSourceMapLocationHook,
  *   ExecuteFn,
@@ -44,9 +44,13 @@ import { link } from './link.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { join } from './node-module-specifier.js';
-import { assertCompartmentMap } from './compartment-map.js';
+import { assertFileCompartmentMap } from './compartment-map.js';
 import { exitModuleImportHookMaker } from './import-hook.js';
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
+import {
+  isErrorModuleDescriptorConfiguration,
+  isFileModuleDescriptorConfiguration,
+} from './guards.js';
 
 const { Fail, quote: q } = assert;
 
@@ -77,7 +81,7 @@ const postponeErrorToExecute = errorMessage => {
 
 /**
  * @param {(path: string) => Uint8Array} get
- * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {Record<string, FileCompartmentDescriptor>} compartments
  * @param {string} archiveLocation
  * @param {ParserForLanguage} parserForLanguage
  * @param {HashFn} [computeSha512]
@@ -161,22 +165,22 @@ const makeArchiveImportHookMaker = (
           )} in archive ${q(archiveLocation)}`,
         );
       }
-      if (module.deferredError !== undefined) {
+      if (isErrorModuleDescriptorConfiguration(module)) {
         return postponeErrorToExecute(module.deferredError);
       }
-      if (module.parser === undefined) {
+      if (!isFileModuleDescriptorConfiguration(module)) {
         throw Error(
           `Cannot parse module ${q(moduleSpecifier)} in package ${q(
             packageLocation,
-          )} in archive ${q(archiveLocation)}`,
+          )} in archive ${q(archiveLocation)}; missing parser`,
         );
       }
       const parser = parserForLanguage[module.parser];
       if (parser === undefined) {
         throw Error(
-          `Cannot parse ${q(module.parser)} module ${q(
+          `Cannot parse module ${q(
             moduleSpecifier,
-          )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`,
+          )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}; unknown parser (${q(module.parser)})`,
         );
       }
       const { parse } = parser;
@@ -306,7 +310,7 @@ export const parseArchive = async (
     compartmentMapText,
     'compartment-map.json',
   );
-  assertCompartmentMap(compartmentMap, archiveLocation);
+  assertFileCompartmentMap(compartmentMap, archiveLocation);
 
   const {
     compartments,
