@@ -51,7 +51,9 @@ export type PropertyPolicy = Record<string, boolean>;
  * wildcard policy}, a property policy, `undefined`, or defined by an
  * attenuator
  */
-export type PolicyItem<T = void> = WildcardPolicy | PropertyPolicy | T;
+export type PolicyItem<T = void> = [T] extends [void]
+  ? WildcardPolicy | PropertyPolicy
+  : WildcardPolicy | PropertyPolicy | T;
 
 /**
  * An object representing a nested attenuation definition.
@@ -70,22 +72,36 @@ export type PackagePolicy<
   BuiltinsPolicyItem = void,
   ExtraOptions = unknown,
 > = {
-  /** The default attenuator. */
+  /**
+   * The default attenuator, if any.
+   */
   defaultAttenuator?: string | undefined;
-  /** The policy item for packages. */
+  /**
+   * The policy item for packages.
+   */
   packages?: PolicyItem<PackagePolicyItem> | undefined;
-  /** The policy item or full attenuation definition for globals. */
+  /**
+   * The policy item or full attenuation definition for globals.
+   */
   globals?: AttenuationDefinition | PolicyItem<GlobalsPolicyItem> | undefined;
-  /** The policy item or nested attenuation definition for builtins. */
+  /**
+   * The policy item or nested attenuation definition for builtins.
+   */
   builtins?:
     | NestedAttenuationDefinition
     | PolicyItem<BuiltinsPolicyItem>
     | undefined;
-  /** Whether to disable global freeze. */
+  /**
+   * Whether to disable global freeze.
+   */
   noGlobalFreeze?: boolean | undefined;
-  /** Whether to allow dynamic imports */
+  /**
+   * Whether to allow dynamic imports
+   */
   dynamic?: boolean | undefined;
-  /** Any additional user-defined options can be added to the policy here */
+  /**
+   * Any additional user-defined options can be added to the policy here
+   */
   options?: ExtraOptions | undefined;
 };
 
@@ -125,9 +141,4 @@ export type Policy<
 export type SomePolicy = Policy<any, any, any, any>;
 
 /** Any {@link PackagePolicy} */
-export type SomePackagePolicy = PackagePolicy<
-  PolicyItem,
-  PolicyItem,
-  PolicyItem,
-  unknown
->;
+export type SomePackagePolicy = PackagePolicy<void, void, void, unknown>;
