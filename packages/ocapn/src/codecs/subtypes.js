@@ -1,29 +1,29 @@
-const { freeze } = Object;
+import { makeCodec } from '../syrup/codec.js';
 
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 
 /** @type {SyrupCodec} */
-export const PositiveIntegerCodec = freeze({
+export const NonNegativeIntegerCodec = makeCodec('NonNegativeInteger', {
   write: (value, syrupWriter) => {
     if (typeof value !== 'bigint') {
-      throw Error('PositiveIntegerCodec: value must be a bigint');
+      throw Error('value must be a bigint');
     }
     if (value < 0n) {
-      throw Error('PositiveIntegerCodec: value must be positive');
+      throw Error('value must be non-negative');
     }
     syrupWriter.writeInteger(value);
   },
   read: syrupReader => {
     const value = syrupReader.readInteger();
     if (value < 0n) {
-      throw Error('PositiveIntegerCodec: value must be positive');
+      throw Error('value must be non-negative');
     }
     return value;
   },
 });
 
 /** @type {SyrupCodec} */
-export const FalseCodec = freeze({
+export const FalseCodec = makeCodec('False', {
   write: (value, syrupWriter) => {
     if (value) {
       throw Error('FalseCodec: value must be false');
