@@ -3,6 +3,7 @@
 import 'ses';
 import test from 'ava';
 import { moduleify, scaffold, sanitizePaths } from './scaffold.js';
+import { WILDCARD_POLICY_VALUE } from '../src/policy-format.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
@@ -75,9 +76,9 @@ const policy = {
   },
 };
 const ANY = {
-  globals: 'any',
-  packages: 'any',
-  builtins: 'any',
+  globals: WILDCARD_POLICY_VALUE,
+  packages: WILDCARD_POLICY_VALUE,
+  builtins: WILDCARD_POLICY_VALUE,
 };
 const anyPolicy = {
   entry: policy.entry,
