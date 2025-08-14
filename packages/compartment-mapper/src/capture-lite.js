@@ -35,10 +35,10 @@
  * @import {
  *   CaptureLiteOptions,
  *   CaptureResult,
- *   CompartmentMapDescriptor,
+ *   PackageCompartmentMapDescriptor,
  *   ForceLoadOption,
  *   LogFn,
- *   LogOptions,
+ *   MakeLoadCompartmentsOptions,
  *   PolicyOption,
  *   ReadFn,
  *   ReadPowers,
@@ -58,12 +58,12 @@ import { detectAttenuators } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 
 const { freeze, assign, create, keys } = Object;
-const { stringify: q } = JSON;
+const { quote: q } = assert;
 
 const DefaultCompartment = Compartment;
 
 /**
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
  * @returns {CaptureResult}
  */
@@ -92,9 +92,9 @@ const noop = () => {};
 /**
  * Factory for a function that loads compartments.
  *
- * @param {CompartmentMapDescriptor} compartmentMap Compartment map
+ * @param {PackageCompartmentMapDescriptor} compartmentMap Compartment map
  * @param {Sources} sources Sources
- * @param {LogOptions & PolicyOption & ForceLoadOption} [options]
+ * @param {MakeLoadCompartmentsOptions} [options]
  * @returns {(linkedCompartments: Record<string, Compartment>, entryCompartment: Compartment, attenuatorsCompartment: Compartment) => Promise<void>}
  */
 const makeLoadCompartments = (
@@ -108,8 +108,8 @@ const makeLoadCompartments = (
 
   /**
    * Given {@link CompartmentDescriptor CompartmentDescriptors}, loads any which
-   * a) are present in the {@link forceLoad forceLoad array}, and b) have not
-   * yet been loaded.
+   * Iterates over compartment names in the {@link forceLoad forceLoad array}
+   * and loads those which have not yet been loaded.
    *
    * Will not load the "attenuators" `Compartment`, nor will it load any
    * `Compartment` having a non-empty value in `sources` (since it is presumed
@@ -231,7 +231,7 @@ const makeLoadCompartments = (
  * policy generation.
  *
  * @param {ReadFn | ReadPowers} readPowers Powers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {CaptureLiteOptions} [options]
  * @returns {Promise<CaptureResult>}
  */

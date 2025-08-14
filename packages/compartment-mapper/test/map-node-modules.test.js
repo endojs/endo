@@ -12,12 +12,12 @@ import {
 } from './project-fixture.js';
 
 /**
- * @import {ProjectFixture, ProjectFixtureGraph} from './test.types.js'
+ * @import {ProjectFixture} from './test.types.js'
  */
 
 const { keys, values } = Object;
 
-const CORRECT_SHORTEST_PATH = ['paperino', 'topolino', 'goofy'];
+const CORRECT_CANONICAL_NAME = 'paperino>topolino>goofy';
 
 test(`mapNodeModules() should return compartment descriptors containing shortest path`, async t => {
   const readPowers = makeReadPowers({ fs, url });
@@ -26,25 +26,23 @@ test(`mapNodeModules() should return compartment descriptors containing shortest
     import.meta.url,
   ).href;
 
-  const targetLabel = 'goofy-v1.0.0';
-
   const compartmentMap = await mapNodeModules(readPowers, shortestPathFixture);
 
   const compartmentDescriptor = values(compartmentMap.compartments).find(
-    compartment => compartment.label === targetLabel,
+    compartment => compartment.label === CORRECT_CANONICAL_NAME,
   );
 
   // not using AVA's assertions here because assertion types are not assert-style type guards (they just return `void`) which prevents the need for type assertions on `compartmentDescriptor` after
   if (!compartmentDescriptor) {
     t.fail(
-      `compartment descriptor for '${targetLabel}' should exist, but it does not`,
+      `compartment descriptor for '${CORRECT_CANONICAL_NAME}' should exist, but it does not`,
     );
     return;
   }
-  t.deepEqual(
-    compartmentDescriptor.path,
-    CORRECT_SHORTEST_PATH,
-    `compartment descriptor should have shortest path: ${CORRECT_SHORTEST_PATH.join('>')}`,
+  t.is(
+    compartmentDescriptor.label,
+    CORRECT_CANONICAL_NAME,
+    `compartment descriptor should have canonical name: ${CORRECT_CANONICAL_NAME}`,
   );
 });
 
@@ -107,7 +105,7 @@ test('mapNodeModules() should not consider peerDependenciesMeta without correspo
     /** @type {string|undefined} */
     let expectedCanonicalName;
 
-    const targetLabel = 'goofy-v1.0.0';
+    const targetLabel = 'paperino>topolino>goofy';
 
     const readPowers = makeProjectFixtureReadPowers(fixture, {
       randomDelay: true,
@@ -130,10 +128,10 @@ test('mapNodeModules() should not consider peerDependenciesMeta without correspo
         return;
       }
 
-      const { path } = compartmentDescriptor;
-      if (!path) {
+      const { label } = compartmentDescriptor;
+      if (!label) {
         t.fail(
-          `path for '${compartmentDescriptor.name}' should exist, but it does not`,
+          `label for '${compartmentDescriptor.name}' should exist, but it does not`,
         );
 
         dumpProjectFixture(t, fixture);
@@ -142,14 +140,14 @@ test('mapNodeModules() should not consider peerDependenciesMeta without correspo
       }
 
       if (i === 0) {
-        expectedCanonicalName = path.join('>');
+        expectedCanonicalName = label;
         t.log(
           `Canonical name of compartment '${targetLabel}': ${expectedCanonicalName}`,
         );
       }
 
       try {
-        t.deepEqual(path.join('>'), expectedCanonicalName);
+        t.is(label, /** @type {any} */ (expectedCanonicalName));
       } catch (err) {
         dumpProjectFixture(t, fixture);
         dumpCompartmentMap(t, compartmentMap);

@@ -15,11 +15,13 @@ import type {
 import type {
   CompartmentDescriptor,
   CompartmentMapDescriptor,
+  DigestedCompartmentMapDescriptor,
   Language,
   LanguageForExtension,
+  PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
+import type { SomePackagePolicy, SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
-import type { SomePolicy } from './policy-schema.js';
 
 /**
  * Set of options available in the context of code execution.
@@ -66,6 +68,7 @@ export interface LogOptions {
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
+  PolicyOverrideOption &
   LogOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
@@ -125,11 +128,17 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * from the `parserForLanguage` option.
    */
   languages: Array<Language>;
+
+  /**
+   * Non-empty list of {@link CompartmentMapTransformFn Compartment Map Transforms} to apply to the {@link CompartmentMapDescriptor} before returning it.
+   *
+   * If empty or not provided, the default transforms are applied.
+   */
+  compartmentMapTransforms: ReadonlyArray<
+    CompartmentMapTransformFn<PackageCompartmentMapDescriptor>
+  >;
 }>;
 
-/**
- * @deprecated Use `mapNodeModules()`.
- */
 export type CompartmentMapForNodeModulesOptions = Omit<
   MapNodeModulesOptions,
   'conditions' | 'tags'
@@ -160,7 +169,8 @@ export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
   ImportingOptions &
   ExitModuleImportHookOption &
-  LinkingOptions;
+  LinkingOptions &
+  LogOptions;
 
 export type SyncArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   SyncModuleTransformsOption &
@@ -315,6 +325,10 @@ export type PolicyOption = {
   policy?: SomePolicy;
 };
 
+export interface PolicyOverrideOption {
+  policyOverride?: SomePolicy;
+}
+
 export type LanguageForExtensionOption = {
   languageForExtension?: LanguageForExtension;
 };
@@ -353,7 +367,7 @@ export interface DigestResult {
   /**
    * Normalized `CompartmentMapDescriptor`
    */
-  compartmentMap: CompartmentMapDescriptor;
+  compartmentMap: DigestedCompartmentMapDescriptor;
 
   /**
    * Sources found in the `CompartmentMapDescriptor`
@@ -383,7 +397,7 @@ export interface DigestResult {
  * The result of `captureFromMap`.
  */
 export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
-  captureCompartmentMap: DigestResult['compartmentMap'];
+  captureCompartmentMap: DigestedCompartmentMapDescriptor;
   captureSources: DigestResult['sources'];
 };
 
@@ -391,7 +405,7 @@ export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
  * The result of `makeArchiveCompartmentMap`
  */
 export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
-  archiveCompartmentMap: DigestResult['compartmentMap'];
+  archiveCompartmentMap: DigestedCompartmentMapDescriptor;
   archiveSources: DigestResult['sources'];
 };
 
@@ -402,18 +416,31 @@ export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
 export type Sources = Record<string, CompartmentSources>;
 export type CompartmentSources = Record<string, ModuleSource>;
 
-// TODO unionize:
-export type ModuleSource = Partial<{
+export type ModuleSource =
+  | LocalModuleSource
+  | ExitModuleSource
+  | ErrorModuleSource;
+
+export interface BaseModuleSource {
   /** module loading error deferred to later stage */
+
+  deferredError?: string;
+}
+
+export interface ErrorModuleSource extends BaseModuleSource {
   deferredError: string;
+}
+
+export interface LocalModuleSource extends BaseModuleSource {
   /**
    * package-relative location.
    * Not suitable for capture in an archive or bundle since it varies from host
    * to host and would frustrate integrity hash checks.
    */
   location: string;
-  /** fully qualified location */
-  sourceLocation: string;
+  parser: Language;
+  /** in lowercase base-16 (hexadecimal) */
+  sha512?: string;
   /**
    * directory name of the original source.
    * This is safe to capture in a compartment map because it is _unlikely_ to
@@ -429,15 +456,19 @@ export type ModuleSource = Partial<{
    * https://github.com/endojs/endo/issues/2671
    */
   sourceDirname: string;
+  /** fully qualified location */
+
+  sourceLocation: string;
   bytes: Uint8Array;
-  /** in lowercase base-16 (hexadecimal) */
-  sha512: string;
-  parser: Language;
-  /** indicates that this is a reference that exits the mapped compartments */
-  exit: string;
   /** module for the module */
   record: StaticModuleType;
-}>;
+}
+
+export interface ExitModuleSource extends BaseModuleSource {
+  /** indicates that this is a reference that exits the mapped compartments */
+
+  exit: string;
+}
 
 export type SourceMapHook = (
   sourceMap: string,
@@ -573,3 +604,167 @@ export type LogFn = (...args: any[]) => void;
  * A string that represents a file URL.
  */
 export type FileUrlString = `file://${string}`;
+
+// #region compartment map transforms
+
+/**
+ * Options provided to all Compartment Map Transforms.
+ */
+export type CompartmentMapTransformOptions = Required<LogOptions> &
+  PolicyOption &
+  PolicyOverrideOption;
+
+/**
+ * Public API provided to a {@link CompartmentMapTransformFn} as the
+ * {@link CompartmentMapTransformFnArguments.context} object.
+ *
+ * @template CompartmentMap The specific type of `CompartmentMapDescriptor`
+ * being transformed; defaults to `PackageCompartmentMapDescriptor`.
+ */
+export interface CompartmentMapTransformContext<
+  CompartmentMap extends
+    CompartmentMapDescriptor = PackageCompartmentMapDescriptor,
+> {
+  /**
+   * Returns the package policy from `policy` or
+   * {@link CompartmentMapTransformOptions.policy} if not provided.
+   *
+   * If you only need the `PackagePolicy` set in the `CompartmentDescriptor`,
+   * use {@link CompartmentDescriptor.policy} instead.
+   *
+   * @param compartmentDescriptor Compartment descriptor
+   * @param policy Optional policy
+   *
+   * @returns A package policy, if found
+   */
+  readonly getPackagePolicy: (
+    compartmentDescriptor: CompartmentDescriptorFromMap<CompartmentMap>,
+    policy?: SomePolicy,
+  ) => SomePackagePolicy | undefined;
+
+  /**
+   * Returns a compartment descriptor by name.
+   *
+   * @param name The name of the compartment descriptor; these are the _keys_ of {@link CompartmentDescriptor.compartments}.
+   * @returns A compartment descriptor, if found
+   */
+  readonly getCompartmentDescriptor: (
+    name: CompartmentNameFromMap<CompartmentMap>,
+  ) => CompartmentDescriptorFromMap<CompartmentMap> | undefined;
+
+  /**
+   * Returns the canonical name for some {@link CompartmentDescriptor} (or its
+   * name, if a `string`).
+   *
+   * This function only resolves `CompartmentDescriptor` if given a name; it
+   * returns the value of {@link CompartmentDescriptor.label}.
+   *
+   * @param compartmentDescriptorOrName Compartment descriptor or compartment
+   * name
+   */
+  readonly getCanonicalName: (
+    compartmentDescriptorOrName:
+      | CompartmentNameFromMap<CompartmentMap>
+      | CompartmentDescriptorFromMap<CompartmentMap>
+      | undefined,
+  ) => string | undefined;
+
+  /**
+   * Returns the compartment name for a given canonical name.
+   *
+   * @param canonicalName Canonical name of the compartment.
+   * @returns Compartment name or `undefined` if not found.
+   */
+  readonly getCompartmentName: (
+    canonicalName: string,
+  ) => CompartmentNameFromMap<CompartmentMap> | undefined;
+}
+
+/**
+ * Utility to infer the type of a `CompartmentDescriptor` from a `CompartmentMapDescriptor`.
+ */
+export type CompartmentDescriptorFromMap<
+  CompartmentMap extends CompartmentMapDescriptor<
+    any,
+    any
+  > = CompartmentMapDescriptor,
+> =
+  CompartmentMap extends CompartmentMapDescriptor<infer T, infer K> ? T : never;
+
+/**
+ * Utility to infer the type of the keys of
+ * {@link CompartmentDescriptor.compartments} from a `CompartmentMapDescriptor`.
+ */
+export type CompartmentNameFromMap<
+  CompartmentMap extends CompartmentMapDescriptor<
+    any,
+    any
+  > = CompartmentMapDescriptor,
+> = CompartmentMap extends CompartmentMapDescriptor<any, infer K> ? K : never;
+
+/**
+ * Arguments provided to a {@link CompartmentMapTransformFn}.
+ */
+export interface CompartmentMapTransformFnArguments<
+  CompartmentMap extends CompartmentMapDescriptor,
+> {
+  /**
+   * The {@link CompartmentMapDescriptor} being transformed. May have already been transformed.
+   *
+   * This is considered mutable.
+   */
+  readonly compartmentMap: CompartmentMap;
+  /**
+   * The {@link CompartmentMapTranfsormContext} API, for convenience.
+   */
+  readonly context: Readonly<CompartmentMapTransformContext<CompartmentMap>>;
+  /**
+   * Common options for all transforms.
+   */
+  readonly options: Readonly<CompartmentMapTransformOptions>;
+}
+
+/**
+ * Implementation of a Compartment Map Transform.
+ *
+ * It can be sync or async, but must return/fulfill a `CompartmentMapDescriptor`.
+ */
+export type CompartmentMapTransformFn<
+  CompartmentMap extends
+    CompartmentMapDescriptor = PackageCompartmentMapDescriptor,
+> = (
+  args: Readonly<CompartmentMapTransformFnArguments<CompartmentMap>>,
+) => Promise<CompartmentMap> | CompartmentMap;
+// #endregion
+
+/**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
+
+export interface PackageDescriptor {
+  /**
+   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
+   */
+  name: string;
+  version?: string;
+  /**
+   * TODO: Update with proper type when this field is handled.
+   */
+  exports?: unknown;
+  type?: 'module' | 'commonjs';
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  bundleDependencies?: string[];
+  peerDependenciesMeta?: Record<
+    string,
+    { optional?: boolean; [k: string]: unknown }
+  >;
+  module?: string;
+  browser?: Record<string, string> | string;
+
+  main?: string;
+
+  [k: string]: unknown;
+}

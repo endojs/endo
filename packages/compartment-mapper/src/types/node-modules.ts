@@ -1,10 +1,16 @@
+import type {
+  PackageDescriptor,
+  FileUrlString,
+  LogOptions,
+} from './external.js';
 import type { GenericGraph } from '../generic-graph.js';
 import type {
+  CompartmentMapDescriptor,
   Language,
   LanguageForExtension,
+  PackageCompartmentDescriptorName,
+  PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
-import type { LogOptions, FileUrlString } from './external.js';
-import type { PackageDescriptor } from './internal.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -26,9 +32,7 @@ export type CommonDependencyDescriptorsOptions = {
 /**
  * Options for `graphPackage()`
  */
-export type GraphPackageOptions = {
-  logicalPath?: string[];
-} & LogOptions &
+export type GraphPackageOptions = LogOptions &
   CommonDependencyDescriptorsOptions;
 
 /**
@@ -40,7 +44,6 @@ export type GraphPackagesOptions = LogOptions;
  * Options for `gatherDependency()`
  */
 export type GatherDependencyOptions = {
-  childLogicalPath?: string[];
   /**
    * If `true` the dependency is optional
    */
@@ -48,17 +51,14 @@ export type GatherDependencyOptions = {
 } & LogOptions &
   CommonDependencyDescriptorsOptions;
 
+/**
+ * Value in {@link Graph}
+ */
 export interface Node {
-  /**
-   * Informative compartment label based on the package name and version (if available)
-   */
-  label: string;
   /**
    * Package name
    */
   name: string;
-  path: Array<string>;
-  logicalPath: Array<string>;
   /**
    * `true` if the package's {@link PackageDescriptor} has an `exports` field
    */
@@ -77,9 +77,21 @@ export interface Node {
    *
    * The values are the keys of other {@link Node Nodes} in the {@link Graph}.
    */
-  dependencyLocations: Record<string, string>;
+  dependencyLocations: Record<string, FileUrlString>;
   parsers: LanguageForExtension;
   types: Record<string, Language>;
+  packageDescriptor: PackageDescriptor;
+}
+
+/**
+ * A node in the graph that has been finalized, meaning it has a `label` and is
+ * ready for conversion into a `CompartmentDescriptor`.
+ */
+export interface FinalNode extends Node {
+  /**
+   * Canonical name of the package; used to identify it in policy
+   */
+  label: string;
 }
 
 /**
@@ -87,11 +99,13 @@ export interface Node {
  * build by exploring the `node_modules` tree dropped by tools like npm and
  * consumed by tools like Node.js. This gets translated finally into a
  * compartment map.
- *
- * Keys may either be a file URL string to a package or the special
- * `<ATTENUATORS>` string.
  */
-export type Graph = Record<LiteralUnion<'<ATTENUATORS>', FileUrlString>, Node>;
+export type Graph = Record<PackageCompartmentDescriptorName, Node>;
+
+export type FinalGraph = Record<
+  PackageCompartmentDescriptorName,
+  Readonly<FinalNode>
+>;
 
 export interface LanguageOptions {
   commonjsLanguageForExtension: LanguageForExtension;
@@ -114,3 +128,15 @@ export interface PackageDetails {
  * used by `mapNodeModules()` and its ilk.
  */
 export type LogicalPathGraph = GenericGraph<FileUrlString>;
+
+/**
+ * This mapping is provided to `applyCompartmentMapTransforms()` to enable
+ * reverse-lookups of `CompartmentDescriptor`s from policy.
+ */
+export type CanonicalNameMap<
+  CompartmentMap extends
+    CompartmentMapDescriptor = PackageCompartmentMapDescriptor,
+> =
+  CompartmentMap extends CompartmentMapDescriptor<infer _, infer K>
+    ? Map<string, K>
+    : never;

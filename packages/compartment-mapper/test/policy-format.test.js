@@ -1,7 +1,11 @@
 import 'ses';
 import test from 'ava';
 
-import { assertPackagePolicy, assertPolicy } from '../src/policy-format.js';
+import {
+  assertPackagePolicy,
+  assertPolicy,
+  WILDCARD_POLICY_VALUE,
+} from '../src/policy-format.js';
 
 const q = JSON.stringify;
 
@@ -9,7 +13,11 @@ const q = JSON.stringify;
   {},
   { packages: {}, globals: {}, builtins: {} },
   { packages: {}, globals: {}, builtins: {}, noGlobalFreeze: true },
-  { packages: 'any', globals: 'any', builtins: 'any' },
+  {
+    packages: WILDCARD_POLICY_VALUE,
+    globals: WILDCARD_POLICY_VALUE,
+    builtins: WILDCARD_POLICY_VALUE,
+  },
   {
     packages: {
       foo: true,

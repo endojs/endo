@@ -5,6 +5,8 @@
  * @module
  */
 
+import type { WILDCARD_POLICY_VALUE } from '../policy-format.js';
+
 /* eslint-disable no-use-before-define */
 
 /**
@@ -38,7 +40,7 @@ export type UnifiedAttenuationDefinition = {
 /**
  * A type representing a wildcard policy, which can be 'any'.
  */
-export type WildcardPolicy = 'any';
+export type WildcardPolicy = typeof WILDCARD_POLICY_VALUE;
 
 /**
  * A type representing a property policy, which is a record of string keys and

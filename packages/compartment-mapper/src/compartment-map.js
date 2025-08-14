@@ -2,13 +2,28 @@
 
 import { assertPackagePolicy } from './policy-format.js';
 
-/** @import {CompartmentMapDescriptor} from './types.js' */
+/**
+ * @import {
+ *  FileCompartmentDescriptor,
+ *  FileCompartmentMapDescriptor,
+ *  FileModuleDescriptorConfiguration,
+ *  CompartmentMapDescriptor,
+ *  EntryDescriptor,
+ *  ModuleDescriptorConfiguration,
+ *  ExitModuleDescriptorConfiguration,
+ *  CompartmentModuleDescriptorConfiguration,
+ *  CompartmentDescriptor,
+ *  ScopeDescriptor,
+ *  BaseModuleDescriptorConfiguration} from './types.js'
+ */
 
 // TODO convert to the new `||` assert style.
 // Deferred because this file pervasively uses simple template strings rather than
 // template strings tagged with `assert.details` (aka `X`), and uses
 // this definition of `q` rather than `assert.quote`
 const q = JSON.stringify;
+const { keys, entries } = Object;
+const { isArray } = Array;
 
 /** @type {(a: string, b: string) => number} */
 // eslint-disable-next-line no-nested-ternary
@@ -27,146 +42,224 @@ function* enumerate(iterable) {
 }
 
 /**
+ * Type guard for a string value.
+ *
+ * @overload
+ * @param {unknown} value
+ * @param {string} path
+ * @param {string} url
+ * @returns {asserts value is string}
+ */
+
+/**
+ * Type guard for a string value with a custom assertion failure message.
+ *
+ * @overload
+ * @param {unknown} value
+ * @param {string} message
+ * @returns {asserts value is string}
+ */
+
+/**
+ * Type guard for a string value.
+ *
+ * @param {unknown} value
+ * @param {string} pathOrMessage
+ * @param {string} [url]
+ * @returns {asserts value is string}
+ */
+const assertString = (value, pathOrMessage, url) => {
+  if (url === undefined) {
+    const message = pathOrMessage;
+    assert.typeof(value, 'string', message);
+  } else {
+    const path = pathOrMessage;
+    assert.typeof(
+      value,
+      'string',
+      `${path} in ${q(url)} must be a string, got ${q(value)}`,
+    );
+  }
+};
+
+/**
+ * @param {unknown} allegedObject
+ * @param {string} path
+ * @param {string} url
+ * @returns {asserts allegedObject is Record<PropertyKey, unknown>}
+ */
+const assertPlainObject = (allegedObject, path, url) => {
+  const object = Object(allegedObject);
+  assert(
+    object === allegedObject &&
+      !isArray(object) &&
+      !(typeof object === 'function'),
+    `${path} must be an object, got ${q(allegedObject)} of type ${q(typeof allegedObject)} in ${q(url)}`,
+  );
+};
+
+/**
+ *
+ * @param {unknown} value
+ * @param {string} path
+ * @param {string} url
+ * @returns {asserts value is boolean}
+ */
+const assertBoolean = (value, path, url) => {
+  assert.typeof(
+    value,
+    'boolean',
+    `${path} in ${q(url)} must be a boolean, got ${q(value)}`,
+  );
+};
+
+/**
  * @param {Record<string, unknown>} object
  * @param {string} message
  */
 const assertEmptyObject = (object, message) => {
-  assert(Object.keys(object).length === 0, message);
+  assert(keys(object).length === 0, message);
 };
 
 /**
  * @param {unknown} conditions
  * @param {string} url
+ * @returns {asserts conditions is CompartmentMapDescriptor['tags']}
  */
 const assertConditions = (conditions, url) => {
   if (conditions === undefined) return;
   assert(
-    Array.isArray(conditions),
+    isArray(conditions),
     `conditions must be an array, got ${conditions} in ${q(url)}`,
   );
   for (const [index, value] of enumerate(conditions)) {
-    assert.typeof(
-      value,
-      'string',
-      `conditions[${index}] must be a string, got ${value} in ${q(url)}`,
-    );
+    assertString(value, `conditions[${index}]`, url);
   }
 };
 
 /**
- * @param {Record<string, unknown>} allegedModule
+ * @template {Partial<ModuleDescriptorConfiguration>} T
+ * @param {T} allegedModule
+ * @returns {Omit<T, keyof BaseModuleDescriptorConfiguration>}
+ */
+const getModuleDescriptorSpecificProperties = allegedModule => {
+  const {
+    createdBy: _createdBy,
+    retained: _retained,
+    deferredError: _deferredError,
+    ...other
+  } = allegedModule;
+  return other;
+};
+
+/**
+ *
+ * @param {Record<PropertyKey, unknown>} allegedModule
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedModule is ModuleDescriptorConfiguration}
  */
-const assertCompartmentModule = (allegedModule, path, url) => {
-  const { compartment, module, retained, ...extra } = allegedModule;
+const assertBaseModuleDescriptorConfiguration = (allegedModule, path, url) => {
+  const { deferredError, retained, createdBy } = allegedModule;
+  if (deferredError !== undefined) {
+    assertString(deferredError, `${path}.deferredError`, url);
+  }
+  if (retained !== undefined) {
+    assertBoolean(retained, `${path}.retained`, url);
+  }
+  if (createdBy !== undefined) {
+    assertString(createdBy, `${path}.createdBy`, url);
+  }
+};
+
+/**
+ * @param {ModuleDescriptorConfiguration} moduleDescriptor
+ * @param {string} path
+ * @param {string} url
+ * @returns {asserts allegedModule is CompartmentModuleDescriptorConfiguration}
+ */
+const assertCompartmentModuleDescriptor = (moduleDescriptor, path, url) => {
+  const { compartment, module, ...extra } =
+    getModuleDescriptorSpecificProperties(
+      /** @type {CompartmentModuleDescriptorConfiguration} */ (
+        moduleDescriptor
+      ),
+    );
   assertEmptyObject(
     extra,
-    `${path} must not have extra properties, got ${q({
-      extra,
-      compartment,
-    })} in ${q(url)}`,
+    `${path} must not have extra properties, got ${q(extra)} in ${q(url)}`,
   );
-  assert.typeof(
-    compartment,
-    'string',
-    `${path}.compartment must be a string, got ${q(compartment)} in ${q(url)}`,
-  );
-  assert.typeof(
-    module,
-    'string',
-    `${path}.module must be a string, got ${q(module)} in ${q(url)}`,
-  );
-  if (retained !== undefined) {
-    assert.typeof(
-      retained,
-      'boolean',
-      `${path}.retained must be a boolean, got ${q(retained)} in ${q(url)}`,
-    );
-  }
+
+  assertString(compartment, `${path}.compartment`, url);
+  assertString(module, `${path}.module`, url);
 };
 
 /**
- * @param {Record<string, unknown>} allegedModule
+ * @param {ModuleDescriptorConfiguration} moduleDescriptor
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedModule is FileModuleDescriptorConfiguration}
  */
-const assertFileModule = (allegedModule, path, url) => {
-  const { location, parser, sha512, ...extra } = allegedModule;
+const assertFileModuleDescriptor = (moduleDescriptor, path, url) => {
+  const { location, parser, sha512, ...extra } =
+    getModuleDescriptorSpecificProperties(
+      /** @type {FileModuleDescriptorConfiguration} */ (moduleDescriptor),
+    );
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q(
-      Object.keys(extra),
+      keys(extra),
     )} in ${q(url)}`,
   );
-  assert.typeof(
-    location,
-    'string',
-    `${path}.location must be a string, got ${q(location)} in ${q(url)}`,
-  );
-  assert.typeof(
-    parser,
-    'string',
-    `${path}.parser must be a string, got ${q(parser)} in ${q(url)}`,
-  );
+  assertString(location, `${path}.location`, url);
+  assertString(parser, `${path}.parser`, url);
 
   if (sha512 !== undefined) {
-    assert.typeof(
-      sha512,
-      'string',
-      `${path}.sha512 must be a string, got ${q(sha512)} in ${q(url)}`,
-    );
+    assertString(sha512, `${path}.sha512`, url);
   }
 };
 
 /**
- * @param {Record<string, unknown>} allegedModule
+ * @param {ModuleDescriptorConfiguration} moduleDescriptor
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedModule is ExitModuleDescriptorConfiguration}
  */
-const assertExitModule = (allegedModule, path, url) => {
-  const { exit, ...extra } = allegedModule;
+const assertExitModuleDescriptor = (moduleDescriptor, path, url) => {
+  const { exit, ...extra } = getModuleDescriptorSpecificProperties(
+    /** @type {ExitModuleDescriptorConfiguration} */ (moduleDescriptor),
+  );
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q(
-      Object.keys(extra),
+      keys(extra),
     )} in ${q(url)}`,
   );
-  assert.typeof(
-    exit,
-    'string',
-    `${path}.exit must be a string, got ${q(exit)} in ${q(url)}`,
-  );
+  assertString(exit, `${path}.exit`, url);
 };
 
 /**
  * @param {unknown} allegedModule
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedModule is ModuleDescriptorConfiguration}
  */
-const assertModule = (allegedModule, path, url) => {
-  const moduleDescriptor = Object(allegedModule);
-  assert(
-    allegedModule === moduleDescriptor && !Array.isArray(moduleDescriptor),
-    `${path} must be an object, got ${allegedModule} in ${q(url)}`,
-  );
+const assertModuleConfiguration = (allegedModule, path, url) => {
+  assertPlainObject(allegedModule, path, url);
+  assertBaseModuleDescriptorConfiguration(allegedModule, path, url);
 
-  const { compartment, module, location, parser, exit, deferredError } =
-    moduleDescriptor;
+  const { compartment, module, location, parser, exit, ...extra } =
+    allegedModule;
+
   if (compartment !== undefined || module !== undefined) {
-    assertCompartmentModule(moduleDescriptor, path, url);
+    assertCompartmentModuleDescriptor(allegedModule, path, url);
   } else if (location !== undefined || parser !== undefined) {
-    assertFileModule(moduleDescriptor, path, url);
+    assertFileModuleDescriptor(allegedModule, path, url);
   } else if (exit !== undefined) {
-    assertExitModule(moduleDescriptor, path, url);
-  } else if (deferredError !== undefined) {
-    assert.typeof(
-      deferredError,
-      'string',
-      `${path}.deferredError must be a string contaiing an error message`,
-    );
+    assertExitModuleDescriptor(allegedModule, path, url);
   } else {
-    assert.fail(
+    assertEmptyObject(
+      getModuleDescriptorSpecificProperties(extra),
       `${path} is not a valid module descriptor, got ${q(allegedModule)} in ${q(
         url,
       )}`,
@@ -178,15 +271,16 @@ const assertModule = (allegedModule, path, url) => {
  * @param {unknown} allegedModules
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedModules is Record<string, ModuleDescriptorConfiguration>}
  */
-const assertModules = (allegedModules, path, url) => {
-  const modules = Object(allegedModules);
-  assert(
-    allegedModules === modules || !Array.isArray(modules),
-    `modules must be an object, got ${q(allegedModules)} in ${q(url)}`,
-  );
-  for (const [key, value] of Object.entries(modules)) {
-    assertModule(value, `${path}.modules[${q(key)}]`, url);
+const assertModuleDescriptorConfigurations = (allegedModules, path, url) => {
+  assertPlainObject(allegedModules, path, url);
+  for (const [key, value] of entries(allegedModules)) {
+    assertString(
+      key,
+      `all keys of ${path}.modules must be strings, got ${key} in ${q(url)}`,
+    );
+    assertModuleConfiguration(value, `${path}.modules[${q(key)}]`, url);
   }
 };
 
@@ -194,28 +288,20 @@ const assertModules = (allegedModules, path, url) => {
  * @param {unknown} allegedParsers
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedParsers is CompartmentDescriptor['parsers']}
  */
 const assertParsers = (allegedParsers, path, url) => {
   if (allegedParsers === undefined) {
     return;
   }
-  const parsers = Object(allegedParsers);
-  assert(
-    allegedParsers === parsers && !Array.isArray(parsers),
-    `${path}.parsers must be an object, got ${allegedParsers} in ${q(url)}`,
-  );
+  assertPlainObject(allegedParsers, `${path}.parsers`, url);
 
-  for (const [key, value] of Object.entries(parsers)) {
-    assert.typeof(
+  for (const [key, value] of entries(allegedParsers)) {
+    assertString(
       key,
-      'string',
       `all keys of ${path}.parsers must be strings, got ${key} in ${q(url)}`,
     );
-    assert.typeof(
-      value,
-      'string',
-      `${path}.parsers[${q(key)}] must be a string, got ${value} in ${q(url)}`,
-    );
+    assertString(value, `${path}.parsers[${q(key)}]`, url);
   }
 };
 
@@ -223,48 +309,38 @@ const assertParsers = (allegedParsers, path, url) => {
  * @param {unknown} allegedScope
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedScope is ScopeDescriptor}
  */
 const assertScope = (allegedScope, path, url) => {
-  const scope = Object(allegedScope);
-  assert(
-    allegedScope === scope && !Array.isArray(scope),
-    `${path} must be an object, got ${allegedScope} in ${q(url)}`,
-  );
+  assertPlainObject(allegedScope, path, url);
 
-  const { compartment, ...extra } = scope;
+  const { compartment, ...extra } = allegedScope;
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q(
-      Object.keys(extra),
+      keys(extra),
     )} in ${q(url)}`,
   );
 
-  assert.typeof(
-    compartment,
-    'string',
-    `${path}.compartment must be a string, got ${q(compartment)} in ${q(url)}`,
-  );
+  assertString(compartment, `${path}.compartment`, url);
 };
 
 /**
  * @param {unknown} allegedScopes
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedScopes is Record<string, ScopeDescriptor>}
  */
 const assertScopes = (allegedScopes, path, url) => {
   if (allegedScopes === undefined) {
     return;
   }
-  const scopes = Object(allegedScopes);
-  assert(
-    allegedScopes === scopes && !Array.isArray(scopes),
-    `${path}.scopes must be an object, got ${q(allegedScopes)} in ${q(url)}`,
-  );
 
-  for (const [key, value] of Object.entries(scopes)) {
-    assert.typeof(
+  assertPlainObject(allegedScopes, path, url);
+
+  for (const [key, value] of entries(allegedScopes)) {
+    assertString(
       key,
-      'string',
       `all keys of ${path}.scopes must be strings, got ${key} in ${q(url)}`,
     );
     assertScope(value, `${path}.scopes[${q(key)}]`, url);
@@ -275,28 +351,21 @@ const assertScopes = (allegedScopes, path, url) => {
  * @param {unknown} allegedTypes
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedTypes is CompartmentDescriptor['types']}
  */
 const assertTypes = (allegedTypes, path, url) => {
   if (allegedTypes === undefined) {
     return;
   }
-  const types = Object(allegedTypes);
-  assert(
-    allegedTypes === types && !Array.isArray(types),
-    `${path}.types must be an object, got ${allegedTypes} in ${q(url)}`,
-  );
 
-  for (const [key, value] of Object.entries(types)) {
-    assert.typeof(
+  assertPlainObject(allegedTypes, `${path}.types`, url);
+
+  for (const [key, value] of entries(allegedTypes)) {
+    assertString(
       key,
-      'string',
       `all keys of ${path}.types must be strings, got ${key} in ${q(url)}`,
     );
-    assert.typeof(
-      value,
-      'string',
-      `${path}.types[${q(key)}] must be a string, got ${value} in ${q(url)}`,
-    );
+    assertString(value, `${path}.types[${q(key)}]`, url);
   }
 };
 
@@ -304,6 +373,7 @@ const assertTypes = (allegedTypes, path, url) => {
  * @param {unknown} allegedPolicy
  * @param {string} path
  * @param {string} [url]
+ * @returns {asserts allegedPolicy is CompartmentDescriptor['policy']}
  */
 
 const assertPolicy = (
@@ -318,13 +388,10 @@ const assertPolicy = (
  * @param {unknown} allegedCompartment
  * @param {string} path
  * @param {string} url
+ * @returns {asserts allegedCompartment is FileCompartmentDescriptor}
  */
-const assertCompartment = (allegedCompartment, path, url) => {
-  const compartment = Object(allegedCompartment);
-  assert(
-    allegedCompartment === compartment && !Array.isArray(compartment),
-    `${path} must be an object, got ${allegedCompartment} in ${q(url)}`,
-  );
+const assertFileCompartmentDescriptor = (allegedCompartment, path, url) => {
+  assertPlainObject(allegedCompartment, path, url);
 
   const {
     location,
@@ -336,32 +403,20 @@ const assertCompartment = (allegedCompartment, path, url) => {
     modules,
     policy,
     ...extra
-  } = compartment;
+  } = allegedCompartment;
 
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q(
-      Object.keys(extra),
+      keys(extra),
     )} in ${q(url)}`,
   );
 
-  assert.typeof(
-    location,
-    'string',
-    `${path}.location in ${q(url)} must be string, got ${q(location)}`,
-  );
-  assert.typeof(
-    name,
-    'string',
-    `${path}.name in ${q(url)} must be string, got ${q(name)}`,
-  );
-  assert.typeof(
-    label,
-    'string',
-    `${path}.label in ${q(url)} must be string, got ${q(label)}`,
-  );
+  assertString(location, `${path}.location`, url);
+  assertString(name, `${path}.name`, url);
+  assertString(label, `${path}.label`, url);
 
-  assertModules(modules, path, url);
+  assertModuleDescriptorConfigurations(modules, path, url);
   assertParsers(parsers, path, url);
   assertScopes(scopes, path, url);
   assertTypes(types, path, url);
@@ -371,72 +426,47 @@ const assertCompartment = (allegedCompartment, path, url) => {
 /**
  * @param {unknown} allegedCompartments
  * @param {string} url
+ * @returns {asserts allegedCompartments is Record<string, FileCompartmentDescriptor>}
  */
-const assertCompartments = (allegedCompartments, url) => {
-  const compartments = Object(allegedCompartments);
-  assert(
-    allegedCompartments === compartments || !Array.isArray(compartments),
-    `compartments must be an object, got ${q(allegedCompartments)} in ${q(
-      url,
-    )}`,
-  );
-  for (const [key, value] of Object.entries(compartments)) {
-    assertCompartment(value, `compartments[${q(key)}]`, url);
+const assertFileCompartmentDescriptors = (allegedCompartments, url) => {
+  assertPlainObject(allegedCompartments, 'compartments', url);
+  for (const [key, value] of entries(allegedCompartments)) {
+    assertString(
+      key,
+      `all keys of compartments must be strings, got ${key} in ${q(url)}`,
+    );
+    assertFileCompartmentDescriptor(value, `compartments[${q(key)}]`, url);
   }
 };
 
 /**
  * @param {unknown} allegedEntry
  * @param {string} url
+ * @returns {asserts allegedEntry is EntryDescriptor}
  */
 const assertEntry = (allegedEntry, url) => {
-  const entry = Object(allegedEntry);
-  assert(
-    allegedEntry === entry && !Array.isArray(entry),
-    `"entry" must be an object in compartment map, got ${allegedEntry} in ${q(
-      url,
-    )}`,
-  );
-  const { compartment, module, ...extra } = entry;
+  assertPlainObject(allegedEntry, 'entry', url);
+  const { compartment, module, ...extra } = allegedEntry;
   assertEmptyObject(
     extra,
     `"entry" must not have extra properties in compartment map, got ${q(
-      Object.keys(extra),
+      keys(extra),
     )} in ${q(url)}`,
   );
-  assert.typeof(
-    compartment,
-    'string',
-    `entry.compartment must be a string in compartment map, got ${compartment} in ${q(
-      url,
-    )}`,
-  );
-  assert.typeof(
-    module,
-    'string',
-    `entry.module must be a string in compartment map, got ${module} in ${q(
-      url,
-    )}`,
-  );
+  assertString(compartment, 'entry.compartment', url);
+  assertString(module, 'entry.module', url);
 };
 
 /**
  * @param {unknown} allegedCompartmentMap
  * @param {string} [url]
- * @returns {asserts allegedCompartmentMap is CompartmentMapDescriptor}
+ * @returns {asserts allegedCompartmentMap is FileCompartmentMapDescriptor}
  */
-
-export const assertCompartmentMap = (
+export const assertFileCompartmentMap = (
   allegedCompartmentMap,
   url = '<unknown-compartment-map.json>',
 ) => {
-  const compartmentMap = Object(allegedCompartmentMap);
-  assert(
-    allegedCompartmentMap === compartmentMap && !Array.isArray(compartmentMap),
-    `Compartment map must be an object, got ${allegedCompartmentMap} in ${q(
-      url,
-    )}`,
-  );
+  assertPlainObject(allegedCompartmentMap, 'compartment map', url);
   const {
     // TODO migrate tags to conditions
     // https://github.com/endojs/endo/issues/2388
@@ -444,14 +474,14 @@ export const assertCompartmentMap = (
     entry,
     compartments,
     ...extra
-  } = Object(compartmentMap);
+  } = allegedCompartmentMap;
   assertEmptyObject(
     extra,
     `Compartment map must not have extra properties, got ${q(
-      Object.keys(extra),
+      keys(extra),
     )} in ${q(url)}`,
   );
   assertConditions(conditions, url);
   assertEntry(entry, url);
-  assertCompartments(compartments, url);
+  assertFileCompartmentDescriptors(compartments, url);
 };
