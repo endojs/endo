@@ -218,14 +218,14 @@ export const defineExoClassKit = (
 harden(defineExoClassKit);
 
 /**
- * @template {Methods} T
+ * @template {Methods} M
  * @param {string} tag
  * @param {import('@endo/patterns').InterfaceGuard<{
- *   [M in keyof T]: import('@endo/patterns').MethodGuard
+ *   [K in keyof M]: import('@endo/patterns').MethodGuard
  * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
- * @param {T} methods
- * @param {FarClassOptions<import('./types.js').ClassContext<{},T>>} [options]
- * @returns {Guarded<T>}
+ * @param {ExoClassMethods<M, () => Record<PropertyKey, never>>} methods
+ * @param {FarClassOptions<import('./types.js').ClassContext<{}, M>>} [options]
+ * @returns {Guarded<M>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
   const makeInstance = defineExoClass(
