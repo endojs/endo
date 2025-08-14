@@ -42,9 +42,9 @@
     "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
-    "@babel/generator": "^7.28.0",
-    "@babel/parser": "~7.28.0",
-    "@babel/traverse": "~7.28.0",
+    "@babel/generator": "^7.28.3",
+    "@babel/parser": "~7.28.3",
+    "@babel/traverse": "~7.28.3",
     "@babel/types": "~7.28.2",
     "ses": "workspace:^"
   },

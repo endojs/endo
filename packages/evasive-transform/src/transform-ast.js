@@ -52,10 +52,7 @@ export function transformAst(ast, { elideComments = false } = {}) {
       }
       // Rewrite all comments.
       (leadingComments || []).forEach(node => transformComment(node));
-      // XXX: there is no such Node having type matching /^Comment.+/ in
-      // @babel/types
       if (type.startsWith('Comment')) {
-        // @ts-expect-error - see above XXX
         transformComment(p.node);
       }
       (innerComments || []).forEach(node => transformComment(node));

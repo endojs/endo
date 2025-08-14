@@ -99,14 +99,13 @@
     "@endo/immutable-arraybuffer": "workspace:^"
   },
   "devDependencies": {
-    "@babel/generator": "^7.28.0",
-    "@babel/parser": "~7.28.0",
-    "@babel/traverse": "~7.28.0",
+    "@babel/generator": "^7.28.3",
+    "@babel/parser": "~7.28.3",
+    "@babel/traverse": "~7.28.3",
     "@babel/types": "~7.28.2",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/module-source": "workspace:^",
     "@endo/test262-runner": "workspace:^",
-    "@types/babel__traverse": "^7.28.0",
     "ava": "^6.4.1",
     "babel-eslint": "^10.1.0",
     "c8": "^7.14.0",

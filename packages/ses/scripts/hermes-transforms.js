@@ -81,7 +81,6 @@ export const hermesTransforms = {
     traverse(ast, transforms, undefined, { filename: location });
 
     const { code } = generate(
-      // @ts-expect-error File and Node types incompatible
       ast,
       {
         // Nothing being done with sourcemaps as this point
