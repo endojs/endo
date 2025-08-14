@@ -21,7 +21,6 @@
 
 /**
  * @import {
- *   CompartmentMapDescriptor,
  *   SyncImportLocationOptions,
  *   ImportNowHookMaker,
  *   ReadNowPowers,
@@ -31,6 +30,7 @@
  *   ReadFn,
  *   ReadPowers,
  *   SomeObject,
+ *   PackageCompartmentMapDescriptor,
  * } from './types.js'
  */
 
@@ -73,7 +73,7 @@ const isSyncOptions = value => {
 /**
  * @overload
  * @param {ReadNowPowers} readPowers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {SyncImportLocationOptions} [opts]
  * @returns {Promise<Application>}
  */
@@ -81,14 +81,14 @@ const isSyncOptions = value => {
 /**
  * @overload
  * @param {ReadFn | ReadPowers} readPowers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ImportLocationOptions} [opts]
  * @returns {Promise<Application>}
  */
 
 /**
  * @param {ReadFn|ReadPowers|ReadNowPowers} readPowers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ImportLocationOptions} [options]
  * @returns {Promise<Application>}
  */
@@ -235,7 +235,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
 
 /**
  * @param {ReadFn | ReadPowers} readPowers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ImportLocationOptions} [options]
  * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
