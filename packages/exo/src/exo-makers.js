@@ -32,6 +32,7 @@ const makeSelf = (proto, instanceCount) => {
   return harden(self);
 };
 
+/** @type {Record<PropertyKey, never>} */
 const emptyRecord = harden({});
 
 /**
@@ -40,8 +41,6 @@ const emptyRecord = harden({});
  * state record of the (virtual/durable) instances of the kind/exoClass
  * should be empty, and that the returned maker function should have zero
  * parameters.
- *
- * @returns {{}}
  */
 export const initEmpty = () => emptyRecord;
 
@@ -218,14 +217,16 @@ export const defineExoClassKit = (
 harden(defineExoClassKit);
 
 /**
- * @template {Methods} T
+ * Return a singleton instance of an internal ExoClass with no state fields.
+ *
+ * @template {Methods} M
  * @param {string} tag
  * @param {import('@endo/patterns').InterfaceGuard<{
- *   [M in keyof T]: import('@endo/patterns').MethodGuard
+ *   [K in keyof M]: import('@endo/patterns').MethodGuard
  * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
- * @param {T} methods
- * @param {FarClassOptions<import('./types.js').ClassContext<{},T>>} [options]
- * @returns {Guarded<T>}
+ * @param {ExoClassMethods<M, typeof initEmpty>} methods
+ * @param {FarClassOptions<import('./types.js').ClassContext<{}, M>>} [options]
+ * @returns {Guarded<M>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
   const makeInstance = defineExoClass(
