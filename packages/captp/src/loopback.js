@@ -14,9 +14,9 @@ export { E };
  * @param {import('./captp.js').CapTPOptions} [nearOptions]
  * @param {import('./captp.js').CapTPOptions} [farOptions]
  * @returns {{
- *   makeFar<T>(x: T): ERef<T>,
- *   makeNear<T>(x: T): ERef<T>,
- *   makeTrapHandler<T>(x: T): T,
+ *   makeFar<T>(x: T): Promise<ERef<T>>,
+ *   makeNear<T>(x: T): Promise<ERef<T>>,
+ *   makeTrapHandler<T>(name: string, x: T): T,
  *   isOnlyNear(x: any): boolean,
  *   isOnlyFar(x: any): boolean,
  *   getNearStats(): any,
@@ -99,6 +99,7 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
       const myNonce = lastNonce;
       const val = await x;
       nonceToRef.set(myNonce, harden(val));
+
       return E(refGetter).getRef(myNonce);
     };
 
