@@ -102,9 +102,9 @@ const FILENAME_CENSORS = [
 // Exported only so it can be unit tested.
 // TODO Move so that it applies not just to v8.
 export const filterFileName = fileName => {
-  if (!fileName) {
-    // Stack frames with no fileName should appear in concise stack traces.
-    return true;
+  if (fileName === null) {
+    // Seems to suppress builtins like `Array.every (<anonymous>)`
+    return false;
   }
   for (const filter of FILENAME_CENSORS) {
     if (regexpTest(filter, fileName)) {
@@ -118,9 +118,9 @@ export const filterFileName = fileName => {
 // likely url-path prefix, ending in a `/.../` should get dropped.
 // Anything to the left of the likely path text is kept.
 // Everything to the right of `/.../` is kept. Thus
-// `'Object.bar (/vat-v1/.../eventual-send/test/deep-send.test.js:13:21)'`
+// `'Object.bar (/vat-v1/.../errors/test/deep-send.test.js:13:21)'`
 // simplifies to
-// `'Object.bar (eventual-send/test/deep-send.test.js:13:21)'`.
+// `'Object.bar (errors/test/deep-send.test.js:13:21)'`.
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
@@ -130,9 +130,9 @@ const CALLSITE_ELLIPSIS_PATTERN1 = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
 // likely url-path prefix consisting of `.../` should get dropped.
 // Anything to the left of the likely path text is kept.
 // Everything to the right of `.../` is kept. Thus
-// `'Object.bar (.../eventual-send/test/deep-send.test.js:13:21)'`
+// `'Object.bar (.../errors/test/deep-send.test.js:13:21)'`
 // simplifies to
-// `'Object.bar (eventual-send/test/deep-send.test.js:13:21)'`.
+// `'Object.bar (errors/test/deep-send.test.js:13:21)'`.
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
@@ -143,9 +143,9 @@ const CALLSITE_ELLIPSIS_PATTERN2 = /^((?:.*[( ])?)\.\.\.\/(.+)$/;
 // dropped.
 // Anything to the left of the likely path prefix text is kept. `package/` and
 // everything to its right is kept. Thus
-// `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/deep-send.test.js:13:21)'`
+// `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/errors/test/deep-send.test.js:13:21)'`
 // simplifies to
-// `'Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)'`.
+// `'Object.bar (packages/errors/test/deep-send.test.js:13:21)'`.
 // Note that `/packages/` is a convention for monorepos encouraged by
 // lerna.
 const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
@@ -155,7 +155,7 @@ const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
 // dropped.
 // Anything to the left of the likely path prefix text is kept. Everything to
 // the right of `file://` is kept. Thus
-// `'Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:13:21)'` is unchanged but
+// `'Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:13:21)'` is unchanged but
 // `'Object.bar (file://test/deep-send.test.js:13:21)'`
 
 // simplifies to
@@ -221,6 +221,10 @@ export const tameV8ErrorConstructor = (
   // const callSiteFilter = _callSite => true;
   const callSiteFilter = callSite => {
     if (omitFrames) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      if (callSite.getFunctionName()?.startsWith('__HIDE_')) {
+        return false;
+      }
       // eslint-disable-next-line @endo/no-polymorphic-call
       return filterFileName(callSite.getFileName());
     }
