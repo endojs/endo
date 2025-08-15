@@ -20,6 +20,10 @@ import {
 import { captureFromMap } from '../capture-lite.js';
 import { defaultParserForLanguage } from '../archive-parsers.js';
 import { makeReadPowers } from '../src/node-powers.js';
+import {
+  stripCaptureResult,
+  stripCompartmentMap,
+} from './snapshot-utilities.js';
 
 /**
  * @import {
@@ -988,7 +992,8 @@ test('Compartment Map Transforms - integration with mapNodeModules()', async t =
       },
     },
   });
-  t.snapshot(compartmentMap);
+
+  t.snapshot(stripCompartmentMap(compartmentMap));
 });
 
 test('Compartment Map Transforms - integration with captureFromMap()', async t => {
@@ -1050,5 +1055,5 @@ test('Compartment Map Transforms - integration with captureFromMap()', async t =
     parserForLanguage: defaultParserForLanguage,
     importHook,
   });
-  t.snapshot(result);
+  t.snapshot(stripCaptureResult(result));
 });
