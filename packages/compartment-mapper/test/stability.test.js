@@ -3,6 +3,7 @@ import test from 'ava';
 import { ZipReader } from '@endo/zip';
 import { makeArchive, parseArchive } from '../index.js';
 import { readPowers } from './scaffold.js';
+import { ENTRY_COMPARTMENT } from '../src/policy-format.js';
 
 const fixture = new URL('fixtures-stability/a.js', import.meta.url).toString();
 
@@ -18,12 +19,12 @@ test('order of duplicate name/version packages', async t => {
   t.log(actualOrder);
 
   t.deepEqual(actualOrder, [
-    'a-v1.0.0',
-    'a-v1.0.0-n1',
-    'b-v1.0.0',
-    'dep-v1.0.0',
-    'dep-v1.0.0-n1',
-    'dep-v1.0.0-n2',
+    ENTRY_COMPARTMENT,
+    'a',
+    'a>dep',
+    'b',
+    'b>dep',
+    'dep',
   ]);
 
   await t.notThrowsAsync(async () => {

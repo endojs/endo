@@ -24,6 +24,7 @@
  *   ReadPowers,
  *   HashPowers,
  *   WriteFn,
+ *   LogFn,
  * } from './types.js'
  */
 
@@ -169,6 +170,9 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
   });
 };
 
+/** @type {LogFn} */
+const noop = () => {};
+
 /**
  * @param {HashPowers} powers
  * @param {string} moduleLocation
@@ -191,10 +195,12 @@ export const hashLocation = async (powers, moduleLocation, options = {}) => {
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
+    log = noop,
     ...otherOptions
   } = assignParserForLanguage(options);
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
+    log,
     dev,
     strict,
     conditions,
@@ -212,6 +218,7 @@ export const hashLocation = async (powers, moduleLocation, options = {}) => {
   return hashFromMap(powers, compartmentMap, {
     parserForLanguage,
     policy,
+    log,
     ...otherOptions,
   });
 };

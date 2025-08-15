@@ -29,14 +29,16 @@
  *   ImportNowHookMaker,
  *   MakeImportHookMakerOptions,
  *   MakeImportNowHookMakerOptions,
- *   ModuleDescriptor,
  *   ParseResult,
  *   ReadFn,
  *   ReadPowers,
  *   ReadNowPowers,
  *   StrictlyRequiredFn,
- *   CompartmentSources,
- *   DeferErrorFn
+ *   DeferErrorFn,
+ *   ErrorModuleSource,
+ *   FileUrlString,
+ *   Sources,
+ *   CompartmentSources
  * } from './types.js'
  */
 
@@ -45,14 +47,13 @@ import { resolve } from './node-module-specifier.js';
 import {
   attenuateModuleHook,
   enforceModulePolicy,
-  enforcePackagePolicyByPath,
+  enforcePackagePolicyByCanonicalName,
 } from './policy.js';
 import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
-const q = JSON.stringify;
-
+const { quote: q } = assert;
 const { apply } = Reflect;
 
 /**
@@ -63,7 +64,7 @@ const { apply } = Reflect;
  */
 const freeze = Object.freeze;
 
-const { entries, keys, assign, create } = Object;
+const { hasOwn, keys, assign, create } = Object;
 
 const { hasOwnProperty } = Object.prototype;
 /**
@@ -74,10 +75,11 @@ const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
 
 /**
  * @param {string} rel - a relative URL
- * @param {string} abs - a fully qualified URL
- * @returns {string}
+ * @param {FileUrlString} abs - a fully qualified URL
+ * @returns {FileUrlString}
  */
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) =>
+  /** @type {FileUrlString} */ (new URL(rel, abs).toString());
 
 // this is annoying
 function getImportsFromRecord(record) {
@@ -150,7 +152,7 @@ const findRedirect = ({
   for (;;) {
     if (
       someLocation !== ATTENUATORS_COMPARTMENT &&
-      someLocation in compartments
+      hasOwn(compartments, someLocation)
     ) {
       const location = someLocation;
       const someCompartmentDescriptor = compartmentDescriptors[location];
@@ -160,44 +162,8 @@ const findRedirect = ({
         return undefined;
       }
 
-      // this tests the compartment referred to by the absolute path
-      // is a dependency of the compartment descriptor
-      if (compartmentDescriptor.compartments.has(location)) {
-        return {
-          specifier: relativeSpecifier(moduleSpecifierLocation, location),
-          compartment: compartments[location],
-        };
-      }
-
-      // this tests if the compartment descriptor is a dependency of the
-      // compartment referred to by the absolute path.
-      // it may be in scope, but disallowed by policy.
-      if (
-        someCompartmentDescriptor.compartments.has(
-          compartmentDescriptor.location,
-        )
-      ) {
-        enforceModulePolicy(
-          compartmentDescriptor.name,
-          someCompartmentDescriptor,
-          {
-            errorHint: `Blocked in importNow hook by relationship. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
-          },
-        );
-        return {
-          specifier: relativeSpecifier(moduleSpecifierLocation, location),
-          compartment: compartments[location],
-        };
-      }
-
       if (compartmentDescriptor.policy) {
-        /* c8 ignore next */
-        if (!someCompartmentDescriptor.path) {
-          throw new Error(
-            `Cannot enforce package policy: compartment descriptor for ${location} unexpectedly missing a path; please report this issue`,
-          );
-        }
-        enforcePackagePolicyByPath(
+        enforcePackagePolicyByCanonicalName(
           someCompartmentDescriptor,
           compartmentDescriptor,
           {
@@ -416,6 +382,7 @@ function* chooseModuleDescriptor(
           retained: true,
           module: candidateSpecifier,
           compartment: packageLocation,
+          createdBy: 'import-hook',
         };
       }
       /** @type {StaticModuleType} */
@@ -480,9 +447,7 @@ const makeDeferError = (
   packageSources,
 ) => {
   /**
-   * @param {string} specifier
-   * @param {Error} error - error to throw on execute
-   * @returns {StaticModuleType}
+   * @type {DeferErrorFn}
    */
   const deferError = (specifier, error) => {
     // strictlyRequired is populated with imports declared by modules whose parser is not using heuristics to figure
@@ -504,9 +469,11 @@ const makeDeferError = (
         throw error;
       },
     });
-    packageSources[specifier] = {
+    /** @type {ErrorModuleSource} */
+    const moduleSource = {
       deferredError: error.message,
     };
+    packageSources[specifier] = moduleSource;
 
     return record;
   };
@@ -515,7 +482,7 @@ const makeDeferError = (
 
 /**
  * @param {ReadFn|ReadPowers} readPowers
- * @param {string} baseLocation
+ * @param {FileUrlString} baseLocation
  * @param {MakeImportHookMakerOptions} options
  * @returns {ImportHookMaker}
  */
@@ -681,7 +648,7 @@ export const makeImportHookMaker = (
  * Synchronous import for dynamic requires.
  *
  * @param {ReadNowPowers} readPowers
- * @param {string} baseLocation
+ * @param {FileUrlString} baseLocation
  * @param {MakeImportNowHookMakerOptions} options
  * @returns {ImportNowHookMaker}
  */
@@ -726,10 +693,13 @@ export function makeImportNowHookMaker(
     compartments,
     shouldDeferError,
   }) => {
+    packageLocation = resolveLocation(packageLocation, baseLocation);
+    const packageSources = sources[packageLocation] || create(null);
+    sources[packageLocation] = packageSources;
     const deferError = makeDeferError(
       strictlyRequiredForCompartment,
       packageLocation,
-      sources,
+      packageSources,
     );
 
     /**
@@ -753,7 +723,7 @@ export function makeImportNowHookMaker(
           // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
           enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: true,
-            errorHint: `Blocked in loading. ${q(
+            errorHint: `Blocked exit module. ${q(
               moduleSpecifier,
             )} was not in the compartment map and an attempt was made to load it as a builtin`,
           });
@@ -781,37 +751,10 @@ export function makeImportNowHookMaker(
       };
     }
 
-    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-
-    packageLocation = resolveLocation(packageLocation, baseLocation);
-    const packageSources = sources[packageLocation] || create(null);
-    sources[packageLocation] = packageSources;
-    const {
-      modules:
-        moduleDescriptors = /** @type {Record<string, ModuleDescriptor>} */ (
-          create(null)
-        ),
-    } = compartmentDescriptor;
+    const compartmentDescriptor =
+      compartmentDescriptors[packageLocation] || create(null);
+    const { modules: moduleDescriptors = create(null) } = compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
-
-    let { policy } = compartmentDescriptor;
-    policy = policy || create(null);
-
-    // Associates modules with compartment descriptors based on policy
-    // in cases where the association was not made when building the
-    // compartment map but is indicated by the policy.
-    if ('packages' in policy && typeof policy.packages === 'object') {
-      for (const [packageName, packagePolicyItem] of entries(policy.packages)) {
-        if (
-          !(packageName in compartmentDescriptor.modules) &&
-          packageName in compartmentDescriptor.scopes &&
-          packagePolicyItem
-        ) {
-          compartmentDescriptor.modules[packageName] =
-            compartmentDescriptor.scopes[packageName];
-        }
-      }
-    }
 
     const { maybeReadNow, isAbsolute } = readPowers;
 
