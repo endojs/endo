@@ -85,7 +85,6 @@ export const generate = (ast, options) => {
     options && 'sourceMap' in options ? options.sourceMap : undefined;
   const source = options ? options.source : undefined;
   const result = generator(
-    // @ts-expect-error File and Node types incompatible
     ast,
     {
       sourceFileName: sourceUrl,
