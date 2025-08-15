@@ -1,6 +1,6 @@
 // This file is based on code from 1bfb9c48e01a04f05df6d78e9df1c6f5fada625c
 // which is immediately prior to https://github.com/endojs/endo/pull/1712 .
-// That PR changed the representation of there. The legacy guard makers
+// That PR changed the representation of guards. The legacy guard makers
 // are useful *only* to create guards that can be used by code prior
 // to https://github.com/endojs/endo/pull/1712 , like the on-chain liveSlots
 // in Agoric's core-eval.
