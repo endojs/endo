@@ -63,6 +63,8 @@ module.exports = {
     HandledPromise: 'readonly',
     // https://github.com/endojs/endo/issues/550
     AggregateError: 'readonly',
+    // https://github.com/tc39/proposal-explicit-resource-management
+    SuppressedError: 'readonly',
   },
   rules: {
     '@endo/assert-fail-as-throw': 'error',
