@@ -95,3 +95,5 @@ export {
    */
   objectMap,
 } from '@endo/common/object-map.js';
+
+export * from './src/patterns/oldM.js';

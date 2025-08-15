@@ -1,3 +1,8 @@
+// Tested by legacy-guard-tolerance.test.js in the @endo/exo package,
+// rather than here, to also test that the exo makers are tolerant of
+// both legacy and current guards. We moved the tests there to avoid a
+// circularity.
+
 import { objectMap } from '@endo/common/object-map.js';
 import {
   ArgGuardListShape,
@@ -47,7 +52,7 @@ import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 // TODO manually maintain correspondence with AwaitArgGuardPayloadShape
 // because this one needs to be stable and accommodate nested legacy,
 // when that's an issue.
-const LegacyAwaitArgGuardShape = harden({
+export const LegacyAwaitArgGuardShape = harden({
   klass: 'awaitArg',
   argGuard: M.pattern(),
 });
@@ -127,7 +132,7 @@ const LegacyAsyncMethodGuardShape = M.splitRecord(
 // TODO manually maintain correspondence with MethodGuardPayloadShape
 // because this one needs to be stable and accommodate nested legacy,
 // when that's an issue.
-const LegacyMethodGuardShape = M.or(
+export const LegacyMethodGuardShape = M.or(
   LegacySyncMethodGuardShape,
   LegacyAsyncMethodGuardShape,
 );
@@ -192,7 +197,7 @@ harden(getMethodGuardPayload);
 // TODO manually maintain correspondence with InterfaceGuardPayloadShape
 // because this one needs to be stable and accommodate nested legacy,
 // when that's an issue.
-const LegacyInterfaceGuardShape = M.splitRecord(
+export const LegacyInterfaceGuardShape = M.splitRecord(
   {
     klass: 'Interface',
     interfaceName: M.string(),
