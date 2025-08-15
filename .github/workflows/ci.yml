@@ -63,7 +63,7 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [18.x, 20.x, 22.x]
-        platform: [ubuntu-latest]
+        platform: [ubuntu-latest, macos-15]
         # windows-latest exhibited flakey tests that are not yet worth the
         # trouble to investigate, and blocked us from upgrading yarn from 1 to
         # 4.
