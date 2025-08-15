@@ -64,6 +64,7 @@ const { apply } = Reflect;
 const freeze = Object.freeze;
 
 const { entries, keys, assign, create } = Object;
+const { URL } = globalThis;
 
 const { hasOwnProperty } = Object.prototype;
 /**
