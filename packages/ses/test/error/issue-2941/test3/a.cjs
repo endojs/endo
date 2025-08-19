@@ -1,11 +1,12 @@
 /* global require */
-// eslint-disable-next-line import/no-extraneous-dependencies
-require('ses');
+/* eslint-disable no-restricted-globals */
+// @ts-ignore
+require('../ses.notjs');
 
 lockdown({
   errorTaming: 'unsafe',
   stackFiltering: 'verbose',
-  errorTrapping: 'none',
+  // errorTrapping: 'none',
 });
 try {
   throw Error(`karramba`);

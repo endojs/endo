@@ -1,10 +1,11 @@
+/* eslint-disable no-restricted-globals */
 /* global require */
-// eslint-disable-next-line import/no-extraneous-dependencies
-require('ses');
+// @ts-ignore
+require('../ses.notjs');
 
 lockdown({
   errorTaming: 'unsafe',
-  stackFiltering: 'verbose',
+  stackFiltering: 'shorten-paths',
   errorTrapping: 'none',
 });
 

@@ -1,9 +1,12 @@
 Same error, different presentation
 
-naugtur@localhoist$ node a
+---
+# errorTrapping default
+```
+$ node a.cjs
 SES_UNCAUGHT_EXCEPTION: (Error#1)
 Error#1: que?
-  at Object.<anonymous> (/.../test3/a.js:9:9)
+  at Object.<anonymous> (/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/a.cjs:13:9)
   at Module._compile (node:internal/modules/cjs/loader:1730:14)
   at Object..js (node:internal/modules/cjs/loader:1895:10)
   at Module.load (node:internal/modules/cjs/loader:1465:32)
@@ -16,7 +19,7 @@ Error#1: que?
 Error#1 cause: (Error#2)
 Nested error under Error#1
   Error#2: karramba
-    at Object.<anonymous> (/.../test3/a.js:7:9)
+    at Object.<anonymous> (/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/a.cjs:11:9)
     at Module._compile (node:internal/modules/cjs/loader:1730:14)
     at Object..js (node:internal/modules/cjs/loader:1895:10)
     at Module.load (node:internal/modules/cjs/loader:1465:32)
@@ -25,14 +28,19 @@ Nested error under Error#1
     at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
     at node:internal/main/run_main_module:36:49
-  
-naugtur@localhoist$ node b
-/.../test3/b.js:10
-  throw Error("que?", { cause: e });
+```
+
+---
+
+# `errorTrapping: 'none'`
+```
+$$ node b.cjs
+/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/b.cjs:14
+  throw Error('que?', { cause: e });
   ^
 
 [Error: que?
-  at Object.<anonymous> (/.../test3/b.js:10:9)
+  at Object.<anonymous> (/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/b.cjs:14:9)
   at Module._compile (node:internal/modules/cjs/loader:1730:14)
   at Object..js (node:internal/modules/cjs/loader:1895:10)
   at Module.load (node:internal/modules/cjs/loader:1465:32)
@@ -42,7 +50,7 @@ naugtur@localhoist$ node b
   at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
   at node:internal/main/run_main_module:36:49] {
   [cause]: [Error: karramba
-    at Object.<anonymous> (/.../test3/b.js:8:9)
+    at Object.<anonymous> (/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/b.cjs:12:9)
     at Module._compile (node:internal/modules/cjs/loader:1730:14)
     at Object..js (node:internal/modules/cjs/loader:1895:10)
     at Module.load (node:internal/modules/cjs/loader:1465:32)
@@ -53,19 +61,25 @@ naugtur@localhoist$ node b
     at node:internal/main/run_main_module:36:49]
 }
 
-Node.js v22.17.0
-naugtur@localhoist$ node c
-/.../test3/c.js:5
-  throw Error("que?", { cause: e });
+Node.js v22.16.0
+```
+
+---
+
+# SES without lockdown
+```
+$ node c.cjs
+/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/c.cjs:9
+  throw Error('que?', { cause: e });
   ^
 
 Error: que?
-    at Object.<anonymous> (/.../test3/c.js:5:9)
+    at Object.<anonymous> (/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/c.cjs:9:9)
     at Module._compile (node:internal/modules/cjs/loader:1730:14)
     ... 6 lines matching cause stack trace ...
     at node:internal/main/run_main_module:36:49 {
   [cause]: Error: karramba
-      at Object.<anonymous> (/.../test3/c.js:3:9)
+      at Object.<anonymous> (/Users/markmiller/src/ongithub/endojs/endo/packages/ses/test/error/issue-2941/test3/c.cjs:7:9)
       at Module._compile (node:internal/modules/cjs/loader:1730:14)
       at Object..js (node:internal/modules/cjs/loader:1895:10)
       at Module.load (node:internal/modules/cjs/loader:1465:32)
@@ -76,4 +90,5 @@ Error: que?
       at node:internal/main/run_main_module:36:49
 }
 
-Node.js v22.17.0
+Node.js v22.16.0
+```

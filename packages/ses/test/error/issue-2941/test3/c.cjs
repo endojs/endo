@@ -1,6 +1,7 @@
 /* global require */
-// eslint-disable-next-line import/no-extraneous-dependencies
-require('ses');
+/* eslint-disable no-restricted-globals */
+// @ts-ignore
+require('../ses.notjs');
 
 try {
   throw Error(`karramba`);
