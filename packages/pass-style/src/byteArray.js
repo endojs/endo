@@ -15,8 +15,6 @@ const adaptImmutableArrayBuffer = () => {
 
   // On platforms that do not support sliceToImmutable, pass-style byteArray
   // cannot be constructed.
-  // @ts-expect-error TODO This error will be addressed when updating
-  // TypeScript's native types to a version recognizing the upcoming standard.
   if (anArrayBuffer.sliceToImmutable === undefined) {
     return {
       immutableArrayBufferPrototype: null,
@@ -24,8 +22,6 @@ const adaptImmutableArrayBuffer = () => {
     };
   }
 
-  // @ts-expect-error TODO This error will be addressed when updating
-  // TypeScript's native types to a version recognizing the upcoming standard.
   const anImmutableArrayBuffer = anArrayBuffer.sliceToImmutable();
 
   /**
@@ -54,9 +50,7 @@ export const ByteArrayHelper = harden({
   styleName: 'byteArray',
 
   canBeValid: (candidate, check = undefined) =>
-    (candidate instanceof ArrayBuffer &&
-      // @ts-expect-error TODO How do I add it to the ArrayBuffer type?
-      candidate.immutable) ||
+    (candidate instanceof ArrayBuffer && candidate.immutable) ||
     (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`)),
 
   assertRestValid: (candidate, _passStyleOfRecur) => {
