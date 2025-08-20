@@ -156,7 +156,7 @@ export const tameConsole = (
     globalWindow.addEventListener('error', event => {
       event.preventDefault();
       // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNCAUGHT_EXCEPTION.md
-      ourConsole.error('SES_UNCAUGHT_EXCEPTION:', event.error);
+      ourConsole.error('SES_UNCAUGHT_EXCEPTION:', event.error || event);
       // 'platform' and 'report' just log the reason.
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
         globalWindow.location.href = `about:blank`;
