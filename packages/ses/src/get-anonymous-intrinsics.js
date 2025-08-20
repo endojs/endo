@@ -168,7 +168,6 @@ export const getAnonymousIntrinsics = () => {
   }
 
   const ab = new ArrayBuffer(0);
-  // @ts-expect-error TODO How do I add sliceToImmutable to ArrayBuffer type?
   // eslint-disable-next-line @endo/no-polymorphic-call
   const iab = ab.sliceToImmutable();
   const iabProto = getPrototypeOf(iab);

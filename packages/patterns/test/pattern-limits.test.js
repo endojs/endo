@@ -215,7 +215,6 @@ const runTests = (successCase, failCase) => {
   }
   // byteLengthLimit
   {
-    // @ts-expect-error How can shim enhance ArrayBuffer ts type?
     const specimen = new ArrayBuffer(1000).transferToImmutable();
     successCase(specimen, M.byteArray());
     successCase(specimen, M.byteArray(harden({ byteLengthLimit: 1001 })));

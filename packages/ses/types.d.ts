@@ -3,6 +3,8 @@
  * @module
  */
 
+import '@endo/immutable-arraybuffer/shim.js';
+
 /* eslint-disable no-restricted-globals, vars-on-top, no-var */
 
 // It's academically tempting to define a hardened type, but TypeScript doesn't
