@@ -48,11 +48,11 @@ const arrayBufferMethods = {
   ...(optTransferBufferToImmutable
     ? {
         /**
-         * Transfer the contents to a new Immutable ArrayBuffer
+         * Transfer the contents to a new immutable ArrayBuffer
          *
          * @this {ArrayBuffer} buffer The original buffer.
          * @param {number} [newLength] The start index.
-         * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+         * @returns {ArrayBuffer} The new immutable ArrayBuffer.
          */
         transferToImmutable(newLength = undefined) {
           return optTransferBufferToImmutable(this, newLength);

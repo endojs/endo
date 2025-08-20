@@ -228,3 +228,12 @@ expectType<never>(Fail`details are ${stringable}`);
 
 // eslint-disable-next-line no-unreachable
 expectType<never>(Fail`details are ${stringable}`);
+
+// ////////////////////////////////////////////////////////////////////////
+
+// Immutable ArrayBuffer shim
+
+const arr = new ArrayBuffer(10);
+expectType<ArrayBuffer>(arr.sliceToImmutable());
+expectType<ArrayBuffer>(arr.transferToImmutable());
+expectType<boolean>(arr.immutable);
