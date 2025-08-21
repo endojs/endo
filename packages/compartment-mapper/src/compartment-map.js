@@ -711,7 +711,6 @@ const assertPackageCompartmentDescriptor = (
 
   const {
     location,
-    packageDescriptor,
     scopes,
     label,
     // these unused vars already validated by assertPackageModuleDescriptorConfigurations
@@ -734,8 +733,6 @@ const assertPackageCompartmentDescriptor = (
   assertPackageLocation(location, `${keypath}.location`, url);
   assertLabel(label, `${keypath}.label`, url);
   assertScopes(scopes, `${keypath}.scopes`, url, assertFileUrlString);
-  // we don't actually care what's in there at this point.
-  assertTruthy(packageDescriptor, `${keypath}.packageDescriptor`, url);
 };
 
 /**

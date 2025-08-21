@@ -101,8 +101,6 @@ export interface PackageCompartmentDescriptor
     string
   >;
 
-  packageDescriptor: PackageDescriptor;
-
   scopes: Record<string, ScopeDescriptor<FileUrlString>>;
 
   sourceDirname: string;
