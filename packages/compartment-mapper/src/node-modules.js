@@ -882,7 +882,6 @@ const translateGraph = (
       parsers,
       types,
       policy: packagePolicy,
-      packageDescriptor,
     };
 
     compartments[dependeeLocation] = compartmentDescriptor;
