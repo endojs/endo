@@ -238,36 +238,47 @@ with the Node `console`, we advise you to also set `overrideTaming: 'min'` so
 that no builtin `constructor` properties are turned into accessors.
 
 Examples from
-[deep-send.test.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/deep-send.test.js)
+[deep-send.test.js](https://github.com/endojs/endo/blob/master/packages/errors/test/deep-send.test.js)
 of the eventual-send shim:
 
 <details>
   <summary>Expand for { consoleTaming: 'safe' } log output</summary>
 
-    expected failure (Error#1)
-    Nested error
-      Error#1: Wut?
-        at Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)
+    THROWN to top of event loop (Error#1)
+        ✔ deep-send demo test
+          ℹ possibly redacted message: "blue" is not (a number)
+          ℹ possibly redacted stack: ""
+          ℹ expected failure: Error {
+              message: '"blue" is not (a number)',
+            }
+      Error#1: blue is not 42
+
+        at Object.bar (packages/errors/test/deep-send.test.js:22:18)
 
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
-      Error#1 ERROR_NOTE: Rejection from: (Error#3) : 1 . 1
-      Nested 2 errors under Error#1
+      Nested error under Error#1
         Error#2: Event: 1.1
-          at Object.foo (packages/eventual-send/test/deep-send.test.js:17:28)
+
+          at Object.foo (packages/errors/test/deep-send.test.js:26:28)
 
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
-            at Object.test (packages/eventual-send/test/deep-send.test.js:21:22)
-            at packages/eventual-send/test/deep-send.test.js:25:19
-            at async Promise.all (index 0)
+
+            at Object.test (packages/errors/test/deep-send.test.js:30:22)
+            at packages/errors/test/deep-send.test.js:37:13
 </details>
 
 <details>
-  <summary>Expand for { consoleTaming: 'unsafe', overrideTaming: 'min' } log output</summary>
+  <summary>Expand for { consoleTaming: 'unsafe' } log output</summary>
 
-    expected failure [Error: Wut?
-      at Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)]
+    THROWN to top of event loop [Error: "blue" is not (a number)]
+      ✔ deep-send demo test
+        ℹ possibly redacted message: "blue" is not (a number)
+        ℹ possibly redacted stack: ""
+        ℹ expected failure: Error {
+            message: '"blue" is not (a number)',
+          }
 </details>
 
 ## `errorTaming` Options
@@ -394,6 +405,63 @@ const { details: X, quote: q } = assert;
 Like with the stack, the SES shim `console` object always
 shows the unredacted detailed error message independent of the setting of
 `errorTaming`.
+
+Examples from
+[deep-send.test.js](https://github.com/endojs/endo/blob/master/packages/errors/test/deep-send.test.js)
+of the eventual-send shim:
+
+<details>
+  <summary>Expand for { errorTaming: 'safe' } log output</summary>
+
+    THROWN to top of event loop (Error#1)
+      ✔ deep-send demo test
+        ℹ possibly redacted message: "blue" is not (a number)
+        ℹ possibly redacted stack: ""
+        ℹ expected failure: Error {
+            message: '"blue" is not (a number)',
+          }
+    Error#1: blue is not 42
+
+      at Object.bar (packages/errors/test/deep-send.test.js:22:18)
+
+    Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
+    Nested error under Error#1
+      Error#2: Event: 1.1
+
+        at Object.foo (packages/errors/test/deep-send.test.js:26:28)
+
+      Error#2 ERROR_NOTE: Caused by: (Error#3)
+      Nested error under Error#2
+        Error#3: Event: 0.1
+
+          at Object.test (packages/errors/test/deep-send.test.js:30:22)
+          at packages/errors/test/deep-send.test.js:37:13
+</details>
+
+<details>
+  <summary>Expand for { errorTaming: 'unsafe' } log output</summary>
+
+    THROWN to top of event loop (Error#1)
+      ✔ deep-send demo test
+        ℹ possibly redacted message: "blue" is not 42
+        ℹ possibly redacted stack: "Error: \"blue\" is not 42\n  at Object.bar (packages/errors/test/deep-send.test.js:22:18)"
+        ℹ expected failure: Error {
+            message: '"blue" is not 42',
+          }
+    Error#1: blue is not 42
+      at Object.bar (packages/errors/test/deep-send.test.js:22:18)
+
+    Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
+    Nested error under Error#1
+      Error#2: Event: 1.1
+        at Object.foo (packages/errors/test/deep-send.test.js:26:28)
+
+      Error#2 ERROR_NOTE: Caused by: (Error#3)
+      Nested error under Error#2
+        Error#3: Event: 0.1
+          at Object.test (packages/errors/test/deep-send.test.js:30:22)
+          at packages/errors/test/deep-send.test.js:37:13
+</details>
 
 ## `errorTrapping` Options
 
@@ -699,70 +767,81 @@ or will not be available from error objects according to the `errorTaming`
 option and the platform error behavior.
 
 Examples from
-[deep-send.test.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/deep-send.test.js)
+[deep-send.test.js](https://github.com/endojs/endo/blob/master/packages/errors/test/deep-send.test.js)
 of the eventual-send shim:
 <details>
   <summary>Expand for { stackFiltering: 'concise' } log output</summary>
 
       THROWN to top of event loop (Error#1)
-        ✔ deep-stacks E with ses-ava t.log
-          ℹ expected failure Error {
-              message: '["ses-ava t.log"] "blue" is not 42',
+        ✔ deep-send demo test
+          ℹ possibly redacted message: "blue" is not (a number)
+          ℹ possibly redacted stack: ""
+          ℹ expected failure: Error {
+              message: '"blue" is not (a number)',
             }
-      Error#1: [ ses-ava t.log ] blue is not 42
-        at Object.bar (packages/eventual-send/test/deep-send.test.js:14:28)
+      Error#1: blue is not 42
+
+        at Object.bar (packages/errors/test/deep-send.test.js:22:18)
 
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
       Nested error under Error#1
         Error#2: Event: 1.1
-          at Object.foo (packages/eventual-send/test/deep-send.test.js:18:37)
+
+          at Object.foo (packages/errors/test/deep-send.test.js:26:30)
 
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
-            at Object.test (packages/eventual-send/test/deep-send.test.js:22:25)
-            at exec (packages/eventual-send/test/deep-send.test.js:29:21)
-            at async Promise.all (index 0)
+
+            at Object.test (packages/errors/test/deep-send.test.js:30:22)
+            at packages/errors/test/deep-send.test.js:37:13
 </details>
 
 <details>
   <summary>Expand for { stackFiltering: 'omit-frames' } log output</summary>
 
       THROWN to top of event loop (Error#1)
-        ✔ deep-stacks E with ses-ava t.log
-          ℹ expected failure Error {
-              message: '["ses-ava t.log"] "blue" is not 42',
+        ✔ deep-send demo test
+          ℹ possibly redacted message: "blue" is not (a number)
+          ℹ possibly redacted stack: ""
+          ℹ expected failure: Error {
+              message: '"blue" is not (a number)',
             }
-      Error#1: [ ses-ava t.log ] blue is not 42
-        at Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:14:28)
+      Error#1: blue is not 42
+
+        at Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:22:18)
 
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
       Nested error under Error#1
         Error#2: Event: 1.1
-          at Object.foo (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:18:37)
+
+          at Object.foo (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:26:30)
 
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
-            at Object.test (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:22:25)
-            at exec (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:29:21)
-            at async Promise.all (index 0)
+
+            at Object.test (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:30:22)
+            at file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:37:13
 </details>
 
 <details>
   <summary>Expand for { stackFiltering: 'shorten-paths' } log output</summary>
 
       THROWN to top of event loop (Error#1)
-        ✔ deep-stacks E with ses-ava t.log
-          ℹ expected failure Error {
-              message: '["ses-ava t.log"] "blue" is not 42',
+        ✔ deep-send demo test
+          ℹ possibly redacted message: "blue" is not (a number)
+          ℹ possibly redacted stack: ""
+          ℹ expected failure: Error {
+              message: '"blue" is not (a number)',
             }
-      Error#1: [ ses-ava t.log ] blue is not 42
+      Error#1: blue is not 42
+
         at makeError (packages/ses/src/error/assert.js:350:61)
         at fail (packages/ses/src/error/assert.js:482:20)
-        at baseAssert.Fail (packages/ses/src/error/assert.js:492:39)
-        at Object.bar (packages/eventual-send/test/deep-send.test.js:14:28)
-        at localApplyMethod (packages/eventual-send/src/local.js:126:18)
+        at Fail (packages/ses/src/error/assert.js:492:39)
+        at Object.bar (packages/errors/test/deep-send.test.js:22:18)
+        at localApplyMethod (packages/eventual-send/src/local.js:134:18)
         at Object.applyMethod (packages/eventual-send/src/handled-promise.js:463:16)
         at dispatchToHandler (packages/eventual-send/src/handled-promise.js:159:22)
         at doDispatch (packages/eventual-send/src/handled-promise.js:494:7)
@@ -774,12 +853,13 @@ of the eventual-send shim:
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
       Nested error under Error#1
         Error#2: Event: 1.1
+
           at trackTurns (packages/eventual-send/src/track-turns.js:100:24)
           at handle (packages/eventual-send/src/handled-promise.js:503:33)
-          at baseHandledPromise.applyMethod (packages/eventual-send/src/handled-promise.js:426:14)
+          at Function.applyMethod (packages/eventual-send/src/handled-promise.js:426:14)
           at Proxy.bar (packages/eventual-send/src/E.js:76:35)
-          at Object.foo (packages/eventual-send/test/deep-send.test.js:18:37)
-          at localApplyMethod (packages/eventual-send/src/local.js:126:18)
+          at Object.foo (packages/errors/test/deep-send.test.js:26:30)
+          at localApplyMethod (packages/eventual-send/src/local.js:134:18)
           at Object.applyMethod (packages/eventual-send/src/handled-promise.js:463:16)
           at dispatchToHandler (packages/eventual-send/src/handled-promise.js:159:22)
           at doDispatch (packages/eventual-send/src/handled-promise.js:494:7)
@@ -791,37 +871,41 @@ of the eventual-send shim:
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
+
             at trackTurns (packages/eventual-send/src/track-turns.js:100:24)
             at handle (packages/eventual-send/src/handled-promise.js:503:33)
-            at baseHandledPromise.applyMethod (packages/eventual-send/src/handled-promise.js:426:14)
+            at Function.applyMethod (packages/eventual-send/src/handled-promise.js:426:14)
             at Proxy.foo (packages/eventual-send/src/E.js:76:35)
-            at Object.test (packages/eventual-send/test/deep-send.test.js:22:25)
-            at exec (packages/eventual-send/test/deep-send.test.js:29:21)
-            at Runnable.fn (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:347:21)
+            at Object.test (packages/errors/test/deep-send.test.js:30:22)
+            at __HIDE_goAskAlice (packages/errors/test/deep-send.test.js:33:32)
+            at packages/errors/test/deep-send.test.js:37:13
             at Test.callFn (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/test.js:525:26)
             at Test.run (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/test.js:534:33)
-            at Runner.runSingle (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:281:33)
-            at Runner.runTest (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:363:30)
+            at Runner.runSingle (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:280:33)
+            at Runner.runTest (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:362:30)
             at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
             at async Promise.all (index 0)
-            at async file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:528:21
-            at async Runner.start (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:536:15)
+            at async file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:515:21
+            at async Runner.start (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:523:15)
 </details>
 
 <details>
   <summary>Expand for { stackFiltering: 'verbose' } log output</summary>
 
       THROWN to top of event loop (Error#1)
-        ✔ deep-stacks E with ses-ava t.log
+        ✔ deep-send demo test
+          ℹ possibly redacted message: "blue" is not (a number)
+          ℹ possibly redacted stack: ""
           ℹ expected failure Error {
-              message: '["ses-ava t.log"] "blue" is not 42',
+              message: '"blue" is not (a number)',
             }
-      Error#1: [ ses-ava t.log ] blue is not 42
+      Error#1: blue is not 42
+
         at makeError (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:350:61)
         at fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:482:20)
-        at baseAssert.Fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:492:39)
-        at Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:14:28)
-        at localApplyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/local.js:126:18)
+        at Fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:492:39)
+        at Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:22:18)
+        at localApplyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/local.js:134:18)
         at Object.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:463:16)
         at dispatchToHandler (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:159:22)
         at doDispatch (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:494:7)
@@ -833,12 +917,13 @@ of the eventual-send shim:
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
       Nested error under Error#1
         Error#2: Event: 1.1
+
           at trackTurns (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/track-turns.js:100:24)
           at handle (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:503:33)
-          at baseHandledPromise.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:426:14)
+          at Function.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:426:14)
           at Proxy.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/E.js:76:35)
-          at Object.foo (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:18:37)
-          at localApplyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/local.js:126:18)
+          at Object.foo (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:26:30)
+          at localApplyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/local.js:134:18)
           at Object.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:463:16)
           at dispatchToHandler (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:159:22)
           at doDispatch (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:494:7)
@@ -850,21 +935,23 @@ of the eventual-send shim:
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
+
             at trackTurns (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/track-turns.js:100:24)
             at handle (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:503:33)
-            at baseHandledPromise.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:426:14)
+            at Function.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:426:14)
             at Proxy.foo (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/E.js:76:35)
-            at Object.test (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:22:25)
-            at exec (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:29:21)
-            at Runnable.fn (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:347:21)
+            at Object.test (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:30:22)
+            at __HIDE_goAskAlice (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:33:32)
+            at file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:37:13
             at Test.callFn (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/test.js:525:26)
             at Test.run (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/test.js:534:33)
-            at Runner.runSingle (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:281:33)
-            at Runner.runTest (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:363:30)
+            at Runner.runSingle (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:280:33)
+            at Runner.runTest (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:362:30)
             at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
             at async Promise.all (index 0)
-            at async file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:528:21
-            at async Runner.start (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:536:15)</details>
+            at async file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:515:21
+            at async Runner.start (file:///Users/markmiller/src/ongithub/endojs/endo/node_modules/ava/lib/runner.js:523:15)
+</details>
 
 ## `overrideTaming` Options
 

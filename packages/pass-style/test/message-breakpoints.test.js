@@ -9,7 +9,7 @@ import { Far } from '../src/make-far.js';
 
 const { values } = Object;
 
-// Example from test-deep-send.js in @endo/eventual-send
+// Example from test-deep-send.js in @endo/errors
 
 const carol = Far('Carol', {
   bar: () => console.log('Wut?'),
