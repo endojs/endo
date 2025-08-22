@@ -189,20 +189,30 @@ export interface EvaluateOptions {
   __rejectSomeDirectEvalExpressions__?: boolean;
 }
 
+interface Stringable {
+  toString(): string;
+}
+
+/** @deprecated */
+type StringPayload = Stringable;
+
 /**
- * A call to the `details` template literal makes and returns a fresh details
- * token, which is a frozen empty object associated with the arguments of that
- * `details` template literal expression.
+ * A call to the {@link details} template literal makes and returns a fresh
+ * DetailsToken, which is a frozen empty object associated with the arguments of
+ * that expression.
  */
 export type DetailsToken = Record<any, never>;
-/** Either a plain string, or made by the `details` template literal tag. */
+/**
+ * A plain string, or a {@link DetailsToken} from the {@link details} template
+ * literal tag.
+ */
 export type Details = string | DetailsToken;
 
 export interface AssertMakeErrorOptions {
   /**
    * Does not affect the error.name property. That remains determined by
    * the constructor. Rather, the `errorName` determines how this error is
-   * identified in the causal console log's output.
+   * identified in an associated console's output.
    */
   errorName?: string;
 
@@ -282,10 +292,6 @@ export type AssertTypeof = AssertTypeofBigint &
   AssertTypeofSymbol &
   AssertTypeofUndefined;
 
-interface StringablePayload {
-  toString(): string;
-}
-
 /**
  * TypeScript does not treat `AggregateErrorConstructor` as a subtype of
  * `ErrorConstructor`, which makes sense because their constructors
@@ -309,48 +315,44 @@ export type GenericErrorConstructor =
 export type Raise = (reason: Error) => void;
 
 /**
- * Makes and returns an `assert` function object that shares the bookkeeping
- * state defined by this module with other `assert` function objects made by
- * `makeAssert`. This state is per-module-instance and is exposed by the
- * `loggedErrorHandler` above. We refer to `assert` as a "function object"
- * because it can be called directly as a function, but also has methods that
- * can be called.
+ * Makes and returns an `assert` function object that shares the
+ * per-module-instance bookkeeping state defined by this module with other
+ * `assert` function objects made by `makeAssert`. We refer to `assert` as a
+ * "function object" because it can be called directly as a function, but also
+ * has callable methods of its own.
  *
- * If `optRaise` is provided, the returned `assert` function object will call
- * `optRaise(reason)` before throwing the error. This enables `optRaise` to
- * engage in even more violent termination behavior, like terminating the vat,
- * that prevents execution from reaching the following throw. However, if
- * `optRaise` returns normally, which would be unusual, the throw following
- * `optRaise(reason)` would still happen.
+ * If `raise` is provided, the returned `assert` function object will call
+ * `raise(reason)` before throwing an assertion-failure error. This enables
+ * `raise` to engage in even more violent termination behavior, like process
+ * termination, that prevents execution from reaching the following throw.
+ * However, if `raise(reason)` returns normally, which would be unusual, that
+ * throw still happens.
  */
-// Behold: recursion.
 // eslint-disable-next-line no-use-before-define
 export type MakeAssert = (raise?: Raise, unredacted?: boolean) => Assert;
 
 export type BaseAssert = (
-  /** The truthy/falsy value we're testing */
-  flag: any,
-  /** The details of what was asserted */
+  /** The condition whose truthiness is being asserted */
+  condition: any,
+  /** The details associated with assertion failure (falsy condition) */
   details?: Details,
   /** An optional alternate error constructor to use */
   errConstructor?: GenericErrorConstructor,
   options?: AssertMakeErrorOptions,
-) => asserts flag;
+) => asserts condition;
 
 export interface AssertionFunctions extends BaseAssert {
   typeof: AssertTypeof;
 
   /**
-   * The `assert.equal` method
-   *
-   * Assert that two values must be `Object.is`.
+   * Assert that two values are the same as observed by `Object.is`.
    */
   equal<T>(
     /** What we received */
     actual: unknown,
     /** What we wanted */
     expected: T,
-    /** The details of what was asserted */
+    /** The details associated with assertion failure (`Object.is` returning false) */
     details?: Details,
     /** An optional alternate error constructor to use */
     errConstructor?: GenericErrorConstructor,
@@ -358,12 +360,9 @@ export interface AssertionFunctions extends BaseAssert {
   ): asserts actual is T;
 
   /**
-   * The `assert.string` method.
-   *
+   * Assert that a value is a primitive string.
    * `assert.string(v)` is equivalent to `assert.typeof(v, 'string')`. We
    * special case this one because it is the most frequently used.
-   *
-   * Assert an expected typeof result.
    */
   string(
     specimen: any,
@@ -372,14 +371,9 @@ export interface AssertionFunctions extends BaseAssert {
   ): asserts specimen is string;
 
   /**
-   * The `assert.fail` method.
-   *
-   * Fail an assertion, recording full details to the console and
-   * raising an exception with a message in which `details` substitution values
-   * have been redacted.
-   *
-   * The optional `optDetails` can be a string for backwards compatibility
-   * with the nodejs assertion library.
+   * Fail an assertion, raising an exception with a `message` in which unquoted
+   * `details` substitution values may have been redacted into `typeof` types
+   * but are still available for logging to an associated console.
    */
   fail(
     /** The details of what was asserted */
@@ -392,11 +386,11 @@ export interface AssertionFunctions extends BaseAssert {
 
 export interface AssertionUtilities {
   /**
-   * Aka the `makeError` function as imported from `@endo/errors`
-   *
-   * Recording unredacted details for the console.
+   * Create an error with a `message` in which unquoted {@link details}
+   * substitution values may have been redacted into lossy `typeof` output but
+   * are still available for logging to an associated console.
    */
-  error(
+  makeError(
     /** The details of what was asserted */
     details?: Details,
     /** An optional alternate error constructor to use */
@@ -405,42 +399,26 @@ export interface AssertionUtilities {
   ): Error;
 
   /**
-   * Aka the `annotateError` function as imported from `@endo/errors`
-   *
-   * Annotate an error with details, potentially to be used by an
-   * augmented console such as the causal console of `console.js`, to
-   * provide extra information associated with logged errors.
+   * Associate `details` with `error`, potentially to be logged by an associated
+   * console for providing extra information about the error.
    */
   note(error: Error, details: Details): void;
 
   /**
-   * Use the `details` function as a template literal tag to create
-   * informative error messages. The assertion functions take such messages
-   * as optional arguments:
-   * ```js
-   * assert(sky.isBlue(), details`${sky.color} should be "blue"`);
-   * ```
-   * or following the normal convention to locally rename `details` to `X`
-   * and `quote` to `q` like `const { details: X, quote: q } = assert;`:
-   * ```js
-   * assert(sky.isBlue(), X`${sky.color} should be "blue"`);
-   * ```
+   * Use as a template literal tag to create an opaque {@link DetailsToken} for
+   * use with other assertion functions that might redact unquoted substitution
+   * values (i.e., those that are not output from the {@link quote} function)
+   * into lossy `typeof` output but still preserve them for logging to an
+   * associated console.
+   *
+   * The normal convention is to locally rename `details` to `X` like
+   * `const { details: X, quote: q, Fail } = assert;`.
    * However, note that in most cases it is preferable to instead use the `Fail`
-   * template literal tag (which has the same input signature as `details`
-   * but automatically creates and throws an error):
+   * template literal tag (which has the same input signature but automatically
+   * creates and throws an error):
    * ```js
    * sky.isBlue() || Fail`${sky.color} should be "blue"`;
    * ```
-   *
-   * The details template tag returns a `DetailsToken` object that can print
-   * itself with the formatted message in two ways.
-   * It will report full details to the console, but
-   * mask embedded substitution values with their typeof information in the thrown error
-   * to prevent revealing secrets up the exceptional path. In the example
-   * above, the thrown error may reveal only that `sky.color` is a string,
-   * whereas the same diagnostic printed to the console reveals that the
-   * sky was green. This masking can be disabled for an individual substitution value
-   * using `quote`.
    *
    * The `raw` property of an input template array is ignored, so a simple
    * array of strings may be provided directly.
@@ -451,70 +429,69 @@ export interface AssertionUtilities {
   ): DetailsToken;
 
   /**
-   * Use the `Fail` function as a template literal tag to efficiently
-   * create and throw a `details`-style error only when a condition is not satisfied.
+   * Use as a template literal tag to create and throw an error in whose
+   * `message` unquoted substitution values (i.e., those that are not output
+   * from the {@link quote} function) may have been redacted into lossy `typeof`
+   * output but are still available for logging to an associated console.
+   *
+   * For example, using the normal convention to locally rename properties like
+   * `const { quote: q, Fail } = assert;`:
    * ```js
-   * condition || Fail`...complaint...`;
-   * ```
-   * This avoids the overhead of creating usually-unnecessary errors like
-   * ```js
-   * assert(condition, details`...complaint...`);
-   * ```
-   * while improving readability over alternatives like
-   * ```js
-   * condition || assert.fail(details`...complaint...`);
+   * sky.isBlue() || Fail`${sky.color} should be "blue"`;
    * ```
    *
-   * However, due to current weakness in TypeScript, static reasoning
-   * is less powerful with the `||` patterns than with an `assert` call.
-   * Until/unless https://github.com/microsoft/TypeScript/issues/51426 is fixed,
-   * for `||`-style assertions where this loss of static reasoning is a problem,
-   * instead express the assertion as
+   * This `||` pattern saves the cost of creating {@link DetailsToken} and/or
+   * error instances when the asserted condition holds, but can weaken
+   * TypeScript static reasoning due to
+   * https://github.com/microsoft/TypeScript/issues/51426 . Where this is a
+   * problem, instead express the assertion as
    * ```js
-   *   if (!condition) {
-   *     Fail`...complaint...`;
-   *   }
+   * if (!sky.isBlue()) {
+   *   // This `throw` does not affect runtime behavior since `Fail` throws, but
+   *   // might be needed to improve static analysis.
+   *   throw Fail`${sky.color} should be "blue"`;
+   * }
    * ```
-   * or, if needed,
-   * ```js
-   *   if (!condition) {
-   *     // `throw` is noop since `Fail` throws, but it improves static analysis
-   *     throw Fail`...complaint...`;
-   *   }
-   * ```
+   *
+   * The `raw` property of an input template array is ignored, so a simple
+   * array of strings may be provided directly.
    */
   Fail(template: TemplateStringsArray | string[], ...args: any): never;
 
   /**
-   * To "declassify" and quote a substitution value used in a
-   * ``` details`...` ``` template literal, enclose that substitution expression
-   * in a call to `quote`. This makes the value appear quoted
-   * (as if with `JSON.stringify`) in the message of the thrown error. The
-   * payload itself is still passed unquoted to the console as it would be
-   * without `quote`.
+   * Wrap a value such that its use as a substitution value in a template
+   * literal tagged with {@link details} or {@link Fail} will result in it
+   * appearing quoted (in a way similar to but more general than
+   * `JSON.stringify`) rather than redacted in the `message` of errors based on
+   * the resulting {@link DetailsToken}.
    *
-   * For example, the following will reveal the expected sky color, but not the
-   * actual incorrect sky color, in the thrown error's message:
+   * This does not affect representation in output of an associated console,
+   * which still logs the value as it would without `quote`, but *does* reveal
+   * it to functions in the propagation path of such errors.
+   *
+   * For example, the following will reveal the expected value in the thrown
+   * error's `message`, but only the _type_ of the actual incorrect value (using
+   * the normal convention to locally rename properties like
+   * `const { quote: q, Fail } = assert;`):
    * ```js
-   * sky.color === expectedColor || Fail`${sky.color} should be ${quote(expectedColor)}`;
+   * actual === expected || Fail`${actual} should be ${q(expected)}`;
    * ```
    *
-   * The normal convention is to locally rename `details` to `X` and `quote` to `q`
-   * like `const { details: X, quote: q } = assert;`, so the above example would then be
-   * ```js
-   * sky.color === expectedColor || Fail`${sky.color} should be ${q(expectedColor)}`;
-   * ```
+   * The optional `space` parameter matches that of `JSON.stringify`, and is
+   * used to request insertion of non-semantic line feeds, indentation, and
+   * separating spaces in the output for improving readability of objects and
+   * arrays.
    */
-  quote(
-    /** What to declassify */
-    payload: any,
-    spaces?: string | number,
-  ): /** The declassified and quoted payload */ StringablePayload;
+  quote(value: any, space?: string | number): Stringable;
 
   /**
-   * Embed a string directly into error details without wrapping punctuation.
+   * Wrap a string such that its use as a substitution value in a template
+   * literal tagged with {@link details} or {@link Fail} will be treated
+   * literally rather than being quoted or redacted.
+   *
    * To avoid injection attacks that exploit quoting confusion, this must NEVER
    * be used with data that is possibly attacker-controlled.
+   *
    * As a further safeguard, we fall back to quoting any input that is not a
    * string of sufficiently word-like parts separated by isolated spaces (rather
    * than throwing an exception, which could hide the original problem for which
@@ -524,35 +501,25 @@ export interface AssertionUtilities {
    * by inline replacement similar to that of `bestEffortStringify` for producing
    * rendered messages like `(an object) was tagged "[Unsafe bare string]"`).
    */
-  bare(
-    /** What to declassify */
-    payload: any,
-    spaces?: string | number,
-  ): /** The declassified payload without quotes (beware confusion hazard) */
-  StringablePayload;
+  bare(text: string, spaces?: string | number): Stringable;
 }
 
 export interface DeprecatedAssertionUtilities {
   makeAssert: MakeAssert;
+  error: AssertionUtilities['makeError'];
 }
 
 /**
- * assert that expr is truthy, with an optional details to describe
- * the assertion. It is a tagged template literal like
- * ```js
- * assert(expr, details`....`);`
- * ```
+ * Assert that `condition` is truthy, with optional details associated with
+ * assertion failure (falsy condition).
  *
- * The literal portions of the template are assumed non-sensitive, as
- * are the `typeof` types of the substitution values. These are
- * assembled into the thrown error message. The actual contents of the
- * substitution values are assumed sensitive, to be revealed to
- * the console only. We assume only the virtual platform's owner can read
- * what is written to the console, where the owner is in a privileged
- * position over computation running on that platform.
- *
- * The optional `optDetails` can be a string for backwards compatibility
- * with the nodejs assertion library.
+ * The literal portions of the template used to make a {@link DetailsToken} are
+ * assumed non-sensitive, as are the `typeof` output for substitution values.
+ * These are assembled into the error `message`. The actual contents of the
+ * substitution values are assumed sensitive and usually redacted, to be
+ * revealed only to an associated console. We assume only the virtual platform's
+ * owner can read what is written to the console, where the owner is in a
+ * privileged position over computation running on that platform.
  */
 export type Assert = AssertionFunctions &
   AssertionUtilities &
