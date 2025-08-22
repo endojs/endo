@@ -35,10 +35,9 @@ import {
   weakmapHas,
   weakmapSet,
   AggregateError,
+  SuppressedError,
   getOwnPropertyDescriptors,
   ownKeys,
-  create,
-  objectPrototype,
   hasOwn,
 } from '../commons.js';
 import { an, bestEffortStringify } from './stringify-utils.js';
@@ -255,6 +254,28 @@ const tagError = (err, optErrorName = err.name) => {
 };
 
 /**
+ * The own properties that we expect to see on an error object when it is
+ * first constructed. Any other properties added by the constructor are
+ * beyond what is standard. When sanitizing, these should be removed
+ * immediately after construction.
+ * Currently known examples:
+ * - `fileName` and `lineNumber` on Firefox/SpiderMonkey
+ * - `line` on Safari/JSC
+ *
+ * These example properties in particular carry information that should
+ * normally be redacted.
+ */
+const expectedErrorOwnProps = freeze({
+  __proto__: null, // this is syntax, not a property named "__proto__"
+  message: true,
+  stack: true,
+  cause: true,
+  errors: true,
+  error: true,
+  suppressed: true,
+});
+
+/**
  * Make reasonable best efforts to make a `Passable` error.
  *   - `sanitizeError` will remove any "extraneous" own properties already added
  *     by the host,
@@ -267,53 +288,47 @@ const tagError = (err, optErrorName = err.name) => {
  *     added by the host are data
  *     properties, converting accessor properties to data properties as needed,
  *     such as `stack` on v8 (Chrome, Brave, Edge?)
- *   - `sanitizeError` will freeze the error, preventing any correct engine from
- *     adding or
- *     altering any of the error's own properties `sanitizeError` is done.
  *
  * However, `sanitizeError` will not, for example, `harden`
  * (i.e., deeply freeze)
- * or ensure that the `cause` or `errors` property satisfy the `Passable`
- * constraints. The purpose of `sanitizeError` is only to protect against
+ * or ensure that the `cause`, `errors`, `error`, or `suppressed` properties
+ * satisfy the `Passable` constraints.
+ * The purpose of `sanitizeError` is only to protect against
  * mischief the host may have already added to the error as created,
  * not to ensure that the error is actually Passable. For that,
  * see `toPassableError` in `@endo/pass-style`.
  *
- * @param {Error} error
+ * @param {Error} err
  */
-export const sanitizeError = error => {
-  const descs = getOwnPropertyDescriptors(error);
-  const {
-    name: _nameDesc,
-    message: _messageDesc,
-    errors: _errorsDesc = undefined,
-    cause: _causeDesc = undefined,
-    stack: _stackDesc = undefined,
-    ...restDescs
-  } = descs;
+export const sanitizeError = err => {
+  const descs = getOwnPropertyDescriptors(err);
+  let needNote = false;
+  const droppedNote = {};
 
-  const restNames = ownKeys(restDescs);
-  if (restNames.length >= 1) {
-    for (const name of restNames) {
-      delete error[name];
+  for (const name of ownKeys(err)) {
+    if (expectedErrorOwnProps[name]) {
+      // @ts-expect-error TS still confused by symbols as property names
+      const desc = descs[name];
+      if (desc && hasOwn(desc, 'get')) {
+        defineProperty(err, name, {
+          value: err[name], // invoke the getter to convert to data property
+        });
+      }
+    } else {
+      needNote = true;
+      defineProperty(droppedNote, name, {
+        value: err[name], // invoke the getter to convert to data property
+      });
+      delete err[name];
     }
-    const droppedNote = create(objectPrototype, restDescs);
+  }
+  if (needNote) {
     // eslint-disable-next-line no-use-before-define
     note(
-      error,
+      err,
       redactedDetails`originally with properties ${quote(droppedNote)}`,
     );
   }
-  for (const name of ownKeys(error)) {
-    // @ts-expect-error TS still confused by symbols as property names
-    const desc = descs[name];
-    if (desc && hasOwn(desc, 'get')) {
-      defineProperty(error, name, {
-        value: error[name], // invoke the getter to convert to data property
-      });
-    }
-  }
-  freeze(error);
 };
 
 /**
@@ -324,9 +339,12 @@ const makeError = (
   errConstructor = globalThis.Error,
   {
     errorName = undefined,
-    cause = undefined,
-    errors = undefined,
     sanitize = true,
+    options = undefined,
+    properties = undefined,
+
+    cause = undefined, // Deprecated. Should be provided in `properties`
+    errors = undefined, // Deprecated. Should be provided in `properties`
   } = {},
 ) => {
   if (typeof optDetails === 'string') {
@@ -338,39 +356,60 @@ const makeError = (
   if (hiddenDetails === undefined) {
     throw TypeError(`unrecognized details ${quote(optDetails)}`);
   }
+  // The messageString is overridden by `message` if provided.
   const messageString = getMessageString(hiddenDetails);
-  const opts = cause && { cause };
-  let error;
+
+  let err;
   if (
     typeof AggregateError !== 'undefined' &&
     errConstructor === AggregateError
   ) {
-    error = AggregateError(errors || [], messageString, opts);
+    // First arg overridden by `errors` is provided.
+    // A `cause` in `options` is overridden by `cause` if provided.
+    err = AggregateError([], messageString, options);
+  } else if (
+    typeof SuppressedError !== 'undefined' &&
+    errConstructor === SuppressedError
+  ) {
+    // First two args overridden by `error` and `suppressed` if provided.
+    // Bizarrely, `SuppressedError` has no options argument and therefore
+    // no direct way to endow it with a `cause`. Nevertheless,
+    // it will be given a `cause` if provided.
+    err = SuppressedError(undefined, undefined, messageString);
   } else {
-    error = /** @type {ErrorConstructor} */ (errConstructor)(
+    // A `cause` in `options` is overridden by `cause` if provided.
+    err = /** @type {ErrorConstructor} */ (errConstructor)(
       messageString,
-      opts,
+      options,
     );
-    if (errors !== undefined) {
-      // Since we need to tolerate `errors` on an AggregateError, may as
-      // well tolerate it on all errors.
-      defineProperty(error, 'errors', {
-        value: errors,
-        writable: true,
-        enumerable: false,
-        configurable: true,
-      });
-    }
-  }
-  weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
-  if (errorName !== undefined) {
-    tagError(error, errorName);
   }
   if (sanitize) {
-    sanitizeError(error);
+    sanitizeError(err);
+  }
+
+  weakmapSet(hiddenMessageLogArgs, err, getLogArgs(hiddenDetails));
+  if (errorName !== undefined) {
+    tagError(err, errorName);
+  }
+
+  // TODO This silently drops non-enumerable properties. Do we care?
+  const props = { ...properties };
+  if (cause !== undefined) {
+    props.cause = cause;
+  }
+  if (errors !== undefined) {
+    props.errors = errors;
+  }
+  for (const name of ownKeys(props)) {
+    defineProperty(err, name, {
+      value: props[name],
+    });
+  }
+  if (sanitize) {
+    freeze(err);
   }
   // The next line is a particularly fruitful place to put a breakpoint.
-  return error;
+  return err;
 };
 freeze(makeError);
 

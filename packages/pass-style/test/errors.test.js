@@ -33,6 +33,11 @@ test('style of extended errors', t => {
     const a4 = harden(AggregateError([e2, u3], 'a4', { cause: e1 }));
     t.is(passStyleOf(a4), 'error');
   }
+  if (typeof SuppressedError !== 'undefined') {
+    // Conditional, to accommodate platforms prior to SuppressedError
+    const a4 = harden(SuppressedError(e2, u3, 'a4'));
+    t.is(passStyleOf(a4), 'error');
+  }
 });
 
 test('toPassableError, toThrowable', t => {
@@ -72,7 +77,7 @@ test('toPassableError, toThrowable', t => {
   // a throwable singleton copyArray containing a toThrowable(e), i.e.,
   // an error like e2.
   t.throws(() => toThrowable(notYetCoercable), {
-    message: 'Passable Error has extra unpassed property "foo"',
+    message: 'A throwable cannot contain a "remotable": "[Alleged: Foo]"',
   });
 
   const throwable = harden([e2, { e2 }, makeTagged('e2', e2)]);
