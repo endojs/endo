@@ -1,0 +1,101 @@
+---
+name: Setup Steps for GitHub Copilot Coding Agent
+
+# This file defines setup steps that run before the firewall is enabled
+# to pre-install XS and V8 engines that would otherwise be blocked
+
+on: workflow_dispatch
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Enable corepack for Yarn version management
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Pre-install XS engine with caching (following test-xs workflow pattern)
+      - name: Restore XS binary cache
+        id: restore-xs
+        uses: actions/cache@v4
+        with:
+          path: ~/.esvu/bin/xs
+          key: xs-engine-${{ runner.os }}-v5.0.0
+
+      - name: Download and install XS engine
+        if: steps.restore-xs.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.esvu/bin
+          # Try to download XS from Moddable releases
+          XS_URL="https://github.com/Moddable-OpenSource/moddable/releases/download/5.0.0/xst-lin64.zip"
+          if curl -f -s -L -o xs-lin64.zip "$XS_URL"; then
+            unzip xs-lin64.zip -d ~/.esvu/bin
+            mv ~/.esvu/bin/xst ~/.esvu/bin/xs
+            chmod +x ~/.esvu/bin/xs
+            echo "XS engine downloaded and installed successfully"
+          else
+            echo "XS download failed, but continuing..."
+          fi
+
+      # Pre-install V8 engine with caching
+      - name: Restore V8 binary cache
+        id: restore-v8
+        uses: actions/cache@v4
+        with:
+          path: ~/.esvu/bin/v8
+          key: v8-engine-${{ runner.os }}-latest
+
+      - name: Download and install V8 engine
+        if: steps.restore-v8.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.esvu/bin
+          # Try to install V8 using esvu
+          if yarn dlx esvu install v8; then
+            echo "V8 engine installed successfully"
+          else
+            echo "V8 installation failed, but continuing..."
+          fi
+
+      # Configure eshost for both engines if they exist
+      - name: Configure eshost engines
+        run: |
+          # Only configure engines that were successfully installed
+          if [ -f "$HOME/.esvu/bin/xs" ]; then
+            chmod +x "$HOME/.esvu/bin/xs"
+            if ! yarn eshost --list | grep -q '"xs"'; then
+              yarn eshost --add "xs" xs "$HOME/.esvu/bin/xs" || \
+                echo "Failed to add XS to eshost"
+            fi
+          fi
+
+          if [ -f "$HOME/.esvu/bin/v8" ]; then
+            chmod +x "$HOME/.esvu/bin/v8"
+            if ! yarn eshost --list | grep -q '"v8"'; then
+              yarn eshost --add "v8" d8 "$HOME/.esvu/bin/v8" || \
+                echo "Failed to add V8 to eshost"
+            fi
+          fi
+
+          # List configured engines
+          yarn eshost --list || echo "eshost not available"
+
+      # Cache the entire .esvu directory for future use
+      - name: Cache engines directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.esvu
+          key: esvu-engines-${{ runner.os }}-${{ hashFiles('~/.esvu/bin/*') }}
+          restore-keys: |
+            esvu-engines-${{ runner.os }}-
