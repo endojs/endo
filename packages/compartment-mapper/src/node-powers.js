@@ -36,6 +36,8 @@
 
 import { createRequire } from 'module';
 
+const { Function, Promise } = globalThis;
+
 /**
  * @type {FileURLToPathFn}
  */
