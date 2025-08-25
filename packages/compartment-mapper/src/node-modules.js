@@ -807,7 +807,6 @@ const translateGraph = (
       internalAliases,
       parsers,
       types,
-      packageDescriptor,
     } = graph[dependeeLocation];
     /** @type {Record<string, CompartmentModuleDescriptorConfiguration>} */
     const moduleDescriptors = create(null);

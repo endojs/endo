@@ -55,7 +55,6 @@ const { freeze, keys, assign, entries, fromEntries, isFrozen } = Object;
 const makeCompartmentDescriptor = (compartmentDescriptor = {}) => {
   const {
     name = '<unknown>',
-    path = [],
     label,
     scopes = {},
     modules = {},
@@ -74,7 +73,6 @@ const makeCompartmentDescriptor = (compartmentDescriptor = {}) => {
     location: `file://${name}`,
     types,
     parsers,
-    path,
     packageDescriptor: { name },
     sourceDirname: name,
     ...rest,
@@ -142,7 +140,6 @@ test('enforcePolicyTransform - removes modules per policy', async t => {
 
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
@@ -150,7 +147,6 @@ test('enforcePolicyTransform - removes modules per policy', async t => {
 
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {
       some: {
@@ -171,7 +167,6 @@ test('enforcePolicyTransform - removes modules per policy', async t => {
 
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: {
       other: {
@@ -235,7 +230,6 @@ test('enforcePolicyTransform - fallback to policy from CompartmentDescriptor', a
 
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: {
@@ -248,7 +242,6 @@ test('enforcePolicyTransform - fallback to policy from CompartmentDescriptor', a
 
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {
       some: {
@@ -269,7 +262,6 @@ test('enforcePolicyTransform - fallback to policy from CompartmentDescriptor', a
 
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: {
       other: {
@@ -332,7 +324,6 @@ test('enforcePolicyTransform - ignores policyOverride', async t => {
 
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
@@ -340,7 +331,6 @@ test('enforcePolicyTransform - ignores policyOverride', async t => {
 
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {
       some: {
@@ -361,7 +351,6 @@ test('enforcePolicyTransform - ignores policyOverride', async t => {
 
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: {
       other: {
@@ -412,14 +401,12 @@ test('createReferencesByPolicyTransform - adds references per policyOverride', a
   const policyOverride = { resources: { some: { packages: { other: true } } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
   });
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {},
     policy: policy.resources.some,
@@ -431,7 +418,6 @@ test('createReferencesByPolicyTransform - adds references per policyOverride', a
   };
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: { other: otherModule },
     policy: policy.resources.other,
@@ -465,14 +451,12 @@ test('createReferencesByPolicyTransform - adds references per policy', async t =
   const policy = { resources: { some: { packages: { other: true } } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
   });
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {},
     policy: policy.resources.some,
@@ -484,7 +468,6 @@ test('createReferencesByPolicyTransform - adds references per policy', async t =
   };
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: { other: otherModule },
     policy: policy.resources.other,
@@ -517,14 +500,12 @@ test('createReferencesByPolicyTransform - missing compartment descriptor for com
   const policy = { resources: { other: { packages: { nuffin: true } } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
   });
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {
       some: {
@@ -536,7 +517,6 @@ test('createReferencesByPolicyTransform - missing compartment descriptor for com
   });
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: {},
     policy: {},
@@ -572,14 +552,12 @@ test('createReferencesByPolicyTransform - warn on missing compartment descriptor
   const policy = { resources: { other: { packages: { nuffin: true } } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
   });
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {
       some: {
@@ -591,7 +569,6 @@ test('createReferencesByPolicyTransform - warn on missing compartment descriptor
   });
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: {},
     policy: {},
@@ -633,14 +610,12 @@ test('createReferencesByPolicyTransform - prefer policy over policyOverride', as
   const policyOverride = { resources: { some: { packages: { other: true } } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
   });
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     modules: {
       some: {
@@ -652,7 +627,6 @@ test('createReferencesByPolicyTransform - prefer policy over policyOverride', as
   });
   const otherDescriptor = makeCompartmentDescriptor({
     name: 'other',
-    path: ['other'],
     label: 'other',
     modules: {
       other: {
@@ -715,7 +689,6 @@ test('CompartmentMapTransformContext - getCompartmentDescriptor', async t => {
   const policy = { resources: { canonical: { packages: {} } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: ['root'],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy,
@@ -744,18 +717,16 @@ test('CompartmentMapTransformContext - getCompartmentDescriptor', async t => {
 test('CompartmentMapTransformContext - getCanonicalName', async t => {
   /** @type {SomePolicy} */
   const policy = { resources: { canonical: { packages: {} } } };
-  // Root compartment (entry) with empty path
+
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy,
   });
-  // Non-root compartment with non-empty path
+
   const fooBarDescriptor = makeCompartmentDescriptor({
     name: 'fooBar',
-    path: ['foo', 'bar'],
     label: 'foo>bar',
     modules: {},
     policy,
@@ -784,18 +755,16 @@ test('CompartmentMapTransformContext - getCanonicalName', async t => {
 test('CompartmentMapTransformContext - getCompartmentName', async t => {
   /** @type {SomePolicy} */
   const policy = { resources: { canonical: { packages: {} } } };
-  // Root compartment (entry) with empty path
+
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy,
   });
-  // Non-root compartment with non-empty path
+
   const fooBarDescriptor = makeCompartmentDescriptor({
     name: 'fooBar',
-    path: ['foo', 'bar'],
     label: 'foo>bar',
     modules: {},
     policy,
@@ -835,13 +804,11 @@ test('CompartmentMapTransformContext - getPackagePolicy', async t => {
   };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     policy: {},
   });
   const someDescriptor = makeCompartmentDescriptor({
     name: 'some',
-    path: ['some'],
     label: 'some',
     policy: {},
   });
@@ -875,7 +842,6 @@ test('CompartmentMapTransformContext - transforms CompartmentMapDescriptor', asy
   const policy = { resources: {} };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: ['root'],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy: policy.entry,
@@ -909,7 +875,6 @@ test('applyCompartmentMapTransforms - throws if optionsForTransforms is undefine
   const policy = { resources: { canonical: { packages: {} } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy,
@@ -935,7 +900,6 @@ test('applyCompartmentMapTransforms - wraps thrown error from transform', async 
   const policy = { resources: { canonical: { packages: {} } } };
   const rootDescriptor = makeCompartmentDescriptor({
     name: ENTRY_COMPARTMENT,
-    path: [],
     label: ENTRY_COMPARTMENT,
     modules: {},
     policy,

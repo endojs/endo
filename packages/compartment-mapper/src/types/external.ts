@@ -22,6 +22,7 @@ import type {
 } from './compartment-map-schema.js';
 import type { SomePackagePolicy, SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
+
 export type { CanonicalName } from './canonical-name.js';
 
 /**

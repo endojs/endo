@@ -24,7 +24,6 @@
 
 import {
   assertDigestedCompartmentMap,
-  assertFileCompartmentMap,
   stringCompare,
 } from './compartment-map.js';
 import {

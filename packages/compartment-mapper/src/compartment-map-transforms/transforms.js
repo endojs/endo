@@ -195,91 +195,105 @@ export const createReferencesByPolicyTransform = ({
   const { compartment: entryCompartmentName } = compartmentMap.entry;
 
   /**
-   * Updates the compartment descriptor by adding references to policy
-   * compartment descriptors and ensuring proper module and scope mappings
-   * between compartments.
-   *
-   * TODO: It is a bug if we ever add a `ModuleDescriptor` which was previously
-   * removed by {@link enforcePolicyTransform}. I don't have a solution for this yet.
-   *
-   * @param {FileUrlString|typeof ENTRY_COMPARTMENT} compartmentDescriptorNameFromPolicy - The name of the policy
+   * Function which adds references to a {@link CompartmentDescriptor} based on
+   * package policy.
+   * @callback UpdateCompartmentDescriptorFn
+   * @param {FileUrlString|typeof ENTRY_COMPARTMENT} compartmentDescriptorNameFromPolicy The name of the policy
    * compartment descriptor.
-   * @param {PackageCompartmentDescriptor} compartmentDescriptor - The compartment
-   * descriptor to be updated.
-   * @param {FileUrlString} compartmentDescriptorName - The name of the compartment
-   * descriptor being updated.
-   * @param {string} canonicalName - The canonical name of the compartment
-   * descriptor.
-   * @param {string} policyCanonicalName - The canonical name of the policy
+   * @param {string} policyCanonicalName The canonical name of the policy
    * compartment descriptor.
-   * @throws {ReferenceError} If the policy compartment descriptor cannot be
-   * found.
+   * @returns {void}
    */
-  const updateCompartmentDescriptor = (
-    compartmentDescriptorNameFromPolicy,
-    compartmentDescriptor,
-    compartmentDescriptorName,
-    canonicalName,
-    policyCanonicalName,
-  ) => {
-    const compartmentDescriptorFromPolicy =
-      compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
-        ? getCompartmentDescriptor(entryCompartmentName)
-        : getCompartmentDescriptor(compartmentDescriptorNameFromPolicy);
 
-    assert(
-      compartmentDescriptorFromPolicy,
-      `No compartment descriptor found for ${q(compartmentDescriptorNameFromPolicy)}`,
-    );
+  /**
+   * Factory for {@link UpdateCompartmentDescriptorFn}
+   *
+   * @param {PackageCompartmentDescriptor} compartmentDescriptor
+   * @returns {UpdateCompartmentDescriptorFn}
+   */
+  const makeUpdateCompartmentDescriptor = compartmentDescriptor => {
+    /**
+     * Used for logging only
+     */
+    const { label: canonicalName } = compartmentDescriptor;
 
-    const { name: moduleDescriptorName } = compartmentDescriptorFromPolicy;
-
-    const moduleDescriptor =
-      compartmentDescriptor.modules[moduleDescriptorName];
-
-    let updated = false;
-    // NOTE: The keys of `modules` correspond to
-    // `CompartmentDescriptor.name`—not the keys of the
-    // `CompartmentMapDescriptor.compartments` object.
-    if (!moduleDescriptor) {
-      const moduleDescriptorFromPolicy =
-        compartmentDescriptorFromPolicy.modules[moduleDescriptorName];
+    /**
+     * Updates the compartment descriptor by adding references to policy
+     * compartment descriptors and ensuring proper module and scope mappings
+     * between compartments.
+     *
+     * TODO: It is a bug if we ever add a `ModuleDescriptor` which was previously
+     * removed by {@link enforcePolicyTransform}. I don't have a solution for this yet.
+     *
+     * @type {UpdateCompartmentDescriptorFn}
+     * @throws {ReferenceError} If the policy compartment descriptor cannot be
+     * found.
+     */
+    const updateCompartmentDescriptor = (
+      compartmentDescriptorNameFromPolicy,
+      policyCanonicalName,
+    ) => {
+      const compartmentDescriptorFromPolicy =
+        compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
+          ? getCompartmentDescriptor(entryCompartmentName)
+          : getCompartmentDescriptor(compartmentDescriptorNameFromPolicy);
 
       assert(
-        moduleDescriptorFromPolicy,
-        `No module descriptor found for ${q(moduleDescriptorName)} in compartment ${q(compartmentDescriptorNameFromPolicy)}; policy may be malformed`,
+        compartmentDescriptorFromPolicy,
+        `No compartment descriptor found for ${q(compartmentDescriptorNameFromPolicy)}`,
       );
 
-      compartmentDescriptor.modules[moduleDescriptorName] = {
-        module:
-          compartmentDescriptorFromPolicy.modules[moduleDescriptorName].module,
-        compartment:
-          compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
-            ? entryCompartmentName
-            : compartmentDescriptorNameFromPolicy,
-        createdBy: 'transform',
-      };
-      updated = true;
-    }
+      const { name: moduleDescriptorName } = compartmentDescriptorFromPolicy;
 
-    // practically, this should be less common, since scopes are not removed by `enforcePolicyTransform`
-    if (!compartmentDescriptor.scopes[moduleDescriptorName]) {
-      compartmentDescriptor.scopes[moduleDescriptorName] = {
-        compartment:
-          compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
-            ? entryCompartmentName
-            : compartmentDescriptorNameFromPolicy,
-      };
-      updated = true;
-    }
+      const moduleDescriptor =
+        compartmentDescriptor.modules[moduleDescriptorName];
 
-    if (updated) {
-      log(
-        `Policy: created reference from compartment ${q(
-          canonicalName,
-        )} to ${q(policyCanonicalName)}`,
-      );
-    }
+      let updated = false;
+      // NOTE: The keys of `modules` correspond to
+      // `CompartmentDescriptor.name`—not the keys of the
+      // `CompartmentMapDescriptor.compartments` object.
+      if (!moduleDescriptor) {
+        const moduleDescriptorFromPolicy =
+          compartmentDescriptorFromPolicy.modules[moduleDescriptorName];
+
+        assert(
+          moduleDescriptorFromPolicy,
+          `No module descriptor found for ${q(moduleDescriptorName)} in compartment ${q(compartmentDescriptorNameFromPolicy)}; policy may be malformed`,
+        );
+
+        compartmentDescriptor.modules[moduleDescriptorName] = {
+          module:
+            compartmentDescriptorFromPolicy.modules[moduleDescriptorName]
+              .module,
+          compartment:
+            compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
+              ? entryCompartmentName
+              : compartmentDescriptorNameFromPolicy,
+          createdBy: 'transform',
+        };
+        updated = true;
+      }
+
+      // practically, this should be less common, since scopes are not removed by `enforcePolicyTransform`
+      if (!compartmentDescriptor.scopes[moduleDescriptorName]) {
+        compartmentDescriptor.scopes[moduleDescriptorName] = {
+          compartment:
+            compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
+              ? entryCompartmentName
+              : compartmentDescriptorNameFromPolicy,
+        };
+        updated = true;
+      }
+
+      if (updated) {
+        log(
+          `Policy: created reference from compartment ${q(
+            canonicalName,
+          )} to ${q(policyCanonicalName)}`,
+        );
+      }
+    };
+    return updateCompartmentDescriptor;
   };
 
   const compartmentEntries =
@@ -309,14 +323,15 @@ export const createReferencesByPolicyTransform = ({
       const { packages: packagePolicyPackages } = packagePolicy;
 
       /**
-       * Used for logging only
+       * Might be a {@link UpdateCompartmentDescriptorFn}; lazily created.
+       * @type {UpdateCompartmentDescriptorFn | undefined}
        */
-      const canonicalName =
-        getCanonicalName(compartmentDescriptor) ?? compartmentDescriptorName;
+      let updateCompartmentDescriptor;
 
       for (const [policyCanonicalName, policyValue] of entries(
         packagePolicyPackages,
       )) {
+        // note that `any` is a valid policy value, but we cannot add references to every other CompartmentDescriptor!
         if (policyValue === true) {
           const compartmentDescriptorNameFromPolicy =
             getCompartmentName(policyCanonicalName);
@@ -328,11 +343,11 @@ export const createReferencesByPolicyTransform = ({
             continue;
           }
 
+          updateCompartmentDescriptor ??= makeUpdateCompartmentDescriptor(
+            compartmentDescriptor,
+          );
           updateCompartmentDescriptor(
             compartmentDescriptorNameFromPolicy,
-            compartmentDescriptor,
-            compartmentDescriptorName,
-            canonicalName,
             policyCanonicalName,
           );
         }
