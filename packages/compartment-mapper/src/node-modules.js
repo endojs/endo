@@ -837,7 +837,7 @@ const translateGraph = (
         moduleDescriptors[localPath] = {
           compartment: packageLocation,
           module: targetPath,
-          createdBy: 'node-modules',
+          __createdBy: 'node-modules',
         };
       }
       // if the exports field is not present, then all modules must be accessible
@@ -865,7 +865,7 @@ const translateGraph = (
         moduleDescriptors[modulePath] = {
           compartment: /** @type {FileUrlString} */ (dependeeLocation),
           module: facetTarget,
-          createdBy: 'node-modules',
+          __createdBy: 'node-modules',
         };
       }
     }

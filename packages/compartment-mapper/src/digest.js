@@ -140,21 +140,21 @@ const translateCompartmentMap = (
               location,
               parser,
               sha512,
-              createdBy: 'digest',
+              __createdBy: 'digest',
             };
           } else if (isExitModuleSource(source)) {
             const { exit } = source;
             /** @type {ExitModuleDescriptorConfiguration} */
             modules[name] = {
               exit,
-              createdBy: 'digest',
+              __createdBy: 'digest',
             };
           } else if (isErrorModuleSource(source)) {
             const { deferredError } = source;
             /** @type {ErrorModuleDescriptorConfiguration} */
             modules[name] = {
               deferredError,
-              createdBy: 'digest',
+              __createdBy: 'digest',
             };
           } else {
             throw new TypeError(

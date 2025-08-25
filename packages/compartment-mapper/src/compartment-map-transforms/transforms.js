@@ -269,7 +269,7 @@ export const createReferencesByPolicyTransform = ({
             compartmentDescriptorNameFromPolicy === ENTRY_COMPARTMENT
               ? entryCompartmentName
               : compartmentDescriptorNameFromPolicy,
-          createdBy: 'transform',
+          __createdBy: 'transform',
         };
         updated = true;
       }

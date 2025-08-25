@@ -160,7 +160,7 @@ export interface DigestedCompartmentDescriptor
   scopes: never;
   parsers: never;
   types: never;
-  createdBy: never;
+  __createdBy: never;
   sourceDirname: never;
 }
 
@@ -190,7 +190,7 @@ export interface BaseModuleDescriptorConfiguration {
 
   retained?: true;
 
-  createdBy?: ModuleDescriptorConfigurationCreator;
+  __createdBy?: ModuleDescriptorConfigurationCreator;
 }
 
 export interface ErrorModuleDescriptorConfiguration

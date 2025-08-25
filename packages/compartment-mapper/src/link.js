@@ -199,7 +199,7 @@ const makeModuleMapHook = (
           retained: true,
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
-          createdBy: 'link',
+          __createdBy: 'link',
         };
         // actual module descriptor
         return {

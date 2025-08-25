@@ -382,7 +382,7 @@ function* chooseModuleDescriptor(
           retained: true,
           module: candidateSpecifier,
           compartment: packageLocation,
-          createdBy: 'import-hook',
+          __createdBy: 'import-hook',
         };
       }
       /** @type {StaticModuleType} */

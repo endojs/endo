@@ -178,7 +178,7 @@ const assertConditions = (conditions, url) => {
  */
 const getModuleDescriptorSpecificProperties = allegedModule => {
   const {
-    createdBy: _createdBy,
+    __createdBy: _createdBy,
     retained: _retained,
     deferredError: _deferredError,
     ...other
