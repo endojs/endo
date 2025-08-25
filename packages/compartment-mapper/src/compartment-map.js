@@ -109,7 +109,7 @@ const assertLabel = (allegedLabel, keypath, url) => {
     return;
   }
   assert(
-    /^(?:@[a-z][a-z0-9-]*\/)?[a-z][a-z0-9-]*(?:>(?:@[a-z][a-z0-9-]*\/)?[a-z][a-z0-9-]*)*$/.test(
+    /^(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*(?:>(?:@[a-z][a-z0-9-.]*\/)?[a-z][a-z0-9-.]*)*$/.test(
       allegedLabel,
     ),
     `${keypath} must be a canonical name in ${q(url)}; got ${q(allegedLabel)}`,
