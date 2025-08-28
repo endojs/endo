@@ -1,3 +1,4 @@
+import { hideAndHardenFunction } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 import { throwLabeled } from './throw-labeled.js';
@@ -57,4 +58,4 @@ export const applyLabelingError = (func, args, label = undefined) => {
     return result;
   }
 };
-harden(applyLabelingError);
+hideAndHardenFunction(applyLabelingError);

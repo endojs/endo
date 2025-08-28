@@ -38,6 +38,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/eventual-send": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "^6.4.1",

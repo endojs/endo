@@ -408,6 +408,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
+    "@endo/eventual-send": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.4.1"
