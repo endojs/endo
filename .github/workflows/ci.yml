@@ -34,6 +34,9 @@ jobs:
           node-version: 22.x
           cache: yarn
 
+      - name: Prefer kebab-case files
+        run: bash scripts/lint-kebab-case-file-names.sh
+
       - name: Install dependencies
         run: yarn install --immutable
 
