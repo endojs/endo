@@ -173,7 +173,7 @@ const c = new Compartment({
   globals: {
     print: harden(console.log),
   },
-  __options__: true, // temporary migration affordance
+  __options__: true, // required for SES shim compatibility
 });
 
 c.evaluate(`
@@ -305,7 +305,7 @@ const c1 = new Compartment({
         source: new ModuleSource(moduleText, moduleLocation)
     };
   },
-  __options__: true, // temporary migration affordance
+  __options__: true, // required for SES shim compatibility
 });
 ```
 
@@ -328,7 +328,7 @@ const c2 = new Compartment({
   },
   resolveHook,
   importHook,
-  __options__: true, // temporary migration affordance
+  __options__: true, // required for SES shim compatibility
 });
 ```
 
@@ -509,7 +509,7 @@ const compartment = new Compartment({
       source: new ModuleSource(moduleText, moduleLocation),
     };
   },
-  __options__: true, // temporary migration affordance
+  __options__: true, // required for SES shim compatibility
 });
 //...                   | importHook | importNowHook
 await compartment.import('a'); //| called     | not called

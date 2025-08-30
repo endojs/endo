@@ -67,10 +67,18 @@ type ReadPowers = {
 }
 ```
 
-> [!NOTE]
-> TODO: A future version will allow application authors to distribute their
-> choices of globals and built-in modules to third-party packages within the
-> application, as with [LavaMoat].
+A compartment map may include a `policy` that the Compartment Mapper will then
+respect at runtime to attenuate access to globals and host built-in modules and
+cross-package linkage.
+The policy schema follows the structure defined in
+[`src/types/policy-schema.ts`](./src/types/policy-schema.ts), where each
+compartment can specify:
+- **`packages`**: Control over which other packages can be imported
+- **`globals`**: Access to global variables and functions
+- **`builtins`**: Access to built-in modules like `fs`, `crypto`, etc.
+- **`defaultAttenuator`**: Default attenuation strategy for the compartment
+
+For a working example of policies in action, see the [Policy Demo](demo/policy/README.md).
 
 The `importLocation` function internally uses `loadLocation`.
 Use `loadLocation` to defer execution or evaluate multiple times with varying
@@ -348,7 +356,8 @@ If no `exports` apply to the root of the compartment namespace (`"."`),
 the `main` property serves as a default.
 
 > [!NOTE]
-> TODO: A future version may also respect the `imports` property.
+> Future versions may also respect the `imports` property.
+> See [issue #2898](https://github.com/endojs/endo/issues/2898) for more details.
 
 > [!NOTE]
 > TODO: A future version may also respect wildcard patterns in `exports` and
@@ -362,14 +371,6 @@ The file set implicitly excludes anything under `node_modules`.
 With the compartment mapper, just as in Node.js, a module specifier that has no
 extension may refer either to the file with the `js` extension, or if that file
 does not exist, to the `index.js` file in the directory with the same name.
-
-> [!NOTE]
-> TODO: The compartment mapper does not yet do anything with the `files` globs
-> but a future version of the compartment mapper will collect these in archives.
-> The compartment mapper should eventually provide the means for any
-> compartment to access its own files using an attenuated `fs` module or
-> `fetch` global, in conjunction with usable values for `import.meta.url` in
-> ECMAScript modules or `__dirname` and `__filename` in CommonJS modules.
 
 ## Language Extensions
 
@@ -446,11 +447,7 @@ override the extension-to-language mapping.
 ```
 
 > [!NOTE]
-> TODO: The compartment mapper may elect to respect some properties specified
-> for import maps.
-
-> [!NOTE]
-> TODO: A future version of the compartment mapper may add support for
+> Future versions of the compartment mapper may add support for
 > source-to-source translation in the scope of a package or compartment.
 > This would be expressed in `package.json` using a property like
 > `translate` that would contain a map from file extension
@@ -465,7 +462,7 @@ override the extension-to-language mapping.
 > from the production application and archived applications.
 
 > [!NOTE]
-> TODO: The compartment mapper may also add support for compartment map plugins
+> Future versions of the compartment mapper may also add support for compartment map plugins
 > that would recognize packages in `devDependencies` that need to introduce
 > globals.
 > For example, _packages_ that use JSX and a virtual DOM would be able to add a
@@ -586,7 +583,6 @@ type CompartmentMap = {
   tags: Conditions,
   entry: Entry,
   compartments: Record<CompartmentName, Compartment>,
-  realms: Record<RealmName, Realm>, // TODO
 };
 
 // Conditions influence which modules are selected
@@ -613,9 +609,6 @@ type Compartment = {
   parsers: ParserMap,
   types: ModuleParserMap,
   scopes: ScopeMap,
-  // The name of the realm to run the compartment within.
-  // The default is a single frozen realm that has no name.
-  realm?: RealmName // TODO
 };
 
 // Location is the URL relative to the compartment-map.json's
@@ -629,14 +622,11 @@ type ModuleMap = Record<InternalModuleSpecifier, Module>;
 // Module describes a module in a compartment.
 type Module = CompartmentModule | FileModule | ExitModule;
 
-// CompartmentModule describes a module that isn't in the same
-// compartment and how to introduce it to the compartment's
-// module namespace.
+// CompartmentModule describes a module that may be in the same or a different
+// compartment and how to introduce it to the compartment's module namespace.
 type CompartmentModule = {
   // The name of the foreign compartment:
-  // TODO an absent compartment name may imply either
-  // that the module is an internal alias of the
-  // same compartment, or given by the user.
+  // When absent, defaults to the current compartment (internal alias).
   compartment?: CompartmentName,
   // The name of the module in the foreign compartment's
   // module namespace:
@@ -687,6 +677,10 @@ type ExternalModuleSpecifier = string;
 // The compartment mapper adds `{"json": "json"}` for good measure in both
 // cases, although Node.js (as of version 0.14.5) does not support importing
 // JSON modules from ESM.
+// A later, experimental version permitted importing JSON, inferring the module
+// format from the module specifier's extension.
+// Node.js 23.1 added formal support for importing JSON but requires an
+// explicit `with { type: "json" }` import attribute.
 type ParserMap = Record<Extension, Parser>;
 
 // Extension is a file extension such as "js" for "main.js" or "" for "README".
@@ -724,33 +718,6 @@ type ScopeMap = Record<InternalModuleSpecifier, Scope>;
 type Scope = {
   compartment: CompartmentName
 };
-
-
-// TODO everything hereafter...
-
-// Realm describes another realm to contain one or more
-// compartments.
-// The default realm is frozen by lockdown with no
-// powerful references.
-type Realm = {
-  // TODO lockdown options
-};
-
-// RealmName is an arbitrary identifier for realms
-// for reference from any Compartment description.
-// No names are reserved; the default realm has no name.
-type RealmName = string;
-
-// ModuleParameter indicates that the module does not come from
-// another compartment but must be passed expressly into the
-// application by the user.
-// For example, the Node.js `fs` built-in module provides
-// powers that must be expressly granted to an application
-// and may be attenuated or limited by the compartment mapper on behalf of the
-// user.
-// The string value is the name of the module to be provided
-// in the application's given module map.
-type ModuleParameter = string;
 ```
 
 # Compartment map policy
@@ -761,9 +728,9 @@ The rules defined by policy get preserved in the compartment map and enforced in
 The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMask's [LavaMoat] generates a `policy.json` file that serves the same purposes, using a tool called TOFU: _trust on first use_.
 
 > [!NOTE]
-> TODO: Endo policy support is intended to reach parity with LavaMoat's
+> Endo policy support is intended to reach parity with LavaMoat's
 > policy.json.
-> Policy generation may be ported to Endo.
+> Policy generation may be ported to Endo in future versions.
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [Compartments]: ../ses/README.md#compartment
