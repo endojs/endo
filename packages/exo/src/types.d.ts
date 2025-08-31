@@ -110,6 +110,13 @@ export type FarClassOptions<C, F = any> = {
    * argument is an instance of that facet of the associated exo class kit.
    */
   receiveInstanceTester?: ReceivePower<IsInstance> | undefined;
+  /**
+   * If `setSuperContext` is truthy, then the behaviorMethods record of all the
+   * exoClassKit facets and exoClass self will have their prototype set to the
+   * `superContext` proxy, which enables Jessie-compatible support for
+   * `super.state`, `super.facets` and `super.self`.
+   */
+  setSuperContext?: boolean | undefined;
 };
 export type Farable<M extends Methods> = M &
   RemotableBrand<{}, M> &

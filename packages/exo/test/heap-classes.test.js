@@ -112,19 +112,22 @@ test('test defineExoClassKit', t => {
           // @ts-expect-error facets not on this
           this.up;
           assert(this.facets.up.incr, 'facets.up.incr exists');
-          const { state } = this;
-          state.x += y;
-          return state.x;
+          t.is(this.state, super.state, 'this.state matches super.state');
+          t.is(this.facets, super.facets, 'this.facets matches super.facets');
+          super.state.x += y;
+          return super.state.x;
         },
       },
       down: {
         decr(y = 1) {
           const { state } = this;
           state.x -= y;
+          // t.is(this.state, super.state, 'this.state matches super.state');
           return state.x;
         },
       },
     },
+    { setSuperContext: true },
   );
   const { up: upCounter, down: downCounter } = makeCounterKit(3);
   t.is(upCounter.incr(5), 8);

@@ -9,9 +9,17 @@ import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
  */
 
 const { create, seal, freeze, defineProperty, values } = Object;
+const { setPrototypeOf } = Reflect;
 
 // Turn on to give each exo instance its own toStringTag value.
 const LABEL_INSTANCES = environmentOptionsListHas('DEBUG', 'label-instances');
+
+const superContext = new Proxy(harden({}), {
+  get(_target, prop, receiver) {
+    return receiver[prop];
+  },
+});
+harden(superContext);
 
 /**
  * @template {{}} T
@@ -61,12 +69,18 @@ export const defineExoClass = (
   methods,
   options = {},
 ) => {
-  harden(methods);
   const {
     finish = undefined,
     receiveAmplifier = undefined,
     receiveInstanceTester = undefined,
+    setSuperContext = undefined,
   } = options;
+
+  if (setSuperContext) {
+    setPrototypeOf(methods, superContext) || Fail`Could not set superContext`;
+  }
+  harden(methods);
+
   receiveAmplifier === undefined ||
     Fail`Only facets of an exo class kit can be amplified ${q(tag)}`;
 
@@ -136,12 +150,21 @@ export const defineExoClassKit = (
   methodsKit,
   options = {},
 ) => {
-  harden(methodsKit);
   const {
     finish = undefined,
     receiveAmplifier = undefined,
     receiveInstanceTester = undefined,
+    setSuperContext = undefined,
   } = options;
+
+  if (setSuperContext) {
+    for (const [prop, behaviorMethods] of Object.entries(methodsKit)) {
+      setPrototypeOf(behaviorMethods, superContext) ||
+        Fail`Could not set superContext for ${prop}`;
+    }
+  }
+  harden(methodsKit);
+
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
     contextMapKit,
@@ -153,6 +176,7 @@ export const defineExoClassKit = (
     methodsKit,
     true,
     interfaceGuardKit,
+    setSuperContext,
   );
   let instanceCount = 0;
   /**
