@@ -13,6 +13,8 @@ export {};
  * encapsulated, and its methods can make the stated unchecked assumptions
  * enforced by the common calling logic.
  *
+ * @property {string} tag
+ *
  * @property {(allegedPayload: Passable,
  *             check: Checker
  * ) => boolean} checkIsWellFormed
@@ -47,6 +49,7 @@ export {};
  * @property {(patt: Pattern) => void} assertPattern
  * @property {(patt: any) => boolean} isPattern
  * @property {GetRankCover} getRankCover
+ * @property {(tag: string) => (MatchHelper | undefined)} maybeMatchHelper
  * @property {MatcherNamespace} M
  * @property {(specimen: Passable, check?: Checker) => Kind | undefined} kindOf
  */
