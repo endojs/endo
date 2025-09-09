@@ -29,7 +29,7 @@ export {};
  * @property {keyof TrapImpl} trapMethod the TrapImpl method that was called
  * @property {CapTPSlot} slot the target slot
  * @property {Array<any>} trapArgs arguments to the TrapImpl method
- * @property {() => Required<Iterator<void, void, any>>} startTrap start the
+ * @property {() => Required<Iterator<void, void, boolean>>} startTrap start the
  * trap process on the trapHost, and drive the other side.
  */
 

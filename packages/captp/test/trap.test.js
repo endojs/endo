@@ -15,7 +15,7 @@ import {
 
 const dirname = url.fileURLToPath(new URL('./', import.meta.url));
 
-const makeWorkerTests = isHost => async t => {
+const workerTest = test.macro(async (t, isHost) => {
   await null;
   const initFn = isHost ? makeHost : makeGuest;
   for (let len = 0; len < MIN_TRANSFER_BUFFER_LENGTH; len += 1) {
@@ -29,7 +29,7 @@ const makeWorkerTests = isHost => async t => {
   const transferBuffer = new SharedArrayBuffer(MIN_TRANSFER_BUFFER_LENGTH);
   const worker = new Worker(`${dirname}/worker.js`);
   t.teardown(() => worker.terminate());
-  worker.addListener('error', err => t.fail(err));
+  worker.addListener('error', err => t.fail(err?.stack ?? String(err)));
   worker.postMessage({ type: 'TEST_INIT', transferBuffer, isGuest: isHost });
 
   const { dispatch, getBootstrap, Trap } = initFn(
@@ -49,10 +49,10 @@ const makeWorkerTests = isHost => async t => {
   } else {
     t.assert(await E(bs).runTrapTests(true));
   }
-};
+});
 
-test('try Node.js worker trap, main host', makeWorkerTests(true));
-test('try Node.js worker trap, main guest', makeWorkerTests(false));
+test('try Node.js worker trap, main host', workerTest, true);
+test('try Node.js worker trap, main guest', workerTest, false);
 
 test('try restricted loopback trap', async t => {
   const { makeFar, Trap, makeTrapHandler } = makeLoopback('us');

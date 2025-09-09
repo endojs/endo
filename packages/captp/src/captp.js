@@ -723,7 +723,9 @@ export const makeCapTP = (
       const { questionID, serialized } = obj;
 
       const resultP = trapIteratorResultP.get(questionID);
-      resultP || Fail`CTP_TRAP_ITERATE did not expect ${questionID}`;
+      if (!resultP) {
+        return;
+      }
 
       const [method, args] = unserialize(serialized);
 
