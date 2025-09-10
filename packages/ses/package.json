@@ -1,103 +1,20 @@
 {
-  "name": "ses",
-  "version": "1.14.0",
-  "description": "Hardened JavaScript for Fearless Cooperation",
-  "keywords": [
-    "lockdown",
-    "harden",
-    "Compartment",
-    "assert",
-    "security",
-    "confinement",
-    "isolation",
-    "object capabilities",
-    "ocaps",
-    "secure execution",
-    "third-party code",
-    "prototype pollution",
-    "supply-chain attack",
-    "plugin"
-  ],
   "author": "Agoric",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/ses"
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
-  },
-  "type": "module",
-  "main": "./dist/ses.cjs",
-  "module": "./index.js",
-  "unpkg": "./dist/ses.umd.js",
-  "types": "./types.d.ts",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./types.d.ts",
-        "xs": "./src-xs/index.js",
-        "default": "./index.js"
-      },
-      "require": {
-        "types": "./dist/types.d.cts",
-        "default": "./dist/ses.cjs"
-      }
-    },
-    "./lockdown": {
-      "import": {
-        "types": "./types.d.ts",
-        "default": "./index.js"
-      },
-      "require": {
-        "types": "./dist/types.d.cts",
-        "default": "./dist/ses.cjs"
-      }
-    },
-    "./hermes": {
-      "require": {
-        "types": "./dist/types.d.cts",
-        "default": "./dist/ses-hermes.cjs"
-      }
-    },
-    "./tools.js": "./tools.js",
-    "./assert-shim.js": "./assert-shim.js",
-    "./lockdown-shim.js": {
-      "xs": "./src-xs/lockdown-shim.js",
-      "default": "./lockdown-shim.js"
-    },
-    "./compartment-shim.js": {
-      "xs": "./src-xs/compartment-shim.js",
-      "default": "./compartment-shim.js"
-    },
-    "./console-shim.js": "./console-shim.js",
-    "./package.json": "./package.json"
-  },
-  "scripts": {
-    "build:vanilla": "node scripts/bundle.js",
-    "build:hermes": "node scripts/bundle.js hermes",
-    "build": "yarn build:vanilla && yarn build:hermes",
-    "clean": "rm -rf dist",
-    "cover": "c8 ava",
-    "demo": "python3 -m http.server",
-    "lint": "yarn lint:types && yarn lint:eslint",
-    "lint-fix": "eslint --fix .",
-    "lint:eslint": "eslint .",
-    "lint:types": "tsc",
-    "prepare": "npm run clean && npm run build",
-    "qt": "ava",
-    "test": "tsd && ava",
-    "test:hermes": "./scripts/hermes-test.sh",
-    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
-    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
     "@endo/cache-map": "workspace:^",
     "@endo/env-options": "workspace:^",
     "@endo/immutable-arraybuffer": "workspace:^"
   },
+  "description": "Hardened JavaScript for Fearless Cooperation",
   "devDependencies": {
     "@babel/generator": "^7.26.3",
     "@babel/parser": "~7.26.2",
@@ -122,6 +39,52 @@
     "tsd": "^0.31.2",
     "typescript": "~5.8.3"
   },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/ses"
+    ]
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "default": "./index.js",
+        "types": "./types.d.ts",
+        "xs": "./src-xs/index.js"
+      },
+      "require": {
+        "default": "./dist/ses.cjs",
+        "types": "./dist/types.d.cts"
+      }
+    },
+    "./assert-shim.js": "./assert-shim.js",
+    "./compartment-shim.js": {
+      "default": "./compartment-shim.js",
+      "xs": "./src-xs/compartment-shim.js"
+    },
+    "./console-shim.js": "./console-shim.js",
+    "./hermes": {
+      "require": {
+        "default": "./dist/ses-hermes.cjs",
+        "types": "./dist/types.d.cts"
+      }
+    },
+    "./lockdown": {
+      "import": {
+        "default": "./index.js",
+        "types": "./types.d.ts"
+      },
+      "require": {
+        "default": "./dist/ses.cjs",
+        "types": "./dist/types.d.cts"
+      }
+    },
+    "./lockdown-shim.js": {
+      "default": "./lockdown-shim.js",
+      "xs": "./src-xs/lockdown-shim.js"
+    },
+    "./package.json": "./package.json",
+    "./tools.js": "./tools.js"
+  },
   "files": [
     "./*.d.ts",
     "./*.js",
@@ -133,21 +96,58 @@
     "src",
     "tools"
   ],
+  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses#readme",
+  "keywords": [
+    "lockdown",
+    "harden",
+    "Compartment",
+    "assert",
+    "security",
+    "confinement",
+    "isolation",
+    "object capabilities",
+    "ocaps",
+    "secure execution",
+    "third-party code",
+    "prototype pollution",
+    "supply-chain attack",
+    "plugin"
+  ],
+  "license": "Apache-2.0",
+  "main": "./dist/ses.cjs",
+  "module": "./index.js",
+  "name": "ses",
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/ses"
-    ]
+  "repository": {
+    "directory": "packages/ses",
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
   },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
+  "scripts": {
+    "build": "yarn build:vanilla && yarn build:hermes",
+    "build:hermes": "node scripts/bundle.js hermes",
+    "build:vanilla": "node scripts/bundle.js",
+    "clean": "rm -rf dist",
+    "cover": "c8 ava",
+    "demo": "python3 -m http.server",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
+    "prepare": "npm run clean && npm run build",
+    "qt": "ava",
+    "test": "node --test test/import-gauntlet.test.js",
+    "test:hermes": "./scripts/hermes-test.sh",
+    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp"
   },
+  "type": "module",
   "typeCoverage": {
     "atLeast": 81.17
-  }
+  },
+  "types": "./types.d.ts",
+  "unpkg": "./dist/ses.umd.js",
+  "version": "1.14.0"
 }
