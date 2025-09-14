@@ -3,6 +3,15 @@ User-visible changes in `@endo/patterns`:
 # Next release
 
 - The `sloppy` option for `@endo/patterns` interface guards is deprecated. Use `defaultGuards` instead.
+- `@endo/patterns` now exports a new `getNamedMethodGuards(interfaceGuards)` that returns that interface guard's record of method guards. The motivation is to support interface inheritance expressed by patterns like
+   ```js
+   const I2 = M.interface('I2', {
+     ...getNamedMethodGuards(I1),
+     doMore: M.call().returns(M.any()),
+   });
+   ```
+   See `@endo/exo`'s `exo-wobbly-point.test.js` to see it in action together
+   with an experiment in class inheritance.
 
 # 1.7.0 (2025-07-11)
 

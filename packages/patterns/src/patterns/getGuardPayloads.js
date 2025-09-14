@@ -234,7 +234,7 @@ const adaptMethodGuard = methodGuard => {
  * we smooth the transition to https://github.com/endojs/endo/pull/1712,
  * tolerating both the legacy and current guard shapes.
  *
- * Unlike LegacyAwaitArgGuardShape, tolerating LegacyInterfaceGuardShape
+ * Unlike `LegacyAwaitArgGuardShape`, tolerating `LegacyInterfaceGuardShape`
  * does not seem like a currently exploitable bug, because there is not
  * currently any context where either an interfaceGuard or a copyRecord would
  * both be meaningful.
@@ -284,3 +284,28 @@ export const getInterfaceMethodKeys = interfaceGuard => {
   ]);
 };
 harden(getInterfaceMethodKeys);
+
+// Tested in @endo/exo by exo-wobbly-point.test.js since that's already
+// about class inheritance, which naturally goes with interface
+// inheritance.
+/**
+ * This ignores symbol-named method guards (which cannot be represented
+ * directly in a `CopyRecord` anyway). It returns only a `CopyRecord` of
+ * the string-named method guards. This is useful for interface guard
+ * inheritance patterns like
+ * ```js
+ * const I2 = M.interface('I2', {
+ *   ...getNamedMethodGuards(I1),
+ *   doMore: M.call().returns(M.any()),
+ * });
+ * ```
+ * While we could do more to support symbol-named method guards,
+ * this feature is deprecated, and hopefully will disappear soon.
+ * (TODO link to PRs removing symbol-named methods and method guards.)
+ *
+ * @template {Record<RemotableMethodName, MethodGuard>} [T=Record<RemotableMethodName, MethodGuard>]
+ * @param {InterfaceGuard<T>} interfaceGuard
+ */
+export const getNamedMethodGuards = interfaceGuard =>
+  getInterfaceGuardPayload(interfaceGuard).methodGuards;
+harden(getNamedMethodGuards);

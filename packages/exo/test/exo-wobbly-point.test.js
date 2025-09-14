@@ -11,7 +11,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
-import { M } from '@endo/patterns';
+import { M, getNamedMethodGuards } from '@endo/patterns';
 
 import { Fail, q } from '@endo/errors';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
@@ -41,6 +41,9 @@ const defineExoClassFromJSClass = klass =>
 harden(defineExoClassFromJSClass);
 
 const ExoPointI = M.interface('ExoPoint', {
+  // Just following the interface inheritance pattern even though it is
+  // literally vacuous in this case.
+  ...getNamedMethodGuards(ExoBaseClass.implements),
   toString: M.call().returns(M.string()),
   getX: M.call().returns(M.gte(0)),
   getY: M.call().returns(M.number()),
@@ -136,17 +139,52 @@ test('ExoPoint instances', t => {
   });
 });
 
-class ExoWobblyPoint extends ExoPoint {
+class ExoWobblyPointBad extends ExoPoint {
   static init(x, y, getWobble) {
     return { ...super.init(x, y), getWobble };
   }
 
   getX() {
-    const {
-      // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
-      state: { getWobble },
-    } = this;
+    // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
+    const { getWobble } = this.state;
     return super.getX() + getWobble();
+  }
+
+  // Made `wobble` public just to test interface inheritance
+  wobble() {
+    // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
+    const { getWobble } = this.state;
+    return getWobble();
+  }
+}
+harden(ExoWobblyPointBad);
+
+test('test need for interface extension', t => {
+  t.throws(() => defineExoClassFromJSClass(ExoWobblyPointBad), {
+    message: 'methods ["wobble"] not guarded by "ExoPoint"',
+  });
+});
+
+class ExoWobblyPoint extends ExoPoint {
+  static implements = M.interface('ExoWobblyPointI', {
+    ...getNamedMethodGuards(ExoPoint.implements),
+    wobble: M.call().returns(M.gte(0)),
+  });
+
+  static init(x, y, getWobble) {
+    return { ...super.init(x, y), getWobble };
+  }
+
+  getX() {
+    // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
+    const { getWobble } = this.state;
+    return super.getX() + getWobble();
+  }
+
+  wobble() {
+    // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
+    const { getWobble } = this.state;
+    return getWobble();
   }
 }
 harden(ExoWobblyPoint);
@@ -170,12 +208,15 @@ test('FarWobblyPoint inheritance', t => {
     'getY',
     'setY',
     'toString',
+    'wobble',
   ]);
   t.is(`${wpt}`, '<4,5>');
   t.is(`${wpt}`, '<5,5>');
   t.is(`${wpt}`, '<6,5>');
   wpt.setY(6);
   t.is(`${wpt}`, '<7,6>');
+  t.is(wpt.wobble(), 5);
+  t.is(`${wpt}`, '<9,6>');
 
   const otherPt = makeExoPoint(1, 2);
   t.false(otherPt instanceof ExoWobblyPoint);
