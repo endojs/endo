@@ -1,3 +1,5 @@
+/* global process */
+
 const getTime = () => Date.now() * 1_000_000;
 
 async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
@@ -25,15 +27,23 @@ function truthy(value, message = 'Expected a truthy value') {
   if (!value) throw Error(message);
 }
 
+function logMemoryUsage(message = '') {
+  if (typeof process === 'undefined') return;
+  console.log(message, process.memoryUsage());
+}
+
 async function test(name, fn) {
   await null;
+  console.log('\n\n');
+  console.log('Running test: ', name);
+  logMemoryUsage('Memory Usage Before Test: ');
   try {
-    console.log('Running test: ', name);
     await fn({ assert, truthy });
     console.log(`✅ Passed`);
   } catch (err) {
     console.log(`❌ Failed: ${err.message}`);
   }
+  logMemoryUsage('Memory Usage After Test: ');
 }
 
 export { benchmark, test };
