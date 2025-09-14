@@ -1,57 +1,139 @@
 import { X, Fail } from '@endo/errors';
+import { Lock, Cond } from './lock.js';
 
 /**
  * The synchronization overhead of the transfer buffer, the rest of which is the
  * data buffer.
  *
- *   [lenbuf: ...BigInt64Array(1),
- *    statusbuf: ...Int32Array(1),
- *    databuf: ...Uint8Array(N)]
+ * We use the producer/consumer algorithm described in
+ * https://www.geeksforgeeks.org/operating-systems/producer-consumer-problem-using-semaphores-set-1/
+ *
+ *
+ *   [lenbuf: BigInt64Array(1),
+ *    mutex: Lock, // protects all the state in the transfer buffer, including Cond variables.
+ *    nonempty: Cond, // signaled when used > 0
+ *    nonfull: Cond, // signaled when used < TOTAL_CHUNKS
+ *    generation: Uint8Array(1), // disambiguates each transfer
+ *    used: Uint8Array(1), // number of chunks used in databuf (0..TOTAL_CHUNKS)
+ *    databuf: Uint8Array(N)]
  */
-export const TRANSFER_OVERHEAD_LENGTH =
-  1 * BigInt64Array.BYTES_PER_ELEMENT + 1 * Int32Array.BYTES_PER_ELEMENT;
+export const TRANSFER_OVERHEAD_BYTES =
+  1 * BigInt64Array.BYTES_PER_ELEMENT +
+  1 * Lock.NUMBYTES +
+  2 * Cond.NUMBYTES +
+  2 * Uint8Array.BYTES_PER_ELEMENT;
+
+/**
+ * The number of chunks in the data buffer.  Currently must be 1, since we just
+ * have a single databuf.
+ */
+export const TOTAL_CHUNKS = 1;
 
 /**
  * Minimum length in bytes of the data buffer within the transfer buffer.
+ * We need at least 4 bytes to be able to encode a UTF-16 surrogate pair.
  *
  * This is a pathological minimum, but exercised by the unit test.
  */
-export const MIN_DATA_BUFFER_LENGTH = 1;
+export const MIN_DATA_BUFFER_BYTES = 4;
 
 /**
  * Minimum length in bytes of the transfer buffer.
  */
-export const MIN_TRANSFER_BUFFER_LENGTH =
-  MIN_DATA_BUFFER_LENGTH + TRANSFER_OVERHEAD_LENGTH;
-
-// These are flags for the status buffer.
-const STATUS_FLAG_WAITING_TO_READ = 1 << 0;
-const STATUS_FLAG_WRITTEN = 1 << 1;
+export const MIN_TRANSFER_BUFFER_BYTES =
+  MIN_DATA_BUFFER_BYTES + TRANSFER_OVERHEAD_BYTES;
 
 /**
- * Return a status buffer, length buffer, and data buffer backed by transferBuffer.
+ * Return capacity counters, a length buffer, and data buffer backed by transferBuffer.
  *
  * @param {SharedArrayBuffer} transferBuffer the backing buffer
  */
 const splitTransferBuffer = transferBuffer => {
-  transferBuffer.byteLength >= MIN_TRANSFER_BUFFER_LENGTH ||
-    Fail`Transfer buffer of ${transferBuffer.byteLength} bytes is smaller than MIN_TRANSFER_BUFFER_LENGTH ${MIN_TRANSFER_BUFFER_LENGTH}`;
-  const lenbuf = new BigInt64Array(transferBuffer, 0, 1);
+  transferBuffer.byteLength >= MIN_TRANSFER_BUFFER_BYTES ||
+    Fail`Transfer buffer of ${transferBuffer.byteLength} bytes is smaller than MIN_TRANSFER_BUFFER_BYTES ${MIN_TRANSFER_BUFFER_BYTES}`;
 
-  // The documentation says that this needs to be an Int32Array for use with
-  // Atomics.notify:
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/notify#syntax
-  const statusbuf = new Int32Array(transferBuffer, lenbuf.byteLength, 1);
-  const overheadLength = lenbuf.byteLength + statusbuf.byteLength;
+  let loc = 0;
+  const lenbuf = new BigInt64Array(transferBuffer, loc, 1);
+  loc += lenbuf.byteLength;
+
+  const mutex = new Lock(transferBuffer, loc);
+  loc += Lock.NUMBYTES;
+
+  const nonfull = new Cond(mutex, loc);
+  loc += Cond.NUMBYTES;
+
+  const nonempty = new Cond(mutex, loc);
+  loc += Cond.NUMBYTES;
+
+  const generation = new Uint8Array(transferBuffer, loc, 1);
+  loc += 1;
+
+  const used = new Uint8Array(transferBuffer, loc, 1);
+  loc += 1;
+
+  const overheadBytes = loc;
   assert.equal(
-    overheadLength,
-    TRANSFER_OVERHEAD_LENGTH,
-    X`Internal error; actual overhead ${overheadLength} of bytes is not TRANSFER_OVERHEAD_LENGTH ${TRANSFER_OVERHEAD_LENGTH}`,
+    overheadBytes,
+    TRANSFER_OVERHEAD_BYTES,
+    X`Internal error; actual overhead of ${overheadBytes} bytes is not TRANSFER_OVERHEAD_BYTES ${TRANSFER_OVERHEAD_BYTES}`,
   );
-  const databuf = new Uint8Array(transferBuffer, overheadLength);
-  databuf.byteLength >= MIN_DATA_BUFFER_LENGTH ||
-    Fail`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_LENGTH}`;
-  return harden({ statusbuf, lenbuf, databuf });
+  const databuf = new Uint8Array(transferBuffer, overheadBytes);
+  MIN_DATA_BUFFER_BYTES >= 4 ||
+    Fail`Internal error; MIN_DATA_BUFFER_BYTES ${MIN_DATA_BUFFER_BYTES} is too small to encode the largest utf8 character (4 bytes)`;
+  databuf.byteLength >= MIN_DATA_BUFFER_BYTES ||
+    Fail`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_BYTES}`;
+
+  return harden({
+    mutex,
+    nonfull,
+    nonempty,
+    used,
+    generation,
+    lenbuf,
+    databuf,
+  });
+};
+
+/**
+ * Initialize the contents of a transfer buffer supplied by the caller.  We
+ * assume that the capacity counters are set to a maximum of one empty chunk.
+ *
+ * @param {SharedArrayBuffer} transferBuffer
+ * @param {number} [numChunks] currently must be undefined or 1
+ */
+export const initTransferBuffer = (transferBuffer, numChunks = 1) => {
+  numChunks === 1 ||
+    Fail`Only one chunk is currently supported; got ${numChunks}`;
+  const { lenbuf, mutex, generation, nonfull, nonempty, used, databuf } =
+    splitTransferBuffer(transferBuffer);
+
+  let loc = lenbuf.byteLength;
+
+  loc === mutex._ibase * Int32Array.BYTES_PER_ELEMENT ||
+    Fail`Internal error; bad mutex Lock location ${loc}`;
+  Lock.initialize(transferBuffer, loc);
+  loc += Lock.NUMBYTES;
+
+  loc === nonfull._ibase * Int32Array.BYTES_PER_ELEMENT ||
+    Fail`Internal error; bad nonfull Cond location ${loc}`;
+  loc = Cond.initialize(transferBuffer, loc);
+  loc += Cond.NUMBYTES;
+
+  loc === nonempty._ibase * Int32Array.BYTES_PER_ELEMENT ||
+    Fail`Internal error; bad nonempty Cond location ${loc}`;
+  loc = Cond.initialize(transferBuffer, loc);
+  loc += Cond.NUMBYTES;
+
+  loc === generation.byteOffset ||
+    Fail`Internal error; bad generation location ${loc} does not match generation.byteOffset ${generation.byteOffset}`;
+  loc += generation.byteLength;
+
+  loc === used.byteOffset ||
+    Fail`Internal error; bad used location ${loc} does not match used.byteOffset ${used.byteOffset}`;
+  loc += used.byteLength;
+
+  loc === databuf.byteOffset ||
+    Fail`Internal error; bad final location ${loc} does not match databuf.byteOffset ${databuf.byteOffset}`;
 };
 
 /**
@@ -83,6 +165,13 @@ const makeUTF8Producer = str => {
 
   return buf => {
     // Encode as much of the remaining string as will fit in buf.
+    // The result tells us how many UTF-16 code units were read from the
+    // string, and how many bytes were written to the buffer.
+    //
+    // We know this will always make progress (even in the face of surrogates)
+    // because buf is at least 4 bytes.
+
+    assert(buf.byteLength >= MIN_DATA_BUFFER_BYTES);
     const { read, written } = te.encodeInto(remaining, buf);
 
     // Drop the part we just encoded from the remaining string.
@@ -139,7 +228,13 @@ const makeJSONConsumer = encoding => {
     if (more || consumed === null) {
       return null;
     }
-    return JSON.parse(consumed);
+    try {
+      return JSON.parse(consumed);
+    } catch (e) {
+      throw assert.error(X`Cannot parse JSON: ${consumed}`, SyntaxError, {
+        cause: e,
+      });
+    }
   };
 };
 
@@ -147,29 +242,53 @@ const makeJSONConsumer = encoding => {
  *
  * @param {SharedArrayBuffer} transferBuffer
  * @param {(obj: any) => BufferProducer} makeProducer
- * @returns {(obj: any) => AsyncGenerator<void, void, boolean>}
+ * @returns {import('./types.js').TrapHost}
  */
 export const makeAtomicsWrite = (transferBuffer, makeProducer) => {
-  const { statusbuf, lenbuf, databuf } = splitTransferBuffer(transferBuffer);
+  const { mutex, generation, nonempty, nonfull, used, lenbuf, databuf } =
+    splitTransferBuffer(transferBuffer);
 
-  return harden(async function* produce(obj) {
+  return harden(async function* trapWrite(obj) {
+    const origGen = generation[0];
+
     // Start producing message buffer chunks.
     const producer = makeProducer(obj);
 
     // Send chunks in the data transfer buffer.
     let more = true;
-    while (more) {
-      // Fill the next portion of the data buffer.
-      const { more: hasMore, byteLength } = producer(databuf);
-      more = !!hasMore;
+    MORE: while (more) {
+      // Produce one chunk into the data buffer.
+      mutex.lock();
+      try {
+        while (used[0] >= TOTAL_CHUNKS) {
+          const thisGen = Atomics.load(generation, 0);
+          if (thisGen !== origGen) {
+            break MORE;
+          }
 
-      // Encode the byteLength number and more boolean (negative if no more).
-      const len = BigInt(more ? byteLength : -byteLength);
-      lenbuf[0] = len;
+          // Wait until the guest has consumed at least one chunk.
+          await nonfull.waitAsync();
+        }
 
-      // Notify our consumer of this data buffer.
-      Atomics.store(statusbuf, 0, STATUS_FLAG_WRITTEN);
-      Atomics.notify(statusbuf, 0, 1);
+        const thisGen = Atomics.load(generation, 0);
+        if (thisGen !== origGen) {
+          break MORE;
+        }
+
+        // Fill the next portion of the data buffer.
+        const { more: hasMore, byteLength } = producer(databuf);
+        more = !!hasMore;
+
+        // Encode the byteLength number and more boolean (negative if no more).
+        const len = BigInt(more ? byteLength : -byteLength);
+        lenbuf[0] = len;
+
+        // Indicate that one slot of the buffer is filled.
+        used[0] += 1;
+        nonempty.notifyOne();
+      } finally {
+        mutex.unlock();
+      }
 
       if (more) {
         // Wait until the next guest call to `it.next(newMore)`.  If the guest
@@ -178,6 +297,7 @@ export const makeAtomicsWrite = (transferBuffer, makeProducer) => {
         more = yield;
       }
     }
+    // All done
   });
 };
 
@@ -188,7 +308,6 @@ export const makeAtomicsWrite = (transferBuffer, makeProducer) => {
  * when the guest iterates over it.
  *
  * @param {SharedArrayBuffer} transferBuffer
- * @returns {import('./types.js').TrapHost}
  */
 export const makeAtomicsTrapHost = transferBuffer => {
   return makeAtomicsWrite(transferBuffer, makeJSONProducer);
@@ -211,55 +330,74 @@ export const makeAtomicsTrapHost = transferBuffer => {
  * @returns {(makeProducerDriver: MakeSynchronousProducerDriver) => V}
  */
 export const makeAtomicsReadSync = (transferBuffer, makeConsumer) => {
-  const { statusbuf, lenbuf, databuf } = splitTransferBuffer(transferBuffer);
+  const { mutex, generation, nonempty, nonfull, used, lenbuf, databuf } =
+    splitTransferBuffer(transferBuffer);
+
+  const generationWrap = 2 ** (8 * generation.BYTES_PER_ELEMENT);
 
   return makeProducerDriver => {
-    // Defensively reinitialize the transfer buffer state.
-    new Uint8Array(transferBuffer).fill(0);
-
     // Start the protocol by sending the trap call to the host.
+    const origGen = (Atomics.add(generation, 0, 1) + 1) % generationWrap;
     const it = makeProducerDriver();
-
     const consumer = makeConsumer();
+
     try {
       let more = true;
       /** @type {V | null} */
       let result = null;
-      while (more) {
-        // Tell that we are ready for another buffer.
-        Atomics.store(statusbuf, 0, STATUS_FLAG_WAITING_TO_READ);
-
+      MORE: while (more) {
         // Let the host know we're ready for the next buffer.
         const { done: itDone } = it.next(more);
         !itDone || Fail`Internal error; it.next() returned done=${itDone}`;
 
-        // Wait for the host to wake us.
-        Atomics.wait(statusbuf, 0, STATUS_FLAG_WAITING_TO_READ);
+        mutex.lock();
+        try {
+          while (used[0] <= 0) {
+            const thisGen = Atomics.load(generation, 0);
+            if (thisGen !== origGen) {
+              break MORE;
+            }
 
-        // Determine whether this is the last buffer.
-        const len = lenbuf[0];
-        more = len > 0n;
-        const byteLength = Number(more ? len : -len);
+            // Wait upon nonzero filled capacity.
+            nonempty.wait();
+          }
 
-        // Consume the next buffer chunk.
-        result = consumer(databuf.subarray(0, byteLength), more);
+          const thisGen = Atomics.load(generation, 0);
+          if (thisGen !== origGen) {
+            break MORE;
+          }
+
+          // Determine whether this is the last buffer.
+          const len = lenbuf[0];
+          more = len > 0n;
+          const byteLength = Math.abs(Number(len));
+
+          // Consume the next buffer chunk.
+          result = consumer(databuf.subarray(0, byteLength), more);
+
+          // Mark the chunk as consumed.
+          used[0] -= 1;
+          nonfull.notifyOne();
+        } finally {
+          mutex.unlock();
+        }
       }
       return /** @type {V} */ (result);
     } catch (e) {
       // If the consumer threw, then abort the host iterator too.  If the host
       // iterator has already finished, then this throw is harmless.
-      it.throw?.(e);
+      it?.throw?.(e);
 
       // Rethrow.
       throw e;
     } finally {
       // If we exited the loop normally, then return from the host iterator too.  If
       // the host iterator has already finished, then this return is harmless.
-      it.return?.();
+      it?.return?.();
 
       // If neither the throw nor the return were implemented, make a last ditch
       // effort to exit the producer gracefully.
-      it.next(false);
+      it?.next(false);
     }
   };
 };
@@ -275,7 +413,5 @@ export const makeAtomicsReadSync = (transferBuffer, makeConsumer) => {
  */
 export const makeAtomicsTrapGuest = transferBuffer => {
   const readSync = makeAtomicsReadSync(transferBuffer, makeJSONConsumer);
-  return harden(({ startTrap }) => {
-    return readSync(startTrap);
-  });
+  return harden(({ startTrap }) => readSync(startTrap));
 };

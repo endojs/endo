@@ -947,7 +947,7 @@ export const makeCapTP = (
 
         // Set up the trap call with its identifying information and a way to send
         // messages over the current CapTP data channel.
-        const [isException, serialized] = trapGuest({
+        const trapReturn = trapGuest({
           trapMethod: implMethod,
           // @ts-expect-error TypeScript confused by `Fail` too?
           slot,
@@ -983,7 +983,19 @@ export const makeCapTP = (
           },
         });
 
-        const value = unserialize(serialized);
+        Array.isArray(trapReturn) ||
+          Fail`Trap(${val}) target trapGuest did not return an array, got ${trapReturn}`;
+        const [isException, serialized] = trapReturn;
+        let value;
+        try {
+          value = unserialize(serialized);
+        } catch (e) {
+          throw assert.error(
+            X`Trap(${val}) failed reply unserialization of: ${JSON.stringify(serialized)}`,
+            TypeError,
+            { cause: e },
+          );
+        }
         !isThenable(value) ||
           Fail`Trap(${val}) reply cannot be a Thenable; have ${value}`;
 

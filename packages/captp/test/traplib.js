@@ -11,8 +11,11 @@ export const createHostBootstrap = makeTrapHandler => {
   return Far('test traps', {
     getTraps(n) {
       return makeTrapHandler('getNTraps', {
-        getN() {
-          return n;
+        getN(i = 0) {
+          return i + n;
+        },
+        echo(h) {
+          return h;
         },
         getPromise() {
           return new Promise(resolve => setTimeout(() => resolve(n), 10));
@@ -23,14 +26,17 @@ export const createHostBootstrap = makeTrapHandler => {
 };
 
 export const runTrapTests = async (t, Trap, bs, unwrapsPromises) => {
+  const trapsOffset = 3;
+
   await null;
   // Demonstrate async compatibility of traps.
-  const pn = E(E(bs).getTraps(3)).getN();
+  const pn = E(E(bs).getTraps(trapsOffset)).getN();
   t.is(Promise.resolve(pn), pn);
-  t.is(await pn, 3);
+  t.is(await pn, trapsOffset);
 
   // Demonstrate Trap cannot be used on a promise.
-  const ps = E(bs).getTraps(4);
+  const trapsOffset2 = 4;
+  const ps = E(bs).getTraps(trapsOffset2);
   t.throws(() => Trap(ps).getN(), {
     instanceOf: Error,
     message: /target cannot be a promise/,
@@ -38,7 +44,14 @@ export const runTrapTests = async (t, Trap, bs, unwrapsPromises) => {
 
   // Demonstrate Trap used on a remotable.
   const s = await ps;
-  t.is(Trap(s).getN(), 4);
+  for (let i = 0; i < 1000; i += 1) {
+    t.is(Trap(s).getN(i), i + trapsOffset2, `getN #${i}`);
+    t.is(
+      Trap(s).echo(`hello my 💩 friend ${i}`),
+      `hello my 💩 friend ${i}`,
+      `echo #${i}`,
+    );
+  }
 
   // Try Trap unwrapping of a promise.
   if (unwrapsPromises) {
