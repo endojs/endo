@@ -108,7 +108,7 @@
     "@endo/test262-runner": "workspace:^",
     "ava": "^6.4.1",
     "babel-eslint": "^10.1.0",
-    "c8": "^7.14.0",
+    "c8": "^10.1.2",
     "core-js": "^3.31.0",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
