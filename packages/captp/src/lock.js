@@ -1,6 +1,8 @@
 /*
  * Taken from https://raw.githubusercontent.com/mozilla-spidermonkey/js-lock-and-condition/refs/heads/master/lock.js
  * as of September 6, 2025, commit b30713a.
+ *
+ * Formatted with Prettier, and modified to use ES module exports.
  */
 /*
    Copyright 2017 Mozilla Corporation.
@@ -18,13 +20,6 @@
    limitations under the License.
 */
 
-if (!this.Atomics) {
-    throw "Incompatible embedding: Atomics object not available";
-}
-if (Atomics.wake && !Atomics.notify) {
-    Atomics.notify = Atomics.wake;
-}
-
 // Simple, standalone lock and condition variable abstractions.  See README.md
 // for a general introduction, browser-test.html and shell-test.js for examples,
 // and comments below for API specs.
@@ -32,20 +27,21 @@ if (Atomics.wake && !Atomics.notify) {
 // Lock and Cond have no mutable state - all mutable state is in the shared
 // memory.
 
-"use strict";
-
 // Private
 
 let _checkParameters = function (sab, loc, truth, who) {
-    if (!(sab instanceof SharedArrayBuffer &&
-	  (loc|0) == loc &&
-	  loc >= 0 &&
-	  loc % truth.ALIGN == 0 &&
-	  loc + truth.NUMBYTES <= sab.byteLength))
-    {
-	throw new Error("Bad arguments to " + who + ": " + sab + " " + loc);
-    }
-}
+  if (
+    !(
+      sab instanceof SharedArrayBuffer &&
+      (loc | 0) == loc &&
+      loc >= 0 &&
+      loc % truth.ALIGN == 0 &&
+      loc + truth.NUMBYTES <= sab.byteLength
+    )
+  ) {
+    throw new Error('Bad arguments to ' + who + ': ' + sab + ' ' + loc);
+  }
+};
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -81,10 +77,10 @@ let _checkParameters = function (sab, loc, truth, who) {
 // Returns `loc`.
 
 Lock.initialize = function (sab, loc) {
-    _checkParameters(sab, loc, Lock, "Lock initializer");
-    Atomics.store(new Int32Array(sab, loc, 1), 0, 0);
-    return loc;
-}
+  _checkParameters(sab, loc, Lock, 'Lock initializer');
+  Atomics.store(new Int32Array(sab, loc, 1), 0, 0);
+  return loc;
+};
 
 // Number of shared byte locations needed by the lock.  A multiple of 4.
 
@@ -100,73 +96,81 @@ Lock.ALIGN = 4;
 // `loc` must be a valid index in `sab`, divisible by Lock.ALIGN, and there must
 // be space at 'loc' for at least Lock.NUMBYTES.
 
-function Lock(sab, loc) {
-    _checkParameters(sab, loc, Lock, "Lock constructor");
-    this._iab = new Int32Array(sab); // View the whole thing so we can share with Cond
-    this._ibase = loc >>> 2;
+export function Lock(sab, loc) {
+  _checkParameters(sab, loc, Lock, 'Lock constructor');
+
+  // View the whole thing so we can share with Cond
+  this._iab = new Int32Array(
+    sab,
+    0,
+    Math.floor(sab.byteLength / Int32Array.BYTES_PER_ELEMENT),
+  );
+  this._ibase = loc >>> 2;
 }
 
 // Acquire the lock, or block until we can.  Locking is not recursive: you must
 // not hold the lock when calling this.
 
 Lock.prototype.lock = function () {
-    const iab = this._iab;
-    const stateIdx = this._ibase;
-    let c;
-    if ((c = Atomics.compareExchange(iab, stateIdx, 0, 1)) != 0) {
-        do {
-            if (c == 2 || Atomics.compareExchange(iab, stateIdx, 1, 2) != 0)
-                Atomics.wait(iab, stateIdx, 2);
-        } while ((c = Atomics.compareExchange(iab, stateIdx, 0, 2)) != 0);
-    }
-}
+  const iab = this._iab;
+  const stateIdx = this._ibase;
+  let c;
+  if ((c = Atomics.compareExchange(iab, stateIdx, 0, 1)) != 0) {
+    do {
+      if (c == 2 || Atomics.compareExchange(iab, stateIdx, 1, 2) != 0)
+        Atomics.wait(iab, stateIdx, 2);
+    } while ((c = Atomics.compareExchange(iab, stateIdx, 0, 2)) != 0);
+  }
+};
 
 // Attempt to acquire the lock, return true if it was acquired, false if not.
 // Locking is not recursive: you must not hold the lock when calling this.
 
 Lock.prototype.tryLock = function () {
-    const iab = this._iab;
-    const stateIdx = this._ibase;
-    return Atomics.compareExchange(iab, stateIdx, 0, 1) == 0;
-}
+  const iab = this._iab;
+  const stateIdx = this._ibase;
+  return Atomics.compareExchange(iab, stateIdx, 0, 1) == 0;
+};
 
 // Unlock a lock that is held.  Anyone can unlock a lock that is held; nobody
 // can unlock a lock that is not held.
 
 Lock.prototype.unlock = function () {
-    const iab = this._iab;
-    const stateIdx = this._ibase;
-    let v0 = Atomics.sub(iab, stateIdx, 1);
-    // Wake up a waiter if there are any
-    if (v0 != 1) {
-        Atomics.store(iab, stateIdx, 0);
-        Atomics.notify(iab, stateIdx, 1);
-    }
-}
+  const iab = this._iab;
+  const stateIdx = this._ibase;
+  let v0 = Atomics.sub(iab, stateIdx, 1);
+  // Wake up a waiter if there are any
+  if (v0 != 1) {
+    Atomics.store(iab, stateIdx, 0);
+    Atomics.notify(iab, stateIdx, 1);
+  }
+};
 
 // Debugging support.
 
 Lock.prototype.toString = function () {
-    return "{/*Lock*/ loc:" + this._ibase*4 +"}";
-}
+  return '{/*Lock*/ loc:' + this._ibase * 4 + '}';
+};
 
-// Return a representation that can be postMessage'd.  The result is an Object
-// with a property "isLockObject" whose value is true, and other fields.
-
+/**
+ * Return a representation that can be postMessage'd.  The result is an Object
+ * with a property "isLockObject" whose value is true, and other fields.
+ */
 Lock.prototype.serialize = function () {
-    return { isLockObject: true, sab: this._iab.buffer, loc: this._ibase * 4 };
-}
+  return { isLockObject: true, sab: this._iab.buffer, loc: this._ibase * 4 };
+};
 
-// Create a new Lock object from a serialized representation.
-//
-// `repr` must have been produced by Lock.p.serialize().
-
+/**
+ * Create a new Lock object from a serialized representation.
+ *
+ * `repr` must have been produced by Lock.p.serialize().
+ */
 Lock.deserialize = function (repr) {
-    if (typeof repr != "object" || repr == null || !repr.isLockObject) {
-	return null;
-    }
-    return new Lock(repr.sab, repr.loc);
-}
+  if (typeof repr != 'object' || repr == null || !repr.isLockObject) {
+    return null;
+  }
+  return new Lock(repr.sab, repr.loc);
+};
 
 //////////////////////////////////////////////////////////////////////
 //
@@ -194,21 +198,22 @@ Lock.deserialize = function (repr) {
 // The Cond code is based on http://locklessinc.com/articles/mutex_cv_futex,
 // though modified because some optimizations in that code don't quite apply.
 
-// Initialize shared memory for a condition variable, before constructing the
-// worker-local Cond objects on that memory.
-//
-// `sab` must be a SharedArrayBuffer, the same SAB that is used by the Lock that
-// will be associated with the Cond.
-// `loc` must be a valid index in `sab`, divisible by Cond.ALIGN, and there must
-// be space at 'loc' for at least Cond.NUMBYTES.
-//
-// Returns 'loc'.
-
+/**
+ * Initialize shared memory for a condition variable, before constructing the
+ * worker-local Cond objects on that memory.
+ *
+ * `sab` must be a SharedArrayBuffer, the same SAB that is used by the Lock that
+ * will be associated with the Cond.
+ * `loc` must be a valid index in `sab`, divisible by Cond.ALIGN, and there must
+ * be space at 'loc' for at least Cond.NUMBYTES.
+ *
+ * Returns 'loc'.
+ */
 Cond.initialize = function (sab, loc) {
-    _checkParameters(sab, loc, Cond, "Cond initializer");
-    Atomics.store(new Int32Array(sab, loc, 1), 0, 0);
-    return loc;
-}
+  _checkParameters(sab, loc, Cond, 'Cond initializer');
+  Atomics.store(new Int32Array(sab, loc, 1), 0, 0);
+  return loc;
+};
 
 // Create a condition variable that can wait on a lock.
 //
@@ -216,11 +221,16 @@ Cond.initialize = function (sab, loc) {
 // `loc` must be a valid index in the shared memory of `lock`, divisible by
 // Cond.ALIGN, and there must be space at `loc` for at least Cond.NUMBYTES.
 
-function Cond(lock, loc) {
-    _checkParameters(lock instanceof Lock ? lock._iab.buffer : lock, loc, Cond, "Cond constructor");
-    this._iab = lock._iab;
-    this._ibase = loc >>> 2;
-    this.lock = lock;
+export function Cond(lock, loc) {
+  _checkParameters(
+    lock instanceof Lock ? lock._iab.buffer : lock,
+    loc,
+    Cond,
+    'Cond constructor',
+  );
+  this._iab = lock._iab;
+  this._ibase = loc >>> 2;
+  this.lock = lock;
 }
 
 // Number of shared byte locations needed by the condition variable.  A multiple
@@ -239,34 +249,34 @@ Cond.ALIGN = 4;
 // lock will once again be held.
 
 Cond.prototype.wait = function () {
-    const iab = this._iab;
-    const seqIndex = this._ibase;
-    const seq = Atomics.load(iab, seqIndex);
-    const lock = this.lock;
-    lock.unlock();
-    Atomics.wait(iab, seqIndex, seq);
-    lock.lock();
-}
+  const iab = this._iab;
+  const seqIndex = this._ibase;
+  const seq = Atomics.load(iab, seqIndex);
+  const lock = this.lock;
+  lock.unlock();
+  Atomics.wait(iab, seqIndex, seq);
+  lock.lock();
+};
 
 // Notifies one waiter on cond.  The Cond's lock must be held by the caller of
 // notifyOne().
 
 Cond.prototype.notifyOne = function () {
-    const iab = this._iab;
-    const seqIndex = this._ibase;
-    Atomics.add(iab, seqIndex, 1);
-    Atomics.notify(iab, seqIndex, 1);
-}
+  const iab = this._iab;
+  const seqIndex = this._ibase;
+  Atomics.add(iab, seqIndex, 1);
+  Atomics.notify(iab, seqIndex, 1);
+};
 
 // Notify all waiters on cond.  The Cond's lock must be held by the caller of
 // notifyAll().
 
 Cond.prototype.notifyAll = function () {
-    const iab = this._iab;
-    const seqIndex = this._ibase;
-    Atomics.add(iab, seqIndex, 1);
-    Atomics.notify(iab, seqIndex);
-}
+  const iab = this._iab;
+  const seqIndex = this._ibase;
+  Atomics.add(iab, seqIndex, 1);
+  Atomics.notify(iab, seqIndex);
+};
 
 // Backward compatible aliases.
 
@@ -276,27 +286,31 @@ Cond.prototype.wakeAll = Cond.prototype.notifyAll;
 // Debugging support.
 
 Cond.prototype.toString = function () {
-    return "{/*Cond*/ loc:" + this._ibase*4 +" lock:" + this.lock + "}";
-}
+  return '{/*Cond*/ loc:' + this._ibase * 4 + ' lock:' + this.lock + '}';
+};
 
 // Return a representation that can be postMessage'd.  The result is an Object
 // with a property "isCondObject" whose value is true, and other fields.
 
 Cond.prototype.serialize = function () {
-    return { isCondObject: true, lock: this.lock.serialize(), loc: this._ibase * 4 };
-}
+  return {
+    isCondObject: true,
+    lock: this.lock.serialize(),
+    loc: this._ibase * 4,
+  };
+};
 
 // Create a new Cond object from a serialized representation.
 //
 // `repr` must have been produced by Cond.p.serialize().
 
 Cond.deserialize = function (repr) {
-    if (typeof repr != "object" || repr == null || !repr.isCondObject) {
-	return null;
-    }
-    let lock = Lock.deserialize(repr.lock);
-    if (!lock) {
-	return null;
-    }
-    return new Cond(lock, repr.loc);
-}
+  if (typeof repr != 'object' || repr == null || !repr.isCondObject) {
+    return null;
+  }
+  let lock = Lock.deserialize(repr.lock);
+  if (!lock) {
+    return null;
+  }
+  return new Cond(lock, repr.loc);
+};
