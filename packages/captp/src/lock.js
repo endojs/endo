@@ -314,3 +314,28 @@ Cond.deserialize = function (repr) {
   }
   return new Cond(lock, repr.loc);
 };
+
+Lock.prototype.lockAsync = async function () {
+  const iab = this._iab;
+  const stateIdx = this._ibase;
+  let c;
+  if ((c = Atomics.compareExchange(iab, stateIdx, 0, 1)) != 0) {
+    do {
+      if (c == 2 || Atomics.compareExchange(iab, stateIdx, 1, 2) != 0)
+        await Atomics.waitAsync(iab, stateIdx, 2).value;
+    } while ((c = Atomics.compareExchange(iab, stateIdx, 0, 2)) != 0);
+  }
+};
+
+// await this on the main thread.  When the await completes, the condition will
+// have received a signal and will have re-acquired the lock.
+
+Cond.prototype.waitAsync = async function () {
+  const iab = this._iab;
+  const seqIndex = this._ibase;
+  const seq = Atomics.load(iab, seqIndex);
+  const lock = this.lock;
+  lock.unlock();
+  await Atomics.waitAsync(iab, seqIndex, seq).value;
+  await lock.asyncLock();
+};
