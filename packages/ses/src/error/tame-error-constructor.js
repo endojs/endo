@@ -3,6 +3,8 @@ import {
   apply,
   construct,
   defineProperties,
+  getPrototypeOf,
+  uncurryThis,
   setPrototypeOf,
   getOwnPropertyDescriptor,
   defineProperty,
@@ -43,6 +45,7 @@ export default function tameErrorConstructor(
     prepareStackTrace: originalPrepareStackTrace,
   } = FERAL_ERROR;
   let platform = 'unknown';
+  let callSiteToStringFallback;
   if (typeof originalCaptureStackTrace === 'function') {
     // we might be on v8
     if (typeof originalPrepareStackTrace === 'function') {
@@ -65,6 +68,27 @@ export default function tameErrorConstructor(
             // error stack logic is close enough that we can treat it
             // like v8.
             platform = 'v8';
+
+            if (`${sst[0]}` === '[object CallSite]') {
+              const csProto = getPrototypeOf(sst[0]);
+
+              const [
+                getFunctionName,
+                getMethodName,
+                getFileName,
+                getLineNumber,
+                getColumnNumber,
+              ] = [
+                uncurryThis(csProto.getFunctionName),
+                uncurryThis(csProto.getMethodName),
+                uncurryThis(csProto.getFileName),
+                uncurryThis(csProto.getLineNumber),
+                uncurryThis(csProto.getColumnNumber),
+              ];
+
+              callSiteToStringFallback = callSite =>
+                `${getFunctionName(callSite) || getMethodName(callSite)} (${getFileName(callSite)}:${getLineNumber(callSite)}:${getColumnNumber(callSite)})`;
+            }
           }
         };
         const sacrificialError = new FERAL_ERROR('just for testing');
@@ -247,6 +271,7 @@ export default function tameErrorConstructor(
       InitialError,
       errorTaming,
       stackFiltering,
+      callSiteToStringFallback,
     );
   } else if (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') {
     // v8 has too much magic around their 'stack' own property for it to
