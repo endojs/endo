@@ -1,6 +1,6 @@
 # Smallcaps Cheatsheet
 
-An example-based summary of the Smallcaps encoding on the OCapN [Abstract Syntax](https://github.com/ocapn/ocapn/blob/28af626441da888c4a520309222e18266dd2f1f2/draft-specifications/Model.md) (as of https://github.com/ocapn/ocapn/pull/125). (TODO revise link once that PR is merged.)
+An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax](https://github.com/ocapn/ocapn/blob/main/draft-specifications/Model.md).
 
 | pass-style name  | OCapn name    | JS example            | JSON encoding        |
 | -----------------|---------------|-----------------------|----------------------|
