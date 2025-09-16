@@ -1,7 +1,7 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { Fail, q } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
@@ -153,6 +153,6 @@ harden(confirmSafePromise);
  * @returns {pr is Promise} Whether it is a promise
  */
 export const isSafePromise = pr => confirmSafePromise(pr, false);
-harden(isSafePromise);
+hideAndHardenFunction(isSafePromise);
 
 export const assertSafePromise = pr => confirmSafePromise(pr, Fail);

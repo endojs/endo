@@ -3,7 +3,14 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { X, Fail, q, annotateError, makeError } from '@endo/errors';
+import {
+  X,
+  Fail,
+  q,
+  annotateError,
+  makeError,
+  hideAndHardenFunction,
+} from '@endo/errors';
 import { isPrimitive, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
@@ -241,7 +248,7 @@ export const passStyleOf =
 export const assertPassable = val => {
   passStyleOf(val); // throws if val is not a passable
 };
-harden(assertPassable);
+hideAndHardenFunction(assertPassable);
 
 /**
  * Is `specimen` Passable? This returns true iff `passStyleOf(specimen)`
@@ -268,7 +275,7 @@ export const isPassable = specimen => {
     return false;
   }
 };
-harden(isPassable);
+hideAndHardenFunction(isPassable);
 
 /**
  * @param {string} name

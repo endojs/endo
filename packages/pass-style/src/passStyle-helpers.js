@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { q } from '@endo/errors';
+import { q, hideAndHardenFunction } from '@endo/errors';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
@@ -41,7 +41,7 @@ export const isPrimitive = val =>
   // So instead we use this adhoc set of type tests. But this is not safe in
   // the face of possible evolution of the language. Beware!
   !val || (typeof val !== 'object' && typeof val !== 'function');
-harden(isPrimitive);
+hideAndHardenFunction(isPrimitive);
 
 // NOTE: Do not make this type more precise because it breaks only clients
 // that rely on it being less precise.
@@ -55,7 +55,7 @@ export const isObject = val =>
   // So instead we use this adhoc set of type tests. But this is not safe in
   // the face of possible evolution of the language. Beware!
   !!val && (typeof val === 'object' || typeof val === 'function');
-harden(isObject);
+hideAndHardenFunction(isObject);
 
 /**
  * Duplicates packages/ses/src/make-hardener.js to avoid a dependency.
@@ -67,7 +67,7 @@ export const isTypedArray = object => {
   const tag = apply(getTypedArrayToStringTag, object, []);
   return tag !== undefined;
 };
-harden(isTypedArray);
+hideAndHardenFunction(isTypedArray);
 
 export const PASS_STYLE = Symbol.for('passStyle');
 
@@ -84,7 +84,7 @@ export const assertChecker = (cond, details) => {
   assert(cond, details);
   return true;
 };
-harden(assertChecker);
+hideAndHardenFunction(assertChecker);
 
 /**
  * Verifies the presence and enumerability of an own data property

@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { Fail, q } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import {
   PASS_STYLE,
@@ -101,7 +101,7 @@ const confirmIface = (iface, reject) => {
  * @param {InterfaceSpec} iface
  */
 export const assertIface = iface => confirmIface(iface, Fail);
-harden(assertIface);
+hideAndHardenFunction(assertIface);
 
 /**
  * @param {object | Function} original

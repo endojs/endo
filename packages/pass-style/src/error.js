@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { Fail, q } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
@@ -84,7 +84,7 @@ harden(confirmErrorLike);
  * @returns {boolean}
  */
 export const isErrorLike = candidate => confirmErrorLike(candidate, false);
-harden(isErrorLike);
+hideAndHardenFunction(isErrorLike);
 
 /**
  * @param {string} propName

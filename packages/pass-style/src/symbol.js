@@ -1,4 +1,4 @@
-import { Fail, q } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 const { ownKeys } = Reflect;
 
@@ -33,12 +33,12 @@ const wellKnownSymbolNames = new Map(
 export const isPassableSymbol = sym =>
   typeof sym === 'symbol' &&
   (typeof Symbol.keyFor(sym) === 'string' || wellKnownSymbolNames.has(sym));
-harden(isPassableSymbol);
+hideAndHardenFunction(isPassableSymbol);
 
 export const assertPassableSymbol = sym =>
   isPassableSymbol(sym) ||
   Fail`Only registered symbols or well-known symbols are passable: ${q(sym)}`;
-harden(assertPassableSymbol);
+hideAndHardenFunction(assertPassableSymbol);
 
 /**
  * If `sym` is a passable symbol, return a string that uniquely identifies this

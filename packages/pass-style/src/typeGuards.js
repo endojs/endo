@@ -1,4 +1,4 @@
-import { Fail, q } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { passStyleOf } from './passStyleOf.js';
 
 /**
@@ -14,7 +14,7 @@ import { passStyleOf } from './passStyleOf.js';
  * @returns {arr is CopyArray<any>}
  */
 export const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
-harden(isCopyArray);
+hideAndHardenFunction(isCopyArray);
 
 /**
  * Check whether the argument is a pass-by-copy binary data, AKA a "byteArray"
@@ -24,7 +24,7 @@ harden(isCopyArray);
  * @returns {arr is ByteArray}
  */
 export const isByteArray = arr => passStyleOf(arr) === 'byteArray';
-harden(isByteArray);
+hideAndHardenFunction(isByteArray);
 
 /**
  * Check whether the argument is a pass-by-copy record, AKA a
@@ -34,7 +34,7 @@ harden(isByteArray);
  * @returns {record is CopyRecord<any>}
  */
 export const isRecord = record => passStyleOf(record) === 'copyRecord';
-harden(isRecord);
+hideAndHardenFunction(isRecord);
 
 /**
  * Check whether the argument is a remotable.
@@ -43,7 +43,7 @@ harden(isRecord);
  * @returns {remotable is RemotableObject}
  */
 export const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
-harden(isRemotable);
+hideAndHardenFunction(isRemotable);
 
 /**
  * @param {any} arr
@@ -57,7 +57,7 @@ export const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
       passStyle,
     )}`;
 };
-harden(assertCopyArray);
+hideAndHardenFunction(assertCopyArray);
 
 /**
  * @param {Passable} arr
@@ -71,7 +71,7 @@ export const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
       optNameOfArray,
     )} ${arr} must be a pass-by-copy binary data, not ${q(passStyle)}`;
 };
-harden(assertByteArray);
+hideAndHardenFunction(assertByteArray);
 
 /**
  * @callback AssertRecord
@@ -86,7 +86,7 @@ export const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
       passStyle,
     )}`;
 };
-harden(assertRecord);
+hideAndHardenFunction(assertRecord);
 
 /**
  * @param {Passable} remotable
@@ -103,7 +103,7 @@ export const assertRemotable = (
       passStyle,
     )}`;
 };
-harden(assertRemotable);
+hideAndHardenFunction(assertRemotable);
 
 /**
  * @param {any} val Not necessarily passable
@@ -141,7 +141,7 @@ const confirmAtom = (val, reject) => {
  * @returns {val is Atom}
  */
 export const isAtom = val => confirmAtom(val, false);
-harden(isAtom);
+hideAndHardenFunction(isAtom);
 
 /**
  * @param {Passable} val
@@ -150,4 +150,4 @@ harden(isAtom);
 export const assertAtom = val => {
   confirmAtom(val, Fail);
 };
-harden(assertAtom);
+hideAndHardenFunction(assertAtom);
