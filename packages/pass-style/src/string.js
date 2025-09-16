@@ -1,5 +1,5 @@
 import { getEnvironmentOption } from '@endo/env-options';
-import { Fail } from '@endo/errors';
+import { Fail, hideAndHardenFunction } from '@endo/errors';
 
 // know about`isWellFormed`
 const hasWellFormedStringMethod = !!String.prototype.isWellFormed;
@@ -40,7 +40,7 @@ export const isWellFormedString = hasWellFormedStringMethod
       }
       return true;
     };
-harden(isWellFormedString);
+hideAndHardenFunction(isWellFormedString);
 
 /**
  * Returns normally when `isWellFormedString(str)` would return true.
@@ -52,7 +52,7 @@ harden(isWellFormedString);
 export const assertWellFormedString = str => {
   isWellFormedString(str) || Fail`Expected well-formed unicode string: ${str}`;
 };
-harden(assertWellFormedString);
+hideAndHardenFunction(assertWellFormedString);
 
 const ONLY_WELL_FORMED_STRINGS_PASSABLE =
   getEnvironmentOption('ONLY_WELL_FORMED_STRINGS_PASSABLE', 'disabled', [
@@ -80,4 +80,4 @@ export const assertPassableString = str => {
   typeof str === 'string' || Fail`Expected string ${str}`;
   !ONLY_WELL_FORMED_STRINGS_PASSABLE || assertWellFormedString(str);
 };
-harden(assertPassableString);
+hideAndHardenFunction(assertPassableString);

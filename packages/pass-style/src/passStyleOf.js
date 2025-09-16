@@ -3,13 +3,15 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { X, Fail, q, annotateError, makeError } from '@endo/errors';
 import {
-  isPrimitive,
-  isTypedArray,
-  PASS_STYLE,
-  assertChecker,
-} from './passStyle-helpers.js';
+  X,
+  Fail,
+  q,
+  annotateError,
+  makeError,
+  hideAndHardenFunction,
+} from '@endo/errors';
+import { isPrimitive, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
 import { ByteArrayHelper } from './byteArray.js';
@@ -17,8 +19,8 @@ import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
 import {
   ErrorHelper,
-  checkRecursivelyPassableErrorPropertyDesc,
-  checkRecursivelyPassableError,
+  confirmRecursivelyPassableErrorPropertyDesc,
+  confirmRecursivelyPassableError,
   getErrorConstructor,
   isErrorLike,
 } from './error.js';
@@ -69,7 +71,7 @@ const makeHelperTable = passStyleHelpers => {
 };
 
 /**
- * The `assertRestValid` assumes that the `canBeValid` check has already passed.
+ * The `assertRestValid` assumes that the `confirmCanBeValid` check has already passed.
  * Contexts where we cannot assume that should call `assertValid` instead,
  * which checks both conditions in the right order.
  *
@@ -79,7 +81,7 @@ const makeHelperTable = passStyleHelpers => {
  * @returns {void}
  */
 const assertValid = (helper, candidate, passStyleOfRecur) => {
-  helper.canBeValid(candidate, assertChecker);
+  helper.confirmCanBeValid(candidate, Fail);
   helper.assertRestValid(candidate, passStyleOfRecur);
 };
 
@@ -188,7 +190,7 @@ const makePassStyleOf = passStyleHelpers => {
             return /** @type {PassStyle} */ (passStyleTag);
           }
           for (const helper of passStyleHelpers) {
-            if (helper.canBeValid(inner)) {
+            if (helper.confirmCanBeValid(inner, false)) {
               helper.assertRestValid(inner, passStyleOfRecur);
               return helper.styleName;
             }
@@ -246,7 +248,7 @@ export const passStyleOf =
 export const assertPassable = val => {
   passStyleOf(val); // throws if val is not a passable
 };
-harden(assertPassable);
+hideAndHardenFunction(assertPassable);
 
 /**
  * Is `specimen` Passable? This returns true iff `passStyleOf(specimen)`
@@ -273,7 +275,7 @@ export const isPassable = specimen => {
     return false;
   }
 };
-harden(isPassable);
+hideAndHardenFunction(isPassable);
 
 /**
  * @param {string} name
@@ -281,7 +283,7 @@ harden(isPassable);
  * @returns {boolean}
  */
 const isPassableErrorPropertyDesc = (name, desc) =>
-  checkRecursivelyPassableErrorPropertyDesc(name, desc, passStyleOf);
+  confirmRecursivelyPassableErrorPropertyDesc(name, desc, passStyleOf, false);
 
 /**
  * After hardening, if `err` is a passable error, return it.
@@ -298,7 +300,7 @@ const isPassableErrorPropertyDesc = (name, desc) =>
  */
 export const toPassableError = err => {
   harden(err);
-  if (checkRecursivelyPassableError(err, passStyleOf)) {
+  if (confirmRecursivelyPassableError(err, passStyleOf, false)) {
     return err;
   }
   const { name, message } = err;

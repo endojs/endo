@@ -1,10 +1,9 @@
-import { Fail, q, X } from '@endo/errors';
-import { identChecker } from '@endo/common/ident-checker.js';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { passStyleOf } from './passStyleOf.js';
-import { assertChecker } from './passStyle-helpers.js';
 
 /**
- * @import {CopyArray, CopyRecord, Passable, RemotableObject, ByteArray, Checker, Atom} from './types.js'
+ * @import {Rejector} from '@endo/errors/rejector.js';
+ * @import {CopyArray, CopyRecord, Passable, RemotableObject, ByteArray, Atom} from './types.js'
  */
 
 /**
@@ -15,7 +14,7 @@ import { assertChecker } from './passStyle-helpers.js';
  * @returns {arr is CopyArray<any>}
  */
 export const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
-harden(isCopyArray);
+hideAndHardenFunction(isCopyArray);
 
 /**
  * Check whether the argument is a pass-by-copy binary data, AKA a "byteArray"
@@ -25,7 +24,7 @@ harden(isCopyArray);
  * @returns {arr is ByteArray}
  */
 export const isByteArray = arr => passStyleOf(arr) === 'byteArray';
-harden(isByteArray);
+hideAndHardenFunction(isByteArray);
 
 /**
  * Check whether the argument is a pass-by-copy record, AKA a
@@ -35,7 +34,7 @@ harden(isByteArray);
  * @returns {record is CopyRecord<any>}
  */
 export const isRecord = record => passStyleOf(record) === 'copyRecord';
-harden(isRecord);
+hideAndHardenFunction(isRecord);
 
 /**
  * Check whether the argument is a remotable.
@@ -44,7 +43,7 @@ harden(isRecord);
  * @returns {remotable is RemotableObject}
  */
 export const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
-harden(isRemotable);
+hideAndHardenFunction(isRemotable);
 
 /**
  * @param {any} arr
@@ -58,7 +57,7 @@ export const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
       passStyle,
     )}`;
 };
-harden(assertCopyArray);
+hideAndHardenFunction(assertCopyArray);
 
 /**
  * @param {Passable} arr
@@ -72,7 +71,7 @@ export const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
       optNameOfArray,
     )} ${arr} must be a pass-by-copy binary data, not ${q(passStyle)}`;
 };
-harden(assertByteArray);
+hideAndHardenFunction(assertByteArray);
 
 /**
  * @callback AssertRecord
@@ -87,7 +86,7 @@ export const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
       passStyle,
     )}`;
 };
-harden(assertRecord);
+hideAndHardenFunction(assertRecord);
 
 /**
  * @param {Passable} remotable
@@ -104,22 +103,19 @@ export const assertRemotable = (
       passStyle,
     )}`;
 };
-harden(assertRemotable);
+hideAndHardenFunction(assertRemotable);
 
 /**
  * @param {any} val Not necessarily passable
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {val is Atom}
  */
-const checkAtom = (val, check) => {
+const confirmAtom = (val, reject) => {
   let passStyle;
   try {
     passStyle = passStyleOf(val);
   } catch (err) {
-    return (
-      check !== identChecker &&
-      check(false, X`Not even Passable: ${q(err)}: ${val}`)
-    );
+    return reject && reject`Not even Passable: ${q(err)}: ${val}`;
   }
   switch (passStyle) {
     case 'undefined':
@@ -135,10 +131,7 @@ const checkAtom = (val, check) => {
     }
     default: {
       // The other PassStyle cases
-      return (
-        check !== identChecker &&
-        check(false, X`A ${q(passStyle)} cannot be an atom: ${val}`)
-      );
+      return reject && reject`A ${q(passStyle)} cannot be an atom: ${val}`;
     }
   }
 };
@@ -147,14 +140,14 @@ const checkAtom = (val, check) => {
  * @param {any} val
  * @returns {val is Atom}
  */
-export const isAtom = val => checkAtom(val, identChecker);
-harden(isAtom);
+export const isAtom = val => confirmAtom(val, false);
+hideAndHardenFunction(isAtom);
 
 /**
  * @param {Passable} val
  * @returns {asserts val is Atom}
  */
 export const assertAtom = val => {
-  checkAtom(val, assertChecker);
+  confirmAtom(val, Fail);
 };
-harden(assertAtom);
+hideAndHardenFunction(assertAtom);

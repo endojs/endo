@@ -1,8 +1,9 @@
 /// <reference types="ses"/>
 
-import { X, q } from '@endo/errors';
+import { q, hideAndHardenFunction } from '@endo/errors';
 
 /**
+ * @import {Rejector} from '@endo/errors/rejector.js';
  * @import {Checker, PassStyle, JSPrimitive} from './types.js';
  */
 
@@ -40,7 +41,7 @@ export const isPrimitive = val =>
   // So instead we use this adhoc set of type tests. But this is not safe in
   // the face of possible evolution of the language. Beware!
   !val || (typeof val !== 'object' && typeof val !== 'function');
-harden(isPrimitive);
+hideAndHardenFunction(isPrimitive);
 
 // NOTE: Do not make this type more precise because it breaks only clients
 // that rely on it being less precise.
@@ -54,7 +55,7 @@ export const isObject = val =>
   // So instead we use this adhoc set of type tests. But this is not safe in
   // the face of possible evolution of the language. Beware!
   !!val && (typeof val === 'object' || typeof val === 'function');
-harden(isObject);
+hideAndHardenFunction(isObject);
 
 /**
  * Duplicates packages/ses/src/make-hardener.js to avoid a dependency.
@@ -66,7 +67,7 @@ export const isTypedArray = object => {
   const tag = apply(getTypedArrayToStringTag, object, []);
   return tag !== undefined;
 };
-harden(isTypedArray);
+hideAndHardenFunction(isTypedArray);
 
 export const PASS_STYLE = Symbol.for('passStyle');
 
@@ -76,28 +77,14 @@ export const PASS_STYLE = Symbol.for('passStyle');
  * the corresponding predicate function would have returned true. But it
  * reproduces the internal tests so failures can give a better error message.
  *
+ * @deprecated Use `Fail` with confirm/reject pattern instead
  * @type {Checker}
  */
 export const assertChecker = (cond, details) => {
   assert(cond, details);
   return true;
 };
-harden(assertChecker);
-
-/**
- * Returns a template literal tag function to fail the provided Checker with details.
- * The name must be short for ergonomic inline use as in:
- * ```
- * return checkCondition(...) || (!!check && CX(check)`...`);
- * ```
- *
- * @param {Checker} check
- */
-export const CX = check => {
-  const reject = (T, ...subs) => check(false, X(T, ...subs));
-  return reject;
-};
-harden(CX);
+hideAndHardenFunction(assertChecker);
 
 /**
  * Verifies the presence and enumerability of an own data property
@@ -106,40 +93,34 @@ harden(CX);
  * @param {object} candidate
  * @param {string|number|symbol} propName
  * @param {boolean} shouldBeEnumerable
- * @param {Checker} [check]
+ * @param {Rejector} reject
  * @returns {PropertyDescriptor}
  */
-export const getOwnDataDescriptor = (
+export const confirmOwnDataDescriptor = (
   candidate,
   propName,
   shouldBeEnumerable,
-  check,
+  reject,
 ) => {
   const desc = /** @type {PropertyDescriptor} */ (
     getOwnPropertyDescriptor(candidate, propName)
   );
   return (desc !== undefined ||
-    (!!check && CX(check)`${q(propName)} property expected: ${candidate}`)) &&
+    (reject && reject`${q(propName)} property expected: ${candidate}`)) &&
     (hasOwn(desc, 'value') ||
-      (!!check &&
-        CX(
-          check,
-        )`${q(propName)} must not be an accessor property: ${candidate}`)) &&
+      (reject &&
+        reject`${q(propName)} must not be an accessor property: ${candidate}`)) &&
     (shouldBeEnumerable
       ? desc.enumerable ||
-        (!!check &&
-          CX(
-            check,
-          )`${q(propName)} must be an enumerable property: ${candidate}`)
+        (reject &&
+          reject`${q(propName)} must be an enumerable property: ${candidate}`)
       : !desc.enumerable ||
-        (!!check &&
-          CX(
-            check,
-          )`${q(propName)} must not be an enumerable property: ${candidate}`))
+        (reject &&
+          reject`${q(propName)} must not be an enumerable property: ${candidate}`))
     ? desc
     : /** @type {PropertyDescriptor} */ (/** @type {unknown} */ (undefined));
 };
-harden(getOwnDataDescriptor);
+harden(confirmOwnDataDescriptor);
 
 /**
  * @template {import('./types.js').InterfaceSpec} T
@@ -149,65 +130,68 @@ harden(getOwnDataDescriptor);
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
-export const checkPassStyle = (obj, passStyle, expectedPassStyle, check) => {
+/**
+ * @param {any} obj
+ * @param {PassStyle} passStyle
+ * @param {PassStyle} expectedPassStyle
+ * @param {Rejector} reject
+ */
+export const confirmPassStyle = (obj, passStyle, expectedPassStyle, reject) => {
   return (
     passStyle === expectedPassStyle ||
-    (!!check &&
-      CX(check)`Expected ${q(expectedPassStyle)}, not ${q(passStyle)}: ${obj}`)
+    (reject &&
+      reject`Expected ${q(expectedPassStyle)}, not ${q(passStyle)}: ${obj}`)
   );
 };
-harden(checkPassStyle);
+harden(confirmPassStyle);
 
-const makeCheckTagRecord = checkProto => {
+const makeConfirmTagRecord = confirmProto => {
   /**
    * @param {import('./types.js').PassStyled<any, any>} tagRecord
    * @param {PassStyle} expectedPassStyle
-   * @param {Checker} [check]
+   * @param {Rejector} reject
    * @returns {boolean}
    */
-  const checkTagRecord = (tagRecord, expectedPassStyle, check) => {
+  const confirmTagRecord = (tagRecord, expectedPassStyle, reject) => {
     return (
       (!isPrimitive(tagRecord) ||
-        (!!check &&
-          CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
+        (reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
-        (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
+        (reject && reject`A tagRecord must be frozen: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
-        (!!check && CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
-      checkPassStyle(
+        (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&
+      confirmPassStyle(
         tagRecord,
-        getOwnDataDescriptor(tagRecord, PASS_STYLE, false, check).value,
+        confirmOwnDataDescriptor(tagRecord, PASS_STYLE, false, reject).value,
         expectedPassStyle,
-        check,
+        reject,
       ) &&
-      (typeof getOwnDataDescriptor(tagRecord, Symbol.toStringTag, false, check)
-        .value === 'string' ||
-        (!!check &&
-          CX(
-            check,
-          )`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
-      checkProto(tagRecord, getPrototypeOf(tagRecord), check)
+      (typeof confirmOwnDataDescriptor(
+        tagRecord,
+        Symbol.toStringTag,
+        false,
+        reject,
+      ).value === 'string' ||
+        (reject &&
+          reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
+      confirmProto(tagRecord, getPrototypeOf(tagRecord), reject)
     );
   };
-  return harden(checkTagRecord);
+  return harden(confirmTagRecord);
 };
 
-export const checkTagRecord = makeCheckTagRecord(
-  (val, proto, check) =>
+export const confirmTagRecord = makeConfirmTagRecord(
+  (val, proto, reject) =>
     proto === objectPrototype ||
-    (!!check &&
-      check(false, X`A tagRecord must inherit from Object.prototype: ${val}`)),
+    (reject && reject`A tagRecord must inherit from Object.prototype: ${val}`),
 );
-harden(checkTagRecord);
+harden(confirmTagRecord);
 
-export const checkFunctionTagRecord = makeCheckTagRecord(
-  (val, proto, check) =>
+export const confirmFunctionTagRecord = makeConfirmTagRecord(
+  (val, proto, reject) =>
     proto === functionPrototype ||
     (proto !== null && getPrototypeOf(proto) === functionPrototype) ||
-    (!!check &&
-      check(
-        false,
-        X`For functions, a tagRecord must inherit from Function.prototype: ${val}`,
-      )),
+    (reject &&
+      reject`For functions, a tagRecord must inherit from Function.prototype: ${val}`),
 );
-harden(checkFunctionTagRecord);
+harden(confirmFunctionTagRecord);
