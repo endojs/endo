@@ -998,7 +998,8 @@ const makePatternKit = () => {
       return (
         confirmKind(specimen, 'string', reject) &&
         (typedSpecimen.length <= stringLengthLimit ||
-          (reject && reject`string ${typedSpecimen} must not be bigger than ${stringLengthLimit}`))
+          (reject &&
+            reject`string ${typedSpecimen} must not be bigger than ${stringLengthLimit}`))
       );
     },
 
