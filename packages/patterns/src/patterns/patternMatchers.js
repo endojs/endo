@@ -968,12 +968,12 @@ const makePatternKit = () => {
   const matchNatHelper = Far('match:nat helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { decimalDigitsLimit } = limit(limits);
+      const typedSpecimen = /** @type {bigint} */ (specimen);
       return (
         confirmKind(specimen, 'bigint', reject) &&
-        // eslint-disable-next-line @endo/restrict-comparison-operands
-        (specimen >= 0n ||
-          (reject && reject`${specimen} - Must be non-negative`)) &&
-        confirmDecimalDigitsLimit(specimen, decimalDigitsLimit, reject)
+        (typedSpecimen >= 0n ||
+          (reject && reject`${typedSpecimen} - Must be non-negative`)) &&
+        confirmDecimalDigitsLimit(typedSpecimen, decimalDigitsLimit, reject)
       );
     },
 
@@ -994,12 +994,11 @@ const makePatternKit = () => {
   const matchStringHelper = Far('match:string helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { stringLengthLimit } = limit(limits);
-      // prettier-ignore
+      const typedSpecimen = /** @type {string} */ (specimen);
       return (
         confirmKind(specimen, 'string', reject) &&
-          // eslint-disable-next-line @endo/restrict-comparison-operands
-          (specimen.length <= stringLengthLimit ||
-          reject && reject`string ${specimen} must not be bigger than ${stringLengthLimit}`)
+        (typedSpecimen.length <= stringLengthLimit ||
+          (reject && reject`string ${typedSpecimen} must not be bigger than ${stringLengthLimit}`))
       );
     },
 
