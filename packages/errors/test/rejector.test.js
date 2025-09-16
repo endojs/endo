@@ -1,5 +1,5 @@
 import test from '@endo/ses-ava/prepare-endo.js';
-import { Fail, q } from '../index.js';
+import { Fail, q, hideAndHardenFunction } from '../index.js';
 
 /**
  * @import {Rejector} from '../rejector.js';
@@ -28,6 +28,7 @@ const confirmFoo = (candidate, reject) =>
  * @returns {candidate is 'foo'}
  */
 const isFoo = candidate => confirmFoo(candidate, false);
+hideAndHardenFunction(isFoo);
 
 /**
  * @param {unknown} candidate
