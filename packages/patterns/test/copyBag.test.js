@@ -10,8 +10,6 @@ import {
 } from '../src/keys/checkKey.js';
 import { matches } from '../src/patterns/patternMatchers.js';
 
-import '../src/types.js';
-
 const assertIsCopyBag = (t, bag) => {
   t.is(passStyleOf(bag), 'tagged');
   t.is(getTag(bag), 'copyBag');

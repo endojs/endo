@@ -11,8 +11,6 @@ import {
 } from '../src/keys/checkKey.js';
 import { matches } from '../src/patterns/patternMatchers.js';
 
-import '../src/types.js';
-
 const assertIsCopyMap = (t, m) => {
   t.is(passStyleOf(m), 'tagged');
   t.is(getTag(m), 'copyMap');

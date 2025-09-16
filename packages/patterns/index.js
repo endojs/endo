@@ -75,9 +75,6 @@ export {
   getInterfaceMethodKeys,
 } from './src/patterns/getGuardPayloads.js';
 
-// eslint-disable-next-line import/export
-export * from './src/types.js';
-
 // /////////////////////////// Deprecated //////////////////////////////////////
 
 export {
