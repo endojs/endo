@@ -22,7 +22,7 @@ An example-based summary of the Smallcaps encoding on the OCapN [Abstract Syntax
 * The `-0` encoding is defined as above, but not yet implemented in JS.
 * In JS, selectors in transition from symbols to their own representation
 * The number after `"$"` or `"&"` is an index into a separate slots array.
-* Special strings begin with any of the `!"#$%&'()*+,-` characters.
+* ***Special strings*** begin with any of the `!"#$%&'()*+,-` characters.
 * `<expr>` is nested encoding of `expr`.
 * To be passable, arrays, records, and errors must also be hardened.
 * Structs [can only have string-named properties](https://github.com/endojs/endo/blob/master/packages/pass-style/doc/copyRecord-guarantees.md).
@@ -30,4 +30,10 @@ An example-based summary of the Smallcaps encoding on the OCapN [Abstract Syntax
 * We expect to expand the optional error properties over time.
 * The ByteArray encoding is not yet designed or implemented.
 
-Every JSON encoding with no special strings anywhere decodes to itself.
+## Readability Invariants
+
+For every JSON encoding with no special strings, the JSON and smallcaps decodings are the same.
+
+For every value with no special strings that round trips through JSON, the JSON and smallcaps encodings are the same.
+
+In other words, for these simple values, ***you can ignore the differences between smallcaps and JSON***.
