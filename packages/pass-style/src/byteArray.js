@@ -50,8 +50,7 @@ export const ByteArrayHelper = harden({
   styleName: 'byteArray',
 
   confirmCanBeValid: (candidate, reject) =>
-    (candidate instanceof ArrayBuffer &&
-      candidate.immutable) ||
+    (candidate instanceof ArrayBuffer && candidate.immutable) ||
     (reject && reject`Immutable ArrayBuffer expected: ${candidate}`),
 
   assertRestValid: (candidate, _passStyleOfRecur) => {
