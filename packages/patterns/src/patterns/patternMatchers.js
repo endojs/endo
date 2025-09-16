@@ -444,7 +444,7 @@ const makePatternKit = () => {
     // If `patt` does not have a kind (or is not a pattern)
     // then, even if `reject === false`, we should throw about
     // `patt` anyway.
-    const patternKind = confirmKindOf(patt, reject || Fail);
+    const patternKind = confirmKindOf(patt, Fail);
     const specimenKind = kindOf(specimen); // may be undefined
     switch (patternKind) {
       case undefined: {
