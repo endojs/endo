@@ -37,6 +37,7 @@ hideAndHardenFunction(isFoo);
 const assertFoo = candidate => {
   confirmFoo(candidate, Fail);
 };
+hideAndHardenFunction(assertFoo);
 
 test('test rejector conjunction patterns', t => {
   t.true(isFoo('foo'));
@@ -66,6 +67,7 @@ const confirmFooOrBar = (candidate, reject) =>
  * @returns {candidate is ('foo'|'bar')}
  */
 const isFooOrBar = candidate => confirmFooOrBar(candidate, false);
+hideAndHardenFunction(isFooOrBar);
 
 /**
  * @param {unknown} candidate
@@ -74,6 +76,7 @@ const isFooOrBar = candidate => confirmFooOrBar(candidate, false);
 const assertFooOrBar = candidate => {
   confirmFooOrBar(candidate, Fail);
 };
+hideAndHardenFunction(assertFooOrBar);
 
 test('test rejector disjunction patterns', t => {
   t.true(isFooOrBar('foo'));
