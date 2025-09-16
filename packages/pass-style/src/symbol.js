@@ -33,7 +33,7 @@ const wellKnownSymbolNames = new Map(
 export const isPassableSymbol = sym =>
   typeof sym === 'symbol' &&
   (typeof Symbol.keyFor(sym) === 'string' || wellKnownSymbolNames.has(sym));
-hideAndHardenFunction(isPassableSymbol);
+harden(isPassableSymbol);
 
 export const assertPassableSymbol = sym =>
   isPassableSymbol(sym) ||

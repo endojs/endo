@@ -156,3 +156,4 @@ export const isSafePromise = pr => confirmSafePromise(pr, false);
 hideAndHardenFunction(isSafePromise);
 
 export const assertSafePromise = pr => confirmSafePromise(pr, Fail);
+hideAndHardenFunction(assertSafePromise);
