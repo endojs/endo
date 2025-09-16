@@ -2,7 +2,7 @@ import type { Passable } from '@endo/pass-style';
 import { expectNotType, expectType } from 'tsd';
 import { isKey, isScalarKey } from '../src/keys/checkKey.js';
 import { M } from '../src/patterns/patternMatchers.js';
-import type { Key, ScalarKey } from '../src/types.ts';
+import type { Key, ScalarKey } from '../index.js';
 
 // @ts-expect-error M.any missing parens
 M.arrayOf(M.any);

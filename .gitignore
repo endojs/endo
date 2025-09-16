@@ -101,7 +101,7 @@ api-docs
 !packages/far/src/exports.d.ts
 !packages/lp32/types.d.ts
 !packages/pass-style/src/types.d.ts
-!packages/patterns/types.d.ts
+!packages/patterns/src/**/types.d.ts
 !packages/ses/src/reporting-types.d.ts
 !packages/ses/types.d.ts
 !packages/stream/types.d.ts
