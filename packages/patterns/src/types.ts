@@ -558,16 +558,29 @@ export type MakeInterfaceGuardStrict = <
 >(
   interfaceName: string,
   methodGuards: M,
-  options: { defaultGuards?: undefined; sloppy?: false },
+  options: {
+    defaultGuards?: undefined;
+    /**
+     * @deprecated This has no effect.
+     */
+    sloppy?: false;
+  },
 ) => InterfaceGuard<M>;
 
 /**
  * Overload for sloppy interface guards (looser typing).
+ * @deprecated Use {@link MakeInterfaceGuardStrict} or {@link MakeInterfaceGuardGeneral} instead.
  */
 export type MakeInterfaceGuardSloppy = (
   interfaceName: string,
   methodGuards: any,
-  options: { defaultGuards?: 'passable' | 'raw'; sloppy?: true },
+  options: {
+    defaultGuards?: 'passable' | 'raw';
+    /**
+     * @deprecated Use `defaultGuards: undefined` instead.
+     */
+    sloppy?: true;
+  },
 ) => InterfaceGuard<any>;
 
 /**
@@ -578,7 +591,13 @@ export type MakeInterfaceGuardGeneral = <
 >(
   interfaceName: string,
   methodGuards: M,
-  options?: { defaultGuards?: DefaultGuardType; sloppy?: boolean },
+  options?: {
+    defaultGuards?: DefaultGuardType;
+    /**
+     * @deprecated Use `defaultGuards` instead.
+     */
+    sloppy?: boolean;
+  },
 ) => InterfaceGuard<M>;
 
 /**
@@ -657,6 +676,9 @@ export type InterfaceGuardPayload<
     T[Extract<keyof T, symbol>]
   >;
   defaultGuards?: DefaultGuardType;
+  /**
+   * @deprecated Use `defaultGuards` instead.
+   */
   sloppy?: boolean;
 };
 
