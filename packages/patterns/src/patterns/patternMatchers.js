@@ -9,7 +9,6 @@ import {
   annotateError,
   hideAndHardenFunction,
 } from '@endo/errors';
-import { identChecker } from '@endo/common/ident-checker.js';
 import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
 import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
 import { listDifference } from '@endo/common/list-difference.js';
