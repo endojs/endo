@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -116,7 +116,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -153,7 +153,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -189,7 +189,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -224,7 +224,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -260,7 +260,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -306,7 +306,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: endo
 
@@ -363,7 +363,7 @@ jobs:
 
       - name: Checkout XS
         if: steps.check-release.outputs.release == 'build'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: moddable-OpenSource/moddable
           ref: ${{ matrix.moddable-version }}
