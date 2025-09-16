@@ -84,9 +84,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Install Engines
-        run: yarn workspace @endo/benchmark run install-engines
-
       # end macro
 
       - name: Run yarn build
@@ -328,6 +325,10 @@ jobs:
         working-directory: endo
         run: yarn install --immutable
 
+      - name: Install engines
+        working-directory: endo
+        run: yarn workspace @endo/benchmark run install-engines
+
       # end macro
 
       - name: Run yarn build
@@ -341,7 +342,7 @@ jobs:
           path: bin/xst
           key: xst-lin64-${{ matrix.moddable-version }}
 
-      - name: Choose download or build
+      - name: Choose XS download or build
         if: steps.restore-xs.outputs.cache-hit != 'true'
         id: check-release
         run: |

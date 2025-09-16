@@ -31,7 +31,7 @@
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "prepack": "tsc --build tsconfig.build.json",
     "install-engines": "./install-engines.sh",
-    "test": "./run-tests.sh",
+    "test:xs": "./run-tests.sh",
     "cpu-prof-test": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js"
   },
   "devDependencies": {
