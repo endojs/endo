@@ -2103,7 +2103,7 @@ export const AwaitArgGuardShape = M.kind('guard:awaitArgGuard');
  */
 export const isAwaitArgGuard = specimen =>
   matches(specimen, AwaitArgGuardShape);
-harden(isAwaitArgGuard);
+hideAndHardenFunction(isAwaitArgGuard);
 
 /**
  * @param {any} specimen
@@ -2112,7 +2112,7 @@ harden(isAwaitArgGuard);
 export const assertAwaitArgGuard = specimen => {
   mustMatch(specimen, AwaitArgGuardShape, 'awaitArgGuard');
 };
-harden(assertAwaitArgGuard);
+hideAndHardenFunction(assertAwaitArgGuard);
 
 /**
  * @param {Pattern} argPattern
@@ -2183,7 +2183,7 @@ export const MethodGuardShape = M.kind('guard:methodGuard');
 export const assertMethodGuard = specimen => {
   mustMatch(specimen, MethodGuardShape, 'methodGuard');
 };
-harden(assertMethodGuard);
+hideAndHardenFunction(assertMethodGuard);
 
 /**
  * @param {'sync'|'async'} callKind
@@ -2250,7 +2250,7 @@ export const InterfaceGuardShape = M.kind('guard:interfaceGuard');
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
 };
-harden(assertInterfaceGuard);
+hideAndHardenFunction(assertInterfaceGuard);
 
 /**
  * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]

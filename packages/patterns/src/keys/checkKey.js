@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { Fail, q } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { Far, getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
 import {
   compareAntiRank,
@@ -42,7 +42,7 @@ export const confirmScalarKey = (val, reject) => {
  * @returns {val is ScalarKey}
  */
 export const isScalarKey = val => confirmScalarKey(val, false);
-harden(isScalarKey);
+hideAndHardenFunction(isScalarKey);
 
 /**
  * @param {Passable} val
@@ -51,7 +51,7 @@ harden(isScalarKey);
 export const assertScalarKey = val => {
   confirmScalarKey(val, Fail);
 };
-harden(assertScalarKey);
+hideAndHardenFunction(assertScalarKey);
 
 // ////////////////////////////// Keys /////////////////////////////////////////
 
@@ -94,7 +94,7 @@ harden(confirmKey);
  * }}
  */
 export const isKey = val => confirmKey(val, false);
-harden(isKey);
+hideAndHardenFunction(isKey);
 
 /**
  * @param {Key} val
@@ -103,7 +103,7 @@ harden(isKey);
 export const assertKey = val => {
   confirmKey(val, Fail);
 };
-harden(assertKey);
+hideAndHardenFunction(assertKey);
 
 // //////////////////////////// CopySet ////////////////////////////////////////
 
@@ -139,7 +139,7 @@ harden(confirmCopySet);
  * @returns {s is CopySet}
  */
 export const isCopySet = s => confirmCopySet(s, false);
-harden(isCopySet);
+hideAndHardenFunction(isCopySet);
 
 /**
  * @callback AssertCopySet
@@ -151,7 +151,7 @@ harden(isCopySet);
 export const assertCopySet = s => {
   confirmCopySet(s, Fail);
 };
-harden(assertCopySet);
+hideAndHardenFunction(assertCopySet);
 
 /**
  * @template {Key} K
@@ -220,7 +220,7 @@ harden(confirmCopyBag);
  * @returns {b is CopyBag}
  */
 export const isCopyBag = b => confirmCopyBag(b, false);
-harden(isCopyBag);
+hideAndHardenFunction(isCopyBag);
 
 /**
  * @callback AssertCopyBag
@@ -232,7 +232,7 @@ harden(isCopyBag);
 export const assertCopyBag = b => {
   confirmCopyBag(b, Fail);
 };
-harden(assertCopyBag);
+hideAndHardenFunction(assertCopyBag);
 
 /**
  * @template {Key} K
@@ -340,7 +340,7 @@ harden(confirmCopyMap);
  * @returns {m is CopyMap<Key, Passable>}
  */
 export const isCopyMap = m => confirmCopyMap(m, false);
-harden(isCopyMap);
+hideAndHardenFunction(isCopyMap);
 
 /**
  * @param {Passable} m
@@ -349,7 +349,7 @@ harden(isCopyMap);
 export const assertCopyMap = m => {
   confirmCopyMap(m, Fail);
 };
-harden(assertCopyMap);
+hideAndHardenFunction(assertCopyMap);
 
 /**
  * @template {Key} K

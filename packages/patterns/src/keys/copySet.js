@@ -1,4 +1,4 @@
-import { Fail } from '@endo/errors';
+import { Fail, hideAndHardenFunction } from '@endo/errors';
 import {
   makeTagged,
   passStyleOf,
@@ -85,7 +85,7 @@ harden(confirmElements);
 export const assertElements = elements => {
   confirmElements(elements, Fail);
 };
-harden(assertElements);
+hideAndHardenFunction(assertElements);
 
 /**
  * @template {Key} K

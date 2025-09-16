@@ -1,4 +1,4 @@
-import { Fail } from '@endo/errors';
+import { Fail, hideAndHardenFunction } from '@endo/errors';
 import {
   makeTagged,
   passStyleOf,
@@ -112,7 +112,7 @@ harden(confirmBagEntries);
 export const assertBagEntries = bagEntries => {
   confirmBagEntries(bagEntries, Fail);
 };
-harden(assertBagEntries);
+hideAndHardenFunction(assertBagEntries);
 
 /**
  * @template {Key} K
