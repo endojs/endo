@@ -4,6 +4,12 @@ set -e
 
 echo "yarn version: $(yarn --version)"
 
+mkdir -p "$HOME/.esvu/bin"
+
+if [ -f "$GITHUB_WORKSPACE/bin/xst" ]; then
+  ln -s "$GITHUB_WORKSPACE/bin/xst" "$HOME/.esvu/bin"
+fi
+
 ## Installing Engines and skiping if already installed ##
 are_engines_installed() {
     [ -f "$HOME/.esvu/bin/xs" ] && [ -f "$HOME/.esvu/bin/v8" ]
@@ -31,7 +37,6 @@ fi
 
 ## Making engine binaries executable ##
 chmod +x "$HOME/.esvu/bin/xs" "$HOME/.esvu/bin/v8"
-
 
 ## Adding engines to eshost (if not already) ##
 if ! yarn eshost --list | grep -q '"xs"'; then
