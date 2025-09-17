@@ -8,7 +8,6 @@ export const makeOcapnSessionCryptography = ({
   let buffer;
   let genkeyPrivate;
   let genkeyPublic;
-  let errorMessage;
 
   const imports = {
     env: {
@@ -34,12 +33,6 @@ export const makeOcapnSessionCryptography = ({
           buffer = array.subarray(bufferOffset, bufferOffset + 65535);
         }
       },
-      error_callback: (errorOffset, errorLength) => {
-        const messageBytes = new Uint8Array(
-          wasmInstance.exports.memory.buffer,
-        ).subarray(errorOffset, errorOffset + errorLength);
-        errorMessage = new TextDecoder().decode(messageBytes);
-      },
     },
   };
 
@@ -59,14 +52,13 @@ export const makeOcapnSessionCryptography = ({
   };
 
   const syn = (privateKey, publicKey) => {
-    errorMessage = '';
     refreshBuffer();
     buffer.subarray(0, 32).set(privateKey);
     buffer.subarray(32, 64).set(publicKey);
     const code = wasmInstance.exports.syn();
     if (code === 1) {
       throw new Error(
-        `Could not write Noise Protocol initiator's message: ${errorMessage}`,
+        `Could not write Noise Protocol initiator's message`,
       );
     }
     refreshBuffer();
@@ -74,20 +66,19 @@ export const makeOcapnSessionCryptography = ({
   };
 
   const synack = (privateKey, synMessage) => {
-    errorMessage = '';
     refreshBuffer();
     buffer.subarray(0, 32).set(privateKey);
     buffer.subarray(32, 32 + 96).set(synMessage);
     const code = wasmInstance.exports.synack();
     if (code === 1) {
       throw new Error(
-        `Could not read initiator's Noise Protocol message: ${errorMessage}`,
+        `Could not read initiator's Noise Protocol message`,
       );
     } else if (code === 2) {
       throw new Error(`Could not read initiator's Noise Protocol public key`);
     } else if (code === 3) {
       throw new Error(
-        `Could not write responder's Noise Protocol message: ${errorMessage}`,
+        `Could not write responder's Noise Protocol message`,
       );
     }
     refreshBuffer();
@@ -97,23 +88,21 @@ export const makeOcapnSessionCryptography = ({
   };
 
   const ack = synackMessage => {
-    errorMessage = '';
     refreshBuffer();
     buffer.subarray(0, 48).set(synackMessage);
     const code = wasmInstance.exports.ack();
     if (code === 1) {
       throw new Error(
-        `Could not finish unstarted Noise Protocol handshake: ${errorMessage}`,
+        `Could not finish unstarted Noise Protocol handshake`,
       );
     } else if (code === 2) {
       throw new Error(
-        `Could not read initiator's Noise Protocol message: ${errorMessage}`,
+        `Could not read initiator's Noise Protocol message`,
       );
     }
   };
 
   const encrypt = message => {
-    errorMessage = '';
     refreshBuffer();
     buffer.subarray(0, message.length).set(message);
     /** @type {number} */
@@ -126,7 +115,6 @@ export const makeOcapnSessionCryptography = ({
   };
 
   const decrypt = message => {
-    errorMessage = '';
     refreshBuffer();
     buffer.subarray(0, message.length).set(message);
     /** @type {number} */

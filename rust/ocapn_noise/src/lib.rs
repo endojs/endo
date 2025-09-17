@@ -1,20 +1,27 @@
+#![no_std]
+
 use noise_protocol::patterns::noise_ik;
-use noise_protocol::*;
+use noise_protocol::{HandshakeState, DH, CipherState, U8Array};
 use noise_rust_crypto::sensitive::Sensitive;
-use noise_rust_crypto::*;
+use noise_rust_crypto::{X25519, ChaCha20Poly1305, Blake2s};
+
+// These bindings are deliberately not thread safe
+const SIZE: usize = 65535 + 16;
+static mut BUFFER: [u8; SIZE] = [0u8; SIZE];
+static mut HS: Option<HandshakeState<X25519, ChaCha20Poly1305, Blake2s>> = None;
+static mut ENCRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
+static mut DECRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
 
 unsafe extern "C" {
     fn genkey_callback(private: *const u8, public: *const u8);
     fn buffer_callback(buffer: *const u8);
-    fn error_callback(offset: *const u8, length: usize);
 }
 
-#[unsafe(no_mangle)]
-unsafe extern "Rust" fn __getrandom_v03_custom(
-    _dest: *mut u8,
-    _len: usize,
-) -> Result<(), getrandom::Error> {
-    todo!()
+unsafe extern "Rust" {
+    fn __getrandom_v03_custom(
+        _dest: *mut u8,
+        _len: usize,
+    ) -> Result<(), getrandom::Error>;
 }
 
 #[unsafe(no_mangle)]
@@ -25,12 +32,6 @@ fn genkey() {
         genkey_callback(private.as_ptr(), public.as_ptr());
     }
 }
-
-const SIZE: usize = 65535 + 16;
-static mut BUFFER: [u8; SIZE] = [0u8; SIZE];
-static mut HS: Option<HandshakeState<X25519, ChaCha20Poly1305, Blake2s>> = None;
-static mut ENCRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
-static mut DECRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
 
 #[unsafe(no_mangle)]
 fn buffer() {
@@ -66,9 +67,7 @@ fn syn() -> i32 {
             Some(hs) => {
                 assert!(hs.get_next_message_overhead() == 96);
                 match hs.write_message(&[], &mut BUFFER[64..64 + 96]) {
-                    Err(err) => {
-                        let message = err.to_string();
-                        error_callback(message.as_ptr(), message.len());
+                    Err(_) => {
                         return 1;
                     }
                     Ok(()) => (),
@@ -103,13 +102,11 @@ fn synack() -> i32 {
                 return -1;
             }
             Some(hs) => {
-                let mut unused = vec![0u8; 0];
+                let mut unused = [0u8; 0];
                 assert!(hs.get_next_message_overhead() == 96);
                 assert!(!hs.is_write_turn());
                 match hs.read_message(&mut BUFFER[32..32 + 96], &mut unused) {
-                    Err(err) => {
-                        let message = err.to_string();
-                        error_callback(message.as_ptr(), message.len());
+                    Err(_) => {
                         return 1;
                     }
                     Ok(_) => (),
@@ -125,9 +122,7 @@ fn synack() -> i32 {
                 assert!(length == 48);
 
                 match hs.write_message(&[], &mut BUFFER[32 + 96 + 32..32 + 96 + 32 + 48]) {
-                    Err(err) => {
-                        let message = err.to_string();
-                        error_callback(message.as_ptr(), message.len());
+                    Err(_) => {
                         return 3;
                     }
                     Ok(_) => (),
@@ -151,11 +146,9 @@ fn ack() -> i32 {
         match &mut HS {
             None => return 1,
             Some(hs) => {
-                let mut unused = vec![0u8; 0];
+                let mut unused = [0u8; 0];
                 match hs.read_message(&mut BUFFER[0..48], &mut unused) {
-                    Err(err) => {
-                        let message = err.to_string();
-                        error_callback(message.as_ptr(), message.len());
+                    Err(_) => {
                         return 2;
                     }
                     Ok(_) => (),
@@ -202,7 +195,7 @@ fn decrypt(length: usize) -> i32 {
                     Ok(_) => {
                         return (length - 16) as i32; // ChaCha20Poly1305 removes 16-byte tag
                     }
-                    Err(_err) => {
+                    Err(_) => {
                         return -1;
                     }
                 }

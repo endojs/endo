@@ -5,7 +5,7 @@ Provides a [Noise Protocol](https://noiseprotocol.org/) netlayer for
 
 The particular Noise Protocol variant is IK-x25519-ChaCha20Poly1305-Blake2.
 The implementation of the cryptography is Rust compiled to Web Assembly.
-The Rust crate is in the Endo project's repository at `rust/ocap_noise`.
+The Rust crate is in the Endo project's repository at `rust/ocapn_noise`.
 
 # Aspirational Design
 

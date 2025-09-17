@@ -8,10 +8,10 @@ brought to bear.
 This is a binding of a Rust `noise_protocol` and `noise_rust_crypto` crates
 for the IK-x25519-ChaCha20Poly1305-Blake2 protocol variant.
 An instance of the resulting WebAssembly module is small and suitable for
-generate keys, 3-way-handshakes in the role of either the initiator or
-responder, and then the encryption and decryption of consecutive messages
-between these two parties, and performs no heap allocations on the Rust
-side of the FFI boundary.
+generating keys, performing 3-way-handshakes in the role of either the
+initiator or responder, and then the encryption and decryption of consecutive
+messages between these two parties, and performs no heap allocations on the
+Rust side of the FFI boundary.
 
 This does not use a JavaScript binding abstraction.
 The Rust machine has some static state and communicates exclusively with
