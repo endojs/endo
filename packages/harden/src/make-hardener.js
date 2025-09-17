@@ -318,7 +318,9 @@ export const makeHardener = traversePrototypeChains => {
         }
       }
       if (globalThis.harden !== globalHarden) {
-        throw new TypeError('Change detected to globalThis.harden. A program must only use one version of harden for the lifetime of a global');
+        throw new TypeError(
+          'Change detected to globalThis.harden. A program must only use one version of harden for the lifetime of a global',
+        );
       }
       return innerHarden(root);
     };
@@ -328,4 +330,4 @@ export const makeHardener = traversePrototypeChains => {
 };
 
 export const makePostLockdownHardener = () => makeHardener(true);
-export const makePreLockdownHardener = () => makeHardener(false);;
+export const makePreLockdownHardener = () => makeHardener(false);
