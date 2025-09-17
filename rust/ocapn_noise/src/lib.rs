@@ -5,7 +5,9 @@ use noise_protocol::{HandshakeState, DH, CipherState, U8Array};
 use noise_rust_crypto::sensitive::Sensitive;
 use noise_rust_crypto::{X25519, ChaCha20Poly1305, Blake2s};
 
-// These bindings are deliberately not thread safe
+// These bindings are deliberately not thread safe.
+// The intention is that the JavaScript driver will create an instance
+// of this virtual machine for each OCapN session.
 const SIZE: usize = 65535 + 16;
 static mut BUFFER: [u8; SIZE] = [0u8; SIZE];
 static mut HS: Option<HandshakeState<X25519, ChaCha20Poly1305, Blake2s>> = None;
