@@ -1,4 +1,5 @@
 // @ts-check
+import { harden } from '@endo/harden';
 import {
   assertRankSorted,
   compareAntiRank,

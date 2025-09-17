@@ -1,5 +1,6 @@
 import { getEnvironmentOption } from '@endo/env-options';
 import { Fail, hideAndHardenFunction } from '@endo/errors';
+import { harden } from '@endo/harden';
 
 // know about`isWellFormed`
 const hasWellFormedStringMethod = !!String.prototype.isWellFormed;

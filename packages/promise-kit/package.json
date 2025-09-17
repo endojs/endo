@@ -37,6 +37,7 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {

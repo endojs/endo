@@ -1,6 +1,7 @@
 // @ts-check
 import * as fs from 'fs';
 import * as crypto from 'crypto';
+import { harden } from '@endo/harden';
 import { checkBundle as powerlessCheckBundle } from './lite.js';
 import { parseLocatedJson } from './src/json.js';
 

@@ -1,4 +1,5 @@
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
+import { harden } from '@endo/harden';
 import { passStyleOf } from './passStyleOf.js';
 
 /**

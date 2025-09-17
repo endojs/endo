@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { Far } from '@endo/marshal';
 import { E, makeCapTP } from './captp.js';
 import { nearTrapImpl } from './trap.js';

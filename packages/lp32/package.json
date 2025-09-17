@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/stream": "workspace:^",
     "ses": "workspace:^"

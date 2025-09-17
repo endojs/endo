@@ -2,6 +2,7 @@
 
 import { Fail, X } from '@endo/errors';
 import { confirmOwnDataDescriptor } from './passStyle-helpers.js';
+import { harden } from '@endo/harden';
 
 const { getPrototypeOf } = Object;
 const { ownKeys } = Reflect;

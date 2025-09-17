@@ -1,6 +1,7 @@
 /// <reference types="ses"/>
 
 import { getMethodNames } from '@endo/eventual-send/utils.js';
+import { harden } from '@endo/harden';
 import { q, Fail } from '@endo/errors';
 import { PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';

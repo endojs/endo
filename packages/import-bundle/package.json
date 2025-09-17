@@ -42,6 +42,7 @@
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/where": "workspace:^",
     "ses": "workspace:^"
   },

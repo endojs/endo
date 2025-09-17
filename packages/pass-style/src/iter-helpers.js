@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { Far } from './make-far.js';
 
 /**

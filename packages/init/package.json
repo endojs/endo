@@ -35,6 +35,7 @@
   "dependencies": {
     "@endo/base64": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },
