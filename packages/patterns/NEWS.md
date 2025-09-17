@@ -3,7 +3,7 @@ User-visible changes in `@endo/patterns`:
 # Next release
 
 - The `sloppy` option for `@endo/patterns` interface guards is deprecated. Use `defaultGuards` instead.
-- `@endo/patterns` now exports a new `getNamedMethodGuards(interfaceGuards)` that returns that interface guard's record of method guards. The motivation is to support interface inheritance expressed by patterns like
+- `@endo/patterns` now exports a new `getNamedMethodGuards(interfaceGuard)` that returns that interface guard's record of method guards. The motivation is to support interface inheritance expressed by patterns like
    ```js
    const I2 = M.interface('I2', {
      ...getNamedMethodGuards(I1),
