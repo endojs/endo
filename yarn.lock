@@ -691,6 +691,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/ocapn-noise@workspace:packages/ocapn-noise":
+  version: 0.0.0-use.local
+  resolution: "@endo/ocapn-noise@workspace:packages/ocapn-noise"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "npm:^6.4.1"
+    c8: "npm:^7.14.0"
+    eslint: "npm:^8.57.0"
+    tsd: "npm:^0.32.0"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/ocapn@workspace:packages/ocapn":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
