@@ -73,6 +73,7 @@ export {
   getMethodGuardPayload,
   getInterfaceGuardPayload,
   getInterfaceMethodKeys,
+  getNamedMethodGuards,
 } from './src/patterns/getGuardPayloads.js';
 
 // eslint-disable-next-line import/export

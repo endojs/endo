@@ -384,7 +384,7 @@ export const defendPrototype = (
       methodGuards: mg,
       symbolMethodGuards,
       sloppy,
-      defaultGuards: dg = sloppy ? 'passable' : defaultGuards,
+      defaultGuards: dg = sloppy ? 'passable' : undefined,
     } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
