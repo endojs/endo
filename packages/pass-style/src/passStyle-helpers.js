@@ -162,7 +162,7 @@ const makeConfirmTagRecord = confirmProto => {
         (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&
       confirmPassStyle(
         tagRecord,
-        confirmOwnDataDescriptor(tagRecord, PASS_STYLE, false, reject).value,
+        confirmOwnDataDescriptor(tagRecord, PASS_STYLE, false, reject)?.value,
         expectedPassStyle,
         reject,
       ) &&
@@ -171,7 +171,7 @@ const makeConfirmTagRecord = confirmProto => {
         Symbol.toStringTag,
         false,
         reject,
-      ).value === 'string' ||
+      )?.value === 'string' ||
         (reject &&
           reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
       confirmProto(tagRecord, getPrototypeOf(tagRecord), reject)
