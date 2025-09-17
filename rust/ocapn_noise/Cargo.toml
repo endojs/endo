@@ -1,0 +1,37 @@
+[package]
+name = "ocapn_noise_protocol_facilities"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies.noise-protocol]
+version = "0.2.0"
+
+[dependencies.noise-rust-crypto]
+version = "0.6.2"
+features = [
+  'x25519',
+  'use-chacha20poly1305',
+  'use-blake2',
+]
+
+[dependencies.getrandom]
+version = "0.2"
+features = [
+  'custom',
+]
+
+[dependencies.rand_core]
+version = "0.6.4"
+features = [
+]
+
+[dependencies.ed25519-dalek]
+version = "2.2.0"
+features = ['rand_core']
+
+#This was recommended but not evidently necessary:
+#[target.wasm32-unknown-unknown]
+#rustflags = ['--cfg', 'getrandom_backend="custom"']
