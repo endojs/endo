@@ -17,6 +17,7 @@
  * @typedef {import('./types.js').SessionManager} SessionManager
  * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
  * @typedef {import('./ocapn.js').Ocapn} Ocapn
+ * @typedef {import('./types.js').MarshalPlugin} MarshalPlugin
  */
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeSyrupWriter } from '../syrup/encode.js';
@@ -155,6 +156,7 @@ const compareSessionKeysForCrossedHellos = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {MarshalPlugin[]} marshalPlugins
  * @param {any} message
  */
 const handleSessionHandshakeMessage = (
@@ -165,6 +167,7 @@ const handleSessionHandshakeMessage = (
   grantTracker,
   swissnumTable,
   giftTable,
+  marshalPlugins,
   message,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
@@ -269,6 +272,7 @@ const handleSessionHandshakeMessage = (
         swissnumTable,
         giftTable,
         'ocapn',
+        marshalPlugins,
       );
       const session = makeSession({
         id: sessionId,
@@ -306,6 +310,7 @@ const handleSessionHandshakeMessage = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {MarshalPlugin[]} marshalPlugins
  * @param {Uint8Array} data
  */
 const handleHandshakeMessageData = (
@@ -316,6 +321,7 @@ const handleHandshakeMessageData = (
   grantTracker,
   swissnumTable,
   giftTable,
+  marshalPlugins,
   data,
 ) => {
   try {
@@ -346,6 +352,7 @@ const handleHandshakeMessageData = (
           grantTracker,
           swissnumTable,
           giftTable,
+          marshalPlugins,
           message,
         );
       } else {
@@ -457,6 +464,7 @@ const makeSessionManager = () => {
  * @param {boolean} [options.verbose]
  * @param {Map<string, any>} [options.swissnumTable]
  * @param {Map<string, any>} [options.giftTable]
+ * @param {MarshalPlugin[]} [options.marshalPlugins]
  * @returns {Client}
  */
 export const makeClient = ({
@@ -464,6 +472,7 @@ export const makeClient = ({
   verbose = false,
   swissnumTable = new Map(),
   giftTable = new Map(),
+  marshalPlugins = [],
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
@@ -535,6 +544,7 @@ export const makeClient = ({
           grantTracker,
           swissnumTable,
           giftTable,
+          marshalPlugins,
           data,
         );
       }

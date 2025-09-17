@@ -3,6 +3,7 @@
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 /** @typedef {import('./descriptors.js').DescCodecs} DescCodecs */
+/** @typedef {import('../client/types.js').MarshalPlugin} MarshalPlugin */
 
 import { passStyleOf as realPassStyleOf } from '@endo/pass-style';
 import {
@@ -26,6 +27,7 @@ import {
   makeOcapnRecordCodecFromDefinition,
 } from './util.js';
 
+const { freeze } = Object;
 const quote = JSON.stringify;
 
 // OCapN Passable Atoms
@@ -79,15 +81,41 @@ const AtomCodecs = {
 };
 
 /**
+ * @param {any} value
+ * @param {MarshalPlugin[]} marshalPlugins
+ * @returns {any}
+ */
+const handleMarshalPluginsEncode = (value, marshalPlugins) => {
+  for (const plugin of marshalPlugins) {
+    const result = plugin.encode(value);
+    if (result !== undefined) {
+      return result;
+    }
+  }
+  return value;
+};
+
+const handleMarshalPluginsDecode = (value, marshalPlugins) => {
+  for (const plugin of marshalPlugins) {
+    const result = plugin.decode(value);
+    if (result !== undefined) {
+      return result;
+    }
+  }
+  return value;
+};
+
+/**
  * @typedef {object} PassableCodecs
  * @property {SyrupCodec} PassableCodec
  */
 
 /**
  * @param {DescCodecs} descCodecs
+ * @param {MarshalPlugin[]} marshalPlugins
  * @returns {PassableCodecs}
  */
-export const makePassableCodecs = descCodecs => {
+export const makePassableCodecs = (descCodecs, marshalPlugins) => {
   const { ReferenceCodec } = descCodecs;
 
   // OCapN Passable Containers
@@ -211,7 +239,7 @@ export const makePassableCodecs = descCodecs => {
     },
   );
 
-  const OcapnPassableUnionCodec = makeTypeHintUnionCodec(
+  const OcapnPassableUnionInternalCodec = makeTypeHintUnionCodec(
     'OcapnPassable',
     // syrup type hint -> codec
     {
@@ -285,6 +313,19 @@ export const makePassableCodecs = descCodecs => {
       },
     },
   );
+
+  // OcapnPassable is a wrapper around OcapnPassableInternal that handles marshal plugins.
+  /** @type {SyrupCodec} */
+  const OcapnPassableUnionCodec = freeze({
+    read(syrupReader) {
+      const value = OcapnPassableUnionInternalCodec.read(syrupReader);
+      return handleMarshalPluginsDecode(value, marshalPlugins);
+    },
+    write(providedValue, syrupWriter) {
+      const value = handleMarshalPluginsEncode(providedValue, marshalPlugins);
+      return OcapnPassableUnionInternalCodec.write(value, syrupWriter);
+    },
+  });
 
   const ContainerCodecs = {
     list: makeListCodecFromEntryCodec('OcapnList', OcapnPassableUnionCodec),
