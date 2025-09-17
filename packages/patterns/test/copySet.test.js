@@ -21,8 +21,6 @@ import {
 } from '../src/keys/merge-set-operators.js';
 import { M, matches } from '../src/patterns/patternMatchers.js';
 
-import '../src/types.js';
-
 const { arbKey, exampleAlice, exampleBob, exampleCarol } = makeArbitraries(fc);
 
 /** @import { Key } from '../src/types.js'; */

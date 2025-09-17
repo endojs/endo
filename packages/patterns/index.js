@@ -76,7 +76,7 @@ export {
 } from './src/patterns/getGuardPayloads.js';
 
 // eslint-disable-next-line import/export
-export * from './src/types.js';
+export * from './types-index.js';
 
 // /////////////////////////// Deprecated //////////////////////////////////////
 
