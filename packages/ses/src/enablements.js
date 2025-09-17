@@ -78,6 +78,7 @@ export const minEnablements = {
   '%ErrorPrototype%': {
     name: true, // set by "precond", "ava", "node-fetch"
   },
+
   '%IteratorPrototype%': {
     toString: true,
     // https://github.com/tc39/proposal-iterator-helpers
@@ -91,6 +92,8 @@ export const minEnablements = {
  * Moderate enablements are usually good enough for legacy compat.
  */
 export const moderateEnablements = {
+  ...minEnablements,
+
   '%ObjectPrototype%': {
     toString: true,
     valueOf: true,
@@ -167,14 +170,6 @@ export const moderateEnablements = {
     constructor: true,
     name: true,
     toString: true,
-  },
-
-  '%IteratorPrototype%': {
-    toString: true,
-    // https://github.com/tc39/proposal-iterator-helpers
-    constructor: true,
-    // https://github.com/tc39/proposal-iterator-helpers
-    [toStringTagSymbol]: true,
   },
 };
 
