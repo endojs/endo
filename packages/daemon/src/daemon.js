@@ -798,7 +798,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['provideController']} */
   const provideController = id => {
-    let controller = controllerForId.get(id);
+    const controller = controllerForId.get(id);
     if (controller !== undefined) {
       return controller;
     }
@@ -811,16 +811,16 @@ const makeDaemonCore = async (
     // eslint-disable-next-line no-use-before-define
     const context = makeContext(id);
     promise.catch(context.cancel);
-    controller = harden({
+    const newController = harden({
       context,
       value: promise,
     });
-    controllerForId.set(id, controller);
+    controllerForId.set(id, newController);
 
     // The controller must be in place before we evaluate the formula.
     resolve(evaluateFormulaForId(id, context));
 
-    return controller;
+    return newController;
   };
 
   /**
