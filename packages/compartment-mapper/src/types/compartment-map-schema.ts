@@ -13,7 +13,7 @@ import type {
   ENTRY_COMPARTMENT,
 } from '../policy-format.js';
 import type { CanonicalName } from './canonical-name.js';
-import type { FileUrlString, PackageDescriptor } from './external.js';
+import type { FileUrlString } from './external.js';
 import type { SomePackagePolicy } from './policy-schema.js';
 import type { LiteralUnion } from './typescript.js';
 
@@ -104,8 +104,6 @@ export interface PackageCompartmentDescriptor
   scopes: Record<string, ScopeDescriptor<FileUrlString>>;
 
   sourceDirname: string;
-
-  retained?: never;
 }
 
 /**
@@ -154,7 +152,7 @@ export type CompartmentDescriptorWithPolicy<
  * A compartment descriptor digested by `digestCompartmentMap()`
  */
 export interface DigestedCompartmentDescriptor
-  extends CompartmentDescriptor<SourceModuleDescriptorConfiguration> {
+  extends CompartmentDescriptor<ModuleDescriptorConfiguration> {
   path: never;
   retained: never;
   scopes: never;
