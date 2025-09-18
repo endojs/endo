@@ -1,6 +1,4 @@
-/// <reference types="ses"/>
-
-import { FAIL, q, hideAndHardenFunction } from '@endo/errors';
+import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
@@ -8,8 +6,7 @@ import { FAIL, q, hideAndHardenFunction } from '@endo/errors';
  * @import {PassStyle, CopyTagged, Passable} from './types.js';
  */
 
-const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } =
-  Object;
+const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
 // whilelist.
@@ -194,6 +191,6 @@ export const ErrorHelper = harden({
   confirmCanBeValid: confirmErrorLike,
 
   assertRestValid: (candidate, passStyleOfRecur) =>
-    confirmErrorLike(candidate, FAIL) &&
-    confirmRecursivelyThrowable(candidate, passStyleOfRecur, FAIL),
+    confirmErrorLike(candidate, Fail) &&
+    confirmRecursivelyThrowable(candidate, passStyleOfRecur, Fail),
 });

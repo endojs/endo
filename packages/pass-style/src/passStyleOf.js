@@ -19,8 +19,8 @@ import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
 import {
   ErrorHelper,
-  checkRecursivelyPassableErrorOwnPropertyDesc,
-  checkRecursivelyThrowable,
+  confirmRecursivelyPassableErrorOwnPropertyDesc,
+  confirmRecursivelyThrowable,
   getErrorConstructor,
   isErrorLike,
 } from './error.js';
@@ -283,7 +283,7 @@ hideAndHardenFunction(isPassable);
  * @returns {boolean}
  */
 const isPassableErrorPropertyDesc = (name, desc) =>
-  checkRecursivelyPassableErrorOwnPropertyDesc(name, desc, passStyleOf);
+  confirmRecursivelyPassableErrorOwnPropertyDesc(name, desc, passStyleOf);
 
 /**
  * After hardening, if `err` is a passable error, return it.
@@ -300,7 +300,7 @@ const isPassableErrorPropertyDesc = (name, desc) =>
  */
 export const toPassableError = err => {
   harden(err);
-  if (checkRecursivelyThrowable(err, passStyleOf)) {
+  if (confirmRecursivelyThrowable(err, passStyleOf)) {
     return err;
   }
   const { name, message } = err;
