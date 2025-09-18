@@ -5,6 +5,9 @@
 // the caller (`marshal.js`) to stringify it.
 
 import harden from '@endo/harden';
+import { X, Fail, q } from '@endo/errors';
+import { freezeOrSuppressTrapping } from '@endo/non-trapping-shim/non-trapping-shim-adapter.js';
+
 import {
   passStyleOf,
   isErrorLike,
@@ -15,7 +18,6 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
-import { X, Fail, q } from '@endo/errors';
 
 /** @import {Passable, RemotableObject} from '@endo/pass-style' */
 /** @import {Encoding, EncodingUnion} from './types.js' */
@@ -28,7 +30,6 @@ const {
   is,
   entries,
   fromEntries,
-  freeze,
   hasOwn,
 } = Object;
 
@@ -175,10 +176,11 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
             // We harden the entire capData encoding before we return it.
             // `encodeToCapData` requires that its input be Passable, and
             // therefore hardened.
-            // The `freeze` here is needed anyway, because the `rest` is
+            // The `freezeOrSuppressTrapping` here is needed anyway, because
+            // the `rest` is
             // freshly constructed by the `...` above, and we're using it
-            // as imput in another call to `encodeToCapData`.
-            result.rest = encodeToCapDataRecur(freeze(rest));
+            // as input in another call to `encodeToCapData`.
+            result.rest = encodeToCapDataRecur(freezeOrSuppressTrapping(rest));
           }
           return result;
         }

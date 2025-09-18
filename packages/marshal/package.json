@@ -50,6 +50,7 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/nat": "workspace:^",
+    "@endo/non-trapping-shim": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },

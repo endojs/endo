@@ -1,6 +1,7 @@
 import harden from '@endo/harden';
-import { isPromise } from '@endo/promise-kit';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
+import { isFrozenOrIsNonTrapping } from '@endo/non-trapping-shim/non-trapping-shim-adapter.js';
+import { isPromise } from '@endo/promise-kit';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
@@ -11,6 +12,7 @@ const { ownKeys } = Reflect;
 const { toStringTag } = Symbol;
 
 /**
+ * @see https://github.com/endojs/endo/issues/2700
  * @param {Promise} pr The value to examine
  * @param {Rejector} reject
  * @returns {pr is Promise} Whether it is a safe promise
@@ -133,7 +135,8 @@ const confirmPromiseOwnKeys = (pr, reject) => {
  */
 const confirmSafePromise = (pr, reject) => {
   return (
-    (isFrozen(pr) || (reject && reject`${pr} - Must be frozen`)) &&
+    (isFrozenOrIsNonTrapping(pr) ||
+      (reject && reject`${pr} - Must be frozen`)) &&
     (isPromise(pr) || (reject && reject`${pr} - Must be a promise`)) &&
     (getPrototypeOf(pr) === Promise.prototype ||
       (reject &&

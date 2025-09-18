@@ -835,6 +835,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/nat": "workspace:^"
+    "@endo/non-trapping-shim": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -911,7 +912,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/non-trapping-shim@workspace:packages/non-trapping-shim":
+"@endo/non-trapping-shim@workspace:^, @endo/non-trapping-shim@workspace:packages/non-trapping-shim":
   version: 0.0.0-use.local
   resolution: "@endo/non-trapping-shim@workspace:packages/non-trapping-shim"
   dependencies:
@@ -986,6 +987,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/non-trapping-shim": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
@@ -10624,6 +10626,7 @@ __metadata:
     "@endo/env-options": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/module-source": "workspace:^"
+    "@endo/non-trapping-shim": "workspace:^"
     "@endo/test262-runner": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
