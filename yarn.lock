@@ -691,6 +691,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/non-trapping-shim@workspace:packages/non-trapping-shim":
+  version: 0.0.0-use.local
+  resolution: "@endo/non-trapping-shim@workspace:packages/non-trapping-shim"
+  dependencies:
+    "@endo/env-options": "workspace:^"
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    tsd: "npm:^0.31.2"
+    typescript: "npm:~5.6.3"
+  languageName: unknown
+  linkType: soft
+
 "@endo/ocapn@workspace:packages/ocapn":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
@@ -2170,6 +2182,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tsd/typescript@npm:~5.4.3":
+  version: 5.4.5
+  resolution: "@tsd/typescript@npm:5.4.5"
+  checksum: 10c0/df50a5263809cf28bac6e7615f0960c21b4952237872a1a683c906415e224b747f885d0f05aaaa3665ab4fb66a64f85a8f6901065628c512da9673c8776538e1
+  languageName: node
+  linkType: hard
+
 "@tsd/typescript@npm:~5.8.3":
   version: 5.8.3
   resolution: "@tsd/typescript@npm:5.8.3"
@@ -2931,7 +2950,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ava@npm:^6.4.1":
+"ava@npm:^6.1.3, ava@npm:^6.4.1":
   version: 6.4.1
   resolution: "ava@npm:6.4.1"
   dependencies:
@@ -10755,6 +10774,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tsd@npm:^0.31.2":
+  version: 0.31.2
+  resolution: "tsd@npm:0.31.2"
+  dependencies:
+    "@tsd/typescript": "npm:~5.4.3"
+    eslint-formatter-pretty: "npm:^4.1.0"
+    globby: "npm:^11.0.1"
+    jest-diff: "npm:^29.0.3"
+    meow: "npm:^9.0.0"
+    path-exists: "npm:^4.0.0"
+    read-pkg-up: "npm:^7.0.0"
+  bin:
+    tsd: dist/cli.js
+  checksum: 10c0/359af4639695cb7c55e011329e24929c257a969194a30ec6a71c6b443b7e1c5de386319a8e47464c8545c979e59ce7fcd6063836ab7883df13cdb0be856d6ab7
+  languageName: node
+  linkType: hard
+
 "tsd@npm:^0.32.0":
   version: 0.32.0
   resolution: "tsd@npm:0.32.0"
@@ -11015,6 +11051,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:~5.6.3":
+  version: 5.6.3
+  resolution: "typescript@npm:5.6.3"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/44f61d3fb15c35359bc60399cb8127c30bae554cd555b8e2b46d68fa79d680354b83320ad419ff1b81a0bdf324197b29affe6cc28988cd6a74d4ac60c94f9799
+  languageName: node
+  linkType: hard
+
 "typescript@patch:typescript@npm%3A5.1.6 - 5.8.x#optional!builtin<compat/typescript>":
   version: 5.8.3
   resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"
@@ -11032,6 +11078,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/34d2a8e23eb8e0d1875072064d5e1d9c102e0bdce56a10a25c0b917b8aa9001a9cf5c225df12497e99da107dc379360bc138163c66b55b95f5b105b50578067e
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A~5.6.3#optional!builtin<compat/typescript>":
+  version: 5.6.3
+  resolution: "typescript@patch:typescript@npm%3A5.6.3#optional!builtin<compat/typescript>::version=5.6.3&hash=8c6c40"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/7c9d2e07c81226d60435939618c91ec2ff0b75fbfa106eec3430f0fcf93a584bc6c73176676f532d78c3594fe28a54b36eb40b3d75593071a7ec91301533ace7
   languageName: node
   linkType: hard
 
