@@ -105,7 +105,9 @@ export {
  * `hideAndHardenFunction(func)` where you would normally first say
  * `harden(func)`.
  *
- * @param {Function} func
+ * @template {Function} [T=Function]
+ * @param {T} func
+ * @returns {T}
  */
 export const hideAndHardenFunction = func => {
   typeof func === 'function' || throwRedacted`${func} must be a function`;

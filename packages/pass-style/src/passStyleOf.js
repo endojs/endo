@@ -214,7 +214,7 @@ const makePassStyleOf = passStyleHelpers => {
 
     return passStyleOfRecur(passable);
   };
-  return harden(passStyleOf);
+  return hideAndHardenFunction(passStyleOf);
 };
 
 export const PassStyleOfEndowmentSymbol = Symbol.for('@endo passStyleOf');
@@ -283,7 +283,12 @@ hideAndHardenFunction(isPassable);
  * @returns {boolean}
  */
 const isPassableErrorPropertyDesc = (name, desc) =>
-  confirmRecursivelyPassableErrorOwnPropertyDesc(name, desc, passStyleOf);
+  confirmRecursivelyPassableErrorOwnPropertyDesc(
+    name,
+    desc,
+    passStyleOf,
+    false,
+  );
 
 /**
  * After hardening, if `err` is a passable error, return it.
@@ -300,7 +305,7 @@ const isPassableErrorPropertyDesc = (name, desc) =>
  */
 export const toPassableError = err => {
   harden(err);
-  if (confirmRecursivelyThrowable(err, passStyleOf)) {
+  if (confirmRecursivelyThrowable(err, passStyleOf, false)) {
     return err;
   }
   const { name, message } = err;

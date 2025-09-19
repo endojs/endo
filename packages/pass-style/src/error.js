@@ -127,6 +127,17 @@ export const confirmRecursivelyPassableErrorOwnPropertyDesc = (
           )} own property must be a string: ${value}`)
       );
     }
+    case 'errors': {
+      // TODO special case for now, prior to generalizing all this away
+      Array.isArray(value) ||
+        (reject && reject`error.errors must be an array: ${value}`);
+      // TODO Should use an uncurry of `.every`.
+      // TODO How do ensure that it is a proper CopyArray at the same time?
+      return value.every(e =>
+        // eslint-disable-next-line no-use-before-define
+        confirmRecursivelyThrowable(e, passStyleOfRecur, reject),
+      );
+    }
     default: {
       break;
     }
