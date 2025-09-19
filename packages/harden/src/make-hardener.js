@@ -26,7 +26,6 @@ import {
   String,
   TypeError,
   WeakSet,
-  globalThis,
   apply,
   arrayForEach,
   defineProperty,
@@ -34,9 +33,11 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
+  globalThis,
+  hasOwn,
+  isError,
   isInteger,
   isPrimitive,
-  hasOwn,
   ownKeys,
   preventExtensions,
   setAdd,
@@ -46,14 +47,34 @@ import {
   typedArrayPrototype,
   weaksetAdd,
   weaksetHas,
-  FERAL_STACK_GETTER,
-  FERAL_STACK_SETTER,
-  isError,
 } from './commons.js';
-import { assert } from './error/assert.js';
+import { FERAL_STACK_GETTER, FERAL_STACK_SETTER } from './commons.js';
+
+/** @type {(condition: any) => asserts condition} */
+const assert = condition => {
+  if (!condition) {
+    throw new TypeError('assertion failed');
+  }
+};
 
 /**
- * @import {Harden} from '../types.js'
+ * There are two valid ways to use harden.
+ * Either, a program uses harden and never uses lockdown, or a program uses
+ * lockdown before ever using harden.
+ * We use this top-level module state to prevent invalid arrangements in some,
+ * but not all, possible configurations.
+ * For example, if there are "eval twins" of this module, they might fail to
+ * prevent misuse.
+ * It is our hope that this gentle pressure causes the ecosystem to tend to
+ * conform to either mode, in the same way ses strives to provide the best
+ * possible failure mode in the face of eval twins of lockdown.
+ * @type {undefined | boolean}
+ */
+let mode;
+
+/**
+ * @template T
+ * @typedef {(value: T) => T} Harden
  */
 
 // Obtain the string tag accessor of of TypedArray so we can indirectly use the
@@ -125,9 +146,11 @@ const freezeTypedArray = array => {
 /**
  * Create a `harden` function.
  *
- * @returns {Harden}
+ * @template T
+ * @param {boolean} traversePrototypeChains
+ * @returns {Harden<T>}
  */
-export const makeHardener = () => {
+export const makeHardener = traversePrototypeChains => {
   // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
     const safeHarden = globalThis.harden;
@@ -136,13 +159,17 @@ export const makeHardener = () => {
 
   const hardened = new WeakSet();
 
-  const { harden } = {
-    /**
-     * @template T
-     * @param {T} root
-     * @returns {T}
-     */
+  let { harden } = {
+    /** @type {<T>(root: T) => T} */
     harden(root) {
+      if (mode === undefined) {
+        mode = traversePrototypeChains;
+      } else if (mode !== traversePrototypeChains) {
+        throw new TypeError(
+          'harden must be used either with lockdown or without lockdown, but not both before and after lockdown',
+        );
+      }
+
       const toFreeze = new Set();
 
       // If val is something we should be freezing but aren't yet,
@@ -191,8 +218,10 @@ export const makeHardener = () => {
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
         const descs = getOwnPropertyDescriptors(obj);
-        const proto = getPrototypeOf(obj);
-        enqueue(proto);
+        if (traversePrototypeChains) {
+          const proto = getPrototypeOf(obj);
+          enqueue(proto);
+        }
 
         arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
           // The 'name' may be a symbol, and TypeScript doesn't like us to
@@ -271,5 +300,34 @@ export const makeHardener = () => {
     },
   };
 
+  // The harden implementation exported by @endo/harden does not traverse
+  // prototype chains but may be imported into programs after lockdown.
+  // In this case, the weak hardener must give way to the strong hardener
+  // on the global object, lazily.
+  if (!traversePrototypeChains) {
+    let innerHarden = harden;
+    let globalHarden;
+    harden = root => {
+      // Capture the global hardener (or lack thereof) on first invocation,
+      // require it to remain constant, and use it if present.
+      if (mode === undefined) {
+        mode = traversePrototypeChains;
+        globalHarden = globalThis.harden;
+        if (typeof globalHarden === 'function' && globalHarden !== harden) {
+          innerHarden = globalHarden;
+        }
+      }
+      if (globalThis.harden !== globalHarden) {
+        throw new TypeError(
+          'Change detected to globalThis.harden. A program must only use one version of harden for the lifetime of a global',
+        );
+      }
+      return innerHarden(root);
+    };
+  }
+
   return harden;
 };
+
+export const makePostLockdownHardener = () => makeHardener(true);
+export const makePreLockdownHardener = () => makeHardener(false);
