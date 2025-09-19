@@ -13,7 +13,7 @@ import { Far } from './make-far.js';
  */
 export const mapIterable = (baseIterable, func) =>
   /**
-   * An `Iterable` should not be a `Remotable` because it has a symbol-named
+   * An `Iterable` cannot be a `Remotable` because it has a symbol-named
    * method. That's why we use `harden` rather than, say, `Far`. However,
    * an `Iterator` can be a `Remotable`.
    *
@@ -46,7 +46,7 @@ harden(mapIterable);
  */
 export const filterIterable = (baseIterable, pred) =>
   /**
-   * An `Iterable` should not be a `Remotable` because it has a symbol-named
+   * An `Iterable` cannot be a `Remotable` because it has a symbol-named
    * method. That's why we use `harden` rather than, say, `Far`. However,
    * an `Iterator` can be a `Remotable`.
    *
