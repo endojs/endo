@@ -12,6 +12,8 @@ User-visible changes in `@endo/patterns`:
    ```
    See `@endo/exo`'s `exo-wobbly-point.test.js` to see it in action together
    with an experiment in class inheritance.
+- JavaScript's relational comparison operators like `<` compare strings by lexicographic UTF16 code unit order, which exposes an internal representational detail not relevant to the string's meaning as a Unicode string.  Previously, `compareKeys` and associated functions compared strings using this JavaScript-native comparison. Now `compareKeys` and associated functions compare strings by lexicographic Unicode Code Point order. ***This change only affects strings containing so-called supplementary characters, i.e., those whose Unicode character code does not fit in 16 bits***.
+  - See the NEWS.md of @endo/marshal for more on this change.
 
 # 1.7.0 (2025-07-11)
 
