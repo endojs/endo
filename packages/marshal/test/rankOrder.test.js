@@ -15,6 +15,7 @@ import {
   getPassStyleCover,
   getIndexCover,
   assertRankSorted,
+  compareRankRemotablesTied,
 } from '../src/rankOrder.js';
 import { unsortedSample, sortedSample } from '../tools/marshal-test-data.js';
 
@@ -28,6 +29,8 @@ test('compareRank is reflexive', async t => {
   );
 });
 
+// TODO https://github.com/endojs/endo/issues/2883
+// Should these tests use `compareRank` or `compareRankRemotablesTied`?
 test('compareRank totally orders ranks', async t => {
   await fc.assert(
     fc.property(arbPassable, arbPassable, (a, b) => {
@@ -45,6 +48,8 @@ test('compareRank totally orders ranks', async t => {
   );
 });
 
+// TODO https://github.com/endojs/endo/issues/2883
+// Should these tests use `compareRank` or `compareRankRemotablesTied`?
 test('compareRank is transitive', async t => {
   await fc.assert(
     fc.property(
@@ -105,11 +110,11 @@ test('compareRank is transitive', async t => {
 });
 
 test('compare and sort by rank', t => {
-  assertRankSorted(sortedSample, compareRank);
-  t.false(isRankSorted(unsortedSample, compareRank));
-  const sorted = sortByRank(unsortedSample, compareRank);
+  assertRankSorted(sortedSample);
+  t.false(isRankSorted(unsortedSample));
+  const sorted = sortByRank(unsortedSample);
   t.is(
-    compareRank(sorted, sortedSample),
+    compareRankRemotablesTied(sorted, sortedSample),
     0,
     `Not sorted as expected: ${q(sorted)}`,
   );
@@ -168,9 +173,9 @@ const brokenQueries = harden([
 // adding composite key handling to the durable store implementation) will need
 // to re-enable and (likely) update this test.
 test.skip('range queries', t => {
-  t.assert(isRankSorted(unusedRangeSample, compareRank));
+  t.assert(isRankSorted(unusedRangeSample));
   for (const [rankCover, indexRange] of brokenQueries) {
-    const range = getIndexCover(unusedRangeSample, compareRank, rankCover);
+    const range = getIndexCover(unusedRangeSample, rankCover);
     t.is(range[0], indexRange[0]);
     t.is(range[1], indexRange[1]);
   }
