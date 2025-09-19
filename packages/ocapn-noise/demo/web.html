@@ -1,0 +1,54 @@
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+  </head>
+  <body>
+    <script type="module">
+      import { makeOcapnSessionCryptography } from '../src/bindings.js';
+      const getRandomValues = (array) => crypto.getRandomValues(array);
+
+      const location = new URL('../gen/ocapn-noise.wasm', window.location).href;
+      const response = await fetch(location);
+      const bytes = await response.bytes();
+      const wasmModule = new WebAssembly.Module(bytes);
+
+      const initiator = makeOcapnSessionCryptography({ wasmModule, getRandomValues });
+      const responder = makeOcapnSessionCryptography({ wasmModule, getRandomValues });
+
+      const initiatorKeys = initiator.randomKeys();
+      const responderKeys = responder.randomKeys();
+
+      // 3-way handshake
+      const message1 = initiator.syn(initiatorKeys.privateKey, responderKeys.publicKey);
+      const {
+        message: message2,
+        publicKey: initiatorPublicKey
+      } = responder.synack(responderKeys.privateKey, message1);
+      initiator.ack(message2);
+
+      // the responder obtains the initiator's public key
+      // this is where we would cross hellos
+      console.log({
+        expected: initiatorKeys.publicKey,
+        actual: initiatorPublicKey,
+      });
+
+      // from initiator to responder
+      {
+        const expected = new TextEncoder().encode("hello, world!");
+        const cipherBytes = initiator.encrypt(expected);
+        const actual = new TextDecoder().decode(responder.decrypt(cipherBytes));
+        console.log(actual);
+      }
+
+      // from responder to initiator
+      {
+        const expected = new TextEncoder().encode("farewell, world!");
+        const cipherBytes = responder.encrypt(expected);
+        const actual = new TextDecoder().decode(initiator.decrypt(cipherBytes));
+        console.log(actual);
+      }
+
+    </script>
+  </body>
+</html>
