@@ -29,6 +29,8 @@ const errorConstructors = new Map(
     // To accommodate platforms prior to AggregateError, we comment out the
     // following line and instead conditionally add it to the map below.
     // ['AggregateError', AggregateError],
+    // Likewise https://github.com/tc39/proposal-explicit-resource-management
+    // ['SuppressedError', SuppressedError],
   ]),
 );
 
@@ -37,9 +39,15 @@ if (typeof AggregateError !== 'undefined') {
   errorConstructors.set('AggregateError', AggregateError);
 }
 
+if (typeof SuppressedError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to SuppressedError
+  errorConstructors.set('SuppressedError', SuppressedError);
+}
+
 /**
  * Because the error constructor returned by this function might be
- * `AggregateError`, which has different construction parameters
+ * `AggregateError` or `SuppressedError`,
+ * each of which has different construction parameters
  * from the other error constructors, do not use it directly to try
  * to make an error instance. Rather, use `makeError` which encapsulates
  * this non-uniformity.
@@ -127,7 +135,9 @@ export const confirmRecursivelyPassableErrorPropertyDesc = (
           )} own property must be a string: ${value}`)
       );
     }
-    case 'cause': {
+    case 'cause':
+    case 'error':
+    case 'suppressed': {
       // eslint-disable-next-line no-use-before-define
       return confirmRecursivelyPassableError(value, passStyleOfRecur, reject);
     }

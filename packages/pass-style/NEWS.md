@@ -3,6 +3,7 @@ User-visible changes in `@endo/pass-style`:
 # Next release
 
 - deprecates `assertChecker`. Use `Fail` in the confirm/reject pattern instead, as supported by `@endo/errors/rejector.js`.
+- TODO explain `SuppressedError` support
 
 # 1.6.3 (2025-07-11)
 
