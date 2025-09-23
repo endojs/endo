@@ -320,9 +320,9 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
-    ava: "npm:^6.4.1"
-    c8: "npm:^7.14.0"
-    tsd: "npm:^0.32.0"
+    ava: "catalog:testing"
+    c8: "catalog:testing"
+    tsd: "catalog:testing"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
