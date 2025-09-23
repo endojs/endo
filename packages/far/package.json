@@ -39,8 +39,8 @@
   "devDependencies": {
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "ava": "^6.4.1",
-    "c8": "^7.14.0",
+    "ava": "catalog:testing",
+    "c8": "catalog:testing",
     "typescript": "~5.9.2"
   },
   "keywords": [

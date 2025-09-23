@@ -42,10 +42,10 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "ava": "^6.4.1",
-    "c8": "^7.14.0",
+    "ava": "catalog:testing",
+    "c8": "catalog:testing",
     "ses0_18_3": "npm:ses@0.18.3",
-    "tsd": "^0.32.0",
+    "tsd": "catalog:testing",
     "typescript": "~5.9.2"
   },
   "files": [
