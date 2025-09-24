@@ -207,9 +207,42 @@ export interface AssertMakeErrorOptions {
   errorName?: string;
 
   /**
+   * Defaults to true. If true, `makeError` will apply `sanitizeError`
+   * to the error before returning it. See the comments on
+   * {@link sanitizeError}.
+   */
+  sanitize?: boolean;
+
+  /**
+   * Options to be passed as the `options` argument to the error constructor.
+   * Bizarrely, the `SuppressedError` constructor has no options argument.
+   * Thus, if the constructor is `SuppressedError` and a non-empty
+   * `options` argument is present, we would normally report this inconsistency
+   * as an error. However, we do not, because the original `SuppressedError`
+   * we're trying to report likely has more relevant diagnostics than an
+   * error that happens in the attempt to report this error.
+   *
+   * For those error constructors that do take an `options` argument,
+   * currently the only defined option is `cause`. If `cause` is provided
+   * both as `options.cause` and `properties.cause`, the latter will override
+   * the former.
+   */
+  options?: ErrorOptions;
+
+  /**
+   * Extra properties to be added to the error after `sanitizeError` and
+   * before freezing. Only the value of the properties are added, not
+   * the descriptor. IOW, if any property is an accessor, the getter is
+   * called to get the value, which is used to make a data property.
+   */
+  properties?: object;
+
+  /**
    * Discloses the error that caused this one, typically from a lower
    * layer of abstraction. This is represented by a public `cause` data property
    * on the error, not a hidden annotation.
+   *
+   * @deprecated Should be provided in `properties` or `options`
    */
   cause?: Error;
 
@@ -219,15 +252,10 @@ export interface AssertMakeErrorOptions {
    * typically by `Promise.any`. But `makeError` allows it on any error.
    * This is represented by a public `errors` data property on the error,
    * not a hidden annotation.
+   *
+   * @deprecated Should be provided in `properties`
    */
   errors?: Error[];
-
-  /**
-   * Defaults to true. If true, `makeError` will apply `sanitizeError`
-   * to the error before returning it. See the comments on
-   * {@link sanitizeError}.
-   */
-  sanitize?: boolean;
 }
 
 // TODO inline overloading
@@ -297,7 +325,8 @@ interface StringablePayload {
  */
 export type GenericErrorConstructor =
   | ErrorConstructor
-  | AggregateErrorConstructor;
+  | AggregateErrorConstructor
+  | SuppressedErrorConstructor;
 
 /**
  * To make an `assert` which terminates some larger unit of computation

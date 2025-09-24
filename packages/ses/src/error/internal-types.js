@@ -78,6 +78,8 @@
  *   MESSAGE: 'ERROR_MESSAGE:',
  *   CAUSE: 'cause:',
  *   ERRORS: 'errors:',
+ *   ERROR: 'error:',
+ *   SUPPRESSED: 'suppressed:',
  * }} ErrorInfo
  */
 
