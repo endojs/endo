@@ -224,6 +224,8 @@ testIfAggregateError('unserialize recognized error extensions', t => {
   t.is(getPrototypeOf(unkErr.errors[0]), URIError.prototype);
 });
 
+// TODO SuppressedError
+
 test('passStyleOf null is "null"', t => {
   t.assert(passStyleOf(null), 'null');
 });
