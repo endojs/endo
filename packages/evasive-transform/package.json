@@ -40,10 +40,10 @@
   "devDependencies": {
     "@babel/types": "~7.28.2",
     "@endo/ses-ava": "workspace:^",
-    "ava": "^6.4.1",
-    "c8": "^7.14.0",
+    "ava": "catalog:testing",
+    "c8": "catalog:testing",
     "eslint": "^8.57.0",
-    "tsd": "^0.32.0",
+    "tsd": "catalog:testing",
     "typescript": "~5.9.2"
   },
   "files": [

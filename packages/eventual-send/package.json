@@ -39,9 +39,9 @@
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
-    "ava": "^6.4.1",
-    "c8": "^7.14.0",
-    "tsd": "^0.32.0",
+    "ava": "catalog:testing",
+    "c8": "catalog:testing",
+    "tsd": "catalog:testing",
     "typescript": "~5.9.2"
   },
   "keywords": [

@@ -106,9 +106,9 @@
     "@endo/compartment-mapper": "workspace:^",
     "@endo/module-source": "workspace:^",
     "@endo/test262-runner": "workspace:^",
-    "ava": "^6.4.1",
+    "ava": "catalog:testing",
     "babel-eslint": "^10.1.0",
-    "c8": "^7.14.0",
+    "c8": "catalog:testing",
     "core-js": "^3.31.0",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -118,7 +118,7 @@
     "hermes-engine-cli": "^0.12.0",
     "prettier": "^3.5.3",
     "terser": "^5.16.6",
-    "tsd": "^0.32.0",
+    "tsd": "catalog:testing",
     "typescript": "~5.9.2"
   },
   "files": [

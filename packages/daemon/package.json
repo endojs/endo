@@ -67,9 +67,9 @@
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "ava": "^6.4.1",
+    "ava": "catalog:testing",
     "babel-eslint": "^10.1.0",
-    "c8": "^7.14.0",
+    "c8": "catalog:testing",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.1.0",
