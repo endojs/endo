@@ -38,7 +38,7 @@
     "@endo/zip": "workspace:^",
     "ava": "catalog:testing",
     "c8": "catalog:testing",
-    "eslint": "^8.57.0",
+    "eslint": "catalog:testing",
     "ses": "workspace:^",
     "typescript": "~5.9.2"
   },
