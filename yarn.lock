@@ -230,6 +230,11 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:testing"
     c8: "catalog:testing"
+    eslint: "npm:^8.57.0"
+    eslint-config-airbnb-base: "npm:^15.0.0"
+    eslint-config-prettier: "npm:^9.1.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -460,6 +465,11 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     ava: "catalog:testing"
     c8: "catalog:testing"
+    eslint: "npm:^8.57.0"
+    eslint-config-airbnb-base: "npm:^15.0.0"
+    eslint-config-prettier: "npm:^9.1.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     tsd: "catalog:testing"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -536,6 +546,11 @@ __metadata:
     "@endo/where": "workspace:^"
     ava: "catalog:testing"
     c8: "catalog:testing"
+    eslint: "npm:^8.57.0"
+    eslint-config-airbnb-base: "npm:^15.0.0"
+    eslint-config-prettier: "npm:^9.1.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
