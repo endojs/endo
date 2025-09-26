@@ -39,7 +39,7 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "^6.4.1",
     "c8": "^7.14.0",
-    "eslint": "^8.57.0",
+    "eslint": "catalog:testing",
     "tsd": "^0.32.0",
     "typescript": "~5.9.2"
   },

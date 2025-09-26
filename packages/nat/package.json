@@ -32,10 +32,10 @@
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",
     "ava": "catalog:testing",
-    "eslint": "^8.57.1",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.31.0",
+    "eslint": "catalog:testing",
+    "eslint-config-airbnb-base": "catalog:testing",
+    "eslint-config-prettier": "catalog:testing",
+    "eslint-plugin-import": "catalog:testing",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
     "typescript": "~5.9.2"
