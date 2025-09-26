@@ -16,13 +16,11 @@ import { compareByteArrays } from './compare.js';
 import { makeSyrupReader } from './decode.js';
 import { makeSyrupWriter } from './encode.js';
 
-/** @typedef {import('./decode.js').SyrupReader} SyrupReader */
-/** @typedef {import('./encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('./codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('./codec.js').SyrupRecordCodec} SyrupRecordCodec */
-/** @typedef {import('./decode.js').SyrupType} SyrupType */
-/** @typedef {import('./decode.js').TypeHintTypes} TypeHintTypes */
-/** @typedef {import('./codec.js').SyrupRecordLabelType} SyrupRecordLabelType */
+/**
+ * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordLabelType } from './codec.js'
+ * @import { SyrupReader, SyrupType, TypeHintTypes } from './decode.js'
+ * @import { SyrupWriter } from './encode.js'
+ */
 
 /*
  * This is a set of codecs that are used to represent Syrup values as JavaScript values.

@@ -1,8 +1,8 @@
 // @ts-check
 
 /**
- * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
- * @typedef {import('./types.js').LocationId} LocationId
+ * @import { OcapnLocation } from '../codecs/components.js'
+ * @import { LocationId } from './types.js'
  */
 
 import { Buffer } from 'buffer';

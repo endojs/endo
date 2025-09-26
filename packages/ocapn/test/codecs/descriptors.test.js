@@ -1,6 +1,8 @@
 // @ts-check
 
-/** @typedef {import('./_codecs_util.js').CodecTestEntry} CodecTestEntry */
+/**
+ * @import { CodecTestEntry } from './_codecs_util.js'
+ */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 

@@ -1,8 +1,8 @@
 // @ts-check
 
-/** @typedef {import('../src/codecs/descriptors.js').HandoffGive} HandoffGive */
-/** @typedef {import('../src/codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope */
-/** @typedef {import('../src/codecs/descriptors.js').HandoffReceive} HandoffReceive */
+/**
+ * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceive } from '../src/codecs/descriptors.js'
+ */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 import { Buffer } from 'buffer';

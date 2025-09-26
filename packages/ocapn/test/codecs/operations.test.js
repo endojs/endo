@@ -1,10 +1,12 @@
 // @ts-check
 
-/** @typedef {import('../../src/syrup/decode.js').SyrupReader} SyrupReader */
-/** @typedef {import('../../src/syrup/encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('@endo/eventual-send').Settler} Settler */
-/** @typedef {import('./_codecs_util.js').CodecTestEntry} CodecTestEntry */
+/**
+ * @import { SyrupCodec } from '../../src/syrup/codec.js'
+ * @import { SyrupReader } from '../../src/syrup/decode.js'
+ * @import { SyrupWriter } from '../../src/syrup/encode.js'
+ * @import { CodecTestEntry } from './_codecs_util.js'
+ * @import { Settler } from '@endo/eventual-send'
+ */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 

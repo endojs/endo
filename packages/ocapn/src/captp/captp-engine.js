@@ -1,7 +1,9 @@
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 /** @import {CapTPSlot} from './types.js' */
 
-/** @typedef {import('../client/types.js').Logger} Logger */
+/**
+ * @import { Logger } from '../client/types.js'
+ */
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 

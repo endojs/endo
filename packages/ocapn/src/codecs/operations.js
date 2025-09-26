@@ -1,10 +1,12 @@
 // @ts-check
 
-/** @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader */
-/** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('./descriptors.js').DescCodecs} DescCodecs */
-/** @typedef {import('./passable.js').PassableCodecs} PassableCodecs */
+/**
+ * @import { SyrupCodec } from '../syrup/codec.js'
+ * @import { SyrupReader } from '../syrup/decode.js'
+ * @import { SyrupWriter } from '../syrup/encode.js'
+ * @import { DescCodecs } from './descriptors.js'
+ * @import { PassableCodecs } from './passable.js'
+ */
 
 import {
   makeCodec,
