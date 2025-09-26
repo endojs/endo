@@ -115,7 +115,7 @@ Lockdown does not erase any powerful objects from the initial global scope.
 Instead, **Compartments** give complete control over what powerful objects
 exist for client code.
 
-See [`lockdown` options](docs/lockdown.md) for configuration options to
+See [`lockdown` options](../../docs/lockdown.md) for configuration options to
 `lockdown`. However, all of these have sensible defaults that should
 work for most projects out of the box.
 
@@ -670,7 +670,7 @@ are standard or not.
 taming hides error stacks, accumulating them in side tables. The `assert`
 system generates other diagnostic information hidden in side tables. The tamed
 console uses these side tables to output more informative diagnostics.
-[Logging Errors](./src/error/README.md) explains the design.
+[Logging Errors](../../docs/errors.md) explains the design.
 
 ### Controlling Module-Loading Errors
 

@@ -1,9 +1,8 @@
 ---
+title: get-started
 group: Documents
 category: Guides
 date: 2025-09-24
-author: Kris Kowal
-children: []
 ---
 
 # Getting Started with Endo
@@ -235,7 +234,7 @@ Archive:  hello.zip
 
 > The pre-compiled module format is a regrettable aberration we look forward to
 > removing when we the proposal for `Compartment` if the JavaScript standards
-> committee sees fit to advance [our proposal](makes progress into the) into the
+> committee sees fit to advance [our proposal](https://github.com/endojs/proposal-module-global) into the
 > language.
 > We have already made tremendous progress advancing other components of
 > HardenedJS like `Object.freeze`, and `ModuleSource`.
