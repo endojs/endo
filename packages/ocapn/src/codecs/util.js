@@ -1,12 +1,9 @@
-/** @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader */
-/** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('../syrup/codec.js').SyrupType} SyrupType */
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
-/** @typedef {import('../syrup/codec.js').SyrupRecordDefinition} SyrupRecordDefinition */
-/** @typedef {import('../syrup/codec.js').SyrupRecordUnionCodec} SyrupRecordUnionCodec */
-/** @typedef {import('../client/ocapn.js').TableKit} TableKit */
-/** @typedef {import('../client/ocapn.js').HandoffGiveDetails} HandoffGiveDetails */
+/**
+ * @import { HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordDefinition, SyrupRecordUnionCodec, SyrupType } from '../syrup/codec.js'
+ * @import { SyrupReader } from '../syrup/decode.js'
+ * @import { SyrupWriter } from '../syrup/encode.js'
+ */
 
 import {
   makeCodec,

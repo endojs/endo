@@ -5,19 +5,14 @@
 /** @import {CapTPSlot} from '../captp/types.js' */
 
 /**
- * @typedef {import('./types.js').Client} Client
- * @typedef {import('./types.js').Connection} Connection
- * @typedef {import('./types.js').Logger} Logger
- * @typedef {import('./types.js').LocationId} LocationId
- * @typedef {import('./types.js').OcapnPublicKey} OcapnPublicKey
- * @typedef {import('./types.js').Session} Session
- * @typedef {import('../captp/captp-engine.js').CapTPEngine} CapTPEngine
- * @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader
- * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
- * @typedef {import('../codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope
- * @typedef {import('../codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope
- * @typedef {import('../codecs/descriptors.js').HandoffGive} HandoffGive
+ * @import { CapTPEngine } from '../captp/captp-engine.js'
+ * @import { OcapnLocation } from '../codecs/components.js'
+ * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
+ * @import { SyrupReader } from '../syrup/decode.js'
+ * @import { Client, Connection, LocationId, Logger, Session } from './types.js'
  */
+
+/** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
 
 import { E, HandledPromise } from '@endo/eventual-send';
 import { Far, Remotable } from '@endo/marshal';

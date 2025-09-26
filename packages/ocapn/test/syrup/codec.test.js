@@ -12,7 +12,9 @@ import {
   makeListCodecFromEntryCodec,
 } from '../../src/syrup/codec.js';
 
-/** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
+/**
+ * @import { SyrupCodec } from '../../src/syrup/codec.js'
+ */
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const textEncoder = new TextEncoder();

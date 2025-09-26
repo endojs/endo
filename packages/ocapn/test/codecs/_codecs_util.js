@@ -1,15 +1,13 @@
 // @ts-check
 
-/** @typedef {import('@endo/eventual-send').Settler} Settler */
-/** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('../../src/captp/captp-engine.js').CapTPEngine} CapTPEngine */
-/** @typedef {import('../../src/client/ocapn.js').TableKit} TableKit */
-/** @typedef {import('../../src/client/ocapn.js').MakeRemoteResolver} MakeRemoteResolver */
-/** @typedef {import('../../src/client/ocapn.js').MakeRemoteSturdyRef} MakeRemoteSturdyRef */
-/** @typedef {import('../../src/client/ocapn.js').MakeHandoff} MakeHandoff */
-/** @typedef {import('../../src/codecs/components.js').OcapnLocation} OcapnLocation */
-/** @typedef {import('../../src/codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope */
-/** @typedef {import('../../src/codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope */
+/**
+ * @import { CapTPEngine } from '../../src/captp/captp-engine.js'
+ * @import { MakeHandoff, MakeRemoteResolver, MakeRemoteSturdyRef, TableKit } from '../../src/client/ocapn.js'
+ * @import { OcapnLocation } from '../../src/codecs/components.js'
+ * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../../src/codecs/descriptors.js'
+ * @import { SyrupCodec } from '../../src/syrup/codec.js'
+ * @import { Settler } from '@endo/eventual-send'
+ */
 
 import { Buffer } from 'buffer';
 import { Far, Remotable } from '@endo/marshal';
