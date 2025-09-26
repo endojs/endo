@@ -1,6 +1,6 @@
 import { makeCodec } from '../syrup/codec.js';
 
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
+/** @import { SyrupCodec } from '../syrup/codec.js' */
 
 /** @type {SyrupCodec} */
 export const NonNegativeIntegerCodec = makeCodec('NonNegativeInteger', {

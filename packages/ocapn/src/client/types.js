@@ -1,12 +1,11 @@
 // @ts-check
 
 /**
- * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
- * @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey
- * @typedef {import('../cryptography.js').OcapnSignature} OcapnSignature
- * @typedef {import('../cryptography.js').OcapnKeyPair} OcapnKeyPair
- * @typedef {import('./ocapn.js').Ocapn} Ocapn
- * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
+ * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
+ * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
+ * @import { GrantTracker, Ocapn } from './ocapn.js'
+ */
+
 /**
  * @typedef {string} LocationId
  */

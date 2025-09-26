@@ -8,8 +8,9 @@ import { makeSyrupWriter } from './syrup/encode.js';
 import { OcapnPublicKeyCodec } from './codecs/components.js';
 import { compareByteArrays } from './syrup/compare.js';
 
-/** @typedef {import('./codecs/components.js').OcapnSignature} OcapnSignature */
-/** @typedef {import('./codecs/components.js').OcapnPublicKeyData} OcapnPublicKeyData */
+/**
+ * @import { OcapnPublicKeyData, OcapnSignature } from './codecs/components.js'
+ */
 
 const textEncoder = new TextEncoder();
 

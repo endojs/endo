@@ -1,8 +1,9 @@
 // @ts-check
 
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
-/** @typedef {import('./descriptors.js').DescCodecs} DescCodecs */
+/**
+ * @import { SyrupCodec, SyrupRecordCodec } from '../syrup/codec.js'
+ * @import { DescCodecs } from './descriptors.js'
+ */
 
 import { passStyleOf as realPassStyleOf } from '@endo/pass-style';
 import {

@@ -1,7 +1,9 @@
 // @ts-check
 
-/** @typedef {import('../src/codecs/components.js').OcapnLocation} OcapnLocation */
-/** @typedef {import('../src/client/types.js').Client} Client */
+/**
+ * @import { Client } from '../src/client/types.js'
+ * @import { OcapnLocation } from '../src/codecs/components.js'
+ */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/eventual-send';
