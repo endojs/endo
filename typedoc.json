@@ -1,27 +1,47 @@
 {
-    "entryPoints": [
-        "packages/*"
-    ],
-    "exclude": [
-        "**/tmp/**",
-        "packages/cjs-module-analyzer",
-        "packages/cli",
-        "packages/compartment-mapper",
-        "packages/daemon",
-        "packages/evasive-transform",
-        "packages/hardened262",
-        "packages/lp32",
-        "packages/memoize",
-        "packages/module-source",
-        "packages/netstring",
-        "packages/skel",
-        "packages/stream-types-test",
-        "packages/syrup",
-        "packages/test262-runner/",
-        "packages/where"
-    ],
-    "name": "Endo API documentation",
-    "entryPointStrategy": "packages",
-    "out": "api-docs",
-    "includeVersion": true
+  "entryPoints": [
+    "packages/*"
+  ],
+  "projectDocuments": [
+    "README.md",
+    "docs/get-started.md",
+    "docs/guide.md",
+    "docs/reference.md",
+    "docs/lockdown.md",
+    "docs/errors.md",
+    "docs/bugs.md"
+  ],
+  "categoryOrder": [
+    "Guides",
+    "Reference",
+    "*",
+    "Annex"
+  ],
+  "exclude": [
+    "**/tmp/**",
+    "packages/cjs-module-analyzer",
+    "packages/cli",
+    "packages/compartment-mapper",
+    "packages/daemon",
+    "packages/evasive-transform",
+    "packages/hardened262",
+    "packages/lp32",
+    "packages/memoize",
+    "packages/module-source",
+    "packages/netstring",
+    "packages/skel",
+    "packages/stream-types-test",
+    "packages/syrup",
+    "packages/test262-runner/",
+    "packages/where"
+  ],
+  "plugin": [
+    "typedoc-plugin-mermaid"
+  ],
+  "name": "EndoJS",
+  "titleLink": "https://endojs.org",
+  "entryPointStrategy": "packages",
+  "useTsLinkResolution": true,
+  "out": "api-docs",
+  "includeVersion": true
 }

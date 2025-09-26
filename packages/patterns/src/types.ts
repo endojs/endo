@@ -178,7 +178,7 @@ export type KeyComparison = PartialComparison;
  * A function that implements a partial order over Keys.
  * Key order (a partial order) and rank order (a total preorder) are
  * co-designed to support efficient range search for Key-based queries
- * (@see {@link ../README.md#rank-order-and-key-order}).
+ * (@see {@link @endo/patterns!#rank-order-and-key-order}).
  */
 export type KeyCompare = PartialCompare<Key>;
 
