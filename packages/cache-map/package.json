@@ -44,7 +44,7 @@
   "devDependencies": {
     "ava": "catalog:testing",
     "c8": "catalog:testing",
-    "eslint": "^8.57.0",
+    "eslint": "catalog:testing",
     "tsd": "catalog:testing",
     "typescript": "~5.9.2"
   },
