@@ -7,6 +7,11 @@
 import type { ExecutionContext } from 'ava';
 import type { makeReadPowers } from '../src/node-powers.js';
 import type { LoadLocationOptions, SomePolicy } from '../archive-lite.js';
+import type {
+  FileUrlString,
+  LoadLocationOptions,
+  SomePolicy,
+} from '../src/types.js';
 
 // #region utility
 /**
@@ -44,6 +49,7 @@ export type ProjectFixtureGraph = Record<string, string[]>;
 export interface ProjectFixture<Root extends string = string> {
   root: Root;
   graph: ProjectFixtureGraph;
+  entrypoint?: FileUrlString;
 }
 
 /**
