@@ -174,7 +174,7 @@ export {};
  * other JavaScript "number" values (i.e., IEEE 754 floating-point values) but
  * otherwise rank JavaScript numbers by signed magnitude, with `0` and `-0`
  * tied, as would a semantically useful ordering such as `KeyCompare` in
- * {@link ../../patterns}.
+ * {@link @endo/patterns!}.
  * Likewise, an array sorted by rank would enable range queries by magnitude.
  *
  * @param {any} left
@@ -188,7 +188,7 @@ export {};
  * making arbitrary choices about the relative ordering of values within the
  * same rank.
  * Like `RankCompare` but even more strongly, it is expected to agree with a
- * `KeyCompare` (@see {@link ../../patterns}) where they overlap ---
+ * `KeyCompare` (@see {@link @endo/patterns!}) where they overlap ---
  * `FullCompare(key1, key2) === 0` iff `KeyCompare(key1, key2) === 0`.
  */
 
