@@ -333,7 +333,7 @@ export default makeE;
  * An eventual value where remotable objects are recursively mapped to Remote types
  *
  * @template T
- * @typedef {Awaited<T>} EResult<T>
+ * @typedef {Awaited<T>} EResult
  */
 
 /**
