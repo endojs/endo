@@ -22,12 +22,12 @@ static mut DECRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
 // 32   @64     SIGNING_KEY
 //
 //            SYN
-// 98   @128    SYN_PAYLOAD:
+// 100  @128    SYN_PAYLOAD:
 // 32   @128      INITIATOR_VERIFYING_KEY
 // 64   @160      INITIATOR_SIGNATURE of initiator's PUBLIC_CRYPT_KEY
-// 1    @224      FIRST_ENCODINGS supported
-// 1    @225      OTHER_ENCODINGS supported bit vector (first + 1 + bit)
-//      @226    padding
+// 2    @224      FIRST_ENCODINGS supported
+// 1    @226      OTHER_ENCODINGS supported bit vector (first + 1 + bit)
+//      @228    padding
 // 130  @256    SYN noise protocol message from initiator to responder
 // 32             noise protocol message overhead
 // 98             encoding SYN_PAYLOAD
@@ -61,10 +61,10 @@ const INITIATOR_VERIFYING_KEY_OFFSET: usize = 128;
 const VERIFYING_KEY_LENGTH: usize = 32;
 const INITIATOR_SIGNATURE_OFFSET: usize = 160;
 const SIGNATURE_LENGTH: usize = 64;
-// const FIRST_ENCODING_OFFSET: usize = 224;
-// const OTHER_ENCODINGS_OFFSET: usize = 225;
+// const FIRST_ENCODING_OFFSET: usize = 226;
+// const OTHER_ENCODINGS_OFFSET: usize = 228;
 const SYN_PAYLOAD_OFFSET: usize = 128;
-const SYN_PAYLOAD_LENGTH: usize = 98;
+const SYN_PAYLOAD_LENGTH: usize = 100;
 const SYN_OFFSET: usize = 256;
 const SYN_LENGTH: usize = 32 + SYN_PAYLOAD_LENGTH;
 const SYNACK_PAYLOAD_OFFSET: usize = 416;

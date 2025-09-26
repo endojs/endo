@@ -68,9 +68,9 @@ const VERIFYING_KEY_LENGTH = 32;
 // const INITIATOR_SIGNATURE_OFFSET = 160;
 // const SIGNATURE_LENGTH = 64;
 const FIRST_ENCODING_OFFSET = 224;
-// const OTHER_ENCODINGS_OFFSET = 225;
+// const OTHER_ENCODINGS_OFFSET = 226;
 // const SYN_PAYLOAD_OFFSET = 128;
-const SYN_PAYLOAD_LENGTH = 98;
+const SYN_PAYLOAD_LENGTH = 100;
 const SYN_OFFSET = 256;
 export const SYN_LENGTH = 32 + SYN_PAYLOAD_LENGTH;
 // const SYNACK_PAYLOAD_OFFSET = 416;
@@ -86,26 +86,26 @@ export const ACK_LENGTH = 64;
 /**
  * Encodes supported encoding versions into a buffer for transmission.
  *
- * @param {Uint8Array | number[]} buffer - The buffer to write to (must be at least 2 bytes)
- * @param {number[]} supportedEncodings - Array of supported encoding versions (1-9 versions, each 0-255)
+ * @param {Uint8Array} bytes - The view to write to (must be at least 2 bytes)
+ * @param {number[]} supportedEncodings - Array of supported encoding versions (1-9 versions, each 0-65536)
  * @throws {Error} If no encodings provided, too many encodings, or invalid encoding values
  */
 // exported for testing
-export const encodeSupportedEncodingsInto = (buffer, supportedEncodings) => {
+export const encodeSupportedEncodingsInto = (bytes, supportedEncodings) => {
   if (supportedEncodings.length === 0) {
     throw new Error('Must support at least one encoding version');
   }
-  if (supportedEncodings.length > 9) {
+  if (supportedEncodings.length > 16 + 1) {
     throw new Error(
-      'Cannot support more than 9 encoding versions simultaneously',
+      'Cannot support more than 17 encoding versions simultaneously',
     );
   }
   const firstEncoding = Math.min(...supportedEncodings);
   let moreEncodingsMask = 0;
   for (const encoding of supportedEncodings) {
-    if (encoding > 255) {
+    if (encoding > 65535) {
       throw new Error(
-        `Cannot support encoding versions beyond 255, got ${encoding}`,
+        `Cannot support encoding versions beyond 65535, got ${encoding}`,
       );
     }
     if (encoding === firstEncoding) {
@@ -113,33 +113,36 @@ export const encodeSupportedEncodingsInto = (buffer, supportedEncodings) => {
       continue;
     }
     // eslint-disable-next-line no-bitwise
-    const encodingBit = 0xff & (1 << (encoding - firstEncoding - 1));
+    const encodingBit = 0xff_ff & (1 << (encoding - firstEncoding - 1));
     if (!encodingBit) {
       throw new Error(
-        `Cannot simultaneously support encodings that are more than 8 versions apart, got ${supportedEncodings.join(', ')}`,
+        `Cannot simultaneously support encodings that are more than 16 versions apart, got ${supportedEncodings.join(', ')}`,
       );
     }
     // eslint-disable-next-line no-bitwise
     moreEncodingsMask |= encodingBit;
   }
-  buffer[0] = firstEncoding;
-  buffer[1] = moreEncodingsMask;
+  const dataView = new DataView(bytes.buffer, bytes.byteOffset);
+  dataView.setUint16(0, firstEncoding, false); // false for big endian
+  dataView.setUint16(2, moreEncodingsMask, false); // false for big endian
 };
 
 /**
- * Decodes supported encoding versions from a buffer.
+ * Decodes supported encoding versions from a Uint8Array.
  *
- * @param {Uint8Array | number[]} buffer - The buffer to read from (must be at least 2 bytes)
+ * @param {Uint8Array} bytes - The view to read from (must be at least 4 bytes)
  * @returns {number[]} Array of supported encoding versions
  */
-const decodeSupportedEncodingsFrom = buffer => {
+const decodeSupportedEncodingsFrom = bytes => {
+  const dataView = new DataView(bytes.buffer, bytes.byteOffset);
+
   const encodings = [];
 
-  let encoding = buffer[0];
+  let encoding = dataView.getUint16(0, false); // false for big endian
   encodings.push(encoding);
   encoding += 1;
 
-  let moreEncodingsMask = buffer[1];
+  let moreEncodingsMask = dataView.getUint16(2, false); // false for big endian
   while (moreEncodingsMask) {
     // eslint-disable-next-line no-bitwise
     if (moreEncodingsMask & 1) {

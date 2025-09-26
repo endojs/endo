@@ -3,43 +3,67 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { encodeSupportedEncodingsInto } from '../src/bindings.js';
 
 test('encodeSupportedEncodingsInto', t => {
-  const buffer = [0, 0];
+  const bytes = new Uint8Array(4);
 
-  encodeSupportedEncodingsInto(buffer, [0]);
-  t.deepEqual(buffer, [0, 0]);
+  const words = (hi, lo) => {
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setUint16(0, hi, false);
+    view.setUint16(2, lo, false);
+    return new Uint8Array(buffer);
+  };
 
-  encodeSupportedEncodingsInto(buffer, [1]);
-  t.deepEqual(buffer, [1, 0]);
+  encodeSupportedEncodingsInto(bytes, [0]);
+  t.deepEqual(bytes, words(0, 0));
 
-  encodeSupportedEncodingsInto(buffer, [1, 2]);
-  t.deepEqual(buffer, [1, 1]);
+  encodeSupportedEncodingsInto(bytes, [1]);
+  t.deepEqual(bytes, words(1, 0));
 
-  encodeSupportedEncodingsInto(buffer, [0, 2]);
-  t.deepEqual(buffer, [0, 0b10]);
+  encodeSupportedEncodingsInto(bytes, [1, 2]);
+  t.deepEqual(bytes, words(1, 1));
 
-  encodeSupportedEncodingsInto(buffer, [0, 2, 4]);
-  t.deepEqual(buffer, [0, 0b1010]);
+  encodeSupportedEncodingsInto(bytes, [0, 2]);
+  t.deepEqual(bytes, words(0, 0b10));
 
-  encodeSupportedEncodingsInto(buffer, [2, 4, 6]);
-  t.deepEqual(buffer, [2, 0b1010]);
+  encodeSupportedEncodingsInto(bytes, [0, 2, 4]);
+  t.deepEqual(bytes, words(0, 0b1010));
 
-  encodeSupportedEncodingsInto(buffer, [0, 8]);
-  t.deepEqual(buffer, [0, 0b1000_0000]);
+  encodeSupportedEncodingsInto(bytes, [2, 4, 6]);
+  t.deepEqual(bytes, words(2, 0b1010));
 
-  encodeSupportedEncodingsInto(buffer, [42, 43, 44, 45, 46, 47, 48, 49, 50]);
-  t.deepEqual(buffer, [42, 0b1111_1111]);
+  encodeSupportedEncodingsInto(bytes, [0, 8]);
+  t.deepEqual(bytes, words(0, 0b1000_0000));
 
-  encodeSupportedEncodingsInto(buffer, [255]);
-  t.deepEqual(buffer, [255, 0]);
+  encodeSupportedEncodingsInto(bytes, [42, 43, 44, 45, 46, 47, 48, 49, 50]);
+  t.deepEqual(bytes, words(42, 0b1111_1111));
 
-  t.throws(() => encodeSupportedEncodingsInto(buffer, [256]));
+  encodeSupportedEncodingsInto(bytes, [65535]);
+  t.deepEqual(bytes, words(65535, 0));
 
-  t.throws(() => encodeSupportedEncodingsInto(buffer, [0, 9]));
+  t.throws(() => encodeSupportedEncodingsInto(bytes, [65536]));
+
+  t.throws(() => encodeSupportedEncodingsInto(bytes, [0, 17]));
 
   t.throws(() =>
-    encodeSupportedEncodingsInto(
-      buffer,
-      [42, 43, 44, 45, 46, 47, 48, 49, 50, 51],
-    ),
+    encodeSupportedEncodingsInto(bytes, [
+      42, // 0 first supported
+      43, // 1 first bit in extra
+      44, // 2
+      45, // 3
+      46, // 4
+      47, // 5
+      48, // 6
+      49, // 7
+      50, // 8
+      51, // 9
+      52, // 10
+      53, // 11
+      54, // 12
+      55, // 13
+      56, // 14
+      57, // 15
+      58, // 16 last bit in extra
+      59, // 17 and one too many
+    ]),
   );
 });

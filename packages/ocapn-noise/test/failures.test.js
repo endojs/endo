@@ -191,17 +191,17 @@ test('handshake fails with message too long for decryption', async t => {
   });
 });
 
-test('handshake fails with invalid encoding versions', async t => {
-  // Test with encoding version > 255
+test.only('handshake fails with invalid encoding versions', async t => {
+  // Test with encoding version > 65535
   t.throws(
     () =>
       makeOcapnSessionCryptography({
         wasmModule,
         getRandomValues,
-        supportedEncodings: [256], // Invalid encoding version
+        supportedEncodings: [65536], // Invalid encoding version
       }).asInitiator(),
     {
-      message: 'Cannot support encoding versions beyond 255, got 256',
+      message: 'Cannot support encoding versions beyond 65535, got 65536',
     },
   );
 
@@ -211,10 +211,12 @@ test('handshake fails with invalid encoding versions', async t => {
       makeOcapnSessionCryptography({
         wasmModule,
         getRandomValues,
-        supportedEncodings: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // Too many versions
+        supportedEncodings: [
+          1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+        ], // Too many versions
       }).asInitiator(),
     {
-      message: 'Cannot support more than 9 encoding versions simultaneously',
+      message: 'Cannot support more than 17 encoding versions simultaneously',
     },
   );
 
@@ -237,11 +239,11 @@ test('handshake fails with invalid encoding versions', async t => {
       makeOcapnSessionCryptography({
         wasmModule,
         getRandomValues,
-        supportedEncodings: [1, 10], // Too far apart (more than 8 versions)
+        supportedEncodings: [1, 18], // Too far apart (more than 16 versions)
       }).asInitiator(),
     {
       message:
-        'Cannot simultaneously support encodings that are more than 8 versions apart, got 1, 10',
+        'Cannot simultaneously support encodings that are more than 16 versions apart, got 1, 18',
     },
   );
 });
