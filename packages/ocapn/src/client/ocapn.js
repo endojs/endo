@@ -230,13 +230,13 @@ export const makeGrantDetails = (
  * @property {GrantDetails} grantDetails
  *
  * @typedef {object} GrantTracker
- * @property {(remotable: Remotable, grantDetails: GrantDetails) => void} recordImport
- * @property {(remotable: Remotable) => GrantDetails | undefined} getGrantDetails
+ * @property {(remotable: RemotableObject, grantDetails: GrantDetails) => void} recordImport
+ * @property {(remotable: RemotableObject) => GrantDetails | undefined} getGrantDetails
  *
  * @returns {GrantTracker}
  */
 export const makeGrantTracker = () => {
-  /** @type {WeakMap<Remotable, GrantDetails>} */
+  /** @type {WeakMap<RemotableObject, GrantDetails>} */
   const remotableToGrant = new WeakMap();
   return harden({
     recordImport: (remotable, grantDetails) => {

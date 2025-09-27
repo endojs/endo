@@ -10,7 +10,7 @@ import {
 } from '@endo/pass-style';
 
 /**
- * @import {CopyRecord, PassStyle, Passable, RemotableObject as Remotable, ByteArray} from '@endo/pass-style'
+ * @import {CopyRecord, PassStyle, Passable, RemotableObject, ByteArray} from '@endo/pass-style'
  */
 
 import { b, q, Fail } from '@endo/errors';
@@ -551,7 +551,7 @@ const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
 /**
  * @typedef {object} EncodeOptions
  * @property {(
- *   remotable: Remotable,
+ *   remotable: RemotableObject,
  *   encodeRecur: (p: Passable) => string,
  * ) => string} [encodeRemotable]
  * @property {(
@@ -659,7 +659,7 @@ const makeInnerEncode = (encodeStringSuffix, encodeArray, options) => {
  * @property {(
  *   encodedRemotable: string,
  *   decodeRecur: (e: string) => Passable
- * ) => Remotable} [decodeRemotable]
+ * ) => RemotableObject} [decodeRemotable]
  * @property {(
  *   encodedPromise: string,
  *   decodeRecur: (e: string) => Passable
