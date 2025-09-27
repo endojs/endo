@@ -15,8 +15,6 @@ export type {
   EReturn,
   EResult,
   ECallableReturn,
-  ERemote,
-  Remote,
   RemoteFunctions,
   LocalRecord,
   FilteredKeys,
