@@ -167,6 +167,9 @@ export type PassStyleOf = {
 export type PureData = Passable<never, never>;
 
 /**
+ * @deprecated this type doesn't carry the type of the behavior for remote
+ * sends. You likely want to use {@link RemotableBrand} instead.
+ *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
  *
@@ -222,9 +225,7 @@ export type CopyRecord<T extends Passable = any> = Record<string, T>;
 export type CopyTagged<
   Tag extends string = string,
   Payload extends Passable = any,
-> = PassStyled<'tagged', Tag> & {
-  payload: Payload;
-};
+> = PassStyled<'tagged', Tag> & { payload: Payload };
 
 /**
  * This is an interface specification.
