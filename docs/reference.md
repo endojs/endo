@@ -1,16 +1,26 @@
-# Endo and Hardened JavaScript (SES) Programming Reference
+---
+title: reference
+group: Documents
+category: Reference
+---
 
-This document describes how Hardened JavaScript (formerly SES) affects writing
-Agoric JavaScript code.
-It is very much a "how to do something" document, with little explanation about why and
-how something was implemented or other background information. For that, see the more
-comprehensive [Endo and Hardened JavaScript Programming Guide](./guide.md).
+# Endo and HardenedJS (SES) Programming Reference
+
+This document describes how `ses` creates a
+[HardenedJS](https://hardenedjs.org) mode for safe JavaScript.  It is very much
+a "how to do something" document, with little explanation about why and how
+something was implemented or other background information. For that, see the
+more comprehensive [Endo and HardenedJS Programming Guide](./guide.md).
 
 ## Using SES with your code
 
-The SES shim transforms ordinary JavaScript environments into Hardened JavaScript environments.
+The SES shim transforms ordinary JavaScript environments into HardenedJS environments.
 
-On Node.js you can import or require `ses` in either CommonJS or ECMAScript modules, then call `lockdown()`. This is a *shim*. It mutates the environment in place so any code running after the shim can assume it’s running in a Hardened JavaScript environment. This includes the globals `lockdown()`, `harden()`, `Compartment`, and so on. For example:
+On Node.js you can import or require `ses` in either CommonJS or ECMAScript
+modules, then call `lockdown()`. This is a *shim*. It mutates the environment
+in place so any code running after the shim can assume it’s running in a
+HardenedJS environment. This includes the globals `lockdown()`, `harden()`,
+`Compartment`, and so on. For example:
 
 ```js
 require("ses");
@@ -24,13 +34,20 @@ import 'ses';
 lockdown();
 ```
 
-To ensure a module runs in a Hardened JavaScript environment, wrap the above code in a `ses-lockdown.js` module and import it:
+To ensure a module runs in a HardenedJS environment, wrap the above code in a
+`ses-lockdown.js` module and import it:
 
 ```js
 import './non-ses-code-before-lockdown.js';
 import './ses-lockdown.js'; // calls lockdown.
 import './ses-code-after-lockdown.js';
 ```
+
+The Endo project includes packages that do just this:
+- `@endo/lockdown` calls lockdown and threads certain environment options.
+- `@endo/init` also sets up [eventual
+  send](../packages/eventual-send/README.md) and a more completed Endo
+  environment.
 
 To use SES as a script on the web, use the UMD build.
 
@@ -55,9 +72,9 @@ SES is vulnerable to any code that runs before hardening intrinsics.
 All such code, including vetted shims, must receive careful review to ensure it
 preserves the invariants of the OCap security model.
 
-## Removed by Hardened JavaScript summary
+## Removed by HardenedJS summary
 
-The following are missing or unusable under Hardened JavaScript:
+The following are missing or unusable under HardenedJS:
 - Most [Node.js-specific global objects](https://nodejs.org/dist/latest-v14.x/docs/api/globals.html)
 - All [Node.js built-in modules](https://nodejs.org/dist/latest-v14.x/docs/api/) such as `http` and
   `crypto`.
@@ -66,9 +83,9 @@ The following are missing or unusable under Hardened JavaScript:
 - Dynamic `import` expressions
 - Direct evals
 
-## Added/Changed by Hardened JavaScript summary
+## Added/Changed by HardenedJS summary
 
-Hardened JavaScript adds the following to JavaScript or changes them significantly:
+HardenedJS adds the following to JavaScript or changes them significantly:
 - `lockdown()`
 - `harden()`
 - `Compartment`
@@ -76,13 +93,34 @@ Hardened JavaScript adds the following to JavaScript or changes them significant
 - `assert`
 - Shared JavaScript primordials are frozen.
 
-## `lockdown()`
+## `lockdown(options)`
 
-`lockdown()` tamper-proofs all of the JavaScript intrinsics, so no program can subvert their methods
-(preventing some man in the middle attacks). Also, no program can use them to pass notes to parties
-that haven't been expressly introduced (preventing some covert communication channels).
+Lockdown performs two operations and these can be separated by calling
+`repairIntrinsics(options)` and `hardenIntrinsics()`.
+They collectively prepare a realm for safe execution of code in compartments.
 
-Lockdown *freezes* all JavaScript defined objects accessible to any program in the realm. The frozen
+These methods do not erase any powerful objects from the initial global scope. Instead,
+Compartments give complete control over what powerful objects exist for client code.
+
+## `repairIntrinsics(options)`
+
+`repairIntrinsics()` *tames* some objects, such as:
+- Regular expressions
+  - A tamed RexExp does not have the deprecated compile method.
+- Locale methods
+  - Lockdown replaces locale methods like `String.prototype.localeCompare()` with lexical
+    versions that do not reveal the user locale.
+- Errors
+  - A tamed error does not have a V8 stack, but the console can still see the stack.
+
+## `hardenIntrinsics()`
+
+`hardenIntrinsics()` tamper-proofs all of the JavaScript intrinsics, so no
+program can subvert their methods (preventing some man in the middle attacks).
+Also, no program can use them to pass notes to parties that haven't been
+expressly introduced (preventing some covert communication channels).
+
+`hardenIntrinsics()` *freezes* all JavaScript defined objects accessible to any program in the realm. The frozen
 accessible objects include but are not limited to:
 - `globalThis`
 - `[].__proto__` the array prototype, equivalent to `Array.prototype` in a pristine JavaScript environment.
@@ -92,21 +130,9 @@ accessible objects include but are not limited to:
    in the global scope of a pristine JavaScript environment.
 - The properties of any accessible object
 
-`lockdown()` also *tames* some objects, such as:
-- Regular expressions
-  - A tamed RexExp does not have the deprecated compile method.
-- Locale methods
-  - Lockdown replaces locale methods like `String.prototype.localeCompare()` with lexical
-    versions that do not reveal the user locale.
-- Errors
-  - A tamed error does not have a V8 stack, but the console can still see the stack.
-
-Lockdown does not erase any powerful objects from the initial global scope. Instead,
-Compartments give complete control over what powerful objects exist for client code.
-
 ## `lockdown()` and `harden()`
 
-`lockdown()` and `harden()` essentially do the same thing; freeze objects so their
+`lockdown()` and `harden()` do the same thing; freeze objects so their
 properties cannot be changed. You can only interact with frozen objects through
 their methods. Their differences are what objects you use them on, and when you use them.
 
@@ -130,11 +156,11 @@ from a call to `lockdown()`. Their other possible value is `'unsafe'`.
 
 In addition, `errorTaming` defaults to `'safe'` but can be set to `'unsafe'`
 or `'unsafe-debug'`, as explained at
-[`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
+[`errorTaming` Options](./lockdown.md#errortaming-options).
 - `errorTaming`
 
 The tradeoff is safety vs compatibility with existing code. However, much legacy
-JavaScript code does run under Hardened JavaScript, even if both not written to
+JavaScript code does run under HardenedJS, even if both not written to
 do so and with all the options set to `'safe'`. Only consider an `'unsafe'`
 value if you both need it and can evaluate its risks.
 
@@ -237,7 +263,7 @@ lockdown({ localeTaming: 'unsafe' }); // Allow locale-specific behavior
 The default `'safe'` option actually expands what you would expect from `console`'s logging
 output. It will show information from the `assert` package and error objects.
 Errors can report more diagnostic information that should be hidden from other objects. See
-the [error README](../src/error/README.md)
+[errors](errors.md)
 for an in depth explanation of this.
 
 The `'unsafe'` setting leaves the original `console` in place. The `assert` package
@@ -337,7 +363,7 @@ debugging more pleasant. You may need to reset it to the `'moderate'` default if
 third-party shimming code interferes with `lockdown()`.
 
 `'moderate'` option is intended to be fairly minimal. Expand it when you
-encounter code which should run under Hardened JavaScript but can't due to
+encounter code which should run under HardenedJS but can't due to
 the [override mistake](https://web.archive.org/web/20141230041441/http://wiki.ecmascript.org/doku.php?id=strawman:fixing_override_mistake),
 
 The `'min'` setting serves two purposes:

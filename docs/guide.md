@@ -2,7 +2,6 @@
 title: guide
 group: Documents
 category: Guides
-children: []
 ---
 
 # Endo and HardenedJS (SES) Programming Guide

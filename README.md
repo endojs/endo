@@ -1,3 +1,9 @@
+---
+title: readme
+group: Documents
+category: Guides
+---
+
 # Endo
 
 [![contributing][contributing-svg]][contributing-url]
@@ -108,7 +114,7 @@ page](https://github.com/Agoric/SES-shim/issues).
 
 Endo and its components are [Apache 2.0 licensed][license-url].
 
-[CapTP]: packages/captp/README.md#agoriccaptp
+[CapTP]: packages/captp/README.md#endocaptp
 [Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
 [Endo Sync]: https://www.youtube.com/watch?v=tM5NyB7xxYM&list=PLzDw4TTug5O0eUj81Vnkp-mFuI4O0rBnc
 [Handled Promise]: packages/eventual-send/README.md

@@ -55,5 +55,5 @@ export type PatternKit = {
   isPattern: (patt: any) => boolean;
   getRankCover: GetRankCover;
   M: MatcherNamespace;
-  kindOf: (specimen: Passable, reject: Rejector) => Kind | undefined;
+  kindOf: (specimen: Passable) => Kind | undefined;
 };

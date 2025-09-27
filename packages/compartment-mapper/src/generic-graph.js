@@ -2,7 +2,7 @@
  * Provides {@link GenericGraph} and {@link makeShortestPath}.
  *
  * Portions adapted from
- * {@link https://github.com/datavis-tech/graph-data-structure graph-data-structure},
+ * [graph data structure](https://github.com/datavis-tech/graph-data-structure),
  * which is Copyright (c) 2016 Curran Kelleher and licensed under the MIT
  * License.
  *

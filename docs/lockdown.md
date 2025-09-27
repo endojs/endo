@@ -1,5 +1,14 @@
-See the [README](../README.md) for a description of the global `lockdown` function
-installed by the SES-shim.
+---
+title: lockdown
+group: Documents
+category: Reference
+---
+
+# Lockdown
+
+See the
+[README](https://github.com/endojs/endo/blob/master/packages/ses/README.md) for
+a description of the global `lockdown` function installed by the SES-shim.
 Essentially, calling `lockdown` turns a JavaScript system into a SES system,
 with enforced ocap (object-capability) security.
 Here we explain the configuration options to the lockdown function.
@@ -186,7 +195,7 @@ wrapped `console`.
 In addition, the virtual `console` has a special relationship with
 error objects and with the SES `assert` package, so that errors can report yet
 more diagnostic information that should remain hidden from other objects. See
-the [error README](../src/error/README.md) for an in depth explanation of this
+the [errors](errors.md) for an in depth explanation of this
 relationship between errors, `assert` and the virtual `console`.
 
 ```js
@@ -213,7 +222,7 @@ LOCKDOWN_CONSOLE_TAMING=unsafe
 The `consoleTaming: 'safe'` setting replaces the global console with a tamed
 console, and that tamed console is safe to endow to a guest `Compartment`.
 Additionally, any errors created with the `assert` function or methods on its
-namespace may have [redacted details](../src/error/README.md): information
+namespace may have [redacted details](./errors.md): information
 included in the error message that is informative to a debugger and made
 invisible to an attacker.
 The tamed console removes redactions and shows these details to the original
@@ -321,7 +330,7 @@ magic powers of the v8 `Error` constructor&mdash;those consistent with the
 level of disclosure of the proposed `getStack`. In all cases, the `Error`
 constructor shared by all other compartments is both safe and powerless.
 
-See the [error README](../src/error/README.md) for an in depth explanation of
+See the [errors guide](errors.md) for an in depth explanation of
 the relationship between errors, `assert` and the virtual `console`.
 
 When running TypeScript tests on Node without SES,
@@ -959,7 +968,7 @@ of the eventual-send shim:
 [override mistake](https://web.archive.org/web/20141230041441/http://wiki.ecmascript.org/doku.php?id=strawman:fixing_override_mistake),
 which prevents lockdown from _simply_ hardening all the primordials. Rather,
 for each of
-[these data properties](../src/enablements.js), we convert it to an accessor
+[these data properties](https://github.com/endojs/endo/blob/master/packages/ses/src/enablements.js), we convert it to an accessor
 property whose getter and setter emulate [a data property without the override
 mistake](https://github.com/tc39/ecma262/pull/1320). For non-reflective code
 the illusion is perfect. But reflective code sees that it is an accessor
@@ -981,7 +990,7 @@ Enablements have a further debugging cost. When single stepping *into* code,
 we now step into every access to an enabled property. Every read steps into
 the enabling getter. This adds yet more noise to the debugging experience.
 
-The file [src/enablements.js](../src/enablements.js) exports three different
+The file [src/enablements.js](https://github.com/endojs/endo/blob/master/packages/ses/src/enablements.js) exports three different
 lists definining which data properties to convert to enable override by
 assignment, `minEnablements`, `moderateEnablements`, and `severeEnablements`.
 
