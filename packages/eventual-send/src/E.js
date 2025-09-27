@@ -303,25 +303,6 @@ export default makeE;
  */
 
 /**
- * A type that doesn't assume its parameter is local, but is satisfied with both
- * local and remote references. It accepts both near and marshalled references
- * that were returned from `Remotable` or `Far`.
- *
- * @template Primary The type of the primary reference.
- * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {Primary | RemotableBrand<Local, Primary>} Remote
- */
-
-/**
- * A type that accepts either resolved or promised references that may be either
- * near or marshalled. @see {ERef} and @see {Remote}.
- *
- * @template Primary The type of the primary reference.
- * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {ERef<Remote<Primary, Local>>} ERemote
- */
-
-/**
  * The awaited return type of a function.
  * For the eventual result of an E call, @see {EResult} or @see {ECallableReturn}
  *
