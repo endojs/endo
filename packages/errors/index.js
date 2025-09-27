@@ -21,9 +21,8 @@ if (globalAssert === undefined) {
   );
 }
 
-const missing = /** @type {const} */ ([
+const missing = [
   'typeof',
-  'error',
   'fail',
   'equal',
   'string',
@@ -31,12 +30,17 @@ const missing = /** @type {const} */ ([
   'details',
   'Fail',
   'quote',
-  // As of 2024-02, the Agoric chain's bootstrap vat runs with a version of SES that
-  // predates addition of the 'bare' method, so we must tolerate its absence and fall
-  // back to quote behavior in that environment (see below).
+  // As of 2025-07, the Agoric chain's bootstrap vat runs with a version of SES
+  // that predates addition of the 'bare' and 'makeError' methods, so we must
+  // tolerate their absence and fall back to other behavior in that environment
+  // (see below).
   // 'bare',
+  // 'makeError',
   'makeAssert',
-]).filter(name => globalAssert[name] === undefined);
+].filter(name => globalAssert[name] === undefined);
+if (globalAssert.makeError === undefined && globalAssert.error === undefined) {
+  missing.push('makeError');
+}
 if (missing.length > 0) {
   throw Error(
     `Cannot initialize @endo/errors, missing globalThis.assert methods ${missing.join(
@@ -50,10 +54,11 @@ if (missing.length > 0) {
 // and also updates the names of the utility functions.
 const {
   bare,
-  details: redacted,
-  error: makeError,
-  Fail: throwRedacted,
+  details,
+  error,
+  Fail,
   makeAssert: _omittedMakeAssert,
+  makeError,
   note,
   quote,
   ...assertions
@@ -64,10 +69,11 @@ const assert = (value, optDetails, errContructor, options) =>
   globalAssert(value, optDetails, errContructor, options);
 Object.assign(assert, assertions);
 
-// As of 2024-02, the Agoric chain's bootstrap vat runs with a version of SES
-// that predates the addition of the 'bare' method, so we must fall back to
-// quote behavior for that environment.
+// As of 2025-07, the Agoric chain's bootstrap vat runs with a version of SES
+// that predates the addition of the 'bare' and 'makeError' methods, so we must
+// fall back to 'quote' for the former and 'error' for the latter.
 const bareOrQuote = bare || quote;
+const bestMakeError = makeError || error;
 
 // XXX module exports fail if these aren't in scope
 /** @import {AssertMakeErrorOptions, Details, GenericErrorConstructor} from 'ses' */
@@ -75,19 +81,21 @@ const bareOrQuote = bare || quote;
 export {
   // assertions
   assert,
-  // related utilities that aren't assertions
+  // non-assertion utilities that appear as properties of `assert`
   bareOrQuote as bare,
-  makeError,
+  bestMakeError as makeError,
+  details,
   note,
   quote,
-  redacted,
-  throwRedacted,
-  // conventional abbreviations and aliases
+  Fail,
+  // conventional abbreviations
   bareOrQuote as b,
+  details as X,
   quote as q,
-  redacted as X,
-  throwRedacted as Fail,
+  // other aliases
   note as annotateError,
+  details as redacted,
+  Fail as throwRedacted,
 };
 
 /**
@@ -110,7 +118,7 @@ export {
  * @returns {T}
  */
 export const hideAndHardenFunction = func => {
-  typeof func === 'function' || throwRedacted`${func} must be a function`;
+  typeof func === 'function' || Fail`${func} must be a function`;
   const { name } = func;
   defineProperty(func, 'name', {
     // Use `String` in case `name` is a symbol.

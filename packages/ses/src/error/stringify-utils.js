@@ -21,12 +21,12 @@ import {
   toStringTagSymbol,
 } from '../commons.js';
 
-/** @import {StringablePayload} from '../../types.js' */
+/** @import {Stringable} from '../../types.js' */
 
 /**
  * Joins English terms with commas and an optional conjunction.
  *
- * @param {(string | StringablePayload)[]} terms
+ * @param {(string | Stringable)[]} terms
  * @param {"and" | "or"} conjunction
  */
 export const enJoin = (terms, conjunction) => {
