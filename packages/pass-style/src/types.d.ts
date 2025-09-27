@@ -1,3 +1,4 @@
+import type { RemotableBrand } from '@endo/eventual-send';
 /* eslint-disable no-use-before-define */
 import { PASS_STYLE } from './passStyle-helpers.js';
 
@@ -78,7 +79,9 @@ export type PassByCopy = Atom | Error | CopyArray | CopyRecord | CopyTagged;
 
 export type PassByRef =
   | RemotableObject
+  | RemotableBrand<any, any>
   | Promise<RemotableObject>
+  | Promise<RemotableBrand<any, any>>
   | Promise<PassByCopy>;
 
 /**
@@ -164,6 +167,9 @@ export type PassStyleOf = {
 export type PureData = Passable<never, never>;
 
 /**
+ * @deprecated this type doesn't carry the type of the behavior for remote
+ * sends. You likely want to use {@link RemotableBrand} instead.
+ *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
  *
@@ -188,7 +194,10 @@ export type RemotableMethodName = PropertyKey;
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-export type PassableCap = Promise<any> | RemotableObject;
+export type PassableCap =
+  | Promise<any>
+  | RemotableObject
+  | RemotableBrand<any, any>;
 
 /**
  * A Passable sequence of Passable values.
@@ -216,9 +225,7 @@ export type CopyRecord<T extends Passable = any> = Record<string, T>;
 export type CopyTagged<
   Tag extends string = string,
   Payload extends Passable = any,
-> = PassStyled<'tagged', Tag> & {
-  payload: Payload;
-};
+> = PassStyled<'tagged', Tag> & { payload: Payload };
 
 /**
  * This is an interface specification.
