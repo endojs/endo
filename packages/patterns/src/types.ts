@@ -780,7 +780,9 @@ export type CopyTaggedMethodGuard = CopyTagged<
  */
 export type MethodGuard = CopyTagged<'guard:methodGuard', MethodGuardPayload>;
 
-export type AwaitArgGuardPayload = { argGuard: Pattern };
+export type AwaitArgGuardPayload = {
+  argGuard: Pattern;
+};
 
 /**
  * Guard that awaits a positional argument (for async calls).
