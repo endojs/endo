@@ -239,16 +239,15 @@ See [`lockdown()`](./lockdown.md) for how those are handled.
 Lockdown freezes
 [*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial);
 built-in JavaScript objects such as `Object`, `Array`, and `RegExp`,
-and their prototype chains. `globalThis` is also frozen. This prevents malicious code from changing their behavior
+and their prototype chains. This prevents malicious code from changing their behavior
 (imagine `Array.prototype.push` delivering a copy of its argument to an attacker, or ignoring
-certain values). It also prevents using, for example, `Object.heyBuddy` or `globalThis.heyBuddy`
+certain values). It also prevents using, for example, `Object.heyBuddy`
 as an ambient communication channel via setting a property and another program periodically reading it.
 This would violate object-capability discipline; objects may only communicate through references.
 
-Both frozen primordials and a frozen `globalThis` have problems with a few JavaScript
-libraries that add new features to built-in objects (shims/polyfills). These
-libraries stretch best practices' boundaries by adding new features to built-in
-objects in a way Compartments don't allow.
+Frozen primordials have problems with a few JavaScript libraries that add new features to
+built-in objects (shims/polyfills). These libraries stretch best practices' boundaries by adding new features
+to built-in objects in a way Compartments don't allow.
 
 ## What Lockdown removes from standard JavaScript
 
