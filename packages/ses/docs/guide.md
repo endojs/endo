@@ -30,7 +30,7 @@ HardenedJS:
 - Enforces best practices by removing hazardous features such as global
   mutable state and lack of encapsulation in sloppy mode.
 - Is a safe deterministic subset of "strict mode" JavaScript.
-- Does not include any IO objects that provide
+- Does not include any I/O objects that provide
   [*ambient authority*](https://en.wikipedia.org/wiki/Ambient_authority).
 - Removes non-determinism by modifying a few built-in objects.
 - Adds functionality to freeze and make immutable both built-in JavaScript
@@ -277,10 +277,10 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
     with `Promise.resolve().then(_ => fn())` to defer execution of `fn` until after the current event/callback
     finishes processing. But it won't run until after all *other* ready Promise callbacks execute.
 
-    There are two queues: the *IO queue* (accessed by `setImmediate`), and the *Promise queue* (accessed by
+    There are two queues: the *I/O queue* (accessed by `setImmediate`), and the *Promise queue* (accessed by
     Promise resolution). HardenedJS code can add to the Promise queue, but needs to be given a
     capability to be able to add to the I/O queue. Note that the Promise queue is
-    higher-priority than the IO queue, so the Promise queue must be empty for any IO or timers to be handled.
+    higher-priority than the I/O queue, so the Promise queue must be empty for any I/O or timers to be handled.
 * `setInterval` and `setTimeout` (and `clearInterval`/`clearTimeout`)
   * Any notion of time must come from
     exchanging messages with external timer services (the SwingSet environment provides a `TimerService` object
@@ -390,7 +390,7 @@ a constructed realm or compartment.
 
 We call the one compartment in a realm that was not expressly constructed the start
 compartment. The start compartment receives some ambient authorities from the host,
-often access to timers and IO that are denied to other compartments. Running lockdown
+often access to timers and I/O that are denied to other compartments. Running lockdown
 does not erase these powerful objects, but puts the program running in the start
 compartment on a footing where it is possible to carefully delegate powers to child
 compartments.
