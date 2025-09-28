@@ -43,8 +43,9 @@ HardenedJS consists of three parts:
 - Harden is a function that makes interfaces tamper-proof, so objects can be
   shared between programs.
 - Compartment is a class that constructs isolated environments, with separate
-  globals and modules, but shared hardened primordials and limited access to
-  other powerful objects in global scope.
+  globals and modules, but shared hardened
+  [*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial)
+  and limited access to other powerful objects in global scope.
 
 Lockdown consists of separable Repair Intrinsics and Harden Intrinsics phases,
 so that shims (other programs that alter JavaScript) may run between them.
@@ -235,7 +236,9 @@ Much of the `Intl` package, and some other objects' locale-specific aspects (e.g
 have results that depend upon which locale is configured. This varies from one process to another.
 See [`lockdown()`](./lockdown.md) for how those are handled.
 
-Lockdown freezes *primordials*; built-in JavaScript objects such as `Object`, `Array`, and `RegExp`,
+Lockdown freezes
+[*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial);
+built-in JavaScript objects such as `Object`, `Array`, and `RegExp`,
 and their prototype chains. `globalThis` is also frozen. This prevents malicious code from changing their behavior
 (imagine `Array.prototype.push` delivering a copy of its argument to an attacker, or ignoring
 certain values). It also prevents using, for example, `Object.heyBuddy` or `globalThis.heyBuddy`
@@ -337,10 +340,13 @@ realm* with *Compartments* providing just enough authority to create
 useful and secure contracts. But not enough authority to do anything
 unintended or harmful to the participants of the smart contract.
 
-JavaScript code runs in the context of
-a [*Realm*](https://www.ecma-international.org/ecma-262/10.0/index.html#sec-code-realms). A
-realm is the set of *primordials* (objects and standard library functions
-like `Array.prototype.push`) and a global object. In a web browser, an iframe is a realm.
+JavaScript code runs in the context of a
+[*Realm*](https://www.ecma-international.org/ecma-262/10.0/index.html#sec-code-realms).
+A realm is the set of
+[*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial)
+(objects and standard library functions like `Array.prototype.push`) and a
+global object.
+In a web browser, an iframe is a realm.
 In Node.js, a Node process is a realm.
 
 For historical reasons, the ECMAScript specification requires primordials
@@ -546,7 +552,8 @@ but it means their methods stay the same and can't be surprisingly changed by so
 properties cannot be changed. The only way to interact with frozen objects is through
 their methods. Their differences are what objects you use them on, and when you use them.
 
-`lockdown()` **must** be called first. It hardens JavaScript's built-in *primordials*
+`lockdown()` **must** be called first. It hardens JavaScript's built-in
+[*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial)
 (implicitly shared global objects) and enables `harden()`. If you call `harden()`
 before `lockdown()` executes, it throws an error.
 
