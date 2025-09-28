@@ -482,9 +482,11 @@ down or delete one.
 
 ## `lockdown()`
 
-`lockdown()` freezes all JavaScript defined objects accessible to any
-program in the execution environment. Calling `lockdown()` turns a JavaScript
-system into a hardened system, with enforced OCap (object-capability) security. It
+`lockdown()` freezes all objects that are accessible to every program
+in the execution environment, as well as some others that are likely to be shared
+such as `TextDecoder`, `TextEncoder`, and (if present) `Buffer`.
+Calling `lockdown()` turns a JavaScript system into a hardened system,
+with enforced OCap (object-capability) security. It
 alters the surrounding execution environment (realm) such that no two
 programs running in the same realm can observe or interfere with each other
 until they have been introduced.
