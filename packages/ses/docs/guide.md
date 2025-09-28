@@ -253,8 +253,8 @@ Almost all existing JavaScript code runs under Node.js or inside a browser, so
 it's easy to conflate environment features with JavaScript. For example, you may
 be surprised that `Buffer` and `require` are Node.js additions. Also `setTimeout()`,
 `setInterval()`, `URL`, `atob()`, `btoa()`, `TextEncoder`, and `TextDecoder` are additions
-to the programming environment standardized by the web, and are not intrinsic
-to JavaScript.
+to the programming environment standardized by the WHATWG web platform, and are not
+intrinsic to JavaScript.
 
 Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs/api/globals.html) are
 **unavailable** including:
