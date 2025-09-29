@@ -30,7 +30,7 @@ HardenedJS:
 - Enforces best practices by removing hazardous features such as global
   mutable state and lack of encapsulation in sloppy mode.
 - Is a safe deterministic subset of "strict mode" JavaScript.
-- Does not include any IO objects that provide
+- Does not include any I/O objects that provide
   [*ambient authority*](https://en.wikipedia.org/wiki/Ambient_authority).
 - Removes non-determinism by modifying a few built-in objects.
 - Adds functionality to freeze and make immutable both built-in JavaScript
@@ -43,8 +43,9 @@ HardenedJS consists of three parts:
 - Harden is a function that makes interfaces tamper-proof, so objects can be
   shared between programs.
 - Compartment is a class that constructs isolated environments, with separate
-  globals and modules, but shared hardened primordials and limited access to
-  other powerful objects in global scope.
+  globals and modules, but shared hardened
+  [*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial)
+  and limited access to other powerful objects in global scope.
 
 Lockdown consists of separable Repair Intrinsics and Harden Intrinsics phases,
 so that shims (other programs that alter JavaScript) may run between them.
@@ -235,17 +236,18 @@ Much of the `Intl` package, and some other objects' locale-specific aspects (e.g
 have results that depend upon which locale is configured. This varies from one process to another.
 See [`lockdown()`](./lockdown.md) for how those are handled.
 
-Lockdown freezes *primordials*; built-in JavaScript objects such as `Object`, `Array`, and `RegExp`,
-and their prototype chains. `globalThis` is also frozen. This prevents malicious code from changing their behavior
+Lockdown freezes
+[*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial);
+built-in JavaScript objects such as `Object`, `Array`, and `RegExp`,
+and their prototype chains. This prevents malicious code from changing their behavior
 (imagine `Array.prototype.push` delivering a copy of its argument to an attacker, or ignoring
-certain values). It also prevents using, for example, `Object.heyBuddy` or `globalThis.heyBuddy`
+certain values). It also prevents using, for example, `Object.heyBuddy`
 as an ambient communication channel via setting a property and another program periodically reading it.
 This would violate object-capability discipline; objects may only communicate through references.
 
-Both frozen primordials and a frozen `globalThis` have problems with a few JavaScript
-libraries that add new features to built-in objects (shims/polyfills). These
-libraries stretch best practices' boundaries by adding new features to built-in
-objects in a way Compartments don't allow.
+Frozen primordials have problems with a few JavaScript libraries that add new features to
+built-in objects (shims/polyfills). These libraries stretch best practices' boundaries by adding new features
+to built-in objects in a way Compartments don't allow.
 
 ## What Lockdown removes from standard JavaScript
 
@@ -253,8 +255,8 @@ Almost all existing JavaScript code runs under Node.js or inside a browser, so
 it's easy to conflate environment features with JavaScript. For example, you may
 be surprised that `Buffer` and `require` are Node.js additions. Also `setTimeout()`,
 `setInterval()`, `URL`, `atob()`, `btoa()`, `TextEncoder`, and `TextDecoder` are additions
-to the programming environment standardized by the web, and are not intrinsic
-to JavaScript.
+to the programming environment standardized by the WHATWG web platform, and are not
+intrinsic to JavaScript.
 
 Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs/api/globals.html) are
 **unavailable** including:
@@ -274,10 +276,10 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
     with `Promise.resolve().then(_ => fn())` to defer execution of `fn` until after the current event/callback
     finishes processing. But it won't run until after all *other* ready Promise callbacks execute.
 
-    There are two queues: the *IO queue* (accessed by `setImmediate`), and the *Promise queue* (accessed by
+    There are two queues: the *I/O queue* (accessed by `setImmediate`), and the *Promise queue* (accessed by
     Promise resolution). HardenedJS code can add to the Promise queue, but needs to be given a
     capability to be able to add to the I/O queue. Note that the Promise queue is
-    higher-priority than the IO queue, so the Promise queue must be empty for any IO or timers to be handled.
+    higher-priority than the I/O queue, so the Promise queue must be empty for any I/O or timers to be handled.
 * `setInterval` and `setTimeout` (and `clearInterval`/`clearTimeout`)
   * Any notion of time must come from
     exchanging messages with external timer services (the SwingSet environment provides a `TimerService` object
@@ -337,10 +339,13 @@ realm* with *Compartments* providing just enough authority to create
 useful and secure contracts. But not enough authority to do anything
 unintended or harmful to the participants of the smart contract.
 
-JavaScript code runs in the context of
-a [*Realm*](https://www.ecma-international.org/ecma-262/10.0/index.html#sec-code-realms). A
-realm is the set of *primordials* (objects and standard library functions
-like `Array.prototype.push`) and a global object. In a web browser, an iframe is a realm.
+JavaScript code runs in the context of a
+[*Realm*](https://www.ecma-international.org/ecma-262/10.0/index.html#sec-code-realms).
+A realm is the set of
+[*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial)
+(objects and standard library functions like `Array.prototype.push`) and a
+global object.
+In a web browser, an iframe is a realm.
 In Node.js, a Node process is a realm.
 
 For historical reasons, the ECMAScript specification requires primordials
@@ -384,7 +389,7 @@ a constructed realm or compartment.
 
 We call the one compartment in a realm that was not expressly constructed the start
 compartment. The start compartment receives some ambient authorities from the host,
-often access to timers and IO that are denied to other compartments. Running lockdown
+often access to timers and I/O that are denied to other compartments. Running lockdown
 does not erase these powerful objects, but puts the program running in the start
 compartment on a footing where it is possible to carefully delegate powers to child
 compartments.
@@ -477,9 +482,11 @@ down or delete one.
 
 ## `lockdown()`
 
-`lockdown()` freezes all JavaScript defined objects accessible to any
-program in the execution environment. Calling `lockdown()` turns a JavaScript
-system into a hardened system, with enforced OCap (object-capability) security. It
+`lockdown()` freezes all objects that are accessible to every program
+in the execution environment, as well as some others that are likely to be shared
+such as `TextDecoder`, `TextEncoder`, and (if present) `Buffer`.
+Calling `lockdown()` turns a JavaScript system into a hardened system,
+with enforced OCap (object-capability) security. It
 alters the surrounding execution environment (realm) such that no two
 programs running in the same realm can observe or interfere with each other
 until they have been introduced.
@@ -546,7 +553,8 @@ but it means their methods stay the same and can't be surprisingly changed by so
 properties cannot be changed. The only way to interact with frozen objects is through
 their methods. Their differences are what objects you use them on, and when you use them.
 
-`lockdown()` **must** be called first. It hardens JavaScript's built-in *primordials*
+`lockdown()` **must** be called first. It hardens JavaScript's built-in
+[*primordials*](https://github.com/tc39/how-we-work/blob/main/terminology.md#primordial)
 (implicitly shared global objects) and enables `harden()`. If you call `harden()`
 before `lockdown()` executes, it throws an error.
 
