@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",
-    "ava": "catalog:testing",
+    "ava": "catalog:dev",
     "typescript": "~5.9.2"
   },
   "dependencies": {
