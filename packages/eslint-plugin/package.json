@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10",
-    "eslint": "catalog:testing",
+    "eslint": "catalog:dev",
     "mocha": "^10.6.0"
   },
   "engines": {

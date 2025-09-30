@@ -37,10 +37,10 @@
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "ava": "^6.4.1",
-    "c8": "^7.14.0",
-    "eslint": "catalog:testing",
-    "tsd": "^0.32.0",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "tsd": "catalog:dev",
     "typescript": "~5.9.2"
   },
   "files": [

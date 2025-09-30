@@ -30,13 +30,11 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
-    "eslint": "catalog:testing",
-    "eslint-config-airbnb-base": "catalog:testing",
-    "eslint-config-prettier": "catalog:testing",
-    "eslint-plugin-eslint-comments": "catalog:testing",
-    "eslint-plugin-import": "catalog:testing",
-    "prettier": "^3.5.3",
+    "eslint": "catalog:dev",
+    "eslint-config-airbnb-base": "catalog:dev",
+    "eslint-config-prettier": "catalog:dev",
+    "eslint-plugin-eslint-comments": "catalog:dev",
+    "eslint-plugin-import": "catalog:dev",
     "typescript": "~5.9.2"
   },
   "files": [

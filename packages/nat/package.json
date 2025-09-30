@@ -31,12 +31,11 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",
-    "ava": "catalog:testing",
-    "eslint": "catalog:testing",
-    "eslint-config-airbnb-base": "catalog:testing",
-    "eslint-config-prettier": "catalog:testing",
-    "eslint-plugin-import": "catalog:testing",
-    "prettier": "^3.5.3",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev",
+    "eslint-config-airbnb-base": "catalog:dev",
+    "eslint-config-prettier": "catalog:dev",
+    "eslint-plugin-import": "catalog:dev",
     "ses": "workspace:^",
     "typescript": "~5.9.2"
   },

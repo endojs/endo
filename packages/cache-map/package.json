@@ -42,10 +42,10 @@
     "test:xs": "exit 0"
   },
   "devDependencies": {
-    "ava": "catalog:testing",
-    "c8": "catalog:testing",
-    "eslint": "catalog:testing",
-    "tsd": "catalog:testing",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "tsd": "catalog:dev",
     "typescript": "~5.9.2"
   },
   "files": [
