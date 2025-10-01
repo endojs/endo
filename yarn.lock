@@ -1211,6 +1211,40 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lavamoat/aa@npm:^4.3.4":
+  version: 4.3.4
+  resolution: "@lavamoat/aa@npm:4.3.4"
+  dependencies:
+    resolve: "npm:1.22.10"
+  bin:
+    lavamoat-ls: src/cli.js
+  checksum: 10c0/1b86a89213f773ef6ba4cace67c88f8685b969357cd8eedd3678c8d2bb27fd4c976d96a1f423abe02855b54c40ef2e28a727d01228a994188c91ba12ff886e1b
+  languageName: node
+  linkType: hard
+
+"@lavamoat/allow-scripts@npm:^3.3.5":
+  version: 3.4.0
+  resolution: "@lavamoat/allow-scripts@npm:3.4.0"
+  dependencies:
+    "@lavamoat/aa": "npm:^4.3.4"
+    "@npmcli/run-script": "npm:8.1.0"
+    bin-links: "npm:4.0.4"
+    npm-normalize-package-bin: "npm:3.0.1"
+    type-fest: "npm:4.41.0"
+    yargs: "npm:17.7.2"
+  bin:
+    allow-scripts: src/cli.js
+  checksum: 10c0/8d69072ddfaf0dc27697e76f8667bcabf3a6a3d9939f07394e94c5a00337b9c68300292166b521fde2ecaa7e2e10a37227b7cb138413a15dbea473024334ce8e
+  languageName: node
+  linkType: hard
+
+"@lavamoat/preinstall-always-fail@npm:^2.1.1":
+  version: 2.1.1
+  resolution: "@lavamoat/preinstall-always-fail@npm:2.1.1"
+  checksum: 10c0/0871036915cc9014ebf04be59c8cf86e0f79f09381c5b46111b405230de37804824bd0be515330dfa249a9e128274ced26be6efa17ea36d884afd57d04075456
+  languageName: node
+  linkType: hard
+
 "@lerna/create@npm:8.2.3":
   version: 8.2.3
   resolution: "@lerna/create@npm:8.2.3"
@@ -3269,7 +3303,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bin-links@npm:^4.0.4":
+"bin-links@npm:4.0.4, bin-links@npm:^4.0.4":
   version: 4.0.4
   resolution: "bin-links@npm:4.0.4"
   dependencies:
@@ -8327,7 +8361,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"npm-normalize-package-bin@npm:^3.0.0":
+"npm-normalize-package-bin@npm:3.0.1, npm-normalize-package-bin@npm:^3.0.0":
   version: 3.0.1
   resolution: "npm-normalize-package-bin@npm:3.0.1"
   checksum: 10c0/f1831a7f12622840e1375c785c3dab7b1d82dd521211c17ee5e9610cd1a34d8b232d3fdeebf50c170eddcb321d2c644bf73dbe35545da7d588c6b3fa488db0a5
@@ -9633,6 +9667,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"resolve@npm:1.22.10, resolve@npm:^1.22.1":
+  version: 1.22.10
+  resolution: "resolve@npm:1.22.10"
+  dependencies:
+    is-core-module: "npm:^2.16.0"
+    path-parse: "npm:^1.0.7"
+    supports-preserve-symlinks-flag: "npm:^1.0.0"
+  bin:
+    resolve: bin/resolve
+  checksum: 10c0/8967e1f4e2cc40f79b7e080b4582b9a8c5ee36ffb46041dccb20e6461161adf69f843b43067b4a375de926a2cd669157e29a29578191def399dd5ef89a1b5203
+  languageName: node
+  linkType: hard
+
 "resolve@npm:^1.10.0, resolve@npm:^1.12.0, resolve@npm:^1.22.4":
   version: 1.22.8
   resolution: "resolve@npm:1.22.8"
@@ -9646,16 +9693,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve@npm:^1.22.1":
+"resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.22.1#optional!builtin<compat/resolve>":
   version: 1.22.10
-  resolution: "resolve@npm:1.22.10"
+  resolution: "resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>::version=1.22.10&hash=c3c19d"
   dependencies:
     is-core-module: "npm:^2.16.0"
     path-parse: "npm:^1.0.7"
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: 10c0/8967e1f4e2cc40f79b7e080b4582b9a8c5ee36ffb46041dccb20e6461161adf69f843b43067b4a375de926a2cd669157e29a29578191def399dd5ef89a1b5203
+  checksum: 10c0/52a4e505bbfc7925ac8f4cd91fd8c4e096b6a89728b9f46861d3b405ac9a1ccf4dcbf8befb4e89a2e11370dacd0160918163885cbc669369590f2f31f4c58939
   languageName: node
   linkType: hard
 
@@ -9669,19 +9716,6 @@ __metadata:
   bin:
     resolve: bin/resolve
   checksum: 10c0/0446f024439cd2e50c6c8fa8ba77eaa8370b4180f401a96abf3d1ebc770ac51c1955e12764cde449fde3fff480a61f84388e3505ecdbab778f4bef5f8212c729
-  languageName: node
-  linkType: hard
-
-"resolve@patch:resolve@npm%3A^1.22.1#optional!builtin<compat/resolve>":
-  version: 1.22.10
-  resolution: "resolve@patch:resolve@npm%3A1.22.10#optional!builtin<compat/resolve>::version=1.22.10&hash=c3c19d"
-  dependencies:
-    is-core-module: "npm:^2.16.0"
-    path-parse: "npm:^1.0.7"
-    supports-preserve-symlinks-flag: "npm:^1.0.0"
-  bin:
-    resolve: bin/resolve
-  checksum: 10c0/52a4e505bbfc7925ac8f4cd91fd8c4e096b6a89728b9f46861d3b405ac9a1ccf4dcbf8befb4e89a2e11370dacd0160918163885cbc669369590f2f31f4c58939
   languageName: node
   linkType: hard
 
@@ -9894,6 +9928,8 @@ __metadata:
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
     "@jessie.js/eslint-plugin": "npm:^0.4.2"
+    "@lavamoat/allow-scripts": "npm:^3.3.5"
+    "@lavamoat/preinstall-always-fail": "npm:^2.1.1"
     "@octokit/core": "npm:^3.4.0"
     "@types/node": "npm:^20.17.24"
     ava: "npm:^6.4.1"
@@ -11158,6 +11194,13 @@ __metadata:
   bin:
     type-coverage: bin/type-coverage
   checksum: 10c0/96f701bad0c48f40cc8f976327de047823be9a72f6340def0347fbbdecc1ca497586f04b016cf14a30e22927c4a74ee98c536007f59eb855968e54de42458be5
+  languageName: node
+  linkType: hard
+
+"type-fest@npm:4.41.0":
+  version: 4.41.0
+  resolution: "type-fest@npm:4.41.0"
+  checksum: 10c0/f5ca697797ed5e88d33ac8f1fec21921839871f808dc59345c9cf67345bfb958ce41bd821165dbf3ae591cedec2bf6fe8882098dfdd8dc54320b859711a2c1e4
   languageName: node
   linkType: hard
 
