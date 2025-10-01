@@ -10,6 +10,8 @@
   "packageManager": "yarn@4.10.3",
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.4.2",
+    "@lavamoat/allow-scripts": "^3.3.5",
+    "@lavamoat/preinstall-always-fail": "^2.1.1",
     "@octokit/core": "^3.4.0",
     "@types/node": "^20.17.24",
     "ava": "^6.4.1",
@@ -65,5 +67,11 @@
   },
   "eslintConfig": {
     "root": true
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "lerna>nx": false
+    }
   }
 }
