@@ -31,9 +31,7 @@ harden(myFunction);
 By avoiding the export of hoisted `function` and `var` declarations and by
 immediately calling `harden` on any exposed function (or prototype thereof!) we
 leave no window of opportunity for another module to alter our exports.
-Depending on whether the objects our functions return to be shared by multiple
-parties (like memoized objects), a hardened module author should consider
-hardening those objects too.
+If a function's return value is meant to be shared by multiple parties (such as memoized objects), a hardened module author should harden the value before the function returns it (`return harden(value);`).
 
 # With HardenedJS
 
