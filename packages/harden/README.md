@@ -26,10 +26,6 @@ import { harden } from '@endo/harden';
 
 export const myFunction = () => {};
 harden(myFunction);
-
-export const MyConstructor = function MyConstructor() {};
-harden(MyConstructor.prototype);
-harden(MyConstructor);
 ```
 
 By avoiding the export of hoisted `function` and `var` declarations and by
@@ -45,6 +41,22 @@ The package `@endo/harden` reexports the `globalThis.harden` or
 `Object[Symbol.for('harden')]` in its execution environment, in order of
 preference, and is suitable regardless of whether a module is used
 with or without HardenedJS.
+
+When using SES, `lockdown` creates `globalThis.harden` in the Realm's
+intrinsic `globalThis` and also automatically endows `globalThis.harden`
+to any `Compartment`.
+It is possible to delete `globalThis.harden` on new compartments.
+However, every version of SES published since the introduction of `@endo/harden`
+also provides `Object[Symbol.for('harden')]`, which is a property of one
+of the hardened shared intrinsics and cannot be subverted in a compartment.
+
+The `harden` in `@endo/harden` prefers `globalThis.harden` because this
+affords the greatest degree of flexibility.
+Any multi-tenant `Compartment` should freeze its own `globalThis`, including
+making `harden` non-configurable and non-writable, so there is no risk
+of tampering, and endowing a `Compartment` with a different `harden`
+than the Realm's `Object[Symbol.for('harden')]` may be useful for some
+cases.
 
 When creating a bundle for an application that can safely assume it will run in
 a HardenedJS environment, consider passing the build condition `-C hardened`.
