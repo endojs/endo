@@ -4,6 +4,11 @@ import net from 'net';
 
 import { makeSelfIdentity, sendHello } from '../client/index.js';
 
+/**
+ * @import { Connection, NetLayer, Session, Client } from '../client/types.js'
+ * @import { OcapnLocation } from '../codecs/components.js'
+ */
+
 const { isNaN } = Number;
 
 /**
@@ -13,14 +18,6 @@ const { isNaN } = Number;
 const bufferToBytes = buffer => {
   return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 };
-
-/**
- * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
- * @typedef {import('../client/types.js').NetLayer} NetLayer
- * @typedef {import('../client/index.js').Client} Client
- * @typedef {import('../client/types.js').Connection} Connection
- * @typedef {import('../client/types.js').Session} Session
- */
 
 /**
  * @param {NetLayer} netlayer

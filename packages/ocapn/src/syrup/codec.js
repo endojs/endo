@@ -1,16 +1,16 @@
-const { freeze } = Object;
-const quote = JSON.stringify;
-
-/** @typedef {import('./decode.js').SyrupReader} SyrupReader */
-/** @typedef {import('./encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('./decode.js').SyrupType} SyrupType */
-/** @typedef {import('./decode.js').TypeHintTypes} TypeHintTypes */
+/**
+ * @import { SyrupReader, SyrupType, TypeHintTypes } from './decode.js'
+ * @import { SyrupWriter } from './encode.js'
+ */
 
 /**
  * @typedef {object} SyrupCodec
  * @property {function(SyrupReader): any} read
  * @property {function(any, SyrupWriter): void} write
  */
+
+const { freeze } = Object;
+const quote = JSON.stringify;
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const textEncoder = new TextEncoder();

@@ -1,23 +1,12 @@
 // @ts-check
 
 /**
- * @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey
- * @typedef {import('../cryptography.js').OcapnKeyPair} OcapnKeyPair
- * @typedef {import('../codecs/components.js').OcapnPublicKeyData} OcapnPublicKeyData
- * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
- * @typedef {import('../codecs/components.js').OcapnSignature} OcapnSignature
- * @typedef {import('./types.js').Session} Session
- * @typedef {import('./types.js').Connection} Connection
- * @typedef {import('./types.js').Client} Client
- * @typedef {import('./types.js').NetLayer} NetLayer
- * @typedef {import('./types.js').SelfIdentity} SelfIdentity
- * @typedef {import('./types.js').Logger} Logger
- * @typedef {import('./types.js').LocationId} LocationId
- * @typedef {import('./types.js').PendingSession} PendingSession
- * @typedef {import('./types.js').SessionManager} SessionManager
- * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
- * @typedef {import('./ocapn.js').Ocapn} Ocapn
+ * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from '../codecs/components.js'
+ * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
+ * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager } from './types.js'
  */
+
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeSyrupWriter } from '../syrup/encode.js';
 import {

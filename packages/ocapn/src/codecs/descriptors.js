@@ -1,18 +1,13 @@
 // @ts-check
 
-/** @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader */
-/** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
-/** @typedef {import('../syrup/codec.js').SyrupRecordUnionCodec} SyrupRecordUnionCodec */
-/** @typedef {import('../client/ocapn.js').TableKit} TableKit */
-/** @typedef {import('../client/types.js').OcapnPublicKey} OcapnPublicKey */
-/** @typedef {import('../client/types.js').OcapnKeyPair} OcapnKeyPair */
-/** @typedef {import('./components.js').OcapnLocation} OcapnLocation */
-/** @typedef {import('./components.js').OcapnPublicKeyData} OcapnPublicKeyData */
-/** @typedef {import('../client/ocapn.js').GrantDetails} GrantDetails */
-/** @typedef {import('../client/ocapn.js').HandoffGiveDetails} HandoffGiveDetails */
-/** @typedef {import('../cryptography.js').OcapnSignature} OcapnSignature */
+/**
+ * @import { GrantDetails, HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
+ * @import { SyrupReader } from '../syrup/decode.js'
+ * @import { SyrupWriter } from '../syrup/encode.js'
+ * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from './components.js'
+ * @import { OcapnPublicKey, OcapnKeyPair } from '../cryptography.js'
+ */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
