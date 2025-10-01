@@ -20,6 +20,8 @@ See {@link PatternMatchers} for more on `M.splitRecord()`, `M.number()`, and oth
 
 `M` also has {@link GuardMakers} methods to make {@link InterfaceGuard}s that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The {@link @endo/exo!} package uses `InterfaceGuard`s as the first level of defense for Exo objects against malformed input.
 
+If you need to translate between Endo Patterns, Zod schemas, and TypeScript declarations, start with the [Rosetta guide](./docs/rosetta/index.md). It collects executable examples together with notes about fidelity gaps and recommended work-arounds.
+
 _For best rendering, use the [Endo reference docs](https://endojs.github.io/endo) site._
 
 ## Key Equality, Containers
