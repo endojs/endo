@@ -124,6 +124,7 @@ export const confirmRecursivelyPassableErrorPropertyDesc = (
     case 'message':
     case 'stack': {
       return (
+        harden.isFake ||
         typeof value === 'string' ||
         (reject &&
           reject`Passable Error ${q(
