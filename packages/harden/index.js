@@ -68,4 +68,34 @@ const harden = object => {
   return selectedHarden(object);
 };
 
+/**
+ * True if this is the fake harden implementation (lockdown not called).
+ * Undefined if using the real harden from lockdown.
+ * @type {boolean | undefined}
+ */
+Object.defineProperty(harden, 'isFake', {
+  get() {
+    if (!selectedHarden) {
+      selectedHarden = selectHarden();
+    }
+    return selectedHarden.isFake;
+  },
+});
+
+/**
+ * Error that would be thrown if lockdown were called after using fake harden.
+ * Only present when isFake is true.
+ * @type {Error | undefined}
+ */
+Object.defineProperty(harden, 'lockdownError', {
+  get() {
+    if (!selectedHarden) {
+      selectedHarden = selectHarden();
+    }
+    return selectedHarden.lockdownError;
+  },
+});
+
+Object.freeze(harden);
+
 export default harden;
