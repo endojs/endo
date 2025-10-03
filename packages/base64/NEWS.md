@@ -1,5 +1,19 @@
 User-visible changes in base64:
 
+# Next release
+
+- Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analgous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+# Forgotten release
+
 - Export `atob.js`, `btoa.js` for compatibility with the Web and Node.js APIs of
   the same name.  Also add `shim.js` to install them on `globalThis.atob` and
   `globalThis.btoa` if they are missing.
