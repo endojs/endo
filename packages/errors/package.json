@@ -31,11 +31,13 @@
     "lint:types": "tsc",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "yarn clean",
-    "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test": "yarn test:ses && yarn test:noses && yarn ava test/ses0_18_3.test.js",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js",
     "test:xs": "exit 0"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {

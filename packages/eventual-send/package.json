@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/no-shim.js",
   "scripts": {
-    "test": "ava",
+    "test": "yarn test:ses && yarn test:noses",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "build": "exit 0",
@@ -15,7 +15,9 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint '**/*.js'",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -35,7 +37,8 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/env-options": "workspace:^"
+    "@endo/env-options": "workspace:^",
+    "@endo/harden": "workspace:^"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
