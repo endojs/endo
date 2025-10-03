@@ -27,7 +27,9 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "test": "ava",
+    "test": "yarn test:ses && yarn test:noses",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "build": "exit 0",
@@ -42,6 +44,7 @@
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/where": "workspace:^",
     "ses": "workspace:^"
   },

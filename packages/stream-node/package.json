@@ -38,10 +38,13 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava"
+    "test": "yarn test:ses && yarn test:noses",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js"
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/stream": "workspace:^",
     "ses": "workspace:^"
