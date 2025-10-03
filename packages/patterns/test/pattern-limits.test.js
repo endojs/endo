@@ -1,4 +1,5 @@
 import test from '@endo/ses-ava/prepare-endo.js';
+import harden from '@endo/harden';
 
 import { passableSymbolForName } from '@endo/pass-style';
 import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';

@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import harden from '@endo/harden';
 import { encodeBase64 } from '@endo/base64';
 import fs from 'node:fs';
 import url from 'node:url';

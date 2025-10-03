@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import {

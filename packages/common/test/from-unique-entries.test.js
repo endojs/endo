@@ -1,4 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
+
+import harden from '@endo/harden';
 import { fromUniqueEntries } from '../from-unique-entries.js';
 
 test('test fromUniqueEntries', async t => {

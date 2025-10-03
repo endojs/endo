@@ -1,5 +1,6 @@
 /* eslint-disable no-continue */
 import test from '@endo/ses-ava/prepare-endo.js';
+import harden from '@endo/harden';
 
 import { Fail } from '@endo/errors';
 import { makeTagged, Far, qp } from '@endo/marshal';

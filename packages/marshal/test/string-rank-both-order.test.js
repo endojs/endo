@@ -1,6 +1,7 @@
 import '../tools/prepare-error-if-order-choice-matters.js';
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import harden from '@endo/harden';
 import { compareRank } from '../src/rankOrder.js';
 import {
   compareByUtf16CodeUnit,

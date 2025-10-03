@@ -1,6 +1,8 @@
 import './_stack-filtering-verbose.js';
 import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { M, mustMatch } from '../src/patterns/patternMatchers.js';
 
 test('mismatch to see stack', t => {

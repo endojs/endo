@@ -1,4 +1,5 @@
 // @ts-check
+import harden from '@endo/harden';
 import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
 
