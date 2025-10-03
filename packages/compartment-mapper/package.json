@@ -51,7 +51,7 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",

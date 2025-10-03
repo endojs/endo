@@ -1,7 +1,7 @@
 // modeled on packages/marshal/test/string-rank-unicode-order.test.js
 import harden from '@endo/harden';
 import '@endo/marshal/tools/prepare-unicode-code-point-order.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import {
   multiplanarStrings,

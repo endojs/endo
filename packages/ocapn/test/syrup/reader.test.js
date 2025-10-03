@@ -1,6 +1,6 @@
 // @ts-check
 /* global Buffer */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 import * as fs from 'fs';
 import path from 'path';
 import { makeSyrupReader } from '../../src/syrup/decode.js';

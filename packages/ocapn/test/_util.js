@@ -2,7 +2,7 @@
 
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
 

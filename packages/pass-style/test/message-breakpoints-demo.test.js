@@ -1,5 +1,5 @@
 import './_prepare-breakpoints.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { E } from '@endo/eventual-send';
 import { Far } from '../src/make-far.js';
