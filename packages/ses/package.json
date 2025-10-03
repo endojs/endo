@@ -89,7 +89,7 @@
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
-    "test:hermes": "./scripts/hermes-test.sh",
+    "test:hermes": "node ./scripts/hermes-test.js ./test/hermes/*",
     "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
