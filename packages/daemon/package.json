@@ -70,10 +70,6 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "eslint-config-airbnb-base": "catalog:dev",
-    "eslint-config-prettier": "catalog:dev",
-    "eslint-plugin-eslint-comments": "catalog:dev",
-    "eslint-plugin-import": "catalog:dev",
     "typescript": "~5.9.2"
   },
   "files": [

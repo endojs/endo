@@ -53,10 +53,6 @@
   "devDependencies": {
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
-    "eslint-config-airbnb-base": "catalog:dev",
-    "eslint-config-prettier": "catalog:dev",
-    "eslint-plugin-eslint-comments": "catalog:dev",
-    "eslint-plugin-import": "catalog:dev",
     "execa": "^9.3.0",
     "typescript": "~5.9.2"
   },

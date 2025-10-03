@@ -230,6 +230,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -317,6 +318,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -402,6 +404,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     ses: "workspace:^"
     ses0_18_3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
@@ -449,6 +452,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -489,6 +493,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -522,6 +527,7 @@ __metadata:
     "@endo/where": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -537,6 +543,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     ava: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -545,6 +552,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/lockdown@workspace:packages/lockdown"
   dependencies:
+    eslint: "catalog:dev"
     ses: "workspace:^"
   languageName: unknown
   linkType: soft
@@ -714,6 +722,7 @@ __metadata:
   dependencies:
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -747,6 +756,7 @@ __metadata:
   dependencies:
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
