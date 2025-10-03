@@ -1,5 +1,17 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+- Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analgous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
 # 1.8.0 (2025-07-11)
 
 - Introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
