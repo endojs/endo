@@ -74,7 +74,7 @@ test('test amplify defineExoClassKit', t => {
   t.is(downCounter.decr(), 7);
 
   t.throws(() => amp(harden({})), {
-    message: 'Must be a facet of "Counter": {}',
+    message: /^Must be a facet of "Counter": (\(an object\)|\{\})$/,
   });
   t.deepEqual(amp(upCounter), counterKit);
   t.deepEqual(amp(downCounter), counterKit);

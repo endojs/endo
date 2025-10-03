@@ -192,7 +192,7 @@ test('matching', t => {
       ),
     {
       message:
-        'The entries of a copyBag must be sorted in reverse rank order: [["a","[1n]"],["b","[2n]"],["c","[3n]"],["z","[26n]"]]',
+        /The entries of a copyBag must be sorted in reverse rank order: (\(an object\)|\[\["a","\[1n\]"\],\["b","\[2n\]"\],\["c","\[3n\]"\],\["z","\[26n\]"\]\])/,
     },
     'key-reversed pattern is rejected',
   );

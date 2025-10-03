@@ -33,12 +33,12 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.bigint({ decimalDigitsLimit: 2 }),
-      'bigint "[379n]" must not have more than 2 digits',
+      /^bigint (\(a bigint\)|"\[379n\]") must not have more than (\(a number\)|2) digits$/,
     );
     failCase(
       specimen,
       M.nat({ decimalDigitsLimit: 2 }),
-      'bigint "[379n]" must not have more than 2 digits',
+      /^bigint (\(a bigint\)|"\[379n\]") must not have more than (\(a number\)|2) digits$/,
     );
   }
   {
@@ -49,13 +49,17 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.bigint({ decimalDigitsLimit: 2 }),
-      'bigint "[-379n]" must not have more than 2 digits',
+      /^bigint (\(a bigint\)|"\[-379n\]") must not have more than (\(a number\)|2) digits$/,
     );
-    failCase(specimen, M.nat(), '"[-379n]" - Must be non-negative');
+    failCase(
+      specimen,
+      M.nat(),
+      /^(\(a bigint\)|"\[-379n\]") - Must be non-negative$/,
+    );
     failCase(
       specimen,
       M.nat({ decimalDigitsLimit: 2 }),
-      '"[-379n]" - Must be non-negative',
+      /^(\(a bigint\)|"\[-379n\]") - Must be non-negative$/,
     );
   }
   {
@@ -66,12 +70,12 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.bigint(),
-      /^bigint "\[1(0+)n\]" must not have more than 100 digits$/,
+      /^bigint (\(a bigint\)|"\[1(0+)n\]") must not have more than (\(a number\)|100) digits$/,
     );
     failCase(
       specimen,
       M.nat(),
-      /^bigint "\[1(0+)n\]" must not have more than 100 digits$/,
+      /^bigint (\(a bigint\)|"\[1(0+)n\]") must not have more than (\(a number\)|100) digits$/,
     );
   }
   {
@@ -88,12 +92,12 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.bag(harden({ decimalDigitsLimit: 2 })),
-      'bag counts[1]: bigint "[379n]" must not have more than 2 digits',
+      /^bag counts\[1\]: bigint (\(a bigint\)|"\[379n\]") must not have more than (\(a number\)|2) digits$/,
     );
     failCase(
       specimen,
       M.bagOf(M.string(), undefined, harden({ decimalDigitsLimit: 2 })),
-      'bag counts[1]: bigint "[379n]" must not have more than 2 digits',
+      /^bag counts\[1\]: bigint (\(a bigint\)|"\[379n\]") must not have more than (\(a number\)|2) digits$/,
     );
   }
   // stringLengthLimit
@@ -104,7 +108,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.string(harden({ stringLengthLimit: 10 })),
-      'string "moderate length string" must not be bigger than 10',
+      /^string (\(a string\)|"moderate length string") must not be bigger than (\(a number\)|10)$/,
     );
   }
   {
@@ -114,7 +118,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.string(),
-      /^string "(x+)" must not be bigger than 100000$/,
+      /^string (\(a string\)|"(x+)") must not be bigger than (\(a number\)|100000)$/,
     );
   }
   // symbolNameLengthLimit
@@ -126,7 +130,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.symbol(harden({ symbolNameLengthLimit: 10 })),
-      'Symbol name "moderate length string" must not be bigger than 10',
+      /^Symbol name (\(a string\)|"moderate length string") must not be bigger than (\(a number\)|10)$/,
     );
   }
   {
@@ -141,7 +145,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.symbol(),
-      /^Symbol name "(x+)" must not be bigger than 100$/,
+      /^Symbol name (\(a string\)|"(x+)") must not be bigger than (\(a number\)|100)$/,
     );
   }
   // numPropertiesLimit, propertyNameLengthLimit
@@ -169,12 +173,12 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.record(harden({ numPropertiesLimit: 2 })),
-      'Must not have more than 2 properties: {"a":"[10000000n]","x0123456789":"[379n]","z":"[1000000n]"}',
+      /^Must not have more than (\(a number\)|2) properties: (\(an? object\)|\{"a":"\[10000000n\]","x0123456789":"\[379n\]","z":"\[1000000n\]"\})$/,
     );
     failCase(
       specimen,
       M.record(harden({ propertyNameLengthLimit: 5 })),
-      'x0123456789: Property name must not be longer than 5',
+      /^(\(a string\)|x0123456789): Property name must not be longer than (\(a number\)|5)$/,
     );
   }
   // arrayLengthLimit
@@ -191,28 +195,32 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.array(harden({ arrayLengthLimit: 10 })),
-      'Array length 22 must be <= limit 10',
+      /^Array length (\(a number\)|22) must be <= limit (\(a number\)|10)$/,
     );
     failCase(
       specimen,
       M.arrayOf(M.number()),
-      '[0]: string "m" - Must be a number',
+      /^\[0\]: string (\(a string\)|"m") - Must be a number$/,
     );
     failCase(
       specimen,
       M.arrayOf(M.number(), harden({ arrayLengthLimit: 10 })),
-      'Array length 22 must be <= limit 10',
+      /^Array length (\(a number\)|22) must be <= limit (\(a number\)|10)$/,
     );
     failCase(
       specimen,
       M.arrayOf(M.string(), harden({ arrayLengthLimit: 10 })),
-      'Array length 22 must be <= limit 10',
+      /^Array length (\(a number\)|22) must be <= limit (\(a number\)|10)$/,
     );
   }
   {
     const specimen = Array(defaultLimits.arrayLengthLimit + 1).fill(1);
     successCase(specimen, M.array(harden({ arrayLengthLimit: Infinity })));
-    failCase(specimen, M.array(), 'Array length 10001 must be <= limit 10000');
+    failCase(
+      specimen,
+      M.array(),
+      /^Array length (\(a number\)|10001) must be <= limit (\(a number\)|10000)$/,
+    );
   }
   // byteLengthLimit
   {
@@ -223,7 +231,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.byteArray(harden({ byteLengthLimit: 999 })),
-      /byteArray "\[.*ArrayBuffer\]" must not be bigger than 999/,
+      /byteArray (\(an? object\)|"\[.*ArrayBuffer\]") must not be bigger than (\(a number\)|999)/,
     );
   }
   // numSetElementsLimit
@@ -235,7 +243,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.set(harden({ numSetElementsLimit: 3 })),
-      'Set must not have more than 3 elements: 6',
+      /^Set must not have more than (\(a number\)|3) elements: (\(a number\)|6)$/,
     );
   }
   // numUniqueBagElementsLimit
@@ -252,7 +260,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.bag(harden({ numUniqueBagElementsLimit: 3 })),
-      'Bag must not have more than 3 unique elements: "[copyBag]"',
+      /^Bag must not have more than (\(a number\)|3) unique elements: (\(an object\)|"\[copyBag\]")$/,
     );
   }
   // numMapEntriesLimit
@@ -269,7 +277,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.map(harden({ numMapEntriesLimit: 3 })),
-      'CopyMap must have no more than 3 entries: "[copyMap]"',
+      /^CopyMap must have no more than (\(a number\)|3) entries: (\(an object\)|"\[copyMap\]")$/,
     );
   }
 };

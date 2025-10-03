@@ -236,7 +236,7 @@ test('smallcaps mal-formed @qclass', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
   t.throws(() => uns('#{"#foo": 0}'), {
-    message: 'Unrecognized record type "#foo": {"#foo":0}',
+    message: /^Unrecognized record type "#foo": (\(an object\)|\{"#foo":0\})$/,
   });
 });
 
@@ -433,8 +433,9 @@ test('smallcaps encoding examples', t => {
   nonPassableErr.extraProperty = 'something bad';
   harden(nonPassableErr);
   t.throws(() => passStyleOf(nonPassableErr), {
+    // Tolerate both redacted and unredacted property descriptor in error message
     message:
-      /Passable Error "extraProperty" own property must not be enumerable: \{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\}/,
+      /Passable Error "extraProperty" own property must not be enumerable: (\(an object\)|\{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\})/,
   });
   assertSer(
     nonPassableErr,

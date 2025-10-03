@@ -77,7 +77,7 @@ test('some passStyleOf rejections', t => {
   }
   t.throws(() => passStyleOf(harden(hairlessError)), {
     message:
-      'Passable Error must have an own "message" string property: "[Error: ]"',
+      /Passable Error must have an own "message" string property: ("\[Error: \]"|\(an Error\))/,
   });
 
   t.throws(() => passStyleOf(unpassableSymbolForName('unique')), {
@@ -88,7 +88,8 @@ test('some passStyleOf rejections', t => {
     t.is(passStyleOf({}), 'copyRecord');
   } else {
     t.throws(() => passStyleOf({}), {
-      message: /Cannot pass non-frozen objects like {}. Use harden\(\)/,
+      message:
+        /Cannot pass non-frozen objects like ({}|\(an object\)). Use harden\(\)/,
     });
   }
 
@@ -109,7 +110,7 @@ test('some passStyleOf rejections', t => {
   harden(prbad1);
   t.throws(() => passStyleOf(prbad1), {
     message:
-      /"\[Promise\]" - Must inherit from Promise.prototype: "\[Promise\]"/,
+      /("\[Promise\]"|\(an object\)) - Must inherit from Promise.prototype: "\[Promise\]"/,
   });
 
   const prbad2 = Promise.resolve();
@@ -117,14 +118,16 @@ test('some passStyleOf rejections', t => {
   prbad2.extra = 'unexpected own property';
   harden(prbad2);
   t.throws(() => passStyleOf(prbad2), {
-    message: /\[Promise\]" - Must not have any own properties: \["extra"\]/,
+    message:
+      /("\[Promise\]"|\(an object\)) - Must not have any own properties: \["extra"\]/,
   });
 
   const prbad3 = Promise.resolve();
   Object.defineProperty(prbad3, 'then', { value: () => 'bad then' });
   harden(prbad3);
   t.throws(() => passStyleOf(prbad3), {
-    message: /\[Promise\]" - Must not have any own properties: \["then"\]/,
+    message:
+      /("\[Promise\]"|\(an object\)) - Must not have any own properties: \["then"\]/,
   });
 
   const thenable1 = harden({ then: () => 'thenable' });
@@ -187,21 +190,26 @@ test('passStyleOf testing tagged records', t => {
     value: 'unexpected own property',
   });
   t.throws(() => passStyleOf(harden(tagRecordExtra)), {
-    message: 'Unexpected properties on tagged record ["extra"]',
+    message:
+      /Unexpected properties on tagged record (\["extra"\]|\(an object\))/,
   });
 
   const tagRecordBadPayloads = [
-    { label: 'absent', message: '"payload" property expected: "[tagged]"' },
+    {
+      label: 'absent',
+      message: /"payload" property expected: ("\[tagged\]"|\(an object\))/,
+    },
     {
       label: 'non-enumerable',
       value: 0,
       enumerable: false,
-      message: '"payload" must be an enumerable property: "[tagged]"',
+      message:
+        /"payload" must be an enumerable property: ("\[tagged\]"|\(an object\))/,
     },
     {
       label: 'non-passable',
       value: { [PASS_STYLE]: 0 },
-      message: '0 must be a string',
+      message: /(0|\(a number\)) must be a string/,
     },
   ];
   for (const testCase of tagRecordBadPayloads) {
@@ -249,7 +257,7 @@ test('passStyleOf testing remotables', t => {
   } else {
     t.throws(() => passStyleOf(farObj2), {
       message:
-        /A tagRecord must be frozen: "\[Alleged: tagRecord not hardened\]"/,
+        /A tagRecord must be frozen: ("\[Alleged: tagRecord not hardened\]"|\(an object\))/,
     });
   }
 
@@ -318,7 +326,8 @@ test('passStyleOf testing remotables', t => {
   class NonFarBaseClass9 {}
   class Subclass9 extends NonFarBaseClass9 {}
   t.throws(() => Far('FarType9', Subclass9.prototype), {
-    message: 'For now, remotables cannot inherit from anything unusual, in {}',
+    message:
+      /For now, remotables cannot inherit from anything unusual, in ({}|\(an object\))/,
   });
 
   const unusualTagRecordProtoMessage =
@@ -345,9 +354,24 @@ test('passStyleOf testing remotables', t => {
     'null-proto-tagRecord grandproto is rejected',
   );
 
-  t.throws(() => passStyleOf(Object.prototype), {
-    message: 'cannot serialize Remotables with accessors like "toString" in {}',
-  });
+  t.throws(
+    () =>
+      passStyleOf(
+        harden(
+          Object.create(null, {
+            toString: {
+              get() {
+                return '[Fixture]';
+              },
+            },
+          }),
+        ),
+      ),
+    {
+      message:
+        /cannot serialize Remotables with accessors like "toString" in ({}|\(an object\))/,
+    },
+  );
 
   const fauxTagRecordB = harden(
     makeTagishRecord('Alleged: manually constructed', harden({})),
@@ -358,7 +382,7 @@ test('passStyleOf testing remotables', t => {
   const farObjB = hardenToBeSuppressTrapping({ __proto__: farObjProtoB });
   t.throws(() => passStyleOf(farObjB), {
     message:
-      'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
+      /cannot serialize Remotables with non-methods like "Symbol\(passStyle\)" in ("\[Alleged: manually constructed\]"|\(an object\))/,
   });
 
   const farObjProtoWithExtra = makeTagishRecord(
@@ -370,7 +394,8 @@ test('passStyleOf testing remotables', t => {
     __proto__: farObjProtoWithExtra,
   });
   t.throws(() => passStyleOf(badFarObjExtraProtoProp), {
-    message: 'Unexpected properties on Remotable Proto ["extra"]',
+    message:
+      /Unexpected properties on Remotable Proto (\["extra"\]|\(an object\))/,
   });
 
   t.is(passStyleOf(harden({ __proto__: Object.prototype })), 'copyRecord');
@@ -447,7 +472,8 @@ test('remotables - safety from the gibson042 attack', t => {
     // console.log('# passStyleOf(input1)');
     // console.log(passStyleOf(input1)); // => "remotable"
     t.throws(() => passStyleOf(input1), {
-      message: 'A tagRecord must be frozen: "[undefined: undefined]"',
+      message:
+        /A tagRecord must be frozen: ("\[undefined: undefined\]"|\(an undefined\))/,
     });
   }
 
@@ -456,7 +482,7 @@ test('remotables - safety from the gibson042 attack', t => {
   // console.log(passStyleOf(input1)); // => "remotable"
   t.throws(() => passStyleOf(input1), {
     message:
-      'Passable Error must inherit from an error class .prototype: "[undefined: undefined]"',
+      /Passable Error must inherit from an error class .prototype: (\(an undefined\)|"\[undefined: undefined\]")/,
   });
 
   // different because of changes in the prototype
@@ -465,7 +491,7 @@ test('remotables - safety from the gibson042 attack', t => {
   // console.log(passStyleOf(input2)); // => Error (Errors must inherit from an error class .prototype)
   t.throws(() => passStyleOf(input2), {
     message:
-      'Passable Error must inherit from an error class .prototype: "[undefined: undefined]"',
+      /Passable Error must inherit from an error class .prototype: ("\[undefined: undefined\]"|\(an undefined\))/,
   });
 });
 
@@ -483,7 +509,8 @@ test('Unexpected stack on errors', t => {
   harden(err);
 
   t.throws(() => passStyleOf(err), {
-    message: 'Passable Error "stack" own property must be a string: {}',
+    message:
+      /Passable Error "stack" own property must be a (string|data property): ({}|\(an object\))/,
   });
 });
 

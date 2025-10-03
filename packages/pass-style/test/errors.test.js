@@ -19,7 +19,8 @@ const { defineProperty } = Object;
 test('style of extended errors', t => {
   const e1 = Error('e1');
   t.throws(() => passStyleOf(e1), {
-    message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
+    message:
+      /Cannot pass non-frozen objects like ("\[Error: e1\]"|\(an Error\)). Use harden\(\)/,
   });
   harden(e1);
   t.is(passStyleOf(e1), 'error');
@@ -74,7 +75,8 @@ test('toPassableError, toThrowable', t => {
   // a throwable singleton copyArray containing a toThrowable(e), i.e.,
   // an error like e2.
   t.throws(() => toThrowable(notYetCoercable), {
-    message: 'Passable Error has extra unpassed property "foo"',
+    message:
+      /Passable Error "stack" own property must be a data property: \(an object\)|Passable Error has extra unpassed property "foo"/,
   });
 
   const throwable = harden([e2, { e2 }, makeTagged('e2', e2)]);

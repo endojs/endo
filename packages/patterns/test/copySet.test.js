@@ -99,11 +99,11 @@ test('operations on golden inputs', t => {
   const z = makeCopySet(['c', 'b']);
   const yUz = setUnion(y, z);
   t.throws(() => setDisjointUnion(y, z), {
-    message: /Sets must not have common elements: "b"/,
+    message: /Sets must not have common elements: (\(a string\)|"b")/,
   });
   const xMy = setDisjointSubtract(x, y);
   t.throws(() => setDisjointUnion(y, z), {
-    message: /Sets must not have common elements: "b"/,
+    message: /Sets must not have common elements: (\(a string\)|"b")/,
   });
   const cy = setDisjointUnion(xMy, y);
   const yIz = setIntersection(y, z);
@@ -200,7 +200,7 @@ test('matching', t => {
       ),
     {
       message:
-        'The keys of a copySet or copyMap must be sorted in reverse rank order: ["a","b","c","z"]',
+        /The keys of a copySet or copyMap must be sorted in reverse rank order: (\(an object\)|\["a","b","c","z"\])/,
     },
     'key-reversed pattern is rejected',
   );

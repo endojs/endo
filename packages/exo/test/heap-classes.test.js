@@ -22,7 +22,7 @@ test('what happens with extra arguments', t => {
   });
   t.throws(() => exo.foo('an extra arg'), {
     message:
-      '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
+      /^"In \\"foo\\" method of \(NoExtraArgs\)" accepts at most 0 arguments, not 1: (\(an object\)|\["an extra arg"\])$/,
   });
 });
 
@@ -71,12 +71,14 @@ test('test defineExoClass', t => {
   t.is(upCounter.incr(5), 8);
   t.is(upCounter.incr(1), 9);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (UpCounter): arg 0?: -3 - Must be >= 0',
+    // Tolerate both redacted and unredacted error messages
+    message:
+      /^In "incr" method of \(UpCounter\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // @ts-expect-error bad arg
   t.throws(() => upCounter.incr('foo'), {
     message:
-      'In "incr" method of (UpCounter): arg 0?: string "foo" - Must be a number',
+      /^In "incr" method of \(UpCounter\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
@@ -95,7 +97,7 @@ test('test defineExoClass', t => {
   // @ts-expect-error intentional for test
   t.throws(() => foo.m2('invalid arg'), {
     message:
-      'In "m2" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+      /^In "m2" method of \(Foo\): arg 0: string (\(a string\)|"invalid arg") - Must be a boolean$/,
   });
 });
 
@@ -132,12 +134,13 @@ test('test defineExoClassKit', t => {
   t.is(downCounter.decr(), 7);
   t.is(upCounter.incr(3), 10);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (Counter up): arg 0?: -3 - Must be >= 0',
+    message:
+      /^In "incr" method of \(Counter up\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // @ts-expect-error the type violation is what we're testing
   t.throws(() => downCounter.decr('foo'), {
     message:
-      'In "decr" method of (Counter down): arg 0?: string "foo" - Must be a number',
+      /^In "decr" method of \(Counter down\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   // @ts-expect-error bad arg
   t.throws(() => upCounter.decr(3), {
@@ -158,12 +161,13 @@ test('test makeExo', t => {
   t.is(upCounter.incr(5), 8);
   t.is(upCounter.incr(1), 9);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (upCounter): arg 0?: -3 - Must be >= 0',
+    message:
+      /^In "incr" method of \(upCounter\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // @ts-expect-error deliberately bad arg for testing
   t.throws(() => upCounter.incr('foo'), {
     message:
-      'In "incr" method of (upCounter): arg 0?: string "foo" - Must be a number',
+      /^In "incr" method of \(upCounter\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
 });
@@ -341,13 +345,13 @@ test('naked function call', t => {
   const { sayHello, [GET_INTERFACE_GUARD]: gigm } = greeter;
   t.throws(() => sayHello(), {
     message:
-      'Method "In \\"sayHello\\" method of (greeter)" called without \'this\' object',
+      /^Method (\(a string\)|"In \\"sayHello\\" method of \(greeter\)") called without 'this' object$/,
   });
   t.is(sayHello.bind(greeter)(), 'hello');
 
   t.throws(() => gigm?.(), {
     message:
-      'Method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
+      /^Method (\(a string\)|"In \\"__getInterfaceGuard__\\" method of \(greeter\)") called without 'this' object$/,
   });
   t.deepEqual(gigm?.bind(greeter)(), GreeterI);
 });

@@ -17,7 +17,9 @@ test('test fromUniqueEntries', async t => {
         ['a', 2],
       ]),
     {
-      message: 'collision on property name "a": [["a",1],["a",2]]',
+      // Tolerate both redacted and unredacted error messages
+      message:
+        /^collision on property name "a": (\(an object\)|\[\["a",1\],\["a",2\]\])$/,
     },
   );
 

@@ -24,14 +24,16 @@ test('exo doubler using js classes', t => {
   t.is(passStyleOf(doubler), 'remotable');
   t.is(doubler.double(3), 6);
   t.throws(() => doubler.double('x'), {
-    message: 'In "double" method of (doubler): arg 0: "x" - Must be <= 10',
+    message:
+      /^In "double" method of \(doubler\): arg 0: (\(a string\)|"x") - Must be <= (\(a number\)|10)$/,
   });
   t.throws(() => doubler.double(), {
     message:
-      'In "double" method of (doubler): Expected at least 1 arguments: []',
+      /^In "double" method of \(doubler\): Expected at least 1 arguments: (\(an object\)|\[\])$/,
   });
   t.throws(() => doubler.double(12), {
-    message: 'In "double" method of (doubler): arg 0: 12 - Must be <= 10',
+    message:
+      /^In "double" method of \(doubler\): arg 0: (\(a number\)|12) - Must be <= (\(a number\)|10)$/,
   });
 });
 
@@ -71,7 +73,7 @@ test('exo inheritance self vs super call', t => {
   t.is(da.doubleAddSelfCall(3), 11);
   t.throws(() => da.doubleAddSelfCall(12), {
     message:
-      'In "double" method of (doubleAdderClass): arg 0: 12 - Must be <= 10',
+      /^In "double" method of \(doubleAdderClass\): arg 0: (\(a number\)|12) - Must be <= (\(a number\)|10)$/,
   });
   t.is(da.doubleAddSuperCall(12), 29);
 });

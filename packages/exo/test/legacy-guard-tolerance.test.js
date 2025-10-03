@@ -95,7 +95,7 @@ test('legacy guard tolerance', async t => {
       }),
     {
       message:
-        'interfaceGuard: guard:interfaceGuard: methodGuards: lmg: [1]: copyRecord {"argGuards":[77,{"argGuard":88,"klass":"awaitArg"}],"callKind":"async","klass":"methodGuard","returnGuard":"[match:any]"} - Must be a guard:methodGuard',
+        /^interfaceGuard: guard:interfaceGuard: methodGuards: lmg: \[1\]: copyRecord (\(an object\)|\{"argGuards":\[77,\{"argGuard":88,"klass":"awaitArg"\}\],"callKind":"async","klass":"methodGuard","returnGuard":"\[match:any\]"\}) - Must be a guard:methodGuard$/,
     },
   );
   // @ts-expect-error Legacy adaptor can be ill typed
@@ -122,11 +122,11 @@ test('legacy guard tolerance', async t => {
   t.deepEqual(await f1.mg1(77, 88), [77, 88]);
   await t.throwsAsync(async () => f1.mg1(77, laag), {
     message:
-      'In "mg1" method of (foo): arg 1: {"argGuard":88,"klass":"awaitArg"} - Must be: 88',
+      /^In "mg1" method of \(foo\): arg 1: (\(an object\)|\{"argGuard":88,"klass":"awaitArg"\}) - Must be: (\(a number\)|88)$/,
   });
   await t.throwsAsync(async () => f1.mg2(77, 88), {
     message:
-      'In "mg2" method of (foo): arg 1: 88 - Must be: {"argGuard":88,"klass":"awaitArg"}',
+      /^In "mg2" method of \(foo\): arg 1: (\(a number\)|88) - Must be: (\(an object\)|\{"argGuard":88,"klass":"awaitArg"\})$/,
   });
   t.deepEqual(await f1.mg2(77, laag), [77, laag]);
 
@@ -143,16 +143,16 @@ test('legacy guard tolerance', async t => {
   t.deepEqual(await f2.mg1(77, 88), [77, 88]);
   await t.throwsAsync(async () => f2.mg1(77, laag), {
     message:
-      'In "mg1" method of (foo): arg 1: {"argGuard":88,"klass":"awaitArg"} - Must be: 88',
+      /^In "mg1" method of \(foo\): arg 1: (\(an object\)|\{"argGuard":88,"klass":"awaitArg"\}) - Must be: (\(a number\)|88)$/,
   });
   await t.throwsAsync(async () => f2.mg2(77, 88), {
     message:
-      'In "mg2" method of (foo): arg 1: 88 - Must be: {"argGuard":88,"klass":"awaitArg"}',
+      /^In "mg2" method of \(foo\): arg 1: (\(a number\)|88) - Must be: (\(an object\)|\{"argGuard":88,"klass":"awaitArg"\})$/,
   });
   t.deepEqual(await f2.mg2(77, laag), [77, laag]);
   t.deepEqual(await f2.lmg(77, 88), [77, 88]);
   await t.throwsAsync(async () => f2.lmg(77, laag), {
     message:
-      'In "lmg" method of (foo): arg 1: {"argGuard":88,"klass":"awaitArg"} - Must be: 88',
+      /^In "lmg" method of \(foo\): arg 1: (\(an object\)|\{"argGuard":88,"klass":"awaitArg"\}) - Must be: (\(a number\)|88)$/,
   });
 });

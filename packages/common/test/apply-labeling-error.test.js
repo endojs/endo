@@ -15,15 +15,16 @@ test('test applyLabelingError', async t => {
   );
   t.is(await applyLabelingError(async x => x * 2, [8], 'foo'), 16);
   t.throws(() => applyLabelingError(x => Fail`${x}`, ['e']), {
-    message: '"e"',
+    // Tolerate both redacted and unredacted error messages
+    message: /^(\(a string\)|"e")$/,
   });
   t.throws(() => applyLabelingError(x => Fail`${x}`, ['e'], 'foo'), {
-    message: 'foo: "e"',
+    message: /^foo: (\(a string\)|"e")$/,
   });
   await t.throwsAsync(
     async () => applyLabelingError(x => Fail`${x}`, ['e'], 'foo'),
     {
-      message: 'foo: "e"',
+      message: /^foo: (\(a string\)|"e")$/,
     },
   );
 });
