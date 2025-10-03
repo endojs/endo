@@ -1,4 +1,6 @@
 // @ts-check
+import harden from '@endo/harden';
+
 let mutex = Promise.resolve(undefined);
 
 /**

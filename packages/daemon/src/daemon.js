@@ -1,6 +1,7 @@
 // @ts-check
 /* global setTimeout, clearTimeout */
 
+import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
 import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';

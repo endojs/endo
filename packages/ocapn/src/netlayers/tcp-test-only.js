@@ -1,6 +1,7 @@
 // @ts-check
 
 import net from 'net';
+import harden from '@endo/harden';
 
 import { makeSelfIdentity, sendHello } from '../client/index.js';
 

@@ -1,5 +1,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import harden from '@endo/harden';
+
 import { makeTagged, getTag, passStyleOf, PASS_STYLE } from '@endo/pass-style';
 import {
   isCopyBag,

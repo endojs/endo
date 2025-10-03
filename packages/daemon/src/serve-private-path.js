@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { q } from '@endo/errors';
 import { makeNetstringCapTP } from './connection.js';
 

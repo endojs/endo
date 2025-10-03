@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { q, X, Fail } from '@endo/errors';
 import { Nat } from '@endo/nat';
 import {

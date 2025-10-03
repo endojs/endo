@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';

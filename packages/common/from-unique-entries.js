@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { q, Fail } from '@endo/errors';
 
 const { fromEntries } = Object;

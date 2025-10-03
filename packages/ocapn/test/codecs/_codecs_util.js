@@ -10,6 +10,7 @@
  */
 
 import { Buffer } from 'buffer';
+import harden from '@endo/harden';
 import { Far, Remotable } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
 import { makeCapTPEngine } from '../../src/captp/captp-engine.js';

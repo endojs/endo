@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Fail, X } from '@endo/errors';
 import { confirmOwnDataDescriptor } from './passStyle-helpers.js';
 

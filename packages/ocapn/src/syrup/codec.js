@@ -3,6 +3,8 @@
  * @import { SyrupWriter } from './encode.js'
  */
 
+import harden from '@endo/harden';
+
 /**
  * @typedef {object} SyrupCodec
  * @property {function(SyrupReader): any} read

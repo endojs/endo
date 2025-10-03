@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import harden from '@endo/harden';
 import { q } from '@endo/errors';
 import {
   passStyleOf,

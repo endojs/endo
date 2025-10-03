@@ -9,6 +9,7 @@
 
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
 // good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
+import harden from '@endo/harden';
 import { Remotable } from '@endo/marshal';
 import { isPromise } from '@endo/promise-kit';
 

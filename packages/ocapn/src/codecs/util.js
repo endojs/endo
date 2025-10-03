@@ -5,6 +5,7 @@
  * @import { SyrupWriter } from '../syrup/encode.js'
  */
 
+import harden from '@endo/harden';
 import {
   makeCodec,
   makeCodecReadWithErrorWrapping,

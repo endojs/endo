@@ -14,6 +14,7 @@
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
 
+import harden from '@endo/harden';
 import { E, HandledPromise } from '@endo/eventual-send';
 import { Far, Remotable } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';

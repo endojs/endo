@@ -1,13 +1,9 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import harden from '@endo/harden';
 import { getInterfaceOf, passStyleOf, Far } from '@endo/pass-style';
 
 const { freeze, setPrototypeOf } = Object;
-
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
 
 test('Far functions', t => {
   t.notThrows(() => Far('arrow', a => a + 1), 'Far function');

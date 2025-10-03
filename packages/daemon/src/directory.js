@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';

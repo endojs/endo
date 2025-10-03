@@ -9,6 +9,7 @@
  * @import { OcapnPublicKey, OcapnKeyPair } from '../cryptography.js'
  */
 
+import harden from '@endo/harden';
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
   makeOcapnRecordCodec,
