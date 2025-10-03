@@ -1,5 +1,4 @@
 import './_stack-filtering-verbose.js';
-import test from '@endo/ses-ava/prepare-endo.js';
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';

@@ -5,8 +5,6 @@
  * @import { OcapnLocation } from '../src/codecs/components.js'
  */
 
-import '@endo/ses-ava/prepare-endo.js';
-
 import { E } from '@endo/eventual-send';
 import { testWithErrorUnwrapping } from './_util.js';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';

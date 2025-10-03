@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
 import { fc } from '@fast-check/ava';

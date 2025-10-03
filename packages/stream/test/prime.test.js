@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* eslint-disable require-yield, no-empty-function */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { prime } from '../index.js';
 
