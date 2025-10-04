@@ -1,8 +1,9 @@
 /* eslint-disable no-continue */
-import test from '@endo/ses-ava/prepare-endo.js';
+import harden from '@endo/harden';
+import test from '@endo/ses-ava/test.js';
 
 import { Fail } from '@endo/errors';
-import { makeTagged, Far, qp } from '@endo/marshal';
+import { makeTagged, Far, qp, passableAsJustin } from '@endo/marshal';
 import {
   makeCopyBag,
   makeCopyMap,
@@ -10,8 +11,6 @@ import {
   getCopyMapKeys,
 } from '../src/keys/checkKey.js';
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
-
-const { stringify: q } = JSON;
 
 /** @import * as ava from 'ava' */
 
@@ -25,13 +24,25 @@ const copyMapComparison = (() => {
   }
 })();
 
-const runTests = (t, successCase, failCase) => {
+/**
+ * Escape string for use in regex
+ * @param {string} str
+ */
+const regexEscape = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Create pattern that matches either redacted or unredacted repr
+ * @param {string} repr
+ */
+const reprPattern = repr => `(\\(an? \\w+\\)|${regexEscape(repr)})`;
+
+const defineTests = (successCase, failCase) => {
   /**
    * @callback MakeErrorMessage
    * @param {string} repr
    * @param {string} [kind]
    * @param {string} [type]
-   * @returns {string}
+   * @returns {string|RegExp}
    */
   /**
    * Methods corresponding with pattern matchers that don't look past type.
@@ -43,26 +54,46 @@ const runTests = (t, successCase, failCase) => {
     and: _repr => Fail`must not expect rejection by M.and()`,
 
     scalar: (repr, kind, type = kind) =>
-      `A "${type}" cannot be a scalar key: ${repr}`,
-    key: (repr, kind) => `A passable tagged "${kind}" is not a key: ${repr}`,
+      new RegExp(`^A "${type}" cannot be a scalar key: ${reprPattern(repr)}$`),
+    key: (repr, kind) =>
+      new RegExp(
+        `^A passable tagged "${kind}" is not a key: ${reprPattern(repr)}$`,
+      ),
     pattern: _repr => Fail`M.pattern() rejection messages must be customized`,
 
-    boolean: (repr, kind) => `${kind} ${repr} - Must be a boolean`,
-    number: (repr, kind) => `${kind} ${repr} - Must be a number`,
-    bigint: (repr, kind) => `${kind} ${repr} - Must be a bigint`,
-    string: (repr, kind) => `${kind} ${repr} - Must be a string`,
-    symbol: (repr, kind) => `${kind} ${repr} - Must be a symbol`,
-    record: (repr, kind) => `${kind} ${repr} - Must be a copyRecord`,
-    array: (repr, kind) => `${kind} ${repr} - Must be a copyArray`,
-    set: (repr, kind) => `${kind} ${repr} - Must be a copySet`,
-    bag: (repr, kind) => `${kind} ${repr} - Must be a copyBag`,
-    map: (repr, kind) => `${kind} ${repr} - Must be a copyMap`,
-    remotable: (repr, kind) => `${kind} ${repr} - Must be a remotable`,
-    error: (repr, kind) => `${kind} ${repr} - Must be a error`,
-    promise: (repr, kind) => `${kind} ${repr} - Must be a promise`,
+    boolean: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a boolean$`),
+    number: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a number$`),
+    bigint: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a bigint$`),
+    string: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a string$`),
+    symbol: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a symbol$`),
+    record: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a copyRecord$`),
+    array: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a copyArray$`),
+    set: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a copySet$`),
+    bag: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a copyBag$`),
+    map: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a copyMap$`),
+    remotable: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a remotable$`),
+    error: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a error$`),
+    promise: (repr, kind) =>
+      new RegExp(`^${kind} ${reprPattern(repr)} - Must be a promise$`),
     // M.undefined() and M.null() match as exact Keys rather than kinds.
-    undefined: repr => `${repr} - Must be: "[undefined]"`,
-    null: repr => `${repr} - Must be: null`,
+    undefined: repr =>
+      new RegExp(
+        `^${reprPattern(repr)} - Must be: (\\(an? \\w+\\)|"\\[undefined\\]")$`,
+      ),
+    null: repr =>
+      new RegExp(`^${reprPattern(repr)} - Must be: (\\(an? \\w+\\)|null)$`),
   };
   const tagIgnorantMethods = ['scalar', 'key', 'undefined', 'null'];
 
@@ -79,32 +110,82 @@ const runTests = (t, successCase, failCase) => {
       failCase(specimen, M[method](), makeMessage('3', 'number'));
     }
     successCase(specimen, M.not(4));
-    successCase(specimen, M.kind('number'));
+    successCase(specimen, M.kind('number'), ' (duplicate)');
     successCase(specimen, M.lte(7));
     successCase(specimen, M.gte(2));
     successCase(specimen, M.and(3, 3));
     successCase(specimen, M.or(3, 4));
 
-    failCase(specimen, 4, '3 - Must be: 4');
-    failCase(specimen, M.not(3), '3 - Must fail negated pattern: "`3`"');
+    failCase(specimen, 4, /^(\(a number\)|3) - Must be: (\(a number\)|4)$/);
+    failCase(
+      specimen,
+      M.not(3),
+      /(\(a number\)|3) - Must fail negated pattern: (\(a string\)|"`3`")/,
+    );
     failCase(
       specimen,
       M.not(M.any()),
-      '3 - Must fail negated pattern: "`makeTagged(\\"match:any\\", undefined)`"',
+      /^(\(a number\)|3) - Must fail negated pattern: (\(a string\)|"`makeTagged\(\\"match:any\\", undefined\)`")$/,
     );
-    failCase(specimen, M.nat(), 'number 3 - Must be a bigint');
-    failCase(specimen, [3, 4], '3 - Must be: [3,4]');
-    failCase(specimen, M.gte(7), '3 - Must be >= 7');
-    failCase(specimen, M.lte(2), '3 - Must be <= 2');
+    failCase(specimen, M.nat(), /^number (\(a number\)|3) - Must be a bigint$/);
+    failCase(
+      specimen,
+      [3, 4],
+      /^(\(a number\)|3) - Must be: (\(an object\)|\[3,4\])$/,
+    );
+    failCase(
+      specimen,
+      M.gte(7),
+      /^(\(a number\)|3) - Must be >= (\(a number\)|7)$/,
+    );
+    failCase(
+      specimen,
+      M.lte(2),
+      /^(\(a number\)|3) - Must be <= (\(a number\)|2)$/,
+    );
     // incommensurate comparisons are neither <= nor >=
-    failCase(specimen, M.lte('x'), '3 - Must be <= "x"');
-    failCase(specimen, M.gte('x'), '3 - Must be >= "x"');
-    failCase(specimen, M.lte(3n), '3 - Must be <= "[3n]"');
-    failCase(specimen, M.gte(3n), '3 - Must be >= "[3n]"');
-    failCase(specimen, M.and(3, 4), '3 - Must be: 4');
-    failCase(specimen, M.or(4, 4), `3 - Must match one of ${q(qp([4, 4]))}`);
-    failCase(specimen, M.or(), '3 - no pattern disjuncts to match: "`[]`"');
-    failCase(specimen, M.tagged(), 'Expected tagged object, not "number": 3');
+    failCase(
+      specimen,
+      M.lte('x'),
+      /^(\(a number\)|3) - Must be <= (\(a string\)|"x")$/,
+    );
+    failCase(
+      specimen,
+      M.gte('x'),
+      /^(\(a number\)|3) - Must be >= (\(a string\)|"x")$/,
+    );
+    failCase(
+      specimen,
+      M.lte(3n),
+      /^(\(a number\)|3) - Must be <= (\(a bigint\)|"\[3n\]")$/,
+    );
+    failCase(
+      specimen,
+      M.gte(3n),
+      /^(\(a number\)|3) - Must be >= (\(a bigint\)|"\[3n\]")$/,
+    );
+    failCase(
+      specimen,
+      M.and(3, 4),
+      /^(\(a number\)|3) - Must be: (\(a number\)|4)$/,
+    );
+    failCase(
+      specimen,
+      M.or(4, 4),
+      new RegExp(
+        `^(\\(a number\\)|3) - Must match one of (\\(a string\\)|${regexEscape(JSON.stringify(qp([4, 4])))})$`,
+      ),
+    );
+    failCase(
+      specimen,
+      M.or(),
+      /^(\(a number\)|3) - no pattern disjuncts to match: (\(a string\)|"`\[\]`")$/,
+    );
+    failCase(
+      specimen,
+      M.tagged(),
+      /^Expected tagged object, not "number": (\(a number\)|3)$/,
+    );
   }
   {
     const specimen = 0n;
@@ -126,31 +207,73 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.and(0n, 0n));
     successCase(specimen, M.or(0n, 4n));
 
-    failCase(specimen, 4n, '"[0n]" - Must be: "[4n]"');
-    failCase(specimen, M.not(0n), '"[0n]" - Must fail negated pattern: "`0n`"');
+    failCase(
+      specimen,
+      4n,
+      /^(\(a bigint\)|"\[0n\]") - Must be: (\(a bigint\)|"\[4n\]")$/,
+    );
+    failCase(
+      specimen,
+      M.not(0n),
+      /^(\(a bigint\)|"\[0n\]") - Must fail negated pattern: (\(a string\)|"`0n`")$/,
+    );
     failCase(
       specimen,
       M.not(M.any()),
-      '"[0n]" - Must fail negated pattern: "`makeTagged(\\"match:any\\", undefined)`"',
+      /^(\(a bigint\)|"\[0n\]") - Must fail negated pattern: (\(a string\)|"`makeTagged\(\\"match:any\\", undefined\)`")$/,
     );
-    failCase(specimen, [0n, 4n], '"[0n]" - Must be: ["[0n]","[4n]"]');
-    failCase(specimen, M.gte(7n), '"[0n]" - Must be >= "[7n]"');
-    failCase(specimen, M.lte(-1n), '"[0n]" - Must be <= "[-1n]"');
+    failCase(
+      specimen,
+      [0n, 4n],
+      /^(\(a bigint\)|"\[0n\]") - Must be: (\(an object\)|\["\[0n\]","\[4n\]"\])$/,
+    );
+    failCase(
+      specimen,
+      M.gte(7n),
+      /^(\(a bigint\)|"\[0n\]") - Must be >= (\(a bigint\)|"\[7n\]")$/,
+    );
+    failCase(
+      specimen,
+      M.lte(-1n),
+      /^(\(a bigint\)|"\[0n\]") - Must be <= (\(a bigint\)|"\[-1n\]")$/,
+    );
     // incommensurate comparisons are neither <= nor >=
-    failCase(specimen, M.lte('x'), '"[0n]" - Must be <= "x"');
-    failCase(specimen, M.gte('x'), '"[0n]" - Must be >= "x"');
-    failCase(specimen, M.lte(0), '"[0n]" - Must be <= 0');
-    failCase(specimen, M.gte(0), '"[0n]" - Must be >= 0');
-    failCase(specimen, M.and(0n, 4n), '"[0n]" - Must be: "[4n]"');
+    failCase(
+      specimen,
+      M.lte('x'),
+      /^(\(a bigint\)|"\[0n\]") - Must be <= (\(a string\)|"x")$/,
+    );
+    failCase(
+      specimen,
+      M.gte('x'),
+      /^(\(a bigint\)|"\[0n\]") - Must be >= (\(a string\)|"x")$/,
+    );
+    failCase(
+      specimen,
+      M.lte(0),
+      /^(\(a bigint\)|"\[0n\]") - Must be <= (\(a number\)|0)$/,
+    );
+    failCase(
+      specimen,
+      M.gte(0),
+      /^(\(a bigint\)|"\[0n\]") - Must be >= (\(a number\)|0)$/,
+    );
+    failCase(
+      specimen,
+      M.and(0n, 4n),
+      /^(\(a bigint\)|"\[0n\]") - Must be: (\(a bigint\)|"\[4n\]")$/,
+    );
     failCase(
       specimen,
       M.or(4n, 4n),
-      `"[0n]" - Must match one of ${q(qp([4n, 4n]))}`,
+      new RegExp(
+        `^(\\(a bigint\\)|"\\[0n\\]") - Must match one of (\\(a string\\)|${regexEscape(JSON.stringify(qp([4n, 4n])))})$`,
+      ),
     );
     failCase(
       specimen,
       M.or(),
-      '"[0n]" - no pattern disjuncts to match: "`[]`"',
+      /^(\(a bigint\)|"\[0n\]") - no pattern disjuncts to match: (\(a string\)|"`\[\]`")$/,
     );
   }
   {
@@ -170,7 +293,11 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.lte(-1n));
     successCase(specimen, M.gte(-1n));
 
-    failCase(specimen, M.nat(), '"[-1n]" - Must be non-negative');
+    failCase(
+      specimen,
+      M.nat(),
+      /^(\(a bigint\)|"\[-1n\]") - Must be non-negative$/,
+    );
   }
   {
     const specimen = [3, 4];
@@ -205,36 +332,76 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.arrayOf(M.number()));
 
     successCase(specimen, M.containerHas(3));
-    successCase(specimen, M.containerHas(3, 1n));
+    successCase(specimen, M.containerHas(3, 1n), ' (duplicate)');
     successCase(specimen, M.containerHas(M.number(), 2n));
 
-    failCase(specimen, [4, 3], '[3,4] - Must be: [4,3]');
-    failCase(specimen, [3], '[3,4] - Must be: [3]');
+    failCase(
+      specimen,
+      [4, 3],
+      /^(\(an object\)|\[3,4\]) - Must be: (\(an object\)|\[4,3\])$/,
+    );
+    failCase(
+      specimen,
+      [3],
+      /^(\(an object\)|\[3,4\]) - Must be: (\(an object\)|\[3\])$/,
+    );
     failCase(
       specimen,
       [M.string(), M.any()],
-      '[0]: number 3 - Must be a string',
+      /^\[0\]: number (\(a number\)|3) - Must be a string$/,
     );
-    failCase(specimen, M.lte([3, 3]), '[3,4] - Must be <= [3,3]');
-    failCase(specimen, M.gte([4, 4]), '[3,4] - Must be >= [4,4]');
-    failCase(specimen, M.lte([3]), '[3,4] - Must be <= [3]');
-    failCase(specimen, M.gte([3, 4, 1]), '[3,4] - Must be >= [3,4,1]');
+    failCase(
+      specimen,
+      M.lte([3, 3]),
+      /^(\(an object\)|\[3,4\]) - Must be <= (\(an object\)|\[3,3\])$/,
+    );
+    failCase(
+      specimen,
+      M.gte([4, 4]),
+      /^(\(an object\)|\[3,4\]) - Must be >= (\(an object\)|\[4,4\])$/,
+    );
+    failCase(
+      specimen,
+      M.lte([3]),
+      /^(\(an object\)|\[3,4\]) - Must be <= (\(an object\)|\[3\])$/,
+    );
+    failCase(
+      specimen,
+      M.gte([3, 4, 1]),
+      /^(\(an object\)|\[3,4\]) - Must be >= (\(an object\)|\[3,4,1\])$/,
+    );
 
     failCase(
       specimen,
       M.split([3, 4, 5, 6]),
-      'Expected at least 4 arguments: [3,4]',
+      /^Expected at least (\(a number\)|4) arguments: (\(an object\)|\[3,4\])$/,
     );
-    failCase(specimen, M.split([5]), 'arg 0: 3 - Must be: 5');
-    failCase(specimen, M.split({}), 'copyArray [3,4] - Must be a copyRecord');
-    failCase(specimen, M.split([3], 'x'), '...rest: [4] - Must be: "x"');
+    failCase(
+      specimen,
+      M.split([5]),
+      /^arg 0: (\(a number\)|3) - Must be: (\(a number\)|5)$/,
+    );
+    failCase(
+      specimen,
+      M.split({}),
+      /^copyArray (\(an object\)|\[3,4\]) - Must be a copyRecord$/,
+    );
+    failCase(
+      specimen,
+      M.split([3], 'x'),
+      /^\.\.\.rest: (\(an object\)|\[4\]) - Must be: (\(a string\)|"x")$/,
+    );
 
-    failCase(specimen, M.partial([5]), 'arg 0?: 3 - Must be: 5');
+    failCase(
+      specimen,
+      M.partial([5]),
+      /^arg 0\?: (\(a number\)|3) - Must be: (\(a number\)|5)$/,
+    );
 
     failCase(
       specimen,
       M.arrayOf(M.string()),
-      '[0]: number 3 - Must be a string',
+      /^\[0\]: number (\(a number\)|3) - Must be a string$/,
     );
 
     failCase(
@@ -295,54 +462,54 @@ const runTests = (t, successCase, failCase) => {
     failCase(
       specimen,
       { foo: 4, bar: 3 },
-      '{"bar":4,"foo":3} - Must be: {"bar":3,"foo":4}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be: (\(an object\)|\{"bar":3,"foo":4\})$/,
     );
     failCase(
       specimen,
       { foo: M.string(), bar: M.any() },
-      'foo: number 3 - Must be a string',
+      /^foo: number (\(a number\)|3) - Must be a string$/,
     );
     failCase(
       specimen,
       M.lte({ foo: 3, bar: 3 }),
-      '{"bar":4,"foo":3} - Must be <= {"bar":3,"foo":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be <= (\(an object\)|\{"bar":3,"foo":3\})$/,
     );
     failCase(
       specimen,
       M.gte({ foo: 4, bar: 4 }),
-      '{"bar":4,"foo":3} - Must be >= {"bar":4,"foo":4}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be >= (\(an object\)|\{"bar":4,"foo":4\})$/,
     );
 
     // Incommensurates are neither greater nor less
     failCase(
       specimen,
       M.gte({ foo: 3 }),
-      '{"bar":4,"foo":3} - Must be >= {"foo":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be >= (\(an object\)|\{"foo":3\})$/,
     );
     failCase(
       specimen,
       M.lte({ foo: 3 }),
-      '{"bar":4,"foo":3} - Must be <= {"foo":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be <= (\(an object\)|\{"foo":3\})$/,
     );
     failCase(
       specimen,
       M.gte({ foo: 3, bar: 4, baz: 5 }),
-      '{"bar":4,"foo":3} - Must be >= {"bar":4,"baz":5,"foo":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be >= (\(an object\)|\{"bar":4,"baz":5,"foo":3\})$/,
     );
     failCase(
       specimen,
       M.lte({ foo: 3, bar: 4, baz: 5 }),
-      '{"bar":4,"foo":3} - Must be <= {"bar":4,"baz":5,"foo":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be <= (\(an object\)|\{"bar":4,"baz":5,"foo":3\})$/,
     );
     failCase(
       specimen,
       M.lte({ baz: 3 }),
-      '{"bar":4,"foo":3} - Must be <= {"baz":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be <= (\(an object\)|\{"baz":3\})$/,
     );
     failCase(
       specimen,
       M.gte({ baz: 3 }),
-      '{"bar":4,"foo":3} - Must be >= {"baz":3}',
+      /^(\(an object\)|\{"bar":4,"foo":3\}) - Must be >= (\(an object\)|\{"baz":3\})$/,
     );
 
     successCase(specimen, M.splitRecord({}, undefined, undefined));
@@ -350,12 +517,12 @@ const runTests = (t, successCase, failCase) => {
     failCase(
       specimen,
       M.splitRecord({ foo: M.number() }, { bar: M.string(), baz: M.number() }),
-      'bar?: number 4 - Must be a string',
+      /^bar\?: number (\(a number\)|4) - Must be a string$/,
     );
     failCase(
       specimen,
       M.splitRecord({}, { unused: M.string() }, M.string()),
-      '...rest: copyRecord {"bar":4,"foo":3} - Must be a string',
+      /^\.\.\.rest: copyRecord (\(an object\)|\{"bar":4,"foo":3\}) - Must be a string$/,
     );
 
     failCase(
@@ -364,54 +531,58 @@ const runTests = (t, successCase, failCase) => {
         { foo: M.number() },
         M.and(M.partial({ bar: M.string() }), M.partial({ baz: M.number() })),
       ),
-      '...rest: bar?: number 4 - Must be a string',
+      /^\.\.\.rest: bar\?: number (\(a number\)|4) - Must be a string$/,
     );
 
     failCase(
       specimen,
       M.split([]),
-      'copyRecord {"bar":4,"foo":3} - Must be a copyArray',
+      /^copyRecord (\(an object\)|\{"bar":4,"foo":3\}) - Must be a copyArray$/,
     );
     failCase(
       specimen,
       M.split({ foo: 3, z: 4 }),
-      '{"foo":3} - Must be: {"foo":3,"z":4}',
+      /^(\(an object\)|\{"foo":3\}) - Must be: (\(an object\)|\{"foo":3,"z":4\})$/,
     );
     failCase(
       specimen,
       M.split({ foo: 3 }, { foo: 3, bar: 4 }),
-      '...rest: {"bar":4} - Must be: {"bar":4,"foo":3}',
+      /^\.\.\.rest: (\(an object\)|\{"bar":4\}) - Must be: (\(an object\)|\{"bar":4,"foo":3\})$/,
     );
     failCase(
       specimen,
       M.split({ foo: 3 }, { foo: M.any(), bar: 4 }),
-      '...rest: {"bar":4} - Must have missing properties ["foo"]',
+      /^\.\.\.rest: (\(an object\)|\{"bar":4\}) - Must have missing properties (\(an object\)|\["foo"\])$/,
     );
     failCase(
       specimen,
       M.partial({ foo: 7, zip: 5 }, { bar: 4 }),
-      'foo?: 3 - Must be: 7',
+      /^foo\?: (\(a number\)|3) - Must be: (\(a number\)|7)$/,
     );
 
     failCase(
       specimen,
       M.scalar(),
-      'A "copyRecord" cannot be a scalar key: {"bar":4,"foo":3}',
+      /^A "copyRecord" cannot be a scalar key: (\(an object\)|\{"bar":4,"foo":3\})$/,
+      false,
+      ' (duplicate)',
     );
     failCase(
       specimen,
       M.map(),
-      'copyRecord {"bar":4,"foo":3} - Must be a copyMap',
+      /^copyRecord (\(an object\)|\{"bar":4,"foo":3\}) - Must be a copyMap$/,
+      false,
+      ' (duplicate)',
     );
     failCase(
       specimen,
       M.recordOf(M.number(), M.number()),
-      'foo: [0]: string "foo" - Must be a number',
+      /^foo: \[0\]: string (\(a string\)|"foo") - Must be a number$/,
     );
     failCase(
       specimen,
       M.recordOf(M.string(), M.string()),
-      'foo: [1]: number 3 - Must be a string',
+      /^foo: \[1\]: number (\(a number\)|3) - Must be a string$/,
     );
   }
   {
@@ -435,35 +606,39 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.setOf(M.number()));
 
     successCase(specimen, M.containerHas(3));
-    successCase(specimen, M.containerHas(3, 1n));
+    successCase(specimen, M.containerHas(3, 1n), ' (duplicate)');
     successCase(specimen, M.containerHas(M.number(), 2n));
 
-    failCase(specimen, makeCopySet([]), '"[copySet]" - Must be: "[copySet]"');
+    failCase(
+      specimen,
+      makeCopySet([]),
+      /^(\(an object\)|"\[copySet\]") - Must be: (\(an object\)|"\[copySet\]")$/,
+    );
     failCase(
       specimen,
       makeCopySet([3, 4, 5]),
-      '"[copySet]" - Must be: "[copySet]"',
+      /^(\(an object\)|"\[copySet\]") - Must be: (\(an object\)|"\[copySet\]")$/,
     );
     failCase(
       specimen,
       M.lte(makeCopySet([])),
-      '"[copySet]" - Must be <= "[copySet]"',
+      /^(\(an object\)|"\[copySet\]") - Must be <= (\(an object\)|"\[copySet\]")$/,
     );
     failCase(
       specimen,
       M.gte(makeCopySet([3, 4, 5])),
-      '"[copySet]" - Must be >= "[copySet]"',
+      /^(\(an object\)|"\[copySet\]") - Must be >= (\(an object\)|"\[copySet\]")$/,
     );
     failCase(
       specimen,
       M.setOf(M.string()),
-      'set elements[0]: number 4 - Must be a string',
+      /^set elements\[0\]: number (\(a number\)|4) - Must be a string$/,
     );
 
     failCase(
       specimen,
       M.containerHas('c'),
-      'Has only "[0n]" matches, but needs "[1n]"',
+      /^Has only (\(a bigint\)|"\[0n\]") matches, but needs (\(a bigint\)|"\[1n\]")$/,
     );
   }
   {
@@ -502,8 +677,7 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.containerHas('a'));
     successCase(specimen, M.containerHas('a', 2n));
     successCase(specimen, M.containerHas(M.string(), 5n));
-    successCase(specimen, M.containerHas('a', 1n));
-    successCase(specimen, M.containerHas('a'));
+    successCase(specimen, M.containerHas('a', 1n), ' (duplicate)');
     successCase(specimen, M.containerHas('b', 2n));
 
     failCase(
@@ -514,7 +688,7 @@ const runTests = (t, successCase, failCase) => {
           ['c', 1n],
         ]),
       ),
-      '"[copyBag]" - Must be >= "[copyBag]"',
+      /^(\(an object\)|"\[copyBag\]") - Must be >= (\(an object\)|"\[copyBag\]")$/,
     );
     failCase(
       specimen,
@@ -524,14 +698,18 @@ const runTests = (t, successCase, failCase) => {
           ['c', 1n],
         ]),
       ),
-      '"[copyBag]" - Must be <= "[copyBag]"',
+      /^(\(an object\)|"\[copyBag\]") - Must be <= (\(an object\)|"\[copyBag\]")$/,
     );
     failCase(
       specimen,
       M.bagOf(M.boolean()),
-      'bag keys[0]: string "b" - Must be a boolean',
+      /^bag keys\[0\]: string (\(a string\)|"b") - Must be a boolean$/,
     );
-    failCase(specimen, M.bagOf('b'), 'bag keys[1]: "a" - Must be: "b"');
+    failCase(
+      specimen,
+      M.bagOf('b'),
+      /^bag keys\[1\]: (\(a string\)|"a") - Must be: (\(a string\)|"b")$/,
+    );
 
     failCase(
       specimen,
@@ -557,27 +735,29 @@ const runTests = (t, successCase, failCase) => {
         makeMessage('"[copyMap]"', 'copyMap', 'tagged'),
       );
     }
-    // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
-    t.throws(
-      () => {
-        copyMapComparison || Fail`No CopyMap comparison support`;
-        // @ts-expect-error XXX Key types
-        successCase(specimen, M.gt(makeCopyMap([])));
-      },
-      { message: 'No CopyMap comparison support' },
-      'CopyMap comparison support (time to unwrap assertions?)',
-    );
+    test('copymap comparison', t => {
+      // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
+      t.throws(
+        () => {
+          copyMapComparison || Fail`No CopyMap comparison support`;
+          // @ts-expect-error XXX Key types
+          successCase(specimen, M.gt(makeCopyMap([])));
+        },
+        { message: 'No CopyMap comparison support' },
+        'CopyMap comparison support (time to unwrap assertions?)',
+      );
+    });
     successCase(specimen, M.mapOf(M.record(), M.string()));
 
     failCase(
       specimen,
       M.mapOf(M.string(), M.string()),
-      'map keys[0]: copyRecord {"foo":3} - Must be a string',
+      /^map keys\[0\]: copyRecord (\(an object\)|\{"foo":3\}) - Must be a string$/,
     );
     failCase(
       specimen,
       M.mapOf(M.record(), M.number()),
-      'map values[0]: string "b" - Must be a number',
+      /^map values\[0\]: string (\(a string\)|"b") - Must be a number$/,
     );
   }
   {
@@ -600,7 +780,7 @@ const runTests = (t, successCase, failCase) => {
         failCase(
           specimen,
           M[method](),
-          'cannot check unrecognized tag "mysteryTag": "[mysteryTag]"',
+          /^cannot check unrecognized tag "mysteryTag": (\(an object\)|"\[mysteryTag\]")$/,
         );
       }
     }
@@ -627,15 +807,15 @@ const runTests = (t, successCase, failCase) => {
     const yesMethods = ['any', 'and'];
     for (const [method, makeMessage] of Object.entries(simpleMethods)) {
       if (yesMethods.includes(method)) {
-        successCase(specimen, M[method]());
+        successCase(specimen, M[method](), ' (loop test)');
         continue;
       }
       // This specimen has an invalid payload for its tag, so testing is less straightforward.
       const message = tagIgnorantMethods.includes(method)
         ? makeMessage('"[match:any]"', 'match:any', 'tagged')
-        : 'match:any payload: 88 - Must be undefined';
-      successCase(specimen, M.not(M[method]()));
-      failCase(specimen, M[method](), message);
+        : /^match:any payload: (\(a number\)|88) - Must be undefined$/;
+      successCase(specimen, M.not(M[method]()), false, ' (loop test)');
+      failCase(specimen, M[method](), message, false, ' (loop test)');
     }
   }
   {
@@ -658,11 +838,9 @@ const runTests = (t, successCase, failCase) => {
         failCase(
           specimen,
           M[method](),
-          `match:remotable payload: 88 - Must be a copyRecord to match a copyRecord pattern: ${q(
-            qp({
-              label: M.string(),
-            }),
-          )}`,
+          new RegExp(
+            `^match:remotable payload: (\\(a number\\)|88) - Must be a copyRecord to match a copyRecord pattern: (\\(a string\\)|${regexEscape(JSON.stringify(qp({ label: M.string() })))})$`,
+          ),
         );
       }
     }
@@ -670,13 +848,13 @@ const runTests = (t, successCase, failCase) => {
   }
   {
     const specimen = makeTagged('match:remotable', harden({ label: 88 }));
-    successCase(specimen, M.any());
-    successCase(specimen, M.not(M.pattern()));
+    successCase(specimen, M.any(), ' (remotable)');
+    successCase(specimen, M.not(M.pattern()), ' (remotable)');
 
     failCase(
       specimen,
       M.pattern(),
-      'match:remotable payload: label: number 88 - Must be a string',
+      /match:remotable payload: label: number (\(a number\)|88) - Must be a string/,
     );
   }
   {
@@ -689,7 +867,7 @@ const runTests = (t, successCase, failCase) => {
     failCase(
       specimen,
       M.key(),
-      'A passable tagged "match:recordOf" is not a key: "[match:recordOf]"',
+      /^A passable tagged "match:recordOf" is not a key: (\(an object\)|"\[match:recordOf\]")$/,
     );
   }
   {
@@ -703,7 +881,7 @@ const runTests = (t, successCase, failCase) => {
     failCase(
       specimen,
       M.pattern(),
-      'match:recordOf payload: [1]: A "promise" cannot be a pattern',
+      /^match:recordOf payload: \[1\]: A "promise" cannot be a pattern$/,
     );
   }
   const specimen = makeTagged('Vowish', {
@@ -724,18 +902,22 @@ const runTests = (t, successCase, failCase) => {
   failCase(
     specimen,
     M.record(),
-    'cannot check unrecognized tag "Vowish": "[Vowish]"',
+    /^cannot check unrecognized tag "Vowish": (\(an object\)|"\[Vowish\]")$/,
   );
   failCase(
     specimen,
     M.kind('tagged'),
-    'cannot check unrecognized tag "Vowish": "[Vowish]"',
+    /^cannot check unrecognized tag "Vowish": (\(an object\)|"\[Vowish\]")$/,
   );
-  failCase(specimen, M.tagged('Vowoid'), 'tag: "Vowish" - Must be: "Vowoid"');
+  failCase(
+    specimen,
+    M.tagged('Vowoid'),
+    /^tag: (\(a string\)|"Vowish") - Must be: (\(a string\)|"Vowoid")$/,
+  );
   failCase(
     specimen,
     M.tagged(undefined, harden({})),
-    'payload: {"vowVX":"[Alleged: VowVX]"} - Must be: {}',
+    /^payload: (\(an object\)|\{"vowVX":"\[Alleged: VowVX\]"\}) - Must be: (\(an object\)|\{\})$/,
   );
 };
 
@@ -755,7 +937,7 @@ const assertMatch = (t, specimen, pattern, label) => {
  * @param {ava.ExecutionContext} t
  * @param {any} specimen
  * @param {any} pattern
- * @param {string} message
+ * @param {string|RegExp} message
  * @param {boolean} [isUnmatchable]
  * @param {string} [label]
  * @returns {void}
@@ -769,17 +951,30 @@ const assertNoMatch = (t, specimen, pattern, message, isUnmatchable, label) => {
   }
 };
 
-test('test simple matches', t => {
-  const successCase = (specimen, yesPattern) => {
+{
+  const successCase = (specimen, yesPattern, nameSuffix = '') => {
     harden(specimen);
     harden(yesPattern);
-    assertMatch(t, specimen, yesPattern, `${yesPattern}`);
+    test(
+      `assertMatch ${passableAsJustin(specimen, false)} ${qp(yesPattern)}${nameSuffix}`,
+      assertMatch,
+      specimen,
+      yesPattern,
+      `${yesPattern}`,
+    );
   };
-  const failCase = (specimen, noPattern, message, isUnmatchable) => {
+  const failCase = (
+    specimen,
+    noPattern,
+    message,
+    isUnmatchable,
+    nameSuffix = '',
+  ) => {
     harden(specimen);
     harden(noPattern);
-    assertNoMatch(
-      t,
+    test(
+      `assertNoMatch ${passableAsJustin(specimen, false)} ${qp(noPattern)}${nameSuffix}`,
+      assertNoMatch,
       specimen,
       noPattern,
       message,
@@ -787,8 +982,8 @@ test('test simple matches', t => {
       `${noPattern}`,
     );
   };
-  runTests(t, successCase, failCase);
-});
+  defineTests(successCase, failCase);
+}
 
 test('masking match failure', t => {
   const nonSet = makeTagged('copySet', harden([M.string()]));
@@ -801,19 +996,19 @@ test('masking match failure', t => {
     t,
     nonSet,
     M.set(),
-    'A passable tagged "match:string" is not a key: "[match:string]"',
+    /A passable tagged "match:string" is not a key: (\(an object\)|"\[match:string\]")/,
   );
   assertNoMatch(
     t,
     nonBag,
     M.bag(),
-    'A passable tagged "match:string" is not a key: "[match:string]"',
+    /A passable tagged "match:string" is not a key: (\(an object\)|"\[match:string\]")/,
   );
   assertNoMatch(
     t,
     nonMap,
     M.map(),
-    'A passable tagged "match:string" is not a key: "[match:string]"',
+    /A passable tagged "match:string" is not a key: (\(an object\)|"\[match:string\]")/,
   );
 });
 
@@ -898,19 +1093,22 @@ test('collection contents rankOrder tie insensitivity', t => {
 test('well formed patterns', t => {
   // @ts-expect-error purposeful type violation for testing
   t.throws(() => M.remotable(88), {
-    message: 'match:remotable payload: label: number 88 - Must be a string',
+    message:
+      /match:remotable payload: label: number (\(a number\)|88) - Must be a string/,
   });
 
   t.throws(() => M.containerHas('c', 0n), {
-    message: 'M.containerHas payload: [1]: "[0n]" - Must be >= "[1n]"',
+    message:
+      /^M\.containerHas payload: \[1\]: (\(a bigint\)|"\[0n\]") - Must be >= (\(a bigint\)|"\[1n\]")$/,
   });
   // @ts-expect-error purposeful type violation for testing
   t.throws(() => M.containerHas('c', M.nat()), {
     message:
-      'M.containerHas payload: [1]: A passable tagged "match:nat" is not a key: "[match:nat]"',
+      /^M\.containerHas payload: \[1\]: A passable tagged "match:nat" is not a key: (\(an object\)|"\[match:nat\]")$/,
   });
   // @ts-expect-error purposeful type violation for testing
   t.throws(() => M.containerHas(3, 1), {
-    message: 'M.containerHas payload: [1]: 1 - Must be >= "[1n]"',
+    message:
+      /^M\.containerHas payload: \[1\]: (\(a number\)|1) - Must be >= (\(a bigint\)|"\[1n\]")$/,
   });
 });

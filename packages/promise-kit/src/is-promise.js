@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * Determine if the argument is a Promise.
  *

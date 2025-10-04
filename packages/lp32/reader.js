@@ -2,6 +2,7 @@
 // We use a DataView to give users choice over endianness.
 // But DataView does not default to host-byte-order like other typed arrays.
 
+import harden from '@endo/harden';
 import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
 

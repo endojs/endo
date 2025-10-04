@@ -1,6 +1,7 @@
 import '../tools/prepare-error-if-order-choice-matters.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { compareRank } from '../src/rankOrder.js';
 import {
   compareByUtf16CodeUnit,
@@ -20,6 +21,8 @@ test('string ranking by code point/UTF-16 code unit agreement', t => {
       t.log(msg);
       if (!msg.startsWith('Comparisons differed: ')) return false;
       if (!msg.endsWith('-1 vs 1') && !msg.endsWith('1 vs -1')) return false;
+      // ses-ava is not currently able to unredact error messages before lockdown.
+      if (!Object.isFrozen(Object.prototype)) return true;
       if (!msg.includes(JSON.stringify(surrogatePair))) return false;
       return (
         msg.includes(JSON.stringify(loneSurrogate$bmpHigh)) ||

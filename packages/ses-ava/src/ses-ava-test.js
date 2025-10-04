@@ -1,6 +1,8 @@
 /* global globalThis */
 import 'ses';
 
+import harden from '@endo/harden';
+
 /**
  * Copied from the ses-shim's console-shim.js file, since the idea is that
  * these communicate not by export import, but rather by convention plus
@@ -183,7 +185,7 @@ const makeVirtualExecutionContext = originalT => {
  */
 const augmentLogging = testerFunc => {
   const testerFuncName = `ava ${testerFunc.name || 'test'}`;
-  const augmented = (...args) => {
+  const augmentedTest = (...args) => {
     // Align with ava argument parsing.
     // https://github.com/avajs/ava/blob/c74934853db1d387c46ed1f953970c777feed6a0/lib/parse-test-args.js
     const rawTitle = typeof args[0] === 'string' ? args.shift() : undefined;
@@ -247,9 +249,9 @@ const augmentLogging = testerFunc => {
   };
   // re-use other properties (e.g. `.always`)
   // https://github.com/endojs/endo/issues/647#issuecomment-809010961
-  Object.assign(augmented, testerFunc);
+  Object.assign(augmentedTest, testerFunc);
   // @ts-expect-error cast
-  return /** @type {import('ava').OnlyFn} */ augmented;
+  return /** @type {import('ava').OnlyFn} */ augmentedTest;
 };
 
 /**

@@ -4,7 +4,8 @@
  * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceive } from '../src/codecs/descriptors.js'
  */
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
+
 import { Buffer } from 'buffer';
 import {
   makeOcapnKeyPair,

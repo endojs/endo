@@ -7,8 +7,9 @@
 
 /* eslint-disable class-methods-use-this */
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M, getNamedMethodGuards } from '@endo/patterns';
@@ -131,11 +132,13 @@ test('ExoPoint instances', t => {
 
   const negPt = makeExoPoint(-3, 5);
   t.throws(() => negPt.getX(), {
-    message: 'In "getX" method of (ExoPoint): result: -3 - Must be >= 0',
+    message:
+      /^In "getX" method of \(ExoPoint\): result: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // `self` calls are guarded
   t.throws(() => `${negPt}`, {
-    message: 'In "getX" method of (ExoPoint): result: -3 - Must be >= 0',
+    message:
+      /^In "getX" method of \(ExoPoint\): result: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
 });
 
@@ -222,11 +225,11 @@ test('FarWobblyPoint inheritance', t => {
   t.false(otherPt instanceof ExoWobblyPoint);
   t.throws(() => apply(wpt.getX, otherPt, []), {
     message:
-      '"In \\"getX\\" method of (ExoWobblyPoint)" may only be applied to a valid instance: "[Alleged: ExoPoint]"',
+      /^"In \\"getX\\" method of \(ExoWobblyPoint\)" may only be applied to a valid instance: (\(an object\)|"\[Alleged: ExoPoint\]")$/,
   });
   t.throws(() => apply(wpt.getY, otherPt, []), {
     message:
-      '"In \\"getY\\" method of (ExoWobblyPoint)" may only be applied to a valid instance: "[Alleged: ExoPoint]"',
+      /^"In \\"getY\\" method of \(ExoWobblyPoint\)" may only be applied to a valid instance: (\(an object\)|"\[Alleged: ExoPoint\]")$/,
   });
 
   const otherWpt = makeExoWobblyPoint(3, 5, () => 1);
@@ -242,7 +245,7 @@ test('FarWobblyPoint inheritance', t => {
   // the overriding subclass via unguarded `super` calls.
   t.throws(() => apply(otherPt.getX, otherWpt, []), {
     message:
-      '"In \\"getX\\" method of (ExoPoint)" may only be applied to a valid instance: "[Alleged: ExoWobblyPoint]"',
+      /^"In \\"getX\\" method of \(ExoPoint\)" may only be applied to a valid instance: (\(an object\)|"\[Alleged: ExoWobblyPoint\]")$/,
   });
 
   const negWpt1 = makeExoWobblyPoint(-3, 5, () => 4);
@@ -253,6 +256,7 @@ test('FarWobblyPoint inheritance', t => {
   const negWpt2 = makeExoWobblyPoint(1, 5, () => -4);
   t.throws(() => `${negWpt2}`, {
     // `self` calls are guarded
-    message: 'In "getX" method of (ExoWobblyPoint): result: -3 - Must be >= 0',
+    message:
+      /^In "getX" method of \(ExoWobblyPoint\): result: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
 });

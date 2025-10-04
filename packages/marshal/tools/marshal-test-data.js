@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { makeTagged, passableSymbolForName } from '@endo/pass-style';
 import {
   exampleAlice,

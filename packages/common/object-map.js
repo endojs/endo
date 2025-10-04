@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 const { entries, fromEntries } = Object;
 
 /**

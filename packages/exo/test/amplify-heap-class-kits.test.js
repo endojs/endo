@@ -1,6 +1,7 @@
 // modeled on test-heap-classes.js
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { M } from '@endo/patterns';
 import { defineExoClass, defineExoClassKit } from '../src/exo-makers.js';
 
@@ -73,7 +74,7 @@ test('test amplify defineExoClassKit', t => {
   t.is(downCounter.decr(), 7);
 
   t.throws(() => amp(harden({})), {
-    message: 'Must be a facet of "Counter": {}',
+    message: /^Must be a facet of "Counter": (\(an object\)|\{\})$/,
   });
   t.deepEqual(amp(upCounter), counterKit);
   t.deepEqual(amp(downCounter), counterKit);

@@ -1,6 +1,7 @@
 // @ts-check
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
   GET_INTERFACE_GUARD,
@@ -21,7 +22,7 @@ test('what happens with extra arguments', t => {
   });
   t.throws(() => exo.foo('an extra arg'), {
     message:
-      '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
+      /^"In \\"foo\\" method of \(NoExtraArgs\)" accepts at most 0 arguments, not 1: (\(an object\)|\["an extra arg"\])$/,
   });
 });
 
@@ -70,12 +71,14 @@ test('test defineExoClass', t => {
   t.is(upCounter.incr(5), 8);
   t.is(upCounter.incr(1), 9);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (UpCounter): arg 0?: -3 - Must be >= 0',
+    // Tolerate both redacted and unredacted error messages
+    message:
+      /^In "incr" method of \(UpCounter\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // @ts-expect-error bad arg
   t.throws(() => upCounter.incr('foo'), {
     message:
-      'In "incr" method of (UpCounter): arg 0?: string "foo" - Must be a number',
+      /^In "incr" method of \(UpCounter\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
@@ -94,7 +97,7 @@ test('test defineExoClass', t => {
   // @ts-expect-error intentional for test
   t.throws(() => foo.m2('invalid arg'), {
     message:
-      'In "m2" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+      /^In "m2" method of \(Foo\): arg 0: string (\(a string\)|"invalid arg") - Must be a boolean$/,
   });
 });
 
@@ -131,12 +134,13 @@ test('test defineExoClassKit', t => {
   t.is(downCounter.decr(), 7);
   t.is(upCounter.incr(3), 10);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (Counter up): arg 0?: -3 - Must be >= 0',
+    message:
+      /^In "incr" method of \(Counter up\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // @ts-expect-error the type violation is what we're testing
   t.throws(() => downCounter.decr('foo'), {
     message:
-      'In "decr" method of (Counter down): arg 0?: string "foo" - Must be a number',
+      /^In "decr" method of \(Counter down\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   // @ts-expect-error bad arg
   t.throws(() => upCounter.decr(3), {
@@ -157,12 +161,13 @@ test('test makeExo', t => {
   t.is(upCounter.incr(5), 8);
   t.is(upCounter.incr(1), 9);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (upCounter): arg 0?: -3 - Must be >= 0',
+    message:
+      /^In "incr" method of \(upCounter\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // @ts-expect-error deliberately bad arg for testing
   t.throws(() => upCounter.incr('foo'), {
     message:
-      'In "incr" method of (upCounter): arg 0?: string "foo" - Must be a number',
+      /^In "incr" method of \(upCounter\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
 });
@@ -231,14 +236,14 @@ const PassableGreeterI = M.interface(
 test('passable guards', t => {
   const greeter = makeExo('greeter', PassableGreeterI, {
     sayHello(immutabe) {
-      t.is(Object.isFrozen(immutabe), true);
+      t.assert(harden.isFake || Object.isFrozen(immutabe));
       return 'hello';
     },
   });
 
   const mutable = {};
   t.is(greeter.sayHello(mutable), 'hello', `passableGreeter can sayHello`);
-  t.is(Object.isFrozen(mutable), true, `mutable is frozen`);
+  t.is(harden.isFake || Object.isFrozen(mutable), true, `mutable is frozen`);
   t.throws(() => greeter.sayHello(makeBehavior()), {
     message:
       /In "sayHello" method of \(greeter\): Remotables must be explicitly declared/,
@@ -280,37 +285,39 @@ test('raw guards', t => {
       return 'hello';
     },
     rawIn(obj) {
-      t.is(Object.isFrozen(obj), false);
+      t.assert(!Object.isFrozen(obj));
       return obj;
     },
     rawOut(obj) {
-      t.is(Object.isFrozen(obj), true);
+      t.assert(harden.isFake || Object.isFrozen(obj));
       return { ...obj };
     },
     passthrough(obj) {
-      t.is(Object.isFrozen(obj), false);
+      t.assert(!Object.isFrozen(obj));
       return obj;
     },
     tortuous(hardA, softB, hardC, optHardD, optSoftE = {}) {
       // Test that `M.raw()` does not freeze the arguments, unlike `M.any()`.
-      t.is(Object.isFrozen(hardA), true);
-      t.is(Object.isFrozen(softB), false);
+      t.assert(harden.isFake || Object.isFrozen(hardA));
+      t.assert(!Object.isFrozen(softB));
       softB.b = 2;
-      t.is(Object.isFrozen(hardC), true);
-      t.is(Object.isFrozen(optHardD), true);
-      t.is(Object.isFrozen(optSoftE), false);
+      t.assert(harden.isFake || Object.isFrozen(hardC));
+      t.assert(harden.isFake || Object.isFrozen(optHardD));
+      t.assert(!Object.isFrozen(optSoftE));
       return {};
     },
   });
   t.deepEqual(greeter2[GET_INTERFACE_GUARD]?.(), Greeter2I);
   testGreeter(t, greeter, 'explicit raw');
 
-  t.is(Object.isFrozen(greeter2.rawIn({})), true);
-  t.is(Object.isFrozen(greeter2.rawOut({})), false);
-  t.is(Object.isFrozen(greeter2.passthrough({})), false);
+  t.assert(harden.isFake || Object.isFrozen(greeter2.rawIn({})));
+  t.assert(!Object.isFrozen(greeter2.rawOut({})));
+  t.assert(!Object.isFrozen(greeter2.passthrough({})));
 
-  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})), true);
-  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {})), true);
+  t.assert(
+    harden.isFake || Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})),
+  );
+  t.assert(harden.isFake || Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
     () => greeter2.tortuous(makeBehavior(), {}, {}),
@@ -340,13 +347,13 @@ test('naked function call', t => {
   const { sayHello, [GET_INTERFACE_GUARD]: gigm } = greeter;
   t.throws(() => sayHello(), {
     message:
-      'Method "In \\"sayHello\\" method of (greeter)" called without \'this\' object',
+      /^Method (\(a string\)|"In \\"sayHello\\" method of \(greeter\)") called without 'this' object$/,
   });
   t.is(sayHello.bind(greeter)(), 'hello');
 
   t.throws(() => gigm?.(), {
     message:
-      'Method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
+      /^Method (\(a string\)|"In \\"__getInterfaceGuard__\\" method of \(greeter\)") called without 'this' object$/,
   });
   t.deepEqual(gigm?.bind(greeter)(), GreeterI);
 });

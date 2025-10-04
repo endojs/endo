@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* global setTimeout */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { fileURLToPath } from 'url';
 import { fork } from 'child_process';

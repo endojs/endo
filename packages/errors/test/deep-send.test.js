@@ -9,7 +9,6 @@
 // `errorTaming` is subject to variation by environment variables. If no
 // LOCKDOWN_ERROR_TAMING is set, then it defaults to `'safe'`, whereas
 // `commit.js` sets it to `'unsafe'`.
-import '@endo/lockdown/commit.js';
 import '@endo/eventual-send/shim.js';
 import test from 'ava';
 

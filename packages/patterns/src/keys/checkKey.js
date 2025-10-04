@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { Far, getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
 import {

@@ -1,4 +1,5 @@
 // @ts-nocheck XXX Babel types
+import harden from '@endo/harden';
 import { makeTransformSource } from './transform-source.js';
 import makeModulePlugins from './babel-plugin.js';
 

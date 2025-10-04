@@ -1,5 +1,6 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { makeTagged, getTag, passStyleOf, PASS_STYLE } from '@endo/pass-style';
 import {
   isCopyBag,
@@ -191,7 +192,7 @@ test('matching', t => {
       ),
     {
       message:
-        'The entries of a copyBag must be sorted in reverse rank order: [["a","[1n]"],["b","[2n]"],["c","[3n]"],["z","[26n]"]]',
+        /The entries of a copyBag must be sorted in reverse rank order: (\(an object\)|\[\["a","\[1n\]"\],\["b","\[2n\]"\],\["c","\[3n\]"\],\["z","\[26n\]"\]\])/,
     },
     'key-reversed pattern is rejected',
   );

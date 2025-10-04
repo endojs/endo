@@ -1,7 +1,9 @@
 // @ts-nocheck
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
 
+import test from '@endo/ses-ava/test.js';
+
+import harden from '@endo/harden';
 import { makeError } from '@endo/errors';
 import {
   passStyleOf,
@@ -14,10 +16,11 @@ import { makeTagged } from '../src/makeTagged.js';
 
 const { defineProperty } = Object;
 
-test('style of extended errors', t => {
+(harden.isFake ? test.skip : test)('style of extended errors', t => {
   const e1 = Error('e1');
   t.throws(() => passStyleOf(e1), {
-    message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
+    message:
+      /Cannot pass non-frozen objects like ("\[Error: e1\]"|\(an Error\)). Use harden\(\)/,
   });
   harden(e1);
   t.is(passStyleOf(e1), 'error');
@@ -48,17 +51,17 @@ test('toPassableError, toThrowable', t => {
   // Since then, we changed `makeError` to make reasonable effort
   // to return a passable error by default. But also added the
   // `sanitize: false` option to suppress that.
-  t.false(Object.isFrozen(e));
+  t.false(Object.isFrozen(e) && !harden.isFake);
   t.false(isPassable(e));
 
   // toPassableError hardens, and then checks whether the hardened argument
   // is a passable error.
   const e2 = toPassableError(e);
 
-  t.true(Object.isFrozen(e));
+  t.true(Object.isFrozen(e) || harden.isFake);
   t.false(isPassable(e));
 
-  t.true(Object.isFrozen(e2));
+  t.true(Object.isFrozen(e2) || harden.isFake);
   t.true(isPassable(e2));
 
   t.not(e, e2);
@@ -72,7 +75,8 @@ test('toPassableError, toThrowable', t => {
   // a throwable singleton copyArray containing a toThrowable(e), i.e.,
   // an error like e2.
   t.throws(() => toThrowable(notYetCoercable), {
-    message: 'Passable Error has extra unpassed property "foo"',
+    message:
+      /Passable Error "stack" own property must be a data property: \(an object\)|Passable Error has extra unpassed property "foo"/,
   });
 
   const throwable = harden([e2, { e2 }, makeTagged('e2', e2)]);

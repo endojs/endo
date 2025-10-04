@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { objectMetaMap } from '@endo/common/object-meta-map.js';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
@@ -39,12 +39,13 @@ test('test defineExoClass', t => {
   t.is(upCounter.incr(5), 8);
   t.is(upCounter.incr(1), 9);
   t.throws(() => upCounter.incr(-3), {
-    message: 'In "incr" method of (UpCounter): arg 0?: -3 - Must be >= 0',
+    message:
+      /^In "incr" method of \(UpCounter\): arg 0\?: (\(a number\)|-3) - Must be >= (\(a number\)|0)$/,
   });
   // FIXME typedef should catch bad arg
   t.throws(() => upCounter.incr('foo'), {
     message:
-      'In "incr" method of (UpCounter): arg 0?: string "foo" - Must be a number',
+      /^In "incr" method of \(UpCounter\): arg 0\?: string (\(a string\)|"foo") - Must be a number$/,
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
@@ -67,6 +68,6 @@ test('test defineExoClass', t => {
   t.deepEqual(foo[GET_INTERFACE_GUARD](), FooI);
   t.throws(() => foo.m2('invalid arg'), {
     message:
-      'In "m2" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+      /^In "m2" method of \(Foo\): arg 0: string (\(a string\)|"invalid arg") - Must be a boolean$/,
   });
 });

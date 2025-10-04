@@ -1,5 +1,6 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { passStyleOf } from '../src/passStyleOf.js';
 
 const { defineProperty } = Object;
@@ -19,7 +20,8 @@ test('safe promise loophole', t => {
     // @ts-expect-error intentional
     p2.silly = 'silly own property';
     t.throws(() => passStyleOf(harden(p2)), {
-      message: '"[Promise]" - Must not have any own properties: ["silly"]',
+      message:
+        /("\[Promise\]"|\(an object\)) - Must not have any own properties: \["silly"\]/,
     });
     t.is(p2[toStringTag], 'Promise');
     t.is(`${p2}`, '[object Promise]');
@@ -34,7 +36,8 @@ test('safe promise loophole', t => {
       {
         // Override mistake
         message:
-          "Cannot assign to read only property 'Symbol(Symbol.toStringTag)' of object '[object Promise]'",
+          // Note: #<Promise> without SES. [object Promise] with SES.
+          /Cannot assign to read only property 'Symbol\(Symbol.toStringTag\)' of object '(\[object Promise\]|#<Promise>)'/,
       },
     );
     defineProperty(p3, toStringTag, {

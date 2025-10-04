@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { q, hideAndHardenFunction } from '@endo/errors';
 
 /**
@@ -157,6 +156,7 @@ const makeConfirmTagRecord = confirmProto => {
       (!isPrimitive(tagRecord) ||
         (reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
+        harden.isFake ||
         (reject && reject`A tagRecord must be frozen: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&

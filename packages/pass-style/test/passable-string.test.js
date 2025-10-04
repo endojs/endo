@@ -1,6 +1,6 @@
 /* eslint-disable no-useless-concat */
 import './_prepare-only-well-formed-strings-passable.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { isWellFormedString, assertWellFormedString } from '../src/string.js';
 import { passStyleOf } from '../src/passStyleOf.js';
@@ -35,17 +35,17 @@ test('test string well formedness behaviors', t => {
   t.notThrows(() => assertWellFormedString(gcleff1));
 
   t.throws(() => passStyleOf(badcleff1), {
-    message: 'Expected well-formed unicode string: "\\ud834𝄞"',
+    message: /Expected well-formed unicode string: ("\\ud834𝄞"|\(a string\))/,
   });
   t.throws(() => passStyleOf(badcleff2), {
-    message: 'Expected well-formed unicode string: "𝄞\\ud834"',
+    message: /Expected well-formed unicode string: ("𝄞\\ud834"|\(a string\))/,
   });
   t.false(isWellFormedString(badcleff1));
   t.false(isWellFormedString(badcleff2));
   t.throws(() => assertWellFormedString(badcleff1), {
-    message: 'Expected well-formed unicode string: "\\ud834𝄞"',
+    message: /Expected well-formed unicode string: ("\\ud834𝄞"|\(a string\))/,
   });
   t.throws(() => assertWellFormedString(badcleff2), {
-    message: 'Expected well-formed unicode string: "𝄞\\ud834"',
+    message: /Expected well-formed unicode string: ("𝄞\\ud834"|\(a string\))/,
   });
 });
