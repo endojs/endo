@@ -88,7 +88,7 @@ const confirmPromiseOwnKeys = (pr, reject) => {
     if (
       typeof val === 'object' &&
       val !== null &&
-      isFrozen(val) &&
+      (harden.isFake || isFrozen(val)) &&
       getPrototypeOf(val) === Object.prototype
     ) {
       const subKeys = ownKeys(val);
@@ -133,7 +133,9 @@ const confirmPromiseOwnKeys = (pr, reject) => {
  */
 const confirmSafePromise = (pr, reject) => {
   return (
-    (isFrozen(pr) || (reject && reject`${pr} - Must be frozen`)) &&
+    (isFrozen(pr) ||
+      harden.isFake ||
+      (reject && reject`${pr} - Must be frozen`)) &&
     (isPromise(pr) || (reject && reject`${pr} - Must be a promise`)) &&
     (getPrototypeOf(pr) === Promise.prototype ||
       (reject &&
