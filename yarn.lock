@@ -147,10 +147,6 @@ __metadata:
     babel-eslint: "npm:^10.1.0"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     prettier: "npm:^3.5.3"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -169,10 +165,6 @@ __metadata:
     c8: "catalog:dev"
     eshost-cli: "npm:^9.0.0"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     esvu: "npm:^1.2.16"
     rollup: "npm:^4.34.6"
     tsd: "catalog:dev"
@@ -230,6 +222,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -248,10 +241,6 @@ __metadata:
     babel-eslint: "npm:^10.1.0"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -263,10 +252,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -293,10 +278,6 @@ __metadata:
     ava: "catalog:dev"
     commander: "npm:^5.0.0"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     execa: "npm:^9.3.0"
     open: "npm:^9.1.0"
     ses: "workspace:^"
@@ -317,6 +298,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -334,10 +316,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -369,10 +347,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
     ws: "npm:^8.13.0"
@@ -385,10 +359,6 @@ __metadata:
   dependencies:
     ava: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -402,6 +372,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     ses: "workspace:^"
     ses0_18_3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
@@ -449,6 +420,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -470,10 +442,6 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -489,6 +457,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -500,10 +469,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -522,6 +487,7 @@ __metadata:
     "@endo/where": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -537,6 +503,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     ava: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -545,6 +512,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/lockdown@workspace:packages/lockdown"
   dependencies:
+    eslint: "catalog:dev"
     ses: "workspace:^"
   languageName: unknown
   linkType: soft
@@ -560,10 +528,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -587,10 +551,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -603,10 +563,6 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -625,10 +581,6 @@ __metadata:
     benchmark: "npm:^2.1.4"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -641,9 +593,6 @@ __metadata:
     "@endo/compartment-mapper": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -659,10 +608,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -699,10 +644,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -714,6 +655,7 @@ __metadata:
   dependencies:
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -733,10 +675,6 @@ __metadata:
     "@fast-check/ava": "catalog:dev"
     ava: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -747,6 +685,7 @@ __metadata:
   dependencies:
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -767,10 +706,6 @@ __metadata:
     "@fast-check/ava": "catalog:dev"
     ava: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -782,10 +717,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -801,10 +732,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   peerDependencies:
@@ -837,10 +764,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -852,10 +775,6 @@ __metadata:
   dependencies:
     "@endo/stream": "workspace:^"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -872,10 +791,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -887,10 +802,6 @@ __metadata:
   dependencies:
     "@endo/compartment-mapper": "workspace:^"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     ses: "workspace:^"
     test262-harness: "npm:^10.0.0"
     typescript: "npm:~5.9.2"
@@ -904,10 +815,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -920,10 +827,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -935,10 +838,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -5041,18 +4940,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-eslint-comments@npm:^3.2.0":
-  version: 3.2.0
-  resolution: "eslint-plugin-eslint-comments@npm:3.2.0"
-  dependencies:
-    escape-string-regexp: "npm:^1.0.5"
-    ignore: "npm:^5.0.5"
-  peerDependencies:
-    eslint: ">=4.19.1"
-  checksum: 10c0/c71db824592dc8ea498021572a0bd33d763ef26126bdb3b84a027ca75a1adbe0894ec95024f7de39ef12308560e62cbf8af0d06ffe472be5ba8bd9169c928e96
-  languageName: node
-  linkType: hard
-
 "eslint-plugin-import@npm:^2.31.0":
   version: 2.32.0
   resolution: "eslint-plugin-import@npm:2.32.0"
@@ -6338,7 +6225,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ignore@npm:^5.0.4, ignore@npm:^5.0.5, ignore@npm:^5.2.0":
+"ignore@npm:^5.0.4, ignore@npm:^5.2.0":
   version: 5.2.4
   resolution: "ignore@npm:5.2.4"
   checksum: 10c0/7c7cd90edd9fea6e037f9b9da4b01bf0a86b198ce78345f9bbd983929d68ff14830be31111edc5d70c264921f4962404d75b7262b4d9cc3bc12381eccbd03096
@@ -10145,10 +10032,6 @@ __metadata:
     c8: "catalog:dev"
     core-js: "npm:^3.31.0"
     eslint: "catalog:dev"
-    eslint-config-airbnb-base: "catalog:dev"
-    eslint-config-prettier: "catalog:dev"
-    eslint-plugin-eslint-comments: "catalog:dev"
-    eslint-plugin-import: "catalog:dev"
     hermes-engine-cli: "npm:^0.12.0"
     terser: "npm:^5.16.6"
     tsd: "catalog:dev"

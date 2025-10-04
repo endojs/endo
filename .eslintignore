@@ -2,6 +2,7 @@ coverage/
 build/
 dist/
 api-docs/
+browser-test/
 
 *.json
 

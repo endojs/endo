@@ -44,6 +44,7 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
+    "eslint": "catalog:dev",
     "ses0_18_3": "npm:ses@0.18.3",
     "tsd": "catalog:dev",
     "typescript": "~5.9.2"
