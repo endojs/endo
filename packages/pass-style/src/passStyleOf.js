@@ -164,7 +164,7 @@ const makePassStyleOf = passStyleHelpers => {
           if (inner === null) {
             return 'null';
           }
-          if (!isFrozen(inner)) {
+          if (!harden.isFake && !isFrozen(inner)) {
             assert.fail(
               // TypedArrays get special treatment in harden()
               // and a corresponding special error message here.
@@ -198,7 +198,8 @@ const makePassStyleOf = passStyleHelpers => {
           return 'remotable';
         }
         case 'function': {
-          isFrozen(inner) ||
+          harden.isFake ||
+            isFrozen(inner) ||
             Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;

@@ -50,7 +50,7 @@ test('toPassableError, toThrowable', t => {
   // Since then, we changed `makeError` to make reasonable effort
   // to return a passable error by default. But also added the
   // `sanitize: false` option to suppress that.
-  t.false(Object.isFrozen(e) && !harden.isFake);
+  t.false(Object.isFrozen(e));
   t.false(isPassable(e));
 
   // toPassableError hardens, and then checks whether the hardened argument
