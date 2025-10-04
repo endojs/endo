@@ -5,7 +5,7 @@ import { makeFinalizingMap } from './finalize.js';
 
 export { E };
 
-/** @import {ERef} from '@endo/eventual-send' */
+/** @import {ERef, EResult} from '@endo/eventual-send' */
 
 /**
  * Create an async-isolated channel to an object.
@@ -14,9 +14,9 @@ export { E };
  * @param {import('./captp.js').CapTPOptions} [nearOptions]
  * @param {import('./captp.js').CapTPOptions} [farOptions]
  * @returns {{
- *   makeFar<T>(x: T): ERef<T>,
- *   makeNear<T>(x: T): ERef<T>,
- *   makeTrapHandler<T>(x: T): T,
+ *   makeFar<T>(x: T): Promise<EResult<T>>,
+ *   makeNear<T>(x: T): Promise<EResult<T>>,
+ *   makeTrapHandler<T>(name: string, x: T): T,
  *   isOnlyNear(x: any): boolean,
  *   isOnlyFar(x: any): boolean,
  *   getNearStats(): any,
@@ -92,13 +92,14 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
     refGetter =>
     /**
      * @param {T} x
-     * @returns {Promise<T>}
+     * @returns {Promise<EResult<T>>}
      */
     async x => {
       lastNonce += 1;
       const myNonce = lastNonce;
       const val = await x;
       nonceToRef.set(myNonce, harden(val));
+      // @ts-expect-error Type 'T | Awaited<T>' is not assignable to type 'EResult<T>'
       return E(refGetter).getRef(myNonce);
     };
 
