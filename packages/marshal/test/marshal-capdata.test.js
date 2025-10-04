@@ -46,7 +46,7 @@ test('serialize unserialize round trip pairs', t => {
     t.is(body, encoding);
     const decoding = unserialize({ body, slots: [] });
     t.deepEqual(decoding, plain);
-    t.assert(isFrozen(decoding));
+    t.assert(harden.isFake || isFrozen(decoding));
   }
 });
 
@@ -70,8 +70,8 @@ test('serialize static data', t => {
   });
 
   const cd = ser(harden([1, 2]));
-  t.is(isFrozen(cd), true);
-  t.is(isFrozen(cd.slots), true);
+  t.is(harden.isFake || isFrozen(cd), true);
+  t.is(harden.isFake || isFrozen(cd.slots), true);
 });
 
 test('unserialize static data', t => {
@@ -80,12 +80,12 @@ test('unserialize static data', t => {
 
   // should be frozen
   const arr = uns('[1,2]');
-  t.truthy(isFrozen(arr));
+  t.truthy(harden.isFake || isFrozen(arr));
   const a = uns('{"b":{"c":{"d": []}}}');
-  t.truthy(isFrozen(a));
-  t.truthy(isFrozen(a.b));
-  t.truthy(isFrozen(a.b.c));
-  t.truthy(isFrozen(a.b.c.d));
+  t.truthy(harden.isFake || isFrozen(a));
+  t.truthy(harden.isFake || isFrozen(a.b));
+  t.truthy(harden.isFake || isFrozen(a.b.c));
+  t.truthy(harden.isFake || isFrozen(a.b.c.d));
 });
 
 test('serialize errors', t => {
@@ -110,10 +110,10 @@ test('serialize errors', t => {
   // @ts-expect-error Check dynamic consequences of type violation
   errExtra.foo = [];
   freeze(errExtra);
-  t.assert(isFrozen(errExtra));
+  t.assert(harden.isFake || isFrozen(errExtra));
   if (!harden.isFake) {
     // @ts-expect-error Check dynamic consequences of type violation
-    t.falsy(isFrozen(errExtra.foo));
+    t.falsy(harden.isFake || isFrozen(errExtra.foo));
   }
   t.deepEqual(ser(errExtra), {
     body: '{"@qclass":"error","errorId":"error:anon-marshal#10003","message":"has extra properties","name":"Error"}',
@@ -121,7 +121,7 @@ test('serialize errors', t => {
   });
   if (!harden.isFake) {
     // @ts-expect-error Check dynamic consequences of type violation
-    t.falsy(isFrozen(errExtra.foo));
+    t.falsy(harden.isFake || isFrozen(errExtra.foo));
   }
 
   // Bad prototype and bad "message" property
@@ -145,7 +145,7 @@ test('unserialize errors', t => {
   );
   t.truthy(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
-  t.truthy(isFrozen(em1));
+  t.truthy(harden.isFake || isFrozen(em1));
 
   const em2 = uns('{"@qclass":"error","message":"msg2","name":"TypeError"}');
   t.truthy(em2 instanceof TypeError);

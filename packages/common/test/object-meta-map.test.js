@@ -19,18 +19,21 @@ test('test objectMetaMap', async t => {
           },
     null,
   );
+  const expectedWritable = !!harden.isFake;
+  const expectedConfigurable = !!harden.isFake;
+
   t.deepEqual(getOwnPropertyDescriptors(mapped), {
     a: {
       value: 2,
-      writable: false,
+      writable: expectedWritable,
       enumerable: false,
-      configurable: false,
+      configurable: expectedConfigurable,
     },
     c: {
       value: 6,
-      writable: false,
+      writable: expectedWritable,
       enumerable: false,
-      configurable: false,
+      configurable: expectedConfigurable,
     },
   });
   t.is(getPrototypeOf(mapped), null);

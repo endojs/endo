@@ -62,7 +62,9 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
-  t.is(passStyleOf(harden(Error('ok'))), 'error');
+  if (!harden.isFake) {
+    t.is(passStyleOf(harden(Error('ok'))), 'error');
+  }
 });
 
 test('ToFarFunction', t => {
