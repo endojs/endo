@@ -232,14 +232,14 @@ const PassableGreeterI = M.interface(
 test('passable guards', t => {
   const greeter = makeExo('greeter', PassableGreeterI, {
     sayHello(immutabe) {
-      t.is(Object.isFrozen(immutabe), true);
+      t.assert(harden.isFake || Object.isFrozen(immutabe));
       return 'hello';
     },
   });
 
   const mutable = {};
   t.is(greeter.sayHello(mutable), 'hello', `passableGreeter can sayHello`);
-  t.is(Object.isFrozen(mutable), true, `mutable is frozen`);
+  t.is(harden.isFake || Object.isFrozen(mutable), true, `mutable is frozen`);
   t.throws(() => greeter.sayHello(makeBehavior()), {
     message:
       /In "sayHello" method of \(greeter\): Remotables must be explicitly declared/,
@@ -281,37 +281,39 @@ test('raw guards', t => {
       return 'hello';
     },
     rawIn(obj) {
-      t.is(Object.isFrozen(obj), false);
+      t.assert(!Object.isFrozen(obj));
       return obj;
     },
     rawOut(obj) {
-      t.is(Object.isFrozen(obj), true);
+      t.assert(harden.isFake || Object.isFrozen(obj));
       return { ...obj };
     },
     passthrough(obj) {
-      t.is(Object.isFrozen(obj), false);
+      t.assert(!Object.isFrozen(obj));
       return obj;
     },
     tortuous(hardA, softB, hardC, optHardD, optSoftE = {}) {
       // Test that `M.raw()` does not freeze the arguments, unlike `M.any()`.
-      t.is(Object.isFrozen(hardA), true);
-      t.is(Object.isFrozen(softB), false);
+      t.assert(harden.isFake || Object.isFrozen(hardA));
+      t.assert(!Object.isFrozen(softB));
       softB.b = 2;
-      t.is(Object.isFrozen(hardC), true);
-      t.is(Object.isFrozen(optHardD), true);
-      t.is(Object.isFrozen(optSoftE), false);
+      t.assert(harden.isFake || Object.isFrozen(hardC));
+      t.assert(harden.isFake || Object.isFrozen(optHardD));
+      t.assert(!Object.isFrozen(optSoftE));
       return {};
     },
   });
   t.deepEqual(greeter2[GET_INTERFACE_GUARD]?.(), Greeter2I);
   testGreeter(t, greeter, 'explicit raw');
 
-  t.is(Object.isFrozen(greeter2.rawIn({})), true);
-  t.is(Object.isFrozen(greeter2.rawOut({})), false);
-  t.is(Object.isFrozen(greeter2.passthrough({})), false);
+  t.assert(harden.isFake || Object.isFrozen(greeter2.rawIn({})));
+  t.assert(!Object.isFrozen(greeter2.rawOut({})));
+  t.assert(!Object.isFrozen(greeter2.passthrough({})));
 
-  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})), true);
-  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {})), true);
+  t.assert(
+    harden.isFake || Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})),
+  );
+  t.assert(harden.isFake || Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
     () => greeter2.tortuous(makeBehavior(), {}, {}),

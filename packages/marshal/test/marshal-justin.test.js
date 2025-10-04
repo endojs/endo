@@ -102,24 +102,28 @@ test('qp for quote passable as a quasi-quoted Justin expression', t => {
   const pr = Promise.resolve('fulfillment');
   const e = makeError(X`xxx ${qp([3n, r, r, pr])} yyy ${qp(pr)}`);
   t.log('zz', e, `ww`);
-  t.is(
-    e.message,
-    // In the literal string below, notice that the second call to `qp`
-    // starts the slot count over again. Otherwise, `qp` would be a
-    // communications channel. Since the rendered string is only for
-    // diagnostic value and does not show the slot content anyway,
-    // this is ok.
-    // TODO maybe better would be to show the slot contents using an outer
-    // `bestEffortsStringify` on the slots array. But that would be a
-    // terribly confusing mix of notation. We simply can't show them in
-    // Justin other than by slots.
-    `xxx ${JSON.stringify(`\`[
+  if (Object.isFrozen(Object.prototype)) {
+    t.is(
+      e.message,
+      // In the literal string below, notice that the second call to `qp`
+      // starts the slot count over again. Otherwise, `qp` would be a
+      // communications channel. Since the rendered string is only for
+      // diagnostic value and does not show the slot content anyway,
+      // this is ok.
+      // TODO maybe better would be to show the slot contents using an outer
+      // `bestEffortsStringify` on the slots array. But that would be a
+      // terribly confusing mix of notation. We simply can't show them in
+      // Justin other than by slots.
+      `xxx ${JSON.stringify(`\`[
   3n,
   slotToVal("s0","Alleged: r"),
   slotToVal("s0"),
   slotToVal("s1"),
 ]\``)} yyy "\`slotToVal(\\"s0\\")\`"`,
-  );
+    );
+  } else {
+    t.is(e.message, 'xxx (a string) yyy (a string)');
+  }
 
   // For the original motivating example, which is also much more realistic,
   // See qp-on-pattern.test.js in @endo/patterns

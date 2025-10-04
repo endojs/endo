@@ -14,7 +14,7 @@ test('stringify parse round trip pairs', t => {
     t.is(str, encoding);
     const decoding = parse(str);
     t.deepEqual(decoding, plain);
-    t.assert(isFrozen(decoding));
+    t.assert(harden.isFake || isFrozen(decoding));
   }
 });
 

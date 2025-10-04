@@ -16,7 +16,7 @@ import { makeTagged } from '../src/makeTagged.js';
 
 const { defineProperty } = Object;
 
-test('style of extended errors', t => {
+(harden.isFake ? test.skip : test)('style of extended errors', t => {
   const e1 = Error('e1');
   t.throws(() => passStyleOf(e1), {
     message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
@@ -50,17 +50,17 @@ test('toPassableError, toThrowable', t => {
   // Since then, we changed `makeError` to make reasonable effort
   // to return a passable error by default. But also added the
   // `sanitize: false` option to suppress that.
-  t.false(Object.isFrozen(e));
+  t.false(Object.isFrozen(e) && !harden.isFake);
   t.false(isPassable(e));
 
   // toPassableError hardens, and then checks whether the hardened argument
   // is a passable error.
   const e2 = toPassableError(e);
 
-  t.true(Object.isFrozen(e));
+  t.true(Object.isFrozen(e) || harden.isFake);
   t.false(isPassable(e));
 
-  t.true(Object.isFrozen(e2));
+  t.true(Object.isFrozen(e2) || harden.isFake);
   t.true(isPassable(e2));
 
   t.not(e, e2);

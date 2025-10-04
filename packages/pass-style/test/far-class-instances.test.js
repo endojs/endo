@@ -18,19 +18,21 @@ import { Far, GET_METHOD_NAMES } from '../src/make-far.js';
  */
 const FarBaseClass = class FarBaseClass {
   constructor() {
-    harden(this);
+    Object.freeze(this);
   }
 };
 
 Far('FarBaseClass', FarBaseClass.prototype);
-harden(FarBaseClass);
+Object.freeze(FarBaseClass);
+Object.freeze(FarBaseClass.prototype);
 
 class FarSubclass1 extends FarBaseClass {
   double(x) {
     return x + x;
   }
 }
-harden(FarSubclass1);
+Object.freeze(FarSubclass1);
+Object.freeze(FarSubclass1.prototype);
 
 class FarSubclass2 extends FarSubclass1 {
   #y = 0;
@@ -44,7 +46,8 @@ class FarSubclass2 extends FarSubclass1 {
     return this.double(x) + this.#y;
   }
 }
-harden(FarSubclass2);
+Object.freeze(FarSubclass2);
+Object.freeze(FarSubclass2.prototype);
 
 const assertMethodNames = (t, obj, names) => {
   t.deepEqual(getMethodNames(obj), names);
@@ -90,7 +93,8 @@ test('far class instances', t => {
       return this.double(x) + yField.get(this);
     }
   }
-  harden(FarSubclass3);
+  Object.freeze(FarSubclass3);
+  Object.freeze(FarSubclass3.prototype);
 
   const fs3 = new FarSubclass3(3);
   t.is(passStyleOf(fs3), 'remotable');
@@ -108,7 +112,8 @@ test('far class instance hardened empty', t => {
   class FarClass4 extends FarBaseClass {
     z = 0;
   }
-  harden(FarClass4);
+  Object.freeze(FarClass4);
+  Object.freeze(FarClass4.prototype);
   t.throws(() => new FarClass4(), {
     // TODO message depends on JS engine, and so is a fragile golden test
     message: 'Cannot define property z, object is not extensible',
