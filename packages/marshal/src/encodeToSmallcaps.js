@@ -18,7 +18,7 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @import {Passable, Remotable} from '@endo/pass-style' */
+/** @import {Passable, RemotableObject as Remotable} from '@endo/pass-style' */
 // FIXME define actual types
 /** @typedef {any} SmallcapsEncoding */
 /** @typedef {any} SmallcapsEncodingUnion */
