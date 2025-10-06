@@ -322,17 +322,17 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   0 extends (1 & T)
- *     ? T
- *     : T extends RemotableBrand<infer L, infer P>
- *       ? (P | RemotableBrand<L, P>)
- *       : T extends PromiseLike<infer U>
- *         ? Promise<EAwaitedResult<Awaited<T>>>
+ *   0 extends (1 & T)                                        // If T is any
+ *     ? T                                                    // Propagate the any type through the result
+ *     : T extends RemotableBrand<infer L, infer P>           // If we have a Remotable
+ *       ? (P | RemotableBrand<L, P>)                         // map it to its "maybe remote" form (primary behavior or remotable presence)
+ *       : T extends PromiseLike<infer U>                     // If T is a promise
+ *         ? Promise<EAwaitedResult<Awaited<T>>>              // map its resolution
  *         : T extends (null | undefined | string | number | boolean | symbol | bigint | Callable) // Intersections of these types with objects are not mapped
- *           ? T
- *           : T extends object
- *             ? { [P in keyof T]: EAwaitedResult<T[P]>; }
- *             : T
+ *           ? T                                              // primitives and non-remotable functions are passed-through
+ *           : T extends object                               //
+ *             ? { [P in keyof T]: EAwaitedResult<T[P]>; }    // other objects are considered copy data and properties mapped
+ *             : T                                            // in case anything wasn't covered, fallback to pass-through
  * )} EAwaitedResult
  */
 
