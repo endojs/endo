@@ -16,7 +16,7 @@ import {
  * @import {Checker, RemotableMethodName} from './types.js'
  * @import {InterfaceSpec, PassStyled} from './types.js'
  * @import {PassStyleHelper} from './internal-types.js'
- * @import {RemotableObject as Remotable} from './types.js'
+ * @import {RemotableObject} from './types.js'
  */
 
 /**
@@ -185,14 +185,14 @@ const checkRemotableProtoOf = (original, check) => {
  * We don't remember rejections because they are possible to correct
  * with e.g. `harden`.
  *
- * @type {WeakSet<Remotable>}
+ * @type {WeakSet<RemotableObject>}
  */
 const confirmedRemotables = new WeakSet();
 
 /**
  * @param {any} val
  * @param {Checker} [check]
- * @returns {val is Remotable}
+ * @returns {val is RemotableObject}
  */
 const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
