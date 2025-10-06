@@ -348,7 +348,8 @@ test('passStyleOf testing remotables', t => {
   );
 
   t.throws(() => passStyleOf(Object.prototype), {
-    message: 'cannot serialize Remotables with accessors like "toString" in {}',
+    message:
+      /^cannot serialize Remotables with accessors like "(toString|__proto__)" in {}$/,
   });
 
   const fauxTagRecordB = harden(
