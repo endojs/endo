@@ -18,7 +18,7 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @import {Passable, Remotable} from '@endo/pass-style' */
+/** @import {Passable, RemotableObject} from '@endo/pass-style' */
 // FIXME define actual types
 /** @typedef {any} SmallcapsEncoding */
 /** @typedef {any} SmallcapsEncodingUnion */
@@ -87,7 +87,7 @@ const startsSpecial = encodedStr => {
 /**
  * @typedef {object} EncodeToSmallcapsOptions
  * @property {(
- *   remotable: Remotable,
+ *   remotable: RemotableObject,
  *   encodeRecur: (p: Passable) => SmallcapsEncoding
  * ) => SmallcapsEncoding} [encodeRemotableToSmallcaps]
  * @property {(
@@ -301,7 +301,7 @@ harden(makeEncodeToSmallcaps);
  * @property {(
  *   encodedRemotable: SmallcapsEncoding,
  *   decodeRecur: (e :SmallcapsEncoding) => Passable
- * ) => Remotable} [decodeRemotableFromSmallcaps]
+ * ) => RemotableObject} [decodeRemotableFromSmallcaps]
  * @property {(
  *   encodedPromise: SmallcapsEncoding,
  *   decodeRecur: (e :SmallcapsEncoding) => Passable

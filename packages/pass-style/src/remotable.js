@@ -13,7 +13,7 @@ import {
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
  * @import {PassStyleHelper} from './internal-types.js';
- * @import {InterfaceSpec, PassStyled, RemotableObject as Remotable, RemotableMethodName} from './types.js';
+ * @import {InterfaceSpec, PassStyled, RemotableObject, RemotableMethodName} from './types.js';
  */
 
 /**
@@ -177,14 +177,14 @@ const confirmRemotableProtoOf = (original, reject) => {
  * We don't remember rejections because they are possible to correct
  * with e.g. `harden`.
  *
- * @type {WeakSet<Remotable>}
+ * @type {WeakSet<RemotableObject>}
  */
 const confirmedRemotables = new WeakSet();
 
 /**
  * @param {any} val
  * @param {Rejector} reject
- * @returns {val is Remotable}
+ * @returns {val is RemotableObject}
  */
 const confirmRemotable = (val, reject) => {
   if (confirmedRemotables.has(val)) {
