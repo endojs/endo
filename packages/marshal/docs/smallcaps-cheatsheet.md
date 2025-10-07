@@ -24,6 +24,7 @@ An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax
 * The number after `"$"` or `"&"` is an index into a separate slots array.
 * ***Special strings*** begin with any of the `!"#$%&'()*+,-` characters.
 * `<expr>` is nested encoding of `expr`.
+* Since `x` and `y` can only be strings, `<x>` and `<y>` are the nested encodings of those strings.
 * To be passable, arrays, records, and errors must also be hardened.
 * Structs [can only have string-named properties](https://github.com/endojs/endo/blob/master/packages/pass-style/doc/copyRecord-guarantees.md).
 * Errors can also carry an optional `errorId` string property.
