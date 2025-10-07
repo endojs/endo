@@ -80,10 +80,11 @@ export {
   quote,
   redacted,
   throwRedacted,
-  // conventional abbreviations and aliases
-  bareOrQuote as b,
-  quote as q,
-  redacted as X,
-  throwRedacted as Fail,
-  note as annotateError,
 };
+
+// conventional abbreviations and aliases
+export const b = bareOrQuote;
+export const q = quote;
+export const X = redacted;
+export const Fail = throwRedacted;
+export const annotateError = note;
