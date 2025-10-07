@@ -1,6 +1,6 @@
 # Endo JavaScript Framework
 
-Endo is a JavaScript framework for powerful plugin systems and supply chain attack resistance. It provides tools for confinement, communication, and concurrency built on Hardened JavaScript (SES). This monorepo contains 44 packages including the core SES implementation, CLI tools, daemon, and various utility packages.
+Endo is a JavaScript framework for powerful plugin systems and supply chain attack resistance. It provides tools for confinement, communication, and concurrency built on Hardened JavaScript (SES). This monorepo contains numerous packages including the core SES implementation, CLI tools, daemon, and various utility packages.
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
@@ -64,19 +64,6 @@ After making any changes, ALWAYS validate with these scenarios:
    yarn workspace ses run test
    ```
 
-2. **CLI Functionality**:
-   ```bash
-   # Test CLI help and basic commands
-   ./packages/cli/bin/endo --help
-   ./packages/cli/bin/endo where state
-   
-   # Start daemon and test evaluation
-   ./packages/cli/bin/endo start
-   ./packages/cli/bin/endo ping      # Should return "ok"
-   ./packages/cli/bin/endo eval '1 + 1'  # Should return "2"
-   ./packages/cli/bin/endo list      # Should show AGENT, APPS, ENDO, etc.
-   ./packages/cli/bin/endo stop
-   ```
 
 3. **Linting**:
    ```bash
@@ -92,13 +79,20 @@ These are known limitations to document, not fix:
 
 ## Key Projects and Packages
 
-### Core Framework
+### Local Object Capability Foundations
 - **`ses`**: Secure EcmaScript (Hardened JavaScript) - the foundation of Endo
 - **`lockdown`**: Hardens JavaScript environments  
-- **`compartment-mapper`**: Maps and manages compartments
-- **`marshal`**: Serialization for capability-secure communication
+- **`compartment-mapper`**: Map `node_modules` and construct compartments for packages, for bundling, archiving, and executing confined Node.js-style applications
 
-### User Interfaces  
+### Remote Object Capability Communication
+- **`marshal`**: Serialization for capability-secure communication
+- **`patterns`**: Pattern matching utilities
+- **`eventual-send`**: Sending eventual messages to target objects
+- **`exo`**: Creating target objects for eventual messages
+- **`captp`**: Example capability transfer protocol
+- **`ocapn`**: Example capability transfer protocol with three-party-hand-off
+
+### Canonical Example Platform
 - **`cli`**: Command-line interface for Endo daemon management
 - **`daemon`**: Persistent host for managing guest programs in hardened workers
 
@@ -115,11 +109,11 @@ These are known limitations to document, not fix:
 - **`base64`**: Base64 encoding/decoding
 - **`zip`**: ZIP file utilities  
 - **`stream`**: Stream processing utilities
-- **`patterns`**: Pattern matching utilities
 
 ## Common Tasks
 
 ### Running Individual Package Tests
+For example
 ```bash
 # Test specific packages (these work reliably)
 yarn workspace @endo/base64 run test
@@ -172,7 +166,7 @@ yarn lerna publish from-package
 ```
 endo/
 ├── .github/           # GitHub workflows and templates
-├── packages/          # 44 packages in the monorepo
+├── packages/          # packages in the monorepo
 ├── scripts/           # Build and maintenance scripts  
 ├── browser-test/      # Browser compatibility tests
 ├── package.json       # Root workspace configuration
