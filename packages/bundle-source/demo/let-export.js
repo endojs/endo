@@ -1,11 +1,45 @@
 let letVal = 'original';
+function funcVal() {
+  return 'original';
+}
+class classVal {
+  static value = 'original';
+}
+var varVal = 'original';
 
 const update = () => {
-  letVal = 'updated';
-  return 42;
+  const errors = [];
+  try {
+    letVal = 'updated';
+  } catch (err) {
+    errors.push(err);
+  }
+  try {
+    funcVal = function () {
+      return 'updated';
+    };
+  } catch (err) {
+    errors.push(err);
+  }
+  try {
+    classVal = class {
+      static value = 'updated';
+    };
+  } catch (err) {
+    errors.push(err);
+  }
+  try {
+    varVal = 'updated';
+  } catch (err) {
+    errors.push(err);
+  }
+
+  return errors;
 };
 
-export const constVal = update();
+export const constErrorsVal = update();
 export const constValFromLet = letVal;
-// Comment next line to avoid 'ReferenceError: letVal is not defined' as simulated by `strict-scope-terminator.js`
-export { letVal };
+export const constValFromFunc = funcVal;
+export const constValFromClass = classVal;
+export const constValFromVar = varVal;
+export { letVal, funcVal, classVal, varVal };

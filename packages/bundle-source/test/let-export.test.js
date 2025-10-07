@@ -18,8 +18,24 @@ test.failing('let export', async t => {
   // Evaluate in the start compartment
   const evaluate = globalThis.eval;
   const f = evaluate(`(${source})`);
-  const { letVal, constVal, constValFromLet } = f();
-  t.is(constVal, 42);
+  const {
+    constErrorsVal,
+    constValFromLet,
+    constValFromFunc,
+    constValFromClass,
+    constValFromVar,
+    letVal,
+    funcVal,
+    classVal,
+    varVal,
+  } = f();
+  t.deepEqual(constErrorsVal, []);
   t.is(constValFromLet, 'updated');
+  t.is(constValFromFunc(), 'updated');
+  t.is(constValFromClass.value, 'updated');
+  t.is(constValFromVar, 'updated');
   t.is(letVal, 'updated');
+  t.is(funcVal(), 'updated');
+  t.is(classVal.value, 'updated');
+  t.is(varVal, 'updated');
 });
