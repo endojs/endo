@@ -7,8 +7,9 @@
 
 /* eslint-disable class-methods-use-this */
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M, getNamedMethodGuards } from '@endo/patterns';

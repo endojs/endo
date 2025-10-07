@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 /**
@@ -108,18 +107,24 @@ export const confirmRecursivelyPassableErrorPropertyDesc = (
     );
   }
   if (!hasOwn(desc, 'value')) {
-    return (
-      reject &&
-      reject`Passable Error ${q(
-        propName,
-      )} own property must be a data property: ${desc}`
-    );
+    // Without lockdown, Error.prototype.stack is own accessor in V8, but
+    // nowhere else to our knowledge (2025).
+    // We relax validation for "stack" only when harden.isFake.
+    if (!(harden.isFake && propName === 'stack')) {
+      return (
+        reject &&
+        reject`Passable Error ${q(
+          propName,
+        )} own property must be a data property: ${desc}`
+      );
+    }
   }
   const { value } = desc;
   switch (propName) {
     case 'message':
     case 'stack': {
       return (
+        harden.isFake ||
         typeof value === 'string' ||
         (reject &&
           reject`Passable Error ${q(

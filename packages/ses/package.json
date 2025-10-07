@@ -80,7 +80,7 @@
     "build:hermes": "node scripts/bundle.js hermes",
     "build": "yarn build:vanilla && yarn build:hermes",
     "clean": "rm -rf dist",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "demo": "python3 -m http.server",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",

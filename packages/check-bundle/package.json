@@ -36,13 +36,16 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava",
+    "test": "yarn test:ses && yarn test:noses",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
-    "@endo/errors": "workspace:^"
+    "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^"
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",

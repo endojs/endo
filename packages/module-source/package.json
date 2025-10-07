@@ -33,12 +33,14 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
     "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
-    "test": "ava",
+    "test": "yarn test:ses && yarn test:noses",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js",
     "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
@@ -46,6 +48,7 @@
     "@babel/parser": "~7.28.3",
     "@babel/traverse": "~7.28.3",
     "@babel/types": "~7.28.2",
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {

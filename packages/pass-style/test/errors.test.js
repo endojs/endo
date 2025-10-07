@@ -1,7 +1,9 @@
 // @ts-nocheck
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
 
+import test from '@endo/ses-ava/test.js';
+
+import harden from '@endo/harden';
 import { makeError } from '@endo/errors';
 import {
   passStyleOf,
@@ -14,7 +16,7 @@ import { makeTagged } from '../src/makeTagged.js';
 
 const { defineProperty } = Object;
 
-test('style of extended errors', t => {
+(harden.isFake ? test.skip : test)('style of extended errors', t => {
   const e1 = Error('e1');
   t.throws(() => passStyleOf(e1), {
     message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
@@ -55,10 +57,10 @@ test('toPassableError, toThrowable', t => {
   // is a passable error.
   const e2 = toPassableError(e);
 
-  t.true(Object.isFrozen(e));
+  t.true(Object.isFrozen(e) || harden.isFake);
   t.false(isPassable(e));
 
-  t.true(Object.isFrozen(e2));
+  t.true(Object.isFrozen(e2) || harden.isFake);
   t.true(isPassable(e2));
 
   t.not(e, e2);

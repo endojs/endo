@@ -1,6 +1,7 @@
 // @ts-check
 import net from 'net';
 
+import harden from '@endo/harden';
 import { E, Far } from '@endo/far';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';

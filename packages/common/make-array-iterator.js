@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { makeIterator } from './make-iterator.js';
 
 /**

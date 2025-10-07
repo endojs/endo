@@ -41,7 +41,9 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "test": "ava",
+    "test": "yarn test:ses && yarn test:noses",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
@@ -60,6 +62,7 @@
   "dependencies": {
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/nat": "workspace:^",
     "@endo/pass-style": "workspace:^",

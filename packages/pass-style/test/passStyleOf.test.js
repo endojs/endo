@@ -1,6 +1,7 @@
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { q } from '@endo/errors';
 
 import {
@@ -12,12 +13,8 @@ import { Far, ToFarFunction } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
-
 const { getPrototypeOf, defineProperty, freeze } = Object;
+
 /**
  * Local alias of `harden` to eventually be switched to whatever applies
  * the suppress-trapping integrity trait. For the shim at
@@ -65,7 +62,9 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
-  t.is(passStyleOf(harden(Error('ok'))), 'error');
+  if (!harden.isFake) {
+    t.is(passStyleOf(harden(Error('ok'))), 'error');
+  }
 });
 
 test('ToFarFunction', t => {
@@ -349,7 +348,8 @@ test('passStyleOf testing remotables', t => {
   );
 
   t.throws(() => passStyleOf(Object.prototype), {
-    message: 'cannot serialize Remotables with accessors like "toString" in {}',
+    message:
+      /^cannot serialize Remotables with accessors like "(toString|__proto__)" in {}$/,
   });
 
   const fauxTagRecordB = harden(
@@ -485,9 +485,16 @@ test('Unexpected stack on errors', t => {
   err.stack = carrierStack;
   harden(err);
 
-  t.throws(() => passStyleOf(err), {
-    message: 'Passable Error "stack" own property must be a string: {}',
-  });
+  // In locked-down environments, setting stack to a non-string creates an invalid error.
+  // Without lockdown, the stack setter may convert or ignore the value.
+  if (Object.isFrozen(Object.prototype)) {
+    t.throws(() => passStyleOf(err), {
+      message: 'Passable Error "stack" own property must be a string: {}',
+    });
+  } else {
+    // Without lockdown, stack handling differs - just verify passStyleOf works
+    t.is(passStyleOf(err), 'error');
+  }
 });
 
 test('Allow toStringTag overrides', t => {

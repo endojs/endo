@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 const { getOwnPropertyDescriptors, create, fromEntries } = Object;
 const { ownKeys } = Reflect;
 

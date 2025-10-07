@@ -21,15 +21,17 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./test.js": "./test.js",
     "./exported.js": "./exported.js",
     "./prepare-endo.js": "./prepare-endo.js",
+    "./prepare-endo-config.js": "./prepare-endo-config.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
@@ -38,6 +40,7 @@
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "ses": "workspace:^"
   },

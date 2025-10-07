@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import {
@@ -190,7 +189,7 @@ const confirmRemotable = (val, reject) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isFrozen(val)) {
+  if (!harden.isFake && !isFrozen(val)) {
     return reject && reject`cannot serialize non-frozen objects like ${val}`;
   }
   // eslint-disable-next-line no-use-before-define

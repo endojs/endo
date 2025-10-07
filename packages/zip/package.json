@@ -30,12 +30,14 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava"
+    "test": "yarn test:ses && yarn test:noses",
+    "test:ses": "ava --config test/_ava-ses.config.js",
+    "test:noses": "ava --config test/_ava-noses.config.js"
   },
   "devDependencies": {
     "ava": "catalog:dev",
