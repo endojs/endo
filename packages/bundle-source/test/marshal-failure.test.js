@@ -6,7 +6,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import * as url from 'url';
 import bundleSource from '../src/index.js';
 
-test.failing('marshal error works', async t => {
+test('marshal error works', async t => {
   const entryPath = url.fileURLToPath(
     new URL(`../demo/endo/marshal.js`, import.meta.url),
   );
