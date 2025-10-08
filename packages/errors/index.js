@@ -53,12 +53,12 @@ if (missing.length > 0) {
 // This module splits them apart
 // and also updates the names of the utility functions.
 const {
-  bare,
+  bare: globalBare,
   details,
-  error,
+  error: globalError,
   Fail,
   makeAssert: _omittedMakeAssert,
-  makeError,
+  makeError: globalMakeError,
   note,
   quote,
   ...assertions
@@ -72,8 +72,8 @@ Object.assign(assert, assertions);
 // As of 2025-07, the Agoric chain's bootstrap vat runs with a version of SES
 // that predates the addition of the 'bare' and 'makeError' methods, so we must
 // fall back to 'quote' for the former and 'error' for the latter.
-const bareOrQuote = bare || quote;
-const bestMakeError = makeError || error;
+const bare = globalBare || quote;
+const makeError = globalMakeError || globalError;
 
 // XXX module exports fail if these aren't in scope
 /** @import {AssertMakeErrorOptions, Details, GenericErrorConstructor} from 'ses' */
@@ -82,21 +82,23 @@ export {
   // assertions
   assert,
   // non-assertion utilities that appear as properties of `assert`
-  bareOrQuote as bare,
-  bestMakeError as makeError,
+  bare,
+  makeError,
   details,
   note,
   quote,
   Fail,
-  // conventional abbreviations
-  bareOrQuote as b,
-  details as X,
-  quote as q,
-  // other aliases
-  note as annotateError,
-  details as redacted,
-  Fail as throwRedacted,
 };
+
+// conventional abbreviations
+export const b = bare;
+export const X = details;
+export const q = quote;
+
+// other aliases
+export const annotateError = note;
+export const redacted = details;
+export const throwRedacted = Fail;
 
 /**
  * `stackFiltering: 'omit-frames'` and `stackFiltering: 'concise'` omit frames
