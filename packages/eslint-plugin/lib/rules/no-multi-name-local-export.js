@@ -105,29 +105,13 @@ module.exports = {
           const exportedName = getName(spec.exported);
           if (!localName || !exportedName) continue;
 
+          // Note: `export { x as default }` counts because it's a named export alias.
           add(localName, exportedName, spec);
         }
       },
 
-      ExportDefaultDeclaration(node) {
-        // Count `default` as a name for the local binding.
-        const d = node.declaration;
-        if (!d) return;
-
-        if (d.type === 'Identifier') {
-          add(d.name, 'default', node);
-          return;
-        }
-
-        if (
-          (d.type === 'FunctionDeclaration' || d.type === 'ClassDeclaration') &&
-          d.id &&
-          d.id.type === 'Identifier'
-        ) {
-          add(d.id.name, 'default', node);
-        }
-        // Anonymous defaults → no local binding to track
-      },
+      // Deliberately ignore `export default …` so it doesn't count as another name.
+      // ExportDefaultDeclaration() {}
     };
   },
 };

@@ -14,7 +14,7 @@ tester.run('no-multi-name-local-export', rule, {
     'const a = 1, b = 2; export { a, b as c };',
     "export { x as y } from 'mod';",
     "export * from 'mod';",
-    'const foo = 1; export default foo;',
+    'const foo = 1; export default foo; export { foo };',
     'const foo = 1; export { foo as default };',
   ],
   invalid: [
@@ -28,10 +28,6 @@ tester.run('no-multi-name-local-export', rule, {
     },
     {
       code: 'const foo = 1; export { foo }; export { foo as bar };',
-      errors: [{ messageId: 'multiple' }],
-    },
-    {
-      code: 'const foo = 1; export default foo; export { foo };',
       errors: [{ messageId: 'multiple' }],
     },
     {
