@@ -24,12 +24,14 @@ Nested error under Error#1
 $ node error-trapping-platform-safe.demo.js
 SES_UNCAUGHT_EXCEPTION: (Error#1)
 Error#1: que?
-  at packages/ses/test/error/issue-2941/test3/error-trapping-platform.demo.js:12:9
+
+  at packages/ses/test/error/issue-2941/test3/error-trapping-platform-safe.demo.js:12:9
 
 Error#1 cause: (Error#2)
 Nested error under Error#1
   Error#2: karramba
-    at packages/ses/test/error/issue-2941/test3/error-trapping-platform.demo.js:10:9
+
+    at packages/ses/test/error/issue-2941/test3/error-trapping-platform-safe.demo.js:10:9
 ```
 
 ---
