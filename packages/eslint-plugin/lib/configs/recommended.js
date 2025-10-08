@@ -66,6 +66,8 @@ module.exports = {
   },
   rules: {
     '@endo/assert-fail-as-throw': 'error',
+    '@endo/no-assign-to-exported-let-var-or-function': 'error',
+    '@endo/no-multi-name-local-export': 'error',
     'guard-for-in': 'error',
     'no-self-compare': 'error',
   },
