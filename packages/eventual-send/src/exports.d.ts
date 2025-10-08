@@ -13,6 +13,8 @@ export type {
   EProxy,
   EOnly,
   EReturn,
+  EResult,
+  ECallableReturn,
   RemoteFunctions,
   LocalRecord,
   FilteredKeys,
