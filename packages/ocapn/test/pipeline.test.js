@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';

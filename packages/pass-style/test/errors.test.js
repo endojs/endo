@@ -3,6 +3,7 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { makeError } from '@endo/errors';
 import {
   passStyleOf,

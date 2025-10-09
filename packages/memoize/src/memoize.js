@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * Must not escape this module.
  */

@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { q, Fail } from '@endo/errors';
 import { PASS_STYLE } from './passStyle-helpers.js';

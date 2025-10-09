@@ -2,6 +2,7 @@
 /* global setTimeout */
 
 import net from 'net';
+import harden from '@endo/harden';
 
 import { locationToLocationId } from '../client/util.js';
 

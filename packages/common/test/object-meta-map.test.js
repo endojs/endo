@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { objectMetaMap } from '../object-meta-map.js';
 
 const { getOwnPropertyDescriptors, getPrototypeOf } = Object;

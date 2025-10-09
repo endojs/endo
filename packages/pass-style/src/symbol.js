@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 const { ownKeys } = Reflect;

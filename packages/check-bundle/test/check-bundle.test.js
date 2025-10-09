@@ -5,6 +5,7 @@ import test from 'ava';
 import * as fs from 'fs';
 import * as url from 'url';
 import * as crypto from 'crypto';
+import harden from '@endo/harden';
 import bundleSource from '@endo/bundle-source';
 import { ZipWriter } from '@endo/zip';
 import { encodeBase64 } from '@endo/base64';

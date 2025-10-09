@@ -11,6 +11,7 @@
  */
 
 import { Buffer } from 'buffer';
+import harden from '@endo/harden';
 import { Far } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
 import {

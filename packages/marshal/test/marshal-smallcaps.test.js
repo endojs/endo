@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import {
   Far,
   makeTagged,
@@ -18,11 +19,6 @@ const {
   prototype: objectPrototype,
   getPrototypeOf,
 } = Object;
-
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
 
 // Unknown error names decode as generic Errors.
 // TODO: Remove after dropping support for pre-AggregateError implementations.

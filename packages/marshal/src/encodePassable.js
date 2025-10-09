@@ -1,4 +1,5 @@
 /* eslint-disable no-bitwise */
+import harden from '@endo/harden';
 import { b, q, Fail } from '@endo/errors';
 import { ZERO_N } from '@endo/nat';
 import {
