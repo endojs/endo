@@ -1,5 +1,16 @@
 User-visible changes in `@endo/ses-ava`:
 
+# Next release
+
+- Introduces a `ses-ava` command for running tests with multiple Ava configurations.
+- Adds an `@endo/ses-ava/test.js` module for getting a `test` function
+  appropriate for your configuration.
+  Ava configurations may now use the exported `register` to replace the
+  default Ava `test` with the SES-Ava wrapped `test`.
+- Adds an `@endo/ses-ava/prepare-endo-config.js` module suitable for use in the
+  `require` clause of an Ava configuration, such that `@endo/ses-ava/test.js`
+  exports a wrapped SES-Ava `test` function.
+
 # v1.2.0 (204-03-19)
 
 - Rather that writing your own `./prepare-test-env-ava.js` or similar
