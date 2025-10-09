@@ -3,6 +3,7 @@ import test from 'ava';
 import { ZipReader } from '@endo/zip';
 import { makeArchive, parseArchive } from '../index.js';
 import { readPowers } from './scaffold.js';
+import { ENTRY_COMPARTMENT } from '../src/policy-format.js';
 
 const fixture = new URL(
   'fixtures-retained/node_modules/app/app.js',
@@ -25,14 +26,14 @@ test('archives only contain compartments retained by modules', async t => {
   const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
   const compartmentMap = JSON.parse(compartmentMapText);
   t.deepEqual(Object.keys(compartmentMap.compartments), [
-    'app-v1.0.0',
-    'mk1-v1.0.0',
-    'mk2-v1.0.0',
+    ENTRY_COMPARTMENT,
+    'mk1',
+    'mk1>mk2',
     // Notably absent:
     // 'sweep-v1.0.0',
   ]);
   t.deepEqual(
-    Object.keys(compartmentMap.compartments['app-v1.0.0'].modules).sort(),
+    Object.keys(compartmentMap.compartments[ENTRY_COMPARTMENT].modules).sort(),
     [
       './app.js',
       // Notably absent: 'app',
