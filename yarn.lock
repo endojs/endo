@@ -235,6 +235,7 @@ __metadata:
     "@endo/compartment-mapper": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
     "@endo/zip": "workspace:^"
     ava: "catalog:dev"
     babel-eslint: "npm:^10.1.0"
@@ -373,7 +374,7 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
-    ses0_18_3: "npm:ses@0.18.3"
+    ses0.18.3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -562,6 +563,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
+    c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
@@ -591,6 +593,7 @@ __metadata:
   resolution: "@endo/nat@workspace:packages/nat"
   dependencies:
     "@endo/compartment-mapper": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
@@ -605,6 +608,7 @@ __metadata:
   dependencies:
     "@endo/init": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
@@ -707,6 +711,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
     ava: "catalog:dev"
+    c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -738,6 +743,8 @@ __metadata:
     typescript: "npm:~5.9.2"
   peerDependencies:
     ava: ^5.3.0 || ^6.1.2
+  bin:
+    ses-ava: bin/ses-ava
   languageName: unknown
   linkType: soft
 
@@ -9816,6 +9823,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
+    "@endo/ses-ava": "workspace:^"
     "@jessie.js/eslint-plugin": "npm:^0.4.2"
     "@lavamoat/allow-scripts": "npm:^3.3.5"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.1"
@@ -10009,7 +10017,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ses0_18_3@npm:ses@0.18.3":
+"ses0.18.3@npm:ses@0.18.3":
   version: 0.18.3
   resolution: "ses@npm:0.18.3"
   checksum: 10c0/c07df71cf297f31e862efbc2cc46ee724e85f73cc67002b9b4fa47089fc89d147a56e579b8012fb1534419c77afafbb98bc5808fae82096951479d0bd6dfb377
