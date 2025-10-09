@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 /**
  * Provides functions for constructing a compartment map that has a
  * compartment descriptor corresponding to every reachable package from an
@@ -16,11 +17,17 @@
 import { inferExportsAndAliases } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { join } from './node-module-specifier.js';
-import { assertPolicy, ATTENUATORS_COMPARTMENT } from './policy-format.js';
-import { dependencyAllowedByPolicy, getPolicyForPackage } from './policy.js';
+import {
+  assertPolicy,
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+  generateCanonicalName,
+} from './policy-format.js';
+import { makePackagePolicy } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 import { GenericGraph, makeShortestPath } from './generic-graph.js';
+import { makeDefaultHookConfiguration, makeHookExecutor } from './hooks.js';
 
 /**
  * @import {
@@ -37,8 +44,20 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   PackageDescriptor,
  *   ReadFn,
  *   ReadPowers,
- *   SomePackagePolicy,
  *   SomePolicy,
+ *   LogFn,
+ *   CompartmentModuleDescriptorConfiguration,
+ *   PackageCompartmentDescriptor,
+ *   PackageCompartmentMapDescriptor,
+ *   HookExecutorFn,
+ *   MapNodeModulesHooks,
+ ScopeDescriptor,
+ ModuleDescriptorConfiguration,
+ LiteralUnion,
+ CanonicalName,
+ SomePackagePolicy,
+ HookFnInputType,
+ PackageCompartmentDescriptorName,
  * } from './types.js'
  * @import {
  *   Graph,
@@ -50,15 +69,19 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   GraphPackagesOptions,
  *   LogicalPathGraph,
  *   PackageDetails,
+ *   FinalGraph,
+ *   CanonicalNameMap,
+ *   FinalNode,
+ TranslateGraphOptions,
  * } from './types/node-modules.js'
  */
 
-const { assign, create, keys, values, entries } = Object;
+const { assign, create, keys, values, entries, freeze } = Object;
 
 const decoder = new TextDecoder();
 
 // q, as in quote, for enquoting strings in error messages.
-const q = JSON.stringify;
+const { quote: q } = assert;
 
 /**
  * Default logger that does nothing.
@@ -364,6 +387,7 @@ const calculatePackageWeight = packageName => {
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict
  * @param {LogicalPathGraph} logicalPathGraph
+ * @param {HookExecutorFn<MapNodeModulesHooks>} executeHook
  * @param {GraphPackageOptions} [options]
  * @returns {Promise<undefined>}
  */
@@ -378,6 +402,7 @@ const graphPackage = async (
   languageOptions,
   strict,
   logicalPathGraph,
+  executeHook,
   { commonDependencyDescriptors = {}, logicalPath = [], log = noop } = {},
 ) => {
   if (graph[packageLocation] !== undefined) {
@@ -472,6 +497,7 @@ const graphPackage = async (
         languageOptions,
         strict,
         logicalPathGraph,
+        executeHook,
         {
           childLogicalPath,
           optional,
@@ -586,6 +612,7 @@ const graphPackage = async (
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict - If `true`, a missing dependency will throw an exception
  * @param {LogicalPathGraph} logicalPathGraph
+ * @param {HookExecutorFn<MapNodeModulesHooks>} executeHook
  * @param {GatherDependencyOptions} [options]
  * @returns {Promise<void>}
  */
@@ -600,6 +627,7 @@ const gatherDependency = async (
   languageOptions,
   strict,
   logicalPathGraph,
+  executeHook,
   {
     childLogicalPath = [],
     optional = false,
@@ -613,6 +641,7 @@ const gatherDependency = async (
     packageLocation,
     name,
   );
+
   if (dependency === undefined) {
     // allow the dependency to be missing if optional
     if (optional || !strict) {
@@ -620,6 +649,15 @@ const gatherDependency = async (
     }
     throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
+
+  // #region packageDescriptor hook
+  executeHook('packageDescriptor', {
+    packageDescriptor: dependency.packageDescriptor,
+    packageLocation: dependency.packageLocation,
+    moduleSpecifier: name,
+    log,
+  });
+  // #endregion
   dependencyLocations[name] = dependency.packageLocation;
 
   logicalPathGraph.addEdge(
@@ -639,6 +677,7 @@ const gatherDependency = async (
     languageOptions,
     strict,
     logicalPathGraph,
+    executeHook,
     {
       commonDependencyDescriptors,
       logicalPath: childLogicalPath,
@@ -665,6 +704,7 @@ const gatherDependency = async (
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict
  * @param {LogicalPathGraph} logicalPathGraph
+ * @param {HookExecutorFn<MapNodeModulesHooks>} executeHook
  * @param {GraphPackagesOptions} [options]
  * @returns {Promise<Graph>}
  */
@@ -679,6 +719,7 @@ const graphPackages = async (
   languageOptions,
   strict,
   logicalPathGraph,
+  executeHook,
   { log = noop } = {},
 ) => {
   const memo = create(null);
@@ -742,12 +783,90 @@ const graphPackages = async (
     languageOptions,
     strict,
     logicalPathGraph,
+    executeHook,
     {
       commonDependencyDescriptors,
       log,
     },
   );
   return graph;
+};
+
+/**
+ * Creates a factory for executing package dependencies hooks.
+ *
+ * @param {HookExecutorFn<MapNodeModulesHooks>} executeHook
+ * @param {FinalGraph} graph
+ * @param {LogFn} [log]
+ * @returns {(label: CanonicalName, dependencyLocations: Record<string, FileUrlString>) => Record<string, FileUrlString>}
+ */
+const makeExecutePackageDependenciesHook = (executeHook, graph, log = noop) => {
+  /**
+   * @param {CanonicalName} label
+   * @param {Record<string, FileUrlString>} dependencyLocations
+   * @returns {Record<string, FileUrlString>}
+   */
+  return (label, dependencyLocations) => {
+    const dependencies = new Set(
+      values(dependencyLocations).map(
+        dependencyLocation => graph[dependencyLocation].label,
+      ),
+    );
+
+    /** @type {HookFnInputType<MapNodeModulesHooks, 'packageDependencies'>} */
+    const packageDependenciesHookInput = {
+      canonicalName: label,
+      dependencies: new Set(dependencies),
+      log,
+    };
+
+    const packageDependenciesHookResult = executeHook(
+      'packageDependencies',
+      packageDependenciesHookInput,
+    );
+
+    // if "dependencies" are in here, then something changed the list.
+    if (packageDependenciesHookResult?.dependencies) {
+      if (packageDependenciesHookResult.dependencies.size > 0) {
+        // because the list of dependencies contains canonical names, we need to lookup any new ones.
+        const nodesByCanonicalName = new Map(
+          entries(graph).map(([location, node]) => [
+            node.label,
+            {
+              ...node,
+              packageLocation: /** @type {FileUrlString} */ (location),
+            },
+          ]),
+        );
+
+        /** @type {typeof dependencyLocations} */
+        const newDependencyLocations = {};
+        try {
+          for (const label of packageDependenciesHookResult.dependencies) {
+            const { name, packageLocation } =
+              nodesByCanonicalName.get(label) ?? create(null);
+            if (name && packageLocation) {
+              newDependencyLocations[name] = packageLocation;
+            } else {
+              log(
+                `WARNING: packageDependencies hook returned unknown package with label ${q(label)}`,
+              );
+            }
+          }
+          return newDependencyLocations;
+        } catch {
+          log(
+            `WARNING: packageDependencies hook returned invalid value ${q(
+              packageDependenciesHookResult,
+            )}; using original dependencies`,
+          );
+        }
+      } else {
+        dependencyLocations = create(null);
+      }
+    }
+    return dependencyLocations;
+  };
 };
 
 /**
@@ -759,18 +878,26 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {SomePolicy} [policy]
- * @returns {CompartmentMapDescriptor}
+ * @param {HookExecutorFn<MapNodeModulesHooks>} executeHook
+ * @param {TranslateGraphOptions} [options]
+ * @returns {PackageCompartmentMapDescriptor}
  */
 const translateGraph = (
   entryPackageLocation,
   entryModuleSpecifier,
   graph,
   conditions,
-  policy,
+  executeHook,
+  { policy, log = noop } = {},
 ) => {
-  /** @type {CompartmentMapDescriptor['compartments']} */
+  /** @type {Record<PackageCompartmentDescriptorName, PackageCompartmentDescriptor>} */
   const compartments = create(null);
+
+  const executePackageDependenciesHook = makeExecutePackageDependenciesHook(
+    executeHook,
+    graph,
+    log,
+  );
 
   // For each package, build a map of all the external modules the package can
   // import from other packages.
@@ -781,36 +908,17 @@ const translateGraph = (
   // The full map includes every exported module from every dependencey
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
-  for (const dependeeLocation of keys(graph).sort()) {
-    const {
-      name,
-      path,
-      label,
-      sourceDirname,
-      dependencyLocations,
-      internalAliases,
-      parsers,
-      types,
-    } = graph[dependeeLocation];
-    /** @type {CompartmentDescriptor['modules']} */
+  for (const dependeeLocation of /** @type {PackageCompartmentDescriptorName[]} */ (
+    keys(graph).sort()
+  )) {
+    const { name, label, sourceDirname, internalAliases, parsers, types } =
+      graph[dependeeLocation];
+    /** @type {Record<string, CompartmentModuleDescriptorConfiguration>} */
     const moduleDescriptors = create(null);
-    /** @type {CompartmentDescriptor['scopes']} */
+    /** @type {Record<string, ScopeDescriptor<PackageCompartmentDescriptorName>>} */
     const scopes = create(null);
 
-    /**
-     * List of all the compartments (by name) that this compartment can import from.
-     *
-     * @type {Set<string>}
-     */
-    const compartmentNames = new Set();
-    const packagePolicy = getPolicyForPackage(
-      {
-        isEntry: dependeeLocation === entryPackageLocation,
-        name,
-        path,
-      },
-      policy,
-    );
+    const packagePolicy = makePackagePolicy(label, { policy });
 
     /* c8 ignore next */
     if (policy && !packagePolicy) {
@@ -818,34 +926,29 @@ const translateGraph = (
       throw new TypeError('Unexpectedly falsy package policy');
     }
 
+    let dependencyLocations = graph[dependeeLocation].dependencyLocations;
+    dependencyLocations = executePackageDependenciesHook(
+      label,
+      dependencyLocations,
+    );
+
     /**
      * @param {string} dependencyName
-     * @param {string} packageLocation
+     * @param {PackageCompartmentDescriptorName} packageLocation
      */
     const digestExternalAliases = (dependencyName, packageLocation) => {
-      const { externalAliases, explicitExports, name, path } =
-        graph[packageLocation];
+      const { externalAliases, explicitExports } = graph[packageLocation];
       for (const exportPath of keys(externalAliases).sort()) {
         const targetPath = externalAliases[exportPath];
         // dependency name may be different from package's name,
-        // as in the case of browser field dependency replacements
+        // as in the case of browser field dependency replacements.
+        // note that policy still applies
         const localPath = join(dependencyName, exportPath);
-        if (
-          !policy ||
-          (packagePolicy &&
-            dependencyAllowedByPolicy(
-              {
-                name,
-                path,
-              },
-              packagePolicy,
-            ))
-        ) {
-          moduleDescriptors[localPath] = {
-            compartment: packageLocation,
-            module: targetPath,
-          };
-        }
+        // if we have policy, this has already been vetted
+        moduleDescriptors[localPath] = {
+          compartment: packageLocation,
+          module: targetPath,
+        };
       }
       // if the exports field is not present, then all modules must be accessible
       if (!explicitExports) {
@@ -860,7 +963,6 @@ const translateGraph = (
     for (const dependencyName of keys(dependencyLocations).sort()) {
       const dependencyLocation = dependencyLocations[dependencyName];
       digestExternalAliases(dependencyName, dependencyLocation);
-      compartmentNames.add(dependencyLocation);
     }
     // digest own internal aliases
     for (const modulePath of keys(internalAliases).sort()) {
@@ -879,7 +981,6 @@ const translateGraph = (
     compartments[dependeeLocation] = {
       label,
       name,
-      path,
       location: dependeeLocation,
       sourceDirname,
       modules: moduleDescriptors,
@@ -887,7 +988,6 @@ const translateGraph = (
       parsers,
       types,
       policy: /** @type {SomePackagePolicy} */ (packagePolicy),
-      compartments: compartmentNames,
     };
   }
 
@@ -896,7 +996,7 @@ const translateGraph = (
     // https://github.com/endojs/endo/issues/2388
     tags: [...conditions],
     entry: {
-      compartment: entryPackageLocation,
+      compartment: /** @type {FileUrlString} */ (entryPackageLocation),
       module: entryModuleSpecifier,
     },
     compartments,
@@ -970,23 +1070,196 @@ const makeLanguageOptions = ({
     workspaceModuleLanguageForExtension,
   };
 };
+/**
+ * Creates a `Node` in `graph` corresponding to the "attenuators" Compartment.
+ *
+ * Only does so if `policy` is provided.
+ *
+ * @param {Graph} graph Graph
+ * @param {Node} entryNode Entry node of the grpah
+ * @param {SomePolicy} [policy]
+ * @throws If there's already a `Node` in `graph` for the "attenuators"
+ * Compartment
+ * @returns {void}
+ */
+const makeAttenuatorsNode = (graph, entryNode, policy) => {
+  if (policy) {
+    assertPolicy(policy);
+
+    assert(
+      graph[ATTENUATORS_COMPARTMENT] === undefined,
+      `${q(ATTENUATORS_COMPARTMENT)} is a reserved compartment name`,
+    );
+
+    graph[ATTENUATORS_COMPARTMENT] = {
+      ...entryNode,
+      internalAliases: {},
+      externalAliases: {},
+      packageDescriptor: { name: ATTENUATORS_COMPARTMENT },
+      name: ATTENUATORS_COMPARTMENT,
+    };
+  }
+};
+
+/**
+ * Transforms a `Graph` into a readonly `FinalGraph`, in preparation for
+ * conversion to a `CompartmentDescriptor`.
+ *
+ * @param {Graph} graph Graph
+ * @param {LogicalPathGraph} logicalPathGraph Logical path graph
+ * @param {FileUrlString} entryPackageLocation Entry package location
+ * @param {CanonicalNameMap<PackageCompartmentMapDescriptor>} canonicalNameMap Mapping of canonical names to `Node` names (keys in `graph`)
+ * @returns {Readonly<FinalGraph>}
+ */
+const finalizeGraph = (
+  graph,
+  logicalPathGraph,
+  entryPackageLocation,
+  canonicalNameMap,
+) => {
+  const shortestPath = makeShortestPath(logicalPathGraph);
+
+  // neither the entry package nor the attenuators compartment have a path; omit
+  const {
+    [ATTENUATORS_COMPARTMENT]: attenuatorsNode,
+    [entryPackageLocation]: entryNode,
+    ...subgraph
+  } = graph;
+
+  /** @type {FinalGraph} */
+  const finalGraph = create(null);
+
+  /** @type {Readonly<FinalNode>} */
+  finalGraph[entryPackageLocation] = freeze({
+    ...entryNode,
+    label: generateCanonicalName({
+      isEntry: true,
+      path: [],
+    }),
+  });
+
+  canonicalNameMap.set(ENTRY_COMPARTMENT, entryPackageLocation);
+
+  if (attenuatorsNode) {
+    /** @type {Readonly<FinalNode>} */
+    finalGraph[ATTENUATORS_COMPARTMENT] = freeze({
+      ...attenuatorsNode,
+      label: generateCanonicalName({
+        name: ATTENUATORS_COMPARTMENT,
+        path: [],
+      }),
+    });
+  }
+
+  const subgraphEntries = /** @type {[FileUrlString, Node][]} */ (
+    entries(subgraph)
+  );
+
+  for (const [location, node] of subgraphEntries) {
+    const shortestLogicalPath = shortestPath(entryPackageLocation, location);
+
+    // the first element will always be the root package location; this is omitted from the path.
+    shortestLogicalPath.shift();
+
+    const path = shortestLogicalPath.map(location => graph[location].name);
+    const canonicalName = generateCanonicalName({ path });
+
+    /** @type {Readonly<FinalNode>} */
+    const finalNode = freeze({
+      ...node,
+      label: canonicalName,
+    });
+
+    canonicalNameMap.set(canonicalName, location);
+
+    finalGraph[location] = finalNode;
+  }
+
+  for (const node of values(finalGraph)) {
+    Object.freeze(node);
+  }
+
+  return freeze(finalGraph);
+};
+
+/**
+ * Returns an array of "issue" objects if any resources referenced in `policy`
+ * are unknown.
+ *
+ * @param {Set<CanonicalName>} canonicalNames Set of all known canonical names
+ * @param {SomePolicy} policy Policy to validate
+ * @returns {Array<{canonicalName: CanonicalName, issue: string, path:
+ * string[]}>} Array of issue objects, or `undefined` if no issues were
+ * found
+ */
+const validatePolicyResources = (canonicalNames, policy) => {
+  /**
+   * Appends a suggestion to `issueMessage` if `badName` is a suffix of any
+   * canonical name in `canonicalNames`.
+   *
+   * @param {string} badName Unknown canonical name
+   * @param {string} issueMessage Existing issue message
+   * @returns {string}
+   */
+  const makeSuggestion = (badName, issueMessage) => {
+    for (const canonicalName of canonicalNames) {
+      if (canonicalName.endsWith(`>${badName}`)) {
+        issueMessage += `; did you mean ${q(canonicalName)}?`;
+        break;
+      }
+    }
+    return issueMessage;
+  };
+
+  /** @type {Array<{canonicalName: CanonicalName, issue: string, path: string[]}>} */
+  const issues = [];
+  for (const [resourceName, resourcePolicy] of entries(
+    policy.resources ?? {},
+  )) {
+    if (!canonicalNames.has(resourceName)) {
+      let issueMessage = `Resource ${q(resourceName)} was not found`;
+      issueMessage = makeSuggestion(resourceName, issueMessage);
+      issues.push({
+        canonicalName: resourceName,
+        issue: issueMessage,
+        path: ['resources', resourceName],
+      });
+    }
+    if (typeof resourcePolicy?.packages === 'object') {
+      for (const packageName of keys(resourcePolicy.packages)) {
+        if (!canonicalNames.has(packageName)) {
+          let issueMessage = `Resource ${q(packageName)} from resource ${q(resourceName)} was not found`;
+          issueMessage = makeSuggestion(packageName, issueMessage);
+          issues.push({
+            canonicalName: packageName,
+            issue: issueMessage,
+            path: ['resources', resourceName, 'packages', packageName],
+          });
+        }
+      }
+    }
+  }
+
+  return issues;
+};
 
 /**
  * @param {ReadFn | ReadPowers<FileUrlString> | MaybeReadPowers<FileUrlString>} readPowers
- * @param {FileUrlString} packageLocation
+ * @param {FileUrlString} entryPackageLocation
  * @param {Set<string>} conditionsOption
  * @param {PackageDescriptor} packageDescriptor
- * @param {string} moduleSpecifier
+ * @param {string} entryModuleSpecifier
+ * @param {HookExecutorFn<MapNodeModulesHooks>} executeHook
  * @param {CompartmentMapForNodeModulesOptions} [options]
- * @returns {Promise<CompartmentMapDescriptor>}
- * @deprecated Use {@link mapNodeModules} instead.
+ * @returns {Promise<PackageCompartmentMapDescriptor>}
  */
-export const compartmentMapForNodeModules = async (
+export const compartmentMapForNodeModules_ = async (
   readPowers,
-  packageLocation,
+  entryPackageLocation,
   conditionsOption,
   packageDescriptor,
-  moduleSpecifier,
+  entryModuleSpecifier,
+  executeHook,
   options = {},
 ) => {
   const {
@@ -1017,7 +1290,7 @@ export const compartmentMapForNodeModules = async (
   const graph = await graphPackages(
     maybeRead,
     canonical,
-    packageLocation,
+    entryPackageLocation,
     conditions,
     packageDescriptor,
     dev || (conditions && conditions.has('development')),
@@ -1025,52 +1298,47 @@ export const compartmentMapForNodeModules = async (
     languageOptions,
     strict,
     logicalPathGraph,
+    executeHook,
     { log },
   );
 
+  makeAttenuatorsNode(graph, graph[entryPackageLocation], policy);
+
+  /**
+   * @type {CanonicalNameMap<PackageCompartmentMapDescriptor>}
+   */
+  const canonicalNameMap = new Map();
+
+  const finalGraph = finalizeGraph(
+    graph,
+    logicalPathGraph,
+    entryPackageLocation,
+    canonicalNameMap,
+  );
+
+  // if policy exists, cross-reference the policy "resources" against the list
+  // of known canonical names and fire the `unknownCanonicalName` hook for each
+  // unknown resource, if found
   if (policy) {
-    assertPolicy(policy);
-
-    assert(
-      graph[ATTENUATORS_COMPARTMENT] === undefined,
-      `${q(ATTENUATORS_COMPARTMENT)} is a reserved compartment name`,
-    );
-
-    graph[ATTENUATORS_COMPARTMENT] = {
-      ...graph[packageLocation],
-      externalAliases: {},
-      label: ATTENUATORS_COMPARTMENT,
-      name: ATTENUATORS_COMPARTMENT,
-    };
-  }
-
-  const shortestPath = makeShortestPath(logicalPathGraph);
-  // neither the entry package nor the attenuators compartment have a path; omit
-  const {
-    [ATTENUATORS_COMPARTMENT]: _,
-    [packageLocation]: __,
-    ...subgraph
-  } = graph;
-
-  for (const [location, node] of entries(subgraph)) {
-    const shortestLogicalPath = shortestPath(
-      packageLocation,
-      // entries() loses some type information
-      /** @type {FileUrlString} */ (location),
-    );
-
-    // the first element will always be the root package location; this is omitted from the path.
-    shortestLogicalPath.shift();
-    node.path = shortestLogicalPath.map(location => graph[location].name);
-    log(`Canonical name for package at ${location}: ${node.path.join('>')}`);
+    const canonicalNames = new Set(canonicalNameMap.keys());
+    const issues = validatePolicyResources(canonicalNames, policy) ?? [];
+    for (const { issue, canonicalName, path } of issues) {
+      executeHook('unknownCanonicalName', {
+        canonicalName,
+        issue,
+        path,
+        log,
+      });
+    }
   }
 
   const compartmentMap = translateGraph(
-    packageLocation,
-    moduleSpecifier,
-    graph,
+    entryPackageLocation,
+    entryModuleSpecifier,
+    finalGraph,
     conditions,
-    policy,
+    executeHook,
+    { policy, log },
   );
 
   return compartmentMap;
@@ -1085,12 +1353,19 @@ export const compartmentMapForNodeModules = async (
  * @param {ReadFn | ReadPowers<FileUrlString> | MaybeReadPowers<FileUrlString>} readPowers
  * @param {string} moduleLocation
  * @param {MapNodeModulesOptions} [options]
- * @returns {Promise<CompartmentMapDescriptor>}
+ * @returns {Promise<PackageCompartmentMapDescriptor>}
  */
 export const mapNodeModules = async (
   readPowers,
   moduleLocation,
-  { tags = new Set(), conditions = tags, log = noop, ...otherOptions } = {},
+  {
+    tags = new Set(),
+    conditions = tags,
+    log = noop,
+    hooks = create(null),
+    policy,
+    ...otherOptions
+  } = {},
 ) => {
   const {
     packageLocation,
@@ -1099,6 +1374,14 @@ export const mapNodeModules = async (
     moduleSpecifier,
   } = await search(readPowers, moduleLocation, { log });
 
+  const executeHook = makeHookExecutor('mapNodeModules', hooks, {
+    log,
+    defaultHookConfiguration: makeDefaultHookConfiguration('mapNodeModules', {
+      policy,
+      log,
+    }),
+  });
+
   const packageDescriptor = /** @type {typeof parseLocatedJson<unknown>} */ (
     parseLocatedJson
   )(packageDescriptorText, packageDescriptorLocation);
@@ -1106,12 +1389,27 @@ export const mapNodeModules = async (
   assertPackageDescriptor(packageDescriptor);
   assertFileUrlString(packageLocation);
 
-  return compartmentMapForNodeModules(
+  // #region packageDescriptor hook
+  executeHook('packageDescriptor', {
+    packageDescriptor,
+    packageLocation,
+    moduleSpecifier,
+    log,
+  });
+  // #endregion
+
+  return compartmentMapForNodeModules_(
     readPowers,
     packageLocation,
     conditions,
     packageDescriptor,
     moduleSpecifier,
-    { log, ...otherOptions },
+    executeHook,
+    { log, policy, ...otherOptions },
   );
 };
+
+/**
+ * @deprecated Use {@link mapNodeModules} instead.
+ */
+export const compartmentMapForNodeModules = compartmentMapForNodeModules_;
