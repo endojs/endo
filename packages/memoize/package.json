@@ -35,6 +35,7 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {

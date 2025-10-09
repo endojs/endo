@@ -28,6 +28,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+import harden from '@endo/harden';
+
 /**
  * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
  * Layering constraints make this tricky, which is why we haven't yet figured

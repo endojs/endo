@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';
 
 const createChild = `() => new Compartment({console})`;

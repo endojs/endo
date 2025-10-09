@@ -1,4 +1,5 @@
 // @ts-check
+import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
