@@ -1,7 +1,7 @@
 {
   "name": "@endo/ses-ava",
   "version": "1.3.2",
-  "description": "Virtualize Ava's test to work better under SES.",
+  "description": "Virtualize AVA's test to work better under SES.",
   "keywords": [
     "ses",
     "ava"
@@ -19,22 +19,28 @@
   },
   "type": "module",
   "main": "./index.js",
+  "bin": "bin/ses-ava",
   "exports": {
     ".": "./index.js",
+    "./test.js": {
+      "ses-ava:endo": "./prepare-endo.js",
+      "default": "./src/reexport-ava.js"
+    },
     "./exported.js": "./exported.js",
     "./prepare-endo.js": "./prepare-endo.js",
+    "./prepare-endo-config.js": "./prepare-endo-config.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava"
+    "test": "ava && bin/ses-ava --only-config-env --only-config-raw"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
@@ -75,6 +81,11 @@
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "sesAvaConfigs": {
+    "env": "test/_ava-environment.config.js",
+    "not": "test/_ava-must-not-test.config.js",
+    "raw": "test/_ava-ses-ava-is-ava.config.js"
   },
   "typeCoverage": {
     "atLeast": 72.22
