@@ -3,6 +3,7 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { M } from '@endo/patterns';
 import { defineExoClass, defineExoClassKit } from '../src/exo-makers.js';
 

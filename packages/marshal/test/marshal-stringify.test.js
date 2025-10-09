@@ -1,15 +1,11 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { Far } from '@endo/pass-style';
 import { stringify, parse } from '../src/marshal-stringify.js';
 import { roundTripPairs } from '../tools/marshal-test-data.js';
 
 const { isFrozen } = Object;
-
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
 
 test('stringify parse round trip pairs', t => {
   for (const [plain, encoded] of roundTripPairs) {

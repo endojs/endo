@@ -36,6 +36,7 @@
     "@endo/common": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^"

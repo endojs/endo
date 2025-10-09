@@ -1,6 +1,7 @@
 // @ts-check
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
   GET_INTERFACE_GUARD,

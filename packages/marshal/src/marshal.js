@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Nat } from '@endo/nat';
 import {
   assertPassable,

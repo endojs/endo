@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { X, Fail } from '@endo/errors';
 
 /**

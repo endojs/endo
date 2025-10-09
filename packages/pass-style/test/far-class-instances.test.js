@@ -3,6 +3,7 @@
 /* eslint-disable max-classes-per-file */
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far, GET_METHOD_NAMES } from '../src/make-far.js';

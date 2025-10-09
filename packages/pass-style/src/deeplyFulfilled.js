@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { X, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';

@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { passStyleOf } from '../src/passStyleOf.js';
 
 const { defineProperty } = Object;

@@ -1,6 +1,8 @@
 // @ts-check
 /* global setTimeout */
 
+import harden from '@endo/harden';
+
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
 /**

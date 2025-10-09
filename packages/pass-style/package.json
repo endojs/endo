@@ -39,6 +39,7 @@
     "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {

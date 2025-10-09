@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { q, hideAndHardenFunction } from '@endo/errors';
 
 /**

@@ -1,6 +1,7 @@
 /* eslint-disable max-classes-per-file */
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { q } from '@endo/errors';
 
 import {
@@ -12,12 +13,8 @@ import { Far, ToFarFunction } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
-
 const { getPrototypeOf, defineProperty, freeze } = Object;
+
 /**
  * Local alias of `harden` to eventually be switched to whatever applies
  * the suppress-trapping integrity trait. For the shim at

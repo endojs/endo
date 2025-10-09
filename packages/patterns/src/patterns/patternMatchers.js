@@ -1,5 +1,6 @@
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
+import harden from '@endo/harden';
 import {
   q,
   b,
