@@ -6,6 +6,7 @@
 
 import {
   isCompartmentModuleDescriptorConfiguration,
+  isLocalModuleSource,
 } from '../src/guards.js';
 import { ATTENUATORS_COMPARTMENT } from '../src/policy-format.js';
 
@@ -57,7 +58,7 @@ export const relativizeCompartmentMap = compartmentMap => {
   };
 
   const compartmentsEntries =
-    /** @type {Array<[compartmentName: keyof PackageCompartmentMapDescriptor['compartments'], compartmentDescriptor: PackageCompartmentDescriptor]} */ (
+    /** @type {Array<[compartmentName: keyof PackageCompartmentMapDescriptor['compartments'], compartmentDescriptor: PackageCompartmentDescriptor]>} */ (
       entries(compartmentMap.compartments)
     );
 
@@ -79,6 +80,12 @@ export const relativizeCompartmentMap = compartmentMap => {
                     moduleDescriptorConfiguration,
                   )
                 ) {
+                  if (
+                    moduleDescriptorConfiguration.compartment ===
+                    ATTENUATORS_COMPARTMENT
+                  ) {
+                    return [moduleName, moduleDescriptorConfiguration];
+                  }
                   return [
                     moduleName,
                     {
@@ -99,15 +106,20 @@ export const relativizeCompartmentMap = compartmentMap => {
       const scopes = compartmentDescriptor.scopes
         ? fromEntries(
             entries(compartmentDescriptor.scopes).map(
-              ([scopeName, scopeDescriptor]) => [
-                scopeName,
-                {
-                  ...scopeDescriptor,
-                  compartment: relativizeFileUrlString(
-                    scopeDescriptor.compartment,
-                  ),
-                },
-              ],
+              ([scopeName, scopeDescriptor]) => {
+                if (scopeDescriptor.compartment === ATTENUATORS_COMPARTMENT) {
+                  return [scopeName, scopeDescriptor];
+                }
+                return [
+                  scopeName,
+                  {
+                    ...scopeDescriptor,
+                    compartment: relativizeFileUrlString(
+                      scopeDescriptor.compartment,
+                    ),
+                  },
+                ];
+              },
             ),
           )
         : compartmentDescriptor.scopes;
@@ -135,3 +147,63 @@ export const relativizeCompartmentMap = compartmentMap => {
     compartments: relativeCompartments,
   };
 };
+
+/**
+ * Strips absolute `file://` prefixes from locations in "renames" Records of {@link CaptureResult}.
+ *
+ * @see {@link stripCaptureResult}
+ * @param {Record<string, string>} renames
+ * @returns {Record<string, string>} Stripped renames
+ */
+export const stripRenames = renames => {
+  /** @type {Record<string, string>} */
+  const result = create(null);
+  for (const [key, value] of entries(renames)) {
+    result[relativizeFileUrlString(/** @type {FileUrlString} */ (key))] =
+      relativizeFileUrlString(/** @type {FileUrlString} */ (value));
+  }
+  return result;
+};
+
+/**
+ * Returns a deep copy of {@link Sources} with absolute `file://` prefixes
+ * stripped from `sourceLocation` properties.
+ *
+ * @see {@link stripCaptureResult}
+ * @param {Sources} sources
+ * @returns {Sources}
+ */
+export const stripSources = sources => {
+  /** @type {Sources} */
+  const result = create(null);
+  for (const [compartmentKey, compartmentSources] of entries(sources)) {
+    /** @type {CompartmentSources} */
+    const compartmentCopy = create(null);
+    for (const [moduleKey, moduleSource] of entries(compartmentSources)) {
+      if (isLocalModuleSource(moduleSource)) {
+        compartmentCopy[moduleKey] = {
+          ...moduleSource,
+          sourceLocation: relativizeFileUrlString(
+            /** @type {FileUrlString} */ (moduleSource.sourceLocation),
+          ),
+        };
+      } else {
+        compartmentCopy[moduleKey] = moduleSource;
+      }
+    }
+    result[compartmentKey] = compartmentCopy;
+  }
+  return result;
+};
+
+/**
+ * Strips absolute `file://` prefixes from locations in a `CaptureResult`.
+ * @param {CaptureResult} result
+ */
+export const stripCaptureResult = result => ({
+  ...result,
+  compartmentRenames: stripRenames(result.compartmentRenames),
+  oldToNewCompartmentNames: stripRenames(result.oldToNewCompartmentNames),
+  newToOldCompartmentNames: stripRenames(result.newToOldCompartmentNames),
+  captureSources: stripSources(result.captureSources),
+});

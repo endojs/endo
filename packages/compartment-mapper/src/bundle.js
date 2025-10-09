@@ -7,9 +7,9 @@
  * } from 'ses'
  * @import {
  *   BundleOptions,
- *   CompartmentDescriptor,
- *   CompartmentMapDescriptor,
  *   CompartmentSources,
+ *   PackageCompartmentDescriptors,
+ *   PackageCompartmentMapDescriptor,
  *   MaybeReadPowers,
  *   ReadFn,
  *   ReadPowers,
@@ -112,6 +112,11 @@ import { defaultParserForLanguage } from './archive-parsers.js';
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
 import jsonSupport from './bundle-json.js';
+import {
+  isErrorModuleSource,
+  isExitModuleSource,
+  isLocalModuleSource,
+} from './guards.js';
 
 const textEncoder = new TextEncoder();
 
@@ -148,7 +153,7 @@ null,
  * The first modules are place-holders for the modules that exit
  * the compartment map to the host's module system.
  *
- * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
+ * @param {PackageCompartmentDescriptors} compartmentDescriptors
  * @param {Record<string, CompartmentSources>} compartmentSources
  * @param {string} entryCompartmentName
  * @param {string} entryModuleSpecifier
@@ -192,28 +197,18 @@ const sortedModules = (
 
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
-      const { record, parser, deferredError, bytes, sourceDirname, exit } =
-        source;
-      if (exit !== undefined) {
-        return exit;
-      }
-      assert(
-        bytes !== undefined,
-        `No bytes for ${moduleSpecifier} in ${compartmentName}`,
-      );
-      assert(
-        parser !== undefined,
-        `No parser for ${moduleSpecifier} in ${compartmentName}`,
-      );
-      assert(
-        sourceDirname !== undefined,
-        `No sourceDirname for ${moduleSpecifier} in ${compartmentName}`,
-      );
-      if (deferredError) {
+      if (isErrorModuleSource(source)) {
         throw Error(
-          `Cannot bundle: encountered deferredError ${deferredError}`,
+          `Cannot bundle: encountered deferredError ${source.deferredError}`,
         );
       }
+      if (isExitModuleSource(source)) {
+        return source.exit;
+      }
+      if (!isLocalModuleSource(source)) {
+        throw new TypeError(`Unexpected source type ${JSON.stringify(source)}`);
+      }
+      const { record, parser, bytes, sourceDirname } = source;
       if (record) {
         const { imports = [], reexports = [] } =
           /** @type {PrecompiledStaticModuleInterface} */ (record);
@@ -314,7 +309,7 @@ const getBundlerKitForModule = (module, params) => {
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {BundleOptions} [options]
  * @returns {Promise<string>}
  */
@@ -657,7 +652,7 @@ ${m.bundlerKit.getFunctor()}`,
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {BundleOptions} [options]
  * @returns {Promise<string>}
  */

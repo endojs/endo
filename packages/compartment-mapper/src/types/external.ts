@@ -13,13 +13,25 @@ import type {
   Transform,
 } from 'ses';
 import type {
+  CaptureFromMapHooks,
+  HookOption,
+  LoadLocationHooks,
+  MapNodeModulesHooks,
+} from '../types.js';
+import type {
   CompartmentDescriptor,
   CompartmentMapDescriptor,
+  DigestedCompartmentMapDescriptor,
   Language,
   LanguageForExtension,
+  PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
+import type { SomePackagePolicy, SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
-import type { SomePolicy } from './policy-schema.js';
+
+export type { CanonicalName } from './canonical-name.js';
+export type * from './hooks.js';
+export type { PackageDescriptor } from './node-modules.js';
 
 /**
  * Set of options available in the context of code execution.
@@ -66,6 +78,7 @@ export interface LogOptions {
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
+  HookOption<MapNodeModulesHooks> &
   LogOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
@@ -127,12 +140,9 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
   languages: Array<Language>;
 }>;
 
-/**
- * @deprecated Use `mapNodeModules()`.
- */
 export type CompartmentMapForNodeModulesOptions = Omit<
   MapNodeModulesOptions,
-  'conditions' | 'tags'
+  'conditions' | 'tags' | 'hooks'
 >;
 
 /**
@@ -142,7 +152,8 @@ export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
   PolicyOption &
   LogOptions &
-  PreloadOption;
+  PreloadOption &
+  HookOption<CaptureFromMapHooks>;
 
 /**
  * Options bag containing a `preload` array.
@@ -162,7 +173,8 @@ export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
   ImportingOptions &
   ExitModuleImportHookOption &
-  LinkingOptions;
+  LinkingOptions &
+  LogOptions;
 
 export type SyncArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   SyncModuleTransformsOption &
@@ -198,15 +210,25 @@ export type BundleOptions = ArchiveOptions & {
   sourceUrlPrefix?: string;
 };
 
-export type SyncArchiveOptions = Omit<MapNodeModulesOptions, 'languages'> &
+export type SyncArchiveOptions = Omit<
+  MapNodeModulesOptions,
+  'languages' | 'hooks'
+> &
   SyncArchiveLiteOptions;
+
+export type SyncLoadLocationOptions = SyncArchiveOptions &
+  LogOptions &
+  PreloadOption &
+  HookOption<LoadLocationHooks>;
 
 /**
  * Options for `loadLocation()`
  */
 export type LoadLocationOptions = ArchiveOptions &
   SyncArchiveOptions &
-  LogOptions;
+  LogOptions &
+  PreloadOption &
+  HookOption<LoadLocationHooks>;
 
 /**
  * Options for `importLocation()` necessary (but not sufficient--see
@@ -214,14 +236,17 @@ export type LoadLocationOptions = ArchiveOptions &
  */
 export type SyncImportLocationOptions = SyncArchiveOptions &
   ExecuteOptions &
-  LogOptions;
+  LogOptions &
+  PreloadOption;
 
 /**
  * Options for `importLocation()` without dynamic require support
  */
 export type ImportLocationOptions = ArchiveOptions &
   ExecuteOptions &
-  LogOptions;
+  HookOption<LoadLocationHooks> &
+  LogOptions &
+  PreloadOption;
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Single Options
@@ -355,7 +380,7 @@ export interface DigestResult {
   /**
    * Normalized `CompartmentMapDescriptor`
    */
-  compartmentMap: CompartmentMapDescriptor;
+  compartmentMap: DigestedCompartmentMapDescriptor;
 
   /**
    * Sources found in the `CompartmentMapDescriptor`
@@ -385,7 +410,7 @@ export interface DigestResult {
  * The result of `captureFromMap`.
  */
 export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
-  captureCompartmentMap: DigestResult['compartmentMap'];
+  captureCompartmentMap: DigestedCompartmentMapDescriptor;
   captureSources: DigestResult['sources'];
 };
 
@@ -393,7 +418,7 @@ export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
  * The result of `makeArchiveCompartmentMap`
  */
 export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
-  archiveCompartmentMap: DigestResult['compartmentMap'];
+  archiveCompartmentMap: DigestedCompartmentMapDescriptor;
   archiveSources: DigestResult['sources'];
 };
 
@@ -404,18 +429,31 @@ export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
 export type Sources = Record<string, CompartmentSources>;
 export type CompartmentSources = Record<string, ModuleSource>;
 
-// TODO unionize:
-export type ModuleSource = Partial<{
+export type ModuleSource =
+  | LocalModuleSource
+  | ExitModuleSource
+  | ErrorModuleSource;
+
+export interface BaseModuleSource {
   /** module loading error deferred to later stage */
+
+  deferredError?: string;
+}
+
+export interface ErrorModuleSource extends BaseModuleSource {
   deferredError: string;
+}
+
+export interface LocalModuleSource extends BaseModuleSource {
   /**
    * package-relative location.
    * Not suitable for capture in an archive or bundle since it varies from host
    * to host and would frustrate integrity hash checks.
    */
   location: string;
-  /** fully qualified location */
-  sourceLocation: string;
+  parser: Language;
+  /** in lowercase base-16 (hexadecimal) */
+  sha512?: string;
   /**
    * directory name of the original source.
    * This is safe to capture in a compartment map because it is _unlikely_ to
@@ -431,15 +469,19 @@ export type ModuleSource = Partial<{
    * https://github.com/endojs/endo/issues/2671
    */
   sourceDirname: string;
+  /** fully qualified location */
+
+  sourceLocation: FileUrlString;
   bytes: Uint8Array;
-  /** in lowercase base-16 (hexadecimal) */
-  sha512: string;
-  parser: Language;
-  /** indicates that this is a reference that exits the mapped compartments */
-  exit: string;
   /** module for the module */
   record: StaticModuleType;
-}>;
+}
+
+export interface ExitModuleSource extends BaseModuleSource {
+  /** indicates that this is a reference that exits the mapped compartments */
+
+  exit: string;
+}
 
 export type SourceMapHook = (
   sourceMap: string,
@@ -575,3 +617,99 @@ export type LogFn = (...args: any[]) => void;
  * A string that represents a file URL.
  */
 export type FileUrlString = `file://${string}`;
+
+// #region compartment map transforms
+
+/**
+ * Options provided to all Compartment Map Transforms.
+ */
+export type CompartmentMapTransformOptions = Required<LogOptions> &
+  PolicyOption
+
+/**
+ * Public API provided to a {@link CompartmentMapTransformFn} as the
+ * {@link CompartmentMapTransformFnArguments.context} object.
+ *
+ * @template CompartmentMap The specific type of `CompartmentMapDescriptor`
+ * being transformed; defaults to `PackageCompartmentMapDescriptor`.
+ */
+export interface CompartmentMapTransformContext<
+  CompartmentMap extends
+    CompartmentMapDescriptor = PackageCompartmentMapDescriptor,
+> {
+  /**
+   * Returns the package policy from `policy` or
+   * {@link CompartmentMapTransformOptions.policy} if not provided.
+   *
+   * If you only need the `PackagePolicy` set in the `CompartmentDescriptor`,
+   * use {@link CompartmentDescriptor.policy} instead.
+   *
+   * @param compartmentDescriptor Compartment descriptor
+   * @param policy Optional policy
+   *
+   * @returns A package policy, if found
+   */
+  readonly getPackagePolicy: (
+    compartmentDescriptor: CompartmentDescriptorFromMap<CompartmentMap>,
+    policy?: SomePolicy,
+  ) => SomePackagePolicy | undefined;
+
+  /**
+   * Returns a compartment descriptor by name.
+   *
+   * @param name The name of the compartment descriptor; these are the _keys_ of {@link CompartmentDescriptor.compartments}.
+   * @returns A compartment descriptor, if found
+   */
+  readonly getCompartmentDescriptor: (
+    name: CompartmentNameFromMap<CompartmentMap>,
+  ) => CompartmentDescriptorFromMap<CompartmentMap> | undefined;
+
+  /**
+   * Returns the canonical name for some {@link CompartmentDescriptor} (or its
+   * name, if a `string`).
+   *
+   * This function only resolves `CompartmentDescriptor` if given a name; it
+   * returns the value of {@link CompartmentDescriptor.label}.
+   *
+   * @param compartmentDescriptorOrName Compartment descriptor or compartment
+   * name
+   */
+  readonly getCanonicalName: (
+    compartmentDescriptorOrName:
+      | CompartmentNameFromMap<CompartmentMap>
+      | CompartmentDescriptorFromMap<CompartmentMap>
+      | undefined,
+  ) => string | undefined;
+
+  /**
+   * Returns the compartment name for a given canonical name.
+   *
+   * @param canonicalName Canonical name of the compartment.
+   * @returns Compartment name or `undefined` if not found.
+   */
+  readonly getCompartmentName: (
+    canonicalName: string,
+  ) => CompartmentNameFromMap<CompartmentMap> | undefined;
+}
+
+/**
+ * Utility to infer the type of a `CompartmentDescriptor` from a `CompartmentMapDescriptor`.
+ */
+export type CompartmentDescriptorFromMap<
+  CompartmentMap extends CompartmentMapDescriptor<
+    any,
+    any
+  > = CompartmentMapDescriptor,
+> =
+  CompartmentMap extends CompartmentMapDescriptor<infer T, infer K> ? T : never;
+
+/**
+ * Utility to infer the type of the keys of
+ * {@link CompartmentDescriptor.compartments} from a `CompartmentMapDescriptor`.
+ */
+export type CompartmentNameFromMap<
+  CompartmentMap extends CompartmentMapDescriptor<
+    any,
+    any
+  > = CompartmentMapDescriptor,
+> = CompartmentMap extends CompartmentMapDescriptor<any, infer K> ? K : never;

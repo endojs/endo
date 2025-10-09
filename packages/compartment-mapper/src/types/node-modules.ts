@@ -1,10 +1,25 @@
 import type { GenericGraph } from '../generic-graph.js';
+import type { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
 import type {
+  CanonicalName,
+  CompartmentMapDescriptor,
+  HookExecutorFn,
+  MapNodeModulesHooks,
+  ModuleDescriptorConfiguration,
+  PackageCompartmentDescriptorName,
+  PolicyOption,
+  ScopeDescriptor,
+  SomePackagePolicy,
+  SomePolicy,
+} from '../types.js';
+import type {
+  CompartmentModuleDescriptorConfiguration,
   Language,
   LanguageForExtension,
+  PackageCompartmentDescriptor,
+  PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
 import type { LogOptions, FileUrlString } from './external.js';
-import type { PackageDescriptor } from './internal.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -48,6 +63,40 @@ export type GatherDependencyOptions = {
 } & LogOptions &
   CommonDependencyDescriptorsOptions;
 
+/**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
+export interface PackageDescriptor {
+  /**
+   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
+   */
+  name: string;
+  version?: string;
+  /**
+   * TODO: Update with proper type when this field is handled.
+   */
+  exports?: unknown;
+  type?: 'module' | 'commonjs';
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  bundleDependencies?: string[];
+  peerDependenciesMeta?: Record<
+    string,
+    { optional?: boolean; [k: string]: unknown }
+  >;
+  module?: string;
+  browser?: Record<string, string> | string;
+
+  main?: string;
+
+  [k: string]: unknown;
+}
+
+/**
+ * Value in {@link Graph}
+ */
 export interface Node {
   /**
    * Informative compartment label based on the package name and version (if available)
@@ -77,9 +126,23 @@ export interface Node {
    *
    * The values are the keys of other {@link Node Nodes} in the {@link Graph}.
    */
-  dependencyLocations: Record<string, string>;
+  dependencyLocations: Record<string, FileUrlString>;
   parsers: LanguageForExtension;
   types: Record<string, Language>;
+  packageDescriptor: PackageDescriptor;
+}
+
+/**
+ * A node in the graph that has been finalized, meaning it has a `label` and is
+ * ready for conversion into a `CompartmentDescriptor`.
+ */
+export interface FinalNode extends Node {
+  /**
+   * Canonical name of the package; used to identify it in policy
+   */
+  label: string;
+
+  packagePolicy?: SomePackagePolicy;
 }
 
 /**
@@ -92,6 +155,11 @@ export interface Node {
  * `<ATTENUATORS>` string.
  */
 export type Graph = Record<LiteralUnion<'<ATTENUATORS>', FileUrlString>, Node>;
+
+export type FinalGraph = Record<
+  PackageCompartmentDescriptorName,
+  Readonly<FinalNode>
+>;
 
 export interface LanguageOptions {
   commonjsLanguageForExtension: LanguageForExtension;
@@ -114,3 +182,36 @@ export interface PackageDetails {
  * used by `mapNodeModules()` and its ilk.
  */
 export type LogicalPathGraph = GenericGraph<FileUrlString>;
+
+export type DigestExternalAliasesFn = (
+  dependencyName: string,
+  dependencyLocation: FileUrlString,
+) => Promise<void>;
+
+export interface TranslateGraphOptions extends LogOptions {
+  policy?: SomePolicy;
+}
+
+/**
+ * This mapping is provided to `applyCompartmentMapTransforms()` to enable
+ * reverse-lookups of `CompartmentDescriptor`s from policy.
+ */
+export type CanonicalNameMap<
+  CompartmentMap extends
+    CompartmentMapDescriptor = PackageCompartmentMapDescriptor,
+> =
+  CompartmentMap extends CompartmentMapDescriptor<infer _, infer K>
+    ? Map<CanonicalName | typeof ATTENUATORS_COMPARTMENT, K>
+    : never;
+
+export type MakeDigestExternalAliasesFn = (
+  moduleDescriptors: Record<string, CompartmentModuleDescriptorConfiguration>,
+  scopes: Record<string, ScopeDescriptor>,
+  packagePolicy?: SomePackagePolicy | undefined,
+) => DigestExternalAliasesFn;
+
+export type MakeDigestExternalAliasesMakerFn = (
+  graph: FinalGraph,
+  executeHook: HookExecutorFn<MapNodeModulesHooks>,
+  options: LogOptions & PolicyOption,
+) => MakeDigestExternalAliasesFn;

@@ -13,33 +13,45 @@ import type {
   Language,
   LanguageForExtension,
   LanguageForModuleSpecifier,
-  ModuleDescriptor,
+  PackageCompartmentDescriptor,
+  PackageCompartmentDescriptors,
+  CompartmentModuleDescriptorConfiguration,
+  PackageCompartmentDescriptorName,
 } from './compartment-map-schema.js';
-import type {
-  MaybeReadFn,
-  MaybeReadNowFn,
-  ReadFn,
-  ReadPowers,
-} from './powers.js';
-import type { DeferredAttenuatorsProvider } from './policy.js';
 import type {
   ArchiveOnlyOption,
   AsyncParseFn,
   CompartmentSources,
   ComputeSha512Option,
+  DigestCompartmentMapHooks,
   ExecuteOptions,
   ExitModuleImportHookOption,
   ExitModuleImportNowHookOption,
+  FileUrlString,
+  PreloadOption,
+  HookExecutorFn,
+  HookOption,
+  LinkHooks,
   LogOptions,
+  MakeImportHookMakerHooks,
   ModuleTransforms,
   ParseFn,
   ParserForLanguage,
+  PolicyOption,
   SearchSuffixesOption,
   SourceMapHook,
   SourceMapHookOption,
   Sources,
   SyncModuleTransforms,
 } from './external.js';
+import type { PackageDescriptor } from './node-modules.js';
+import type { DeferredAttenuatorsProvider } from './policy.js';
+import type {
+  MaybeReadFn,
+  MaybeReadNowFn,
+  ReadFn,
+  ReadPowers,
+} from './powers.js';
 
 export type LinkOptions = {
   resolve?: ResolveHook;
@@ -50,7 +62,9 @@ export type LinkOptions = {
   syncModuleTransforms?: SyncModuleTransforms;
   __native__?: boolean;
 } & ArchiveOnlyOption &
-  ExecuteOptions;
+  ExecuteOptions &
+  HookOption<LinkHooks> &
+  LogOptions;
 
 export type LinkResult = {
   compartment: Compartment;
@@ -76,11 +90,13 @@ export type MakeImportHookMakersOptions = {
   /**
    * For depositing captured compartment descriptors.
    */
-  compartmentDescriptors?: Record<string, CompartmentDescriptor>;
+  compartmentDescriptors?: PackageCompartmentDescriptors;
 } & ComputeSha512Option &
   SearchSuffixesOption &
   ArchiveOnlyOption &
-  SourceMapHookOption;
+  SourceMapHookOption &
+  HookOption<MakeImportHookMakerHooks> &
+  LogOptions;
 
 export type MakeImportHookMakerOptions = MakeImportHookMakersOptions &
   ExitModuleImportHookOption;
@@ -88,7 +104,7 @@ export type MakeImportNowHookMakerOptions = MakeImportHookMakersOptions &
   ExitModuleImportNowHookOption;
 
 export type ImportHookMaker = (params: {
-  packageLocation: string;
+  packageLocation: PackageCompartmentDescriptorName;
   packageName: string;
   attenuators: DeferredAttenuatorsProvider;
   parse: ParseFn | AsyncParseFn;
@@ -97,7 +113,7 @@ export type ImportHookMaker = (params: {
 }) => ImportHook;
 
 export type ImportNowHookMaker = (params: {
-  packageLocation: string;
+  packageLocation: PackageCompartmentDescriptorName;
   packageName: string;
   parse: ParseFn | AsyncParseFn;
   compartments: Record<string, Compartment>;
@@ -125,13 +141,13 @@ export type ChooseModuleDescriptorParams = {
   /** Module specifiers with each search suffix appended */
   candidates: string[];
   moduleSpecifier: string;
-  packageLocation: string;
+  packageLocation: FileUrlString;
   /** Compartment descriptor from the compartment map */
-  compartmentDescriptor: CompartmentDescriptor;
+  compartmentDescriptor: PackageCompartmentDescriptor;
   /** All compartment descriptors from the compartment map */
-  compartmentDescriptors: Record<string, CompartmentDescriptor>;
+  compartmentDescriptors: PackageCompartmentDescriptors;
   /** All module descriptors in same compartment */
-  moduleDescriptors: Record<string, ModuleDescriptor>;
+  moduleDescriptors: Record<string, CompartmentModuleDescriptorConfiguration>;
   /** All compartments */
   compartments: Record<string, Compartment>;
   packageSources: CompartmentSources;
@@ -143,8 +159,10 @@ export type ChooseModuleDescriptorParams = {
   sourceMapHook?: SourceMapHook;
 
   strictlyRequiredForCompartment: StrictlyRequiredFn;
+  executeHook: HookExecutorFn<MakeImportHookMakerHooks>;
 } & ComputeSha512Option &
-  ArchiveOnlyOption;
+  ArchiveOnlyOption &
+  LogOptions;
 
 type ShouldDeferErrorOption = {
   shouldDeferError: ShouldDeferError;
@@ -277,37 +295,6 @@ export type MaybeReadDescriptorFn<T = PackageDescriptor> = (
 ) => Promise<T | undefined>;
 
 /**
- * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
- */
-export interface PackageDescriptor {
-  /**
-   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
-   */
-  name: string;
-  version?: string;
-  /**
-   * TODO: Update with proper type when this field is handled.
-   */
-  exports?: unknown;
-  type?: 'module' | 'commonjs';
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-  bundleDependencies?: string[];
-  peerDependenciesMeta?: Record<
-    string,
-    { optional?: boolean; [k: string]: unknown }
-  >;
-  module?: string;
-  browser?: Record<string, string> | string;
-
-  main?: string;
-
-  [k: string]: unknown;
-}
-
-/**
  * Function returning a set of module names (scoped to the compartment) whose
  * parser is not using heuristics to determine imports.
  */
@@ -329,3 +316,12 @@ export type DeferErrorFn = (
    */
   error: Error,
 ) => StaticModuleType;
+
+export type MakeLoadCompartmentsOptions = LogOptions &
+  PolicyOption &
+  PreloadOption;
+
+export type DigestCompartmentMapOptions = LogOptions &
+  HookOption<DigestCompartmentMapHooks>;
+
+export type CaptureCompartmentMapOptions = DigestCompartmentMapOptions;
