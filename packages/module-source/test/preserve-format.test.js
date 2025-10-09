@@ -2,7 +2,6 @@ import url from 'url';
 import fs from 'fs';
 import test from 'ava';
 import { ModuleSource } from '../src/module-source.js';
-import './_lockdown.js';
 
 function readFixture(filename) {
   return fs.readFileSync(

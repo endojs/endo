@@ -19,8 +19,8 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0",
     "pretty-fix": "prettier --write '**/*.js'",
     "pretty-check": "prettier --check '**/*.js'",
@@ -82,10 +82,16 @@
     "access": "public"
   },
   "ava": {
+    "require": [
+      "@endo/ses-ava/prepare-endo-config.js"
+    ],
     "files": [
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 85.3

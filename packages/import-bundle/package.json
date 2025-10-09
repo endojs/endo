@@ -27,8 +27,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0",
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
@@ -74,10 +74,17 @@
     "access": "public"
   },
   "ava": {
+    "require": [
+      "@endo/ses-ava/prepare-endo-config.js"
+    ],
     "files": [
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 65.38

@@ -1,5 +1,4 @@
 // Sets up a SES environment with 'assert' global
-import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
 import { assert, throwRedacted } from '../index.js';

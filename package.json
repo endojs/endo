@@ -9,6 +9,7 @@
   },
   "packageManager": "yarn@4.10.3",
   "devDependencies": {
+    "@endo/ses-ava": "workspace:^",
     "@jessie.js/eslint-plugin": "^0.4.2",
     "@lavamoat/allow-scripts": "^3.3.5",
     "@lavamoat/preinstall-always-fail": "^2.1.1",
@@ -33,7 +34,6 @@
   },
   "scripts": {
     "clean": "lerna clean",
-    "cover": "yarn workspaces foreach --all run cover",
     "docs": "typedoc",
     "docs:markdown-for-agoric-documentation-repo": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "echo 'DEPRECATED: use \"yarn upgrade-interactive\" or \"yarn dedupe\"'",
@@ -46,6 +46,7 @@
     "lint:workspaces:fix": "yarn workspaces foreach --all run lint-fix",
     "lint:prettier": "prettier --check .github packages",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
+    "test:c8": "yarn workspaces foreach --all run test:c8",
     "test:xs": "yarn workspaces foreach --all run test:xs",
     "test262": "yarn workspaces foreach --all run test262",
     "build": "yarn workspaces foreach --all run build",

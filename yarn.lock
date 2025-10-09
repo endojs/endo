@@ -221,7 +221,6 @@ __metadata:
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
-    c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -441,6 +440,7 @@ __metadata:
     "@endo/patterns": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
+    c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -592,6 +592,7 @@ __metadata:
   dependencies:
     "@endo/compartment-mapper": "workspace:^"
     ava: "catalog:dev"
+    c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
@@ -674,6 +675,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
     ava: "catalog:dev"
+    c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
