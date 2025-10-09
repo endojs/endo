@@ -4,7 +4,7 @@
  * @import { CodecTestEntry } from './_codecs_util.js'
  */
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { throws } from '../_util.js';
 import { makeCodecTestKit, testBidirectionally } from './_codecs_util.js';

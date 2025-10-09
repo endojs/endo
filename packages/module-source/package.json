@@ -33,12 +33,12 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
+    "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
     "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
-    "test": "ava",
+    "test": "ses-ava",
     "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
@@ -49,6 +49,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",
@@ -79,10 +80,16 @@
     ]
   },
   "ava": {
+    "require": [
+      "@endo/ses-ava/prepare-endo-config.js"
+    ],
     "files": [
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "avaConfigs": {
+    "pre-lockdown": "test/_ava-pre-lockdown.config.js"
   },
   "typeCoverage": {
     "atLeast": 40.33

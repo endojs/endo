@@ -1,5 +1,5 @@
 // @ts-check
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { passStyleOf } from '@endo/pass-style';
 import {

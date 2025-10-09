@@ -1,5 +1,5 @@
 /* global SharedArrayBuffer */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { Worker } from 'worker_threads';
 import url from 'url';

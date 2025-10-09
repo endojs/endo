@@ -16,7 +16,6 @@
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "yarn lint:types && yarn lint:eslint",

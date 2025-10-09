@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
+
+import test from '@endo/ses-ava/test.js';
 
 import { makeError } from '@endo/errors';
 import {

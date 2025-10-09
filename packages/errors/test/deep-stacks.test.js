@@ -2,7 +2,6 @@
 // automated test. Rather, its purpose is just to run it to see what a
 // deep stack looks like.
 
-import '@endo/lockdown/commit-debug.js';
 import '@endo/eventual-send/shim.js';
 import test from 'ava';
 

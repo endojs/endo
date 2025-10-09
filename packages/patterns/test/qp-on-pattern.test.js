@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { q } from '@endo/errors';
 import { qp } from '@endo/marshal';

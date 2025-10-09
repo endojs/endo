@@ -8,7 +8,7 @@
  * @import { Settler } from '@endo/eventual-send'
  */
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 import { makeTagged, makeSelector } from '../../src/pass-style-helpers.js';

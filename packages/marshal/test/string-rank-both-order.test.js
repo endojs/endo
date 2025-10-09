@@ -1,5 +1,5 @@
 import '../tools/prepare-error-if-order-choice-matters.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { compareRank } from '../src/rankOrder.js';
 import {
