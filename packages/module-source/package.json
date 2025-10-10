@@ -38,8 +38,8 @@
     "lint:types": "tsc",
     "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
-    "test": "ses-ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test": "yarn run -T ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} yarn run -T ses-ava",
     "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
@@ -50,7 +50,6 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
-    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",

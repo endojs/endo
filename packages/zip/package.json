@@ -34,11 +34,10 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ses-ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
+    "test": "yarn run -T ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} yarn run -T ses-ava"
   },
   "devDependencies": {
-    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
