@@ -132,15 +132,11 @@ const freezeTypedArray = array => {
 /**
  * Create a `harden` function.
  *
+ * @param {object} [args]
+ * @param {boolean} [args.traversePrototypes]
  * @returns {Harden}
  */
-export const makeHardener = () => {
-  // Use a native hardener if possible.
-  if (typeof globalThis.harden === 'function') {
-    const safeHarden = globalThis.harden;
-    return safeHarden;
-  }
-
+export const makeHardener = ({ traversePrototypes = false } = {}) => {
   const hardened = new WeakSet();
 
   const { harden } = {
@@ -198,8 +194,10 @@ export const makeHardener = () => {
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
         const descs = getOwnPropertyDescriptors(obj);
-        const proto = getPrototypeOf(obj);
-        enqueue(proto);
+        if (traversePrototypes) {
+          const proto = getPrototypeOf(obj);
+          enqueue(proto);
+        }
 
         arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
           // The 'name' may be a symbol, and TypeScript doesn't like us to
