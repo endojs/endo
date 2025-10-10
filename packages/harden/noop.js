@@ -9,17 +9,12 @@
 
 import { makeHardenerSelector } from './make-selector.js';
 
-const makeFakeHarden = () => {
+const makeNoopHarden = () => {
   const harden = o => o;
-  harden.isFake = true;
   harden.lockdownError = new Error(
     'Cannot lockdown (repairIntrinsics) because @endo/harden used before lockdown on this stack',
   );
   return harden;
 };
 
-const { harden, isFrozenIfLockdown } = makeHardenerSelector(makeFakeHarden);
-
-export default harden;
-
-export { isFrozenIfLockdown };
+export default makeHardenerSelector(makeNoopHarden);
