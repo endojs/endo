@@ -1,3 +1,4 @@
+/* eslint-disable no-shadow */
 /**
  * Utility types for tests
  *
@@ -5,15 +6,16 @@
  */
 
 import type { ExecutionContext } from 'ava';
+import type { inspect as nodeInspect, InspectOptionsStylized } from 'util';
 import type { makeReadPowers } from '../src/node-powers.js';
-import type { LoadLocationOptions, SomePolicy } from '../archive-lite.js';
+import type {
+  FileUrlString,
+  LoadLocationOptions,
+  Simplify,
+  SomePolicy,
+} from '../src/types.js';
 
 // #region utility
-/**
- * Makes a nicer tooltip for `T` in IDEs (most of the time).
- */
-export type Simplify<T> = { [K in keyof T]: T[K] } & {};
-
 /**
  * Set all props of `T` to be optional
  */
@@ -44,6 +46,7 @@ export type ProjectFixtureGraph = Record<string, string[]>;
 export interface ProjectFixture<Root extends string = string> {
   root: Root;
   graph: ProjectFixtureGraph;
+  entrypoint?: FileUrlString;
 }
 
 /**
@@ -81,6 +84,41 @@ export type MakeProjectFixtureReadPowersOptions = Simplify<
   MakeMaybeReadProjectFixtureOptions &
     SetOptional<Parameters<typeof makeReadPowers>[0]>
 >;
+
+/**
+ * This is the same function as Node's `CustomInspectFunction`, but I added the
+ * third parameter which was missing from `@types/node`.
+ * TODO: Upstream & remove this.
+ */
+export type FixedCustomInspectFunction = (
+  depth: number,
+  options: InspectOptionsStylized,
+  inspect: typeof nodeInspect,
+) => any;
+
+/**
+ * Did you know you can define custom styles for `util.inspect`? It doesn't say
+ * anywhere that you can't!!
+ */
+export type CustomInspectStyles = Simplify<
+  (typeof nodeInspect)['styles'] & {
+    name: string;
+    endoKind: string;
+    endoCanonical: string;
+    endoConstant: string;
+  }
+>;
+
+declare module 'node:util' {
+  /**
+   * Augments the `stylize` method of `InspectOptionsStylized` to allow
+   * {@link CustomInspectStyles} to be applied.
+   */
+  interface InspectOptionsStylized {
+    stylize(text: string, styleType: keyof CustomInspectStyles): string;
+  }
+}
+
 // #endregion
 
 // #region scaffold.js

@@ -1,3 +1,5 @@
+import 'ses';
+
 import test from 'ava';
 import { basename } from '../src/node-modules.js';
 

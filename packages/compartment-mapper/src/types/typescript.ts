@@ -35,6 +35,7 @@ export type Primitive =
  * https://github.com/Microsoft/TypeScript/issues/29729
  * Microsoft/TypeScript#29729}. It will be removed as soon as it's not needed
  * anymore.
+ * @see {@link https://www.npmjs.com/package/type-fest}
  */
 export type LiteralUnion<LiteralType, PrimitiveType extends Primitive> =
   | LiteralType
@@ -72,4 +73,7 @@ export type UnionToIntersection<U> = (
   ? I
   : never;
 
-// LiteralUnion is from https://www.npmjs.com/package/type-fest
+/**
+ * Makes a nicer tooltip for `T` in IDEs (most of the time).
+ */
+export type Simplify<T> = { [K in keyof T]: T[K] } & {};
