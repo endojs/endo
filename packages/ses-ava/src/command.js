@@ -16,41 +16,83 @@
 import popen from 'node:child_process';
 import fs from 'node:fs';
 
+const singlePassThrough = new Set([
+  '-t',
+  '--tap',
+  '-s',
+  '--serial',
+  '-u',
+  '--update-snapshots',
+  '--no-worker-threads',
+  '--verbose',
+  '--no-verbose',
+]);
+
+const doublePassThrough = new Set(['-m', '--match', '--node-arguments']);
+
 export const main = async () => {
+  // Parse configuration.
   const descriptorText = await fs.promises.readFile('package.json', 'utf8');
   const descriptor = JSON.parse(descriptorText);
   const { ava = undefined, sesAvaConfigs = {} } = descriptor;
   if (ava) sesAvaConfigs.default = undefined;
   const keys = Object.keys(sesAvaConfigs);
-  const all = new Set(keys);
-  const noFlags = new Map(keys.map(key => [`--ses-ava-no-${key}`, key]));
-  const onlyFlags = new Map(keys.map(key => [`--ses-ava-only-${key}`, key]));
-  const args = [];
-  const no = new Set();
-  const only = new Set();
-  const argsIterator = process.argv.slice(2)[Symbol.iterator]();
+  const allConfigNames = new Set(keys);
+  const noFlags = new Map(keys.map(key => [`--no-config-${key}`, key]));
+  const onlyFlags = new Map(keys.map(key => [`--only-config-${key}`, key]));
 
   // Parse arguments.
+  const passThroughArgs = [];
+  const noConfigNames = new Set();
+  const onlyConfigNames = new Set();
+  let failFast = false;
+  let debug = false;
+  let firstArg = true;
+  const argsIterator = process.argv.slice(2)[Symbol.iterator]();
   for (const arg of argsIterator) {
     if (arg === '--') {
-      args.push(...argsIterator);
+      passThroughArgs.push(...argsIterator);
       break;
     }
     const noKey = noFlags.get(arg);
     const onlyKey = onlyFlags.get(arg);
-    if (noKey) {
-      no.add(noKey);
+    if (singlePassThrough.has(arg)) {
+      passThroughArgs.push(arg);
+    } else if (doublePassThrough.has(arg)) {
+      foundNextArg: {
+        for (nextArg of argsIterator) {
+          passThroughArgs.push(arg, nextArg);
+          break foundNextArg;
+        }
+        throw new Error(`Expected argument after ${arg}`);
+      }
+    } else if (arg === '--fail-fast') {
+      // Pass-through too
+      passThroughArgs.push(arg);
+      failFast = true;
+    } else if (arg === 'debug' && firstArg) {
+      passThroughArgs.push(arg);
+      debug = true;
+    } else if (arg === 'reset-cache' && firstArg) {
+      passThroughArgs.push(arg);
+    } else if (noKey) {
+      noConfigNames.add(noKey);
     } else if (onlyKey) {
-      only.add(onlyKey);
+      onlyConfigNames.add(onlyKey);
+    } else if (arg.startsWith('-')) {
+      throw new Error(
+        `Unknown flag ${arg}. If this is an ava flag, pass through after --.`,
+      );
     } else {
-      args.push(arg);
+      passThroughArgs.push(arg);
     }
+    firstArg = false;
   }
 
   // Select configurations.
   const configs = new Set();
-  for (const config of no) {
-    if (only.has(config)) {
+  for (const config of noConfigNames) {
+    if (onlyConfigNames.has(config)) {
       // Ask not the advice of wizards, for they will say both --no-config- and
       // --only-config-.
       throw new Error(
@@ -58,8 +100,10 @@ export const main = async () => {
       );
     }
   }
-  for (const config of only.size > 0 ? only : all) {
-    if (!no.has(config)) {
+  for (const config of onlyConfigNames.size > 0
+    ? onlyConfigNames
+    : allConfigNames) {
+    if (!noConfigNames.has(config)) {
       configs.add(config);
     }
   }
@@ -85,7 +129,7 @@ export const main = async () => {
   for (const config of configs) {
     const avaArgs = [
       ...(sesAvaConfigs[config] ? ['--config', sesAvaConfigs[config]] : []),
-      ...args,
+      ...passThroughArgs,
     ];
     const child = popen.spawn('ava', avaArgs, {
       stdio: ['inherit', 'inherit', 'inherit'],
@@ -93,11 +137,18 @@ export const main = async () => {
     await new Promise((resolve, reject) => {
       child.on('exit', code => {
         process.exitCode ||= typeof code === 'number' ? code : 1;
-        resolve(undefined);
+        if (failFast) {
+          process.exit();
+        }
       });
       child.on('error', error => {
         reject(error);
       });
     });
+
+    // Debug will only apply to the first matching configuration.
+    if (debug) {
+      break;
+    }
   }
 };
