@@ -6,7 +6,7 @@ import { makeHardener } from '../make-hardener.js';
 const { stringify: q } = JSON;
 
 test('makeHardener', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const o = { a: {} };
   t.is(h(o), o);
   t.true(Object.isFrozen(o));
@@ -14,7 +14,7 @@ test('makeHardener', t => {
 });
 
 test('harden the same thing twice', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const o = { a: {} };
   t.is(h(o), o);
   t.is(h(o), o);
@@ -23,7 +23,7 @@ test('harden the same thing twice', t => {
 });
 
 test('harden objects with cycles', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const o = { a: {} };
   o.a.foo = o;
   t.is(h(o), o);
@@ -32,7 +32,7 @@ test('harden objects with cycles', t => {
 });
 
 test('harden overlapping objects', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const o1 = { a: {} };
   const o2 = { a: o1.a };
   t.is(h(o1), o1);
@@ -43,18 +43,18 @@ test('harden overlapping objects', t => {
   t.true(Object.isFrozen(o2));
 });
 
-test('harden up prototype chain', t => {
-  const h = makeHardener({ traversePrototypes: true });
+test('do not harden up prototype chain', t => {
+  const h = makeHardener({ traversePrototypes: false });
   const a = { a: 1 };
   const b = { b: 1, __proto__: a };
   const c = { c: 1, __proto__: b };
 
   h(c);
-  t.true(Object.isFrozen(a));
+  t.false(Object.isFrozen(a));
 });
 
 test('harden tolerates objects with null prototypes', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const o = { a: 1 };
   Object.setPrototypeOf(o, null);
   t.is(h(o), o);
@@ -78,7 +78,7 @@ test('harden typed arrays', t => {
   ];
 
   for (const TypedArray of typedArrayConstructors) {
-    const h = makeHardener({ traversePrototypes: true });
+    const h = makeHardener({ traversePrototypes: false });
     const a = new TypedArray(1);
 
     t.is(h(a), a, `harden ${TypedArray}`);
@@ -106,7 +106,7 @@ test('harden typed arrays', t => {
 });
 
 test('harden typed arrays and their expandos', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const a = new Uint8Array(1);
   const b = new Uint8Array(1);
 
@@ -239,7 +239,7 @@ test('harden typed arrays and their expandos', t => {
 });
 
 test('hardening makes writable properties readonly even if non-configurable', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const o = {};
   Object.defineProperty(o, 'x', {
     value: 10,
@@ -258,7 +258,7 @@ test('hardening makes writable properties readonly even if non-configurable', t 
 });
 
 test('harden a typed array with a writable non-configurable expando', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
   const a = new Uint8Array(1);
   Object.defineProperty(a, 'x', {
     value: 'A',
@@ -282,14 +282,14 @@ test('harden a typed array with a writable non-configurable expando', t => {
 });
 
 test('harden a typed array subclass', t => {
-  const h = makeHardener({ traversePrototypes: true });
+  const h = makeHardener({ traversePrototypes: false });
 
   class Ooint8Array extends Uint8Array {
     oo = 'ghosts';
   }
   h(Ooint8Array);
   t.true(Object.isFrozen(Ooint8Array.prototype));
-  t.true(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
+  t.false(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
 
   const a = new Ooint8Array(1);
   t.is(h(a), a);
