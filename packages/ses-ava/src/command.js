@@ -140,6 +140,7 @@ export const main = async () => {
         if (failFast) {
           process.exit();
         }
+        resolve(undefined);
       });
       child.on('error', error => {
         reject(error);
