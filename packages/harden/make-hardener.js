@@ -51,7 +51,13 @@ import {
   FERAL_STACK_SETTER,
   isError,
 } from './commons.js';
-import { assert } from './error/assert.js';
+
+/** @type {(condition: any) => asserts condition} */
+const assert = condition => {
+  if (!condition) {
+    throw new TypeError('assertion failed');
+  }
+};
 
 /**
  * @import {Harden} from '../types.js'
