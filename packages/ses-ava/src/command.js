@@ -20,7 +20,7 @@ export const main = async () => {
   const descriptorText = await fs.promises.readFile('package.json', 'utf8');
   const descriptor = JSON.parse(descriptorText);
   const { ava = undefined, avaConfigs = {} } = descriptor;
-  if (ava) avaConfigs['default'] = undefined;
+  if (ava) avaConfigs.default = undefined;
   const keys = Object.keys(avaConfigs);
   const all = new Set(keys);
   const noFlags = new Map(keys.map(key => [`--no-${key}`, key]));
