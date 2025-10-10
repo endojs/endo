@@ -18,7 +18,12 @@
   "main": "./index.js",
   "module": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "hardened": "./hardened.js",
+      "noop-harden": "./noop.js",
+      "default": "./shallow.js"
+    },
+    "./is-noop.js": "./is-noop.js",
     "./package.json": "./package.json"
   },
   "scripts": {
