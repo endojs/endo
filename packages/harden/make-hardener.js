@@ -1,4 +1,3 @@
-
 // Adapted from SES/Caja - Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 
@@ -22,30 +21,18 @@
 
 // @ts-check
 
-// We cannot use globalThis as the local name since it would capture the
-// lexical name.
-const universalThis = globalThis;
+/* global globalThis */
 
 const {
   Array,
-  ArrayBuffer,
-  Date,
-  FinalizationRegistry,
-  Float32Array,
   JSON,
-  Map,
-  Math,
   Number,
   Object,
-  Promise,
-  Proxy,
   Reflect,
-  RegExp: FERAL_REG_EXP,
   Set,
   String,
   Symbol,
   Uint8Array,
-  WeakMap,
   WeakSet,
 } = globalThis;
 
@@ -54,45 +41,19 @@ const {
   // revealed to post-lockdown code in any compartment including the start
   // compartment since in V8 at least it bears stack inspection capabilities.
   Error: FERAL_ERROR,
-  RangeError,
-  ReferenceError,
-  SyntaxError,
   TypeError,
-  AggregateError,
 } = globalThis;
 
 const {
-  assign,
-  create,
-  defineProperties,
-  entries,
   freeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  getOwnPropertyNames,
   getPrototypeOf,
-  is,
-  isFrozen,
-  isSealed,
-  isExtensible,
-  keys,
   prototype: objectPrototype,
-  seal,
   preventExtensions,
-  setPrototypeOf,
-  values,
-  fromEntries,
 } = Object;
 
-const {
-  species: speciesSymbol,
-  toStringTag: toStringTagSymbol,
-  iterator: iteratorSymbol,
-  matchAll: matchAllSymbol,
-  unscopables: unscopablesSymbol,
-  keyFor: symbolKeyFor,
-  for: symbolFor,
-} = Symbol;
+const { toStringTag: toStringTagSymbol } = Symbol;
 
 const { isInteger } = Number;
 
@@ -122,37 +83,12 @@ const defineProperty = (object, prop, descriptor) => {
   return result;
 };
 
-const {
-  apply,
-  construct,
-  get: reflectGet,
-  getOwnPropertyDescriptor: reflectGetOwnPropertyDescriptor,
-  has: reflectHas,
-  isExtensible: reflectIsExtensible,
-  ownKeys,
-  preventExtensions: reflectPreventExtensions,
-  set: reflectSet,
-} = Reflect;
+const { apply, ownKeys } = Reflect;
 
-const { isArray, prototype: arrayPrototype } = Array;
-const { prototype: arrayBufferPrototype } = ArrayBuffer;
-const { prototype: mapPrototype } = Map;
-const { revocable: proxyRevocable } = Proxy;
-const { prototype: regexpPrototype } = RegExp;
+const { prototype: arrayPrototype } = Array;
 const { prototype: setPrototype } = Set;
-const { prototype: stringPrototype } = String;
-const { prototype: weakmapPrototype } = WeakMap;
 const { prototype: weaksetPrototype } = WeakSet;
 const { prototype: functionPrototype } = Function;
-const { prototype: promisePrototype } = Promise;
-const { prototype: generatorPrototype } = getPrototypeOf(
-  // eslint-disable-next-line no-empty-function, func-names
-  function* () {},
-);
-const iteratorPrototype = getPrototypeOf(
-  // eslint-disable-next-line @endo/no-polymorphic-call
-  getPrototypeOf(arrayPrototype.values()),
-);
 
 const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 
@@ -193,116 +129,18 @@ if (!('hasOwn' in Object)) {
 
 const { hasOwn } = Object;
 
-/**
- * @deprecated Use `hasOwn` instead
- */
-const objectHasOwnProperty = hasOwn;
-//
-const arrayFilter = uncurryThis(arrayPrototype.filter);
 const arrayForEach = uncurryThis(arrayPrototype.forEach);
-const arrayIncludes = uncurryThis(arrayPrototype.includes);
-const arrayJoin = uncurryThis(arrayPrototype.join);
-/** @type {<T, U>(thisArg: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, cbThisArg?: any) => U[]} */
-const arrayMap = /** @type {any} */ (uncurryThis(arrayPrototype.map));
-const arrayFlatMap = /** @type {any} */ (
-  uncurryThis(arrayPrototype.flatMap)
-);
-const arrayPop = uncurryThis(arrayPrototype.pop);
-/** @type {<T>(thisArg: T[], ...items: T[]) => number} */
-const arrayPush = uncurryThis(arrayPrototype.push);
-const arraySlice = uncurryThis(arrayPrototype.slice);
-const arraySome = uncurryThis(arrayPrototype.some);
-const arraySort = uncurryThis(arrayPrototype.sort);
-const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
-//
-const arrayBufferSlice = uncurryThis(arrayBufferPrototype.slice);
-/** @type {(b: ArrayBuffer) => number} */
-const arrayBufferGetByteLength = uncurryThis(
-  // @ts-expect-error we know it is there on all conforming platforms
-  getOwnPropertyDescriptor(arrayBufferPrototype, 'byteLength').get,
-);
-//
-const typedArraySet = uncurryThis(typedArrayPrototype.set);
-//
-const mapSet = uncurryThis(mapPrototype.set);
-const mapGet = uncurryThis(mapPrototype.get);
-const mapHas = uncurryThis(mapPrototype.has);
-const mapDelete = uncurryThis(mapPrototype.delete);
-const mapEntries = uncurryThis(mapPrototype.entries);
-const iterateMap = uncurryThis(mapPrototype[iteratorSymbol]);
 //
 const setAdd = uncurryThis(setPrototype.add);
-const setDelete = uncurryThis(setPrototype.delete);
 const setForEach = uncurryThis(setPrototype.forEach);
 const setHas = uncurryThis(setPrototype.has);
-const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
-//
-const regexpTest = uncurryThis(regexpPrototype.test);
-const regexpExec = uncurryThis(regexpPrototype.exec);
-const matchAllRegExp = uncurryThis(regexpPrototype[matchAllSymbol]);
-//
-const stringEndsWith = uncurryThis(stringPrototype.endsWith);
-const stringIncludes = uncurryThis(stringPrototype.includes);
-const stringIndexOf = uncurryThis(stringPrototype.indexOf);
-const stringMatch = uncurryThis(stringPrototype.match);
-const generatorNext = uncurryThis(generatorPrototype.next);
-const generatorThrow = uncurryThis(generatorPrototype.throw);
 
-/**
- * @type { &
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) &
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
- * }
- */
-const stringReplace = /** @type {any} */ (
-  uncurryThis(stringPrototype.replace)
-);
-const stringSearch = uncurryThis(stringPrototype.search);
-const stringSlice = uncurryThis(stringPrototype.slice);
-const stringSplit =
-  /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */ (
-    uncurryThis(stringPrototype.split)
-  );
-const stringStartsWith = uncurryThis(stringPrototype.startsWith);
-const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
-//
-const weakmapDelete = uncurryThis(weakmapPrototype.delete);
-/** @type {<K extends {}, V>(thisArg: WeakMap<K, V>, ...args: Parameters<WeakMap<K,V>['get']>) => ReturnType<WeakMap<K,V>['get']>} */
-const weakmapGet = uncurryThis(weakmapPrototype.get);
-const weakmapHas = uncurryThis(weakmapPrototype.has);
-const weakmapSet = uncurryThis(weakmapPrototype.set);
-//
 const weaksetAdd = uncurryThis(weaksetPrototype.add);
 const weaksetHas = uncurryThis(weaksetPrototype.has);
-//
-const functionToString = uncurryThis(functionPrototype.toString);
-const functionBind = uncurryThis(bind);
-//
-const { all } = Promise;
-const promiseAll = promises => apply(all, Promise, [promises]);
-const promiseCatch = uncurryThis(promisePrototype.catch);
-/** @type {<T, TResult1 = T, TResult2 = never>(thisArg: T, onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) => Promise<TResult1 | TResult2>} */
-const promiseThen = /** @type {any} */ (
-  uncurryThis(promisePrototype.then)
-);
-//
-const finalizationRegistryRegister =
-  FinalizationRegistry && uncurryThis(FinalizationRegistry.prototype.register);
-const finalizationRegistryUnregister =
-  FinalizationRegistry &&
-  uncurryThis(FinalizationRegistry.prototype.unregister);
 
 /**
- * getConstructorOf()
- * Return the constructor from an instance.
- *
- * @param {Function} fn
- */
-const getConstructorOf = fn =>
-  reflectGet(getPrototypeOf(fn), 'constructor');
-
-/**
- * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
+ * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`
+ * and also `ses`.
  * Layering constraints make this tricky, which is why we haven't yet figured
  * out how to do this.
  *
@@ -329,28 +167,6 @@ const isPrimitive = val =>
  * @param {any} value
  */
 const isError = value => value instanceof FERAL_ERROR;
-
-/**
- * @template T
- * @param {T} x
- */
-const identity = x => x;
-
-// The original unsafe untamed eval function, which must not escape.
-// Sample at module initialization time, which is before lockdown can
-// repair it.  Use it only to build powerless abstractions.
-// eslint-disable-next-line no-eval
-const FERAL_EVAL = eval;
-
-// The original unsafe untamed Function constructor, which must not escape.
-// Sample at module initialization time, which is before lockdown can
-// repair it.  Use it only to build powerless abstractions.
-const FERAL_FUNCTION = Function;
-
-const noEvalEvaluate = () => {
-  // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_EVAL.md
-  throw TypeError('Cannot eval with evalTaming set to "no-eval" (SES_NO_EVAL)');
-};
 
 // ////////////////// FERAL_STACK_GETTER FERAL_STACK_SETTER ////////////////////
 
@@ -424,46 +240,6 @@ const FERAL_STACK_GETTER = feralStackGetter;
  * @type {((newValue: any) => void) | undefined}
  */
 const FERAL_STACK_SETTER = feralStackSetter;
-
-const getAsyncGeneratorFunctionInstance = () => {
-  // Test for async generator function syntax support.
-  try {
-    // Wrapping one in an new Function lets the `hermesc` binary file
-    // parse the Metro js bundle without SyntaxError, to generate the
-    // optimised Hermes bytecode bundle, when `gradlew` is called to
-    // assemble the release build APK for React Native prod Android apps.
-    // Delaying the error until runtime lets us customise lockdown behaviour.
-    return new FERAL_FUNCTION(
-      'return (async function* AsyncGeneratorFunctionInstance() {})',
-    )();
-  } catch (error) {
-    // Note: `Error.prototype.jsEngine` is only set by React Native runtime, not Hermes:
-    // https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/hermes/executor/HermesExecutorFactory.cpp#L224-L230
-    if (error.name === 'SyntaxError') {
-      // Swallows Hermes error `async generators are unsupported` at runtime.
-      // Note: `console` is not a JS built-in, so Hermes engine throws:
-      // Uncaught ReferenceError: Property 'console' doesn't exist
-      // See: https://github.com/facebook/hermes/issues/675
-      // However React Native provides a `console` implementation when setting up error handling:
-      // https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/InitializeCore.js
-      return undefined;
-    } else if (error.name === 'EvalError') {
-      // eslint-disable-next-line no-empty-function
-      return async function* AsyncGeneratorFunctionInstance() {};
-    } else {
-      throw error;
-    }
-  }
-};
-
-/**
- * If the platform supports async generator functions, this will be an
- * async generator function instance. Otherwise, it will be `undefined`.
- *
- * @type {AsyncGeneratorFunction | undefined}
- */
-const AsyncGeneratorFunctionInstance =
-  getAsyncGeneratorFunctionInstance();
 
 /** @type {(condition: any) => asserts condition} */
 const assert = condition => {
