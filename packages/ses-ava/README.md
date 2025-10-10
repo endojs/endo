@@ -65,7 +65,7 @@ export default {
 ```
 
 This relies on `@endo/ses-ava/prepare-endo-config.js` to initialize an
-Endo envrionment, including the SES shims and Eventual Send shim, and also
+Endo environment, including the SES shims and Eventual Send shim, and also
 register the SES-Ava wrapped `test` declarator, which can unredact error
 messages produced by the Assert shim from SES.
 In the root of the Endo repository, look the the `ava-*.config.mjs` modules

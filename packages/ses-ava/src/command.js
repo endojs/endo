@@ -58,7 +58,7 @@ export const main = async () => {
       );
     }
   }
-  for (const config of all) {
+  for (const config of only.size > 0 ? only : all) {
     if (!no.has(config)) {
       configs.add(config);
     }

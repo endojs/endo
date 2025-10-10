@@ -15,7 +15,7 @@ import rawTest from 'ava';
 // eslint-disable-next-line import/no-mutable-exports
 let test = rawTest;
 
-export const register = newTest => {
+export const registerAvaTestFn = newTest => {
   test = newTest;
 };
 

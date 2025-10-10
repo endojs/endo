@@ -37,7 +37,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava && bin/ses-ava --ses-ava-only-one && bin/ses-ava --ses-ava-no-two --ses-ava-no-one --ses-ava-no-default"
+    "test": "ava && bin/ses-ava --ses-ava-only-one && ! bin/ses-ava --ses-ava-no-two --ses-ava-no-one --ses-ava-no-default 2>/dev/null"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
