@@ -473,7 +473,8 @@ const assert = condition => {
 };
 
 /**
- * @import {Harden} from '../types.js'
+ * @template T
+ * @typedef {(value: T) => T} Harden
  */
 
 // Obtain the string tag accessor of of TypedArray so we can indirectly use the
@@ -545,9 +546,10 @@ const freezeTypedArray = array => {
 /**
  * Create a `harden` function.
  *
+ * @template T
  * @param {object} [args]
  * @param {boolean} [args.traversePrototypes]
- * @returns {Harden}
+ * @returns {Harden<T>}
  */
 export const makeHardener = ({ traversePrototypes = false } = {}) => {
   const hardened = new WeakSet();
