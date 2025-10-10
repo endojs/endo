@@ -73,6 +73,7 @@
     ]
   },
   "sesAvaConfigs": {
-    "lockdown": "../../ava-endo-lockdown.config.mjs"
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   }
 }
