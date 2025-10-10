@@ -91,7 +91,8 @@
     "timeout": "2m"
   },
   "sesAvaConfigs": {
-    "lockdown": "../../ava-endo-lockdown.config.mjs"
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 85.3
