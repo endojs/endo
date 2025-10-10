@@ -29,16 +29,14 @@
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "prepack": "tsc --build tsconfig.build.json",
     "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "test:xs": "exit 0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@endo/lockdown": "workspace:^",
-    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "ses": "workspace:^",
     "tsd": "catalog:dev",
     "typescript": "~5.9.2"
   },
