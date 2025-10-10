@@ -70,7 +70,7 @@
       "plugin:@endo/internal"
     ]
   },
-  "avaConfigs": {
+  "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs"
   },
   "typeCoverage": {

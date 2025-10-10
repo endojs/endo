@@ -68,7 +68,7 @@
       "plugin:@endo/internal"
     ]
   },
-  "avaConfigs": {
+  "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
     "ses0.18.3": "test/_ava-ses-0-18-3.config.js"

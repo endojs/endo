@@ -82,7 +82,7 @@
     ],
     "timeout": "2m"
   },
-  "avaConfigs": {
+  "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },

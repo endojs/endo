@@ -69,7 +69,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "avaConfigs": {
+  "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },

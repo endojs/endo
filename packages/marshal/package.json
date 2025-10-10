@@ -90,7 +90,7 @@
     ],
     "timeout": "2m"
   },
-  "avaConfigs": {
+  "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs"
   },
   "typeCoverage": {

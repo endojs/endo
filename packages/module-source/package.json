@@ -39,6 +39,7 @@
     "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
     "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
@@ -79,17 +80,10 @@
       "test/fixtures/"
     ]
   },
-  "ava": {
-    "require": [
-      "@endo/ses-ava/prepare-endo-config.js"
-    ],
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
-  },
-  "avaConfigs": {
-    "pre-lockdown": "test/_ava-pre-lockdown.config.js"
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "ses-shim": "../../ava-ses-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 40.33
