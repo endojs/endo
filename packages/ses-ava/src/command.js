@@ -1,5 +1,5 @@
 /* global process */
-/* eslint-disable no-await-in-loop, no-continue */
+/* eslint-disable no-await-in-loop, no-continue, no-labels, no-unreachable-loop */
 
 /* The ses-ava command allows a single package to run the same test suite with
  * multiple configurations named in package.json under `sesAvaConfigs`.
@@ -60,7 +60,7 @@ export const main = async () => {
       passThroughArgs.push(arg);
     } else if (doublePassThrough.has(arg)) {
       foundNextArg: {
-        for (nextArg of argsIterator) {
+        for (const nextArg of argsIterator) {
           passThroughArgs.push(arg, nextArg);
           break foundNextArg;
         }
