@@ -18,7 +18,12 @@
   "main": "./index.js",
   "module": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "hardened": "./hardened.js",
+      "harden:unsafe": "./unsafe.js",
+      "harden:shallow": "./shallow.js",
+      "default": "./shallow.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
