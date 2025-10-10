@@ -37,7 +37,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava && bin/ses-ava --only-one && bin/ses-ava --no-two --no-one --no-default"
+    "test": "ava && bin/ses-ava --ses-ava-only-one && bin/ses-ava --ses-ava-no-two --ses-ava-no-one --ses-ava-no-default"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
@@ -79,7 +79,7 @@
     ],
     "timeout": "2m"
   },
-  "avaConfigs": {
+  "sesAvaConfigs": {
     "one": "test/_ava1.config.js",
     "two": "test/_ava2.config.js"
   },
