@@ -47,11 +47,14 @@ defend the integrity of their interface, with varying degrees of defense dependi
 on whether they're used in composition with HardenedJS's `lockdown`.
 
 For tests that might be used regardless of the environment, SES-Ava provides
-an `@endo/ses-ava/test.js` module that exports the right `test` function
-for the configuration in use.
+an `@endo/ses-ava/test.js` module.
+It exports the `test` from `ava` by default.
+But with the `node` condition `ses-ava:endo`, it exports a wrapped `test`
+that unredacts errors, so tests see the original error messages that would
+otherwise be redacted by SES's Assert machinery.
 
 ```js
-import test from '@endo/ses-ava/tst.js';
+import test from '@endo/ses-ava/test.js';
 ```
 
 SES-Ava then enables different Ava configurations to set up different
@@ -61,13 +64,17 @@ For example, the `lockdown` configuration might look like:
 ```js
 export default {
   require: ['@endo/ses-ava/prepare-endo-config.js'],
+  nodeArguments: ['-C', 'ses-ava:endo']
 };
 ```
 
-This relies on `@endo/ses-ava/prepare-endo-config.js` to initialize an
+This relies on SES-Ava  to initialize an
 Endo environment, including the SES shims and Eventual Send shim, and also
 register the SES-Ava wrapped `test` declarator, which can unredact error
 messages produced by the Assert shim from SES.
+If the test doesn't import `@endo/ses-ava/test.js`, requiring
+`@endo/ses-ava/prepare-endo-config.js` ensures the environment is fully
+initialized.
 In the root of the Endo repository, look the the `ava-*.config.mjs` modules
 for example configurations.
 

@@ -22,7 +22,10 @@
   "bin": "bin/ses-ava",
   "exports": {
     ".": "./index.js",
-    "./test.js": "./test.js",
+    "./test.js": {
+      "ses-ava:endo": "./prepare-endo.js",
+      "default": "./src/reexport-ava.js"
+    },
     "./exported.js": "./exported.js",
     "./prepare-endo.js": "./prepare-endo.js",
     "./prepare-endo-config.js": "./prepare-endo-config.js",
@@ -37,7 +40,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava && bin/ses-ava --only-config-one"
+    "test": "ava && bin/ses-ava --only-config-one --only-config-raw"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
@@ -81,7 +84,8 @@
   },
   "sesAvaConfigs": {
     "one": "test/_ava1.config.js",
-    "two": "test/_ava2.config.js"
+    "two": "test/_ava2.config.js",
+    "raw": "test/_ses-ava-is-ava.config.js"
   },
   "typeCoverage": {
     "atLeast": 72.22
