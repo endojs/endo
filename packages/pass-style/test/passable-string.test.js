@@ -1,6 +1,6 @@
 /* eslint-disable no-useless-concat */
 import './_prepare-only-well-formed-strings-passable.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { isWellFormedString, assertWellFormedString } from '../src/string.js';
 import { passStyleOf } from '../src/passStyleOf.js';

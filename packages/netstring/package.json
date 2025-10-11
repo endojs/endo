@@ -27,12 +27,12 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava"
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
   },
   "dependencies": {
     "@endo/init": "workspace:^",
@@ -41,6 +41,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
@@ -65,11 +66,10 @@
       "plugin:@endo/internal"
     ]
   },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
+  "sesAvaConfigs": {
+    "shims": "../../ava-endo-shims-only.config.mjs",
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 100

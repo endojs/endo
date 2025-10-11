@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';
 

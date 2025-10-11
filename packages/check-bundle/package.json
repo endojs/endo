@@ -36,8 +36,8 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
@@ -47,6 +47,7 @@
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "@endo/zip": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
@@ -73,11 +74,10 @@
       "plugin:@endo/internal"
     ]
   },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
+  "sesAvaConfigs": {
+    "shims": "../../ava-endo-shims-only.config.mjs",
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 86.95

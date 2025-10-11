@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { fc } from '@fast-check/ava';
 import { makeTagged, getTag, passStyleOf, PASS_STYLE } from '@endo/pass-style';

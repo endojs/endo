@@ -1,6 +1,6 @@
 // @ts-check
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 import { encodeSyrup } from '../../src/syrup/js-representation.js';
 import { table } from './_table.js';
 import { throws } from '../_util.js';

@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { objectMetaMap } from '@endo/common/object-meta-map.js';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
