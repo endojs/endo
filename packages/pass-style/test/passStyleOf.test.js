@@ -65,7 +65,11 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
-  t.is(passStyleOf(harden(Error('ok'))), 'error');
+  // Fake harden does not make an error passable by capturing the stack in an
+  // own property.
+  if (!harden.isFake) {
+    t.is(passStyleOf(harden(Error('ok'))), 'error');
+  }
 });
 
 test('ToFarFunction', t => {
@@ -472,7 +476,9 @@ test('remotables - safety from the gibson042 attack', t => {
   });
 });
 
-test('Unexpected stack on errors', t => {
+// Fake harden (hardenTaming: unsafe) does not convert errors into passable
+// errors by capturing the stack on an own property.
+(harden.isFake ? test.skip : test)('Unexpected stack on errors', t => {
   let err;
   try {
     // @ts-expect-error purposeful type violation for testing
@@ -485,6 +491,7 @@ test('Unexpected stack on errors', t => {
   err.stack = carrierStack;
   harden(err);
 
+  // Fake harden does not maintain this invariant.
   t.throws(() => passStyleOf(err), {
     message: 'Passable Error "stack" own property must be a string: {}',
   });

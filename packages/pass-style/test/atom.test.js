@@ -12,10 +12,13 @@ test('isAtom test', t => {
 
   const p = Promise.resolve();
   t.false(isAtom(p));
-  t.throws(() => assertAtom(p), {
-    message:
-      'Not even Passable: "[Error: Cannot pass non-frozen objects like \\"[Promise]\\". Use harden()]": "[Promise]"',
-  });
+  // @ts-expect-error isFake is a secret
+  if (!harden.isFake) {
+    t.throws(() => assertAtom(p), {
+      message:
+        'Not even Passable: "[Error: Cannot pass non-frozen objects like \\"[Promise]\\". Use harden()]": "[Promise]"',
+    });
+  }
 
   harden(p);
 

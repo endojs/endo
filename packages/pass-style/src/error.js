@@ -10,6 +10,9 @@ import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
 
+// @ts-expect-error isFake is a secret property.
+const hardenIsFake = !!harden.isFake;
+
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
 // whilelist.
 const errorConstructors = new Map(
@@ -108,18 +111,24 @@ export const confirmRecursivelyPassableErrorPropertyDesc = (
     );
   }
   if (!hasOwn(desc, 'value')) {
-    return (
-      reject &&
-      reject`Passable Error ${q(
-        propName,
-      )} own property must be a data property: ${desc}`
-    );
+    // Error.prototype.stack is own accessor in V8, but nowhere else to our
+    // knowledge (2025).
+    // We relax validation for "stack" only when harden.isFake.
+    if (!(hardenIsFake && propName === 'stack')) {
+      return (
+        reject &&
+        reject`Passable Error ${q(
+          propName,
+        )} own property must be a data property: ${desc}`
+      );
+    }
   }
   const { value } = desc;
   switch (propName) {
     case 'message':
     case 'stack': {
       return (
+        hardenIsFake ||
         typeof value === 'string' ||
         (reject &&
           reject`Passable Error ${q(
