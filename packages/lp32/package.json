@@ -52,11 +52,11 @@
   "dependencies": {
     "@endo/errors": "workspace:^",
     "@endo/harden": "workspace:^",
-    "@endo/init": "workspace:^",
     "@endo/stream": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
