@@ -67,7 +67,8 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "base": "../../ava-base.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 95.83

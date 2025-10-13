@@ -83,7 +83,7 @@
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
-    "ses-shim": "../../ava-ses-shims-only.config.mjs"
+    "ses": "../../ava-ses-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 40.33
