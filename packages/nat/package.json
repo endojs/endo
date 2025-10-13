@@ -59,9 +59,9 @@
     "tools"
   ],
   "sesAvaConfigs": {
-    "shims": "../../ava-endo-shims-only.config.mjs",
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "base": "../../ava-base.config.mjs"
   },
   "publishConfig": {
     "access": "public"
