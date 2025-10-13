@@ -345,9 +345,23 @@ test('passStyleOf testing remotables', t => {
     'null-proto-tagRecord grandproto is rejected',
   );
 
-  t.throws(() => passStyleOf(Object.prototype), {
-    message: 'cannot serialize Remotables with accessors like "toString" in {}',
-  });
+  // Recall that harden.isFake implies that Object.isFrozen is also fake, so in
+  // hardenTaming: unsafe mode, checking whether an intrinsic is frozen is not
+  // sufficient to sense HardenedJS mode.
+  const lockedDown = !Object.getOwnPropertyDescriptor(
+    Object.prototype,
+    'constructor',
+  ).writable;
+  if (lockedDown || harden.isFake) {
+    t.throws(() => passStyleOf(Object.prototype), {
+      message:
+        /^cannot serialize Remotables with accessors like "(toString|__proto__)" in {}$/,
+    });
+  } else {
+    t.throws(() => passStyleOf(Object.prototype), {
+      message: 'Cannot pass non-frozen objects like {}. Use harden()',
+    });
+  }
 
   const fauxTagRecordB = harden(
     makeTagishRecord('Alleged: manually constructed', harden({})),

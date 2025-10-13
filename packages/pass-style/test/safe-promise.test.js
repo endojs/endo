@@ -34,8 +34,10 @@ test('safe promise loophole', t => {
       },
       {
         // Override mistake
+        // Without-lockdown: #<Promise>
+        // Post-lockdown: [object Promise]
         message:
-          "Cannot assign to read only property 'Symbol(Symbol.toStringTag)' of object '[object Promise]'",
+          /^Cannot assign to read only property 'Symbol\(Symbol.toStringTag\)' of object '(#<Promise>|\[object Promise\])'$/,
       },
     );
     defineProperty(p3, toStringTag, {
