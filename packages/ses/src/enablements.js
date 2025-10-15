@@ -106,6 +106,10 @@ export const moderateEnablements = {
     [iteratorSymbol]: true, // set by mobx generated code (old TS compiler?)
   },
 
+  '%IteratorPrototype%': {
+    [iteratorSymbol]: true, // is sometimes used in custom iterators and generators implementations eg. @rive-app/canvas
+  },
+
   // Function.prototype has no 'prototype' property to enable.
   // Function instances have their own 'name' and 'length' properties
   // which are configurable and non-writable. Thus, they are already

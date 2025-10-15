@@ -1,7 +1,7 @@
 import {
   getPrototypeOf,
   getOwnPropertyDescriptor,
-  getOwnPropertyNames,
+  ownKeys,
 } from '../src/commons.js';
 
 function getValue(obj, name) {
@@ -11,37 +11,43 @@ function getValue(obj, name) {
 
 export function overrideTester(t, type, obj, allowed = []) {
   const proto = getPrototypeOf(obj);
-  for (const name of getOwnPropertyNames(proto)) {
-    if (name === '__proto__') {
-      t.notThrows(() => {
-        obj[name] = 1;
-      }, `Should not throw when setting property ${name} of ${type} instance`);
-      t.not(
-        getValue(obj, name),
-        1,
-        `Should not allow setting property ${name} of ${type} instance`,
+  for (const key of ownKeys(proto)) {
+    if (key === '__proto__') {
+      t.notThrows(
+        () => {
+          obj[key] = 1;
+        },
+        `Should not throw when setting property ${String(key)} of ${type} instance`,
       );
-    } else if (allowed.includes(name)) {
-      t.notThrows(() => {
-        obj[name] = 1;
-      }, `Should not throw when setting property ${name} of ${type} instance`);
-      t.is(
-        getValue(obj, name),
+      t.not(
+        getValue(obj, key),
         1,
-        `Should allow setting property ${name} of ${type} instance`,
+        `Should not allow setting property ${String(key)} of ${type} instance`,
+      );
+    } else if (allowed.includes(key)) {
+      t.notThrows(
+        () => {
+          obj[key] = 1;
+        },
+        `Should not throw when setting property ${String(key)} of ${type} instance`,
+      );
+      t.is(
+        getValue(obj, key),
+        1,
+        `Should allow setting property ${String(key)} of ${type} instance`,
       );
     } else {
       t.throws(
         () => {
-          obj[name] = 1;
+          obj[key] = 1;
         },
         undefined,
-        `Should throw when setting property ${name} of ${type} instance`,
+        `Should throw when setting property ${String(key)} of ${type} instance`,
       );
       t.not(
-        getValue(obj, name),
+        getValue(obj, key),
         1,
-        `Should not allow setting property ${name} of ${type} instance`,
+        `Should not allow setting property ${String(key)} of ${type} instance`,
       );
     }
   }

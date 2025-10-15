@@ -16,7 +16,12 @@ test('enablePropertyOverrides - on, with debug', t => {
 
   // We allow 'length' *not* because it is in enablements; it is not;
   // but because each array instance has its own.
-  overrideTester(t, 'Array', [], ['toString', 'length', 'push', 'concat']);
+  overrideTester(
+    t,
+    'Array',
+    [],
+    ['toString', 'length', 'push', 'concat', Symbol.iterator],
+  );
 
   const TypedArray = getPrototypeOf(Uint8Array);
   overrideTester(
