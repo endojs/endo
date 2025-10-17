@@ -18,7 +18,9 @@
  *    ImplicitAttenuationDefinition,
  *    FullAttenuationDefinition,
  *    UnionToIntersection,
- *    PackageNamingKit
+ *    PackageNamingKit,
+ *    WildcardPolicy,
+ *    SomePolicy
  *} from './types.js'
  */
 

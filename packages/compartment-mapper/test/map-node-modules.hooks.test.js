@@ -537,13 +537,13 @@ test('mapNodeModules - packageDependencies hook no modification (snapshot)', asy
 test('mapNodeModules - unknownCanonicalName hook called for missing policy resources', async t => {
   t.plan(6);
 
-  /** @type {Array<{canonicalName: CanonicalName, path: string[], issue: string}>} */
+  /** @type {Array<{canonicalName: CanonicalName, path: string[], message: string}>} */
   const hookCalls = [];
 
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
   const hooks = {
-    unknownCanonicalName: ({ canonicalName, path, issue }) => {
-      hookCalls.push({ canonicalName, path, issue });
+    unknownCanonicalName: ({ canonicalName, path, message }) => {
+      hookCalls.push({ canonicalName, path, message });
     },
   };
 
@@ -589,10 +589,10 @@ test('mapNodeModules - unknownCanonicalName hook called for missing policy resou
     'should provide correct path for unknown resource',
   );
   t.true(
-    unknownResourceCall?.issue.includes(
+    unknownResourceCall?.message.includes(
       'Resource "unknown-package" was not found',
     ),
-    'should provide descriptive issue message for unknown resource',
+    'should provide descriptive message for unknown resource',
   );
 
   // Check hook call for unknown nested package
@@ -624,4 +624,122 @@ test('mapNodeModules - unknownCanonicalName hook not called when all resources e
   });
 
   t.false(hookCalled, 'should not call hook when all policy resources exist');
+});
+
+test('mapNodeModules - unknownCanonicalName hook includes suggestions when available', async t => {
+  /** @type {Array<{canonicalName: CanonicalName, path: string[], message: string, suggestion?: CanonicalName}>} */
+  const hookCalls = [];
+
+  /** @type {HookConfiguration<MapNodeModulesHooks>} */
+  const hooks = {
+    unknownCanonicalName: ({ canonicalName, path, message, suggestion }) => {
+      hookCalls.push({ canonicalName, path, message, suggestion });
+    },
+  };
+
+  // Policy with typos that should trigger suggestions
+  /** @type {SomePolicy} */
+  const policyWithTypo = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+    },
+    resources: {
+      'dep-aa': {
+        // Not close enough to 'dep-a' to suggest, but contains 'dep-c'
+        // which should suggest 'dep-a>dep-c'
+        packages: {
+          'dep-c': true,
+        },
+      },
+    },
+  };
+
+  const readPowers = makeProjectFixtureReadPowers(testFixture);
+  await mapNodeModules(readPowers, testFixture.entrypoint, {
+    hooks,
+    policy: policyWithTypo,
+  });
+
+  t.is(
+    hookCalls.length,
+    2,
+    'should call hook twice for both unknown resources',
+  );
+
+  // Check the call for the unknown top-level resource (no close suggestion)
+  const unknownResourceCall = hookCalls.find(
+    call => call.canonicalName === 'dep-aa',
+  );
+  t.truthy(unknownResourceCall, 'should call hook for unknown resource');
+  t.deepEqual(
+    unknownResourceCall?.path,
+    ['resources', 'dep-aa'],
+    'should provide correct path for unknown resource',
+  );
+  t.true(
+    unknownResourceCall?.message.includes('Resource "dep-aa" was not found'),
+    'should provide descriptive message for unknown resource',
+  );
+  t.is(
+    unknownResourceCall?.suggestion,
+    undefined,
+    'should not suggest when no close match exists',
+  );
+
+  // Check the call for the nested package (should have suggestion)
+  const nestedPackageCall = hookCalls.find(
+    call => call.canonicalName === 'dep-c',
+  );
+  t.truthy(nestedPackageCall, 'should call hook for nested unknown package');
+  t.deepEqual(
+    nestedPackageCall?.path,
+    ['resources', 'dep-aa', 'packages', 'dep-c'],
+    'should provide correct path for nested unknown package',
+  );
+  t.true(
+    nestedPackageCall?.message.includes(
+      'Resource "dep-c" from resource "dep-aa" was not found',
+    ),
+    'should provide descriptive message for nested unknown package',
+  );
+  t.is(
+    nestedPackageCall?.suggestion,
+    'dep-a>dep-c',
+    'should suggest the closest matching canonical name',
+  );
+});
+
+test('mapNodeModules - canonicalNames hook called with all canonical names', async t => {
+  t.plan(1);
+
+  /** @type {Set<CanonicalName>} */
+  let receivedCanonicalNames = new Set();
+
+  /** @type {HookConfiguration<MapNodeModulesHooks>} */
+  const hooks = {
+    canonicalNames: ({ canonicalNames }) => {
+      receivedCanonicalNames = new Set(canonicalNames);
+    },
+  };
+
+  const readPowers = makeProjectFixtureReadPowers(testFixture);
+  await mapNodeModules(readPowers, testFixture.entrypoint, { hooks });
+
+  // Expected canonical names based on the test fixture:
+  // - $root$ (the entry package 'app' becomes '$root$')
+  // - dep-a (direct dependency)
+  // - dep-b (direct dependency)
+  // - dep-a>dep-c (transitive dependency through dep-a)
+  const expectedCanonicalNames = new Set([
+    '$root$',
+    'dep-a',
+    'dep-b',
+    'dep-a>dep-c',
+  ]);
+
+  t.deepEqual(
+    receivedCanonicalNames,
+    expectedCanonicalNames,
+    'should receive exactly the expected canonical names from the project fixture',
+  );
 });
