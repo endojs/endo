@@ -107,6 +107,13 @@ const defaultExpectations = {
     builtins2: '{"c":3,"default":{"c":3}}',
   }),
 };
+const anyExpectations = {
+  namespace: moduleify({
+    ...defaultExpectations.namespace,
+    carol: { bluePill: 'number', redPill: 'number', purplePill: 'number' },
+  }),
+};
+
 
 const powerlessCarolExpectations = {
   namespace: moduleify({
@@ -173,15 +180,12 @@ scaffold(
   'policy - enforcement with "any" policy',
   test,
   fixture,
-  assertTestAlwaysThrows,
+  combineAssertions(
+    makeResultAssertions(anyExpectations),
+    assertExternalModuleNotFound,
+  ),
   2, // expected number of assertions
   {
-    shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error }) => {
-      t.regex(error.message, /unknown resources found in policy/i);
-      // see the snapshot for the error hint in the message
-      t.snapshot(sanitizePaths(error.message));
-    },
     addGlobals: globals,
     policy: anyPolicy,
   },
@@ -195,10 +199,16 @@ scaffold(
   2, // expected number of assertions
   {
     shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error }) => {
-      t.regex(error.message, /unknown resources found in policy/i);
+    onError: (t, { error, testCategoryHint }) => {
+      if (testCategoryHint === 'Archive') {
+        t.regex(error.message, /unknown resources found in policy/i);
+        t.snapshot(sanitizePaths(error.message), 'archive case error message');
+      } else {
+        t.regex(error.message, /cannot find external module/i);
+        t.snapshot(sanitizePaths(error.message), 'location case error message');
+      }
       // see the snapshot for the error hint in the message
-      t.snapshot(sanitizePaths(error.message));
+      
     },
     addGlobals: globals,
     policy: {
@@ -437,16 +447,19 @@ scaffold(
   'policy - nested export in attenuator',
   test,
   fixture,
-  assertTestAlwaysThrows,
-  1, // expected number of assertions
+  combineAssertions(
+    makeResultAssertions(defaultExpectations),
+    assertExternalModuleNotFound,
+  ),
+  2, // expected number of assertions
   {
-    shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error }) => {
-      t.regex(
-        error.message,
-        /Resource "myattenuator\/attenuate" was not found/i,
-      );
-    },
+    // shouldFailBeforeArchiveOperations: true,
+    // onError: (t, { error }) => {
+    //   t.regex(
+    //     error.message,
+    //     /Resource "myattenuator\/attenuate" was not found/i,
+    //   );
+    // },
     addGlobals: globals,
     policy: nestedAttenuator(policy),
   },

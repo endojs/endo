@@ -337,9 +337,9 @@ export const makeDefaultHookConfiguration = (
     // these hooks for mapNodeModules are only applied if a policy was provided.
     mapNodeModules: policy
       ? {
-          unknownCanonicalName: ({ canonicalName, issue, log }) => {
+          unknownCanonicalName: ({ canonicalName, message, log }) => {
             log(
-              `WARN: Invalid resource ${q(canonicalName)} in policy: ${issue}`,
+              `WARN: Invalid resource ${q(canonicalName)} in policy: ${message}`,
             );
           },
 

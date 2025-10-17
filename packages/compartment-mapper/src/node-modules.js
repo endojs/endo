@@ -1188,53 +1188,59 @@ const finalizeGraph = (
  *
  * @param {Set<CanonicalName>} canonicalNames Set of all known canonical names
  * @param {SomePolicy} policy Policy to validate
- * @returns {Array<{canonicalName: CanonicalName, issue: string, path:
- * string[]}>} Array of issue objects, or `undefined` if no issues were
+ * @returns {Array<{canonicalName: CanonicalName, message: string, path:
+ * string[], suggestion?: CanonicalName}>} Array of issue objects, or `undefined` if no issues were
  * found
  */
 const validatePolicyResources = (canonicalNames, policy) => {
   /**
-   * Appends a suggestion to `issueMessage` if `badName` is a suffix of any
+   * Finds a suggestion for `badName` if it is a suffix of any
    * canonical name in `canonicalNames`.
    *
    * @param {string} badName Unknown canonical name
-   * @param {string} issueMessage Existing issue message
-   * @returns {string}
+   * @returns {CanonicalName | undefined}
    */
-  const makeSuggestion = (badName, issueMessage) => {
+  const findSuggestion = badName => {
     for (const canonicalName of canonicalNames) {
       if (canonicalName.endsWith(`>${badName}`)) {
-        issueMessage += `; did you mean ${q(canonicalName)}?`;
-        break;
+        return canonicalName;
       }
     }
-    return issueMessage;
+    return undefined;
   };
 
-  /** @type {Array<{canonicalName: CanonicalName, issue: string, path: string[]}>} */
+  /** @type {Array<{canonicalName: CanonicalName, message: string, path: string[], suggestion?: CanonicalName}>} */
   const issues = [];
   for (const [resourceName, resourcePolicy] of entries(
     policy.resources ?? {},
   )) {
     if (!canonicalNames.has(resourceName)) {
-      let issueMessage = `Resource ${q(resourceName)} was not found`;
-      issueMessage = makeSuggestion(resourceName, issueMessage);
-      issues.push({
+      const issueMessage = `Resource ${q(resourceName)} was not found`;
+      const suggestion = findSuggestion(resourceName);
+      const issue = {
         canonicalName: resourceName,
-        issue: issueMessage,
+        message: issueMessage,
         path: ['resources', resourceName],
-      });
+      };
+      if (suggestion) {
+        issue.suggestion = suggestion;
+      }
+      issues.push(issue);
     }
     if (typeof resourcePolicy?.packages === 'object') {
       for (const packageName of keys(resourcePolicy.packages)) {
         if (!canonicalNames.has(packageName)) {
-          let issueMessage = `Resource ${q(packageName)} from resource ${q(resourceName)} was not found`;
-          issueMessage = makeSuggestion(packageName, issueMessage);
-          issues.push({
+          const issueMessage = `Resource ${q(packageName)} from resource ${q(resourceName)} was not found`;
+          const suggestion = findSuggestion(packageName);
+          const issue = {
             canonicalName: packageName,
-            issue: issueMessage,
+            message: issueMessage,
             path: ['resources', resourceName, 'packages', packageName],
-          });
+          };
+          if (suggestion) {
+            issue.suggestion = suggestion;
+          }
+          issues.push(issue);
         }
       }
     }
@@ -1322,15 +1328,26 @@ export const compartmentMapForNodeModules_ = async (
   if (policy) {
     const canonicalNames = new Set(canonicalNameMap.keys());
     const issues = validatePolicyResources(canonicalNames, policy) ?? [];
-    for (const { issue, canonicalName, path } of issues) {
-      executeHook('unknownCanonicalName', {
+    for (const { message, canonicalName, path, suggestion } of issues) {
+      const hookInput = {
         canonicalName,
-        issue,
+        message,
         path,
         log,
-      });
+      };
+      if (suggestion) {
+        hookInput.suggestion = suggestion;
+      }
+      executeHook('unknownCanonicalName', hookInput);
     }
   }
+
+  // Fire canonicalNames hook with all canonical names before translateGraph
+  const canonicalNames = new Set(canonicalNameMap.keys());
+  executeHook('canonicalNames', {
+    canonicalNames,
+    log,
+  });
 
   const compartmentMap = translateGraph(
     entryPackageLocation,
