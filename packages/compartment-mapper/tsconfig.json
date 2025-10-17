@@ -6,9 +6,13 @@
   "include": [
     "*.js",
     "*.ts",
-    "demo",
+    "demo/**/*.js",
+    "demo/**/*.ts",
     "src/**/*.js",
     "src/**/*.ts",
     "test",
+  ],
+  "exclude": [
+    "**/*.d.ts"
   ]
 }

@@ -190,7 +190,16 @@ export type MapNodeModulesHooks = {
   unknownCanonicalName: HookFn<{
     canonicalName: CanonicalName;
     path: string[];
-    issue: string;
+    message: string;
+    suggestion?: CanonicalName;
+  }>;
+
+  /**
+   * Executed with all canonical names found in the compartment map.
+   * Called once before translateGraph.
+   */
+  canonicalNames: HookFn<{
+    canonicalNames: Readonly<Set<CanonicalName>>;
   }>;
 
   /**
