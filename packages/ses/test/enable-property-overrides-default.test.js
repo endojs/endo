@@ -12,7 +12,12 @@ test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString', 'valueOf']);
   // We allow 'length' *not* because it is in enablements; it is not;
   // but because each array instance has its own.
-  overrideTester(t, 'Array', [], ['toString', 'length', 'push', 'concat']);
+  overrideTester(
+    t,
+    'Array',
+    [],
+    ['toString', 'length', 'push', 'concat', Symbol.iterator],
+  );
   // eslint-disable-next-line func-names, prefer-arrow-callback
   overrideTester(t, 'Function', function () {}, [
     'constructor',
@@ -34,4 +39,9 @@ test('enablePropertyOverrides - on', t => {
   // eslint-disable-next-line func-names, prefer-arrow-callback
   overrideTester(t, 'Promise', new Promise(function () {}), ['constructor']);
   overrideTester(t, 'JSON', JSON);
+  if (typeof Iterator !== 'undefined') {
+    overrideTester(t, 'Iterator', Object.create(Iterator.prototype), [
+      Symbol.iterator,
+    ]);
+  }
 });
