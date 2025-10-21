@@ -114,7 +114,6 @@ const anyExpectations = {
   }),
 };
 
-
 const powerlessCarolExpectations = {
   namespace: moduleify({
     ...defaultExpectations.namespace,
@@ -208,7 +207,6 @@ scaffold(
         t.snapshot(sanitizePaths(error.message), 'location case error message');
       }
       // see the snapshot for the error hint in the message
-      
     },
     addGlobals: globals,
     policy: {
