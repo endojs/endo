@@ -248,7 +248,7 @@ export const makeHookExecutor = (
 
     // Direct hook (e.g., "moduleSource", "packageDescriptor")
     const hookValue = effectiveConfig[name];
-    
+
     if (hookValue === undefined) {
       return undefined;
     }
