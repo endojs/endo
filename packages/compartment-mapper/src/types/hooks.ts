@@ -31,29 +31,11 @@ export type HookFn<TInput extends object> = (
 export type AnyHook = HookFn<any>;
 
 /**
- * Defines a hook that has both pre-execution and post-execution phases.
- *
- * Used where specific types are not known.
- *
- * If both phases are not necessary, just use {@link HookFn | a single Hook}.
- * Each phase can be a single hook or a pipeline of hooks.
- */
-export type PhasedHookDefinition = {
-  /** Hook or pipeline executed before the main operation */
-  pre: AnyHook | AnyHook[];
-  /** Hook or pipeline executed after the main operation */
-  post: AnyHook | AnyHook[];
-};
-
-/**
  * Base definition for what constitutes a valid hook definition.
  *
- * Maps hook names to single hooks, arrays of hooks (pipelines), or phased hook definitions.
+ * Maps hook names to single hooks or arrays of hooks (pipelines).
  */
-export type HookDefinition = Record<
-  string,
-  PhasedHookDefinition | AnyHook | AnyHook[]
->;
+export type HookDefinition = Record<string, AnyHook | AnyHook[]>;
 
 /**
  * Utility type to deeply make a hooks object partial.
@@ -68,20 +50,7 @@ export type HookConfiguration<T extends HookDefinition = HookDefinition> = {
     ? T[K] | T[K][]
     : T[K] extends AnyHook[]
       ? T[K]
-      : T[K] extends PhasedHookDefinition
-        ? {
-            pre?: T[K]['pre'] extends AnyHook | AnyHook[]
-              ?
-                  | T[K]['pre']
-                  | (T[K]['pre'] extends AnyHook[] ? never : T[K]['pre'][])
-              : never;
-            post?: T[K]['post'] extends AnyHook | AnyHook[]
-              ?
-                  | T[K]['post']
-                  | (T[K]['post'] extends AnyHook[] ? never : T[K]['post'][])
-              : never;
-          }
-        : never;
+      : never;
 };
 
 /**
@@ -95,11 +64,6 @@ export type HookOption<Def extends HookDefinition = HookDefinition> = {
   /** Optional hooks configuration */
   hooks?: HookConfiguration<Def>;
 };
-
-/**
- * Possible hook phase names.
- */
-export type HookPhase = 'pre' | 'post';
 
 /**
  * Helper type to extract the input type from a hook definition.
@@ -116,25 +80,6 @@ export type HookFnInputType<
   Def[HookName] extends HookFn<infer TInput>
     ? Simplify<TInput & Required<LogOptions>>
     : never;
-
-/**
- * Helper type to extract the input type from a specific phase of a phased hook.
- *
- * Used for type inference in {@link HookExecutorFn | hook executors}.
- *
- * @template Def - The hook definition type
- * @template DefName - The hook name key
- * @template Phase - The phase (`pre` or `post`)
- */
-export type PhasedHookInputType<
-  Def extends HookDefinition,
-  DefName extends keyof Def,
-  Phase extends HookPhase,
-> = Def[DefName] extends {
-  [key in Phase]?: HookFn<infer TInput>;
-}
-  ? Simplify<TInput & Required<LogOptions>>
-  : never;
 
 /**
  * A function which some code uses to execute its hooks.
@@ -154,20 +99,6 @@ export interface HookExecutorFn<Def extends HookDefinition> {
     name: HookName,
     input: HookFnInputType<Def, HookName>,
   ): Partial<HookFnInputType<Def, HookName>> | void;
-
-  /**
-   * Execute a specific phase of a phased hook.
-   *
-   * @template HookName - The hook name key
-   * @template Phase - The phase (`pre` or `post`)
-   * @param name - The name of the hook phase in the format `hookName.phase`
-   * @param input - The input parameters for the hook phase
-   * @returns Partial update of the input, or void
-   */
-  <HookName extends keyof Def, Phase extends HookPhase>(
-    name: `${HookName & string}.${Phase}`,
-    input: PhasedHookInputType<Def, HookName, Phase>,
-  ): Partial<PhasedHookInputType<Def, HookName, Phase>> | void;
 }
 
 /**
