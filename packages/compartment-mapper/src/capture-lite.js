@@ -129,7 +129,7 @@ const makePreloader = (
   const preloader = async compartments => {
     /** @type {[compartmentName: string, compartment: Compartment, moduleSpecifier: string][]} */
     const compartmentsToLoad = [];
-    
+
     for (const preloadValue of preload) {
       /** @type {string} */
       let canonicalName;
@@ -180,7 +180,7 @@ const makePreloader = (
               `No compartment found for ${q(canonicalName)}`,
             );
           }
-          
+
           compartmentsToLoad.push([canonicalName, compartment, entry]);
         }
       }
