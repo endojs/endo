@@ -624,7 +624,7 @@ export type FileUrlString = `file://${string}`;
  * Options provided to all Compartment Map Transforms.
  */
 export type CompartmentMapTransformOptions = Required<LogOptions> &
-  PolicyOption
+  PolicyOption;
 
 /**
  * Public API provided to a {@link CompartmentMapTransformFn} as the

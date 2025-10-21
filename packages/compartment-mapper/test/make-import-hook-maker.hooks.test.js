@@ -34,9 +34,9 @@ const testFixture = {
 
 /**
  * AVA macro for testing moduleSource hook with different loader functions
- * 
+ *
  * This could be more narrowly-typed, but it's a test.
- * 
+ *
  * @param {ExecutionContext} t
  * @param {object} options
  * @param {Function} options.loaderFn - The function to call (captureFromMap, loadFromMap, or loadLocation)
