@@ -130,7 +130,7 @@ const makePreloader = (
   const preloader = async compartments => {
     /** @type {[compartmentName: string, compartment: Compartment, moduleSpecifier: string][]} */
     const compartmentsToLoad = [];
-    
+
     for (const preloadValue of preload) {
       /** @type {string} */
       let canonicalName;
