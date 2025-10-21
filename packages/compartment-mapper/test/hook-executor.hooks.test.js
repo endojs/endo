@@ -10,7 +10,6 @@ import {
  *   HookConfiguration,
  *   MapNodeModulesHooks,
  *   AnyHook,
- *   PhasedHookDefinition,
  *   CanonicalName,
  *   SomePolicy,
  *   HookFn,
@@ -20,38 +19,9 @@ import {
  */
 
 /**
- * Helper function to exclude properties from an object for comparison
- * @param {any} obj - Object to filter
- * @param {...string} keys - Keys to exclude
- * @returns {any} Object without the excluded keys
- */
-const exclude = (obj, ...keys) => {
-  if (!obj || typeof obj !== 'object') return obj;
-  const result = { ...obj };
-  for (const key of keys) {
-    delete result[key];
-  }
-  return result;
-};
-
-/**
  * Test hook definition for basic value manipulation
  * @typedef {object} TestValueHooks
  * @property {HookFn<{value: number}>} testHook - Hook that modifies a value
- */
-
-/**
- * Test hook definition for phased operations
- * @typedef {object} TestPhasedHooks
- * @property {{pre: AnyHook, post: AnyHook}} testHook - Phased hook with pre/post phases
- */
-
-/**
- * Complex test hook definition with multiple hooks
- * @typedef {object} TestComplexHooks
- * @property {HookFn<{value: number}>} singleHook - Single hook
- * @property {Array<HookFn<{value: number}>>} arrayHook - Array of hooks
- * @property {PhasedHookDefinition} phasedHook - Phased hook
  */
 
 /**
@@ -159,87 +129,6 @@ test('makeHookExecutor - hook array pipeline', t => {
     ['Hook 1', 'Hook 2', 'Hook 3'],
     'should log all hook executions',
   );
-});
-
-test('makeHookExecutor - phased hook execution', t => {
-  t.plan(5);
-  const { log, calls } = makeMockLog();
-  let preExecuted = false;
-  let postExecuted = false;
-
-  /** @type {HookConfiguration<TestPhasedHooks>} */
-  const hooks = {
-    testHook: {
-      pre: ({ value, log: hookLog }) => {
-        preExecuted = true;
-        hookLog('Pre hook');
-        return { value: value + 1 };
-      },
-      post: ({ value, log: hookLog }) => {
-        postExecuted = true;
-        hookLog('Post hook');
-        return { value: value * 2 };
-      },
-    },
-  };
-
-  const executeHook = makeHookExecutor(hooks, { log });
-
-  const preResult = executeHook('testHook.pre', { value: 5, log });
-  const postResult = executeHook('testHook.post', { value: 10, log });
-
-  t.true(preExecuted, 'pre hook should be executed');
-  t.true(postExecuted, 'post hook should be executed');
-  t.is(preResult?.value, 6, 'pre hook should modify value');
-  t.is(postResult?.value, 20, 'post hook should modify value');
-  t.deepEqual(
-    calls,
-    ['Pre hook', 'Post hook'],
-    'should log both hook executions',
-  );
-});
-
-test('makeHookExecutor - phased hook with arrays', t => {
-  t.plan(3);
-  const { log } = makeMockLog();
-  /** @type {string[]} */
-  const executionOrder = [];
-
-  /** @type {HookConfiguration<TestPhasedHooks>} */
-  const hooks = {
-    testHook: {
-      pre: [
-        ({ value, log: hookLog }) => {
-          executionOrder.push('pre1');
-          hookLog('Pre hook 1');
-          return { value: value + 1 };
-        },
-        ({ value, log: hookLog }) => {
-          executionOrder.push('pre2');
-          hookLog('Pre hook 2');
-          return { value: value * 2 };
-        },
-      ],
-      post: ({ value, log: hookLog }) => {
-        executionOrder.push('post');
-        hookLog('Post hook');
-        return { value: value + 10 };
-      },
-    },
-  };
-
-  const executeHook = makeHookExecutor(hooks, { log });
-
-  const preResult = executeHook('testHook.pre', { value: 5, log });
-  const postResult = executeHook('testHook.post', { value: 10, log });
-
-  t.deepEqual(
-    executionOrder,
-    ['pre1', 'pre2', 'post'],
-    'should execute in correct order',
-  );
-  t.is(preResult?.value, 12, 'pre pipeline should chain: (5+1)*2=12');
-  t.is(postResult?.value, 20, 'post hook should execute: 10+10=20');
 });
 
 test('makeHookExecutor - with default configuration', t => {
@@ -608,130 +497,5 @@ test('hook system integration - mapNodeModules - complete pipeline', t => {
   t.true(
     logMessages.includes('User hook 2'),
     'should execute user hooks in order',
-  );
-});
-
-// Test for dummy phased hook configuration to cover branches
-test('makeHookExecutor - comprehensive phased hook coverage', t => {
-  t.plan(4);
-  const { log, calls } = makeMockLog();
-  /** @type {string[]} */
-  const executionOrder = [];
-
-  // Create a phased configuration with both pre and post as arrays
-  /** @type {HookConfiguration<TestPhasedHooks>} */
-  const hooks = {
-    testHook: {
-      pre: [
-        ({ value, log: hookLog }) => {
-          executionOrder.push('pre1');
-          hookLog('Pre hook 1');
-          return { value: value + 1, preStage: 1 };
-        },
-        ({ value, log: hookLog }) => {
-          executionOrder.push('pre2');
-          hookLog('Pre hook 2');
-          return { value: value * 2, preStage: 2 };
-        },
-      ],
-      post: [
-        ({ value, log: hookLog }) => {
-          executionOrder.push('post1');
-          hookLog('Post hook 1');
-          return { value: value + 10, postStage: 1 };
-        },
-        ({ value, log: hookLog }) => {
-          executionOrder.push('post2');
-          hookLog('Post hook 2');
-          return { value: value + 100, postStage: 2 };
-        },
-      ],
-    },
-  };
-
-  const executeHook = makeHookExecutor(hooks, { log });
-
-  // Test pre phase pipeline
-  const preResult = executeHook('testHook.pre', { value: 5, log });
-
-  // Test post phase pipeline
-  const postResult = executeHook('testHook.post', { value: 10, log });
-
-  t.deepEqual(
-    executionOrder,
-    ['pre1', 'pre2', 'post1', 'post2'],
-    'should execute phases in order',
-  );
-  t.deepEqual(
-    exclude(preResult, 'log'),
-    { value: 12, preStage: 2 },
-    'pre pipeline should chain: (5+1)*2=12',
-  );
-  t.deepEqual(
-    exclude(postResult, 'log'),
-    { value: 120, postStage: 2 },
-    'post pipeline should chain: 10+10+100=120',
-  );
-  t.deepEqual(
-    calls,
-    ['Pre hook 1', 'Pre hook 2', 'Post hook 1', 'Post hook 2'],
-    'should log all phase executions',
-  );
-});
-
-test('makeHookExecutor - error handling in phased hooks', t => {
-  t.plan(4);
-  /** @type {HookConfiguration<TestPhasedHooks>} */
-  const hooks = {
-    testHook: {
-      pre: () => {
-        throw new Error('Pre hook failed');
-      },
-      post: () => ({ value: 100 }),
-    },
-  };
-
-  const executeHook = makeHookExecutor(hooks);
-
-  // Pre hook should throw
-  const preError = t.throws(() => {
-    executeHook('testHook.pre', { value: 5, log: () => {} });
-  });
-
-  t.true(
-    preError?.message.includes('Hook Error'),
-    'should wrap pre hook errors',
-  );
-  t.true(
-    preError?.message.includes('Pre hook failed'),
-    'should preserve original pre error message',
-  );
-
-  // Post hook should work normally
-  const postResult = executeHook('testHook.post', { value: 5, log: () => {} });
-  t.deepEqual(
-    exclude(postResult, 'log'),
-    { value: 100 },
-    'post hook should execute normally',
-  );
-});
-
-test('makeHookExecutor - invalid phased hook access', t => {
-  t.plan(2);
-  /** @type {HookConfiguration<TestValueHooks>} */
-  const hooks = {
-    testHook: ({ value }) => ({ value: value + 1 }),
-  };
-
-  const executeHook = makeHookExecutor(hooks);
-
-  const error = t.throws(() => {
-    // @ts-expect-error - intentionally accessing phased hook on non-phased configuration
-    executeHook('testHook.pre', { value: 5, log: () => {} });
-  });
-
-  t.true(
-    error?.message.includes('Expected hook'),
-    'should validate phased hook structure',
   );
 });

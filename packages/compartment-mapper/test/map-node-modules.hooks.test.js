@@ -96,7 +96,7 @@ const snapshotTestPolicy = {
   },
 };
 
-test('mapNodeModules - packageDescriptor hook called with correct parameters', async t => {
+test('mapNodeModules.packageDescriptor - called with correct parameters', async t => {
   t.plan(22); // 2 base assertions + 4*5 loop assertions
 
   /** @type {Array<{packageDescriptor: PackageDescriptor, packageLocation: FileUrlString, moduleSpecifier: string}>} */
@@ -162,7 +162,7 @@ test('mapNodeModules - packageDescriptor hook called with correct parameters', a
   }
 });
 
-test('mapNodeModules - packageDependencies hook modifies dependencies', async t => {
+test('mapNodeModules.packageDependencies hook modifies dependencies', async t => {
   t.plan(4); // t.true + t.truthy + 2 conditional t.true calls
 
   /** @type {Array<{canonicalName: CanonicalName, dependencies: Set<CanonicalName>}>} */
@@ -213,7 +213,7 @@ test('mapNodeModules - packageDependencies hook modifies dependencies', async t 
   }
 });
 
-test('mapNodeModules - packageDependencies hook called even without policy', async t => {
+test('mapNodeModules.packageDependencies hook called even without policy', async t => {
   let hookCalled = false;
 
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
@@ -233,7 +233,7 @@ test('mapNodeModules - packageDependencies hook called even without policy', asy
   );
 });
 
-test('mapNodeModules - packageDependencies hook removes dependencies', async t => {
+test('mapNodeModules.packageDependencies hook removes dependencies', async t => {
   t.plan(3); // t.truthy + 2 conditional t.true calls
 
   /** @type {Array<{canonicalName: CanonicalName, dependencies: Set<CanonicalName>}>} */
@@ -312,7 +312,7 @@ test('mapNodeModules - multiple hooks work together', async t => {
   );
 });
 
-test('mapNodeModules - hook pipeline with multiple functions', async t => {
+test('mapNodeModules.packageDescriptor - hook pipeline with multiple functions', async t => {
   t.plan(1); // t.true for execution (conditional assertion may not always run)
 
   const executionOrder = [];
@@ -347,7 +347,7 @@ test('mapNodeModules - hook pipeline with multiple functions', async t => {
   }
 });
 
-test('mapNodeModules - hook error handling', async t => {
+test('mapNodeModules.packageDescriptor - hook error handling', async t => {
   t.plan(3); // t.truthy + t.true + t.throwsAsync
 
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
@@ -370,7 +370,7 @@ test('mapNodeModules - hook error handling', async t => {
   t.true(error.message.includes('Hook Error'), 'should wrap hook errors');
 });
 
-test('mapNodeModules - packageDependencies hook receives expected canonical names', async t => {
+test('mapNodeModules.packageDependencies hook receives expected canonical names', async t => {
   t.plan(8); // 3 base t.true calls + 5 loop assertions for canonical name strings
 
   /** @type {Set<CanonicalName>} */
@@ -409,7 +409,7 @@ test('mapNodeModules - packageDependencies hook receives expected canonical name
   }
 });
 
-test('mapNodeModules - packageDependencies hook removes dependency (snapshot)', async t => {
+test('mapNodeModules.packageDependencies hook removes dependency (snapshot)', async t => {
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
   const hooks = {
     packageDependencies: ({ canonicalName, dependencies }) => {
@@ -436,7 +436,7 @@ test('mapNodeModules - packageDependencies hook removes dependency (snapshot)', 
   t.snapshot(relativizeCompartmentMap(compartmentMap), 'remove dependency');
 });
 
-test('mapNodeModules - packageDependencies hook adds existing dependency (snapshot)', async t => {
+test('mapNodeModules.packageDependencies hook adds existing dependency (snapshot)', async t => {
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
   const hooks = {
     packageDependencies: ({ canonicalName, dependencies }) => {
@@ -468,7 +468,7 @@ test('mapNodeModules - packageDependencies hook adds existing dependency (snapsh
   );
 });
 
-test('mapNodeModules - packageDependencies hook adds non-existing dependency logs warning', async t => {
+test('mapNodeModules.packageDependencies hook adds non-existing dependency logs warning', async t => {
   t.plan(1); // single assertion for warning message
 
   /** @type {Array<string>} */
@@ -511,7 +511,7 @@ test('mapNodeModules - packageDependencies hook adds non-existing dependency log
   t.truthy(warningMessage, 'should log warning for unknown package dependency');
 });
 
-test('mapNodeModules - packageDependencies hook no modification (snapshot)', async t => {
+test('mapNodeModules.packageDependencies hook no modification (snapshot)', async t => {
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
   const hooks = {
     // Return undefined to make no modifications (control case)
@@ -534,7 +534,7 @@ test('mapNodeModules - packageDependencies hook no modification (snapshot)', asy
   );
 });
 
-test('mapNodeModules - unknownCanonicalName hook called for missing policy resources', async t => {
+test('mapNodeModules.unknownCanonicalName hook called for missing policy resources', async t => {
   t.plan(6);
 
   /** @type {Array<{canonicalName: CanonicalName, path: string[], message: string}>} */
@@ -607,7 +607,7 @@ test('mapNodeModules - unknownCanonicalName hook called for missing policy resou
   );
 });
 
-test('mapNodeModules - unknownCanonicalName hook not called when all resources exist', async t => {
+test('mapNodeModules.unknownCanonicalName hook not called when all resources exist', async t => {
   let hookCalled = false;
 
   /** @type {HookConfiguration<MapNodeModulesHooks>} */
@@ -626,7 +626,7 @@ test('mapNodeModules - unknownCanonicalName hook not called when all resources e
   t.false(hookCalled, 'should not call hook when all policy resources exist');
 });
 
-test('mapNodeModules - unknownCanonicalName hook includes suggestions when available', async t => {
+test('mapNodeModules.unknownCanonicalName hook includes suggestions when available', async t => {
   /** @type {Array<{canonicalName: CanonicalName, path: string[], message: string, suggestion?: CanonicalName}>} */
   const hookCalls = [];
 
@@ -709,7 +709,7 @@ test('mapNodeModules - unknownCanonicalName hook includes suggestions when avail
   );
 });
 
-test('mapNodeModules - canonicalNames hook called with all canonical names', async t => {
+test('mapNodeModules.canonicalNames hook called with all canonical names', async t => {
   t.plan(1);
 
   /** @type {Set<CanonicalName>} */

@@ -16,8 +16,6 @@
  *   HookExecutorFn,
  *   HookFn,
  *   HookFnInputType,
- *   PhasedHookDefinition,
- *   PhasedHookInputType,
  *   PolicyOption,
  *   MakeHookExecutorOptions,
  *   LogOptions,
@@ -34,27 +32,11 @@ const { quote: q } = assert;
 const noop = () => {};
 
 /**
- * Type guard for a {@link PhasedHookDefinition}
- *
- * @param {unknown} value
- * @returns {value is PhasedHookDefinition}
- */
-const isPhasedHookDefinition = value =>
-  !!value &&
-  typeof value === 'object' &&
-  !isArray(value) &&
-  (('pre' in value &&
-    (typeof value.pre === 'function' || isArray(value.pre))) ||
-    ('post' in value &&
-      (typeof value.post === 'function' || isArray(value.post))));
-
-/**
  * Type guard for a {@link AnyHook}
  * @param {unknown} value
  * @returns {value is AnyHook}
  */
-const isHook = value =>
-  !isPhasedHookDefinition(value) && typeof value === 'function';
+const isHook = value => typeof value === 'function';
 
 /**
  * Recursively applies default values from one or more source objects to a target object. _Mutates the target object._
@@ -238,16 +220,6 @@ export const makeHookExecutor = (
     );
 
   /**
-   * Execute a pre/post hook by name with the given input
-   * @template {keyof Def} HooksName
-   * @template {'pre' | 'post'} Phase
-   * @overload
-   * @param {`${HooksName}.${Phase}`} name - Pre/post hook name (e.g., "moduleDescriptorConfiguration.pre")
-   * @param {PhasedHookInputType<Def, HooksName, Phase>} input - Input parameters for the hook
-   * @returns {Partial<PhasedHookInputType<Def, HooksName, Phase>> | void} Partial update of input or void
-   */
-
-  /**
    * Execute a direct hook by name with the given input
    * @template {keyof Def} HooksName
    * @overload
@@ -257,11 +229,10 @@ export const makeHookExecutor = (
    */
 
   /**
-   * Execute a hook by name with the given input. This is the implementation that handles
-   * both direct hooks (e.g., "moduleSource") and pre/post hooks (e.g., "moduleDescriptorConfiguration.pre").
+   * Execute a hook by name with the given input.
    * Supports pipeline composition where multiple hooks can be chained together.
    *
-   * @param {string} name - Hook name (e.g., "moduleSource" or "moduleDescriptorConfiguration.pre")
+   * @param {string} name - Hook name (e.g., "moduleSource", "packageDescriptor")
    * @param {unknown} input - Input parameters for the hook
    */
   const executeHook = (name, input) => {
@@ -275,45 +246,31 @@ export const makeHookExecutor = (
       return undefined;
     }
 
-    /** @type {AnyHook|AnyHook[]|undefined} */
-    let hooks;
-
-    // Check for pre/post hooks (e.g., "moduleDescriptorConfiguration.pre")
-    if (name.includes('.')) {
-      const [hookName, phase] = name.split('.');
-      const hookGroup = effectiveConfig[hookName];
-      if (isPhasedHookDefinition(hookGroup)) {
-        hooks = hookGroup[phase];
-      } else if (hookGroup !== undefined) {
-        throw new TypeError(
-          `Expected hook ${q(hookName)} to be a phased hook definition`,
-        );
-      }
-    } else if (effectiveConfig[name] !== undefined) {
-      // Direct hook (e.g., "moduleSource", "packageDescriptor")
-      const hookValue = effectiveConfig[name];
-      if (isHook(hookValue) || isArray(hookValue)) {
-        hooks = hookValue;
-      } else {
-        throw new TypeError(
-          `Expected hook ${q(name)} to be a function, array of functions, or phased hook definition`,
-        );
-      }
+    // Direct hook (e.g., "moduleSource", "packageDescriptor")
+    const hookValue = effectiveConfig[name];
+    
+    if (hookValue === undefined) {
+      return undefined;
     }
 
-    if (hooks) {
-      // Handle both single hooks and arrays of hooks (pipelines)
-      const hookArray = isArray(hooks) ? hooks : [hooks];
-
-      if (hookArray.length === 0) {
-        return undefined;
-      }
-
-      // Execute pipeline of hooks
-      return executeHookPipeline(hookArray, input);
+    if (!isHook(hookValue) && !isArray(hookValue)) {
+      throw new TypeError(
+        `Expected hook ${q(name)} to be a function or array of functions`,
+      );
     }
 
-    return undefined;
+    // Handle both single hooks and arrays of hooks (pipelines)
+    const hookArray = isArray(hookValue) ? hookValue : [hookValue];
+
+    if (hookArray.length === 0) {
+      return undefined;
+    }
+
+    // Execute pipeline of hooks
+    return executeHookPipeline(
+      hookArray,
+      /** @type {HookFnInputType<Def, keyof Def>} */ (input),
+    );
   };
   return executeHook;
 };
