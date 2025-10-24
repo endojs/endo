@@ -38,11 +38,9 @@ export type AllValidPackageNames<Parts extends string[]> = Parts extends [
   infer H extends string,
   ...infer T extends string[],
 ]
-  ? H extends ScopedPackageName
+  ? H extends NpmPackageName<H>
     ? AllValidPackageNames<T>
-    : H extends `${string}/${string}`
-      ? never
-      : AllValidPackageNames<T>
+    : never
   : Parts;
 
 /**

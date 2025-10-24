@@ -13,12 +13,6 @@ import type {
   Transform,
 } from 'ses';
 import type {
-  CaptureFromMapHooks,
-  HookOption,
-  LoadLocationHooks,
-  MapNodeModulesHooks,
-} from '../types.js';
-import type {
   CompartmentDescriptor,
   CompartmentMapDescriptor,
   DigestedCompartmentMapDescriptor,
@@ -28,10 +22,98 @@ import type {
 } from './compartment-map-schema.js';
 import type { SomePackagePolicy, SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
+import type { CanonicalName } from './canonical-name.js';
+import type { PackageDescriptor } from './node-modules.js';
 
-export type { CanonicalName } from './canonical-name.js';
-export type * from './hooks.js';
-export type { PackageDescriptor } from './node-modules.js';
+export type { CanonicalName };
+export type { PackageDescriptor };
+
+// #region Hook Types
+
+/**
+ * Hook executed after parsing a `PackageDescriptor`.
+ */
+export type PackageDescriptorHook = (params: {
+  packageDescriptor: PackageDescriptor;
+  packageLocation: FileUrlString;
+  moduleSpecifier: string;
+  log: LogFn;
+}) => void;
+
+/**
+ * Hook executed for each canonical name mentioned in policy but not found in the
+ * compartment map
+ */
+export type UnknownCanonicalNameHook = (params: {
+  canonicalName: CanonicalName;
+  path: string[];
+  message: string;
+  suggestion?: CanonicalName | undefined;
+  log: LogFn;
+}) => void;
+
+/**
+ * Hook executed with all canonical names found in the compartment map.
+ * Called once before translateGraph.
+ */
+export type CanonicalNamesHook = (params: {
+  canonicalNames: Readonly<Set<CanonicalName>>;
+  log: LogFn;
+}) => void;
+
+/**
+ * Hook executed for each canonical name (corresponding to a package) in the
+ * `CompartmentMapDescriptor` with a list of canonical names of its
+ * dependencies.
+ *
+ * Can return partial updates to modify the dependencies set.
+ *
+ * Suggested use cases:
+ * - Adding dependencies based on policy
+ * - Removing dependencies based on policy
+ * - Filtering dependencies based on multiple criteria
+ */
+export type PackageDependenciesHook = (params: {
+  canonicalName: CanonicalName;
+  dependencies: Readonly<Set<CanonicalName>>;
+  log: LogFn;
+}) => Partial<{ dependencies: Set<CanonicalName> }> | void;
+
+/**
+ * The `moduleSource` property value for {@link ModuleSourceHook}
+ */
+export type ModuleSourceHookModuleSource =
+  | {
+      location: FileUrlString;
+      language: Language;
+      bytes: Uint8Array;
+      imports?: string[] | undefined;
+      exports?: string[] | undefined;
+      reexports?: string[] | undefined;
+      sha512?: string | undefined;
+    }
+  | { error: string }
+  | { exit: string };
+
+/**
+ * Hook executed when processing a module source.
+ */
+export type ModuleSourceHook = (params: {
+  moduleSource: ModuleSourceHookModuleSource;
+  canonicalName: CanonicalName;
+  log: LogFn;
+}) => void;
+
+/**
+ * Hook executed for each canonical name with its connections (linked compartments).
+ */
+export type PackageConnectionsHook = (params: {
+  canonicalName: CanonicalName;
+  connections: Set<CanonicalName>;
+  log: LogFn;
+}) => void;
+
+// #endregion
 
 /**
  * Set of options available in the context of code execution.
@@ -78,7 +160,7 @@ export interface LogOptions {
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
-  HookOption<MapNodeModulesHooks> &
+  MapNodeModulesHookOptions &
   LogOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
@@ -140,9 +222,19 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
   languages: Array<Language>;
 }>;
 
+/**
+ * Hook options for `mapNodeModules()`
+ */
+export type MapNodeModulesHookOptions = {
+  packageDescriptorHook?: PackageDescriptorHook | undefined;
+  unknownCanonicalNameHook?: UnknownCanonicalNameHook | undefined;
+  canonicalNamesHook?: CanonicalNamesHook | undefined;
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
+};
+
 export type CompartmentMapForNodeModulesOptions = Omit<
   MapNodeModulesOptions,
-  'conditions' | 'tags' | 'hooks'
+  'conditions' | 'tags'
 >;
 
 /**
@@ -153,7 +245,15 @@ export type CaptureLiteOptions = ImportingOptions &
   PolicyOption &
   LogOptions &
   PreloadOption &
-  HookOption<CaptureFromMapHooks>;
+  CaptureFromMapHookOptions;
+
+/**
+ * Hook options for `captureFromMap()`
+ */
+export type CaptureFromMapHookOptions = {
+  packageConnectionsHook?: PackageConnectionsHook | undefined;
+  moduleSourceHook?: ModuleSourceHook | undefined;
+};
 
 /**
  * Options bag containing a `preload` array.
@@ -212,14 +312,18 @@ export type BundleOptions = ArchiveOptions & {
 
 export type SyncArchiveOptions = Omit<
   MapNodeModulesOptions,
-  'languages' | 'hooks'
+  | 'languages'
+  | 'packageDescriptorHook'
+  | 'unknownCanonicalNameHook'
+  | 'canonicalNamesHook'
+  | 'packageDependenciesHook'
 > &
   SyncArchiveLiteOptions;
 
 export type SyncLoadLocationOptions = SyncArchiveOptions &
   LogOptions &
   PreloadOption &
-  HookOption<LoadLocationHooks>;
+  LoadLocationHookOptions;
 
 /**
  * Options for `loadLocation()`
@@ -228,7 +332,14 @@ export type LoadLocationOptions = ArchiveOptions &
   SyncArchiveOptions &
   LogOptions &
   PreloadOption &
-  HookOption<LoadLocationHooks>;
+  LoadLocationHookOptions;
+
+/**
+ * Hook options for `loadLocation()`
+ */
+export type LoadLocationHookOptions = MapNodeModulesHookOptions & {
+  moduleSourceHook?: ModuleSourceHook | undefined;
+};
 
 /**
  * Options for `importLocation()` necessary (but not sufficient--see
@@ -244,7 +355,7 @@ export type SyncImportLocationOptions = SyncArchiveOptions &
  */
 export type ImportLocationOptions = ArchiveOptions &
   ExecuteOptions &
-  HookOption<LoadLocationHooks> &
+  LoadLocationHookOptions &
   LogOptions &
   PreloadOption;
 
@@ -617,99 +728,3 @@ export type LogFn = (...args: any[]) => void;
  * A string that represents a file URL.
  */
 export type FileUrlString = `file://${string}`;
-
-// #region compartment map transforms
-
-/**
- * Options provided to all Compartment Map Transforms.
- */
-export type CompartmentMapTransformOptions = Required<LogOptions> &
-  PolicyOption;
-
-/**
- * Public API provided to a {@link CompartmentMapTransformFn} as the
- * {@link CompartmentMapTransformFnArguments.context} object.
- *
- * @template CompartmentMap The specific type of `CompartmentMapDescriptor`
- * being transformed; defaults to `PackageCompartmentMapDescriptor`.
- */
-export interface CompartmentMapTransformContext<
-  CompartmentMap extends
-    CompartmentMapDescriptor = PackageCompartmentMapDescriptor,
-> {
-  /**
-   * Returns the package policy from `policy` or
-   * {@link CompartmentMapTransformOptions.policy} if not provided.
-   *
-   * If you only need the `PackagePolicy` set in the `CompartmentDescriptor`,
-   * use {@link CompartmentDescriptor.policy} instead.
-   *
-   * @param compartmentDescriptor Compartment descriptor
-   * @param policy Optional policy
-   *
-   * @returns A package policy, if found
-   */
-  readonly getPackagePolicy: (
-    compartmentDescriptor: CompartmentDescriptorFromMap<CompartmentMap>,
-    policy?: SomePolicy,
-  ) => SomePackagePolicy | undefined;
-
-  /**
-   * Returns a compartment descriptor by name.
-   *
-   * @param name The name of the compartment descriptor; these are the _keys_ of {@link CompartmentDescriptor.compartments}.
-   * @returns A compartment descriptor, if found
-   */
-  readonly getCompartmentDescriptor: (
-    name: CompartmentNameFromMap<CompartmentMap>,
-  ) => CompartmentDescriptorFromMap<CompartmentMap> | undefined;
-
-  /**
-   * Returns the canonical name for some {@link CompartmentDescriptor} (or its
-   * name, if a `string`).
-   *
-   * This function only resolves `CompartmentDescriptor` if given a name; it
-   * returns the value of {@link CompartmentDescriptor.label}.
-   *
-   * @param compartmentDescriptorOrName Compartment descriptor or compartment
-   * name
-   */
-  readonly getCanonicalName: (
-    compartmentDescriptorOrName:
-      | CompartmentNameFromMap<CompartmentMap>
-      | CompartmentDescriptorFromMap<CompartmentMap>
-      | undefined,
-  ) => string | undefined;
-
-  /**
-   * Returns the compartment name for a given canonical name.
-   *
-   * @param canonicalName Canonical name of the compartment.
-   * @returns Compartment name or `undefined` if not found.
-   */
-  readonly getCompartmentName: (
-    canonicalName: string,
-  ) => CompartmentNameFromMap<CompartmentMap> | undefined;
-}
-
-/**
- * Utility to infer the type of a `CompartmentDescriptor` from a `CompartmentMapDescriptor`.
- */
-export type CompartmentDescriptorFromMap<
-  CompartmentMap extends CompartmentMapDescriptor<
-    any,
-    any
-  > = CompartmentMapDescriptor,
-> =
-  CompartmentMap extends CompartmentMapDescriptor<infer T, infer K> ? T : never;
-
-/**
- * Utility to infer the type of the keys of
- * {@link CompartmentDescriptor.compartments} from a `CompartmentMapDescriptor`.
- */
-export type CompartmentNameFromMap<
-  CompartmentMap extends CompartmentMapDescriptor<
-    any,
-    any
-  > = CompartmentMapDescriptor,
-> = CompartmentMap extends CompartmentMapDescriptor<any, infer K> ? K : never;

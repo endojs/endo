@@ -18,11 +18,9 @@
  *   Application,
  *   SyncImportLocationOptions,
  *   ImportLocationOptions,
- *   SyncArchiveOptions,
  *   LoadLocationOptions,
  *   SomeObject,
  *   ReadNowPowers,
- *   ArchiveOptions,
  *   ReadFn,
  *   ReadPowers,
  SyncLoadLocationOptions,
@@ -37,8 +35,8 @@ const { assign, create, freeze } = Object;
 
 /**
  * Add the default parserForLanguage option.
- * @param {ArchiveOptions} [options]
- * @returns {ArchiveOptions}
+ * @param {LoadLocationOptions} [options]
+ * @returns {LoadLocationOptions}
  */
 const assignParserForLanguage = (options = {}) => {
   const { parserForLanguage: parserForLanguageOption, ...rest } = options;
@@ -91,7 +89,11 @@ export const loadLocation = async (
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
-    hooks,
+    packageDescriptorHook,
+    unknownCanonicalNameHook,
+    canonicalNamesHook,
+    packageDependenciesHook,
+    moduleSourceHook,
     ...otherOptions
   } = assignParserForLanguage(options);
   // conditions are not present in SyncArchiveOptions
@@ -111,12 +113,15 @@ export const loadLocation = async (
     workspaceModuleLanguageForExtension,
     languages,
     log,
-    hooks,
+    packageDescriptorHook,
+    unknownCanonicalNameHook,
+    canonicalNamesHook,
+    packageDependenciesHook,
   });
   return loadFromMap(readPowers, compartmentMap, {
     parserForLanguage,
     log,
-    hooks,
+    moduleSourceHook,
     ...otherOptions,
   });
 };
