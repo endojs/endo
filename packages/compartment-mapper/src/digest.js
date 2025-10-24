@@ -39,7 +39,6 @@ import {
   isExitModuleSource,
   isLocalModuleSource,
 } from './guards.js';
-import { makeDefaultHookConfiguration, makeHookExecutor } from './hooks.js';
 
 const { create, fromEntries, entries, keys, values } = Object;
 const { quote: q } = assert;
@@ -112,16 +111,9 @@ const translateCompartmentMap = (
   compartmentDescriptors,
   sources,
   compartmentRenames,
-  { hooks = {}, log = noop } = {},
+  { packageConnectionsHook, log = noop } = {},
 ) => {
   const result = create(null);
-  const executeHook = makeHookExecutor('digestCompartmentMap', hooks, {
-    log,
-    defaultHookConfiguration: makeDefaultHookConfiguration(
-      'digestCompartmentMap',
-      { log },
-    ),
-  });
   for (const compartmentName of keys(compartmentRenames)) {
     /** @type {PackageCompartmentDescriptor} */
     const compartmentDescriptor = compartmentDescriptors[compartmentName];
@@ -215,11 +207,13 @@ const translateCompartmentMap = (
         }, new Set())
       );
 
-      executeHook('packageConnections', {
-        canonicalName: label,
-        connections: links,
-        log,
-      });
+      if (packageConnectionsHook) {
+        packageConnectionsHook({
+          canonicalName: label,
+          connections: links,
+          log,
+        });
+      }
     }
   }
 
@@ -249,7 +243,7 @@ const renameSources = (sources, compartmentRenames) => {
 export const digestCompartmentMap = (
   compartmentMap,
   sources,
-  { hooks = {}, log = noop } = {},
+  { packageConnectionsHook, log = noop } = {},
 ) => {
   const {
     compartments,
@@ -261,7 +255,7 @@ export const digestCompartmentMap = (
     compartments,
     sources,
     oldToNewCompartmentNames,
-    { hooks, log },
+    { packageConnectionsHook, log },
   );
   const digestEntryCompartmentName =
     oldToNewCompartmentNames[entryCompartmentName];

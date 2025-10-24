@@ -80,7 +80,7 @@ const DefaultCompartment = /** @type {typeof Compartment} */ (
 const captureCompartmentMap = (
   compartmentMap,
   sources,
-  { hooks = {}, log = noop } = {},
+  { packageConnectionsHook, log = noop } = {},
 ) => {
   const {
     compartmentMap: captureCompartmentMap,
@@ -88,7 +88,10 @@ const captureCompartmentMap = (
     newToOldCompartmentNames,
     compartmentRenames,
     oldToNewCompartmentNames,
-  } = digestCompartmentMap(compartmentMap, sources, { hooks, log });
+  } = digestCompartmentMap(compartmentMap, sources, {
+    packageConnectionsHook,
+    log,
+  });
   return {
     captureCompartmentMap,
     captureSources,
@@ -271,7 +274,8 @@ export const captureFromMap = async (
     Compartment: CompartmentOption = DefaultCompartment,
     log = noop,
     preload = [],
-    hooks = {},
+    packageConnectionsHook,
+    moduleSourceHook,
   } = options;
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
@@ -309,7 +313,7 @@ export const captureFromMap = async (
     entryModuleSpecifier,
     importHook: consolidatedExitModuleImportHook,
     sourceMapHook,
-    hooks,
+    moduleSourceHook,
   });
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
@@ -333,5 +337,8 @@ export const captureFromMap = async (
     attenuatorsCompartment,
   );
 
-  return captureCompartmentMap(compartmentMap, sources, { hooks, log });
+  return captureCompartmentMap(compartmentMap, sources, {
+    packageConnectionsHook,
+    log,
+  });
 };
