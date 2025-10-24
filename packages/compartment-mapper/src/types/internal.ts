@@ -23,17 +23,14 @@ import type {
   AsyncParseFn,
   CompartmentSources,
   ComputeSha512Option,
-  DigestCompartmentMapHooks,
   ExecuteOptions,
   ExitModuleImportHookOption,
   ExitModuleImportNowHookOption,
   FileUrlString,
+  ModuleSourceHook,
+  PackageConnectionsHook,
   PreloadOption,
-  HookExecutorFn,
-  HookOption,
-  LinkHooks,
   LogOptions,
-  MakeImportHookMakerHooks,
   ModuleTransforms,
   ParseFn,
   ParserForLanguage,
@@ -63,7 +60,6 @@ export type LinkOptions = {
   __native__?: boolean;
 } & ArchiveOnlyOption &
   ExecuteOptions &
-  HookOption<LinkHooks> &
   LogOptions;
 
 export type LinkResult = {
@@ -91,11 +87,11 @@ export type MakeImportHookMakersOptions = {
    * For depositing captured compartment descriptors.
    */
   compartmentDescriptors?: PackageCompartmentDescriptors;
+  moduleSourceHook?: ModuleSourceHook | undefined;
 } & ComputeSha512Option &
   SearchSuffixesOption &
   ArchiveOnlyOption &
   SourceMapHookOption &
-  HookOption<MakeImportHookMakerHooks> &
   LogOptions;
 
 export type MakeImportHookMakerOptions = MakeImportHookMakersOptions &
@@ -156,10 +152,10 @@ export type ChooseModuleDescriptorParams = {
    * Whether to embed a sourceURL in applicable compiled sources.
    * Should be false for archives and bundles, but true for runtime.
    */
-  sourceMapHook?: SourceMapHook;
+  sourceMapHook?: SourceMapHook | undefined;
+  moduleSourceHook?: ModuleSourceHook | undefined;
 
   strictlyRequiredForCompartment: StrictlyRequiredFn;
-  executeHook: HookExecutorFn<MakeImportHookMakerHooks>;
 } & ComputeSha512Option &
   ArchiveOnlyOption &
   LogOptions;
@@ -321,7 +317,8 @@ export type MakeLoadCompartmentsOptions = LogOptions &
   PolicyOption &
   PreloadOption;
 
-export type DigestCompartmentMapOptions = LogOptions &
-  HookOption<DigestCompartmentMapHooks>;
+export type DigestCompartmentMapOptions = LogOptions & {
+  packageConnectionsHook?: PackageConnectionsHook | undefined;
+};
 
 export type CaptureCompartmentMapOptions = DigestCompartmentMapOptions;

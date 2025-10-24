@@ -39,8 +39,6 @@
  *   FileUrlString,
  *   CompartmentSources,
  *   CompartmentModuleDescriptorConfiguration,
- *   HookExecutorFn,
- *   MakeImportHookMakerHooks,
  *   LogOptions,
  *   CanonicalName,
  *   LocalModuleSource
@@ -56,7 +54,6 @@ import {
 } from './policy.js';
 import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 import { unpackReadPowers } from './powers.js';
-import { makeDefaultHookConfiguration, makeHookExecutor } from './hooks.js';
 
 // q, as in quote, for quoting strings in error messages.
 const { quote: q } = assert;
@@ -261,22 +258,26 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
 };
 
 /**
- * Executes the {@link MakeImportHookMakerHooks.moduleSource} hook for a {@link LocalModuleSource}.
+ * Executes the moduleSource hook for a {@link LocalModuleSource}.
  *
  * Preprocesses the fields for the hook.
  *
- * @param {HookExecutorFn<MakeImportHookMakerHooks>} executeHook Hook executor
+ * @param {import('./types.js').ModuleSourceHook | undefined} moduleSourceHook Hook function
  * @param {LocalModuleSource} moduleSource Original `LocalModuleSource` object
  * @param {CanonicalName} canonicalName Canonical name of the compartment/package
  * @param {LogOptions} options Options
  * @returns {void}
  */
 const executeLocalModuleSourceHook = (
-  executeHook,
+  moduleSourceHook,
   moduleSource,
   canonicalName,
   { log = noop } = {},
 ) => {
+  if (!moduleSourceHook) {
+    return;
+  }
+
   const {
     sourceLocation: location,
     parser: language,
@@ -301,7 +302,7 @@ const executeLocalModuleSourceHook = (
     ({ reexports } = record);
   }
 
-  executeHook('moduleSource', {
+  moduleSourceHook({
     moduleSource: {
       location,
       language,
@@ -349,8 +350,8 @@ function* chooseModuleDescriptor(
     readPowers,
     archiveOnly,
     sourceMapHook,
+    moduleSourceHook,
     strictlyRequiredForCompartment,
-    executeHook,
     log = noop,
   },
   { maybeRead, parse, shouldDeferError = () => false },
@@ -490,7 +491,7 @@ function* chooseModuleDescriptor(
       packageSources[candidateSpecifier] = localModuleSource;
 
       executeLocalModuleSourceHook(
-        executeHook,
+        moduleSourceHook,
         localModuleSource,
         compartmentDescriptor.label,
         { log },
@@ -517,16 +518,16 @@ function* chooseModuleDescriptor(
  * @param {StrictlyRequiredFn} strictlyRequiredForCompartment
  * @param {string} packageLocation
  * @param {CompartmentSources} packageSources
- * @param {Function} executeHook
+ * @param {import('./types.js').ModuleSourceHook | undefined} moduleSourceHook
  * @param {string} canonicalName
- * @param {Function} log
+ * @param {import('./types.js').LogFn} log
  * @returns {DeferErrorFn}
  */
 const makeDeferError = (
   strictlyRequiredForCompartment,
   packageLocation,
   packageSources,
-  executeHook,
+  moduleSourceHook,
   canonicalName,
   log,
 ) => {
@@ -559,11 +560,13 @@ const makeDeferError = (
     };
     packageSources[specifier] = moduleSource;
 
-    executeHook('moduleSource', {
-      moduleSource: { error: moduleSource.deferredError },
-      canonicalName,
-      log,
-    });
+    if (moduleSourceHook) {
+      moduleSourceHook({
+        moduleSource: { error: moduleSource.deferredError },
+        canonicalName,
+        log,
+      });
+    }
 
     return record;
   };
@@ -589,7 +592,7 @@ export const makeImportHookMaker = (
     entryCompartmentName,
     entryModuleSpecifier,
     importHook: exitModuleImportHook = undefined,
-    hooks = {},
+    moduleSourceHook,
     log = noop,
   },
 ) => {
@@ -599,13 +602,6 @@ export const makeImportHookMaker = (
   const strictlyRequired = new Map([
     [entryCompartmentName, new Set([entryModuleSpecifier])],
   ]);
-
-  const executeHook = makeHookExecutor('makeImportHookMaker', hooks, {
-    log,
-    defaultHookConfiguration: makeDefaultHookConfiguration(
-      'makeImportHookMaker',
-    ),
-  });
 
   /**
    * @param {string} compartmentName
@@ -642,7 +638,7 @@ export const makeImportHookMaker = (
       strictlyRequiredForCompartment,
       packageLocation,
       packageSources,
-      executeHook,
+      moduleSourceHook,
       compartmentDescriptor.label,
       log,
     );
@@ -679,13 +675,15 @@ export const makeImportHookMaker = (
                 )} was not in the compartment map and an attempt was made to load it as a builtin`,
               });
 
-              executeHook('moduleSource', {
-                moduleSource: {
-                  exit: moduleSpecifier,
-                },
-                canonicalName: compartmentDescriptor.label,
-                log,
-              });
+              if (moduleSourceHook) {
+                moduleSourceHook({
+                  moduleSource: {
+                    exit: moduleSpecifier,
+                  },
+                  canonicalName: compartmentDescriptor.label,
+                  log,
+                });
+              }
 
               if (archiveOnly) {
                 // Return a place-holder.
@@ -730,8 +728,8 @@ export const makeImportHookMaker = (
             readPowers,
             archiveOnly,
             sourceMapHook,
+            moduleSourceHook,
             strictlyRequiredForCompartment,
-            executeHook,
             log,
           },
           { maybeRead, parse, shouldDeferError },
@@ -776,7 +774,7 @@ export function makeImportNowHookMaker(
     archiveOnly = false,
     sourceMapHook = undefined,
     importNowHook: exitModuleImportNowHook = undefined,
-    hooks = {},
+    moduleSourceHook,
     log = noop,
   },
 ) {
@@ -784,13 +782,6 @@ export function makeImportNowHookMaker(
   // using heuristics to determine imports.
   /** @type {Map<string, Set<string>>} compartment name ->* module specifier */
   const strictlyRequired = new Map();
-
-  const executeHook = makeHookExecutor('makeImportHookMaker', hooks, {
-    log,
-    defaultHookConfiguration: makeDefaultHookConfiguration(
-      'makeImportHookMaker',
-    ),
-  });
   /**
    * @param {string} compartmentName
    */
@@ -821,7 +812,7 @@ export function makeImportNowHookMaker(
       strictlyRequiredForCompartment,
       packageLocation,
       packageSources,
-      () => {}, // no-op executeHook for now
+      moduleSourceHook,
       '', // no canonicalName for now
       noop, // no-op log
     );
@@ -946,8 +937,8 @@ export function makeImportNowHookMaker(
             readPowers,
             archiveOnly,
             sourceMapHook,
+            moduleSourceHook,
             strictlyRequiredForCompartment,
-            executeHook,
             log,
           },
           {

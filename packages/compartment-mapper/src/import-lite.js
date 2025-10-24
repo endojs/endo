@@ -98,7 +98,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
     Compartment: LoadCompartmentOption = Compartment,
-    hooks,
+    moduleSourceHook,
   } = options;
 
   const parserForLanguage = freeze(
@@ -173,7 +173,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         entryCompartmentName,
         entryModuleSpecifier,
         importHook: compartmentExitModuleImportHook,
-        hooks,
+        moduleSourceHook,
       },
     );
 
@@ -197,7 +197,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
           compartmentDescriptors: compartmentMap.compartments,
           searchSuffixes,
           importNowHook: exitModuleImportNowHook,
-          hooks,
+          moduleSourceHook,
         },
       );
       ({ compartment, pendingJobsPromise } = link(compartmentMap, {

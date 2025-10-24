@@ -10,11 +10,9 @@ import { loadLocation } from '../import.js';
 
 /**
  * @import {
- *   MakeImportHookMakerHooks,
- *   HookConfiguration,
  *   CanonicalName,
- *   ModuleSource,
  *   MaybeReadPowers,
+ *   ModuleSourceHook,
  * } from '../src/types.js';
  * @import {ExecutionContext} from 'ava';
  * @import {ProjectFixture} from './test.types.js';
@@ -57,25 +55,27 @@ const moduleSourceHookTest = async (
   /** @type {CanonicalName | undefined} */
   let receivedCanonicalName;
 
-  /** @type {HookConfiguration<MakeImportHookMakerHooks>} */
-  const hooks = {
-    moduleSource: ({ moduleSource, canonicalName, log }) => {
-      hookCalled = true;
-      receivedModuleSource = moduleSource;
-      receivedCanonicalName = canonicalName;
+  /** @type {ModuleSourceHook} */
+  const moduleSourceHook = ({ moduleSource, canonicalName, log }) => {
+    hookCalled = true;
+    receivedModuleSource = moduleSource;
+    receivedCanonicalName = canonicalName;
 
-      t.truthy(log, 'log function should be provided');
-      t.truthy(moduleSource, 'moduleSource should be provided');
-      t.is(typeof canonicalName, 'string', 'canonicalName should be a string');
-    },
+    t.truthy(log, 'log function should be provided');
+    t.truthy(moduleSource, 'moduleSource should be provided');
+    t.is(typeof canonicalName, 'string', 'canonicalName should be a string');
   };
 
   const options = {
-    hooks,
+    moduleSourceHook,
     parserForLanguage: defaultParserForLanguage,
   };
 
-  const args = await argsFn(readPowers, testFixture.entrypoint, options);
+  const args = await argsFn(
+    readPowers,
+    /** @type {string} */ (testFixture.entrypoint),
+    options,
+  );
 
   const result = await loaderFn(...args);
 
@@ -115,7 +115,7 @@ moduleSourceHookTest.title = (providedTitle, { loaderFn }) =>
 
 // #region tests
 test(
-  'captureFromMap.moduleSource hook receives correct parameters (snapshot)',
+  'captureFromMap - moduleSourceHook - receives correct parameters (snapshot)',
   moduleSourceHookTest,
   {
     loaderFn: captureFromMap,
@@ -128,7 +128,7 @@ test(
 );
 
 test(
-  'loadFromMap.moduleSource hook receives correct parameters (snapshot)',
+  'loadFromMap - moduleSourceHook - receives correct parameters (snapshot)',
   moduleSourceHookTest,
   {
     loaderFn: loadFromMap,
@@ -141,7 +141,7 @@ test(
 );
 
 test(
-  'loadLocation.moduleSource hook receives correct parameters (snapshot)',
+  'loadLocation - moduleSourceHook - receives correct parameters (snapshot)',
   moduleSourceHookTest,
   {
     loaderFn: loadLocation,

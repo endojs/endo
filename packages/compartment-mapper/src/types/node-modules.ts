@@ -3,8 +3,6 @@ import type { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
 import type {
   CanonicalName,
   CompartmentMapDescriptor,
-  HookExecutorFn,
-  MapNodeModulesHooks,
   ModuleDescriptorConfiguration,
   PackageCompartmentDescriptorName,
   PolicyOption,
@@ -19,7 +17,12 @@ import type {
   PackageCompartmentDescriptor,
   PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
-import type { LogOptions, FileUrlString } from './external.js';
+import type {
+  FileUrlString,
+  LogOptions,
+  PackageDescriptorHook,
+  PackageDependenciesHook,
+} from './external.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -43,13 +46,20 @@ export type CommonDependencyDescriptorsOptions = {
  */
 export type GraphPackageOptions = {
   logicalPath?: string[];
+  packageDescriptorHook?: PackageDescriptorHook | undefined;
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
+  policy?: SomePolicy;
 } & LogOptions &
   CommonDependencyDescriptorsOptions;
 
 /**
  * Options for `graphPackages()`
  */
-export type GraphPackagesOptions = LogOptions;
+export type GraphPackagesOptions = {
+  packageDescriptorHook?: PackageDescriptorHook | undefined;
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
+  policy?: SomePolicy;
+} & LogOptions;
 
 /**
  * Options for `gatherDependency()`
@@ -60,6 +70,9 @@ export type GatherDependencyOptions = {
    * If `true` the dependency is optional
    */
   optional?: boolean;
+  packageDescriptorHook?: PackageDescriptorHook | undefined;
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
+  policy?: SomePolicy;
 } & LogOptions &
   CommonDependencyDescriptorsOptions;
 
@@ -190,11 +203,11 @@ export type DigestExternalAliasesFn = (
 
 export interface TranslateGraphOptions extends LogOptions {
   policy?: SomePolicy;
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
 }
 
 /**
- * This mapping is provided to `applyCompartmentMapTransforms()` to enable
- * reverse-lookups of `CompartmentDescriptor`s from policy.
+ * Mapping to enable reverse-lookups of `CompartmentDescriptor`s from policy.
  */
 export type CanonicalNameMap<
   CompartmentMap extends
@@ -212,6 +225,5 @@ export type MakeDigestExternalAliasesFn = (
 
 export type MakeDigestExternalAliasesMakerFn = (
   graph: FinalGraph,
-  executeHook: HookExecutorFn<MapNodeModulesHooks>,
   options: LogOptions & PolicyOption,
 ) => MakeDigestExternalAliasesFn;
