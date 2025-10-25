@@ -1,6 +1,8 @@
 // @ts-check
 /* eslint no-bitwise: ["off"] */
 
+/** @import { ArchivedFile, ArchiveHeaders } from './types.js' */
+
 /**
  * @typedef {{
  *  fileStart: number,
@@ -18,7 +20,7 @@
  *   externalFileAttributes: number,
  *   content: Uint8Array,
  *   comment: Uint8Array,
- * } & import('./types.js').ArchiveHeaders} FileRecord
+ * } & ArchiveHeaders} FileRecord
  *
  * @typedef {{
  *   index: number,
@@ -31,9 +33,7 @@
  * }} BufferWriter
  */
 
-import { crc32 } from './crc32.js';
 import * as signature from './signature.js';
-import * as compression from './compression.js';
 
 const UNIX = 3;
 const UNIX_VERSION = 30;
@@ -141,11 +141,69 @@ function writeEndOfCentralDirectoryRecord(
 }
 
 /**
+ * Computes ZIP external file attributes field from a UNIX mode for a file.
+ *
+ * @param {number} mode
+ * @returns {number}
+ */
+function externalFileAttributes(mode) {
+  return ((mode & 0o777) | 0o100000) << 16;
+}
+
+// TODO Add support for directory records.
+// /**
+//  * @param {number} mode
+//  * @return {number}
+//  */
+// function externalDirectoryAttributes(mode) {
+//   // The 0x10 is the DOS directory attribute, which is set regardless of platform.
+//   return ((mode & 0o777) | 0o40000) << 16 | 0x10;
+// }
+
+/**
+ * @param {ArchivedFile} file
+ */
+export const fileToRecord = ({
+  name: nameString,
+  date,
+  mode,
+  crc32,
+  compressionMethod,
+  compressedLength,
+  uncompressedLength,
+  comment: commentString,
+  content,
+}) => {
+  const name = textEncoder.encode(nameString.replace(/\\/g, '/'));
+  const comment = textEncoder.encode(commentString);
+  return {
+    name,
+    centralName: name,
+    madeBy: UNIX,
+    version: UNIX_VERSION,
+    versionNeeded: 0, // TODO this is probably too lax.
+    bitFlag: 0,
+    compressionMethod,
+    date,
+    crc32,
+    compressedLength,
+    uncompressedLength,
+    diskNumberStart: 0,
+    internalFileAttributes: 0,
+    externalFileAttributes: externalFileAttributes(mode),
+    comment,
+    content,
+  };
+};
+
+/**
  * @param {BufferWriter} writer
- * @param {Array<FileRecord>} records
+ * @param {Array<ArchivedFile>} files
  * @param {string} comment
  */
-export function writeZipRecords(writer, records, comment = '') {
+export function writeZip(writer, files, comment = '') {
+  const records = files.map(fileToRecord);
+
   // Write records with local headers.
   const locators = [];
   for (let i = 0; i < records.length; i += 1) {
@@ -169,96 +227,4 @@ export function writeZipRecords(writer, records, comment = '') {
     centralDirectoryLength,
     commentBytes,
   );
-}
-
-/**
- * @param {import('./types.js').ArchivedFile} file
- * @returns {import('./types.js').UncompressedFile}
- */
-function encodeFile(file) {
-  const name = textEncoder.encode(file.name.replace(/\\/g, '/'));
-  const comment = textEncoder.encode(file.comment);
-  return {
-    name,
-    mode: file.mode,
-    date: file.date,
-    content: file.content,
-    comment,
-  };
-}
-
-/**
- * @param {import('./types.js').UncompressedFile} file
- * @returns {import('./types.js').CompressedFile}
- */
-function compressFileWithStore(file) {
-  return {
-    name: file.name,
-    mode: file.mode,
-    date: file.date,
-    crc32: crc32(file.content),
-    compressionMethod: compression.STORE,
-    compressedLength: file.content.length,
-    uncompressedLength: file.content.length,
-    content: file.content,
-    comment: file.comment,
-  };
-}
-
-/**
- * Computes Zip external file attributes field from a UNIX mode for a file.
- *
- * @param {number} mode
- * @returns {number}
- */
-function externalFileAttributes(mode) {
-  return ((mode & 0o777) | 0o100000) << 16;
-}
-
-// TODO Add support for directory records.
-// /**
-//  * @param {number} mode
-//  * @return {number}
-//  */
-// function externalDirectoryAttributes(mode) {
-//   // The 0x10 is the DOS directory attribute, which is set regardless of platform.
-//   return ((mode & 0o777) | 0o40000) << 16 | 0x10;
-// }
-
-/**
- * @param {import('./types.js').CompressedFile} file
- * @returns {FileRecord}
- */
-function makeFileRecord(file) {
-  return {
-    name: file.name,
-    centralName: file.name,
-    madeBy: UNIX,
-    version: UNIX_VERSION,
-    versionNeeded: 0, // TODO this is probably too lax.
-    bitFlag: 0,
-    compressionMethod: compression.STORE,
-    date: file.date,
-    crc32: file.crc32,
-    compressedLength: file.compressedLength,
-    uncompressedLength: file.uncompressedLength,
-    diskNumberStart: 0,
-    internalFileAttributes: 0,
-    externalFileAttributes: externalFileAttributes(file.mode),
-    comment: file.comment,
-    content: file.content,
-  };
-}
-
-/**
- * @param {BufferWriter} writer
- * @param {Array<import('./types.js').ArchivedFile>} files
- * @param {string} comment
- */
-export function writeZip(writer, files, comment = '') {
-  const encodedFiles = files.map(encodeFile);
-  const compressedFiles = encodedFiles.map(compressFileWithStore);
-  // TODO collate directoryRecords from file bases.
-  const fileRecords = compressedFiles.map(makeFileRecord);
-  writeZipRecords(writer, fileRecords, comment);
 }
