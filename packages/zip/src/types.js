@@ -3,47 +3,36 @@
 export {};
 
 /**
- * @typedef {{
- *   mode: number,
- *   date: Date?,
- *   comment: string,
- *   type: "file" | "directory"
- * }} ArchivedStat
- *
- * @typedef {{
- *   name: string,
- *   content: Uint8Array,
- * } & ArchivedStat} ArchivedFile
- *
- * @typedef {{
- *   name: Uint8Array,
- *   mode: number,
- *   date: Date?,
- *   content: Uint8Array,
- *   comment: Uint8Array,
- * }} UncompressedFile
- *
- * @typedef {{
- *   name: Uint8Array,
- *   mode: number,
- *   date: Date?,
- *   crc32: number,
- *   compressionMethod: number,
- *   compressedLength: number,
- *   uncompressedLength: number,
- *   content: Uint8Array,
- *   comment: Uint8Array,
- * }} CompressedFile
- *
- * @typedef {{
- *   versionNeeded: number,
- *   bitFlag: number,
- *   compressionMethod: number,
- *   date: Date?,
- *   crc32: number,
- *   compressedLength: number,
- *   uncompressedLength: number,
- * }} ArchiveHeaders
+ * @typedef {object} ArchivedFile
+ * @property {string} name
+ * @property {'file'} type
+ * @property {Date | null} date
+ * @property {number} mode
+ * @property {number} crc32
+ * @property {0 | 8 | 12 | number} compressionMethod
+ * @property {number} compressedLength
+ * @property {number} uncompressedLength
+ * @property {string} comment
+ * @property {Uint8Array} content
+ */
+
+/**
+ * @typedef ArchivedStat
+ * @property {'file' | 'directory'} type
+ * @property {Date | null} date
+ * @property {number} mode
+ * @property {string} comment
+ */
+
+/**
+ * @typedef ArchiveHeaders
+ * @property {number} versionNeeded
+ * @property {number} bitFlag
+ * @property {Date | null} date
+ * @property {number} crc32
+ * @property {0 | 8 | 12 | number} compressionMethod
+ * @property {number} compressedLength
+ * @property {number} uncompressedLength
  */
 
 /**
@@ -72,5 +61,29 @@ export {};
 
 /**
  * @callback SnapshotFn
+ * @returns {Promise<Uint8Array>}
+ */
+
+/**
+ * @callback CompressNowFn
+ * @param {Uint8Array} content
+ * @returns {Uint8Array}
+ */
+
+/**
+ * @callback CompressFn
+ * @param {Uint8Array} content
+ * @returns {Promise<Uint8Array>}
+ */
+
+/**
+ * @callback DecompressNowFn
+ * @param {Uint8Array} content
+ * @returns {Uint8Array}
+ */
+
+/**
+ * @callback DecompressFn
+ * @param {Uint8Array} content
  * @returns {Promise<Uint8Array>}
  */

@@ -1,1 +1,1 @@
-export { ZipReader } from './src/reader.js';
+export { ZipReader, readZip } from './src/reader.js';
