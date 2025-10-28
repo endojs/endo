@@ -30,8 +30,8 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
-    "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0"
   },
   "dependencies": {
@@ -72,10 +72,7 @@
       "plugin:@endo/internal"
     ]
   },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs"
   }
 }

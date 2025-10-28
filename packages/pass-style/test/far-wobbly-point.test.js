@@ -5,7 +5,7 @@
 
 /* eslint-disable class-methods-use-this */
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf } from '../src/passStyleOf.js';

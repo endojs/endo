@@ -4,7 +4,6 @@
 
 // eslint-disable-next-line import/order
 import { ModuleSource } from '../src/module-source.js';
-import './_lockdown.js';
 import url from 'url';
 import fs from 'fs';
 import test from 'ava';

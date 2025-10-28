@@ -408,5 +408,5 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Regularize format of NEWS.md ([0ec29b3](https://github.com/endojs/endo/commit/0ec29b34a18b17cc6b90e5a46575e634714e978e))
 - **ses-ava:** Favor NESM and RESM compatibility over CJS and UMD ([ea34d4f](https://github.com/endojs/endo/commit/ea34d4f4763c88ceda6958c6d47c8dc21f04bf32))
 - **ses-ava:** Fix usage docs ([07d35b2](https://github.com/endojs/endo/commit/07d35b20751a884a2a41e4da010d1edee7688af9))
-- support Ava "macros" in ses-ava ([#641](https://github.com/endojs/endo/issues/641)) ([01fabaf](https://github.com/endojs/endo/commit/01fabafee359205b92276db87453d45575f6c7db))
+- support AVA "macros" in ses-ava ([#641](https://github.com/endojs/endo/issues/641)) ([01fabaf](https://github.com/endojs/endo/commit/01fabafee359205b92276db87453d45575f6c7db))
 - Unsafe errorTaming and consoleTaming needs other adjustments ([#637](https://github.com/endojs/endo/issues/637)) ([70cc86e](https://github.com/endojs/endo/commit/70cc86eb400655e922413b99c38818d7b2e79da0))

@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { encodeBase64 } from '@endo/base64';
 import fs from 'node:fs';

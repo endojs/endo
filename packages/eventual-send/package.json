@@ -6,7 +6,7 @@
   "main": "src/no-shim.js",
   "scripts": {
     "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",

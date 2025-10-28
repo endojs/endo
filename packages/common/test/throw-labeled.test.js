@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 import { throwLabeled } from '../throw-labeled.js';
 
 test('test throwLabeled', async t => {

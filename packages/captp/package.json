@@ -41,8 +41,7 @@
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test": "ses-ava",
     "test:xs": "exit 0",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:eslint && yarn lint:types",
@@ -53,7 +52,6 @@
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
-    "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "~5.9.2"
   },
@@ -71,11 +69,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
   },
   "eslintConfig": {
     "extends": [

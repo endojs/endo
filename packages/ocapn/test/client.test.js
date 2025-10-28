@@ -5,7 +5,7 @@
  * @import { OcapnLocation } from '../src/codecs/components.js'
  */
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { isPromise } from '@endo/promise-kit';

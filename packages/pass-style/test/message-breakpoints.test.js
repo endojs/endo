@@ -1,6 +1,6 @@
 // @ts-nocheck
 import './_prepare-breakpoints.js';
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { makeMessageBreakpointTester } from '@endo/eventual-send/utils.js';
 import { E } from '@endo/eventual-send';

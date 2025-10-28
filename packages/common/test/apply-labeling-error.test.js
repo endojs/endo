@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
 
 import { Fail } from '@endo/errors';
 import { applyLabelingError } from '../apply-labeling-error.js';
