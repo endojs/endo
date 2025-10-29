@@ -36,9 +36,9 @@ SES-AVA also provides a command line tool, `ses-ava`, that can run AVA with
 multiple configurations in a single command, intercepting flags to filter
 for interesting configurations.
 The `ses-ava` command consumes the `"ava"` and (new) `"sesAvaConfigs"` properties
-in `package.json` to discover and name the supported configurations and infer
-flags like `--only-config-configname` and `--no-config-configname` for each,
-where the `"ava"` configuration is the `default`, if present.
+in `package.json` to discover and name the supported configurations which can be
+referenced by `--only` and `--exclude` options (and their respective `-o` and
+`-x` shorthands), where the `"ava"` configuration is the `default`, if present.
 
 With appropriate configurations, packages can run many of the same tests
 with or without an initialized Endo environment.
@@ -93,8 +93,8 @@ Then, in `package.json`, we can use `ses-ava` instead of `ava`.
 }
 ```
 
-With this configuration, `ses-ava ...args --no-config-lockdown` and `ses-ava
-...args --only-config-unsafe` would both just run the `unsafe` configuration.
+With this configuration, `ses-ava ...args --exclude lockdown` and `ses-ava
+...args --only unsafe` would both just run the `unsafe` configuration.
 Using `ses-ava` under `c8` allows all configurations to cover used code.
 
 # Compatibility

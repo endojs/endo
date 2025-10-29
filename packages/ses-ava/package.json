@@ -40,7 +40,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava && bin/ses-ava --only-config-env --only-config-raw"
+    "test": "ava && bin/ses-ava --only env --only raw"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",

@@ -6,8 +6,9 @@
  * Each of these configurations requires a separate AVA config file like
  * test/_ava.special.config.js and a name.
  * The ses-ava command will by default run all tests in every mode but allows
- * the user to pass --only-* and --no-* at any argument position for any of
- * the named configurations to filter.
+ * the user to pass --only <name> and --exclude <name> (or shorthands -o <name>
+ * and -x <name>) at any argument position for any of the named configurations
+ * to filter.
  * Consequently, the "test" script for a package using ses-ava can simply be
  * "ses-ava" and preserves the filtering behaviors of the underlying "ava"
  * sessions if run like `yarn test -m file`.
@@ -46,8 +47,6 @@ export const main = async () => {
   if (ava) sesAvaConfigs.default = undefined;
   const keys = Object.keys(sesAvaConfigs);
   const allConfigNames = new Set(keys);
-  const noFlags = new Map(keys.map(key => [`--no-config-${key}`, key]));
-  const onlyFlags = new Map(keys.map(key => [`--only-config-${key}`, key]));
 
   // Parse arguments.
   const passThroughArgs = [];
@@ -56,38 +55,43 @@ export const main = async () => {
   let failFast = false;
   let firstArg = true;
   const argsIterator = process.argv.slice(2)[Symbol.iterator]();
-  for (const arg of argsIterator) {
-    if (arg === '--') {
+  for (const rawArg of argsIterator) {
+    if (rawArg === '--') {
       passThroughArgs.push(...argsIterator);
       break;
     }
-    const noKey = noFlags.get(arg);
-    const onlyKey = onlyFlags.get(arg);
-    const equalsAt = arg.indexOf('=');
-    if (passThroughFlags.has(arg)) {
-      passThroughArgs.push(arg);
-    } else if (arg.startsWith('--') && equalsAt !== -1) {
-      const flag = arg.slice(0, equalsAt);
-      if (!passThroughArgOptions.has(flag)) {
-        throw new Error(`Unrecognized flag ${flag}`);
+    const charsBeforeOptArg = rawArg.startsWith('--') ? rawArg.indexOf('=') : 2;
+    const arg =
+      charsBeforeOptArg !== -1 ? rawArg.slice(0, charsBeforeOptArg) : rawArg;
+    const getOptArg = () => {
+      if (charsBeforeOptArg !== -1) {
+        if (rawArg.startsWith('--')) return rawArg.slice(charsBeforeOptArg + 1);
+        if (rawArg.length > 2) return rawArg.slice(2);
       }
-      passThroughArgs.push(arg);
-    } else if (passThroughArgOptions.has(arg)) {
-      const { value: nextArg, done } = argsIterator.next();
+      const { value, done } = argsIterator.next();
       if (done) {
         throw new Error(`Expected argument after ${arg}`);
       }
-      passThroughArgs.push(arg, nextArg);
-    } else if (arg === '--fail-fast') {
+      return value;
+    };
+    if (passThroughFlags.has(arg)) {
+      passThroughArgs.push(rawArg);
+    } else if (passThroughArgOptions.has(arg)) {
+      if (arg !== rawArg) {
+        passThroughArgs.push(rawArg);
+      } else {
+        passThroughArgs.push(arg, getOptArg());
+      }
+    } else if (rawArg === '--fail-fast') {
       // Pass-through too
-      passThroughArgs.push(arg);
+      passThroughArgs.push(rawArg);
       failFast = true;
     } else if (arg === 'reset-cache' && firstArg) {
-      passThroughArgs.push(arg);
-    } else if (noKey) {
-      noConfigNames.add(noKey);
-    } else if (onlyKey) {
-      onlyConfigNames.add(onlyKey);
+      passThroughArgs.push(rawArg);
+    } else if (arg === '--exclude' || arg === '-x') {
+      noConfigNames.add(getOptArg());
+    } else if (arg === '--only' || arg === '-o') {
+      onlyConfigNames.add(getOptArg());
     } else if (arg.startsWith('-')) {
       throw new Error(
         `Unknown flag ${arg}. If this is an ava flag, pass through after --.`,
@@ -102,11 +106,9 @@ export const main = async () => {
   const configs = new Set();
   for (const config of noConfigNames) {
     if (onlyConfigNames.has(config)) {
-      // Ask not the advice of wizards, for they will say both --no-config- and
-      // --only-config-.
-      throw new Error(
-        `ses-ava cannot respect both --no-config-${config} and --only-config-${config}`,
-      );
+      // Ask not the advice of wizards, for they will say both --include and
+      // --exclude.
+      throw new Error(`ses-ava cannot both include and exclude ${config}`);
     }
   }
   for (const config of onlyConfigNames.size > 0
