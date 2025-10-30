@@ -8,7 +8,97 @@ import { Fail, q, hideAndHardenFunction } from '@endo/errors';
  * @import {PassStyle} from './types.js';
  */
 
-const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
+const {
+  defineProperty,
+  getPrototypeOf,
+  getOwnPropertyDescriptors,
+  getOwnPropertyDescriptor,
+  hasOwn,
+  entries,
+  freeze,
+} = Object;
+
+const { apply } = Reflect;
+
+const hardenIsFake = () => {
+  // We do not trust isFrozen because lockdown with unsafe hardenTaming replaces
+  // isFrozen with a version that is in cahoots with fake harden.
+  const subject = harden({ __proto__: null, x: 0 });
+  const desc = getOwnPropertyDescriptor(subject, 'x');
+  return desc?.writable === true;
+};
+
+const makeRepairError = () => {
+  if (!hardenIsFake()) {
+    console.error('HARDEN IS FAKE');
+    return undefined;
+  }
+
+  const er1StackDesc = getOwnPropertyDescriptor(Error('er1'), 'stack');
+  const er2StackDesc = getOwnPropertyDescriptor(TypeError('er2'), 'stack');
+
+  if (
+    er1StackDesc === undefined ||
+    er2StackDesc === undefined ||
+    er1StackDesc.get === undefined
+  ) {
+    return undefined;
+  }
+
+  // We should only encounter this case on v8 because of its problematic
+  // error own stack accessor behavior.
+  // Note that FF/SpiderMonkey, Moddable/XS, and the error stack proposal
+  // all inherit a stack accessor property from Error.prototype, which is
+  // great. That case needs no heroics to secure.
+  if (
+    // In the v8 case as we understand it, all errors have an own stack
+    // accessor property, but within the same realm, all these accessor
+    // properties have the same getter and have the same setter.
+    // This is therefore the case that we repair.
+    typeof er1StackDesc.get !== 'function' ||
+    er1StackDesc.get !== er2StackDesc.get ||
+    typeof er1StackDesc.set !== 'function' ||
+    er1StackDesc.set !== er2StackDesc.set
+  ) {
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR.md
+    throw TypeError(
+      'Unexpected Error own stack accessor functions (PASS_STYLE_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR)',
+    );
+  }
+
+  // Otherwise, we have own stack accessor properties that are outside
+  // our expectations, that therefore need to be understood better
+  // before we know how to repair them.
+  const feralStackGetter = freeze(er1StackDesc.get);
+
+  const repairError = error => {
+    // Only pay the overhead if it first passes this cheap isError
+    // check. Otherwise, it will be unrepaired, but won't be judged
+    // to be a passable error anyway, so will not be unsafe.
+    const stackDesc = getOwnPropertyDescriptor(error, 'stack');
+    if (
+      stackDesc &&
+      stackDesc.get === feralStackGetter &&
+      stackDesc.configurable
+    ) {
+      // Can only repair if it is configurable. Otherwise, leave
+      // unrepaired, in which case it will not be judged passable,
+      // avoiding a safety problem.
+      defineProperty(error, 'stack', {
+        // NOTE: Calls getter during harden, which seems dangerous.
+        // But we're only calling the problematic getter whose
+        // hazards we think we understand.
+        value: apply(feralStackGetter, error, []),
+      });
+    }
+  };
+  harden(repairError);
+
+  return repairError;
+};
+harden(makeRepairError);
+
+const repairError = makeRepairError();
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
 // whilelist.
@@ -177,6 +267,9 @@ export const confirmRecursivelyPassableError = (
       reject &&
       reject`Passable Error must inherit from an error class .prototype: ${candidate}`
     );
+  }
+  if (repairError !== undefined) {
+    repairError(candidate);
   }
   const descs = getOwnPropertyDescriptors(candidate);
   if (!('message' in descs)) {
