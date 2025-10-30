@@ -84,7 +84,6 @@ const makeTypeError = () => {
 
 export const makeRepairError = () => {
   if (!hardenIsFake()) {
-    console.error('HARDEN IS FAKE');
     return undefined;
   }
 
