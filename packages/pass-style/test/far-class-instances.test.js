@@ -104,7 +104,7 @@ test('far class instances', t => {
   ]);
 });
 
-test('far class instance hardened empty', t => {
+(harden.isFake ? test.skip : test)('far class instance hardened empty', t => {
   class FarClass4 extends FarBaseClass {
     z = 0;
   }
