@@ -485,6 +485,9 @@ test('Unexpected stack on errors', t => {
   err.stack = carrierStack;
   harden(err);
 
+  // Fake harden does not maintain this invariant, but when passStyleOf senses
+  // a fake harden, it takes upon itself the obligation to fix the error
+  // object.
   t.throws(() => passStyleOf(err), {
     message: 'Passable Error "stack" own property must be a string: {}',
   });

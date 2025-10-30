@@ -17,9 +17,12 @@ const { defineProperty } = Object;
 
 test('style of extended errors', t => {
   const e1 = Error('e1');
-  t.throws(() => passStyleOf(e1), {
-    message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
-  });
+  if (!harden.isFake) {
+    t.throws(() => passStyleOf(e1), {
+      message:
+        'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
+    });
+  }
   harden(e1);
   t.is(passStyleOf(e1), 'error');
 
@@ -49,7 +52,7 @@ test('toPassableError, toThrowable', t => {
   // Since then, we changed `makeError` to make reasonable effort
   // to return a passable error by default. But also added the
   // `sanitize: false` option to suppress that.
-  t.false(Object.isFrozen(e));
+  t.false(!harden.isFake && Object.isFrozen(e));
   t.false(isPassable(e));
 
   // toPassableError hardens, and then checks whether the hardened argument
