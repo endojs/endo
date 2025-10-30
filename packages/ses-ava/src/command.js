@@ -97,7 +97,7 @@ export const main = async () => {
         `Unknown flag ${arg}. If this is an ava flag, pass through after --.`,
       );
     } else {
-      passThroughArgs.push(arg);
+      passThroughArgs.push(rawArg);
     }
     firstArg = false;
   }
