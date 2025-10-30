@@ -30,7 +30,6 @@ const hardenIsFake = () => {
 
 const makeRepairError = () => {
   if (!hardenIsFake()) {
-    console.error('HARDEN IS FAKE');
     return undefined;
   }
 
