@@ -9,7 +9,7 @@ import {
   makeExo,
 } from '../index.js';
 
-// @ts-expect-error isFake is a secret property.
+// @ts-expect-error isFake is not advertised by the type of harden.
 const hardenIsFake = !!harden.isFake;
 
 const NoExtraI = M.interface('NoExtra', {

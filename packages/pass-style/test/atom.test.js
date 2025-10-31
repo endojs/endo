@@ -13,7 +13,7 @@ test('isAtom test', t => {
   const p = Promise.resolve();
   t.false(isAtom(p));
   t.throws(() => assertAtom(p), {
-    // @ts-expect-error isFake is a secret
+    // @ts-expect-error isFake is not advertised by the type of harden.
     message: harden.isFake
       ? 'A "promise" cannot be an atom: "[Promise]"'
       : 'Not even Passable: "[Error: Cannot pass non-frozen objects like \\"[Promise]\\". Use harden()]": "[Promise]"',
