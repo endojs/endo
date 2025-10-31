@@ -8,18 +8,42 @@
 
 /**
  * @import {
- *   CompartmentDescriptor,
- *   CompartmentMapDescriptor,
+ *   DigestedCompartmentDescriptors,
  *   DigestResult,
- *   ModuleDescriptor,
+ *   PackageCompartmentDescriptors,
+ *   PackageCompartmentMapDescriptor,
+ *   SourceModuleDescriptorConfiguration,
  *   Sources,
+ *   ExitModuleDescriptorConfiguration,
+ *   FileModuleDescriptorConfiguration,
+ *   ErrorModuleDescriptorConfiguration,
+ *   DigestedCompartmentMapDescriptor,
+ *   DigestedCompartmentDescriptor,
+ HookConfiguration,
+ DigestCompartmentMapHooks,
+ DigestCompartmentMapOptions,
+ PackageCompartmentDescriptor,
+ PackageCompartmentDescriptorName,
+ CompartmentModuleDescriptorConfiguration,
+ CanonicalName,
+ FileUrlString,
  * } from './types.js'
  */
 
-import { pathCompare } from '@endo/path-compare';
-import { assertCompartmentMap, stringCompare } from './compartment-map.js';
+import {
+  assertDigestedCompartmentMap,
+  stringCompare,
+} from './compartment-map.js';
+import {
+  isErrorModuleSource,
+  isExitModuleSource,
+  isLocalModuleSource,
+} from './guards.js';
 
-const { create, fromEntries, entries, keys } = Object;
+const { create, fromEntries, entries, keys, values } = Object;
+const { quote: q } = assert;
+
+const noop = () => {};
 
 /**
  * We attempt to produce compartment maps that are consistent regardless of
@@ -49,71 +73,75 @@ const { create, fromEntries, entries, keys } = Object;
  * actual installation location, so should be orthogonal to the vagaries of the
  * package manager's deduplication algorithm.
  *
- * @param {Record<string, CompartmentDescriptor>} compartments
- * @returns {Record<string, string>} map from old to new compartment names.
+ * @param {PackageCompartmentDescriptors} compartments
+ * @returns {Record<string, PackageCompartmentDescriptorName>} map from old to new compartment names.
  */
 const renameCompartments = compartments => {
-  /** @type {Record<string, string>} */
+  /** @type {Record<string, PackageCompartmentDescriptorName>} */
   const compartmentRenames = create(null);
-  let index = 0;
-  let prev = '';
 
   // The sort below combines two comparators to avoid depending on sort
   // stability, which became standard as recently as 2019.
   // If that date seems quaint, please accept my regards from the distant past.
   // We are very proud of you.
-  const compartmentsByPath = Object.entries(compartments)
-    .map(([name, compartment]) => ({
-      name,
-      path: compartment.path,
-      label: compartment.label,
-    }))
-    .sort((a, b) => {
-      if (a.label === b.label) {
-        assert(a.path !== undefined && b.path !== undefined);
-        return pathCompare(a.path, b.path);
-      }
-      return stringCompare(a.label, b.label);
-    });
+  const compartmentsByPath =
+    /** @type {Array<{name: string, label: PackageCompartmentDescriptorName}>} */ (
+      Object.entries(compartments)
+        .map(([name, compartment]) => ({
+          name,
+          label: compartment.label,
+        }))
+        .sort((a, b) => stringCompare(a.label, b.label))
+    );
 
   for (const { name, label } of compartmentsByPath) {
-    if (label === prev) {
-      compartmentRenames[name] = `${label}-n${index}`;
-      index += 1;
-    } else {
-      compartmentRenames[name] = label;
-      prev = label;
-      index = 1;
-    }
+    compartmentRenames[name] = label;
   }
   return compartmentRenames;
 };
 
 /**
- * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {PackageCompartmentDescriptors} compartmentDescriptors
  * @param {Sources} sources
- * @param {Record<string, string>} compartmentRenames
+ * @param {Record<string, PackageCompartmentDescriptorName>} compartmentRenames
+ * @param {DigestCompartmentMapOptions} [options]
+ * @returns {DigestedCompartmentDescriptors}
  */
-const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
+const translateCompartmentMap = (
+  compartmentDescriptors,
+  sources,
+  compartmentRenames,
+  { packageConnectionsHook, log = noop } = {},
+) => {
   const result = create(null);
   for (const compartmentName of keys(compartmentRenames)) {
-    const compartment = compartments[compartmentName];
-    const { name, label, retained: compartmentRetained, policy } = compartment;
+    /** @type {PackageCompartmentDescriptor} */
+    const compartmentDescriptor = compartmentDescriptors[compartmentName];
+    const {
+      name,
+      label,
+      retained: compartmentRetained,
+      policy,
+    } = compartmentDescriptor;
+    /** @type {Record<string, PackageCompartmentDescriptorName>} */
+    const renamedModuleDescriptorConfigs = {};
     if (compartmentRetained) {
       // rename module compartments
-      /** @type {Record<string, ModuleDescriptor>} */
+      /** @type {Record<string, SourceModuleDescriptorConfiguration>} */
       const modules = create(null);
-      const compartmentModules = compartment.modules;
-      if (compartment.modules) {
+      const compartmentModules = compartmentDescriptor.modules;
+      if (compartmentDescriptor.modules) {
         for (const name of keys(compartmentModules).sort()) {
           const { retained: moduleRetained, ...retainedModule } =
             compartmentModules[name];
           if (moduleRetained) {
             if (retainedModule.compartment !== undefined) {
+              /** @type {CompartmentModuleDescriptorConfiguration} */
               modules[name] = {
                 ...retainedModule,
                 compartment: compartmentRenames[retainedModule.compartment],
               };
+              renamedModuleDescriptorConfigs[name] = retainedModule.compartment;
             } else {
               modules[name] = retainedModule;
             }
@@ -126,25 +154,40 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
       if (compartmentSources) {
         for (const name of keys(compartmentSources).sort()) {
           const source = compartmentSources[name];
-          const { location, parser, exit, sha512, deferredError } = source;
-          if (location !== undefined) {
+          if (isLocalModuleSource(source)) {
+            const { location, parser, sha512 } = source;
+            /** @type {FileModuleDescriptorConfiguration} */
             modules[name] = {
               location,
               parser,
               sha512,
+              __createdBy: 'digest',
             };
-          } else if (exit !== undefined) {
+          } else if (isExitModuleSource(source)) {
+            const { exit } = source;
+            /** @type {ExitModuleDescriptorConfiguration} */
             modules[name] = {
               exit,
+              __createdBy: 'digest',
             };
-          } else if (deferredError !== undefined) {
+          } else if (isErrorModuleSource(source)) {
+            const { deferredError } = source;
+            /** @type {ErrorModuleDescriptorConfiguration} */
             modules[name] = {
               deferredError,
+              __createdBy: 'digest',
             };
+          } else {
+            throw new TypeError(
+              `Unexpected source type for compartment ${compartmentName} module ${name}: ${q(
+                source,
+              )}`,
+            );
           }
         }
       }
 
+      /** @type {DigestedCompartmentDescriptor} */
       result[compartmentRenames[compartmentName]] = {
         name,
         label,
@@ -154,6 +197,23 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
         // `scopes`, `types`, and `parsers` are not necessary since every
         // loadable module is captured in `modules`.
       };
+
+      const links = /** @type {Set<CanonicalName>} */ (
+        values(modules).reduce((acc, moduleDescriptorConfig) => {
+          if ('compartment' in moduleDescriptorConfig) {
+            acc.add(moduleDescriptorConfig.compartment);
+          }
+          return acc;
+        }, new Set())
+      );
+
+      if (packageConnectionsHook) {
+        packageConnectionsHook({
+          canonicalName: label,
+          connections: links,
+          log,
+        });
+      }
     }
   }
 
@@ -175,11 +235,16 @@ const renameSources = (sources, compartmentRenames) => {
 };
 
 /**
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
+ * @param {DigestCompartmentMapOptions} [options]
  * @returns {DigestResult}
  */
-export const digestCompartmentMap = (compartmentMap, sources) => {
+export const digestCompartmentMap = (
+  compartmentMap,
+  sources,
+  { packageConnectionsHook, log = noop } = {},
+) => {
   const {
     compartments,
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
@@ -190,11 +255,13 @@ export const digestCompartmentMap = (compartmentMap, sources) => {
     compartments,
     sources,
     oldToNewCompartmentNames,
+    { packageConnectionsHook, log },
   );
   const digestEntryCompartmentName =
     oldToNewCompartmentNames[entryCompartmentName];
   const digestSources = renameSources(sources, oldToNewCompartmentNames);
 
+  /** @type {DigestedCompartmentMapDescriptor} */
   const digestCompartmentMap = {
     // TODO graceful migration from tags to conditions
     // https://github.com/endojs/endo/issues/2388
@@ -210,7 +277,16 @@ export const digestCompartmentMap = (compartmentMap, sources) => {
   // We assert that we have constructed a valid compartment map, not because it
   // might not be, but to ensure that the assertCompartmentMap function can
   // accept all valid compartment maps.
-  assertCompartmentMap(digestCompartmentMap);
+  try {
+    assertDigestedCompartmentMap(digestCompartmentMap);
+  } catch (err) {
+    throw new TypeError(
+      `Invalid compartment map; ${JSON.stringify(
+        digestCompartmentMap,
+      )}:\n${err.message}`,
+      { cause: err },
+    );
+  }
 
   const newToOldCompartmentNames = fromEntries(
     entries(oldToNewCompartmentNames).map(([oldName, newName]) => [

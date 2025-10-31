@@ -15,11 +15,104 @@ import type {
 import type {
   CompartmentDescriptor,
   CompartmentMapDescriptor,
+  DigestedCompartmentMapDescriptor,
   Language,
   LanguageForExtension,
+  PackageCompartmentDescriptorName,
 } from './compartment-map-schema.js';
-import type { HashFn, ReadFn, ReadPowers } from './powers.js';
 import type { SomePolicy } from './policy-schema.js';
+import type { HashFn, ReadFn, ReadPowers } from './powers.js';
+import type { CanonicalName } from './canonical-name.js';
+import type { PackageDescriptor } from './node-modules.js';
+
+export type { CanonicalName };
+export type { PackageDescriptor };
+
+/**
+ * Hook executed for each canonical name mentioned in policy but not found in the
+ * compartment map
+ */
+export type UnknownCanonicalNameHook = (params: {
+  canonicalName: CanonicalName;
+  path: string[];
+  message: string;
+  suggestion?: CanonicalName | undefined;
+  log: LogFn;
+}) => void;
+
+export type { PackageCompartmentDescriptorName };
+
+/**
+ * Data about a package provided by a {@link PackageDataHook}
+ */
+export type PackageData = {
+  name: string;
+  packageDescriptor: PackageDescriptor;
+  location: FileUrlString;
+  canonicalName: PackageCompartmentDescriptorName;
+};
+
+/**
+ * Hook executed with data about all packages found while crawling `node_modules`.
+ * 
+ * Called once before `translateGraph`.
+ */
+export type PackageDataHook = (params: {
+  packageData: Readonly<Map<PackageCompartmentDescriptorName, PackageData>>;
+  log: LogFn;
+}) => void;
+
+/**
+ * Hook executed for each canonical name (corresponding to a package) in the
+ * `CompartmentMapDescriptor` with a list of canonical names of its
+ * dependencies.
+ *
+ * Can return partial updates to modify the dependencies set.
+ *
+ * Suggested use cases:
+ * - Adding dependencies based on policy
+ * - Removing dependencies based on policy
+ * - Filtering dependencies based on multiple criteria
+ */
+export type PackageDependenciesHook = (params: {
+  canonicalName: CanonicalName;
+  dependencies: Readonly<Set<CanonicalName>>;
+  log: LogFn;
+}) => Partial<{ dependencies: Set<CanonicalName> }> | void;
+
+/**
+ * The `moduleSource` property value for {@link ModuleSourceHook}
+ */
+export type ModuleSourceHookModuleSource =
+  | {
+      location: FileUrlString;
+      language: Language;
+      bytes: Uint8Array;
+      imports?: string[] | undefined;
+      exports?: string[] | undefined;
+      reexports?: string[] | undefined;
+      sha512?: string | undefined;
+    }
+  | { error: string }
+  | { exit: string };
+
+/**
+ * Hook executed when processing a module source.
+ */
+export type ModuleSourceHook = (params: {
+  moduleSource: ModuleSourceHookModuleSource;
+  canonicalName: CanonicalName;
+  log: LogFn;
+}) => void;
+
+/**
+ * Hook executed for each canonical name with its connections (linked compartments).
+ */
+export type PackageConnectionsHook = (params: {
+  canonicalName: CanonicalName;
+  connections: Set<CanonicalName>;
+  log: LogFn;
+}) => void;
 
 /**
  * Set of options available in the context of code execution.
@@ -66,6 +159,7 @@ export interface LogOptions {
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
+  MapNodeModulesHookOptions &
   LogOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
@@ -128,8 +222,14 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
 }>;
 
 /**
- * @deprecated Use `mapNodeModules()`.
+ * Hook options for `mapNodeModules()`
  */
+export type MapNodeModulesHookOptions = {
+  unknownCanonicalNameHook?: UnknownCanonicalNameHook | undefined;
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
+  packageDataHook?: PackageDataHook | undefined;
+};
+
 export type CompartmentMapForNodeModulesOptions = Omit<
   MapNodeModulesOptions,
   'conditions' | 'tags'
@@ -142,7 +242,16 @@ export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
   PolicyOption &
   LogOptions &
-  PreloadOption;
+  PreloadOption &
+  CaptureFromMapHookOptions;
+
+/**
+ * Hook options for `captureFromMap()`
+ */
+export type CaptureFromMapHookOptions = {
+  packageConnectionsHook?: PackageConnectionsHook | undefined;
+  moduleSourceHook?: ModuleSourceHook | undefined;
+};
 
 /**
  * Options bag containing a `preload` array.
@@ -162,7 +271,8 @@ export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
   ImportingOptions &
   ExitModuleImportHookOption &
-  LinkingOptions;
+  LinkingOptions &
+  LogOptions;
 
 export type SyncArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   SyncModuleTransformsOption &
@@ -198,15 +308,35 @@ export type BundleOptions = ArchiveOptions & {
   sourceUrlPrefix?: string;
 };
 
-export type SyncArchiveOptions = Omit<MapNodeModulesOptions, 'languages'> &
+export type SyncArchiveOptions = Omit<
+  MapNodeModulesOptions,
+  | 'languages'
+  | 'unknownCanonicalNameHook'
+  | 'packageDependenciesHook'
+  | 'packageDataHook'
+> &
   SyncArchiveLiteOptions;
+
+export type SyncLoadLocationOptions = SyncArchiveOptions &
+  LogOptions &
+  PreloadOption &
+  LoadLocationHookOptions;
 
 /**
  * Options for `loadLocation()`
  */
 export type LoadLocationOptions = ArchiveOptions &
   SyncArchiveOptions &
-  LogOptions;
+  LogOptions &
+  PreloadOption &
+  LoadLocationHookOptions;
+
+/**
+ * Hook options for `loadLocation()`
+ */
+export type LoadLocationHookOptions = MapNodeModulesHookOptions & {
+  moduleSourceHook?: ModuleSourceHook | undefined;
+};
 
 /**
  * Options for `importLocation()` necessary (but not sufficient--see
@@ -214,14 +344,17 @@ export type LoadLocationOptions = ArchiveOptions &
  */
 export type SyncImportLocationOptions = SyncArchiveOptions &
   ExecuteOptions &
-  LogOptions;
+  LogOptions &
+  PreloadOption;
 
 /**
  * Options for `importLocation()` without dynamic require support
  */
 export type ImportLocationOptions = ArchiveOptions &
   ExecuteOptions &
-  LogOptions;
+  LoadLocationHookOptions &
+  LogOptions &
+  PreloadOption;
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Single Options
@@ -355,7 +488,7 @@ export interface DigestResult {
   /**
    * Normalized `CompartmentMapDescriptor`
    */
-  compartmentMap: CompartmentMapDescriptor;
+  compartmentMap: DigestedCompartmentMapDescriptor;
 
   /**
    * Sources found in the `CompartmentMapDescriptor`
@@ -385,7 +518,7 @@ export interface DigestResult {
  * The result of `captureFromMap`.
  */
 export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
-  captureCompartmentMap: DigestResult['compartmentMap'];
+  captureCompartmentMap: DigestedCompartmentMapDescriptor;
   captureSources: DigestResult['sources'];
 };
 
@@ -393,7 +526,7 @@ export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
  * The result of `makeArchiveCompartmentMap`
  */
 export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
-  archiveCompartmentMap: DigestResult['compartmentMap'];
+  archiveCompartmentMap: DigestedCompartmentMapDescriptor;
   archiveSources: DigestResult['sources'];
 };
 
@@ -404,18 +537,31 @@ export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
 export type Sources = Record<string, CompartmentSources>;
 export type CompartmentSources = Record<string, ModuleSource>;
 
-// TODO unionize:
-export type ModuleSource = Partial<{
+export type ModuleSource =
+  | LocalModuleSource
+  | ExitModuleSource
+  | ErrorModuleSource;
+
+export interface BaseModuleSource {
   /** module loading error deferred to later stage */
+
+  deferredError?: string;
+}
+
+export interface ErrorModuleSource extends BaseModuleSource {
   deferredError: string;
+}
+
+export interface LocalModuleSource extends BaseModuleSource {
   /**
    * package-relative location.
    * Not suitable for capture in an archive or bundle since it varies from host
    * to host and would frustrate integrity hash checks.
    */
   location: string;
-  /** fully qualified location */
-  sourceLocation: string;
+  parser: Language;
+  /** in lowercase base-16 (hexadecimal) */
+  sha512?: string;
   /**
    * directory name of the original source.
    * This is safe to capture in a compartment map because it is _unlikely_ to
@@ -431,15 +577,19 @@ export type ModuleSource = Partial<{
    * https://github.com/endojs/endo/issues/2671
    */
   sourceDirname: string;
+  /** fully qualified location */
+
+  sourceLocation: FileUrlString;
   bytes: Uint8Array;
-  /** in lowercase base-16 (hexadecimal) */
-  sha512: string;
-  parser: Language;
-  /** indicates that this is a reference that exits the mapped compartments */
-  exit: string;
   /** module for the module */
   record: StaticModuleType;
-}>;
+}
+
+export interface ExitModuleSource extends BaseModuleSource {
+  /** indicates that this is a reference that exits the mapped compartments */
+
+  exit: string;
+}
 
 export type SourceMapHook = (
   sourceMap: string,
