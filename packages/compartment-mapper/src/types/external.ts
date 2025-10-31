@@ -18,27 +18,15 @@ import type {
   DigestedCompartmentMapDescriptor,
   Language,
   LanguageForExtension,
-  PackageCompartmentMapDescriptor,
+  PackageCompartmentDescriptorName,
 } from './compartment-map-schema.js';
-import type { SomePackagePolicy, SomePolicy } from './policy-schema.js';
+import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
 import type { CanonicalName } from './canonical-name.js';
 import type { PackageDescriptor } from './node-modules.js';
 
 export type { CanonicalName };
 export type { PackageDescriptor };
-
-// #region Hook Types
-
-/**
- * Hook executed after parsing a `PackageDescriptor`.
- */
-export type PackageDescriptorHook = (params: {
-  packageDescriptor: PackageDescriptor;
-  packageLocation: FileUrlString;
-  moduleSpecifier: string;
-  log: LogFn;
-}) => void;
 
 /**
  * Hook executed for each canonical name mentioned in policy but not found in the
@@ -52,12 +40,25 @@ export type UnknownCanonicalNameHook = (params: {
   log: LogFn;
 }) => void;
 
+export type { PackageCompartmentDescriptorName };
+
 /**
- * Hook executed with all canonical names found in the compartment map.
- * Called once before translateGraph.
+ * Data about a package provided by a {@link PackageDataHook}
  */
-export type CanonicalNamesHook = (params: {
-  canonicalNames: Readonly<Set<CanonicalName>>;
+export type PackageData = {
+  name: string;
+  packageDescriptor: PackageDescriptor;
+  location: FileUrlString;
+  canonicalName: PackageCompartmentDescriptorName;
+};
+
+/**
+ * Hook executed with data about all packages found while crawling `node_modules`.
+ *
+ * Called once before `translateGraph`.
+ */
+export type PackageDataHook = (params: {
+  packageData: Readonly<Map<PackageCompartmentDescriptorName, PackageData>>;
   log: LogFn;
 }) => void;
 
@@ -112,8 +113,6 @@ export type PackageConnectionsHook = (params: {
   connections: Set<CanonicalName>;
   log: LogFn;
 }) => void;
-
-// #endregion
 
 /**
  * Set of options available in the context of code execution.
@@ -226,10 +225,9 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
  * Hook options for `mapNodeModules()`
  */
 export type MapNodeModulesHookOptions = {
-  packageDescriptorHook?: PackageDescriptorHook | undefined;
   unknownCanonicalNameHook?: UnknownCanonicalNameHook | undefined;
-  canonicalNamesHook?: CanonicalNamesHook | undefined;
   packageDependenciesHook?: PackageDependenciesHook | undefined;
+  packageDataHook?: PackageDataHook | undefined;
 };
 
 export type CompartmentMapForNodeModulesOptions = Omit<
@@ -313,10 +311,9 @@ export type BundleOptions = ArchiveOptions & {
 export type SyncArchiveOptions = Omit<
   MapNodeModulesOptions,
   | 'languages'
-  | 'packageDescriptorHook'
   | 'unknownCanonicalNameHook'
-  | 'canonicalNamesHook'
   | 'packageDependenciesHook'
+  | 'packageDataHook'
 > &
   SyncArchiveLiteOptions;
 

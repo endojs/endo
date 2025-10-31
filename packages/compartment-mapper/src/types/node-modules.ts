@@ -56,7 +56,6 @@ export type GraphPackageOptions = {
  * Options for `graphPackages()`
  */
 export type GraphPackagesOptions = {
-  packageDescriptorHook?: PackageDescriptorHook | undefined;
   packageDependenciesHook?: PackageDependenciesHook | undefined;
   policy?: SomePolicy;
 } & LogOptions;
@@ -119,8 +118,7 @@ export interface Node {
    * Package name
    */
   name: string;
-  path: Array<string>;
-  logicalPath: Array<string>;
+  location: FileUrlString;
   /**
    * `true` if the package's {@link PackageDescriptor} has an `exports` field
    */

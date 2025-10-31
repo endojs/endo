@@ -22,7 +22,7 @@ const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 /**
  * @import {ProjectFixture} from './test.types.js'
- * @import {FileUrlString, MapNodeModulesOptions, MaybeReadPowers, PackageCompartmentMapDescriptor, CanonicalName, SomePolicy, PackageDescriptor, UnknownCanonicalNameHook, PackageDependenciesHook, PackageDescriptorHook, LogFn} from '../src/types.js'
+ * @import {FileUrlString, MapNodeModulesOptions, MaybeReadPowers, PackageCompartmentMapDescriptor, CanonicalName, SomePolicy, PackageDescriptor, UnknownCanonicalNameHook, PackageDependenciesHook, LogFn} from '../src/types.js'
  */
 
 const { keys, values } = Object;
@@ -365,67 +365,55 @@ const packageDependenciesHookPolicy = {
   },
 };
 
-test('mapNodeModules - packageDescriptorHook - called with correct parameters', async t => {
-  t.plan(22);
+test('mapNodeModules - packageDataHook - called with correct parameters', async t => {
+  /** @type {Map<string, any> | undefined} */
+  let receivedPackageData;
 
-  /** @type {Array<{packageDescriptor: PackageDescriptor, packageLocation: FileUrlString, moduleSpecifier: string}>} */
-  const hookCalls = [];
-
-  const packageDescriptorHook = ({
-    packageDescriptor,
-    packageLocation,
-    moduleSpecifier,
-  }) => {
-    hookCalls.push({ packageDescriptor, packageLocation, moduleSpecifier });
+  const packageDataHook = ({ packageData, log }) => {
+    receivedPackageData = packageData;
+    t.is(typeof log, 'function', 'log should be a function');
   };
 
   const hookReadPowers = makeProjectFixtureReadPowers(hookTestFixture);
   await mapNodeModules(hookReadPowers, hookTestFixture.entrypoint, {
-    packageDescriptorHook,
+    packageDataHook,
   });
 
+  t.truthy(receivedPackageData, 'packageData should be provided');
+  if (!receivedPackageData) {
+    return;
+  }
+
+  t.true(
+    typeof receivedPackageData.size === 'number' &&
+      typeof receivedPackageData.has === 'function',
+    'packageData should be a Map',
+  );
+
+  // Expected canonical names: $root$, dep-a, dep-b, dep-a>dep-c
   t.is(
-    hookCalls.length,
-    5,
-    'should call hook for entry package and all dependencies',
+    receivedPackageData.size,
+    4,
+    'should include entry package and all unique dependencies',
   );
 
-  const moduleSpecifiers = hookCalls.map(call => call.moduleSpecifier).sort();
-  // Entry uses './index.js', deps use their names, dep-c appears twice due to shared dependency
-  t.deepEqual(
-    moduleSpecifiers,
-    ['./index.js', 'dep-a', 'dep-b', 'dep-c', 'dep-c'],
-    'should call hook for all packages',
-  );
-
-  for (const call of hookCalls) {
+  // Verify each package data has the correct structure
+  for (const [canonicalName, packageData] of receivedPackageData) {
+    t.is(typeof packageData.name, 'string', 'name should be a string');
     t.is(
-      typeof call.packageDescriptor,
+      typeof packageData.packageDescriptor,
       'object',
       'packageDescriptor should be an object',
     );
-    // Entry package uses './index.js' as moduleSpecifier but 'app' as name
-    if (call.moduleSpecifier === './index.js') {
-      t.is(
-        call.packageDescriptor.name,
-        'app',
-        'entry package name should be app',
-      );
-    } else {
-      t.is(
-        call.packageDescriptor.name,
-        call.moduleSpecifier,
-        'dependency packageDescriptor name should match moduleSpecifier',
-      );
-    }
-    t.is(
-      typeof call.packageLocation,
-      'string',
-      'packageLocation should be a string',
-    );
+    t.is(typeof packageData.location, 'string', 'location should be a string');
     t.true(
-      call.packageLocation.startsWith('file:///'),
-      'packageLocation should be a file URL',
+      packageData.location.startsWith('file:///'),
+      'location should be a file URL',
+    );
+    t.is(
+      packageData.canonicalName,
+      canonicalName,
+      'canonicalName should match map key',
     );
   }
 });
@@ -548,13 +536,11 @@ test('mapNodeModules - packageDependenciesHook removes dependencies', async t =>
 test('mapNodeModules - multiple hooks work together', async t => {
   t.plan(2);
 
-  let packageDescriptorCalls = 0;
+  let packageDataCalled = false;
   let packageDependenciesCalls = 0;
 
-  /** @type {PackageDescriptorHook} */
-  const packageDescriptorHook = () => {
-    packageDescriptorCalls += 1;
-    return undefined;
+  const packageDataHook = () => {
+    packageDataCalled = true;
   };
 
   /** @type {PackageDependenciesHook} */
@@ -565,34 +551,33 @@ test('mapNodeModules - multiple hooks work together', async t => {
 
   const hookReadPowers = makeProjectFixtureReadPowers(hookTestFixture);
   await mapNodeModules(hookReadPowers, hookTestFixture.entrypoint, {
-    packageDescriptorHook,
+    packageDataHook,
     packageDependenciesHook,
     policy: hookTestPolicy,
   });
 
-  t.true(packageDescriptorCalls > 0, 'packageDescriptor hook should be called');
+  t.true(packageDataCalled, 'packageData hook should be called');
   t.true(
     packageDependenciesCalls > 0,
     'packageDependencies hook should be called',
   );
 });
 
-test('mapNodeModules - packageDescriptorHook - hook error handling', async t => {
+test('mapNodeModules - packageDataHook - hook error handling', async t => {
   t.plan(3);
 
-  /** @type {PackageDescriptorHook} */
-  const packageDescriptorHook = ({ moduleSpecifier }) => {
-    if (moduleSpecifier === 'dep-a') {
+  const packageDataHook = ({ packageData }) => {
+    // Check if dep-a is in the packageData
+    if ([...packageData.keys()].some(key => key.includes('dep-a'))) {
       throw new Error('Test hook error');
     }
-    return undefined;
   };
 
   const hookReadPowers = makeProjectFixtureReadPowers(hookTestFixture);
 
   const error = await t.throwsAsync(
     mapNodeModules(hookReadPowers, hookTestFixture.entrypoint, {
-      packageDescriptorHook,
+      packageDataHook,
     }),
   );
 
@@ -942,19 +927,19 @@ test('mapNodeModules - unknownCanonicalNameHook includes suggestions when availa
   );
 });
 
-test('mapNodeModules - canonicalNamesHook called with all canonical names', async t => {
+test('mapNodeModules - packageDataHook provides all package data', async t => {
   t.plan(1);
 
   /** @type {Set<CanonicalName>} */
   let receivedCanonicalNames = new Set();
 
-  const canonicalNamesHook = ({ canonicalNames }) => {
-    receivedCanonicalNames = new Set([...canonicalNames].sort());
+  const packageDataHook = ({ packageData }) => {
+    receivedCanonicalNames = new Set([...packageData.keys()].sort());
   };
 
   const hookReadPowers = makeProjectFixtureReadPowers(hookTestFixture);
   await mapNodeModules(hookReadPowers, hookTestFixture.entrypoint, {
-    canonicalNamesHook,
+    packageDataHook,
   });
 
   // Expected canonical names based on the test fixture:
