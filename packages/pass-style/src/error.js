@@ -44,30 +44,37 @@ const makeRepairError = () => {
     return undefined;
   }
 
-  // We should only encounter this case on v8 because of its problematic
-  // error own stack accessor behavior.
-  // Note that FF/SpiderMonkey, Moddable/XS, and the error stack proposal
-  // all inherit a stack accessor property from Error.prototype, which is
-  // great. That case needs no heroics to secure.
   if (
-    // In the v8 case as we understand it, all errors have an own stack
-    // accessor property, but within the same realm, all these accessor
-    // properties have the same getter and have the same setter.
-    // This is therefore the case that we repair.
     typeof er1StackDesc.get !== 'function' ||
     er1StackDesc.get !== er2StackDesc.get ||
     typeof er1StackDesc.set !== 'function' ||
     er1StackDesc.set !== er2StackDesc.set
   ) {
+    // We have own stack accessor properties that are outside our expectations,
+    // that therefore need to be understood better before we know how to repair
+    // them.
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR.md
     throw TypeError(
       'Unexpected Error own stack accessor functions (PASS_STYLE_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR)',
     );
   }
 
-  // Otherwise, we have own stack accessor properties that are outside
-  // our expectations, that therefore need to be understood better
-  // before we know how to repair them.
+  // We should otherwise only encounter this case on V8 and possibly immitators
+  // like FaceBook's Hermes because of its problematic error own stack accessor
+  // behavior.
+  // Note that FF/SpiderMonkey, Moddable/XS, and the error stack proposal
+  // all inherit a stack accessor property from Error.prototype, which is
+  // great. That case needs no heroics to secure.
+
+  // In the V8 case as we understand it, all errors have an own stack accessor
+  // property, but within the same realm, all these accessor properties have
+  // the same getter and have the same setter.
+  // This is therefore the case that we repair.
+  //
+  // Also, we expect tht the captureStackTrace proposal to create more cases
+  // where error objects have own "stack" getters.
+  // https://github.com/tc39/proposal-error-capturestacktrace
+
   const feralStackGetter = freeze(er1StackDesc.get);
 
   const repairError = error => {
@@ -268,6 +275,13 @@ export const confirmRecursivelyPassableError = (
     );
   }
   if (repairError !== undefined) {
+    // This point is unreachable unless the candidate is mutable and the
+    // platform is V8 or like V8 creates errors with an own "stack" getter or
+    // setter, which would otherwise make them non-passable.
+    // This should only occur with lockdown using unsafe hardenTaming or an
+    // equivalent fake, non-actually-freezing harden.
+    // Under these circumstances only, passStyleOf alters an object as a side
+    // effect, converting the "stack" property to a data value.
     repairError(candidate);
   }
   const descs = getOwnPropertyDescriptors(candidate);
