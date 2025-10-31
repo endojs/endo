@@ -89,9 +89,8 @@ export const loadLocation = async (
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
-    packageDescriptorHook,
     unknownCanonicalNameHook,
-    canonicalNamesHook,
+    packageDataHook,
     packageDependenciesHook,
     moduleSourceHook,
     ...otherOptions
@@ -115,7 +114,7 @@ export const loadLocation = async (
     log,
     packageDescriptorHook,
     unknownCanonicalNameHook,
-    canonicalNamesHook,
+    packageDataHook,
     packageDependenciesHook,
   });
   return loadFromMap(readPowers, compartmentMap, {

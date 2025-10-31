@@ -54,6 +54,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  CanonicalName,
  SomePackagePolicy,
  PackageCompartmentDescriptorName,
+ PackageData,
  * } from './types.js'
  * @import {
  *   Graph,
@@ -469,7 +470,7 @@ const graphPackage = async (
     });
   }
 
-  const result = /** @type {Node} */ ({});
+  const result = /** @type {Node} */ ({ location: packageLocation });
   graph[packageLocation] = result;
 
   /** @type {Node['dependencyLocations']} */
@@ -608,6 +609,7 @@ const graphPackage = async (
     dependencyLocations,
     types,
     parsers,
+    packageDescriptor,
   });
 
   await Promise.all(
@@ -704,16 +706,6 @@ const gatherDependency = async (
     throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
 
-  // #region packageDescriptor hook
-  if (packageDescriptorHook) {
-    packageDescriptorHook({
-      packageDescriptor: dependency.packageDescriptor,
-      packageLocation: dependency.packageLocation,
-      moduleSpecifier: name,
-      log,
-    });
-  }
-  // #endregion
   dependencyLocations[name] = dependency.packageLocation;
 
   logicalPathGraph.addEdge(
@@ -776,7 +768,7 @@ const graphPackages = async (
   languageOptions,
   strict,
   logicalPathGraph,
-  { log = noop, packageDescriptorHook, packageDependenciesHook, policy } = {},
+  { log = noop, packageDependenciesHook, policy } = {},
 ) => {
   const memo = create(null);
   /**
@@ -842,7 +834,6 @@ const graphPackages = async (
     {
       commonDependencyDescriptors,
       log,
-      packageDescriptorHook,
       packageDependenciesHook,
       policy,
     },
@@ -1327,9 +1318,8 @@ export const compartmentMapForNodeModules_ = async (
     policy,
     strict = false,
     log = noop,
-    packageDescriptorHook,
     unknownCanonicalNameHook,
-    canonicalNamesHook,
+    packageDataHook,
     packageDependenciesHook,
   } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
@@ -1361,7 +1351,7 @@ export const compartmentMapForNodeModules_ = async (
     languageOptions,
     strict,
     logicalPathGraph,
-    { log, packageDescriptorHook, packageDependenciesHook, policy },
+    { log, policy, packageDependenciesHook },
   );
 
   makeAttenuatorsNode(graph, graph[entryPackageLocation], policy);
@@ -1403,11 +1393,24 @@ export const compartmentMapForNodeModules_ = async (
     }
   }
 
-  // Fire canonicalNames hook with all canonical names before translateGraph
-  const canonicalNames = new Set(canonicalNameMap.keys());
-  if (canonicalNamesHook) {
-    canonicalNamesHook({
-      canonicalNames,
+  // Fire packageData hook with all package data before translateGraph
+  if (packageDataHook) {
+    const packageData =
+      /** @type {Map<PackageCompartmentDescriptorName, PackageData>} */ (
+        new Map(
+          values(finalGraph).map(node => [
+            node.label,
+            {
+              name: node.name,
+              packageDescriptor: node.packageDescriptor,
+              location: node.location,
+              canonicalName: node.label,
+            },
+          ]),
+        )
+      );
+    packageDataHook({
+      packageData,
       log,
     });
   }
@@ -1441,9 +1444,8 @@ export const mapNodeModules = async (
     tags = new Set(),
     conditions = tags,
     log = noop,
-    packageDescriptorHook,
     unknownCanonicalNameHook,
-    canonicalNamesHook,
+    packageDataHook,
     packageDependenciesHook,
     policy,
     ...otherOptions
@@ -1463,17 +1465,6 @@ export const mapNodeModules = async (
   assertPackageDescriptor(packageDescriptor);
   assertFileUrlString(packageLocation);
 
-  // #region packageDescriptor hook
-  if (packageDescriptorHook) {
-    packageDescriptorHook({
-      packageDescriptor,
-      packageLocation,
-      moduleSpecifier,
-      log,
-    });
-  }
-  // #endregion
-
   return compartmentMapForNodeModules_(
     readPowers,
     packageLocation,
@@ -1483,10 +1474,9 @@ export const mapNodeModules = async (
     {
       log,
       policy,
-      packageDescriptorHook,
       unknownCanonicalNameHook,
-      canonicalNamesHook,
       packageDependenciesHook,
+      packageDataHook,
       ...otherOptions,
     },
   );
