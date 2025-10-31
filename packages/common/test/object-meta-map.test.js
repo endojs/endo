@@ -4,7 +4,7 @@ import { objectMetaMap } from '../object-meta-map.js';
 
 const { getOwnPropertyDescriptors, getPrototypeOf } = Object;
 
-// @ts-expect-error isFake is a secret.
+// @ts-expect-error isFake is not advertised by the type of harden.
 const hardenIsFake = !!harden.isFake;
 
 test('test objectMetaMap', async t => {
