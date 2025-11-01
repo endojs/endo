@@ -1,4 +1,3 @@
-/* global process */
 /* eslint-disable no-await-in-loop, no-continue, no-labels, no-unreachable-loop */
 
 /* The ses-ava command allows a single package to run the same test suite with
@@ -39,7 +38,7 @@ const passThroughArgOptions = new Set([
   '--port',
 ]);
 
-/** @type {(args: string[]) => Promise<void>} */
+/** @type {(args: string[]) => Promise<number>} */
 export const main = async args => {
   // Parse configuration.
   const descriptorText = await fs.promises.readFile('package.json', 'utf8');
@@ -138,6 +137,7 @@ export const main = async args => {
   }
 
   // Execute configurations serially.
+  let exitCode = 0;
   for (const config of configs) {
     console.warn(`[ses-ava] config:`, config);
     const avaArgs = [
@@ -147,17 +147,16 @@ export const main = async args => {
     const child = popen.spawn('ava', avaArgs, {
       stdio: ['inherit', 'inherit', 'inherit'],
     });
-    await new Promise((resolve, reject) => {
-      child.on('exit', code => {
-        process.exitCode ||= typeof code === 'number' ? code : 1;
-        if (failFast && process.exitCode !== 0) {
-          process.exit();
-        }
-        resolve(undefined);
+    const configExitCode = await new Promise((resolve, reject) => {
+      child.on('exit', (code, _signal) => {
+        resolve(typeof code === 'number' ? code : 1);
       });
       child.on('error', error => {
         reject(error);
       });
     });
+    exitCode ||= configExitCode;
+    if (failFast && exitCode !== 0) break;
   }
+  return exitCode;
 };
