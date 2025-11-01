@@ -39,7 +39,8 @@ const passThroughArgOptions = new Set([
   '--port',
 ]);
 
-export const main = async () => {
+/** @type {(args: string[]) => Promise<void>} */
+export const main = async args => {
   // Parse configuration.
   const descriptorText = await fs.promises.readFile('package.json', 'utf8');
   const descriptor = JSON.parse(descriptorText);
@@ -54,7 +55,7 @@ export const main = async () => {
   const onlyConfigNames = new Set();
   let failFast = false;
   let firstArg = true;
-  const argsIterator = process.argv.slice(2)[Symbol.iterator]();
+  const argsIterator = args[Symbol.iterator]();
   for (const rawArg of argsIterator) {
     if (rawArg === '--') {
       passThroughArgs.push(...argsIterator);
