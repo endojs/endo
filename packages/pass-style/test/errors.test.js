@@ -83,6 +83,29 @@ test('toPassableError, toThrowable', t => {
   t.is(throwable, toThrowable(throwable));
 });
 
+test('passStyleOf frozen (not hardened) error on pathological V8 runtime is exceptional', t => {
+  const e1 = Object.freeze(new Error('that which is frozen but not hardened'));
+  const e2 = new Error('another error, for cross-reference');
+
+  const desc1 = Object.getOwnPropertyDescriptor(e1, 'stack');
+  const desc2 = Object.getOwnPropertyDescriptor(e2, 'stack');
+  const intrinsicOwnErrorStackAccessor =
+    desc1.get !== undefined && desc1.get === desc2.get;
+
+  if (intrinsicOwnErrorStackAccessor) {
+    t.throws(() => passStyleOf(e1), {
+      message: /^Passable Error "stack" own property must be a data property:/,
+    });
+  } else {
+    t.is(passStyleOf(e1), 'error');
+  }
+});
+
+test('passStyleOf hardened (albeit fake hardened) error adapts to pathological V8', t => {
+  const e = harden(new Error('that which is hardened but possibly unfrozen'));
+  t.is(passStyleOf(e), 'error');
+});
+
 /**
  * Copied from
  * https://github.com/Agoric/agoric-sdk/blob/286302a192b9eb2e222faa08479f496645bb7b9a/packages/internal/src/upgrade-api.js#L25-L39
