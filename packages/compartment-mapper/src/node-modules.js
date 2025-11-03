@@ -704,7 +704,6 @@ const graphPackages = async (
   const packageDescriptor = allegedPackageDescriptor;
 
   conditions = new Set(conditions || []);
-  conditions.add('import');
   conditions.add('default');
   conditions.add('endo');
 
@@ -1098,13 +1097,20 @@ export const mapNodeModules = async (
     packageDescriptorLocation,
     moduleSpecifier,
   } = await search(readPowers, moduleLocation, { log });
-
+  conditions = conditions ?? new Set();
+  
   const packageDescriptor = /** @type {typeof parseLocatedJson<unknown>} */ (
     parseLocatedJson
   )(packageDescriptorText, packageDescriptorLocation);
 
   assertPackageDescriptor(packageDescriptor);
   assertFileUrlString(packageLocation);
+
+  if (packageDescriptor.type === 'module') {
+    conditions.add('import');
+  } else {
+    conditions.add('require');
+  }
 
   return compartmentMapForNodeModules(
     readPowers,
