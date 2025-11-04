@@ -9,6 +9,9 @@ import {
   makeExo,
 } from '../index.js';
 
+// @ts-expect-error isFake is not advertised by the type of harden.
+const hardenIsFake = !!harden.isFake;
+
 const NoExtraI = M.interface('NoExtra', {
   foo: M.call().returns(),
 });
@@ -231,14 +234,14 @@ const PassableGreeterI = M.interface(
 test('passable guards', t => {
   const greeter = makeExo('greeter', PassableGreeterI, {
     sayHello(immutabe) {
-      t.is(Object.isFrozen(immutabe), true);
+      t.true(Object.isFrozen(immutabe));
       return 'hello';
     },
   });
 
   const mutable = {};
   t.is(greeter.sayHello(mutable), 'hello', `passableGreeter can sayHello`);
-  t.is(Object.isFrozen(mutable), true, `mutable is frozen`);
+  t.true(Object.isFrozen(mutable), `mutable is frozen`);
   t.throws(() => greeter.sayHello(makeBehavior()), {
     message:
       /In "sayHello" method of \(greeter\): Remotables must be explicitly declared/,
@@ -280,37 +283,50 @@ test('raw guards', t => {
       return 'hello';
     },
     rawIn(obj) {
-      t.is(Object.isFrozen(obj), false);
+      // Object is never actually frozen, but isFrozen will always say true
+      // when hardenIsFake.
+      t.is(hardenIsFake, Object.isFrozen(obj));
       return obj;
     },
     rawOut(obj) {
-      t.is(Object.isFrozen(obj), true);
+      // Object is implicitly frozen by harden as a side-effect of passing to
+      // an M.any guard, or unfrozen because harden is fake, but isFrozen lies.
+      t.true(Object.isFrozen(obj));
       return { ...obj };
     },
     passthrough(obj) {
-      t.is(Object.isFrozen(obj), false);
+      // The object is not frozen, but isFrozen lies when hardenTaming is
+      // unsafe.
+      t.is(hardenIsFake, Object.isFrozen(obj));
       return obj;
     },
     tortuous(hardA, softB, hardC, optHardD, optSoftE = {}) {
+      // Recall that isFrozen lies with hardenTaming: unsafe
       // Test that `M.raw()` does not freeze the arguments, unlike `M.any()`.
-      t.is(Object.isFrozen(hardA), true);
-      t.is(Object.isFrozen(softB), false);
+      t.true(Object.isFrozen(hardA));
+      t.is(hardenIsFake, Object.isFrozen(softB));
       softB.b = 2;
-      t.is(Object.isFrozen(hardC), true);
-      t.is(Object.isFrozen(optHardD), true);
-      t.is(Object.isFrozen(optSoftE), false);
+      t.true(Object.isFrozen(hardC));
+      t.true(Object.isFrozen(optHardD));
+      // optSoftE is never frozen. It's either explicitly passed raw, or
+      // defaults in the argument to an unfrozen object.
+      // But, in unsafe harden taming, isFrozen misreports that soft objects
+      // are frozen.
+      t.is(hardenIsFake, Object.isFrozen(optSoftE));
       return {};
     },
   });
   t.deepEqual(greeter2[GET_INTERFACE_GUARD]?.(), Greeter2I);
   testGreeter(t, greeter, 'explicit raw');
 
-  t.is(Object.isFrozen(greeter2.rawIn({})), true);
-  t.is(Object.isFrozen(greeter2.rawOut({})), false);
-  t.is(Object.isFrozen(greeter2.passthrough({})), false);
+  t.true(Object.isFrozen(greeter2.rawIn({})));
+  // These both return actually unfrozen objects because of the M.raw return
+  // guard, but isFrozen says true anyway if hardenTaming is unsafe.
+  t.is(hardenIsFake, Object.isFrozen(greeter2.rawOut({})));
+  t.is(hardenIsFake, Object.isFrozen(greeter2.passthrough({})));
 
-  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})), true);
-  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {})), true);
+  t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
+  t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
     () => greeter2.tortuous(makeBehavior(), {}, {}),

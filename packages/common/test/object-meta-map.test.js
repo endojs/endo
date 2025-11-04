@@ -4,6 +4,9 @@ import { objectMetaMap } from '../object-meta-map.js';
 
 const { getOwnPropertyDescriptors, getPrototypeOf } = Object;
 
+// @ts-expect-error isFake is not advertised by the type of harden.
+const hardenIsFake = !!harden.isFake;
+
 test('test objectMetaMap', async t => {
   const mapped = objectMetaMap(
     { a: 1, b: 2, c: 3 },
@@ -21,15 +24,15 @@ test('test objectMetaMap', async t => {
   t.deepEqual(getOwnPropertyDescriptors(mapped), {
     a: {
       value: 2,
-      writable: false,
+      writable: hardenIsFake,
       enumerable: false,
-      configurable: false,
+      configurable: hardenIsFake,
     },
     c: {
       value: 6,
-      writable: false,
+      writable: hardenIsFake,
       enumerable: false,
-      configurable: false,
+      configurable: hardenIsFake,
     },
   });
   t.is(getPrototypeOf(mapped), null);

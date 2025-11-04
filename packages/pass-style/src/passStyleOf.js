@@ -19,8 +19,8 @@ import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
 import {
   ErrorHelper,
-  confirmRecursivelyPassableErrorPropertyDesc,
   confirmRecursivelyPassableError,
+  confirmRecursivelyPassableErrorPropertyDesc,
   getErrorConstructor,
   isErrorLike,
 } from './error.js';

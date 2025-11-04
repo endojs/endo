@@ -17,9 +17,12 @@ const { defineProperty } = Object;
 
 test('style of extended errors', t => {
   const e1 = Error('e1');
-  t.throws(() => passStyleOf(e1), {
-    message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
-  });
+  if (!harden.isFake) {
+    t.throws(() => passStyleOf(e1), {
+      message:
+        'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
+    });
+  }
   harden(e1);
   t.is(passStyleOf(e1), 'error');
 
@@ -49,7 +52,7 @@ test('toPassableError, toThrowable', t => {
   // Since then, we changed `makeError` to make reasonable effort
   // to return a passable error by default. But also added the
   // `sanitize: false` option to suppress that.
-  t.false(Object.isFrozen(e));
+  t.false(!harden.isFake && Object.isFrozen(e));
   t.false(isPassable(e));
 
   // toPassableError hardens, and then checks whether the hardened argument
@@ -78,6 +81,29 @@ test('toPassableError, toThrowable', t => {
 
   const throwable = harden([e2, { e2 }, makeTagged('e2', e2)]);
   t.is(throwable, toThrowable(throwable));
+});
+
+test('passStyleOf frozen (not hardened) error on pathological V8 runtime is exceptional', t => {
+  const e1 = Object.freeze(new Error('that which is frozen but not hardened'));
+  const e2 = new Error('another error, for cross-reference');
+
+  const desc1 = Object.getOwnPropertyDescriptor(e1, 'stack');
+  const desc2 = Object.getOwnPropertyDescriptor(e2, 'stack');
+  const intrinsicOwnErrorStackAccessor =
+    desc1.get !== undefined && desc1.get === desc2.get;
+
+  if (intrinsicOwnErrorStackAccessor) {
+    t.throws(() => passStyleOf(e1), {
+      message: /^Passable Error "stack" own property must be a data property:/,
+    });
+  } else {
+    t.is(passStyleOf(e1), 'error');
+  }
+});
+
+test('passStyleOf hardened (albeit fake hardened) error adapts to pathological V8', t => {
+  const e = harden(new Error('that which is hardened but possibly unfrozen'));
+  t.is(passStyleOf(e), 'error');
 });
 
 /**

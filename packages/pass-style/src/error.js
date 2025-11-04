@@ -8,7 +8,159 @@ import { Fail, q, hideAndHardenFunction } from '@endo/errors';
  * @import {PassStyle} from './types.js';
  */
 
-const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
+const {
+  defineProperty,
+  getPrototypeOf,
+  getOwnPropertyDescriptors,
+  getOwnPropertyDescriptor,
+  hasOwn,
+  entries,
+  freeze,
+} = Object;
+
+const { apply } = Reflect;
+
+const hardenIsFake = () => {
+  // We do not trust isFrozen because lockdown with unsafe hardenTaming replaces
+  // isFrozen with a version that is in cahoots with fake harden.
+  const subject = harden({ __proto__: null, x: 0 });
+  const desc = getOwnPropertyDescriptor(subject, 'x');
+  return desc?.writable === true;
+};
+
+/**
+ * Pass-style must defend its own integrity under a number of configurations.
+ *
+ * In all environments where we use pass-style, we can in principle rely on the
+ * globalThis.TypeError and globalThis.Error to be safe.
+ * We have similar code in SES that stands on the irreducible risk that an
+ * attacker may run before SES, so the application must either ensure that SES
+ * initializes first or that all prior code is benign.
+ * For all other configurations, we rely to some degree on SES lockdown and a
+ * Compartment for any measure of safety.
+ *
+ * Pass-style may be loaded by the host module system into the primary realm,
+ * which the authors call the Start Compartment.
+ * SES provides no assurances that any number of guest programs can be safely
+ * executed by the host in the start compartment.
+ * Such code must be executed in a guest compartment.
+ * As such, it is irrelevant that the globalThis is mutable and also holds all
+ * of the host's authority.
+ *
+ * Pass-style may be loaded into a guest compartment, and the globalThis of the
+ * compartment may or may not be frozen.
+ * We typically, as with importBundle, run every Node.js package in a dedicated
+ * compartment with a gratuitiously frozen globalThis.
+ * In this configuration, we can rely on globalThis.Error and
+ * globalThis.TypeError to correspond to the realm's intrinsics, either because
+ * the Compartment arranged for a frozen globalThis or because the pass-style
+ * package provides no code that can arrange for a change to the compartment's
+ * globalThis.
+ *
+ * Running multiple guests in a single compartment with an unfrozen globalThis
+ * is incoherent and provides no assurance of mutual safety between those
+ * guests.
+ * No code, much less Pass-style, should be run in such a compartment.
+ *
+ * Although we can rely on the globalThis.Error and globalThis.TypeError
+ * bindings, we can and do use `makeTypeError` to produce a TypeError instance
+ * that is guaranteed to be an instance of the realm intrinsic by dint of
+ * construction from language syntax.
+ * The idiom "belt and suspenders" is well-known among the authors and means
+ * gratuitous or redundant safety measures.
+ * In this case, we wear both belt and suspenders *on our overalls*.
+ *
+ * @returns {TypeError}
+ */
+const makeTypeError = () => {
+  try {
+    // @ts-expect-error deliberate TypeError
+    null.null;
+    throw TypeError('obligatory'); // To convince the type flow inferrence.
+  } catch (error) {
+    return error;
+  }
+};
+
+export const makeRepairError = () => {
+  if (!hardenIsFake()) {
+    return undefined;
+  }
+
+  const typeErrorStackDesc = getOwnPropertyDescriptor(makeTypeError(), 'stack');
+  const errorStackDesc = getOwnPropertyDescriptor(Error('obligatory'), 'stack');
+
+  if (
+    typeErrorStackDesc === undefined ||
+    typeErrorStackDesc.get === undefined
+  ) {
+    return undefined;
+  }
+
+  if (
+    errorStackDesc === undefined ||
+    typeof typeErrorStackDesc.get !== 'function' ||
+    typeErrorStackDesc.get !== errorStackDesc.get ||
+    typeof typeErrorStackDesc.set !== 'function' ||
+    typeErrorStackDesc.set !== errorStackDesc.set
+  ) {
+    // We have own stack accessor properties that are outside our expectations,
+    // that therefore need to be understood better before we know how to repair
+    // them.
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR.md
+    throw TypeError(
+      'Unexpected Error own stack accessor functions (PASS_STYLE_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR)',
+    );
+  }
+
+  // We should otherwise only encounter this case on V8 and possibly immitators
+  // like FaceBook's Hermes because of its problematic error own stack accessor
+  // behavior, which creates an undeniable channel for communicating arbitrary
+  // capabilities through the stack internal slot of arbitrary frozen objects.
+  // Note that FF/SpiderMonkey, Moddable/XS, and the error stack proposal
+  // all inherit a stack accessor property from Error.prototype, which is
+  // great. That case needs no heroics to secure.
+
+  // In the V8 case as we understand it, all errors have an own stack accessor
+  // property, but within the same realm, all these accessor properties have
+  // the same getter and have the same setter.
+  // This is therefore the case that we repair.
+  //
+  // Also, we expect tht the captureStackTrace proposal to create more cases
+  // where error objects have own "stack" getters.
+  // https://github.com/tc39/proposal-error-capturestacktrace
+
+  const feralStackGetter = freeze(errorStackDesc.get);
+
+  /** @param {unknown} error */
+  const repairError = error => {
+    // Only pay the overhead if it first passes this cheap isError
+    // check. Otherwise, it will be unrepaired, but won't be judged
+    // to be a passable error anyway, so will not be unsafe.
+    const stackDesc = getOwnPropertyDescriptor(error, 'stack');
+    if (
+      stackDesc &&
+      stackDesc.get === feralStackGetter &&
+      stackDesc.configurable
+    ) {
+      // Can only repair if it is configurable. Otherwise, leave
+      // unrepaired, in which case it will not be judged passable,
+      // avoiding a safety problem.
+      defineProperty(error, 'stack', {
+        // NOTE: Calls getter during harden, which seems dangerous.
+        // But we're only calling the problematic getter whose
+        // hazards we think we understand.
+        value: apply(feralStackGetter, error, []),
+      });
+    }
+  };
+  harden(repairError);
+
+  return repairError;
+};
+harden(makeRepairError);
+
+export const repairError = makeRepairError();
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
 // whilelist.
@@ -178,6 +330,16 @@ export const confirmRecursivelyPassableError = (
       reject`Passable Error must inherit from an error class .prototype: ${candidate}`
     );
   }
+  if (repairError !== undefined) {
+    // This point is unreachable unless the candidate is mutable and the
+    // platform is V8 or like V8 creates errors with an own "stack" getter or
+    // setter, which would otherwise make them non-passable.
+    // This should only occur with lockdown using unsafe hardenTaming or an
+    // equivalent fake, non-actually-freezing harden.
+    // Under these circumstances only, passStyleOf alters an object as a side
+    // effect, converting the "stack" property to a data value.
+    repairError(candidate);
+  }
   const descs = getOwnPropertyDescriptors(candidate);
   if (!('message' in descs)) {
     return (
@@ -197,9 +359,7 @@ export const confirmRecursivelyPassableError = (
 };
 harden(confirmRecursivelyPassableError);
 
-/**
- * @type {PassStyleHelper}
- */
+/** @type {PassStyleHelper} */
 export const ErrorHelper = harden({
   styleName: 'error',
 
