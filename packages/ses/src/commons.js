@@ -349,12 +349,39 @@ export const noEvalEvaluate = () => {
 
 // ////////////////// FERAL_STACK_GETTER FERAL_STACK_SETTER ////////////////////
 
-const er1StackDesc = getOwnPropertyDescriptor(Error('er1'), 'stack');
-const er2StackDesc = getOwnPropertyDescriptor(TypeError('er2'), 'stack');
+// The error repair mechanism is very similar to code in
+// pass-style/src/error.js and these implementations should be kept in sync.
+
+/**
+ * We gratuitiously construct a TypeError instance using syntax in order to
+ * obviate the possibility that code that ran before SES (for which we are
+ * irreducable vulnerable) may have replaced the global TypeError constructor.
+ * We treat the nature of this error instance as the source of truth for the
+ * nature of runtime constructed errors on the platform, particularly whether
+ * such errors will have an own "stack" property with getters and setters.
+ * At time of writing (2025) we know of no comparable mechanism for obtaining a
+ * host-generated base Error instance, but we corroborate the nature of the
+ * global Error constructor's instances and refuse to initialize SES in an
+ * environment where the syntactic TypeError and global Error produce
+ * inconsistent "stack" properties.
+ * @returns {TypeError}
+ */
+const makeTypeError = () => {
+  try {
+    // @ts-expect-error deliberate TypeError
+    null.null;
+    throw TypeError('obligatory'); // To convince the type flow inferrence.
+  } catch (error) {
+    return error;
+  }
+};
+
+const errorStackDesc = getOwnPropertyDescriptor(Error('obligatory'), 'stack');
+const typeErrorStackDesc = getOwnPropertyDescriptor(makeTypeError(), 'stack');
 
 let feralStackGetter;
 let feralStackSetter;
-if (er1StackDesc && er2StackDesc && er1StackDesc.get) {
+if (typeErrorStackDesc && typeErrorStackDesc.get) {
   // We should only encounter this case on v8 because of its problematic
   // error own stack accessor behavior.
   // Note that FF/SpiderMonkey, Moddable/XS, and the error stack proposal
@@ -365,16 +392,17 @@ if (er1StackDesc && er2StackDesc && er1StackDesc.get) {
     // accessor property, but within the same realm, all these accessor
     // properties have the same getter and have the same setter.
     // This is therefore the case that we repair.
-    typeof er1StackDesc.get === 'function' &&
-    er1StackDesc.get === er2StackDesc.get &&
-    typeof er1StackDesc.set === 'function' &&
-    er1StackDesc.set === er2StackDesc.set
+    errorStackDesc &&
+    typeof typeErrorStackDesc.get === 'function' &&
+    typeErrorStackDesc.get === errorStackDesc.get &&
+    typeof typeErrorStackDesc.set === 'function' &&
+    typeErrorStackDesc.set === errorStackDesc.set
   ) {
     // Otherwise, we have own stack accessor properties that are outside
     // our expectations, that therefore need to be understood better
     // before we know how to repair them.
-    feralStackGetter = freeze(er1StackDesc.get);
-    feralStackSetter = freeze(er1StackDesc.set);
+    feralStackGetter = freeze(typeErrorStackDesc.get);
+    feralStackSetter = freeze(typeErrorStackDesc.set);
   } else {
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR.md
     throw TypeError(
