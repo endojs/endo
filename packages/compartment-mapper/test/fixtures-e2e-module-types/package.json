@@ -1,0 +1,19 @@
+{
+    "name": "e2e-module-types",
+    "version": "1.0.0",
+    "type": "module",
+    "dependencies": {
+        "depth1": "^1.0.0",
+        "depth2": "^1.0.0",
+        "depth2cjs": "^1.0.0",
+        "depth2esm": "^1.0.0",
+        "depth3": "^1.0.0",
+        "depth3from2": "^1.0.0",
+        "depth3from2cjs": "^1.0.0",
+        "depth3from2esm": "^1.0.0"
+    },
+    "scripts": {
+        "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
+    },
+    "license": "ISC"
+}
