@@ -71,8 +71,8 @@ test('smallcaps serialize static data', t => {
   });
 
   const cd = ser(harden([1, 2]));
-  t.is(isFrozen(cd), true);
-  t.is(isFrozen(cd.slots), true);
+  t.true(isFrozen(cd));
+  t.true(isFrozen(cd.slots));
 });
 
 test('smallcaps unserialize static data', t => {
@@ -81,12 +81,12 @@ test('smallcaps unserialize static data', t => {
 
   // should be frozen
   const arr = uns('#[1,2]');
-  t.truthy(isFrozen(arr));
+  t.true(isFrozen(arr));
   const a = uns('#{"b":{"c":{"d": []}}}');
-  t.truthy(isFrozen(a));
-  t.truthy(isFrozen(a.b));
-  t.truthy(isFrozen(a.b.c));
-  t.truthy(isFrozen(a.b.c.d));
+  t.true(isFrozen(a));
+  t.true(isFrozen(a.b));
+  t.true(isFrozen(a.b.c));
+  t.true(isFrozen(a.b.c.d));
 });
 
 test('smallcaps serialize errors', t => {
@@ -154,16 +154,16 @@ test('smallcaps unserialize errors', t => {
   const uns = body => unserialize({ body, slots: [] });
 
   const em1 = uns('#{"#error":"msg","name":"ReferenceError"}');
-  t.truthy(em1 instanceof ReferenceError);
+  t.true(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
-  t.truthy(isFrozen(em1));
+  t.true(isFrozen(em1));
 
   const em2 = uns('#{"#error":"msg2","name":"TypeError"}');
-  t.truthy(em2 instanceof TypeError);
+  t.true(em2 instanceof TypeError);
   t.is(em2.message, 'msg2');
 
   const em3 = uns('#{"#error":"msg3","name":"Unknown"}');
-  t.truthy(em3 instanceof Error);
+  t.true(em3 instanceof Error);
   t.is(em3.message, 'msg3');
 });
 
