@@ -54,7 +54,9 @@ test('serialize static data', t => {
   const m = makeTestMarshal();
   const ser = val => m.serialize(val);
 
-  if (!harden.isFake) {
+  // Lockdown with unsafe hardenTaming will cause isFrozen to misreport that
+  // [1, 2] is frozen.
+  if (!Object.isFrozen({})) {
     t.throws(() => ser([1, 2]), {
       message: /Cannot pass non-frozen objects like/,
     });
@@ -111,18 +113,15 @@ test('serialize errors', t => {
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
-  if (!harden.isFake) {
-    // @ts-expect-error Check dynamic consequences of type violation
-    t.falsy(isFrozen(errExtra.foo));
-  }
+  // Lockdown with unsafe hardenTaming makes isFrozen lie.
+  // @ts-expect-error Check dynamic consequences of type violation
+  t.is(isFrozen({}), isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
     body: '{"@qclass":"error","errorId":"error:anon-marshal#10003","message":"has extra properties","name":"Error"}',
     slots: [],
   });
-  if (!harden.isFake) {
-    // @ts-expect-error Check dynamic consequences of type violation
-    t.falsy(isFrozen(errExtra.foo));
-  }
+  // @ts-expect-error Check dynamic consequences of type violation
+  t.is(isFrozen({}), isFrozen(errExtra.foo));
 
   // Bad prototype and bad "message" property
   const nonErrorProto1 = harden({
@@ -262,7 +261,7 @@ test('records', t => {
 
   // empty objects
 
-  if (!harden.isFake) {
+  if (!Object.isFrozen({})) {
     // rejected because it is not hardened
     t.throws(
       () => ser({}),

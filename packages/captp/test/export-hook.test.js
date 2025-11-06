@@ -3,6 +3,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
+import hardenIsNoop from '@endo/harden/is-noop.js';
 import { Far } from '@endo/marshal';
 import { E, makeLoopback } from '../src/loopback.js';
 
@@ -67,8 +68,8 @@ test('exportHook', async t => {
 
   // Trigger the hook to throw.
   harden(exports);
-  // @ts-ignore `isFake` purposely omitted from type
-  if (!harden.isFake) {
+  // We cannot rely on isExtensible when using lockdown with unsafe hardenTaming.
+  if (!hardenIsNoop(harden)) {
     await t.throwsAsync(() => E(bs).echo(Promise.resolve('never exported')), {
       message: /.*object is not extensible/,
     });

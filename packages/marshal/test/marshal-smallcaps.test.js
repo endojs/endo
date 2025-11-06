@@ -54,7 +54,8 @@ test('smallcaps serialize static data', t => {
   const { serialize } = makeTestMarshal();
   const ser = val => serialize(val);
 
-  if (!harden.isFake) {
+  // isFrozen cannot be relied upon in lockdown's unsafe hardenTaming mode.
+  if (!isFrozen({})) {
     t.throws(() => ser([1, 2]), {
       message: /Cannot pass non-frozen objects like/,
     });
@@ -125,18 +126,16 @@ test('smallcaps serialize errors', t => {
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
-  if (!harden.isFake) {
-    // @ts-expect-error Check dynamic consequences of type violation
-    t.falsy(isFrozen(errExtra.foo));
-  }
+  // isFrozen lies in unsafe hardenTaming mode.
+  // @ts-expect-error Check dynamic consequences of type violation
+  t.is(isFrozen({}), isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
     body: '#{"#error":"has extra properties","name":"Error"}',
     slots: [],
   });
-  if (!harden.isFake) {
-    // @ts-expect-error Check dynamic consequences of type violation
-    t.falsy(isFrozen(errExtra.foo));
-  }
+  // isFrozen lies in unsafe hardenTaming mode.
+  // @ts-expect-error Check dynamic consequences of type violation
+  t.is(isFrozen({}), isFrozen(errExtra.foo));
 
   // Bad prototype and bad "message" property
   const nonErrorProto1 = harden({
@@ -270,7 +269,8 @@ test('smallcaps records', t => {
 
   // empty objects
 
-  if (!harden.isFake) {
+  // isFrozen checks are unreliable under unsafe hardenTaming.
+  if (!isFrozen({})) {
     // rejected because it is not hardened
     t.throws(
       () => ser({}),

@@ -1,4 +1,5 @@
 import harden from '@endo/harden';
+import hardenIsNoop from '@endo/harden/is-noop.js';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 
 /**
@@ -18,14 +19,6 @@ const {
 } = Object;
 
 const { apply } = Reflect;
-
-const hardenIsFake = () => {
-  // We do not trust isFrozen because lockdown with unsafe hardenTaming replaces
-  // isFrozen with a version that is in cahoots with fake harden.
-  const subject = harden({ __proto__: null, x: 0 });
-  const desc = getOwnPropertyDescriptor(subject, 'x');
-  return desc?.writable === true;
-};
 
 /**
  * Pass-style must defend its own integrity under a number of configurations.
@@ -82,7 +75,7 @@ const makeTypeError = () => {
 };
 
 export const makeRepairError = () => {
-  if (!hardenIsFake()) {
+  if (!hardenIsNoop(harden)) {
     return undefined;
   }
 
