@@ -21,7 +21,8 @@ test('Acceptable far functions', t => {
 });
 
 test('Unacceptable far functions', t => {
-  if (!harden.isFake) {
+  // Lockdown with unsafe hardenTaming invalidates this the freeze test in Far.
+  if (!Object.isFrozen({})) {
     t.throws(
       () =>
         Far(

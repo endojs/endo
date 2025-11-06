@@ -27,7 +27,8 @@ test('marshal parse', t => {
 });
 
 test('marshal stringify errors', t => {
-  if (!harden.isFake) {
+  // isFrozen checks are unreliable under unsafe hardenTaming.
+  if (!Object.isFrozen({})) {
     t.throws(() => stringify([]), {
       message: /Cannot pass non-frozen objects like .*. Use harden()/,
     });

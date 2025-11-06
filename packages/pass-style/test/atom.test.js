@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
+import hardenIsNoop from '@endo/harden/is-noop.js';
 import { Far } from '../src/make-far.js';
 import { isAtom, assertAtom } from '../src/typeGuards.js';
 
@@ -14,8 +15,7 @@ test('isAtom test', t => {
   const p = Promise.resolve();
   t.false(isAtom(p));
   t.throws(() => assertAtom(p), {
-    // @ts-expect-error isFake is not advertised by the type of harden.
-    message: harden.isFake
+    message: hardenIsNoop(harden)
       ? 'A "promise" cannot be an atom: "[Promise]"'
       : 'Not even Passable: "[Error: Cannot pass non-frozen objects like \\"[Promise]\\". Use harden()]": "[Promise]"',
   });

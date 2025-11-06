@@ -1,12 +1,10 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
+import hardenIsNoop from '@endo/harden/is-noop.js';
 import { objectMetaMap } from '../object-meta-map.js';
 
 const { getOwnPropertyDescriptors, getPrototypeOf } = Object;
-
-// @ts-expect-error isFake is not advertised by the type of harden.
-const hardenIsFake = !!harden.isFake;
 
 test('test objectMetaMap', async t => {
   const mapped = objectMetaMap(
@@ -25,15 +23,15 @@ test('test objectMetaMap', async t => {
   t.deepEqual(getOwnPropertyDescriptors(mapped), {
     a: {
       value: 2,
-      writable: hardenIsFake,
+      writable: hardenIsNoop(harden),
       enumerable: false,
-      configurable: hardenIsFake,
+      configurable: hardenIsNoop(harden),
     },
     c: {
       value: 6,
-      writable: hardenIsFake,
+      writable: hardenIsNoop(harden),
       enumerable: false,
-      configurable: hardenIsFake,
+      configurable: hardenIsNoop(harden),
     },
   });
   t.is(getPrototypeOf(mapped), null);

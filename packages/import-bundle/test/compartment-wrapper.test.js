@@ -41,11 +41,7 @@ function check(t, c, n) {
 
 // The inescapable compartment scenario does not and is not expected to work
 // without lockdown.
-const lockedDown = !Object.getOwnPropertyDescriptor(
-  Object.prototype,
-  'constructor',
-).writable;
-(lockedDown || harden.isFake ? test : test.skip)('wrap', t => {
+(Object.isFrozen(Object) ? test : test.skip)('wrap', t => {
   const inescapableTransforms = [];
   const inescapableGlobalProperties = {
     WeakMap: 'replaced',
