@@ -96,14 +96,10 @@ export const Remotable = (
     Fail`Remotable ${remotable} is already marked as a ${q(
       remotable[PASS_STYLE],
     )}`;
-  // `isFrozen` always returns true with a fake `harden`, but we want that case
-  // to succeed anyway. Faking `harden` is only correctness preserving
-  // if the code in question contains no bugs that the real `harden` would
-  // have caught.
-  // @ts-ignore `isFake` purposely not in the type
-  harden.isFake ||
-    // Ensure that the remotable isn't already frozen.
-    !isFrozen(remotable) ||
+  // Ensure that the remotable isn't already frozen.
+  // Recall that isFrozen always returns true when using lockdown with
+  // hardenTaming set to the deprecated `'unsafe'` option.
+  isFrozen(remotable) === isFrozen({}) ||
     Fail`Remotable ${remotable} is already frozen`;
   const remotableProto = makeRemotableProto(remotable, iface);
 

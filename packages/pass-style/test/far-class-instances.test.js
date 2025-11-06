@@ -4,6 +4,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
+import hardenIsNoop from '@endo/harden/is-noop.js';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far, GET_METHOD_NAMES } from '../src/make-far.js';
@@ -105,13 +106,16 @@ test('far class instances', t => {
   ]);
 });
 
-(harden.isFake ? test.skip : test)('far class instance hardened empty', t => {
-  class FarClass4 extends FarBaseClass {
-    z = 0;
-  }
-  harden(FarClass4);
-  t.throws(() => new FarClass4(), {
-    // TODO message depends on JS engine, and so is a fragile golden test
-    message: 'Cannot define property z, object is not extensible',
-  });
-});
+(hardenIsNoop(harden) ? test.skip : test)(
+  'far class instance hardened empty',
+  t => {
+    class FarClass4 extends FarBaseClass {
+      z = 0;
+    }
+    harden(FarClass4);
+    t.throws(() => new FarClass4(), {
+      // TODO message depends on JS engine, and so is a fragile golden test
+      message: 'Cannot define property z, object is not extensible',
+    });
+  },
+);

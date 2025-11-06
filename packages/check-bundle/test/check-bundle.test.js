@@ -99,18 +99,17 @@ test('bundle and check corrupt endo zip base64 package', async t => {
   );
 });
 
-test('bundle and hash unfrozen object', async t => {
-  const bundle = {};
-  await null;
-  // @ts-ignore `isFake` purposely omitted from type
-  if (harden.isFake) {
-    t.pass();
-  } else {
+// This test is not possible if isFrozen is compromised by unsafe hardenTaming.
+(Object.isFrozen({}) ? test.skip : test)(
+  'bundle and hash unfrozen object',
+  async t => {
+    const bundle = {};
+    await null;
     await t.throwsAsync(checkBundle(bundle, computeSha512, 'fixture/main.js'), {
       message: `checkBundle cannot vouch for the ongoing integrity of an unfrozen object, got {}`,
     });
-  }
-});
+  },
+);
 
 test('bundle and hash bogus package', async t => {
   const bundle = Object.freeze({ moduleFormat: 'bogus' });
