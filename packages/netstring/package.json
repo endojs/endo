@@ -69,8 +69,8 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
-    "endo": "../../ava-endo-shims-only.config.mjs"
+    "base": "../../ava-base.config.mjs",
+    "noop-harden": "../../ava-noop-harden.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 100
