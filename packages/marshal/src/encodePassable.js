@@ -1,4 +1,5 @@
 /* eslint-disable no-bitwise */
+import harden from '@endo/harden';
 import {
   getTag,
   makeTagged,

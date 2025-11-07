@@ -25,6 +25,7 @@ import {
   is,
   ownKeys,
   stringSplit,
+  symbolFor,
   noEvalEvaluate,
   getOwnPropertyNames,
   getPrototypeOf,
@@ -363,6 +364,30 @@ export const repairIntrinsics = (options = {}) => {
 
   const intrinsics = finalIntrinsics();
 
+  // Install Object[@harden] or abort.
+  const symbolForHarden = symbolFor('harden');
+  const priorHarden = intrinsics.Object[symbolForHarden];
+  if (priorHarden) {
+    // By convention, if a module like @endo/harden gets used before lockdown,
+    // it will install itself as a non-configurable, non-writable property over
+    // Object[@harden] so that versions of SES predating the introduction of
+    // Object[@harden] will fail to lockdown because they cannot remove an
+    // unknown intrinsic.
+    // All newer versions explicitly check for Object[@harden] (here).
+    // The @endo/harden implementation additionally captures a stack trace
+    // where harden was first used to assist developers in tracking down the
+    // hardened module that was initialized before lockdown.
+    if (priorHarden.lockdownError) {
+      throw priorHarden.lockdownError;
+    }
+    // And in the event a library installs Object[@harden] without leaving a
+    // hint, we fall back to a generic lockdown error.
+    throw new TypeError(
+      'Cannot lockdown (repairIntrinsics) if a prior harden implementation has been used and installed. Check for libraries using @endo/harden before lockdown.',
+    );
+  }
+  intrinsics.Object[symbolForHarden] = tamedHarden;
+
   const hostIntrinsics = { __proto__: null };
 
   // The Node.js Buffer is a derived class of Uint8Array, and as such is often
@@ -404,19 +429,16 @@ export const repairIntrinsics = (options = {}) => {
     );
   }
 
+  // The default `assert` installed by `assert-shim.js` does not redact errors,
+  // leaving `lockdown` or `repairIntrinsics` with the obligation to replace it
+  // with a redacting version, unless the caller opts-out with errorTaming set
+  // to `unsafe` or `unsafe-debug`.
+  // The inverse was true through version 1.13.0, except the configuration
+  // was disregarded and the redacting `assert` left in place if lexical
+  // `assert` differed from `globalThis.assert`.
   // @ts-ignore assert is absent on globalThis type def.
-  if (
-    (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') &&
-    globalThis.assert === assert
-  ) {
-    // If errorTaming is 'unsafe' or 'unsafe-debug' we replace the
-    // global assert with
-    // one whose `details` template literal tag does not redact
-    // unmarked substitution values. IOW, it blabs information that
-    // was supposed to be secret from callers, as an aid to debugging
-    // at a further cost in safety.
-    // @ts-ignore assert is absent on globalThis type def.
-    globalThis.assert = makeAssert(undefined, true);
+  if (errorTaming !== 'unsafe' && errorTaming !== 'unsafe-debug') {
+    globalThis.assert = makeAssert();
   }
 
   // Replace *Locale* methods with their non-locale equivalents

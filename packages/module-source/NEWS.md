@@ -1,5 +1,9 @@
 User-visible changes in `@endo/module-source`:
 
+# Next release
+
+- Removes dependence on global `harden`.
+
 # v1.2.0 (2025-01-23)
 
 - Supports dynamic `import` within a `ModuleSource` in conjunction with
