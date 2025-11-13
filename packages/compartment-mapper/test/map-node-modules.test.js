@@ -158,3 +158,35 @@ test('mapNodeModules() should not consider peerDependenciesMeta without correspo
     }
   });
 }
+
+test('mapNodeModules() should not traverse ESM exports for CJS entrypoints', async t => {
+  const moduleLocation = new URL(
+    'fixtures-dual-module/node_modules/app/index.js',
+    import.meta.url,
+  ).href;
+  const readPowers = makeReadPowers({ fs, url });
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  t.is(
+    Object.values(compartmentMap.compartments).find(
+      compartment => compartment.name === 'dual',
+    )?.modules?.dual?.module,
+    './index.cjs',
+  );
+});
+
+test('mapNodeModules() should prefer ESM exports for ESM entrypoints', async t => {
+  const moduleLocation = new URL(
+    'fixtures-dual-module/node_modules/app-esm/index.js',
+    import.meta.url,
+  ).href;
+  const readPowers = makeReadPowers({ fs, url });
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  t.is(
+    Object.values(compartmentMap.compartments).find(
+      compartment => compartment.name === 'dual',
+    )?.modules?.dual?.module,
+    './index.js',
+  );
+});

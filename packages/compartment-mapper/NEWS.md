@@ -10,6 +10,8 @@ User-visible changes to `@endo/compartment-mapper`:
   occur _if and only if_ dynamic requires are enabled _and_ a policy is
   provided.
 - Improved error messaging for policy enforcement failures.
+- Fixed a bug where `mapNodeModules()` would traverse ESM exports even when
+  provided a CJS entrypoint.
 
 # v1.6.2 (2025-06-17)
 
