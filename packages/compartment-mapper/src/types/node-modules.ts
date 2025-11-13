@@ -3,7 +3,6 @@ import type { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
 import type {
   CanonicalName,
   CompartmentMapDescriptor,
-  ModuleDescriptorConfiguration,
   PackageCompartmentDescriptorName,
   PolicyOption,
   ScopeDescriptor,
@@ -14,13 +13,11 @@ import type {
   CompartmentModuleDescriptorConfiguration,
   Language,
   LanguageForExtension,
-  PackageCompartmentDescriptor,
   PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
 import type {
   FileUrlString,
   LogOptions,
-  PackageDescriptorHook,
   PackageDependenciesHook,
 } from './external.js';
 import type { LiteralUnion } from './typescript.js';
@@ -46,7 +43,6 @@ export type CommonDependencyDescriptorsOptions = {
  */
 export type GraphPackageOptions = {
   logicalPath?: string[];
-  packageDescriptorHook?: PackageDescriptorHook | undefined;
   packageDependenciesHook?: PackageDependenciesHook | undefined;
   policy?: SomePolicy;
 } & LogOptions &
@@ -69,7 +65,6 @@ export type GatherDependencyOptions = {
    * If `true` the dependency is optional
    */
   optional?: boolean;
-  packageDescriptorHook?: PackageDescriptorHook | undefined;
   packageDependenciesHook?: PackageDependenciesHook | undefined;
   policy?: SomePolicy;
 } & LogOptions &
