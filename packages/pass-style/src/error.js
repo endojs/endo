@@ -28,6 +28,9 @@ const hardenIsFake = () => {
   return desc?.writable === true;
 };
 
+// The error repair mechanism is very similar to code in ses/src/commons.js
+// and these implementations should be kept in sync.
+
 /**
  * Pass-style must defend its own integrity under a number of configurations.
  *
