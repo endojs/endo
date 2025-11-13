@@ -112,7 +112,6 @@ export const loadLocation = async (
     workspaceModuleLanguageForExtension,
     languages,
     log,
-    packageDescriptorHook,
     unknownCanonicalNameHook,
     packageDataHook,
     packageDependenciesHook,
