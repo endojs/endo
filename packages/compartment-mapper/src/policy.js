@@ -153,16 +153,11 @@ export const dependencyAllowedByPolicy = (canonicalName, packagePolicy) => {
  * @param {CanonicalName | typeof ATTENUATORS_COMPARTMENT} label
  * @param {object} [options] Options
  * @param {SomePolicy} [options.policy] User-supplied policy
- * @param {SomePackagePolicy} [options.packagePolicy] Package policy, if already known
  * @returns {SomePackagePolicy|undefined} Package policy from `policy` or empty object; returns `params.packagePolicy` if provided
  */
-export const makePackagePolicy = (
-  label,
-  { policy, packagePolicy = undefined } = {},
-) => {
-  if (packagePolicy !== undefined) {
-    return packagePolicy;
-  }
+export const makePackagePolicy = (label, { policy } = {}) => {
+  /** @type {SomePackagePolicy|undefined} */
+  let packagePolicy;
   if (policy) {
     if (label === ATTENUATORS_COMPARTMENT) {
       packagePolicy = {

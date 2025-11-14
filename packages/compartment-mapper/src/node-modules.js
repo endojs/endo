@@ -111,7 +111,7 @@ const defaultUnknownCanonicalNameHandler = ({
  * @param {SomePolicy} policy - The policy to check against
  * @returns {Partial<{ dependencies: Set<CanonicalName> }> | void}
  */
-const defaultPackageDependenciesFilter = (
+const prePackageDependenciesFilter = (
   { canonicalName, dependencies, log },
   policy,
 ) => {
@@ -880,7 +880,7 @@ const translateGraph = (
     // Call default filter first if policy exists
     let packageDependenciesHookResult;
     if (policy) {
-      packageDependenciesHookResult = defaultPackageDependenciesFilter(
+      packageDependenciesHookResult = prePackageDependenciesFilter(
         packageDependenciesHookInput,
         policy,
       );

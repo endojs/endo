@@ -1,16 +1,12 @@
 # Review of compartment-mapper hooks
 
-
-
-| Hook Name                 | Description                                                                           |
-|-------------------------- | --- |
-| `packageDataHook`         | Receives all found package descriptors data before graph translation.                                   |
-| `packageDependenciesHook` | Allows dynamic mutation of dependencies during node_modules graph translation.              |
-| `unknownCanonicalNameHook`| Called when the policy references unknown canonical names, can suggest typos/similar names. |
-| `moduleSourceHook`        | Invoked when a module source is created.                                             |
-| `packageConnectionsHook`  | Surfaces connections during digest. (ignored in archiving)                                               |
-
-
+| Hook Name                  | Description                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `packageDataHook`          | Receives all found package descriptors data before graph translation.                       |
+| `packageDependenciesHook`  | Allows dynamic mutation of dependencies during node_modules graph translation.              |
+| `unknownCanonicalNameHook` | Called when the policy references unknown canonical names, can suggest typos/similar names. |
+| `moduleSourceHook`         | Invoked when a module source is created.                                                    |
+| `packageConnectionsHook`   | Surfaces connections during digest. (ignored in archiving)                                  |
 
 [Type declarations for the hooks](./types/external.ts)
 
@@ -83,8 +79,6 @@ class note0,note1,note2,note3,note4,note5 note
 
 ```
 
-
-
 <details>
 <summary>Bundle and Archive bits of the diagram that don't use hooks</summary>
 
@@ -119,6 +113,3 @@ end
 ```
 
 </details>
-
-
-
