@@ -40,6 +40,7 @@ import type {
   SourceMapHookOption,
   Sources,
   SyncModuleTransforms,
+  CompartmentsRenameFn,
 } from './external.js';
 import type { PackageDescriptor } from './node-modules.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
@@ -317,8 +318,15 @@ export type MakeLoadCompartmentsOptions = LogOptions &
   PolicyOption &
   PreloadOption;
 
-export type DigestCompartmentMapOptions = LogOptions & {
+export type DigestCompartmentMapOptions<
+  OldCompartmentName extends string = FileUrlString,
+  NewCompartmentName extends string = PackageCompartmentDescriptorName,
+> = LogOptions & {
   packageConnectionsHook?: PackageConnectionsHook | undefined;
+  renameCompartments?: CompartmentsRenameFn<
+    OldCompartmentName,
+    NewCompartmentName
+  >;
 };
 
 export type CaptureCompartmentMapOptions = DigestCompartmentMapOptions;

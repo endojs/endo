@@ -451,13 +451,6 @@ scaffold(
   ),
   2, // expected number of assertions
   {
-    // shouldFailBeforeArchiveOperations: true,
-    // onError: (t, { error }) => {
-    //   t.regex(
-    //     error.message,
-    //     /Resource "myattenuator\/attenuate" was not found/i,
-    //   );
-    // },
     addGlobals: globals,
     policy: nestedAttenuator(policy),
   },

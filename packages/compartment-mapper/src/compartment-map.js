@@ -720,6 +720,7 @@ const assertPackageCompartmentDescriptor = (
     parsers: _parsers,
     types: _types,
     policy: _policy,
+    version: _version,
     ...extra
   } = /** @type {PackageCompartmentDescriptor} */ (allegedCompartment);
 

@@ -38,8 +38,12 @@
  *   ArchiveLiteOptions,
  *   ArchiveResult,
  *   ArchiveWriter,
+ CanonicalName,
  *   CaptureSourceLocationHook,
+ CompartmentsRenameFn,
+ FileUrlString,
  *   HashPowers,
+ PackageCompartmentDescriptorName,
  *   PackageCompartmentMapDescriptor,
  *   ReadFn,
  *   ReadPowers,
@@ -58,6 +62,8 @@ import {
 import { unpackReadPowers } from './powers.js';
 import { detectAttenuators } from './policy.js';
 import { digestCompartmentMap } from './digest.js';
+import { stringCompare } from './compartment-map.js';
+import { ATTENUATORS_COMPARTMENT, ENTRY_COMPARTMENT } from './policy-format.js';
 
 const textEncoder = new TextEncoder();
 
@@ -106,13 +112,64 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
  * @returns {ArchiveResult}
  */
 export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
+  /** @type {CompartmentsRenameFn<FileUrlString, string>} */
+  const renameCompartments = compartments => {
+    /** @type {Record<FileUrlString, string>} */
+    const compartmentRenames = create(null);
+
+    /**
+     * Get the new name of format `packageName-v${version}` compartments (except
+     * for the attenuators compartment)
+     * @param {string} name
+     * @param {string} version
+     * @returns {string}
+     */
+    const getCompartmentName = (name, version) => {
+      const compartment = compartments[name];
+      return ATTENUATORS_COMPARTMENT === compartment.name
+        ? compartment.name
+        : `${compartment.name}-v${version}`;
+    };
+
+    // The sort below combines two comparators to avoid depending on sort
+    // stability, which became standard as recently as 2019.
+    // If that date seems quaint, please accept my regards from the distant past.
+    // We are very proud of you.
+    const compartmentsByLabel =
+      /** @type {Array<{name: FileUrlString, packageName: string, compartmentName: string}>} */ (
+        Object.entries(compartments)
+          .map(([name, compartment]) => ({
+            name,
+            packageName: compartments[name].name,
+            compartmentName: getCompartmentName(name, compartment.version),
+          }))
+          .sort((a, b) => stringCompare(a.compartmentName, b.compartmentName))
+      );
+
+    /** @type {string|undefined} */
+    let prev;
+    let index = 1;
+    for (const { name, packageName, compartmentName } of compartmentsByLabel) {
+      if (packageName === prev) {
+        compartmentRenames[name] = `${compartmentName}-n${index}`; // Added numeric suffix for duplicates
+        index += 1;
+      } else {
+        compartmentRenames[name] = compartmentName;
+        prev = packageName;
+        index = 1;
+      }
+    }
+    return compartmentRenames;
+  };
+
   const {
     compartmentMap: archiveCompartmentMap,
     sources: archiveSources,
     oldToNewCompartmentNames,
     newToOldCompartmentNames,
     compartmentRenames,
-  } = digestCompartmentMap(compartmentMap, sources);
+  } = digestCompartmentMap(compartmentMap, sources, { renameCompartments });
+
   return {
     archiveCompartmentMap,
     archiveSources,

@@ -19,13 +19,12 @@
  *   ErrorModuleDescriptorConfiguration,
  *   DigestedCompartmentMapDescriptor,
  *   DigestedCompartmentDescriptor,
- HookConfiguration,
- DigestCompartmentMapHooks,
- DigestCompartmentMapOptions,
- PackageCompartmentDescriptor,
- PackageCompartmentDescriptorName,
- CompartmentModuleDescriptorConfiguration,
- CanonicalName,
+ *   DigestCompartmentMapOptions,
+ *   PackageCompartmentDescriptor,
+ *   PackageCompartmentDescriptorName,
+ *   CompartmentModuleDescriptorConfiguration,
+ *   CanonicalName,
+ *   CompartmentsRenameFn,
  FileUrlString,
  * } from './types.js'
  */
@@ -73,19 +72,18 @@ const noop = () => {};
  * actual installation location, so should be orthogonal to the vagaries of the
  * package manager's deduplication algorithm.
  *
- * @param {PackageCompartmentDescriptors} compartments
- * @returns {Record<string, PackageCompartmentDescriptorName>} map from old to new compartment names.
+ * @type {CompartmentsRenameFn<FileUrlString, PackageCompartmentDescriptorName>}
  */
-const renameCompartments = compartments => {
-  /** @type {Record<string, PackageCompartmentDescriptorName>} */
+const defaultRenameCompartments = compartments => {
+  /** @type {Record<FileUrlString, PackageCompartmentDescriptorName>} */
   const compartmentRenames = create(null);
 
   // The sort below combines two comparators to avoid depending on sort
   // stability, which became standard as recently as 2019.
   // If that date seems quaint, please accept my regards from the distant past.
   // We are very proud of you.
-  const compartmentsByPath =
-    /** @type {Array<{name: string, label: PackageCompartmentDescriptorName}>} */ (
+  const comaprtmentNamesToLabel =
+    /** @type {Array<{name: FileUrlString, label: PackageCompartmentDescriptorName}>} */ (
       Object.entries(compartments)
         .map(([name, compartment]) => ({
           name,
@@ -94,18 +92,38 @@ const renameCompartments = compartments => {
         .sort((a, b) => stringCompare(a.label, b.label))
     );
 
-  for (const { name, label } of compartmentsByPath) {
+  for (const { name, label } of comaprtmentNamesToLabel) {
     compartmentRenames[name] = label;
   }
   return compartmentRenames;
 };
 
 /**
+ * @template {string} [OldCompartmentName=FileUrlString]
+ * @template {string} [NewCompartmentName=PackageCompartmentDescriptorName]
+ * @overload
  * @param {PackageCompartmentDescriptors} compartmentDescriptors
  * @param {Sources} sources
- * @param {Record<string, PackageCompartmentDescriptorName>} compartmentRenames
+ * @param {Record<OldCompartmentName, NewCompartmentName>} compartmentRenames
+ * @param {DigestCompartmentMapOptions<OldCompartmentName, NewCompartmentName>} [options]
+ * @returns {DigestedCompartmentDescriptors}
+ */
+/**
+ * @overload
+ * @param {PackageCompartmentDescriptors} compartmentDescriptors
+ * @param {Sources} sources
+ * @param {Record<FileUrlString, PackageCompartmentDescriptorName>} compartmentRenames
  * @param {DigestCompartmentMapOptions} [options]
  * @returns {DigestedCompartmentDescriptors}
+ */
+
+/**
+ * @template {string} [OldCompartmentName=FileUrlString]
+ * @template {string} [NewCompartmentName=PackageCompartmentDescriptorName]
+ * @param {PackageCompartmentDescriptors} compartmentDescriptors
+ * @param {Sources} sources
+ * @param {Record<OldCompartmentName, NewCompartmentName>} compartmentRenames
+ * @param {DigestCompartmentMapOptions<OldCompartmentName, NewCompartmentName>} [options]
  */
 const translateCompartmentMap = (
   compartmentDescriptors,
@@ -235,22 +253,42 @@ const renameSources = (sources, compartmentRenames) => {
 };
 
 /**
+ * @template {string} [OldCompartmentName=FileUrlString]
+ * @template {string} [NewCompartmentName=PackageCompartmentDescriptorName]
+ * @overload
  * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
- * @param {DigestCompartmentMapOptions} [options]
- * @returns {DigestResult}
+ * @param {DigestCompartmentMapOptions<OldCompartmentName, NewCompartmentName>} [options]
+ * @returns {DigestResult<OldCompartmentName, NewCompartmentName>}
+ */
+
+/**
+ * @overload
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
+ * @param {Sources} sources
+ * @param {DigestCompartmentMapOptions<FileUrlString, PackageCompartmentDescriptorName>} [options]
+ * @returns {DigestResult<FileUrlString, PackageCompartmentDescriptorName>}
+ */
+
+/**
+ * @template {string} [OldCompartmentName=FileUrlString]
+ * @template {string} [NewCompartmentName=PackageCompartmentDescriptorName]
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
+ * @param {Sources} sources
+ * @param {DigestCompartmentMapOptions<OldCompartmentName, NewCompartmentName>} [options]
  */
 export const digestCompartmentMap = (
   compartmentMap,
   sources,
-  { packageConnectionsHook, log = noop } = {},
+  { packageConnectionsHook, log = noop, renameCompartments } = {},
 ) => {
   const {
     compartments,
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
 
-  const oldToNewCompartmentNames = renameCompartments(compartments);
+  const renameCompartmentsFn = renameCompartments ?? defaultRenameCompartments;
+  const oldToNewCompartmentNames = renameCompartmentsFn(compartments);
   const digestCompartments = translateCompartmentMap(
     compartments,
     sources,
@@ -288,6 +326,7 @@ export const digestCompartmentMap = (
     );
   }
 
+  /** @type {Record<NewCompartmentName, OldCompartmentName>} */
   const newToOldCompartmentNames = fromEntries(
     entries(oldToNewCompartmentNames).map(([oldName, newName]) => [
       newName,
@@ -295,14 +334,22 @@ export const digestCompartmentMap = (
     ]),
   );
 
-  /** @type {DigestResult} */
-  const digestResult = {
+  if (renameCompartments === defaultRenameCompartments) {
+    /** @type {DigestResult} */
+    return {
+      compartmentMap: digestCompartmentMap,
+      sources: digestSources,
+      oldToNewCompartmentNames,
+      newToOldCompartmentNames,
+      compartmentRenames: newToOldCompartmentNames,
+    };
+  }
+  /** @type {DigestResult<OldCompartmentName, NewCompartmentName>} */
+  return {
     compartmentMap: digestCompartmentMap,
     sources: digestSources,
     oldToNewCompartmentNames,
     newToOldCompartmentNames,
     compartmentRenames: newToOldCompartmentNames,
   };
-
-  return digestResult;
 };

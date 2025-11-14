@@ -19,6 +19,7 @@ import type {
   Language,
   LanguageForExtension,
   PackageCompartmentDescriptorName,
+  PackageCompartmentDescriptors,
 } from './compartment-map-schema.js';
 import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
@@ -484,7 +485,10 @@ type LinkingOptions = ParserForLanguageOption &
 /**
  * Result of `digestCompartmentMap()`
  */
-export interface DigestResult {
+export interface DigestResult<
+  OldCompartmentName extends string = FileUrlString,
+  NewCompartmentName extends string = PackageCompartmentDescriptorName,
+> {
   /**
    * Normalized `CompartmentMapDescriptor`
    */
@@ -499,19 +503,19 @@ export interface DigestResult {
    * A record of renamed {@link CompartmentDescriptor CompartmentDescriptors}
    * from _new_ to _original_ name
    */
-  newToOldCompartmentNames: Record<string, string>;
+  newToOldCompartmentNames: Record<NewCompartmentName, OldCompartmentName>;
 
   /**
    * A record of renamed {@link CompartmentDescriptor CompartmentDescriptors}
    * from _original_ to _new_ name
    */
-  oldToNewCompartmentNames: Record<string, string>;
+  oldToNewCompartmentNames: Record<OldCompartmentName, NewCompartmentName>;
 
   /**
    * Alias for `newToOldCompartmentNames`
    * @deprecated Use {@link newToOldCompartmentNames} instead.
    */
-  compartmentRenames: Record<string, string>;
+  compartmentRenames: Record<NewCompartmentName, OldCompartmentName>;
 }
 
 /**
@@ -525,7 +529,10 @@ export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
 /**
  * The result of `makeArchiveCompartmentMap`
  */
-export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
+export type ArchiveResult = Omit<
+  DigestResult<FileUrlString, string>,
+  'compartmentMap' | 'sources'
+> & {
   archiveCompartmentMap: DigestedCompartmentMapDescriptor;
   archiveSources: DigestResult['sources'];
 };
@@ -725,3 +732,16 @@ export type LogFn = (...args: any[]) => void;
  * A string that represents a file URL.
  */
 export type FileUrlString = `file://${string}`;
+
+/**
+ * A function that renames compartments; used by `digestCompartmentMap()`.
+ *
+ * The default implementation uses {@link PackageCompartmentDescriptorName} as the key type.
+ *
+ * @returns Mapping from old compartment names to new compartment names
+ * @template NewName Key type
+ */
+export type CompartmentsRenameFn<
+  OldName extends string = FileUrlString,
+  NewName extends string = PackageCompartmentDescriptorName,
+> = (compartments: PackageCompartmentDescriptors) => Record<OldName, NewName>;

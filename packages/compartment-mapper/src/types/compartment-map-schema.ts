@@ -94,6 +94,8 @@ export interface PackageCompartmentDescriptor
     string
   >;
 
+  version: string;
+
   location: PackageCompartmentDescriptorName;
 
   name: LiteralUnion<

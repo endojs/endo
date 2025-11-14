@@ -951,8 +951,15 @@ const translateGraph = (
   for (const dependeeLocation of /** @type {PackageCompartmentDescriptorName[]} */ (
     keys(graph).sort()
   )) {
-    const { name, label, sourceDirname, internalAliases, parsers, types } =
-      graph[dependeeLocation];
+    const {
+      name,
+      label,
+      sourceDirname,
+      internalAliases,
+      parsers,
+      types,
+      packageDescriptor,
+    } = graph[dependeeLocation];
     /** @type {Record<string, CompartmentModuleDescriptorConfiguration>} */
     const moduleDescriptors = create(null);
     /** @type {Record<string, ScopeDescriptor<PackageCompartmentDescriptorName>>} */
@@ -1019,6 +1026,7 @@ const translateGraph = (
     }
 
     compartments[dependeeLocation] = {
+      version: packageDescriptor.version ? packageDescriptor.version : '',
       label,
       name,
       location: dependeeLocation,
