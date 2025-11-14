@@ -245,10 +245,13 @@ export const makeDeferredAttenuatorsProvider = (
       throw Error(`No attenuators specified in policy`);
     };
   } else {
-    // TODO: the attenuators compartment must always have a non-empty policy; maybe throw if it doesn't
-    defaultAttenuator = /** @type {SomePackagePolicy} */ (
-      compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy
-    ).defaultAttenuator;
+    if (!compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy) {
+      throw Error(
+        `${q(ATTENUATORS_COMPARTMENT)} is missing the required policy; this is likely a bug`,
+      );
+    }
+    defaultAttenuator =
+      compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy.defaultAttenuator;
 
     // At the time of this function being called, attenuators compartment won't
     // exist yet, we need to defer looking them up in the compartment to the
