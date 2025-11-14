@@ -7,11 +7,9 @@
 
 /**
  * @import {SomePackagePolicy,
- *    SomePolicy,
  *    PackagePolicy,
  *    AttenuationDefinition,
  *    PolicyEnforcementField,
- *    WildcardPolicy,
  *    UnifiedAttenuationDefinition,
  *    PolicyItem,
  *    TypeGuard,
@@ -20,11 +18,13 @@
  *    ImplicitAttenuationDefinition,
  *    FullAttenuationDefinition,
  *    UnionToIntersection,
- *    PackageNamingKit
+ *    PackageNamingKit,
+ *    WildcardPolicy,
+ *    SomePolicy
  *} from './types.js'
  */
 
-const { entries, keys } = Object;
+const { entries, keys, hasOwn } = Object;
 const { isArray } = Array;
 const q = JSON.stringify;
 
@@ -32,6 +32,8 @@ const q = JSON.stringify;
  * Const string to identify the internal attenuators compartment
  */
 export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
+
+export const ENTRY_COMPARTMENT = '$root$';
 
 /**
  * @satisfies {keyof FullAttenuationDefinition}
@@ -52,7 +54,7 @@ const ATTENUATOR_PARAMS_KEY = 'params';
 
 export const generateCanonicalName = ({ isEntry = false, name, path }) => {
   if (isEntry) {
-    throw Error('Entry module cannot be identified with a canonicalName');
+    return ENTRY_COMPARTMENT;
   }
   if (name === ATTENUATORS_COMPARTMENT) {
     return ATTENUATORS_COMPARTMENT;
@@ -60,9 +62,6 @@ export const generateCanonicalName = ({ isEntry = false, name, path }) => {
   return path.join('>');
 };
 
-/**
- * @type {WildcardPolicy}
- */
 export const WILDCARD_POLICY_VALUE = 'any';
 
 /**
@@ -129,11 +128,10 @@ const isEmpty = item => keys(item).length === 0;
  *
  * @param {PackagePolicy} packagePolicy Package policy
  * @param {PolicyEnforcementField} field Package policy field to look up
- * @param {string|string[]} nameOrPath A canonical name or a path which can
- * be converted to a canonical name
+ * @param {string} canonicalName A canonical name
  * @returns {boolean | AttenuationDefinition}
  */
-export const policyLookupHelper = (packagePolicy, field, nameOrPath) => {
+export const policyLookupHelper = (packagePolicy, field, canonicalName) => {
   assert(
     POLICY_ENFORCEMENT_FIELDS.includes(field),
     `Unknown or unsupported policy field ${q(field)}`,
@@ -153,15 +151,8 @@ export const policyLookupHelper = (packagePolicy, field, nameOrPath) => {
     return true;
   }
 
-  if (isArray(nameOrPath)) {
-    nameOrPath = generateCanonicalName({
-      path: nameOrPath,
-      isEntry: nameOrPath.length === 0,
-    });
-  }
-
-  if (nameOrPath in policyDefinition) {
-    return policyDefinition[nameOrPath];
+  if (hasOwn(policyDefinition, canonicalName)) {
+    return policyDefinition[canonicalName];
   }
 
   return false;
@@ -405,9 +396,8 @@ export const assertPackagePolicy = (allegedPackagePolicy, keypath, url) => {
     builtins,
     globals,
     noGlobalFreeze,
-    defaultAttenuator: _ignore, // a carve out for the default attenuator in compartment map
-    // eslint-disable-next-line no-unused-vars
-    options, // any extra options
+    defaultAttenuator: _defaultAttenuator, // a carve out for the default attenuator in compartment map
+    options: _options, // any extra options
     ...extra
   } = allegedPackagePolicy;
 

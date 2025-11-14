@@ -4,6 +4,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import url from 'url';
 import { ZipReader, ZipWriter } from '@endo/zip';
+import { getEnvironmentOption } from '@endo/env-options';
 import {
   loadLocation,
   importLocation,
@@ -21,10 +22,13 @@ import { defaultParserForLanguage } from '../src/import-parsers.js';
 import { defaultParserForLanguage as defaultArchiveParserForLanguage } from '../src/archive-parsers.js';
 import { makeReadPowers } from '../src/node-powers.js';
 
+const shouldEnableLogging =
+  getEnvironmentOption('SCAFFOLD_LOGGING', '0') === '1';
+
 /**
- * @import {TestFn, FailingFn} from 'ava';
+ * @import {TestFn, FailingFn, ExecutionContext} from 'ava';
  * @import {ScaffoldOptions, FixtureAssertionFn, TestCategoryHint, WrappedTestFn} from './test.types.js';
- * @import {HashPowers} from '../src/types.js';
+ * @import {HashPowers, LogFn} from '../src/types.js';
  */
 
 export const readPowers = makeReadPowers({ fs, crypto, url });
@@ -34,6 +38,17 @@ export const sanitizePaths = (text = '', tolerateLineChange = false) => {
     text = text.replace(/:[0-9]+:[0-9]+/g, ':…');
   }
   return text.replace(/file:\/\/[^'"\n]+\/packages\//g, 'file://.../');
+};
+
+/**
+ * @param {ExecutionContext} [t]
+ * @returns {LogFn}
+ */
+const getLogger = t => {
+  if (t && shouldEnableLogging) {
+    return t.log.bind(t);
+  }
+  return () => {};
 };
 
 /**
@@ -77,10 +92,13 @@ const builtinLocation = new URL(
 // all subsequent tests to satisfy the "builtin" module dependency of the
 // application package.
 
-export async function setup() {
+/**
+ * @param {LogFn} log
+ */
+export async function setup(log) {
   await null;
   if (modules === undefined) {
-    const utility = await loadLocation(readPowers, builtinLocation);
+    const utility = await loadLocation(readPowers, builtinLocation, { log });
     const { namespace } = await utility.import({ globals });
     // We pass the builtin module into the module map.
     modules = { builtin: namespace };
@@ -122,6 +140,7 @@ export function scaffold(
     workspaceLanguageForExtension = undefined,
     workspaceCommonjsLanguageForExtension = undefined,
     workspaceModuleLanguageForExtension = undefined,
+    log,
     additionalOptions = {},
   } = {},
 ) {
@@ -170,7 +189,8 @@ export function scaffold(
 
   wrap(test, 'Location')(`${name} / loadLocation`, async (t, Compartment) => {
     t.plan(fixtureAssertionCount);
-    await setup();
+    log = log ?? getLogger(t);
+    await setup(log);
 
     const application = await loadLocation(readPowers, fixture, {
       policy,
@@ -184,6 +204,7 @@ export function scaffold(
       workspaceLanguageForExtension,
       workspaceCommonjsLanguageForExtension,
       workspaceModuleLanguageForExtension,
+      log,
       strict,
       ...additionalOptions,
     });
@@ -200,7 +221,8 @@ export function scaffold(
     `${name} / mapNodeModules / importFromMap`,
     async (t, Compartment) => {
       t.plan(fixtureAssertionCount);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       const languages = Object.keys({
         ...defaultParserForLanguage,
@@ -219,6 +241,7 @@ export function scaffold(
         workspaceLanguageForExtension,
         workspaceCommonjsLanguageForExtension,
         workspaceModuleLanguageForExtension,
+        log,
         ...additionalOptions,
       });
 
@@ -243,7 +266,8 @@ export function scaffold(
     `${name} / mapNodeModules / loadFromMap / import`,
     async (t, Compartment) => {
       t.plan(fixtureAssertionCount);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       const languages = Object.keys({
         ...defaultParserForLanguage,
@@ -289,9 +313,11 @@ export function scaffold(
 
   wrap(test, 'Location')(`${name} / importLocation`, async (t, Compartment) => {
     t.plan(fixtureAssertionCount);
-    await setup();
+    log = log ?? getLogger(t);
+    await setup(log);
 
     const { namespace } = await importLocation(readPowers, fixture, {
+      log,
       globals: { ...globals, ...addGlobals },
       policy,
       modules,
@@ -316,7 +342,8 @@ export function scaffold(
     `${name} / makeArchive / parseArchive`,
     async (t, Compartment) => {
       t.plan(fixtureAssertionCount);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       const archive = await makeArchive(readPowers, fixture, {
         modules,
@@ -361,7 +388,8 @@ export function scaffold(
     `${name} / makeArchive / parseArchive with a prefix`,
     async (t, Compartment) => {
       t.plan(fixtureAssertionCount);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       // Zip files support an arbitrary length prefix.
       const archive = await makeArchive(readPowers, fixture, {
@@ -405,7 +433,8 @@ export function scaffold(
       t.plan(
         fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2),
       );
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       // Single file slot.
       let archive;
@@ -456,7 +485,8 @@ export function scaffold(
       t.plan(
         fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2),
       );
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       // Single file slot.
       let archive;
@@ -472,7 +502,7 @@ export function scaffold(
       const sourceMaps = new Set();
       const sourceMapHook = (sourceMap, { sha512 }) => {
         sourceMaps.add(sha512);
-        t.log(sha512, sourceMap);
+        // t.log(sha512, sourceMap);
       };
 
       const computeSourceMapLocation = ({ sha512 }) => {
@@ -526,7 +556,8 @@ export function scaffold(
     `${name} / mapNodeModules / makeArchiveFromMap / importArchive`,
     async (t, Compartment) => {
       t.plan(fixtureAssertionCount);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       const languages = Object.keys({
         ...defaultArchiveParserForLanguage,
@@ -585,13 +616,16 @@ export function scaffold(
     // @ts-expect-error XXX TS2345
     test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async (t, Compartment) => {
       t.plan(1);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       const expectedSha512 = await hashLocation(
         /** @type {HashPowers} */ (readPowers),
         fixture,
         {
+          log,
           modules,
+          policy,
           conditions: new Set(['development', ...(conditions || [])]),
           strict,
           searchSuffixes,
@@ -611,6 +645,7 @@ export function scaffold(
         modules,
         conditions: new Set(['development', ...(conditions || [])]),
         strict,
+        policy,
         searchSuffixes,
         commonDependencies,
         parserForLanguage,
@@ -642,12 +677,14 @@ export function scaffold(
     // @ts-expect-error XXX TS2345
     test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async (t, Compartment) => {
       t.plan(1);
-      await setup();
+      log = log ?? getLogger(t);
+      await setup(log);
 
       const expectedSha512 = await hashLocation(
         /** @type {HashPowers} */ (readPowers),
         fixture,
         {
+          policy,
           modules,
           conditions: new Set(['development', ...(conditions || [])]),
           strict,
@@ -660,11 +697,13 @@ export function scaffold(
           workspaceLanguageForExtension,
           workspaceCommonjsLanguageForExtension,
           workspaceModuleLanguageForExtension,
+          log,
           ...additionalOptions,
         },
       );
 
       const archive = await makeArchive(readPowers, fixture, {
+        policy,
         modules,
         conditions: new Set(['development', ...(conditions || [])]),
         strict,
