@@ -52,7 +52,7 @@ test('extracting an archive with a missing file', async t => {
   const reader = new ZipReader(validBytes);
   const writer = new ZipWriter();
   writer.files = reader.files;
-  writer.files.delete(`${ENTRY_COMPARTMENT}/main.js`);
+  writer.files.delete('app-v1.0.0/main.js');
   const invalidBytes = writer.snapshot();
 
   await t.throwsAsync(
@@ -64,7 +64,8 @@ test('extracting an archive with a missing file', async t => {
         },
       }),
     {
-      message: `Failed to load module "./main.js" in package "${ENTRY_COMPARTMENT}" (1 underlying failures: Cannot find file ${ENTRY_COMPARTMENT}/main.js in Zip file missing.zip`,
+      message:
+        'Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Cannot find file app-v1.0.0/main.js in Zip file missing.zip',
     },
   );
 
@@ -84,7 +85,7 @@ test('extracting an archive with an inconsistent hash', async t => {
   writer.files = reader.files;
 
   // Add a null byte to one file.
-  const node = writer.files.get(`${ENTRY_COMPARTMENT}/main.js`);
+  const node = writer.files.get(`app-v1.0.0/main.js`);
   const content = new Uint8Array(node.content.byteLength + 1);
   content.set(node.content, 0);
   node.content = content;
@@ -100,7 +101,8 @@ test('extracting an archive with an inconsistent hash', async t => {
         },
       }),
     {
-      message: `Failed to load module "./main.js" in package "${ENTRY_COMPARTMENT}" (1 underlying failures: Module "main.js" of package "${ENTRY_COMPARTMENT}" in archive "corrupt.zip" failed a SHA-512 integrity check`,
+      message:
+        'Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Module "main.js" of package "app-v1.0.0" in archive "corrupt.zip" failed a SHA-512 integrity check',
     },
   );
 
