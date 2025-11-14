@@ -3,7 +3,6 @@ import test from 'ava';
 import { ZipReader, ZipWriter } from '@endo/zip';
 import { makeArchive, makeAndHashArchive, parseArchive } from '../index.js';
 import { readPowers } from './scaffold.js';
-import { ENTRY_COMPARTMENT } from '../src/policy-format.js';
 
 const fixture = new URL(
   'fixtures-0/node_modules/app/main.js',

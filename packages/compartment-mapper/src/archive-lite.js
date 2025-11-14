@@ -38,12 +38,10 @@
  *   ArchiveLiteOptions,
  *   ArchiveResult,
  *   ArchiveWriter,
- CanonicalName,
  *   CaptureSourceLocationHook,
- CompartmentsRenameFn,
- FileUrlString,
+ *   CompartmentsRenameFn,
+ *   FileUrlString,
  *   HashPowers,
- PackageCompartmentDescriptorName,
  *   PackageCompartmentMapDescriptor,
  *   ReadFn,
  *   ReadPowers,
@@ -63,7 +61,7 @@ import { unpackReadPowers } from './powers.js';
 import { detectAttenuators } from './policy.js';
 import { digestCompartmentMap } from './digest.js';
 import { stringCompare } from './compartment-map.js';
-import { ATTENUATORS_COMPARTMENT, ENTRY_COMPARTMENT } from './policy-format.js';
+import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 
 const textEncoder = new TextEncoder();
 
