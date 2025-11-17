@@ -1,4 +1,5 @@
-/* Provides functions to create an archive (zip file with a
+/**
+ * Provides functions to create an archive (zip file with a
  * compartment-map.json) from a partially completed compartment map (it must
  * mention all packages/compartments as well as inter-compartment references
  * but does not contain an entry for every module reachable from its entry
@@ -26,6 +27,8 @@
  * In fruition of https://github.com/endojs/endo/issues/400, we will be able to
  * use original source archives on XS and Node.js, but not on the web until the
  * web platform makes further progress on virtual module loaers.
+ *
+ * @module
  */
 
 /* eslint no-shadow: 0 */
@@ -36,8 +39,10 @@
  *   ArchiveResult,
  *   ArchiveWriter,
  *   CaptureSourceLocationHook,
- *   CompartmentMapDescriptor,
+ *   CompartmentsRenameFn,
+ *   FileUrlString,
  *   HashPowers,
+ *   PackageCompartmentMapDescriptor,
  *   ReadFn,
  *   ReadPowers,
  *   Sources,
@@ -55,19 +60,12 @@ import {
 import { unpackReadPowers } from './powers.js';
 import { detectAttenuators } from './policy.js';
 import { digestCompartmentMap } from './digest.js';
+import { stringCompare } from './compartment-map.js';
+import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 
 const textEncoder = new TextEncoder();
 
-const { assign, create, freeze } = Object;
-
-/**
- * @param {string} rel - a relative URL
- * @param {string} abs - a fully qualified URL
- * @returns {string}
- */
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
-
-const { keys } = Object;
+const { assign, create, freeze, keys } = Object;
 
 /**
  * @param {ArchiveWriter} archive
@@ -77,12 +75,10 @@ const addSourcesToArchive = async (archive, sources) => {
   await null;
   for (const compartment of keys(sources).sort()) {
     const modules = sources[compartment];
-    const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');
     for (const specifier of keys(modules).sort()) {
-      const { bytes, location } = modules[specifier];
-      if (location !== undefined) {
-        const moduleLocation = resolveLocation(location, compartmentLocation);
-        const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
+      if ('location' in modules[specifier]) {
+        const { bytes, location } = modules[specifier];
+        const path = `${compartment}/${location}`;
         if (bytes !== undefined) {
           // eslint-disable-next-line no-await-in-loop
           await archive.write(path, bytes);
@@ -100,8 +96,8 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
   for (const compartmentName of keys(sources).sort()) {
     const modules = sources[compartmentName];
     for (const moduleSpecifier of keys(modules).sort()) {
-      const { sourceLocation } = modules[moduleSpecifier];
-      if (sourceLocation !== undefined) {
+      if ('sourceLocation' in modules[moduleSpecifier]) {
+        const { sourceLocation } = modules[moduleSpecifier];
         captureSourceLocation(compartmentName, moduleSpecifier, sourceLocation);
       }
     }
@@ -109,18 +105,69 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
 };
 
 /**
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
  * @returns {ArchiveResult}
  */
 export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
+  /** @type {CompartmentsRenameFn<FileUrlString, string>} */
+  const renameCompartments = compartments => {
+    /** @type {Record<FileUrlString, string>} */
+    const compartmentRenames = create(null);
+
+    /**
+     * Get the new name of format `packageName-v${version}` compartments (except
+     * for the attenuators compartment)
+     * @param {string} name
+     * @param {string} version
+     * @returns {string}
+     */
+    const getCompartmentName = (name, version) => {
+      const compartment = compartments[name];
+      return ATTENUATORS_COMPARTMENT === compartment.name
+        ? compartment.name
+        : `${compartment.name}-v${version}`;
+    };
+
+    // The sort below combines two comparators to avoid depending on sort
+    // stability, which became standard as recently as 2019.
+    // If that date seems quaint, please accept my regards from the distant past.
+    // We are very proud of you.
+    const compartmentsByLabel =
+      /** @type {Array<{name: FileUrlString, packageName: string, compartmentName: string}>} */ (
+        Object.entries(compartments)
+          .map(([name, compartment]) => ({
+            name,
+            packageName: compartments[name].name,
+            compartmentName: getCompartmentName(name, compartment.version),
+          }))
+          .sort((a, b) => stringCompare(a.compartmentName, b.compartmentName))
+      );
+
+    /** @type {string|undefined} */
+    let prev;
+    let index = 1;
+    for (const { name, packageName, compartmentName } of compartmentsByLabel) {
+      if (packageName === prev) {
+        compartmentRenames[name] = `${compartmentName}-n${index}`; // Added numeric suffix for duplicates
+        index += 1;
+      } else {
+        compartmentRenames[name] = compartmentName;
+        prev = packageName;
+        index = 1;
+      }
+    }
+    return compartmentRenames;
+  };
+
   const {
     compartmentMap: archiveCompartmentMap,
     sources: archiveSources,
     oldToNewCompartmentNames,
     newToOldCompartmentNames,
     compartmentRenames,
-  } = digestCompartmentMap(compartmentMap, sources);
+  } = digestCompartmentMap(compartmentMap, sources, { renameCompartments });
+
   return {
     archiveCompartmentMap,
     archiveSources,
@@ -130,9 +177,11 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   };
 };
 
+const noop = () => {};
+
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
  */
@@ -146,6 +195,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     policy = undefined,
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
+    log: _log = noop,
   } = options;
 
   const parserForLanguage = freeze(
@@ -179,6 +229,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     importHook: consolidatedExitModuleImportHook,
     sourceMapHook,
   });
+
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment, attenuatorsCompartment } = link(compartmentMap, {
     resolve,
@@ -229,7 +280,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<{bytes: Uint8Array, sha512?: string}>}
  */
@@ -254,7 +305,7 @@ export const makeAndHashArchiveFromMap = async (
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
@@ -269,7 +320,7 @@ export const makeArchiveFromMap = async (powers, compartmentMap, options) => {
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
@@ -284,7 +335,7 @@ export const mapFromMap = async (powers, compartmentMap, options) => {
 
 /**
  * @param {HashPowers} powers
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<string>}
  */
@@ -302,7 +353,7 @@ export const hashFromMap = async (powers, compartmentMap, options) => {
  * @param {WriteFn} write
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {ArchiveLiteOptions} [options]
  */
 export const writeArchiveFromMap = async (

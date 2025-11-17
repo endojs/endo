@@ -3,6 +3,7 @@
 import 'ses';
 import test from 'ava';
 import { moduleify, scaffold, sanitizePaths } from './scaffold.js';
+import { WILDCARD_POLICY_VALUE } from '../src/policy-format.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
@@ -75,9 +76,9 @@ const policy = {
   },
 };
 const ANY = {
-  globals: 'any',
-  packages: 'any',
-  builtins: 'any',
+  globals: WILDCARD_POLICY_VALUE,
+  packages: WILDCARD_POLICY_VALUE,
+  builtins: WILDCARD_POLICY_VALUE,
 };
 const anyPolicy = {
   entry: policy.entry,
@@ -112,6 +113,7 @@ const anyExpectations = {
     carol: { bluePill: 'number', redPill: 'number', purplePill: 'number' },
   }),
 };
+
 const powerlessCarolExpectations = {
   namespace: moduleify({
     ...defaultExpectations.namespace,
@@ -129,12 +131,29 @@ const makeResultAssertions =
     t.deepEqual(namespace, expectations.namespace);
   };
 
-const assertNoPolicyBypassImport = async (t, { compartments }) => {
-  await t.throwsAsync(
-    () => compartments.find(c => c.name.includes('alice')).import('hackity'),
-    { message: /Failed to load module "hackity" in package .*alice/ },
-    'Attempting to import a package into a compartment despite policy should fail.',
-  );
+const assertExternalModuleNotFound = async (
+  t,
+  { compartments, testCategoryHint },
+) => {
+  await null;
+  if (testCategoryHint === 'Archive') {
+    await t.throwsAsync(
+      () => compartments.find(c => c.name.includes('alice')).import('hackity'),
+      {
+        message:
+          /importing "hackity" in "alice" was not allowed by "builtins" policy/i,
+      },
+      'Attempting to import a missing package into a compartment should fail.',
+    );
+  } else {
+    await t.throwsAsync(
+      () => compartments.find(c => c.name.includes('alice')).import('hackity'),
+      {
+        message: /cannot find external module "hackity"/i,
+      },
+      'Attempting to import a missing package into a compartment should fail.',
+    );
+  }
 };
 
 const assertTestAlwaysThrows = t => {
@@ -147,7 +166,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
-    assertNoPolicyBypassImport,
+    assertExternalModuleNotFound,
   ),
   2, // expected number of assertions
   {
@@ -162,7 +181,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(anyExpectations),
-    assertNoPolicyBypassImport,
+    assertExternalModuleNotFound,
   ),
   2, // expected number of assertions
   {
@@ -179,10 +198,15 @@ scaffold(
   2, // expected number of assertions
   {
     shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error }) => {
-      t.regex(error.message, /dan.*resolves.*hackity/);
+    onError: (t, { error, testCategoryHint }) => {
+      if (testCategoryHint === 'Archive') {
+        t.regex(error.message, /unknown resources found in policy/i);
+        t.snapshot(sanitizePaths(error.message), 'archive case error message');
+      } else {
+        t.regex(error.message, /cannot find external module/i);
+        t.snapshot(sanitizePaths(error.message), 'location case error message');
+      }
       // see the snapshot for the error hint in the message
-      t.snapshot(sanitizePaths(error.message));
     },
     addGlobals: globals,
     policy: {
@@ -311,7 +335,7 @@ scaffold(
   {
     shouldFailBeforeArchiveOperations: true,
     onError: (t, { error }) => {
-      t.regex(error.message, /Importing.*carol.*in.*alice.*not allowed/i);
+      t.regex(error.message, /cannot find external module "carol"/i);
       t.snapshot(sanitizePaths(error.message));
     },
     addGlobals: globals,
@@ -423,7 +447,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
-    assertNoPolicyBypassImport,
+    assertExternalModuleNotFound,
   ),
   2, // expected number of assertions
   {

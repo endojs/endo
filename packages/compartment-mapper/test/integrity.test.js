@@ -84,7 +84,7 @@ test('extracting an archive with an inconsistent hash', async t => {
   writer.files = reader.files;
 
   // Add a null byte to one file.
-  const node = writer.files.get('app-v1.0.0/main.js');
+  const node = writer.files.get(`app-v1.0.0/main.js`);
   const content = new Uint8Array(node.content.byteLength + 1);
   content.set(node.content, 0);
   node.content = content;
@@ -100,7 +100,8 @@ test('extracting an archive with an inconsistent hash', async t => {
         },
       }),
     {
-      message: `Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Module "main.js" of package "app-v1.0.0" in archive "corrupt.zip" failed a SHA-512 integrity check`,
+      message:
+        'Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Module "main.js" of package "app-v1.0.0" in archive "corrupt.zip" failed a SHA-512 integrity check',
     },
   );
 
