@@ -6,22 +6,32 @@ cd endo
 yarn
 ```
 
-Endo is a yarn workspaces repository. Running yarn in the root will install and hoist most dependencies up to the root `node_modules`.
+Endo is a yarn workspaces repository. Running yarn in the root will install
+and hoist most dependencies up to the root `node_modules`.
 
 Note: running yarn `--ignore-scripts` will not complete the setup of SES.
 Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
-## Creating a new package
+# Creating a new package
 
 Run <code>[scripts/create-package.sh](./scripts/create-package.sh) $name</code>,
 then update the resulting README.md, package.json (specifically setting
 `description` and [if appropriate] removing `"private": false`), index.js, and
 index.test.js files.
 
-## Rebuilding `ses`
+# Code and Documentation Formatting Conventions
 
-Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
-Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
+## Line Wrapping
+
+- **General text**: Wrap lines at approximately 80-85 characters to maintain readability.
+- **Code examples**: Follow the same line wrapping conventions as general text.
+- **Long sentences**: Break long sentences across multiple lines, with each line being
+  approximately 80-85 characters.
+- **New sentences**: Begin new sentences on fresh lines.
+  This ensures that changes to one sentence that require adjustments to line
+  wrapping do not cascade into a subsequent sentence.
+  This allows us to avoid expressing an opinion on one or two spaces after
+  periods.
 
 # Making a Release
 
