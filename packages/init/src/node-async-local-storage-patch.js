@@ -22,7 +22,7 @@ const getStoreMap = self => {
  * @typedef {object} AsyncLocalStorageInternal
  * @property {boolean} enabled
  * @property {typeof _propagate} _propagate
- * @property {(this: AsyncLocalStorage) => void} _enable
+ * @property {(this: AsyncLocalStorage) => void} [_enable]
  */
 
 Object.defineProperty(AsyncLocalStorage.prototype, 'kResourceStore', {
@@ -56,7 +56,9 @@ AsyncLocalStorage.prototype._propagate = _propagate;
  * @param {any} store
  */
 AsyncLocalStorage.prototype.enterWith = function enterWith(store) {
-  this._enable();
+  if (typeof this._enable === 'function') {
+    this._enable();
+  }
   const resource = executionAsyncResource();
   getStoreMap(this).set(resource, store);
 };
@@ -76,7 +78,10 @@ AsyncLocalStorage.prototype.run = function run(store, callback, ...args) {
     return ReflectApply(callback, null, args);
   }
 
-  this._enable();
+  if (typeof this._enable === 'function') {
+    this._enable();
+  }
+
   const storeMap = getStoreMap(this);
 
   const resource = executionAsyncResource();
