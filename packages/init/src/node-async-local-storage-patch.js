@@ -80,6 +80,15 @@ AsyncLocalStorage.prototype.run = function run(store, callback, ...args) {
 
   if (typeof this._enable === 'function') {
     this._enable();
+  } else {
+    console.error(
+      'WAT',
+      this,
+      this.__proto__,
+      this.constructor,
+      this.constructor.toString(),
+    );
+    throw new Error('inconceivable ALS internal');
   }
 
   const storeMap = getStoreMap(this);
