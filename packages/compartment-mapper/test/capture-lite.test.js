@@ -1,4 +1,5 @@
 import 'ses';
+
 import fs from 'node:fs';
 import url from 'node:url';
 import path from 'node:path';
@@ -10,7 +11,7 @@ import { defaultParserForLanguage } from '../src/import-parsers.js';
 
 const { keys } = Object;
 
-test('captureFromMap() should resolve with a CaptureResult', async t => {
+test('captureFromMap() - should resolve with a CaptureResult', async t => {
   t.plan(5);
 
   const readPowers = makeReadPowers({ fs, url });
@@ -60,7 +61,115 @@ test('captureFromMap() should resolve with a CaptureResult', async t => {
   );
 });
 
-test('captureFromMap() should round-trip sources based on parsers', async t => {
+test('captureFromMap() - should discard unretained CompartmentDescriptors', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+  const moduleLocation = `${new URL(
+    'fixtures-digest/node_modules/app/index.js',
+    import.meta.url,
+  )}`;
+
+  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  const nodeComartmentMapSize = keys(nodeCompartmentMap.compartments).length;
+
+  const { captureCompartmentMap } = await captureFromMap(
+    readPowers,
+    nodeCompartmentMap,
+    {
+      parserForLanguage: defaultParserForLanguage,
+    },
+  );
+
+  const captureCompartmentMapSize = keys(
+    captureCompartmentMap.compartments,
+  ).length;
+
+  t.true(
+    captureCompartmentMapSize < nodeComartmentMapSize,
+    'captureCompartmentMap should contain fewer CompartmentDescriptors than nodeCompartmentMap',
+  );
+
+  t.false(
+    'fjord-v1.0.0' in captureCompartmentMap.compartments,
+    '"fjord-v1.0.0" should not be retained in captureCompartmentMap',
+  );
+});
+
+test('captureFromMap() - should preload default entry', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+  const moduleLocation = `${new URL(
+    'fixtures-digest/node_modules/app/index.js',
+    import.meta.url,
+  )}`;
+
+  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  const fjordCompartment = Object.values(nodeCompartmentMap.compartments).find(
+    c => c.name === 'fjord',
+  );
+  if (!fjordCompartment) {
+    t.fail('Expected "fjord" compartment to be present in nodeCompartmentMap');
+    return;
+  }
+
+  const { captureCompartmentMap } = await captureFromMap(
+    readPowers,
+    nodeCompartmentMap,
+    {
+      _preload: [fjordCompartment.location],
+      parserForLanguage: defaultParserForLanguage,
+    },
+  );
+
+  t.true(
+    'fjord-v1.0.0' in captureCompartmentMap.compartments,
+    '"fjord-v1.0.0" should be retained in captureCompartmentMap',
+  );
+});
+
+test('captureFromMap() - should preload custom entry', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+  const moduleLocation = `${new URL(
+    'fixtures-digest/node_modules/app/index.js',
+    import.meta.url,
+  )}`;
+
+  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  const fjordCompartment = Object.values(nodeCompartmentMap.compartments).find(
+    c => c.name === 'fjord',
+  );
+  if (!fjordCompartment) {
+    t.fail('Expected "fjord" compartment to be present in nodeCompartmentMap');
+    return;
+  }
+
+  const { captureCompartmentMap } = await captureFromMap(
+    readPowers,
+    nodeCompartmentMap,
+    {
+      _preload: [
+        {
+          compartment: fjordCompartment.location,
+          entry: './some-other-entry.js',
+        },
+      ],
+      parserForLanguage: defaultParserForLanguage,
+    },
+  );
+
+  t.true(
+    'fjord-v1.0.0' in captureCompartmentMap.compartments,
+    '"fjord-v1.0.0" should be retained in captureCompartmentMap',
+  );
+  t.true(
+    './some-other-entry.js' in
+      captureCompartmentMap.compartments['fjord-v1.0.0'].modules,
+    'The custom entry should be in the modules object of fjord-v1.0.0',
+  );
+});
+
+test('captureFromMap() - should round-trip sources based on parsers', async t => {
   const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-0/node_modules/bundle/main.js',
