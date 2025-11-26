@@ -138,6 +138,7 @@ test('safeEvaluate - handler did not reset allowNextEvalToBeUnsafe', t => {
     instanceOf: RangeError,
     message: /Maximum call stack size exceeded/,
   });
+  t.log('stack depth', depth);
   t.is(depth > 1, true, 'stack overflow occurred after many recursions');
   t.throws(() => evaluate('1+1'), {
     message: /a handler did not reset allowNextEvalToBeUnsafe \(a RangeError\)/,
