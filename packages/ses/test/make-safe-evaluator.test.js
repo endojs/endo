@@ -116,7 +116,7 @@ test('safeEvaluate - transforms - rewrite source', t => {
   );
 });
 
-test('safeEvaluate - handler did not reset allowNextEvalToBeUnsafe', t => {
+test.failing(`safeEvaluate - stack overflow doesn't leak feral eval`, t => {
   t.plan(3);
   const globalObject = Object.create(null);
   const moduleLexicals = Object.create(null);
