@@ -1,7 +1,7 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import { apply, arrayFlatMap, freeze, identity } from './commons.js';
+import { apply, arrayFlatMap, ArrayFrom, freeze, identity } from './commons.js';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
 import { makeEvalScopeKit } from './eval-scope.js';
@@ -74,7 +74,7 @@ export const makeSafeEvaluator = ({
     try {
       // Allow next reference to eval produce the unsafe FERAL_EVAL.
       // eslint-disable-next-line @endo/no-polymorphic-call
-      evalScopeKit.allowNextEvalToBeUnsafe();
+      evalScopeKit.allowNextEvalToBeUnsafe(...ArrayFrom({ length: 151 }));
 
       // Ensure that "this" resolves to the safe global.
       return apply(evaluate, globalObject, [source]);

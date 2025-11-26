@@ -140,7 +140,5 @@ test('safeEvaluate - handler did not reset allowNextEvalToBeUnsafe', t => {
   });
   t.log('stack depth', depth);
   t.is(depth > 1, true, 'stack overflow occurred after many recursions');
-  t.throws(() => evaluate('1+1'), {
-    message: /a handler did not reset allowNextEvalToBeUnsafe \(a RangeError\)/,
-  });
+  t.is(evaluate('1+1'), 2, `stack overflow didn't compromise evaluate scope`);
 });

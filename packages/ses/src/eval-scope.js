@@ -71,15 +71,17 @@ export const makeEvalScopeKit = () => {
 
   const evalScopeKit = {
     evalScope,
-    allowNextEvalToBeUnsafe() {
+    allowNextEvalToBeUnsafe(...args) {
       const { revoked } = evalScopeKit;
       if (revoked !== null) {
         Fail`a handler did not reset allowNextEvalToBeUnsafe ${revoked.err}`;
       }
+      const lastArg = args[args.length - 1];
       // Allow next reference to eval produce the unsafe FERAL_EVAL.
       // We avoid defineProperty because it consumes an extra stack frame taming
       // its return value.
       defineProperties(evalScope, oneTimeEvalProperties);
+      return lastArg;
     },
     /** @type {null | { err: any }} */
     revoked: null,
