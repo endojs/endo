@@ -79,6 +79,7 @@ export const makeEvalScopeKit = () => {
     eval: {
       value: props => {
         const { eval: evalProp } = props;
+        delete evalScope.eval;
         defineProperties(evalScope, { eval: evalProp });
       },
       enumerable: false,
@@ -88,7 +89,7 @@ export const makeEvalScopeKit = () => {
 
   const evalScopeKit = {
     evalScope,
-    allowNextEvalToBeUnsafe(evaluate) {
+    allowNextEvalToBeUnsafe(evaluate, globalObject) {
       const { revoked } = evalScopeKit;
       if (revoked !== null) {
         Fail`a handler did not reset allowNextEvalToBeUnsafe ${revoked.err}`;
@@ -98,7 +99,7 @@ export const makeEvalScopeKit = () => {
       // its return value.
       defineProperties(evalScope, allowEvalProperties);
       try {
-        apply(evaluate, null, [oneTimeEvalProperties]);
+        apply(evaluate, globalObject, [oneTimeEvalProperties]);
       } catch (err) {
         // We didn't manage to reveal eval, so clean up the powerless revealer
         delete evalScope.eval;

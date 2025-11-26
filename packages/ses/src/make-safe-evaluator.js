@@ -73,7 +73,7 @@ export const makeSafeEvaluator = ({
     let err;
     try {
       // Allow next reference to eval produce the unsafe FERAL_EVAL.
-      allowNextEvalToBeUnsafe(evaluate);
+      allowNextEvalToBeUnsafe(evaluate, globalObject);
 
       // Ensure that "this" resolves to the safe global.
       return apply(evaluate, globalObject, [source]);
