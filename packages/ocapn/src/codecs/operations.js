@@ -16,7 +16,7 @@ import {
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
 import { NonNegativeIntegerCodec, FalseCodec } from './subtypes.js';
 import {
-  OcapnNodeCodec,
+  OcapnPeerCodec,
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from './components.js';
@@ -32,7 +32,7 @@ const OpStartSessionCodec = makeOcapnRecordCodecFromDefinition(
   {
     captpVersion: 'string',
     sessionPublicKey: OcapnPublicKeyCodec,
-    location: OcapnNodeCodec,
+    location: OcapnPeerCodec,
     locationSignature: OcapnSignatureCodec,
   },
 );

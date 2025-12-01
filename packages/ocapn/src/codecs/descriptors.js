@@ -17,7 +17,7 @@ import {
 } from './util.js';
 import { NonNegativeIntegerCodec } from './subtypes.js';
 import {
-  OcapnNodeCodec,
+  OcapnPeerCodec,
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from './components.js';
@@ -73,7 +73,7 @@ const DescHandoffGiveCodec = makeOcapnRecordCodecFromDefinition(
   {
     // ReceiverKeyForGifter Public Key
     receiverKey: OcapnPublicKeyCodec,
-    exporterLocation: OcapnNodeCodec,
+    exporterLocation: OcapnPeerCodec,
     // Gifter-Exporter Session ID
     exporterSessionId: 'bytestring',
     // gifterKeyForExporter Public ID
@@ -357,7 +357,7 @@ export const makeDescCodecs = tableKit => {
     'OcapnSturdyRef',
     'ocapn-sturdyref',
     syrupReader => {
-      const node = OcapnNodeCodec.read(syrupReader);
+      const node = OcapnPeerCodec.read(syrupReader);
       const swissNum = syrupReader.readBytestring();
       const value = tableKit.provideSturdyRef(node, swissNum);
       return value;
@@ -372,7 +372,7 @@ export const makeDescCodecs = tableKit => {
       if (swissNum === undefined) {
         throw Error('SwissNum is required for SturdyRefs');
       }
-      OcapnNodeCodec.write(location, syrupWriter);
+      OcapnPeerCodec.write(location, syrupWriter);
       syrupWriter.writeBytestring(swissNum);
     },
   );

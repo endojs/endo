@@ -59,9 +59,9 @@ test('makeWithdrawGiftDescriptor', t => {
       type: 'desc:handoff-give',
       receiverKey: publicKeyToPublicKeyData(receiverKey.publicKey),
       exporterLocation: {
-        type: 'ocapn-node',
+        type: 'ocapn-peer',
+        designator: '127.0.0.1',
         transport: 'tcp',
-        address: '127.0.0.1',
         hints: false,
       },
       exporterSessionId: gifterExporterSessionId,

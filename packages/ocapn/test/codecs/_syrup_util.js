@@ -104,13 +104,29 @@ export const list = items => `[${items.join('')}]`;
 export const record = (label, ...items) => `<${sel(label)}${items.join('')}>`;
 
 /**
- * @param {string} transport
- * @param {string} address
- * @param {boolean} hints
+ * @param {Record<string, string>} obj
  * @returns {string}
  */
-export const makeNode = (transport, address, hints) => {
-  return record('ocapn-node', sel(transport), str(address), bool(hints));
+export const stringStruct = obj => {
+  const keys = Object.keys(obj).sort();
+  const entries = keys.map(key => str(key) + str(obj[key])).join('');
+  return `{${entries}}`;
+};
+
+/**
+ * @param {string} transport
+ * @param {string} designator
+ * @param {false | Record<string, any>} hints
+ * @returns {string}
+ */
+export const makePeer = (transport, designator, hints) => {
+  // Spec/test disagreement: https://github.com/ocapn/ocapn-test-suite/issues/21
+  return record(
+    'ocapn-peer',
+    sel(transport),
+    str(designator),
+    hints ? stringStruct(hints) : 'f',
+  );
 };
 
 /**
@@ -222,7 +238,7 @@ export const makeDescGive = (
 export const makeSignedHandoffGive = signature => {
   const descGive = makeDescGive(
     makePubKey(examplePubKeyQBytes),
-    makeNode('tcp', '127.0.0.1', false),
+    makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
     strToUint8Array('exporter-session-id'),
     strToUint8Array('gifter-side-id'),
     strToUint8Array('gift-id'),
@@ -266,7 +282,7 @@ export const makeSignedHandoffReceive = () => {
     1,
     makeDescGive(
       makePubKey(examplePubKeyQBytes),
-      makeNode('tcp', '127.0.0.1', false),
+      makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
       strToUint8Array('exporter-session-id'),
       strToUint8Array('gifter-side-id'),
       strToUint8Array('gift-id'),
