@@ -48,6 +48,37 @@ export type GatherDependencyOptions = {
 } & LogOptions &
   CommonDependencyDescriptorsOptions;
 
+/**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
+export interface PackageDescriptor {
+  /**
+   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
+   */
+  name: string;
+  version?: string;
+  /**
+   * TODO: Update with proper type when this field is handled.
+   */
+  exports?: unknown;
+  type?: 'module' | 'commonjs';
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  bundleDependencies?: string[];
+  peerDependenciesMeta?: Record<
+    string,
+    { optional?: boolean; [k: string]: unknown }
+  >;
+  module?: string;
+  browser?: Record<string, string> | string;
+
+  main?: string;
+
+  [k: string]: unknown;
+}
+
 export interface Node {
   /**
    * Informative compartment label based on the package name and version (if available)
