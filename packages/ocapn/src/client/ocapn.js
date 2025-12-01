@@ -843,7 +843,7 @@ export const makeOcapn = (
       const { to, answerPosition, args, resolveMeDesc } = message;
       const hp = HandledPromise.applyFunction(to, args);
       // Answer with our handled promise
-      if (answerPosition) {
+      if (answerPosition !== false) {
         const answerSlot = `q-${answerPosition}`;
         // eslint-disable-next-line no-use-before-define
         engine.resolveAnswer(answerSlot, hp);
