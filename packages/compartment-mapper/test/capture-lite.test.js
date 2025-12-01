@@ -8,6 +8,11 @@ import { captureFromMap } from '../capture-lite.js';
 import { mapNodeModules } from '../src/node-modules.js';
 import { makeReadPowers } from '../src/node-powers.js';
 import { defaultParserForLanguage } from '../src/import-parsers.js';
+import { ENTRY_COMPARTMENT } from '../src/policy-format.js';
+
+/**
+ * @import {LocalModuleSource} from '../src/types.js'
+ */
 
 const { keys } = Object;
 
@@ -29,13 +34,13 @@ test('captureFromMap() - should resolve with a CaptureResult', async t => {
 
   t.deepEqual(
     keys(captureSources).sort(),
-    ['bundle', 'bundle-dep-v0.0.0'],
+    [ENTRY_COMPARTMENT, 'bundle-dep'],
     'captureSources should contain sources for each compartment map descriptor',
   );
 
   t.deepEqual(
     keys(compartmentRenames).sort(),
-    ['bundle', 'bundle-dep-v0.0.0'],
+    [ENTRY_COMPARTMENT, 'bundle-dep'],
     'compartmentRenames must contain same compartment names as in captureCompartmentMap',
   );
 
@@ -48,7 +53,7 @@ test('captureFromMap() - should resolve with a CaptureResult', async t => {
   t.deepEqual(
     captureCompartmentMap.entry,
     {
-      compartment: 'bundle',
+      compartment: ENTRY_COMPARTMENT,
       module: './main.js',
     },
     'The entry compartment should point to the "bundle" compartment map',
@@ -56,46 +61,12 @@ test('captureFromMap() - should resolve with a CaptureResult', async t => {
 
   t.deepEqual(
     keys(captureCompartmentMap.compartments).sort(),
-    ['bundle', 'bundle-dep-v0.0.0'],
-    'The "bundle" and "bundle-dep-v0.0.0" compartments should be present',
+    [ENTRY_COMPARTMENT, 'bundle-dep'],
+    'The "bundle" and "bundle-dep" compartments should be present',
   );
 });
 
-test('captureFromMap() - should discard unretained CompartmentDescriptors', async t => {
-  const readPowers = makeReadPowers({ fs, url });
-  const moduleLocation = `${new URL(
-    'fixtures-digest/node_modules/app/index.js',
-    import.meta.url,
-  )}`;
-
-  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
-
-  const nodeComartmentMapSize = keys(nodeCompartmentMap.compartments).length;
-
-  const { captureCompartmentMap } = await captureFromMap(
-    readPowers,
-    nodeCompartmentMap,
-    {
-      parserForLanguage: defaultParserForLanguage,
-    },
-  );
-
-  const captureCompartmentMapSize = keys(
-    captureCompartmentMap.compartments,
-  ).length;
-
-  t.true(
-    captureCompartmentMapSize < nodeComartmentMapSize,
-    'captureCompartmentMap should contain fewer CompartmentDescriptors than nodeCompartmentMap',
-  );
-
-  t.false(
-    'fjord-v1.0.0' in captureCompartmentMap.compartments,
-    '"fjord-v1.0.0" should not be retained in captureCompartmentMap',
-  );
-});
-
-test('captureFromMap() - should preload default entry', async t => {
+test('captureFromMap() - should preload with canonical name', async t => {
   const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-digest/node_modules/app/index.js',
@@ -122,8 +93,50 @@ test('captureFromMap() - should preload default entry', async t => {
   );
 
   t.true(
-    'fjord-v1.0.0' in captureCompartmentMap.compartments,
-    '"fjord-v1.0.0" should be retained in captureCompartmentMap',
+    'fjord' in captureCompartmentMap.compartments,
+    '"fjord" should be retained in captureCompartmentMap',
+  );
+});
+
+test('captureFromMap() - should discard unretained CompartmentDescriptors', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+  const moduleLocation = `${new URL(
+    'fixtures-digest/node_modules/app/index.js',
+    import.meta.url,
+  )}`;
+
+  const nodeCompartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  const nodeComartmentMapSize = keys(nodeCompartmentMap.compartments).length;
+
+  const fjordCompartment = Object.values(nodeCompartmentMap.compartments).find(
+    c => c.name === 'fjord',
+  );
+  if (!fjordCompartment) {
+    t.fail('Expected "fjord" compartment to be present in nodeCompartmentMap');
+    return;
+  }
+
+  const { captureCompartmentMap } = await captureFromMap(
+    readPowers,
+    nodeCompartmentMap,
+    {
+      parserForLanguage: defaultParserForLanguage,
+    },
+  );
+
+  const captureCompartmentMapSize = keys(
+    captureCompartmentMap.compartments,
+  ).length;
+
+  t.true(
+    captureCompartmentMapSize < nodeComartmentMapSize,
+    'captureCompartmentMap should contain fewer CompartmentDescriptors than nodeCompartmentMap',
+  );
+
+  t.false(
+    'fjord' in captureCompartmentMap.compartments,
+    '"fjord" should not be retained in captureCompartmentMap',
   );
 });
 
@@ -159,13 +172,13 @@ test('captureFromMap() - should preload custom entry', async t => {
   );
 
   t.true(
-    'fjord-v1.0.0' in captureCompartmentMap.compartments,
-    '"fjord-v1.0.0" should be retained in captureCompartmentMap',
+    'fjord' in captureCompartmentMap.compartments,
+    '"fjord" should be retained in captureCompartmentMap',
   );
+  const fjordCompartmentDescriptor = captureCompartmentMap.compartments.fjord;
   t.true(
-    './some-other-entry.js' in
-      captureCompartmentMap.compartments['fjord-v1.0.0'].modules,
-    'The custom entry should be in the modules object of fjord-v1.0.0',
+    './some-other-entry.js' in fjordCompartmentDescriptor.modules,
+    'The custom entry should be in the modules object of fjord',
   );
 });
 
@@ -188,10 +201,16 @@ test('captureFromMap() - should round-trip sources based on parsers', async t =>
   );
 
   const decoder = new TextDecoder();
+  const bundleSource = /** @type {LocalModuleSource} */ (
+    captureSources[ENTRY_COMPARTMENT]['./icando.cjs']
+  );
   // the actual source depends on the value of `parserForLanguage` above
-  const actual = decoder.decode(captureSources.bundle['./icando.cjs'].bytes);
+  const actual = decoder.decode(bundleSource.bytes);
   const expected = await fs.promises.readFile(
-    path.join(url.fileURLToPath(compartmentRenames.bundle), 'icando.cjs'),
+    path.join(
+      url.fileURLToPath(compartmentRenames[ENTRY_COMPARTMENT]),
+      'icando.cjs',
+    ),
     'utf-8',
   );
   t.is(actual, expected, 'Source code should not be pre-compiled');

@@ -13,7 +13,7 @@
  * @import {TraversalContext} from './types/generic-graph.js';
  */
 
-const { stringify: q } = JSON;
+const { quote: q } = assert;
 
 /**
  * Remove the node with the minimum weight from the priority queue.
@@ -94,6 +94,11 @@ const getPath = ({ predecessors }, source, target) => {
   /** @type {T[]} */
   const nodeList = [];
 
+  assert(
+    source !== target,
+    `Source ${q(source)} cannot be the same as target ${q(target)}`,
+  );
+
   let node = target;
 
   while (predecessors.has(node)) {
@@ -108,7 +113,7 @@ const getPath = ({ predecessors }, source, target) => {
 
   assert(
     nodeList.length >= 2,
-    `The path from ${source} to ${target} should have a least two nodes`,
+    `The path from ${source} to ${target} should have at least two nodes`,
   );
 
   return /** @type {[T, T, ...T[]]} */ (nodeList.reverse());

@@ -13,17 +13,23 @@
 /**
  * @import {ModuleMapHook} from 'ses'
  * @import {
- *   CompartmentDescriptor,
- *   CompartmentMapDescriptor,
  *   ImportNowHookMaker,
  *   LinkOptions,
  *   LinkResult,
- *   ModuleDescriptor,
  *   ParseFn,
  *   AsyncParseFn,
  *   ParserForLanguage,
  *   ParserImplementation,
  *   ShouldDeferError,
+ *   ScopeDescriptor,
+ *   CompartmentModuleConfiguration,
+ *   PackageCompartmentMapDescriptor,
+ *   FileUrlString,
+ *   PackageCompartmentDescriptor,
+ *   FileCompartmentMapDescriptor,
+ *   FileCompartmentDescriptor,
+ *   FileModuleConfiguration,
+ *   MakeModuleMapHookOptions,
  * } from './types.js'
  */
 
@@ -31,10 +37,14 @@ import { makeMapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
 import {
   attenuateGlobals,
-  enforceModulePolicy,
+  enforcePolicyByModule,
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
+import {
+  isCompartmentModuleConfiguration,
+  isExitModuleConfiguration,
+} from './guards.js';
 
 const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
@@ -47,17 +57,17 @@ const { allSettled } = Promise;
  */
 const promiseAllSettled = allSettled.bind(Promise);
 
-const defaultCompartment = Compartment;
-
-// q, as in quote, for strings in error messages.
-const q = JSON.stringify;
+const DefaultCompartment = Compartment;
 
 /**
+ * TODO: can we just use `Object.hasOwn` instead?
  * @param {Record<string, unknown>} object
  * @param {string} key
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
+// q, as in quote, for strings in error messages.
+const { quote: q } = assert;
 
 /**
  * For a full, absolute module specifier like "dependency",
@@ -89,11 +99,11 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * Any module specifier with an absolute prefix should be captured by
  * the `moduleMap` or `moduleMapHook`.
  *
- * @param {CompartmentDescriptor} compartmentDescriptor
+ * @param {FileCompartmentDescriptor|PackageCompartmentDescriptor} compartmentDescriptor
  * @param {Record<string, Compartment>} compartments
  * @param {string} compartmentName
- * @param {Record<string, ModuleDescriptor>} moduleDescriptors
- * @param {Record<string, ModuleDescriptor>} scopeDescriptors
+ * @param {Record<string, FileModuleConfiguration|CompartmentModuleConfiguration>} moduleDescriptors
+ * @param {Record<string, ScopeDescriptor<FileUrlString>>} scopeDescriptors
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
@@ -104,8 +114,7 @@ const makeModuleMapHook = (
   scopeDescriptors,
 ) => {
   /**
-   * @param {string} moduleSpecifier
-   * @returns {string | object | undefined}
+   * @type {ModuleMapHook}
    */
   const moduleMapHook = moduleSpecifier => {
     compartmentDescriptor.retained = true;
@@ -114,40 +123,42 @@ const makeModuleMapHook = (
     if (moduleDescriptor !== undefined) {
       moduleDescriptor.retained = true;
 
+      if (isExitModuleConfiguration(moduleDescriptor)) {
+        return undefined;
+      }
       // "foreignCompartmentName" refers to the compartment which
       // may differ from the current compartment
-      const {
-        compartment: foreignCompartmentName = compartmentName,
-        module: foreignModuleSpecifier,
-        exit,
-      } = moduleDescriptor;
-      if (exit !== undefined) {
-        return undefined; // fall through to import hook
-      }
-      if (foreignModuleSpecifier !== undefined) {
-        // archive goes through foreignModuleSpecifier for local modules too
-        if (!moduleSpecifier.startsWith('./')) {
-          // This code path seems to only be reached on subsequent imports of the same specifier in the same compartment.
-          // The check should be redundant and is only left here out of abundance of caution.
-          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-            exit: false,
-            errorHint:
-              'This check should not be reachable. If you see this error, please file an issue.',
-          });
-        }
+      if (isCompartmentModuleConfiguration(moduleDescriptor)) {
+        const {
+          compartment: foreignCompartmentName = compartmentName,
+          module: foreignModuleSpecifier,
+        } = moduleDescriptor;
+        if (foreignModuleSpecifier !== undefined) {
+          // archive goes through foreignModuleSpecifier for local modules too
+          if (!moduleSpecifier.startsWith('./')) {
+            // This code path seems to only be reached on subsequent imports of the same specifier in the same compartment.
+            // The check should be redundant and is only left here out of abundance of caution.
+            enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
+              exit: false,
+              errorHint:
+                'This check should not be reachable. If you see this error, please file an issue.',
+            });
+          }
 
-        const foreignCompartment = compartments[foreignCompartmentName];
-        if (foreignCompartment === undefined) {
-          throw Error(
-            `Cannot import from missing compartment ${q(
-              foreignCompartmentName,
-            )}}`,
-          );
+          const foreignCompartment = compartments[foreignCompartmentName];
+          if (foreignCompartment === undefined) {
+            throw Error(
+              `Cannot import from missing compartment ${q(
+                foreignCompartmentName,
+              )}}`,
+            );
+          }
+          // actual module descriptor
+          return {
+            compartment: foreignCompartment,
+            namespace: foreignModuleSpecifier,
+          };
         }
-        return {
-          compartment: foreignCompartment,
-          namespace: foreignModuleSpecifier,
-        };
       }
     }
 
@@ -178,7 +189,7 @@ const makeModuleMapHook = (
           );
         }
 
-        enforceModulePolicy(scopePrefix, compartmentDescriptor, {
+        enforcePolicyByModule(scopePrefix, compartmentDescriptor, {
           exit: false,
           errorHint: `Blocked in linking. ${q(
             moduleSpecifier,
@@ -198,7 +209,9 @@ const makeModuleMapHook = (
           retained: true,
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
+          __createdBy: 'link',
         };
+        // actual module descriptor
         return {
           compartment: foreignCompartment,
           namespace: foreignModuleSpecifier,
@@ -236,15 +249,9 @@ const impossibleImportNowHookMaker = () => {
  * - Passes the given globals and external modules into the root compartment
  *   only.
  *
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor|FileCompartmentMapDescriptor} compartmentMap
  * @param {LinkOptions} options
  * @returns {LinkResult} the root compartment of the compartment DAG
- */
-
-/**
- * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LinkOptions} options
- * @returns {LinkResult}
  */
 export const link = (
   { entry, compartments: compartmentDescriptors },
@@ -262,7 +269,7 @@ export const link = (
     __shimTransforms__ = [],
     __native__ = false,
     archiveOnly = false,
-    Compartment = defaultCompartment,
+    Compartment = DefaultCompartment,
   } = options;
 
   const { compartment: entryCompartmentName } = entry;
@@ -291,9 +298,14 @@ export const link = (
     syncModuleTransforms,
   });
 
-  for (const [compartmentName, compartmentDescriptor] of entries(
-    compartmentDescriptors,
-  )) {
+  const compartmentDescriptorEntries =
+    /** @type {[string, PackageCompartmentDescriptor|FileCompartmentDescriptor][]} */ (
+      entries(compartmentDescriptors)
+    );
+  for (const [
+    compartmentName,
+    compartmentDescriptor,
+  ] of compartmentDescriptorEntries) {
     const {
       location,
       name,
@@ -418,7 +430,7 @@ export const link = (
 };
 
 /**
- * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {PackageCompartmentMapDescriptor} compartmentMap
  * @param {LinkOptions} options
  * @deprecated Use {@link link}.
  */

@@ -18,26 +18,25 @@
  *   Application,
  *   SyncImportLocationOptions,
  *   ImportLocationOptions,
- *   SyncArchiveOptions,
  *   LoadLocationOptions,
  *   SomeObject,
  *   ReadNowPowers,
- *   ArchiveOptions,
  *   ReadFn,
  *   ReadPowers,
+ SyncLoadLocationOptions,
  * } from './types.js'
  */
 
+import { loadFromMap } from './import-lite.js';
 import { defaultParserForLanguage } from './import-parsers.js';
 import { mapNodeModules } from './node-modules.js';
-import { loadFromMap } from './import-lite.js';
 
 const { assign, create, freeze } = Object;
 
 /**
  * Add the default parserForLanguage option.
- * @param {ArchiveOptions} [options]
- * @returns {ArchiveOptions}
+ * @param {LoadLocationOptions} [options]
+ * @returns {LoadLocationOptions}
  */
 const assignParserForLanguage = (options = {}) => {
   const { parserForLanguage: parserForLanguageOption, ...rest } = options;
@@ -52,7 +51,7 @@ const assignParserForLanguage = (options = {}) => {
  * @overload
  * @param {ReadNowPowers} readPowers
  * @param {string} moduleLocation
- * @param {SyncArchiveOptions} options
+ * @param {SyncLoadLocationOptions} options
  * @returns {Promise<Application>}
  */
 
@@ -82,6 +81,7 @@ export const loadLocation = async (
     commonDependencies,
     policy,
     parserForLanguage,
+    log,
     languages,
     languageForExtension,
     commonjsLanguageForExtension,
@@ -89,6 +89,10 @@ export const loadLocation = async (
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
+    unknownCanonicalNameHook,
+    packageDataHook,
+    packageDependenciesHook,
+    moduleSourceHook,
     ...otherOptions
   } = assignParserForLanguage(options);
   // conditions are not present in SyncArchiveOptions
@@ -107,9 +111,15 @@ export const loadLocation = async (
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
     languages,
+    log,
+    unknownCanonicalNameHook,
+    packageDataHook,
+    packageDependenciesHook,
   });
   return loadFromMap(readPowers, compartmentMap, {
     parserForLanguage,
+    log,
+    moduleSourceHook,
     ...otherOptions,
   });
 };
