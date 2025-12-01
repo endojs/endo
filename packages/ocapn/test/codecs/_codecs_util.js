@@ -35,10 +35,10 @@ const bufferToHex = uint8Array => {
 
 /** @type {OcapnLocation} */
 const defaultPeerLocation = {
-  type: 'ocapn-node',
+  type: 'ocapn-peer',
   transport: 'tcp-test-only',
-  address: '127.0.0.1:54822',
-  hints: false,
+  designator: '1234',
+  hints: { host: '127.0.0.1', port: 54822 },
 };
 
 /**
@@ -118,7 +118,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
    * @returns {string}
    */
   const getSturdyRefKey = (location, swissNum) => {
-    return `${location.transport}:${location.address}:${bufferToHex(swissNum)}`;
+    return `${location.transport}:${location.designator}:${bufferToHex(swissNum)}`;
   };
 
   /**

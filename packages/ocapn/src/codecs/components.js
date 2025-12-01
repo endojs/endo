@@ -4,32 +4,51 @@ import {
   makeExactListCodec as exactList,
   makeExactSelectorCodec as exactSelector,
   makeExpectedLengthBytestringCodec as bytestringWithLength,
+  makeTypeHintUnionCodec,
+  StringCodec,
 } from '../syrup/codec.js';
 import {
   makeOcapnListComponentCodec,
   makeOcapnRecordCodecFromDefinition,
 } from './util.js';
+import { FalseCodec, makeStructCodecForValues } from './subtypes.js';
 
 /*
  * OCapN Components are used in both OCapN Messages and Descriptors
  */
 
+// OCapN underspecifies the hints table, assume only strings are valid values
+// see https://github.com/ocapn/ocapn/blob/main/draft-specifications/Locators.md#syrup-serialization
+const PeerHintsStructCodec = makeStructCodecForValues(
+  'OCapnLocationPeerHintsStruct',
+  () => StringCodec,
+);
+
 /**
  * @typedef {object} OcapnLocation
- * @property {'ocapn-node'} type
+ * @property {'ocapn-peer'} type
+ * @property {string} designator
  * @property {string} transport
- * @property {string} address
- * @property {boolean} hints
+ * @property {false | Record<string, any>} hints
  */
 
-export const OcapnNodeCodec = makeOcapnRecordCodecFromDefinition(
+export const OcapnPeerCodec = makeOcapnRecordCodecFromDefinition(
   'OcapnNode',
-  'ocapn-node',
+  'ocapn-peer',
   {
     transport: 'selector',
-    address: 'string',
-    // TODO: optional hints table https://github.com/ocapn/ocapn/blob/main/draft-specifications/Locators.md#hints
-    hints: 'boolean',
+    designator: 'string',
+    hints: makeTypeHintUnionCodec(
+      'OcapnLocationPeerHintsValue',
+      {
+        boolean: FalseCodec,
+        dictionary: PeerHintsStructCodec,
+      },
+      {
+        boolean: FalseCodec,
+        object: PeerHintsStructCodec,
+      },
+    ),
   },
 );
 
@@ -38,7 +57,7 @@ export const OcapnMyLocationCodec = makeOcapnRecordCodecFromDefinition(
   'OcapnMyLocation',
   'my-location',
   {
-    location: OcapnNodeCodec,
+    location: OcapnPeerCodec,
   },
 );
 

@@ -22,7 +22,10 @@ const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
     debugLabel,
     swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
   });
-  const tcpNetlayer = await makeTcpNetLayer({ client });
+  const tcpNetlayer = await makeTcpNetLayer({
+    client,
+    specifiedDesignator: debugLabel,
+  });
   client.registerNetlayer(tcpNetlayer);
   const { location } = tcpNetlayer;
   return { client, location };

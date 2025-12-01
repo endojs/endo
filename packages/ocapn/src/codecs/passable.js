@@ -26,8 +26,7 @@ import {
   makeOcapnRecordCodec,
   makeOcapnRecordCodecFromDefinition,
 } from './util.js';
-
-const quote = JSON.stringify;
+import { makeStructCodecForValues } from './subtypes.js';
 
 // OCapN Passable Atoms
 
@@ -93,52 +92,12 @@ export const makePassableCodecs = descCodecs => {
 
   // OCapN Passable Containers
 
-  /** @type {SyrupCodec} */
-  const OcapnStructCodec = makeCodec('OcapnStruct', {
-    read(syrupReader) {
-      /** @type {string | undefined} */
-      let lastKey;
-      syrupReader.enterDictionary();
-      const result = {};
-      while (!syrupReader.peekDictionaryEnd()) {
-        // OCapN Structs are always string keys.
-        const start = syrupReader.index;
-        const key = syrupReader.readString();
-        if (lastKey !== undefined) {
-          if (key === lastKey) {
-            throw new Error(
-              `OcapnStruct must have unique keys, got repeated ${quote(key)} at index ${start} of ${syrupReader.name}`,
-            );
-          }
-          if (key < lastKey) {
-            throw new Error(
-              `OcapnStruct keys must be in bytewise sorted order, got ${quote(key)} immediately after ${quote(lastKey)} at index ${start} of ${syrupReader.name}`,
-            );
-          }
-        }
-        lastKey = key;
-        // Value can be any Passable.
-        /* eslint-disable-next-line no-use-before-define */
-        const value = OcapnPassableUnionCodec.read(syrupReader);
-        result[key] = value;
-      }
-      syrupReader.exitDictionary();
-      return result;
-    },
-    write(value, syrupWriter) {
-      syrupWriter.enterDictionary();
-      const keys = Object.keys(value);
-      keys.sort();
-      for (const key of keys) {
-        syrupWriter.writeString(key);
-        // Value can be any Passable.
-        const passable = value[key];
-        /* eslint-disable-next-line no-use-before-define */
-        OcapnPassableUnionCodec.write(passable, syrupWriter);
-      }
-      syrupWriter.exitDictionary();
-    },
-  });
+  /* eslint-disable-next-line no-use-before-define */
+  const OcapnStructCodec = makeStructCodecForValues(
+    'OcapnStruct',
+    // eslint-disable-next-line no-use-before-define
+    () => OcapnPassableUnionCodec,
+  );
 
   // <:desc:tagged :tagName value>
   const OcapnTaggedCodec = makeOcapnRecordCodec(

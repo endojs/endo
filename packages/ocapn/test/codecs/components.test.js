@@ -1,24 +1,21 @@
 // @ts-check
 
 /**
- * @import { SyrupCodec } from '../../src/syrup/codec.js'
- * @import { SyrupReader } from '../../src/syrup/decode.js'
- * @import { SyrupWriter } from '../../src/syrup/encode.js'
  * @import { CodecTestEntry } from './_codecs_util.js'
- * @import { Settler } from '@endo/eventual-send'
+ * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from '../../src/codecs/components.js'
  */
 
 import test from '@endo/ses-ava/test.js';
 
 import {
   makeSig,
-  makeNode,
+  makePeer,
   makePubKey,
   exampleSigParamBytes,
   examplePubKeyQBytes,
 } from './_syrup_util.js';
 import {
-  OcapnNodeCodec,
+  OcapnPeerCodec,
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from '../../src/codecs/components.js';
@@ -30,31 +27,31 @@ import { testBidirectionally } from './_codecs_util.js';
 const table = [
   {
     syrup: makeSig(exampleSigParamBytes, exampleSigParamBytes),
-    value: {
+    value: /** @type {OcapnSignature} */ ({
       type: 'sig-val',
       scheme: 'eddsa',
       r: exampleSigParamBytes,
       s: exampleSigParamBytes,
-    },
+    }),
   },
   {
-    syrup: makeNode('tcp', '127.0.0.1', false),
-    value: {
-      type: 'ocapn-node',
+    syrup: makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
+    value: /** @type {OcapnLocation} */ ({
+      type: 'ocapn-peer',
       transport: 'tcp',
-      address: '127.0.0.1',
-      hints: false,
-    },
+      designator: '1234',
+      hints: { host: '127.0.0.1', port: '54822' },
+    }),
   },
   {
     syrup: makePubKey(examplePubKeyQBytes),
-    value: {
+    value: /** @type {OcapnPublicKeyData} */ ({
       type: 'public-key',
       scheme: 'ecc',
       curve: 'Ed25519',
       flags: 'eddsa',
       q: examplePubKeyQBytes,
-    },
+    }),
   },
 ];
 
@@ -68,7 +65,7 @@ const OcapnComponentListUnionCodec = makeOcapnListComponentUnionCodec(
 const OcapnComponentUnionCodec = makeTypeHintUnionCodec(
   'OcapnComponentUnionCodec',
   {
-    record: OcapnNodeCodec,
+    record: OcapnPeerCodec,
     list: OcapnComponentListUnionCodec,
   },
   {
@@ -77,8 +74,8 @@ const OcapnComponentUnionCodec = makeTypeHintUnionCodec(
       if (type === undefined) {
         throw Error(`Component has no type: ${value}`);
       }
-      if (type === 'ocapn-node') {
-        return OcapnNodeCodec;
+      if (type === 'ocapn-peer') {
+        return OcapnPeerCodec;
       }
 
       if (OcapnComponentListUnionCodec.supports(type)) {

@@ -52,12 +52,15 @@ const makeConnection = (netlayer, socket, isOutgoing) => {
  * @param {Client} options.client
  * @param {number} [options.specifiedPort]
  * @param {string} [options.specifiedHostname]
+ * @param {string} [options.specifiedDesignator]
  * @returns {Promise<NetLayer>}
  */
 export const makeTcpNetLayer = async ({
   client,
   specifiedPort = 0,
   specifiedHostname = '127.0.0.1',
+  // Unclear if a fallback value is reasonable.
+  specifiedDesignator = '0000',
 }) => {
   const { logger } = client;
 
@@ -89,10 +92,13 @@ export const makeTcpNetLayer = async ({
 
   /** @type {OcapnLocation} */
   const localLocation = {
-    type: 'ocapn-node',
+    type: 'ocapn-peer',
     transport: 'tcp-testing-only',
-    address: `${address}:${port}`,
-    hints: false,
+    designator: specifiedDesignator,
+    hints: {
+      host: address,
+      port: port.toString(),
+    },
   };
 
   /** @type {Map<string, Connection>} */
@@ -104,10 +110,13 @@ export const makeTcpNetLayer = async ({
    */
   const connect = location => {
     logger.info('Connecting to', location);
-    const [host, portStr] = location.address.split(':');
+    if (typeof location.hints !== 'object') {
+      throw new Error('Hints required for remote connections');
+    }
+    const { host, port: portStr } = location.hints;
     const remotePort = parseInt(portStr, 10);
     if (isNaN(remotePort)) {
-      throw new Error(`Invalid port in address: ${location.address}`);
+      throw new Error(`Invalid port in hints: ${portStr}`);
     }
     const socket = net.createConnection({ host, port: remotePort });
     // eslint-disable-next-line no-use-before-define
@@ -135,12 +144,12 @@ export const makeTcpNetLayer = async ({
     if (location.transport !== localLocation.transport) {
       throw Error(`Unsupported transport: ${location.transport}`);
     }
-    const connection = connections.get(location.address);
+    const connection = connections.get(location.designator);
     if (connection) {
       return connection;
     }
     const newConnection = connect(location);
-    connections.set(location.address, newConnection);
+    connections.set(location.designator, newConnection);
     return newConnection;
   };
 
