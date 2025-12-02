@@ -1,10 +1,25 @@
 import type { GenericGraph } from '../generic-graph.js';
 import type {
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+} from '../policy-format.js';
+import type {
+  CanonicalName,
+  CompartmentMapDescriptor,
+  PackageCompartmentDescriptorName,
+  PolicyOption,
+  SomePolicy,
+} from '../types.js';
+import type {
   Language,
   LanguageForExtension,
+  PackageCompartmentMapDescriptor,
 } from './compartment-map-schema.js';
-import type { LogOptions, FileUrlString } from './external.js';
-import type { PackageDescriptor } from './internal.js';
+import type {
+  FileUrlString,
+  LogOptions,
+  PackageDependenciesHook,
+} from './external.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -24,17 +39,26 @@ export type CommonDependencyDescriptorsOptions = {
 };
 
 /**
+ * Options bag containing a {@link PackageDependenciesHook}
+ */
+export type PackageDependenciesHookOption = {
+  packageDependenciesHook?: PackageDependenciesHook | undefined;
+};
+
+/**
  * Options for `graphPackage()`
  */
-export type GraphPackageOptions = {
-  logicalPath?: string[];
-} & LogOptions &
+export type GraphPackageOptions = LogOptions &
+  PolicyOption &
+  PackageDependenciesHookOption &
   CommonDependencyDescriptorsOptions;
 
 /**
  * Options for `graphPackages()`
  */
-export type GraphPackagesOptions = LogOptions;
+export type GraphPackagesOptions = LogOptions &
+  PolicyOption &
+  PackageDependenciesHookOption;
 
 /**
  * Options for `gatherDependency()`
@@ -46,8 +70,46 @@ export type GatherDependencyOptions = {
    */
   optional?: boolean;
 } & LogOptions &
+  PackageDependenciesHookOption &
+  PolicyOption &
   CommonDependencyDescriptorsOptions;
 
+/**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
+export interface PackageDescriptor {
+  /**
+   * TODO: In reality, this is optional, but `graphPackage` does not consider it
+   * to be. This will need to be fixed once support for "anonymous" packages
+   * lands; see https://github.com/endojs/endo/pull/2664
+   */
+  name: string;
+  version?: string;
+  /**
+   * TODO: Update with proper type when this field is handled.
+   */
+  exports?: unknown;
+  type?: 'module' | 'commonjs';
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  bundleDependencies?: string[];
+  peerDependenciesMeta?: Record<
+    string,
+    { optional?: boolean; [k: string]: unknown }
+  >;
+  module?: string;
+  browser?: Record<string, string> | string;
+
+  main?: string;
+
+  [k: string]: unknown;
+}
+
+/**
+ * Value in {@link Graph}
+ */
 export interface Node {
   /**
    * Informative compartment label based on the package name and version (if available)
@@ -57,8 +119,7 @@ export interface Node {
    * Package name
    */
   name: string;
-  path: Array<string>;
-  logicalPath: Array<string>;
+  location: FileUrlString;
   /**
    * `true` if the package's {@link PackageDescriptor} has an `exports` field
    */
@@ -77,9 +138,21 @@ export interface Node {
    *
    * The values are the keys of other {@link Node Nodes} in the {@link Graph}.
    */
-  dependencyLocations: Record<string, string>;
+  dependencyLocations: Record<string, FileUrlString>;
   parsers: LanguageForExtension;
   types: Record<string, Language>;
+  packageDescriptor: PackageDescriptor;
+}
+
+/**
+ * A node in the graph that has been finalized, meaning it has a `label` and is
+ * ready for conversion into a `CompartmentDescriptor`.
+ */
+export interface FinalNode extends Node {
+  /**
+   * Canonical name of the package; used to identify it in policy
+   */
+  label: string;
 }
 
 /**
@@ -92,6 +165,16 @@ export interface Node {
  * `<ATTENUATORS>` string.
  */
 export type Graph = Record<LiteralUnion<'<ATTENUATORS>', FileUrlString>, Node>;
+
+/**
+ * A graph, but contains {@link FinalNode}s instead of {@link Node}s.
+ *
+ * A "final node" has a `label` prop.
+ */
+export type FinalGraph = Record<
+  PackageCompartmentDescriptorName,
+  Readonly<FinalNode>
+>;
 
 export interface LanguageOptions {
   commonjsLanguageForExtension: LanguageForExtension;
@@ -114,3 +197,18 @@ export interface PackageDetails {
  * used by `mapNodeModules()` and its ilk.
  */
 export type LogicalPathGraph = GenericGraph<FileUrlString>;
+
+/**
+ * Options for `translateGraph()`
+ */
+export type TranslateGraphOptions = LogOptions &
+  PolicyOption &
+  PackageDependenciesHookOption;
+
+/**
+ * Mapping to enable reverse-lookups of `CompartmentDescriptor`s from policy.
+ */
+export type CanonicalNameMap = Map<
+  CanonicalName,
+  PackageCompartmentDescriptorName
+>;

@@ -3,6 +3,12 @@
 import 'ses';
 import test from 'ava';
 import { moduleify, scaffold, sanitizePaths } from './scaffold.js';
+import {
+  WILDCARD_POLICY_VALUE,
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+} from '../src/policy-format.js';
+import { makePackagePolicy } from '../src/policy.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
@@ -75,9 +81,9 @@ const policy = {
   },
 };
 const ANY = {
-  globals: 'any',
-  packages: 'any',
-  builtins: 'any',
+  globals: WILDCARD_POLICY_VALUE,
+  packages: WILDCARD_POLICY_VALUE,
+  builtins: WILDCARD_POLICY_VALUE,
 };
 const anyPolicy = {
   entry: policy.entry,
@@ -112,6 +118,7 @@ const anyExpectations = {
     carol: { bluePill: 'number', redPill: 'number', purplePill: 'number' },
   }),
 };
+
 const powerlessCarolExpectations = {
   namespace: moduleify({
     ...defaultExpectations.namespace,
@@ -129,12 +136,29 @@ const makeResultAssertions =
     t.deepEqual(namespace, expectations.namespace);
   };
 
-const assertNoPolicyBypassImport = async (t, { compartments }) => {
-  await t.throwsAsync(
-    () => compartments.find(c => c.name.includes('alice')).import('hackity'),
-    { message: /Failed to load module "hackity" in package .*alice/ },
-    'Attempting to import a package into a compartment despite policy should fail.',
-  );
+const assertExternalModuleNotFound = async (
+  t,
+  { compartments, testCategoryHint },
+) => {
+  await null;
+  if (testCategoryHint === 'Archive') {
+    await t.throwsAsync(
+      () => compartments.find(c => c.name.includes('alice')).import('hackity'),
+      {
+        message:
+          /importing "hackity" in "alice" was not allowed by "builtins" policy/i,
+      },
+      'Attempting to import a missing package into a compartment should fail.',
+    );
+  } else {
+    await t.throwsAsync(
+      () => compartments.find(c => c.name.includes('alice')).import('hackity'),
+      {
+        message: /cannot find external module "hackity"/i,
+      },
+      'Attempting to import a missing package into a compartment should fail.',
+    );
+  }
 };
 
 const assertTestAlwaysThrows = t => {
@@ -147,7 +171,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
-    assertNoPolicyBypassImport,
+    assertExternalModuleNotFound,
   ),
   2, // expected number of assertions
   {
@@ -162,7 +186,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(anyExpectations),
-    assertNoPolicyBypassImport,
+    assertExternalModuleNotFound,
   ),
   2, // expected number of assertions
   {
@@ -179,10 +203,15 @@ scaffold(
   2, // expected number of assertions
   {
     shouldFailBeforeArchiveOperations: true,
-    onError: (t, { error }) => {
-      t.regex(error.message, /dan.*resolves.*hackity/);
+    onError: (t, { error, testCategoryHint }) => {
+      if (testCategoryHint === 'Archive') {
+        t.regex(error.message, /unknown resources found in policy/i);
+        t.snapshot(sanitizePaths(error.message), 'archive case error message');
+      } else {
+        t.regex(error.message, /cannot find external module/i);
+        t.snapshot(sanitizePaths(error.message), 'location case error message');
+      }
       // see the snapshot for the error hint in the message
-      t.snapshot(sanitizePaths(error.message));
     },
     addGlobals: globals,
     policy: {
@@ -311,7 +340,7 @@ scaffold(
   {
     shouldFailBeforeArchiveOperations: true,
     onError: (t, { error }) => {
-      t.regex(error.message, /Importing.*carol.*in.*alice.*not allowed/i);
+      t.regex(error.message, /cannot find external module "carol"/i);
       t.snapshot(sanitizePaths(error.message));
     },
     addGlobals: globals,
@@ -423,7 +452,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
-    assertNoPolicyBypassImport,
+    assertExternalModuleNotFound,
   ),
   2, // expected number of assertions
   {
@@ -431,3 +460,176 @@ scaffold(
     policy: nestedAttenuator(policy),
   },
 );
+
+// Unit tests for makePackagePolicy
+test('makePackagePolicy() - no policy provided', t => {
+  t.is(makePackagePolicy('alice'), undefined);
+  t.is(makePackagePolicy(ATTENUATORS_COMPARTMENT), undefined);
+  t.is(makePackagePolicy(ENTRY_COMPARTMENT), undefined);
+  t.is(makePackagePolicy('alice', {}), undefined);
+});
+
+test('makePackagePolicy() - ATTENUATORS_COMPARTMENT label', t => {
+  const testPolicy = {
+    defaultAttenuator: 'myattenuator',
+    entry: { packages: { alice: true } },
+    resources: {},
+  };
+
+  const result = makePackagePolicy(ATTENUATORS_COMPARTMENT, {
+    policy: testPolicy,
+  });
+
+  t.deepEqual(result, {
+    defaultAttenuator: 'myattenuator',
+    packages: WILDCARD_POLICY_VALUE,
+  });
+});
+
+test('makePackagePolicy() - ATTENUATORS_COMPARTMENT label without defaultAttenuator', t => {
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+    resources: {},
+  };
+
+  const result = makePackagePolicy(ATTENUATORS_COMPARTMENT, {
+    policy: testPolicy,
+  });
+
+  t.deepEqual(result, {
+    defaultAttenuator: undefined,
+    packages: WILDCARD_POLICY_VALUE,
+  });
+});
+
+test('makePackagePolicy() - ENTRY_COMPARTMENT label', t => {
+  const entryPolicy = {
+    globals: { bluePill: true },
+    packages: { alice: true },
+    builtins: { builtin: { attenuate: 'myattenuator', params: ['a', 'b'] } },
+  };
+  const testPolicy = {
+    defaultAttenuator: 'myattenuator',
+    entry: entryPolicy,
+    resources: {},
+  };
+
+  const result = makePackagePolicy(ENTRY_COMPARTMENT, { policy: testPolicy });
+
+  t.is(result, entryPolicy);
+  t.deepEqual(result, entryPolicy);
+});
+
+test('makePackagePolicy() - ENTRY_COMPARTMENT label with undefined entry', t => {
+  const testPolicy = {
+    defaultAttenuator: 'myattenuator',
+    resources: {},
+  };
+
+  const result = makePackagePolicy(ENTRY_COMPARTMENT, { policy: testPolicy });
+
+  t.is(result, undefined);
+});
+
+test('makePackagePolicy() - regular canonical name that exists in resources', t => {
+  const resourcePolicy = {
+    packages: { 'alice>carol': true },
+  };
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+    resources: {
+      alice: resourcePolicy,
+    },
+  };
+
+  const result = makePackagePolicy('alice', { policy: testPolicy });
+
+  t.is(result, resourcePolicy);
+  t.deepEqual(result, resourcePolicy);
+});
+
+test('makePackagePolicy() - regular canonical name that does not exist in resources', t => {
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+    resources: {
+      alice: { globals: { santorum: true } },
+    },
+  };
+
+  const result = makePackagePolicy('nonexistent', { policy: testPolicy });
+
+  t.not(result, undefined);
+  t.is(Object.getPrototypeOf(result), null);
+  t.deepEqual(result, {});
+  t.is(Object.keys(result).length, 0);
+});
+
+test('makePackagePolicy() - regular canonical name with resources undefined', t => {
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+  };
+
+  const result = makePackagePolicy('alice', { policy: testPolicy });
+
+  t.not(result, undefined);
+  t.is(Object.getPrototypeOf(result), null);
+  t.deepEqual(result, {});
+  t.is(Object.keys(result).length, 0);
+});
+
+test('makePackagePolicy() - empty label throws', t => {
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+    resources: {
+      alice: { globals: { santorum: true } },
+    },
+  };
+
+  t.throws(() => makePackagePolicy(null, { policy: testPolicy }), {
+    message: /Invalid arguments: label must be a non-empty string; got null/i,
+  });
+  t.throws(() => makePackagePolicy(undefined, { policy: testPolicy }), {
+    message:
+      /Invalid arguments: label must be a non-empty string; got undefined/i,
+  });
+  t.throws(() => makePackagePolicy('', { policy: testPolicy }), {
+    message: /Invalid arguments: label must be a non-empty string; got ""/i,
+  });
+});
+
+test('makePackagePolicy() - preserves object reference for entry', t => {
+  const entryPolicy = { packages: { alice: true } };
+  const testPolicy = {
+    entry: entryPolicy,
+    resources: {},
+  };
+
+  const result = makePackagePolicy(ENTRY_COMPARTMENT, { policy: testPolicy });
+
+  t.is(result, entryPolicy);
+});
+
+test('makePackagePolicy() - preserves object reference for resources', t => {
+  const resourcePolicy = { globals: { redPill: true } };
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+    resources: {
+      alice: resourcePolicy,
+    },
+  };
+
+  const result = makePackagePolicy('alice', { policy: testPolicy });
+
+  t.is(result, resourcePolicy);
+});
+
+test('makePackagePolicy() - empty resources object returns empty package policy', t => {
+  const testPolicy = {
+    entry: { packages: { alice: true } },
+    resources: {},
+  };
+
+  const result = makePackagePolicy('alice', { policy: testPolicy });
+
+  t.deepEqual(result, {});
+});

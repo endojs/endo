@@ -68,6 +68,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/env-options": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",

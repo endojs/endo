@@ -3,6 +3,9 @@ import 'ses';
 import test from 'ava';
 import { scaffold } from './scaffold.js';
 
+/**
+ * @import {AssertionLocationFixtureNamespace} from './test.types.js'
+ */
 const fixture = new URL(
   'fixtures-policy/node_modules/app/importActualBuiltin.js',
   import.meta.url,

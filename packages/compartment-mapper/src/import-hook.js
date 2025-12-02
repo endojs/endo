@@ -29,14 +29,19 @@
  *   ImportNowHookMaker,
  *   MakeImportHookMakerOptions,
  *   MakeImportNowHookMakerOptions,
- *   ModuleDescriptor,
  *   ParseResult,
  *   ReadFn,
  *   ReadPowers,
  *   ReadNowPowers,
  *   StrictlyRequiredFn,
+ *   DeferErrorFn,
+ *   ErrorModuleSource,
+ *   FileUrlString,
  *   CompartmentSources,
- *   DeferErrorFn
+ *   CompartmentModuleConfiguration,
+ *   LogOptions,
+ *   CanonicalName,
+ *   LocalModuleSource
  * } from './types.js'
  */
 
@@ -44,15 +49,14 @@ import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
 import { resolve } from './node-module-specifier.js';
 import {
   attenuateModuleHook,
-  enforceModulePolicy,
-  enforcePackagePolicyByPath,
+  enforcePolicyByModule,
+  enforcePackagePolicyByCanonicalName,
 } from './policy.js';
 import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
-const q = JSON.stringify;
-
+const { quote: q } = assert;
 const { apply } = Reflect;
 
 /**
@@ -63,7 +67,7 @@ const { apply } = Reflect;
  */
 const freeze = Object.freeze;
 
-const { entries, keys, assign, create } = Object;
+const { keys, assign, create } = Object;
 
 const { hasOwnProperty } = Object.prototype;
 /**
@@ -72,12 +76,15 @@ const { hasOwnProperty } = Object.prototype;
  */
 const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
 
+const noop = () => {};
+
 /**
  * @param {string} rel - a relative URL
- * @param {string} abs - a fully qualified URL
- * @returns {string}
+ * @param {FileUrlString} abs - a fully qualified URL
+ * @returns {FileUrlString}
  */
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) =>
+  /** @type {FileUrlString} */ (new URL(rel, abs).toString());
 
 // this is annoying
 function getImportsFromRecord(record) {
@@ -99,14 +106,14 @@ const nodejsConventionSearchSuffixes = [
 
 /**
  * Returns `true` if `absoluteModuleSpecifier` is within the path `compartmentLocation`.
- * @param {string} absoluteModudeSpecifier Absolute path to module specifier
+ * @param {string} absoluteModuleSpecifier Absolute path to module specifier
  * @param {string} compartmentLocation Absolute path to compartment location
  * @returns {boolean}
  */
 const isLocationWithinCompartment = (
-  absoluteModudeSpecifier,
+  absoluteModuleSpecifier,
   compartmentLocation,
-) => absoluteModudeSpecifier.startsWith(compartmentLocation);
+) => absoluteModuleSpecifier.startsWith(compartmentLocation);
 
 /**
  * Computes the relative path to a module from its compartment location (including a leading `./`)
@@ -160,44 +167,8 @@ const findRedirect = ({
         return undefined;
       }
 
-      // this tests the compartment referred to by the absolute path
-      // is a dependency of the compartment descriptor
-      if (compartmentDescriptor.compartments.has(location)) {
-        return {
-          specifier: relativeSpecifier(moduleSpecifierLocation, location),
-          compartment: compartments[location],
-        };
-      }
-
-      // this tests if the compartment descriptor is a dependency of the
-      // compartment referred to by the absolute path.
-      // it may be in scope, but disallowed by policy.
-      if (
-        someCompartmentDescriptor.compartments.has(
-          compartmentDescriptor.location,
-        )
-      ) {
-        enforceModulePolicy(
-          compartmentDescriptor.name,
-          someCompartmentDescriptor,
-          {
-            errorHint: `Blocked in importNow hook by relationship. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
-          },
-        );
-        return {
-          specifier: relativeSpecifier(moduleSpecifierLocation, location),
-          compartment: compartments[location],
-        };
-      }
-
       if (compartmentDescriptor.policy) {
-        /* c8 ignore next */
-        if (!someCompartmentDescriptor.path) {
-          throw new Error(
-            `Cannot enforce package policy: compartment descriptor for ${location} unexpectedly missing a path; please report this issue`,
-          );
-        }
-        enforcePackagePolicyByPath(
+        enforcePackagePolicyByCanonicalName(
           someCompartmentDescriptor,
           compartmentDescriptor,
           {
@@ -287,6 +258,66 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
 };
 
 /**
+ * Executes the moduleSource hook for a {@link LocalModuleSource}.
+ *
+ * Preprocesses the fields for the hook.
+ *
+ * @param {import('./types.js').ModuleSourceHook | undefined} moduleSourceHook Hook function
+ * @param {LocalModuleSource} moduleSource Original `LocalModuleSource` object
+ * @param {CanonicalName} canonicalName Canonical name of the compartment/package
+ * @param {LogOptions} options Options
+ * @returns {void}
+ */
+const executeLocalModuleSourceHook = (
+  moduleSourceHook,
+  moduleSource,
+  canonicalName,
+  { log = noop } = {},
+) => {
+  if (!moduleSourceHook) {
+    return;
+  }
+
+  const {
+    sourceLocation: location,
+    parser: language,
+    bytes,
+    record,
+    sha512,
+  } = moduleSource;
+  /** @type {string[]|undefined} */
+  let imports;
+  /** @type {string[]|undefined} */
+  let exports;
+  /** @type {string[]|undefined} */
+  let reexports;
+
+  if ('imports' in record) {
+    ({ imports } = record);
+  }
+  if ('exports' in record) {
+    ({ exports } = record);
+  }
+  if ('reexports' in record) {
+    ({ reexports } = record);
+  }
+
+  moduleSourceHook({
+    moduleSource: {
+      location,
+      language,
+      bytes,
+      imports,
+      exports,
+      reexports,
+      sha512,
+    },
+    canonicalName,
+    log,
+  });
+};
+
+/**
  * Returns a generator which applies {@link ChooseModuleDescriptorOperators} in
  * `operators` using the options in options to ultimately result in a
  * {@link StaticModuleType} for a particular {@link CompartmentDescriptor} (or
@@ -319,7 +350,9 @@ function* chooseModuleDescriptor(
     readPowers,
     archiveOnly,
     sourceMapHook,
+    moduleSourceHook,
     strictlyRequiredForCompartment,
+    log = noop,
   },
   { maybeRead, parse, shouldDeferError = () => false },
 ) {
@@ -416,6 +449,7 @@ function* chooseModuleDescriptor(
           retained: true,
           module: candidateSpecifier,
           compartment: packageLocation,
+          __createdBy: 'import-hook',
         };
       }
       /** @type {StaticModuleType} */
@@ -442,7 +476,9 @@ function* chooseModuleDescriptor(
       const packageRelativeLocation = moduleLocation.slice(
         packageLocation.length,
       );
-      packageSources[candidateSpecifier] = {
+
+      /** @type {LocalModuleSource} */
+      const localModuleSource = {
         location: packageRelativeLocation,
         sourceLocation: moduleLocation,
         sourceDirname,
@@ -451,6 +487,16 @@ function* chooseModuleDescriptor(
         record: concreteRecord,
         sha512,
       };
+
+      packageSources[candidateSpecifier] = localModuleSource;
+
+      executeLocalModuleSourceHook(
+        moduleSourceHook,
+        localModuleSource,
+        compartmentDescriptor.label,
+        { log },
+      );
+
       if (!shouldDeferError(parser)) {
         for (const importSpecifier of getImportsFromRecord(record)) {
           strictlyRequiredForCompartment(packageLocation).add(
@@ -480,9 +526,7 @@ const makeDeferError = (
   packageSources,
 ) => {
   /**
-   * @param {string} specifier
-   * @param {Error} error - error to throw on execute
-   * @returns {StaticModuleType}
+   * @type {DeferErrorFn}
    */
   const deferError = (specifier, error) => {
     // strictlyRequired is populated with imports declared by modules whose parser is not using heuristics to figure
@@ -504,9 +548,11 @@ const makeDeferError = (
         throw error;
       },
     });
-    packageSources[specifier] = {
+    /** @type {ErrorModuleSource} */
+    const moduleSource = {
       deferredError: error.message,
     };
+    packageSources[specifier] = moduleSource;
 
     return record;
   };
@@ -515,7 +561,7 @@ const makeDeferError = (
 
 /**
  * @param {ReadFn|ReadPowers} readPowers
- * @param {string} baseLocation
+ * @param {FileUrlString} baseLocation
  * @param {MakeImportHookMakerOptions} options
  * @returns {ImportHookMaker}
  */
@@ -532,6 +578,8 @@ export const makeImportHookMaker = (
     entryCompartmentName,
     entryModuleSpecifier,
     importHook: exitModuleImportHook = undefined,
+    moduleSourceHook,
+    log = noop,
   },
 ) => {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -603,12 +651,23 @@ export const makeImportHookMaker = (
             if (record) {
               // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
               // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
-              enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+              enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
                 exit: true,
                 errorHint: `Blocked in loading. ${q(
                   moduleSpecifier,
                 )} was not in the compartment map and an attempt was made to load it as a builtin`,
               });
+
+              if (moduleSourceHook) {
+                moduleSourceHook({
+                  moduleSource: {
+                    exit: moduleSpecifier,
+                  },
+                  canonicalName: compartmentDescriptor.label,
+                  log,
+                });
+              }
+
               if (archiveOnly) {
                 // Return a place-holder.
                 // Archived compartments are not executed.
@@ -652,7 +711,9 @@ export const makeImportHookMaker = (
             readPowers,
             archiveOnly,
             sourceMapHook,
+            moduleSourceHook,
             strictlyRequiredForCompartment,
+            log,
           },
           { maybeRead, parse, shouldDeferError },
         );
@@ -681,7 +742,7 @@ export const makeImportHookMaker = (
  * Synchronous import for dynamic requires.
  *
  * @param {ReadNowPowers} readPowers
- * @param {string} baseLocation
+ * @param {FileUrlString} baseLocation
  * @param {MakeImportNowHookMakerOptions} options
  * @returns {ImportNowHookMaker}
  */
@@ -696,13 +757,14 @@ export function makeImportNowHookMaker(
     archiveOnly = false,
     sourceMapHook = undefined,
     importNowHook: exitModuleImportNowHook = undefined,
+    moduleSourceHook,
+    log = noop,
   },
 ) {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
   // using heuristics to determine imports.
   /** @type {Map<string, Set<string>>} compartment name ->* module specifier */
   const strictlyRequired = new Map();
-
   /**
    * @param {string} compartmentName
    */
@@ -726,10 +788,13 @@ export function makeImportNowHookMaker(
     compartments,
     shouldDeferError,
   }) => {
+    packageLocation = resolveLocation(packageLocation, baseLocation);
+    const packageSources = sources[packageLocation] || create(null);
+    sources[packageLocation] = packageSources;
     const deferError = makeDeferError(
       strictlyRequiredForCompartment,
       packageLocation,
-      sources,
+      packageSources,
     );
 
     /**
@@ -751,9 +816,9 @@ export function makeImportNowHookMaker(
         if (exitRecord) {
           // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
           // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
-          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+          enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
             exit: true,
-            errorHint: `Blocked in loading. ${q(
+            errorHint: `Blocked exit module in loading. ${q(
               moduleSpecifier,
             )} was not in the compartment map and an attempt was made to load it as a builtin`,
           });
@@ -781,37 +846,17 @@ export function makeImportNowHookMaker(
       };
     }
 
-    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
+    const compartmentDescriptor =
+      compartmentDescriptors[packageLocation] || create(null);
 
-    packageLocation = resolveLocation(packageLocation, baseLocation);
-    const packageSources = sources[packageLocation] || create(null);
-    sources[packageLocation] = packageSources;
     const {
       modules:
-        moduleDescriptors = /** @type {Record<string, ModuleDescriptor>} */ (
+        moduleDescriptors = /** @type {Record<string, CompartmentModuleConfiguration>} */ (
           create(null)
         ),
     } = compartmentDescriptor;
+
     compartmentDescriptor.modules = moduleDescriptors;
-
-    let { policy } = compartmentDescriptor;
-    policy = policy || create(null);
-
-    // Associates modules with compartment descriptors based on policy
-    // in cases where the association was not made when building the
-    // compartment map but is indicated by the policy.
-    if ('packages' in policy && typeof policy.packages === 'object') {
-      for (const [packageName, packagePolicyItem] of entries(policy.packages)) {
-        if (
-          !(packageName in compartmentDescriptor.modules) &&
-          packageName in compartmentDescriptor.scopes &&
-          packagePolicyItem
-        ) {
-          compartmentDescriptor.modules[packageName] =
-            compartmentDescriptor.scopes[packageName];
-        }
-      }
-    }
 
     const { maybeReadNow, isAbsolute } = readPowers;
 
@@ -872,7 +917,9 @@ export function makeImportNowHookMaker(
             readPowers,
             archiveOnly,
             sourceMapHook,
+            moduleSourceHook,
             strictlyRequiredForCompartment,
+            log,
           },
           {
             maybeRead: maybeReadNow,

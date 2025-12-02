@@ -100,7 +100,8 @@ test('extracting an archive with an inconsistent hash', async t => {
         },
       }),
     {
-      message: `Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Module "main.js" of package "app-v1.0.0" in archive "corrupt.zip" failed a SHA-512 integrity check`,
+      message:
+        'Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Module "main.js" of package "app-v1.0.0" in archive "corrupt.zip" failed a SHA-512 integrity check',
     },
   );
 

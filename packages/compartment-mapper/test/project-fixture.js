@@ -1,3 +1,4 @@
+/* eslint-disable no-shadow */
 /**
  * Utilities for working with {@link ProjectFixture} objects
  *
@@ -15,19 +16,32 @@ import nodeUrl from 'node:url';
 import { inspect } from 'node:util';
 import { makeReadPowers } from '../node-powers.js';
 import { GenericGraph } from '../src/generic-graph.js';
+import {
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+  WILDCARD_POLICY_VALUE,
+} from '../src/policy-format.js';
 
 /**
  * @import {MakeMaybeReadProjectFixtureOptions,
  *  MakeProjectFixtureReadPowersOptions,
  *  MakeMaybeReadProjectFixtureOptionsWithRandomDelay,
  *  ProjectFixture,
- *  RestParameters} from './test.types.js'
- * @import {CompartmentMapDescriptor, LogFn, MaybeReadFn, PackageDescriptor} from '../src/types.js'
+ *  FixedCustomInspectFunction,
+ *  RestParameters,
+ *  CustomInspectStyles} from './test.types.js'
+ * @import {CompartmentMapDescriptor,
+ *  LogFn,
+ *  MaybeReadFn,
+ *  MaybeReadNowFn,
+ *  MaybeReadPowers,
+ *  PackageDescriptor,
+ *  PackagePolicy,
+ *  ReadFn} from '../src/types.js'
  * @import {ExecutionContext} from 'ava'
- * @import {CustomInspectFunction} from 'node:util'
  */
 
-const { entries, fromEntries, assign, getPrototypeOf } = Object;
+const { entries, fromEntries, getPrototypeOf, freeze, keys } = Object;
 
 /**
  * Pretty-prints a {@link ProjectFixture} as an ASCII tree.
@@ -88,46 +102,85 @@ const MIN_DELAY = 10;
  */
 const MAX_DELAY = 100;
 
+const customStyles = freeze(
+  /** @type {CustomInspectStyles} */ ({
+    ...inspect.styles,
+    name: 'white',
+    undefined: 'dim',
+    endoKind: 'magenta',
+    endoCanonical: 'cyanBright',
+    endoConstant: 'magentaBright',
+  }),
+);
+
 /**
- * Creates a `maybeRead` function for use with a {@link ProjectFixture} having a
- * random delay.
+ * Core logic for reading project fixture files. Handles different file types:
+ * - `package.json`: Generates a package descriptor with `type: 'module'` based
+ *   on the fixture's dependency graph
+ * - JavaScript files (`.js`, `.mjs`): Returns deterministic ESM module content
+ *   with named and default exports
+ * - Other files: Returns deterministic text content suitable for testing
  *
- * @overload
  * @param {ProjectFixture} fixture
- * @param {MakeMaybeReadProjectFixtureOptionsWithRandomDelay} options
- * @returns {MaybeReadFn}
+ * @param {string} specifier
+ * @returns {Buffer|undefined}
  */
+const readProjectFixtureCore = ({ graph }, specifier) => {
+  const chunks = specifier.split('node_modules/');
+
+  if (chunks.length > 2 || chunks.length === 0) {
+    return undefined;
+  }
+
+  const filepath = chunks[1];
+  const packageName = nodePath.dirname(filepath);
+  const filename = nodePath.basename(filepath);
+
+  // Handle non-package.json files with deterministic dummy content
+  if (filename !== 'package.json') {
+    const extension = nodePath.extname(filename);
+
+    if (extension === '.js' || extension === '.mjs') {
+      // Return deterministic dummy ESM content
+      return Buffer.from(`// Module: ${packageName}/${filename}
+export const value = '${packageName}-${filename}';
+export default value;
+`);
+    }
+
+    // For other file types, return generic content
+    return Buffer.from(`// File: ${packageName}/${filename}\n`);
+  }
+
+  // Handle package.json files
+  const dependencies = graph[packageName] || [];
+  const packageDescriptor = {
+    name: packageName,
+    version: '1.0.0',
+    type: 'module',
+    dependencies: fromEntries(
+      dependencies.map(dependencyName => [dependencyName, '1.0.0']),
+    ),
+  };
+
+  return Buffer.from(JSON.stringify(packageDescriptor, undefined, 2));
+};
 
 /**
- * Creates a `maybeRead` function for use with a {@link ProjectFixture}, optionally with static delay (in ms)
- * @overload
- * @param {ProjectFixture} fixture
- * @param {MakeMaybeReadProjectFixtureOptions} [options]
- * @returns {MaybeReadFn}
- */
-
-/**
+ * Creates a `maybeRead` function for use with a {@link ProjectFixture}.
+ *
+ * This is the async version that supports delay options and returns `undefined`
+ * for missing files instead of throwing errors.
+ *
  * @param {ProjectFixture} fixture
  * @param {MakeMaybeReadProjectFixtureOptions|MakeMaybeReadProjectFixtureOptionsWithRandomDelay} [options]
  * @returns {MaybeReadFn}
  */
-export const makeMaybeReadProjectFixture =
-  ({ graph }, options = {}) =>
-  async specifier => {
+export const makeMaybeReadProjectFixture = (fixture, options = {}) => {
+  return async specifier => {
     await Promise.resolve();
 
-    const chunks = specifier.split('node_modules/');
-    if (chunks.length > 2) {
-      return undefined;
-    }
-
-    assert(
-      chunks.length > 0,
-      `Invalid specifier "${specifier}" for makeMaybeReadProjectFixture`,
-    );
-
-    const filepath = chunks[1];
-
+    // Handle delay options
     /** @type {() => Promise<void>} */
     let wait;
     if ('randomDelay' in options && options.randomDelay === false) {
@@ -143,26 +196,59 @@ export const makeMaybeReadProjectFixture =
 
     await wait();
 
-    const packageName = nodePath.dirname(filepath);
-    const dependencies = graph[packageName] || [];
-
-    /** @type {PackageDescriptor} */
-    const packageDescriptor = {
-      name: packageName,
-      version: '1.0.0',
-      dependencies: fromEntries(
-        dependencies.map(dependencyName => [dependencyName, '1.0.0']),
-      ),
-    };
-
-    return Buffer.from(JSON.stringify(packageDescriptor));
+    return readProjectFixtureCore(fixture, specifier);
   };
+};
+
+/**
+ * Creates a `read` function for use with a {@link ProjectFixture}.
+ *
+ * This is the async version that throws errors for missing files instead of
+ * returning `undefined`.
+ *
+ * @param {ProjectFixture} fixture
+ * @param {MakeMaybeReadProjectFixtureOptions|MakeMaybeReadProjectFixtureOptionsWithRandomDelay} [options]
+ * @returns {ReadFn}
+ */
+const makeReadProjectFixture = (fixture, options = {}) => {
+  const maybeRead = makeMaybeReadProjectFixture(fixture, options);
+
+  return async specifier => {
+    const result = await maybeRead(specifier);
+
+    if (result === undefined) {
+      const err = new Error(`File not found: ${specifier}`);
+      /** @type {any} */ (err).code = 'ENOENT';
+      throw err;
+    }
+
+    return result;
+  };
+};
+
+/**
+ * Creates a `maybeReadNow` function for use with a {@link ProjectFixture}.
+ *
+ * This is the synchronous version that returns `undefined` for missing files.
+ *
+ * @param {ProjectFixture} fixture
+ * @returns {MaybeReadNowFn}
+ */
+const makeMaybeReadNowProjectFixture = fixture => {
+  /** @type {MaybeReadNowFn} */
+  const maybeReadNow = specifier => {
+    return readProjectFixtureCore(fixture, specifier);
+  };
+  return maybeReadNow;
+};
 
 /**
  * Creates `ReadPowers` for use with a {@link ProjectFixture}
  *
  * @param {ProjectFixture} fixture
  * @param {MakeProjectFixtureReadPowersOptions} [options]
+ * @see {@link makeMaybeReadProjectFixture} for details
+ * @returns {MaybeReadPowers}
  */
 export const makeProjectFixtureReadPowers = (
   fixture,
@@ -174,9 +260,15 @@ export const makeProjectFixtureReadPowers = (
     ...otherOptions
   } = {},
 ) => {
+  const basePowers = makeReadPowers({ fs, url, crypto, path });
+  const maybeRead = makeMaybeReadProjectFixture(fixture, otherOptions);
+  const maybeReadNow = makeMaybeReadNowProjectFixture(fixture);
+  const read = makeReadProjectFixture(fixture, otherOptions);
   return {
-    ...makeReadPowers({ fs, url, crypto, path }),
-    maybeRead: makeMaybeReadProjectFixture(fixture, otherOptions),
+    ...basePowers,
+    maybeRead,
+    maybeReadNow,
+    read,
   };
 };
 
@@ -188,34 +280,103 @@ export const makeProjectFixtureReadPowers = (
  *
  * Otherwise this function is just the identity
  *
- * @param {unknown} value
- * @returns {unknown}
+ * @template T
+ * @param {T} value
+ * @returns {T}
  */
-const styleObject = value => {
-  if (value && getPrototypeOf(value) === null) {
-    return fromEntries(entries(value).map(([k, v]) => [k, styleObject(v)]));
+const unnullify = value => {
+  if (value === undefined) {
+    return value;
+  }
+  if (value !== null && getPrototypeOf(value) === null) {
+    return entries(value).reduce(
+      (acc, [k, v]) => ({
+        ...acc,
+        [k]: unnullify(v),
+      }),
+      /** @type {T} */ ({}),
+    );
   }
   return value;
 };
 
 /**
- * Prepends a `CompartmentDescriptor.path` with the computed canonical name (or "[Root]" if entry compartment).
+ * Prepares a {@link PackagePolicy} for inspection by {@link dumpCompartmentMap}.
  *
- * Returns a shallow copy of `path` with a {@link CustomInspectFunction}.
- *
- * @param {string[]} path
+ * @template {PackagePolicy|undefined} T
+ * @param {T} packagePolicy
+ * @returns {T}
  */
-const stylePath = path => {
-  const fancyPath = [...path];
-  assign(fancyPath, {
-    /** @type {CustomInspectFunction} */
-    [inspect.custom]: (_, { stylize }) =>
-      path.length
-        ? `[${stylize('Canonical', 'date')}: ${stylize(path.join('>'), 'special')}] ${inspect(path)}`
-        : `[${stylize('Root', 'date')}]`,
-  });
-  return fancyPath;
+const stylePackagePolicy = packagePolicy => {
+  if (packagePolicy === undefined) {
+    return packagePolicy;
+  }
+  const policy = unnullify(packagePolicy);
+  return {
+    ...policy,
+    /** @type {FixedCustomInspectFunction} */
+    [inspect.custom]: (_, options, inspect) => {
+      for (const [key, value] of entries(policy)) {
+        if (value === WILDCARD_POLICY_VALUE) {
+          // styles value as a constant. this could also be done by mutating styles,
+          // but since the value is just a string, we don't need to. we _do_ however
+          // need to turn it into an object so that it can have a custom inspect function.
+          policy[key] = {
+            /** @type {FixedCustomInspectFunction} */
+            [inspect.custom]: (_, options) =>
+              options.stylize(value, 'endoConstant'),
+          };
+        } else if (
+          key === 'packages' &&
+          typeof value === 'object' &&
+          keys(/** @type {any} */ (value)).length
+        ) {
+          // styles non-empty `packages` prop; all object keys are temporarily
+          // styled as canonical names. I was unable to find a nicer way to do
+          // this (e.g. with `stylize`), since the `inspect()` call will want to
+          // apply its own colors.
+          policy[key] = /** @type {any} */ ({
+            ...value,
+            /** @type {FixedCustomInspectFunction} */
+            [inspect.custom]: (_, options, inspect) => {
+              const { styles } = inspect;
+              try {
+                inspect.styles = /** @type {any} */ ({
+                  ...customStyles,
+                  string: 'cyanBright',
+                  name: 'cyanBright',
+                });
+                return inspect(value, options);
+              } finally {
+                inspect.styles = styles;
+              }
+            },
+          });
+        }
+      }
+      return `${options.stylize('PackagePolicy', 'endoKind')}(${inspect(policy, { ...options })})`;
+    },
+  };
 };
+
+/**
+ *
+ * @param {string} label
+ */
+const styleLabel = label => ({
+  /** @type {FixedCustomInspectFunction} */
+  [inspect.custom]: (_, options) => {
+    const { stylize } = options;
+    const kind = stylize('Canonical', 'endoKind');
+    if (label === ATTENUATORS_COMPARTMENT) {
+      return `${kind}(${stylize('Attenuators', 'endoConstant')})`;
+    }
+    if (label === ENTRY_COMPARTMENT) {
+      return `${kind}(${stylize('Entry', 'endoConstant')})`;
+    }
+    return `${kind}(${stylize(label, 'endoCanonical')})`;
+  },
+});
 
 /**
  * Dump a {@link CompartmentMapDescriptor}, omitting some fields.
@@ -233,43 +394,55 @@ const stylePath = path => {
  * @returns {void}
  */
 export const dumpCompartmentMap = (logger, compartmentMap) => {
-  const compartmentMapForInspect = {
-    ...compartmentMap,
-    /** @type {CustomInspectFunction} */
-    [inspect.custom]: () => ({
-      compartments: fromEntries(
-        entries(compartmentMap.compartments).map(
-          ([
-            compartmentName,
-            {
-              label,
-              name,
-              scopes,
-              location,
-              sourceDirname,
-              modules,
-              path = [],
-            },
-          ]) => [
-            compartmentName,
-            {
-              label,
-              name,
-              scopes: styleObject(scopes),
-              location: styleObject(location),
-              sourceDirname,
-              modules: styleObject(modules),
-              path: stylePath(path),
-            },
-          ],
-        ),
-      ),
+  const originalStyles = inspect.styles;
 
-      entry: styleObject(compartmentMap.entry),
-    }),
-  };
+  inspect.styles = customStyles;
+
+  let inspected;
+  try {
+    const compartmentMapForInspect = {
+      ...compartmentMap,
+      /** @type {FixedCustomInspectFunction} */
+      [inspect.custom]: () => {
+        return {
+          compartments: fromEntries(
+            entries(compartmentMap.compartments).map(
+              ([
+                compartmentName,
+                {
+                  label,
+                  name,
+                  scopes,
+                  location,
+                  sourceDirname,
+                  modules,
+                  policy,
+                  ...rest
+                },
+              ]) => [
+                compartmentName,
+                {
+                  label: styleLabel(label),
+                  name,
+                  location, // TODO: style if file URL
+                  policy: stylePackagePolicy(policy),
+                  sourceDirname,
+                  ...unnullify(rest),
+                },
+              ],
+            ),
+          ),
+
+          entry: unnullify(compartmentMap.entry),
+        };
+      },
+    };
+    inspected = inspect(compartmentMapForInspect, { depth: 4, colors: true });
+  } finally {
+    inspect.styles = originalStyles;
+  }
   logger.log(
-    `Compartment map for entry compartment at "${compartmentMap.entry.compartment}":\n${inspect(compartmentMapForInspect, false, 4, true)}`,
+    `Compartment map for entry compartment at "${compartmentMap.entry.compartment}":\n${inspected}`,
   );
 };
 

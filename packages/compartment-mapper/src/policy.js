@@ -9,24 +9,27 @@
  *   Policy,
  *   PackagePolicy,
  *   AttenuationDefinition,
- *   PackageNamingKit,
  *   DeferredAttenuatorsProvider,
  *   CompartmentDescriptor,
  *   Attenuator,
  *   SomePolicy,
  *   PolicyEnforcementField,
  *   SomePackagePolicy,
+ *   CompartmentDescriptorWithPolicy,
+ *   ModuleConfiguration,
+ *   CanonicalName,
  * } from './types.js'
  * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
 
 import {
   ATTENUATORS_COMPARTMENT,
-  generateCanonicalName,
+  ENTRY_COMPARTMENT,
   getAttenuatorFromDefinition,
   isAllowingEverything,
   isAttenuationDefinition,
   policyLookupHelper,
+  WILDCARD_POLICY_VALUE,
 } from './policy-format.js';
 
 const {
@@ -115,60 +118,51 @@ export const detectAttenuators = policy => {
  * Verifies if a module identified by `namingKit` can be a dependency of a package per `packagePolicy`.
  * `packagePolicy` is required, when policy is not set, skipping needs to be handled by the caller.
  *
- * @param {PackageNamingKit} namingKit
+ * @param {CanonicalName} canonicalName
  * @param {PackagePolicy} packagePolicy
  * @returns {boolean}
  */
-export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
-  if (namingKit.isEntry) {
-    // dependency on entry compartment should never be allowed
-    return false;
-  }
-  const canonicalName = generateCanonicalName(namingKit);
+export const dependencyAllowedByPolicy = (canonicalName, packagePolicy) => {
   return !!policyLookupHelper(packagePolicy, 'packages', canonicalName);
 };
 
 /**
- * Returns the policy applicable to the canonicalName of the package
+ * Generates the {@link SomePackagePolicy} value to be used in
+ * {@link CompartmentDescriptor.policy}
  *
- * @overload
- * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
- * @param {SomePolicy} policy - user supplied policy
- * @returns {SomePackagePolicy} packagePolicy if policy was specified
+ * @param {CanonicalName | typeof ATTENUATORS_COMPARTMENT | typeof ENTRY_COMPARTMENT} label
+ * @param {object} [options] Options
+ * @param {SomePolicy} [options.policy] User-supplied policy
+ * @returns {SomePackagePolicy|undefined} Package policy from `policy` or empty
+ * object; returns `params.packagePolicy` if provided. If entry compartment,
+ * returns the `entry` property of the policy verbatim.
  */
-
-/**
- * Returns `undefined`
- *
- * @overload
- * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
- * @param {SomePolicy} [policy] - user supplied policy
- * @returns {SomePackagePolicy|undefined} packagePolicy if policy was specified
- */
-
-/**
- * Returns the policy applicable to the canonicalName of the package
- *
- * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
- * @param {SomePolicy} [policy] - user supplied policy
- */
-export const getPolicyForPackage = (namingKit, policy) => {
-  if (!policy) {
-    return undefined;
+export const makePackagePolicy = (label, { policy } = {}) => {
+  /** @type {SomePackagePolicy|undefined} */
+  let packagePolicy;
+  if (!label) {
+    throw new TypeError(
+      `Invalid arguments: label must be a non-empty string; got ${q(label)}`,
+    );
   }
-  if (namingKit.isEntry) {
-    return policy.entry;
+  if (policy) {
+    if (label === ATTENUATORS_COMPARTMENT) {
+      packagePolicy = {
+        defaultAttenuator: policy.defaultAttenuator,
+        packages: WILDCARD_POLICY_VALUE,
+      };
+    } else if (label === ENTRY_COMPARTMENT) {
+      packagePolicy = policy.entry;
+      // If policy.entry is `undefined`, we return `undefined` which is
+      // equivalent to "allow everything".
+      return packagePolicy;
+    } else if (label) {
+      packagePolicy = policy.resources?.[label];
+    }
+    // An empty object for a package policy is equivalent to "allow nothing"
+    return packagePolicy ?? create(null);
   }
-  const canonicalName = generateCanonicalName(namingKit);
-  if (canonicalName === ATTENUATORS_COMPARTMENT) {
-    return { defaultAttenuator: policy.defaultAttenuator, packages: 'any' };
-  }
-  if (policy.resources && policy.resources[canonicalName] !== undefined) {
-    return policy.resources[canonicalName];
-  } else {
-    // Allow skipping policy entries for packages with no powers.
-    return create(null);
-  }
+  return undefined;
 };
 
 /**
@@ -237,6 +231,11 @@ export const makeDeferredAttenuatorsProvider = (
       throw Error(`No attenuators specified in policy`);
     };
   } else {
+    if (!compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy) {
+      throw Error(
+        `${q(ATTENUATORS_COMPARTMENT)} is missing the required policy; this is likely a bug`,
+      );
+    }
     defaultAttenuator =
       compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy.defaultAttenuator;
 
@@ -309,7 +308,7 @@ async function attenuateGlobalThis({
  *
  * @param {object} globalThis
  * @param {object} globals
- * @param {PackagePolicy} packagePolicy
+ * @param {PackagePolicy|undefined} packagePolicy
  * @param {DeferredAttenuatorsProvider} attenuators
  * @param {Array<Promise>} pendingJobs
  * @param {string} name
@@ -367,28 +366,21 @@ export const attenuateGlobals = (
  * Generates a helpful error message for a policy enforcement failure
  *
  * @param {string} specifier
- * @param {CompartmentDescriptor} referrerCompartmentDescriptor
+ * @param {CompartmentDescriptorWithPolicy} referrerCompartmentDescriptor
  * @param {object} options
- * @param {string[]} [options.compartmentDescriptorPath]
+ * @param {string} [options.resourceCanonicalName]
  * @param {string} [options.errorHint]
- * @param {string} [options.resourceNameFromPath]
  * @param {PolicyEnforcementField} [options.policyField]
  * @returns {string}
  */
 const policyEnforcementFailureMessage = (
   specifier,
   { label, policy },
-  {
-    compartmentDescriptorPath,
-    resourceNameFromPath,
-    errorHint,
-    policyField = 'packages',
-  } = {},
+  { resourceCanonicalName, errorHint, policyField = 'packages' } = {},
 ) => {
   let message = `Importing ${q(specifier)}`;
-  if (compartmentDescriptorPath) {
-    resourceNameFromPath ??= compartmentDescriptorPath.join('>');
-    message += ` in resource ${q(resourceNameFromPath)}`;
+  if (resourceCanonicalName) {
+    message += ` in resource ${q(resourceCanonicalName)}`;
   }
   message += ` in ${q(label)} was not allowed by`;
   if (keys(policy[policyField] ?? {}).length > 0) {
@@ -403,7 +395,14 @@ const policyEnforcementFailureMessage = (
 };
 
 /**
- * Options for {@link enforceModulePolicy}
+ * @template {ModuleConfiguration} T
+ * @param {CompartmentDescriptor<T>} compartmentDescriptor
+ * @returns {compartmentDescriptor is CompartmentDescriptorWithPolicy<T>}
+ */
+const hasPolicy = compartmentDescriptor => !!compartmentDescriptor.policy;
+
+/**
+ * Options for {@link enforcePolicyByModule}
  * @typedef EnforceModulePolicyOptions
  * @property {boolean} [exit] - Whether it is an exit module
  * @property {string} [errorHint] - Error hint message
@@ -416,15 +415,16 @@ const policyEnforcementFailureMessage = (
  * @param {CompartmentDescriptor} compartmentDescriptor
  * @param {EnforceModulePolicyOptions} [options]
  */
-export const enforceModulePolicy = (
+export const enforcePolicyByModule = (
   specifier,
   compartmentDescriptor,
   { exit, errorHint } = {},
 ) => {
-  const { policy, modules } = compartmentDescriptor;
-  if (!policy) {
+  if (!hasPolicy(compartmentDescriptor)) {
+    // No policy, no enforcement
     return;
   }
+  const { policy, modules } = compartmentDescriptor;
 
   if (!exit) {
     if (!modules[specifier]) {
@@ -455,39 +455,27 @@ export const enforceModulePolicy = (
  * @param {CompartmentDescriptor} referrerCompartmentDescriptor
  * @param {EnforceModulePolicyOptions} [options]
  */
-export const enforcePackagePolicyByPath = (
+export const enforcePackagePolicyByCanonicalName = (
   compartmentDescriptor,
   referrerCompartmentDescriptor,
   { errorHint } = {},
 ) => {
-  const { policy: referrerPolicy } = referrerCompartmentDescriptor;
-  if (!referrerPolicy) {
-    throw Error(
+  if (!hasPolicy(referrerCompartmentDescriptor)) {
+    throw new Error(
       `Cannot enforce policy via ${q(referrerCompartmentDescriptor.label)}: no package policy defined`,
     );
   }
-  const { path, name } = compartmentDescriptor;
+  const { policy: referrerPolicy } = referrerCompartmentDescriptor;
+  const { label: resourceCanonicalName } = compartmentDescriptor;
 
-  assert(
-    path,
-    `Compartment descriptor ${q(compartmentDescriptor.label)} does not have a path; cannot enforce policy via ${q(referrerCompartmentDescriptor.label)}`,
-  );
-
-  const resourceNameFromPath = generateCanonicalName({
-    path,
-    name,
-    isEntry: path.length === 0,
-  });
-
-  if (!policyLookupHelper(referrerPolicy, 'packages', resourceNameFromPath)) {
-    throw Error(
+  if (!policyLookupHelper(referrerPolicy, 'packages', resourceCanonicalName)) {
+    throw new Error(
       policyEnforcementFailureMessage(
-        resourceNameFromPath,
+        resourceCanonicalName,
         referrerCompartmentDescriptor,
         {
           errorHint,
-          compartmentDescriptorPath: path,
-          resourceNameFromPath,
+          resourceCanonicalName,
         },
       ),
     );
@@ -516,19 +504,21 @@ async function attenuateModule({
   // An async attenuator maker could be introduced here to return a synchronous attenuator.
   // For async attenuators see PR https://github.com/endojs/endo/pull/1535
 
-  return freeze({
-    imports: originalModuleRecord.imports,
-    // It seems ok to declare the exports but then let the attenuator trim the values.
-    // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
-    exports: originalModuleRecord.exports,
-    execute: (moduleExports, compartment, resolvedImports) => {
-      const ns = {};
-      originalModuleRecord.execute(ns, compartment, resolvedImports);
-      const attenuated = attenuate(ns);
-      moduleExports.default = attenuated;
-      assign(moduleExports, attenuated);
-    },
-  });
+  return freeze(
+    /** @type {ThirdPartyStaticModuleInterface} */ ({
+      imports: originalModuleRecord.imports,
+      // It seems ok to declare the exports but then let the attenuator trim the values.
+      // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
+      exports: originalModuleRecord.exports,
+      execute: (moduleExports, compartment, resolvedImports) => {
+        const ns = {};
+        originalModuleRecord.execute(ns, compartment, resolvedImports);
+        const attenuated = attenuate(ns);
+        moduleExports.default = attenuated;
+        assign(moduleExports, attenuated);
+      },
+    }),
+  );
 }
 
 /**
@@ -536,7 +526,7 @@ async function attenuateModule({
  *
  * @param {string} specifier - exit module name
  * @param {ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
- * @param {PackagePolicy} policy - local compartment policy
+ * @param {PackagePolicy|undefined} policy - local compartment policy
  * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
  * @returns {Promise<ThirdPartyStaticModuleInterface>} - the attenuated module
  */
@@ -546,8 +536,11 @@ export const attenuateModuleHook = async (
   policy,
   attenuators,
 ) => {
+  if (!policy) {
+    return originalModuleRecord;
+  }
   const policyValue = policyLookupHelper(policy, 'builtins', specifier);
-  if (!policy || policyValue === true) {
+  if (policyValue === true) {
     return originalModuleRecord;
   }
 

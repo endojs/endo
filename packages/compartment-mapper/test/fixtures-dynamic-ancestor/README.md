@@ -10,7 +10,7 @@ sequenceDiagram
   participant pantspack
   participant pantspack-folder-runner
   participant jorts-folder
-  
+
   activate app
   app->>+pantspack: run pantspack
   deactivate app
@@ -28,9 +28,9 @@ sequenceDiagram
 
 ```
 
-The main "app" is `webpackish-app`, which contains a [`pantspack.config.js`](./node_modules/webpackish-app/pantspack.config.js) file. This file specifies the _name_ of a "folder", which is `jorts-folder`. `jorts-folder`  _is not_ loaded directly by `pantspack.config.js`.
+The main "app" is `webpackish-app`, which contains a [`pantspack.config.js`](./node_modules/webpackish-app/pantspack.config.js) file. This file specifies the _name_ of a "folder", which is `jorts-folder`. `jorts-folder` _is not_ loaded directly by `pantspack.config.js`.
 
-`webpackish-app` uses `pantspack` to "build" itself.  Its `build` script:
+`webpackish-app` uses `pantspack` to "build" itself. Its `build` script:
 
 ```sh
 node ../pantspack/pantspack.js --config pantspack.config.js
