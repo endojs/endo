@@ -704,7 +704,7 @@ const makeBootstrapObject = (
       const {
         signedGive,
         receivingSession,
-        receivingSide: receiverKeyForExporter,
+        receivingSide: peerIdFromHandoffReceive,
         handoffCount,
       } = handoffReceive;
       const { object: handoffGive, signature: handoffGiveSig } = signedGive;
@@ -721,11 +721,12 @@ const makeBootstrapObject = (
           `${label}: Bootstrap withdraw-gift: No peer public key for session id: ${toHex(sessionId)}. This should never happen.`,
         );
       }
+      const peerIdFromSession = makePublicKeyId(peerPublicKey);
       if (
-        compareByteArrays(peerPublicKey.bytes, receiverKeyForExporter) !== 0
+        compareByteArrays(peerIdFromSession, peerIdFromHandoffReceive) !== 0
       ) {
         throw Error(
-          `${label}: Bootstrap withdraw-gift: Receiver key mismatch.`,
+          `${label}: Bootstrap withdraw-gift: Receiver key mismatch for session ${toHex(sessionId)}.\n  peerIdFromSession: ${toHex(peerIdFromSession)}\n  peerIdFromHandoffReceive: ${toHex(peerIdFromHandoffReceive)}`,
         );
       }
       if (compareByteArrays(sessionId, receivingSession) !== 0) {
@@ -1078,6 +1079,10 @@ export const makeOcapn = (
 
   /** @type {MakeHandoff} */
   const makeHandoff = signedGive => {
+    // We are the Receiver.
+    // This peer is the Gifter.
+    // The Exporter is specified by location in the HandoffGive.
+    const gifterLocation = peerLocation;
     const {
       object: { exporterLocation },
     } = signedGive;
@@ -1085,14 +1090,17 @@ export const makeOcapn = (
       (async () => {
         const [receiverGifterSession, receiverExporterSession] =
           await Promise.all([
-            provideSession(peerLocation),
+            provideSession(gifterLocation),
             provideSession(exporterLocation),
           ]);
         const {
           ocapn,
           id: receiverExporterSessionId,
-          self: { keyPair: receiverExporterKey },
+          self: { keyPair: receiverKeyForExporter },
         } = receiverExporterSession;
+        const receiverPeerIdForExporter = makePublicKeyId(
+          receiverKeyForExporter.publicKey,
+        );
         const {
           self: { keyPair: receiverGifterKey },
         } = receiverGifterSession;
@@ -1102,7 +1110,7 @@ export const makeOcapn = (
           signedGive,
           handoffCount,
           receiverExporterSessionId,
-          receiverExporterKey.publicKey,
+          receiverPeerIdForExporter,
           receiverGifterKey,
         );
         return E(bootstrap)['withdraw-gift'](signedHandoffReceive);
