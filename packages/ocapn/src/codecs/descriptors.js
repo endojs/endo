@@ -153,7 +153,7 @@ export const serializeHandoffReceive = handoffReceive => {
  * @param {HandoffGiveSigEnvelope} signedGive
  * @param {bigint} handoffCount
  * @param {Uint8Array} sessionId
- * @param {OcapnPublicKey} pubKeyForExporter
+ * @param {Uint8Array} receiverPeerId
  * @param {OcapnKeyPair} privKeyForGifter
  * @returns {HandoffReceiveSigEnvelope}
  */
@@ -161,15 +161,14 @@ export const makeWithdrawGiftDescriptor = (
   signedGive,
   handoffCount,
   sessionId,
-  pubKeyForExporter,
+  receiverPeerId,
   privKeyForGifter,
 ) => {
   /** @type {HandoffReceive} */
   const handoffReceive = {
     type: 'desc:handoff-receive',
     receivingSession: sessionId,
-    // This should be removed from the spec
-    receivingSide: pubKeyForExporter.bytes,
+    receivingSide: receiverPeerId,
     handoffCount,
     signedGive,
   };

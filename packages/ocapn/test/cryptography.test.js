@@ -91,13 +91,16 @@ test('makeWithdrawGiftDescriptor', t => {
       key2: receiverKeyForExporter,
       sessionId: exporterReceiverSessionId,
     } = exporterReceiverSession;
+    const receiverPeerIdForExporter = makePublicKeyId(
+      receiverKeyForExporter.publicKey,
+    );
     const { key2: receiverKeyForGifter } = gifterReceiverSession;
     const handoffCount = 0n;
     /** @type {HandoffReceive} */
     const handoffReceive = {
       type: 'desc:handoff-receive',
       receivingSession: exporterReceiverSessionId,
-      receivingSide: receiverKeyForExporter.publicKey.bytes,
+      receivingSide: receiverPeerIdForExporter,
       handoffCount,
       signedGive,
     };
@@ -106,7 +109,7 @@ test('makeWithdrawGiftDescriptor', t => {
       signedGive,
       handoffCount,
       exporterReceiverSessionId,
-      receiverKeyForExporter.publicKey,
+      receiverPeerIdForExporter,
       receiverKeyForGifter,
     );
     const signedReceiveIsValid = receiverKeyForGifter.publicKey.verify(
