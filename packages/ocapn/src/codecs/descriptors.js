@@ -5,7 +5,7 @@
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
- * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from './components.js'
+ * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './components.js'
  * @import { OcapnPublicKey, OcapnKeyPair } from '../cryptography.js'
  */
 
@@ -37,7 +37,7 @@ import { makeSyrupWriter } from '../syrup/encode.js';
 /**
  * @typedef {object} HandoffGive
  * @property {'desc:handoff-give'} type
- * @property {OcapnPublicKeyData} receiverKey
+ * @property {OcapnPublicKeyDescriptor} receiverKey
  * @property {OcapnLocation} exporterLocation
  * @property {Uint8Array} exporterSessionId
  * @property {Uint8Array} gifterSideId

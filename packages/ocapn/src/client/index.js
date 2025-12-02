@@ -1,8 +1,8 @@
 // @ts-check
 
 /**
- * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from '../codecs/components.js'
- * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
+ * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
+ * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { GrantTracker, Ocapn } from './ocapn.js'
  * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager } from './types.js'
  */
@@ -14,10 +14,8 @@ import {
   writeOcapnHandshakeMessage,
 } from '../codecs/operations.js';
 import {
-  makePublicKeyId,
   makeOcapnKeyPair,
   makeOcapnPublicKey,
-  publicKeyToPublicKeyData,
   makeSessionId,
 } from '../cryptography.js';
 import { OcapnMyLocationCodec } from '../codecs/components.js';
@@ -99,7 +97,7 @@ export const sendHello = (connection, mySessionData) => {
   const opStartSession = {
     type: 'op:start-session',
     captpVersion: '1.0',
-    sessionPublicKey: publicKeyToPublicKeyData(keyPair.publicKey),
+    sessionPublicKey: keyPair.publicKey.descriptor,
     location,
     locationSignature,
   };
@@ -119,8 +117,8 @@ const compareSessionKeysForCrossedHellos = (
   incommingPublicKey,
 ) => {
   const outgoingPublicKey = outgoingConnection.selfIdentity.keyPair.publicKey;
-  const outgoingId = makePublicKeyId(outgoingPublicKey);
-  const incommingId = makePublicKeyId(incommingPublicKey);
+  const outgoingId = outgoingPublicKey.id;
+  const incommingId = incommingPublicKey.id;
   const result = compareByteArrays(
     outgoingId,
     incommingId,
@@ -243,9 +241,10 @@ const handleSessionHandshakeMessage = (
 
       // Create session
       const { selfIdentity } = connection;
-      const selfId = makePublicKeyId(selfIdentity.keyPair.publicKey);
-      const peerId = makePublicKeyId(peerPublicKey);
-      const sessionId = makeSessionId(selfId, peerId);
+      const sessionId = makeSessionId(
+        selfIdentity.keyPair.publicKey.id,
+        peerPublicKey.id,
+      );
       const ocapn = makeOcapn(
         logger,
         connection,

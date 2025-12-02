@@ -2,7 +2,7 @@
 
 /**
  * @import { CodecTestEntry } from './_codecs_util.js'
- * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from '../../src/codecs/components.js'
+ * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from '../../src/codecs/components.js'
  */
 
 import test from '@endo/ses-ava/test.js';
@@ -45,7 +45,7 @@ const table = [
   },
   {
     syrup: makePubKey(examplePubKeyQBytes),
-    value: /** @type {OcapnPublicKeyData} */ ({
+    value: /** @type {OcapnPublicKeyDescriptor} */ ({
       type: 'public-key',
       scheme: 'ecc',
       curve: 'Ed25519',
