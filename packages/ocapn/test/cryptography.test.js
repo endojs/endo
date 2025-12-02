@@ -7,12 +7,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import { Buffer } from 'buffer';
-import {
-  makeOcapnKeyPair,
-  makePublicKeyId,
-  makeSessionId,
-  publicKeyToPublicKeyData,
-} from '../src/cryptography.js';
+import { makeOcapnKeyPair, makeSessionId } from '../src/cryptography.js';
 import {
   makeWithdrawGiftDescriptor,
   serializeHandoffGive,
@@ -21,15 +16,11 @@ import {
 
 const makeSessionKeys = () => {
   const key1 = makeOcapnKeyPair();
-  const key1Id = makePublicKeyId(key1.publicKey);
   const key2 = makeOcapnKeyPair();
-  const key2Id = makePublicKeyId(key2.publicKey);
-  const sessionId = makeSessionId(key1Id, key2Id);
+  const sessionId = makeSessionId(key1.publicKey.id, key2.publicKey.id);
   return {
     key1,
     key2,
-    key1Id,
-    key2Id,
     sessionId,
   };
 };
@@ -48,16 +39,13 @@ test('makeWithdrawGiftDescriptor', t => {
   /** @type {HandoffGiveSigEnvelope} */
   let signedGive;
   {
-    const {
-      key1: gifterKey,
-      key1Id: gifterKeyId,
-      sessionId: gifterExporterSessionId,
-    } = gifterExporterSession;
+    const { key1: gifterKey, sessionId: gifterExporterSessionId } =
+      gifterExporterSession;
     const { key2: receiverKey } = gifterReceiverSession;
     /** @type {HandoffGive} */
     const handoffGive = {
       type: 'desc:handoff-give',
-      receiverKey: publicKeyToPublicKeyData(receiverKey.publicKey),
+      receiverKey: receiverKey.publicKey.descriptor,
       exporterLocation: {
         type: 'ocapn-peer',
         designator: '127.0.0.1',
@@ -65,7 +53,7 @@ test('makeWithdrawGiftDescriptor', t => {
         hints: false,
       },
       exporterSessionId: gifterExporterSessionId,
-      gifterSideId: gifterKeyId,
+      gifterSideId: gifterKey.publicKey.id,
       giftId: Buffer.from('gift-id', 'utf8'),
     };
     const giveBytes = serializeHandoffGive(handoffGive);
@@ -91,9 +79,7 @@ test('makeWithdrawGiftDescriptor', t => {
       key2: receiverKeyForExporter,
       sessionId: exporterReceiverSessionId,
     } = exporterReceiverSession;
-    const receiverPeerIdForExporter = makePublicKeyId(
-      receiverKeyForExporter.publicKey,
-    );
+    const receiverPeerIdForExporter = receiverKeyForExporter.publicKey.id;
     const { key2: receiverKeyForGifter } = gifterReceiverSession;
     const handoffCount = 0n;
     /** @type {HandoffReceive} */
@@ -120,8 +106,8 @@ test('makeWithdrawGiftDescriptor', t => {
   }
 });
 
-test('makePublicKeyId', t => {
+test('makeOcapnKeyPair', t => {
   const key = makeOcapnKeyPair();
-  const publicKeyId = makePublicKeyId(key.publicKey);
-  t.is(publicKeyId.length, 32);
+  t.is(key.publicKey.bytes.length, 32);
+  t.is(key.publicKey.id.length, 32);
 });

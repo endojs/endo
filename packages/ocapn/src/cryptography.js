@@ -9,14 +9,16 @@ import { OcapnPublicKeyCodec } from './codecs/components.js';
 import { compareByteArrays } from './syrup/compare.js';
 
 /**
- * @import { OcapnPublicKeyData, OcapnSignature } from './codecs/components.js'
+ * @import { OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
  */
 
 const textEncoder = new TextEncoder();
 
 /**
  * @typedef {object} OcapnPublicKey
+ * @property {Uint8Array} id
  * @property {Uint8Array} bytes
+ * @property {OcapnPublicKeyDescriptor} descriptor
  * @property {(msg: Uint8Array, sig: OcapnSignature) => boolean} verify
  */
 
@@ -38,12 +40,49 @@ export const ocapNSignatureToBytes = sig => {
 };
 
 /**
- * @param {Uint8Array} publicKey
+ * @param {Uint8Array} publicKeyBytes
+ * @returns {OcapnPublicKeyDescriptor}
+ */
+const makePublicKeyDescriptor = publicKeyBytes => {
+  return {
+    type: 'public-key',
+    scheme: 'ecc',
+    curve: 'Ed25519',
+    flags: 'eddsa',
+    q: publicKeyBytes,
+  };
+};
+
+/**
+ * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
+ * @returns {Uint8Array}
+ */
+const publicKeyDescriptorToEncodedBytes = publicKeyDescriptor => {
+  const syrupWriter = makeSyrupWriter();
+  OcapnPublicKeyCodec.write(publicKeyDescriptor, syrupWriter);
+  return syrupWriter.getBytes();
+};
+
+/**
+ * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
+ * @returns {Uint8Array}
+ */
+const makePublicKeyIdFromDescriptor = publicKeyDescriptor => {
+  const publicKeyEncoded =
+    publicKeyDescriptorToEncodedBytes(publicKeyDescriptor);
+  return sha256(sha256(publicKeyEncoded));
+};
+
+/**
+ * @param {Uint8Array} publicKeyBytes
  * @returns {OcapnPublicKey}
  */
-export const makeOcapnPublicKey = publicKey => {
-  return {
-    bytes: publicKey,
+export const makeOcapnPublicKey = publicKeyBytes => {
+  const publicKeyDescriptor = makePublicKeyDescriptor(publicKeyBytes);
+  return harden({
+    id: makePublicKeyIdFromDescriptor(publicKeyDescriptor),
+    bytes: publicKeyBytes,
+    descriptor: publicKeyDescriptor,
     /**
      * @param {Uint8Array} msgBytes
      * @param {OcapnSignature} ocapnSig
@@ -51,21 +90,21 @@ export const makeOcapnPublicKey = publicKey => {
      */
     verify: (msgBytes, ocapnSig) => {
       const sigBytes = ocapNSignatureToBytes(ocapnSig);
-      return ed25519.verify(sigBytes, msgBytes, publicKey);
+      return ed25519.verify(sigBytes, msgBytes, publicKeyBytes);
     },
-  };
+  });
 };
 
 /**
  * @returns {OcapnKeyPair}
  */
 export const makeOcapnKeyPair = () => {
-  const privateKey = ed25519.utils.randomPrivateKey();
-  const publicKey = ed25519.getPublicKey(privateKey);
+  const privateKeyBytes = ed25519.utils.randomPrivateKey();
+  const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
   return {
-    publicKey: makeOcapnPublicKey(publicKey),
+    publicKey: makeOcapnPublicKey(publicKeyBytes),
     sign: msg => {
-      const sigBytes = ed25519.sign(msg, privateKey);
+      const sigBytes = ed25519.sign(msg, privateKeyBytes);
       return {
         type: 'sig-val',
         scheme: 'eddsa',
@@ -77,46 +116,26 @@ export const makeOcapnKeyPair = () => {
 };
 
 /**
- * @param {OcapnPublicKey} publicKey
- * @returns {OcapnPublicKeyData}
- */
-export const publicKeyToPublicKeyData = publicKey => {
-  return {
-    type: 'public-key',
-    scheme: 'ecc',
-    curve: 'Ed25519',
-    flags: 'eddsa',
-    q: publicKey.bytes,
-  };
-};
-
-/**
- * @param {OcapnPublicKeyData} publicKeyData
+ * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
  * @returns {OcapnPublicKey}
  */
-export const publicKeyDataToPublicKey = publicKeyData => {
-  return makeOcapnPublicKey(publicKeyData.q);
-};
-
-/**
- * @param {OcapnPublicKeyData} publicKeyData
- * @returns {Uint8Array}
- */
-const publicKeyDataToEncodedBytes = publicKeyData => {
-  const syrupWriter = makeSyrupWriter();
-  OcapnPublicKeyCodec.write(publicKeyData, syrupWriter);
-  return syrupWriter.getBytes();
-};
-
-/**
- * @param {OcapnPublicKey} publicKey
- * @returns {Uint8Array}
- */
-export const makePublicKeyId = publicKey => {
-  const publicKeyData = publicKeyToPublicKeyData(publicKey);
-  const publicKeyEncoded = publicKeyDataToEncodedBytes(publicKeyData);
-  // Double SHA256 hash of the public key
-  return sha256(sha256(publicKeyEncoded));
+export const publicKeyDescriptorToPublicKey = publicKeyDescriptor => {
+  if (publicKeyDescriptor.type !== 'public-key') {
+    throw new Error('Invalid public key descriptor: Unexpected type');
+  }
+  if (publicKeyDescriptor.scheme !== 'ecc') {
+    throw new Error('Invalid public key descriptor: Unexpected scheme');
+  }
+  if (publicKeyDescriptor.curve !== 'Ed25519') {
+    throw new Error('Invalid public key descriptor: Unexpected curve');
+  }
+  if (publicKeyDescriptor.flags !== 'eddsa') {
+    throw new Error('Invalid public key descriptor: Unexpected flags');
+  }
+  if (publicKeyDescriptor.q.length !== 32) {
+    throw new Error('Invalid public key descriptor: Unexpected q length');
+  }
+  return makeOcapnPublicKey(publicKeyDescriptor.q);
 };
 
 /**
@@ -125,7 +144,6 @@ export const makePublicKeyId = publicKey => {
  * @returns {Uint8Array}
  */
 export const makeSessionId = (peerIdOne, peerIdTwo) => {
-  // Calculate the ID of each side using the process described above.
   // Sort both IDs based on the resulting octets
   const result = compareByteArrays(
     peerIdOne,

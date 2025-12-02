@@ -99,7 +99,7 @@ export const OcapnSignatureCodec = makeOcapnListComponentCodec(
 );
 
 /**
- * @typedef {object} OcapnPublicKeyData
+ * @typedef {object} OcapnPublicKeyDescriptor
  * @property {'public-key'} type
  * @property {'ecc'} scheme
  * @property {'Ed25519'} curve

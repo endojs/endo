@@ -31,9 +31,7 @@ import { getSelectorName, makeSelector } from '../pass-style-helpers.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
 import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
 import {
-  makePublicKeyId,
-  publicKeyDataToPublicKey,
-  publicKeyToPublicKeyData,
+  publicKeyDescriptorToPublicKey,
   randomGiftId,
 } from '../cryptography.js';
 import { compareByteArrays } from '../syrup/compare.js';
@@ -608,14 +606,12 @@ export const makeTableKit = (
       const {
         peer: { publicKey: receiverPublicKeyForGifter },
       } = gifterReceiverSession;
-      const gifterSideId = makePublicKeyId(
-        gifterExporterSession.self.keyPair.publicKey,
-      );
+      const gifterSideId = gifterExporterSession.self.keyPair.publicKey.id;
       const giftId = randomGiftId();
       /** @type {HandoffGive} */
       const handoffGive = {
         type: 'desc:handoff-give',
-        receiverKey: publicKeyToPublicKeyData(receiverPublicKeyForGifter),
+        receiverKey: receiverPublicKeyForGifter.descriptor,
         exporterLocation,
         exporterSessionId: gifterExporterSessionId,
         gifterSideId,
@@ -721,7 +717,7 @@ const makeBootstrapObject = (
           `${label}: Bootstrap withdraw-gift: No peer public key for session id: ${toHex(sessionId)}. This should never happen.`,
         );
       }
-      const peerIdFromSession = makePublicKeyId(peerPublicKey);
+      const peerIdFromSession = peerPublicKey.id;
       if (
         compareByteArrays(peerIdFromSession, peerIdFromHandoffReceive) !== 0
       ) {
@@ -753,7 +749,7 @@ const makeBootstrapObject = (
 
       // Verify HandoffReceive
       const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
-      const receiverKeyForGifter = publicKeyDataToPublicKey(
+      const receiverKeyForGifter = publicKeyDescriptorToPublicKey(
         receiverKeyDataForGifter,
       );
       const handoffReceiveIsValid = receiverKeyForGifter.verify(
@@ -1098,9 +1094,7 @@ export const makeOcapn = (
           id: receiverExporterSessionId,
           self: { keyPair: receiverKeyForExporter },
         } = receiverExporterSession;
-        const receiverPeerIdForExporter = makePublicKeyId(
-          receiverKeyForExporter.publicKey,
-        );
+        const receiverPeerIdForExporter = receiverKeyForExporter.publicKey.id;
         const {
           self: { keyPair: receiverGifterKey },
         } = receiverGifterSession;
