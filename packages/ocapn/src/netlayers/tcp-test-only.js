@@ -3,6 +3,7 @@
 import net from 'net';
 
 import { makeSelfIdentity, sendHello } from '../client/index.js';
+import { locationToLocationId } from '../client/util.js';
 
 /**
  * @import { Connection, NetLayer, Session, Client } from '../client/types.js'
@@ -163,6 +164,7 @@ export const makeTcpNetLayer = async ({
   /** @type {NetLayer} */
   const netlayer = harden({
     location: localLocation,
+    locationId: locationToLocationId(localLocation),
     connect: lookupOrConnect,
     shutdown,
   });
