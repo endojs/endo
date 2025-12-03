@@ -27,6 +27,7 @@ import {
   makeOcapnRecordCodecFromDefinition,
 } from './util.js';
 import { makeStructCodecForValues } from './subtypes.js';
+import { isSturdyRef } from '../client/sturdyrefs.js';
 
 // OCapN Passable Atoms
 
@@ -88,7 +89,7 @@ const AtomCodecs = {
  * @returns {PassableCodecs}
  */
 export const makePassableCodecs = descCodecs => {
-  const { ReferenceCodec } = descCodecs;
+  const { ReferenceCodec, OcapnSturdyRefCodec } = descCodecs;
 
   // OCapN Passable Containers
 
@@ -203,6 +204,10 @@ export const makePassableCodecs = descCodecs => {
         if (Array.isArray(value)) {
           // eslint-disable-next-line no-use-before-define
           return ContainerCodecs.list;
+        }
+        // Check for SturdyRefs before calling passStyleOf
+        if (isSturdyRef(value)) {
+          return OcapnSturdyRefCodec;
         }
         const passStyle = passStyleOf(value);
         if (passStyle === 'tagged') {

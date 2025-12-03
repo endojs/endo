@@ -9,7 +9,8 @@
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
  * @import { SyrupReader } from '../syrup/decode.js'
- * @import { Client, Connection, LocationId, Logger, Session } from './types.js'
+ * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
+ * @import { Connection, LocationId, Logger, Session } from './types.js'
  */
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
@@ -35,6 +36,7 @@ import {
   randomGiftId,
 } from '../cryptography.js';
 import { compareByteArrays } from '../syrup/compare.js';
+import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
 /**
  * @typedef {OcapnFarObject<{resolve: (value: any) => void, break: (reason: any) => void}>} LocalResolver
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
@@ -443,7 +445,7 @@ const slotTypes = harden({
  * @typedef {object} ValInfo
  * @property {bigint} position
  * @property {CapTPSlot} slot
- * @property {SlotType} type
+ * @property {SlotType | 'sturdyref'} type
  * @property {boolean} isLocal
  * @property {boolean} isThirdParty
  * @property {GrantDetails} [grantDetails]
@@ -460,7 +462,7 @@ const slotTypes = harden({
  * @property {(position: bigint) => any} convertPositionToLocalPromise
  * @property {(position: bigint) => any} provideRemoteResolver
  * @property {(position: bigint) => any} provideLocalAnswer
- * @property {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => Promise<any>} provideSturdyRef
+ * @property {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => SturdyRef} makeSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
  * @property {(value: any) => ValInfo} getInfoForVal
  * @property {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
@@ -470,22 +472,22 @@ const slotTypes = harden({
  * @param {OcapnLocation} peerLocation
  * @param {CapTPEngine} engine
  * @param {MakeRemoteResolver} makeRemoteResolver
- * @param {MakeRemoteSturdyRef} makeRemoteSturdyRef
  * @param {MakeHandoff} makeHandoff
  * @param {GrantTracker} grantTracker
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
  * @param {(session: Session, giftId: Uint8Array, value: any) => void} sendDepositGift
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @returns {TableKit}
  */
 export const makeTableKit = (
   peerLocation,
   engine,
   makeRemoteResolver,
-  makeRemoteSturdyRef,
   makeHandoff,
   grantTracker,
   getActiveSession,
   sendDepositGift,
+  sturdyRefTracker,
 ) => {
   const convertValToPosition = val => {
     const slot = engine.convertValToSlot(val);
@@ -546,13 +548,29 @@ export const makeTableKit = (
       }
       return resolver;
     },
-    provideSturdyRef: (nodeLocation, swissNum) => {
-      return makeRemoteSturdyRef(nodeLocation, swissNum);
+    makeSturdyRef: (location, swissNum) => {
+      return sturdyRefTracker.makeSturdyRef(location, swissNum);
     },
     provideHandoff: signedGive => {
       return makeHandoff(signedGive);
     },
     getInfoForVal: val => {
+      // Check if this is a SturdyRef first
+      if (isSturdyRef(val)) {
+        // SturdyRefs are treated as local objects
+        const details = getSturdyRefDetails(val);
+        if (!details) {
+          throw Error('SturdyRef has no details');
+        }
+        return {
+          isThirdParty: false,
+          isLocal: true,
+          type: 'sturdyref',
+          // not used for sturdy-refs
+          position: 0n,
+          slot: '',
+        };
+      }
       const grantDetails = grantTracker.getGrantDetails(val);
       if (grantDetails) {
         // This is a grant, either imported from this location or exported from another.
@@ -806,6 +824,7 @@ const makeBootstrapObject = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @param {string} [ourIdLabel]
  * @returns {Ocapn}
  */
@@ -820,6 +839,7 @@ export const makeOcapn = (
   grantTracker,
   swissnumTable,
   giftTable,
+  sturdyRefTracker,
   ourIdLabel = 'OCapN',
 ) => {
   const commitSendSlots = () => {
@@ -958,33 +978,8 @@ export const makeOcapn = (
 
   const makeRemoteBootstrap = () => {
     const slot = `o-0`;
-    const innerHandler = makeHandlerForRemoteReference(slot);
-    const outerHandler = harden({
-      ...innerHandler,
-      applyMethod: (_o, prop, args) => {
-        const promise = innerHandler.applyMethod(_o, prop, args);
-        // We need to record the results of fetch so that we can identify which
-        // objects are sturdyrefs.
-        if (prop === 'fetch') {
-          const [swissNum] = args;
-          return promise.then(result => {
-            // eslint-disable-next-line no-use-before-define
-            const sturdyRefSlot = engine.convertValToSlot(result);
-            // this will overwrite any previous grant details, upgrading the grant to a sturdyref
-            const grantDetails = makeGrantDetails(
-              peerLocation,
-              sturdyRefSlot,
-              'sturdy-ref',
-              swissNum,
-            );
-            grantTracker.recordImport(result, grantDetails);
-            return result;
-          });
-        }
-        return promise;
-      },
-    });
-    const { settler } = makeRemoteKitForHandler(outerHandler);
+    const bootstrapHandler = makeHandlerForRemoteReference(slot);
+    const { settler } = makeRemoteKitForHandler(bootstrapHandler);
     const bootstrap = Remotable(
       'Alleged: Bootstrap',
       undefined,
@@ -1062,17 +1057,6 @@ export const makeOcapn = (
     gcImports: true,
   });
 
-  /** @type {MakeRemoteSturdyRef} */
-  const makeRemoteSturdyRef = (location, swissNum) => {
-    const promise = HandledPromise.resolve(
-      (async () => {
-        const { ocapn } = await provideSession(location);
-        return E(ocapn.getBootstrap()).fetch(swissNum);
-      })(),
-    );
-    return promise;
-  };
-
   /** @type {MakeHandoff} */
   const makeHandoff = signedGive => {
     // We are the Receiver.
@@ -1135,11 +1119,11 @@ export const makeOcapn = (
     peerLocation,
     engine,
     makeRemoteResolver,
-    makeRemoteSturdyRef,
     makeHandoff,
     grantTracker,
     getActiveSession,
     sendDepositGift,
+    sturdyRefTracker,
   );
 
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(tableKit);

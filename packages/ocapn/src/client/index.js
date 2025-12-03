@@ -4,6 +4,7 @@
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager } from './types.js'
  */
 
@@ -23,6 +24,7 @@ import { compareByteArrays } from '../syrup/compare.js';
 import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
+import { makeSturdyRefTracker } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
 
 /**
@@ -142,6 +144,7 @@ const compareSessionKeysForCrossedHellos = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @param {any} message
  */
 const handleSessionHandshakeMessage = (
@@ -152,6 +155,7 @@ const handleSessionHandshakeMessage = (
   grantTracker,
   swissnumTable,
   giftTable,
+  sturdyRefTracker,
   message,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
@@ -256,6 +260,7 @@ const handleSessionHandshakeMessage = (
         grantTracker,
         swissnumTable,
         giftTable,
+        sturdyRefTracker,
         'ocapn',
       );
       const session = makeSession({
@@ -294,6 +299,7 @@ const handleSessionHandshakeMessage = (
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Uint8Array} data
  */
 const handleHandshakeMessageData = (
@@ -304,6 +310,7 @@ const handleHandshakeMessageData = (
   grantTracker,
   swissnumTable,
   giftTable,
+  sturdyRefTracker,
   data,
 ) => {
   try {
@@ -334,6 +341,7 @@ const handleHandshakeMessageData = (
           grantTracker,
           swissnumTable,
           giftTable,
+          sturdyRefTracker,
           message,
         );
       } else {
@@ -495,6 +503,9 @@ export const makeClient = ({
     grantTracker,
     sessionManager,
     swissnumTable,
+    sturdyRefTracker: makeSturdyRefTracker(location =>
+      client.provideSession(location),
+    ),
     /**
      * @param {NetLayer} netlayer
      */
@@ -523,6 +534,7 @@ export const makeClient = ({
           grantTracker,
           swissnumTable,
           giftTable,
+          client.sturdyRefTracker,
           data,
         );
       }
@@ -561,6 +573,15 @@ export const makeClient = ({
       // Connect and establish a new session.
       const newSessionPromise = establishSession(location);
       return newSessionPromise;
+    },
+    /**
+     * Create a SturdyRef object
+     * @param {OcapnLocation} location
+     * @param {Uint8Array} swissNum
+     * @returns {SturdyRef}
+     */
+    makeSturdyRef(location, swissNum) {
+      return client.sturdyRefTracker.makeSturdyRef(location, swissNum);
     },
     shutdown() {
       client.logger.info(`shutdown called`);

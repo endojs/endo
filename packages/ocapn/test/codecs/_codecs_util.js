@@ -19,6 +19,7 @@ import {
   makeTableKit,
   OcapnFar,
 } from '../../src/client/ocapn.js';
+import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../../src/codecs/operations.js';
@@ -109,26 +110,34 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     return resolver;
   };
 
-  const testSturdyRefMap = new Map();
   const testHandoffMap = new Map();
 
   /**
+   * Mock provideSession for tests
    * @param {OcapnLocation} location
-   * @param {Uint8Array} swissNum
-   * @returns {string}
+   * @returns {Promise<any>}
    */
-  const getSturdyRefKey = (location, swissNum) => {
-    return `${location.transport}:${location.designator}:${bufferToHex(swissNum)}`;
+  const mockProvideSession = async location => {
+    return Promise.resolve({
+      ocapn: {
+        getBootstrap: async () => ({
+          fetch: async () => Promise.resolve('mock-fetched-value'),
+        }),
+      },
+    });
   };
+
+  // Mock SturdyRef tracker for tests
+  const sturdyRefTracker = makeSturdyRefTracker(mockProvideSession);
 
   /**
    * @param {OcapnLocation} location
    * @param {Uint8Array} swissNum
-   * @returns {Promise<any>}
+   * @returns {any}
    */
   const lookupSturdyRef = (location, swissNum) => {
-    const testKey = getSturdyRefKey(location, swissNum);
-    return testSturdyRefMap.get(testKey);
+    // Create a new SturdyRef for the test
+    return sturdyRefTracker.makeSturdyRef(location, swissNum);
   };
 
   /**
@@ -144,16 +153,6 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     } = handoffGive;
     const testKey = `${giftId}:${bufferToHex(receiverPubKeyBytes)}:${bufferToHex(exporterSessionId)}`;
     return testHandoffMap.get(testKey);
-  };
-
-  /**
-   * @type {MakeRemoteSturdyRef}
-   */
-  const makeRemoteSturdyRef = (location, swissNum) => {
-    const promise = new Promise(() => {});
-    const testKey = getSturdyRefKey(location, swissNum);
-    testSturdyRefMap.set(testKey, promise);
-    return promise;
   };
 
   /**
@@ -195,11 +194,11 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     peerLocation,
     engine,
     makeRemoteResolver,
-    makeRemoteSturdyRef,
     makeHandoff,
     grantTracker,
     getActiveSession,
     sendDepositGift,
+    sturdyRefTracker,
   );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
