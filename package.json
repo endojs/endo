@@ -34,7 +34,7 @@
   },
   "scripts": {
     "clean": "lerna clean",
-    "docs": "typedoc",
+    "docs": "typedoc && ./scripts/posttypedoc.sh",
     "docs:markdown-for-agoric-documentation-repo": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "echo 'DEPRECATED: use \"yarn upgrade-interactive\" or \"yarn dedupe\"'",
     "format": "prettier --write .github packages",
