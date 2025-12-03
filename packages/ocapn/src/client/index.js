@@ -485,10 +485,13 @@ export const makeClient = ({
         `Netlayer not registered for transport: ${location.transport}`,
       );
     }
+    const destinationLocationId = locationToLocationId(location);
+    if (destinationLocationId === netlayer.locationId) {
+      throw Error('Refusing to connect to self');
+    }
     const connection = netlayer.connect(location);
-    const locationId = locationToLocationId(location);
     const pendingSession = sessionManager.makePendingSession(
-      locationId,
+      destinationLocationId,
       connection,
     );
     return pendingSession.promise;

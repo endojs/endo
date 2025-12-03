@@ -14,6 +14,7 @@
 /**
  * @typedef {object} NetLayer
  * @property {OcapnLocation} location
+ * @property {LocationId} locationId
  * @property {(location: OcapnLocation) => Connection} connect
  * @property {() => void} shutdown
  */

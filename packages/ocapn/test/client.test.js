@@ -136,3 +136,22 @@ testWithErrorUnwrapping(
     shutdownBoth();
   },
 );
+
+test('refuses to connect to self', async t => {
+  const { client, location } = await makeTestClient('self-connect-test');
+
+  // Attempt to connect to our own location
+  const error = await t.throwsAsync(
+    async () => {
+      await client.provideSession(location);
+    },
+    {
+      instanceOf: Error,
+      message: 'Refusing to connect to self',
+    },
+  );
+
+  t.truthy(error, 'Error was thrown');
+
+  client.shutdown();
+});
