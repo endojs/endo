@@ -1,7 +1,8 @@
 // @ts-check
 
 /**
- * @import { GrantDetails, HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { SturdyRef } from '../client/sturdyrefs.js'
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
@@ -22,6 +23,7 @@ import {
   OcapnSignatureCodec,
 } from './components.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
+import { getSturdyRefDetails } from '../client/sturdyrefs.js';
 
 /**
  * @typedef {object} DescCodecs
@@ -32,6 +34,7 @@ import { makeSyrupWriter } from '../syrup/encode.js';
  * @property {SyrupCodec} ResolveMeDescCodec
  * @property {SyrupRecordUnionCodec} ReferenceCodec
  * @property {SyrupCodec} DeliverTargetCodec
+ * @property {SyrupRecordCodec} OcapnSturdyRefCodec
  */
 
 /**
@@ -358,19 +361,19 @@ export const makeDescCodecs = tableKit => {
     syrupReader => {
       const node = OcapnPeerCodec.read(syrupReader);
       const swissNum = syrupReader.readBytestring();
-      const value = tableKit.provideSturdyRef(node, swissNum);
+      const value = tableKit.makeSturdyRef(node, swissNum);
       return value;
     },
     /**
-     * @param {HandoffGiveDetails} handoffGiveDetails
+     * @param {SturdyRef} sturdyRef
      * @param {SyrupWriter} syrupWriter
      */
-    (handoffGiveDetails, syrupWriter) => {
-      const { grantDetails } = handoffGiveDetails;
-      const { location, swissNum } = grantDetails;
-      if (swissNum === undefined) {
-        throw Error('SwissNum is required for SturdyRefs');
+    (sturdyRef, syrupWriter) => {
+      const details = getSturdyRefDetails(sturdyRef);
+      if (!details) {
+        throw Error('Cannot serialize: not a valid SturdyRef object');
       }
+      const { location, swissNum } = details;
       OcapnPeerCodec.write(location, syrupWriter);
       syrupWriter.writeBytestring(swissNum);
     },
@@ -395,9 +398,9 @@ export const makeDescCodecs = tableKit => {
       'local:object': DescImportObjectCodec,
       'local:promise': DescImportPromiseCodec,
       'local:question': DescAnswerCodec,
+      'local:sturdyref': OcapnSturdyRefCodec,
       'remote:object': DescExportCodec,
       'remote:promise': DescExportCodec,
-      'third-party:sturdy-ref': OcapnSturdyRefCodec,
       'third-party:handoff': HandOffUnionCodec,
     },
   );
@@ -410,5 +413,6 @@ export const makeDescCodecs = tableKit => {
     DeliverTargetCodec,
     ReferenceCodec,
     ResolveMeDescCodec,
+    OcapnSturdyRefCodec,
   };
 };

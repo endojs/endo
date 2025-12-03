@@ -128,21 +128,16 @@ const makeTestObjectTable = () => {
   /**
    * Sturdyref enlivener
    *
-   * This takes a single argument which OCapN sturdyref object. The actor should
+   * This takes a single argument which is an OCapN sturdyref object. The actor should
    * "enliven" (connect to the node and get a live reference to the object)
-   * the sturdyref and then return that to
-   *  the messager.
+   * the sturdyref and then return that to the messager.
    */
   testObjectTable.set(
     'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
-    OcapnFar('sturdyrefEnlivener', async sturdyrefPromise => {
-      console.log('sturdyrefEnlivener called with', { sturdyrefPromise });
-      // SturdyRefs are promises as they are instructions on where to fetch an object,
-      // but don't contain enough info to do grant matching.
-      const sturdyref = await sturdyrefPromise;
-      // Note, if we make SturdyRefs lazily connect, we may need to invoke
-      // something here to force the connection.
-      return sturdyref;
+    OcapnFar('sturdyrefEnlivener', async sturdyref => {
+      console.log('sturdyrefEnlivener called with', { sturdyref });
+      // SturdyRefs are objects with an .enliven() method
+      return sturdyref.enliven();
     }),
   );
 

@@ -4,6 +4,7 @@
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
  * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  */
 
 /**
@@ -89,9 +90,11 @@
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
  * @property {Map<string, any>} swissnumTable
+ * @property {SturdyRefTracker} sturdyRefTracker
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
+ * @property {(location: OcapnLocation, swissNum: Uint8Array) => SturdyRef} makeSturdyRef
  * @property {() => void} shutdown
  */
