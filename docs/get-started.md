@@ -17,7 +17,7 @@ If you are working inside the Endo project, you will specifically need `yarn`.
 
 ## First Steps: Introducing HardenedJS
 
-Endo includes an [shim][] implementation of HardenedJS called [SES][].
+Endo includes a [shim][] implementation of HardenedJS called [SES][].
 By importing `ses` and calling `lockdown()`, we can transform ordinary
 JavaScript to HardenedJS.
 
