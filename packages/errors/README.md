@@ -8,6 +8,6 @@ a cotenant guest.
 
 For this reason, the `@endo/errors` package provides utilities for constructing
 errors with redacted messages.
-In coordination with [ses](../src/ses/) in the host realm, the information
+In coordination with [ses](../ses/) in the host realm, the information
 redacted by these utilities will be revealed to the realm's console for use
 in debugging, but be invisible to code that catches them.
