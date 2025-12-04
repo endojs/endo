@@ -16,8 +16,8 @@ import {
   makePeer,
   makePubKey,
   makeSig,
-  makeSignedHandoffGive,
-  makeSignedHandoffReceive,
+  makeSignedHandoffGiveSyrup,
+  makeSignedHandoffReceiveSyrup,
   record,
   sel,
   strToUint8Array,
@@ -69,7 +69,7 @@ const table = [
   },
   {
     name: 'handoff-give',
-    syrup: makeSignedHandoffGive(
+    syrup: makeSignedHandoffGiveSyrup(
       makeSig(exampleSigParamBytes, exampleSigParamBytes),
     ),
     makeValueAfter: testKit =>
@@ -149,7 +149,7 @@ const table = [
   },
   {
     name: 'handoff receive',
-    syrup: makeSignedHandoffReceive(),
+    syrup: makeSignedHandoffReceiveSyrup(),
     skipWrite: true,
     makeValue: () => ({
       type: 'desc:sig-envelope',

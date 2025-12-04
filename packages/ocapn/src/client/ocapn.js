@@ -21,9 +21,10 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeCapTPEngine } from '../captp/captp-engine.js';
 import {
   makeDescCodecs,
-  makeWithdrawGiftDescriptor,
-  serializeHandoffGive,
-  serializeHandoffReceive,
+  makeHandoffGiveDescriptor,
+  makeHandoffGiveSigEnvelope,
+  makeHandoffReceiveDescriptor,
+  makeHandoffReceiveSigEnvelope,
 } from '../codecs/descriptors.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makePassableCodecs } from '../codecs/passable.js';
@@ -34,6 +35,10 @@ import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
 import {
   publicKeyDescriptorToPublicKey,
   randomGiftId,
+  signHandoffGive,
+  verifyHandoffGiveSignature,
+  verifyHandoffReceiveSignature,
+  signHandoffReceive,
 } from '../cryptography.js';
 import { compareByteArrays } from '../syrup/compare.js';
 import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
@@ -597,22 +602,18 @@ export const makeTableKit = (
       } = gifterReceiverSession;
       const gifterSideId = gifterExporterSession.self.keyPair.publicKey.id;
       const giftId = randomGiftId();
-      /** @type {HandoffGive} */
-      const handoffGive = {
-        type: 'desc:handoff-give',
-        receiverKey: receiverPublicKeyForGifter.descriptor,
+      const handoffGive = makeHandoffGiveDescriptor(
+        receiverPublicKeyForGifter.descriptor,
         exporterLocation,
-        exporterSessionId: gifterExporterSessionId,
+        gifterExporterSessionId,
         gifterSideId,
         giftId,
-      };
-      const giveBytes = serializeHandoffGive(handoffGive);
-      /** @type {HandoffGiveSigEnvelope} */
-      const signedHandoffGive = {
-        type: 'desc:sig-envelope',
-        object: handoffGive,
-        signature: gifterKeyForExporter.sign(giveBytes),
-      };
+      );
+      const signature = signHandoffGive(handoffGive, gifterKeyForExporter);
+      const signedHandoffGive = makeHandoffGiveSigEnvelope(
+        handoffGive,
+        signature,
+      );
       sendDepositGift(gifterExporterSession, giftId, value);
       return signedHandoffGive;
     },
@@ -727,23 +728,23 @@ const makeBootstrapObject = (
           `${label}: Bootstrap withdraw-gift: No session with id: ${toHex(gifterExporterSessionId)}`,
         );
       }
-      const handoffGiveBytes = serializeHandoffGive(handoffGive);
-      const handoffGiveIsValid = gifterKeyForExporter.verify(
-        handoffGiveBytes,
+      const handoffGiveIsValid = verifyHandoffGiveSignature(
+        handoffGive,
         handoffGiveSig,
+        gifterKeyForExporter,
       );
       if (!handoffGiveIsValid) {
         throw Error(`${label}: Bootstrap withdraw-gift: Invalid HandoffGive.`);
       }
 
       // Verify HandoffReceive
-      const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
       const receiverKeyForGifter = publicKeyDescriptorToPublicKey(
         receiverKeyDataForGifter,
       );
-      const handoffReceiveIsValid = receiverKeyForGifter.verify(
-        handoffReceiveBytes,
+      const handoffReceiveIsValid = verifyHandoffReceiveSignature(
+        handoffReceive,
         handoffReceiveSig,
+        receiverKeyForGifter,
       );
       if (!handoffReceiveIsValid) {
         throw Error(
@@ -1086,12 +1087,17 @@ export const makeOcapn = (
         } = receiverGifterSession;
         const bootstrap = ocapn.getBootstrap();
         const handoffCount = 0n;
-        const signedHandoffReceive = makeWithdrawGiftDescriptor(
+        // Make the HandoffReceive descriptor
+        const handoffReceive = makeHandoffReceiveDescriptor(
           signedGive,
           handoffCount,
           receiverExporterSessionId,
           receiverPeerIdForExporter,
-          receiverGifterKey,
+        );
+        const signature = signHandoffReceive(handoffReceive, receiverGifterKey);
+        const signedHandoffReceive = makeHandoffReceiveSigEnvelope(
+          handoffReceive,
+          signature,
         );
         return E(bootstrap)['withdraw-gift'](signedHandoffReceive);
       })(),

@@ -4,12 +4,21 @@ import { randomBytes } from 'node:crypto';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 
-import { makeSyrupWriter } from './syrup/encode.js';
-import { OcapnPublicKeyCodec } from './codecs/components.js';
+import {
+  serializeOcapnMyLocation,
+  serializeOcapnPublicKeyDescriptor,
+} from './codecs/components.js';
 import { compareByteArrays } from './syrup/compare.js';
+import {
+  makeHandoffReceiveDescriptor,
+  makeHandoffReceiveSigEnvelope,
+  serializeHandoffGive,
+  serializeHandoffReceive,
+} from './codecs/descriptors.js';
 
 /**
- * @import { OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
+ * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
+ * @import { HandoffGive, HandoffReceive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from './codecs/descriptors.js'
  */
 
 const textEncoder = new TextEncoder();
@@ -57,20 +66,10 @@ const makePublicKeyDescriptor = publicKeyBytes => {
  * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
  * @returns {Uint8Array}
  */
-const publicKeyDescriptorToEncodedBytes = publicKeyDescriptor => {
-  const syrupWriter = makeSyrupWriter();
-  OcapnPublicKeyCodec.write(publicKeyDescriptor, syrupWriter);
-  return syrupWriter.getBytes();
-};
-
-/**
- * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
- * @returns {Uint8Array}
- */
 const makePublicKeyIdFromDescriptor = publicKeyDescriptor => {
-  const publicKeyEncoded =
-    publicKeyDescriptorToEncodedBytes(publicKeyDescriptor);
-  return sha256(sha256(publicKeyEncoded));
+  const publicKeyDescriptorBytes =
+    serializeOcapnPublicKeyDescriptor(publicKeyDescriptor);
+  return sha256(sha256(publicKeyDescriptorBytes));
 };
 
 /**
@@ -166,8 +165,116 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
 };
 
 /**
+ * @param {OcapnLocation} location
+ * @returns {Uint8Array}
+ */
+const getLocationBytesForSignature = location => {
+  return serializeOcapnMyLocation({
+    type: 'my-location',
+    location,
+  });
+};
+
+/**
+ * @param {OcapnLocation} location
+ * @param {OcapnKeyPair} keyPair
+ * @returns {OcapnSignature}
+ */
+export const signLocation = (location, keyPair) => {
+  const locationBytes = getLocationBytesForSignature(location);
+  return keyPair.sign(locationBytes);
+};
+
+/**
+ * @param {OcapnLocation} location
+ * @param {OcapnSignature} signature
+ * @param {OcapnPublicKey} publicKey
+ * @returns {boolean}
+ */
+export const verifyLocationSignature = (location, signature, publicKey) => {
+  const locationBytes = getLocationBytesForSignature(location);
+  return publicKey.verify(locationBytes, signature);
+};
+
+/**
+ * @param {HandoffGive} handoffGive
+ * @param {OcapnKeyPair} keyPair
+ * @returns {OcapnSignature}
+ */
+export const signHandoffGive = (handoffGive, keyPair) => {
+  const handoffGiveBytes = serializeHandoffGive(handoffGive);
+  return keyPair.sign(handoffGiveBytes);
+};
+
+/**
+ * @param {HandoffGive} handoffGive
+ * @param {OcapnSignature} signature
+ * @param {OcapnPublicKey} publicKey
+ * @returns {boolean}
+ */
+export const verifyHandoffGiveSignature = (
+  handoffGive,
+  signature,
+  publicKey,
+) => {
+  const handoffGiveBytes = serializeHandoffGive(handoffGive);
+  return publicKey.verify(handoffGiveBytes, signature);
+};
+
+/**
+ * @param {HandoffReceive} handoffReceive
+ * @param {OcapnKeyPair} keyPair
+ * @returns {OcapnSignature}
+ */
+export const signHandoffReceive = (handoffReceive, keyPair) => {
+  const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
+  return keyPair.sign(handoffReceiveBytes);
+};
+
+/**
+ * @param {HandoffReceive} handoffReceive
+ * @param {OcapnSignature} signature
+ * @param {OcapnPublicKey} publicKey
+ * @returns {boolean}
+ */
+export const verifyHandoffReceiveSignature = (
+  handoffReceive,
+  signature,
+  publicKey,
+) => {
+  const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
+  return publicKey.verify(handoffReceiveBytes, signature);
+};
+
+/**
  * @returns {Uint8Array}
  */
 export const randomGiftId = () => {
   return randomBytes(16);
+};
+
+/**
+ * @param {HandoffGiveSigEnvelope} signedGive
+ * @param {bigint} handoffCount
+ * @param {Uint8Array} sessionId
+ * @param {Uint8Array} receiverPeerId
+ * @param {OcapnKeyPair} privKeyForGifter
+ * @returns {HandoffReceiveSigEnvelope}
+ */
+export const makeSignedHandoffReceive = (
+  signedGive,
+  handoffCount,
+  sessionId,
+  receiverPeerId,
+  privKeyForGifter,
+) => {
+  /** @type {HandoffReceive} */
+  const handoffReceive = makeHandoffReceiveDescriptor(
+    signedGive,
+    handoffCount,
+    sessionId,
+    receiverPeerId,
+  );
+  const signature = signHandoffReceive(handoffReceive, privKeyForGifter);
+  return makeHandoffReceiveSigEnvelope(handoffReceive, signature);
 };

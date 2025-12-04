@@ -25,7 +25,7 @@ import {
   btsStr,
   examplePubKeyQBytes,
   exampleSigParamBytes,
-  makeSignedHandoffReceive,
+  makeSignedHandoffReceiveSyrup,
 } from './_syrup_util.js';
 import { testBidirectionally } from './_codecs_util.js';
 
@@ -151,7 +151,7 @@ export const table = [
     name: 'op:deliver withdraw-gift',
     syrup: `<${sel('op:deliver')}${makeExport(0)}${list([
       sel('withdraw-gift'),
-      makeSignedHandoffReceive(),
+      makeSignedHandoffReceiveSyrup(),
     ])}${int(1)}${makeImportObject(3)}>`,
     makeValue: testKit => ({
       type: 'op:deliver',
