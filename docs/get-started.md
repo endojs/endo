@@ -7,91 +7,6 @@ date: 2025-09-24
 
 # Getting Started with Endo
 
-
-## Introduction
-
-Endo is a framework for powerful JavaScript plugin systems and supply chain
-attack resistance.
-Endo includes tools for _confinement_, _communication_, and _concurrency_.
-With Endo’s [SES][] implementation of [HardenedJS][], we can opt-in to a more
-tamper-resistant mode of JavaScript.
-With Endo’s [E][]
-
-Endo protects program integrity both in-process and in distributed systems.
-Hardened JavaScript protects local integrity, defending an application against
-[supply chain attacks][]: hacks that enter through upgrades to third-party
-dependencies.
-Endo does this by encouraging the [Principle of Least Authority][] and
-providing foundations for the [Object-capability Model][].
-
-The _Principle of Least Authority_ states that a software component should only
-have access to data and resources that enable it to do its legitimate work.
-The _Object-capability Model_ gives programmers a place to reason, by
-construction, about how permission flows through a program using
-well-understood mechanisms like [Encapsulation][].
-
-For distributed systems, Endo stretches object oriented programming over
-networks using asynchronous message passing to remote objects with
-_Capability Transport Protocols_ like [OCapN][] and a portable abstraction
-for safely sending messages to remote objects called _Eventual Send_.
-
-**Security:** Security-conscious JavaScript applications can use these
-components to improve the integrity and auditability of their own applications,
-improve the economics of vetting third-party dependencies, and mitigate runtime
-prototype pollution attacks.
-
-**Workers and Networks:** Performance-conscious JavaScript applications can use
-these components to improve the ergonomics of message-passing between
-components in separate workers.
-Endo's _Eventual Send_ and _Capability Transport Protocols_ stretch
-asynchronous method invocation acrosses processes and networks.
-
-**Plugins:** JavaScript platforms on the web and blockchains can rely on Endo to safely
-enable third-party plugins or smart contracts.
-Endo provides tooling for bundling and safely executing arbitrary programs in
-the presence of hardened platform objects.
-
-## Core Concepts
-
-HardenedJS introduces three components to the base JavaScript:
-
-- Lockdown
-- Harden
-- Compartment
-
-The _Shared Intrinsics_ are a subset of the JavaScript intrinsics like the
-`Array` and `Object` prototypes that, after _locking down_, are safe to share
-between programs running in _compartments_.
-After _lockdown_, programs can use _harden_ to make other objects safe
-to share between compartments.
-
-With these three components, we can begin to rely on certain guarantees:
-
-- Hardened objects can represent _capabilities_.
-  That is, holding a reference to an object means you can use that object.
-- JavaScript itself guarantees that _capabilities_ cannot be forged.
-  That is, a useful reference cannot be obtained by guessing its address.
-- JavaScript also enforces certain structures like closures and `WeakMap`
-  can guard capabilities. 
-- The only way to obtain a _capability_ is to have received it as an argument,
-  return, global, or module of the surrounding compartmnet.
-- Once hardened, an object and its methods cannot be altered.
-
-This gives us the foundation of the _Object-capability_ security paradigm,
-or simply "OCaps".
-From this point forward, any interesting policy can be created with code.
-
-We can then use Endo to stretch references to Object-capabliities between
-processes and over networks.
-Instead of relying on the memory-safety of JavaScript, we then rely on
-cryptography to preserve confidentiality and unforgeability of references.  A
-suitably large, signed, cryptographically random number, reachable over a
-network over an encrypted connection, may safely designate a capability.
-
-Then, Endo puts ocaps directly into the hands of users with an example [Petname
-system][] called the _Pet Dæmon_, so user's can send, receive, and use
-_Object-capabilities_ with human-meaningful names.
-
 ## Installing Endo
 
 To get started with Endo today, you will need a supported version of
@@ -431,13 +346,8 @@ coöperation_ together.
 [shim]: https://en.wikipedia.org/wiki/Shim_(computing)
 [SES]: https://github.com/endojs/endo/tree/master/packages/ses#ses
 [HardenedJS]: https://hardenedjs.org
-[E]: https://github.com/endojs/endo/tree/master/packages/eventual-send#eventual-send
 [supply chain attacks]: https://en.wikipedia.org/wiki/Supply_chain_attack
-[Principle of Least Authority]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
-[Object-capability Model]: https://en.wikipedia.org/wiki/Object-capability_model
 [OCapN]: https://ocapn.org
-[Encapsulation]: https://en.wikipedia.org/wiki/Encapsulation_(computer_programming)
-[Petname system]: https://en.wikipedia.org/wiki/Petname
 [Zooko's triangle]: https://en.wikipedia.org/wiki/Zooko's_triangle
 [Matrix]: https://matrix.to/#/#endojs:matrix.org
 [CLI]: https://github.com/endojs/endo/tree/packages/cli

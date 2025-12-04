@@ -14,9 +14,9 @@ category: Guides
 Endo is a framework for powerful JavaScript plugin systems and supply chain
 attack resistance.
 Endo includes tools for _confinement_, _communication_, and _concurrency_.
-These include a shim for [Hardened JavaScript][SES], an [ECMA TC-39
-standards track proposal][SES Proposal] to make JavaScript a safer and more
-suitable platform for plugin systems.
+With Endo’s [SES][] implementation of [HardenedJS][], we can opt-in to a more
+tamper-resistant mode of JavaScript.
+With Endo’s [E][]
 
 [Agoric][] and [MetaMask][] rely on Hardened JavaScript and the [SES shim][SES]
 as part of systems that sandbox third-party plugins or smart contracts and
@@ -33,7 +33,35 @@ Endo protects program integrity both in-process and in distributed systems.
 Hardened JavaScript protects local integrity, defending an application against
 [supply chain attacks][]: hacks that enter through upgrades to third-party
 dependencies.
-Endo does this by encouraging the [Principle of Least Authority](#§pola).
+Endo does this by encouraging the [Principle of Least Authority][] and
+providing foundations for the [Object-capability Model][].
+
+The _Principle of Least Authority_ states that a software component should only
+have access to data and resources that enable it to do its legitimate work.
+The _Object-capability Model_ gives programmers a place to reason, by
+construction, about how permission flows through a program using
+well-understood mechanisms like [Encapsulation][].
+
+For distributed systems, Endo stretches object oriented programming over
+networks using asynchronous message passing to remote objects with
+_Capability Transport Protocols_ like [OCapN][] and a portable abstraction
+for safely sending messages to remote objects called _Eventual Send_.
+
+**Security:** Security-conscious JavaScript applications can use these
+components to improve the integrity and auditability of their own applications,
+improve the economics of vetting third-party dependencies, and mitigate runtime
+prototype pollution attacks.
+
+**Workers and Networks:** Performance-conscious JavaScript applications can use
+these components to improve the ergonomics of message-passing between
+components in separate workers.
+Endo's _Eventual Send_ and _Capability Transport Protocols_ stretch
+asynchronous method invocation acrosses processes and networks.
+
+**Plugins:** JavaScript platforms on the web and blockchains can rely on Endo to safely
+enable third-party plugins or smart contracts.
+Endo provides tooling for bundling and safely executing arbitrary programs in
+the presence of hardened platform objects.
 
 Since most JavaScript libraries receive powerful capabilities from global
 objects like `fetch` or modules like `net`, [LavaMoat][] generates reviewable
@@ -64,6 +92,47 @@ Reach out if you would like an ivitation to our **meetings**:
 - We now meet weekly with [ECMA TC-39 ECMAScript Technical Committee TG-3
   Security Working Group][TG3].
 
+## Core Concepts
+
+[HardenedJS][] introduces three components to the base JavaScript:
+
+- Lockdown
+- Harden
+- Compartment
+
+The _Shared Intrinsics_ are a subset of the JavaScript intrinsics like the
+`Array` and `Object` prototypes that, after _locking down_, are safe to share
+between programs running in _compartments_.
+After _lockdown_, programs can use _harden_ to make other objects safe
+to share between compartments.
+
+With these three components, we can begin to rely on certain guarantees:
+
+- Hardened objects can represent _capabilities_.
+  That is, holding a reference to an object means you can use that object.
+- JavaScript itself guarantees that _capabilities_ cannot be forged.
+  That is, a useful reference cannot be obtained by guessing its address.
+- JavaScript also enforces certain structures like closures and `WeakMap`
+  can guard capabilities. 
+- The only way to obtain a _capability_ is to have received it as an argument,
+  return, global, or module of the surrounding compartmnet.
+- Once hardened, an object and its methods cannot be altered.
+
+This gives us the foundation of the _Object-capability_ security paradigm,
+or simply "OCaps".
+From this point forward, any interesting policy can be created with code.
+
+We can then use Endo to stretch references to Object-capabliities between
+processes and over networks.
+Instead of relying on the memory-safety of JavaScript, we then rely on
+cryptography to preserve confidentiality and unforgeability of references.  A
+suitably large, signed, cryptographically random number, reachable over a
+network over an encrypted connection, may safely designate a capability.
+
+Then, Endo puts ocaps directly into the hands of users with an example [Petname
+system][] called the _Pet Dæmon_, so user's can send, receive, and use
+_Object-capabilities_ with human-meaningful names.
+
 ## Ruminations on the Name
 
 * In Greek, "endo-" means "internal" or "within".
@@ -86,9 +155,9 @@ pronunciations of `sudo`, "en-doh" and "en-doo" are both valid pronunciations of
 <a name="§pola"></a>
 ### Principle of Least Authority
 
-The Principle of Least Authority [(Wikipedia)][PoLA] states that a software
-component should only have access to data and resources that enable it to do
-its legitimate work.
+The Principle of Least Authority [(Wikipedia)][Principle of Least Authority]
+states that a software component should only have access to data and resources
+that enable it to do its legitimate work.
 
 **PoLA explained in 3 minutes:**
 _Opening Statement on SOSP 50th Anniversary Panel_, Mark Miller:
@@ -115,18 +184,24 @@ page](https://github.com/Agoric/SES-shim/issues).
 Endo and its components are [Apache 2.0 licensed][license-url].
 
 [CapTP]: packages/captp/README.md#endocaptp
+[E]: https://github.com/endojs/endo/tree/master/packages/eventual-send#eventual-send
+[Encapsulation]: https://en.wikipedia.org/wiki/Encapsulation_(computer_programming)
 [Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
 [Endo Sync]: https://www.youtube.com/watch?v=tM5NyB7xxYM&list=PLzDw4TTug5O0eUj81Vnkp-mFuI4O0rBnc
 [Handled Promise]: packages/eventual-send/README.md
+[HardenedJS]: https://hardenedjs.org
 [LavaMoat]: https://github.com/LavaMoat/LavaMoat
-[PoLA]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
+[OCapN]: https://ocapn.org
+[Object-capability Model]: https://en.wikipedia.org/wiki/Object-capability_model
+[Petname system]: https://en.wikipedia.org/wiki/Petname
+[Principle of Least Authority]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
 [SES Proposal]: https://github.com/tc39/proposal-ses
 [SES Strategy Group]: https://groups.google.com/g/ses-strategy
 [SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
 [SES]: packages/ses/README.md
+[TG3]: https://github.com/tc39/tg3
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: ./LICENSE
 [supply chain attacks]: https://en.wikipedia.org/wiki/Supply_chain_attack
-[TG3]: https://github.com/tc39/tg3
