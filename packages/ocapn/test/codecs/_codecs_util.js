@@ -17,7 +17,6 @@ import {
   makeGrantDetails,
   makeGrantTracker,
   makeTableKit,
-  OcapnFar,
 } from '../../src/client/ocapn.js';
 import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
@@ -210,7 +209,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   const makeExportAt = position => {
     const slot = `o+${position}`;
-    const value = OcapnFar('Export', {});
+    const value = Far('Export', {});
     engine.registerExport(value, slot);
     return value;
   };

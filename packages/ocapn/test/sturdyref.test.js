@@ -7,10 +7,10 @@
 
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/marshal';
 import { testWithErrorUnwrapping } from './_util.js';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../src/client/index.js';
-import { OcapnFar } from '../src/client/ocapn.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { isSturdyRef, getSturdyRefDetails } from '../src/client/sturdyrefs.js';
 
@@ -126,7 +126,7 @@ testWithErrorUnwrapping(
 
 test('SturdyRef.enliven() returns promise for fetched value', async t => {
   const testObjectTable = new Map();
-  const testObject = OcapnFar('TestObject', {
+  const testObject = Far('TestObject', {
     getValue: () => 42,
   });
   testObjectTable.set('test-object', testObject);
@@ -156,7 +156,7 @@ test('SturdyRef.enliven() returns promise for fetched value', async t => {
 
 test('Enlivened values are not SturdyRefs', async t => {
   const testObjectTable = new Map();
-  const testObject = OcapnFar('TestObject', {
+  const testObject = Far('TestObject', {
     getValue: () => 42,
   });
   testObjectTable.set('test-object', testObject);

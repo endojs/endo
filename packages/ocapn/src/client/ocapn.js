@@ -1,7 +1,7 @@
 // @ts-check
 
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
-/** @import {RemotableObject} from '@endo/marshal' */
+/** @import {Remotable as RemoteableType} from '@endo/marshal' */
 /** @import {CapTPSlot} from '../captp/types.js' */
 
 /**
@@ -37,10 +37,12 @@ import {
 } from '../cryptography.js';
 import { compareByteArrays } from '../syrup/compare.js';
 import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
+
 /**
- * @typedef {OcapnFarObject<{resolve: (value: any) => void, break: (reason: any) => void}>} LocalResolver
+ * @typedef {any} LocalResolver
+ * @typedef {any} RemoteResolver
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
- * @typedef {(slot: CapTPSlot) => RemotableObject<"Alleged: Resolver">} MakeRemoteResolver
+ * @typedef {(slot: CapTPSlot) => RemoteResolver} MakeRemoteResolver
  * @typedef {(node: OcapnLocation, swissNum: Uint8Array) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
  * @typedef {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => any} GetRemoteSturdyRef
@@ -57,37 +59,6 @@ const sink = harden(() => {});
 const slotToPosition = slot => {
   const position = slot.slice(2);
   return BigInt(position);
-};
-
-/**
- * @param {string} label
- * @param {object} object
- * @returns {any}
- * In OCapN, objects are represented by functions that are called with a
- * selector representing the method name as the first argument.
- */
-const OcapnFarObject = (label, object) => {
-  harden(object);
-  return Far(`${label}:object`, (selector, ...args) => {
-    const methodName = getSelectorName(selector);
-    const method = object[methodName];
-    if (!method) {
-      throw Error(`Unknown method: ${methodName}`);
-    }
-    return method.apply(object, args);
-  });
-};
-
-/**
- * @param {string} label
- * @param {any} object
- * @returns {any}
- */
-export const OcapnFar = (label, object) => {
-  if (typeof object === 'function') {
-    return Far(label, object);
-  }
-  return OcapnFarObject(label, object);
 };
 
 /**
@@ -230,13 +201,13 @@ export const makeGrantDetails = (
  * @property {GrantDetails} grantDetails
  *
  * @typedef {object} GrantTracker
- * @property {(remotable: RemotableObject, grantDetails: GrantDetails) => void} recordImport
- * @property {(remotable: RemotableObject) => GrantDetails | undefined} getGrantDetails
+ * @property {(remotable: RemoteableType, grantDetails: GrantDetails) => void} recordImport
+ * @property {(remotable: RemoteableType) => GrantDetails | undefined} getGrantDetails
  *
  * @returns {GrantTracker}
  */
 export const makeGrantTracker = () => {
-  /** @type {WeakMap<RemotableObject, GrantDetails>} */
+  /** @type {WeakMap<RemoteableType, GrantDetails>} */
   const remotableToGrant = new WeakMap();
   return harden({
     recordImport: (remotable, grantDetails) => {
@@ -668,7 +639,7 @@ const makeBootstrapObject = (
 ) => {
   // The "usedGiftHandoffs" is one per session.
   const usedGiftHandoffs = new Set();
-  return OcapnFar(`${label}:bootstrap`, {
+  return Far(`${label}:bootstrap`, {
     /**
      * @param {Uint8Array} swissnum
      * @returns {Promise<any>}
@@ -855,22 +826,52 @@ export const makeOcapn = (
     connection.end();
   };
 
+  /**
+   * @param {any} to The target to invoke. This is at least a locally hosted
+   * @param {any[]} args
+   * @returns {Promise<unknown>}
+   */
+  const invokeDeliver = async (to, args) => {
+    // We need to resolve the target to an object or function before we can invoke it.
+    const resolvedTarget = await Promise.resolve(to);
+    // While the to-value must be local (see DeliverTargetCodec), the resolved target may be remote.
+    // We only want to apply our implementation's selector -> string method name coercion if the target is local.
+    // eslint-disable-next-line no-use-before-define
+    const { isLocal } = tableKit.getInfoForVal(resolvedTarget);
+    const targetType = typeof resolvedTarget;
+    if (isLocal && targetType === 'object' && resolvedTarget !== null) {
+      const [methodName, ...methodArgs] = args;
+      // Coerce selector to string for method name. Note: This is a deviation from the spec.
+      const methodNameString =
+        typeof methodName === 'string'
+          ? methodName
+          : getSelectorName(methodName);
+      return HandledPromise.applyMethod(
+        resolvedTarget,
+        methodNameString,
+        methodArgs,
+      );
+    } else {
+      return HandledPromise.applyFunction(resolvedTarget, args);
+    }
+  };
+
   const handler = {
     'op:deliver': message => {
       const { to, answerPosition, args, resolveMeDesc } = message;
-      const hp = HandledPromise.applyFunction(to, args);
+      logger.info(`deliver`, { to, toType: typeof to, args, answerPosition });
+
+      const deliverPromise = invokeDeliver(to, args);
       // Answer with our handled promise
       if (answerPosition !== false) {
         const answerSlot = `q-${answerPosition}`;
         // eslint-disable-next-line no-use-before-define
-        engine.resolveAnswer(answerSlot, hp);
+        engine.resolveAnswer(answerSlot, deliverPromise);
       }
-      logger.info(`deliver`, { to, args, answerPosition });
 
       // This could probably just be `E(resolveMeDesc).fulfill(hp)`
       // which should handle rejections. But might be more overhead
       // on the wire.
-
       const processResult = (isReject, value) => {
         if (isReject) {
           logger.info(`dispatch op:deliver result reject`, value);
@@ -881,7 +882,7 @@ export const makeOcapn = (
         }
       };
 
-      hp
+      deliverPromise
         // Process this handled promise method's result when settled.
         .then(
           fulfilment => processResult(false, fulfilment),
@@ -895,9 +896,12 @@ export const makeOcapn = (
     },
     'op:deliver-only': message => {
       const { to, args } = message;
-      const hp = HandledPromise.applyFunction(to, args);
+      logger.info(`deliver-only`, { to, toType: typeof to, args });
+
+      const deliverPromise = invokeDeliver(to, args);
+
       // Add context and pass the error to the reject handler.
-      hp.catch(cause => {
+      deliverPromise.catch(cause => {
         const err = new Error('OCapN: Error during deliver-only');
         err.cause = cause;
         onReject(err);
@@ -1008,7 +1012,7 @@ export const makeOcapn = (
   const makeLocalResolver = questionSlot => {
     // eslint-disable-next-line no-use-before-define
     const settler = engine.takeSettler(questionSlot);
-    const ocapnResolver = OcapnFarObject('ocapnResolver', {
+    const ocapnResolver = Far('OcapnResolver', {
       fulfill: value => {
         logger.info(`ocapnResolver fulfill ${questionSlot}`, value);
         settler.resolve(value);
