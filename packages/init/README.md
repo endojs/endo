@@ -36,7 +36,7 @@ But, it will introduce noise into, for example, the VSCode debugger's object
 inspector.
 During debugging and testing, if you can avoid legacy code that needs the
 `'moderate'` setting, then the `'min'` setting reduces noise yet further, by
-turning fwer inherited properties into accessors.
+turning fewer inherited properties into accessors.
 
 ```js
 import '@endo/init/debug.js';
