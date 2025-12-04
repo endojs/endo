@@ -6,10 +6,10 @@
  */
 
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/marshal';
 import { testWithErrorUnwrapping } from './_util.js';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../src/client/index.js';
-import { OcapnFar } from '../src/client/ocapn.js';
 import { encodeSwissnum, locationToLocationId } from '../src/client/util.js';
 
 /**
@@ -70,7 +70,7 @@ testWithErrorUnwrapping('sturdyref transported as sturdyref', async t => {
   const testObjectTable = new Map();
   testObjectTable.set(
     'Cat',
-    OcapnFar('Cat', {
+    Far('Cat', {
       pet: () => {
         console.log('The cat is petted.');
       },
@@ -78,7 +78,7 @@ testWithErrorUnwrapping('sturdyref transported as sturdyref', async t => {
   );
   testObjectTable.set(
     'CatSitter',
-    OcapnFar('CatSitter', {
+    Far('CatSitter', {
       takeCareOf: cat => {
         console.log('CatSitter called with', cat);
         return E(cat).pet();
@@ -109,9 +109,9 @@ testWithErrorUnwrapping('third party handoff', async t => {
   const testObjectTable = new Map();
   testObjectTable.set(
     'ObjMaker',
-    OcapnFar('ObjMaker', {
+    Far('ObjMaker', {
       makeObj: () => {
-        return OcapnFar('Obj', {
+        return Far('Obj', {
           getNumber: () => 42,
         });
       },
@@ -119,7 +119,7 @@ testWithErrorUnwrapping('third party handoff', async t => {
   );
   testObjectTable.set(
     'ObjUser',
-    OcapnFar('ObjUser', {
+    Far('ObjUser', {
       useObj: obj => {
         console.log('ObjUser called with', obj);
         return E(obj).getNumber();
