@@ -90,7 +90,6 @@
  * @property {string} debugLabel
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
- * @property {Map<string, any>} swissnumTable
  * @property {SturdyRefTracker} sturdyRefTracker
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData

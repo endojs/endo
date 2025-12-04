@@ -188,3 +188,37 @@ test('Enlivened values are not SturdyRefs', async t => {
   clientA.shutdown();
   clientB.shutdown();
 });
+
+test('SturdyRef to self-location can be enlivened', async t => {
+  const testObjectTable = new Map();
+  const testObject = Far('TestObject', {
+    getValue: () => 42,
+  });
+  testObjectTable.set('test-object', testObject);
+
+  const { client: clientA, location: locationA } = await makeTestClient(
+    'A',
+    () => testObjectTable,
+  );
+
+  // Create a SturdyRef to our own location
+  const sturdyRef = clientA.makeSturdyRef(
+    locationA,
+    encodeSwissnum('test-object'),
+  );
+
+  // Verify it's a SturdyRef
+  t.true(isSturdyRef(sturdyRef), 'sturdyRef is a SturdyRef');
+
+  // Enliven the self-referential SturdyRef
+  const enlivened = await sturdyRef.enliven();
+
+  // Verify the enlivened value is NOT a SturdyRef
+  t.false(isSturdyRef(enlivened), 'enlivened value is not a SturdyRef');
+
+  // Verify the enlivened value works
+  const value = await E(enlivened).getValue();
+  t.is(value, 42, 'enlivened value from self-location works correctly');
+
+  clientA.shutdown();
+});

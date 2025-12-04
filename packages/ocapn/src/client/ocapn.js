@@ -624,7 +624,7 @@ export const makeTableKit = (
  * @param {string} label
  * @param {Logger} logger
  * @param {Uint8Array} sessionId
- * @param {Map<string, any>} swissnumTable
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Map<string, any>} giftTable
  * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @returns {any}
@@ -633,7 +633,7 @@ const makeBootstrapObject = (
   label,
   logger,
   sessionId,
-  swissnumTable,
+  sturdyRefTracker,
   giftTable,
   getPeerPublicKeyForSessionId,
 ) => {
@@ -645,9 +645,9 @@ const makeBootstrapObject = (
      * @returns {Promise<any>}
      */
     fetch: swissnum => {
-      const swissnumString = decodeSwissnum(swissnum);
-      const object = swissnumTable.get(swissnumString);
+      const object = sturdyRefTracker.lookup(swissnum);
       if (!object) {
+        const swissnumString = decodeSwissnum(swissnum);
         throw Error(
           `${label}: Bootstrap fetch: Unknown swissnum for sturdyref: ${swissnumString}`,
         );
@@ -793,7 +793,6 @@ const makeBootstrapObject = (
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
  * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {string} [ourIdLabel]
@@ -808,7 +807,6 @@ export const makeOcapn = (
   getActiveSession,
   getPeerPublicKeyForSessionId,
   grantTracker,
-  swissnumTable,
   giftTable,
   sturdyRefTracker,
   ourIdLabel = 'OCapN',
@@ -1188,7 +1186,7 @@ export const makeOcapn = (
     ourIdLabel,
     logger,
     sessionId,
-    swissnumTable,
+    sturdyRefTracker,
     giftTable,
     getPeerPublicKeyForSessionId,
   );
