@@ -127,7 +127,13 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   };
 
   // Mock SturdyRef tracker for tests
-  const sturdyRefTracker = makeSturdyRefTracker(mockProvideSession);
+  const isSelfLocation = () => false; // For tests, never treat as self-location
+  const swissnumTable = new Map(); // Empty table for tests
+  const sturdyRefTracker = makeSturdyRefTracker(
+    mockProvideSession,
+    isSelfLocation,
+    swissnumTable,
+  );
 
   /**
    * @param {OcapnLocation} location

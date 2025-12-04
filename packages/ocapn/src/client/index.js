@@ -142,7 +142,6 @@ const compareSessionKeysForCrossedHellos = (
  * @param {Connection} connection
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {any} message
@@ -153,7 +152,6 @@ const handleSessionHandshakeMessage = (
   connection,
   provideSession,
   grantTracker,
-  swissnumTable,
   giftTable,
   sturdyRefTracker,
   message,
@@ -258,7 +256,6 @@ const handleSessionHandshakeMessage = (
         sessionManager.getActiveSession,
         sessionManager.getPeerPublicKeyForSessionId,
         grantTracker,
-        swissnumTable,
         giftTable,
         sturdyRefTracker,
         'ocapn',
@@ -297,7 +294,6 @@ const handleSessionHandshakeMessage = (
  * @param {Connection} connection
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Uint8Array} data
@@ -308,7 +304,6 @@ const handleHandshakeMessageData = (
   connection,
   provideSession,
   grantTracker,
-  swissnumTable,
   giftTable,
   sturdyRefTracker,
   data,
@@ -339,7 +334,6 @@ const handleHandshakeMessageData = (
           connection,
           provideSession,
           grantTracker,
-          swissnumTable,
           giftTable,
           sturdyRefTracker,
           message,
@@ -499,15 +493,31 @@ export const makeClient = ({
 
   const grantTracker = makeGrantTracker();
 
+  /**
+   * Check if a location matches one of our own netlayers (self-location)
+   * @param {OcapnLocation} location
+   * @returns {boolean}
+   */
+  const isSelfLocation = location => {
+    const locationId = locationToLocationId(location);
+    for (const netlayer of netlayers.values()) {
+      if (netlayer.locationId === locationId) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   /** @type {Client} */
   const client = {
     debugLabel,
     logger,
     grantTracker,
     sessionManager,
-    swissnumTable,
-    sturdyRefTracker: makeSturdyRefTracker(location =>
-      client.provideSession(location),
+    sturdyRefTracker: makeSturdyRefTracker(
+      location => client.provideSession(location),
+      isSelfLocation,
+      swissnumTable,
     ),
     /**
      * @param {NetLayer} netlayer
@@ -535,7 +545,6 @@ export const makeClient = ({
           connection,
           client.provideSession,
           grantTracker,
-          swissnumTable,
           giftTable,
           client.sturdyRefTracker,
           data,
