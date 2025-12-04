@@ -47,7 +47,8 @@ export {};
  *           } |
  *           EncodingClass<'tagged'> & { tag: string,
  *                                       payload: Encoding
- *           }
+ *           } |
+ *           EncodingClass<'byteArray'> & { data: string }
  * } EncodingUnion
  *
  * Note that the '@@asyncIterator' encoding is deprecated. Use 'symbol' instead.
