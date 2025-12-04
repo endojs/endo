@@ -41,6 +41,7 @@
   "name": "EndoJS",
   "titleLink": "https://endojs.org",
   "entryPointStrategy": "packages",
+  "customCss": "docs/assets/custom.css",
   "useTsLinkResolution": true,
   "out": "api-docs",
   "includeVersion": true
