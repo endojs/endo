@@ -1,4 +1,4 @@
-# base64
+# `@endo/base64`
 
 Base64 is a JavaScript package that encodes and decodes
 [Base64](https://en.wikipedia.org/wiki/Base64) between strings and

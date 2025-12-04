@@ -25,7 +25,6 @@
     "packages/daemon",
     "packages/evasive-transform",
     "packages/hardened262",
-    "packages/lp32",
     "packages/memoize",
     "packages/module-source",
     "packages/netstring",

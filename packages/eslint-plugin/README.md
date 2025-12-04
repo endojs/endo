@@ -1,6 +1,6 @@
 # @endo/eslint-plugin
 
-Endo-specific plugin
+ESLint customizations for Endo packages.
 
 ## Installation
 

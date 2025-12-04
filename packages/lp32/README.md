@@ -1,4 +1,4 @@
-# LP32
+# `@endo/lp32`
 
 Also known as the web extension "Native Host Message" protocol, this package
 implements async iterator streams for reading and writing with 32-bit
