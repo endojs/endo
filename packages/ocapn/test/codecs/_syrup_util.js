@@ -202,7 +202,7 @@ export const makeImportPromise = position => {
  * @param {string} signature
  * @returns {string}
  */
-export const makeSigEnvelope = (object, signature) => {
+export const makeSigEnvelopeSyrup = (object, signature) => {
   return record('desc:sig-envelope', object, signature);
 };
 
@@ -235,7 +235,7 @@ export const makeDescGive = (
  * @param {string} signature
  * @returns {string}
  */
-export const makeSignedHandoffGive = signature => {
+export const makeSignedHandoffGiveSyrup = signature => {
   const descGive = makeDescGive(
     makePubKey(examplePubKeyQBytes),
     makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
@@ -243,7 +243,7 @@ export const makeSignedHandoffGive = signature => {
     strToUint8Array('gifter-side-id'),
     strToUint8Array('gift-id'),
   );
-  const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
+  const signedGiveEnvelope = makeSigEnvelopeSyrup(descGive, signature);
   return signedGiveEnvelope;
 };
 
@@ -255,14 +255,14 @@ export const makeSignedHandoffGive = signature => {
  * @param {string} signature
  * @returns {string}
  */
-export const makeHandoffReceive = (
+export const makeHandoffReceiveSyrup = (
   recieverSession,
   recieverSide,
   handoffCount,
   descGive,
   signature,
 ) => {
-  const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
+  const signedGiveEnvelope = makeSigEnvelopeSyrup(descGive, signature);
   return record(
     'desc:handoff-receive',
     bts(recieverSession),
@@ -275,8 +275,8 @@ export const makeHandoffReceive = (
 /**
  * @returns {string}
  */
-export const makeSignedHandoffReceive = () => {
-  const handoffReceive = makeHandoffReceive(
+export const makeSignedHandoffReceiveSyrup = () => {
+  const handoffReceive = makeHandoffReceiveSyrup(
     strToUint8Array('123'),
     strToUint8Array('456'),
     1,
@@ -290,6 +290,6 @@ export const makeSignedHandoffReceive = () => {
     makeSig(exampleSigParamBytes, exampleSigParamBytes),
   );
   const signature = makeSig(exampleSigParamBytes, exampleSigParamBytes);
-  const signedHandoffReceive = makeSigEnvelope(handoffReceive, signature);
+  const signedHandoffReceive = makeSigEnvelopeSyrup(handoffReceive, signature);
   return signedHandoffReceive;
 };

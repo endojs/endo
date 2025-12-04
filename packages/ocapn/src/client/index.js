@@ -9,7 +9,6 @@
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeSyrupWriter } from '../syrup/encode.js';
 import {
   readOcapnHandshakeMessage,
   writeOcapnHandshakeMessage,
@@ -18,8 +17,9 @@ import {
   makeOcapnKeyPair,
   makeOcapnPublicKey,
   makeSessionId,
+  signLocation,
+  verifyLocationSignature,
 } from '../cryptography.js';
-import { OcapnMyLocationCodec } from '../codecs/components.js';
 import { compareByteArrays } from '../syrup/compare.js';
 import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
@@ -28,27 +28,12 @@ import { makeSturdyRefTracker } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
 
 /**
- * @param {OcapnLocation} location
- * @returns {Uint8Array}
- */
-const getLocationBytesForSignature = location => {
-  const syrupWriter = makeSyrupWriter();
-  const myLocation = {
-    type: 'my-location',
-    location,
-  };
-  OcapnMyLocationCodec.write(myLocation, syrupWriter);
-  return syrupWriter.getBytes();
-};
-
-/**
  * @param {OcapnLocation} myLocation
  * @returns {SelfIdentity}
  */
 export const makeSelfIdentity = myLocation => {
   const keyPair = makeOcapnKeyPair();
-  const myLocationBytes = getLocationBytesForSignature(myLocation);
-  const myLocationSig = keyPair.sign(myLocationBytes);
+  const myLocationSig = signLocation(myLocation, keyPair);
   return { keyPair, location: myLocation, locationSignature: myLocationSig };
 };
 
@@ -184,10 +169,10 @@ const handleSessionHandshakeMessage = (
 
       // Check if the location signature is valid
       const peerPublicKey = makeOcapnPublicKey(sessionPublicKey.q);
-      const peerLocationBytes = getLocationBytesForSignature(peerLocation);
-      const peerLocationSigValid = peerPublicKey.verify(
-        peerLocationBytes,
+      const peerLocationSigValid = verifyLocationSignature(
+        peerLocation,
         peerLocationSig,
+        peerPublicKey,
       );
       // Handle invalid location signature
       if (!peerLocationSigValid) {
