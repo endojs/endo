@@ -32,7 +32,8 @@
     "lint:types": "tsc",
     "test": "ses-ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
-    "test:xs": "exit 0"
+    "test:xs": "exit 0",
+    "test:python": "node ./test/python-test-suite/index.js"
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
