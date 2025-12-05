@@ -1,8 +1,3 @@
-/**
- * @packageDescription
- * [[include:../README.md]]
- */
-
 import bundleSource from './bundle-source.js';
 
 export default bundleSource;
