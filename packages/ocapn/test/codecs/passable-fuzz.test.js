@@ -6,7 +6,7 @@ import { Buffer } from 'buffer';
 import { XorShift } from '../_xorshift.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
-import { makeTagged } from '../../src/pass-style-helpers.js';
+import { makeSelector, makeTagged } from '../../src/pass-style-helpers.js';
 import { makeCodecTestKit } from './_codecs_util.js';
 import { notThrowsWithErrorUnwrapping } from '../_util.js';
 
@@ -85,10 +85,15 @@ function largeFuzzyPassable(budget, random) {
         // eslint-disable-next-line no-use-before-define
         fuzzyPassable(budget / 2, random),
       ),
-    // TODO: Selector not currently compatible with passStyleOf.
-    // See https://github.com/endojs/endo/pull/2777
     // Selector
-    // () => makeSelector(fuzzyString(10, random)),
+    () => {
+      let name = fuzzyString(10, random);
+      // Ensure selector name doesn't start with @@ (reserved for well-known symbols)
+      do {
+        name = fuzzyString(10, random);
+      } while (name.startsWith('@@'));
+      return makeSelector(name);
+    },
   ]);
 }
 
@@ -156,14 +161,14 @@ test('fuzz', t => {
         () => {
           object3 = decodePassable(syrupBytes2);
         },
-        `fuzz decode ${index} for ${desc} on ${object1}\n${hexString}`,
+        `fuzz decode ${index} for ${desc} on ${String(object1)}\n${hexString}`,
       );
       notThrowsWithErrorUnwrapping(
         t,
         () => {
           syrup4 = encodePassable(object3);
         },
-        `fuzz encode ${index} for ${desc} on ${object3}\n${hexString}`,
+        `fuzz encode ${index} for ${desc} on ${String(object3)}\n${hexString}`,
       );
       t.deepEqual(object3, object1, desc);
       t.deepEqual(syrupBytes2, syrup4, desc);
