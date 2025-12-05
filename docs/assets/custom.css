@@ -1,17 +1,19 @@
 
 :root {
+  --dim-toolbar-contents-height: 71px;
   --dim-footer-height: 0;
 }
 
 .title {
-  padding-left: 40px;
+  padding-left: 60px;
+  font-size: 20px;
 }
 
 .tsd-toolbar-contents::after {
   position: absolute;
-  top: 1px;
-  width: 38px;
-  height: 38px;
+  top: 7px;
+  width: 57px;
+  height: 57px;
   content: '';
-  background-image: url(/images/endo-logo-red-38px.png);
+  background-image: url(/images/endo-logo-red-57px.png);
 }

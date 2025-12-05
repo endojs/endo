@@ -37,7 +37,7 @@
   "plugin": [
     "typedoc-plugin-mermaid"
   ],
-  "name": "EndoJS",
+  "name": "Endo",
   "titleLink": "https://endojs.org",
   "entryPointStrategy": "packages",
   "customCss": "docs/assets/custom.css",

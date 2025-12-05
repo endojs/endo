@@ -1,4 +1,0 @@
-/**
- * @packageDescription
- * [[include:README.md]]
- */
