@@ -81,6 +81,9 @@
  * When a session has ended (eg connection closed).
  * Does not close the connection. Does not delete the session.
  * Does not communicate with the peer.
+ * @property {(connection: Connection) => boolean} rejectPendingSessionForConnection
+ * Finds and rejects any pending session associated with the given connection.
+ * Returns true if a pending session was found and rejected, false otherwise.
  * @property {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
@@ -91,6 +94,7 @@
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
  * @property {SturdyRefTracker} sturdyRefTracker
+ * @property {string} captpVersion
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose

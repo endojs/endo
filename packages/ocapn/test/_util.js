@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
@@ -99,4 +100,26 @@ testWithErrorUnwrapping.only = (testName, fn) => {
   return test.only(testName, t => {
     return notThrowsWithErrorUnwrappingAsync(t, fn, testName);
   });
+};
+
+/**
+ * @param {() => (boolean | Promise<boolean>)} fn
+ * @param {number} timeoutMs
+ * @param {number} delayMs
+ * @returns {Promise<void>}
+ */
+export const waitUntilTrue = async (fn, timeoutMs = 1000, delayMs = 20) => {
+  await undefined;
+  const endTime = timeoutMs + Date.now();
+  while (endTime > Date.now()) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await fn()) {
+      return;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => {
+      setTimeout(resolve, delayMs);
+    });
+  }
+  throw new Error('waitUntilTrue timed out');
 };
