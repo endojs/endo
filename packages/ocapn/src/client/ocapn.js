@@ -29,7 +29,7 @@ import {
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
-import { getSelectorName, makeSelector } from '../pass-style-helpers.js';
+import { getSelectorName, makeSelector } from '../selector.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
 import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
 import {

@@ -3,10 +3,11 @@
 import test from '@endo/ses-ava/test.js';
 
 import { Buffer } from 'buffer';
+import { makeTagged } from '@endo/pass-style';
 import { XorShift } from '../_xorshift.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
-import { makeSelector, makeTagged } from '../../src/pass-style-helpers.js';
+import { makeSelector } from '../../src/selector.js';
 import { makeCodecTestKit } from './_codecs_util.js';
 import { notThrowsWithErrorUnwrapping } from '../_util.js';
 

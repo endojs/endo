@@ -5,13 +5,8 @@
  * @import { DescCodecs } from './descriptors.js'
  */
 
-import { passStyleOf } from '@endo/pass-style';
-import {
-  makeTagged,
-  makeSelector,
-  getSelectorName,
-  isTagged,
-} from '../pass-style-helpers.js';
+import { passStyleOf, makeTagged } from '@endo/pass-style';
+import { makeSelector, getSelectorName } from '../selector.js';
 import {
   BooleanCodec,
   IntegerCodec,
@@ -210,10 +205,6 @@ export const makePassableCodecs = descCodecs => {
         if (isSturdyRef(value)) {
           return OcapnSturdyRefCodec;
         }
-        if (isTagged(value)) {
-          // eslint-disable-next-line no-use-before-define
-          return ContainerCodecs.tagged;
-        }
         // Some OCapN Record Types have a type property.
         const { type: recordType } = value;
         if (
@@ -235,6 +226,10 @@ export const makePassableCodecs = descCodecs => {
         }
         if (passStyle === 'promise') {
           return ReferenceCodec;
+        }
+        if (passStyle === 'tagged') {
+          // eslint-disable-next-line no-use-before-define
+          return ContainerCodecs.tagged;
         }
         throw new Error(`Unexpected value ${value} for OcapnPassable`);
       },

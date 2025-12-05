@@ -4,7 +4,7 @@ import '@endo/init';
 
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { getSelectorName } from '../../src/pass-style-helpers.js';
+import { getSelectorName } from '../../src/selector.js';
 import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../../src/client/index.js';
 

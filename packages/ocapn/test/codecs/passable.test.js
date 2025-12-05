@@ -10,8 +10,9 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import { makeTagged } from '@endo/pass-style';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
-import { makeTagged, makeSelector } from '../../src/pass-style-helpers.js';
+import { makeSelector } from '../../src/selector.js';
 import { sel, str, bts, bool, int, list, btsStr } from './_syrup_util.js';
 import { makeCodecTestKit, testBidirectionally } from './_codecs_util.js';
 import { throws } from '../_util.js';
