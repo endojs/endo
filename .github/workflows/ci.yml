@@ -382,3 +382,73 @@ jobs:
         run: |
           PATH=$PATH:$GITHUB_WORKSPACE/bin
           yarn test:xs
+
+  test-ocapn-python:
+    name: test-ocapn-python
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Endo
+        uses: actions/checkout@v4
+        with:
+          path: endo
+
+      - name: Checkout OCapN Test Suite
+        uses: actions/checkout@v4
+        with:
+          # https://github.com/ocapn/ocapn-test-suite/pull/24
+          repository: kumavis/ocapn-test-suite
+          ref: 08d4a3a132f301a54ab2d86f02e237efc9bd3093
+          path: ocapn-test-suite
+
+      - run: corepack enable
+        working-directory: endo
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.x
+          cache: yarn
+          cache-dependency-path: endo/yarn.lock
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Node dependencies
+        working-directory: endo
+        run: yarn install --immutable
+
+      - name: Build Endo
+        working-directory: endo
+        run: yarn build
+
+      - name: Set up Python virtual environment
+        working-directory: ocapn-test-suite
+        run: |
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install stem cryptography
+
+      - name: Start OCapN test server
+        working-directory: endo
+        run: |
+          yarn workspace @endo/ocapn run test:python &
+          echo $! > /tmp/ocapn-server.pid
+          # Wait for server to be ready
+          sleep 5
+
+      - name: Run Python test suite
+        working-directory: ocapn-test-suite
+        run: |
+          source ./venv/bin/activate
+          python ./test_runner.py 'ocapn://test.tcp-testing-only?host=127.0.0.1&port=22046'
+
+      - name: Stop OCapN test server
+        if: always()
+        run: |
+          if [ -f /tmp/ocapn-server.pid ]; then
+            kill $(cat /tmp/ocapn-server.pid) || true
+          fi

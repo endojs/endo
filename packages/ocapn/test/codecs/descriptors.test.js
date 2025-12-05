@@ -13,11 +13,11 @@ import {
   examplePubKeyQBytes,
   exampleSigParamBytes,
   makeDescGive,
-  makeNode,
+  makePeer,
   makePubKey,
   makeSig,
-  makeSignedHandoffGive,
-  makeSignedHandoffReceive,
+  makeSignedHandoffGiveSyrup,
+  makeSignedHandoffReceiveSyrup,
   record,
   sel,
   strToUint8Array,
@@ -52,16 +52,16 @@ const table = [
     name: 'sturdyref',
     syrup: record(
       'ocapn-sturdyref',
-      makeNode('tcp', '127.0.0.1', false),
+      makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
       btsStr('123'),
     ),
     makeValueAfter: testKit =>
       testKit.lookupSturdyRef(
         {
-          type: 'ocapn-node',
+          type: 'ocapn-peer',
           transport: 'tcp',
-          address: '127.0.0.1',
-          hints: false,
+          designator: '1234',
+          hints: { host: '127.0.0.1', port: '54822' },
         },
         strToUint8Array('123'),
       ),
@@ -69,7 +69,7 @@ const table = [
   },
   {
     name: 'handoff-give',
-    syrup: makeSignedHandoffGive(
+    syrup: makeSignedHandoffGiveSyrup(
       makeSig(exampleSigParamBytes, exampleSigParamBytes),
     ),
     makeValueAfter: testKit =>
@@ -85,10 +85,10 @@ const table = [
             q: examplePubKeyQBytes,
           },
           exporterLocation: {
-            type: 'ocapn-node',
+            type: 'ocapn-peer',
             transport: 'tcp',
-            address: '127.0.0.1',
-            hints: false,
+            designator: '1234',
+            hints: { host: '127.0.0.1', port: '54822' },
           },
           exporterSessionId: strToUint8Array('exporter-session-id'),
           gifterSideId: strToUint8Array('gifter-side-id'),
@@ -109,7 +109,7 @@ const table = [
       'desc:sig-envelope',
       makeDescGive(
         makePubKey(examplePubKeyQBytes),
-        makeNode('tcp', '127.0.0.1', false),
+        makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
         strToUint8Array('exporter-session-id'),
         strToUint8Array('gifter-side-id'),
         strToUint8Array('gift-id'),
@@ -129,10 +129,10 @@ const table = [
             q: examplePubKeyQBytes,
           },
           exporterLocation: {
-            type: 'ocapn-node',
+            type: 'ocapn-peer',
             transport: 'tcp',
-            address: '127.0.0.1',
-            hints: false,
+            designator: '1234',
+            hints: { host: '127.0.0.1', port: '54822' },
           },
           exporterSessionId: strToUint8Array('exporter-session-id'),
           gifterSideId: strToUint8Array('gifter-side-id'),
@@ -149,7 +149,7 @@ const table = [
   },
   {
     name: 'handoff receive',
-    syrup: makeSignedHandoffReceive(),
+    syrup: makeSignedHandoffReceiveSyrup(),
     skipWrite: true,
     makeValue: () => ({
       type: 'desc:sig-envelope',
@@ -170,10 +170,10 @@ const table = [
               q: examplePubKeyQBytes,
             },
             exporterLocation: {
-              type: 'ocapn-node',
+              type: 'ocapn-peer',
               transport: 'tcp',
-              address: '127.0.0.1',
-              hints: false,
+              designator: '1234',
+              hints: { host: '127.0.0.1', port: '54822' },
             },
             exporterSessionId: strToUint8Array('exporter-session-id'),
             gifterSideId: strToUint8Array('gifter-side-id'),

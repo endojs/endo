@@ -17,8 +17,8 @@ import {
   makeGrantDetails,
   makeGrantTracker,
   makeTableKit,
-  OcapnFar,
 } from '../../src/client/ocapn.js';
+import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../../src/codecs/operations.js';
@@ -35,10 +35,10 @@ const bufferToHex = uint8Array => {
 
 /** @type {OcapnLocation} */
 const defaultPeerLocation = {
-  type: 'ocapn-node',
+  type: 'ocapn-peer',
   transport: 'tcp-test-only',
-  address: '127.0.0.1:54822',
-  hints: false,
+  designator: '1234',
+  hints: { host: '127.0.0.1', port: 54822 },
 };
 
 /**
@@ -109,26 +109,40 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     return resolver;
   };
 
-  const testSturdyRefMap = new Map();
   const testHandoffMap = new Map();
 
   /**
+   * Mock provideSession for tests
    * @param {OcapnLocation} location
-   * @param {Uint8Array} swissNum
-   * @returns {string}
+   * @returns {Promise<any>}
    */
-  const getSturdyRefKey = (location, swissNum) => {
-    return `${location.transport}:${location.address}:${bufferToHex(swissNum)}`;
+  const mockProvideSession = async location => {
+    return Promise.resolve({
+      ocapn: {
+        getBootstrap: async () => ({
+          fetch: async () => Promise.resolve('mock-fetched-value'),
+        }),
+      },
+    });
   };
+
+  // Mock SturdyRef tracker for tests
+  const isSelfLocation = () => false; // For tests, never treat as self-location
+  const swissnumTable = new Map(); // Empty table for tests
+  const sturdyRefTracker = makeSturdyRefTracker(
+    mockProvideSession,
+    isSelfLocation,
+    swissnumTable,
+  );
 
   /**
    * @param {OcapnLocation} location
    * @param {Uint8Array} swissNum
-   * @returns {Promise<any>}
+   * @returns {any}
    */
   const lookupSturdyRef = (location, swissNum) => {
-    const testKey = getSturdyRefKey(location, swissNum);
-    return testSturdyRefMap.get(testKey);
+    // Create a new SturdyRef for the test
+    return sturdyRefTracker.makeSturdyRef(location, swissNum);
   };
 
   /**
@@ -144,16 +158,6 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     } = handoffGive;
     const testKey = `${giftId}:${bufferToHex(receiverPubKeyBytes)}:${bufferToHex(exporterSessionId)}`;
     return testHandoffMap.get(testKey);
-  };
-
-  /**
-   * @type {MakeRemoteSturdyRef}
-   */
-  const makeRemoteSturdyRef = (location, swissNum) => {
-    const promise = new Promise(() => {});
-    const testKey = getSturdyRefKey(location, swissNum);
-    testSturdyRefMap.set(testKey, promise);
-    return promise;
   };
 
   /**
@@ -195,11 +199,11 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     peerLocation,
     engine,
     makeRemoteResolver,
-    makeRemoteSturdyRef,
     makeHandoff,
     grantTracker,
     getActiveSession,
     sendDepositGift,
+    sturdyRefTracker,
   );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
@@ -211,7 +215,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   const makeExportAt = position => {
     const slot = `o+${position}`;
-    const value = OcapnFar('Export', {});
+    const value = Far('Export', {});
     engine.registerExport(value, slot);
     return value;
   };

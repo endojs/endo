@@ -4,6 +4,7 @@
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
  * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  */
 
 /**
@@ -13,6 +14,7 @@
 /**
  * @typedef {object} NetLayer
  * @property {OcapnLocation} location
+ * @property {LocationId} locationId
  * @property {(location: OcapnLocation) => Connection} connect
  * @property {() => void} shutdown
  */
@@ -38,6 +40,12 @@
  * @property {OcapnSignature} self.locationSignature
  * @property {Ocapn} ocapn
  * @property {Connection} connection
+ * @property {() => bigint} getHandoffCount
+ * Returns the current handoff count for this session as Receiver.
+ * Does not increment the internal counter.
+ * @property {() => bigint} takeNextHandoffCount
+ * Returns the next unique handoff count for this session as Receiver.
+ * Increments the internal counter for subsequent calls.
  */
 
 /**
@@ -79,6 +87,9 @@
  * When a session has ended (eg connection closed).
  * Does not close the connection. Does not delete the session.
  * Does not communicate with the peer.
+ * @property {(connection: Connection) => boolean} rejectPendingSessionForConnection
+ * Finds and rejects any pending session associated with the given connection.
+ * Returns true if a pending session was found and rejected, false otherwise.
  * @property {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
@@ -88,10 +99,12 @@
  * @property {string} debugLabel
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
- * @property {Map<string, any>} swissnumTable
+ * @property {SturdyRefTracker} sturdyRefTracker
+ * @property {string} captpVersion
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
+ * @property {(location: OcapnLocation, swissNum: Uint8Array) => SturdyRef} makeSturdyRef
  * @property {() => void} shutdown
  */

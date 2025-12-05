@@ -1,45 +1,31 @@
 // @ts-check
 
 /**
- * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from '../codecs/components.js'
- * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
+ * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
+ * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager } from './types.js'
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeSyrupWriter } from '../syrup/encode.js';
 import {
   readOcapnHandshakeMessage,
   writeOcapnHandshakeMessage,
 } from '../codecs/operations.js';
 import {
-  makePublicKeyId,
   makeOcapnKeyPair,
   makeOcapnPublicKey,
-  publicKeyToPublicKeyData,
   makeSessionId,
+  signLocation,
+  verifyLocationSignature,
 } from '../cryptography.js';
-import { OcapnMyLocationCodec } from '../codecs/components.js';
 import { compareByteArrays } from '../syrup/compare.js';
 import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
+import { makeSturdyRefTracker } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
-
-/**
- * @param {OcapnLocation} location
- * @returns {Uint8Array}
- */
-const getLocationBytesForSignature = location => {
-  const syrupWriter = makeSyrupWriter();
-  const myLocation = {
-    type: 'my-location',
-    location,
-  };
-  OcapnMyLocationCodec.write(myLocation, syrupWriter);
-  return syrupWriter.getBytes();
-};
 
 /**
  * @param {OcapnLocation} myLocation
@@ -47,8 +33,7 @@ const getLocationBytesForSignature = location => {
  */
 export const makeSelfIdentity = myLocation => {
   const keyPair = makeOcapnKeyPair();
-  const myLocationBytes = getLocationBytesForSignature(myLocation);
-  const myLocationSig = keyPair.sign(myLocationBytes);
+  const myLocationSig = signLocation(myLocation, keyPair);
   return { keyPair, location: myLocation, locationSignature: myLocationSig };
 };
 
@@ -73,6 +58,7 @@ const makeSession = ({
   connection,
 }) => {
   const { keyPair, location, locationSignature } = selfIdentity;
+  let nextHandoffCount = 0n;
   return harden({
     id,
     connection,
@@ -87,24 +73,47 @@ const makeSession = ({
       location,
       locationSignature,
     },
+    getHandoffCount: () => {
+      return nextHandoffCount;
+    },
+    takeNextHandoffCount: () => {
+      const current = nextHandoffCount;
+      nextHandoffCount += 1n;
+      return current;
+    },
   });
 };
 
 /**
  * @param {Connection} connection
- * @param {any} mySessionData
+ * @param {SelfIdentity} selfIdentity
+ * @param {string} captpVersion
  */
-export const sendHello = (connection, mySessionData) => {
-  const { keyPair, location, locationSignature } = mySessionData;
+export const sendHello = (connection, selfIdentity, captpVersion) => {
+  const { keyPair, location, locationSignature } = selfIdentity;
   const opStartSession = {
     type: 'op:start-session',
-    captpVersion: '1.0',
-    sessionPublicKey: publicKeyToPublicKeyData(keyPair.publicKey),
+    captpVersion,
+    sessionPublicKey: keyPair.publicKey.descriptor,
     location,
     locationSignature,
   };
   const bytes = writeOcapnHandshakeMessage(opStartSession);
   connection.write(bytes);
+};
+
+/**
+ * @param {Connection} connection
+ * @param {string} [reason]
+ */
+const sendAbortAndClose = (connection, reason = 'unknown reason') => {
+  const opAbort = {
+    type: 'op:abort',
+    reason,
+  };
+  const bytes = writeOcapnHandshakeMessage(opAbort);
+  connection.write(bytes);
+  connection.end();
 };
 
 /**
@@ -119,8 +128,8 @@ const compareSessionKeysForCrossedHellos = (
   incommingPublicKey,
 ) => {
   const outgoingPublicKey = outgoingConnection.selfIdentity.keyPair.publicKey;
-  const outgoingId = makePublicKeyId(outgoingPublicKey);
-  const incommingId = makePublicKeyId(incommingPublicKey);
+  const outgoingId = outgoingPublicKey.id;
+  const incommingId = incommingPublicKey.id;
   const result = compareByteArrays(
     outgoingId,
     incommingId,
@@ -142,9 +151,10 @@ const compareSessionKeysForCrossedHellos = (
  * @param {Connection} connection
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @param {any} message
+ * @param {string} captpVersion
  */
 const handleSessionHandshakeMessage = (
   logger,
@@ -152,28 +162,26 @@ const handleSessionHandshakeMessage = (
   connection,
   provideSession,
   grantTracker,
-  swissnumTable,
   giftTable,
+  sturdyRefTracker,
   message,
+  captpVersion,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
     case 'op:start-session': {
       const {
-        captpVersion,
+        captpVersion: messageCaptpVersion,
         sessionPublicKey,
         location: peerLocation,
         locationSignature: peerLocationSig,
       } = message;
       // Handle invalid version
-      if (captpVersion !== '1.0') {
+      if (messageCaptpVersion !== captpVersion) {
         // send op abort
-        const opAbort = {
-          type: 'op:abort',
-          reason: 'invalid-version',
-        };
-        const bytes = writeOcapnHandshakeMessage(opAbort);
-        connection.write(bytes);
+        logger.info(`Abort during start-session message with invalid version`);
+        sendAbortAndClose(connection, 'invalid-version');
+        sessionManager.deleteConnection(connection);
         return;
       }
       const locationId = locationToLocationId(peerLocation);
@@ -184,20 +192,16 @@ const handleSessionHandshakeMessage = (
 
       // Check if the location signature is valid
       const peerPublicKey = makeOcapnPublicKey(sessionPublicKey.q);
-      const peerLocationBytes = getLocationBytesForSignature(peerLocation);
-      const peerLocationSigValid = peerPublicKey.verify(
-        peerLocationBytes,
+      const peerLocationSigValid = verifyLocationSignature(
+        peerLocation,
         peerLocationSig,
+        peerPublicKey,
       );
       // Handle invalid location signature
       if (!peerLocationSigValid) {
         logger.info('>> Server received NOT VALID location signature');
-        const opAbort = {
-          type: 'op:abort',
-          reason: 'Invalid location signature',
-        };
-        const bytes = writeOcapnHandshakeMessage(opAbort);
-        connection.write(bytes);
+        sendAbortAndClose(connection, 'Invalid location signature');
+        sessionManager.deleteConnection(connection);
         return;
       }
       logger.info('>> Server received VALID location signature');
@@ -216,13 +220,7 @@ const handleSessionHandshakeMessage = (
           peerPublicKey,
         );
         // Close the non-preferred connection
-        const opAbort = {
-          type: 'op:abort',
-          reason: 'Crossed hellos mitigated',
-        };
-        const bytes = writeOcapnHandshakeMessage(opAbort);
-        connectionToClose.write(bytes);
-        connectionToClose.end();
+        sendAbortAndClose(connectionToClose, 'Crossed hellos mitigated');
         sessionManager.deleteConnection(connectionToClose);
 
         // If the incomming connection is the one that was just closed, we're done.
@@ -238,14 +236,15 @@ const handleSessionHandshakeMessage = (
         // We've received a hello, so we need to send our own
         // Send our op:start-session
         logger.info('Server sending op:start-session');
-        sendHello(connection, connection.selfIdentity);
+        sendHello(connection, connection.selfIdentity, captpVersion);
       }
 
       // Create session
       const { selfIdentity } = connection;
-      const selfId = makePublicKeyId(selfIdentity.keyPair.publicKey);
-      const peerId = makePublicKeyId(peerPublicKey);
-      const sessionId = makeSessionId(selfId, peerId);
+      const sessionId = makeSessionId(
+        selfIdentity.keyPair.publicKey.id,
+        peerPublicKey.id,
+      );
       const ocapn = makeOcapn(
         logger,
         connection,
@@ -255,8 +254,8 @@ const handleSessionHandshakeMessage = (
         sessionManager.getActiveSession,
         sessionManager.getPeerPublicKeyForSessionId,
         grantTracker,
-        swissnumTable,
         giftTable,
+        sturdyRefTracker,
         'ocapn',
       );
       const session = makeSession({
@@ -293,9 +292,10 @@ const handleSessionHandshakeMessage = (
  * @param {Connection} connection
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
+ * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Uint8Array} data
+ * @param {string} captpVersion
  */
 const handleHandshakeMessageData = (
   logger,
@@ -303,9 +303,10 @@ const handleHandshakeMessageData = (
   connection,
   provideSession,
   grantTracker,
-  swissnumTable,
   giftTable,
+  sturdyRefTracker,
   data,
+  captpVersion,
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
@@ -323,7 +324,6 @@ const handleHandshakeMessageData = (
           'while reading',
           syrupMessage,
         );
-        connection.end();
         throw err;
       }
       if (!connection.isDestroyed) {
@@ -333,9 +333,10 @@ const handleHandshakeMessageData = (
           connection,
           provideSession,
           grantTracker,
-          swissnumTable,
           giftTable,
+          sturdyRefTracker,
           message,
+          captpVersion,
         );
       } else {
         logger.info(
@@ -345,9 +346,35 @@ const handleHandshakeMessageData = (
       }
     }
   } catch (err) {
-    logger.error(`Server error:`, err);
-    connection.end();
-    throw err;
+    logger.error(`Unexpected error whiler processing handshake message:`, err);
+    sendAbortAndClose(connection, 'internal error');
+    sessionManager.deleteConnection(connection);
+  }
+};
+
+/**
+ * @param {Logger} logger
+ * @param {SessionManager} sessionManager
+ * @param {Connection} connection
+ * @param {Session} session
+ * @param {Uint8Array} data
+ */
+const handleActiveSessionMessageData = (
+  logger,
+  sessionManager,
+  connection,
+  session,
+  data,
+) => {
+  try {
+    session.ocapn.dispatchMessageData(data);
+  } catch (err) {
+    logger.error(
+      `Unexpected error while processing active session message:`,
+      err,
+    );
+    sendAbortAndClose(connection, 'internal error');
+    sessionManager.endSession(session);
   }
 };
 
@@ -412,6 +439,17 @@ const makeSessionManager = () => {
       activeSessions.delete(locationId);
       connectionToSession.delete(session.connection);
     },
+    rejectPendingSessionForConnection: connection => {
+      // Find and reject any pending session that matches this outgoing connection
+      for (const [locationId, pendingSession] of pendingSessions.entries()) {
+        if (pendingSession.outgoingConnection === connection) {
+          pendingSession.reject(Error('Connection closed during handshake.'));
+          pendingSessions.delete(locationId);
+          return true;
+        }
+      }
+      return false;
+    },
     makePendingSession: (locationId, outgoingConnection) => {
       if (activeSessions.has(locationId)) {
         throw Error(
@@ -446,6 +484,7 @@ const makeSessionManager = () => {
  * @param {boolean} [options.verbose]
  * @param {Map<string, any>} [options.swissnumTable]
  * @param {Map<string, any>} [options.giftTable]
+ * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @returns {Client}
  */
 export const makeClient = ({
@@ -453,6 +492,7 @@ export const makeClient = ({
   verbose = false,
   swissnumTable = new Map(),
   giftTable = new Map(),
+  captpVersion = '1.0',
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
@@ -478,10 +518,13 @@ export const makeClient = ({
         `Netlayer not registered for transport: ${location.transport}`,
       );
     }
+    const destinationLocationId = locationToLocationId(location);
+    if (destinationLocationId === netlayer.locationId) {
+      throw Error('Refusing to connect to self');
+    }
     const connection = netlayer.connect(location);
-    const locationId = locationToLocationId(location);
     const pendingSession = sessionManager.makePendingSession(
-      locationId,
+      destinationLocationId,
       connection,
     );
     return pendingSession.promise;
@@ -489,13 +532,33 @@ export const makeClient = ({
 
   const grantTracker = makeGrantTracker();
 
+  /**
+   * Check if a location matches one of our own netlayers (self-location)
+   * @param {OcapnLocation} location
+   * @returns {boolean}
+   */
+  const isSelfLocation = location => {
+    const locationId = locationToLocationId(location);
+    for (const netlayer of netlayers.values()) {
+      if (netlayer.locationId === locationId) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   /** @type {Client} */
-  const client = {
+  const client = harden({
+    captpVersion,
     debugLabel,
     logger,
     grantTracker,
     sessionManager,
-    swissnumTable,
+    sturdyRefTracker: makeSturdyRefTracker(
+      location => client.provideSession(location),
+      isSelfLocation,
+      swissnumTable,
+    ),
     /**
      * @param {NetLayer} netlayer
      */
@@ -514,7 +577,13 @@ export const makeClient = ({
       client.logger.info(`handleMessageData called`);
       const session = sessionManager.getSessionForConnection(connection);
       if (session) {
-        session.ocapn.dispatchMessageData(data);
+        handleActiveSessionMessageData(
+          logger,
+          sessionManager,
+          connection,
+          session,
+          data,
+        );
       } else {
         handleHandshakeMessageData(
           logger,
@@ -522,9 +591,10 @@ export const makeClient = ({
           connection,
           client.provideSession,
           grantTracker,
-          swissnumTable,
           giftTable,
+          client.sturdyRefTracker,
           data,
+          captpVersion,
         );
       }
     },
@@ -538,6 +608,9 @@ export const makeClient = ({
       if (session) {
         session.ocapn.abort(reason);
         sessionManager.endSession(session);
+      } else {
+        // If no session exists, check if there's a pending session for this connection
+        sessionManager.rejectPendingSessionForConnection(connection);
       }
       sessionManager.deleteConnection(connection);
     },
@@ -551,17 +624,31 @@ export const makeClient = ({
       // Get existing session.
       const activeSession = sessionManager.getActiveSession(locationId);
       if (activeSession) {
+        client.logger.info(`provideSession returning existing session`);
         return Promise.resolve(activeSession);
       }
       // Get existing pending session.
       const pendingSession =
         sessionManager.getPendingSessionPromise(locationId);
       if (pendingSession) {
+        client.logger.info(`provideSession returning existing pending session`);
         return pendingSession;
       }
       // Connect and establish a new session.
+      client.logger.info(
+        `provideSession connecting and establishing new session`,
+      );
       const newSessionPromise = establishSession(location);
       return newSessionPromise;
+    },
+    /**
+     * Create a SturdyRef object
+     * @param {OcapnLocation} location
+     * @param {Uint8Array} swissNum
+     * @returns {SturdyRef}
+     */
+    makeSturdyRef(location, swissNum) {
+      return client.sturdyRefTracker.makeSturdyRef(location, swissNum);
     },
     shutdown() {
       client.logger.info(`shutdown called`);
@@ -569,7 +656,7 @@ export const makeClient = ({
         netlayer.shutdown();
       }
     },
-  };
+  });
 
   return client;
 };
