@@ -58,6 +58,7 @@ const makeSession = ({
   connection,
 }) => {
   const { keyPair, location, locationSignature } = selfIdentity;
+  let nextHandoffCount = 0n;
   return harden({
     id,
     connection,
@@ -71,6 +72,14 @@ const makeSession = ({
       keyPair,
       location,
       locationSignature,
+    },
+    getHandoffCount: () => {
+      return nextHandoffCount;
+    },
+    takeNextHandoffCount: () => {
+      const current = nextHandoffCount;
+      nextHandoffCount += 1n;
+      return current;
     },
   });
 };

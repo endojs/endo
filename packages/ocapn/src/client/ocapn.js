@@ -1086,7 +1086,7 @@ export const makeOcapn = (
           self: { keyPair: receiverGifterKey },
         } = receiverGifterSession;
         const bootstrap = ocapn.getBootstrap();
-        const handoffCount = 0n;
+        const handoffCount = receiverExporterSession.takeNextHandoffCount();
         // Make the HandoffReceive descriptor
         const handoffReceive = makeHandoffReceiveDescriptor(
           signedGive,
