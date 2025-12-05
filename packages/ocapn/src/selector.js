@@ -1,30 +1,4 @@
-import {
-  PASS_STYLE,
-  nameForPassableSymbol,
-  passableSymbolForName,
-} from '@endo/pass-style';
-
-const { freeze, prototype: ObjectPrototype, create } = Object;
-
-/**
- * @param {string} tagName
- * @param {any} payload
- * @returns {any}
- * TODO: to be replaced by makeTagged from @endo/pass-style when it supports
- * OCapN selectors in the payload.
- */
-export const makeTagged = (tagName, payload) => {
-  const result = create(ObjectPrototype, {
-    [PASS_STYLE]: { value: 'tagged' },
-    [Symbol.toStringTag]: { value: tagName },
-    payload: { value: payload, enumerable: true },
-  });
-  return freeze(result);
-};
-
-export const isTagged = value => {
-  return value && value[PASS_STYLE] === 'tagged';
-};
+import { nameForPassableSymbol, passableSymbolForName } from '@endo/pass-style';
 
 /**
  * @param {string} name

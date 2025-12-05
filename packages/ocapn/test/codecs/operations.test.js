@@ -6,7 +6,7 @@
 
 import test from '@endo/ses-ava/test.js';
 
-import { makeSelector } from '../../src/pass-style-helpers.js';
+import { makeSelector } from '../../src/selector.js';
 import {
   sel,
   str,
