@@ -40,6 +40,12 @@
  * @property {OcapnSignature} self.locationSignature
  * @property {Ocapn} ocapn
  * @property {Connection} connection
+ * @property {() => bigint} getHandoffCount
+ * Returns the current handoff count for this session as Receiver.
+ * Does not increment the internal counter.
+ * @property {() => bigint} takeNextHandoffCount
+ * Returns the next unique handoff count for this session as Receiver.
+ * Increments the internal counter for subsequent calls.
  */
 
 /**
