@@ -5,11 +5,12 @@
  * @import { DescCodecs } from './descriptors.js'
  */
 
-import { passStyleOf as realPassStyleOf } from '@endo/pass-style';
+import { passStyleOf } from '@endo/pass-style';
 import {
   makeTagged,
   makeSelector,
-  passStyleOf,
+  getSelectorName,
+  isTagged,
 } from '../pass-style-helpers.js';
 import {
   BooleanCodec,
@@ -63,7 +64,7 @@ const OcapnSelectorCodec = makeCodec('OcapnSelector', {
     return makeSelector(name);
   },
   write(value, syrupWriter) {
-    const name = value[Symbol.toStringTag];
+    const name = getSelectorName(value);
     syrupWriter.writeSelectorFromString(name);
   },
 });
@@ -209,13 +210,9 @@ export const makePassableCodecs = descCodecs => {
         if (isSturdyRef(value)) {
           return OcapnSturdyRefCodec;
         }
-        const passStyle = passStyleOf(value);
-        if (passStyle === 'tagged') {
+        if (isTagged(value)) {
           // eslint-disable-next-line no-use-before-define
           return ContainerCodecs.tagged;
-        }
-        if (passStyle === 'selector') {
-          return AtomCodecs.selector;
         }
         // Some OCapN Record Types have a type property.
         const { type: recordType } = value;
@@ -228,22 +225,22 @@ export const makePassableCodecs = descCodecs => {
         if (value instanceof Error) {
           return OcapnErrorCodec;
         }
-        const realPassStyle = realPassStyleOf(value);
-        if (realPassStyle === 'copyRecord') {
+        const passStyle = passStyleOf(value);
+        if (passStyle === 'copyRecord') {
           // eslint-disable-next-line no-use-before-define
           return ContainerCodecs.struct;
         }
-        if (realPassStyle === 'remotable') {
+        if (passStyle === 'remotable') {
           return ReferenceCodec;
         }
-        if (realPassStyle === 'promise') {
+        if (passStyle === 'promise') {
           return ReferenceCodec;
         }
         throw new Error(`Unexpected value ${value} for OcapnPassable`);
       },
       function: value => {
-        const realPassStyle = realPassStyleOf(value);
-        if (realPassStyle === 'remotable') {
+        const passStyle = passStyleOf(value);
+        if (passStyle === 'remotable') {
           return ReferenceCodec;
         }
         throw new Error(`Unexpected value ${value} for OcapnPassable`);
