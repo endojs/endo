@@ -8,13 +8,18 @@ import {
   serializeOcapnMyLocation,
   serializeOcapnPublicKeyDescriptor,
 } from './codecs/components.js';
-import { compareByteArrays } from './syrup/compare.js';
+import { compareUint8Arrays } from './syrup/compare.js';
 import {
   makeHandoffReceiveDescriptor,
   makeHandoffReceiveSigEnvelope,
   serializeHandoffGive,
   serializeHandoffReceive,
 } from './codecs/descriptors.js';
+import {
+  uint8ArrayToImmutableArrayBuffer,
+  immutableArrayBufferToUint8Array,
+  concatUint8Arrays,
+} from './buffer-utils.js';
 
 /**
  * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
@@ -23,33 +28,34 @@ import {
 
 const textEncoder = new TextEncoder();
 
+const sessionIdHashPrefixBytes = textEncoder.encode('prot0');
+
 /**
  * @typedef {object} OcapnPublicKey
- * @property {Uint8Array} id
- * @property {Uint8Array} bytes
+ * @property {ArrayBufferLike} id
+ * @property {ArrayBufferLike} bytes
  * @property {OcapnPublicKeyDescriptor} descriptor
- * @property {(msg: Uint8Array, sig: OcapnSignature) => boolean} verify
+ * @property {(msg: ArrayBufferLike, sig: OcapnSignature) => boolean} verify
  */
 
 /**
  * @typedef {object} OcapnKeyPair
  * @property {OcapnPublicKey} publicKey
- * @property {(msg: Uint8Array) => OcapnSignature} sign
+ * @property {(msg: ArrayBufferLike) => OcapnSignature} sign
  */
 
 /**
  * @param {OcapnSignature} sig
  * @returns {Uint8Array}
  */
-export const ocapNSignatureToBytes = sig => {
-  const result = new Uint8Array(sig.r.length + sig.s.length);
-  result.set(sig.r, 0);
-  result.set(sig.s, sig.r.length);
-  return result;
+const ocapNSignatureToBytes = sig => {
+  const rBytes = immutableArrayBufferToUint8Array(sig.r);
+  const sBytes = immutableArrayBufferToUint8Array(sig.s);
+  return concatUint8Arrays([rBytes, sBytes]);
 };
 
 /**
- * @param {Uint8Array} publicKeyBytes
+ * @param {ArrayBufferLike} publicKeyBytes
  * @returns {OcapnPublicKeyDescriptor}
  */
 const makePublicKeyDescriptor = publicKeyBytes => {
@@ -64,16 +70,18 @@ const makePublicKeyDescriptor = publicKeyBytes => {
 
 /**
  * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
 const makePublicKeyIdFromDescriptor = publicKeyDescriptor => {
   const publicKeyDescriptorBytes =
     serializeOcapnPublicKeyDescriptor(publicKeyDescriptor);
-  return sha256(sha256(publicKeyDescriptorBytes));
+  const hash1 = sha256(publicKeyDescriptorBytes);
+  const hash2 = sha256(hash1);
+  return uint8ArrayToImmutableArrayBuffer(hash2);
 };
 
 /**
- * @param {Uint8Array} publicKeyBytes
+ * @param {ArrayBufferLike} publicKeyBytes
  * @returns {OcapnPublicKey}
  */
 export const makeOcapnPublicKey = publicKeyBytes => {
@@ -83,13 +91,15 @@ export const makeOcapnPublicKey = publicKeyBytes => {
     bytes: publicKeyBytes,
     descriptor: publicKeyDescriptor,
     /**
-     * @param {Uint8Array} msgBytes
+     * @param {ArrayBufferLike} msgBytes
      * @param {OcapnSignature} ocapnSig
      * @returns {boolean}
      */
     verify: (msgBytes, ocapnSig) => {
       const sigBytes = ocapNSignatureToBytes(ocapnSig);
-      return ed25519.verify(sigBytes, msgBytes, publicKeyBytes);
+      const msgUint8 = immutableArrayBufferToUint8Array(msgBytes);
+      const pkUint8 = immutableArrayBufferToUint8Array(publicKeyBytes);
+      return ed25519.verify(sigBytes, msgUint8, pkUint8);
     },
   });
 };
@@ -100,15 +110,17 @@ export const makeOcapnPublicKey = publicKeyBytes => {
 export const makeOcapnKeyPair = () => {
   const privateKeyBytes = ed25519.utils.randomPrivateKey();
   const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
+  const publicKeyBuffer = uint8ArrayToImmutableArrayBuffer(publicKeyBytes);
   return {
-    publicKey: makeOcapnPublicKey(publicKeyBytes),
+    publicKey: makeOcapnPublicKey(publicKeyBuffer),
     sign: msg => {
-      const sigBytes = ed25519.sign(msg, privateKeyBytes);
+      const msgBytes = immutableArrayBufferToUint8Array(msg);
+      const sigBytes = ed25519.sign(msgBytes, privateKeyBytes);
       return {
         type: 'sig-val',
         scheme: 'eddsa',
-        r: sigBytes.slice(0, 32),
-        s: sigBytes.slice(32),
+        r: uint8ArrayToImmutableArrayBuffer(sigBytes.slice(0, 32)),
+        s: uint8ArrayToImmutableArrayBuffer(sigBytes.slice(32)),
       };
     },
   };
@@ -131,48 +143,50 @@ export const publicKeyDescriptorToPublicKey = publicKeyDescriptor => {
   if (publicKeyDescriptor.flags !== 'eddsa') {
     throw new Error('Invalid public key descriptor: Unexpected flags');
   }
-  if (publicKeyDescriptor.q.length !== 32) {
+  if (publicKeyDescriptor.q.byteLength !== 32) {
     throw new Error('Invalid public key descriptor: Unexpected q length');
   }
   return makeOcapnPublicKey(publicKeyDescriptor.q);
 };
 
 /**
- * @param {Uint8Array} peerIdOne
- * @param {Uint8Array} peerIdTwo
- * @returns {Uint8Array}
+ * @param {ArrayBufferLike} peerIdOne
+ * @param {ArrayBufferLike} peerIdTwo
+ * @returns {ArrayBufferLike}
  */
 export const makeSessionId = (peerIdOne, peerIdTwo) => {
+  // Convert to Uint8Array for comparison
+  const peerIdOneBytes = immutableArrayBufferToUint8Array(peerIdOne);
+  const peerIdTwoBytes = immutableArrayBufferToUint8Array(peerIdTwo);
+
   // Sort both IDs based on the resulting octets
-  const result = compareByteArrays(
-    peerIdOne,
-    peerIdTwo,
-    0,
-    peerIdOne.length,
-    0,
-    peerIdTwo.length,
-  );
-  const peerIds = result < 0 ? [peerIdOne, peerIdTwo] : [peerIdTwo, peerIdOne];
+  const result = compareUint8Arrays(peerIdOneBytes, peerIdTwoBytes);
+  const peerIds =
+    result < 0
+      ? [peerIdOneBytes, peerIdTwoBytes]
+      : [peerIdTwoBytes, peerIdOneBytes];
   // Concatinating them in the order from number 3
   // Append the string "prot0" to the beginning
-  const inputBytes = new Uint8Array([
-    ...textEncoder.encode('prot0'),
-    ...peerIds[0],
-    ...peerIds[1],
+  const sessionIdBytes = concatUint8Arrays([
+    sessionIdHashPrefixBytes,
+    ...peerIds,
   ]);
   // Double SHA256 hash the resulting string
-  return sha256(sha256(inputBytes));
+  const hash1 = sha256(sessionIdBytes);
+  const hash2 = sha256(hash1);
+  return uint8ArrayToImmutableArrayBuffer(hash2);
 };
 
 /**
  * @param {OcapnLocation} location
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
 const getLocationBytesForSignature = location => {
-  return serializeOcapnMyLocation({
+  const myLocationBytes = serializeOcapnMyLocation({
     type: 'my-location',
     location,
   });
+  return uint8ArrayToImmutableArrayBuffer(myLocationBytes);
 };
 
 /**
@@ -247,17 +261,17 @@ export const verifyHandoffReceiveSignature = (
 };
 
 /**
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
 export const randomGiftId = () => {
-  return randomBytes(16);
+  return uint8ArrayToImmutableArrayBuffer(randomBytes(16));
 };
 
 /**
  * @param {HandoffGiveSigEnvelope} signedGive
  * @param {bigint} handoffCount
- * @param {Uint8Array} sessionId
- * @param {Uint8Array} receiverPeerId
+ * @param {ArrayBufferLike} sessionId
+ * @param {ArrayBufferLike} receiverPeerId
  * @param {OcapnKeyPair} privKeyForGifter
  * @returns {HandoffReceiveSigEnvelope}
  */

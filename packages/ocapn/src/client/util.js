@@ -6,13 +6,17 @@
  */
 
 import { Buffer } from 'buffer';
+import {
+  immutableArrayBufferToUint8Array,
+  uint8ArrayToImmutableArrayBuffer,
+} from '../buffer-utils.js';
 
 /**
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  * @returns {string}
  */
 export const toHex = value => {
-  return Buffer.from(value).toString('hex');
+  return Buffer.from(immutableArrayBufferToUint8Array(value)).toString('hex');
 };
 
 /**
@@ -49,16 +53,16 @@ const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
 const swissnumEncoder = new TextEncoder();
 
 /**
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  * @returns {string}
  */
 export const decodeSwissnum = value => {
-  return swissnumDecoder.decode(value);
+  return swissnumDecoder.decode(immutableArrayBufferToUint8Array(value));
 };
 
 /**
  * @param {string} value
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
 export const encodeSwissnum = value => {
   // Validate the value is strictly valid ASCII
@@ -70,5 +74,5 @@ export const encodeSwissnum = value => {
       );
     }
   }
-  return swissnumEncoder.encode(value);
+  return uint8ArrayToImmutableArrayBuffer(swissnumEncoder.encode(value));
 };

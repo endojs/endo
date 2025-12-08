@@ -40,7 +40,7 @@ import {
   verifyHandoffReceiveSignature,
   signHandoffReceive,
 } from '../cryptography.js';
-import { compareByteArrays } from '../syrup/compare.js';
+import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
 
 /**
@@ -438,7 +438,7 @@ const slotTypes = harden({
  * @property {(position: bigint) => any} convertPositionToLocalPromise
  * @property {(position: bigint) => any} provideRemoteResolver
  * @property {(position: bigint) => any} provideLocalAnswer
- * @property {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => SturdyRef} makeSturdyRef
+ * @property {(nodeLocation: OcapnLocation, swissNum: ArrayBufferLike) => SturdyRef} makeSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
  * @property {(value: any) => ValInfo} getInfoForVal
  * @property {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
@@ -451,7 +451,7 @@ const slotTypes = harden({
  * @param {MakeHandoff} makeHandoff
  * @param {GrantTracker} grantTracker
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
- * @param {(session: Session, giftId: Uint8Array, value: any) => void} sendDepositGift
+ * @param {(session: Session, giftId: ArrayBufferLike, value: any) => void} sendDepositGift
  * @param {SturdyRefTracker} sturdyRefTracker
  * @returns {TableKit}
  */
@@ -624,10 +624,10 @@ export const makeTableKit = (
 /**
  * @param {string} label
  * @param {Logger} logger
- * @param {Uint8Array} sessionId
+ * @param {ArrayBufferLike} sessionId
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Map<string, any>} giftTable
- * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {(sessionId: ArrayBufferLike) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @returns {any}
  */
 const makeBootstrapObject = (
@@ -642,7 +642,7 @@ const makeBootstrapObject = (
   const usedGiftHandoffs = new Set();
   return Far(`${label}:bootstrap`, {
     /**
-     * @param {Uint8Array} swissnum
+     * @param {ArrayBufferLike} swissnum
      * @returns {Promise<any>}
      */
     fetch: swissnum => {
@@ -656,7 +656,7 @@ const makeBootstrapObject = (
       return object;
     },
     /**
-     * @param {Uint8Array} giftId
+     * @param {ArrayBufferLike} giftId
      * @param {any} gift
      */
     'deposit-gift': (giftId, gift) => {
@@ -709,13 +709,16 @@ const makeBootstrapObject = (
       }
       const peerIdFromSession = peerPublicKey.id;
       if (
-        compareByteArrays(peerIdFromSession, peerIdFromHandoffReceive) !== 0
+        compareImmutableArrayBuffers(
+          peerIdFromSession,
+          peerIdFromHandoffReceive,
+        ) !== 0
       ) {
         throw Error(
           `${label}: Bootstrap withdraw-gift: Receiver key mismatch for session ${toHex(sessionId)}.\n  peerIdFromSession: ${toHex(peerIdFromSession)}\n  peerIdFromHandoffReceive: ${toHex(peerIdFromHandoffReceive)}`,
         );
       }
-      if (compareByteArrays(sessionId, receivingSession) !== 0) {
+      if (compareImmutableArrayBuffers(sessionId, receivingSession) !== 0) {
         throw Error(`${label}: Bootstrap withdraw-gift: Session id mismatch.`);
       }
 
@@ -788,11 +791,11 @@ const makeBootstrapObject = (
 /**
  * @param {Logger} logger
  * @param {Connection} connection
- * @param {Uint8Array} sessionId
+ * @param {ArrayBufferLike} sessionId
  * @param {OcapnLocation} peerLocation
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
- * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {(sessionId: ArrayBufferLike) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker

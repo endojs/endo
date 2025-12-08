@@ -3,6 +3,11 @@
  * @import { SyrupWriter } from './encode.js'
  */
 
+import {
+  decodeImmutableArrayBufferToString,
+  encodeStringToImmutableArrayBuffer,
+} from '../buffer-utils.js';
+
 /**
  * @typedef {object} SyrupCodec
  * @property {function(SyrupReader): any} read
@@ -11,9 +16,6 @@
 
 const { freeze } = Object;
 const quote = JSON.stringify;
-
-const textDecoder = new TextDecoder('utf-8', { fatal: true });
-const textEncoder = new TextEncoder();
 
 export const makeCodecWriteWithErrorWrapping = (codecName, write) => {
   /** @type {SyrupCodec['write']} */
@@ -151,17 +153,17 @@ export const makeExpectedLengthBytestringCodec = (codecName, length) => {
   return makeCodec(codecName, {
     read: syrupReader => {
       const bytestring = syrupReader.readBytestring();
-      if (bytestring.length !== length) {
-        throw Error(`Expected length ${length}, got ${bytestring.length}`);
+      if (bytestring.byteLength !== length) {
+        throw Error(`Expected length ${length}, got ${bytestring.byteLength}`);
       }
       return bytestring;
     },
     write: (value, syrupWriter) => {
-      if (!(value instanceof Uint8Array)) {
-        throw Error(`Expected Uint8Array, got ${typeof value}`);
+      if (!(value instanceof ArrayBuffer)) {
+        throw Error(`Expected ArrayBuffer, got ${typeof value}`);
       }
-      if (value.length !== length) {
-        throw Error(`Expected length ${length}, got ${value.length}`);
+      if (value.byteLength !== length) {
+        throw Error(`Expected length ${length}, got ${value.byteLength}`);
       }
       syrupWriter.writeBytestring(value);
     },
@@ -187,7 +189,7 @@ export const NumberPrefixCodec = makeCodec('NumberPrefix', {
   write: (value, syrupWriter) => {
     if (typeof value === 'string') {
       syrupWriter.writeString(value);
-    } else if (value instanceof Uint8Array) {
+    } else if (value instanceof ArrayBuffer) {
       syrupWriter.writeBytestring(value);
     } else if (typeof value === 'bigint') {
       syrupWriter.writeInteger(value);
@@ -368,7 +370,7 @@ export const makeRecordCodec = (
     }
     const labelString =
       labelInfo.type === 'bytestring'
-        ? textDecoder.decode(labelInfo.value)
+        ? decodeImmutableArrayBufferToString(labelInfo.value)
         : labelInfo.value;
     if (labelString !== label) {
       throw Error(
@@ -390,7 +392,7 @@ export const makeRecordCodec = (
     } else if (labelType === 'string') {
       syrupWriter.writeString(label);
     } else if (labelType === 'bytestring') {
-      syrupWriter.writeBytestring(textEncoder.encode(label));
+      syrupWriter.writeBytestring(encodeStringToImmutableArrayBuffer(label));
     }
     writeBody(value, syrupWriter);
     syrupWriter.exitRecord();
@@ -587,7 +589,7 @@ export const makeRecordUnionCodec = (codecName, recordTypes) => {
     const labelInfo = syrupReader.readRecordLabel();
     const labelString =
       labelInfo.type === 'bytestring'
-        ? textDecoder.decode(labelInfo.value)
+        ? decodeImmutableArrayBufferToString(labelInfo.value)
         : labelInfo.value;
     const recordCodec = recordTable[labelString];
     if (!recordCodec) {

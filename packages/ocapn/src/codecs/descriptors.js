@@ -22,6 +22,7 @@ import {
 } from './components.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
 import { getSturdyRefDetails } from '../client/sturdyrefs.js';
+import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
 
 /**
  * @typedef {object} DescCodecs
@@ -40,9 +41,9 @@ import { getSturdyRefDetails } from '../client/sturdyrefs.js';
  * @property {'desc:handoff-give'} type
  * @property {OcapnPublicKeyDescriptor} receiverKey
  * @property {OcapnLocation} exporterLocation
- * @property {Uint8Array} exporterSessionId
- * @property {Uint8Array} gifterSideId
- * @property {Uint8Array} giftId
+ * @property {ArrayBufferLike} exporterSessionId
+ * @property {ArrayBufferLike} gifterSideId
+ * @property {ArrayBufferLike} giftId
  */
 
 /**
@@ -55,8 +56,8 @@ import { getSturdyRefDetails } from '../client/sturdyrefs.js';
 /**
  * @typedef {object} HandoffReceive
  * @property {'desc:handoff-receive'} type
- * @property {Uint8Array} receivingSession
- * @property {Uint8Array} receivingSide
+ * @property {ArrayBufferLike} receivingSession
+ * @property {ArrayBufferLike} receivingSide
  * @property {bigint} handoffCount
  * @property {HandoffGiveSigEnvelope} signedGive
  */
@@ -372,9 +373,9 @@ const makeSigEnvelope = (object, signature) => {
 /**
  * @param {OcapnPublicKeyDescriptor} receiverPublicKeyDescriptor
  * @param {OcapnLocation} exporterLocation
- * @param {Uint8Array} exporterSessionId
- * @param {Uint8Array} gifterSideId
- * @param {Uint8Array} giftId
+ * @param {ArrayBufferLike} exporterSessionId
+ * @param {ArrayBufferLike} gifterSideId
+ * @param {ArrayBufferLike} giftId
  * @returns {HandoffGive}
  */
 export const makeHandoffGiveDescriptor = (
@@ -396,12 +397,12 @@ export const makeHandoffGiveDescriptor = (
 
 /**
  * @param {HandoffGive} handoffGive
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
 export const serializeHandoffGive = handoffGive => {
   const syrupWriter = makeSyrupWriter();
   DescHandoffGiveCodec.write(handoffGive, syrupWriter);
-  return syrupWriter.getBytes();
+  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
 };
 
 /**
@@ -417,8 +418,8 @@ export const makeHandoffGiveSigEnvelope = (handoffGive, signature) => {
 /**
  * @param {HandoffGiveSigEnvelope} signedGive
  * @param {bigint} handoffCount
- * @param {Uint8Array} sessionId
- * @param {Uint8Array} receiverPeerId
+ * @param {ArrayBufferLike} sessionId
+ * @param {ArrayBufferLike} receiverPeerId
  * @returns {HandoffReceive}
  */
 export const makeHandoffReceiveDescriptor = (
@@ -448,10 +449,10 @@ export const makeHandoffReceiveSigEnvelope = (handoffReceive, signature) => {
 
 /**
  * @param {HandoffReceive} handoffReceive
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
 export const serializeHandoffReceive = handoffReceive => {
   const syrupWriter = makeSyrupWriter();
   DescHandoffReceiveCodec.write(handoffReceive, syrupWriter);
-  return syrupWriter.getBytes();
+  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
 };

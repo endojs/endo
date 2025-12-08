@@ -5,6 +5,7 @@
  */
 
 import test from '@endo/ses-ava/test.js';
+import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 
 import { makeSelector } from '../../src/selector.js';
 import {
@@ -16,16 +17,17 @@ import {
   makeSig,
   makePeer,
   makePubKey,
-  strToUint8Array,
+  strToArrayBuffer,
   makeExport,
   makeImportObject,
   makeImportPromise,
   record,
-  hexToUint8Array,
+  hexToArrayBuffer,
   btsStr,
   examplePubKeyQBytes,
   exampleSigParamBytes,
   makeSignedHandoffReceiveSyrup,
+  hexToUint8Array,
 } from './_syrup_util.js';
 import { testBidirectionally } from './_codecs_util.js';
 
@@ -137,7 +139,7 @@ export const table = [
     makeValue: testKit => ({
       type: 'op:deliver',
       to: testKit.makeExportAt(0n),
-      args: [makeSelector('fetch'), strToUint8Array('swiss-number')],
+      args: [makeSelector('fetch'), strToArrayBuffer('swiss-number')],
       answerPosition: 3n,
       resolveMeDesc: testKit.tableKit.provideRemoteResolver(5n),
     }),
@@ -162,8 +164,8 @@ export const table = [
           type: 'desc:sig-envelope',
           object: {
             type: 'desc:handoff-receive',
-            receivingSession: strToUint8Array('123'),
-            receivingSide: strToUint8Array('456'),
+            receivingSession: strToArrayBuffer('123'),
+            receivingSide: strToArrayBuffer('456'),
             handoffCount: 1n,
             signedGive: {
               type: 'desc:sig-envelope',
@@ -182,9 +184,9 @@ export const table = [
                   designator: '1234',
                   hints: { host: '127.0.0.1', port: '54822' },
                 },
-                exporterSessionId: strToUint8Array('exporter-session-id'),
-                gifterSideId: strToUint8Array('gifter-side-id'),
-                giftId: strToUint8Array('gift-id'),
+                exporterSessionId: strToArrayBuffer('exporter-session-id'),
+                gifterSideId: strToArrayBuffer('gifter-side-id'),
+                giftId: strToArrayBuffer('gift-id'),
               },
               signature: {
                 type: 'sig-val',
@@ -276,7 +278,7 @@ export const table = [
       to: testKit.makeExportAt(0n),
       args: [
         makeSelector('fetch'),
-        hexToUint8Array(
+        hexToArrayBuffer(
           '676930324931716768497750694b474b6c654351414f687079335a7459527042',
         ),
       ],
@@ -294,7 +296,7 @@ export const table = [
       to: testKit.makeExportAt(0n),
       args: [
         makeSelector('fetch'),
-        hexToUint8Array(
+        hexToArrayBuffer(
           '564d44446431766f4b5761724365324776674c627862564679734e7a52507a78',
         ),
       ],
@@ -323,7 +325,7 @@ export const table = [
       to: testKit.makeExportAt(0n),
       args: [
         makeSelector('fetch'),
-        hexToUint8Array(
+        hexToArrayBuffer(
           '494f35386c316c61547968637267444b62457a464f4f33324d4464367a453577',
         ),
       ],
@@ -339,7 +341,13 @@ export const table = [
     makeValue: testKit => ({
       type: 'op:deliver',
       to: testKit.makeExportAt(0n),
-      args: ['foo', 1n, false, Uint8Array.from([0x62, 0x61, 0x72]), ['baz']],
+      args: [
+        'foo',
+        1n,
+        false,
+        uint8ArrayToImmutableArrayBuffer(Uint8Array.from([0x62, 0x61, 0x72])),
+        ['baz'],
+      ],
       answerPosition: false,
       resolveMeDesc: testKit.tableKit.provideRemoteResolver(0n),
     }),

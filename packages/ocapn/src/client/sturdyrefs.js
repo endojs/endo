@@ -11,7 +11,7 @@ import { decodeSwissnum } from './util.js';
 /**
  * @typedef {object} SturdyRefDetails
  * @property {OcapnLocation} location
- * @property {Uint8Array} swissNum
+ * @property {ArrayBufferLike} swissNum
  */
 
 // WeakMap to store SturdyRef details (internal to this module)
@@ -33,7 +33,7 @@ export class SturdyRef {
    * @param {(location: OcapnLocation) => boolean} isSelfLocation
    * @param {Map<string, any>} swissnumTable
    * @param {OcapnLocation} location
-   * @param {Uint8Array} swissNum
+   * @param {ArrayBufferLike} swissNum
    */
   constructor(
     provideSession,
@@ -100,8 +100,8 @@ export const getSturdyRefDetails = sturdyRef => {
 
 /**
  * @typedef {object} SturdyRefTracker
- * @property {(location: OcapnLocation, swissNum: Uint8Array) => SturdyRef} makeSturdyRef
- * @property {(swissNum: Uint8Array) => any | undefined} lookup - Look up an object by swissnum
+ * @property {(location: OcapnLocation, swissNum: ArrayBufferLike) => SturdyRef} makeSturdyRef
+ * @property {(swissNum: ArrayBufferLike) => any | undefined} lookup - Look up an object by swissnum
  * @property {(swissStr: string, object: any) => void} register - Register an object with a swissnum string
  */
 
@@ -120,7 +120,7 @@ export const makeSturdyRefTracker = (
   return harden({
     /**
      * @param {OcapnLocation} location
-     * @param {Uint8Array} swissNum
+     * @param {ArrayBufferLike} swissNum
      * @returns {SturdyRef}
      */
     makeSturdyRef: (location, swissNum) => {
@@ -136,7 +136,7 @@ export const makeSturdyRefTracker = (
     },
     /**
      * Look up an object by swissnum
-     * @param {Uint8Array} swissNum
+     * @param {ArrayBufferLike} swissNum
      * @returns {any | undefined}
      */
     lookup: swissNum => {
