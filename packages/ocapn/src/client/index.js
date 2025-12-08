@@ -143,6 +143,7 @@ const compareSessionKeysForCrossedHellos = (
 };
 
 /**
+ * @param {string} debugLabel
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
@@ -154,6 +155,7 @@ const compareSessionKeysForCrossedHellos = (
  * @param {string} captpVersion
  */
 const handleSessionHandshakeMessage = (
+  debugLabel,
   logger,
   sessionManager,
   connection,
@@ -253,7 +255,7 @@ const handleSessionHandshakeMessage = (
         grantTracker,
         giftTable,
         sturdyRefTracker,
-        'ocapn',
+        debugLabel,
       );
       const session = makeSession({
         id: sessionId,
@@ -284,6 +286,7 @@ const handleSessionHandshakeMessage = (
 };
 
 /**
+ * @param {string} debugLabel
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
@@ -295,6 +298,7 @@ const handleSessionHandshakeMessage = (
  * @param {string} captpVersion
  */
 const handleHandshakeMessageData = (
+  debugLabel,
   logger,
   sessionManager,
   connection,
@@ -325,6 +329,7 @@ const handleHandshakeMessageData = (
       }
       if (!connection.isDestroyed) {
         handleSessionHandshakeMessage(
+          debugLabel,
           logger,
           sessionManager,
           connection,
@@ -583,6 +588,7 @@ export const makeClient = ({
         );
       } else {
         handleHandshakeMessageData(
+          debugLabel,
           logger,
           sessionManager,
           connection,

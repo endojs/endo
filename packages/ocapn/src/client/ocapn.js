@@ -291,7 +291,8 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
  * @param {((reason?: any, returnIt?: boolean) => void)} opts.quietReject
  * @param {() => [CapTPSlot, Promise<any>]} opts.makeQuestion
  * @param {((obj: Record<string, any>) => void)} opts.send
- * @param {(slot: CapTPSlot) => any} opts.getValForSlot
+ * @param {(slot: CapTPSlot) => any} opts.getImportForSlot
+
  * @param {MakeLocalResolver} opts.makeLocalResolver
  * @returns {MakeHandlerForRemoteReference}
  */
@@ -301,7 +302,7 @@ const makeMakeHandlerForRemoteReference = ({
   didUnplug,
   quietReject,
   makeQuestion,
-  getValForSlot,
+  getImportForSlot,
   makeLocalResolver,
 }) => {
   const makeHandlerForRemoteReference = (targetSlot, mode = 'deliver') => {
@@ -309,7 +310,7 @@ const makeMakeHandlerForRemoteReference = ({
       if (mode === 'deliver-only') {
         send({
           type: 'op:deliver-only',
-          to: getValForSlot(targetSlot),
+          to: getImportForSlot(targetSlot),
           args: harden(args),
         });
         return Promise.resolve();
@@ -319,7 +320,7 @@ const makeMakeHandlerForRemoteReference = ({
         const resolveMeDesc = makeLocalResolver(questionSlot);
         send({
           type: 'op:deliver',
-          to: getValForSlot(targetSlot),
+          to: getImportForSlot(targetSlot),
           args: harden(args),
           answerPosition,
           resolveMeDesc,
@@ -971,7 +972,7 @@ export const makeOcapn = (
     // eslint-disable-next-line no-use-before-define
     makeQuestion: () => engine.makeQuestion(),
     // eslint-disable-next-line no-use-before-define
-    getValForSlot: slot => engine.convertSlotToVal(slot),
+    getImportForSlot: slot => engine.getImport(slot),
     makeLocalResolver: (questionSlot, ownerLabel) =>
       // eslint-disable-next-line no-use-before-define
       makeLocalResolver(questionSlot, ownerLabel),
@@ -1148,7 +1149,11 @@ export const makeOcapn = (
       logger.info(`sending message syrup:`);
       logger.info(syrupObject);
       connection.write(bytes);
+      // Tell the engine message serialization has completed.
+      engine.sendSlot.commit();
     } catch (error) {
+      // Tell the engine message serialization has failed.
+      engine.sendSlot.abort();
       logger.info(`sending message error`, error);
     }
   }
@@ -1163,7 +1168,11 @@ export const makeOcapn = (
       const start = syrupReader.index;
       try {
         message = readOcapnMessage(syrupReader);
+        // Tell the engine message deserialization has completed.
+        engine.recvSlot.commit();
       } catch (err) {
+        // Tell the engine message deserialization has failed.
+        engine.recvSlot.abort();
         const problematicBytes = data.slice(start);
         const syrupMessage = decodeSyrup(problematicBytes);
         logger.error(`Message decode error:`);
