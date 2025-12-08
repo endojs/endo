@@ -38,7 +38,7 @@ export const makeSelfIdentity = myLocation => {
 };
 
 /**
- * @import { SessionId } from './types.js'
+ * @import { SessionId, SwissNum } from './types.js'
  */
 
 /**
@@ -641,7 +641,7 @@ export const makeClient = ({
     /**
      * Create a SturdyRef object
      * @param {OcapnLocation} location
-     * @param {ArrayBufferLike} swissNum
+     * @param {SwissNum} swissNum
      * @returns {SturdyRef}
      */
     makeSturdyRef(location, swissNum) {

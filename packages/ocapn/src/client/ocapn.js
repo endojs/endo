@@ -10,7 +10,7 @@
  * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
- * @import { Connection, LocationId, Logger, Session, SessionId } from './types.js'
+ * @import { Connection, LocationId, Logger, Session, SessionId, SwissNum } from './types.js'
  */
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
@@ -48,9 +48,9 @@ import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
  * @typedef {any} RemoteResolver
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
  * @typedef {(slot: CapTPSlot) => RemoteResolver} MakeRemoteResolver
- * @typedef {(node: OcapnLocation, swissNum: Uint8Array) => Promise<any>} MakeRemoteSturdyRef
+ * @typedef {(node: OcapnLocation, swissNum: SwissNum) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
- * @typedef {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => any} GetRemoteSturdyRef
+ * @typedef {(nodeLocation: OcapnLocation, swissNum: SwissNum) => any} GetRemoteSturdyRef
  * @typedef {Record<string, any>} Handler
  * @typedef {'object' | 'promise' | 'question'} SlotType
  */
@@ -173,7 +173,7 @@ const makeOcapnCommsKit = ({
  * @param {OcapnLocation} location
  * @param {CapTPSlot} slot
  * @param {'handoff' | 'sturdy-ref'} type
- * @param {Uint8Array} [swissNum]
+ * @param {SwissNum} [swissNum]
  * @returns {GrantDetails}
  */
 export const makeGrantDetails = (
@@ -199,7 +199,7 @@ export const makeGrantDetails = (
  * @property {OcapnLocation} location
  * @property {CapTPSlot} slot
  * @property {'handoff' | 'sturdy-ref'} type
- * @property {Uint8Array} [swissNum]
+ * @property {SwissNum} [swissNum]
  *
  * @typedef {object} HandoffGiveDetails
  * @property {any} value
@@ -438,7 +438,7 @@ const slotTypes = harden({
  * @property {(position: bigint) => any} convertPositionToLocalPromise
  * @property {(position: bigint) => any} provideRemoteResolver
  * @property {(position: bigint) => any} provideLocalAnswer
- * @property {(nodeLocation: OcapnLocation, swissNum: ArrayBufferLike) => SturdyRef} makeSturdyRef
+ * @property {(nodeLocation: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
  * @property {(value: any) => ValInfo} getInfoForVal
  * @property {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
@@ -642,7 +642,7 @@ const makeBootstrapObject = (
   const usedGiftHandoffs = new Set();
   return Far(`${label}:bootstrap`, {
     /**
-     * @param {ArrayBufferLike} swissnum
+     * @param {SwissNum} swissnum
      * @returns {Promise<any>}
      */
     fetch: swissnum => {

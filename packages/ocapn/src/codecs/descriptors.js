@@ -307,6 +307,7 @@ export const makeDescCodecs = tableKit => {
     syrupReader => {
       const node = OcapnPeerCodec.read(syrupReader);
       const swissNum = syrupReader.readBytestring();
+      // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
       const value = tableKit.makeSturdyRef(node, swissNum);
       return value;
     },
