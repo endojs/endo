@@ -38,8 +38,12 @@ export const makeSelfIdentity = myLocation => {
 };
 
 /**
+ * @import { SessionId } from './types.js'
+ */
+
+/**
  * @param {object} options
- * @param {ArrayBufferLike} options.id
+ * @param {SessionId} options.id
  * @param {SelfIdentity} options.selfIdentity
  * @param {OcapnLocation} options.peerLocation
  * @param {OcapnPublicKey} options.peerPublicKey

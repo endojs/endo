@@ -24,6 +24,7 @@ import {
 /**
  * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
  * @import { HandoffGive, HandoffReceive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from './codecs/descriptors.js'
+ * @import { SessionId } from './client/types.js'
  */
 
 const textEncoder = new TextEncoder();
@@ -152,7 +153,7 @@ export const publicKeyDescriptorToPublicKey = publicKeyDescriptor => {
 /**
  * @param {ArrayBufferLike} peerIdOne
  * @param {ArrayBufferLike} peerIdTwo
- * @returns {ArrayBufferLike}
+ * @returns {SessionId}
  */
 export const makeSessionId = (peerIdOne, peerIdTwo) => {
   // Convert to Uint8Array for comparison
@@ -174,6 +175,7 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
   // Double SHA256 hash the resulting string
   const hash1 = sha256(sessionIdBytes);
   const hash2 = sha256(hash1);
+  // @ts-expect-error - Branded type: SessionId is ArrayBufferLike at runtime
   return uint8ArrayToImmutableArrayBuffer(hash2);
 };
 
@@ -270,7 +272,7 @@ export const randomGiftId = () => {
 /**
  * @param {HandoffGiveSigEnvelope} signedGive
  * @param {bigint} handoffCount
- * @param {ArrayBufferLike} sessionId
+ * @param {SessionId} sessionId
  * @param {ArrayBufferLike} receiverPeerId
  * @param {OcapnKeyPair} privKeyForGifter
  * @returns {HandoffReceiveSigEnvelope}

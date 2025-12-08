@@ -6,6 +6,7 @@
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
  * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './components.js'
+ * @import { SessionId } from '../client/types.js'
  */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
@@ -41,7 +42,7 @@ import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
  * @property {'desc:handoff-give'} type
  * @property {OcapnPublicKeyDescriptor} receiverKey
  * @property {OcapnLocation} exporterLocation
- * @property {ArrayBufferLike} exporterSessionId
+ * @property {SessionId} exporterSessionId
  * @property {ArrayBufferLike} gifterSideId
  * @property {ArrayBufferLike} giftId
  */
@@ -56,7 +57,7 @@ import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
 /**
  * @typedef {object} HandoffReceive
  * @property {'desc:handoff-receive'} type
- * @property {ArrayBufferLike} receivingSession
+ * @property {SessionId} receivingSession
  * @property {ArrayBufferLike} receivingSide
  * @property {bigint} handoffCount
  * @property {HandoffGiveSigEnvelope} signedGive
@@ -373,7 +374,7 @@ const makeSigEnvelope = (object, signature) => {
 /**
  * @param {OcapnPublicKeyDescriptor} receiverPublicKeyDescriptor
  * @param {OcapnLocation} exporterLocation
- * @param {ArrayBufferLike} exporterSessionId
+ * @param {SessionId} exporterSessionId
  * @param {ArrayBufferLike} gifterSideId
  * @param {ArrayBufferLike} giftId
  * @returns {HandoffGive}
@@ -418,7 +419,7 @@ export const makeHandoffGiveSigEnvelope = (handoffGive, signature) => {
 /**
  * @param {HandoffGiveSigEnvelope} signedGive
  * @param {bigint} handoffCount
- * @param {ArrayBufferLike} sessionId
+ * @param {SessionId} sessionId
  * @param {ArrayBufferLike} receiverPeerId
  * @returns {HandoffReceive}
  */
