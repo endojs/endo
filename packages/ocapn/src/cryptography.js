@@ -24,7 +24,7 @@ import {
 /**
  * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './codecs/components.js'
  * @import { HandoffGive, HandoffReceive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from './codecs/descriptors.js'
- * @import { SessionId } from './client/types.js'
+ * @import { SessionId, PublicKeyId } from './client/types.js'
  */
 
 const textEncoder = new TextEncoder();
@@ -33,7 +33,7 @@ const sessionIdHashPrefixBytes = textEncoder.encode('prot0');
 
 /**
  * @typedef {object} OcapnPublicKey
- * @property {ArrayBufferLike} id
+ * @property {PublicKeyId} id
  * @property {ArrayBufferLike} bytes
  * @property {OcapnPublicKeyDescriptor} descriptor
  * @property {(msg: ArrayBufferLike, sig: OcapnSignature) => boolean} verify
@@ -71,13 +71,14 @@ const makePublicKeyDescriptor = publicKeyBytes => {
 
 /**
  * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
- * @returns {ArrayBufferLike}
+ * @returns {PublicKeyId}
  */
 const makePublicKeyIdFromDescriptor = publicKeyDescriptor => {
   const publicKeyDescriptorBytes =
     serializeOcapnPublicKeyDescriptor(publicKeyDescriptor);
   const hash1 = sha256(publicKeyDescriptorBytes);
   const hash2 = sha256(hash1);
+  // @ts-expect-error - Branded type: PublicKeyId is ArrayBufferLike at runtime
   return uint8ArrayToImmutableArrayBuffer(hash2);
 };
 
@@ -273,7 +274,7 @@ export const randomGiftId = () => {
  * @param {HandoffGiveSigEnvelope} signedGive
  * @param {bigint} handoffCount
  * @param {SessionId} sessionId
- * @param {ArrayBufferLike} receiverPeerId
+ * @param {PublicKeyId} receiverPeerId
  * @param {OcapnKeyPair} privKeyForGifter
  * @returns {HandoffReceiveSigEnvelope}
  */
