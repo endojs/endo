@@ -1,15 +1,8 @@
 // @ts-check
 
-/**
- * @import { Client } from '../src/client/types.js'
- * @import { OcapnLocation } from '../src/codecs/components.js'
- */
-
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { testWithErrorUnwrapping } from './_util.js';
-import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
-import { makeClient } from '../src/client/index.js';
+import { testWithErrorUnwrapping, makeTestClient } from './_util.js';
 import { encodeSwissnum, locationToLocationId } from '../src/client/util.js';
 import {
   randomGiftId,
@@ -23,38 +16,19 @@ import {
   makeHandoffReceiveSigEnvelope,
 } from '../src/codecs/descriptors.js';
 
-/**
- * @param {string} debugLabel
- * @param {() => Map<string, any>} [makeDefaultSwissnumTable]
- * @returns {Promise<{ client: Client, location: OcapnLocation }>}
- */
-const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
-  const client = makeClient({
-    debugLabel,
-    swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
+const makeTestClientTrio = async ({ makeDefaultSwissnumTable }) => {
+  const { client: clientA } = await makeTestClient({
+    debugLabel: 'A',
+    makeDefaultSwissnumTable,
   });
-  const tcpNetlayer = await makeTcpNetLayer({
-    client,
-    specifiedDesignator: debugLabel,
+  const { client: clientB, location: locationB } = await makeTestClient({
+    debugLabel: 'B',
+    makeDefaultSwissnumTable,
   });
-  client.registerNetlayer(tcpNetlayer);
-  const { location } = tcpNetlayer;
-  return { client, location };
-};
-
-const makeTestClientTrio = async makeDefaultSwissnumTable => {
-  const { client: clientA } = await makeTestClient(
-    'A',
+  const { client: clientC, location: locationC } = await makeTestClient({
+    debugLabel: 'C',
     makeDefaultSwissnumTable,
-  );
-  const { client: clientB, location: locationB } = await makeTestClient(
-    'B',
-    makeDefaultSwissnumTable,
-  );
-  const { client: clientC, location: locationC } = await makeTestClient(
-    'C',
-    makeDefaultSwissnumTable,
-  );
+  });
   const shutdownAll = () => {
     clientA.shutdown();
     clientB.shutdown();
@@ -98,7 +72,9 @@ testWithErrorUnwrapping('sturdyref transported as sturdyref', async t => {
   );
 
   const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
-    await makeTestClientTrio(() => testObjectTable);
+    await makeTestClientTrio({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
 
   const catB = await E(bootstrapB).fetch(encodeSwissnum('Cat'));
   const catSitterC = await E(bootstrapC).fetch(encodeSwissnum('CatSitter'));
@@ -139,7 +115,9 @@ testWithErrorUnwrapping('third party handoff', async t => {
   );
 
   const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
-    await makeTestClientTrio(() => testObjectTable);
+    await makeTestClientTrio({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
 
   const objMakerB = await E(bootstrapB).fetch(encodeSwissnum('ObjMaker'));
   const objUserC = await E(bootstrapC).fetch(encodeSwissnum('ObjUser'));
@@ -185,7 +163,9 @@ testWithErrorUnwrapping(
     );
 
     const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
-      await makeTestClientTrio(() => testObjectTable);
+      await makeTestClientTrio({
+        makeDefaultSwissnumTable: () => testObjectTable,
+      });
 
     const objMakerB = await E(bootstrapB).fetch(encodeSwissnum('ObjMaker'));
     const objUserC = await E(bootstrapC).fetch(encodeSwissnum('ObjUser'));
@@ -235,18 +215,18 @@ testWithErrorUnwrapping(
     });
     testObjectTable.set('TestObj', testObj);
 
-    const { client: clientA, location: locationA } = await makeTestClient(
-      'A',
-      () => testObjectTable,
-    );
-    const { client: clientB, location: locationB } = await makeTestClient(
-      'B',
-      () => testObjectTable,
-    );
-    const { client: clientC, location: locationC } = await makeTestClient(
-      'C',
-      () => testObjectTable,
-    );
+    const { client: clientA, location: locationA } = await makeTestClient({
+      debugLabel: 'A',
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+    const { client: clientB, location: locationB } = await makeTestClient({
+      debugLabel: 'B',
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+    const { client: clientC, location: locationC } = await makeTestClient({
+      debugLabel: 'C',
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
 
     try {
       // Set up sessions: A->B, A->C, C->B, and C->A
