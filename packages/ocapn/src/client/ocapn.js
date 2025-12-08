@@ -10,7 +10,7 @@
  * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
- * @import { Connection, LocationId, Logger, Session } from './types.js'
+ * @import { Connection, LocationId, Logger, Session, SessionId } from './types.js'
  */
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
@@ -624,10 +624,10 @@ export const makeTableKit = (
 /**
  * @param {string} label
  * @param {Logger} logger
- * @param {ArrayBufferLike} sessionId
+ * @param {SessionId} sessionId
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Map<string, any>} giftTable
- * @param {(sessionId: ArrayBufferLike) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @returns {any}
  */
 const makeBootstrapObject = (
@@ -791,11 +791,11 @@ const makeBootstrapObject = (
 /**
  * @param {Logger} logger
  * @param {Connection} connection
- * @param {ArrayBufferLike} sessionId
+ * @param {SessionId} sessionId
  * @param {OcapnLocation} peerLocation
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
- * @param {(sessionId: ArrayBufferLike) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker

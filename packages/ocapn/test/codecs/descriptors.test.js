@@ -90,6 +90,7 @@ const table = [
             designator: '1234',
             hints: { host: '127.0.0.1', port: '54822' },
           },
+          // @ts-expect-error - Branded type: SessionId is ArrayBufferLike at runtime
           exporterSessionId: strToArrayBuffer('exporter-session-id'),
           gifterSideId: strToArrayBuffer('gifter-side-id'),
           giftId: strToArrayBuffer('gift-id'),
@@ -134,6 +135,7 @@ const table = [
             designator: '1234',
             hints: { host: '127.0.0.1', port: '54822' },
           },
+          // @ts-expect-error - Branded type: SessionId is ArrayBufferLike at runtime
           exporterSessionId: strToArrayBuffer('exporter-session-id'),
           gifterSideId: strToArrayBuffer('gifter-side-id'),
           giftId: strToArrayBuffer('gift-id'),

@@ -9,6 +9,9 @@
 
 /**
  * @typedef {string} LocationId
+ * A string used for referencing, such as keys in Maps. Not part of OCapN spec.
+ * @typedef {ArrayBufferLike & { _brand: 'SessionId' }} SessionId
+ * From OCapN spec. Id for a session between two peers.
  */
 
 /**
@@ -29,7 +32,7 @@
 
 /**
  * @typedef {object} Session
- * @property {ArrayBufferLike} id
+ * @property {SessionId} id
  * @property {object} peer
  * @property {OcapnPublicKey} peer.publicKey
  * @property {OcapnLocation} peer.location
@@ -90,7 +93,7 @@
  * @property {(connection: Connection) => boolean} rejectPendingSessionForConnection
  * Finds and rejects any pending session associated with the given connection.
  * Returns true if a pending session was found and rejected, false otherwise.
- * @property {(sessionId: ArrayBufferLike) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @property {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
 /**
