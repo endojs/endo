@@ -206,6 +206,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>} convertSlotToVal
  * @property {RefCounter<string>} recvSlot
  * @property {RefCounter<string>} sendSlot
+ * @property {((slot: CapTPSlot) => number)} getRefCount
  * @property {() => [CapTPSlot, Promise<any>]} makeQuestion
  * @property {() => string} takeNextQuestionID
  * @property {((val: unknown, slot: CapTPSlot) => void)} registerExport
@@ -508,6 +509,10 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     return importExportTables.getImport(slot);
   };
 
+  const getRefCount = slot => {
+    return slotToNumRefs.get(slot) || 0;
+  };
+
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
@@ -524,6 +529,7 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     convertSlotToVal,
     recvSlot,
     sendSlot,
+    getRefCount,
     makeQuestion,
     takeNextQuestionID,
     registerExport,
