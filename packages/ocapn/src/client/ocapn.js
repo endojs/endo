@@ -922,6 +922,14 @@ export const makeOcapn = (
         },
       );
     },
+    'op:gc-export': message => {
+      const { exportPosition, wireDelta } = message;
+      logger.info(`gc-export (ignored)`, { exportPosition, wireDelta });
+    },
+    'op:gc-answer': message => {
+      const { answerPosition } = message;
+      logger.info(`gc-answer (ignored)`, { answerPosition });
+    },
     'op:abort': message => {
       const { reason } = message;
       abort(reason);
