@@ -8,7 +8,7 @@
  */
 
 /**
- * @typedef {string} LocationId
+ * @typedef {string & { _brand: 'LocationId' }} LocationId
  * A string used for referencing, such as keys in Maps. Not part of OCapN spec.
  * @typedef {ArrayBufferLike & { _brand: 'SessionId' }} SessionId
  * From OCapN spec. Id for a session between two peers.
