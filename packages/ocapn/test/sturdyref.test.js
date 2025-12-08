@@ -1,38 +1,17 @@
 // @ts-check
 
-/**
- * @import { Client } from '../src/client/types.js'
- * @import { OcapnLocation } from '../src/codecs/components.js'
- */
-
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { testWithErrorUnwrapping } from './_util.js';
-import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
-import { makeClient } from '../src/client/index.js';
+import { testWithErrorUnwrapping, makeTestClient } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { isSturdyRef, getSturdyRefDetails } from '../src/client/sturdyrefs.js';
 
-/**
- * @param {string} debugLabel
- * @param {() => Map<string, any>} [makeDefaultSwissnumTable]
- * @returns {Promise<{ client: Client, location: OcapnLocation }>}
- */
-const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
-  const client = makeClient({
-    debugLabel,
-    swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
-  });
-  const tcpNetlayer = await makeTcpNetLayer({ client });
-  client.registerNetlayer(tcpNetlayer);
-  const { location } = tcpNetlayer;
-  return { client, location };
-};
-
 testWithErrorUnwrapping('SturdyRef has .enliven() method only', async t => {
-  const { client: clientA, location: locationB } = await makeTestClient('A');
-  const { client: clientB } = await makeTestClient('B');
+  const { client: clientA, location: locationB } = await makeTestClient({
+    debugLabel: 'A',
+  });
+  const { client: clientB } = await makeTestClient({ debugLabel: 'B' });
 
   const sturdyRef = clientA.makeSturdyRef(
     locationB,
@@ -50,8 +29,10 @@ testWithErrorUnwrapping('SturdyRef has .enliven() method only', async t => {
 testWithErrorUnwrapping(
   "SturdyRef doesn't expose swissnum/location",
   async t => {
-    const { client: clientA, location: locationB } = await makeTestClient('A');
-    const { client: clientB } = await makeTestClient('B');
+    const { client: clientA, location: locationB } = await makeTestClient({
+      debugLabel: 'A',
+    });
+    const { client: clientB } = await makeTestClient({ debugLabel: 'B' });
 
     const swissNum = encodeSwissnum('test-object');
     const sturdyRef = clientA.makeSturdyRef(locationB, swissNum);
@@ -77,8 +58,10 @@ testWithErrorUnwrapping(
 testWithErrorUnwrapping(
   'isSturdyRef correctly identifies SturdyRefs',
   async t => {
-    const { client: clientA, location: locationB } = await makeTestClient('A');
-    const { client: clientB } = await makeTestClient('B');
+    const { client: clientA, location: locationB } = await makeTestClient({
+      debugLabel: 'A',
+    });
+    const { client: clientB } = await makeTestClient({ debugLabel: 'B' });
 
     const sturdyRef = clientA.makeSturdyRef(locationB, encodeSwissnum('test'));
 
@@ -96,8 +79,10 @@ testWithErrorUnwrapping(
 testWithErrorUnwrapping(
   'getSturdyRefDetails returns correct details',
   async t => {
-    const { client: clientA, location: locationB } = await makeTestClient('A');
-    const { client: clientB } = await makeTestClient('B');
+    const { client: clientA, location: locationB } = await makeTestClient({
+      debugLabel: 'A',
+    });
+    const { client: clientB } = await makeTestClient({ debugLabel: 'B' });
 
     const swissNum = encodeSwissnum('test-object');
     const sturdyRef = clientA.makeSturdyRef(locationB, swissNum);
@@ -131,11 +116,11 @@ test('SturdyRef.enliven() returns promise for fetched value', async t => {
   });
   testObjectTable.set('test-object', testObject);
 
-  const { client: clientA } = await makeTestClient('A');
-  const { client: clientB, location: locationB } = await makeTestClient(
-    'B',
-    () => testObjectTable,
-  );
+  const { client: clientA } = await makeTestClient({ debugLabel: 'A' });
+  const { client: clientB, location: locationB } = await makeTestClient({
+    debugLabel: 'B',
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
 
   const sturdyRef = clientA.makeSturdyRef(
     locationB,
@@ -161,11 +146,11 @@ test('Enlivened values are not SturdyRefs', async t => {
   });
   testObjectTable.set('test-object', testObject);
 
-  const { client: clientA } = await makeTestClient('A');
-  const { client: clientB, location: locationB } = await makeTestClient(
-    'B',
-    () => testObjectTable,
-  );
+  const { client: clientA } = await makeTestClient({ debugLabel: 'A' });
+  const { client: clientB, location: locationB } = await makeTestClient({
+    debugLabel: 'B',
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
 
   const sturdyRef = clientA.makeSturdyRef(
     locationB,
@@ -196,10 +181,10 @@ test('SturdyRef to self-location can be enlivened', async t => {
   });
   testObjectTable.set('test-object', testObject);
 
-  const { client: clientA, location: locationA } = await makeTestClient(
-    'A',
-    () => testObjectTable,
-  );
+  const { client: clientA, location: locationA } = await makeTestClient({
+    debugLabel: 'A',
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
 
   // Create a SturdyRef to our own location
   const sturdyRef = clientA.makeSturdyRef(
