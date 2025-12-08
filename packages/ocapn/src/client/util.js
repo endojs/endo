@@ -46,6 +46,7 @@ export const locationToLocationId = location => {
     }
   }
 
+  // @ts-expect-error - Branded type: LocationId is string at runtime
   return uri;
 };
 
