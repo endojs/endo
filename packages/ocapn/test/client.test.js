@@ -660,3 +660,90 @@ test('connection not aborted when remote function throws', async t => {
     shutdownBoth();
   }
 });
+
+testWithErrorUnwrapping(
+  'promise pipelining on Bob promise resolving to Alice object',
+  async t => {
+    const bobObjectTable = new Map();
+    bobObjectTable.set(
+      'EchoObj',
+      Far('echoObj', {
+        echo: async obj => obj,
+      }),
+    );
+
+    const { establishSession, shutdownBoth } = await makeTestClientPair({
+      makeDefaultSwissnumTable: () => bobObjectTable,
+    });
+
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Alice creates a local object
+    const aliceFooObj = Far('fooObj', {
+      xyz: () => 42,
+    });
+
+    // Alice gets Bob's EchoObj
+    const bootstrapB = ocapnA.getBootstrap();
+    const bobEchoObj = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
+
+    // Alice calls echo with her local object (without awaiting)
+    const echoPromise = E(bobEchoObj).echo(aliceFooObj);
+
+    // Alice immediately pipelines a call to the promise
+    // This should work even though the promise hasn't resolved yet
+    const result1 = await E(echoPromise).xyz();
+
+    t.is(result1, 42, 'Pipelined call should succeed');
+    shutdownBoth();
+  },
+);
+
+testWithErrorUnwrapping(
+  'promise pipelining with answer promise echoed through Bob',
+  async t => {
+    const bobObjectTable = new Map();
+    bobObjectTable.set(
+      'EchoObj',
+      Far('echoObj', {
+        echo: async obj => obj,
+      }),
+    );
+
+    const { establishSession, shutdownBoth } = await makeTestClientPair({
+      makeDefaultSwissnumTable: () => bobObjectTable,
+    });
+
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Alice creates a local object that returns a promise
+    const aliceSlowObj = Far('slowObj', {
+      slowMethod: async () => {
+        return Far('resultObj', {
+          getValue: () => 99,
+        });
+      },
+    });
+
+    // Alice creates an answer promise by calling slowMethod without awaiting
+    const answerPromise = E(aliceSlowObj).slowMethod();
+
+    // Alice gets Bob's EchoObj
+    const bootstrapB = ocapnA.getBootstrap();
+    const bobEchoObj = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
+
+    // Alice passes the answer promise to Bob's echo method
+    const echoedAnswerPromise = E(bobEchoObj).echo(answerPromise);
+
+    // Alice pipelines a call through the echoed answer promise
+    // This tests that answer promises can be echoed and still work correctly
+    const result = await E(echoedAnswerPromise).getValue();
+
+    t.is(result, 99, 'Pipelined call on echoed answer promise should succeed');
+    shutdownBoth();
+  },
+);
