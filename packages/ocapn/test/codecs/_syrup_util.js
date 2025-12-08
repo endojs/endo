@@ -1,21 +1,44 @@
 // @ts-check
 
+import {
+  immutableArrayBufferToUint8Array,
+  uint8ArrayToImmutableArrayBuffer,
+} from '../../src/buffer-utils.js';
+
 const textEncoder = new TextEncoder();
 
 /**
  * @param {string} string
- * @returns {Uint8Array}
+ * @returns {ArrayBufferLike}
  */
-export const strToUint8Array = string => {
-  return new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
+export const strToArrayBuffer = string => {
+  const uint8Array = new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
+  return uint8ArrayToImmutableArrayBuffer(uint8Array);
 };
 
 /**
- * Converts a hex string to a Uint8Array
+ * Converts a hex string to an ArrayBuffer
  * @param {string} hexString - The hex string to convert
- * @returns {Uint8Array} The Uint8Array representation of the hex string
+ * @returns {ArrayBufferLike} The ArrayBuffer representation of the hex string
  */
-export function hexToUint8Array(hexString) {
+export function hexToArrayBuffer(hexString) {
+  if (hexString.length % 2 !== 0) {
+    throw new Error(
+      `Hex string must have an even length, got ${hexString.length}`,
+    );
+  }
+  const bytes = new Uint8Array(hexString.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
+  }
+  return uint8ArrayToImmutableArrayBuffer(bytes);
+}
+
+/**
+ * @param {string} hexString
+ * @returns {Uint8Array}
+ */
+export const hexToUint8Array = hexString => {
   if (hexString.length % 2 !== 0) {
     throw new Error(
       `Hex string must have an even length, got ${hexString.length}`,
@@ -26,15 +49,13 @@ export function hexToUint8Array(hexString) {
     bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
   }
   return bytes;
-}
+};
 
-export const exampleSigParamBytes = Uint8Array.from(
-  { length: 32 },
-  (_, i) => i,
+export const exampleSigParamBytes = uint8ArrayToImmutableArrayBuffer(
+  Uint8Array.from({ length: 32 }, (_, i) => i),
 );
-export const examplePubKeyQBytes = Uint8Array.from(
-  { length: 32 },
-  (_, i) => i * 2,
+export const examplePubKeyQBytes = uint8ArrayToImmutableArrayBuffer(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 2),
 );
 
 /**
@@ -56,14 +77,13 @@ export const str = s => {
 };
 
 /**
- * @param {Uint8Array} u
+ * @param {ArrayBufferLike} buffer
  * @returns {string}
  */
-export const bts = u => {
-  if (!(u instanceof Uint8Array)) {
-    throw Error(`Expected Uint8Array, got ${typeof u}`);
-  }
-  return `${u.length}:${String.fromCharCode(...u)}`;
+export const bts = buffer => {
+  // Convert ArrayBuffer to Uint8Array for string conversion
+  const bytes = immutableArrayBufferToUint8Array(buffer);
+  return `${bytes.length}:${String.fromCharCode(...bytes)}`;
 };
 
 /**
@@ -75,7 +95,7 @@ export const btsStr = u => {
     throw Error(`Expected string, got ${typeof u}`);
   }
   const bytes = textEncoder.encode(u);
-  return bts(bytes);
+  return bts(uint8ArrayToImmutableArrayBuffer(bytes));
 };
 
 /**
@@ -130,7 +150,7 @@ export const makePeer = (transport, designator, hints) => {
 };
 
 /**
- * @param {Uint8Array} q
+ * @param {ArrayBufferLike} q
  * @returns {string}
  */
 export const makePubKey = q => {
@@ -147,7 +167,7 @@ export const makePubKey = q => {
 
 /**
  * @param {string} label
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  * @returns {string}
  */
 export const makeSigComp = (label, value) => {
@@ -155,17 +175,17 @@ export const makeSigComp = (label, value) => {
 };
 
 /**
- * @param {Uint8Array} r
- * @param {Uint8Array} s
+ * @param {ArrayBufferLike} r
+ * @param {ArrayBufferLike} s
  * @param {string} [scheme]
  * @returns {string}
  */
 export const makeSig = (r, s, scheme = 'eddsa') => {
-  if (r.length !== 32) {
-    throw Error(`Expected r to be 32 bytes, got ${r.length}`);
+  if (r.byteLength !== 32) {
+    throw Error(`Expected r to be 32 bytes, got ${r.byteLength}`);
   }
-  if (s.length !== 32) {
-    throw Error(`Expected s to be 32 bytes, got ${s.length}`);
+  if (s.byteLength !== 32) {
+    throw Error(`Expected s to be 32 bytes, got ${s.byteLength}`);
   }
   return list([
     sel('sig-val'),
@@ -209,9 +229,9 @@ export const makeSigEnvelopeSyrup = (object, signature) => {
 /**
  * @param {string} receiverKey
  * @param {string} exporterLocation
- * @param {Uint8Array} exporterSessionId
- * @param {Uint8Array} gifterSideId
- * @param {Uint8Array} giftId
+ * @param {ArrayBufferLike} exporterSessionId
+ * @param {ArrayBufferLike} gifterSideId
+ * @param {ArrayBufferLike} giftId
  * @returns {string}
  */
 export const makeDescGive = (
@@ -239,17 +259,17 @@ export const makeSignedHandoffGiveSyrup = signature => {
   const descGive = makeDescGive(
     makePubKey(examplePubKeyQBytes),
     makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
-    strToUint8Array('exporter-session-id'),
-    strToUint8Array('gifter-side-id'),
-    strToUint8Array('gift-id'),
+    strToArrayBuffer('exporter-session-id'),
+    strToArrayBuffer('gifter-side-id'),
+    strToArrayBuffer('gift-id'),
   );
   const signedGiveEnvelope = makeSigEnvelopeSyrup(descGive, signature);
   return signedGiveEnvelope;
 };
 
 /**
- * @param {Uint8Array} recieverSession
- * @param {Uint8Array} recieverSide
+ * @param {ArrayBufferLike} recieverSession
+ * @param {ArrayBufferLike} recieverSide
  * @param {number} handoffCount
  * @param {string} descGive
  * @param {string} signature
@@ -277,15 +297,15 @@ export const makeHandoffReceiveSyrup = (
  */
 export const makeSignedHandoffReceiveSyrup = () => {
   const handoffReceive = makeHandoffReceiveSyrup(
-    strToUint8Array('123'),
-    strToUint8Array('456'),
+    strToArrayBuffer('123'),
+    strToArrayBuffer('456'),
     1,
     makeDescGive(
       makePubKey(examplePubKeyQBytes),
       makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
-      strToUint8Array('exporter-session-id'),
-      strToUint8Array('gifter-side-id'),
-      strToUint8Array('gift-id'),
+      strToArrayBuffer('exporter-session-id'),
+      strToArrayBuffer('gifter-side-id'),
+      strToArrayBuffer('gift-id'),
     ),
     makeSig(exampleSigParamBytes, exampleSigParamBytes),
   );

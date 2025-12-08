@@ -20,7 +20,7 @@ import {
   makeSignedHandoffReceiveSyrup,
   record,
   sel,
-  strToUint8Array,
+  strToArrayBuffer,
 } from './_syrup_util.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 
@@ -63,7 +63,7 @@ const table = [
           designator: '1234',
           hints: { host: '127.0.0.1', port: '54822' },
         },
-        strToUint8Array('123'),
+        strToArrayBuffer('123'),
       ),
     skipWrite: true,
   },
@@ -90,9 +90,9 @@ const table = [
             designator: '1234',
             hints: { host: '127.0.0.1', port: '54822' },
           },
-          exporterSessionId: strToUint8Array('exporter-session-id'),
-          gifterSideId: strToUint8Array('gifter-side-id'),
-          giftId: strToUint8Array('gift-id'),
+          exporterSessionId: strToArrayBuffer('exporter-session-id'),
+          gifterSideId: strToArrayBuffer('gifter-side-id'),
+          giftId: strToArrayBuffer('gift-id'),
         },
         signature: {
           type: 'sig-val',
@@ -110,9 +110,9 @@ const table = [
       makeDescGive(
         makePubKey(examplePubKeyQBytes),
         makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
-        strToUint8Array('exporter-session-id'),
-        strToUint8Array('gifter-side-id'),
-        strToUint8Array('gift-id'),
+        strToArrayBuffer('exporter-session-id'),
+        strToArrayBuffer('gifter-side-id'),
+        strToArrayBuffer('gift-id'),
       ),
       makeSig(exampleSigParamBytes, exampleSigParamBytes),
     ),
@@ -134,9 +134,9 @@ const table = [
             designator: '1234',
             hints: { host: '127.0.0.1', port: '54822' },
           },
-          exporterSessionId: strToUint8Array('exporter-session-id'),
-          gifterSideId: strToUint8Array('gifter-side-id'),
-          giftId: strToUint8Array('gift-id'),
+          exporterSessionId: strToArrayBuffer('exporter-session-id'),
+          gifterSideId: strToArrayBuffer('gifter-side-id'),
+          giftId: strToArrayBuffer('gift-id'),
         },
         signature: {
           type: 'sig-val',
@@ -155,8 +155,8 @@ const table = [
       type: 'desc:sig-envelope',
       object: {
         type: 'desc:handoff-receive',
-        receivingSession: strToUint8Array('123'),
-        receivingSide: strToUint8Array('456'),
+        receivingSession: strToArrayBuffer('123'),
+        receivingSide: strToArrayBuffer('456'),
         handoffCount: 1n,
         signedGive: {
           type: 'desc:sig-envelope',
@@ -175,9 +175,9 @@ const table = [
               designator: '1234',
               hints: { host: '127.0.0.1', port: '54822' },
             },
-            exporterSessionId: strToUint8Array('exporter-session-id'),
-            gifterSideId: strToUint8Array('gifter-side-id'),
-            giftId: strToUint8Array('gift-id'),
+            exporterSessionId: strToArrayBuffer('exporter-session-id'),
+            gifterSideId: strToArrayBuffer('gifter-side-id'),
+            giftId: strToArrayBuffer('gift-id'),
           },
           signature: {
             type: 'sig-val',

@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * @import { SyrupCodec, SyrupRecordCodec } from '../syrup/codec.js'
+ * @import { SyrupCodec } from '../syrup/codec.js'
  * @import { DescCodecs } from './descriptors.js'
  */
 
@@ -157,7 +157,7 @@ export const makePassableCodecs = descCodecs => {
           syrupWriter.writeString(value);
         } else if (typeof value === 'bigint') {
           syrupWriter.writeInteger(value);
-        } else if (value instanceof Uint8Array) {
+        } else if (value instanceof ArrayBuffer) {
           syrupWriter.writeBytestring(value);
         } else {
           throw new Error(
@@ -194,7 +194,7 @@ export const makePassableCodecs = descCodecs => {
         if (value === null) {
           return AtomCodecs.null;
         }
-        if (value instanceof Uint8Array) {
+        if (value instanceof ArrayBuffer) {
           return AtomCodecs.byteArray;
         }
         if (Array.isArray(value)) {

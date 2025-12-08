@@ -2,9 +2,9 @@
 
 /**
  * @import { CapTPEngine } from '../../src/captp/captp-engine.js'
- * @import { MakeHandoff, MakeRemoteResolver, MakeRemoteSturdyRef, TableKit } from '../../src/client/ocapn.js'
+ * @import { MakeHandoff, MakeRemoteResolver, TableKit } from '../../src/client/ocapn.js'
  * @import { OcapnLocation } from '../../src/codecs/components.js'
- * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../../src/codecs/descriptors.js'
+ * @import { HandoffGiveSigEnvelope } from '../../src/codecs/descriptors.js'
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
  * @import { Settler } from '@endo/eventual-send'
  */
@@ -29,8 +29,10 @@ import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
 const textEncoder = new TextEncoder();
 const sloppyTextDecoder = new TextDecoder('utf-8', { fatal: false });
 
-const bufferToHex = uint8Array => {
-  return Buffer.from(uint8Array).toString('hex');
+const bufferToHex = arrayBuffer => {
+  // Convert ImmutableArrayBuffer to regular ArrayBuffer
+  const buffer = arrayBuffer.slice();
+  return Buffer.from(buffer).toString('hex');
 };
 
 /** @type {OcapnLocation} */
@@ -48,7 +50,7 @@ const defaultPeerLocation = {
  * @property {(position: bigint) => any} makeExportAt
  * @property {(position: bigint) => Promise<any>} makeAnswerAt
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
- * @property {(location: OcapnLocation, swissNum: Uint8Array) => Promise<any>} lookupSturdyRef
+ * @property {(location: OcapnLocation, swissNum: ArrayBufferLike) => Promise<any>} lookupSturdyRef
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
  * @property {SyrupCodec} OcapnMessageUnionCodec
@@ -137,7 +139,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   /**
    * @param {OcapnLocation} location
-   * @param {Uint8Array} swissNum
+   * @param {ArrayBufferLike} swissNum
    * @returns {any}
    */
   const lookupSturdyRef = (location, swissNum) => {
@@ -240,13 +242,27 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   };
 };
 
+/**
+ * @param {string | Uint8Array} syrup
+ * @returns {Uint8Array}
+ */
 const getSyrupBytes = syrup => {
-  return typeof syrup === 'string' ? textEncoder.encode(syrup) : syrup;
+  if (typeof syrup === 'string') {
+    return textEncoder.encode(syrup);
+  }
+  return syrup;
 };
 
+/**
+ * @param {string | Uint8Array} syrup
+ * @returns {string}
+ */
 const getSyrupString = syrup => {
   // This text decoder is only for testing label purposes, so it doesn't need to be strict.
-  return typeof syrup === 'string' ? syrup : sloppyTextDecoder.decode(syrup);
+  if (typeof syrup === 'string') {
+    return syrup;
+  }
+  return sloppyTextDecoder.decode(syrup);
 };
 
 /**

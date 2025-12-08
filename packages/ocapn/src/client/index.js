@@ -20,7 +20,7 @@ import {
   signLocation,
   verifyLocationSignature,
 } from '../cryptography.js';
-import { compareByteArrays } from '../syrup/compare.js';
+import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
@@ -39,7 +39,7 @@ export const makeSelfIdentity = myLocation => {
 
 /**
  * @param {object} options
- * @param {Uint8Array} options.id
+ * @param {ArrayBufferLike} options.id
  * @param {SelfIdentity} options.selfIdentity
  * @param {OcapnLocation} options.peerLocation
  * @param {OcapnPublicKey} options.peerPublicKey
@@ -130,14 +130,7 @@ const compareSessionKeysForCrossedHellos = (
   const outgoingPublicKey = outgoingConnection.selfIdentity.keyPair.publicKey;
   const outgoingId = outgoingPublicKey.id;
   const incommingId = incommingPublicKey.id;
-  const result = compareByteArrays(
-    outgoingId,
-    incommingId,
-    0,
-    outgoingId.length,
-    0,
-    incommingId.length,
-  );
+  const result = compareImmutableArrayBuffers(outgoingId, incommingId);
   const [preferredConnection, connectionToClose] =
     result > 0
       ? [outgoingConnection, incommingConnection]
@@ -644,7 +637,7 @@ export const makeClient = ({
     /**
      * Create a SturdyRef object
      * @param {OcapnLocation} location
-     * @param {Uint8Array} swissNum
+     * @param {ArrayBufferLike} swissNum
      * @returns {SturdyRef}
      */
     makeSturdyRef(location, swissNum) {

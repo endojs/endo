@@ -16,6 +16,7 @@ import { makeSelector } from '../../src/selector.js';
 import { sel, str, bts, bool, int, list, btsStr } from './_syrup_util.js';
 import { makeCodecTestKit, testBidirectionally } from './_codecs_util.js';
 import { throws } from '../_util.js';
+import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 
 const textEncoder = new TextEncoder();
 
@@ -31,11 +32,19 @@ const table = [
   { syrup: `${str('hello')}`, value: 'hello' },
   {
     syrup: btsStr('hello'),
-    value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    value: uint8ArrayToImmutableArrayBuffer(
+      new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    ),
   },
   {
-    syrup: bts(new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f])),
-    value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    syrup: bts(
+      uint8ArrayToImmutableArrayBuffer(
+        new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+      ),
+    ),
+    value: uint8ArrayToImmutableArrayBuffer(
+      new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    ),
   },
   {
     syrup: `${sel('hello')}`,

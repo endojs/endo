@@ -84,8 +84,8 @@ const OcapnSignatureEddsaCodec = exactList('OcapnSignatureEddsa', [
  * @typedef {object} OcapnSignature
  * @property {'sig-val'} type
  * @property {'eddsa'} scheme
- * @property {Uint8Array} r
- * @property {Uint8Array} s
+ * @property {ArrayBufferLike} r
+ * @property {ArrayBufferLike} s
  */
 
 // ['sig-val ['eddsa ['r r_value] ['s s_value]]]
@@ -111,7 +111,7 @@ export const OcapnSignatureCodec = makeOcapnListComponentCodec(
  * @property {'ecc'} scheme
  * @property {'Ed25519'} curve
  * @property {'eddsa'} flags
- * @property {Uint8Array} q
+ * @property {ArrayBufferLike} q
  */
 
 const OcapnPublicKeyEccCodec = exactList('OcapnPublicKeyEcc', [

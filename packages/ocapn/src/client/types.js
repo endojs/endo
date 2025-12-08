@@ -29,7 +29,7 @@
 
 /**
  * @typedef {object} Session
- * @property {Uint8Array} id
+ * @property {ArrayBufferLike} id
  * @property {object} peer
  * @property {OcapnPublicKey} peer.publicKey
  * @property {OcapnLocation} peer.location
@@ -90,7 +90,7 @@
  * @property {(connection: Connection) => boolean} rejectPendingSessionForConnection
  * Finds and rejects any pending session associated with the given connection.
  * Returns true if a pending session was found and rejected, false otherwise.
- * @property {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @property {(sessionId: ArrayBufferLike) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
 /**
@@ -105,6 +105,6 @@
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
- * @property {(location: OcapnLocation, swissNum: Uint8Array) => SturdyRef} makeSturdyRef
+ * @property {(location: OcapnLocation, swissNum: ArrayBufferLike) => SturdyRef} makeSturdyRef
  * @property {() => void} shutdown
  */
