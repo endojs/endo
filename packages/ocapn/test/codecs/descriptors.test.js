@@ -93,6 +93,7 @@ const table = [
           },
           // @ts-expect-error - Branded type: SessionId is ArrayBufferLike at runtime
           exporterSessionId: strToArrayBuffer('exporter-session-id'),
+          // @ts-expect-error - Branded type: PublicKeyId is ArrayBufferLike at runtime
           gifterSideId: strToArrayBuffer('gifter-side-id'),
           giftId: strToArrayBuffer('gift-id'),
         },
@@ -138,6 +139,7 @@ const table = [
           },
           // @ts-expect-error - Branded type: SessionId is ArrayBufferLike at runtime
           exporterSessionId: strToArrayBuffer('exporter-session-id'),
+          // @ts-expect-error - Branded type: PublicKeyId is ArrayBufferLike at runtime
           gifterSideId: strToArrayBuffer('gifter-side-id'),
           giftId: strToArrayBuffer('gift-id'),
         },

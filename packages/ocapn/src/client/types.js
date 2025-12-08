@@ -14,6 +14,8 @@
  * From OCapN spec. Id for a session between two peers.
  * @typedef {ArrayBufferLike & { _brand: 'SwissNum' }} SwissNum
  * From OCapN spec. Used for resolving SturdyRefs.
+ * @typedef {ArrayBufferLike & { _brand: 'PublicKeyId' }} PublicKeyId
+ * From OCapN spec. Identifier for a public key (double SHA-256 hash of key descriptor).
  */
 
 /**
