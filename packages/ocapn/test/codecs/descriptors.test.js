@@ -23,6 +23,7 @@ import {
   strToArrayBuffer,
 } from './_syrup_util.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
+import { encodeSwissnum } from '../../src/client/util.js';
 
 const textEncoder = new TextEncoder();
 
@@ -63,7 +64,7 @@ const table = [
           designator: '1234',
           hints: { host: '127.0.0.1', port: '54822' },
         },
-        strToArrayBuffer('123'),
+        encodeSwissnum('123'),
       ),
     skipWrite: true,
   },

@@ -7,6 +7,7 @@
  * @import { HandoffGiveSigEnvelope } from '../../src/codecs/descriptors.js'
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
  * @import { Settler } from '@endo/eventual-send'
+ * @import { SwissNum } from '../../src/client/types.js'
  */
 
 import { Buffer } from 'buffer';
@@ -50,7 +51,7 @@ const defaultPeerLocation = {
  * @property {(position: bigint) => any} makeExportAt
  * @property {(position: bigint) => Promise<any>} makeAnswerAt
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
- * @property {(location: OcapnLocation, swissNum: ArrayBufferLike) => Promise<any>} lookupSturdyRef
+ * @property {(location: OcapnLocation, swissNum: SwissNum) => Promise<any>} lookupSturdyRef
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
  * @property {SyrupCodec} OcapnMessageUnionCodec
@@ -139,7 +140,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   /**
    * @param {OcapnLocation} location
-   * @param {ArrayBufferLike} swissNum
+   * @param {SwissNum} swissNum
    * @returns {any}
    */
   const lookupSturdyRef = (location, swissNum) => {

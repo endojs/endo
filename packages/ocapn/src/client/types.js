@@ -12,6 +12,8 @@
  * A string used for referencing, such as keys in Maps. Not part of OCapN spec.
  * @typedef {ArrayBufferLike & { _brand: 'SessionId' }} SessionId
  * From OCapN spec. Id for a session between two peers.
+ * @typedef {ArrayBufferLike & { _brand: 'SwissNum' }} SwissNum
+ * From OCapN spec. Used for resolving SturdyRefs.
  */
 
 /**
@@ -108,6 +110,6 @@
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
- * @property {(location: OcapnLocation, swissNum: ArrayBufferLike) => SturdyRef} makeSturdyRef
+ * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {() => void} shutdown
  */

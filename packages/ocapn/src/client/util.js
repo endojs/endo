@@ -2,7 +2,7 @@
 
 /**
  * @import { OcapnLocation } from '../codecs/components.js'
- * @import { LocationId } from './types.js'
+ * @import { LocationId, SwissNum } from './types.js'
  */
 
 import { Buffer } from 'buffer';
@@ -63,7 +63,7 @@ export const decodeSwissnum = value => {
 
 /**
  * @param {string} value
- * @returns {ArrayBufferLike}
+ * @returns {SwissNum}
  */
 export const encodeSwissnum = value => {
   // Validate the value is strictly valid ASCII
@@ -75,5 +75,6 @@ export const encodeSwissnum = value => {
       );
     }
   }
+  // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
   return uint8ArrayToImmutableArrayBuffer(swissnumEncoder.encode(value));
 };
