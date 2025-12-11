@@ -404,19 +404,16 @@ export const repairIntrinsics = (options = {}) => {
     );
   }
 
+  // The default `assert` installed by `assert-shim.js` does not redact errors,
+  // leaving `lockdown` or `repairIntrinsics` with the obligation to replace it
+  // with a redacting version, unless the caller opts-out with errorTaming set
+  // to `unsafe` or `unsafe-debug`.
+  // The inverse was true through version 1.13.0, except the configuration
+  // was disregarded and the redacting `assert` left in place if lexical
+  // `assert` differed from `globalThis.assert`.
   // @ts-ignore assert is absent on globalThis type def.
-  if (
-    (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') &&
-    globalThis.assert === assert
-  ) {
-    // If errorTaming is 'unsafe' or 'unsafe-debug' we replace the
-    // global assert with
-    // one whose `details` template literal tag does not redact
-    // unmarked substitution values. IOW, it blabs information that
-    // was supposed to be secret from callers, as an aid to debugging
-    // at a further cost in safety.
-    // @ts-ignore assert is absent on globalThis type def.
-    globalThis.assert = makeAssert(undefined, true);
+  if (errorTaming !== 'unsafe' && errorTaming !== 'unsafe-debug') {
+    globalThis.assert = makeAssert();
   }
 
   // Replace *Locale* methods with their non-locale equivalents
