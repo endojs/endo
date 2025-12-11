@@ -4,6 +4,15 @@ User-visible changes in `ses`
 
 - Adds `assert.makeError` and deprecates `assert.error` as an alias, matching
   the API already exported from `@endo/errors`.
+- The `lockdown` and `repairIntrinsics` functions will now sense if a
+  "hardened module" (one using the new `@endo/harden`) was initialized before
+  `lockdown`, causing `lockdown` to fail with an informative error indicating
+  that hardened modules were not properly initialized because they executed
+  before lockdown.
+  They sense this condition because `@endo/harden` will install its own
+  `Object[Symbol.for('harden')]` if `harden` gets used before `lockdown`.
+- Adds `Object[Symbol.for('harden')]`, a variation on `globalThis.harden` that
+  cannot be denied by endowment of an alternative `harden` to compartments.
 
 # v1.13.0 (2025-06-02)
 
