@@ -172,7 +172,7 @@ export const makeDescCodecs = tableKit => {
     'desc:export',
     syrupReader => {
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return tableKit.convertPositionToLocal(position);
+      return tableKit.convertPositionToLocalVal(position);
     },
     (value, syrupWriter) => {
       const position = tableKit.convertRemoteValToPosition(value);
