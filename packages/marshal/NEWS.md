@@ -2,6 +2,7 @@ User-visible changes in `@endo/marshal`:
 
 # 1.8.0 (2025-07-11)
 
+- `@endo/pass-style` had already grown a new `Passable` data type, [`ByteArray`](https://github.com/endojs/endo/pull/2843), which is a frozen [Immutable ArrayBuffer](https://github.com/tc39/proposal-immutable-arraybuffer/). `@endo/marshal` can now serialize and deserialize these to the capData, smallcaps, and Justin formats using a textual hex encoding. The `encodePassable` format does not yet support ByteArrays.
 - Introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
 
 # v1.7.0 (2025-06-02)
