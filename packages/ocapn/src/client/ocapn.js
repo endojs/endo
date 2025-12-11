@@ -292,7 +292,6 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
  * @param {() => [CapTPSlot, Promise<any>]} opts.makeQuestion
  * @param {((obj: Record<string, any>) => void)} opts.send
  * @param {(slot: CapTPSlot) => any} opts.getImportForSlot
-
  * @param {MakeLocalResolver} opts.makeLocalResolver
  * @returns {MakeHandlerForRemoteReference}
  */
@@ -428,6 +427,8 @@ const slotTypes = harden({
  * @property {GrantDetails} [grantDetails]
  *
  * @typedef {object} TableKit
+ * @property {(position: bigint) => CapTPSlot} positionToSlot
+ * @property {(slot: CapTPSlot) => bigint} slotToPosition
  * @property {(value: any) => bigint} convertRemoteValToPosition
  * @property {(value: any) => bigint} convertRemotePromiseToPosition
  * @property {(value: any) => bigint} convertLocalValToPosition
@@ -435,7 +436,7 @@ const slotTypes = harden({
  * @property {(value: any) => bigint} positionForRemoteAnswer
  * @property {(position: bigint) => any} convertPositionToRemoteVal
  * @property {(position: bigint) => any} provideRemotePromise
- * @property {(position: bigint) => any} convertPositionToLocal
+ * @property {(position: bigint) => any} convertPositionToLocalVal
  * @property {(position: bigint) => any} convertPositionToLocalPromise
  * @property {(position: bigint) => any} provideRemoteResolver
  * @property {(position: bigint) => any} provideLocalAnswer
@@ -470,8 +471,23 @@ export const makeTableKit = (
     const slot = engine.convertValToSlot(val);
     return slotToPosition(slot);
   };
+  const positionToSlot = position => {
+    const promSlot = `p+${position}`;
+    const promVal = engine.getExport(promSlot);
+    if (promVal) {
+      return promSlot;
+    }
+    const objSlot = `o+${position}`;
+    const objVal = engine.getExport(objSlot);
+    if (objVal) {
+      return objSlot;
+    }
+    throw new Error(`OCapN: No slot found for position: ${position}`);
+  };
   /** @type {TableKit} */
   const tableKit = {
+    positionToSlot,
+    slotToPosition,
     convertRemoteValToPosition: convertValToPosition,
     convertRemotePromiseToPosition: convertValToPosition,
     convertLocalValToPosition: convertValToPosition,
@@ -484,24 +500,12 @@ export const makeTableKit = (
       const slot = `p-${position}`;
       return engine.convertSlotToVal(slot);
     },
-    convertPositionToLocal: position => {
-      // OCapN has a shared id space for promises and objects.
-      // We don't have enough context to know which it is, so we
-      // just try both.
-      const promSlot = `p+${position}`;
-      const promVal = engine.getExport(promSlot);
-      if (promVal) {
-        return promVal;
-      }
-      const objSlot = `o+${position}`;
-      const objVal = engine.getExport(objSlot);
-      if (objVal) {
-        return objVal;
-      }
-      throw new Error(`OCapN: No value found for position: ${position}`);
+    convertPositionToLocalVal: position => {
+      const slot = positionToSlot(position);
+      return engine.convertSlotToVal(slot);
     },
     convertPositionToLocalPromise: position => {
-      const slot = `p+${position}`;
+      const slot = positionToSlot(position);
       return engine.convertSlotToVal(slot);
     },
     provideLocalAnswer: position => {
