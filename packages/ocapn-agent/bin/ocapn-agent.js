@@ -2,8 +2,10 @@
 /* eslint-disable no-undef */
 
 import 'dotenv/config';
+import path from 'path';
 import { LlmProvider } from '../src/llm-provider.js';
 import { Agent } from '../src/agent.js';
+import { createFileSystemCapabilities } from '../src/fs-capabilities.js';
 
 const main = async () => {
   // Get prompt from command line arguments
@@ -37,16 +39,33 @@ const main = async () => {
 
   console.log('Initializing agent...');
 
+  // Create timestamped debug directory
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const debugLogDirectory = path.join(
+    process.cwd(),
+    'debug',
+    timestamp,
+  );
+
   // Create LLM provider
   const llmProvider = new LlmProvider({
     apiKey,
     model: process.env.OPENAI_MODEL || 'gpt-5.1-codex-mini',
   });
 
-  // Create agent
-  const agent = new Agent({ llmProvider });
+  // Create file system capabilities (restricted to current working directory)
+  const fsCapabilities = createFileSystemCapabilities(process.cwd());
+
+  // Create agent with file system capabilities and debug logging
+  const agent = new Agent({
+    llmProvider,
+    capabilities: fsCapabilities,
+    debugLogDirectory,
+  });
 
   console.log(`Prompt: ${prompt}`);
+  console.log('File system access: enabled (current directory only)');
+  console.log(`Debug logs: ${debugLogDirectory}`);
   console.log('Generating and executing code...\n');
 
   // Execute query
@@ -55,8 +74,6 @@ const main = async () => {
   try {
     // Display results
     if (result.success) {
-      console.log('✓ Success!');
-      console.log('\nResult:', result.result);
 
       if (result.logs && result.logs.length) {
         console.log('\nLogs:');
@@ -71,6 +88,9 @@ const main = async () => {
         console.log(result.code);
         console.log('---');
       }
+
+      console.log('✓ Success!');
+      console.log('\nResult:', result.result);
     } else {
       console.error('✗ Failed');
       console.error('\nError:', result.error);

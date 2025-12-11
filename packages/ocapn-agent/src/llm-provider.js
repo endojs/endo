@@ -4,7 +4,7 @@ import OpenAI from 'openai';
  * Extract JavaScript code from markdown code blocks.
  * Handles ```javascript, ```js, and plain ``` fences.
  *
- * @param {string} text Text potentially containing code blocks
+ * @param {string} text
  * @returns {string} Extracted code or original text
  */
 const extractCodeFromMarkdown = text => {
@@ -53,6 +53,7 @@ export class LlmProvider {
    * @returns {Promise<string>} - Generated JavaScript code
    */
   async generateCode(prompt) {
+    console.log('prompt', prompt);
     // Use the Responses API
     const response = await this.client.responses.create({
       model: this.model,
@@ -68,6 +69,7 @@ export class LlmProvider {
         if (lastOutput.type === 'message' && lastOutput.content) {
           for (const content of lastOutput.content) {
             if (content.type === 'output_text' && content.text) {
+              console.log('content.text', content.text);
               // Extract code from markdown code blocks if present
               return extractCodeFromMarkdown(content.text);
             }
