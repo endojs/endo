@@ -201,6 +201,7 @@ export const tameV8ErrorConstructor = (
   InitialError,
   errorTaming,
   stackFiltering,
+  callSiteToStringFallback,
 ) => {
   if (errorTaming === 'unsafe-debug') {
     throw TypeError(
@@ -233,6 +234,10 @@ export const tameV8ErrorConstructor = (
 
   const callSiteStringifier = callSite => {
     let callSiteString = `${callSite}`;
+    if (callSiteToStringFallback) {
+      callSiteString = callSiteToStringFallback(callSite);
+    }
+
     if (shortenPaths) {
       callSiteString = shortenCallSiteString(callSiteString);
     }
