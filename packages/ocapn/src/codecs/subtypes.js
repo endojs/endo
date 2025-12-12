@@ -4,7 +4,27 @@ import { makeCodec } from '../syrup/codec.js';
 
 const quote = JSON.stringify;
 
-/** @type {SyrupCodec} */
+// Allows positive integers only. Zero is not allowed.
+export const PositiveIntegerCodec = makeCodec('PositiveInteger', {
+  write: (value, syrupWriter) => {
+    if (typeof value !== 'bigint') {
+      throw Error('value must be a bigint');
+    }
+    if (value <= 0n) {
+      throw Error('value must be positive');
+    }
+    syrupWriter.writeInteger(value);
+  },
+  read: syrupReader => {
+    const value = syrupReader.readInteger();
+    if (value <= 0n) {
+      throw Error('value must be positive');
+    }
+    return value;
+  },
+});
+
+// Allows positive integers and zero
 export const NonNegativeIntegerCodec = makeCodec('NonNegativeInteger', {
   write: (value, syrupWriter) => {
     if (typeof value !== 'bigint') {
