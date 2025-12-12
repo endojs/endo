@@ -199,6 +199,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((questionID: string, result: any) => void)} resolveAnswer
  * @property {((questionID: string) => boolean)} hasAnswer
  * @property {((questionID: string) => any)} getAnswer
+ * @property {((questionID: string) => void)} deleteAnswer
  * @property {((answerID: string, result: any) => void)} resolveQuestion
  * @property {((answerID: string, exception: any) => void)} rejectQuestion
  * @property {((reason: any) => void)} disconnect
@@ -206,6 +207,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>} convertSlotToVal
  * @property {RefCounter<string>} recvSlot
  * @property {RefCounter<string>} sendSlot
+ * @property {((slot: CapTPSlot) => number)} getRefCount
  * @property {() => [CapTPSlot, Promise<any>]} makeQuestion
  * @property {() => string} takeNextQuestionID
  * @property {((val: unknown, slot: CapTPSlot) => void)} registerExport
@@ -410,6 +412,13 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
       // We are dropping the last known reference to this slot.
       gcStats.DROPPED += 1;
       slotToNumRefs.delete(slot);
+
+      // Clean up the valToSlot mapping so the object can be re-exported later
+      const val = importExportTables.getExport(slot);
+      if (val !== undefined) {
+        valToSlot.delete(val);
+      }
+
       importExportTables.deleteExport(slot);
       answers.delete(slot);
     }
@@ -425,6 +434,10 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
 
   const getAnswer = questionID => {
     return answers.get(questionID);
+  };
+
+  const deleteAnswer = questionID => {
+    answers.delete(questionID);
   };
 
   const takeSettler = answerID => {
@@ -508,6 +521,10 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     return importExportTables.getImport(slot);
   };
 
+  const getRefCount = slot => {
+    return slotToNumRefs.get(slot) || 0;
+  };
+
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
@@ -517,6 +534,7 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     resolveAnswer,
     hasAnswer,
     getAnswer,
+    deleteAnswer,
     resolveQuestion,
     rejectQuestion,
     disconnect,
@@ -524,6 +542,7 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     convertSlotToVal,
     recvSlot,
     sendSlot,
+    getRefCount,
     makeQuestion,
     takeNextQuestionID,
     registerExport,

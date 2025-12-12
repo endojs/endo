@@ -1,35 +1,30 @@
 // @ts-check
 
-/**
- * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceive } from '../src/codecs/descriptors.js'
- */
-
 import test from '@endo/ses-ava/test.js';
 
-import { Buffer } from 'buffer';
 import {
   makeOcapnKeyPair,
-  makePublicKeyId,
   makeSessionId,
-  publicKeyToPublicKeyData,
+  signHandoffGive,
+  signHandoffReceive,
+  verifyHandoffGiveSignature,
+  verifyHandoffReceiveSignature,
 } from '../src/cryptography.js';
 import {
-  makeWithdrawGiftDescriptor,
-  serializeHandoffGive,
-  serializeHandoffReceive,
+  makeHandoffGiveDescriptor,
+  makeHandoffGiveSigEnvelope,
+  makeHandoffReceiveDescriptor,
+  makeHandoffReceiveSigEnvelope,
 } from '../src/codecs/descriptors.js';
+import { encodeStringToImmutableArrayBuffer } from '../src/buffer-utils.js';
 
 const makeSessionKeys = () => {
   const key1 = makeOcapnKeyPair();
-  const key1Id = makePublicKeyId(key1.publicKey);
   const key2 = makeOcapnKeyPair();
-  const key2Id = makePublicKeyId(key2.publicKey);
-  const sessionId = makeSessionId(key1Id, key2Id);
+  const sessionId = makeSessionId(key1.publicKey.id, key2.publicKey.id);
   return {
     key1,
     key2,
-    key1Id,
-    key2Id,
     sessionId,
   };
 };
@@ -45,42 +40,36 @@ test('makeWithdrawGiftDescriptor', t => {
 
   // The SignedGive is created in the gifter-exporter session.
   // It also uses the receiver's public key from the gifter-receiver session.
-  /** @type {HandoffGiveSigEnvelope} */
-  let signedGive;
-  {
-    const {
-      key1: gifterKey,
-      key1Id: gifterKeyId,
-      sessionId: gifterExporterSessionId,
-    } = gifterExporterSession;
-    const { key2: receiverKey } = gifterReceiverSession;
-    /** @type {HandoffGive} */
-    const handoffGive = {
-      type: 'desc:handoff-give',
-      receiverKey: publicKeyToPublicKeyData(receiverKey.publicKey),
-      exporterLocation: {
-        type: 'ocapn-node',
-        transport: 'tcp',
-        address: '127.0.0.1',
-        hints: false,
-      },
-      exporterSessionId: gifterExporterSessionId,
-      gifterSideId: gifterKeyId,
-      giftId: Buffer.from('gift-id', 'utf8'),
-    };
-    const giveBytes = serializeHandoffGive(handoffGive);
-    /** @type {HandoffGiveSigEnvelope} */
-    signedGive = {
-      type: 'desc:sig-envelope',
-      object: handoffGive,
-      signature: gifterKey.sign(giveBytes),
-    };
-    const signedGiveIsValid = gifterKey.publicKey.verify(
-      giveBytes,
-      signedGive.signature,
-    );
-    t.is(signedGiveIsValid, true);
-  }
+  const { key1: gifterKey, sessionId: gifterExporterSessionId } =
+    gifterExporterSession;
+  const { key2: receiverKey } = gifterReceiverSession;
+  const handoffGiveDescriptor = makeHandoffGiveDescriptor(
+    receiverKey.publicKey.descriptor,
+    {
+      type: 'ocapn-peer',
+      designator: '127.0.0.1',
+      transport: 'tcp',
+      hints: false,
+    },
+    gifterExporterSessionId,
+    gifterKey.publicKey.id,
+    encodeStringToImmutableArrayBuffer('gift-id'),
+  );
+  const handoffGiveSignature = signHandoffGive(
+    handoffGiveDescriptor,
+    gifterKey,
+  );
+  const signedHandoffGive = makeHandoffGiveSigEnvelope(
+    handoffGiveDescriptor,
+    handoffGiveSignature,
+  );
+
+  const signedGiveIsValid = verifyHandoffGiveSignature(
+    signedHandoffGive.object,
+    signedHandoffGive.signature,
+    gifterKey.publicKey,
+  );
+  t.is(signedGiveIsValid, true);
 
   // The SignedReceive is created in the exporter-receiver session,
   // but signed by the receiver's key from the gifter-receiver session.
@@ -91,34 +80,35 @@ test('makeWithdrawGiftDescriptor', t => {
       key2: receiverKeyForExporter,
       sessionId: exporterReceiverSessionId,
     } = exporterReceiverSession;
+    const receiverPeerIdForExporter = receiverKeyForExporter.publicKey.id;
     const { key2: receiverKeyForGifter } = gifterReceiverSession;
     const handoffCount = 0n;
-    /** @type {HandoffReceive} */
-    const handoffReceive = {
-      type: 'desc:handoff-receive',
-      receivingSession: exporterReceiverSessionId,
-      receivingSide: receiverKeyForExporter.publicKey.bytes,
-      handoffCount,
-      signedGive,
-    };
-    const receiveBytes = serializeHandoffReceive(handoffReceive);
-    const signedReceive = makeWithdrawGiftDescriptor(
-      signedGive,
+    const handoffReceive = makeHandoffReceiveDescriptor(
+      signedHandoffGive,
       handoffCount,
       exporterReceiverSessionId,
-      receiverKeyForExporter.publicKey,
+      receiverPeerIdForExporter,
+    );
+    const handoffReceiveSignature = signHandoffReceive(
+      handoffReceive,
       receiverKeyForGifter,
     );
-    const signedReceiveIsValid = receiverKeyForGifter.publicKey.verify(
-      receiveBytes,
-      signedReceive.signature,
+    const signedHandoffReceive = makeHandoffReceiveSigEnvelope(
+      handoffReceive,
+      handoffReceiveSignature,
+    );
+
+    const signedReceiveIsValid = verifyHandoffReceiveSignature(
+      signedHandoffReceive.object,
+      signedHandoffReceive.signature,
+      receiverKeyForGifter.publicKey,
     );
     t.is(signedReceiveIsValid, true);
   }
 });
 
-test('makePublicKeyId', t => {
+test('makeOcapnKeyPair', t => {
   const key = makeOcapnKeyPair();
-  const publicKeyId = makePublicKeyId(key.publicKey);
-  t.is(publicKeyId.length, 32);
+  t.is(key.publicKey.bytes.byteLength, 32);
+  t.is(key.publicKey.id.byteLength, 32);
 });

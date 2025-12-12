@@ -3,7 +3,11 @@
 import test from '@endo/ses-ava/test.js';
 
 import { makeTagged, passStyleOf, Far, ToFarFunction } from '@endo/pass-style';
-import { makeSelector } from '../src/pass-style-helpers.js';
+import { makeSelector } from '../src/selector.js';
+
+/**
+ * @import {PassStyle} from '@endo/pass-style';
+ */
 
 /**
  * This is a table of OCapN Passable types and their expected pass-style and
@@ -11,8 +15,9 @@ import { makeSelector } from '../src/pass-style-helpers.js';
  *
  * The `supported` status is not our desired support status, but the expectation
  * of the current passStyleOf implementation.
+ *
+ * @type {Array<{type: string, value: any, expected: PassStyle | undefined, supported: boolean}>}
  */
-
 const table = [
   // Supported:
   {
@@ -72,13 +77,12 @@ const table = [
     supported: false,
   },
 
-  // There is some discussion about how selectors should be reified.
   // https://github.com/endojs/endo/pull/2777
   {
     type: 'Selector:MakeSelector',
     value: makeSelector('foo'),
     expected: 'symbol',
-    supported: false,
+    supported: true,
   },
   {
     type: 'Selector:Registered',

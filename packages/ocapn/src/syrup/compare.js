@@ -1,5 +1,7 @@
 // @ts-check
 
+import { immutableArrayBufferToUint8Array } from '../buffer-utils.js';
+
 /**
  * @param {Uint8Array} left
  * @param {Uint8Array} right
@@ -12,7 +14,7 @@
  * negative if the left byteArray is "less" than the right byteArray,
  * positive if the left byteArray is "greater" than the right byteArray.
  */
-export function compareByteArrays(
+export function compareUint8Arrays(
   left,
   right,
   leftStart = 0,
@@ -82,3 +84,16 @@ export function compareByteArrays(
     rightIndex += 1;
   }
 }
+
+/**
+ * Compare two immutable ArrayBuffers
+ * @param {ArrayBufferLike} left
+ * @param {ArrayBufferLike} right
+ * @returns {number}
+ */
+export const compareImmutableArrayBuffers = (left, right) => {
+  return compareUint8Arrays(
+    immutableArrayBufferToUint8Array(left),
+    immutableArrayBufferToUint8Array(right),
+  );
+};

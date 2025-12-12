@@ -4,41 +4,67 @@ import {
   makeExactListCodec as exactList,
   makeExactSelectorCodec as exactSelector,
   makeExpectedLengthBytestringCodec as bytestringWithLength,
+  makeTypeHintUnionCodec,
+  StringCodec,
 } from '../syrup/codec.js';
 import {
   makeOcapnListComponentCodec,
   makeOcapnRecordCodecFromDefinition,
 } from './util.js';
+import { FalseCodec, makeStructCodecForValues } from './subtypes.js';
+import { makeSyrupWriter } from '../syrup/encode.js';
 
 /*
  * OCapN Components are used in both OCapN Messages and Descriptors
  */
 
+// OCapN underspecifies the hints table, assume only strings are valid values
+// see https://github.com/ocapn/ocapn/blob/main/draft-specifications/Locators.md#syrup-serialization
+const PeerHintsStructCodec = makeStructCodecForValues(
+  'OCapnLocationPeerHintsStruct',
+  () => StringCodec,
+);
+
 /**
  * @typedef {object} OcapnLocation
- * @property {'ocapn-node'} type
+ * @property {'ocapn-peer'} type
+ * @property {string} designator
  * @property {string} transport
- * @property {string} address
- * @property {boolean} hints
+ * @property {false | Record<string, any>} hints
  */
 
-export const OcapnNodeCodec = makeOcapnRecordCodecFromDefinition(
+export const OcapnPeerCodec = makeOcapnRecordCodecFromDefinition(
   'OcapnNode',
-  'ocapn-node',
+  'ocapn-peer',
   {
     transport: 'selector',
-    address: 'string',
-    // TODO: optional hints table https://github.com/ocapn/ocapn/blob/main/draft-specifications/Locators.md#hints
-    hints: 'boolean',
+    designator: 'string',
+    hints: makeTypeHintUnionCodec(
+      'OcapnLocationPeerHintsValue',
+      {
+        boolean: FalseCodec,
+        dictionary: PeerHintsStructCodec,
+      },
+      {
+        boolean: FalseCodec,
+        object: PeerHintsStructCodec,
+      },
+    ),
   },
 );
 
+/**
+ * @typedef {object} OcapnMyLocation
+ * @property {'my-location'} type
+ * @property {OcapnLocation} location
+ */
+
 // Used in the location signature in 'op:start-session'
-export const OcapnMyLocationCodec = makeOcapnRecordCodecFromDefinition(
+const OcapnMyLocationCodec = makeOcapnRecordCodecFromDefinition(
   'OcapnMyLocation',
   'my-location',
   {
-    location: OcapnNodeCodec,
+    location: OcapnPeerCodec,
   },
 );
 
@@ -58,8 +84,8 @@ const OcapnSignatureEddsaCodec = exactList('OcapnSignatureEddsa', [
  * @typedef {object} OcapnSignature
  * @property {'sig-val'} type
  * @property {'eddsa'} scheme
- * @property {Uint8Array} r
- * @property {Uint8Array} s
+ * @property {ArrayBufferLike} r
+ * @property {ArrayBufferLike} s
  */
 
 // ['sig-val ['eddsa ['r r_value] ['s s_value]]]
@@ -80,12 +106,12 @@ export const OcapnSignatureCodec = makeOcapnListComponentCodec(
 );
 
 /**
- * @typedef {object} OcapnPublicKeyData
+ * @typedef {object} OcapnPublicKeyDescriptor
  * @property {'public-key'} type
  * @property {'ecc'} scheme
  * @property {'Ed25519'} curve
  * @property {'eddsa'} flags
- * @property {Uint8Array} q
+ * @property {ArrayBufferLike} q
  */
 
 const OcapnPublicKeyEccCodec = exactList('OcapnPublicKeyEcc', [
@@ -125,3 +151,23 @@ export const OcapnPublicKeyCodec = makeOcapnListComponentCodec(
     );
   },
 );
+
+/**
+ * @param {OcapnMyLocation} myLocation
+ * @returns {Uint8Array}
+ */
+export const serializeOcapnMyLocation = myLocation => {
+  const syrupWriter = makeSyrupWriter();
+  OcapnMyLocationCodec.write(myLocation, syrupWriter);
+  return syrupWriter.getBytes();
+};
+
+/**
+ * @param {OcapnPublicKeyDescriptor} publicKeyDescriptor
+ * @returns {Uint8Array}
+ */
+export const serializeOcapnPublicKeyDescriptor = publicKeyDescriptor => {
+  const syrupWriter = makeSyrupWriter();
+  OcapnPublicKeyCodec.write(publicKeyDescriptor, syrupWriter);
+  return syrupWriter.getBytes();
+};

@@ -12,14 +12,12 @@ import {
   makeTypeHintUnionCodec,
   StringCodec,
 } from './codec.js';
-import { compareByteArrays } from './compare.js';
+import { compareUint8Arrays } from './compare.js';
 import { makeSyrupReader } from './decode.js';
 import { makeSyrupWriter } from './encode.js';
 
 /**
- * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordLabelType } from './codec.js'
- * @import { SyrupReader, SyrupType, TypeHintTypes } from './decode.js'
- * @import { SyrupWriter } from './encode.js'
+ * @import { SyrupCodec } from './codec.js'
  */
 
 /*
@@ -92,7 +90,7 @@ export const NumberPrefixCodecWithSelectorAsSymbol = {
     } else if (typeof value === 'symbol') {
       const selectorString = getSyrupSelectorName(value);
       syrupWriter.writeSelectorFromString(selectorString);
-    } else if (value instanceof Uint8Array) {
+    } else if (value instanceof ArrayBuffer) {
       syrupWriter.writeBytestring(value);
     } else if (typeof value === 'bigint') {
       syrupWriter.writeInteger(value);
@@ -133,7 +131,7 @@ export const AnyCodec = makeTypeHintUnionCodec(
       } else if (value instanceof Set) {
         // eslint-disable-next-line no-use-before-define
         return SetCodec;
-      } else if (value instanceof Uint8Array) {
+      } else if (value instanceof ArrayBuffer) {
         return BytestringCodec;
       } else if (typeof value === 'object' && value !== null) {
         if (value[Symbol.toStringTag] === 'Record') {
@@ -202,14 +200,7 @@ export const DictionaryCodec = freeze({
       DictionaryKeyCodec.write(key, scratchWriter);
       const newKeyBytes = scratchWriter.getBytes();
       if (priorKeyBytes !== undefined) {
-        const order = compareByteArrays(
-          priorKeyBytes,
-          newKeyBytes,
-          0,
-          priorKeyBytes.length,
-          0,
-          newKeyBytes.length,
-        );
+        const order = compareUint8Arrays(priorKeyBytes, newKeyBytes);
         if (order === 0) {
           throw Error(
             `Syrup dictionary keys must be unique, got repeated ${quote(key)} at index ${start} of ${syrupReader.name}`,
@@ -248,16 +239,7 @@ export const DictionaryCodec = freeze({
       keyBytes.push(scratchWriter.getBytes().subarray(start, end));
       indexes.push(indexes.length);
     }
-    indexes.sort((i, j) =>
-      compareByteArrays(
-        keyBytes[i],
-        keyBytes[j],
-        0,
-        keyBytes[i].length,
-        0,
-        keyBytes[j].length,
-      ),
-    );
+    indexes.sort((i, j) => compareUint8Arrays(keyBytes[i], keyBytes[j]));
 
     syrupWriter.enterDictionary();
     for (const index of indexes) {

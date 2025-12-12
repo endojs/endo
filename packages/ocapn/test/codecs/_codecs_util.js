@@ -2,11 +2,12 @@
 
 /**
  * @import { CapTPEngine } from '../../src/captp/captp-engine.js'
- * @import { MakeHandoff, MakeRemoteResolver, MakeRemoteSturdyRef, TableKit } from '../../src/client/ocapn.js'
+ * @import { MakeHandoff, MakeRemoteResolver, TableKit } from '../../src/client/ocapn.js'
  * @import { OcapnLocation } from '../../src/codecs/components.js'
- * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../../src/codecs/descriptors.js'
+ * @import { HandoffGiveSigEnvelope } from '../../src/codecs/descriptors.js'
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
  * @import { Settler } from '@endo/eventual-send'
+ * @import { SwissNum } from '../../src/client/types.js'
  */
 
 import { Buffer } from 'buffer';
@@ -17,8 +18,8 @@ import {
   makeGrantDetails,
   makeGrantTracker,
   makeTableKit,
-  OcapnFar,
 } from '../../src/client/ocapn.js';
+import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../../src/codecs/operations.js';
@@ -29,16 +30,18 @@ import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
 const textEncoder = new TextEncoder();
 const sloppyTextDecoder = new TextDecoder('utf-8', { fatal: false });
 
-const bufferToHex = uint8Array => {
-  return Buffer.from(uint8Array).toString('hex');
+const bufferToHex = arrayBuffer => {
+  // Convert ImmutableArrayBuffer to regular ArrayBuffer
+  const buffer = arrayBuffer.slice();
+  return Buffer.from(buffer).toString('hex');
 };
 
 /** @type {OcapnLocation} */
 const defaultPeerLocation = {
-  type: 'ocapn-node',
+  type: 'ocapn-peer',
   transport: 'tcp-test-only',
-  address: '127.0.0.1:54822',
-  hints: false,
+  designator: '1234',
+  hints: { host: '127.0.0.1', port: 54822 },
 };
 
 /**
@@ -48,7 +51,7 @@ const defaultPeerLocation = {
  * @property {(position: bigint) => any} makeExportAt
  * @property {(position: bigint) => Promise<any>} makeAnswerAt
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
- * @property {(location: OcapnLocation, swissNum: Uint8Array) => Promise<any>} lookupSturdyRef
+ * @property {(location: OcapnLocation, swissNum: SwissNum) => Promise<any>} lookupSturdyRef
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
  * @property {SyrupCodec} OcapnMessageUnionCodec
@@ -109,26 +112,40 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     return resolver;
   };
 
-  const testSturdyRefMap = new Map();
   const testHandoffMap = new Map();
 
   /**
+   * Mock provideSession for tests
    * @param {OcapnLocation} location
-   * @param {Uint8Array} swissNum
-   * @returns {string}
+   * @returns {Promise<any>}
    */
-  const getSturdyRefKey = (location, swissNum) => {
-    return `${location.transport}:${location.address}:${bufferToHex(swissNum)}`;
+  const mockProvideSession = async location => {
+    return Promise.resolve({
+      ocapn: {
+        getBootstrap: async () => ({
+          fetch: async () => Promise.resolve('mock-fetched-value'),
+        }),
+      },
+    });
   };
+
+  // Mock SturdyRef tracker for tests
+  const isSelfLocation = () => false; // For tests, never treat as self-location
+  const swissnumTable = new Map(); // Empty table for tests
+  const sturdyRefTracker = makeSturdyRefTracker(
+    mockProvideSession,
+    isSelfLocation,
+    swissnumTable,
+  );
 
   /**
    * @param {OcapnLocation} location
-   * @param {Uint8Array} swissNum
-   * @returns {Promise<any>}
+   * @param {SwissNum} swissNum
+   * @returns {any}
    */
   const lookupSturdyRef = (location, swissNum) => {
-    const testKey = getSturdyRefKey(location, swissNum);
-    return testSturdyRefMap.get(testKey);
+    // Create a new SturdyRef for the test
+    return sturdyRefTracker.makeSturdyRef(location, swissNum);
   };
 
   /**
@@ -144,16 +161,6 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     } = handoffGive;
     const testKey = `${giftId}:${bufferToHex(receiverPubKeyBytes)}:${bufferToHex(exporterSessionId)}`;
     return testHandoffMap.get(testKey);
-  };
-
-  /**
-   * @type {MakeRemoteSturdyRef}
-   */
-  const makeRemoteSturdyRef = (location, swissNum) => {
-    const promise = new Promise(() => {});
-    const testKey = getSturdyRefKey(location, swissNum);
-    testSturdyRefMap.set(testKey, promise);
-    return promise;
   };
 
   /**
@@ -195,11 +202,11 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     peerLocation,
     engine,
     makeRemoteResolver,
-    makeRemoteSturdyRef,
     makeHandoff,
     grantTracker,
     getActiveSession,
     sendDepositGift,
+    sturdyRefTracker,
   );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
@@ -211,7 +218,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   const makeExportAt = position => {
     const slot = `o+${position}`;
-    const value = OcapnFar('Export', {});
+    const value = Far('Export', {});
     engine.registerExport(value, slot);
     return value;
   };
@@ -236,13 +243,27 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   };
 };
 
+/**
+ * @param {string | Uint8Array} syrup
+ * @returns {Uint8Array}
+ */
 const getSyrupBytes = syrup => {
-  return typeof syrup === 'string' ? textEncoder.encode(syrup) : syrup;
+  if (typeof syrup === 'string') {
+    return textEncoder.encode(syrup);
+  }
+  return syrup;
 };
 
+/**
+ * @param {string | Uint8Array} syrup
+ * @returns {string}
+ */
 const getSyrupString = syrup => {
   // This text decoder is only for testing label purposes, so it doesn't need to be strict.
-  return typeof syrup === 'string' ? syrup : sloppyTextDecoder.decode(syrup);
+  if (typeof syrup === 'string') {
+    return syrup;
+  }
+  return sloppyTextDecoder.decode(syrup);
 };
 
 /**

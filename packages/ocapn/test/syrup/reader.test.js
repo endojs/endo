@@ -1,9 +1,9 @@
 // @ts-check
-/* global Buffer */
 import test from '@endo/ses-ava/test.js';
 import * as fs from 'fs';
 import path from 'path';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
+import { decodeImmutableArrayBufferToString } from '../../src/buffer-utils.js';
 
 // zoo.bin from https://github.com/ocapn/syrup/tree/2214cbb7c0ee081699fdef64edbc2444af2bb1d2/test-data
 // eslint-disable-next-line no-underscore-dangle
@@ -12,7 +12,12 @@ const zooBinRaw = fs.readFileSync(path.resolve(__dirname, '_zoo.bin'));
 // nodejs can provide a buffer with a non-zero byteOffset, which confuses the buffer reader
 const zooBin = Uint8Array.from(zooBinRaw);
 
-const toUtf8 = bytes => Buffer.from(bytes).toString('utf8');
+/**
+ *
+ * @param {ArrayBufferLike} bytes
+ * @returns {string}
+ */
+const toUtf8 = bytes => decodeImmutableArrayBufferToString(bytes);
 
 test('exciting a dictionary without entering it', t => {
   const syrup = '}';

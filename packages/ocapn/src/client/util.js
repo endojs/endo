@@ -2,41 +2,68 @@
 
 /**
  * @import { OcapnLocation } from '../codecs/components.js'
- * @import { LocationId } from './types.js'
+ * @import { LocationId, SwissNum } from './types.js'
  */
 
 import { Buffer } from 'buffer';
+import {
+  immutableArrayBufferToUint8Array,
+  uint8ArrayToImmutableArrayBuffer,
+} from '../buffer-utils.js';
 
 /**
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  * @returns {string}
  */
 export const toHex = value => {
-  return Buffer.from(value).toString('hex');
+  return Buffer.from(immutableArrayBufferToUint8Array(value)).toString('hex');
 };
 
 /**
+ * We need a unique and deterministic way to identify a location as a string, for internal use.
+ * We use https://github.com/ocapn/ocapn/blob/main/draft-specifications/Locators.md#uri-serialization
  * @param {OcapnLocation} location
  * @returns {LocationId}
  */
 export const locationToLocationId = location => {
-  return `${location.transport}:${location.address}`;
+  const { designator, transport, hints } = location;
+
+  // Build the base URI: ocapn://<designator>.<transport>
+  let uri = `ocapn://${designator}.${transport}`;
+
+  // Add hints as query parameters if present
+  if (hints && typeof hints === 'object') {
+    // Sort keys deterministically
+    const sortedKeys = Object.keys(hints).sort();
+    if (sortedKeys.length > 0) {
+      const params = sortedKeys
+        .map(key => {
+          const value = hints[key];
+          return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
+        })
+        .join('&');
+      uri += `?${params}`;
+    }
+  }
+
+  // @ts-expect-error - Branded type: LocationId is string at runtime
+  return uri;
 };
 
 const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
 const swissnumEncoder = new TextEncoder();
 
 /**
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  * @returns {string}
  */
 export const decodeSwissnum = value => {
-  return swissnumDecoder.decode(value);
+  return swissnumDecoder.decode(immutableArrayBufferToUint8Array(value));
 };
 
 /**
  * @param {string} value
- * @returns {Uint8Array}
+ * @returns {SwissNum}
  */
 export const encodeSwissnum = value => {
   // Validate the value is strictly valid ASCII
@@ -48,5 +75,6 @@ export const encodeSwissnum = value => {
       );
     }
   }
-  return swissnumEncoder.encode(value);
+  // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
+  return uint8ArrayToImmutableArrayBuffer(swissnumEncoder.encode(value));
 };

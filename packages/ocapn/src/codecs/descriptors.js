@@ -1,12 +1,12 @@
 // @ts-check
 
 /**
- * @import { GrantDetails, HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { SturdyRef } from '../client/sturdyrefs.js'
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
- * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
- * @import { OcapnLocation, OcapnPublicKeyData, OcapnSignature } from './components.js'
- * @import { OcapnPublicKey, OcapnKeyPair } from '../cryptography.js'
+ * @import { OcapnLocation, OcapnPublicKeyDescriptor, OcapnSignature } from './components.js'
+ * @import { SessionId, PublicKeyId } from '../client/types.js'
  */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
@@ -17,11 +17,13 @@ import {
 } from './util.js';
 import { NonNegativeIntegerCodec } from './subtypes.js';
 import {
-  OcapnNodeCodec,
+  OcapnPeerCodec,
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from './components.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
+import { getSturdyRefDetails } from '../client/sturdyrefs.js';
+import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
 
 /**
  * @typedef {object} DescCodecs
@@ -32,16 +34,17 @@ import { makeSyrupWriter } from '../syrup/encode.js';
  * @property {SyrupCodec} ResolveMeDescCodec
  * @property {SyrupRecordUnionCodec} ReferenceCodec
  * @property {SyrupCodec} DeliverTargetCodec
+ * @property {SyrupRecordCodec} OcapnSturdyRefCodec
  */
 
 /**
  * @typedef {object} HandoffGive
  * @property {'desc:handoff-give'} type
- * @property {OcapnPublicKeyData} receiverKey
+ * @property {OcapnPublicKeyDescriptor} receiverKey
  * @property {OcapnLocation} exporterLocation
- * @property {Uint8Array} exporterSessionId
- * @property {Uint8Array} gifterSideId
- * @property {Uint8Array} giftId
+ * @property {SessionId} exporterSessionId
+ * @property {PublicKeyId} gifterSideId
+ * @property {ArrayBufferLike} giftId
  */
 
 /**
@@ -54,8 +57,8 @@ import { makeSyrupWriter } from '../syrup/encode.js';
 /**
  * @typedef {object} HandoffReceive
  * @property {'desc:handoff-receive'} type
- * @property {Uint8Array} receivingSession
- * @property {Uint8Array} receivingSide
+ * @property {SessionId} receivingSession
+ * @property {PublicKeyId} receivingSide
  * @property {bigint} handoffCount
  * @property {HandoffGiveSigEnvelope} signedGive
  */
@@ -73,7 +76,7 @@ const DescHandoffGiveCodec = makeOcapnRecordCodecFromDefinition(
   {
     // ReceiverKeyForGifter Public Key
     receiverKey: OcapnPublicKeyCodec,
-    exporterLocation: OcapnNodeCodec,
+    exporterLocation: OcapnPeerCodec,
     // Gifter-Exporter Session ID
     exporterSessionId: 'bytestring',
     // gifterKeyForExporter Public ID
@@ -130,61 +133,6 @@ const DescSigEnvelopeReadCodec = makeOcapnRecordCodecFromDefinition(
 );
 
 /**
- * @param {HandoffGive} handoffGive
- * @returns {Uint8Array}
- */
-export const serializeHandoffGive = handoffGive => {
-  const syrupWriter = makeSyrupWriter();
-  DescHandoffGiveCodec.write(handoffGive, syrupWriter);
-  return syrupWriter.getBytes();
-};
-
-/**
- * @param {HandoffReceive} handoffReceive
- * @returns {Uint8Array}
- */
-export const serializeHandoffReceive = handoffReceive => {
-  const syrupWriter = makeSyrupWriter();
-  DescHandoffReceiveCodec.write(handoffReceive, syrupWriter);
-  return syrupWriter.getBytes();
-};
-
-/**
- * @param {HandoffGiveSigEnvelope} signedGive
- * @param {bigint} handoffCount
- * @param {Uint8Array} sessionId
- * @param {OcapnPublicKey} pubKeyForExporter
- * @param {OcapnKeyPair} privKeyForGifter
- * @returns {HandoffReceiveSigEnvelope}
- */
-export const makeWithdrawGiftDescriptor = (
-  signedGive,
-  handoffCount,
-  sessionId,
-  pubKeyForExporter,
-  privKeyForGifter,
-) => {
-  /** @type {HandoffReceive} */
-  const handoffReceive = {
-    type: 'desc:handoff-receive',
-    receivingSession: sessionId,
-    // This should be removed from the spec
-    receivingSide: pubKeyForExporter.bytes,
-    handoffCount,
-    signedGive,
-  };
-  const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
-  const signature = privKeyForGifter.sign(handoffReceiveBytes);
-  /** @type {HandoffReceiveSigEnvelope} */
-  const signedEnvelope = {
-    type: 'desc:sig-envelope',
-    object: handoffReceive,
-    signature,
-  };
-  return harden(signedEnvelope);
-};
-
-/**
  * @param {TableKit} tableKit
  * @returns {DescCodecs}
  */
@@ -224,7 +172,7 @@ export const makeDescCodecs = tableKit => {
     'desc:export',
     syrupReader => {
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return tableKit.convertPositionToLocal(position);
+      return tableKit.convertPositionToLocalVal(position);
     },
     (value, syrupWriter) => {
       const position = tableKit.convertRemoteValToPosition(value);
@@ -357,22 +305,23 @@ export const makeDescCodecs = tableKit => {
     'OcapnSturdyRef',
     'ocapn-sturdyref',
     syrupReader => {
-      const node = OcapnNodeCodec.read(syrupReader);
+      const node = OcapnPeerCodec.read(syrupReader);
       const swissNum = syrupReader.readBytestring();
-      const value = tableKit.provideSturdyRef(node, swissNum);
+      // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
+      const value = tableKit.makeSturdyRef(node, swissNum);
       return value;
     },
     /**
-     * @param {HandoffGiveDetails} handoffGiveDetails
+     * @param {SturdyRef} sturdyRef
      * @param {SyrupWriter} syrupWriter
      */
-    (handoffGiveDetails, syrupWriter) => {
-      const { grantDetails } = handoffGiveDetails;
-      const { location, swissNum } = grantDetails;
-      if (swissNum === undefined) {
-        throw Error('SwissNum is required for SturdyRefs');
+    (sturdyRef, syrupWriter) => {
+      const details = getSturdyRefDetails(sturdyRef);
+      if (!details) {
+        throw Error('Cannot serialize: not a valid SturdyRef object');
       }
-      OcapnNodeCodec.write(location, syrupWriter);
+      const { location, swissNum } = details;
+      OcapnPeerCodec.write(location, syrupWriter);
       syrupWriter.writeBytestring(swissNum);
     },
   );
@@ -396,9 +345,9 @@ export const makeDescCodecs = tableKit => {
       'local:object': DescImportObjectCodec,
       'local:promise': DescImportPromiseCodec,
       'local:question': DescAnswerCodec,
+      'local:sturdyref': OcapnSturdyRefCodec,
       'remote:object': DescExportCodec,
       'remote:promise': DescExportCodec,
-      'third-party:sturdy-ref': OcapnSturdyRefCodec,
       'third-party:handoff': HandOffUnionCodec,
     },
   );
@@ -411,5 +360,101 @@ export const makeDescCodecs = tableKit => {
     DeliverTargetCodec,
     ReferenceCodec,
     ResolveMeDescCodec,
+    OcapnSturdyRefCodec,
   };
+};
+
+const makeSigEnvelope = (object, signature) => {
+  return harden({
+    type: 'desc:sig-envelope',
+    object,
+    signature,
+  });
+};
+
+/**
+ * @param {OcapnPublicKeyDescriptor} receiverPublicKeyDescriptor
+ * @param {OcapnLocation} exporterLocation
+ * @param {SessionId} exporterSessionId
+ * @param {PublicKeyId} gifterSideId
+ * @param {ArrayBufferLike} giftId
+ * @returns {HandoffGive}
+ */
+export const makeHandoffGiveDescriptor = (
+  receiverPublicKeyDescriptor,
+  exporterLocation,
+  exporterSessionId,
+  gifterSideId,
+  giftId,
+) => {
+  return harden({
+    type: 'desc:handoff-give',
+    receiverKey: receiverPublicKeyDescriptor,
+    exporterLocation,
+    exporterSessionId,
+    gifterSideId,
+    giftId,
+  });
+};
+
+/**
+ * @param {HandoffGive} handoffGive
+ * @returns {ArrayBufferLike}
+ */
+export const serializeHandoffGive = handoffGive => {
+  const syrupWriter = makeSyrupWriter();
+  DescHandoffGiveCodec.write(handoffGive, syrupWriter);
+  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
+};
+
+/**
+ * @param {HandoffGive} handoffGive
+ * @param {OcapnSignature} signature
+ * @returns {HandoffGiveSigEnvelope}
+ */
+export const makeHandoffGiveSigEnvelope = (handoffGive, signature) => {
+  // @ts-expect-error we're doing type checking
+  return makeSigEnvelope(handoffGive, signature);
+};
+
+/**
+ * @param {HandoffGiveSigEnvelope} signedGive
+ * @param {bigint} handoffCount
+ * @param {SessionId} sessionId
+ * @param {PublicKeyId} receiverPeerId
+ * @returns {HandoffReceive}
+ */
+export const makeHandoffReceiveDescriptor = (
+  signedGive,
+  handoffCount,
+  sessionId,
+  receiverPeerId,
+) => {
+  return harden({
+    type: 'desc:handoff-receive',
+    receivingSession: sessionId,
+    receivingSide: receiverPeerId,
+    handoffCount,
+    signedGive,
+  });
+};
+
+/**
+ * @param {HandoffReceive} handoffReceive
+ * @param {OcapnSignature} signature
+ * @returns {HandoffReceiveSigEnvelope}
+ */
+export const makeHandoffReceiveSigEnvelope = (handoffReceive, signature) => {
+  // @ts-expect-error we're doing type checking
+  return makeSigEnvelope(handoffReceive, signature);
+};
+
+/**
+ * @param {HandoffReceive} handoffReceive
+ * @returns {ArrayBufferLike}
+ */
+export const serializeHandoffReceive = handoffReceive => {
+  const syrupWriter = makeSyrupWriter();
+  DescHandoffReceiveCodec.write(handoffReceive, syrupWriter);
+  return uint8ArrayToImmutableArrayBuffer(syrupWriter.getBytes());
 };

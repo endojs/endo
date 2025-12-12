@@ -84,10 +84,14 @@ function writeSelectorFromString(bufferWriter, value) {
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  */
 function writeBytestring(bufferWriter, value) {
-  writeStringlike(bufferWriter, value, ':');
+  // Convert ArrayBuffer to Uint8Array for internal operations
+  // Immutable ArrayBuffers need to be sliced first
+  const mutableBuffer = value.slice();
+  const bytes = new Uint8Array(mutableBuffer);
+  writeStringlike(bufferWriter, bytes, ':');
 }
 
 /**
@@ -113,7 +117,10 @@ function writeFloat64(bufferWriter, value) {
  * @param {bigint} value
  */
 function writeInteger(bufferWriter, value) {
-  const string = value >= 0 ? `${value}+` : `${-value}-`;
+  if (typeof value !== 'bigint') {
+    throw Error(`writeInteger: Expected bigint, got ${typeof value}`);
+  }
+  const string = value >= 0n ? `${value}+` : `${-value}-`;
   bufferWriter.writeString(string);
 }
 
@@ -159,7 +166,7 @@ export class SyrupWriter {
   }
 
   /**
-   * @param {Uint8Array} value
+   * @param {ArrayBufferLike} value
    */
   writeBytestring(value) {
     writeBytestring(this.#bufferWriter, value);
