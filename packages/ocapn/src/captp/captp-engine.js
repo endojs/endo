@@ -199,6 +199,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((questionID: string, result: any) => void)} resolveAnswer
  * @property {((questionID: string) => boolean)} hasAnswer
  * @property {((questionID: string) => any)} getAnswer
+ * @property {((questionID: string) => void)} deleteAnswer
  * @property {((answerID: string, result: any) => void)} resolveQuestion
  * @property {((answerID: string, exception: any) => void)} rejectQuestion
  * @property {((reason: any) => void)} disconnect
@@ -435,6 +436,10 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     return answers.get(questionID);
   };
 
+  const deleteAnswer = questionID => {
+    answers.delete(questionID);
+  };
+
   const takeSettler = answerID => {
     const settler = settlers.get(answerID);
     if (!settler) {
@@ -529,6 +534,7 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
     resolveAnswer,
     hasAnswer,
     getAnswer,
+    deleteAnswer,
     resolveQuestion,
     rejectQuestion,
     disconnect,

@@ -339,6 +339,59 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
   }
 });
 
+test('op:gc-answer deletes answer from engine', async t => {
+  const testObjectTable = new Map();
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // Manually create an answer on B's side (q+1) to test deletion
+    const answerSlot = 'q+1';
+    const testAnswer = Far('testAnswer', {
+      getValue: () => 42,
+    });
+    ocapnB.engine.resolveAnswer(answerSlot, testAnswer);
+
+    // Verify B has the answer
+    t.true(ocapnB.engine.hasAnswer(answerSlot), 'B should have answer for q+1');
+    t.is(
+      ocapnB.engine.getAnswer(answerSlot),
+      testAnswer,
+      'answer should match',
+    );
+
+    // Now A sends op:gc-answer to B
+    const answerPosition = BigInt(1); // Position 1 for q+1
+    const gcAnswerMessage = {
+      type: 'op:gc-answer',
+      answerPosition,
+    };
+
+    const gcBytes = ocapnA.writeOcapnMessage(gcAnswerMessage);
+    ocapnB.dispatchMessageData(gcBytes);
+
+    // After op:gc-answer, B should have deleted the answer
+    t.false(
+      ocapnB.engine.hasAnswer(answerSlot),
+      'B should NOT have answer after gc-answer',
+    );
+    t.is(
+      ocapnB.engine.getAnswer(answerSlot),
+      undefined,
+      'answer should be undefined',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
 test("object can be re-exported after being GC'd", async t => {
   const testObjectTable = new Map();
   testObjectTable.set(

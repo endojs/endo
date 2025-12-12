@@ -940,7 +940,11 @@ export const makeOcapn = (
     },
     'op:gc-answer': message => {
       const { answerPosition } = message;
-      logger.info(`gc-answer (ignored)`, { answerPosition });
+      logger.info(`gc-answer (${answerPosition})`, { answerPosition });
+      // Answer slots are q+N from the answerer's perspective
+      const slot = `q+${answerPosition}`;
+      // eslint-disable-next-line no-use-before-define
+      engine.deleteAnswer(slot);
     },
     'op:abort': message => {
       const { reason } = message;
