@@ -791,6 +791,7 @@ const makeBootstrapObject = (
  * @property {((data: Uint8Array) => void)} dispatchMessageData
  * @property {() => Promise<any>} getBootstrap
  * @property {CapTPEngine} engine
+ * @property {(message: any) => Uint8Array} writeOcapnMessage
  */
 
 /**
@@ -928,7 +929,14 @@ export const makeOcapn = (
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;
-      logger.info(`gc-export (ignored)`, { exportPosition, wireDelta });
+      logger.info(`gc-export (${exportPosition})`, {
+        exportPosition,
+        wireDelta,
+      });
+      // eslint-disable-next-line no-use-before-define
+      const slot = tableKit.positionToSlot(exportPosition);
+      // eslint-disable-next-line no-use-before-define
+      engine.dropSlotRefs(slot, Number(wireDelta));
     },
     'op:gc-answer': message => {
       const { answerPosition } = message;
@@ -1228,5 +1236,6 @@ export const makeOcapn = (
     dispatchMessageData,
     getBootstrap: getRemoteBootstrap,
     engine,
+    writeOcapnMessage,
   });
 };

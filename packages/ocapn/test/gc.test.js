@@ -155,3 +155,279 @@ test('echo object - sending objects back and forth', async t => {
 
   shutdownBoth();
 });
+
+test('exported object dropped after op:gc-export', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: obj => obj,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  const {
+    sessionA: { ocapn: ocapnA },
+    sessionB: { ocapn: ocapnB },
+  } = await establishSession();
+
+  // A creates an object to send to B
+  const objFromA = Far('objFromA', {
+    getValue: () => 42,
+  });
+
+  // Get B's echo service and send objFromA to it
+  const bootstrapB = ocapnA.getBootstrap();
+  const echoObj = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
+  await E(echoObj).echo(objFromA);
+
+  // After sending, objFromA should be exported from A
+  const objASlot = ocapnA.engine.getSlotForValue(objFromA);
+  if (!objASlot) {
+    throw new Error('objFromA should have a slot after being sent');
+  }
+
+  // Verify the export exists
+  const exportedValue = ocapnA.engine.getExport(objASlot);
+  t.is(exportedValue, objFromA, 'exported object should be in export table');
+  t.is(
+    ocapnA.engine.getRefCount(objASlot),
+    1,
+    'should have 1 reference to the exported object',
+  );
+
+  // Now simulate B sending an op:gc-export message to A
+  // saying it's dropping all references to objFromA
+
+  // The export position is the numeric part of the slot (e.g., "o+1" -> 1)
+  // For exports, the slot format is `o+${position}`
+  const exportPosition = BigInt(objASlot.slice(2));
+
+  const gcExportMessage = {
+    type: 'op:gc-export',
+    exportPosition,
+    wireDelta: 1n, // Drop 1 reference
+  };
+
+  // Use B's writeOcapnMessage to serialize the message
+  const bytes = ocapnB.writeOcapnMessage(gcExportMessage);
+
+  // Inject the message directly into A's dispatch
+  // (simulating B sending this message to A)
+  ocapnA.dispatchMessageData(bytes);
+
+  // Verify the export has been removed from A's table
+  const exportAfterGc = ocapnA.engine.getExport(objASlot);
+  t.is(
+    exportAfterGc,
+    undefined,
+    'exported object should be removed from export table after gc-export',
+  );
+  t.is(
+    ocapnA.engine.getRefCount(objASlot),
+    0,
+    'should have 0 references after gc-export',
+  );
+
+  shutdownBoth();
+});
+
+test('partial op:gc-export does not remove object, full gc does', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: obj => obj,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // A creates an object to send to B
+    const objFromA = Far('objFromA', {
+      getValue: () => 42,
+    });
+
+    // Get B's echo service and send objFromA multiple times
+    const bootstrapB = ocapnA.getBootstrap();
+    const echoObj = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
+
+    // Send the object 5 times to build up ref count
+    await E(echoObj).echo(objFromA);
+    await E(echoObj).echo(objFromA);
+    await E(echoObj).echo(objFromA);
+    await E(echoObj).echo(objFromA);
+    await E(echoObj).echo(objFromA);
+
+    // After sending 5 times, objFromA should have ref count of 5
+    const objASlot = ocapnA.engine.getSlotForValue(objFromA);
+    if (!objASlot) {
+      throw new Error('objFromA should have a slot after being sent');
+    }
+
+    t.is(
+      ocapnA.engine.getRefCount(objASlot),
+      5,
+      'should have 5 references to the exported object',
+    );
+
+    // Verify the export exists
+    const exportedValue = ocapnA.engine.getExport(objASlot);
+    t.is(exportedValue, objFromA, 'exported object should be in export table');
+
+    // Now simulate B sending an op:gc-export with partial wire-delta
+    // The export position is the numeric part of the slot (e.g., "o+1" -> 1)
+    const exportPosition = BigInt(objASlot.slice(2));
+
+    const partialGcMessage = {
+      type: 'op:gc-export',
+      exportPosition,
+      wireDelta: 3n, // Drop only 3 out of 5 references
+    };
+
+    const partialBytes = ocapnB.writeOcapnMessage(partialGcMessage);
+    ocapnA.dispatchMessageData(partialBytes);
+
+    // After partial GC, the object should still be in the table
+    const exportAfterPartialGc = ocapnA.engine.getExport(objASlot);
+    t.is(
+      exportAfterPartialGc,
+      objFromA,
+      'exported object should still be in export table after partial gc-export',
+    );
+    t.is(
+      ocapnA.engine.getRefCount(objASlot),
+      2,
+      'should have 2 references remaining after partial gc-export',
+    );
+
+    // Now send another op:gc-export for the remaining references
+    const finalGcMessage = {
+      type: 'op:gc-export',
+      exportPosition,
+      wireDelta: 2n, // Drop the remaining 2 references
+    };
+
+    const finalBytes = ocapnB.writeOcapnMessage(finalGcMessage);
+    ocapnA.dispatchMessageData(finalBytes);
+
+    // After final GC, the object should be removed from the table
+    const exportAfterFinalGc = ocapnA.engine.getExport(objASlot);
+    t.is(
+      exportAfterFinalGc,
+      undefined,
+      'exported object should be removed from export table after final gc-export',
+    );
+    t.is(
+      ocapnA.engine.getRefCount(objASlot),
+      0,
+      'should have 0 references after final gc-export',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test("object can be re-exported after being GC'd", async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Receiver',
+    Far('receiver', {
+      // Just receives, doesn't echo back
+      receive: obj => {
+        // Just accept the object, don't return it
+        return 'received';
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // A creates an object
+    const objFromA = Far('objFromA', {
+      getValue: () => 42,
+    });
+
+    // Send it to B once
+    const bootstrapB = ocapnA.getBootstrap();
+    const receiver = await E(bootstrapB).fetch(encodeSwissnum('Receiver'));
+    const result1 = await E(receiver).receive(objFromA);
+    t.is(result1, 'received', 'first send succeeded');
+
+    // Verify it's exported
+    const objASlot = ocapnA.engine.getSlotForValue(objFromA);
+    if (!objASlot) {
+      throw new Error('objFromA should have a slot after being sent');
+    }
+    t.is(ocapnA.engine.getRefCount(objASlot), 1, 'should have 1 reference');
+
+    // GC the export completely
+    const exportPosition = BigInt(objASlot.slice(2));
+    const gcMessage = {
+      type: 'op:gc-export',
+      exportPosition,
+      wireDelta: 1n,
+    };
+    const gcBytes = ocapnB.writeOcapnMessage(gcMessage);
+    ocapnA.dispatchMessageData(gcBytes);
+
+    // Verify it's gone
+    t.is(
+      ocapnA.engine.getExport(objASlot),
+      undefined,
+      'export should be removed after GC',
+    );
+    t.is(
+      ocapnA.engine.getRefCount(objASlot),
+      0,
+      'should have 0 references after GC',
+    );
+
+    // Send the object again after it's been GC'd
+    const result2 = await E(receiver).receive(objFromA);
+    t.is(result2, 'received', 'second send after GC succeeded');
+
+    // The object should be re-exported with a NEW slot (not the old one)
+    const reExportSlot = ocapnA.engine.getSlotForValue(objFromA);
+    if (!reExportSlot) {
+      throw new Error('objFromA should have a slot after re-export');
+    }
+    t.truthy(reExportSlot, 'has a slot after re-export');
+    t.not(reExportSlot, objASlot, 'gets a NEW slot (not the old one)');
+
+    // The object IS re-exported (has ref count)
+    t.is(
+      ocapnA.engine.getRefCount(reExportSlot),
+      1,
+      'ref count is 1 after re-export',
+    );
+
+    // And it should be back in the export table
+    t.is(
+      ocapnA.engine.getExport(reExportSlot),
+      objFromA,
+      'export is back in table after re-export',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});

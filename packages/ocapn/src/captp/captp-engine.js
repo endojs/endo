@@ -411,6 +411,13 @@ export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
       // We are dropping the last known reference to this slot.
       gcStats.DROPPED += 1;
       slotToNumRefs.delete(slot);
+
+      // Clean up the valToSlot mapping so the object can be re-exported later
+      const val = importExportTables.getExport(slot);
+      if (val !== undefined) {
+        valToSlot.delete(val);
+      }
+
       importExportTables.deleteExport(slot);
       answers.delete(slot);
     }
