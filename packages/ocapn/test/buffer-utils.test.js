@@ -1,6 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/test.js';
+import { passStyleOf } from '@endo/pass-style';
 import {
   encodeStringToImmutableArrayBuffer,
   decodeImmutableArrayBufferToString,
@@ -119,4 +120,17 @@ test('uint8ArrayToImmutableArrayBuffer with empty array', t => {
 
   const decoded = decodeImmutableArrayBufferToString(immutableBuffer);
   t.is(decoded, '');
+});
+
+test('uint8ArrayToImmutableArrayBuffer has byteArray passStyle', t => {
+  const uint8Array = new Uint8Array([1, 2, 3, 4, 5]);
+  const immutableBuffer = uint8ArrayToImmutableArrayBuffer(uint8Array);
+  // @ts-expect-error passStyleOf typing infers the wrong type.
+  t.is(passStyleOf(immutableBuffer), 'byteArray');
+});
+
+test('encodeStringToImmutableArrayBuffer has byteArray passStyle', t => {
+  const immutableBuffer = encodeStringToImmutableArrayBuffer('test');
+  // @ts-expect-error passStyleOf typing infers the wrong type.
+  t.is(passStyleOf(immutableBuffer), 'byteArray');
 });

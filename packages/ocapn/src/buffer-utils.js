@@ -1,22 +1,24 @@
 // @ts-check
 
-import { sliceBufferToImmutable } from '@endo/immutable-arraybuffer';
-
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 
 /**
- * Convert a Uint8Array to an immutable ArrayBuffer
+ * Convert a Uint8Array to an immutable ArrayBuffer.
+ * The resulting buffer will have passStyle 'byteArray'.
+ * The buffer is hardened to make it passable.
+ *
  * @param {Uint8Array} uint8Array
- * @returns {ArrayBufferLike}
+ * @returns {ArrayBuffer} A hardened immutable ArrayBuffer
  */
 export const uint8ArrayToImmutableArrayBuffer = uint8Array => {
-  return sliceBufferToImmutable(
-    // @ts-expect-error uint8Array.buffer is ArrayBufferLike but ArrayBuffer is expected.
-    uint8Array.buffer,
+  // Use the shimmed ArrayBuffer.prototype.sliceToImmutable method
+  // @ts-expect-error uint8Array.buffer is ArrayBufferLike but has sliceToImmutable from shim
+  const immutableBuffer = uint8Array.buffer.sliceToImmutable(
     uint8Array.byteOffset,
     uint8Array.byteOffset + uint8Array.byteLength,
   );
+  return harden(immutableBuffer);
 };
 
 /**
@@ -29,9 +31,11 @@ export const immutableArrayBufferToUint8Array = immutableArrayBuffer => {
 };
 
 /**
- * Encode a string into an immutable ArrayBuffer
+ * Encode a string into an immutable ArrayBuffer.
+ * The resulting buffer will have passStyle 'byteArray'.
+ *
  * @param {string} string
- * @returns {ArrayBufferLike}
+ * @returns {ArrayBuffer} An immutable ArrayBuffer
  */
 export const encodeStringToImmutableArrayBuffer = string => {
   return uint8ArrayToImmutableArrayBuffer(textEncoder.encode(string));
