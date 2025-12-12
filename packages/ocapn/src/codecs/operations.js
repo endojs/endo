@@ -14,7 +14,11 @@ import {
   makeTypeHintUnionCodec,
 } from '../syrup/codec.js';
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
-import { NonNegativeIntegerCodec, FalseCodec } from './subtypes.js';
+import {
+  NonNegativeIntegerCodec,
+  FalseCodec,
+  PositiveIntegerCodec,
+} from './subtypes.js';
 import {
   OcapnPeerCodec,
   OcapnPublicKeyCodec,
@@ -45,8 +49,8 @@ const OpGcExportCodec = makeOcapnRecordCodecFromDefinition(
   'OpGcExport',
   'op:gc-export',
   {
-    exportPosition: 'integer',
-    wireDelta: 'integer',
+    exportPosition: NonNegativeIntegerCodec,
+    wireDelta: PositiveIntegerCodec,
   },
 );
 
@@ -54,7 +58,7 @@ const OpGcAnswerCodec = makeOcapnRecordCodecFromDefinition(
   'OpGcAnswer',
   'op:gc-answer',
   {
-    answerPosition: 'integer',
+    answerPosition: NonNegativeIntegerCodec,
   },
 );
 

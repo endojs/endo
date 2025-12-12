@@ -117,7 +117,10 @@ function writeFloat64(bufferWriter, value) {
  * @param {bigint} value
  */
 function writeInteger(bufferWriter, value) {
-  const string = value >= 0 ? `${value}+` : `${-value}-`;
+  if (typeof value !== 'bigint') {
+    throw Error(`writeInteger: Expected bigint, got ${typeof value}`);
+  }
+  const string = value >= 0n ? `${value}+` : `${-value}-`;
   bufferWriter.writeString(string);
 }
 
