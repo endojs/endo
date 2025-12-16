@@ -101,12 +101,7 @@ export const writeOcapnHandshakeMessage = message => {
  * @returns {OcapnOperationsCodecs}
  */
 export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
-  const {
-    DescImportPromiseCodec,
-    DescAnswerCodec,
-    DeliverTargetCodec,
-    ResolveMeDescCodec,
-  } = descCodecs;
+  const { DeliverTargetCodec, ResolveMeDescCodec } = descCodecs;
   const { PassableCodec } = passableCodecs;
 
   const OpListenCodec = makeOcapnRecordCodecFromDefinition(
@@ -184,22 +179,10 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
-  const OcapnPromiseRefUnionCodec = makeRecordUnionCodec('OcapnPromiseRef', {
-    DescAnswerCodec,
-    DescImportPromiseCodec,
-  });
-
-  const OpPickCodec = makeOcapnRecordCodecFromDefinition('OpPick', 'op:pick', {
-    promisePosition: OcapnPromiseRefUnionCodec,
-    selectedValuePosition: 'integer',
-    newAnswerPosition: 'integer',
-  });
-
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
-    OpPickCodec,
     OpAbortCodec,
     OpListenCodec,
     OpGcExportCodec,
