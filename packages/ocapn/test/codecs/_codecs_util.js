@@ -201,23 +201,9 @@ export const makeCodecTestKit = (
     };
   };
 
-  /**
-   * Mock provideSession for tests
-   * @param {OcapnLocation} location
-   * @returns {Promise<any>}
-   */
-  const mockProvideSession = async location => {
-    return Promise.resolve(immediateProvideSession(location));
-  };
-
   // Mock SturdyRef tracker for tests
-  const isSelfLocation = () => false; // For tests, never treat as self-location
   const swissnumTable = new Map(); // Empty table for tests
-  const sturdyRefTracker = makeSturdyRefTracker(
-    mockProvideSession,
-    isSelfLocation,
-    swissnumTable,
-  );
+  const sturdyRefTracker = makeSturdyRefTracker(swissnumTable);
 
   /**
    * @param {OcapnLocation} location

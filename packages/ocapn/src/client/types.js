@@ -113,5 +113,6 @@
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
+ * @property {(sturdyRef: SturdyRef) => Promise<any>} enlivenSturdyRef
  * @property {() => void} shutdown
  */

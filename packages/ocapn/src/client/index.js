@@ -24,7 +24,7 @@ import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
-import { makeSturdyRefTracker } from './sturdyrefs.js';
+import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
 
 /**
@@ -556,11 +556,7 @@ export const makeClient = ({
     logger,
     grantTracker,
     sessionManager,
-    sturdyRefTracker: makeSturdyRefTracker(
-      location => client.provideSession(location),
-      isSelfLocation,
-      swissnumTable,
-    ),
+    sturdyRefTracker: makeSturdyRefTracker(swissnumTable),
     /**
      * @param {NetLayer} netlayer
      */
@@ -652,6 +648,19 @@ export const makeClient = ({
      */
     makeSturdyRef(location, swissNum) {
       return client.sturdyRefTracker.makeSturdyRef(location, swissNum);
+    },
+    /**
+     * Enliven a SturdyRef by fetching the actual object
+     * @param {SturdyRef} sturdyRef
+     * @returns {Promise<any>}
+     */
+    enlivenSturdyRef(sturdyRef) {
+      return enlivenSturdyRef(
+        sturdyRef,
+        location => client.provideSession(location),
+        isSelfLocation,
+        swissnumTable,
+      );
     },
     shutdown() {
       client.logger.info(`shutdown called`);

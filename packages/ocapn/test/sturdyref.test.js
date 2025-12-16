@@ -3,11 +3,13 @@
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
+import { passStyleOf } from '@endo/pass-style';
 import { testWithErrorUnwrapping, makeTestClient } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { isSturdyRef, getSturdyRefDetails } from '../src/client/sturdyrefs.js';
+import { ocapnPassStyleOf } from '../src/codecs/ocapn-pass-style.js';
 
-testWithErrorUnwrapping('SturdyRef has .enliven() method only', async t => {
+testWithErrorUnwrapping('SturdyRef is a tagged type', async t => {
   const { client: clientA, location: locationB } = await makeTestClient({
     debugLabel: 'A',
   });
@@ -18,9 +20,19 @@ testWithErrorUnwrapping('SturdyRef has .enliven() method only', async t => {
     encodeSwissnum('test-object'),
   );
 
-  t.is(typeof sturdyRef.enliven, 'function', 'has enliven method');
-  // SturdyRef is a class instance, so Object.keys returns 0 (methods are on prototype)
-  t.is(Object.keys(sturdyRef).length, 0, 'no enumerable properties');
+  // SturdyRef should be a tagged type
+  t.is(passStyleOf(sturdyRef), 'tagged', 'passStyleOf returns tagged');
+  t.is(
+    ocapnPassStyleOf(sturdyRef),
+    'sturdyref',
+    'ocapnPassStyleOf returns sturdyref',
+  );
+  t.is(
+    sturdyRef[Symbol.toStringTag],
+    'ocapn-sturdyref',
+    'has correct tag name',
+  );
+  t.is(sturdyRef.payload, undefined, 'payload is undefined');
 
   clientA.shutdown();
   clientB.shutdown();
@@ -42,12 +54,12 @@ testWithErrorUnwrapping(
     t.false('swissNum' in sturdyRef, 'no swissNum property');
     t.false('swissnum' in sturdyRef, 'no swissnum property');
 
-    // Check stringification doesn't leak internals
+    // Check stringification shows the tag but doesn't leak internals
     const stringified = String(sturdyRef);
     t.is(
       stringified,
-      '[object Object]',
-      'stringification is default object string',
+      '[object ocapn-sturdyref]',
+      'stringification shows tag name',
     );
 
     clientA.shutdown();
@@ -109,7 +121,7 @@ testWithErrorUnwrapping(
   },
 );
 
-test('SturdyRef.enliven() returns promise for fetched value', async t => {
+test('client.enlivenSturdyRef() returns promise for fetched value', async t => {
   const testObjectTable = new Map();
   const testObject = Far('TestObject', {
     getValue: () => 42,
@@ -127,9 +139,12 @@ test('SturdyRef.enliven() returns promise for fetched value', async t => {
     encodeSwissnum('test-object'),
   );
 
-  const enlivenResult = sturdyRef.enliven();
-  t.truthy(enlivenResult, 'enliven returns something');
-  t.truthy(enlivenResult instanceof Promise, 'enliven returns a promise');
+  const enlivenResult = clientA.enlivenSturdyRef(sturdyRef);
+  t.truthy(enlivenResult, 'enlivenSturdyRef returns something');
+  t.truthy(
+    enlivenResult instanceof Promise,
+    'enlivenSturdyRef returns a promise',
+  );
 
   const resolved = await enlivenResult;
   const value = await E(resolved).getValue();
@@ -161,7 +176,7 @@ test('Enlivened values are not SturdyRefs', async t => {
   t.true(isSturdyRef(sturdyRef), 'sturdyRef is a SturdyRef before enliven');
 
   // Enliven the sturdyref
-  const enlivened = await sturdyRef.enliven();
+  const enlivened = await clientA.enlivenSturdyRef(sturdyRef);
 
   // Verify the enlivened value is NOT a SturdyRef
   t.false(isSturdyRef(enlivened), 'enlivened value is not a SturdyRef');
@@ -196,7 +211,7 @@ test('SturdyRef to self-location can be enlivened', async t => {
   t.true(isSturdyRef(sturdyRef), 'sturdyRef is a SturdyRef');
 
   // Enliven the self-referential SturdyRef
-  const enlivened = await sturdyRef.enliven();
+  const enlivened = await clientA.enlivenSturdyRef(sturdyRef);
 
   // Verify the enlivened value is NOT a SturdyRef
   t.false(isSturdyRef(enlivened), 'enlivened value is not a SturdyRef');

@@ -9,9 +9,14 @@ import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../../src/client/index.js';
 
 /**
+ * @typedef {import('../../src/client/types.js').Client} Client
+ */
+
+/**
+ * @param {Client} client
  * @returns {Map<string, any>}
  */
-const makeTestObjectTable = () => {
+const makeTestObjectTable = client => {
   const testObjectTable = new Map();
 
   /**
@@ -136,8 +141,8 @@ const makeTestObjectTable = () => {
     'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
     Far('sturdyrefEnlivener', async sturdyref => {
       console.log('sturdyrefEnlivener called with', { sturdyref });
-      // SturdyRefs are objects with an .enliven() method
-      return sturdyref.enliven();
+      // SturdyRefs are tagged objects that must be enlivened via the client
+      return client.enlivenSturdyRef(sturdyref);
     }),
   );
 
@@ -145,9 +150,12 @@ const makeTestObjectTable = () => {
 };
 
 const start = async () => {
-  const client = makeClient({
-    swissnumTable: makeTestObjectTable(),
-  });
+  const client = makeClient();
+  const testObjectTable = makeTestObjectTable(client);
+  // Register the test objects with the client's swissnumTable
+  for (const [swissStr, object] of testObjectTable.entries()) {
+    client.sturdyRefTracker.register(swissStr, object);
+  }
   const tcpNetlayer = await makeTcpNetLayer({ client, specifiedPort: 22046 });
   client.registerNetlayer(tcpNetlayer);
 };

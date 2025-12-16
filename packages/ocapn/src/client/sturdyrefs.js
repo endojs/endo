@@ -6,9 +6,16 @@
  */
 
 import { E } from '@endo/eventual-send';
+import { makeTagged } from '@endo/pass-style';
 import { decodeSwissnum } from './util.js';
 
 /**
+ * @import { CopyTagged } from '@endo/pass-style'
+ * @typedef {CopyTagged<'ocapn-sturdyref', undefined>} SturdyRef
+ * A SturdyRef is reified as a tagged value with tag 'ocapn-sturdyref' and undefined payload.
+ * This is a workaround for sturdyref lacking passStyleOf compatibility. A tag type was chosen
+ * so it is clearly labeled as a sturdyref, but should never be sent over the wire as a tagged value.
+ *
  * @typedef {object} SturdyRefDetails
  * @property {OcapnLocation} location
  * @property {SwissNum} swissNum
@@ -19,74 +26,12 @@ import { decodeSwissnum } from './util.js';
 const sturdyRefDetails = new WeakMap();
 
 /**
- * SturdyRef class - represents an unenlivened reference to a remote object
- */
-export class SturdyRef {
-  #provideSession;
-
-  #isSelfLocation;
-
-  #swissnumTable;
-
-  /**
-   * @param {(location: OcapnLocation) => Promise<Session>} provideSession
-   * @param {(location: OcapnLocation) => boolean} isSelfLocation
-   * @param {Map<string, any>} swissnumTable
-   * @param {OcapnLocation} location
-   * @param {SwissNum} swissNum
-   */
-  constructor(
-    provideSession,
-    isSelfLocation,
-    swissnumTable,
-    location,
-    swissNum,
-  ) {
-    this.#provideSession = provideSession;
-    this.#isSelfLocation = isSelfLocation;
-    this.#swissnumTable = swissnumTable;
-    // Store details in the module-private WeakMap
-    sturdyRefDetails.set(this, { location, swissNum });
-  }
-
-  /**
-   * Enliven the SturdyRef by fetching the actual object
-   * @returns {Promise<any>}
-   */
-  async enliven() {
-    const details = sturdyRefDetails.get(this);
-    if (!details) {
-      throw Error('SturdyRef details not found');
-    }
-    const { location, swissNum } = details;
-
-    // Special case: if this is a self-location, return the object directly
-    if (this.#isSelfLocation(location)) {
-      const swissStr = decodeSwissnum(swissNum);
-      const object = this.#swissnumTable.get(swissStr);
-      if (!object) {
-        throw Error(`Local fetch: Unknown swissnum for sturdyref: ${swissStr}`);
-      }
-      return object;
-    }
-
-    // Otherwise, fetch from remote location via session
-    const { ocapn } = await this.#provideSession(location);
-    return E(ocapn.getBootstrap()).fetch(swissNum);
-  }
-}
-
-// Harden the class
-harden(SturdyRef);
-harden(SturdyRef.prototype);
-
-/**
- * Check if a value is a SturdyRef
+ * Check if a value is a SturdyRef by checking if it's in the WeakMap
  * @param {any} value
  * @returns {boolean}
  */
 export const isSturdyRef = value => {
-  return value instanceof SturdyRef;
+  return sturdyRefDetails.has(value);
 };
 
 /**
@@ -99,6 +44,41 @@ export const getSturdyRefDetails = sturdyRef => {
 };
 
 /**
+ * Enliven a SturdyRef by fetching the actual object
+ * @param {SturdyRef} sturdyRef
+ * @param {(location: OcapnLocation) => Promise<Session>} provideSession
+ * @param {(location: OcapnLocation) => boolean} isSelfLocation
+ * @param {Map<string, any>} swissnumTable
+ * @returns {Promise<any>}
+ */
+export const enlivenSturdyRef = async (
+  sturdyRef,
+  provideSession,
+  isSelfLocation,
+  swissnumTable,
+) => {
+  const details = sturdyRefDetails.get(sturdyRef);
+  if (!details) {
+    throw Error('SturdyRef details not found');
+  }
+  const { location, swissNum } = details;
+
+  // Special case: if this is a self-location, return the object directly
+  if (isSelfLocation(location)) {
+    const swissStr = decodeSwissnum(swissNum);
+    const object = swissnumTable.get(swissStr);
+    if (!object) {
+      throw Error(`Local fetch: Unknown swissnum for sturdyref: ${swissStr}`);
+    }
+    return object;
+  }
+
+  // Otherwise, fetch from remote location via session
+  const { ocapn } = await provideSession(location);
+  return E(ocapn.getBootstrap()).fetch(swissNum);
+};
+
+/**
  * @typedef {object} SturdyRefTracker
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(swissNum: SwissNum) => any | undefined} lookup - Look up an object by swissnum
@@ -107,16 +87,10 @@ export const getSturdyRefDetails = sturdyRef => {
 
 /**
  * Create a SturdyRef tracker
- * @param {(location: OcapnLocation) => Promise<Session>} provideSession
- * @param {(location: OcapnLocation) => boolean} isSelfLocation
  * @param {Map<string, any>} swissnumTable
  * @returns {SturdyRefTracker}
  */
-export const makeSturdyRefTracker = (
-  provideSession,
-  isSelfLocation,
-  swissnumTable,
-) => {
+export const makeSturdyRefTracker = swissnumTable => {
   return harden({
     /**
      * @param {OcapnLocation} location
@@ -124,15 +98,11 @@ export const makeSturdyRefTracker = (
      * @returns {SturdyRef}
      */
     makeSturdyRef: (location, swissNum) => {
-      return harden(
-        new SturdyRef(
-          provideSession,
-          isSelfLocation,
-          swissnumTable,
-          location,
-          swissNum,
-        ),
-      );
+      // Create a tagged value with 'ocapn-sturdyref' tag and undefined payload
+      const sturdyRef = makeTagged('ocapn-sturdyref', undefined);
+      // Store the details in the WeakMap
+      sturdyRefDetails.set(sturdyRef, { location, swissNum });
+      return harden(sturdyRef);
     },
     /**
      * Look up an object by swissnum

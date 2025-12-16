@@ -149,6 +149,25 @@ const table = [
       t.deepEqual(details.swissNum, encodeSwissnum('123'));
     },
   },
+  {
+    name: 'sturdyref in list',
+    makeValue: testKit =>
+      harden([
+        testKit.sturdyRefTracker.makeSturdyRef(
+          exporterLocation,
+          encodeSwissnum('123'),
+        ),
+      ]),
+    customAssert: (t, actual) => {
+      t.is(actual.length, 1);
+      const details = getSturdyRefDetails(actual[0]);
+      if (!details) {
+        throw Error('SturdyRef has no details');
+      }
+      t.deepEqual(details.location, exporterLocation);
+      t.deepEqual(details.swissNum, encodeSwissnum('123'));
+    },
+  },
 ];
 
 runTableTests(test, 'PassableCodec', table, testKit => testKit.PassableCodec);
