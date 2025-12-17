@@ -40,6 +40,7 @@ import {
 } from '../cryptography.js';
 import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
+import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
 
 /**
  * @typedef {any} LocalResolver
@@ -836,6 +837,13 @@ export const makeOcapn = (
   const invokeDeliver = async (to, args) => {
     // We need to resolve the target to an object or function before we can invoke it.
     const resolvedTarget = await Promise.resolve(to);
+    // We only apply functions to values with pass-style "remotable".
+    const passStyle = ocapnPassStyleOf(resolvedTarget);
+    if (passStyle !== 'remotable') {
+      throw Error(
+        `OCapN: Cannot apply functions to values with pass-style ${passStyle}`,
+      );
+    }
     // While the to-value must be local (see DeliverTargetCodec), the resolved target may be remote.
     // We only want to apply our implementation's selector -> string method name coercion if the target is local.
     // eslint-disable-next-line no-use-before-define

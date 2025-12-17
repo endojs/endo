@@ -637,3 +637,82 @@ testWithErrorUnwrapping(
     shutdownBoth();
   },
 );
+
+testWithErrorUnwrapping(
+  'deliver to promise resolving to sturdyref should fail without disconnecting (can only deliver to "remotable" pass-style)',
+  async t => {
+    const testObjectTable = new Map();
+    testObjectTable.set(
+      'SturdyRefReturner',
+      Far('sturdyRefReturner', {
+        getSturdyRef: location =>
+          // eslint-disable-next-line no-use-before-define
+          clientKitB.client.makeSturdyRef(location, encodeSwissnum('target')),
+      }),
+    );
+
+    const { establishSession, shutdownBoth, clientKitB, getConnectionAtoB } =
+      await makeTestClientPair({
+        makeDefaultSwissnumTable: () => testObjectTable,
+      });
+
+    try {
+      const {
+        sessionA: { ocapn: ocapnA },
+      } = await establishSession();
+
+      const connectionAtoB = getConnectionAtoB();
+      if (!connectionAtoB) {
+        throw new Error('Connection A to B should exist');
+      }
+
+      // Get Bob's SturdyRefReturner
+      const bootstrapB = ocapnA.getBootstrap();
+      const sturdyRefReturner = await E(bootstrapB).fetch(
+        encodeSwissnum('SturdyRefReturner'),
+      );
+
+      // Get a promise that will resolve to a sturdyref
+      // (Bob's method returns a sturdyref)
+      const promiseThatResolvesToSturdyRef = E(sturdyRefReturner).getSturdyRef(
+        clientKitB.location,
+      );
+
+      // Attempt to deliver to this promise should fail when it resolves
+      // because sturdyref pass-style is not 'remotable'
+      const error = await t.throwsAsync(
+        async () => {
+          await E(promiseThatResolvesToSturdyRef)(
+            'some-method',
+            'arg1',
+            'arg2',
+          );
+        },
+        {
+          instanceOf: Error,
+          message: /Cannot apply functions to values with pass-style sturdyref/,
+        },
+        'Delivering to a promise that resolves to a sturdyref should throw',
+      );
+
+      t.truthy(error, 'Error should be thrown');
+
+      // Wait a bit to ensure no disconnection happens
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify connection is still active
+      t.false(
+        connectionAtoB.isDestroyed,
+        'Connection should NOT be destroyed when deliver fails due to wrong pass-style',
+      );
+
+      // Verify we can still make successful calls
+      const anotherSturdyRef = await E(sturdyRefReturner).getSturdyRef(
+        clientKitB.location,
+      );
+      t.truthy(anotherSturdyRef, 'Should still be able to make calls');
+    } finally {
+      shutdownBoth();
+    }
+  },
+);
