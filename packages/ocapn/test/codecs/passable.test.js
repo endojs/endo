@@ -65,16 +65,28 @@ const table = [
     value: harden(['hello', 'world']),
   },
   {
-    name: 'object with bigint and boolean',
+    name: 'struct with bigint and boolean',
     value: harden({ abc: 123n, xyz: true }),
+  },
+  {
+    name: 'struct with empty string key',
+    value: harden({ '': 10n, i: 20n }),
+  },
+  {
+    name: 'struct with out of order keys',
+    value: harden({ b: 10n, a: 20n }),
+  },
+  {
+    name: 'struct with "type" key',
+    value: harden({ type: 'invalid', abc: 'foo' }),
+  },
+  {
+    name: 'struct with known record type',
+    value: harden({ type: 'ocapn-peer', b: 10n, a: 20n }),
   },
   {
     name: 'tagged value',
     value: makeTagged('hello', ['world']),
-  },
-  {
-    name: 'object with empty string key',
-    value: harden({ '': 10n, i: 20n }),
   },
   // Float64 numbers - 'D' (0x44) followed by 8 bytes of IEEE 754 big-endian
   {
