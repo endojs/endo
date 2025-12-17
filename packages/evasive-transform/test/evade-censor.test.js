@@ -91,3 +91,36 @@ test('evadeCensor() - successful source transform w/ source map, source URL & un
   t.snapshot(stripLinefeeds(code));
   t.snapshot(map);
 });
+
+// import in a string will triger censorship in SES
+const evadeThat = `
+    // HTML comment <!-- should be evaded -->
+    // import comment ...import('some-module');
+    const result = eval("...import('some-module'); await import(\\"other\\");");
+    const result2 = eval('...import(\\'some-module\\'); await import("other");');
+    const multilineimport = \`
+        await import('some-module');
+    \`;
+    
+    import("some-module");
+    if (a--> b) {}
+  `;
+
+test('evadeCensor() - actual evasions in ESM', async t => {
+  const { code } = evadeCensorSync(evadeThat, {
+    preventHtmlCommentRegression: true,
+    sourceType: 'module',
+  });
+
+  t.snapshot(code);
+});
+
+test('evadeCensor() - actual evasions in ESM + elide', async t => {
+  const { code } = evadeCensorSync(evadeThat, {
+    preventHtmlCommentRegression: true,
+    sourceType: 'module',
+    elideComments: true,
+  });
+
+  t.snapshot(code);
+});

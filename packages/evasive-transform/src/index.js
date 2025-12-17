@@ -21,6 +21,7 @@ import { generate } from './generate.js';
  * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
  * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
  * @property {boolean} [useLocationUnmap] - deprecated, vestigial
+ * @property {boolean} [preventHtmlCommentRegression] - If true, will prevent `-->` from appearing in generated code
  * @public
  */
 
@@ -65,6 +66,7 @@ export function evadeCensorSync(source, options) {
     sourceUrl,
     sourceType,
     elideComments = false,
+    preventHtmlCommentRegression = false,
   } = options || {};
 
   // Parse the rolled-up chunk with Babel.
@@ -76,9 +78,9 @@ export function evadeCensorSync(source, options) {
   transformAst(ast, { elideComments });
 
   if (sourceUrl) {
-    return generate(ast, { source, sourceUrl, sourceMap });
+    return generate(ast, { source, sourceUrl, sourceMap, preventHtmlCommentRegression });
   }
-  return generate(ast, { source });
+  return generate(ast, { source, preventHtmlCommentRegression });
 }
 
 /**
