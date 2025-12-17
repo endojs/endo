@@ -98,7 +98,7 @@ export const generate = (ast, options) => {
     source,
   );
 
-  if(options.preventHtmlCommentRegression) {
+  if (options && options.preventHtmlCommentRegression) {
     // Workaround for generator creating `-->` from `-- >` in code generated from the AST
     result.code = result.code.replace(/-->/g, '-- >');
   }
