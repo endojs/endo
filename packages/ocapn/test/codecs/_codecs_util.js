@@ -4,10 +4,10 @@
  * @import { CapTPEngine } from '../../src/captp/captp-engine.js'
  * @import { MakeHandoff, MakeRemoteResolver, TableKit } from '../../src/client/ocapn.js'
  * @import { OcapnLocation } from '../../src/codecs/components.js'
- * @import { HandoffGiveSigEnvelope } from '../../src/codecs/descriptors.js'
+ * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../../src/codecs/descriptors.js'
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
  * @import { Settler } from '@endo/eventual-send'
- * @import { SwissNum } from '../../src/client/types.js'
+ * @import { LocationId, PublicKeyId, Session, SessionId, SwissNum } from '../../src/client/types.js'
  */
 
 import { Buffer } from 'buffer';
@@ -26,9 +26,13 @@ import { makeOcapnOperationsCodecs } from '../../src/codecs/operations.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
 import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
-
-const textEncoder = new TextEncoder();
-const sloppyTextDecoder = new TextDecoder('utf-8', { fatal: false });
+import {
+  makeOcapnKeyPairFromPrivateKey,
+  makeSignedHandoffGive,
+  makeSignedHandoffReceive,
+} from '../../src/cryptography.js';
+import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
+import { locationToLocationId } from '../../src/client/util.js';
 
 const bufferToHex = arrayBuffer => {
   // Convert ImmutableArrayBuffer to regular ArrayBuffer
@@ -37,19 +41,88 @@ const bufferToHex = arrayBuffer => {
 };
 
 /** @type {OcapnLocation} */
-const defaultPeerLocation = {
+export const exporterLocation = harden({
   type: 'ocapn-peer',
   transport: 'tcp-test-only',
-  designator: '1234',
-  hints: { host: '127.0.0.1', port: 54822 },
-};
+  designator: 'exporter',
+  hints: { host: '127.0.0.1', port: '54822' },
+});
+/** @type {OcapnLocation} */
+export const receiverLocation = harden({
+  type: 'ocapn-peer',
+  transport: 'tcp-test-only',
+  designator: 'receiver',
+  hints: { host: '127.0.0.1', port: '54823' },
+});
+/** @type {OcapnLocation} */
+export const gifterLocation = harden({
+  type: 'ocapn-peer',
+  transport: 'tcp-test-only',
+  designator: 'gifter',
+  hints: { host: '127.0.0.1', port: '54824' },
+});
+
+export const exampleSigParamBytes = uint8ArrayToImmutableArrayBuffer(
+  Uint8Array.from({ length: 32 }, (_, i) => i),
+);
+export const examplePubKeyQBytes = uint8ArrayToImmutableArrayBuffer(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 2),
+);
+
+export const exporterKeyForGifter = makeOcapnKeyPairFromPrivateKey(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 1),
+);
+export const exporterKeyForReceiver = makeOcapnKeyPairFromPrivateKey(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 2),
+);
+export const gifterKeyForExporter = makeOcapnKeyPairFromPrivateKey(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 3),
+);
+export const gifterKeyForReceiver = makeOcapnKeyPairFromPrivateKey(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 4),
+);
+export const receiverKeyForGifter = makeOcapnKeyPairFromPrivateKey(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 5),
+);
+export const receiverKeyForExporter = makeOcapnKeyPairFromPrivateKey(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 6),
+);
+
+export const exampleExporterSessionId = /** @type {SessionId} */ (
+  uint8ArrayToImmutableArrayBuffer(
+    Uint8Array.from({ length: 32 }, (_, i) => i * 7),
+  )
+);
+export const exampleGifterSideId = /** @type {PublicKeyId} */ (
+  uint8ArrayToImmutableArrayBuffer(
+    Uint8Array.from({ length: 32 }, (_, i) => i * 8),
+  )
+);
+export const exampleGiftId = uint8ArrayToImmutableArrayBuffer(
+  Uint8Array.from({ length: 32 }, (_, i) => i * 9),
+);
+export const exampleReceiverSessionId = /** @type {SessionId} */ (
+  uint8ArrayToImmutableArrayBuffer(
+    Uint8Array.from({ length: 32 }, (_, i) => i * 10),
+  )
+);
+export const exampleReceiverSideId = /** @type {PublicKeyId} */ (
+  uint8ArrayToImmutableArrayBuffer(
+    Uint8Array.from({ length: 32 }, (_, i) => i * 11),
+  )
+);
 
 /**
  * @typedef {object} CodecTestKit
  * @property {CapTPEngine} engine
  * @property {TableKit} tableKit
+ * @property {import('../../src/client/sturdyrefs.js').SturdyRefTracker} sturdyRefTracker
  * @property {(position: bigint) => any} makeExportAt
+ * @property {(position: bigint) => any} makeExportPromiseAt
  * @property {(position: bigint) => Promise<any>} makeAnswerAt
+ * @property {(position: bigint) => any} makeImportObjectAt
+ * @property {(position: bigint) => any} makeImportPromiseAt
+ * @property {(location: OcapnLocation, position?: bigint) => any} makeThirdPartyReference
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
  * @property {(location: OcapnLocation, swissNum: SwissNum) => Promise<any>} lookupSturdyRef
  * @property {SyrupCodec} ReferenceCodec
@@ -59,10 +132,14 @@ const defaultPeerLocation = {
  */
 
 /**
- * @param {OcapnLocation} [peerLocation]
+ * @param {OcapnLocation} [ownLocation]
+ * @param {OcapnLocation} peerLocation
  * @returns {CodecTestKit}
  */
-export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
+export const makeCodecTestKit = (
+  ownLocation = exporterLocation,
+  peerLocation = receiverLocation,
+) => {
   const verbose = false;
   const logger = harden({
     log: (...args) => console.log(...args),
@@ -114,19 +191,23 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   const testHandoffMap = new Map();
 
+  const immediateProvideSession = location => {
+    return {
+      ocapn: {
+        getBootstrap: async () => ({
+          fetch: async () => Promise.resolve('mock-fetched-value'),
+        }),
+      },
+    };
+  };
+
   /**
    * Mock provideSession for tests
    * @param {OcapnLocation} location
    * @returns {Promise<any>}
    */
   const mockProvideSession = async location => {
-    return Promise.resolve({
-      ocapn: {
-        getBootstrap: async () => ({
-          fetch: async () => Promise.resolve('mock-fetched-value'),
-        }),
-      },
-    });
+    return Promise.resolve(immediateProvideSession(location));
   };
 
   // Mock SturdyRef tracker for tests
@@ -190,8 +271,23 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     importHook,
   });
 
-  const getActiveSession = () => {
-    throw Error('getActiveSession is not implemented for test');
+  /**
+   * @param {LocationId} destLocationId
+   * @returns {Session | undefined}
+   */
+  const getActiveSession = destLocationId => {
+    const ownLocationId = locationToLocationId(ownLocation);
+    if (destLocationId === ownLocationId) {
+      throw Error('getActiveSession cannot be called for own location');
+    }
+    if (
+      [gifterLocation, receiverLocation, exporterLocation]
+        .map(locationToLocationId)
+        .includes(destLocationId)
+    ) {
+      return /** @type {Session} */ (immediateProvideSession());
+    }
+    return undefined;
   };
 
   const sendDepositGift = () => {
@@ -216,9 +312,31 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   );
   const { PassableCodec } = passableCodecs;
 
+  const makeImportObjectAt = position => {
+    const slot = `o-${position}`;
+    // This name is importat for tests
+    const value = Far(`Presence test ${slot}`, {});
+    engine.registerImport(value, slot);
+    return value;
+  };
+
+  const makeImportPromiseAt = position => {
+    const slot = `p-${position}`;
+    const value = Far(`Promise test ${slot}`, {});
+    engine.registerImport(value, slot);
+    return value;
+  };
+
   const makeExportAt = position => {
     const slot = `o+${position}`;
     const value = Far('Export', {});
+    engine.registerExport(value, slot);
+    return value;
+  };
+
+  const makeExportPromiseAt = position => {
+    const slot = `p+${position}`;
+    const value = Far('Export Promise', {});
     engine.registerExport(value, slot);
     return value;
   };
@@ -230,11 +348,28 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     return promise;
   };
 
+  // // Register the bootstrap object at position 0
+  // makeImportObjectAt(0)
+
+  const makeThirdPartyReference = (location, position = 1n) => {
+    const slot = `o-${position}`;
+    const val = Far('ThirdPartyReference', {});
+    const grantDetails = makeGrantDetails(location, slot);
+    // @ts-expect-error - val is not the correct type but we won't use it for the test
+    grantTracker.recordImport(val, grantDetails);
+    return val;
+  };
+
   return {
     engine,
     tableKit,
+    sturdyRefTracker,
     makeExportAt,
+    makeExportPromiseAt,
     makeAnswerAt,
+    makeImportObjectAt,
+    makeImportPromiseAt,
+    makeThirdPartyReference,
     lookupHandoff,
     lookupSturdyRef,
     ...descCodecs,
@@ -244,40 +379,19 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 };
 
 /**
- * @param {string | Uint8Array} syrup
- * @returns {Uint8Array}
- */
-const getSyrupBytes = syrup => {
-  if (typeof syrup === 'string') {
-    return textEncoder.encode(syrup);
-  }
-  return syrup;
-};
-
-/**
- * @param {string | Uint8Array} syrup
- * @returns {string}
- */
-const getSyrupString = syrup => {
-  // This text decoder is only for testing label purposes, so it doesn't need to be strict.
-  if (typeof syrup === 'string') {
-    return syrup;
-  }
-  return sloppyTextDecoder.decode(syrup);
-};
-
-/**
  * @typedef {object} CodecTestEntry
+ * @property {string} name
+ * @property {boolean} [only] // only run this test (via test.only)
+ * @property {OcapnLocation} [ownLocation]
+ * @property {OcapnLocation} [peerLocation]
  * @property {SyrupCodec} [codec]
  * @property {(testKit: CodecTestKit) => SyrupCodec} [getCodec]
- * @property {string | Uint8Array} syrup
  * @property {(testKit: CodecTestKit) => void} [beforeTest]
  * @property {any} [value]
  * @property {(testKit: CodecTestKit) => any} [makeValue]
- * @property {(testKit: CodecTestKit) => any} [makeValueAfter]
- * @property {string | Uint8Array} [returnSyrup]
- * @property {boolean} [skipWrite]
- * @property {string} [name]
+ * @property {(testKit: CodecTestKit) => any} [makeExpectedValue]
+ * @property {boolean} [skipRead]
+ * @property {(t: any, actual: any, expected: any, descriptor: string) => void} [customAssert]
  */
 
 /**
@@ -287,29 +401,26 @@ const getSyrupString = syrup => {
 export const testBidirectionally = (
   t,
   {
+    ownLocation = exporterLocation,
+    peerLocation = receiverLocation,
     codec: specifiedCodec,
     getCodec,
     beforeTest,
     value,
     makeValue,
-    makeValueAfter,
-    syrup,
-    returnSyrup: expectedOutputSyrup = syrup,
-    skipWrite = false,
+    makeExpectedValue,
+    skipRead = false,
+    customAssert,
     name = '(unknown test entry)',
   },
 ) => {
-  const inputSyrupString = getSyrupString(syrup);
-  const testDescriptor = `${name} ${inputSyrupString}`;
-  if (
-    [value, makeValue, makeValueAfter].filter(arg => arg !== undefined).length >
-    1
-  ) {
-    throw Error(
-      `Only one of value, makeValue, or makeValueAfter can be provided for ${name}`,
-    );
+  // const inputSyrupString = getSyrupString(syrup);
+  // const testDescriptor = `${name} ${inputSyrupString}`;
+  const testDescriptor = name;
+  if ([value, makeValue].filter(arg => arg !== undefined).length > 1) {
+    throw Error(`Only one of value, makeValue can be provided for ${name}`);
   }
-  const testKit = makeCodecTestKit();
+  const testKit = makeCodecTestKit(ownLocation, peerLocation);
   const codec = specifiedCodec || (getCodec && getCodec(testKit));
   if (!codec) {
     throw Error(`codec or getCodec must be provided for ${name}`);
@@ -319,45 +430,20 @@ export const testBidirectionally = (
     beforeTest(testKit);
   }
 
-  let expectedValue = value;
+  let inputValue = value;
   if (makeValue) {
-    expectedValue = makeValue(testKit);
+    inputValue = makeValue(testKit);
   }
-  // Test read.
-  const inputSyrupBytes = getSyrupBytes(syrup);
-  const syrupReader = makeSyrupReader(inputSyrupBytes, {
-    name: `${name} ${inputSyrupString}`,
-  });
-  let actualValueResult;
-  notThrowsWithErrorUnwrapping(
-    t,
-    () => {
-      actualValueResult = codec.read(syrupReader);
-    },
-    `read syrup: ${testDescriptor}`,
-  );
-  if (makeValueAfter) {
-    expectedValue = makeValueAfter(testKit);
-  }
-  t.deepEqual(
-    actualValueResult,
-    expectedValue,
-    `value check: ${testDescriptor}`,
-  );
-
-  // If we're skipping the return, we're done.
-  if (skipWrite) {
-    return;
-  }
+  const expectedValue = makeExpectedValue ? makeExpectedValue(testKit) : value;
 
   // Test write.
-  const expectedOutputSyrupString = getSyrupString(expectedOutputSyrup);
-  const expectedOutputSyrupBytes = getSyrupBytes(expectedOutputSyrup);
-  const syrupWriter = makeSyrupWriter();
+  // const expectedOutputSyrupString = getSyrupString(expectedOutputSyrup);
+  // const expectedOutputSyrupBytes = getSyrupBytes(expectedOutputSyrup);
+  const syrupWriter = makeSyrupWriter({ name: testDescriptor });
   notThrowsWithErrorUnwrapping(
     t,
     () => {
-      codec.write(expectedValue, syrupWriter);
+      codec.write(inputValue, syrupWriter);
     },
     `write syrup: ${testDescriptor}`,
   );
@@ -365,19 +451,99 @@ export const testBidirectionally = (
   const { value: actualSyrupResultString, isValidUtf8 } = maybeDecode(
     actualSyrupResultBytes,
   );
-  // We only match the syrup strings for easier debugging,
-  // and we can only do this if the syrup is valid UTF-8.
+
+  // Snapshot the syrup result as a string (if possible) otherwise hex encoded bytes.
   if (isValidUtf8) {
+    t.snapshot(actualSyrupResultString, testDescriptor);
+  } else {
+    const hexEncoded = Array.from(actualSyrupResultBytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join(' ');
+    t.snapshot(hexEncoded, testDescriptor);
+  }
+
+  // It doesn't always make sense for the same codec to write and read the same value.
+  // This is because the codecs close over the import/export table.
+  if (skipRead) {
+    return;
+  }
+
+  const readValueResult = codec.read(
+    makeSyrupReader(actualSyrupResultBytes, {
+      name: `${testDescriptor} read back`,
+    }),
+  );
+
+  if (customAssert) {
+    customAssert(
+      t,
+      readValueResult,
+      expectedValue,
+      `value check: ${testDescriptor}`,
+    );
+  } else {
     t.deepEqual(
-      actualSyrupResultString,
-      expectedOutputSyrupString,
-      `write syrup: ${testDescriptor}`,
+      readValueResult,
+      expectedValue,
+      `value check: ${testDescriptor}`,
     );
   }
-  // Testing the bytes is what we actually care about.
-  t.deepEqual(
-    actualSyrupResultBytes,
-    expectedOutputSyrupBytes,
-    `write syrup: ${testDescriptor}`,
+};
+
+/**
+ * @param {any} test
+ * @param {string} tableName
+ * @param {CodecTestEntry[]} table
+ * @param {(testKit: CodecTestKit) => SyrupCodec} getCodec
+ */
+export const runTableTests = (test, tableName, table, getCodec) => {
+  let hasOnly = false;
+  for (const [index, entry] of table.entries()) {
+    const { name = `test-${index}`, only } = entry;
+    const testFunction = only ? test.only : test;
+    if (only) {
+      hasOnly = true;
+    }
+    testFunction(`affirmative table tests ${tableName}: ${name}`, t => {
+      testBidirectionally(t, {
+        // @ts-expect-error - name is specified more than once
+        name,
+        getCodec,
+        ...entry,
+      });
+    });
+  }
+  if (hasOnly) {
+    test.only('Disallow "only" in tables', t => {
+      t.fail('"only" is not allowed in tables');
+    });
+  }
+};
+
+/**
+ * @returns {HandoffGiveSigEnvelope}
+ */
+export const makeFixtureSignedHandoffGive = () => {
+  return makeSignedHandoffGive(
+    receiverKeyForGifter.publicKey,
+    exporterLocation,
+    exampleExporterSessionId,
+    exampleGifterSideId,
+    exampleGiftId,
+    gifterKeyForExporter,
+  );
+};
+
+/**
+ * @returns {HandoffReceiveSigEnvelope}
+ */
+export const makeFixtureSignedHandoffReceive = () => {
+  const signedHandoffGive = makeFixtureSignedHandoffGive();
+  return makeSignedHandoffReceive(
+    signedHandoffGive,
+    1n,
+    exampleReceiverSessionId,
+    exampleReceiverSideId,
+    receiverKeyForExporter,
   );
 };

@@ -10,6 +10,8 @@ import {
 } from './codecs/components.js';
 import { compareUint8Arrays } from './syrup/compare.js';
 import {
+  makeHandoffGiveDescriptor,
+  makeHandoffGiveSigEnvelope,
   makeHandoffReceiveDescriptor,
   makeHandoffReceiveSigEnvelope,
   serializeHandoffGive,
@@ -107,10 +109,10 @@ export const makeOcapnPublicKey = publicKeyBytes => {
 };
 
 /**
+ * @param {Uint8Array} privateKeyBytes
  * @returns {OcapnKeyPair}
  */
-export const makeOcapnKeyPair = () => {
-  const privateKeyBytes = ed25519.utils.randomPrivateKey();
+export const makeOcapnKeyPairFromPrivateKey = privateKeyBytes => {
   const publicKeyBytes = ed25519.getPublicKey(privateKeyBytes);
   const publicKeyBuffer = uint8ArrayToImmutableArrayBuffer(publicKeyBytes);
   return {
@@ -126,6 +128,14 @@ export const makeOcapnKeyPair = () => {
       };
     },
   };
+};
+
+/**
+ * @returns {OcapnKeyPair}
+ */
+export const makeOcapnKeyPair = () => {
+  const privateKeyBytes = ed25519.utils.randomPrivateKey();
+  return makeOcapnKeyPairFromPrivateKey(privateKeyBytes);
 };
 
 /**
@@ -221,6 +231,34 @@ export const verifyLocationSignature = (location, signature, publicKey) => {
 export const signHandoffGive = (handoffGive, keyPair) => {
   const handoffGiveBytes = serializeHandoffGive(handoffGive);
   return keyPair.sign(handoffGiveBytes);
+};
+
+/**
+ * @param {OcapnPublicKey} receiverPublicKeyForGifter
+ * @param {OcapnLocation} exporterLocation
+ * @param {SessionId} gifterExporterSessionId
+ * @param {PublicKeyId} gifterSideId
+ * @param {ArrayBufferLike} giftId
+ * @param {OcapnKeyPair} gifterKeyForExporter
+ * @returns {HandoffGiveSigEnvelope}
+ */
+export const makeSignedHandoffGive = (
+  receiverPublicKeyForGifter,
+  exporterLocation,
+  gifterExporterSessionId,
+  gifterSideId,
+  giftId,
+  gifterKeyForExporter,
+) => {
+  const handoffGive = makeHandoffGiveDescriptor(
+    receiverPublicKeyForGifter.descriptor,
+    exporterLocation,
+    gifterExporterSessionId,
+    gifterSideId,
+    giftId,
+  );
+  const signature = signHandoffGive(handoffGive, gifterKeyForExporter);
+  return makeHandoffGiveSigEnvelope(handoffGive, signature);
 };
 
 /**

@@ -33,7 +33,8 @@
     "test": "ses-ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0",
-    "test:python": "node ./test/python-test-suite/index.js"
+    "test:python": "node ./test/python-test-suite/index.js",
+    "test:update-snapshots": "ses-ava --update-snapshots"
   },
   "dependencies": {
     "@endo/errors": "workspace:^",

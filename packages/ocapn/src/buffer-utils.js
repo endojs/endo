@@ -52,6 +52,24 @@ export const decodeImmutableArrayBufferToString = buffer => {
 };
 
 /**
+ * Converts a hex string to an ArrayBuffer
+ * @param {string} hexString - The hex string to convert
+ * @returns {ArrayBuffer} The ArrayBuffer representation of the hex string
+ */
+export function hexToArrayBuffer(hexString) {
+  if (hexString.length % 2 !== 0) {
+    throw new Error(
+      `Hex string must have an even length, got ${hexString.length}`,
+    );
+  }
+  const bytes = new Uint8Array(hexString.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
+  }
+  return uint8ArrayToImmutableArrayBuffer(bytes);
+}
+
+/**
  * Concatenate multiple Uint8Arrays into a single Uint8Array
  * @param {Array<Uint8Array>} uint8Arrays
  * @returns {Uint8Array}
@@ -68,4 +86,24 @@ export const concatUint8Arrays = uint8Arrays => {
     offset += uint8Array.length;
   }
   return result;
+};
+
+/**
+ * Concatenate multiple ArrayBuffers into a single Uint8Array
+ * @param {Array<ArrayBuffer>} arrayBuffers
+ * @returns {ArrayBuffer}
+ */
+export const concatArrayBuffers = arrayBuffers => {
+  const totalLength = arrayBuffers.reduce(
+    (acc, arrayBuffer) => acc + arrayBuffer.byteLength,
+    0,
+  );
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arrayBuffer of arrayBuffers) {
+    // Immutable ArrayBuffers need to be sliced before creating a Uint8Array view
+    result.set(new Uint8Array(arrayBuffer.slice()), offset);
+    offset += arrayBuffer.byteLength;
+  }
+  return uint8ArrayToImmutableArrayBuffer(result);
 };

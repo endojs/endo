@@ -8,25 +8,22 @@
 import test from '@endo/ses-ava/test.js';
 
 import {
-  makeSig,
-  makePeer,
-  makePubKey,
-  exampleSigParamBytes,
-  examplePubKeyQBytes,
-} from './_syrup_util.js';
-import {
   OcapnPeerCodec,
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from '../../src/codecs/components.js';
 import { makeTypeHintUnionCodec } from '../../src/syrup/codec.js';
 import { makeOcapnListComponentUnionCodec } from '../../src/codecs/util.js';
-import { testBidirectionally } from './_codecs_util.js';
+import {
+  exampleSigParamBytes,
+  examplePubKeyQBytes,
+  testBidirectionally,
+} from './_codecs_util.js';
 
 /** @type {CodecTestEntry[]} */
 const table = [
   {
-    syrup: makeSig(exampleSigParamBytes, exampleSigParamBytes),
+    name: 'sig-val',
     value: /** @type {OcapnSignature} */ ({
       type: 'sig-val',
       scheme: 'eddsa',
@@ -35,7 +32,7 @@ const table = [
     }),
   },
   {
-    syrup: makePeer('tcp', '1234', { host: '127.0.0.1', port: '54822' }),
+    name: 'ocapn-peer',
     value: /** @type {OcapnLocation} */ ({
       type: 'ocapn-peer',
       transport: 'tcp',
@@ -44,7 +41,7 @@ const table = [
     }),
   },
   {
-    syrup: makePubKey(examplePubKeyQBytes),
+    name: 'public-key',
     value: /** @type {OcapnPublicKeyDescriptor} */ ({
       type: 'public-key',
       scheme: 'ecc',

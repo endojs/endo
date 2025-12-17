@@ -61,7 +61,8 @@ const logErrorCauseChain = (t, error, testName) => {
   t.log(`Function threw for ${testName}:`);
   for (const [index, cause] of causes.entries()) {
     t.log(`Error chain, depth ${index}:`);
-    t.log(cause.stack);
+    t.log(cause);
+    if (cause.stack) t.log(cause.stack);
   }
 };
 
