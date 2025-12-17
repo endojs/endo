@@ -11,7 +11,7 @@ export const makeSelector = name => {
       `Selector name must not start with "@@" (reserved for well-known symbols), got: ${name}`,
     );
   }
-  return passableSymbolForName(name);
+  return harden(passableSymbolForName(name));
 };
 
 /**

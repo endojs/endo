@@ -108,32 +108,27 @@ const table = [
   // Errors - read as plain objects, write as dictionaries (different syrup format)
   {
     name: 'error simple',
-    value: harden({ type: 'desc:error', message: 'Test error' }),
+    value: harden(Error('Test error')),
   },
   {
     name: 'error empty',
-    value: harden({ type: 'desc:error', message: '' }),
+    value: harden(Error('')),
   },
   {
     name: 'error with special chars',
-    value: harden({
-      type: 'desc:error',
-      message: 'Error: "quoted" and \'single\' with\nnewline and\ttab',
-    }),
+    value: harden(
+      Error('Error: "quoted" and \'single\' with\nnewline and\ttab'),
+    ),
   },
   // Nested structures with errors and floats
   {
     name: 'error in array',
-    value: harden([
-      'before',
-      { type: 'desc:error', message: 'Nested error' },
-      'after',
-    ]),
+    value: harden(['before', Error('Nested error'), 'after']),
   },
   {
     name: 'error in record',
     value: harden({
-      error: { type: 'desc:error', message: 'Message' },
+      error: Error('Message'),
       text: 'hello',
     }),
   },
@@ -231,7 +226,7 @@ test('passable error - write Error object', t => {
 
   const reader = makeSyrupReader(syrupBytes, { name: 'error write' });
   const result = codec.read(reader);
-  t.deepEqual(result, { type: 'desc:error', message: 'Test error' });
+  t.deepEqual(result, Error('Test error'));
 });
 
 test('passable error - with unicode characters', t => {
@@ -244,7 +239,7 @@ test('passable error - with unicode characters', t => {
 
   const reader = makeSyrupReader(syrupBytes, { name: 'error unicode' });
   const result = codec.read(reader);
-  t.deepEqual(result, { type: 'desc:error', message });
+  t.deepEqual(result, Error(message));
 });
 
 test('passable nested - float64 in containers', t => {
@@ -283,7 +278,7 @@ test('passable nested - mixed types with error', t => {
   const result = codec.read(reader);
   t.deepEqual(result, {
     count: 10n,
-    error: { type: 'desc:error', message: 'Failed' },
+    error: Error('Failed'),
     name: 'test',
     ratio: 0.5,
   });

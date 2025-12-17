@@ -7,7 +7,7 @@
 /**
  * @import { CapTPEngine } from '../captp/captp-engine.js'
  * @import { OcapnLocation } from '../codecs/components.js'
- * @import { HandoffGive, HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
+ * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  * @import { Connection, LocationId, Logger, Session, SessionId, SwissNum } from './types.js'
@@ -21,8 +21,6 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeCapTPEngine } from '../captp/captp-engine.js';
 import {
   makeDescCodecs,
-  makeHandoffGiveDescriptor,
-  makeHandoffGiveSigEnvelope,
   makeHandoffReceiveDescriptor,
   makeHandoffReceiveSigEnvelope,
 } from '../codecs/descriptors.js';
@@ -35,10 +33,10 @@ import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
 import {
   publicKeyDescriptorToPublicKey,
   randomGiftId,
-  signHandoffGive,
   verifyHandoffGiveSignature,
   verifyHandoffReceiveSignature,
   signHandoffReceive,
+  makeSignedHandoffGive,
 } from '../cryptography.js';
 import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
@@ -607,17 +605,13 @@ export const makeTableKit = (
       } = gifterReceiverSession;
       const gifterSideId = gifterExporterSession.self.keyPair.publicKey.id;
       const giftId = randomGiftId();
-      const handoffGive = makeHandoffGiveDescriptor(
-        receiverPublicKeyForGifter.descriptor,
+      const signedHandoffGive = makeSignedHandoffGive(
+        receiverPublicKeyForGifter,
         exporterLocation,
         gifterExporterSessionId,
         gifterSideId,
         giftId,
-      );
-      const signature = signHandoffGive(handoffGive, gifterKeyForExporter);
-      const signedHandoffGive = makeHandoffGiveSigEnvelope(
-        handoffGive,
-        signature,
+        gifterKeyForExporter,
       );
       sendDepositGift(gifterExporterSession, giftId, value);
       return signedHandoffGive;

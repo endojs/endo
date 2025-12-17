@@ -1,6 +1,6 @@
 /**
  * @import { HandoffGiveDetails, TableKit } from '../client/ocapn.js'
- * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordDefinition, SyrupRecordUnionCodec, SyrupType } from '../syrup/codec.js'
+ * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordDefinition, SyrupRecordUnionCodec } from '../syrup/codec.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
  */

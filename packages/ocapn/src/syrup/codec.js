@@ -1,4 +1,5 @@
 /**
+ * @import { OcapnPassStyle } from '../codecs/ocapn-pass-style.js'
  * @import { SyrupReader, SyrupType, TypeHintTypes } from './decode.js'
  * @import { SyrupWriter } from './encode.js'
  */
@@ -7,6 +8,7 @@ import {
   decodeImmutableArrayBufferToString,
   encodeStringToImmutableArrayBuffer,
 } from '../buffer-utils.js';
+import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
 
 /**
  * @typedef {object} SyrupCodec
@@ -265,13 +267,14 @@ export const makeSetCodecFromEntryCodec = (codecName, childCodec) => {
 
 /**
  * @param {string} codecName
- * @param {SyrupCodec} childCodec
+ * @param {ResolvableCodec} childCodecOrGetter
  * @returns {SyrupCodec}
  * Codec for a list of items of unknown length and known entry type
  */
-export const makeListCodecFromEntryCodec = (codecName, childCodec) => {
+export const makeListCodecFromEntryCodec = (codecName, childCodecOrGetter) => {
   return makeCodec(codecName, {
     read: syrupReader => {
+      const childCodec = resolveCodec(childCodecOrGetter, syrupReader);
       syrupReader.enterList();
       const result = [];
       while (!syrupReader.peekListEnd()) {
@@ -282,6 +285,7 @@ export const makeListCodecFromEntryCodec = (codecName, childCodec) => {
       return result;
     },
     write: (value, syrupWriter) => {
+      const childCodec = resolveCodec(childCodecOrGetter, value);
       syrupWriter.enterList();
       for (const child of value) {
         childCodec.write(child, syrupWriter);
@@ -433,6 +437,7 @@ export const makeRecordCodecFromDefinition = (
       result[fieldName] = fieldCodec.read(syrupReader);
     }
     result.type = label;
+    harden(result);
     return result;
   };
   /**
@@ -443,7 +448,13 @@ export const makeRecordCodecFromDefinition = (
     for (const [fieldName, fieldType] of Object.entries(definition)) {
       const fieldValue = value[fieldName];
       const fieldCodec = resolveCodec(fieldType, fieldValue);
-      fieldCodec.write(fieldValue, syrupWriter);
+      try {
+        fieldCodec.write(fieldValue, syrupWriter);
+      } catch (error) {
+        throw Error(`${codecName}: write failed for field ${fieldName}`, {
+          cause: error,
+        });
+      }
     }
   };
 
@@ -483,9 +494,12 @@ export const makeUnionCodec = (
   });
 };
 
-/** @typedef {'undefined'|'object'|'function'|'boolean'|'number'|'string'|'symbol'|'bigint'} JavascriptTypeofValueTypes */
-/** @typedef {Partial<Record<TypeHintTypes, ResolvableCodec>>} TypeHintUnionReadTable */
-/** @typedef {Partial<Record<JavascriptTypeofValueTypes, ResolvableCodec>>} TypeHintUnionWriteTable */
+/**
+ * @typedef {'undefined'|'object'|'function'|'boolean'|'number'|'string'|'symbol'|'bigint'} JavascriptTypeofValueTypes
+ * @typedef {Partial<Record<TypeHintTypes, ResolvableCodec>>} TypeHintUnionReadTable
+ * @typedef {Partial<Record<JavascriptTypeofValueTypes, ResolvableCodec>>} TypeHintUnionWriteTable
+ * @typedef {Partial<Record<OcapnPassStyle, ResolvableCodec>>} TypeHintPassStyleUnionWriteTable
+ */
 
 const isResolvableCodec = codec => {
   return codec && (typeof codec === 'object' || typeof codec === 'function');
@@ -540,6 +554,68 @@ export const makeTypeHintUnionCodec = (codecName, readTable, writeTable) => {
           .join(', ');
         throw Error(
           `Unexpected value type ${quote(typeof value)}, expected one of ${expected}`,
+        );
+      }
+      const codec = resolveCodec(codecOrGetter, value);
+      return codec;
+    },
+  );
+};
+
+/**
+ * @param {string} codecName
+ * @param {TypeHintUnionReadTable} readTable
+ * @param {TypeHintPassStyleUnionWriteTable} writeTable
+ * @returns {SyrupCodec}
+ */
+export const makeTypeHintPassStyleUnionCodec = (
+  codecName,
+  readTable,
+  writeTable,
+) => {
+  let badCodecEntry = Object.entries(readTable).find(
+    ([_, codec]) => !isResolvableCodec(codec),
+  );
+  if (badCodecEntry) {
+    const badCodecName = badCodecEntry[0];
+    throw Error(
+      `${codecName}: readTable contains non-codec entry ${badCodecName}`,
+    );
+  }
+  badCodecEntry = Object.entries(writeTable).find(
+    ([_, codec]) => !isResolvableCodec(codec),
+  );
+  if (badCodecEntry) {
+    const badCodecName = badCodecEntry[0];
+    throw Error(
+      `${codecName}: writeTable contains non-codec entry ${badCodecName}`,
+    );
+  }
+  return makeUnionCodec(
+    codecName,
+    syrupReader => {
+      const typeHint = syrupReader.peekTypeHint();
+      const codecRef = readTable[typeHint];
+      if (!codecRef) {
+        const expected = Object.keys(readTable)
+          .map(key => quote(key))
+          .join(', ');
+        throw Error(
+          `Unexpected type hint ${quote(typeHint)}, expected one of ${expected}`,
+        );
+      }
+      const codec = resolveCodec(codecRef, syrupReader);
+      return codec;
+    },
+    value => {
+      const passStyle = ocapnPassStyleOf(value);
+      const codecOrGetter = writeTable[passStyle];
+      if (!codecOrGetter) {
+        const expected = Object.keys(writeTable)
+          .map(key => quote(key))
+          .join(', ');
+        throw Error(
+          `Unexpected passStyle type ${quote(passStyle)}, expected one of ${expected}`,
         );
       }
       const codec = resolveCodec(codecOrGetter, value);

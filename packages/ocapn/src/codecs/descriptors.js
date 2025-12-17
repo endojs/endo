@@ -35,6 +35,7 @@ import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
  * @property {SyrupRecordUnionCodec} ReferenceCodec
  * @property {SyrupCodec} DeliverTargetCodec
  * @property {SyrupRecordCodec} OcapnSturdyRefCodec
+ * @property {SyrupRecordCodec} HandOffUnionCodec
  */
 
 /**
@@ -361,6 +362,7 @@ export const makeDescCodecs = tableKit => {
     ReferenceCodec,
     ResolveMeDescCodec,
     OcapnSturdyRefCodec,
+    HandOffUnionCodec,
   };
 };
 

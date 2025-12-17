@@ -317,14 +317,14 @@ export const table = [
     makeValue: testKit => ({
       type: 'op:deliver',
       to: testKit.makeImportObjectAt(1n),
-      args: [[makeSelector('red'), makeSelector('zoomracer')]],
+      args: harden([[makeSelector('red'), makeSelector('zoomracer')]]),
       answerPosition: 2n,
       resolveMeDesc: testKit.makeExportAt(2n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
       to: testKit.makeExportAt(1n),
-      args: [[makeSelector('red'), makeSelector('zoomracer')]],
+      args: harden([[makeSelector('red'), makeSelector('zoomracer')]]),
       answerPosition: 2n,
       resolveMeDesc: testKit.makeImportObjectAt(2n),
     }),
