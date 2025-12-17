@@ -1163,9 +1163,6 @@ export const makeOcapn = (
     logger.info(`sending message`, message);
     try {
       const bytes = writeOcapnMessage(message);
-      const syrupObject = decodeSyrup(bytes);
-      logger.info(`sending message syrup:`);
-      logger.info(syrupObject);
       connection.write(bytes);
       // Tell the engine message serialization has completed.
       engine.sendSlot.commit();
