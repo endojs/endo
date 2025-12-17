@@ -21,7 +21,8 @@ test('archives only contain compartments retained by modules', async t => {
   });
 
   const reader = new ZipReader(bytes);
-  const compartmentMapBytes = reader.files.get('compartment-map.json').content;
+  const compartmentMapBytes = reader.files.get('compartment-map.json')?.content;
+  t.assert(compartmentMapBytes);
   const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
   const compartmentMap = JSON.parse(compartmentMapText);
   t.deepEqual(Object.keys(compartmentMap.compartments), [
