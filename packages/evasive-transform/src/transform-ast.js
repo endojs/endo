@@ -26,6 +26,7 @@ function evadeImportStrings(p) {
   // if p is a string literal containing the string "import(", replace it with a concatenation of two string literals
   // `import(` -> `imp`+`ort(`
   if (type === 'StringLiteral' && value.includes('import(')) {
+    /** @type {string[]} */
     const parts = value.split('import(');
     if (parts.length > 1) {
       /** @type {import('@babel/types').Expression[]} */
@@ -44,7 +45,7 @@ function evadeImportStrings(p) {
           value: chunk,
         });
       }
-
+      /** @type {import('@babel/types').Expression} */
       let expr = {
         type: 'BinaryExpression',
         operator: '+',
@@ -83,57 +84,54 @@ function evadeImportStrings(p) {
       /** @type {import('@babel/types').Expression[]} */
       const newExpressions = [...p.node.expressions];
 
-      for (let i = 0; i < quasis.length; i += 1) {
-        const quasi = quasis[i];
-        const quasiValue = quasi.value.raw;
+      if (Array.isArray(quasis)) {
+        for (let i = 0; i < quasis.length; i += 1) {
+          const quasi = quasis[i];
+          const quasiValue = quasi.value.raw;
 
-        if (quasiValue.includes('import(')) {
-          // Split by 'import(' and insert empty expressions between parts
-          const parts = quasiValue.split('import(');
+          if (quasiValue.includes('import(')) {
+            // Split by 'import(' and insert empty expressions between parts
+            /** @type {string[]} */
+            const parts = quasiValue.split('import(');
 
-          for (let j = 0; j < parts.length; j += 1) {
-            let chunk = parts[j];
-            if (j > 0) {
-              chunk = `ort(${chunk}`;
-            }
-            if (j < parts.length - 1) {
-              chunk += 'imp';
-            }
+            for (let j = 0; j < parts.length; j += 1) {
+              let chunk = parts[j];
+              if (j > 0) {
+                chunk = `ort(${chunk}`;
+              }
+              if (j < parts.length - 1) {
+                chunk += 'imp';
+              }
 
-            newQuasis.push({
-              type: 'TemplateElement',
-              value: { raw: chunk, cooked: chunk },
-              tail: false,
-            });
-
-            // Insert empty expression between parts (except after last)
-            if (j < parts.length - 1) {
-              newExpressions.splice(newQuasis.length - 1, 0, {
-                type: 'StringLiteral',
-                value: '',
+              newQuasis.push({
+                type: 'TemplateElement',
+                value: { raw: chunk, cooked: chunk },
+                tail: false,
               });
+
+              // Insert empty expression between parts (except after last)
+              if (j < parts.length - 1) {
+                newExpressions.splice(newQuasis.length - 1, 0, {
+                  type: 'StringLiteral',
+                  value: '',
+                });
+              }
             }
+          } else {
+            newQuasis.push(quasi);
           }
-
-          // Add expressions that were after this quasi
-          if (i < p.node.expressions.length) {
-            // Expression already in newExpressions from spread
-          }
-        } else {
-          newQuasis.push(quasi);
         }
-      }
+        // Mark last quasi as tail
+        if (newQuasis.length > 0) {
+          newQuasis[newQuasis.length - 1].tail = true;
+        }
 
-      // Mark last quasi as tail
-      if (newQuasis.length > 0) {
-        newQuasis[newQuasis.length - 1].tail = true;
+        p.replaceWith({
+          type: 'TemplateLiteral',
+          quasis: newQuasis,
+          expressions: newExpressions,
+        });
       }
-
-      p.replaceWith({
-        type: 'TemplateLiteral',
-        quasis: newQuasis,
-        expressions: newExpressions,
-      });
     }
   }
 }

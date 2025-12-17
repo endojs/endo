@@ -78,7 +78,12 @@ export function evadeCensorSync(source, options) {
   transformAst(ast, { elideComments });
 
   if (sourceUrl) {
-    return generate(ast, { source, sourceUrl, sourceMap, preventHtmlCommentRegression });
+    return generate(ast, {
+      source,
+      sourceUrl,
+      sourceMap,
+      preventHtmlCommentRegression,
+    });
   }
   return generate(ast, { source, preventHtmlCommentRegression });
 }
