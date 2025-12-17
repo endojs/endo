@@ -24,6 +24,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * @property {string} [source]
  * @property {string} sourceUrl - If present, we will generate a source map
  * @property {string} [sourceMap] - If present, the generated source map will be a transform over the given source map.
+ * @property {boolean} [preventHtmlCommentRegression] - If true, will prevent `-->` from appearing in generated code
  * @internal
  */
 
@@ -33,6 +34,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * @typedef GenerateAstOptions
  * @property {string} [source]
  * @property {undefined} [sourceUrl] - This should be undefined or otherwise not provided
+ * @property {boolean} [preventHtmlCommentRegression] - If true, will prevent `-->` from appearing in generated code
  * @internal
  */
 
@@ -95,6 +97,11 @@ export const generate = (ast, options) => {
     },
     source,
   );
+
+  if(options.preventHtmlCommentRegression) {
+    // Workaround for generator creating `-->` from `-- >` in code generated from the AST
+    result.code = result.code.replace(/-->/g, '-- >');
+  }
 
   if (sourceUrl) {
     return {
