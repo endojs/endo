@@ -3,8 +3,9 @@
 /**
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
- * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { GrantTracker } from './grant-tracker.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
+ * @import { Ocapn } from './ocapn.js'
  */
 
 /**

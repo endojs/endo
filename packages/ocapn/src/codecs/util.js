@@ -1,5 +1,6 @@
 /**
- * @import { HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { HandoffGiveDetails } from '../client/grant-tracker.js'
+ * @import { ReferenceKit } from '../client/ref-kit.js'
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordDefinition, SyrupRecordUnionCodec } from '../syrup/codec.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
@@ -148,19 +149,19 @@ export const makeOcapnListComponentUnionCodec = (
 };
 
 /**
- * @typedef {'local:object' | 'local:promise' | 'local:question' | 'local:sturdyref' | 'remote:object' | 'remote:promise' | 'third-party:handoff'} ValueInfoTableKey
+ * @typedef {'local:object' | 'local:promise' | 'local:answer' | 'local:sturdyref' | 'remote:object' | 'remote:promise' | 'remote:answer' | 'third-party:handoff'} ValueInfoTableKey
  */
 
 /**
  * @param {string} codecName
- * @param {TableKit} tableKit
+ * @param {ReferenceKit} referenceKit
  * @param {Record<string, SyrupRecordCodec>} readRecordTypes
- * @param {Record<ValueInfoTableKey, SyrupRecordCodec>} writeRecordTypes
+ * @param {Partial<Record<ValueInfoTableKey, SyrupRecordCodec>>} writeRecordTypes
  * @returns {SyrupRecordUnionCodec}
  */
 export const makeValueInfoRecordUnionCodec = (
   codecName,
-  tableKit,
+  referenceKit,
   readRecordTypes,
   writeRecordTypes,
 ) => {
@@ -195,7 +196,7 @@ export const makeValueInfoRecordUnionCodec = (
    */
   const write = (value, syrupWriter) => {
     const { type, isLocal, isThirdParty, grantDetails } =
-      tableKit.getInfoForVal(value);
+      referenceKit.getInfoForVal(value);
     if (isThirdParty) {
       if (grantDetails === undefined) {
         throw Error('Third party references must have grant details');

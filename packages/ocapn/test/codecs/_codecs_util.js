@@ -1,24 +1,24 @@
 // @ts-check
 
 /**
- * @import { CapTPEngine } from '../../src/captp/captp-engine.js'
- * @import { MakeHandoff, MakeRemoteResolver, TableKit } from '../../src/client/ocapn.js'
+ * @import { MakeHandoff } from '../../src/client/ocapn.js'
+ * @import { ReferenceKit } from '../../src/client/ref-kit.js'
  * @import { OcapnLocation } from '../../src/codecs/components.js'
  * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../../src/codecs/descriptors.js'
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
  * @import { Settler } from '@endo/eventual-send'
- * @import { LocationId, PublicKeyId, Session, SessionId, SwissNum } from '../../src/client/types.js'
+ * @import { PublicKeyId, SessionId, SwissNum } from '../../src/client/types.js'
  */
 
 import { Buffer } from 'buffer';
-import { Far, Remotable } from '@endo/marshal';
+import { Far } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
-import { makeCapTPEngine } from '../../src/captp/captp-engine.js';
 import {
-  makeGrantDetails,
   makeGrantTracker,
-  makeTableKit,
-} from '../../src/client/ocapn.js';
+  makeGrantDetails,
+} from '../../src/client/grant-tracker.js';
+import { makeReferenceKit } from '../../src/client/ref-kit.js';
+
 import { makeSturdyRefTracker } from '../../src/client/sturdyrefs.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
@@ -32,7 +32,8 @@ import {
   makeSignedHandoffReceive,
 } from '../../src/cryptography.js';
 import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
-import { locationToLocationId } from '../../src/client/util.js';
+import { makeOcapnTable } from '../../src/captp/ocapn-tables.js';
+import { makeSlot } from '../../src/captp/pairwise.js';
 
 const bufferToHex = arrayBuffer => {
   // Convert ImmutableArrayBuffer to regular ArrayBuffer
@@ -114,19 +115,14 @@ export const exampleReceiverSideId = /** @type {PublicKeyId} */ (
 
 /**
  * @typedef {object} CodecTestKit
- * @property {CapTPEngine} engine
- * @property {TableKit} tableKit
+ * @property {ReferenceKit} referenceKit
  * @property {import('../../src/client/sturdyrefs.js').SturdyRefTracker} sturdyRefTracker
- * @property {(position: bigint) => any} makeExportAt
- * @property {(position: bigint) => any} makeExportPromiseAt
- * @property {(position: bigint) => Promise<any>} makeAnswerAt
- * @property {(position: bigint) => any} makeImportObjectAt
- * @property {(position: bigint) => any} makeImportPromiseAt
- * @property {(location: OcapnLocation, position?: bigint) => any} makeThirdPartyReference
- * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
- * @property {(location: OcapnLocation, swissNum: SwissNum) => Promise<any>} lookupSturdyRef
+ * @property {(position: bigint) => unknown} makeLocalObject
+ * @property {(position: bigint) => unknown} makeLocalPromise
+ * @property {(position: bigint) => Promise<unknown>} makeRemoteAnswer
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
+ * @property {SyrupCodec} DescSigEnvelopeReadCodec
  * @property {SyrupCodec} OcapnMessageUnionCodec
  * @property {SyrupCodec} PassableCodec
  */
@@ -174,61 +170,10 @@ export const makeCodecTestKit = (
     return harden({ promise, settler });
   };
 
-  /**
-   * @type {MakeRemoteResolver}
-   */
-  const makeRemoteResolver = slot => {
-    const { settler } = makeRemoteKit(slot, 'deliver-only');
-    const resolver = Remotable(
-      'Alleged: resolver',
-      undefined,
-      settler.resolveWithPresence(),
-    );
-    // eslint-disable-next-line no-use-before-define
-    engine.registerImport(resolver, slot);
-    return resolver;
-  };
-
-  const testHandoffMap = new Map();
-
-  const immediateProvideSession = location => {
-    return {
-      ocapn: {
-        getBootstrap: async () => ({
-          fetch: async () => Promise.resolve('mock-fetched-value'),
-        }),
-      },
-    };
-  };
-
   // Mock SturdyRef tracker for tests
   const swissnumTable = new Map(); // Empty table for tests
   const sturdyRefTracker = makeSturdyRefTracker(swissnumTable);
-
-  /**
-   * @param {OcapnLocation} location
-   * @param {SwissNum} swissNum
-   * @returns {any}
-   */
-  const lookupSturdyRef = (location, swissNum) => {
-    // Create a new SturdyRef for the test
-    return sturdyRefTracker.makeSturdyRef(location, swissNum);
-  };
-
-  /**
-   * @param {HandoffGiveSigEnvelope} signedGive
-   * @returns {Promise<any>}
-   */
-  const lookupHandoff = signedGive => {
-    const { object: handoffGive } = signedGive;
-    const {
-      giftId,
-      receiverKey: { q: receiverPubKeyBytes },
-      exporterSessionId,
-    } = handoffGive;
-    const testKey = `${giftId}:${bufferToHex(receiverPubKeyBytes)}:${bufferToHex(exporterSessionId)}`;
-    return testHandoffMap.get(testKey);
-  };
+  const testHandoffMap = new Map();
 
   /**
    * @type {MakeHandoff}
@@ -249,48 +194,33 @@ export const makeCodecTestKit = (
   const grantTracker = makeGrantTracker();
 
   const importHook = (val, slot) => {
+    logger.info(`imported`, slot, val);
     const grantDetails = makeGrantDetails(peerLocation, slot);
     grantTracker.recordImport(val, grantDetails);
   };
+  const exportHook = (val, slot) => {
+    logger.info(`exported`, slot, val);
+  };
+  const slotCollectedHook = (slot, refcount) => {
+    logger.info(`slotCollected`, slot, refcount);
+  };
+  const ocapnTable = makeOcapnTable(importHook, exportHook, slotCollectedHook);
 
-  const engine = makeCapTPEngine('test', logger, makeRemoteKit, {
-    importHook,
-  });
-
-  /**
-   * @param {LocationId} destLocationId
-   * @returns {Session | undefined}
-   */
-  const getActiveSession = destLocationId => {
-    const ownLocationId = locationToLocationId(ownLocation);
-    if (destLocationId === ownLocationId) {
-      throw Error('getActiveSession cannot be called for own location');
-    }
-    if (
-      [gifterLocation, receiverLocation, exporterLocation]
-        .map(locationToLocationId)
-        .includes(destLocationId)
-    ) {
-      return /** @type {Session} */ (immediateProvideSession());
-    }
-    return undefined;
+  const sendHandoff = signedGive => {
+    throw Error('sendHandoff is not implemented for test');
   };
 
-  const sendDepositGift = () => {
-    throw Error('sendDepositGift is not implemented for test');
-  };
-
-  const tableKit = makeTableKit(
+  const referenceKit = makeReferenceKit(
+    logger,
     peerLocation,
-    engine,
-    makeRemoteResolver,
-    makeHandoff,
+    ocapnTable,
     grantTracker,
-    getActiveSession,
-    sendDepositGift,
     sturdyRefTracker,
+    makeRemoteKit,
+    makeHandoff,
+    sendHandoff,
   );
-  const descCodecs = makeDescCodecs(tableKit);
+  const descCodecs = makeDescCodecs(referenceKit);
   const passableCodecs = makePassableCodecs(descCodecs);
   const { OcapnMessageUnionCodec } = makeOcapnOperationsCodecs(
     descCodecs,
@@ -298,66 +228,33 @@ export const makeCodecTestKit = (
   );
   const { PassableCodec } = passableCodecs;
 
-  const makeImportObjectAt = position => {
-    const slot = `o-${position}`;
-    // This name is importat for tests
-    const value = Far(`Presence test ${slot}`, {});
-    engine.registerImport(value, slot);
+  const makeLocalObject = position => {
+    const slot = makeSlot('o', true, position);
+    const value = Far('Local Export', {});
+    ocapnTable.registerSlot(slot, value);
     return value;
   };
 
-  const makeImportPromiseAt = position => {
-    const slot = `p-${position}`;
-    const value = Far(`Promise test ${slot}`, {});
-    engine.registerImport(value, slot);
+  const makeLocalPromise = position => {
+    const slot = makeSlot('p', true, position);
+    const value = Far('Local Promise', {});
+    ocapnTable.registerSlot(slot, value);
     return value;
   };
 
-  const makeExportAt = position => {
-    const slot = `o+${position}`;
-    const value = Far('Export', {});
-    engine.registerExport(value, slot);
-    return value;
-  };
-
-  const makeExportPromiseAt = position => {
-    const slot = `p+${position}`;
-    const value = Far('Export Promise', {});
-    engine.registerExport(value, slot);
-    return value;
-  };
-
-  const makeAnswerAt = position => {
-    const slot = `q-${position}`;
-    const promise = Promise.resolve('answer');
-    engine.resolveAnswer(slot, promise);
+  const makeRemoteAnswer = position => {
+    const slot = makeSlot('a', false, position);
+    const promise = Promise.resolve('remote answer');
+    ocapnTable.registerSlot(slot, promise);
     return promise;
   };
 
-  // // Register the bootstrap object at position 0
-  // makeImportObjectAt(0)
-
-  const makeThirdPartyReference = (location, position = 1n) => {
-    const slot = `o-${position}`;
-    const val = Far('ThirdPartyReference', {});
-    const grantDetails = makeGrantDetails(location, slot);
-    // @ts-expect-error - val is not the correct type but we won't use it for the test
-    grantTracker.recordImport(val, grantDetails);
-    return val;
-  };
-
   return {
-    engine,
-    tableKit,
+    referenceKit,
     sturdyRefTracker,
-    makeExportAt,
-    makeExportPromiseAt,
-    makeAnswerAt,
-    makeImportObjectAt,
-    makeImportPromiseAt,
-    makeThirdPartyReference,
-    lookupHandoff,
-    lookupSturdyRef,
+    makeLocalObject,
+    makeLocalPromise,
+    makeRemoteAnswer,
     ...descCodecs,
     OcapnMessageUnionCodec,
     PassableCodec,

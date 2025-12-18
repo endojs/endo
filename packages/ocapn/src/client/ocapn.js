@@ -1,24 +1,22 @@
 // @ts-check
 
-/** @import {RemoteKit, Settler} from '@endo/eventual-send' */
-/** @import {Remotable as RemoteableType} from '@endo/marshal' */
-/** @import {CapTPSlot} from '../captp/types.js' */
-
 /**
- * @import { CapTPEngine } from '../captp/captp-engine.js'
+ * @import { RemoteKit, Settler } from '@endo/eventual-send'
+ * @import { Slot } from '../captp/types.js'
+ * @import { ReferenceKit } from './ref-kit.js'
+ * @import { OcapnTable } from '../captp/ocapn-tables.js'
+ * @import { GrantTracker, HandoffGiveDetails } from './grant-tracker.js'
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
  * @import { SyrupReader } from '../syrup/decode.js'
- * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
+ * @import { SturdyRefTracker } from './sturdyrefs.js'
  * @import { Connection, LocationId, Logger, Session, SessionId, SwissNum } from './types.js'
+ * @import { OcapnPublicKey } from '../cryptography.js'
  */
 
-/** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
-
 import { E, HandledPromise } from '@endo/eventual-send';
-import { Far, Remotable } from '@endo/marshal';
+import { Far } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeCapTPEngine } from '../captp/captp-engine.js';
 import {
   makeDescCodecs,
   makeHandoffReceiveDescriptor,
@@ -39,14 +37,17 @@ import {
   makeSignedHandoffGive,
 } from '../cryptography.js';
 import { compareImmutableArrayBuffers } from '../syrup/compare.js';
-import { getSturdyRefDetails, isSturdyRef } from './sturdyrefs.js';
 import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
+import { makeOcapnTable } from '../captp/ocapn-tables.js';
+import { makeSlot, parseSlot } from '../captp/pairwise.js';
+import { makeReferenceKit } from './ref-kit.js';
+import { makeGrantDetails } from './grant-tracker.js';
 
 /**
  * @typedef {any} LocalResolver
  * @typedef {any} RemoteResolver
- * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
- * @typedef {(slot: CapTPSlot) => RemoteResolver} MakeRemoteResolver
+ * @typedef {(questionSlot: Slot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
+ * @typedef {(slot: Slot) => RemoteResolver} MakeRemoteResolver
  * @typedef {(node: OcapnLocation, swissNum: SwissNum) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
  * @typedef {(nodeLocation: OcapnLocation, swissNum: SwissNum) => any} GetRemoteSturdyRef
@@ -55,15 +56,6 @@ import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
  */
 
 const sink = harden(() => {});
-
-/**
- * @param {string} slot
- * @returns {bigint}
- */
-const slotToPosition = slot => {
-  const position = slot.slice(2);
-  return BigInt(position);
-};
 
 /**
  * @typedef {object} MakeOcapnCommsKitOptions
@@ -169,77 +161,13 @@ const makeOcapnCommsKit = ({
 };
 
 /**
- * @param {OcapnLocation} location
- * @param {CapTPSlot} slot
- * @param {'handoff' | 'sturdy-ref'} type
- * @param {SwissNum} [swissNum]
- * @returns {GrantDetails}
- */
-export const makeGrantDetails = (
-  location,
-  slot,
-  type = 'handoff',
-  swissNum = undefined,
-) => {
-  if (type !== 'handoff' && type !== 'sturdy-ref') {
-    throw Error(`Invalid grant type: ${type}`);
-  }
-  if (type === 'sturdy-ref' && !swissNum) {
-    throw Error('Sturdy ref must have a swiss num');
-  }
-  if (type === 'handoff' && swissNum) {
-    throw Error('Handoff must not have a swiss num');
-  }
-  return harden({ location, slot, type, swissNum });
-};
-
-/**
- * @typedef {object} GrantDetails
- * @property {OcapnLocation} location
- * @property {CapTPSlot} slot
- * @property {'handoff' | 'sturdy-ref'} type
- * @property {SwissNum} [swissNum]
- *
- * @typedef {object} HandoffGiveDetails
- * @property {any} value
- * @property {GrantDetails} grantDetails
- *
- * @typedef {object} GrantTracker
- * @property {(remotable: RemoteableType, grantDetails: GrantDetails) => void} recordImport
- * @property {(remotable: RemoteableType) => GrantDetails | undefined} getGrantDetails
- *
- * @returns {GrantTracker}
- */
-export const makeGrantTracker = () => {
-  /** @type {WeakMap<RemoteableType, GrantDetails>} */
-  const remotableToGrant = new WeakMap();
-  return harden({
-    recordImport: (remotable, grantDetails) => {
-      const existingGrant = remotableToGrant.get(remotable);
-      if (existingGrant) {
-        const oldGrantType = existingGrant.type;
-        const newGrantType = grantDetails.type;
-        if (oldGrantType !== 'handoff' || newGrantType !== 'sturdy-ref') {
-          throw Error(
-            `Invalid grant type transition: ${oldGrantType} -> ${newGrantType}`,
-          );
-        }
-      }
-      remotableToGrant.set(remotable, grantDetails);
-    },
-    getGrantDetails: remotable => {
-      return remotableToGrant.get(remotable);
-    },
-  });
-};
-
-/**
  * @typedef {(handler: Handler) => RemoteKit} MakeRemoteKitForHandler
  * Makes a HandledPromise and settler for the given handler
- * @typedef {(targetSlot: CapTPSlot, mode?: 'deliver' | 'deliver-only') => Handler} MakeHandlerForRemoteReference
+ * @typedef {(targetGetter: () => unknown, mode?: 'deliver' | 'deliver-only') => Handler} MakeHandlerForRemoteReference
  * Makes a HandledPromise handler for the given target and mode
- * @typedef {(targetSlot: CapTPSlot, mode?: 'deliver' | 'deliver-only') => RemoteKit} MakeRemoteKit
+ * @typedef {(targetGetter: () => unknown, mode?: 'deliver' | 'deliver-only') => RemoteKit} MakeRemoteKit
  * Make a HandledPromise and settler that sends op:deliver to the `targetSlot`
+ * @typedef {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} SendHandoff
  */
 
 /**
@@ -288,10 +216,8 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
  * @param {Logger} opts.logger
  * @param {() => boolean} opts.didUnplug
  * @param {((reason?: any, returnIt?: boolean) => void)} opts.quietReject
- * @param {() => [CapTPSlot, Promise<any>]} opts.makeQuestion
  * @param {((obj: Record<string, any>) => void)} opts.send
- * @param {(slot: CapTPSlot) => any} opts.getImportForSlot
- * @param {MakeLocalResolver} opts.makeLocalResolver
+ * @param {() => { promise: Promise<unknown>, position: bigint, resolver: LocalResolver }} opts.takeNextRemoteAnswer
  * @returns {MakeHandlerForRemoteReference}
  */
 const makeMakeHandlerForRemoteReference = ({
@@ -299,31 +225,31 @@ const makeMakeHandlerForRemoteReference = ({
   send,
   didUnplug,
   quietReject,
-  makeQuestion,
-  getImportForSlot,
-  makeLocalResolver,
+  takeNextRemoteAnswer,
 }) => {
-  const makeHandlerForRemoteReference = (targetSlot, mode = 'deliver') => {
+  const makeHandlerForRemoteReference = (targetGetter, mode = 'deliver') => {
     const sendDeliver = args => {
       if (mode === 'deliver-only') {
         send({
           type: 'op:deliver-only',
-          to: getImportForSlot(targetSlot),
+          to: targetGetter(),
           args: harden(args),
         });
         return Promise.resolve();
       } else if (mode === 'deliver') {
-        const [questionSlot, promise] = makeQuestion();
-        const answerPosition = slotToPosition(questionSlot);
-        const resolveMeDesc = makeLocalResolver(questionSlot);
+        const {
+          promise: answerPromise,
+          position: answerPosition,
+          resolver: resolveMeDesc,
+        } = takeNextRemoteAnswer();
         send({
           type: 'op:deliver',
-          to: getImportForSlot(targetSlot),
+          to: targetGetter(),
           args: harden(args),
           answerPosition,
           resolveMeDesc,
         });
-        return promise;
+        return answerPromise;
       } else {
         throw new Error(`OCapN APPLY FUNCTION: Invalid mode: ${mode}`);
       }
@@ -347,14 +273,14 @@ const makeMakeHandlerForRemoteReference = ({
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
-        logger.info(`applyFunction`, targetSlot, args);
+        logger.info(`applyFunction`, targetGetter(), args);
         return sendDeliver(args);
       },
       applyMethod(_o, prop, args) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
-        logger.info(`applyMethod`, targetSlot, prop, args);
+        logger.info(`applyMethod`, targetGetter(), prop, args);
         // eslint-disable-next-line no-use-before-define
         if (typeof prop !== 'string') {
           throw new Error('OCapN APPLY METHOD: Property must be a string');
@@ -380,8 +306,8 @@ const makeMakeRemoteKit = ({
   makeHandlerForRemoteReference,
 }) => {
   /** @type {MakeRemoteKit} */
-  const makeRemoteKit = (targetSlot, mode = 'deliver') => {
-    const handler = makeHandlerForRemoteReference(targetSlot, mode);
+  const makeRemoteKit = (targetGetter, mode = 'deliver') => {
+    const handler = makeHandlerForRemoteReference(targetGetter, mode);
     return makeRemoteKitForHandler(handler);
   };
 
@@ -393,11 +319,11 @@ const makeMakeRemoteKit = ({
  * @property {(syrupReader: SyrupReader) => any} readOcapnMessage
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  *
- * @param {TableKit} tableKit
+ * @param {ReferenceKit} referenceKit
  * @returns {CodecKit}
  */
-const makeCodecKit = tableKit => {
-  const descCodecs = makeDescCodecs(tableKit);
+const makeCodecKit = referenceKit => {
+  const descCodecs = makeDescCodecs(referenceKit);
   const passableCodecs = makePassableCodecs(descCodecs);
   const { readOcapnMessage, writeOcapnMessage } = makeOcapnOperationsCodecs(
     descCodecs,
@@ -407,218 +333,6 @@ const makeCodecKit = tableKit => {
     readOcapnMessage,
     writeOcapnMessage,
   };
-};
-
-/** @type {Record<string, SlotType>} */
-const slotTypes = harden({
-  o: 'object',
-  p: 'promise',
-  q: 'question',
-});
-
-/**
- * @typedef {object} ValInfo
- * @property {bigint} position
- * @property {CapTPSlot} slot
- * @property {SlotType | 'sturdyref'} type
- * @property {boolean} isLocal
- * @property {boolean} isThirdParty
- * @property {GrantDetails} [grantDetails]
- *
- * @typedef {object} TableKit
- * @property {(position: bigint) => CapTPSlot} positionToSlot
- * @property {(slot: CapTPSlot) => bigint} slotToPosition
- * @property {(value: any) => bigint} convertRemoteValToPosition
- * @property {(value: any) => bigint} convertRemotePromiseToPosition
- * @property {(value: any) => bigint} convertLocalValToPosition
- * @property {(value: any) => bigint} convertLocalPromiseToPosition
- * @property {(value: any) => bigint} positionForRemoteAnswer
- * @property {(position: bigint) => any} convertPositionToRemoteVal
- * @property {(position: bigint) => any} provideRemotePromise
- * @property {(position: bigint) => any} convertPositionToLocalVal
- * @property {(position: bigint) => any} convertPositionToLocalPromise
- * @property {(position: bigint) => any} provideRemoteResolver
- * @property {(position: bigint) => any} provideLocalAnswer
- * @property {(nodeLocation: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
- * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
- * @property {(value: any) => ValInfo} getInfoForVal
- * @property {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
- */
-
-/**
- * @param {OcapnLocation} peerLocation
- * @param {CapTPEngine} engine
- * @param {MakeRemoteResolver} makeRemoteResolver
- * @param {MakeHandoff} makeHandoff
- * @param {GrantTracker} grantTracker
- * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
- * @param {(session: Session, giftId: ArrayBufferLike, value: any) => void} sendDepositGift
- * @param {SturdyRefTracker} sturdyRefTracker
- * @returns {TableKit}
- */
-export const makeTableKit = (
-  peerLocation,
-  engine,
-  makeRemoteResolver,
-  makeHandoff,
-  grantTracker,
-  getActiveSession,
-  sendDepositGift,
-  sturdyRefTracker,
-) => {
-  const convertValToPosition = val => {
-    const slot = engine.convertValToSlot(val);
-    return slotToPosition(slot);
-  };
-  const positionToSlot = position => {
-    const promSlot = `p+${position}`;
-    const promVal = engine.getExport(promSlot);
-    if (promVal) {
-      return promSlot;
-    }
-    const objSlot = `o+${position}`;
-    const objVal = engine.getExport(objSlot);
-    if (objVal) {
-      return objSlot;
-    }
-    throw new Error(`OCapN: No slot found for position: ${position}`);
-  };
-  /** @type {TableKit} */
-  const tableKit = {
-    positionToSlot,
-    slotToPosition,
-    convertRemoteValToPosition: convertValToPosition,
-    convertRemotePromiseToPosition: convertValToPosition,
-    convertLocalValToPosition: convertValToPosition,
-    convertLocalPromiseToPosition: convertValToPosition,
-    convertPositionToRemoteVal: position => {
-      const slot = `o-${position}`;
-      return engine.convertSlotToVal(slot);
-    },
-    provideRemotePromise: position => {
-      const slot = `p-${position}`;
-      return engine.convertSlotToVal(slot);
-    },
-    convertPositionToLocalVal: position => {
-      const slot = positionToSlot(position);
-      return engine.convertSlotToVal(slot);
-    },
-    convertPositionToLocalPromise: position => {
-      const slot = positionToSlot(position);
-      return engine.convertSlotToVal(slot);
-    },
-    provideLocalAnswer: position => {
-      const slot = `q-${position}`;
-      const answer = engine.getAnswer(slot);
-      if (!answer) {
-        throw new Error(`OCapN: No answer found for position: ${position}`);
-      }
-      return answer;
-    },
-    positionForRemoteAnswer: value => {
-      const slot = engine.convertValToSlot(value);
-      const position = slotToPosition(slot);
-      return position;
-    },
-    provideRemoteResolver: position => {
-      const slot = `o-${position}`;
-      let resolver = engine.getImport(slot);
-      if (!resolver) {
-        resolver = makeRemoteResolver(slot);
-      }
-      return resolver;
-    },
-    makeSturdyRef: (location, swissNum) => {
-      return sturdyRefTracker.makeSturdyRef(location, swissNum);
-    },
-    provideHandoff: signedGive => {
-      return makeHandoff(signedGive);
-    },
-    getInfoForVal: val => {
-      // Check if this is a SturdyRef first
-      if (isSturdyRef(val)) {
-        // SturdyRefs are treated as local objects
-        const details = getSturdyRefDetails(val);
-        if (!details) {
-          throw Error('SturdyRef has no details');
-        }
-        return {
-          isThirdParty: false,
-          isLocal: true,
-          type: 'sturdyref',
-          // not used for sturdy-refs
-          position: 0n,
-          slot: '',
-        };
-      }
-      const grantDetails = grantTracker.getGrantDetails(val);
-      if (grantDetails) {
-        // This is a grant, either imported from this location or exported from another.
-        const { location, slot } = grantDetails;
-        const isThirdParty = location !== peerLocation;
-        const position = slotToPosition(slot);
-        const type = slotTypes[slot[0]];
-        const isLocal = slot[1] === '+';
-        if (isLocal !== false) {
-          throw Error(`OCapN: Unexpected local slot for grant: ${slot}`);
-        }
-        return { position, type, isLocal, slot, isThirdParty, grantDetails };
-      } else {
-        // This is an export
-        const slot = engine.convertValToSlot(val);
-        const isThirdParty = false;
-        const position = slotToPosition(slot);
-        const type = slotTypes[slot[0]];
-        const isLocal = slot[1] === '+';
-        if (isLocal !== true) {
-          throw Error(`OCapN: Unexpected non-local slot for export: ${slot}`);
-        }
-        return { position, type, isLocal, slot, isThirdParty };
-      }
-    },
-    sendHandoff: handoffGiveDetails => {
-      // We are the gifter.
-      // This peer is the receiver.
-      // The receiver location is in the grant details.
-      const receiverLocation = peerLocation;
-      const { value, grantDetails } = handoffGiveDetails;
-      const { location: exporterLocation } = grantDetails;
-      const exporterLocationId = locationToLocationId(exporterLocation);
-      const gifterExporterSession = getActiveSession(exporterLocationId);
-      if (gifterExporterSession === undefined) {
-        throw Error(
-          `OCapN: No active session for exporter location: ${exporterLocation}`,
-        );
-      }
-      const receiverLocationId = locationToLocationId(receiverLocation);
-      const gifterReceiverSession = getActiveSession(receiverLocationId);
-      if (gifterReceiverSession === undefined) {
-        throw Error(
-          `OCapN: No active session for receiver location: ${receiverLocation}`,
-        );
-      }
-      const {
-        self: { keyPair: gifterKeyForExporter },
-        id: gifterExporterSessionId,
-      } = gifterExporterSession;
-      const {
-        peer: { publicKey: receiverPublicKeyForGifter },
-      } = gifterReceiverSession;
-      const gifterSideId = gifterExporterSession.self.keyPair.publicKey.id;
-      const giftId = randomGiftId();
-      const signedHandoffGive = makeSignedHandoffGive(
-        receiverPublicKeyForGifter,
-        exporterLocation,
-        gifterExporterSessionId,
-        gifterSideId,
-        giftId,
-        gifterKeyForExporter,
-      );
-      sendDepositGift(gifterExporterSession, giftId, value);
-      return signedHandoffGive;
-    },
-  };
-  return tableKit;
 };
 
 /**
@@ -784,9 +498,11 @@ const makeBootstrapObject = (
  * @typedef {object} Ocapn
  * @property {((reason?: any) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
- * @property {() => Promise<any>} getBootstrap
- * @property {CapTPEngine} engine
+ * @property {() => object} getRemoteBootstrap
+ * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
+ * @property {object} debug
+ * @property {OcapnTable} debug.ocapnTable
  */
 
 /**
@@ -847,7 +563,7 @@ export const makeOcapn = (
     // While the to-value must be local (see DeliverTargetCodec), the resolved target may be remote.
     // We only want to apply our implementation's selector -> string method name coercion if the target is local.
     // eslint-disable-next-line no-use-before-define
-    const { isLocal } = tableKit.getInfoForVal(resolvedTarget);
+    const { isLocal } = referenceKit.getInfoForVal(resolvedTarget);
     const targetType = typeof resolvedTarget;
     if (isLocal && targetType === 'object' && resolvedTarget !== null) {
       const [methodName, ...methodArgs] = args;
@@ -866,7 +582,21 @@ export const makeOcapn = (
     }
   };
 
-  const handler = {
+  const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
+    // This could probably just be `E(resolveMeDesc).fulfill(hp)`
+    // which should handle rejections. But might be more overhead
+    // on the wire.
+    Promise.resolve(promise).then(
+      val => {
+        E(resolveMeDesc).fulfill(val);
+      },
+      reason => {
+        E(resolveMeDesc).break(reason);
+      },
+    );
+  };
+
+  const handler = harden({
     'op:deliver': message => {
       const { to, answerPosition, args, resolveMeDesc } = message;
       logger.info(`deliver`, { to, toType: typeof to, args, answerPosition });
@@ -874,35 +604,14 @@ export const makeOcapn = (
       const deliverPromise = invokeDeliver(to, args);
       // Answer with our handled promise
       if (answerPosition !== false) {
-        const answerSlot = `q-${answerPosition}`;
         // eslint-disable-next-line no-use-before-define
-        engine.resolveAnswer(answerSlot, deliverPromise);
+        referenceKit.fulfillLocalAnswerWithPromise(
+          answerPosition,
+          deliverPromise,
+        );
       }
 
-      // This could probably just be `E(resolveMeDesc).fulfill(hp)`
-      // which should handle rejections. But might be more overhead
-      // on the wire.
-      const processResult = (isReject, value) => {
-        if (isReject) {
-          logger.info(`dispatch op:deliver result reject`, value);
-          E(resolveMeDesc).break(value);
-        } else {
-          logger.info(`dispatch op:deliver result resolve`, value);
-          E(resolveMeDesc).fulfill(value);
-        }
-      };
-
-      deliverPromise
-        // Process this handled promise method's result when settled.
-        .then(
-          fulfilment => processResult(false, fulfilment),
-          reason => processResult(true, reason),
-        )
-        //   // Propagate internal errors as rejections.
-        //   .catch(reason => processResult(true, reason));
-        .catch(reason => {
-          logger.info(`dispatch op:deliver result error`, reason);
-        });
+      fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
     },
     'op:deliver-only': message => {
       const { to, args } = message;
@@ -918,16 +627,12 @@ export const makeOcapn = (
       });
     },
     'op:listen': message => {
-      // TODO: Handle "wantsPartial".
-      const { to, resolveMeDesc } = message;
-      Promise.resolve(to).then(
-        val => {
-          E(resolveMeDesc).fulfill(val);
-        },
-        reason => {
-          E(resolveMeDesc).break(reason);
-        },
-      );
+      // There is a "wantsPartial" option, but we don't support it yet.
+      const { to: listenTarget, resolveMeDesc } = message;
+      if (!(listenTarget instanceof Promise)) {
+        throw Error(`OCapN: Expected a promise, got ${listenTarget}`);
+      }
+      fulfillRemoteResolverWithPromise(resolveMeDesc, listenTarget);
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;
@@ -936,23 +641,27 @@ export const makeOcapn = (
         wireDelta,
       });
       // eslint-disable-next-line no-use-before-define
-      const slot = tableKit.positionToSlot(exportPosition);
+      const value = referenceKit.provideLocalExportValue(exportPosition);
       // eslint-disable-next-line no-use-before-define
-      engine.dropSlotRefs(slot, Number(wireDelta));
+      const slot = ocapnTable.getSlotForValue(value);
+      if (slot === undefined) {
+        return;
+      }
+      // eslint-disable-next-line no-use-before-define
+      ocapnTable.dropSlot(slot, Number(wireDelta));
     },
     'op:gc-answer': message => {
       const { answerPosition } = message;
       logger.info(`gc-answer (${answerPosition})`, { answerPosition });
-      // Answer slots are q+N from the answerer's perspective
-      const slot = `q+${answerPosition}`;
+      const slot = makeSlot('a', true, answerPosition);
       // eslint-disable-next-line no-use-before-define
-      engine.deleteAnswer(slot);
+      ocapnTable.dropSlot(slot, 1);
     },
     'op:abort': message => {
       const { reason } = message;
       abort(reason);
     },
-  };
+  });
 
   /**
    * @param {Record<string, number>} sendStats
@@ -996,12 +705,7 @@ export const makeOcapn = (
     didUnplug,
     quietReject,
     // eslint-disable-next-line no-use-before-define
-    makeQuestion: () => engine.makeQuestion(),
-    // eslint-disable-next-line no-use-before-define
-    getImportForSlot: slot => engine.getImport(slot),
-    makeLocalResolver: (questionSlot, ownerLabel) =>
-      // eslint-disable-next-line no-use-before-define
-      makeLocalResolver(questionSlot, ownerLabel),
+    takeNextRemoteAnswer: () => referenceKit.takeNextRemoteAnswer(),
   });
 
   const makeRemoteKit = makeMakeRemoteKit({
@@ -1009,53 +713,10 @@ export const makeOcapn = (
     makeHandlerForRemoteReference,
   });
 
-  const makeRemoteBootstrap = () => {
-    const slot = `o-0`;
-    const bootstrapHandler = makeHandlerForRemoteReference(slot);
-    const { settler } = makeRemoteKitForHandler(bootstrapHandler);
-    const bootstrap = Remotable(
-      'Alleged: Bootstrap',
-      undefined,
-      settler.resolveWithPresence(),
-    );
-    // eslint-disable-next-line no-use-before-define
-    engine.registerImport(bootstrap, slot);
-    return bootstrap;
-  };
-
-  /** @type {MakeRemoteResolver} */
-  const makeRemoteResolver = slot => {
-    const { settler } = makeRemoteKit(slot, 'deliver-only');
-    const resolver = Remotable(
-      'Alleged: Resolver',
-      undefined,
-      settler.resolveWithPresence(),
-    );
-    logger.info('makeRemoteResolver', { slot, resolver });
-    // eslint-disable-next-line no-use-before-define
-    engine.registerImport(resolver, slot);
-    return resolver;
-  };
-
-  /** @type {MakeLocalResolver} */
-  const makeLocalResolver = questionSlot => {
-    // eslint-disable-next-line no-use-before-define
-    const settler = engine.takeSettler(questionSlot);
-    const ocapnResolver = Far('OcapnResolver', {
-      fulfill: value => {
-        logger.info(`ocapnResolver fulfill ${questionSlot}`, value);
-        settler.resolve(value);
-      },
-      break: reason => {
-        logger.info(`ocapnResolver break ${questionSlot}`, reason);
-        settler.reject(reason);
-      },
-    });
-    return ocapnResolver;
-  };
-
-  const eagerlySubscribeToPromise = (promise, slot) => {
-    const resolveMeDesc = makeLocalResolver(slot);
+  const eagerlySubscribeToRemotePromise = promise => {
+    const resolveMeDesc =
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.makeLocalResolverForRemotePromise(promise);
     send({
       type: 'op:listen',
       to: promise,
@@ -1065,30 +726,25 @@ export const makeOcapn = (
   };
 
   const importHook = (val, slot) => {
-    logger.info(`importHook`, val, slot);
+    logger.info(`imported`, slot, val);
     const grantDetails = makeGrantDetails(peerLocation, slot);
     grantTracker.recordImport(val, grantDetails);
-    const type = slotTypes[slot[0]];
+    const { type, isLocal } = parseSlot(slot);
     // Only subscribe to promises, not questions.
-    if (type === 'promise') {
-      eagerlySubscribeToPromise(val, slot);
+    if (!isLocal && type === 'p') {
+      eagerlySubscribeToRemotePromise(val);
     }
   };
 
   const exportHook = (val, slot) => {
-    logger.info(`exportHook`, val, slot);
+    logger.info(`exported`, slot, val);
   };
 
-  const importCollectedHook = (slot, decRefs) => {
-    logger.info(`importCollectedHook`, slot, decRefs);
+  const slotCollectedHook = (slot, refcount) => {
+    logger.info(`slotCollected`, slot, refcount);
   };
 
-  const engine = makeCapTPEngine(ourIdLabel, logger, makeRemoteKit, {
-    exportHook,
-    importHook,
-    importCollectedHook,
-    gcImports: true,
-  });
+  const ocapnTable = makeOcapnTable(importHook, exportHook, slotCollectedHook);
 
   /** @type {MakeHandoff} */
   const makeHandoff = signedGive => {
@@ -1115,7 +771,7 @@ export const makeOcapn = (
         const {
           self: { keyPair: receiverGifterKey },
         } = receiverGifterSession;
-        const bootstrap = ocapn.getBootstrap();
+        const bootstrap = ocapn.getRemoteBootstrap();
         const handoffCount = receiverExporterSession.takeNextHandoffCount();
         // Make the HandoffReceive descriptor
         const handoffReceive = makeHandoffReceiveDescriptor(
@@ -1134,18 +790,53 @@ export const makeOcapn = (
     );
   };
 
-  let remoteBootstrap;
-  const getRemoteBootstrap = () => {
-    if (remoteBootstrap) {
-      return remoteBootstrap;
+  /** @type {SendHandoff} */
+  const sendHandoff = handoffGiveDetails => {
+    // We are the gifter.
+    // This peer is the receiver.
+    // The receiver location is in the grant details.
+    const receiverLocation = peerLocation;
+    const { value, grantDetails } = handoffGiveDetails;
+    const { location: exporterLocation } = grantDetails;
+    const exporterLocationId = locationToLocationId(exporterLocation);
+    const gifterExporterSession = getActiveSession(exporterLocationId);
+    if (gifterExporterSession === undefined) {
+      throw Error(
+        `OCapN: No active session for exporter location: ${exporterLocation}`,
+      );
     }
-    remoteBootstrap = makeRemoteBootstrap();
-    return remoteBootstrap;
+    const receiverLocationId = locationToLocationId(receiverLocation);
+    const gifterReceiverSession = getActiveSession(receiverLocationId);
+    if (gifterReceiverSession === undefined) {
+      throw Error(
+        `OCapN: No active session for receiver location: ${receiverLocation}`,
+      );
+    }
+    const {
+      self: { keyPair: gifterKeyForExporter },
+      id: gifterExporterSessionId,
+    } = gifterExporterSession;
+    const {
+      peer: { publicKey: receiverPublicKeyForGifter },
+    } = gifterReceiverSession;
+    const gifterSideId = gifterExporterSession.self.keyPair.publicKey.id;
+    const giftId = randomGiftId();
+    const signedHandoffGive = makeSignedHandoffGive(
+      receiverPublicKeyForGifter,
+      exporterLocation,
+      gifterExporterSessionId,
+      gifterSideId,
+      giftId,
+      gifterKeyForExporter,
+    );
+    // eslint-disable-next-line no-use-before-define
+    sendDepositGift(gifterExporterSession, giftId, value);
+    return signedHandoffGive;
   };
 
   const sendDepositGift = (session, giftId, gift) => {
     const { ocapn } = session;
-    const bootstrap = ocapn.getBootstrap();
+    const bootstrap = ocapn.getRemoteBootstrap();
     const promise = E(bootstrap)['deposit-gift'](giftId, gift);
     // Log but don't handle the error.
     promise.catch(error => {
@@ -1153,30 +844,31 @@ export const makeOcapn = (
     });
   };
 
-  const tableKit = makeTableKit(
+  const referenceKit = makeReferenceKit(
+    logger,
     peerLocation,
-    engine,
-    makeRemoteResolver,
-    makeHandoff,
+    ocapnTable,
     grantTracker,
-    getActiveSession,
-    sendDepositGift,
     sturdyRefTracker,
+    makeRemoteKit,
+    makeHandoff,
+    sendHandoff,
   );
 
-  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(tableKit);
+  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
 
   function serializeAndSendMessage(message) {
     // If we dont catch the error here it gets swallowed.
     logger.info(`sending message`, message);
     try {
+      ocapnTable.clearPendingRefCounts();
       const bytes = writeOcapnMessage(message);
       connection.write(bytes);
       // Tell the engine message serialization has completed.
-      engine.sendSlot.commit();
+      ocapnTable.commitSentRefCounts();
     } catch (error) {
       // Tell the engine message serialization has failed.
-      engine.sendSlot.abort();
+      ocapnTable.clearPendingRefCounts();
       logger.info(`sending message error`, error);
     }
   }
@@ -1190,12 +882,13 @@ export const makeOcapn = (
       let message;
       const start = syrupReader.index;
       try {
+        ocapnTable.clearPendingRefCounts();
         message = readOcapnMessage(syrupReader);
         // Tell the engine message deserialization has completed.
-        engine.recvSlot.commit();
+        ocapnTable.commitReceivedRefCounts();
       } catch (err) {
         // Tell the engine message deserialization has failed.
-        engine.recvSlot.abort();
+        ocapnTable.clearPendingRefCounts();
         const problematicBytes = data.slice(start);
         const syrupMessage = decodeSyrup(problematicBytes);
         logger.error(`Message decode error:`);
@@ -1222,7 +915,7 @@ export const makeOcapn = (
     }
   };
 
-  const localBootstrapSlot = `o+0`;
+  const localBootstrapSlot = makeSlot('o', true, 0n);
   const bootstrapObj = makeBootstrapObject(
     ourIdLabel,
     logger,
@@ -1231,14 +924,22 @@ export const makeOcapn = (
     giftTable,
     getPeerPublicKeyForSessionId,
   );
-  engine.registerExport(bootstrapObj, localBootstrapSlot);
+  ocapnTable.registerSlot(localBootstrapSlot, bootstrapObj);
+
+  const remoteBootstrap = referenceKit.provideRemoteBootstrapValue();
+  const getRemoteBootstrap = () => {
+    return remoteBootstrap;
+  };
 
   /** @type {Ocapn} */
   return harden({
     abort,
     dispatchMessageData,
-    getBootstrap: getRemoteBootstrap,
-    engine,
+    getRemoteBootstrap,
     writeOcapnMessage,
+    referenceKit,
+    debug: {
+      ocapnTable,
+    },
   });
 };

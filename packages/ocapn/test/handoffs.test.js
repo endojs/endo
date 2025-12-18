@@ -16,18 +16,24 @@ import {
   makeHandoffReceiveSigEnvelope,
 } from '../src/codecs/descriptors.js';
 
-const makeTestClientTrio = async ({ makeDefaultSwissnumTable }) => {
+const makeTestClientTrio = async ({
+  makeDefaultSwissnumTable,
+  verbose = false,
+}) => {
   const { client: clientA } = await makeTestClient({
     debugLabel: 'A',
     makeDefaultSwissnumTable,
+    verbose,
   });
   const { client: clientB, location: locationB } = await makeTestClient({
     debugLabel: 'B',
     makeDefaultSwissnumTable,
+    verbose,
   });
   const { client: clientC, location: locationC } = await makeTestClient({
     debugLabel: 'C',
     makeDefaultSwissnumTable,
+    verbose,
   });
   const shutdownAll = () => {
     clientA.shutdown();
@@ -37,8 +43,8 @@ const makeTestClientTrio = async ({ makeDefaultSwissnumTable }) => {
   // A -> B, A -> C
   const { ocapn: ocapnB } = await clientA.provideSession(locationB);
   const { ocapn: ocapnC } = await clientA.provideSession(locationC);
-  const bootstrapB = await ocapnB.getBootstrap();
-  const bootstrapC = await ocapnC.getBootstrap();
+  const bootstrapB = ocapnB.getRemoteBootstrap();
+  const bootstrapC = ocapnC.getRemoteBootstrap();
   return {
     clientA,
     clientB,
@@ -236,8 +242,8 @@ testWithErrorUnwrapping(
       const sessionCA = await clientC.provideSession(locationA);
 
       // Get the bootstrap for B from both A and C
-      const bootstrapBFromA = await sessionAB.ocapn.getBootstrap();
-      const bootstrapBFromC = await sessionCB.ocapn.getBootstrap();
+      const bootstrapBFromA = sessionAB.ocapn.getRemoteBootstrap();
+      const bootstrapBFromC = sessionCB.ocapn.getRemoteBootstrap();
 
       // A gets an object from B
       const testObjB = await E(bootstrapBFromA).fetch(

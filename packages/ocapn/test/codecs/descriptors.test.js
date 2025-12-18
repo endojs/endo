@@ -24,26 +24,35 @@ import {
 const table = [
   {
     name: 'export',
-    makeValue: testKit => testKit.tableKit.convertPositionToRemoteVal(123n),
-    skipRead: true,
+    makeValue: testKit => testKit.referenceKit.provideRemoteObjectValue(123n),
+    makeExpectedValue: testKit => testKit.makeLocalObject(123n),
   },
   {
-    name: 'export-promise',
-    makeValue: testKit => testKit.tableKit.provideRemotePromise(456n),
-    skipRead: true,
+    name: 'export (promise)',
+    makeValue: testKit => testKit.referenceKit.provideRemotePromiseValue(456n),
+    makeExpectedValue: testKit => testKit.makeLocalPromise(456n),
   },
   {
     name: 'import-object',
-    makeValue: testKit => testKit.makeExportAt(123n),
-    skipRead: true,
+    makeValue: testKit => testKit.makeLocalObject(123n),
+    makeExpectedValue: testKit =>
+      testKit.referenceKit.provideRemoteObjectValue(123n),
+  },
+  {
+    name: 'import-promise',
+    makeValue: testKit => testKit.makeLocalPromise(123n),
+    makeExpectedValue: testKit =>
+      testKit.referenceKit.provideRemotePromiseValue(123n),
   },
   {
     name: 'answer',
-    makeValue: testKit => testKit.makeAnswerAt(123n),
-    skipRead: true,
+    makeValue: testKit => testKit.makeRemoteAnswer(123n),
+    makeExpectedValue: testKit =>
+      testKit.referenceKit.provideLocalAnswerValue(123n),
   },
   {
     name: 'handoff receive',
+    getCodec: testKit => testKit.DescSigEnvelopeReadCodec,
     skipRead: true,
     makeValue: () => ({
       type: 'desc:sig-envelope',

@@ -101,14 +101,15 @@ export const writeOcapnHandshakeMessage = message => {
  * @returns {OcapnOperationsCodecs}
  */
 export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
-  const { DeliverTargetCodec, ResolveMeDescCodec } = descCodecs;
+  const { DeliverTargetCodec, RemotePromiseCodec, ResolveMeDescCodec } =
+    descCodecs;
   const { PassableCodec } = passableCodecs;
 
   const OpListenCodec = makeOcapnRecordCodecFromDefinition(
     'OpListen',
     'op:listen',
     {
-      to: DeliverTargetCodec,
+      to: RemotePromiseCodec,
       resolveMeDesc: ResolveMeDescCodec,
       wantsPartial: 'boolean',
     },

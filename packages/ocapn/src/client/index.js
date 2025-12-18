@@ -3,7 +3,8 @@
 /**
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
- * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { Ocapn } from './ocapn.js'
+ * @import { GrantTracker } from './grant-tracker.js'
  * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
  * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager } from './types.js'
  */
@@ -21,7 +22,8 @@ import {
   verifyLocationSignature,
 } from '../cryptography.js';
 import { compareImmutableArrayBuffers } from '../syrup/compare.js';
-import { makeGrantTracker, makeOcapn } from './ocapn.js';
+import { makeOcapn } from './ocapn.js';
+import { makeGrantTracker } from './grant-tracker.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';

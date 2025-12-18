@@ -1,7 +1,8 @@
 // @ts-check
 
 /**
- * @import { HandoffGiveDetails, TableKit } from '../client/ocapn.js'
+ * @import { ReferenceKit } from '../client/ref-kit.js'
+ * @import { HandoffGiveDetails } from '../client/grant-tracker.js'
  * @import { SturdyRef } from '../client/sturdyrefs.js'
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordUnionCodec } from '../syrup/codec.js'
  * @import { SyrupWriter } from '../syrup/encode.js'
@@ -34,8 +35,10 @@ import { uint8ArrayToImmutableArrayBuffer } from '../buffer-utils.js';
  * @property {SyrupCodec} ResolveMeDescCodec
  * @property {SyrupRecordUnionCodec} ReferenceCodec
  * @property {SyrupCodec} DeliverTargetCodec
+ * @property {SyrupCodec} RemotePromiseCodec
  * @property {SyrupRecordCodec} OcapnSturdyRefCodec
  * @property {SyrupRecordCodec} HandOffUnionCodec
+ * @property {SyrupRecordCodec} DescSigEnvelopeReadCodec
  */
 
 /**
@@ -134,21 +137,21 @@ const DescSigEnvelopeReadCodec = makeOcapnRecordCodecFromDefinition(
 );
 
 /**
- * @param {TableKit} tableKit
+ * @param {ReferenceKit} referenceKit
  * @returns {DescCodecs}
  */
-export const makeDescCodecs = tableKit => {
-  // when writing: import = local to us
-  // when reading: import = remote to us
+export const makeDescCodecs = referenceKit => {
   const DescImportObjectCodec = makeOcapnRecordCodec(
     'DescImportObject',
     'desc:import-object',
     syrupReader => {
+      // when reading: import = remote to us
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return tableKit.convertPositionToRemoteVal(position);
+      return referenceKit.provideRemoteObjectValue(position);
     },
     (value, syrupWriter) => {
-      const position = tableKit.convertRemoteValToPosition(value);
+      // when writing: import = local to us
+      const position = referenceKit.provideLocalObjectPosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
   );
@@ -157,42 +160,58 @@ export const makeDescCodecs = tableKit => {
     'DescImportPromise',
     'desc:import-promise',
     syrupReader => {
+      // when reading: import = remote to us
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return tableKit.provideRemotePromise(position);
+      return referenceKit.provideRemotePromiseValue(position);
     },
     (value, syrupWriter) => {
-      const position = tableKit.convertRemotePromiseToPosition(value);
+      // when writing: import = local to us
+      const position = referenceKit.provideLocalPromisePosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
   );
 
-  // when reading: export = local to us
-  // when writing: export = remote to us
   const DescExportCodec = makeOcapnRecordCodec(
     'DescExport',
     'desc:export',
     syrupReader => {
+      // when reading: export = local to us
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return tableKit.convertPositionToLocalVal(position);
+      return referenceKit.provideLocalExportValue(position);
     },
     (value, syrupWriter) => {
-      const position = tableKit.convertRemoteValToPosition(value);
+      // when writing: export = remote to us
+      const position = referenceKit.provideRemoteExportPosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
     },
   );
 
-  // when reading: answer = local to us
-  // when writing: answer = remote to us
   const DescAnswerCodec = makeOcapnRecordCodec(
     'DescAnswer',
     'desc:answer',
     syrupReader => {
+      // when reading: answer = local to us
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return tableKit.provideLocalAnswer(position);
+      return referenceKit.provideLocalAnswerValue(position);
     },
     (value, syrupWriter) => {
-      const position = tableKit.positionForRemoteAnswer(value);
+      // when writing: answer = remote to us
+      const position = referenceKit.provideRemoteAnswerPosition(value);
       NonNegativeIntegerCodec.write(position, syrupWriter);
+    },
+  );
+
+  // RemotePromiseCodec is used to constrain the target Reference to a promise
+  const RemotePromiseCodec = makeValueInfoRecordUnionCodec(
+    'RemotePromise',
+    referenceKit,
+    {
+      DescAnswerCodec,
+      DescExportCodec,
+    },
+    {
+      'remote:promise': DescExportCodec,
+      'remote:answer': DescAnswerCodec,
     },
   );
 
@@ -208,7 +227,7 @@ export const makeDescCodecs = tableKit => {
       const signedEnvelope = DescSigEnvelopeReadCodec.readBody(syrupReader);
       const content = signedEnvelope.object;
       if (content.type === 'desc:handoff-give') {
-        return tableKit.provideHandoff(signedEnvelope);
+        return referenceKit.provideHandoff(signedEnvelope);
       } else if (content.type === 'desc:handoff-receive') {
         return signedEnvelope;
       }
@@ -236,7 +255,7 @@ export const makeDescCodecs = tableKit => {
           throw Error('HandOffUnionCodec should only be used for handoffs');
         }
         // Write SignedHandoffGive
-        const signedHandoffGive = tableKit.sendHandoff(handoffGiveDetails);
+        const signedHandoffGive = referenceKit.sendHandoff(handoffGiveDetails);
         DescHandoffGiveSigEnvelopeCodec.writeBody(
           signedHandoffGive,
           syrupWriter,
@@ -257,18 +276,18 @@ export const makeDescCodecs = tableKit => {
   const DeliverTargetCodec = makeCodec('DeliverTarget', {
     read(syrupReader) {
       const value = DeliverTargetReadCodec.read(syrupReader);
-      const { isLocal, slot } = tableKit.getInfoForVal(value);
+      const { isLocal, slot } = referenceKit.getInfoForVal(value);
       if (!isLocal) {
         throw Error(`DeliverTarget must be local. Got slot ${slot}`);
       }
       return value;
     },
     write(value, syrupWriter) {
-      const { type, isLocal, slot } = tableKit.getInfoForVal(value);
+      const { type, isLocal, slot } = referenceKit.getInfoForVal(value);
       if (isLocal) {
         throw Error(`DeliverTarget must be remote. Got slot ${slot}`);
       }
-      if (type === 'question') {
+      if (type === 'answer') {
         DescAnswerCodec.write(value, syrupWriter);
       } else {
         DescExportCodec.write(value, syrupWriter);
@@ -282,15 +301,15 @@ export const makeDescCodecs = tableKit => {
       syrupReader.readSelectorAsString();
       const position = NonNegativeIntegerCodec.read(syrupReader);
       syrupReader.exitRecord();
-      const value = tableKit.provideRemoteResolver(position);
-      const { isLocal, slot } = tableKit.getInfoForVal(value);
+      const value = referenceKit.provideRemoteResolverValue(position);
+      const { isLocal, slot } = referenceKit.getInfoForVal(value);
       if (isLocal) {
         throw new Error(`ResolveMeDesc must be remote. Got slot ${slot}`);
       }
       return value;
     },
     write(value, syrupWriter) {
-      const { type, isLocal, slot } = tableKit.getInfoForVal(value);
+      const { type, isLocal, slot } = referenceKit.getInfoForVal(value);
       if (!isLocal) {
         throw new Error(`ResolveMeDesc must be local. Got slot ${slot}`);
       }
@@ -309,7 +328,7 @@ export const makeDescCodecs = tableKit => {
       const node = OcapnPeerCodec.read(syrupReader);
       const swissNum = syrupReader.readBytestring();
       // @ts-expect-error - Branded type: SwissNum is ArrayBufferLike at runtime
-      const value = tableKit.makeSturdyRef(node, swissNum);
+      const value = referenceKit.makeSturdyRef(node, swissNum);
       return value;
     },
     /**
@@ -333,7 +352,7 @@ export const makeDescCodecs = tableKit => {
   // when writing: export = remote to us
   const ReferenceCodec = makeValueInfoRecordUnionCodec(
     'ReferenceCodec',
-    tableKit,
+    referenceKit,
     {
       DescExportCodec,
       DescAnswerCodec,
@@ -345,10 +364,11 @@ export const makeDescCodecs = tableKit => {
     {
       'local:object': DescImportObjectCodec,
       'local:promise': DescImportPromiseCodec,
-      'local:question': DescAnswerCodec,
       'local:sturdyref': OcapnSturdyRefCodec,
+      'local:answer': DescImportPromiseCodec,
       'remote:object': DescExportCodec,
       'remote:promise': DescExportCodec,
+      'remote:answer': DescAnswerCodec,
       'third-party:handoff': HandOffUnionCodec,
     },
   );
@@ -359,10 +379,12 @@ export const makeDescCodecs = tableKit => {
     DescExportCodec,
     DescAnswerCodec,
     DeliverTargetCodec,
+    RemotePromiseCodec,
     ReferenceCodec,
     ResolveMeDescCodec,
     OcapnSturdyRefCodec,
     HandOffUnionCodec,
+    DescSigEnvelopeReadCodec,
   };
 };
 

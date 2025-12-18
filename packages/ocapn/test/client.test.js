@@ -31,7 +31,7 @@ test('test slow send', async t => {
   const {
     sessionA: { ocapn: ocapnA },
   } = await establishSession();
-  const helloer = await E(ocapnA.getBootstrap()).fetch(
+  const helloer = await E(ocapnA.getRemoteBootstrap()).fetch(
     encodeSwissnum('Say Hello'),
   );
   const result = await E(helloer)('Wuurl');
@@ -56,7 +56,7 @@ test('basic eventual send', async t => {
   const {
     sessionA: { ocapn: ocapnA },
   } = await establishSession();
-  const bootstrapB = ocapnA.getBootstrap();
+  const bootstrapB = ocapnA.getRemoteBootstrap();
 
   const helloer = E(bootstrapB).fetch(encodeSwissnum('Say Hello'));
   const result = await E(helloer)('Wuurl');
@@ -95,7 +95,7 @@ testWithErrorUnwrapping(
     const {
       sessionA: { ocapn: ocapnA },
     } = await establishSession();
-    const bootstrapA = ocapnA.getBootstrap();
+    const bootstrapA = ocapnA.getRemoteBootstrap();
 
     const getPromises = E(bootstrapA).fetch(encodeSwissnum('Get Promises'));
     const promises = await E(getPromises)();
@@ -303,7 +303,6 @@ test('client aborts on unparseable message AFTER establishing session', async t 
 test('provideSession throws and cleans up pending session on handshake abort', async t => {
   // Create client A with correct version and client B with wrong version
   const { clientKitA, clientKitB } = await makeTestClientPair({
-    verbose: true,
     clientBOptions: {
       captpVersion: 'BAD',
     },
@@ -527,7 +526,7 @@ test('connection not aborted when remote function throws', async t => {
     }
 
     // Fetch the thrower
-    const bootstrapB = ocapnA.getBootstrap();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
     const thrower = E(bootstrapB).fetch(encodeSwissnum('Thrower'));
 
     // This should reject but not close the connection
@@ -576,7 +575,7 @@ testWithErrorUnwrapping(
     });
 
     // Alice gets Bob's EchoObj
-    const bootstrapB = ocapnA.getBootstrap();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
     const bobEchoObj = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
 
     // Alice calls echo with her local object (without awaiting)
@@ -623,7 +622,7 @@ testWithErrorUnwrapping(
     const answerPromise = E(aliceSlowObj).slowMethod();
 
     // Alice gets Bob's EchoObj
-    const bootstrapB = ocapnA.getBootstrap();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
     const bobEchoObj = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
 
     // Alice passes the answer promise to Bob's echo method
@@ -667,7 +666,7 @@ testWithErrorUnwrapping(
       }
 
       // Get Bob's SturdyRefReturner
-      const bootstrapB = ocapnA.getBootstrap();
+      const bootstrapB = ocapnA.getRemoteBootstrap();
       const sturdyRefReturner = await E(bootstrapB).fetch(
         encodeSwissnum('SturdyRefReturner'),
       );

@@ -54,13 +54,16 @@ export const table = [
     name: 'op:deliver-only fulfill',
     makeValue: testKit => ({
       type: 'op:deliver-only',
-      to: testKit.makeImportObjectAt(1n),
-      args: [makeSelector('fulfill'), testKit.makeExportAt(2n)],
+      to: testKit.referenceKit.provideRemoteObjectValue(1n),
+      args: [makeSelector('fulfill'), testKit.makeLocalObject(2n)],
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver-only',
-      to: testKit.makeExportAt(1n),
-      args: [makeSelector('fulfill'), testKit.makeImportObjectAt(2n)],
+      to: testKit.makeLocalObject(1n),
+      args: [
+        makeSelector('fulfill'),
+        testKit.referenceKit.provideRemoteObjectValue(2n),
+      ],
     }),
   },
   {
@@ -71,13 +74,17 @@ export const table = [
     name: 'op:deliver-only deposit-gift',
     makeValue: testKit => ({
       type: 'op:deliver-only',
-      to: testKit.makeImportObjectAt(0n),
-      args: [makeSelector('deposit-gift'), 42n, testKit.makeExportAt(1n)],
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
+      args: [makeSelector('deposit-gift'), 42n, testKit.makeLocalObject(1n)],
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver-only',
-      to: testKit.makeExportAt(0n),
-      args: [makeSelector('deposit-gift'), 42n, testKit.makeImportObjectAt(1n)],
+      to: testKit.makeLocalObject(0n),
+      args: [
+        makeSelector('deposit-gift'),
+        42n,
+        testKit.referenceKit.provideRemoteObjectValue(1n),
+      ],
     }),
   },
   {
@@ -85,17 +92,17 @@ export const table = [
     name: 'op:deliver make-car-factory',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(5n),
+      to: testKit.referenceKit.provideRemoteObjectValue(5n),
       args: [makeSelector('make-car-factory')],
       answerPosition: 3n,
-      resolveMeDesc: testKit.makeExportAt(15n),
+      resolveMeDesc: testKit.makeLocalObject(15n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(5n),
+      to: testKit.makeLocalObject(5n),
       args: [makeSelector('make-car-factory')],
       answerPosition: 3n,
-      resolveMeDesc: testKit.makeImportObjectAt(15n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(15n),
     }),
   },
   {
@@ -103,17 +110,17 @@ export const table = [
     name: 'op:deliver beep',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(1n),
+      to: testKit.referenceKit.provideRemoteObjectValue(1n),
       args: [makeSelector('beep')],
       answerPosition: false,
-      resolveMeDesc: testKit.makeExportAt(2n),
+      resolveMeDesc: testKit.makeLocalObject(2n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(1n),
+      to: testKit.makeLocalObject(1n),
       args: [makeSelector('beep')],
       answerPosition: false,
-      resolveMeDesc: testKit.tableKit.provideRemoteResolver(2n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteResolverValue(2n),
     }),
   },
   {
@@ -125,23 +132,23 @@ export const table = [
     name: 'op:deliver fetch',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(0n),
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
         encodeStringToImmutableArrayBuffer('swiss-number'),
       ],
       answerPosition: 3n,
-      resolveMeDesc: testKit.makeExportAt(5n),
+      resolveMeDesc: testKit.makeLocalObject(5n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(0n),
+      to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
         encodeStringToImmutableArrayBuffer('swiss-number'),
       ],
       answerPosition: 3n,
-      resolveMeDesc: testKit.makeImportObjectAt(5n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(5n),
     }),
   },
   {
@@ -159,14 +166,14 @@ export const table = [
     name: 'op:listen',
     makeValue: testKit => ({
       type: 'op:listen',
-      to: testKit.makeImportObjectAt(1n),
-      resolveMeDesc: testKit.makeExportAt(2n),
+      to: testKit.referenceKit.provideRemotePromiseValue(1n),
+      resolveMeDesc: testKit.makeLocalObject(2n),
       wantsPartial: false,
     }),
     makeExpectedValue: testKit => ({
       type: 'op:listen',
-      to: testKit.makeExportAt(1n),
-      resolveMeDesc: testKit.makeImportObjectAt(2n),
+      to: testKit.makeLocalPromise(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(2n),
       wantsPartial: false,
     }),
   },
@@ -193,7 +200,7 @@ export const table = [
     name: 'python op:deliver fetch 1',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(0n),
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
         hexToArrayBuffer(
@@ -201,11 +208,11 @@ export const table = [
         ),
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeExportAt(1n),
+      resolveMeDesc: testKit.makeLocalObject(1n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(0n),
+      to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
         hexToArrayBuffer(
@@ -213,14 +220,14 @@ export const table = [
         ),
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeImportObjectAt(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(1n),
     }),
   },
   {
     name: 'python op:deliver fetch 2',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(0n),
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
         hexToArrayBuffer(
@@ -228,11 +235,11 @@ export const table = [
         ),
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeExportAt(1n),
+      resolveMeDesc: testKit.makeLocalObject(1n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(0n),
+      to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
         hexToArrayBuffer(
@@ -240,27 +247,27 @@ export const table = [
         ),
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeImportObjectAt(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(1n),
     }),
   },
   {
     name: 'python op:deliver-only fulfill',
     makeValue: testKit => ({
       type: 'op:deliver-only',
-      to: testKit.makeImportObjectAt(0n),
-      args: [testKit.makeExportAt(1n)],
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
+      args: [testKit.makeLocalObject(1n)],
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver-only',
-      to: testKit.makeExportAt(0n),
-      args: [testKit.makeImportObjectAt(1n)],
+      to: testKit.makeLocalObject(0n),
+      args: [testKit.referenceKit.provideRemoteObjectValue(1n)],
     }),
   },
   {
     name: 'python op:deliver deposit-gift',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(0n),
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: [
         makeSelector('fetch'),
         hexToArrayBuffer(
@@ -268,11 +275,11 @@ export const table = [
         ),
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeExportAt(1n),
+      resolveMeDesc: testKit.makeLocalObject(1n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(0n),
+      to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('fetch'),
         hexToArrayBuffer(
@@ -280,14 +287,14 @@ export const table = [
         ),
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeImportObjectAt(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(1n),
     }),
   },
   {
     name: 'python op:deliver foo',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(0n),
+      to: testKit.referenceKit.provideRemoteObjectValue(0n),
       args: harden([
         makeSelector('foo'),
         1n,
@@ -296,11 +303,11 @@ export const table = [
         ['baz'],
       ]),
       answerPosition: false,
-      resolveMeDesc: testKit.makeExportAt(1n),
+      resolveMeDesc: testKit.makeLocalObject(1n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(0n),
+      to: testKit.makeLocalObject(0n),
       args: [
         makeSelector('foo'),
         1n,
@@ -309,38 +316,38 @@ export const table = [
         ['baz'],
       ],
       answerPosition: false,
-      resolveMeDesc: testKit.makeImportObjectAt(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(1n),
     }),
   },
   {
     name: 'python op:deliver make-car',
     makeValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeImportObjectAt(1n),
+      to: testKit.referenceKit.provideRemoteObjectValue(1n),
       args: harden([[makeSelector('red'), makeSelector('zoomracer')]]),
       answerPosition: 2n,
-      resolveMeDesc: testKit.makeExportAt(2n),
+      resolveMeDesc: testKit.makeLocalObject(2n),
     }),
     makeExpectedValue: testKit => ({
       type: 'op:deliver',
-      to: testKit.makeExportAt(1n),
+      to: testKit.makeLocalObject(1n),
       args: harden([[makeSelector('red'), makeSelector('zoomracer')]]),
       answerPosition: 2n,
-      resolveMeDesc: testKit.makeImportObjectAt(2n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(2n),
     }),
   },
   {
     name: 'python op:listen',
     makeValue: testKit => ({
       type: 'op:listen',
-      to: testKit.makeImportObjectAt(1n),
-      resolveMeDesc: testKit.makeExportAt(2n),
+      to: testKit.referenceKit.provideRemotePromiseValue(1n),
+      resolveMeDesc: testKit.makeLocalObject(2n),
       wantsPartial: false,
     }),
     makeExpectedValue: testKit => ({
       type: 'op:listen',
-      to: testKit.makeExportAt(1n),
-      resolveMeDesc: testKit.makeImportObjectAt(2n),
+      to: testKit.makeLocalPromise(1n),
+      resolveMeDesc: testKit.referenceKit.provideRemoteObjectValue(2n),
       wantsPartial: false,
     }),
   },
