@@ -1,4 +1,4 @@
-const evadeRegexp = /import\s*\(/g;
+const evadeRegexp = /import\s*\(|<!--|-->/g;
 
 /**
  * Creates a BinaryExpression adding two expressions

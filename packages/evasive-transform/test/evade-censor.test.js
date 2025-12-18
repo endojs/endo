@@ -95,6 +95,8 @@ test('evadeCensor() - successful source transform w/ source map, source URL & un
 // import in a string will triger censorship in SES
 const evadeThat = `
     // HTML comment <!-- should be evaded -->
+    var HTMLstring = '<!-- should be evaded -->';
+    var HTMLtString = \`<!-- should be evaded -->\`;
     // import comment ...import('some-module');
     const result = eval("...import('some-module'); await import(\\"other\\");");
     const result2 = eval('...import(\\'some-module\\'); await import("other");');
