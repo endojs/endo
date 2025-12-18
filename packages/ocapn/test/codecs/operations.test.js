@@ -351,6 +351,38 @@ export const table = [
       wantsPartial: false,
     }),
   },
+  {
+    // <op:get <desc:export 3> "anotherField" 7>
+    name: 'op:get with desc:export',
+    makeValue: testKit => ({
+      type: 'op:get',
+      receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+      fieldName: 'anotherField',
+      answerPosition: 7n,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:get',
+      receiverDesc: testKit.makeLocalPromise(3n),
+      fieldName: 'anotherField',
+      answerPosition: 7n,
+    }),
+  },
+  {
+    // <op:get <desc:answer 5> "fieldName" 10>
+    name: 'op:get with desc:answer',
+    makeValue: testKit => ({
+      type: 'op:get',
+      receiverDesc: testKit.makeRemoteAnswer(5n),
+      fieldName: 'someField',
+      answerPosition: 10n,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:get',
+      receiverDesc: testKit.referenceKit.provideLocalAnswerValue(5n),
+      fieldName: 'someField',
+      answerPosition: 10n,
+    }),
+  },
 ];
 
 runTableTests(

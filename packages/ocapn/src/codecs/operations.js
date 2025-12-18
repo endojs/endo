@@ -180,10 +180,17 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
+  const OpGetCodec = makeOcapnRecordCodecFromDefinition('OpGet', 'op:get', {
+    receiverDesc: RemotePromiseCodec,
+    fieldName: 'string',
+    answerPosition: PositiveIntegerCodec,
+  });
+
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
+    OpGetCodec,
     OpAbortCodec,
     OpListenCodec,
     OpGcExportCodec,

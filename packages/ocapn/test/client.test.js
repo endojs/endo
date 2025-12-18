@@ -715,3 +715,201 @@ testWithErrorUnwrapping(
     }
   },
 );
+
+test('op:get with valid copyRecord', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Record Provider',
+    Far('recordProvider', () => {
+      return harden({ foo: 'bar', baz: 42, nested: { value: 'deep' } });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const recordProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Record Provider'),
+    );
+    const record = E(recordProvider)();
+
+    // Use E.get to retrieve fields from the record
+    const fooValue = await E.get(record).foo;
+    const bazValue = await E.get(record).baz;
+    const nestedValue = await E.get(record).nested;
+
+    t.is(fooValue, 'bar');
+    t.is(bazValue, 42);
+    t.deepEqual(nestedValue, { value: 'deep' });
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:get with missing field rejects', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Record Provider',
+    Far('recordProvider', () => {
+      return harden({ foo: 'bar', baz: 42 });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const recordProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Record Provider'),
+    );
+    const record = E(recordProvider)();
+
+    // Try to get a non-existent field
+    const error = await t.throwsAsync(
+      async () => {
+        await E.get(record).nonExistent;
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(error.message, /Field 'nonExistent' not found on record/);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:get rejects non-copyRecord', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Remotable Provider',
+    Far('remotableProvider', () => {
+      return Far('remotableObject', {
+        someMethod: () => 'result',
+      });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const remotableProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Remotable Provider'),
+    );
+    const remotable = E(remotableProvider)();
+
+    // Try to get a field from a remotable (should fail)
+    const error = await t.throwsAsync(
+      async () => {
+        await E.get(remotable).someField;
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(
+      error.message,
+      /Cannot get fields from values with pass-style remotable/,
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:get with promise pipelining', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Async Record Provider',
+    Far('asyncRecordProvider', async () => {
+      // Simulate async work
+      await new Promise(resolve => setTimeout(resolve, 10));
+      return harden({ delayed: 'value', count: 99 });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const asyncRecordProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Async Record Provider'),
+    );
+    // Pipeline: get the field before the promise resolves
+    const recordPromise = E(asyncRecordProvider)();
+    const delayedValue = E.get(recordPromise).delayed;
+    const countValue = E.get(recordPromise).count;
+
+    t.is(await delayedValue, 'value');
+    t.is(await countValue, 99);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:get with rejected promise', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Rejecting Provider',
+    Far('rejectingProvider', () => {
+      return Promise.reject(Error('Intentional rejection'));
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const rejectingProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Rejecting Provider'),
+    );
+    const rejectedPromise = E(rejectingProvider)();
+
+    // Try to get a field from a rejected promise
+    const error = await t.throwsAsync(
+      async () => {
+        await E.get(rejectedPromise).someField;
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(error.message, /Intentional rejection/);
+  } finally {
+    shutdownBoth();
+  }
+});

@@ -267,7 +267,29 @@ const makeMakeHandlerForRemoteReference = ({
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
-        throw new Error('OCapN GET: Not implemented');
+        logger.info(`get`, targetGetter(), prop);
+        // Create a question for the answer
+        const {
+          promise: answerPromise,
+          position: answerPosition,
+          resolver: resolveMeDesc,
+        } = takeNextRemoteAnswer();
+        send({
+          type: 'op:get',
+          receiverDesc: targetGetter(),
+          fieldName: prop,
+          answerPosition,
+        });
+
+        // Send op:listen for the answer so B knows how to send the result back
+        send({
+          type: 'op:listen',
+          to: answerPromise,
+          resolveMeDesc,
+          wantsPartial: false,
+        });
+
+        return answerPromise;
       },
       applyFunction(_o, args) {
         if (didUnplug() !== false) {
@@ -633,6 +655,32 @@ export const makeOcapn = (
         throw Error(`OCapN: Expected a promise, got ${listenTarget}`);
       }
       fulfillRemoteResolverWithPromise(resolveMeDesc, listenTarget);
+    },
+    'op:get': message => {
+      const { receiverDesc, fieldName, answerPosition } = message;
+      logger.info(`get`, { receiverDesc, fieldName, answerPosition });
+
+      // Create a promise for the field value
+      const getPromise = Promise.resolve(receiverDesc).then(resolved => {
+        // Check that the resolved value is a copyRecord
+        const passStyle = ocapnPassStyleOf(resolved);
+        if (passStyle !== 'copyRecord') {
+          throw Error(
+            `OCapN: Cannot get fields from values with pass-style ${passStyle}`,
+          );
+        }
+
+        // Check if the field exists
+        if (!Object.hasOwn(resolved, fieldName)) {
+          throw Error(`Field '${fieldName}' not found on record`);
+        }
+
+        // Return the field value
+        return Reflect.get(resolved, fieldName, resolved);
+      });
+
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, getPromise);
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;
