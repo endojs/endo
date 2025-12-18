@@ -99,7 +99,9 @@ const evadeThat = `
     const result = eval("...import('some-module'); await import(\\"other\\");");
     const result2 = eval('...import(\\'some-module\\'); await import("other");');
     const multilineimport = \`
+        console.log(\${a})
         await import('some-module');
+        console.log(\${b})
     \`;
     
     const taggedtemplate = String.dedent\`
