@@ -102,6 +102,11 @@ const evadeThat = `
         await import('some-module');
     \`;
     
+    const taggedtemplate = String.dedent\`
+        await import('some-module');
+    \`;
+
+    
     import("some-module");
     if (a--> b) {}
   `;
