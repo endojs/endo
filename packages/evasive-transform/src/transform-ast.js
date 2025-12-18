@@ -66,7 +66,8 @@ function evadeImportStrings(p) {
 
   // Handle template literals (multiline strings)
   // `import(` -> `imp${}ort(`
-  if (type === 'TemplateLiteral') {
+  // The transform is only meaning-preserving if not part of a TaggedTemplateExpression, so these need to be excluded until a motivating case shows up. It should be possible to wrap the tag with a function that omits expressions we insert, but that's a lot of work to do preemptively.
+  if (type === 'TemplateLiteral' && p.parent.type !== 'TaggedTemplateExpression') {
     const { quasis } = p.node;
     let needsTransform = false;
 
