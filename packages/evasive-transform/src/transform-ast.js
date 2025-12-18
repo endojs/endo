@@ -6,6 +6,7 @@
 
 import babelTraverse from '@babel/traverse';
 import { evadeComment, elideComment } from './transform-comment.js';
+import { evadeStrings, evadeTemplates } from './transform-strings.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
 // `node -r esm`, we must use the pattern below.
@@ -15,127 +16,6 @@ import { evadeComment, elideComment } from './transform-comment.js';
 const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
   babelTraverse.default || babelTraverse
 );
-
-/**
- * Rewrites string literals containing `import(` to evade SES censorship
- *
- * @param {import('@babel/traverse').NodePath} p
- */
-function evadeImportStrings(p) {
-  const { type, value } = p.node;
-  // if p is a string literal containing the string "import(", replace it with a concatenation of two string literals
-  // `import(` -> `imp`+`ort(`
-  if (type === 'StringLiteral' && value.includes('import(')) {
-    /** @type {string[]} */
-    const parts = value.split('import(');
-    if (parts.length > 1) {
-      /** @type {import('@babel/types').Expression[]} */
-      const expressions = [];
-      for (let i = 0; i < parts.length; i += 1) {
-        let chunk = parts[i];
-        if (i > 0) {
-          chunk = `ort(${chunk}`;
-        }
-        if (i < parts.length - 1) {
-          chunk += 'imp';
-        }
-
-        expressions.push({
-          type: 'StringLiteral',
-          value: chunk,
-        });
-      }
-      /** @type {import('@babel/types').Expression} */
-      let expr = {
-        type: 'BinaryExpression',
-        operator: '+',
-        left: expressions[0],
-        right: expressions[1],
-      };
-      for (let i = 2; i < expressions.length; i += 1) {
-        expr = {
-          type: 'BinaryExpression',
-          operator: '+',
-          left: expr,
-          right: expressions[i],
-        };
-      }
-      p.replaceWith(expr);
-    }
-  }
-
-  // Handle template literals (multiline strings)
-  // `import(` -> `imp${}ort(`
-  // The transform is only meaning-preserving if not part of a TaggedTemplateExpression, so these need to be excluded until a motivating case shows up. It should be possible to wrap the tag with a function that omits expressions we insert, but that's a lot of work to do preemptively.
-  if (type === 'TemplateLiteral' && p.parent.type !== 'TaggedTemplateExpression') {
-    const { quasis } = p.node;
-    let needsTransform = false;
-
-    // Check if any quasi contains 'import('
-    for (const quasi of quasis) {
-      if (quasi.value.raw.includes('import(')) {
-        needsTransform = true;
-        break;
-      }
-    }
-
-    if (needsTransform) {
-      /** @type {import('@babel/types').TemplateElement[]} */
-      const newQuasis = [];
-      /** @type {import('@babel/types').Expression[]} */
-      const newExpressions = [...p.node.expressions];
-
-      if (Array.isArray(quasis)) {
-        for (let i = 0; i < quasis.length; i += 1) {
-          const quasi = quasis[i];
-          const quasiValue = quasi.value.raw;
-
-          if (quasiValue.includes('import(')) {
-            // Split by 'import(' and insert empty expressions between parts
-            /** @type {string[]} */
-            const parts = quasiValue.split('import(');
-
-            for (let j = 0; j < parts.length; j += 1) {
-              let chunk = parts[j];
-              if (j > 0) {
-                chunk = `ort(${chunk}`;
-              }
-              if (j < parts.length - 1) {
-                chunk += 'imp';
-              }
-
-              newQuasis.push({
-                type: 'TemplateElement',
-                value: { raw: chunk, cooked: chunk },
-                tail: false,
-              });
-
-              // Insert empty expression between parts (except after last)
-              if (j < parts.length - 1) {
-                newExpressions.splice(newQuasis.length - 1, 0, {
-                  type: 'StringLiteral',
-                  value: '',
-                });
-              }
-            }
-          } else {
-            newQuasis.push(quasi);
-          }
-        }
-        // Mark last quasi as tail
-        if (newQuasis.length > 0) {
-          newQuasis[newQuasis.length - 1].tail = true;
-        }
-
-        p.replaceWith({
-          type: 'TemplateLiteral',
-          quasis: newQuasis,
-          expressions: newExpressions,
-        });
-      }
-    }
-  }
-}
 
 /**
  * Options for {@link transformAst}
@@ -178,7 +58,8 @@ export function transformAst(ast, { elideComments = false } = {}) {
       }
       (innerComments || []).forEach(node => transformComment(node));
       (trailingComments || []).forEach(node => transformComment(node));
-      evadeImportStrings(p);
+      evadeStrings(p);
+      evadeTemplates(p);
     },
   });
 }
