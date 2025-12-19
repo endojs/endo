@@ -58,6 +58,13 @@ import { makeGrantDetails } from './grant-tracker.js';
 const sink = harden(() => {});
 
 /**
+ * @callback MessageObserver
+ * @param {'send' | 'receive'} direction - Whether the message was sent or received
+ * @param {object} message - The message object
+ * @returns {void}
+ */
+
+/**
  * @typedef {object} MakeOcapnCommsKitOptions
  * @property {Logger} logger
  * @property {(sendStats: Record<string, number>, recvStats: Record<string, number>) => (message: any) => void} makeDispatch
@@ -76,6 +83,7 @@ const sink = harden(() => {});
  * @property {() => void} doUnplug
  * @property {Record<string, number>} sendStats
  * @property {Record<string, number>} recvStats
+ * @property {(observer: MessageObserver) => () => void} subscribeMessages
  */
 
 /**
@@ -93,6 +101,21 @@ const makeOcapnCommsKit = ({
   const sendStats = {};
   /** @type {Record<string, number>} */
   const recvStats = {};
+
+  /** @type {Set<MessageObserver>} */
+  const messageObservers = new Set();
+
+  /**
+   * Subscribe to all messages sent and received.
+   * @param {MessageObserver} observer - Callback invoked for each message
+   * @returns {() => void} Unsubscribe function
+   */
+  const subscribeMessages = observer => {
+    messageObservers.add(observer);
+    return () => {
+      messageObservers.delete(observer);
+    };
+  };
 
   /** @type {any} */
   let unplugError = false;
@@ -127,6 +150,15 @@ const makeOcapnCommsKit = ({
     sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
     commitSendSlots();
 
+    // Notify message observers
+    for (const observer of messageObservers) {
+      try {
+        observer('send', obj);
+      } catch (err) {
+        // Ignore observer errors
+      }
+    }
+
     // Don't throw here if unplugged, just don't send.
     if (unplugError !== false) {
       return;
@@ -138,8 +170,19 @@ const makeOcapnCommsKit = ({
       .catch(abort); // Abort if rawSend returned a rejection.
   };
 
-  // Return a dispatch function.
-  const dispatch = makeDispatch(sendStats, recvStats);
+  // Return a dispatch function that notifies observers.
+  const innerDispatch = makeDispatch(sendStats, recvStats);
+  const dispatch = message => {
+    // Notify message observers before dispatching
+    for (const observer of messageObservers) {
+      try {
+        observer('receive', message);
+      } catch (err) {
+        // Ignore observer errors
+      }
+    }
+    return innerDispatch(message);
+  };
 
   // Abort a connection.
   const abort = (reason = undefined) => {
@@ -157,6 +200,7 @@ const makeOcapnCommsKit = ({
     doUnplug,
     sendStats,
     recvStats,
+    subscribeMessages,
   };
 };
 
@@ -551,6 +595,7 @@ const makeBootstrapObject = (
  * @property {object} debug
  * @property {OcapnTable} debug.ocapnTable
  * @property {(message: object) => void} debug.sendMessage
+ * @property {(observer: MessageObserver) => () => void} debug.subscribeMessages
  */
 
 /**
@@ -828,14 +873,15 @@ export const makeOcapn = (
     };
   };
 
-  const { dispatch, send, quietReject, didUnplug } = makeOcapnCommsKit({
-    logger,
-    makeDispatch,
-    onReject,
-    commitSendSlots,
-    // eslint-disable-next-line no-use-before-define
-    rawSend: serializeAndSendMessage,
-  });
+  const { dispatch, send, quietReject, didUnplug, subscribeMessages } =
+    makeOcapnCommsKit({
+      logger,
+      makeDispatch,
+      onReject,
+      commitSendSlots,
+      // eslint-disable-next-line no-use-before-define
+      rawSend: serializeAndSendMessage,
+    });
 
   const makeRemoteKitForHandler = makeMakeRemoteKitForHandler({
     logger,
@@ -1084,6 +1130,7 @@ export const makeOcapn = (
     debug: {
       ocapnTable,
       sendMessage: send,
+      subscribeMessages,
     },
   });
 };
