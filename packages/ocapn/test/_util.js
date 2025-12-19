@@ -7,6 +7,7 @@
  * @import { Client, Connection, LocationId, Session } from '../src/client/types.js'
  * @import { OcapnLocation } from '../src/codecs/components.js'
  * @import { TcpTestOnlyNetLayer } from '../src/netlayers/tcp-test-only.js'
+ * @import { Ocapn, OcapnDebug } from '../src/client/ocapn.js'
  */
 
 import test from '@endo/ses-ava/test.js';
@@ -15,6 +16,20 @@ import { makeClient } from '../src/client/index.js';
 import { locationToLocationId } from '../src/client/util.js';
 
 const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
+
+/**
+ * Get the debug object from an Ocapn instance, asserting it is present.
+ * Requires the client to have been created with `debugMode: true`.
+ * @param {Ocapn} ocapn
+ * @returns {OcapnDebug}
+ */
+export const getOcapnDebug = ocapn => {
+  assert(
+    ocapn.debug,
+    'debug object not available - client must be created with debugMode: true',
+  );
+  return ocapn.debug;
+};
 
 /**
  * @param {Test} t
@@ -162,6 +177,7 @@ export const makeTestClient = async ({
     debugLabel,
     swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
     verbose,
+    debugMode: true,
     ...clientOptions,
   });
   const netlayer = await makeTcpNetLayer({
@@ -261,8 +277,8 @@ export const makeTestClientPair = async ({
  */
 export const makeUntagTestHelper = senderSession => {
   const { ocapn } = senderSession;
-  const { referenceKit, debug } = ocapn;
-  const { sendMessage } = debug;
+  const { referenceKit } = ocapn;
+  const { sendMessage } = getOcapnDebug(ocapn);
 
   /**
    * Calls a method on a remote object and immediately sends op:untag to extract

@@ -3,7 +3,7 @@
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { makeTestClientPair, makeTestClient } from './_util.js';
+import { makeTestClientPair, makeTestClient, getOcapnDebug } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 
 /**
@@ -30,10 +30,12 @@ const createMessageRecorder = (ocapn, self, peer) => {
   /** @type {TranscriptEntry[]} */
   const transcript = [];
 
-  const unsubscribe = ocapn.debug.subscribeMessages((direction, message) => {
-    const from = direction === 'send' ? self : peer;
-    transcript.push({ from, message });
-  });
+  const unsubscribe = getOcapnDebug(ocapn).subscribeMessages(
+    (direction, message) => {
+      const from = direction === 'send' ? self : peer;
+      transcript.push({ from, message });
+    },
+  );
 
   return { transcript, unsubscribe };
 };

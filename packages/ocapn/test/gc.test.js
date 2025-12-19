@@ -6,7 +6,7 @@ import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import v8 from 'node:v8';
 import vm from 'node:vm';
-import { makeTestClientPair } from './_util.js';
+import { makeTestClientPair, getOcapnDebug } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeSlot } from '../src/captp/pairwise.js';
 
@@ -124,22 +124,23 @@ test('ref count increases when object is sent', async t => {
   );
 
   // Get the slot for the remote object on A's side
-  const slotOnA = ocapnA.debug.ocapnTable.getSlotForValue(remoteTestObject);
+  const slotOnA =
+    getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(remoteTestObject);
   if (!slotOnA) {
     throw new Error('should have a slot for the remote object');
   }
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(slotOnA),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(slotOnA),
     1,
     'should have 1 reference to the remote object',
   );
 
-  const slotOnB = ocapnB.debug.ocapnTable.getSlotForValue(testObject);
+  const slotOnB = getOcapnDebug(ocapnB).ocapnTable.getSlotForValue(testObject);
   if (!slotOnB) {
     throw new Error('should have a slot for the local object');
   }
   t.is(
-    ocapnB.debug.ocapnTable.getRefCount(slotOnB),
+    getOcapnDebug(ocapnB).ocapnTable.getRefCount(slotOnB),
     1,
     'should have 1 reference to the local object',
   );
@@ -179,20 +180,20 @@ test('echo object - sending objects back and forth', async t => {
   // Get B's echo service
   const bootstrapB = ocapnA.getRemoteBootstrap();
   const echoObj = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
-  const echoObjSlot = ocapnA.debug.ocapnTable.getSlotForValue(echoObj);
+  const echoObjSlot = getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(echoObj);
 
   if (!echoObjSlot) {
     throw new Error('echoObj should have a slot after being fetched');
   }
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(echoObjSlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(echoObjSlot),
     1,
     'should have 1 reference to the imported object',
   );
 
   // Before sending, objFromA should have no slot on A
   t.falsy(
-    ocapnA.debug.ocapnTable.getSlotForValue(objFromA),
+    getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(objFromA),
     'objFromA should NOT have a slot before sending',
   );
 
@@ -200,45 +201,45 @@ test('echo object - sending objects back and forth', async t => {
   await E(echoObj).echo(objFromA);
 
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(echoObjSlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(echoObjSlot),
     1,
     'should have 1 references to the imported object',
   );
 
   // After sending, objFromA should have a slot on A (it was exported)
-  const objASlot = ocapnA.debug.ocapnTable.getSlotForValue(objFromA);
+  const objASlot = getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(objFromA);
   if (!objASlot) {
     throw new Error('objFromA should have a slot after being sent');
   }
 
   // Check the ref count of the sent object
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(objASlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
     1,
     'should have 1 reference to the exported object',
   );
   await E(echoObj).echo(objFromA);
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(objASlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
     2,
     'should have 2 references to the exported object',
   );
   await E(echoObj).echo(objFromA);
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(objASlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
     3,
     'should have 3 references to the exported object',
   );
   await Promise.all([E(echoObj).echo(objFromA), E(echoObj).echo(objFromA)]);
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(objASlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
     5,
     'should have 5 references to the exported object',
   );
 
   // Expect no additional references to the imported object
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(echoObjSlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(echoObjSlot),
     1,
     'should have 1 reference to the imported object',
   );
@@ -247,7 +248,7 @@ test('echo object - sending objects back and forth', async t => {
 
   // Expect one additional reference to the imported object
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(echoObjSlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(echoObjSlot),
     2,
     'should have 2 references to the imported object',
   );
@@ -284,16 +285,17 @@ test('exported object dropped after op:gc-export', async t => {
   await E(echoObj).echo(objFromA);
 
   // After sending, objFromA should be exported from A
-  const objASlot = ocapnA.debug.ocapnTable.getSlotForValue(objFromA);
+  const objASlot = getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(objFromA);
   if (!objASlot) {
     throw new Error('objFromA should have a slot after being sent');
   }
 
   // Verify the export exists
-  const exportedValue = ocapnA.debug.ocapnTable.getValueForSlot(objASlot);
+  const exportedValue =
+    getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot);
   t.is(exportedValue, objFromA, 'exported object should be in export table');
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(objASlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
     1,
     'should have 1 reference to the exported object',
   );
@@ -319,14 +321,15 @@ test('exported object dropped after op:gc-export', async t => {
   ocapnA.dispatchMessageData(bytes);
 
   // Verify the export has been removed from A's table
-  const exportAfterGc = ocapnA.debug.ocapnTable.getValueForSlot(objASlot);
+  const exportAfterGc =
+    getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot);
   t.is(
     exportAfterGc,
     undefined,
     'exported object should be removed from export table after gc-export',
   );
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(objASlot),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
     0,
     'should have 0 references after gc-export',
   );
@@ -370,19 +373,20 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
     await E(echoObj).echo(objFromA);
 
     // After sending 5 times, objFromA should have ref count of 5
-    const objASlot = ocapnA.debug.ocapnTable.getSlotForValue(objFromA);
+    const objASlot = getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(objFromA);
     if (!objASlot) {
       throw new Error('objFromA should have a slot after being sent');
     }
 
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(objASlot),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
       5,
       'should have 5 references to the exported object',
     );
 
     // Verify the export exists
-    const exportedValue = ocapnA.debug.ocapnTable.getValueForSlot(objASlot);
+    const exportedValue =
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot);
     t.is(exportedValue, objFromA, 'exported object should be in export table');
 
     // Now simulate B sending an op:gc-export with partial wire-delta
@@ -400,14 +404,14 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
 
     // After partial GC, the object should still be in the table
     const exportAfterPartialGc =
-      ocapnA.debug.ocapnTable.getValueForSlot(objASlot);
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot);
     t.is(
       exportAfterPartialGc,
       objFromA,
       'exported object should still be in export table after partial gc-export',
     );
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(objASlot),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
       2,
       'should have 2 references remaining after partial gc-export',
     );
@@ -424,14 +428,14 @@ test('partial op:gc-export does not remove object, full gc does', async t => {
 
     // After final GC, the object should be removed from the table
     const exportAfterFinalGc =
-      ocapnA.debug.ocapnTable.getValueForSlot(objASlot);
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot);
     t.is(
       exportAfterFinalGc,
       undefined,
       'exported object should be removed from export table after final gc-export',
     );
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(objASlot),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
       0,
       'should have 0 references after final gc-export',
     );
@@ -459,7 +463,7 @@ test('op:gc-answer deletes answer from engine', async t => {
 
     // Verify B has the answer
     t.is(
-      ocapnB.debug.ocapnTable.getValueForSlot(answerSlot),
+      getOcapnDebug(ocapnB).ocapnTable.getValueForSlot(answerSlot),
       testAnswer,
       'answer should match',
     );
@@ -476,7 +480,7 @@ test('op:gc-answer deletes answer from engine', async t => {
 
     // After op:gc-answer, B should have deleted the answer
     t.is(
-      ocapnB.debug.ocapnTable.getValueForSlot(answerSlot),
+      getOcapnDebug(ocapnB).ocapnTable.getValueForSlot(answerSlot),
       undefined,
       'answer should be undefined',
     );
@@ -524,12 +528,12 @@ test("object can be re-exported after being GC'd", async t => {
     t.is(result1, 'received', 'first send succeeded');
 
     // Verify it's exported
-    const objASlot = ocapnA.debug.ocapnTable.getSlotForValue(objFromA);
+    const objASlot = getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(objFromA);
     if (!objASlot) {
       throw new Error('objFromA should have a slot after being sent');
     }
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(objASlot),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
       1,
       'should have 1 reference',
     );
@@ -546,12 +550,12 @@ test("object can be re-exported after being GC'd", async t => {
 
     // Verify it's gone
     t.is(
-      ocapnA.debug.ocapnTable.getValueForSlot(objASlot),
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(objASlot),
       undefined,
       'export should be removed after GC',
     );
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(objASlot),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(objASlot),
       0,
       'should have 0 references after GC',
     );
@@ -561,7 +565,8 @@ test("object can be re-exported after being GC'd", async t => {
     t.is(result2, 'received', 'second send after GC succeeded');
 
     // The object should be re-exported with a NEW slot (not the old one)
-    const reExportSlot = ocapnA.debug.ocapnTable.getSlotForValue(objFromA);
+    const reExportSlot =
+      getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(objFromA);
     if (!reExportSlot) {
       throw new Error('objFromA should have a slot after re-export');
     }
@@ -570,14 +575,14 @@ test("object can be re-exported after being GC'd", async t => {
 
     // The object IS re-exported (has ref count)
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(reExportSlot),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(reExportSlot),
       1,
       'ref count is 1 after re-export',
     );
 
     // And it should be back in the export table
     t.is(
-      ocapnA.debug.ocapnTable.getValueForSlot(reExportSlot),
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(reExportSlot),
       objFromA,
       'export is back in table after re-export',
     );
@@ -608,7 +613,7 @@ test('op:gc-export is sent when imported object is garbage collected', async t =
   // Track messages sent by A
   /** @type {Array<{direction: string, message: any}>} */
   const sentMessages = [];
-  ocapnA.debug.subscribeMessages((direction, message) => {
+  getOcapnDebug(ocapnA).subscribeMessages((direction, message) => {
     if (direction === 'send') {
       sentMessages.push({ direction, message });
     }
@@ -624,12 +629,13 @@ test('op:gc-export is sent when imported object is garbage collected', async t =
     );
 
     // Verify we have a slot for it
-    const slotOnA = ocapnA.debug.ocapnTable.getSlotForValue(remoteTestObject);
+    const slotOnA =
+      getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(remoteTestObject);
     if (!slotOnA) {
       throw new Error('should have a slot for the remote object');
     }
     t.is(
-      ocapnA.debug.ocapnTable.getRefCount(slotOnA),
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(slotOnA),
       1,
       'should have 1 reference to the remote object',
     );
@@ -679,14 +685,15 @@ test('op:gc-export wireDelta reflects accumulated refcount', async t => {
   await E(remoteTestObject).echo(remoteTestObject);
   await E(remoteTestObject).echo(remoteTestObject);
 
-  const slotOnA = ocapnA.debug.ocapnTable.getSlotForValue(remoteTestObject);
+  const slotOnA =
+    getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(remoteTestObject);
   if (!slotOnA) {
     throw new Error('should have a slot');
   }
 
   // Refcount should be 4 (1 initial + 3 from echo returns)
   t.is(
-    ocapnA.debug.ocapnTable.getRefCount(slotOnA),
+    getOcapnDebug(ocapnA).ocapnTable.getRefCount(slotOnA),
     4,
     'should have 4 references after receiving object 4 times',
   );
@@ -718,7 +725,7 @@ test('op:gc-answer is sent when answer promise is garbage collected', async t =>
   // Track messages sent by A
   /** @type {Array<{direction: string, message: any}>} */
   const sentMessages = [];
-  ocapnA.debug.subscribeMessages((direction, message) => {
+  getOcapnDebug(ocapnA).subscribeMessages((direction, message) => {
     if (direction === 'send') {
       sentMessages.push({ direction, message });
     }

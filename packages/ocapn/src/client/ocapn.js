@@ -593,16 +593,20 @@ const makeBootstrapObject = (
 };
 
 /**
+ * @typedef {object} OcapnDebug
+ * @property {OcapnTable} ocapnTable
+ * @property {(message: object) => void} sendMessage
+ * @property {(observer: MessageObserver) => () => void} subscribeMessages
+ */
+
+/**
  * @typedef {object} Ocapn
  * @property {((reason?: any) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
  * @property {() => object} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
- * @property {object} debug
- * @property {OcapnTable} debug.ocapnTable
- * @property {(message: object) => void} debug.sendMessage
- * @property {(observer: MessageObserver) => () => void} debug.subscribeMessages
+ * @property {OcapnDebug} [debug] - @experimental Only present when `debugMode` is true.
  */
 
 /**
@@ -618,6 +622,7 @@ const makeBootstrapObject = (
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
+ * @param {boolean} [debugMode] - If true, exposes `debug` object with internal APIs for testing. Default: false.
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -633,6 +638,7 @@ export const makeOcapn = (
   sturdyRefTracker,
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
+  debugMode = false,
 ) => {
   const commitSendSlots = () => {
     logger.info(`commitSendSlots`);
@@ -1165,16 +1171,19 @@ export const makeOcapn = (
   };
 
   /** @type {Ocapn} */
-  return harden({
+  const ocapn = {
     abort,
     dispatchMessageData,
     getRemoteBootstrap,
     writeOcapnMessage,
     referenceKit,
-    debug: {
+  };
+  if (debugMode) {
+    ocapn.debug = {
       ocapnTable,
       sendMessage: send,
       subscribeMessages,
-    },
-  });
+    };
+  }
+  return harden(ocapn);
 };

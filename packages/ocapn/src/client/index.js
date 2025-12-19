@@ -156,6 +156,7 @@ const compareSessionKeysForCrossedHellos = (
  * @param {any} message
  * @param {string} captpVersion
  * @param {boolean} enableImportCollection
+ * @param {boolean} debugMode
  */
 const handleSessionHandshakeMessage = (
   debugLabel,
@@ -169,6 +170,7 @@ const handleSessionHandshakeMessage = (
   message,
   captpVersion,
   enableImportCollection,
+  debugMode,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
@@ -261,6 +263,7 @@ const handleSessionHandshakeMessage = (
         sturdyRefTracker,
         debugLabel,
         enableImportCollection,
+        debugMode,
       );
       const session = makeSession({
         id: sessionId,
@@ -302,6 +305,7 @@ const handleSessionHandshakeMessage = (
  * @param {Uint8Array} data
  * @param {string} captpVersion
  * @param {boolean} enableImportCollection
+ * @param {boolean} debugMode
  */
 const handleHandshakeMessageData = (
   debugLabel,
@@ -315,6 +319,7 @@ const handleHandshakeMessageData = (
   data,
   captpVersion,
   enableImportCollection,
+  debugMode,
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
@@ -347,6 +352,7 @@ const handleHandshakeMessageData = (
           message,
           captpVersion,
           enableImportCollection,
+          debugMode,
         );
       } else {
         logger.info(
@@ -496,6 +502,7 @@ const makeSessionManager = () => {
  * @param {Map<string, any>} [options.giftTable]
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
+ * @param {boolean} [options.debugMode] - If true, exposes `debug` object on Ocapn instances with internal APIs for testing. Default: false.
  * @returns {Client}
  */
 export const makeClient = ({
@@ -505,6 +512,7 @@ export const makeClient = ({
   giftTable = new Map(),
   captpVersion = '1.0',
   enableImportCollection = true,
+  debugMode = false,
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
@@ -605,6 +613,7 @@ export const makeClient = ({
           data,
           captpVersion,
           enableImportCollection,
+          debugMode,
         );
       }
     },
