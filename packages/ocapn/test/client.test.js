@@ -1324,3 +1324,66 @@ test('op:untag with nested payload containing remotable', async t => {
     shutdownBoth();
   }
 });
+
+test('serialization error in E() call arguments rejects the promise', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Receiver',
+    Far('receiver', {
+      acceptAnything: arg => arg,
+    }),
+  );
+
+  const { establishSession, shutdownBoth, getConnectionAtoB } =
+    await makeTestClientPair({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    const connectionAtoB = getConnectionAtoB();
+    if (!connectionAtoB) {
+      throw new Error('Connection A to B should exist');
+    }
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const receiver = await E(bootstrapB).fetch(encodeSwissnum('Receiver'));
+
+    // Create an object that cannot be serialized.
+    // A plain function that isn't Far-wrapped should fail serialization.
+    const unpassableFunction = () => 'I am not Far-wrapped';
+
+    // When we try to send this unpassable object as an argument,
+    // the promise should reject with the serialization error.
+    const error = await t.throwsAsync(
+      async () => {
+        await E(receiver).acceptAnything(unpassableFunction);
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    // The error should indicate a serialization/write failure
+    t.regex(
+      error.message,
+      /write failed|cannot be passable|Cannot pass|pass-style/i,
+      'Error message should indicate serialization failure',
+    );
+
+    // Connection should still be alive (serialization errors don't abort the session)
+    t.false(
+      connectionAtoB.isDestroyed,
+      'Connection should NOT be destroyed on serialization error',
+    );
+
+    // We should still be able to make successful calls
+    const result = await E(receiver).acceptAnything('valid string');
+    t.is(result, 'valid string', 'Should still work after serialization error');
+  } finally {
+    shutdownBoth();
+  }
+});

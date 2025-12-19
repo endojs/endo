@@ -164,10 +164,8 @@ const makeOcapnCommsKit = ({
       return;
     }
 
-    // Actually send the message.
-    Promise.resolve(rawSend(obj))
-      // eslint-disable-next-line no-use-before-define
-      .catch(abort); // Abort if rawSend returned a rejection.
+    // Actually send the message. Throws on serialization error.
+    rawSend(obj);
   };
 
   // Return a dispatch function that notifies observers.
@@ -1092,7 +1090,6 @@ export const makeOcapn = (
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
 
   function serializeAndSendMessage(message) {
-    // If we dont catch the error here it gets swallowed.
     logger.info(`sending message`, message);
     try {
       ocapnTable.clearPendingRefCounts();
@@ -1104,6 +1101,8 @@ export const makeOcapn = (
       // Tell the engine message serialization has failed.
       ocapnTable.clearPendingRefCounts();
       logger.info(`sending message error`, error);
+      // Re-throw so the caller can handle the error (e.g., reject the answer promise).
+      throw error;
     }
   }
 
