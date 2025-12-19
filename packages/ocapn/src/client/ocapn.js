@@ -1081,8 +1081,7 @@ export const makeOcapn = (
         const problematicBytes = data.slice(start);
         const syrupMessage = decodeSyrup(problematicBytes);
         logger.error(`Message decode error:`);
-        console.dir(syrupMessage, { depth: null });
-        console.log(
+        logger.error(
           JSON.stringify(
             syrupMessage,
             (key, value) => (typeof value === 'bigint' ? `${value}n` : value),
