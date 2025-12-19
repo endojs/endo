@@ -16,7 +16,9 @@ attack resistance.
 Endo includes tools for _confinement_, _communication_, and _concurrency_.
 With Endo’s [SES][] implementation of [HardenedJS][], we can opt-in to a more
 tamper-resistant mode of JavaScript.
-With Endo’s [E][]
+With Endo’s [Eventual Send][E], we have a safe, transport-agnostic abstraction
+for pipelining messages to remote procedures, and concrete transports like
+[Endo CapTP][CapTP] and, soon, [OCapN](https://ocapn.org).
 
 [Agoric][] and [MetaMask][] rely on Hardened JavaScript and the [SES shim][SES]
 as part of systems that sandbox third-party plugins or smart contracts and
