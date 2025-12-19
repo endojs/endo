@@ -15,7 +15,7 @@ const makeTestTable = (
   importHook = () => {},
   exportHook = () => {},
   onSlotCollected = () => {},
-) => makePairwiseTable(importHook, exportHook, onSlotCollected);
+) => makePairwiseTable({ importHook, exportHook, onSlotCollected });
 
 // Test makeSlot function
 

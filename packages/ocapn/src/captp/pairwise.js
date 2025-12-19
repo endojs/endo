@@ -56,12 +56,19 @@ const isSlotLocal = slot => {
 };
 
 /**
- * @param {(val: object, slot: Slot) => void} importHook
- * @param {(val: object, slot: Slot) => void} exportHook
- * @param {(slot: Slot, refcount: number) => void} onSlotCollected
+ * @param {object} options
+ * @param {(val: object, slot: Slot) => void} options.importHook
+ * @param {(val: object, slot: Slot) => void} options.exportHook
+ * @param {(slot: Slot, refcount: number) => void} options.onSlotCollected
+ * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @returns {PairwiseTable}
  */
-export const makePairwiseTable = (importHook, exportHook, onSlotCollected) => {
+export const makePairwiseTable = ({
+  importHook,
+  exportHook,
+  onSlotCollected,
+  enableImportCollection = true,
+}) => {
   const valueToSlot = new WeakMap();
 
   /** @type {ExportTable} */
@@ -75,7 +82,7 @@ export const makePairwiseTable = (importHook, exportHook, onSlotCollected) => {
       refCounts.delete(slot);
       onSlotCollected(slot, refCount);
     },
-    { weakValues: true },
+    { weakValues: enableImportCollection },
   );
 
   const settlers = new Map();

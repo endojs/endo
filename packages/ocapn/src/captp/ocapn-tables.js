@@ -13,17 +13,15 @@ import { makePairwiseTable, parseSlot } from './pairwise.js';
  */
 
 /**
- * @param {(value: object, slot: Slot) => void} importHook
- * @param {(value: object, slot: Slot) => void} exportHook
- * @param {(slot: Slot, refcount: number) => void} onSlotCollected
+ * @param {object} options
+ * @param {(value: object, slot: Slot) => void} options.importHook
+ * @param {(value: object, slot: Slot) => void} options.exportHook
+ * @param {(slot: Slot, refcount: number) => void} options.onSlotCollected
+ * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @returns {OcapnTable}
  */
-export const makeOcapnTable = (importHook, exportHook, onSlotCollected) => {
-  const pairwiseEngine = makePairwiseTable(
-    importHook,
-    exportHook,
-    onSlotCollected,
-  );
+export const makeOcapnTable = options => {
+  const pairwiseEngine = makePairwiseTable(options);
 
   // Local Answer is special in OCapN. We don't use the normal export/import mechanism.
   // This is because if we export a local answer, it should be re-exported as

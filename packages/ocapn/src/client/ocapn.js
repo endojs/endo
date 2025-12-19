@@ -610,6 +610,7 @@ const makeBootstrapObject = (
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {string} [ourIdLabel]
+ * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -624,6 +625,7 @@ export const makeOcapn = (
   giftTable,
   sturdyRefTracker,
   ourIdLabel = 'OCapN',
+  enableImportCollection = true,
 ) => {
   const commitSendSlots = () => {
     logger.info(`commitSendSlots`);
@@ -636,6 +638,8 @@ export const makeOcapn = (
   const abort = reason => {
     logger.info(`client received abort`, reason);
     connection.end();
+    // eslint-disable-next-line no-use-before-define
+    ocapnTable.destroy();
   };
 
   /**
@@ -930,10 +934,42 @@ export const makeOcapn = (
   };
 
   const slotCollectedHook = (slot, refcount) => {
-    logger.info(`slotCollected`, slot, refcount);
+    // Ignore if the session has been unplugged.
+    if (didUnplug()) {
+      return;
+    }
+
+    const { type, isLocal, position } = parseSlot(slot);
+    logger.info(`slotCollected`, slot, refcount, { type, isLocal, position });
+
+    // Only send GC for remote (imported) slots.
+    // This should never be called for local slots, but just for sanity.
+    if (isLocal) {
+      return;
+    }
+
+    if (type === 'o' || type === 'p') {
+      // Remote object or promise - tell peer to decrement export refcount
+      send({
+        type: 'op:gc-export',
+        exportPosition: position,
+        wireDelta: BigInt(refcount),
+      });
+    } else if (type === 'a') {
+      // Remote answer - tell peer they can GC the answer
+      send({
+        type: 'op:gc-answer',
+        answerPosition: position,
+      });
+    }
   };
 
-  const ocapnTable = makeOcapnTable(importHook, exportHook, slotCollectedHook);
+  const ocapnTable = makeOcapnTable({
+    importHook,
+    exportHook,
+    onSlotCollected: slotCollectedHook,
+    enableImportCollection,
+  });
 
   /** @type {MakeHandoff} */
   const makeHandoff = signedGive => {

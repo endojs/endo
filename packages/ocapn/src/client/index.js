@@ -155,6 +155,7 @@ const compareSessionKeysForCrossedHellos = (
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {any} message
  * @param {string} captpVersion
+ * @param {boolean} enableImportCollection
  */
 const handleSessionHandshakeMessage = (
   debugLabel,
@@ -167,6 +168,7 @@ const handleSessionHandshakeMessage = (
   sturdyRefTracker,
   message,
   captpVersion,
+  enableImportCollection,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
@@ -258,6 +260,7 @@ const handleSessionHandshakeMessage = (
         giftTable,
         sturdyRefTracker,
         debugLabel,
+        enableImportCollection,
       );
       const session = makeSession({
         id: sessionId,
@@ -298,6 +301,7 @@ const handleSessionHandshakeMessage = (
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Uint8Array} data
  * @param {string} captpVersion
+ * @param {boolean} enableImportCollection
  */
 const handleHandshakeMessageData = (
   debugLabel,
@@ -310,6 +314,7 @@ const handleHandshakeMessageData = (
   sturdyRefTracker,
   data,
   captpVersion,
+  enableImportCollection,
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
@@ -341,6 +346,7 @@ const handleHandshakeMessageData = (
           sturdyRefTracker,
           message,
           captpVersion,
+          enableImportCollection,
         );
       } else {
         logger.info(
@@ -489,6 +495,7 @@ const makeSessionManager = () => {
  * @param {Map<string, any>} [options.swissnumTable]
  * @param {Map<string, any>} [options.giftTable]
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
+ * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @returns {Client}
  */
 export const makeClient = ({
@@ -497,6 +504,7 @@ export const makeClient = ({
   swissnumTable = new Map(),
   giftTable = new Map(),
   captpVersion = '1.0',
+  enableImportCollection = true,
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
@@ -596,6 +604,7 @@ export const makeClient = ({
           client.sturdyRefTracker,
           data,
           captpVersion,
+          enableImportCollection,
         );
       }
     },

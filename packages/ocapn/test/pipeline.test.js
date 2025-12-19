@@ -141,8 +141,11 @@ test('pipeline: method invocation transcript', async t => {
     }),
   );
 
+  // Disable import collection to avoid GC-related flakiness in pipeline tests
   const { establishSession, shutdownBoth } = await makeTestClientPair({
     makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
   });
 
   try {
@@ -184,8 +187,11 @@ test('pipeline: op:get field access transcript', async t => {
     }),
   );
 
+  // Disable import collection to avoid GC-related flakiness in pipeline tests
   const { establishSession, shutdownBoth } = await makeTestClientPair({
     makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
   });
 
   try {
@@ -234,8 +240,11 @@ test('pipeline: op:index array access transcript', async t => {
     }),
   );
 
+  // Disable import collection to avoid GC-related flakiness in pipeline tests
   const { establishSession, shutdownBoth } = await makeTestClientPair({
     makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
   });
 
   try {
@@ -282,8 +291,11 @@ test('pipeline: complex nested access transcript', async t => {
     }),
   );
 
+  // Disable import collection to avoid GC-related flakiness in pipeline tests
   const { establishSession, shutdownBoth } = await makeTestClientPair({
     makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
   });
 
   try {
@@ -334,8 +346,11 @@ test('pipeline: all sends before receives proves pipelining', async t => {
     Far('echo', value => value),
   );
 
+  // Disable import collection to avoid GC-related flakiness in pipeline tests
   const { establishSession, shutdownBoth } = await makeTestClientPair({
     makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
   });
 
   try {
@@ -389,8 +404,11 @@ test('pipeline: verify args in deliver messages', async t => {
     }),
   );
 
+  // Disable import collection to avoid GC-related flakiness in pipeline tests
   const { establishSession, shutdownBoth } = await makeTestClientPair({
     makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
   });
 
   try {

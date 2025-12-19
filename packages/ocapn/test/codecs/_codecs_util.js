@@ -204,7 +204,11 @@ export const makeCodecTestKit = (
   const slotCollectedHook = (slot, refcount) => {
     logger.info(`slotCollected`, slot, refcount);
   };
-  const ocapnTable = makeOcapnTable(importHook, exportHook, slotCollectedHook);
+  const ocapnTable = makeOcapnTable({
+    importHook,
+    exportHook,
+    onSlotCollected: slotCollectedHook,
+  });
 
   const sendHandoff = signedGive => {
     throw Error('sendHandoff is not implemented for test');
