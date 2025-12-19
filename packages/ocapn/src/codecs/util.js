@@ -149,7 +149,7 @@ export const makeOcapnListComponentUnionCodec = (
 };
 
 /**
- * @typedef {'local:object' | 'local:promise' | 'local:answer' | 'local:sturdyref' | 'remote:object' | 'remote:promise' | 'remote:answer' | 'third-party:handoff'} ValueInfoTableKey
+ * @typedef {'local:object' | 'local:promise' | 'local:answer' | 'remote:object' | 'remote:promise' | 'remote:answer' | 'third-party:handoff'} ValueInfoTableKey
  */
 
 /**

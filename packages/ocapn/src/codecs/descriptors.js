@@ -349,7 +349,6 @@ export const makeDescCodecs = referenceKit => {
     {
       'local:object': DescImportObjectCodec,
       'local:promise': DescImportPromiseCodec,
-      'local:sturdyref': OcapnSturdyRefCodec,
       'local:answer': DescImportPromiseCodec,
       'remote:object': DescExportCodec,
       'remote:promise': DescExportCodec,
