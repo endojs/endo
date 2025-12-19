@@ -266,34 +266,19 @@ export const makeDescCodecs = referenceKit => {
     },
   );
 
-  const DeliverTargetReadCodec = makeRecordUnionCodec('DeliverTargetRead', {
-    DescExport: DescExportCodec,
-    DescAnswer: DescAnswerCodec,
-  });
-
-  // DeliverTarget is more limited in scope than ReferenceCodec,
-  // as it does not handle SturdyRefs or Handoffs.
-  const DeliverTargetCodec = makeCodec('DeliverTarget', {
-    read(syrupReader) {
-      const value = DeliverTargetReadCodec.read(syrupReader);
-      const { isLocal, slot } = referenceKit.getInfoForVal(value);
-      if (!isLocal) {
-        throw Error(`DeliverTarget must be local. Got slot ${slot}`);
-      }
-      return value;
+  const DeliverTargetCodec = makeValueInfoRecordUnionCodec(
+    'DeliverTarget',
+    referenceKit,
+    {
+      DescExport: DescExportCodec,
+      DescAnswer: DescAnswerCodec,
     },
-    write(value, syrupWriter) {
-      const { type, isLocal, slot } = referenceKit.getInfoForVal(value);
-      if (isLocal) {
-        throw Error(`DeliverTarget must be remote. Got slot ${slot}`);
-      }
-      if (type === 'answer') {
-        DescAnswerCodec.write(value, syrupWriter);
-      } else {
-        DescExportCodec.write(value, syrupWriter);
-      }
+    {
+      'remote:object': DescExportCodec,
+      'remote:promise': DescExportCodec,
+      'remote:answer': DescAnswerCodec,
     },
-  });
+  );
 
   const ResolveMeDescCodec = makeCodec('ResolveMeDesc', {
     read(syrupReader) {
