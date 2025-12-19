@@ -1,73 +1,241 @@
 // @ts-check
 
 /**
- * @import { SyrupCodec } from '../../src/syrup/codec.js'
- * @import { SyrupReader } from '../../src/syrup/decode.js'
- * @import { SyrupWriter } from '../../src/syrup/encode.js'
  * @import { CodecTestEntry } from './_codecs_util.js'
- * @import { Settler } from '@endo/eventual-send'
  */
 
 import test from '@endo/ses-ava/test.js';
 
+import { makeTagged } from '@endo/pass-style';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
-import { makeTagged, makeSelector } from '../../src/pass-style-helpers.js';
-import { sel, str, bts, bool, int, list, btsStr } from './_syrup_util.js';
-import { makeCodecTestKit, testBidirectionally } from './_codecs_util.js';
+import { makeSyrupWriter } from '../../src/syrup/encode.js';
+import { makeSelector } from '../../src/selector.js';
+import { recordSyrup } from './_syrup_util.js';
+import {
+  exporterLocation,
+  makeCodecTestKit,
+  runTableTests,
+} from './_codecs_util.js';
 import { throws } from '../_util.js';
+import {
+  immutableArrayBufferToUint8Array,
+  uint8ArrayToImmutableArrayBuffer,
+} from '../../src/buffer-utils.js';
+import { encodeSwissnum } from '../../src/client/util.js';
+import { getSturdyRefDetails } from '../../src/client/sturdyrefs.js';
 
 const textEncoder = new TextEncoder();
 
 const { PassableCodec } = makeCodecTestKit();
 
+// The PassableCodec covers References (Targets and Promises), but these tests do not,
+// as it would entrain the entire client (especially for third-party references). They are tested
+// in the client tests.
+
 /** @type {CodecTestEntry[]} */
 const table = [
-  { syrup: `<${sel('void')}>`, value: undefined },
-  { syrup: `<${sel('null')}>`, value: null },
-  { syrup: `${bool(true)}`, value: true },
-  { syrup: `${bool(false)}`, value: false },
-  { syrup: `${int(123)}`, value: 123n },
-  { syrup: `${str('hello')}`, value: 'hello' },
+  { name: 'undefined', value: undefined },
+  { name: 'null', value: null },
+  { name: 'boolean true', value: true },
+  { name: 'boolean false', value: false },
+  { name: 'integer 123', value: 123n },
+  { name: 'string hello', value: 'hello' },
   {
-    syrup: btsStr('hello'),
-    value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    name: 'byte array hello',
+    value: uint8ArrayToImmutableArrayBuffer(
+      new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    ),
   },
   {
-    syrup: bts(new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f])),
-    value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    name: 'byte array',
+    value: uint8ArrayToImmutableArrayBuffer(
+      new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+    ),
   },
   {
-    syrup: `${sel('hello')}`,
+    name: 'selector',
     value: makeSelector('hello'),
   },
-  { syrup: `${list([str('hello'), str('world')])}`, value: ['hello', 'world'] },
   {
-    syrup: `{${str('abc')}${int(123)}${str('xyz')}${bool(true)}}`,
+    name: 'array of selectors',
+    value: harden([makeSelector('hello'), makeSelector('world')]),
+  },
+  {
+    name: 'array of strings',
+    value: harden(['hello', 'world']),
+  },
+  {
+    name: 'struct with bigint and boolean',
     value: harden({ abc: 123n, xyz: true }),
   },
   {
-    syrup: `<${sel('desc:tagged')}${sel('hello')}${list([str('world')])}>`,
+    name: 'struct with empty string key',
+    value: harden({ '': 10n, i: 20n }),
+  },
+  {
+    name: 'struct with out of order keys',
+    value: harden({ b: 10n, a: 20n }),
+  },
+  {
+    name: 'struct with "type" key',
+    value: harden({ type: 'invalid', abc: 'foo' }),
+  },
+  {
+    name: 'struct with known record type',
+    value: harden({ type: 'ocapn-peer', b: 10n, a: 20n }),
+  },
+  {
+    name: 'tagged value',
     value: makeTagged('hello', ['world']),
   },
-  // order canonicalization
-  { syrup: '{0"10+1"i20+}', value: harden({ '': 10n, i: 20n }) },
+  // Float64 numbers - 'D' (0x44) followed by 8 bytes of IEEE 754 big-endian
+  {
+    name: 'float64 positive',
+    value: 3.2,
+  },
+  {
+    name: 'float64 zero',
+    value: 0,
+  },
+  {
+    name: 'float64 negative',
+    value: -42.5,
+  },
+  {
+    name: 'float64 infinity',
+    value: Infinity,
+  },
+  {
+    name: 'float64 negative infinity',
+    value: -Infinity,
+  },
+  {
+    name: 'float64 NaN',
+    value: NaN,
+    customAssert: (t, actual, expected) => {
+      t.true(Number.isNaN(actual), 'actual should be NaN');
+      t.true(Number.isNaN(expected), 'expected should be NaN');
+    },
+  },
+  // Errors - read as plain objects, write as dictionaries (different syrup format)
+  {
+    name: 'error simple',
+    value: harden(Error('Test error')),
+  },
+  {
+    name: 'error empty',
+    value: harden(Error('')),
+  },
+  {
+    name: 'error with special chars',
+    value: harden(
+      Error('Error: "quoted" and \'single\' with\nnewline and\ttab'),
+    ),
+  },
+  // Nested structures with errors and floats
+  {
+    name: 'error in array',
+    value: harden(['before', Error('Nested error'), 'after']),
+  },
+  {
+    name: 'error in record',
+    value: harden({
+      error: Error('Message'),
+      text: 'hello',
+    }),
+  },
+  // SturdyRef
+  {
+    name: 'sturdyref',
+    makeValue: testKit =>
+      testKit.sturdyRefTracker.makeSturdyRef(
+        exporterLocation,
+        encodeSwissnum('123'),
+      ),
+    customAssert: (t, actual) => {
+      const details = getSturdyRefDetails(actual);
+      if (!details) {
+        throw Error('SturdyRef has no details');
+      }
+      t.deepEqual(details.location, exporterLocation);
+      t.deepEqual(details.swissNum, encodeSwissnum('123'));
+    },
+  },
+  {
+    name: 'sturdyref in list',
+    makeValue: testKit =>
+      harden([
+        testKit.sturdyRefTracker.makeSturdyRef(
+          exporterLocation,
+          encodeSwissnum('123'),
+        ),
+      ]),
+    customAssert: (t, actual) => {
+      t.is(actual.length, 1);
+      const details = getSturdyRefDetails(actual[0]);
+      if (!details) {
+        throw Error('SturdyRef has no details');
+      }
+      t.deepEqual(details.location, exporterLocation);
+      t.deepEqual(details.swissNum, encodeSwissnum('123'));
+    },
+  },
+  // Tagged objects containing references
+  {
+    name: 'tagged with reference (local object)',
+    makeValue: testKit => makeTagged('myTag', testKit.makeLocalObject(100n)),
+    makeExpectedValue: testKit =>
+      makeTagged('myTag', testKit.referenceKit.provideRemoteObjectValue(100n)),
+  },
+  {
+    name: 'tagged with reference (local promise)',
+    makeValue: testKit =>
+      makeTagged('promiseTag', testKit.makeLocalPromise(101n)),
+    makeExpectedValue: testKit =>
+      makeTagged(
+        'promiseTag',
+        testKit.referenceKit.provideRemotePromiseValue(101n),
+      ),
+  },
+  {
+    name: 'tagged with reference in list',
+    makeValue: testKit =>
+      makeTagged('listTag', harden([testKit.makeLocalObject(102n), 'hello'])),
+    makeExpectedValue: testKit =>
+      makeTagged(
+        'listTag',
+        harden([testKit.referenceKit.provideRemoteObjectValue(102n), 'hello']),
+      ),
+  },
+  {
+    name: 'tagged with sturdyref',
+    makeValue: testKit =>
+      makeTagged(
+        'sturdyTag',
+        testKit.sturdyRefTracker.makeSturdyRef(
+          exporterLocation,
+          encodeSwissnum('456'),
+        ),
+      ),
+    // SturdyRefs need customAssert because object identity differs after round-trip
+    customAssert: (t, actual) => {
+      t.is(actual[Symbol.toStringTag], 'sturdyTag');
+      const details = getSturdyRefDetails(actual.payload);
+      if (!details) {
+        throw Error('SturdyRef has no details');
+      }
+      t.deepEqual(details.location, exporterLocation);
+      t.deepEqual(details.swissNum, encodeSwissnum('456'));
+    },
+  },
 ];
 
-test('affirmative passable cases', t => {
-  for (const [index, entry] of table.entries()) {
-    const { name = `test-${index}` } = entry;
-    testBidirectionally(t, {
-      ...entry,
-      name,
-      getCodec: testKit => testKit.PassableCodec,
-    });
-  }
-});
+runTableTests(test, 'PassableCodec', table, testKit => testKit.PassableCodec);
 
 test('error on unknown record type in passable', t => {
   const codec = PassableCodec;
-  const syrup = `<${sel('unknown-record-type')}>`;
-  const syrupBytes = textEncoder.encode(syrup);
+  const syrup = recordSyrup('unknown-record-type');
+  const syrupBytes = immutableArrayBufferToUint8Array(syrup);
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'unknown record type',
   });
@@ -121,6 +289,110 @@ test('passable fails with repeated keys', t => {
       cause: {
         message:
           'OcapnStruct must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
+      },
+    },
+  });
+});
+
+// ===== Special Cases =====
+
+test('passable error - write Error object', t => {
+  // Test writing an actual Error object (reads back as plain object)
+  const codec = PassableCodec;
+  const writer = makeSyrupWriter();
+  codec.write(harden(Error('Test error')), writer);
+  const syrupBytes = writer.getBytes();
+
+  const reader = makeSyrupReader(syrupBytes, { name: 'error write' });
+  const result = codec.read(reader);
+  t.deepEqual(result, Error('Test error'));
+});
+
+test('passable error - with unicode characters', t => {
+  // Test error with basic unicode (emojis use surrogate pairs which are invalid)
+  const codec = PassableCodec;
+  const message = 'Error with unicode: © ñ Ω α β';
+  const writer = makeSyrupWriter();
+  codec.write(harden(Error(message)), writer);
+  const syrupBytes = writer.getBytes();
+
+  const reader = makeSyrupReader(syrupBytes, { name: 'error unicode' });
+  const result = codec.read(reader);
+  t.deepEqual(result, Error(message));
+});
+
+test('passable nested - float64 in containers', t => {
+  // Test floats in arrays and records
+  const codec = PassableCodec;
+  const value = harden({
+    numbers: [1.0, 2.5, 3.14159],
+    point: { x: 2.0, y: 3.5 },
+  });
+  const writer = makeSyrupWriter();
+  codec.write(value, writer);
+  const syrupBytes = writer.getBytes();
+
+  const reader = makeSyrupReader(syrupBytes, { name: 'float64 nested' });
+  const result = codec.read(reader);
+  t.deepEqual(result, {
+    numbers: [1.0, 2.5, 3.14159],
+    point: { x: 2.0, y: 3.5 },
+  });
+});
+
+test('passable nested - mixed types with error', t => {
+  // Test error objects nested in complex structures
+  const codec = PassableCodec;
+  const value = harden({
+    count: 10n,
+    error: harden(Error('Failed')),
+    name: 'test',
+    ratio: 0.5,
+  });
+  const writer = makeSyrupWriter();
+  codec.write(value, writer);
+  const syrupBytes = writer.getBytes();
+
+  const reader = makeSyrupReader(syrupBytes, { name: 'mixed with error' });
+  const result = codec.read(reader);
+  t.deepEqual(result, {
+    count: 10n,
+    error: Error('Failed'),
+    name: 'test',
+    ratio: 0.5,
+  });
+});
+
+test('passable string - fails with emoji (surrogate pairs)', t => {
+  // Emojis like 🚀 use UTF-16 surrogate pairs (U+D800-U+DFFF) which are invalid in OCapN
+  const codec = PassableCodec;
+  const stringWithEmoji = 'Hello 🚀 World';
+  const writer = makeSyrupWriter();
+
+  throws(t, () => codec.write(stringWithEmoji, writer), {
+    message: 'OcapnPassable: write failed at index 0 of <unknown>',
+    cause: {
+      message: 'String: write failed at index 0 of <unknown>',
+      cause: {
+        message:
+          'Invalid string characters "🚀" in string "Hello 🚀 World" at index 0',
+      },
+    },
+  });
+});
+
+test('passable string - fails with multiple emojis', t => {
+  const codec = PassableCodec;
+  const stringWithEmojis = '🚀 ❌ ✓';
+  const writer = makeSyrupWriter();
+
+  throws(t, () => codec.write(stringWithEmojis, writer), {
+    message: 'OcapnPassable: write failed at index 0 of <unknown>',
+    cause: {
+      message: 'String: write failed at index 0 of <unknown>',
+      cause: {
+        message:
+          'Invalid string characters "🚀" in string "🚀 ❌ ✓" at index 0',
       },
     },
   });

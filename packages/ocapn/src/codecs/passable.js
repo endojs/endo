@@ -1,16 +1,12 @@
 // @ts-check
 
 /**
- * @import { SyrupCodec, SyrupRecordCodec } from '../syrup/codec.js'
+ * @import { SyrupCodec } from '../syrup/codec.js'
  * @import { DescCodecs } from './descriptors.js'
  */
 
-import { passStyleOf as realPassStyleOf } from '@endo/pass-style';
-import {
-  makeTagged,
-  makeSelector,
-  passStyleOf,
-} from '../pass-style-helpers.js';
+import { makeTagged } from '@endo/pass-style';
+import { makeSelector, getSelectorName } from '../selector.js';
 import {
   BooleanCodec,
   IntegerCodec,
@@ -18,16 +14,12 @@ import {
   StringCodec,
   BytestringCodec,
   makeRecordUnionCodec,
-  makeTypeHintUnionCodec,
   makeListCodecFromEntryCodec,
   makeCodec,
+  makeTypeHintPassStyleUnionCodec,
 } from '../syrup/codec.js';
-import {
-  makeOcapnRecordCodec,
-  makeOcapnRecordCodecFromDefinition,
-} from './util.js';
-
-const quote = JSON.stringify;
+import { makeOcapnRecordCodec } from './util.js';
+import { makeStructCodecForValues } from './subtypes.js';
 
 // OCapN Passable Atoms
 
@@ -63,7 +55,7 @@ const OcapnSelectorCodec = makeCodec('OcapnSelector', {
     return makeSelector(name);
   },
   write(value, syrupWriter) {
-    const name = value[Symbol.toStringTag];
+    const name = getSelectorName(value);
     syrupWriter.writeSelectorFromString(name);
   },
 });
@@ -89,56 +81,22 @@ const AtomCodecs = {
  * @returns {PassableCodecs}
  */
 export const makePassableCodecs = descCodecs => {
-  const { ReferenceCodec } = descCodecs;
+  const { ReferenceCodec, OcapnSturdyRefCodec, HandOffUnionCodec } = descCodecs;
 
   // OCapN Passable Containers
 
-  /** @type {SyrupCodec} */
-  const OcapnStructCodec = makeCodec('OcapnStruct', {
-    read(syrupReader) {
-      /** @type {string | undefined} */
-      let lastKey;
-      syrupReader.enterDictionary();
-      const result = {};
-      while (!syrupReader.peekDictionaryEnd()) {
-        // OCapN Structs are always string keys.
-        const start = syrupReader.index;
-        const key = syrupReader.readString();
-        if (lastKey !== undefined) {
-          if (key === lastKey) {
-            throw new Error(
-              `OcapnStruct must have unique keys, got repeated ${quote(key)} at index ${start} of ${syrupReader.name}`,
-            );
-          }
-          if (key < lastKey) {
-            throw new Error(
-              `OcapnStruct keys must be in bytewise sorted order, got ${quote(key)} immediately after ${quote(lastKey)} at index ${start} of ${syrupReader.name}`,
-            );
-          }
-        }
-        lastKey = key;
-        // Value can be any Passable.
-        /* eslint-disable-next-line no-use-before-define */
-        const value = OcapnPassableUnionCodec.read(syrupReader);
-        result[key] = value;
-      }
-      syrupReader.exitDictionary();
-      return result;
-    },
-    write(value, syrupWriter) {
-      syrupWriter.enterDictionary();
-      const keys = Object.keys(value);
-      keys.sort();
-      for (const key of keys) {
-        syrupWriter.writeString(key);
-        // Value can be any Passable.
-        const passable = value[key];
-        /* eslint-disable-next-line no-use-before-define */
-        OcapnPassableUnionCodec.write(passable, syrupWriter);
-      }
-      syrupWriter.exitDictionary();
-    },
-  });
+  /* eslint-disable-next-line no-use-before-define */
+  const OcapnStructCodec = makeStructCodecForValues(
+    'OcapnStruct',
+    // eslint-disable-next-line no-use-before-define
+    () => OcapnPassableUnionCodec,
+  );
+
+  const OcapnListCodec = makeListCodecFromEntryCodec(
+    'OcapnList',
+    // eslint-disable-next-line no-use-before-define
+    () => OcapnPassableUnionCodec,
+  );
 
   // <:desc:tagged :tagName value>
   const OcapnTaggedCodec = makeOcapnRecordCodec(
@@ -161,11 +119,24 @@ export const makePassableCodecs = descCodecs => {
     },
   );
 
-  const OcapnErrorCodec = makeOcapnRecordCodecFromDefinition(
+  const ContainerCodecs = {
+    list: OcapnListCodec,
+    struct: OcapnStructCodec,
+    tagged: OcapnTaggedCodec,
+  };
+
+  const OcapnErrorCodec = makeOcapnRecordCodec(
     'OcapnError',
     'desc:error',
-    {
-      message: 'string',
+    syrupReader => {
+      const message = syrupReader.readString();
+      const err = Error(message);
+      delete err.stack;
+      harden(err);
+      return err;
+    },
+    (value, syrupWriter) => {
+      syrupWriter.writeString(value.message);
     },
   );
 
@@ -201,7 +172,7 @@ export const makePassableCodecs = descCodecs => {
           syrupWriter.writeString(value);
         } else if (typeof value === 'bigint') {
           syrupWriter.writeInteger(value);
-        } else if (value instanceof Uint8Array) {
+        } else if (value instanceof ArrayBuffer) {
           syrupWriter.writeBytestring(value);
         } else {
           throw new Error(
@@ -212,7 +183,7 @@ export const makePassableCodecs = descCodecs => {
     },
   );
 
-  const OcapnPassableUnionCodec = makeTypeHintUnionCodec(
+  const OcapnPassableUnionCodec = makeTypeHintPassStyleUnionCodec(
     'OcapnPassable',
     // syrup type hint -> codec
     {
@@ -226,72 +197,31 @@ export const makePassableCodecs = descCodecs => {
       // eslint-disable-next-line no-use-before-define
       dictionary: () => ContainerCodecs.struct,
     },
-    // javascript typeof value -> codec
+    // passStyleOf value -> codec
     {
+      // Atoms
       undefined: AtomCodecs.undefined,
+      null: AtomCodecs.null,
       boolean: AtomCodecs.boolean,
       number: AtomCodecs.float64,
       string: AtomCodecs.string,
       symbol: AtomCodecs.selector,
       bigint: AtomCodecs.integer,
-      object: value => {
-        if (value === null) {
-          return AtomCodecs.null;
-        }
-        if (value instanceof Uint8Array) {
-          return AtomCodecs.byteArray;
-        }
-        if (Array.isArray(value)) {
-          // eslint-disable-next-line no-use-before-define
-          return ContainerCodecs.list;
-        }
-        const passStyle = passStyleOf(value);
-        if (passStyle === 'tagged') {
-          // eslint-disable-next-line no-use-before-define
-          return ContainerCodecs.tagged;
-        }
-        if (passStyle === 'selector') {
-          return AtomCodecs.selector;
-        }
-        // Some OCapN Record Types have a type property.
-        const { type: recordType } = value;
-        if (
-          recordType !== undefined &&
-          OcapnPassableRecordUnionCodec.supports(recordType)
-        ) {
-          return OcapnPassableRecordUnionCodec;
-        }
-        if (value instanceof Error) {
-          return OcapnErrorCodec;
-        }
-        const realPassStyle = realPassStyleOf(value);
-        if (realPassStyle === 'copyRecord') {
-          // eslint-disable-next-line no-use-before-define
-          return ContainerCodecs.struct;
-        }
-        if (realPassStyle === 'remotable') {
-          return ReferenceCodec;
-        }
-        if (realPassStyle === 'promise') {
-          return ReferenceCodec;
-        }
-        throw new Error(`Unexpected value ${value} for OcapnPassable`);
-      },
-      function: value => {
-        const realPassStyle = realPassStyleOf(value);
-        if (realPassStyle === 'remotable') {
-          return ReferenceCodec;
-        }
-        throw new Error(`Unexpected value ${value} for OcapnPassable`);
-      },
+      byteArray: AtomCodecs.byteArray,
+      error: OcapnErrorCodec,
+      // Containers
+      tagged: ContainerCodecs.tagged,
+      copyRecord: ContainerCodecs.struct,
+      copyArray: ContainerCodecs.list,
+      // References
+      remotable: ReferenceCodec,
+      promise: ReferenceCodec,
+      // Special Cases
+      signedHandoffReceive: HandOffUnionCodec,
+      signedHandoffGive: HandOffUnionCodec,
+      sturdyref: OcapnSturdyRefCodec,
     },
   );
-
-  const ContainerCodecs = {
-    list: makeListCodecFromEntryCodec('OcapnList', OcapnPassableUnionCodec),
-    struct: OcapnStructCodec,
-    tagged: OcapnTaggedCodec,
-  };
 
   return {
     PassableCodec: OcapnPassableUnionCodec,

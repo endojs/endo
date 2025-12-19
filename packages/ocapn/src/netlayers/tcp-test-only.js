@@ -1,11 +1,13 @@
 // @ts-check
+/* global setTimeout */
 
 import net from 'net';
 
 import { makeSelfIdentity, sendHello } from '../client/index.js';
+import { locationToLocationId } from '../client/util.js';
 
 /**
- * @import { Connection, NetLayer, Session, Client } from '../client/types.js'
+ * @import { Connection, NetLayer, Client } from '../client/types.js'
  * @import { OcapnLocation } from '../codecs/components.js'
  */
 
@@ -23,9 +25,13 @@ const bufferToBytes = buffer => {
  * @param {NetLayer} netlayer
  * @param {net.Socket} socket
  * @param {boolean} isOutgoing
+ * @param {object} [options]
+ * @param {() => void} [options.onDestroy] - Optional cleanup callback when connection is destroyed
+ * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms)
  * @returns {Connection}
  */
-const makeConnection = (netlayer, socket, isOutgoing) => {
+const makeConnection = (netlayer, socket, isOutgoing, options = {}) => {
+  const { onDestroy, writeLatencyMs = 0 } = options;
   let isDestroyed = false;
   const selfIdentity = makeSelfIdentity(netlayer.location);
   /** @type {Connection} */
@@ -37,27 +43,57 @@ const makeConnection = (netlayer, socket, isOutgoing) => {
       return isDestroyed;
     },
     write(bytes) {
-      socket.write(bytes);
+      if (writeLatencyMs > 0) {
+        setTimeout(() => {
+          if (!isDestroyed) {
+            socket.write(bytes);
+          }
+        }, writeLatencyMs);
+      } else {
+        socket.write(bytes);
+      }
     },
     end() {
+      if (isDestroyed) return;
       isDestroyed = true;
       socket.end();
+      if (onDestroy) {
+        onDestroy();
+      }
     },
   });
   return connection;
 };
 
 /**
+ * @typedef {object} ConnectionSocketPair
+ * @property {Connection} connection
+ * @property {net.Socket} socket
+ */
+
+/**
+ * @typedef {object} TcpTestOnlyNetLayerTesting
+ * @property {(location: OcapnLocation, onDestroy?: () => void) => ConnectionSocketPair} establishConnection
+ *
+ * @typedef {NetLayer & { testing: TcpTestOnlyNetLayerTesting }} TcpTestOnlyNetLayer
+ */
+
+/**
  * @param {object} options
  * @param {Client} options.client
  * @param {number} [options.specifiedPort]
  * @param {string} [options.specifiedHostname]
- * @returns {Promise<NetLayer>}
+ * @param {string} [options.specifiedDesignator]
+ * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms), useful for testing pipelining
+ * @returns {Promise<TcpTestOnlyNetLayer>}
  */
 export const makeTcpNetLayer = async ({
   client,
   specifiedPort = 0,
   specifiedHostname = '127.0.0.1',
+  // Unclear if a fallback value is reasonable.
+  specifiedDesignator = '0000',
+  writeLatencyMs = 0,
 }) => {
   const { logger } = client;
 
@@ -89,10 +125,13 @@ export const makeTcpNetLayer = async ({
 
   /** @type {OcapnLocation} */
   const localLocation = {
-    type: 'ocapn-node',
+    type: 'ocapn-peer',
     transport: 'tcp-testing-only',
-    address: `${address}:${port}`,
-    hints: false,
+    designator: specifiedDesignator,
+    hints: {
+      host: address,
+      port: port.toString(),
+    },
   };
 
   /** @type {Map<string, Connection>} */
@@ -100,18 +139,26 @@ export const makeTcpNetLayer = async ({
 
   /**
    * @param {OcapnLocation} location
-   * @returns {Connection}
+   * @returns {ConnectionSocketPair}
    */
-  const connect = location => {
-    logger.info('Connecting to', location);
-    const [host, portStr] = location.address.split(':');
+  const internalEstablishConnection = location => {
+    if (typeof location.hints !== 'object') {
+      throw new Error('Hints required for remote connections');
+    }
+    const { host, port: portStr } = location.hints;
     const remotePort = parseInt(portStr, 10);
     if (isNaN(remotePort)) {
-      throw new Error(`Invalid port in address: ${location.address}`);
+      throw new Error(`Invalid port in hints: ${portStr}`);
     }
     const socket = net.createConnection({ host, port: remotePort });
+
     // eslint-disable-next-line no-use-before-define
-    const connection = makeConnection(netlayer, socket, true);
+    const connection = makeConnection(netlayer, socket, true, {
+      onDestroy: () => {
+        connections.delete(location.designator);
+      },
+      writeLatencyMs,
+    });
 
     socket.on('data', data => {
       const bytes = bufferToBytes(data);
@@ -123,7 +170,22 @@ export const makeTcpNetLayer = async ({
       connection.end();
     });
 
-    sendHello(connection, connection.selfIdentity);
+    socket.on('close', () => {
+      logger.info('Connection closed');
+      client.handleConnectionClose(connection);
+    });
+
+    return { connection, socket };
+  };
+
+  /**
+   * @param {OcapnLocation} location
+   * @returns {Connection}
+   */
+  const connect = location => {
+    logger.info('Connecting to', location);
+    const { connection } = internalEstablishConnection(location);
+    sendHello(connection, connection.selfIdentity, client.captpVersion);
     return connection;
   };
 
@@ -135,12 +197,20 @@ export const makeTcpNetLayer = async ({
     if (location.transport !== localLocation.transport) {
       throw Error(`Unsupported transport: ${location.transport}`);
     }
-    const connection = connections.get(location.address);
-    if (connection) {
-      return connection;
+    const existingConnection = connections.get(location.designator);
+    // Only reuse connection if it's not destroyed
+    if (existingConnection && !existingConnection.isDestroyed) {
+      client.logger.info(`lookupOrConnect returning existing connection`);
+      return existingConnection;
     }
+    // Remove destroyed connection from map
+    if (existingConnection) {
+      client.logger.info(`lookupOrConnect removing destroyed connection`);
+      connections.delete(location.designator);
+    }
+    client.logger.info(`lookupOrConnect creating new connection`);
     const newConnection = connect(location);
-    connections.set(location.address, newConnection);
+    connections.set(location.designator, newConnection);
     return newConnection;
   };
 
@@ -151,11 +221,16 @@ export const makeTcpNetLayer = async ({
     }
   };
 
-  /** @type {NetLayer} */
+  /** @type {TcpTestOnlyNetLayer} */
   const netlayer = harden({
     location: localLocation,
+    locationId: locationToLocationId(localLocation),
     connect: lookupOrConnect,
     shutdown,
+    // Test-only methods
+    testing: {
+      establishConnection: internalEstablishConnection,
+    },
   });
 
   server.on('connection', socket => {
@@ -163,7 +238,9 @@ export const makeTcpNetLayer = async ({
       'Client connected to server',
       `${socket.remoteAddress}:${socket.remotePort}`,
     );
-    const connection = makeConnection(netlayer, socket, false);
+    const connection = makeConnection(netlayer, socket, false, {
+      writeLatencyMs,
+    });
 
     socket.on('data', data => {
       try {
@@ -172,13 +249,16 @@ export const makeTcpNetLayer = async ({
           client.handleMessageData(connection, bytes);
         } else {
           logger.info(
-            'Server received message after connection was destroyed',
+            'TcpTestOnlyNetLayer received message after connection was destroyed',
             bytes,
           );
         }
       } catch (err) {
-        logger.error('Server received error:', err);
-        logger.info('Server received data:', data.toString('hex'));
+        logger.error(
+          'TcpTestOnlyNetLayer encountered error while handling incomming data:',
+          err,
+        );
+        logger.info('   incoming data:', data.toString('hex'));
         socket.end();
       }
     });

@@ -11,13 +11,14 @@ import {
   StringCodec,
   makeListCodecFromEntryCodec,
 } from '../../src/syrup/codec.js';
+import {
+  decodeImmutableArrayBufferToString,
+  encodeStringToImmutableArrayBuffer,
+} from '../../src/buffer-utils.js';
 
 /**
  * @import { SyrupCodec } from '../../src/syrup/codec.js'
  */
-
-const textDecoder = new TextDecoder('utf-8', { fatal: true });
-const textEncoder = new TextEncoder();
 
 // zoo.bin from https://github.com/ocapn/syrup/tree/2214cbb7c0ee081699fdef64edbc2444af2bb1d2/test-data
 // eslint-disable-next-line no-underscore-dangle
@@ -95,7 +96,9 @@ test('zoo.bin', t => {
       result.eats = [];
       syrupReader.enterSet();
       while (!syrupReader.peekSetEnd()) {
-        result.eats.push(textDecoder.decode(syrupReader.readBytestring()));
+        result.eats.push(
+          decodeImmutableArrayBufferToString(syrupReader.readBytestring()),
+        );
       }
       syrupReader.exitSet();
       t.is(syrupReader.readSelectorAsString(), 'name');
@@ -105,7 +108,9 @@ test('zoo.bin', t => {
       t.is(syrupReader.readSelectorAsString(), 'weight');
       result.weight = syrupReader.readFloat64();
       t.is(syrupReader.readSelectorAsString(), 'species');
-      result.species = textDecoder.decode(syrupReader.readBytestring());
+      result.species = decodeImmutableArrayBufferToString(
+        syrupReader.readBytestring(),
+      );
       syrupReader.exitDictionary();
       return result;
     },
@@ -116,7 +121,7 @@ test('zoo.bin', t => {
       syrupWriter.writeSelectorFromString('eats');
       syrupWriter.enterSet();
       for (const eat of value.eats) {
-        syrupWriter.writeBytestring(textEncoder.encode(eat));
+        syrupWriter.writeBytestring(encodeStringToImmutableArrayBuffer(eat));
       }
       syrupWriter.exitSet();
       syrupWriter.writeSelectorFromString('name');
@@ -126,7 +131,9 @@ test('zoo.bin', t => {
       syrupWriter.writeSelectorFromString('weight');
       syrupWriter.writeFloat64(value.weight);
       syrupWriter.writeSelectorFromString('species');
-      syrupWriter.writeBytestring(textEncoder.encode(value.species));
+      syrupWriter.writeBytestring(
+        encodeStringToImmutableArrayBuffer(value.species),
+      );
       syrupWriter.exitDictionary();
     },
   };

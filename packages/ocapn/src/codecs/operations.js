@@ -14,9 +14,13 @@ import {
   makeTypeHintUnionCodec,
 } from '../syrup/codec.js';
 import { makeOcapnRecordCodecFromDefinition } from './util.js';
-import { NonNegativeIntegerCodec, FalseCodec } from './subtypes.js';
 import {
-  OcapnNodeCodec,
+  NonNegativeIntegerCodec,
+  FalseCodec,
+  PositiveIntegerCodec,
+} from './subtypes.js';
+import {
+  OcapnPeerCodec,
   OcapnPublicKeyCodec,
   OcapnSignatureCodec,
 } from './components.js';
@@ -32,7 +36,7 @@ const OpStartSessionCodec = makeOcapnRecordCodecFromDefinition(
   {
     captpVersion: 'string',
     sessionPublicKey: OcapnPublicKeyCodec,
-    location: OcapnNodeCodec,
+    location: OcapnPeerCodec,
     locationSignature: OcapnSignatureCodec,
   },
 );
@@ -45,8 +49,8 @@ const OpGcExportCodec = makeOcapnRecordCodecFromDefinition(
   'OpGcExport',
   'op:gc-export',
   {
-    exportPosition: 'integer',
-    wireDelta: 'integer',
+    exportPosition: NonNegativeIntegerCodec,
+    wireDelta: PositiveIntegerCodec,
   },
 );
 
@@ -54,7 +58,7 @@ const OpGcAnswerCodec = makeOcapnRecordCodecFromDefinition(
   'OpGcAnswer',
   'op:gc-answer',
   {
-    answerPosition: 'integer',
+    answerPosition: NonNegativeIntegerCodec,
   },
 );
 
@@ -97,19 +101,15 @@ export const writeOcapnHandshakeMessage = message => {
  * @returns {OcapnOperationsCodecs}
  */
 export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
-  const {
-    DescImportPromiseCodec,
-    DescAnswerCodec,
-    DeliverTargetCodec,
-    ResolveMeDescCodec,
-  } = descCodecs;
+  const { DeliverTargetCodec, RemotePromiseCodec, ResolveMeDescCodec } =
+    descCodecs;
   const { PassableCodec } = passableCodecs;
 
   const OpListenCodec = makeOcapnRecordCodecFromDefinition(
     'OpListen',
     'op:listen',
     {
-      to: DeliverTargetCodec,
+      to: RemotePromiseCodec,
       resolveMeDesc: ResolveMeDescCodec,
       wantsPartial: 'boolean',
     },
@@ -180,22 +180,39 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
-  const OcapnPromiseRefUnionCodec = makeRecordUnionCodec('OcapnPromiseRef', {
-    DescAnswerCodec,
-    DescImportPromiseCodec,
+  const OpGetCodec = makeOcapnRecordCodecFromDefinition('OpGet', 'op:get', {
+    receiverDesc: RemotePromiseCodec,
+    fieldName: 'string',
+    answerPosition: PositiveIntegerCodec,
   });
 
-  const OpPickCodec = makeOcapnRecordCodecFromDefinition('OpPick', 'op:pick', {
-    promisePosition: OcapnPromiseRefUnionCodec,
-    selectedValuePosition: 'integer',
-    newAnswerPosition: 'integer',
-  });
+  const OpIndexCodec = makeOcapnRecordCodecFromDefinition(
+    'OpIndex',
+    'op:index',
+    {
+      receiverDesc: RemotePromiseCodec,
+      index: NonNegativeIntegerCodec,
+      answerPosition: PositiveIntegerCodec,
+    },
+  );
+
+  const OpUntagCodec = makeOcapnRecordCodecFromDefinition(
+    'OpUntag',
+    'op:untag',
+    {
+      receiverDesc: RemotePromiseCodec,
+      tag: 'string',
+      answerPosition: PositiveIntegerCodec,
+    },
+  );
 
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
-    OpPickCodec,
+    OpGetCodec,
+    OpIndexCodec,
+    OpUntagCodec,
     OpAbortCodec,
     OpListenCodec,
     OpGcExportCodec,

@@ -3,16 +3,26 @@
 /**
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnKeyPair, OcapnPublicKey } from '../cryptography.js'
- * @import { GrantTracker, Ocapn } from './ocapn.js'
+ * @import { GrantTracker } from './grant-tracker.js'
+ * @import { SturdyRef, SturdyRefTracker } from './sturdyrefs.js'
+ * @import { Ocapn } from './ocapn.js'
  */
 
 /**
- * @typedef {string} LocationId
+ * @typedef {string & { _brand: 'LocationId' }} LocationId
+ * A string used for referencing, such as keys in Maps. Not part of OCapN spec.
+ * @typedef {ArrayBufferLike & { _brand: 'SessionId' }} SessionId
+ * From OCapN spec. Id for a session between two peers.
+ * @typedef {ArrayBufferLike & { _brand: 'SwissNum' }} SwissNum
+ * From OCapN spec. Used for resolving SturdyRefs.
+ * @typedef {ArrayBufferLike & { _brand: 'PublicKeyId' }} PublicKeyId
+ * From OCapN spec. Identifier for a public key (double SHA-256 hash of key descriptor).
  */
 
 /**
  * @typedef {object} NetLayer
  * @property {OcapnLocation} location
+ * @property {LocationId} locationId
  * @property {(location: OcapnLocation) => Connection} connect
  * @property {() => void} shutdown
  */
@@ -27,7 +37,7 @@
 
 /**
  * @typedef {object} Session
- * @property {Uint8Array} id
+ * @property {SessionId} id
  * @property {object} peer
  * @property {OcapnPublicKey} peer.publicKey
  * @property {OcapnLocation} peer.location
@@ -38,6 +48,12 @@
  * @property {OcapnSignature} self.locationSignature
  * @property {Ocapn} ocapn
  * @property {Connection} connection
+ * @property {() => bigint} getHandoffCount
+ * Returns the current handoff count for this session as Receiver.
+ * Does not increment the internal counter.
+ * @property {() => bigint} takeNextHandoffCount
+ * Returns the next unique handoff count for this session as Receiver.
+ * Increments the internal counter for subsequent calls.
  */
 
 /**
@@ -79,7 +95,10 @@
  * When a session has ended (eg connection closed).
  * Does not close the connection. Does not delete the session.
  * Does not communicate with the peer.
- * @property {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @property {(connection: Connection) => boolean} rejectPendingSessionForConnection
+ * Finds and rejects any pending session associated with the given connection.
+ * Returns true if a pending session was found and rejected, false otherwise.
+ * @property {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
 /**
@@ -88,10 +107,13 @@
  * @property {string} debugLabel
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
- * @property {Map<string, any>} swissnumTable
+ * @property {SturdyRefTracker} sturdyRefTracker
+ * @property {string} captpVersion
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
+ * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
+ * @property {(sturdyRef: SturdyRef) => Promise<any>} enlivenSturdyRef
  * @property {() => void} shutdown
  */

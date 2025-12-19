@@ -2,7 +2,6 @@
 
 import { BufferWriter } from './buffer-writer.js';
 
-const { freeze } = Object;
 const quote = JSON.stringify;
 const textEncoder = new TextEncoder();
 
@@ -34,7 +33,7 @@ const FALSE = 'f'.charCodeAt(0);
 // const SINGLE = 'F'.charCodeAt(0);
 const FLOAT64 = 'D'.charCodeAt(0);
 
-const NAN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
+const NAN64 = new Uint8Array([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
@@ -84,10 +83,14 @@ function writeSelectorFromString(bufferWriter, value) {
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
- * @param {Uint8Array} value
+ * @param {ArrayBufferLike} value
  */
 function writeBytestring(bufferWriter, value) {
-  writeStringlike(bufferWriter, value, ':');
+  // Convert ArrayBuffer to Uint8Array for internal operations
+  // Immutable ArrayBuffers need to be sliced first
+  const mutableBuffer = value.slice();
+  const bytes = new Uint8Array(mutableBuffer);
+  writeStringlike(bufferWriter, bytes, ':');
 }
 
 /**
@@ -101,7 +104,6 @@ function writeFloat64(bufferWriter, value) {
     bufferWriter.writeFloat64(0, false); // big end
   } else if (Number.isNaN(value)) {
     // Canonicalize NaN
-    // @ts-expect-error using frozen array as Uint8Array
     bufferWriter.write(NAN64);
   } else {
     bufferWriter.writeFloat64(value, false); // big end
@@ -113,7 +115,10 @@ function writeFloat64(bufferWriter, value) {
  * @param {bigint} value
  */
 function writeInteger(bufferWriter, value) {
-  const string = value >= 0 ? `${value}+` : `${-value}-`;
+  if (typeof value !== 'bigint') {
+    throw Error(`writeInteger: Expected bigint, got ${typeof value}`);
+  }
+  const string = value >= 0n ? `${value}+` : `${-value}-`;
   bufferWriter.writeString(string);
 }
 
@@ -159,7 +164,7 @@ export class SyrupWriter {
   }
 
   /**
-   * @param {Uint8Array} value
+   * @param {ArrayBufferLike} value
    */
   writeBytestring(value) {
     writeBytestring(this.#bufferWriter, value);
@@ -224,7 +229,7 @@ export class SyrupWriter {
 }
 
 export function makeSyrupWriter(options = {}) {
-  const { length: capacity = defaultCapacity } = options;
+  const { length: capacity = defaultCapacity, ...writerOptions } = options;
   const bufferWriter = new BufferWriter(capacity);
-  return new SyrupWriter(bufferWriter);
+  return new SyrupWriter(bufferWriter, writerOptions);
 }
