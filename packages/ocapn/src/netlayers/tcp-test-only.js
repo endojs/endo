@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 
 import net from 'net';
 
@@ -24,10 +25,13 @@ const bufferToBytes = buffer => {
  * @param {NetLayer} netlayer
  * @param {net.Socket} socket
  * @param {boolean} isOutgoing
- * @param {() => void} [onDestroy] - Optional cleanup callback when connection is destroyed
+ * @param {object} [options]
+ * @param {() => void} [options.onDestroy] - Optional cleanup callback when connection is destroyed
+ * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms)
  * @returns {Connection}
  */
-const makeConnection = (netlayer, socket, isOutgoing, onDestroy) => {
+const makeConnection = (netlayer, socket, isOutgoing, options = {}) => {
+  const { onDestroy, writeLatencyMs = 0 } = options;
   let isDestroyed = false;
   const selfIdentity = makeSelfIdentity(netlayer.location);
   /** @type {Connection} */
@@ -39,7 +43,15 @@ const makeConnection = (netlayer, socket, isOutgoing, onDestroy) => {
       return isDestroyed;
     },
     write(bytes) {
-      socket.write(bytes);
+      if (writeLatencyMs > 0) {
+        setTimeout(() => {
+          if (!isDestroyed) {
+            socket.write(bytes);
+          }
+        }, writeLatencyMs);
+      } else {
+        socket.write(bytes);
+      }
     },
     end() {
       if (isDestroyed) return;
@@ -72,6 +84,7 @@ const makeConnection = (netlayer, socket, isOutgoing, onDestroy) => {
  * @param {number} [options.specifiedPort]
  * @param {string} [options.specifiedHostname]
  * @param {string} [options.specifiedDesignator]
+ * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms), useful for testing pipelining
  * @returns {Promise<TcpTestOnlyNetLayer>}
  */
 export const makeTcpNetLayer = async ({
@@ -80,6 +93,7 @@ export const makeTcpNetLayer = async ({
   specifiedHostname = '127.0.0.1',
   // Unclear if a fallback value is reasonable.
   specifiedDesignator = '0000',
+  writeLatencyMs = 0,
 }) => {
   const { logger } = client;
 
@@ -139,8 +153,11 @@ export const makeTcpNetLayer = async ({
     const socket = net.createConnection({ host, port: remotePort });
 
     // eslint-disable-next-line no-use-before-define
-    const connection = makeConnection(netlayer, socket, true, () => {
-      connections.delete(location.designator);
+    const connection = makeConnection(netlayer, socket, true, {
+      onDestroy: () => {
+        connections.delete(location.designator);
+      },
+      writeLatencyMs,
     });
 
     socket.on('data', data => {
@@ -221,7 +238,9 @@ export const makeTcpNetLayer = async ({
       'Client connected to server',
       `${socket.remoteAddress}:${socket.remotePort}`,
     );
-    const connection = makeConnection(netlayer, socket, false);
+    const connection = makeConnection(netlayer, socket, false, {
+      writeLatencyMs,
+    });
 
     socket.on('data', data => {
       try {

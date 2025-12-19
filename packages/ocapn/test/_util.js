@@ -148,6 +148,7 @@ export const waitUntilTrue = async (fn, timeoutMs = 1000, delayMs = 20) => {
  * @param {() => Map<string, any>} [options.makeDefaultSwissnumTable]
  * @param {boolean} [options.verbose]
  * @param {object} [options.clientOptions]
+ * @param {number} [options.writeLatencyMs] - Optional artificial latency for writes (ms)
  * @returns {Promise<ClientKit>}
  */
 export const makeTestClient = async ({
@@ -155,6 +156,7 @@ export const makeTestClient = async ({
   makeDefaultSwissnumTable,
   verbose,
   clientOptions,
+  writeLatencyMs,
 }) => {
   const client = makeClient({
     debugLabel,
@@ -165,6 +167,7 @@ export const makeTestClient = async ({
   const netlayer = await makeTcpNetLayer({
     client,
     specifiedDesignator: debugLabel,
+    writeLatencyMs,
   });
   client.registerNetlayer(netlayer);
   const { location } = netlayer;
