@@ -339,3 +339,177 @@ testWithErrorUnwrapping(
     }
   },
 );
+
+testWithErrorUnwrapping('deposit-gift rejects non-local gift', async t => {
+  // This test verifies that deposit-gift properly rejects gifts that are not
+  // local to the exporter.
+  //
+  // Scenario:
+  // - A creates a local object (objA)
+  // - A tries to deposit objA at B as a gift for C
+  // - B receives objA as an IMPORT (not local to B)
+  // - B rejects the deposit with "Gift must be local"
+  const testObjectTable = new Map();
+
+  // A creates its own local object
+  const objA = Far('ObjA', {
+    getValue: () => 'from-A',
+  });
+
+  const { client: clientA } = await makeTestClient({
+    debugLabel: 'A',
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+  const { client: clientB, location: locationB } = await makeTestClient({
+    debugLabel: 'B',
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    // Set up session: A->B
+    const sessionAB = await clientA.provideSession(locationB);
+    const bootstrapBFromA = sessionAB.ocapn.getRemoteBootstrap();
+
+    // A tries to deposit its own local object (objA) at B
+    // When B receives this, objA will be an IMPORT (not local to B)
+    // B should reject this deposit
+    const giftId = randomGiftId();
+
+    // Attempt to deposit A's local object at B
+    // B should reject because objA is not local to B
+    let depositError;
+    try {
+      await E(bootstrapBFromA)['deposit-gift'](giftId, objA);
+      t.fail('Expected deposit-gift to reject non-local gift');
+    } catch (error) {
+      depositError = error;
+    }
+
+    t.truthy(depositError, 'deposit-gift threw an error');
+    t.regex(
+      String(depositError.message),
+      /Gift must be local/,
+      'error mentions gift must be local',
+    );
+  } finally {
+    clientA.shutdown();
+    clientB.shutdown();
+  }
+});
+
+testWithErrorUnwrapping(
+  'deposit-gift rejects non-remotable gift (struct)',
+  async t => {
+    // This test verifies that deposit-gift properly rejects gifts that are not
+    // remotables (e.g., structs/copyRecords).
+    const testObjectTable = new Map();
+
+    const { client: clientA } = await makeTestClient({
+      debugLabel: 'A',
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+    const { client: clientB, location: locationB } = await makeTestClient({
+      debugLabel: 'B',
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+
+    try {
+      // Set up session: A->B
+      const sessionAB = await clientA.provideSession(locationB);
+      const bootstrapBFromA = sessionAB.ocapn.getRemoteBootstrap();
+
+      // A tries to deposit a struct (copyRecord) at B
+      // B should reject because structs are not remotables
+      const giftId = randomGiftId();
+      const structGift = harden({ foo: 'bar', count: 42 });
+
+      let depositError;
+      try {
+        await E(bootstrapBFromA)['deposit-gift'](giftId, structGift);
+        t.fail('Expected deposit-gift to reject non-remotable gift');
+      } catch (error) {
+        depositError = error;
+      }
+
+      t.truthy(depositError, 'deposit-gift threw an error');
+      t.regex(
+        String(depositError.message),
+        /Gift must be remotable/,
+        'error mentions gift must be remotable',
+      );
+    } finally {
+      clientA.shutdown();
+      clientB.shutdown();
+    }
+  },
+);
+
+testWithErrorUnwrapping(
+  'handoff of answer local to exporter succeeds',
+  async t => {
+    // This test verifies that an "answer" (promise result from a deliver operation)
+    // that is local to the exporter can be successfully handed off.
+    const testObjectTable = new Map();
+
+    // B has an ObjMaker that creates local objects
+    testObjectTable.set(
+      'ObjMaker',
+      Far('ObjMaker', {
+        makeObj: id => {
+          // This object is created locally at B
+          return Far('LocalObj', {
+            getId: () => id,
+          });
+        },
+      }),
+    );
+
+    // C has an ObjUser that uses objects
+    testObjectTable.set(
+      'ObjUser',
+      Far('ObjUser', {
+        useObj: obj => {
+          console.log('ObjUser called with', obj);
+          return E(obj).getId();
+        },
+      }),
+    );
+
+    const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
+      await makeTestClientTrio({
+        makeDefaultSwissnumTable: () => testObjectTable,
+      });
+
+    // A asks B's ObjMaker to create an object
+    // The returned object is an "answer" - the result of a question
+    // This answer is local to B (created by B's ObjMaker)
+    const objMakerB = await E(bootstrapB).fetch(encodeSwissnum('ObjMaker'));
+
+    // Get the ObjUser from C
+    const objUserC = await E(bootstrapC).fetch(encodeSwissnum('ObjUser'));
+
+    // Verify C doesn't have a session with B yet
+    const locationIdB = locationToLocationId(locationB);
+    let clientCSessionForB =
+      clientC.sessionManager.getActiveSession(locationIdB);
+    t.falsy(clientCSessionForB, 'C has no session for B initially');
+
+    // A asks B to make an object - this creates an "answer" local to B
+    const localObjFromB = await E(objMakerB).makeObj('answer-test');
+
+    // A hands off this answer to C via B
+    // This should work because the answer (LocalObj) is local to the exporter (B)
+    const result = await E(objUserC).useObj(localObjFromB);
+    t.is(
+      result,
+      'answer-test',
+      'answer local to exporter was handed off successfully',
+    );
+
+    // Verify C now has a session with B (handoff occurred)
+    clientCSessionForB = clientC.sessionManager.getActiveSession(locationIdB);
+    t.truthy(clientCSessionForB, 'C has a session for B after handoff');
+
+    shutdownAll();
+  },
+);

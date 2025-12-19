@@ -431,6 +431,7 @@ const makeCodecKit = referenceKit => {
  * @param {Logger} logger
  * @param {SessionId} sessionId
  * @param {SturdyRefTracker} sturdyRefTracker
+ * @param {ReferenceKit} referenceKit
  * @param {Map<string, any>} giftTable
  * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @returns {any}
@@ -440,6 +441,7 @@ const makeBootstrapObject = (
   logger,
   sessionId,
   sturdyRefTracker,
+  referenceKit,
   giftTable,
   getPeerPublicKeyForSessionId,
 ) => {
@@ -465,6 +467,14 @@ const makeBootstrapObject = (
      * @param {any} gift
      */
     'deposit-gift': (giftId, gift) => {
+      const passStyle = ocapnPassStyleOf(gift);
+      if (passStyle !== 'remotable') {
+        throw Error(`${label}: Bootstrap deposit-gift: Gift must be remotable`);
+      }
+      const { isLocal } = referenceKit.getInfoForVal(gift);
+      if (!isLocal) {
+        throw Error(`${label}: Bootstrap deposit-gift: Gift must be local`);
+      }
       const giftKey = `${toHex(sessionId)}:${toHex(giftId)}`;
       logger.info('deposit-gift', { giftKey, gift });
       const pendingGiftKey = `pending:${giftKey}`;
@@ -478,7 +488,6 @@ const makeBootstrapObject = (
           `${label}: Bootstrap deposit-gift: Gift already exists: ${giftId}`,
         );
       }
-      // Ideally we should verify the gift is local.
       giftTable.set(giftKey, gift);
     },
     /**
@@ -1145,6 +1154,7 @@ export const makeOcapn = (
     logger,
     sessionId,
     sturdyRefTracker,
+    referenceKit,
     giftTable,
     getPeerPublicKeyForSessionId,
   );
