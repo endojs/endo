@@ -39,23 +39,23 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {GrantDetails} [grantDetails]
  *
  * @typedef {object} ReferenceKit
- * @property {(position: bigint) => unknown} provideRemoteObjectValue
- * @property {(position: bigint) => unknown} provideRemotePromiseValue
- * @property {(position: bigint) => unknown} provideLocalExportValue
- * @property {(position: bigint) => unknown} provideLocalAnswerValue
- * @property {(position: bigint) => unknown} provideRemoteResolverValue
- * @property {() => unknown} provideRemoteBootstrapValue
- * @property {(value: unknown) => bigint} provideLocalObjectPosition
- * @property {(value: unknown) => bigint} provideLocalPromisePosition
- * @property {(value: unknown) => bigint} provideRemoteExportPosition
- * @property {(value: unknown) => bigint} provideRemoteAnswerPosition
+ * @property {(position: bigint) => object} provideRemoteObjectValue
+ * @property {(position: bigint) => Promise<unknown>} provideRemotePromiseValue
+ * @property {(position: bigint) => object} provideLocalExportValue
+ * @property {(position: bigint) => Promise<unknown>} provideLocalAnswerValue
+ * @property {(position: bigint) => object} provideRemoteResolverValue
+ * @property {() => object} provideRemoteBootstrapValue
+ * @property {(value: object) => bigint} provideLocalObjectPosition
+ * @property {(value: Promise<unknown>) => bigint} provideLocalPromisePosition
+ * @property {(value: object) => bigint} provideRemoteExportPosition
+ * @property {(value: Promise<unknown>) => bigint} provideRemoteAnswerPosition
  * @property {() => { promise: Promise<unknown>, position: bigint, resolver: unknown }} takeNextRemoteAnswer
- * @property {(remotePromise: unknown) => unknown} makeLocalResolverForRemotePromise
+ * @property {(remotePromise: Promise<unknown>) => object} makeLocalResolverForRemotePromise
  * @property {(answerPosition: bigint, promise: Promise<unknown>) => void} fulfillLocalAnswerWithPromise
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
- * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
+ * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<unknown>} provideHandoff
  * @property {(signedGive: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
- * @property {(value: unknown) => ValInfo} getInfoForVal
+ * @property {(value: object) => ValInfo} getInfoForVal
  */
 
 /** @type {Record<SlotType, SlotTypeName>} */
