@@ -6,6 +6,7 @@
 
 import babelTraverse from '@babel/traverse';
 import { evadeComment, elideComment } from './transform-comment.js';
+import { evadeStrings, evadeTemplates } from './transform-strings.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
 // `node -r esm`, we must use the pattern below.
@@ -29,6 +30,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @internal
  * @typedef TransformAstOptionsWithoutSourceMap
  * @property {boolean} [elideComments]
+ * @property {boolean} [noStringTransform]
  */
 
 /**
@@ -41,7 +43,10 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @param {TransformAstOptions} [opts]
  * @returns {void}
  */
-export function transformAst(ast, { elideComments = false } = {}) {
+export function transformAst(
+  ast,
+  { elideComments = false, noStringTransform = false } = {},
+) {
   const transformComment = elideComments ? elideComment : evadeComment;
   traverse(ast, {
     enter(p) {
@@ -57,6 +62,10 @@ export function transformAst(ast, { elideComments = false } = {}) {
       }
       (innerComments || []).forEach(node => transformComment(node));
       (trailingComments || []).forEach(node => transformComment(node));
+      if (!noStringTransform) {
+        evadeStrings(p);
+        evadeTemplates(p);
+      }
     },
   });
 }
