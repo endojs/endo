@@ -180,6 +180,54 @@ const table = [
       t.deepEqual(details.swissNum, encodeSwissnum('123'));
     },
   },
+  // Tagged objects containing references
+  {
+    name: 'tagged with reference (local object)',
+    makeValue: testKit => makeTagged('myTag', testKit.makeLocalObject(100n)),
+    makeExpectedValue: testKit =>
+      makeTagged('myTag', testKit.referenceKit.provideRemoteObjectValue(100n)),
+  },
+  {
+    name: 'tagged with reference (local promise)',
+    makeValue: testKit =>
+      makeTagged('promiseTag', testKit.makeLocalPromise(101n)),
+    makeExpectedValue: testKit =>
+      makeTagged(
+        'promiseTag',
+        testKit.referenceKit.provideRemotePromiseValue(101n),
+      ),
+  },
+  {
+    name: 'tagged with reference in list',
+    makeValue: testKit =>
+      makeTagged('listTag', harden([testKit.makeLocalObject(102n), 'hello'])),
+    makeExpectedValue: testKit =>
+      makeTagged(
+        'listTag',
+        harden([testKit.referenceKit.provideRemoteObjectValue(102n), 'hello']),
+      ),
+  },
+  {
+    name: 'tagged with sturdyref',
+    makeValue: testKit =>
+      makeTagged(
+        'sturdyTag',
+        testKit.sturdyRefTracker.makeSturdyRef(
+          exporterLocation,
+          encodeSwissnum('456'),
+        ),
+      ),
+    // SturdyRefs need customAssert because object identity differs after round-trip
+    customAssert: (t, actual) => {
+      t.is(actual[Symbol.toStringTag], 'sturdyTag');
+      const details = getSturdyRefDetails(actual.payload);
+      if (!details) {
+        throw Error('SturdyRef has no details');
+      }
+      t.deepEqual(details.location, exporterLocation);
+      t.deepEqual(details.swissNum, encodeSwissnum('456'));
+    },
+  },
 ];
 
 runTableTests(test, 'PassableCodec', table, testKit => testKit.PassableCodec);

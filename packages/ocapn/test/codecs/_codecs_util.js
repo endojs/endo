@@ -117,8 +117,8 @@ export const exampleReceiverSideId = /** @type {PublicKeyId} */ (
  * @typedef {object} CodecTestKit
  * @property {ReferenceKit} referenceKit
  * @property {import('../../src/client/sturdyrefs.js').SturdyRefTracker} sturdyRefTracker
- * @property {(position: bigint) => unknown} makeLocalObject
- * @property {(position: bigint) => unknown} makeLocalPromise
+ * @property {(position: bigint) => object} makeLocalObject
+ * @property {(position: bigint) => Promise<unknown>} makeLocalPromise
  * @property {(position: bigint) => Promise<unknown>} makeRemoteAnswer
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
@@ -237,7 +237,7 @@ export const makeCodecTestKit = (
 
   const makeLocalPromise = position => {
     const slot = makeSlot('p', true, position);
-    const value = Far('Local Promise', {});
+    const value = Promise.resolve('local promise');
     ocapnTable.registerSlot(slot, value);
     return value;
   };
