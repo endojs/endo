@@ -12,7 +12,7 @@ import { decodeSwissnum } from './util.js';
 /**
  * @import { CopyTagged } from '@endo/pass-style'
  * @typedef {CopyTagged<'ocapn-sturdyref', undefined>} SturdyRef
- * A SturdyRef is reified as a tagged value with tag 'ocapn-sturdyref' and undefined payload.
+ * A SturdyRef is tentatively reified as a tagged value with tag 'ocapn-sturdyref' and undefined payload.
  * This is a workaround for sturdyref lacking passStyleOf compatibility. A tag type was chosen
  * so it is clearly labeled as a sturdyref, but should never be sent over the wire as a tagged value.
  *
