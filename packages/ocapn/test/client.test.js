@@ -3,13 +3,14 @@
 
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/marshal';
+import { Far, makeTagged } from '@endo/marshal';
 import { isPromise } from '@endo/promise-kit';
 import {
   waitUntilTrue,
   testWithErrorUnwrapping,
   makeTestClient,
   makeTestClientPair,
+  makeUntagTestHelper,
 } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
@@ -1144,6 +1145,181 @@ test('E.get rejects Symbol property access', async t => {
     );
 
     t.regex(error.message, /Property must be a string, got symbol/);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:untag with valid tagged value', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Tagged Provider',
+    Far('taggedProvider', () => {
+      return makeTagged('myTag', { data: 42, nested: ['a', 'b'] });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const { sessionA } = await establishSession();
+    const { ocapn: ocapnA } = sessionA;
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // First fetch the tagged provider from B
+    const taggedProvider = await E(bootstrapB).fetch(
+      encodeSwissnum('Tagged Provider'),
+    );
+
+    // Use the helper to call the provider and untag the result in one pipelined operation
+    const untagHelper = makeUntagTestHelper(sessionA);
+    // Call the provider as a function and untag the result
+    const payload = await untagHelper.callAndUntag(
+      taggedProvider,
+      Symbol.for(''),
+      [],
+      'myTag',
+    );
+
+    t.deepEqual(payload, { data: 42, nested: ['a', 'b'] });
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:untag with wrong tag rejects', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Tagged Provider',
+    Far('taggedProvider', () => {
+      return makeTagged('actualTag', 'some payload');
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const { sessionA } = await establishSession();
+    const { ocapn: ocapnA } = sessionA;
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // First fetch the tagged provider from B
+    const taggedProvider = await E(bootstrapB).fetch(
+      encodeSwissnum('Tagged Provider'),
+    );
+
+    // Use the helper to call the provider and untag with wrong tag
+    const untagHelper = makeUntagTestHelper(sessionA);
+    const error = await t.throwsAsync(
+      async () => {
+        await untagHelper.callAndUntag(
+          taggedProvider,
+          Symbol.for(''),
+          [],
+          'wrongTag',
+        );
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(
+      error.message,
+      /Tag mismatch: expected 'wrongTag', got 'actualTag'/,
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:untag rejects non-tagged value', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Record Provider',
+    Far('recordProvider', () => {
+      return harden({ foo: 'bar' });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const { sessionA } = await establishSession();
+    const { ocapn: ocapnA } = sessionA;
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // First fetch the record provider from B
+    const recordProvider = await E(bootstrapB).fetch(
+      encodeSwissnum('Record Provider'),
+    );
+
+    // Use the helper to call the provider and try to untag a non-tagged value
+    const untagHelper = makeUntagTestHelper(sessionA);
+    const error = await t.throwsAsync(
+      async () => {
+        await untagHelper.callAndUntag(
+          recordProvider,
+          Symbol.for(''),
+          [],
+          'someTag',
+        );
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(error.message, /Cannot untag values with pass-style copyRecord/);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:untag with nested payload containing remotable', async t => {
+  const testObjectTable = new Map();
+  const innerRemotable = Far('innerRemotable', {
+    getValue: () => 99,
+  });
+  testObjectTable.set(
+    'Tagged Provider',
+    Far('taggedProvider', () => {
+      return makeTagged('wrapper', { inner: innerRemotable });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const { sessionA } = await establishSession();
+    const { ocapn: ocapnA } = sessionA;
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // First fetch the tagged provider from B
+    const taggedProvider = await E(bootstrapB).fetch(
+      encodeSwissnum('Tagged Provider'),
+    );
+
+    // Use the helper to call the provider and untag the result
+    const untagHelper = makeUntagTestHelper(sessionA);
+    const payload = await untagHelper.callAndUntag(
+      taggedProvider,
+      Symbol.for(''),
+      [],
+      'wrapper',
+    );
+
+    // The payload should contain the remotable, which we can call
+    const result = await E(payload.inner).getValue();
+    t.is(result, 99);
   } finally {
     shutdownBoth();
   }

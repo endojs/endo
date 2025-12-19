@@ -417,6 +417,38 @@ export const table = [
       answerPosition: 10n,
     }),
   },
+  {
+    // <op:untag <desc:export 3> "myTag" 7>
+    name: 'op:untag with desc:export',
+    makeValue: testKit => ({
+      type: 'op:untag',
+      receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+      tag: 'myTag',
+      answerPosition: 7n,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:untag',
+      receiverDesc: testKit.makeLocalPromise(3n),
+      tag: 'myTag',
+      answerPosition: 7n,
+    }),
+  },
+  {
+    // <op:untag <desc:answer 5> "anotherTag" 10>
+    name: 'op:untag with desc:answer',
+    makeValue: testKit => ({
+      type: 'op:untag',
+      receiverDesc: testKit.makeRemoteAnswer(5n),
+      tag: 'anotherTag',
+      answerPosition: 10n,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:untag',
+      receiverDesc: testKit.referenceKit.provideLocalAnswerValue(5n),
+      tag: 'anotherTag',
+      answerPosition: 10n,
+    }),
+  },
 ];
 
 runTableTests(
@@ -476,4 +508,29 @@ test('op:index rejects string index', t => {
   const cause1 = /** @type {Error} */ (error.cause);
   const cause2 = /** @type {Error} */ (cause1.cause);
   t.regex(cause2.message, /OpIndex: write failed for field index/);
+});
+
+test('op:untag rejects integer tag', t => {
+  const testKit = makeCodecTestKit();
+  const syrupWriter = makeSyrupWriter({ name: 'op:untag with integer tag' });
+
+  const invalidMessage = {
+    type: 'op:untag',
+    receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+    tag: 42n, // Should be a string, not an integer
+    answerPosition: 7n,
+  };
+
+  const error = t.throws(
+    () => {
+      testKit.OcapnMessageUnionCodec.write(invalidMessage, syrupWriter);
+    },
+    undefined,
+    'op:untag should reject integer tag',
+  );
+
+  // Verify the error chain contains the tag failure
+  const cause1 = /** @type {Error} */ (error.cause);
+  const cause2 = /** @type {Error} */ (cause1.cause);
+  t.regex(cause2.message, /OpUntag: write failed for field tag/);
 });

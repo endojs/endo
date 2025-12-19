@@ -550,6 +550,7 @@ const makeBootstrapObject = (
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {object} debug
  * @property {OcapnTable} debug.ocapnTable
+ * @property {(message: object) => void} debug.sendMessage
  */
 
 /**
@@ -746,6 +747,35 @@ export const makeOcapn = (
 
       // eslint-disable-next-line no-use-before-define
       referenceKit.fulfillLocalAnswerWithPromise(answerPosition, indexPromise);
+    },
+    'op:untag': message => {
+      const { receiverDesc, tag, answerPosition } = message;
+      logger.info(`untag`, { receiverDesc, tag, answerPosition });
+
+      // Create a promise for the untagged value
+      const untagPromise = Promise.resolve(receiverDesc).then(resolved => {
+        // Check that the resolved value is a tagged value
+        const passStyle = ocapnPassStyleOf(resolved);
+        if (passStyle !== 'tagged') {
+          throw Error(
+            `OCapN: Cannot untag values with pass-style ${passStyle}`,
+          );
+        }
+
+        // Check that the tag matches
+        const actualTag = resolved[Symbol.toStringTag];
+        if (actualTag !== tag) {
+          throw Error(
+            `OCapN: Tag mismatch: expected '${tag}', got '${actualTag}'`,
+          );
+        }
+
+        // Return the payload
+        return resolved.payload;
+      });
+
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, untagPromise);
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;
@@ -1053,6 +1083,7 @@ export const makeOcapn = (
     referenceKit,
     debug: {
       ocapnTable,
+      sendMessage: send,
     },
   });
 };

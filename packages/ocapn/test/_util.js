@@ -240,3 +240,81 @@ export const makeTestClientPair = async ({
     getConnectionBtoA,
   };
 };
+
+/**
+ * Note: This helper is used in to manually serialize an op:untag message,
+ * unil an E.untag and corresponding HandledPromise handler method is implemented.
+ * When available, this utility should be removed.
+ *
+ * Creates a helper for sending raw op:untag messages for testing.
+ * Uses the internal send function which goes through the same path as
+ * the handler's message sending.
+ *
+ * This helper sends both op:deliver (to call a method that returns a tagged value)
+ * and op:untag (to extract the payload) in sequence, enabling true pipelining tests.
+ *
+ * @param {Session} senderSession - The session that will send the messages
+ * @returns {object} Helper object with callAndUntag method
+ */
+export const makeUntagTestHelper = senderSession => {
+  const { ocapn } = senderSession;
+  const { referenceKit, debug } = ocapn;
+  const { sendMessage } = debug;
+
+  /**
+   * Calls a method on a remote object and immediately sends op:untag to extract
+   * the payload from the result (which should be a tagged value).
+   * This enables true pipelining - op:untag is sent before the call result arrives.
+   *
+   * @param {unknown} target - The remote object to call (must be a remotable)
+   * @param {string|symbol} method - The method name (or symbol for function call)
+   * @param {unknown[]} args - Arguments to pass to the method
+   * @param {string} expectedTag - The expected tag string
+   * @returns {Promise<unknown>} Promise that resolves to the extracted payload
+   */
+  const callAndUntag = (target, method, args, expectedTag) => {
+    // Create answer for the method call result (this is where the tagged value will be)
+    const {
+      promise: callAnswerPromise,
+      position: callAnswerPosition,
+      resolver: callResolveMeDesc,
+    } = referenceKit.takeNextRemoteAnswer();
+
+    // Create answer for the untag result
+    const {
+      promise: untagAnswerPromise,
+      position: untagAnswerPosition,
+      resolver: untagResolveMeDesc,
+    } = referenceKit.takeNextRemoteAnswer();
+
+    // Send op:deliver to call the method
+    sendMessage({
+      type: 'op:deliver',
+      to: target,
+      args: typeof method === 'symbol' ? args : [Symbol.for(method), ...args],
+      answerPosition: callAnswerPosition,
+      resolveMeDesc: callResolveMeDesc, // We don't use this but it must be valid
+    });
+
+    // Immediately send op:untag referencing the call's answer position
+    // The receiver will process this by looking up its local answer at callAnswerPosition
+    sendMessage({
+      type: 'op:untag',
+      receiverDesc: callAnswerPromise, // This is our remote answer promise
+      tag: expectedTag,
+      answerPosition: untagAnswerPosition,
+    });
+
+    // Send op:listen so we get the untag result back
+    sendMessage({
+      type: 'op:listen',
+      to: untagAnswerPromise,
+      resolveMeDesc: untagResolveMeDesc,
+      wantsPartial: false,
+    });
+
+    return untagAnswerPromise;
+  };
+
+  return harden({ callAndUntag });
+};

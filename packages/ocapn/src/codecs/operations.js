@@ -196,12 +196,23 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
+  const OpUntagCodec = makeOcapnRecordCodecFromDefinition(
+    'OpUntag',
+    'op:untag',
+    {
+      receiverDesc: RemotePromiseCodec,
+      tag: 'string',
+      answerPosition: PositiveIntegerCodec,
+    },
+  );
+
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
     OpGetCodec,
     OpIndexCodec,
+    OpUntagCodec,
     OpAbortCodec,
     OpListenCodec,
     OpGcExportCodec,
