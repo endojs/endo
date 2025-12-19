@@ -268,18 +268,43 @@ const makeMakeHandlerForRemoteReference = ({
           return quietReject(didUnplug());
         }
         logger.info(`get`, targetGetter(), prop);
+
+        // Reject for unsupported property types (Symbol, etc.) before consuming an answer slot
+        // Note: JavaScript proxies always receive strings or symbols, never bigint/number
+        if (typeof prop !== 'string') {
+          return Promise.reject(
+            new Error(
+              `OCapN GET: Property must be a string, got ${typeof prop}`,
+            ),
+          );
+        }
+
         // Create a question for the answer
         const {
           promise: answerPromise,
           position: answerPosition,
           resolver: resolveMeDesc,
         } = takeNextRemoteAnswer();
-        send({
-          type: 'op:get',
-          receiverDesc: targetGetter(),
-          fieldName: prop,
-          answerPosition,
-        });
+
+        // Check if the string looks like a non-negative integer (for array index access)
+        // JavaScript proxies receive "0", "1", etc. for array-style access like obj[0]
+        if (/^(0|[1-9][0-9]*)$/.test(prop)) {
+          // op:index for integer index access on Lists (copyArray)
+          send({
+            type: 'op:index',
+            receiverDesc: targetGetter(),
+            index: BigInt(prop),
+            answerPosition,
+          });
+        } else {
+          // op:get for string field access on Structs (copyRecord)
+          send({
+            type: 'op:get',
+            receiverDesc: targetGetter(),
+            fieldName: prop,
+            answerPosition,
+          });
+        }
 
         // Send op:listen for the answer so B knows how to send the result back
         send({
@@ -676,11 +701,51 @@ export const makeOcapn = (
         }
 
         // Return the field value
-        return Reflect.get(resolved, fieldName, resolved);
+        return Reflect.get(resolved, fieldName);
       });
 
       // eslint-disable-next-line no-use-before-define
       referenceKit.fulfillLocalAnswerWithPromise(answerPosition, getPromise);
+    },
+    'op:index': message => {
+      const { receiverDesc, index, answerPosition } = message;
+      logger.info(`index`, { receiverDesc, index, answerPosition });
+
+      // Create a promise for the indexed value
+      const indexPromise = Promise.resolve(receiverDesc).then(resolved => {
+        // Reject for unsupported index types (bigint/number) before consuming an answer slot
+        if (typeof index !== 'bigint') {
+          return Promise.reject(
+            new Error(
+              `OCapN INDEX: Index must be a bigint, got ${typeof index}`,
+            ),
+          );
+        }
+
+        // Check that the resolved value is a copyArray (List)
+        const passStyle = ocapnPassStyleOf(resolved);
+        if (passStyle !== 'copyArray') {
+          throw Error(
+            `OCapN: Cannot index into values with pass-style ${passStyle}`,
+          );
+        }
+        if (!Array.isArray(resolved)) {
+          throw Error(`OCapN: Cannot index into non-array values`);
+        }
+
+        // Check if the index is within bounds
+        if (index < 0n || index >= resolved.length) {
+          throw Error(
+            `Index ${index} out of bounds for array of length ${resolved.length}`,
+          );
+        }
+
+        // Return the value at the index
+        return Reflect.get(resolved, index.toString());
+      });
+
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, indexPromise);
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;

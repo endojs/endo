@@ -186,11 +186,22 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     answerPosition: PositiveIntegerCodec,
   });
 
+  const OpIndexCodec = makeOcapnRecordCodecFromDefinition(
+    'OpIndex',
+    'op:index',
+    {
+      receiverDesc: RemotePromiseCodec,
+      index: NonNegativeIntegerCodec,
+      answerPosition: PositiveIntegerCodec,
+    },
+  );
+
   const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
     OpGetCodec,
+    OpIndexCodec,
     OpAbortCodec,
     OpListenCodec,
     OpGcExportCodec,

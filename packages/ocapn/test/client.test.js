@@ -913,3 +913,238 @@ test('op:get with rejected promise', async t => {
     shutdownBoth();
   }
 });
+
+test('op:index with valid array (awaiting)', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Array Provider',
+    Far('arrayProvider', () => {
+      return harden(['first', 'second', 'third', 42]);
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const arrayProvider = await E(bootstrapB).fetch(
+      encodeSwissnum('Array Provider'),
+    );
+    const array = await E(arrayProvider)();
+
+    // Use E.get with numeric index to retrieve array elements
+    const firstValue = await E.get(array)[0];
+    const secondValue = await E.get(array)[1];
+    const lastValue = await E.get(array)[3];
+
+    t.is(firstValue, 'first');
+    t.is(secondValue, 'second');
+    t.is(lastValue, 42);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:index with valid array (pipelining)', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Array Provider',
+    Far('arrayProvider', () => {
+      return harden(['alpha', 'beta', 'gamma']);
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const arrayProvider = E(bootstrapB).fetch(encodeSwissnum('Array Provider'));
+    // Pipeline: get the element before awaiting the provider
+    const arrayPromise = E(arrayProvider)();
+    const firstElement = E.get(arrayPromise)[0];
+    const secondElement = E.get(arrayPromise)[1];
+
+    t.is(await firstElement, 'alpha');
+    t.is(await secondElement, 'beta');
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:index with out-of-bounds index rejects', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Array Provider',
+    Far('arrayProvider', () => {
+      return harden(['only', 'two', 'items']);
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // Use pipelining so the access goes through CapTP
+    const arrayProvider = E(bootstrapB).fetch(encodeSwissnum('Array Provider'));
+    const arrayPromise = E(arrayProvider)();
+
+    // Try to access an out-of-bounds index via pipelining
+    const error = await t.throwsAsync(
+      async () => {
+        await E.get(arrayPromise)[10];
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(error.message, /Index 10 out of bounds/);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:index rejects non-array (copyRecord)', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Record Provider',
+    Far('recordProvider', () => {
+      return harden({ foo: 'bar', baz: 42 });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // Use pipelining so the access goes through CapTP
+    const recordProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Record Provider'),
+    );
+    const recordPromise = E(recordProvider)();
+
+    // Try to index into a record via pipelining (should fail)
+    const error = await t.throwsAsync(
+      async () => {
+        await E.get(recordPromise)[0];
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(
+      error.message,
+      /Cannot index into values with pass-style copyRecord/,
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('op:index with rejected promise propagates rejection', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Rejecting Provider',
+    Far('rejectingProvider', () => {
+      return Promise.reject(Error('Array fetch failed'));
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    const rejectingProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Rejecting Provider'),
+    );
+    const rejectedPromise = E(rejectingProvider)();
+
+    // Try to index into a rejected promise
+    const error = await t.throwsAsync(
+      async () => {
+        await E.get(rejectedPromise)[0];
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(error.message, /Array fetch failed/);
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('E.get rejects Symbol property access', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Object Provider',
+    Far('objectProvider', () => {
+      return harden({ foo: 'bar' });
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // Use pipelining so the access goes through the handler
+    const objectProvider = E(bootstrapB).fetch(
+      encodeSwissnum('Object Provider'),
+    );
+    const objectPromise = E(objectProvider)();
+
+    // Try to access a Symbol property (should fail immediately without consuming an answer slot)
+    const testSymbol = Symbol('test');
+    const error = await t.throwsAsync(
+      async () => {
+        // @ts-expect-error - intentionally using symbol for testing
+        await E.get(objectPromise)[testSymbol];
+      },
+      {
+        instanceOf: Error,
+      },
+    );
+
+    t.regex(error.message, /Property must be a string, got symbol/);
+  } finally {
+    shutdownBoth();
+  }
+});

@@ -15,7 +15,9 @@ import {
   exampleSigParamBytes,
   examplePubKeyQBytes,
   runTableTests,
+  makeCodecTestKit,
 } from './_codecs_util.js';
+import { makeSyrupWriter } from '../../src/syrup/encode.js';
 
 /** @type {CodecTestEntry[]} */
 export const table = [
@@ -383,6 +385,38 @@ export const table = [
       answerPosition: 10n,
     }),
   },
+  {
+    // <op:index <desc:export 3> 2 7>
+    name: 'op:index with desc:export',
+    makeValue: testKit => ({
+      type: 'op:index',
+      receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+      index: 2n,
+      answerPosition: 7n,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:index',
+      receiverDesc: testKit.makeLocalPromise(3n),
+      index: 2n,
+      answerPosition: 7n,
+    }),
+  },
+  {
+    // <op:index <desc:answer 5> 0 10>
+    name: 'op:index with desc:answer',
+    makeValue: testKit => ({
+      type: 'op:index',
+      receiverDesc: testKit.makeRemoteAnswer(5n),
+      index: 0n,
+      answerPosition: 10n,
+    }),
+    makeExpectedValue: testKit => ({
+      type: 'op:index',
+      receiverDesc: testKit.referenceKit.provideLocalAnswerValue(5n),
+      index: 0n,
+      answerPosition: 10n,
+    }),
+  },
 ];
 
 runTableTests(
@@ -391,3 +425,55 @@ runTableTests(
   table,
   testKit => testKit.OcapnMessageUnionCodec,
 );
+
+test('op:get rejects integer fieldName', t => {
+  const testKit = makeCodecTestKit();
+  const syrupWriter = makeSyrupWriter({
+    name: 'op:get with integer fieldName',
+  });
+
+  const invalidMessage = {
+    type: 'op:get',
+    receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+    fieldName: 42n, // Should be a string, not an integer
+    answerPosition: 7n,
+  };
+
+  const error = t.throws(
+    () => {
+      testKit.OcapnMessageUnionCodec.write(invalidMessage, syrupWriter);
+    },
+    undefined,
+    'op:get should reject integer fieldName',
+  );
+
+  // Verify the error chain contains the fieldName failure
+  const cause1 = /** @type {Error} */ (error.cause);
+  const cause2 = /** @type {Error} */ (cause1.cause);
+  t.regex(cause2.message, /OpGet: write failed for field fieldName/);
+});
+
+test('op:index rejects string index', t => {
+  const testKit = makeCodecTestKit();
+  const syrupWriter = makeSyrupWriter({ name: 'op:index with string index' });
+
+  const invalidMessage = {
+    type: 'op:index',
+    receiverDesc: testKit.referenceKit.provideRemotePromiseValue(3n),
+    index: 'notAnIndex', // Should be an integer, not a string
+    answerPosition: 7n,
+  };
+
+  const error = t.throws(
+    () => {
+      testKit.OcapnMessageUnionCodec.write(invalidMessage, syrupWriter);
+    },
+    undefined,
+    'op:index should reject string index',
+  );
+
+  // Verify the error chain contains the index failure
+  const cause1 = /** @type {Error} */ (error.cause);
+  const cause2 = /** @type {Error} */ (cause1.cause);
+  t.regex(cause2.message, /OpIndex: write failed for field index/);
+});
