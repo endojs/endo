@@ -1,16 +1,21 @@
 {
-  "name": "@endo/ocapn",
-  "version": "0.2.2",
+  "name": "@endo/geny",
+  "version": "0.0.0",
   "private": true,
-  "description": null,
-  "keywords": [],
+  "description": "OCapN host for spawning and managing child processes",
+  "keywords": [
+    "ocapn",
+    "process",
+    "spawn",
+    "capability"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/ocapn#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/geny#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/ocapn"
+    "directory": "packages/geny"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -20,38 +25,33 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./client": "./src/client/index.js",
-    "./client/index.js": "./src/client/index.js",
-    "./client/util": "./src/client/util.js",
-    "./client/util.js": "./src/client/util.js",
-    "./netlayers/tcp-test-only": "./src/netlayers/tcp-test-only.js",
-    "./netlayers/tcp-test-only.js": "./src/netlayers/tcp-test-only.js",
+    "./child": "./src/child.js",
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "geny-child": "./src/child.js"
   },
   "scripts": {
     "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
-    "test": "ses-ava",
+    "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
-    "test:xs": "exit 0",
-    "test:python": "node ./test/python-test-suite/index.js",
-    "test:update-snapshots": "ses-ava --update-snapshots"
+    "test:xs": "exit 0"
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
-    "@endo/immutable-arraybuffer": "workspace:^",
+    "@endo/far": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/marshal": "workspace:^",
+    "@endo/ocapn": "workspace:^",
     "@endo/pass-style": "workspace:^",
-    "@endo/promise-kit": "workspace:^",
-    "@noble/curves": "^1.9.0",
-    "@noble/hashes": "^1.8.0"
+    "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
@@ -81,8 +81,10 @@
       "plugin:@endo/internal"
     ]
   },
-  "sesAvaConfigs": {
-    "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
   }
 }

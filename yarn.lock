@@ -464,6 +464,30 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/geny@workspace:packages/geny":
+  version: 0.0.0-use.local
+  resolution: "@endo/geny@workspace:packages/geny"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/ocapn": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  bin:
+    geny-child: ./src/child.js
+  languageName: unknown
+  linkType: soft
+
 "@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
@@ -633,7 +657,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/ocapn@workspace:packages/ocapn":
+"@endo/ocapn@workspace:^, @endo/ocapn@workspace:packages/ocapn":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
