@@ -12,10 +12,11 @@ test('evalScope - is not created with eval exposed', t => {
 
   const evalScopeKit = makeEvalScopeKit();
   const { evalScope } = evalScopeKit;
+  const evaluateForAllower = props => evalScope.eval(props);
 
   t.is(Reflect.has(evalScope, 'eval'), false);
 
-  evalScopeKit.allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe(evaluateForAllower);
 
   t.is(Reflect.has(evalScope, 'eval'), true);
 });
@@ -25,10 +26,11 @@ test('evalScope - getting eval removes it from evalScope', t => {
 
   const evalScopeKit = makeEvalScopeKit();
   const { evalScope } = evalScopeKit;
+  const evaluateForAllower = props => evalScope.eval(props);
 
   t.is(Reflect.has(evalScope, 'eval'), false);
 
-  evalScopeKit.allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe(evaluateForAllower);
 
   t.is(Reflect.has(evalScope, 'eval'), true);
 
