@@ -510,6 +510,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/llamadrome@workspace:packages/llamadrome":
+  version: 0.0.0-use.local
+  resolution: "@endo/llamadrome@workspace:packages/llamadrome"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/lockdown@workspace:^, @endo/lockdown@workspace:packages/lockdown":
   version: 0.0.0-use.local
   resolution: "@endo/lockdown@workspace:packages/lockdown"
