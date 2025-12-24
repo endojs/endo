@@ -98,7 +98,7 @@ option of the given "petname" (a name that is significant only to you).
           .join(' '),
       });
 
-      console.log(JSON.stringify({ transcript }));
+      console.log(JSON.stringify({ transcript }, null, 2));
 
       const response = await ollama.chat({
         model: 'qwen3',
@@ -106,18 +106,20 @@ option of the given "petname" (a name that is significant only to you).
         // stream: false
       });
 
-      console.log(JSON.stringify({ response }));
+      console.error('response:');
+      console.error(JSON.stringify(response, null, 2));
 
-      const { choices, message } = response;
-      if (message) {
-        const { content, thinking } = message;
-        await E(agent).send('HOST', [`thinking: ${thinking}`], [], []);
-        await E(agent).send('HOST', [content], [], []);
+      const { choices, message: responseMessage } = response;
+      if (responseMessage) {
+        transcript.push(responseMessage);
+        const { content, thinking } = responseMessage;
+        await E(powers).send('HOST', [content], [], []);
       }
       for (const choice of choices) {
-        const { content, thinking } = choice;
-        await E(agent).send('HOST', [`thinking: ${thinking}`], [], []);
-        await E(agent).send('HOST', [content], [], []);
+        const { message: choiceMessage } = choice;
+        transcript.push(choiceMessage);
+        const { content } = choiceMessage;
+        await E(powers).send('HOST', [content], [], []);
       }
     }
   })();
