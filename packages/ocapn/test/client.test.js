@@ -11,6 +11,7 @@ import {
   makeTestClient,
   makeTestClientPair,
   makeUntagTestHelper,
+  getOcapnDebug,
 } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
@@ -1392,6 +1393,272 @@ test('serialization error in E() call arguments rejects the promise', async t =>
     // We should still be able to make successful calls
     const result = await E(receiver).acceptAnything('valid string');
     t.is(result, 'valid string', 'Should still work after serialization error');
+  } finally {
+    shutdownBoth();
+  }
+});
+
+// Tests for E() vs E.sendOnly() message types
+test('E() sends op:deliver with answer tracking', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: val => val,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{type: string}>} */
+    const sentMessages = [];
+    const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          sentMessages.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoService = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
+
+    // Clear messages from setup
+    sentMessages.length = 0;
+
+    // Use E() which expects a response
+    const result = await E(echoService).echo('hello');
+    t.is(result, 'hello');
+
+    unsubscribe();
+
+    // Should have sent op:deliver (not op:deliver-only)
+    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
+    const deliverOnlyMessages = sentMessages.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.true(
+      deliverMessages.length >= 1,
+      'E() should send at least one op:deliver message',
+    );
+    t.is(
+      deliverOnlyMessages.length,
+      0,
+      'E() should NOT send op:deliver-only messages',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
+  const testObjectTable = new Map();
+  /** @type {string | undefined} */
+  let receivedValue;
+  testObjectTable.set(
+    'Receiver',
+    Far('receiver', {
+      receive: val => {
+        receivedValue = val;
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{type: string}>} */
+    const sentMessages = [];
+    const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          sentMessages.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const receiver = await E(bootstrapB).fetch(encodeSwissnum('Receiver'));
+
+    // Clear messages from setup
+    sentMessages.length = 0;
+
+    // Use E.sendOnly() which does not expect a response
+    E.sendOnly(receiver).receive('fire-and-forget');
+
+    // Wait a bit for the message to be sent and processed
+    await waitUntilTrue(() => receivedValue === 'fire-and-forget');
+
+    unsubscribe();
+
+    // Should have sent op:deliver-only (not op:deliver)
+    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
+    const deliverOnlyMessages = sentMessages.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.is(
+      deliverMessages.length,
+      0,
+      'E.sendOnly() should NOT send op:deliver messages',
+    );
+    t.true(
+      deliverOnlyMessages.length >= 1,
+      'E.sendOnly() should send at least one op:deliver-only message',
+    );
+
+    t.is(
+      /** @type {string | undefined} */ (receivedValue),
+      'fire-and-forget',
+      'Value should have been received',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('E.sendOnly() on function call sends op:deliver-only', async t => {
+  const testObjectTable = new Map();
+  /** @type {string | undefined} */
+  let receivedValue;
+  testObjectTable.set(
+    'Func',
+    Far('func', val => {
+      receivedValue = val;
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{type: string}>} */
+    const sentMessages = [];
+    const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          sentMessages.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const func = await E(bootstrapB).fetch(encodeSwissnum('Func'));
+
+    // Clear messages from setup
+    sentMessages.length = 0;
+
+    // Use E.sendOnly() with function call syntax
+    E.sendOnly(func)('function-call-value');
+
+    // Wait a bit for the message to be sent and processed
+    await waitUntilTrue(() => receivedValue === 'function-call-value');
+
+    unsubscribe();
+
+    // Should have sent op:deliver-only (not op:deliver)
+    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
+    const deliverOnlyMessages = sentMessages.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.is(
+      deliverMessages.length,
+      0,
+      'E.sendOnly() function call should NOT send op:deliver messages',
+    );
+    t.true(
+      deliverOnlyMessages.length >= 1,
+      'E.sendOnly() function call should send at least one op:deliver-only message',
+    );
+
+    t.is(
+      /** @type {string | undefined} */ (receivedValue),
+      'function-call-value',
+      'Value should have been received',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('resolver callbacks use op:deliver-only', async t => {
+  // When Bob responds to a call from Alice, he calls fulfill/break on
+  // a remote resolver. These should use op:deliver-only since we don't
+  // need a response from the resolver call.
+
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: val => val,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // Track messages sent by B (the responder)
+    /** @type {Array<{type: string}>} */
+    const messagesSentByB = [];
+    const unsubscribe = getOcapnDebug(ocapnB).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          messagesSentByB.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoService = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
+
+    // Clear messages from setup
+    messagesSentByB.length = 0;
+
+    // Make a call - B will respond by calling fulfill on the resolver
+    const result = await E(echoService).echo('test');
+    t.is(result, 'test');
+
+    unsubscribe();
+
+    // B's response should use op:deliver-only for the resolver callback
+    const deliverOnlyMessages = messagesSentByB.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.true(
+      deliverOnlyMessages.length >= 1,
+      'Resolver callbacks should use op:deliver-only',
+    );
   } finally {
     shutdownBoth();
   }

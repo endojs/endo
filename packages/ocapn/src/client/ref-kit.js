@@ -164,9 +164,9 @@ export const makeReferenceKit = (
   const makeRemotePromise = _position => makePromiseResolverPair();
   const makeLocalAnswer = _position => makePromiseResolverPair();
 
-  const makeRemoteObject = (position, label, deliverMode) => {
+  const makeRemoteObject = (position, label) => {
     let remoteObject;
-    const { settler } = makeRemoteKit(() => remoteObject, deliverMode);
+    const { settler } = makeRemoteKit(() => remoteObject);
     remoteObject = Remotable(
       `Alleged: ${label}`,
       undefined,
@@ -177,11 +177,7 @@ export const makeReferenceKit = (
   };
 
   const makeRemoteResolver = position => {
-    return makeRemoteObject(
-      position,
-      `Remote Resolver ${position}`,
-      'deliver-only',
-    );
+    return makeRemoteObject(position, `Remote Resolver ${position}`);
   };
 
   const makeRemoteBootstrap = () => {

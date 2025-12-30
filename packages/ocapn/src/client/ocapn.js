@@ -205,9 +205,9 @@ const makeOcapnCommsKit = ({
 /**
  * @typedef {(handler: Handler) => RemoteKit} MakeRemoteKitForHandler
  * Makes a HandledPromise and settler for the given handler
- * @typedef {(targetGetter: () => unknown, mode?: 'deliver' | 'deliver-only') => Handler} MakeHandlerForRemoteReference
- * Makes a HandledPromise handler for the given target and mode
- * @typedef {(targetGetter: () => unknown, mode?: 'deliver' | 'deliver-only') => RemoteKit} MakeRemoteKit
+ * @typedef {(targetGetter: () => unknown) => Handler} MakeHandlerForRemoteReference
+ * Makes a HandledPromise handler for the given target
+ * @typedef {(targetGetter: () => unknown) => RemoteKit} MakeRemoteKit
  * Make a HandledPromise and settler that sends op:deliver to the `targetSlot`
  * @typedef {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} SendHandoff
  */
@@ -269,36 +269,38 @@ const makeMakeHandlerForRemoteReference = ({
   quietReject,
   takeNextRemoteAnswer,
 }) => {
-  const makeHandlerForRemoteReference = (targetGetter, mode = 'deliver') => {
+  const makeHandlerForRemoteReference = targetGetter => {
     /**
+     * Send op:deliver and return the internal promise for the answer.
      * @param {unknown[]} args
      * @param {Promise<unknown>} [externalAnswerPromise] - The promise E() returns to the caller
      */
     const sendDeliver = (args, externalAnswerPromise) => {
-      if (mode === 'deliver-only') {
-        send({
-          type: 'op:deliver-only',
-          to: targetGetter(),
-          args: harden(args),
-        });
-        return Promise.resolve();
-      } else if (mode === 'deliver') {
-        const {
-          internalPromise,
-          position: answerPosition,
-          resolver: resolveMeDesc,
-        } = takeNextRemoteAnswer(externalAnswerPromise);
-        send({
-          type: 'op:deliver',
-          to: targetGetter(),
-          args: harden(args),
-          answerPosition,
-          resolveMeDesc,
-        });
-        return internalPromise;
-      } else {
-        throw new Error(`OCapN APPLY FUNCTION: Invalid mode: ${mode}`);
-      }
+      const {
+        internalPromise,
+        position: answerPosition,
+        resolver: resolveMeDesc,
+      } = takeNextRemoteAnswer(externalAnswerPromise);
+      send({
+        type: 'op:deliver',
+        to: targetGetter(),
+        args: harden(args),
+        answerPosition,
+        resolveMeDesc,
+      });
+      return internalPromise;
+    };
+
+    /**
+     * Send op:deliver-only (fire and forget, no answer expected).
+     * @param {unknown[]} args
+     */
+    const sendDeliverOnly = args => {
+      send({
+        type: 'op:deliver-only',
+        to: targetGetter(),
+        args: harden(args),
+      });
     };
 
     /**
@@ -370,17 +372,34 @@ const makeMakeHandlerForRemoteReference = ({
         logger.info(`applyFunction`, targetGetter(), args);
         return sendDeliver(args, externalAnswerPromise);
       },
+      applyFunctionSendOnly(_o, args) {
+        if (didUnplug() !== false) {
+          return;
+        }
+        logger.info(`applyFunctionSendOnly`, targetGetter(), args);
+        sendDeliverOnly(args);
+      },
       applyMethod(_o, prop, args, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
         logger.info(`applyMethod`, targetGetter(), prop, args);
-        // eslint-disable-next-line no-use-before-define
         if (typeof prop !== 'string') {
           throw new Error('OCapN APPLY METHOD: Property must be a string');
         }
         const methodSelector = makeSelector(prop);
         return sendDeliver([methodSelector, ...args], externalAnswerPromise);
+      },
+      applyMethodSendOnly(_o, prop, args) {
+        if (didUnplug() !== false) {
+          return;
+        }
+        logger.info(`applyMethodSendOnly`, targetGetter(), prop, args);
+        if (typeof prop !== 'string') {
+          throw new Error('OCapN APPLY METHOD: Property must be a string');
+        }
+        const methodSelector = makeSelector(prop);
+        sendDeliverOnly([methodSelector, ...args]);
       },
     });
 
@@ -400,8 +419,8 @@ const makeMakeRemoteKit = ({
   makeHandlerForRemoteReference,
 }) => {
   /** @type {MakeRemoteKit} */
-  const makeRemoteKit = (targetGetter, mode = 'deliver') => {
-    const handler = makeHandlerForRemoteReference(targetGetter, mode);
+  const makeRemoteKit = targetGetter => {
+    const handler = makeHandlerForRemoteReference(targetGetter);
     return makeRemoteKitForHandler(handler);
   };
 
@@ -698,15 +717,14 @@ export const makeOcapn = (
   };
 
   const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
-    // This could probably just be `E(resolveMeDesc).fulfill(hp)`
-    // which should handle rejections. But might be more overhead
-    // on the wire.
+    // Use E.sendOnly since we don't need a response from fulfill/break calls.
+    // This sends via op:deliver-only
     Promise.resolve(promise).then(
       val => {
-        E(resolveMeDesc).fulfill(val);
+        E.sendOnly(resolveMeDesc).fulfill(val);
       },
       reason => {
-        E(resolveMeDesc).break(reason);
+        E.sendOnly(resolveMeDesc).break(reason);
       },
     );
   };
