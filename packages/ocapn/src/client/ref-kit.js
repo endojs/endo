@@ -1,7 +1,8 @@
 // @ts-check
 
 /**
- * @import {Slot} from '../captp/types.js'
+ * @import { EHandler } from '@endo/eventual-send'
+ * @import { Slot } from '../captp/types.js'
  * @import { SlotType } from '../captp/pairwise.js'
  * @import { OcapnTable } from '../captp/ocapn-tables.js'
  * @import { OcapnLocation } from '../codecs/components.js'
@@ -25,7 +26,7 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @typedef {(node: OcapnLocation, swissNum: SwissNum) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
  * @typedef {(nodeLocation: OcapnLocation, swissNum: SwissNum) => any} GetRemoteSturdyRef
- * @typedef {Record<string, any>} Handler
+ * @typedef {EHandler<{}>} RemoteKitHandler
  * @typedef {'object' | 'promise' | 'answer'} SlotTypeName
  */
 

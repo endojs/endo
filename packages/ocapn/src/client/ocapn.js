@@ -3,7 +3,7 @@
 /**
  * @import { RemoteKit, Settler } from '@endo/eventual-send'
  * @import { Slot } from '../captp/types.js'
- * @import { ReferenceKit, TakeNextRemoteAnswer } from './ref-kit.js'
+ * @import { ReferenceKit, TakeNextRemoteAnswer, RemoteKitHandler } from './ref-kit.js'
  * @import { OcapnTable } from '../captp/ocapn-tables.js'
  * @import { GrantTracker, HandoffGiveDetails } from './grant-tracker.js'
  * @import { OcapnLocation } from '../codecs/components.js'
@@ -51,7 +51,6 @@ import { makeGrantDetails } from './grant-tracker.js';
  * @typedef {(node: OcapnLocation, swissNum: SwissNum) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
  * @typedef {(nodeLocation: OcapnLocation, swissNum: SwissNum) => any} GetRemoteSturdyRef
- * @typedef {Record<string, any>} Handler
  * @typedef {'object' | 'promise' | 'question'} SlotType
  */
 
@@ -203,9 +202,9 @@ const makeOcapnCommsKit = ({
 };
 
 /**
- * @typedef {(handler: Handler) => RemoteKit} MakeRemoteKitForHandler
+ * @typedef {(handler: RemoteKitHandler) => RemoteKit} MakeRemoteKitForHandler
  * Makes a HandledPromise and settler for the given handler
- * @typedef {(targetGetter: () => unknown) => Handler} MakeHandlerForRemoteReference
+ * @typedef {(targetGetter: () => unknown) => RemoteKitHandler} MakeHandlerForRemoteReference
  * Makes a HandledPromise handler for the given target
  * @typedef {(targetGetter: () => unknown) => RemoteKit} MakeRemoteKit
  * Make a HandledPromise and settler that sends op:deliver to the `targetSlot`
@@ -308,7 +307,7 @@ const makeMakeHandlerForRemoteReference = ({
      * attribute access and method invocation of this remote promise
      * as also being questions / remote handled promises
      *
-     * @type {import('@endo/eventual-send').EHandler<{}>}
+     * @type {RemoteKitHandler}
      */
     const handler = harden({
       get(_o, prop, externalAnswerPromise) {
