@@ -237,7 +237,7 @@ export const makeReferenceKit = (
   };
 
   /** @type {ReferenceKit} */
-  const referenceKit = {
+  const referenceKit = harden({
     provideRemoteObjectValue: position => {
       const slot = makeSlot('o', false, position);
       let value = ocapnTable.getValueForSlot(slot);
@@ -428,6 +428,6 @@ export const makeReferenceKit = (
         return { slot, position, type: namedType, isLocal, isThirdParty };
       }
     },
-  };
+  });
   return referenceKit;
 };
