@@ -98,7 +98,7 @@ const formatEntry = entry => {
  * @param {ExpectedEntry[]} expected - Expected entries with partial matching
  */
 const assertMessageTranscript = (t, transcript, expected) => {
-  if (transcript.length < expected.length) {
+  if (transcript.length !== expected.length) {
     t.fail(
       `Transcript too short: expected ${expected.length} entries, got ${transcript.length}\n\n` +
         `Actual transcript:\n${transcript.map(formatEntry).join('\n')}`,
