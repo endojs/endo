@@ -37,7 +37,22 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {boolean} isLocal
  * @property {boolean} isThirdParty
  * @property {GrantDetails} [grantDetails]
- *
+ */
+
+/**
+ * @typedef {object} TakeNextRemoteAnswerResult
+ * @property {Promise<unknown>} internalPromise
+ * @property {Promise<unknown>} answerPromise
+ * @property {bigint} position
+ * @property {unknown} resolver
+ */
+
+/**
+ * @typedef {(externalAnswerPromise?: Promise<unknown>) => TakeNextRemoteAnswerResult} TakeNextRemoteAnswer
+ * @param {Promise<unknown>} [externalAnswerPromise] - The promise returned by E(), from the HandledPromise handler (if available)
+ */
+
+/**
  * @typedef {object} ReferenceKit
  * @property {(position: bigint) => object} provideRemoteObjectValue
  * @property {(position: bigint) => Promise<unknown>} provideRemotePromiseValue
@@ -49,7 +64,7 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(value: Promise<unknown>) => bigint} provideLocalPromisePosition
  * @property {(value: object) => bigint} provideRemoteExportPosition
  * @property {(value: Promise<unknown>) => bigint} provideRemoteAnswerPosition
- * @property {() => { promise: Promise<unknown>, position: bigint, resolver: unknown }} takeNextRemoteAnswer
+ * @property {TakeNextRemoteAnswer} takeNextRemoteAnswer
  * @property {(remotePromise: Promise<unknown>) => object} makeLocalResolverForRemotePromise
  * @property {(answerPosition: bigint, promise: Promise<unknown>) => void} fulfillLocalAnswerWithPromise
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
@@ -122,7 +137,30 @@ export const makeReferenceKit = (
     return { promise, settler };
   };
 
-  const makeRemoteAnswer = _position => makePromiseResolverPair();
+  /**
+   * Create a promise/settler pair with an optional externally defined answer promise.
+   * @param {Promise<unknown>} [externalAnswerPromise] - The promise returned by E()
+   * @returns {{ internalPromise: Promise<unknown>, answerPromise: Promise<unknown>, settler: unknown }}
+   */
+  const makeRemoteAnswer = externalAnswerPromise => {
+    // Use a mutable reference that can be set after creation
+    let target;
+    const { promise: internalPromise, settler } = makeRemoteKit(() => target);
+    // Default to the internal promise, but can be overridden
+
+    // Decide which promise to register: prefer externalAnswerPromise (E()'s promise) when available
+    const answerPromise = externalAnswerPromise || internalPromise;
+    // Update the handler's target to use the registered promise
+    // This ensures pipelining serializes the correct promise
+    target = answerPromise;
+
+    return {
+      internalPromise,
+      answerPromise,
+      settler,
+    };
+  };
+
   const makeRemotePromise = _position => makePromiseResolverPair();
   const makeLocalAnswer = _position => makePromiseResolverPair();
 
@@ -166,17 +204,36 @@ export const makeReferenceKit = (
 
   // Track the next answer position.
   let nextAnswerPosition = 0n;
-  const takeNextRemoteAnswer = () => {
+  /**
+   * Create a new remote answer slot and return the internal promise, answer promise, position, and resolver.
+   *   The internal promise is to be returned in the HandledPromise handler.
+   *   The answer promise is registered in the table as the remote answer.
+   *   The position is the position of the answer slot in the table.
+   *   The resolver is used to resolve the internal promise (which should resolve the external answer promise).
+   */
+  /** @type {TakeNextRemoteAnswer} */
+  const takeNextRemoteAnswer = externalAnswerPromise => {
     const answerPosition = nextAnswerPosition;
     nextAnswerPosition += 1n;
-    const { promise: answerPromise, settler } =
-      makeRemoteAnswer(answerPosition);
+
+    // Create a promise+settler pair with an optional externalAnswerPromise.
+    // The settler is needed to resolve the promise when the answer comes back.
+    const { internalPromise, answerPromise, settler } = makeRemoteAnswer(
+      externalAnswerPromise,
+    );
+
     const slot = makeSlot('a', false, answerPosition);
+    // registerSlot triggers importHook which records in grantTracker
     ocapnTable.registerSlot(slot, answerPromise);
-    // We don't register the settler here, because we use it immediately.
+
     const resolver = makeLocalResolver(slot, settler);
+
+    // Return:
+    // - internalPromise: used by HandledPromise to resolve externalAnswerPromise
+    // - answerPromise: the promise registered in the table as the remote answer
     return {
-      promise: answerPromise,
+      internalPromise,
+      answerPromise,
       position: answerPosition,
       resolver,
     };

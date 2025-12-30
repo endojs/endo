@@ -3,7 +3,7 @@
 /**
  * @import { RemoteKit, Settler } from '@endo/eventual-send'
  * @import { Slot } from '../captp/types.js'
- * @import { ReferenceKit } from './ref-kit.js'
+ * @import { ReferenceKit, TakeNextRemoteAnswer } from './ref-kit.js'
  * @import { OcapnTable } from '../captp/ocapn-tables.js'
  * @import { GrantTracker, HandoffGiveDetails } from './grant-tracker.js'
  * @import { OcapnLocation } from '../codecs/components.js'
@@ -259,7 +259,7 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
  * @param {() => boolean} opts.didUnplug
  * @param {((reason?: any, returnIt?: boolean) => void)} opts.quietReject
  * @param {((obj: Record<string, any>) => void)} opts.send
- * @param {() => { promise: Promise<unknown>, position: bigint, resolver: LocalResolver }} opts.takeNextRemoteAnswer
+ * @param {TakeNextRemoteAnswer} opts.takeNextRemoteAnswer
  * @returns {MakeHandlerForRemoteReference}
  */
 const makeMakeHandlerForRemoteReference = ({
@@ -270,7 +270,11 @@ const makeMakeHandlerForRemoteReference = ({
   takeNextRemoteAnswer,
 }) => {
   const makeHandlerForRemoteReference = (targetGetter, mode = 'deliver') => {
-    const sendDeliver = args => {
+    /**
+     * @param {unknown[]} args
+     * @param {Promise<unknown>} [externalAnswerPromise] - The promise E() returns to the caller
+     */
+    const sendDeliver = (args, externalAnswerPromise) => {
       if (mode === 'deliver-only') {
         send({
           type: 'op:deliver-only',
@@ -280,10 +284,10 @@ const makeMakeHandlerForRemoteReference = ({
         return Promise.resolve();
       } else if (mode === 'deliver') {
         const {
-          promise: answerPromise,
+          internalPromise,
           position: answerPosition,
           resolver: resolveMeDesc,
-        } = takeNextRemoteAnswer();
+        } = takeNextRemoteAnswer(externalAnswerPromise);
         send({
           type: 'op:deliver',
           to: targetGetter(),
@@ -291,7 +295,7 @@ const makeMakeHandlerForRemoteReference = ({
           answerPosition,
           resolveMeDesc,
         });
-        return answerPromise;
+        return internalPromise;
       } else {
         throw new Error(`OCapN APPLY FUNCTION: Invalid mode: ${mode}`);
       }
@@ -305,7 +309,7 @@ const makeMakeHandlerForRemoteReference = ({
      * @type {import('@endo/eventual-send').EHandler<{}>}
      */
     const handler = harden({
-      get(_o, prop) {
+      get(_o, prop, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
@@ -323,10 +327,11 @@ const makeMakeHandlerForRemoteReference = ({
 
         // Create a question for the answer
         const {
-          promise: answerPromise,
+          internalPromise,
+          answerPromise,
           position: answerPosition,
           resolver: resolveMeDesc,
-        } = takeNextRemoteAnswer();
+        } = takeNextRemoteAnswer(externalAnswerPromise);
 
         // Check if the string looks like a non-negative integer (for array index access)
         // JavaScript proxies receive "0", "1", etc. for array-style access like obj[0]
@@ -348,7 +353,7 @@ const makeMakeHandlerForRemoteReference = ({
           });
         }
 
-        // Send op:listen for the answer so B knows how to send the result back
+        // Send op:listen for the answerPromise so B knows how to send the result back
         send({
           type: 'op:listen',
           to: answerPromise,
@@ -356,16 +361,16 @@ const makeMakeHandlerForRemoteReference = ({
           wantsPartial: false,
         });
 
-        return answerPromise;
+        return internalPromise;
       },
-      applyFunction(_o, args) {
+      applyFunction(_o, args, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
         logger.info(`applyFunction`, targetGetter(), args);
-        return sendDeliver(args);
+        return sendDeliver(args, externalAnswerPromise);
       },
-      applyMethod(_o, prop, args) {
+      applyMethod(_o, prop, args, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
@@ -375,7 +380,7 @@ const makeMakeHandlerForRemoteReference = ({
           throw new Error('OCapN APPLY METHOD: Property must be a string');
         }
         const methodSelector = makeSelector(prop);
-        return sendDeliver([methodSelector, ...args]);
+        return sendDeliver([methodSelector, ...args], externalAnswerPromise);
       },
     });
 
@@ -910,8 +915,9 @@ export const makeOcapn = (
     send,
     didUnplug,
     quietReject,
-    // eslint-disable-next-line no-use-before-define
-    takeNextRemoteAnswer: () => referenceKit.takeNextRemoteAnswer(),
+    takeNextRemoteAnswer: externalAnswerPromise =>
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.takeNextRemoteAnswer(externalAnswerPromise),
   });
 
   const makeRemoteKit = makeMakeRemoteKit({

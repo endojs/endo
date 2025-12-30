@@ -596,6 +596,16 @@ testWithErrorUnwrapping(
   async t => {
     const bobObjectTable = new Map();
     bobObjectTable.set(
+      'SlowObj',
+      Far('slowObj', {
+        slowMethod: async () => {
+          return Far('resultObj', {
+            getValue: () => 99,
+          });
+        },
+      }),
+    );
+    bobObjectTable.set(
       'EchoObj',
       Far('echoObj', {
         echo: async obj => obj,
@@ -609,31 +619,30 @@ testWithErrorUnwrapping(
     const {
       sessionA: { ocapn: ocapnA },
     } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
 
-    // Alice creates a local object that returns a promise
-    const aliceSlowObj = Far('slowObj', {
-      slowMethod: async () => {
-        return Far('resultObj', {
-          getValue: () => 99,
-        });
-      },
-    });
+    // Alice gets Bob's SlowObj (a REMOTE object)
+    const bobSlowObj = await E(bootstrapB).fetch(encodeSwissnum('SlowObj'));
 
-    // Alice creates an answer promise by calling slowMethod without awaiting
-    const answerPromise = E(aliceSlowObj).slowMethod();
+    // Alice calls slowMethod on the REMOTE object, creating a REMOTE answer promise
+    // This is the key difference: answerPromise is a remote answer (a-N slot), not a local promise
+    const answerPromise = E(bobSlowObj).slowMethod();
 
     // Alice gets Bob's EchoObj
-    const bootstrapB = ocapnA.getRemoteBootstrap();
     const bobEchoObj = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
 
-    // Alice passes the answer promise to Bob's echo method
+    // Alice passes the remote answer promise to Bob's echo method
+    // This tests that remote answer promises can be sent as arguments,
+    // and that they can be returned (as re-exported promises).
     const echoedAnswerPromise = E(bobEchoObj).echo(answerPromise);
+    // Due to promise wrapping, we will not be able to directly inspect the echoed answer promise in the OcapnTable.
+    // It is is expected to be returned as a new export-promise (p-N slot).
 
     // Alice pipelines a call through the echoed answer promise
     // This tests that answer promises can be echoed and still work correctly
     const result = await E(echoedAnswerPromise).getValue();
-
     t.is(result, 99, 'Pipelined call on echoed answer promise should succeed');
+
     shutdownBoth();
   },
 );
