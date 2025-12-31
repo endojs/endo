@@ -52,23 +52,21 @@ cancelled.catch(error => console.log(error.message)); // "Operation timed out"
 - `cancelled` - A `Promise<never>` with a `cancelled` getter (`undefined | true`)
 - `cancel(reason?)` - Function to trigger cancellation with optional error reason
 
-### `allMap(values, fn, cancelled?)`
+### `allMap(values, fn, parentCancelled)`
 
 Maps over values performing a cancellable transformation on each. If any
 individual operation rejects, all pending operations are cancelled.
 
 ```js
 import { allMap } from '@endo/cancel/all-map';
+import { toAbortSignal } from '@endo/cancel/to-abort';
 
 const results = await allMap(urls, async (url, index, cancelled) => {
-  // Check if we should abort early
-  if (cancelled.cancelled) {
-    throw Error('Cancelled');
-  }
-  
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    signal: toAbortSignal(cancelled),
+  });
   return response.json();
-});
+}, parentCancelled);
 ```
 
 #### Parameters
@@ -76,13 +74,13 @@ const results = await allMap(urls, async (url, index, cancelled) => {
 - `values` - Iterable of values to map over
 - `fn(value, index, cancelled)` - Transformation function receiving the value,
   index, and a cancellation token
-- `cancelled` - Optional external cancellation token to respect
+- `parentCancelled` - Parent cancellation token to respect
 
 #### Returns
 
 A promise for an array of transformed values.
 
-### `anyMap(values, fn, cancelled)`
+### `anyMap(values, fn, parentCancelled?)`
 
 Starts a cancellable job for every value, racing them against each other.
 When one job succeeds, all pending jobs are cancelled. Only rejects with
@@ -90,16 +88,14 @@ When one job succeeds, all pending jobs are cancelled. Only rejects with
 
 ```js
 import { anyMap } from '@endo/cancel/any-map';
+import { toAbortSignal } from '@endo/cancel/to-abort';
 
 const firstResult = await anyMap(mirrors, async (mirror, index, cancelled) => {
-  // Each job gets its own cancellation token
-  if (cancelled.cancelled) {
-    throw Error('Cancelled');
-  }
-  
-  const response = await fetch(`${mirror}/data.json`);
+  const response = await fetch(`${mirror}/data.json`, {
+    signal: toAbortSignal(cancelled),
+  });
   return response.json();
-});
+}, parentCancelled);
 ```
 
 #### Parameters
@@ -107,11 +103,81 @@ const firstResult = await anyMap(mirrors, async (mirror, index, cancelled) => {
 - `values` - Iterable of values to map over
 - `fn(value, index, cancelled)` - Transformation function receiving the value,
   index, and a cancellation token
-- `cancelled` - Parent cancellation to respect
+- `parentCancelled` - Optional parent cancellation token to respect
 
 #### Returns
 
 A promise for the first successful result.
+
+## AbortController Integration
+
+This package provides utilities for converting between Endo's `Cancelled` tokens
+and the web's `AbortController`/`AbortSignal` API.
+
+### `toAbortSignal(cancelled)`
+
+Converts a `Cancelled` token to an `AbortSignal` for use with web APIs like `fetch`.
+
+```js
+import { makeCancelKit } from '@endo/cancel';
+import { toAbortSignal } from '@endo/cancel/to-abort';
+
+const { cancelled, cancel } = makeCancelKit();
+
+// Use with fetch
+const response = await fetch(url, {
+  signal: toAbortSignal(cancelled),
+});
+
+// Later, if needed:
+cancel(Error('Request timed out'));
+// The fetch will be aborted
+```
+
+#### Parameters
+
+- `cancelled` - The cancellation token to convert
+
+#### Returns
+
+An `AbortSignal` that aborts when the `Cancelled` token is triggered.
+
+### `fromAbortSignal(signal)`
+
+Converts an `AbortSignal` to a `Cancelled` token for use with Endo cancellation.
+
+```js
+import { fromAbortSignal } from '@endo/cancel/from-abort';
+import { allMap } from '@endo/cancel/all-map';
+
+// Create an AbortController (e.g., from user interaction)
+const controller = new AbortController();
+document.getElementById('cancel-btn').onclick = () => controller.abort();
+
+// Convert to Cancelled token for use with Endo APIs
+const cancelled = fromAbortSignal(controller.signal);
+
+const results = await allMap(items, async (item, index, innerCancelled) => {
+  // Process item with cancellation support
+  return processItem(item, innerCancelled);
+}, cancelled);
+```
+
+#### Parameters
+
+- `signal` - The `AbortSignal` to convert
+
+#### Returns
+
+A `Cancelled` token that triggers when the signal aborts.
+
+### Barrel Export
+
+Both functions are available from a combined export:
+
+```js
+import { toAbortSignal, fromAbortSignal } from '@endo/cancel/abort';
+```
 
 ## TypeScript Types
 

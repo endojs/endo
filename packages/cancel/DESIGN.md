@@ -117,8 +117,73 @@ The `cancel()` function is idempotent—calling it multiple times has no
 additional effect after the first call.
 This simplifies cleanup logic and prevents double-rejection errors.
 
-### External Cancellation Propagation
+### Parent Cancellation Propagation
 
-Both `allMap` and `anyMap` accept an optional external `cancelled` token.
-When provided, rejection of the external token propagates to the internal
+Both `allMap` and `anyMap` accept a parent `cancelled` token.
+When provided, rejection of the parent token propagates to the internal
 cancellation mechanism, enabling hierarchical cancellation patterns.
+
+## Integration with Web APIs
+
+The web platform provides its own cancellation mechanism through
+`AbortController` and `AbortSignal`. This package provides bidirectional
+conversion utilities to integrate Endo's `Cancelled` tokens with web APIs.
+
+### `toAbortSignal`
+
+Converts a `Cancelled` token to an `AbortSignal` for use with web APIs
+like `fetch`, `EventTarget.addEventListener`, and other abort-aware APIs.
+
+```js
+import { makeCancelKit } from '@endo/cancel';
+import { toAbortSignal } from '@endo/cancel/to-abort';
+
+const { cancelled, cancel } = makeCancelKit();
+
+const response = await fetch(url, {
+  signal: toAbortSignal(cancelled),
+});
+```
+
+When the `Cancelled` token is triggered, the `AbortSignal` aborts with
+the same reason. If the token is already cancelled at conversion time,
+the signal is immediately aborted.
+
+### `fromAbortSignal`
+
+Converts an `AbortSignal` to a `Cancelled` token for use with Endo's
+cancellation APIs.
+
+```js
+import { fromAbortSignal } from '@endo/cancel/from-abort';
+
+const controller = new AbortController();
+const cancelled = fromAbortSignal(controller.signal);
+
+// Now use `cancelled` with Endo APIs
+```
+
+This enables integration with user-initiated cancellation (e.g., a cancel
+button), timeout signals (`AbortSignal.timeout()`), or any other source
+of `AbortSignal`.
+
+### Design Rationale for Abort Integration
+
+The web's `AbortSignal` and Endo's `Cancelled` serve similar purposes but
+have different characteristics:
+
+| Feature | AbortSignal | Cancelled |
+|---------|-------------|-----------|
+| Sync observation | `.aborted` | `.cancelled` |
+| Async observation | `abort` event | Promise rejection |
+| Reason access | `.reason` | Via rejection |
+| Hardened | No | Yes |
+| CapTP compatible | No | Yes |
+
+The conversion utilities bridge these two worlds:
+
+- `toAbortSignal` enables using Endo's cancellation with web APIs
+- `fromAbortSignal` enables using web cancellation sources with Endo
+
+Both conversions preserve the cancellation reason and handle the edge case
+of already-cancelled/aborted state at conversion time.
