@@ -2,8 +2,14 @@
   "name": "@endo/exo-stream",
   "version": "0.1.0",
   "private": true,
-  "description": null,
-  "keywords": [],
+  "description": "CapTP abstraction for bridging async iterator streams",
+  "keywords": [
+    "endo",
+    "captp",
+    "stream",
+    "iterator",
+    "async"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/exo-stream#readme",
@@ -16,10 +22,16 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./index.js"
+    },
+    "./stream-bytes-iterator.js": "./stream-bytes-iterator.js",
+    "./iterate-bytes-stream.js": "./iterate-bytes-stream.js",
+    "./stream-iterator.js": "./stream-iterator.js",
+    "./iterate-stream.js": "./iterate-stream.js",
+    "./type-guards.js": "./type-guards.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -34,7 +46,15 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@endo/base64": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
   "devDependencies": {
     "@endo/captp": "workspace:^",
     "@endo/lockdown": "workspace:^",

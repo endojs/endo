@@ -2,6 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 /** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
@@ -159,7 +160,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {ERef<AsyncIterableIterator<string>>} readerRef
+     * @param {ERef<PassableBytesReader>} readerRef
      * @param {string | string[]} petName
      */
     const storeBlob = async (readerRef, petName) => {

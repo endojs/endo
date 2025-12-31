@@ -6,7 +6,7 @@ import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
-import { makeRefReader } from './ref-reader.js';
+import { iterateBytesStream } from '@endo/exo-stream/iterate-bytes-stream.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
@@ -1576,13 +1576,19 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateReadableBlob']} */
-  const formulateReadableBlob = async (readerRef, deferredTasks) => {
+  const formulateReadableBlob = async (streamRef, deferredTasks) => {
     const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
       async () => {
         await null;
         const values = {
           formulaNumber: /** @type {FormulaNumber} */ (await randomHex512()),
-          contentSha512: await contentStore.store(makeRefReader(readerRef)),
+          contentSha512: await contentStore.store(
+            // Use a higher string length limit to accommodate large payloads
+            // like bundles. 10MB base64 ~= 7.5MB binary.
+            await iterateBytesStream(streamRef, {
+              stringLengthLimit: 10_000_000,
+            }),
+          ),
         };
 
         await deferredTasks.execute({

@@ -101,6 +101,7 @@ api-docs
 !packages/eventual-send/src/exports.d.ts
 !packages/eventual-send/src/types.d.ts
 !packages/exo/src/types.d.ts
+!packages/exo-stream/types.d.ts
 !packages/far/src/exports.d.ts
 !packages/lp32/types.d.ts
 !packages/pass-style/src/types.d.ts
