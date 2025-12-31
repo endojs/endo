@@ -109,6 +109,53 @@ const firstResult = await anyMap(mirrors, async (mirror, index, cancelled) => {
 
 A promise for the first successful result.
 
+### `delay(ms, parentCancelled)`
+
+Returns a promise that fulfills with `undefined` after the specified
+milliseconds, or rejects if `parentCancelled` is triggered first.
+
+```js
+import { delay } from '@endo/cancel/delay';
+
+// Wait 1 second, respecting cancellation
+await delay(1000, parentCancelled);
+```
+
+If `parentCancelled` fulfills (instead of rejecting), delay treats this as
+a programming error and rejects with an appropriate message.
+
+#### Parameters
+
+- `ms` - Milliseconds to delay
+- `parentCancelled` - Parent cancellation token
+
+#### Returns
+
+A promise that fulfills with `undefined` after the delay, or rejects if cancelled.
+
+### `makeDelay(setTimeout)`
+
+Factory function that creates a `delay` function using a custom `setTimeout`
+implementation. Useful in environments without ambient `setTimeout` or when
+you need to inject a different timer implementation.
+
+```js
+import { makeDelay } from '@endo/cancel/delay-lite';
+
+// Create delay with custom setTimeout
+const delay = makeDelay(myCustomSetTimeout);
+
+await delay(1000, parentCancelled);
+```
+
+#### Parameters
+
+- `setTimeout` - A function with signature `(callback: () => void, ms: number) => unknown`
+
+#### Returns
+
+A `delay(ms, parentCancelled)` function.
+
 ## AbortController Integration
 
 This package provides utilities for converting between Endo's `Cancelled` tokens

@@ -88,6 +88,42 @@ return anyMap(values, (value, index, cancelled) => {
 }, externalCancelled);
 ```
 
+### `delay`
+
+Returns a promise that races between a timer and cancellation. Fulfills with
+`undefined` after the specified milliseconds, or rejects if `parentCancelled`
+is triggered first.
+
+```js
+import { delay } from '@endo/cancel/delay';
+
+await delay(1000, parentCancelled);
+```
+
+The `delay` module uses the ambient `globalThis.setTimeout`. For environments
+without ambient `setTimeout` or when you need to inject a custom timer,
+use `makeDelay` from `@endo/cancel/delay-lite`:
+
+```js
+import { makeDelay } from '@endo/cancel/delay-lite';
+
+const delay = makeDelay(myCustomSetTimeout);
+await delay(1000, parentCancelled);
+```
+
+#### Design Rationale for delay
+
+The `parentCancelled` token is expected to be a `Cancelled` that either:
+- Never settles (no cancellation requested)
+- Rejects (cancellation requested)
+
+If `parentCancelled` fulfills instead of rejecting, this indicates a
+programming error—`Cancelled` tokens should never fulfill. The delay
+function treats this case as an error and rejects with an assertion failure.
+
+This strict behavior catches misuse early rather than silently succeeding,
+which could mask bugs in cancellation logic.
+
 ## Integration with pass-style and CapTP
 
 We adjust `pass-style` to gracefully allow promises to have the `cancelled`
