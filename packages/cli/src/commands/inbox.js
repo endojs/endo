@@ -13,7 +13,7 @@ export const inbox = async ({ follow, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const selfId = await E(agent).identify('SELF');
     const messages = follow
-      ? await iterateStream(E(agent).followMessages())
+      ? iterateStream(E(agent).followMessages())
       : await E(agent).listMessages();
     for await (const message of messages) {
       const { number, type, from, to, date } = message;

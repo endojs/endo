@@ -1,8 +1,178 @@
+// @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 import { M } from '@endo/patterns';
 
-test.skip('placeholder', async t => {
-  t.fail('TODO: add tests');
+import { streamBytesIterator } from '../stream-bytes-iterator.js';
+import { iterateBytesStream } from '../iterate-bytes-stream.js';
+import { streamIterator } from '../stream-iterator.js';
+import { iterateStream } from '../iterate-stream.js';
+
+// Test bytes stream round-trip
+test('bytes stream round-trip', async t => {
+  const chunks = [
+    new Uint8Array([1, 2, 3]),
+    new Uint8Array([4, 5, 6]),
+    new Uint8Array([7, 8, 9]),
+  ];
+
+  // Create a local async iterator
+  async function* localIterator() {
+    for (const chunk of chunks) {
+      yield chunk;
+    }
+  }
+
+  // Convert to stream reference
+  const streamRef = streamBytesIterator(localIterator());
+
+  // Convert back to local iterator
+  const reader = await iterateBytesStream(streamRef);
+
+  // Collect results
+  const results = [];
+  for await (const chunk of reader) {
+    results.push(chunk);
+  }
+
+  // Verify
+  t.is(results.length, chunks.length);
+  for (let i = 0; i < chunks.length; i += 1) {
+    t.deepEqual(results[i], chunks[i]);
+  }
+});
+
+// Test passable stream round-trip
+test('passable stream round-trip', async t => {
+  const values = [
+    { type: 'message', text: 'hello' },
+    { type: 'data', value: 42 },
+    { type: 'list', items: [1, 2, 3] },
+  ];
+
+  // Create a local async iterator
+  async function* localIterator() {
+    for (const value of values) {
+      yield value;
+    }
+  }
+
+  // Convert to stream reference
+  const streamRef = streamIterator(localIterator());
+
+  // Convert back to local iterator
+  const reader = iterateStream(streamRef);
+
+  // Collect results
+  const results = [];
+  for await (const value of reader) {
+    results.push(value);
+  }
+
+  // Verify
+  t.is(results.length, values.length);
+  for (let i = 0; i < values.length; i += 1) {
+    t.deepEqual(results[i], values[i]);
+  }
+});
+
+// Test empty bytes stream
+test('empty bytes stream', async t => {
+  async function* emptyIterator() {
+    // yields nothing
+  }
+
+  const streamRef = streamBytesIterator(emptyIterator());
+  const reader = await iterateBytesStream(streamRef);
+
+  const results = [];
+  for await (const chunk of reader) {
+    results.push(chunk);
+  }
+
+  t.is(results.length, 0);
+});
+
+// Test empty passable stream
+test('empty passable stream', async t => {
+  async function* emptyIterator() {
+    // yields nothing
+  }
+
+  const streamRef = streamIterator(emptyIterator());
+  const reader = iterateStream(streamRef);
+
+  const results = [];
+  for await (const value of reader) {
+    results.push(value);
+  }
+
+  t.is(results.length, 0);
+});
+
+// Test bytes stream with synchronous iterator (array)
+test('bytes stream from array', async t => {
+  const chunks = [new Uint8Array([10, 20]), new Uint8Array([30, 40])];
+
+  const streamRef = streamBytesIterator(chunks);
+  const reader = await iterateBytesStream(streamRef);
+
+  const results = [];
+  for await (const chunk of reader) {
+    results.push(chunk);
+  }
+
+  t.is(results.length, chunks.length);
+  t.deepEqual(results[0], chunks[0]);
+  t.deepEqual(results[1], chunks[1]);
+});
+
+// Test passable stream with synchronous iterator (array)
+test('passable stream from array', async t => {
+  const values = ['hello', 'world', 42, true, null];
+
+  const streamRef = streamIterator(values);
+  const reader = iterateStream(streamRef);
+
+  const results = [];
+  for await (const value of reader) {
+    results.push(value);
+  }
+
+  t.deepEqual(results, values);
+});
+
+// Test single-item bytes stream
+test('single-item bytes stream', async t => {
+  const chunk = new Uint8Array([255, 0, 128]);
+
+  const streamRef = streamBytesIterator([chunk]);
+  const reader = await iterateBytesStream(streamRef);
+
+  const result = await reader.next();
+  t.false(result.done);
+  t.deepEqual(result.value, chunk);
+
+  const done = await reader.next();
+  t.true(done.done);
+});
+
+// Test large bytes stream
+test('large bytes stream', async t => {
+  const largeChunk = new Uint8Array(10000);
+  for (let i = 0; i < largeChunk.length; i += 1) {
+    largeChunk[i] = i % 256;
+  }
+
+  const streamRef = streamBytesIterator([largeChunk]);
+  const reader = await iterateBytesStream(streamRef);
+
+  const results = [];
+  for await (const chunk of reader) {
+    results.push(chunk);
+  }
+
+  t.is(results.length, 1);
+  t.deepEqual(results[0], largeChunk);
 });
 
 // Test passable stream with buffer option
@@ -17,7 +187,7 @@ test('passable stream with buffer', async t => {
 
   const streamRef = streamIterator(source());
   // Use buffer=2 to pre-ack 2 values
-  const reader = await iterateStream(streamRef, { buffer: 2 });
+  const reader = iterateStream(streamRef, { buffer: 2 });
 
   const results = [];
   for await (const value of reader) {
@@ -55,7 +225,7 @@ test('passable stream with valid readPattern', async t => {
 
   const streamRef = streamIterator(values);
   const readPattern = M.splitRecord({ type: M.string(), count: M.number() });
-  const reader = await iterateStream(streamRef, { readPattern });
+  const reader = iterateStream(streamRef, { readPattern });
 
   const results = [];
   for await (const value of reader) {
@@ -74,7 +244,7 @@ test('passable stream with invalid readPattern rejects', async t => {
 
   const streamRef = streamIterator(values);
   const readPattern = M.splitRecord({ type: M.string(), count: M.number() });
-  const reader = await iterateStream(streamRef, { readPattern });
+  const reader = iterateStream(streamRef, { readPattern });
 
   // First value should work
   const first = await reader.next();
@@ -120,7 +290,7 @@ test('passable stream early close', async t => {
   }
 
   const streamRef = streamIterator(source());
-  const reader = await iterateStream(streamRef);
+  const reader = iterateStream(streamRef);
 
   // Read only 3 values
   const r1 = await reader.next();
@@ -132,8 +302,10 @@ test('passable stream early close', async t => {
 
   // Close early
   assert(reader.return, 'iterator should have return method');
+  // @ts-expect-error - Testing runtime behavior: return() passes value through
   const closed = await reader.return('done');
   t.true(closed.done);
+  // @ts-expect-error - Testing runtime behavior: value is passed through
   t.is(closed.value, 'done');
 
   // Producer should have only produced a few values (depends on buffer)
@@ -172,7 +344,7 @@ test('passable stream many items', async t => {
   const values = Array.from({ length: count }, (_, i) => i);
 
   const streamRef = streamIterator(values);
-  const reader = await iterateStream(streamRef);
+  const reader = iterateStream(streamRef);
 
   const results = [];
   for await (const value of reader) {
@@ -209,7 +381,7 @@ test('passable stream high buffer', async t => {
   const values = [1, 2, 3, 4, 5];
 
   const streamRef = streamIterator(values);
-  const reader = await iterateStream(streamRef, { buffer: 10 });
+  const reader = iterateStream(streamRef, { buffer: 10 });
 
   const results = [];
   for await (const value of reader) {
@@ -226,7 +398,7 @@ test('passable stream consumed once', async t => {
   const streamRef = streamIterator(values);
 
   // First consumer
-  const reader1 = await iterateStream(streamRef);
+  const reader1 = iterateStream(streamRef);
   const results1 = [];
   for await (const value of reader1) {
     results1.push(value);
@@ -234,7 +406,7 @@ test('passable stream consumed once', async t => {
   t.deepEqual(results1, values);
 
   // Second consumer should get empty or error
-  const reader2 = await iterateStream(streamRef);
+  const reader2 = iterateStream(streamRef);
   const results2 = [];
   for await (const value of reader2) {
     results2.push(value);
@@ -277,7 +449,7 @@ test('bridged stream preserves explicit return value', async t => {
   }
 
   const streamRef = streamIterator(generate());
-  const iter = await iterateStream(streamRef);
+  const iter = iterateStream(streamRef);
 
   // Get all yielded values
   const r1 = await iter.next();
@@ -333,7 +505,7 @@ test('bridged stream return(value) behavior', async t => {
   }
 
   const streamRef = streamIterator(generate());
-  const iter = await iterateStream(streamRef);
+  const iter = iterateStream(streamRef);
 
   // Get first value
   const first = await iter.next();
@@ -341,10 +513,12 @@ test('bridged stream return(value) behavior', async t => {
 
   // Call return('a') - should return the passed value (matching native behavior)
   assert(iter.return, 'iterator should have return method');
+  // @ts-expect-error - Testing runtime behavior: return() passes value through
   const returned = await iter.return('a');
   t.deepEqual(returned, { value: 'a', done: true });
 
   // Subsequent calls to return() return undefined
+  // @ts-expect-error - Testing runtime behavior: return() without args
   const returned2 = await iter.return();
   t.deepEqual(returned2, { value: undefined, done: true });
 
@@ -391,7 +565,7 @@ test('exo-stream from endo Stream honors all four type parameters', async t => {
   const streamRef = streamIterator(bidirectionalGenerator());
 
   // Create initiator-side stream with buffer=0 for precise TWrite timing
-  const reader = await iterateStream(streamRef, { buffer: 0 });
+  const reader = iterateStream(streamRef, { buffer: 0 });
 
   // Read first value - TWrite value here is ignored (generator priming)
   const r1 = await reader.next('ignored');

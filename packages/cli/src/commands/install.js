@@ -11,6 +11,8 @@ import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
 
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
+
 const textEncoder = new TextEncoder();
 
 export const install = async ({
@@ -22,7 +24,7 @@ export const install = async ({
   programPath,
   doOpen,
 }) => {
-  /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
+  /** @type {PassableBytesReader | undefined} */
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;

@@ -9,7 +9,7 @@ import { parsePetNamePath } from '../pet-name.js';
 export const followCommand = async ({ name, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const iterable = await E(agent).lookup(...parsePetNamePath(name));
-    for await (const iterand of await iterateStream(iterable)) {
+    for await (const iterand of iterateStream(iterable)) {
       console.log(iterand);
     }
   });
