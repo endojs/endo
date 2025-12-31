@@ -25,11 +25,10 @@ export const makeCodecWriteWithErrorWrapping = (codecName, write) => {
     try {
       return write(value, syrupWriter);
     } catch (error) {
-      const newError = Error(
+      throw Error(
         `${codecName}: write failed at index ${syrupWriter.index} of ${syrupWriter.name}`,
+        { cause: error },
       );
-      newError.cause = error;
-      throw newError;
     }
   };
 };
@@ -41,11 +40,10 @@ export const makeCodecReadWithErrorWrapping = (codecName, read) => {
     try {
       return read(syrupReader);
     } catch (error) {
-      const newError = Error(
+      throw new Error(
         `${codecName}: read failed at index ${start} of ${syrupReader.name}`,
+        { cause: error },
       );
-      newError.cause = error;
-      throw newError;
     }
   };
 };

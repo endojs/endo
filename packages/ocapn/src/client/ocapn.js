@@ -753,8 +753,7 @@ export const makeOcapn = (
 
       // Add context and pass the error to the reject handler.
       deliverPromise.catch(cause => {
-        const err = new Error('OCapN: Error during deliver-only');
-        err.cause = cause;
+        const err = Error('OCapN: Error during deliver-only', { cause });
         onReject(err);
       });
     },
