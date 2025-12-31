@@ -3,7 +3,7 @@
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { streamIterator } from '@endo/exo-stream/stream-iterator.js';
 import { formatLocator, idFromLocator } from './locator.js';
 import {
   assertNamePath,
@@ -298,8 +298,8 @@ export const makeDirectoryMaker = ({
       ...directory,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
-        makeIteratorRef(directory.followLocatorNameChanges(locator)),
-      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+        streamIterator(directory.followLocatorNameChanges(locator)),
+      followNameChanges: () => streamIterator(directory.followNameChanges()),
     });
   };
 

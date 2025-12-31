@@ -2,14 +2,14 @@
 
 import os from 'os';
 import { E } from '@endo/far';
-import { makeRefIterator } from '@endo/daemon';
+import { iterateStream } from '@endo/exo-stream/iterate-stream.js';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 
 export const followCommand = async ({ name, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const iterable = await E(agent).lookup(...parsePetNamePath(name));
-    for await (const iterand of makeRefIterator(iterable)) {
+    for await (const iterand of await iterateStream(iterable)) {
       console.log(iterand);
     }
   });

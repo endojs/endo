@@ -37,6 +37,7 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/import-bundle": "workspace:^",
     "@endo/init": "workspace:^",
