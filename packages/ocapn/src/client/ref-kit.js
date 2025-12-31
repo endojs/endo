@@ -165,6 +165,12 @@ export const makeReferenceKit = (
   const makeRemotePromise = _position => makePromiseResolverPair();
   const makeLocalAnswer = _position => makePromiseResolverPair();
 
+  /**
+   * Create a presence for a remote object with the given position and label.
+   * @param {bigint} position
+   * @param {string} label
+   * @returns {object}
+   */
   const makeRemoteObject = (position, label) => {
     let remoteObject;
     const { settler } = makeRemoteKit(() => remoteObject);
@@ -208,7 +214,7 @@ export const makeReferenceKit = (
       const slot = makeSlot('o', false, position);
       let value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
-        value = makeRemoteObject(position);
+        value = makeRemoteObject(position, `Remote Object ${position}`);
         ocapnTable.registerSlot(slot, value);
       }
       return value;
