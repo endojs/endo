@@ -208,6 +208,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/cancel@workspace:packages/cancel":
+  version: 0.0.0-use.local
+  resolution: "@endo/cancel@workspace:packages/cancel"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/captp@workspace:^, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"

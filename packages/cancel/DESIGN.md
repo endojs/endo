@@ -1,0 +1,124 @@
+# Design: @endo/cancel
+
+## Motivation
+
+The critical observation here is that promises are almost sufficient for
+modeling cancellation, and especially useful for modeling cancellation from a
+remote consumer, because CapTP implicitly rejects any partitioned promise.
+A `Promise<never>` is a promise that will never settle, but may be rejected
+in the event the consumer loses interest.
+
+However, promises do not provide any mechanism for synchronously observing
+their state locally. There are some conditions where synchronous observation
+of cancellation can help a utility avoid unnecessary work.
+
+To that end, we extend the `Promise<never>` to have a `cancelled` getter.
+
+## Core API: `makeCancelKit`
+
+The `Promise.withResolvers` API produces a `promise`, `resolve`, and `reject`.
+We envision the eventual addition of `Promise.withCanceller` that returns
+instead `cancelled` and `cancel`.
+
+The `cancelled` is a promise with a `cancelled` own getter that returns:
+- `undefined` - cancellation has not been requested
+- `true` - cancellation has been requested
+
+This package anticipates this eventual evolution of the language and exports
+`makeCancelKit`.
+
+```js
+import { makeCancelKit } from '@endo/cancel';
+
+const { cancelled, cancel } = makeCancelKit();
+
+// Synchronous check
+if (cancelled.cancelled) {
+  return; // Skip unnecessary work
+}
+
+// Asynchronous observation
+cancelled.catch(reason => {
+  cleanup();
+});
+
+// Trigger cancellation
+cancel(Error('User requested abort'));
+```
+
+## TypeScript Interface
+
+This package provides a TypeScript interface `Cancelled` that is a
+`Promise<never>` but with the `undefined | true` `cancelled` own property.
+
+```ts
+type Cancelled = Promise<never> & { readonly cancelled: undefined | true };
+```
+
+## Operators
+
+Additional modules provide operators for the use and propagation of
+cancellation.
+
+### `allMap`
+
+Maps over values and performs some transformation over them, combining them
+into a promise for an array of values. If any individual operation is rejected,
+all of the operations are cancelled.
+
+```js
+import { allMap } from '@endo/cancel/all-map';
+
+return allMap(values, (value, index, cancelled) => {
+  // Transform value, checking cancelled as needed
+}, externalCancelled);
+```
+
+### `anyMap`
+
+Starts a cancellable job for every value, and cancels every pending job after
+one wins the race, producing a rejection of `AggregateError` only if all the
+jobs reject.
+
+```js
+import { anyMap } from '@endo/cancel/any-map';
+
+return anyMap(values, (value, index, cancelled) => {
+  // Race to produce a result
+}, externalCancelled);
+```
+
+## Integration with pass-style and CapTP
+
+We adjust `pass-style` to gracefully allow promises to have the `cancelled`
+property, and for CapTP implementations to simply leave this synchronous
+observation capability behind: it is not passable in any case.
+
+The synchronous getter is intentionally local-only. When a `Cancelled` token
+crosses a CapTP boundary, only the promise behavior is preserved—the remote
+side observes rejection when cancellation occurs, but cannot synchronously
+poll the `cancelled` getter.
+
+## Implementation Notes
+
+### Preventing Unhandled Rejections
+
+The `cancelled` promise internally attaches a no-op `.catch()` handler to
+prevent unhandled rejection warnings when the promise is not explicitly awaited.
+This is safe because:
+
+1. Cancellation is an expected outcome, not an exceptional error
+2. Consumers can still attach their own `.catch()` handlers
+3. The synchronous `cancelled` getter provides the primary observation mechanism
+
+### Idempotent Cancellation
+
+The `cancel()` function is idempotent—calling it multiple times has no
+additional effect after the first call.
+This simplifies cleanup logic and prevents double-rejection errors.
+
+### External Cancellation Propagation
+
+Both `allMap` and `anyMap` accept an optional external `cancelled` token.
+When provided, rejection of the external token propagates to the internal
+cancellation mechanism, enabling hierarchical cancellation patterns.
