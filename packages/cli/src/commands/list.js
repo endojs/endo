@@ -43,7 +43,7 @@ export const list = async ({ directory, follow, json, verbose }) =>
     }
     if (follow) {
       const topic = await E(agent).followNameChanges();
-      const iterator = await iterateStream(topic);
+      const iterator = iterateStream(topic);
       if (json) {
         for await (const change of iterator) {
           console.log(JSON.stringify(change));
