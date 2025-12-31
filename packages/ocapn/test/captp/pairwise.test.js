@@ -478,7 +478,7 @@ test('makePairwiseTable - onSlotCollected called when import is garbage collecte
 
 test('makePairwiseTable - registerSettler and takeSettler', t => {
   const table = makeTestTable();
-  const slot = makeSlot('p', true, 1n);
+  const slot = makeSlot('p', false, 1n); // remote slot
   const { resolve, reject } = makePromiseKit();
   const settler = /** @type {any} */ ({ resolve, reject });
 
@@ -490,7 +490,7 @@ test('makePairwiseTable - registerSettler and takeSettler', t => {
 
 test('makePairwiseTable - takeSettler removes settler after retrieval', t => {
   const table = makeTestTable();
-  const slot = makeSlot('p', true, 1n);
+  const slot = makeSlot('p', false, 1n); // remote slot
   const { resolve, reject } = makePromiseKit();
   const settler = /** @type {any} */ ({ resolve, reject });
 
@@ -505,7 +505,7 @@ test('makePairwiseTable - takeSettler removes settler after retrieval', t => {
 test('makePairwiseTable - takeSettler throws for unregistered slot', t => {
   const table = makeTestTable();
 
-  const error = t.throws(() => table.takeSettler(makeSlot('p', true, 999n)));
+  const error = t.throws(() => table.takeSettler(makeSlot('p', false, 999n)));
   t.regex(error.message, /No settler found/);
 });
 
@@ -513,8 +513,8 @@ test('makePairwiseTable - can register multiple settlers for different slots', t
   const table = makeTestTable();
   const settler1 = /** @type {any} */ ({ resolve: () => {}, reject: () => {} });
   const settler2 = /** @type {any} */ ({ resolve: () => {}, reject: () => {} });
-  const slot1 = makeSlot('p', true, 1n);
-  const slot2 = makeSlot('p', true, 2n);
+  const slot1 = makeSlot('p', false, 1n); // remote slot
+  const slot2 = makeSlot('p', false, 2n); // remote slot
 
   table.registerSettler(slot1, settler1);
   table.registerSettler(slot2, settler2);
@@ -525,7 +525,7 @@ test('makePairwiseTable - can register multiple settlers for different slots', t
 
 test('makePairwiseTable - registerSettler can overwrite previous settler', t => {
   const table = makeTestTable();
-  const slot = makeSlot('p', true, 1n);
+  const slot = makeSlot('p', false, 1n); // remote slot
   const settler1 = /** @type {any} */ ({ resolve: () => {}, reject: () => {} });
   const settler2 = /** @type {any} */ ({ resolve: () => {}, reject: () => {} });
 
@@ -545,7 +545,7 @@ test('makePairwiseTable - destroy clears all tables', t => {
   const settler = /** @type {any} */ ({ resolve: () => {}, reject: () => {} });
   const slot1 = makeSlot('o', true, 1n);
   const slot2 = makeSlot('o', false, 1n);
-  const slot3 = makeSlot('p', true, 1n);
+  const slot3 = makeSlot('p', false, 1n); // remote slot for settler
 
   table.registerSlot(slot1, obj1);
   table.registerSlot(slot2, obj2);
@@ -558,7 +558,7 @@ test('makePairwiseTable - destroy clears all tables', t => {
   t.is(table.getRefCount(slot1), 1);
 
   // Destroy
-  table.destroy();
+  table.destroy(Error('Test session destroyed'));
 
   // Export and import tables should be cleared
   t.is(table.getValueForSlot(slot1), undefined);
@@ -576,6 +576,86 @@ test('makePairwiseTable - destroy clears all tables', t => {
   t.regex(error.message, /No settler found/);
 });
 
+test('makePairwiseTable - destroy rejects all pending settlers', async t => {
+  const table = makeTestTable();
+  const slot1 = makeSlot('p', false, 1n);
+  const slot2 = makeSlot('p', false, 2n);
+  const slot3 = makeSlot('a', false, 1n);
+
+  const promiseKit1 = makePromiseKit();
+  const promiseKit2 = makePromiseKit();
+  const promiseKit3 = makePromiseKit();
+
+  const settler1 = /** @type {any} */ ({
+    resolve: promiseKit1.resolve,
+    reject: promiseKit1.reject,
+  });
+  const settler2 = /** @type {any} */ ({
+    resolve: promiseKit2.resolve,
+    reject: promiseKit2.reject,
+  });
+  const settler3 = /** @type {any} */ ({
+    resolve: promiseKit3.resolve,
+    reject: promiseKit3.reject,
+  });
+
+  table.registerSettler(slot1, settler1);
+  table.registerSettler(slot2, settler2);
+  table.registerSettler(slot3, settler3);
+
+  // Destroy with a specific reason
+  table.destroy(Error('Test session destroyed'));
+
+  // All settlers should be rejected with the reason
+  const error1 = await t.throwsAsync(
+    async () => promiseKit1.promise,
+    { instanceOf: Error },
+    'Settler 1 should be rejected',
+  );
+  t.is(error1.message, 'Test session destroyed');
+
+  const error2 = await t.throwsAsync(
+    async () => promiseKit2.promise,
+    { instanceOf: Error },
+    'Settler 2 should be rejected',
+  );
+  t.is(error2.message, 'Test session destroyed');
+
+  const error3 = await t.throwsAsync(
+    async () => promiseKit3.promise,
+    { instanceOf: Error },
+    'Settler 3 should be rejected',
+  );
+  t.is(error3.message, 'Test session destroyed');
+
+  // Settlers should be cleared
+  const takeError = t.throws(() => table.takeSettler(slot1));
+  t.regex(takeError.message, /No settler found/);
+});
+
+test('makePairwiseTable - destroy uses default reason when none provided', async t => {
+  const table = makeTestTable();
+  const slot = makeSlot('p', false, 1n);
+  const promiseKit = makePromiseKit();
+  const settler = /** @type {any} */ ({
+    resolve: promiseKit.resolve,
+    reject: promiseKit.reject,
+  });
+
+  table.registerSettler(slot, settler);
+
+  // Destroy without a reason
+  table.destroy(Error('Test session destroyed'));
+
+  // Settler should be rejected with default reason
+  const error = await t.throwsAsync(
+    async () => promiseKit.promise,
+    { instanceOf: Error },
+    'Settler should be rejected',
+  );
+  t.is(error.message, 'Test session destroyed');
+});
+
 test('makePairwiseTable - destroy clears pending refcounts', t => {
   const table = makeTestTable();
   const slot = makeSlot('o', true, 1n);
@@ -588,7 +668,7 @@ test('makePairwiseTable - destroy clears pending refcounts', t => {
   table.getSlotForValue(obj);
 
   // Destroy before committing
-  table.destroy();
+  table.destroy(Error('Test session destroyed'));
 
   // Re-register and commit should start fresh
   table.registerSlot(slot, obj);

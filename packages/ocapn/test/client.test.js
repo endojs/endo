@@ -16,6 +16,7 @@ import {
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
+import { makeSlot } from '../src/captp/pairwise.js';
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -410,7 +411,7 @@ test('session can be re-established after normal abort', async t => {
     );
 
     // Abort the session from A's side
-    firstSessionA.ocapn.abort('Normal abort for testing');
+    firstSessionA.ocapn.abort(Error('Normal abort for testing'));
 
     // Wait for connections to close and sessions to be cleaned up
     await waitUntilTrue(
@@ -1331,6 +1332,247 @@ test('op:untag with nested payload containing remotable', async t => {
     const result = await E(payload.inner).getValue();
     t.is(result, 99);
   } finally {
+    shutdownBoth();
+  }
+});
+
+test('session disconnect rejects pending promises and subsequent calls', async t => {
+  const testObjectTable = new Map();
+  /** @type {((value: unknown) => void) | undefined} */
+  let slowResolve;
+  testObjectTable.set(
+    'SlowResponder',
+    Far('slowResponder', {
+      slowMethod: () => {
+        // Return a promise that we control - it will never resolve
+        return new Promise(resolve => {
+          slowResolve = resolve;
+        });
+      },
+      fastMethod: () => 'fast result',
+    }),
+  );
+
+  const { establishSession, shutdownBoth, getConnectionAtoB } =
+    await makeTestClientPair({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    const connectionAtoB = getConnectionAtoB();
+    if (!connectionAtoB) {
+      throw new Error('Connection A to B should exist');
+    }
+
+    // Get a remote reference from B
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const slowResponder = await E(bootstrapB).fetch(
+      encodeSwissnum('SlowResponder'),
+    );
+
+    // Start a slow call that will never resolve
+    const pendingPromise = E(slowResponder).slowMethod();
+
+    // Verify we can make successful calls before disconnect
+    const fastResult = await E(slowResponder).fastMethod();
+    t.is(fastResult, 'fast result', 'Fast method works before disconnect');
+
+    // Abort the session from A's side
+    ocapnA.abort(Error('Testing session disconnect'));
+
+    // Wait for the connection to be destroyed
+    await waitUntilTrue(() => connectionAtoB.isDestroyed);
+
+    // The pending promise should reject with session disconnected error
+    const pendingError = await t.throwsAsync(
+      async () => {
+        await pendingPromise;
+      },
+      {
+        instanceOf: Error,
+      },
+      'Pending promise should reject when session disconnects',
+    );
+    t.regex(
+      pendingError.message,
+      /Session disconnected/,
+      'Error message should indicate session disconnected',
+    );
+
+    // After disconnect, invoking E() on the remote reference should also reject
+    const postDisconnectError = await t.throwsAsync(
+      async () => {
+        await E(slowResponder).fastMethod();
+      },
+      {
+        instanceOf: Error,
+      },
+      'E() call after disconnect should reject',
+    );
+    t.regex(
+      postDisconnectError.message,
+      /Session disconnected/,
+      'Post-disconnect error should indicate session disconnected',
+    );
+
+    // Silence the slowResolve to prevent memory leak warnings
+    if (slowResolve) {
+      slowResolve('ignored');
+    }
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('local answer promise on B is not rejected on connection close', async t => {
+  const testObjectTable = new Map();
+  /** @type {((value: unknown) => void) | undefined} */
+  let slowResolveOnB;
+  /** @type {Promise<unknown> | undefined} */
+  let capturedLocalAnswerPromise;
+
+  testObjectTable.set(
+    'PromiseHandler',
+    Far('promiseHandler', {
+      // B creates a slow method that returns a promise we control
+      slowMethod: () => {
+        return new Promise(resolve => {
+          slowResolveOnB = resolve;
+        });
+      },
+      // B captures a promise sent as an argument
+      capturePromise: receivedPromise => {
+        capturedLocalAnswerPromise = receivedPromise;
+        return 'captured';
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth, getConnectionAtoB } =
+    await makeTestClientPair({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    const connectionAtoB = getConnectionAtoB();
+    if (!connectionAtoB) {
+      throw new Error('Connection A to B should exist');
+    }
+
+    // Get remote reference to B's PromiseHandler
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const promiseHandler = await E(bootstrapB).fetch(
+      encodeSwissnum('PromiseHandler'),
+    );
+
+    // Step 1: A calls B's slowMethod, creating an answer promise.
+    // On A's side: this is a remote answer promise (A waits for B's answer)
+    // On B's side: this is a local answer promise (B's pending result)
+    const remoteAnswerOnA = E(promiseHandler).slowMethod();
+
+    // Debug: Check A's slot for remoteAnswerOnA
+    const ocapnTableA = getOcapnDebug(ocapnA).ocapnTable;
+    const slotOnA = ocapnTableA.getSlotForValue(remoteAnswerOnA);
+    console.log('A: slot for remoteAnswerOnA:', slotOnA);
+    console.log(
+      'A: remoteAnswerOnA is promise?',
+      remoteAnswerOnA instanceof Promise,
+    );
+    console.log(
+      'A: remoteAnswerOnA constructor:',
+      remoteAnswerOnA?.constructor?.name,
+    );
+
+    // Check if answer position 0 was registered
+    const answerSlot0 = ocapnTableA.getValueForSlot(makeSlot('a', false, 0n));
+    console.log('A: value for slot a-0:', answerSlot0);
+    console.log(
+      'A: is remoteAnswerOnA === a-0 value?',
+      remoteAnswerOnA === answerSlot0,
+    );
+
+    // Step 2: A sends the pending answer promise back to B as an argument.
+    // When B deserializes this argument, B recognizes it as a reference to
+    // its own local answer (the promise from slowMethod).
+    const captureResult =
+      await E(promiseHandler).capturePromise(remoteAnswerOnA);
+    t.is(captureResult, 'captured', 'Promise was captured by B');
+
+    // Verify B received and captured a promise
+    t.truthy(capturedLocalAnswerPromise, 'B should have captured the promise');
+    t.true(
+      isPromise(capturedLocalAnswerPromise),
+      'Captured value should be a promise',
+    );
+
+    // Debug: Check B's slots
+    const ocapnTableB = getOcapnDebug(ocapnB).ocapnTable;
+    const slotOnB = ocapnTableB.getSlotForValue(capturedLocalAnswerPromise);
+    const answerPosition = ocapnTableB.getLocalAnswerToPosition(
+      capturedLocalAnswerPromise,
+    );
+    console.log('B: slot for capturedLocalAnswerPromise:', slotOnB);
+    console.log('B: getLocalAnswerToPosition result:', answerPosition);
+
+    // Verify the captured promise is B's local answer.
+    // Note: We use getLocalAnswerToPosition, not getSlotForValue, because
+    // local answers are special in OCapN - calling getSlotForValue would
+    // cause it to be re-exported as a promise instead.
+    t.truthy(
+      answerPosition !== undefined,
+      'Captured promise should be a local answer in B table',
+    );
+
+    // Step 3: Abort the session from A's side
+    ocapnA.abort(Error('Testing session disconnect'));
+
+    // Wait for the connection to be destroyed
+    await waitUntilTrue(() => connectionAtoB.isDestroyed);
+
+    // Step 4: A's remote answer promise should be rejected (connection closed)
+    const remoteError = await t.throwsAsync(
+      async () => {
+        await remoteAnswerOnA;
+      },
+      {
+        instanceOf: Error,
+      },
+      "A's remote promise should reject when session disconnects",
+    );
+    t.regex(
+      remoteError.message,
+      /Session disconnected/,
+      "A's error message should indicate session disconnected",
+    );
+
+    // Step 5: B's LOCAL answer promise should NOT be rejected.
+    // Since B owns this answer locally, closing the connection shouldn't affect it.
+    // Resolve the underlying promise and verify the local answer resolves.
+    if (slowResolveOnB) {
+      slowResolveOnB('resolved after disconnect');
+    }
+
+    // The local answer promise on B should resolve successfully
+    const localResult = await capturedLocalAnswerPromise;
+    t.is(
+      localResult,
+      'resolved after disconnect',
+      "B's local answer promise should resolve normally after disconnect",
+    );
+  } finally {
+    // Ensure slowResolve is called to prevent memory leak warnings
+    if (slowResolveOnB) {
+      slowResolveOnB('cleanup');
+    }
     shutdownBoth();
   }
 });

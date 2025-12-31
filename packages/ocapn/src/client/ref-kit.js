@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * @import { EHandler } from '@endo/eventual-send'
+ * @import { EHandler, Settler } from '@endo/eventual-send'
  * @import { Slot } from '../captp/types.js'
  * @import { SlotType } from '../captp/pairwise.js'
  * @import { OcapnTable } from '../captp/ocapn-tables.js'
@@ -58,7 +58,6 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(position: bigint) => object} provideRemoteObjectValue
  * @property {(position: bigint) => Promise<unknown>} provideRemotePromiseValue
  * @property {(position: bigint) => object} provideLocalExportValue
- * @property {(position: bigint) => Promise<unknown>} provideLocalAnswerValue
  * @property {(position: bigint) => object} provideRemoteResolverValue
  * @property {() => object} provideRemoteBootstrapValue
  * @property {(value: object) => bigint} provideLocalObjectPosition
@@ -67,7 +66,8 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(value: Promise<unknown>) => bigint} provideRemoteAnswerPosition
  * @property {TakeNextRemoteAnswer} takeNextRemoteAnswer
  * @property {(remotePromise: Promise<unknown>) => object} makeLocalResolverForRemotePromise
- * @property {(answerPosition: bigint, promise: Promise<unknown>) => void} fulfillLocalAnswerWithPromise
+ * @property {(answerPosition: bigint, promise: Promise<unknown>) => Promise<unknown>} makeLocalAnswerPromiseAndFulfill
+ * @property {(position: bigint) => Promise<unknown>} getLocalAnswerValue
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<unknown>} provideHandoff
  * @property {(signedGive: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
@@ -141,7 +141,7 @@ export const makeReferenceKit = (
   /**
    * Create a promise/settler pair with an optional externally defined answer promise.
    * @param {Promise<unknown>} [externalAnswerPromise] - The promise returned by E()
-   * @returns {{ internalPromise: Promise<unknown>, answerPromise: Promise<unknown>, settler: unknown }}
+   * @returns {{ internalPromise: Promise<unknown>, answerPromise: Promise<unknown>, settler: Settler<unknown> }}
    */
   const makeRemoteAnswer = externalAnswerPromise => {
     // Use a mutable reference that can be set after creation
@@ -201,40 +201,6 @@ export const makeReferenceKit = (
 
   // Track the next answer position.
   let nextAnswerPosition = 0n;
-  /**
-   * Create a new remote answer slot and return the internal promise, answer promise, position, and resolver.
-   *   The internal promise is to be returned in the HandledPromise handler.
-   *   The answer promise is registered in the table as the remote answer.
-   *   The position is the position of the answer slot in the table.
-   *   The resolver is used to resolve the internal promise (which should resolve the external answer promise).
-   */
-  /** @type {TakeNextRemoteAnswer} */
-  const takeNextRemoteAnswer = externalAnswerPromise => {
-    const answerPosition = nextAnswerPosition;
-    nextAnswerPosition += 1n;
-
-    // Create a promise+settler pair with an optional externalAnswerPromise.
-    // The settler is needed to resolve the promise when the answer comes back.
-    const { internalPromise, answerPromise, settler } = makeRemoteAnswer(
-      externalAnswerPromise,
-    );
-
-    const slot = makeSlot('a', false, answerPosition);
-    // registerSlot triggers importHook which records in grantTracker
-    ocapnTable.registerSlot(slot, answerPromise);
-
-    const resolver = makeLocalResolver(slot, settler);
-
-    // Return:
-    // - internalPromise: used by HandledPromise to resolve externalAnswerPromise
-    // - answerPromise: the promise registered in the table as the remote answer
-    return {
-      internalPromise,
-      answerPromise,
-      position: answerPosition,
-      resolver,
-    };
-  };
 
   /** @type {ReferenceKit} */
   const referenceKit = harden({
@@ -271,17 +237,6 @@ export const makeReferenceKit = (
         return value;
       }
       throw new Error(`OCapN: No export value found for position: ${position}`);
-    },
-    provideLocalAnswerValue: position => {
-      const slot = makeSlot('a', true, position);
-      let value = ocapnTable.getValueForSlot(slot);
-      if (value === undefined) {
-        const { promise, settler } = makeLocalAnswer(position);
-        value = promise;
-        ocapnTable.registerSettler(slot, settler);
-        ocapnTable.registerSlot(slot, promise);
-      }
-      return value;
     },
     // Only used by ResolveMeDescCodec
     provideRemoteResolverValue: position => {
@@ -347,8 +302,55 @@ export const makeReferenceKit = (
       }
       return position;
     },
+    takeNextRemoteAnswer: externalAnswerPromise => {
+      /**
+       * Create a new remote answer slot and return the internal promise, answer promise, position, and resolver.
+       *   The internal promise is to be returned in the HandledPromise handler.
+       *   The answer promise is registered in the table as the remote answer.
+       *   The position is the position of the answer slot in the table.
+       *   The resolver is used to resolve the internal promise (which should resolve the external answer promise).
+       */
+      const answerPosition = nextAnswerPosition;
+      nextAnswerPosition += 1n;
 
-    takeNextRemoteAnswer,
+      // Create a promise + settler pair with an optional externalAnswerPromise.
+      // The settler is needed to resolve the promise when the answer comes back.
+      const { internalPromise, answerPromise, settler } = makeRemoteAnswer(
+        externalAnswerPromise,
+      );
+
+      const slot = makeSlot('a', false, answerPosition);
+      // registerSlot triggers importHook which records in grantTracker
+      ocapnTable.registerSlot(slot, answerPromise);
+
+      // Register the settler only so that it will be rejected on session disconnect.
+      ocapnTable.registerSettler(slot, settler);
+
+      // Wrap the settler to it from the table when settled normally.
+      const wrappedSettler = harden({
+        resolve: value => {
+          // Remove settler from table as it has now been settled.
+          ocapnTable.takeSettler(slot);
+          settler.resolve(value);
+        },
+        reject: reason => {
+          // Remove settler from table as it has now been settled.
+          ocapnTable.takeSettler(slot);
+          settler.reject(reason);
+        },
+      });
+      const resolver = makeLocalResolver(slot, wrappedSettler);
+
+      // Return:
+      // - internalPromise: used by HandledPromise to resolve externalAnswerPromise
+      // - answerPromise: the promise registered in the table as the remote answer
+      return {
+        internalPromise,
+        answerPromise,
+        position: answerPosition,
+        resolver,
+      };
+    },
     makeLocalResolverForRemotePromise: remotePromise => {
       const slot = ocapnTable.getSlotForValue(remotePromise);
       if (slot === undefined) {
@@ -365,13 +367,25 @@ export const makeReferenceKit = (
       const settler = ocapnTable.takeSettler(slot);
       return makeLocalResolver(slot, settler);
     },
-    fulfillLocalAnswerWithPromise: (answerPosition, promise) => {
+    getLocalAnswerValue: position => {
+      const slot = makeSlot('a', true, position);
+      const value = ocapnTable.getValueForSlot(slot);
+      if (value === undefined) {
+        throw new Error(
+          `OCapN: No local answer found for position: ${position}`,
+        );
+      }
+      return value;
+    },
+    makeLocalAnswerPromiseAndFulfill: (answerPosition, internalPromise) => {
       // Ensure the answer is registered.
-      referenceKit.provideLocalAnswerValue(answerPosition);
-      // Fulfill the answer.
+      const { promise: answerPromise, settler } =
+        makeLocalAnswer(answerPosition);
       const slot = makeSlot('a', true, answerPosition);
-      const settler = ocapnTable.takeSettler(slot);
-      promise.then(settler.resolve, settler.reject);
+      ocapnTable.registerSlot(slot, answerPromise);
+      // Fulfill the answer.
+      Promise.resolve(internalPromise).then(settler.resolve, settler.reject);
+      return answerPromise;
     },
 
     makeSturdyRef: (location, swissNum) => {

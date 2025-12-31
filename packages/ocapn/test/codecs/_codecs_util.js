@@ -120,6 +120,7 @@ export const exampleReceiverSideId = /** @type {PublicKeyId} */ (
  * @property {(position: bigint) => object} makeLocalObject
  * @property {(position: bigint) => Promise<unknown>} makeLocalPromise
  * @property {(position: bigint) => Promise<unknown>} makeRemoteAnswer
+ * @property {(position: bigint) => Promise<unknown>} makeLocalAnswer
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
  * @property {SyrupCodec} DescSigEnvelopeReadCodec
@@ -253,12 +254,20 @@ export const makeCodecTestKit = (
     return promise;
   };
 
+  const makeLocalAnswer = position => {
+    return referenceKit.makeLocalAnswerPromiseAndFulfill(
+      position,
+      Promise.resolve('local answer'),
+    );
+  };
+
   return {
     referenceKit,
     sturdyRefTracker,
     makeLocalObject,
     makeLocalPromise,
     makeRemoteAnswer,
+    makeLocalAnswer,
     ...descCodecs,
     OcapnMessageUnionCodec,
     PassableCodec,

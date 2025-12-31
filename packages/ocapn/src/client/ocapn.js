@@ -624,7 +624,7 @@ const makeBootstrapObject = (
 
 /**
  * @typedef {object} Ocapn
- * @property {((reason?: any) => void)} abort
+ * @property {((reason?: Error) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
  * @property {() => object} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
@@ -671,11 +671,19 @@ export const makeOcapn = (
     logger.info(`onReject`, reason);
   };
 
+  /**
+   * @param {Error} [reason]
+   */
   const abort = reason => {
     logger.info(`client received abort`, reason);
     connection.end();
+    const disconnectError = harden(
+      reason
+        ? Error('Session disconnected', { cause: reason })
+        : Error('Session disconnected'),
+    );
     // eslint-disable-next-line no-use-before-define
-    ocapnTable.destroy();
+    ocapnTable.destroy(disconnectError);
   };
 
   /**
@@ -737,7 +745,7 @@ export const makeOcapn = (
       // Answer with our handled promise
       if (answerPosition !== false) {
         // eslint-disable-next-line no-use-before-define
-        referenceKit.fulfillLocalAnswerWithPromise(
+        referenceKit.makeLocalAnswerPromiseAndFulfill(
           answerPosition,
           deliverPromise,
         );
@@ -789,7 +797,7 @@ export const makeOcapn = (
       });
 
       // eslint-disable-next-line no-use-before-define
-      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, getPromise);
+      referenceKit.makeLocalAnswerPromiseAndFulfill(answerPosition, getPromise);
     },
     'op:index': message => {
       const { receiverDesc, index, answerPosition } = message;
@@ -829,7 +837,10 @@ export const makeOcapn = (
       });
 
       // eslint-disable-next-line no-use-before-define
-      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, indexPromise);
+      referenceKit.makeLocalAnswerPromiseAndFulfill(
+        answerPosition,
+        indexPromise,
+      );
     },
     'op:untag': message => {
       const { receiverDesc, tag, answerPosition } = message;
@@ -858,7 +869,10 @@ export const makeOcapn = (
       });
 
       // eslint-disable-next-line no-use-before-define
-      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, untagPromise);
+      referenceKit.makeLocalAnswerPromiseAndFulfill(
+        answerPosition,
+        untagPromise,
+      );
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;

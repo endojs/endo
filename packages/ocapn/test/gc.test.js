@@ -459,7 +459,10 @@ test('op:gc-answer deletes answer from engine', async t => {
 
     // Manually create an answer on B's side (q+1) to test deletion
     const answerSlot = makeSlot('a', true, 1n);
-    const testAnswer = ocapnB.referenceKit.provideLocalAnswerValue(1n);
+    const testAnswer = ocapnB.referenceKit.makeLocalAnswerPromiseAndFulfill(
+      1n,
+      Promise.resolve('test answer'),
+    );
 
     // Verify B has the answer
     t.is(

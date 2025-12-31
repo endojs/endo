@@ -62,8 +62,8 @@ export const makeOcapnTable = options => {
     pairwiseEngine.dropSlot(slot, refcount);
   };
 
-  const destroy = () => {
-    pairwiseEngine.destroy();
+  const destroy = reason => {
+    pairwiseEngine.destroy(reason);
     positionToLocalAnswer.clear();
   };
 

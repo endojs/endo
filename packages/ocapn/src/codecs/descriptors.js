@@ -192,7 +192,7 @@ export const makeDescCodecs = referenceKit => {
     syrupReader => {
       // when reading: answer = local to us
       const position = NonNegativeIntegerCodec.read(syrupReader);
-      return referenceKit.provideLocalAnswerValue(position);
+      return referenceKit.getLocalAnswerValue(position);
     },
     (value, syrupWriter) => {
       // when writing: answer = remote to us

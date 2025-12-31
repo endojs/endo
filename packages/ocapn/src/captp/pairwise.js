@@ -19,7 +19,7 @@ import { makeRefCounter } from './refcount.js';
  * @property {() => void} commitReceivedRefCounts
  * @property {(slot: Slot, settler: Settler) => void} registerSettler
  * @property {(slot: Slot) => Settler} takeSettler
- * @property {() => void} destroy
+ * @property {(reason?: Error) => void} destroy
  */
 
 /**
@@ -81,12 +81,17 @@ export const makePairwiseTable = ({
       // eslint-disable-next-line no-use-before-define
       refCounts.delete(slot);
       onSlotCollected(slot, refCount);
+      // eslint-disable-next-line no-use-before-define
+      settlers.delete(slot);
     },
     { weakValues: enableImportCollection },
   );
 
   const settlers = new Map();
   const registerSettler = (slot, settler) => {
+    if (isSlotLocal(slot)) {
+      throw new Error('Local settlers are not supported');
+    }
     settlers.set(slot, settler);
   };
   const takeSettler = slot => {
@@ -199,12 +204,25 @@ export const makePairwiseTable = ({
     pendingSentRefCounts.abort();
   };
 
-  const destroy = () => {
+  /**
+   * Reject all pending settlers with the given reason.
+   * This is called when the session ends to ensure all pending promises are rejected.
+   * @param {Error} reason
+   */
+  const rejectAllSettlers = reason => {
+    for (const settler of settlers.values()) {
+      settler.reject(reason);
+    }
+    settlers.clear();
+  };
+
+  const destroy = reason => {
+    // Reject all pending settlers before clearing tables
+    rejectAllSettlers(reason);
     exportTable.clearWithoutFinalizing();
     importTable.clearWithoutFinalizing();
     refCounts.clear();
     clearPendingRefCounts();
-    settlers.clear();
   };
 
   /** @type {PairwiseTable} */

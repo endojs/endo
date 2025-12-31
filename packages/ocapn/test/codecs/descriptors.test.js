@@ -47,8 +47,7 @@ const table = [
   {
     name: 'answer',
     makeValue: testKit => testKit.makeRemoteAnswer(123n),
-    makeExpectedValue: testKit =>
-      testKit.referenceKit.provideLocalAnswerValue(123n),
+    makeExpectedValue: testKit => testKit.makeLocalAnswer(123n),
   },
   {
     name: 'handoff receive',
