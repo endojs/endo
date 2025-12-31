@@ -53,6 +53,32 @@ test('cancel is idempotent', t => {
   t.is(cancelled.cancelled, true);
 });
 
+test('makeCancelKit propagates cancellation from parent', async t => {
+  const { cancelled: parentCancelled, cancel: cancelParent } = makeCancelKit();
+  const { cancelled: childCancelled } = makeCancelKit(parentCancelled);
+
+  t.is(childCancelled.cancelled, undefined);
+
+  cancelParent(Error('parent cancelled'));
+
+  // Give time for propagation
+  await Promise.resolve();
+
+  t.is(childCancelled.cancelled, true);
+  await t.throwsAsync(childCancelled, { message: 'parent cancelled' });
+});
+
+test('makeCancelKit child can cancel independently of parent', t => {
+  const { cancelled: parentCancelled } = makeCancelKit();
+  const { cancelled: childCancelled, cancel: cancelChild } =
+    makeCancelKit(parentCancelled);
+
+  cancelChild(Error('child cancelled'));
+
+  t.is(childCancelled.cancelled, true);
+  t.is(parentCancelled.cancelled, undefined); // Parent not affected
+});
+
 // ==================== allMap tests ====================
 
 test('allMap transforms all values', async t => {

@@ -12,11 +12,15 @@
  * `cancelled` getter that returns `true` if cancellation has been requested,
  * or `undefined` otherwise.
  *
+ * If a parent cancellation token is provided, cancellation will automatically
+ * propagate from the parent to this kit.
+ *
  * This design anticipates a future `Promise.withCanceller` API.
  *
+ * @param {Cancelled} [parentCancelled] - Optional parent cancellation token
  * @returns {CancelKit}
  */
-export const makeCancelKit = () => {
+export const makeCancelKit = parentCancelled => {
   /** @type {undefined | true} */
   let cancelledState;
 
@@ -53,6 +57,14 @@ export const makeCancelKit = () => {
       }
     }
   };
+
+  // Propagate cancellation from parent if provided
+  if (parentCancelled) {
+    parentCancelled.then(
+      () => {},
+      reason => cancel(reason),
+    );
+  }
 
   return harden({ cancelled, cancel });
 };
