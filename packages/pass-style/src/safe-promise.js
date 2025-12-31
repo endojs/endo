@@ -31,9 +31,12 @@ const confirmPromiseOwnKeys = (pr, reject) => {
    *   * An overriding `toStringTag` non-enumerable data property
    *     with a string value.
    *   * Those own properties that might be added by Node's async_hooks.
+   *   * A `cancelled` non-enumerable getter for cancellation tokens.
    */
   const unknownKeys = keys.filter(
-    key => typeof key !== 'symbol' || !hasOwn(Promise.prototype, key),
+    key =>
+      key !== 'cancelled' &&
+      (typeof key !== 'symbol' || !hasOwn(Promise.prototype, key)),
   );
 
   if (unknownKeys.length !== 0) {
@@ -80,6 +83,20 @@ const confirmPromiseOwnKeys = (pr, reject) => {
         (!tagDesc.enumerable ||
           (reject &&
             reject`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`))
+      );
+    }
+    if (key === 'cancelled') {
+      // Allow a non-enumerable `cancelled` getter for cancellation tokens.
+      // This property is local-only and will not be passed over CapTP.
+      const cancelledDesc = getOwnPropertyDescriptor(pr, 'cancelled');
+      assert(cancelledDesc !== undefined);
+      return (
+        (hasOwn(cancelledDesc, 'get') ||
+          (reject &&
+            reject`Own 'cancelled' must be an accessor property, not a data property: ${q(cancelledDesc)}`)) &&
+        (!cancelledDesc.enumerable ||
+          (reject &&
+            reject`Own 'cancelled' must not be enumerable: ${q(cancelledDesc)}`))
       );
     }
     const val = pr[key];

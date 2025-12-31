@@ -683,9 +683,7 @@ test('persist unconfined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   const responderFinished = (async () => {
-    const { promise: followerCancelled, reject: cancelFollower } =
-      makePromiseKit();
-    cancelled.catch(cancelFollower);
+    const { cancelled: followerCancelled } = makeCancelKit(cancelled);
     const { host } = await makeHost(config, followerCancelled);
     await E(host).provideWorker(['user-worker']);
 
@@ -747,9 +745,7 @@ test('persist confined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   const responderFinished = (async () => {
-    const { promise: followerCancelled, reject: cancelFollower } =
-      makePromiseKit();
-    cancelled.catch(cancelFollower);
+    const { cancelled: followerCancelled } = makeCancelKit(cancelled);
     const { host } = await makeHost(config, followerCancelled);
     await E(host).provideWorker(['user-worker']);
 
