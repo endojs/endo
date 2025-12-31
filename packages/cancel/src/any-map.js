@@ -19,15 +19,7 @@ import { makeCancelKit } from './cancel-kit.js';
  * @returns {Promise<R>}
  */
 export const anyMap = async (values, fn, parentCancelled) => {
-  const { cancelled, cancel } = makeCancelKit();
-
-  // Combine with parent cancellation if provided
-  if (parentCancelled) {
-    parentCancelled.then(
-      () => {},
-      reason => cancel(reason),
-    );
-  }
+  const { cancelled, cancel } = makeCancelKit(parentCancelled);
 
   const valuesArray = [...values];
 

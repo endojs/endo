@@ -46,6 +46,25 @@ cancelled.catch(reason => {
 cancel(Error('User requested abort'));
 ```
 
+### Hierarchical Cancellation
+
+`makeCancelKit` accepts an optional `parentCancelled` token, enabling
+hierarchical cancellation patterns. When a parent token is cancelled,
+all child tokens automatically cancel with the same reason:
+
+```js
+const { cancelled: parentCancelled, cancel: cancelParent } = makeCancelKit();
+const { cancelled: childCancelled } = makeCancelKit(parentCancelled);
+
+cancelParent(Error('Operation aborted'));
+// childCancelled is now also cancelled
+```
+
+This pattern is used internally by operators like `allMap`, `anyMap`, and
+`delay` to propagate cancellation from callers to their internal operations.
+It enables composable cancellation where a single cancellation at the root
+propagates through an entire tree of operations.
+
 ## TypeScript Interface
 
 This package provides a TypeScript interface `Cancelled` that is a
@@ -155,9 +174,11 @@ This simplifies cleanup logic and prevents double-rejection errors.
 
 ### Parent Cancellation Propagation
 
-Both `allMap` and `anyMap` accept a parent `cancelled` token.
-When provided, rejection of the parent token propagates to the internal
-cancellation mechanism, enabling hierarchical cancellation patterns.
+The `makeCancelKit(parentCancelled)` API handles propagation of cancellation
+from parent to child tokens. Operators like `allMap`, `anyMap`, and `delay`
+use this internally by passing their `parentCancelled` argument directly to
+`makeCancelKit`. This centralizes the propagation logic and ensures consistent
+behavior across all cancellation-aware utilities.
 
 ## Integration with Web APIs
 

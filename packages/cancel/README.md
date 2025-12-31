@@ -26,7 +26,7 @@ observation, helping utilities avoid unnecessary work.
 
 ## API
 
-### `makeCancelKit()`
+### `makeCancelKit(parentCancelled?)`
 
 Creates a cancellation kit containing a cancellation token and a cancel function.
 
@@ -46,6 +46,21 @@ console.log(cancelled.cancelled); // true
 // The promise rejects when cancelled
 cancelled.catch(error => console.log(error.message)); // "Operation timed out"
 ```
+
+If a parent cancellation token is provided, cancellation automatically propagates
+from the parent to the child:
+
+```js
+const { cancelled: parentCancelled, cancel: cancelParent } = makeCancelKit();
+const { cancelled: childCancelled } = makeCancelKit(parentCancelled);
+
+cancelParent(Error('Parent cancelled'));
+// childCancelled is now also cancelled
+```
+
+#### Parameters
+
+- `parentCancelled` - Optional parent cancellation token for hierarchical cancellation
 
 #### Returns
 
