@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeCancelKit } from '../index.js';
@@ -5,6 +7,8 @@ import { allMap } from '../all-map.js';
 import { anyMap } from '../any-map.js';
 import { toAbortSignal } from '../to-abort.js';
 import { fromAbortSignal } from '../from-abort.js';
+import { delay } from '../delay.js';
+import { makeDelay } from '../delay-lite.js';
 
 // ==================== makeCancelKit tests ====================
 
@@ -298,4 +302,74 @@ test('fromAbortSignal promise rejects with abort reason', async t => {
 
   controller.abort(Error('abort reason'));
   await t.throwsAsync(cancelled, { message: 'abort reason' });
+});
+
+// ==================== delay tests ====================
+
+test('delay fulfills with undefined after ms', async t => {
+  const { cancelled: parentCancelled } = makeCancelKit();
+  const start = Date.now();
+  const result = await delay(50, parentCancelled);
+  const elapsed = Date.now() - start;
+
+  t.is(result, undefined);
+  t.true(elapsed >= 40, `elapsed ${elapsed}ms should be >= 40ms`);
+});
+
+test('delay rejects when parentCancelled is triggered', async t => {
+  const { cancelled: parentCancelled, cancel } = makeCancelKit();
+
+  // Cancel after a short delay
+  globalThis.setTimeout(() => cancel(Error('cancelled early')), 10);
+
+  const start = Date.now();
+  await t.throwsAsync(delay(1000, parentCancelled), {
+    message: 'cancelled early',
+  });
+  const elapsed = Date.now() - start;
+
+  // Should have rejected much sooner than 1000ms
+  t.true(elapsed < 500, `elapsed ${elapsed}ms should be < 500ms`);
+});
+
+test('delay rejects immediately if already cancelled', async t => {
+  const { cancelled: parentCancelled, cancel } = makeCancelKit();
+  cancel(Error('already cancelled'));
+
+  await t.throwsAsync(delay(1000, parentCancelled), {
+    message: 'already cancelled',
+  });
+});
+
+test('delay treats parentCancelled fulfillment as error', async t => {
+  // Create a promise that fulfills instead of rejects
+  const fulfillingPromise = Promise.resolve();
+  // @ts-expect-error - intentionally testing invalid usage
+  fulfillingPromise.cancelled = undefined;
+
+  await t.throwsAsync(
+    // @ts-expect-error - intentionally testing invalid usage
+    delay(50, fulfillingPromise),
+    { message: /parentCancelled must not fulfill/ },
+  );
+});
+
+// ==================== makeDelay tests ====================
+
+test('makeDelay creates a delay function with custom setTimeout', async t => {
+  const calls = [];
+  const fakeSetTimeout = (callback, ms) => {
+    calls.push({ ms });
+    // Call immediately for testing
+    callback();
+  };
+
+  const customDelay = makeDelay(fakeSetTimeout);
+  const { cancelled: parentCancelled } = makeCancelKit();
+
+  const result = await customDelay(100, parentCancelled);
+
+  t.is(result, undefined);
+  t.is(calls.length, 1);
+  t.is(calls[0].ms, 100);
 });

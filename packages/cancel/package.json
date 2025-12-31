@@ -28,6 +28,8 @@
     "./abort": "./abort.js",
     "./all-map": "./all-map.js",
     "./any-map": "./any-map.js",
+    "./delay": "./delay.js",
+    "./delay-lite": "./delay-lite.js",
     "./from-abort": "./from-abort.js",
     "./to-abort": "./to-abort.js",
     "./package.json": "./package.json"
