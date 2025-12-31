@@ -7,7 +7,7 @@
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeError, q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { streamIterator } from '@endo/exo-stream/stream-iterator.js';
 import {
   assertPetName,
   assertPetNamePath,
@@ -753,9 +753,9 @@ export const makeHostMaker = ({
       ...host,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
-        makeIteratorRef(host.followLocatorNameChanges(locator)),
-      followMessages: () => makeIteratorRef(host.followMessages()),
-      followNameChanges: () => makeIteratorRef(host.followNameChanges()),
+        streamIterator(host.followLocatorNameChanges(locator)),
+      followMessages: () => streamIterator(host.followMessages()),
+      followNameChanges: () => streamIterator(host.followNameChanges()),
     });
 
     await provide(mainWorkerId, 'worker');
