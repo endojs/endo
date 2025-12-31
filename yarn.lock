@@ -208,7 +208,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cancel@workspace:packages/cancel":
+"@endo/cancel@workspace:^, @endo/cancel@workspace:packages/cancel":
   version: 0.0.0-use.local
   resolution: "@endo/cancel@workspace:packages/cancel"
   dependencies:
@@ -275,6 +275,7 @@ __metadata:
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
     "@endo/bundle-source": "workspace:^"
+    "@endo/cancel": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -342,6 +343,7 @@ __metadata:
   dependencies:
     "@endo/base64": "workspace:^"
     "@endo/bundle-source": "workspace:^"
+    "@endo/cancel": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/errors": "workspace:^"
