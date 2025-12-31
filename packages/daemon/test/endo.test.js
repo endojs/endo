@@ -11,7 +11,7 @@ import crypto from 'crypto';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import bundleSource from '@endo/bundle-source';
 import {
   start,
@@ -209,7 +209,7 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
 
 /** @param {import('ava').ExecutionContext<any>} t */
 const prepareConfig = async t => {
-  const { reject: cancel, promise: cancelled } = makePromiseKit();
+  const { cancelled, cancel } = makeCancelKit();
   const config = makeConfig(
     'tmp',
     getConfigDirectoryName(t.title, t.context.length),

@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
+    "@endo/cancel": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
