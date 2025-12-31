@@ -1,6 +1,6 @@
 /* global process */
 
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import { E } from '@endo/far';
 import { whereEndoSock } from '@endo/where';
 import { provideEndoClient } from './client.js';
@@ -8,8 +8,7 @@ import { parsePetNamePath } from './pet-name.js';
 
 export const withInterrupt = async callback => {
   await null;
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  cancelled.catch(() => {});
+  const { cancelled, cancel } = makeCancelKit();
   process.once('SIGINT', () => cancel(Error('SIGINT')));
 
   try {
