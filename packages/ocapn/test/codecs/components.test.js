@@ -18,6 +18,7 @@ import {
   exampleSigParamBytes,
   examplePubKeyQBytes,
   testBidirectionally,
+  AllCodecs,
 } from './_codecs_util.js';
 
 /** @type {CodecTestEntry[]} */
@@ -83,12 +84,15 @@ const OcapnComponentUnionCodec = makeTypeHintUnionCodec(
   },
 );
 
-test('affirmative component cases', t => {
-  const codec = OcapnComponentUnionCodec;
-  for (const entry of table) {
-    testBidirectionally(t, {
-      ...entry,
-      codec,
-    });
-  }
-});
+// Run component tests with all codecs
+for (const codec of AllCodecs) {
+  test(`affirmative component cases [${codec.name}]`, t => {
+    for (const entry of table) {
+      testBidirectionally(t, {
+        ...entry,
+        dataCodec: OcapnComponentUnionCodec,
+        codec,
+      });
+    }
+  });
+}

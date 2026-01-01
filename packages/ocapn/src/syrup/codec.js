@@ -2,6 +2,7 @@
  * @import { OcapnPassStyle } from '../codecs/ocapn-pass-style.js'
  * @import { SyrupReader, SyrupType, TypeHintTypes } from './decode.js'
  * @import { SyrupWriter } from './encode.js'
+ * @import { OcapnReader, OcapnWriter } from '../codec-interface.js'
  */
 
 import {
@@ -11,9 +12,18 @@ import {
 import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
 
 /**
+ * A codec that can read and write values using any OCapN reader/writer.
+ * Works with both Syrup and CBOR codecs.
+ *
  * @typedef {object} SyrupCodec
- * @property {function(SyrupReader): any} read
- * @property {function(any, SyrupWriter): void} write
+ * @property {function(OcapnReader): any} read
+ * @property {function(any, OcapnWriter): void} write
+ */
+
+/**
+ * Alias for SyrupCodec - a data codec that transforms values to/from wire format.
+ *
+ * @typedef {SyrupCodec} DataCodec
  */
 
 const { freeze } = Object;
@@ -254,7 +264,7 @@ export const makeSetCodecFromEntryCodec = (codecName, childCodec) => {
       return result;
     },
     write: (value, syrupWriter) => {
-      syrupWriter.enterSet();
+      syrupWriter.enterSet(value.size);
       for (const child of value) {
         childCodec.write(child, syrupWriter);
       }
@@ -284,7 +294,7 @@ export const makeListCodecFromEntryCodec = (codecName, childCodecOrGetter) => {
     },
     write: (value, syrupWriter) => {
       const childCodec = resolveCodec(childCodecOrGetter, value);
-      syrupWriter.enterList();
+      syrupWriter.enterList(value.length);
       for (const child of value) {
         childCodec.write(child, syrupWriter);
       }
@@ -300,6 +310,7 @@ export const makeListCodecFromEntryCodec = (codecName, childCodecOrGetter) => {
  * Codec for a list of items of known length and known entry type
  */
 export const makeExactListCodec = (codecName, listDefinition) => {
+  const elementCount = listDefinition.length;
   return makeCodec(codecName, {
     read: syrupReader => {
       syrupReader.enterList();
@@ -320,7 +331,7 @@ export const makeExactListCodec = (codecName, listDefinition) => {
           `Expected length ${listDefinition.length}, got ${value.length}`,
         );
       }
-      syrupWriter.enterList();
+      syrupWriter.enterList(elementCount);
       for (let index = 0; index < value.length; index += 1) {
         const entryCodec = listDefinition[index];
         entryCodec.write(value[index], syrupWriter);
@@ -349,6 +360,7 @@ export const makeExactListCodec = (codecName, listDefinition) => {
  * @param {SyrupRecordLabelType} labelType
  * @param {function(SyrupReader): any} readBody
  * @param {function(any, SyrupWriter): void} writeBody
+ * @param {number} [fieldCount] - Number of fields in the record body (required for CBOR)
  * @returns {SyrupRecordCodec}
  */
 export const makeRecordCodec = (
@@ -357,7 +369,12 @@ export const makeRecordCodec = (
   labelType,
   readBody,
   writeBody,
+  fieldCount,
 ) => {
+  // Element count = 1 (label) + field count
+  // Undefined fieldCount is allowed for backwards compatibility (Syrup ignores it)
+  const elementCount = fieldCount !== undefined ? 1 + fieldCount : undefined;
+
   /**
    * @param {SyrupReader} syrupReader
    * @returns {any}
@@ -388,7 +405,7 @@ export const makeRecordCodec = (
    * @param {SyrupWriter} syrupWriter
    */
   const write = (value, syrupWriter) => {
-    syrupWriter.enterRecord();
+    syrupWriter.enterRecord(elementCount);
     if (labelType === 'selector') {
       syrupWriter.writeSelectorFromString(label);
     } else if (labelType === 'string') {
@@ -424,6 +441,8 @@ export const makeRecordCodecFromDefinition = (
   labelType,
   definition,
 ) => {
+  const fieldCount = Object.keys(definition).length;
+
   /**
    * @param {SyrupReader} syrupReader
    * @returns {any}
@@ -456,7 +475,14 @@ export const makeRecordCodecFromDefinition = (
     }
   };
 
-  return makeRecordCodec(codecName, label, labelType, readBody, writeBody);
+  return makeRecordCodec(
+    codecName,
+    label,
+    labelType,
+    readBody,
+    writeBody,
+    fieldCount,
+  );
 };
 
 /**

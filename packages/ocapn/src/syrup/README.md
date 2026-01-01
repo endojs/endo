@@ -1,9 +1,47 @@
-# Syrup
+# OCapN Syrup Codec (Codec 0)
+
+[Syrup](https://gitlab.com/spritely/syrup) is a binary object marshalling
+codec. It is the first proposed OCapN wire format.
+
+**Codec ID**: `0` (for protocol negotiation)
+
+## Usage
+
+```js
+// Import only what you need (recommended for tree-shaking)
+import { makeSyrupWriter } from './encode.js';
+import { makeSyrupReader } from './decode.js';
+
+// Or import from the index
+import { makeSyrupWriter, makeSyrupReader } from './index.js';
+```
+
+### Writing
+
+```js
+const writer = makeSyrupWriter({ name: 'my-message' });
+writer.enterRecord();
+writer.writeSelectorFromString('op:deliver');
+writer.writeInteger(42n);
+writer.writeString('hello');
+writer.exitRecord();
+const bytes = writer.getBytes();
+```
+
+### Reading
+
+```js
+const reader = makeSyrupReader(bytes, { name: 'my-message' });
+reader.enterRecord();
+const label = reader.readSelectorAsString(); // 'op:deliver'
+const num = reader.readInteger(); // 42n
+const str = reader.readString(); // 'hello'
+reader.exitRecord();
+```
+
+## Implementation Notes
 
 🚧 Work in progress.
-
-[Syrup](https://gitlab.com/spritely/syrup) is an binary object marshalling
-codec.
 
 This is a partial implementation of Syrup intended to be future-compatible and
 strictly canonical.

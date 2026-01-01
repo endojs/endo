@@ -52,6 +52,7 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
+    "cbor": "^9.0.2",
     "eslint": "catalog:dev",
     "tsd": "catalog:dev",
     "typescript": "~5.9.2"

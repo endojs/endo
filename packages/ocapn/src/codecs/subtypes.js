@@ -78,6 +78,7 @@ export const makeStructCodecForValues = (codecName, getValuesCodec) => {
       while (!syrupReader.peekDictionaryEnd()) {
         // OCapN Structs are always string keys.
         const start = syrupReader.index;
+        /** @type {string} */
         const key = syrupReader.readString();
         if (lastKey !== undefined) {
           if (key === lastKey) {
@@ -101,9 +102,9 @@ export const makeStructCodecForValues = (codecName, getValuesCodec) => {
     },
     write(value, syrupWriter) {
       const ValuesCodec = getValuesCodec();
-      syrupWriter.enterDictionary();
       const keys = Object.keys(value);
       keys.sort();
+      syrupWriter.enterDictionary(keys.length);
       for (const key of keys) {
         syrupWriter.writeString(key);
         // Value can be any Passable.
