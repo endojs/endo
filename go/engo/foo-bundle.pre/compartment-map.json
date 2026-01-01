@@ -1,0 +1,261 @@
+{
+  "tags": [],
+  "entry": {
+    "compartment": "engo",
+    "module": "./foo.js"
+  },
+  "compartments": {
+    "@endo/base64-v1.0.8": {
+      "name": "@endo/base64",
+      "label": "@endo/base64-v1.0.8",
+      "location": "@endo/base64-v1.0.8",
+      "modules": {
+        "@endo/base64": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./index.js"
+        },
+        "@endo/base64/atob.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./atob.js"
+        },
+        "@endo/base64/btoa.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./btoa.js"
+        },
+        "@endo/base64/decode.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./decode.js"
+        },
+        "@endo/base64/encode.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./encode.js"
+        },
+        "@endo/base64/package.json": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./package.json"
+        },
+        "@endo/base64/shim.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./shim.js"
+        },
+        "./atob.js": {
+          "location": "atob.js",
+          "parser": "pre-mjs-json",
+          "sha512": "f0cff6a7d632849f5ef179947f13a4f81f3ee1d19b4e05f253c9a660f98fdac93c86e384efbffd9b36e3dbc66468b68c7aebfa324aab381dc4c97b957af9bc47"
+        },
+        "./btoa.js": {
+          "location": "btoa.js",
+          "parser": "pre-mjs-json",
+          "sha512": "d09994191fbef6e65fe6cdeafb29bc7637c37e3820d88267e1a5a3878575381082ae15fe6ba9249e281d6f2f894ddd9d472ad6ad70d5cf0ed67c69b2ae7a2e95"
+        },
+        "./decode.js": {
+          "location": "decode.js",
+          "parser": "pre-mjs-json",
+          "sha512": "574b8f65d2a061544804bb17988f1165bac1da79a1eacf248760245b0c08c6d5980603dd9f39867584af283b709de65563ff23ef0420a147dba6776a385eb5eb"
+        },
+        "./encode.js": {
+          "location": "encode.js",
+          "parser": "pre-mjs-json",
+          "sha512": "8b6e45bcdd41415ba5ffc62c2966587367b525f0afe92d48aa46d2c2515d5ed220a74a78d80b1b97094f62ce114984a5032ce007553d1129e59f23de1814f9fb"
+        },
+        "./index.js": {
+          "location": "index.js",
+          "parser": "pre-mjs-json",
+          "sha512": "5d4ff7f3b308117ab5996424d391f3e79e4e1f65e3056036b33634e9f71feeee4a9cc8e9d574c4cdd2092ca996c6b9f2716f3a542cc5d638877e35458cee59d3"
+        },
+        "./src/common.js": {
+          "location": "src/common.js",
+          "parser": "pre-mjs-json",
+          "sha512": "938dde6c93492766fb8bc08127dbf7f78463fba73840acbf14c9d999fb98dff7269aa418a786f9cb9e6909917447e142475ffb5fe1b403368711eb665e7f038f"
+        },
+        "./src/decode.js": {
+          "location": "src/decode.js",
+          "parser": "pre-mjs-json",
+          "sha512": "73d459966986bf4342544a74adcc92a423f926aad07ca3454bd539d8dac9a0f6dbd42f2f0a2b8715c7cf32e29e16a567f4027d849e5b67df99716a40b440ccc0"
+        },
+        "./src/encode.js": {
+          "location": "src/encode.js",
+          "parser": "pre-mjs-json",
+          "sha512": "a5b15ba93299b6c4c96de04f218a66aaa90f1d521e8fb40303f9d946093eb58b2d47822f21587d4f8271b4402b22d6dedff5b7c4100bd9c55571b4f602981b5a"
+        }
+      }
+    },
+    "engo": {
+      "name": "engo",
+      "label": "engo",
+      "location": "engo",
+      "modules": {
+        "@endo/base64": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./index.js"
+        },
+        "@endo/base64/atob.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./atob.js"
+        },
+        "@endo/base64/btoa.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./btoa.js"
+        },
+        "@endo/base64/decode.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./decode.js"
+        },
+        "@endo/base64/encode.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./encode.js"
+        },
+        "@endo/base64/package.json": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./package.json"
+        },
+        "@endo/base64/shim.js": {
+          "compartment": "@endo/base64-v1.0.8",
+          "module": "./shim.js"
+        },
+        "@endo/compartment-mapper": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./index.js"
+        },
+        "@endo/compartment-mapper/archive-lite.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./archive-lite.js"
+        },
+        "@endo/compartment-mapper/archive-parsers.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./archive-parsers.js"
+        },
+        "@endo/compartment-mapper/archive.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./archive.js"
+        },
+        "@endo/compartment-mapper/bundle.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./bundle.js"
+        },
+        "@endo/compartment-mapper/capture-lite.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./capture-lite.js"
+        },
+        "@endo/compartment-mapper/import-archive-all-parsers.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import-archive-all-parsers.js"
+        },
+        "@endo/compartment-mapper/import-archive-lite.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import-archive-lite.js"
+        },
+        "@endo/compartment-mapper/import-archive-parsers.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import-archive-parsers.js"
+        },
+        "@endo/compartment-mapper/import-archive.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import-archive.js"
+        },
+        "@endo/compartment-mapper/import-lite.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import-lite.js"
+        },
+        "@endo/compartment-mapper/import-parsers.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import-parsers.js"
+        },
+        "@endo/compartment-mapper/import.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./import.js"
+        },
+        "@endo/compartment-mapper/node-modules.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./node-modules.js"
+        },
+        "@endo/compartment-mapper/node-powers.js": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./node-powers.js"
+        },
+        "@endo/compartment-mapper/package.json": {
+          "compartment": "@endo/compartment-mapper-v1.3.0",
+          "module": "./package.json"
+        },
+        "@endo/eventual-send": {
+          "compartment": "@endo/eventual-send-v1.2.6",
+          "module": "./src/no-shim.js"
+        },
+        "@endo/eventual-send/package.json": {
+          "compartment": "@endo/eventual-send-v1.2.6",
+          "module": "./package.json"
+        },
+        "@endo/eventual-send/shim.js": {
+          "compartment": "@endo/eventual-send-v1.2.6",
+          "module": "./shim.js"
+        },
+        "@endo/eventual-send/utils.js": {
+          "compartment": "@endo/eventual-send-v1.2.6",
+          "module": "./utils.js"
+        },
+        "@endo/import-bundle": {
+          "compartment": "@endo/import-bundle-v1.3.0",
+          "module": "./src/index.js"
+        },
+        "@endo/import-bundle/package.json": {
+          "compartment": "@endo/import-bundle-v1.3.0",
+          "module": "./package.json"
+        },
+        "@endo/import-bundle/source-map-node-powers.js": {
+          "compartment": "@endo/import-bundle-v1.3.0",
+          "module": "./source-map-node-powers.js"
+        },
+        "@endo/import-bundle/source-map-node.js": {
+          "compartment": "@endo/import-bundle-v1.3.0",
+          "module": "./source-map-node.js"
+        },
+        "engo": {
+          "compartment": "engo",
+          "module": "./index.js"
+        },
+        "ses": {
+          "compartment": "ses-v1.9.0",
+          "module": "./index.js"
+        },
+        "ses/assert-shim.js": {
+          "compartment": "ses-v1.9.0",
+          "module": "./assert-shim.js"
+        },
+        "ses/compartment-shim.js": {
+          "compartment": "ses-v1.9.0",
+          "module": "./compartment-shim.js"
+        },
+        "ses/console-shim.js": {
+          "compartment": "ses-v1.9.0",
+          "module": "./console-shim.js"
+        },
+        "ses/lockdown": {
+          "compartment": "ses-v1.9.0",
+          "module": "./index.js"
+        },
+        "ses/lockdown-shim.js": {
+          "compartment": "ses-v1.9.0",
+          "module": "./lockdown-shim.js"
+        },
+        "ses/package.json": {
+          "compartment": "ses-v1.9.0",
+          "module": "./package.json"
+        },
+        "ses/tools.js": {
+          "compartment": "ses-v1.9.0",
+          "module": "./tools.js"
+        },
+        "./bar.json": {
+          "location": "bar.json",
+          "parser": "json",
+          "sha512": "7d3e99e018892eb6d33e025a4a3cd816d4e07391d0f317cdfa7a20e12609ceac00d5a92717bd7944ad669bee4459bfc3fe468fd0216305a6ed9132b3340c3758"
+        },
+        "./foo.js": {
+          "location": "foo.js",
+          "parser": "pre-mjs-json",
+          "sha512": "d8c574c3a00fab633f9bed4b67f35fb60297af4c56465dc2af1035042ca88bdbb211bf4744765cb9fed4c9732eff94d603df0f1170d6217ba67205ac292302f6"
+        }
+      }
+    }
+  }
+}

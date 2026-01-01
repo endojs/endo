@@ -1,0 +1,14 @@
+import { encodeBase64 } from '@endo/base64';
+import bar from './bar.json';
+print('hi');
+print(Object.isFrozen(Object));
+print(JSON.stringify(bar));
+print(encodeBase64(new TextEncoder().encode('Hello')));
+print(0);
+const barNs = await import('./bar.json');
+print(Object.keys(barNs));
+print(1);
+const bar2 = barNs.default;
+print(2);
+assert(bar === bar2);
+print('ok');

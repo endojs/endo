@@ -28,7 +28,7 @@ func main() {
 
 	args, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 
 	ctx := context.Background()
