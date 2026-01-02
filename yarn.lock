@@ -540,6 +540,7 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/import-bundle": "workspace:^"
@@ -625,6 +626,7 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/import-bundle": "workspace:^"
@@ -722,6 +724,28 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/exo-stream@workspace:^, @endo/exo-stream@workspace:packages/exo-stream":
+  version: 0.0.0-use.local
+  resolution: "@endo/exo-stream@workspace:packages/exo-stream"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/captp": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
