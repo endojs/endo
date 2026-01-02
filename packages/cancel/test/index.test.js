@@ -9,6 +9,7 @@ import { toAbortSignal } from '../to-abort.js';
 import { fromAbortSignal } from '../from-abort.js';
 import { delay } from '../delay.js';
 import { makeDelay } from '../delay-lite.js';
+import { isKnownCancelled } from '../src/cancel-kit.js';
 
 // ==================== makeCancelKit tests ====================
 
@@ -20,16 +21,16 @@ test('makeCancelKit returns cancelled and cancel', t => {
   t.is(typeof kit.cancel, 'function', 'cancel is a function');
 });
 
-test('cancelled starts as undefined', t => {
+test('starts as not cancelled', t => {
   const { cancelled } = makeCancelKit();
-  t.is(cancelled.cancelled, undefined);
+  t.is(isKnownCancelled(cancelled), false);
 });
 
 test('cancelled becomes true after cancel is called', t => {
   const { cancelled, cancel } = makeCancelKit();
-  t.is(cancelled.cancelled, undefined);
+  t.is(isKnownCancelled(cancelled), false);
   cancel();
-  t.is(cancelled.cancelled, true);
+  t.is(isKnownCancelled(cancelled), true);
 });
 
 test('cancelled promise rejects after cancel', async t => {
@@ -48,23 +49,23 @@ test('cancelled promise rejects with default error if no reason', async t => {
 test('cancel is idempotent', t => {
   const { cancelled, cancel } = makeCancelKit();
   cancel();
-  t.is(cancelled.cancelled, true);
+  t.is(isKnownCancelled(cancelled), true);
   cancel(); // Should not throw
-  t.is(cancelled.cancelled, true);
+  t.is(isKnownCancelled(cancelled), true);
 });
 
 test('makeCancelKit propagates cancellation from parent', async t => {
   const { cancelled: parentCancelled, cancel: cancelParent } = makeCancelKit();
   const { cancelled: childCancelled } = makeCancelKit(parentCancelled);
 
-  t.is(childCancelled.cancelled, undefined);
+  t.is(isKnownCancelled(childCancelled), false);
 
   cancelParent(Error('parent cancelled'));
 
   // Give time for propagation
   await Promise.resolve();
 
-  t.is(childCancelled.cancelled, true);
+  t.is(isKnownCancelled(childCancelled), true);
   await t.throwsAsync(childCancelled, { message: 'parent cancelled' });
 });
 
@@ -75,8 +76,8 @@ test('makeCancelKit child can cancel independently of parent', t => {
 
   cancelChild(Error('child cancelled'));
 
-  t.is(childCancelled.cancelled, true);
-  t.is(parentCancelled.cancelled, undefined); // Parent not affected
+  t.is(isKnownCancelled(childCancelled), true);
+  t.is(isKnownCancelled(parentCancelled), false); // Parent not affected
 });
 
 // ==================== allMap tests ====================
@@ -113,7 +114,7 @@ test('allMap provides cancellation token to callback', async t => {
     values,
     (_value, _index, cancelled) => {
       t.true(cancelled instanceof Promise);
-      t.is(cancelled.cancelled, undefined);
+      t.is(isKnownCancelled(cancelled), false);
     },
     parentCancelled,
   );
@@ -141,7 +142,13 @@ test('allMap cancels on first rejection', async t => {
   );
 
   // After allMap rejects, the cancellation token should be triggered
-  t.is(capturedCancelled?.cancelled, true, 'cancellation was triggered');
+  // TODO TypeScript understands the type implications of `&&` but not the more
+  // accurate `??`.
+  t.is(
+    capturedCancelled && isKnownCancelled(capturedCancelled),
+    true,
+    'cancellation was triggered',
+  );
 });
 
 test('allMap respects external cancellation', async t => {
@@ -156,7 +163,7 @@ test('allMap respects external cancellation', async t => {
     values,
     async (_value, _index, cancelled) => {
       await Promise.resolve();
-      if (cancelled.cancelled) {
+      if (isKnownCancelled(cancelled)) {
         observedCancellation = true;
       }
       return 1;
@@ -198,7 +205,13 @@ test('anyMap cancels remaining after first success', async t => {
 
   t.is(result, 'first');
   // After anyMap succeeds, the cancellation token should be triggered
-  t.is(capturedCancelled?.cancelled, true, 'cancellation was triggered');
+  // TODO TypeScript understands the type implications of `&&` but not the more
+  // accurate `??`.
+  t.is(
+    capturedCancelled && isKnownCancelled(capturedCancelled),
+    true,
+    'cancellation was triggered',
+  );
 });
 
 test('anyMap rejects with AggregateError if all fail', async t => {
@@ -233,7 +246,7 @@ test('anyMap provides cancellation token to callback', async t => {
   const values = [1];
   await anyMap(values, (_value, _index, cancelled) => {
     t.true(cancelled instanceof Promise);
-    t.is(cancelled.cancelled, undefined);
+    t.is(isKnownCancelled(cancelled), false);
     return 'done';
   });
 });
@@ -250,7 +263,7 @@ test('anyMap respects external cancellation', async t => {
     values,
     async (_value, _index, cancelled) => {
       await Promise.resolve();
-      if (cancelled.cancelled) {
+      if (isKnownCancelled(cancelled)) {
         observedCancellation = true;
       }
       return 'done';
@@ -299,19 +312,19 @@ test('fromAbortSignal returns a Cancelled token', t => {
   const cancelled = fromAbortSignal(controller.signal);
 
   t.true(cancelled instanceof Promise);
-  t.is(cancelled.cancelled, undefined);
+  t.is(isKnownCancelled(cancelled), false);
 });
 
 test('fromAbortSignal triggers when signal aborts', async t => {
   const controller = new AbortController();
   const cancelled = fromAbortSignal(controller.signal);
 
-  t.is(cancelled.cancelled, undefined);
+  t.is(isKnownCancelled(cancelled), false);
   controller.abort(Error('test abort'));
 
   // Give time for the abort to propagate
   await Promise.resolve();
-  t.is(cancelled.cancelled, true);
+  t.is(isKnownCancelled(cancelled), true);
 });
 
 test('fromAbortSignal handles already aborted signal', t => {
@@ -319,7 +332,7 @@ test('fromAbortSignal handles already aborted signal', t => {
   controller.abort(Error('already aborted'));
 
   const cancelled = fromAbortSignal(controller.signal);
-  t.is(cancelled.cancelled, true);
+  t.is(isKnownCancelled(cancelled), true);
 });
 
 test('fromAbortSignal promise rejects with abort reason', async t => {

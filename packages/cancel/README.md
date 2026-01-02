@@ -36,12 +36,12 @@ import { makeCancelKit } from '@endo/cancel';
 const { cancelled, cancel } = makeCancelKit();
 
 // Check synchronously if cancelled
-console.log(cancelled.cancelled); // undefined
+console.log(isKnownCancelled(cancelled)); // undefined
 
 // Trigger cancellation
 cancel(Error('Operation timed out'));
 
-console.log(cancelled.cancelled); // true
+console.log(isKnownCancelled(cancelled)); // true
 
 // The promise rejects when cancelled
 cancelled.catch(error => console.log(error.message)); // "Operation timed out"

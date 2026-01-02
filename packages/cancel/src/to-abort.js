@@ -1,5 +1,7 @@
 /// <reference types="ses"/>
 
+import { isKnownCancelled } from './cancel-kit.js';
+
 /**
  * @import { Cancelled } from './types.js'
  */
@@ -19,7 +21,7 @@ export const toAbortSignal = cancelled => {
   );
 
   // If already cancelled, abort immediately
-  if (cancelled.cancelled) {
+  if (isKnownCancelled(cancelled)) {
     controller.abort(Error('Cancelled'));
   }
 
