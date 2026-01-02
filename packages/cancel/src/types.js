@@ -1,8 +1,8 @@
 /**
- * A cancellation token that is a Promise<never> with a synchronous
- * `cancelled` getter for local observation.
+ * A cancellation token that is a Promise<never> intended to be used as a
+ * cancellation token
  *
- * @typedef {Promise<never> & { readonly cancelled: undefined | true }} Cancelled
+ * @typedef {Promise<never>} Cancelled
  */
 
 /**

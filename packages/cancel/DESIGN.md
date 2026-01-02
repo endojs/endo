@@ -33,7 +33,7 @@ import { makeCancelKit } from '@endo/cancel';
 const { cancelled, cancel } = makeCancelKit();
 
 // Synchronous check
-if (cancelled.cancelled) {
+if (isKnownCancelled(cancelled)) {
   return; // Skip unnecessary work
 }
 
