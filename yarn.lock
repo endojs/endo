@@ -726,6 +726,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/harden@workspace:packages/harden":
+  version: 0.0.0-use.local
+  resolution: "@endo/harden@workspace:packages/harden"
+  dependencies:
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
