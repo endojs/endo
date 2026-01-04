@@ -188,11 +188,6 @@ if (!('hasOwn' in Object)) {
 }
 
 export const { hasOwn } = Object;
-
-/**
- * @deprecated Use `hasOwn` instead
- */
-export const objectHasOwnProperty = hasOwn;
 //
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
@@ -234,10 +229,9 @@ export const setHas = uncurryThis(setPrototype.has);
 export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
 //
 /**
- * @deprecated `regexpTest` is vulnerable to RegExp.prototype poisioning; use
- * `regexpExec` instead.
+ * `regexpExec` is provided in exclusion of `regexpTest`, which would be
+ * vulnerable to RegExp.prototype poisoning.
  */
-export const regexpTest = uncurryThis(regexpPrototype.test);
 export const regexpExec = uncurryThis(regexpPrototype.exec);
 /**
  * @type { &
@@ -268,26 +262,19 @@ export const stringEndsWith = uncurryThis(stringPrototype.endsWith);
 export const stringIncludes = uncurryThis(stringPrototype.includes);
 export const stringIndexOf = uncurryThis(stringPrototype.indexOf);
 export const stringMatch = uncurryThis(stringPrototype.match);
-export const generatorNext = uncurryThis(generatorPrototype.next);
-export const generatorThrow = uncurryThis(generatorPrototype.throw);
-
-/**
- * @deprecated `stringReplace` is vulnerable to RegExp.prototype poisoning; use
- * `regexpReplace` instead (and `sealRegexp` on its regular expressions).
- * @type { &
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) &
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
- * }
- */
-export const stringReplace = /** @type {any} */ (
-  uncurryThis(stringPrototype.replace)
-);
+// `stringReplace` is intentionally omitted because it would be vulnerable to
+// RegExp.prototype poisoning; use `regexpReplace(re, str, replacer)` instead
+// (and `sealRegexp` on its regular expressions).
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
-export const stringSplit =
-  /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */ (
-    uncurryThis(stringPrototype.split)
-  );
+/**
+ * `stringSplit` should only be used with a string separator; regular
+ * expressions are vulnerable to RegExp.prototype poisoning.
+ * @type {(thisArg: string, separator: string, limit?: number) => string[]}
+ */
+export const stringSplit = /** @type {any} */ (
+  uncurryThis(stringPrototype.split)
+);
 export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
 //
@@ -303,6 +290,9 @@ export const weaksetHas = uncurryThis(weaksetPrototype.has);
 export const functionToString = uncurryThis(functionPrototype.toString);
 export const functionBind = uncurryThis(bind);
 //
+export const generatorNext = uncurryThis(generatorPrototype.next);
+export const generatorThrow = uncurryThis(generatorPrototype.throw);
+//
 const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);
 export const promiseCatch = uncurryThis(promisePrototype.catch);
@@ -316,15 +306,6 @@ export const finalizationRegistryRegister =
 export const finalizationRegistryUnregister =
   FinalizationRegistry &&
   uncurryThis(FinalizationRegistry.prototype.unregister);
-
-/**
- * getConstructorOf()
- * Return the constructor from an instance.
- *
- * @param {Function} fn
- */
-export const getConstructorOf = fn =>
-  reflectGet(getPrototypeOf(fn), 'constructor');
 
 /**
  * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
