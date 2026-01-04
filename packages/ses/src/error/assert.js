@@ -25,9 +25,10 @@ import {
   globalThis,
   is,
   isError,
-  regexpTest,
+  regexpExec,
+  regexpReplace,
+  sealRegexp,
   stringIndexOf,
-  stringReplace,
   stringSlice,
   stringStartsWith,
   weakmapDelete,
@@ -79,7 +80,7 @@ const canBeBare = freeze(/^[\w:-]( ?[\w:-])*$/);
  * @type {AssertionUtilities['bare']}
  */
 const bare = (text, spaces = undefined) => {
-  if (typeof text !== 'string' || !regexpTest(canBeBare, text)) {
+  if (typeof text !== 'string' || !regexpExec(canBeBare, text)) {
     return quote(text, spaces);
   }
   const result = freeze({
@@ -200,6 +201,9 @@ const unredactedDetails = (template, ...args) => {
 freeze(unredactedDetails);
 export { unredactedDetails };
 
+const leadingSpacePattern = sealRegexp(/^ /);
+const trailingSpacePattern = sealRegexp(/ $/);
+
 /**
  * Get arguments suitable for a console logger function (e.g., `console.error`)
  * from `details` template literal contents, unquoting quoted substitution
@@ -217,11 +221,19 @@ const getLogArgs = ({ template, args }) => {
     }
     // Remove substitution-adjacent spaces from template fixed-string parts
     // (since console logging inserts its own argument-separating spaces).
-    const prevLiteralPart = stringReplace(arrayPop(logArgs) || '', / $/, '');
+    const prevLiteralPart = regexpReplace(
+      trailingSpacePattern,
+      arrayPop(logArgs) || '',
+      '',
+    );
     if (prevLiteralPart !== '') {
       arrayPush(logArgs, prevLiteralPart);
     }
-    const nextLiteralPart = stringReplace(template[i + 1], /^ /, '');
+    const nextLiteralPart = regexpReplace(
+      leadingSpacePattern,
+      template[i + 1],
+      '',
+    );
     arrayPush(logArgs, arg, nextLiteralPart);
   }
   if (logArgs[logArgs.length - 1] === '') {

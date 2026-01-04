@@ -3,7 +3,8 @@
 import {
   FERAL_REG_EXP,
   SyntaxError,
-  stringReplace,
+  regexpReplace,
+  sealRegexp,
   stringSearch,
   stringSlice,
   stringSplit,
@@ -35,7 +36,9 @@ function getLineNumber(src, pattern) {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const htmlCommentPattern = new FERAL_REG_EXP(`(?:${'<'}!--|--${'>'})`, 'g');
+const htmlCommentPattern = sealRegexp(
+  new FERAL_REG_EXP(`(?:${'<'}!--|--${'>'})`, 'g'),
+);
 
 /**
  * Conservatively reject the source text if it may contain text that some
@@ -100,14 +103,13 @@ export const rejectHtmlComments = src => {
  */
 export const evadeHtmlCommentTest = src => {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
-  return stringReplace(src, htmlCommentPattern, replaceFn);
+  return regexpReplace(htmlCommentPattern, src, replaceFn);
 };
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const importPattern = new FERAL_REG_EXP(
-  '(^|[^.]|\\.\\.\\.)\\bimport(\\s*(?:\\(|/[/*]))',
-  'g',
+const importPattern = sealRegexp(
+  new FERAL_REG_EXP('(^|[^.]|\\.\\.\\.)\\bimport(\\s*(?:\\(|/[/*]))', 'g'),
 );
 
 /**
@@ -170,7 +172,7 @@ export const rejectImportExpressions = src => {
  */
 export const evadeImportExpressionTest = src => {
   const replaceFn = (_, p1, p2) => `${p1}__import__${p2}`;
-  return stringReplace(src, importPattern, replaceFn);
+  return regexpReplace(importPattern, src, replaceFn);
 };
 
 // /////////////////////////////////////////////////////////////////////////////
