@@ -5,14 +5,17 @@ import {
   getOwnPropertyNames,
   hasOwn,
   regexpExec,
+  Set,
+  setHas,
 } from './commons.js';
 
 /**
- * keywords
- * In JavaScript you cannot use these reserved words as variables.
- * See 11.6.1 Identifier Names
+ * reservedNames
+ * In JavaScript you cannot use reserved words as variable names (except for
+ * "eval", which is specially reserved to prevent shadowing).
+ * https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-identifier-names
  */
-const keywords = [
+const reservedNames = new Set([
   // 11.6.2.1 Keywords
   'await',
   'break',
@@ -73,7 +76,10 @@ const keywords = [
 
   'this',
   'arguments',
-];
+
+  // Reserved by us
+  'eval',
+]);
 
 /**
  * identifierPattern
@@ -89,24 +95,12 @@ const identifierPattern = /^[a-zA-Z_$][\w$]*$/;
 
 /**
  * isValidIdentifierName()
- * What variable names might it bring into scope? These include all
- * property names which can be variable names, including the names
- * of inherited properties. It excludes symbols and names which are
- * keywords. We drop symbols safely. Currently, this shim refuses
- * service if any of the names are keywords or keyword-like. This is
- * safe and only prevent performance optimization.
+ * Is a value allowed as an arbitrary identifier name?
  *
  * @param {string} name
  */
-export const isValidIdentifierName = name => {
-  // Ensure we have a valid identifier. We use regexpExec to guard against
-  // RegExp.prototype poisioning.
-  return (
-    name !== 'eval' &&
-    !arrayIncludes(keywords, name) &&
-    !!regexpExec(identifierPattern, name)
-  );
-};
+export const isValidIdentifierName = name =>
+  !setHas(reservedNames, name) && !!regexpExec(identifierPattern, name);
 
 /*
  * isImmutableDataProperty
@@ -137,12 +131,12 @@ function isImmutableDataProperty(obj, name) {
 
 /**
  * getScopeConstants()
- * What variable names might it bring into scope? These include all
+ * What variable names might be brought into scope? These include all
  * property names which can be variable names, including the names
  * of inherited properties. It excludes symbols and names which are
  * keywords. We drop symbols safely. Currently, this shim refuses
  * service if any of the names are keywords or keyword-like. This is
- * safe and only prevent performance optimization.
+ * safe and only affects performance optimization.
  *
  * @param {object} globalObject
  * @param {object} moduleLexicals
