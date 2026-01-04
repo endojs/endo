@@ -232,6 +232,10 @@ export const setForEach = uncurryThis(setPrototype.forEach);
 export const setHas = uncurryThis(setPrototype.has);
 export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
 //
+/**
+ * @deprecated `regexpTest` is vulnerable to RegExp.prototype poisioning; use
+ * `regexpExec` instead.
+ */
 export const regexpTest = uncurryThis(regexpPrototype.test);
 export const regexpExec = uncurryThis(regexpPrototype.exec);
 export const matchAllRegExp = uncurryThis(regexpPrototype[matchAllSymbol]);

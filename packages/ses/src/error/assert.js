@@ -25,7 +25,7 @@ import {
   globalThis,
   is,
   isError,
-  regexpTest,
+  regexpExec,
   stringIndexOf,
   stringReplace,
   stringSlice,
@@ -79,7 +79,7 @@ const canBeBare = freeze(/^[\w:-]( ?[\w:-])*$/);
  * @type {AssertionUtilities['bare']}
  */
 const bare = (text, spaces = undefined) => {
-  if (typeof text !== 'string' || !regexpTest(canBeBare, text)) {
+  if (typeof text !== 'string' || !regexpExec(canBeBare, text)) {
     return quote(text, spaces);
   }
   const result = freeze({

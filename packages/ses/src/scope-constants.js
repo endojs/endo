@@ -4,7 +4,7 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
   hasOwn,
-  regexpTest,
+  regexpExec,
 } from './commons.js';
 
 /**
@@ -99,12 +99,12 @@ const identifierPattern = /^[a-zA-Z_$][\w$]*$/;
  * @param {string} name
  */
 export const isValidIdentifierName = name => {
-  // Ensure we have a valid identifier. We use regexpTest rather than
-  // /../.test() to guard against the case where RegExp has been poisoned.
+  // Ensure we have a valid identifier. We use regexpExec to guard against
+  // RegExp.prototype poisioning.
   return (
     name !== 'eval' &&
     !arrayIncludes(keywords, name) &&
-    regexpTest(identifierPattern, name)
+    !!regexpExec(identifierPattern, name)
   );
 };
 

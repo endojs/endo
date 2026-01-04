@@ -11,7 +11,6 @@ import {
   fromEntries,
   reflectSet,
   regexpExec,
-  regexpTest,
   weakmapGet,
   weakmapSet,
   weaksetAdd,
@@ -107,7 +106,7 @@ export const filterFileName = fileName => {
     return false;
   }
   for (const filter of FILENAME_CENSORS) {
-    if (regexpTest(filter, fileName)) {
+    if (regexpExec(filter, fileName)) {
       return false;
     }
   }
