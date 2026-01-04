@@ -75,7 +75,11 @@ export const enlivenSturdyRef = async (
 
   // Otherwise, fetch from remote location via session
   const { ocapn } = await provideSession(location);
-  return E(ocapn.getRemoteBootstrap()).fetch(swissNum);
+  const bootstrap =
+    /** @type {{ fetch: (swissNum: SwissNum) => Promise<unknown> }} */ (
+      ocapn.getRemoteBootstrap()
+    );
+  return E(bootstrap).fetch(swissNum);
 };
 
 /**
