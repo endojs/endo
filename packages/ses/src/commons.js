@@ -84,6 +84,7 @@ export const {
   toStringTag: toStringTagSymbol,
   iterator: iteratorSymbol,
   matchAll: matchAllSymbol,
+  replace: replaceSymbol,
   unscopables: unscopablesSymbol,
   keyFor: symbolKeyFor,
   for: symbolFor,
@@ -238,7 +239,30 @@ export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
  */
 export const regexpTest = uncurryThis(regexpPrototype.test);
 export const regexpExec = uncurryThis(regexpPrototype.exec);
+/**
+ * @type { &
+ *   ((thisArg: RegExp, string: string, replaceValue: string) => string) &
+ *   ((thisArg: RegExp, string: string, replacer: (substring: string, ...args: any[]) => string) => string)
+ * }
+ */
+export const regexpReplace = /** @type {any} */ (
+  uncurryThis(regexpPrototype[replaceSymbol])
+);
 export const matchAllRegExp = uncurryThis(regexpPrototype[matchAllSymbol]);
+const { _regexpConstructor, ...regexpDescriptors } =
+  getOwnPropertyDescriptors(regexpPrototype);
+arrayForEach(ownKeys(regexpDescriptors), key => {
+  const desc = regexpDescriptors[/** @type {any} */ (key)];
+  desc.configurable = false;
+  if (desc.writable) desc.writable = false;
+});
+/**
+ * Protect a RegExp instance against RegExp.prototype poisoning ("exec",
+ * "flags", Symbol.replace, etc.).
+ * @type {<T extends RegExp>(regexp: T) => T}
+ */
+export const sealRegexp = regexp =>
+  seal(defineProperties(regexp, regexpDescriptors));
 //
 export const stringEndsWith = uncurryThis(stringPrototype.endsWith);
 export const stringIncludes = uncurryThis(stringPrototype.includes);
@@ -248,6 +272,8 @@ export const generatorNext = uncurryThis(generatorPrototype.next);
 export const generatorThrow = uncurryThis(generatorPrototype.throw);
 
 /**
+ * @deprecated `stringReplace` is vulnerable to RegExp.prototype poisoning; use
+ * `regexpReplace` instead (and `sealRegexp` on its regular expressions).
  * @type { &
  *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) &
  *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
