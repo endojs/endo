@@ -81,6 +81,28 @@ uses a different Markdown flavor for those contexts.
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
 Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
 
+# Code Style
+
+## JSDoc Type Imports
+
+Prefer `@import` JSDoc tags over inline dynamic imports in type declarations:
+
+```javascript
+// Preferred: @import tag at top of file
+/** @import { SomeType } from '@some/package' */
+
+/** @type {SomeType} */
+let value;
+```
+
+```javascript
+// Avoid: inline import() in type declaration
+/** @type {import('@some/package').SomeType} */
+let value;
+```
+
+The `@import` style keeps type imports consolidated at the top of the file (similar to regular imports) and makes type annotations cleaner and more readable.
+
 ## Using Changesets
 
 Endo uses [Changesets](https://github.com/changesets/changesets) to manage
