@@ -6,6 +6,7 @@
     "README.md",
     "docs/get-started.md",
     "docs/guide.md",
+    "docs/message-passing.md",
     "docs/reference.md",
     "docs/lockdown.md",
     "docs/errors.md",

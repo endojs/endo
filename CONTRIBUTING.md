@@ -18,6 +18,31 @@ then update the resulting README.md, package.json (specifically setting
 `description` and [if appropriate] removing `"private": false`), index.js, and
 index.test.js files.
 
+## Markdown Style Guide
+
+When writing Markdown documentation:
+
+* Wrap lines at 80 to 100 columns for readability in terminal editors.
+* Start each sentence on a new line.
+  This ensures changes in one sentence do not cascade into the next in diffs.
+* Starting sentences on new lines also obviates any question of whether to use
+  one or two spaces after a period.
+
+Example:
+
+```markdown
+The Endo stack provides a layered solution through four packages.
+Each package has a specific role in enabling safe message passing.
+Together, they form the foundation of distributed computing.
+```
+
+This convention applies to all documentation files including README.md files,
+guides in the `docs/` directory, and package-specific documentation.
+
+**Exception:** Release notes in pull request descriptions and GitHub releases
+should use long lines (paragraphs joined without manual wrapping), as GitHub
+uses a different Markdown flavor for those contexts.
+
 ## Rebuilding `ses`
 
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
