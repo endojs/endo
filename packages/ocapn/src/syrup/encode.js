@@ -125,6 +125,13 @@ export class SyrupWriter {
   #bufferWriter;
 
   /**
+   * Record label type preference for this codec.
+   * Syrup uses selectors (symbols) for record labels.
+   * @type {'selector'}
+   */
+  recordLabelType = 'selector';
+
+  /**
    * @param {BufferWriter} bufferWriter
    * @param {object} options
    * @param {string} [options.name]

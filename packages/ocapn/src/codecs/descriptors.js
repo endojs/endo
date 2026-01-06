@@ -288,7 +288,7 @@ export const makeDescCodecs = referenceKit => {
   const ResolveMeDescCodec = makeCodec('ResolveMeDesc', {
     read(syrupReader) {
       syrupReader.enterRecord();
-      syrupReader.readSelectorAsString();
+      syrupReader.readRecordLabel(); // Read and discard label (can be string or selector)
       const position = NonNegativeIntegerCodec.read(syrupReader);
       syrupReader.exitRecord();
       const value = referenceKit.provideRemoteResolverValue(position);

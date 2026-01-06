@@ -6,7 +6,14 @@
  * Type hints returned by peekTypeHint() to indicate the category of
  * the next value without consuming it.
  */
-export type TypeHint = 'float64' | 'number-prefix' | 'list' | 'set' | 'dictionary' | 'record' | 'boolean';
+export type TypeHint =
+  | 'float64'
+  | 'number-prefix'
+  | 'list'
+  | 'set'
+  | 'dictionary'
+  | 'record'
+  | 'boolean';
 
 /**
  * Result types for readTypeAndMaybeValue().
@@ -102,9 +109,15 @@ export interface OcapnWriter {
 /**
  * Factory function type for creating readers.
  */
-export type MakeReader = (bytes: Uint8Array, options?: { name?: string }) => OcapnReader;
+export type MakeReader = (
+  bytes: Uint8Array,
+  options?: { name?: string },
+) => OcapnReader;
 
 /**
  * Factory function type for creating writers.
  */
-export type MakeWriter = (options?: { name?: string; length?: number }) => OcapnWriter;
+export type MakeWriter = (options?: {
+  name?: string;
+  length?: number;
+}) => OcapnWriter;

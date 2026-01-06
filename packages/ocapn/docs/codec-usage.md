@@ -34,9 +34,9 @@ import { makeSyrupWriter, makeSyrupReader } from '@endo/ocapn/syrup/index.js';
 ```js
 import { makeSyrupWriter } from '@endo/ocapn/syrup/encode.js';
 
-const writer = makeSyrupWriter({ name: 'my-message' });
+const writer = makeSyrupWriter({ name: 'example message' });
 writer.enterRecord();
-writer.writeSelectorFromString('op:deliver');
+writer.writeSelectorFromString('deliver');
 writer.writeInteger(42n);
 writer.writeString('hello');
 writer.exitRecord();
@@ -49,9 +49,9 @@ const bytes = writer.getBytes();
 ```js
 import { makeSyrupReader } from '@endo/ocapn/syrup/decode.js';
 
-const reader = makeSyrupReader(bytes, { name: 'my-message' });
+const reader = makeSyrupReader(bytes, { name: 'example message' });
 reader.enterRecord();
-const label = reader.readSelectorAsString(); // 'op:deliver'
+const label = reader.readSelectorAsString(); // 'deliver'
 const num = reader.readInteger(); // 42n
 const str = reader.readString(); // 'hello'
 reader.exitRecord();
@@ -78,9 +78,9 @@ import { makeCborWriter, makeCborReader } from '@endo/ocapn/cbor/index.js';
 ```js
 import { makeCborWriter } from '@endo/ocapn/cbor/encode.js';
 
-const writer = makeCborWriter({ name: 'my-message' });
+const writer = makeCborWriter({ name: 'example message' });
 writer.enterRecord();
-writer.writeSelectorFromString('op:deliver');
+writer.writeString('deliver');  // CBOR uses plain strings for record labels
 writer.writeInteger(42n);
 writer.writeString('hello');
 writer.exitRecord();
@@ -93,9 +93,9 @@ const bytes = writer.getBytes();
 ```js
 import { makeCborReader } from '@endo/ocapn/cbor/decode.js';
 
-const reader = makeCborReader(bytes, { name: 'my-message' });
+const reader = makeCborReader(bytes, { name: 'example message' });
 reader.enterRecord();
-const label = reader.readSelectorAsString(); // 'op:deliver'
+const { value: label } = reader.readRecordLabel(); // { value: 'deliver', type: 'string' }
 const num = reader.readInteger(); // 42n
 const str = reader.readString(); // 'hello'
 reader.exitRecord();
@@ -171,6 +171,79 @@ function createMessageHandler(makeWriter, makeReader) {
   };
 }
 ```
+
+## Options
+
+### The `name` Option
+
+Both readers and writers accept an optional `name` parameter:
+
+```js
+const writer = makeCborWriter({ name: 'outbound message' });
+const reader = makeCborReader(bytes, { name: 'inbound message' });
+```
+
+The `name` is used solely for **logging and error messages**. It helps identify
+which message or context caused an error during debugging. The name does not
+affect encoding or decoding behavior—it is not the record label or operation
+type, just a human-readable identifier for debugging purposes.
+
+**Example error message**:
+```
+Error in 'outbound message': Expected integer, got string at position 42
+```
+
+When `name` is omitted, error messages use a generic identifier.
+
+## Type Detection
+
+When reading data of unknown structure, use `peekTypeHint()` to determine
+the type of the next value without consuming it:
+
+```js
+const reader = makeCborReader(bytes, { name: 'unknown structure' });
+
+const hint = reader.peekTypeHint();
+switch (hint) {
+  case 'number-prefix':
+    // Could be integer or float - check further or read as appropriate
+    const num = reader.readInteger(); // or readFloat64()
+    break;
+  case 'boolean':
+    const bool = reader.readBoolean();
+    break;
+  case 'list':
+    reader.enterList();
+    // ... read elements
+    reader.exitList();
+    break;
+  case 'record':
+    reader.enterRecord();
+    const { value: label } = reader.readRecordLabel();
+    // ... read fields based on label
+    reader.exitRecord();
+    break;
+  case 'dictionary':
+    reader.enterStruct();
+    // ... read key-value pairs
+    reader.exitStruct();
+    break;
+  // ... handle other types
+}
+```
+
+**Available type hints**:
+- `'number-prefix'` - Integer or floating-point number
+- `'float64'` - Explicitly a 64-bit float (CBOR only)
+- `'boolean'` - Boolean value
+- `'list'` - Array/list
+- `'set'` - Set (if supported by codec)
+- `'dictionary'` - Map/struct with key-value pairs
+- `'record'` - Record (Tag 27 in CBOR, `<...>` in Syrup)
+
+Note that type hints are approximate. For example, `'number-prefix'` indicates
+a numeric value but doesn't distinguish between integers and floats until the
+value is actually read.
 
 ## Codec Identification
 

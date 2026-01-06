@@ -382,9 +382,15 @@ export const makeRecordCodec = (
   const read = syrupReader => {
     syrupReader.enterRecord();
     const labelInfo = syrupReader.readRecordLabel();
-    if (labelInfo.type !== labelType) {
+    // Use the reader's preferred record label type when labelType is 'selector'.
+    // This allows CBOR to read plain strings for record labels while Syrup reads symbols.
+    const effectiveLabelType =
+      labelType === 'selector' && syrupReader.recordLabelType
+        ? syrupReader.recordLabelType
+        : labelType;
+    if (labelInfo.type !== effectiveLabelType) {
       throw Error(
-        `${codecName}: Expected label type ${quote(labelType)} for ${quote(label)}, got ${quote(labelInfo.type)}`,
+        `${codecName}: Expected label type ${quote(effectiveLabelType)} for ${quote(label)}, got ${quote(labelInfo.type)}`,
       );
     }
     const labelString =
@@ -406,11 +412,17 @@ export const makeRecordCodec = (
    */
   const write = (value, syrupWriter) => {
     syrupWriter.enterRecord(elementCount);
-    if (labelType === 'selector') {
+    // Use the writer's preferred record label type when labelType is 'selector'.
+    // This allows CBOR to use plain strings for record labels while Syrup uses symbols.
+    const effectiveLabelType =
+      labelType === 'selector' && syrupWriter.recordLabelType
+        ? syrupWriter.recordLabelType
+        : labelType;
+    if (effectiveLabelType === 'selector') {
       syrupWriter.writeSelectorFromString(label);
-    } else if (labelType === 'string') {
+    } else if (effectiveLabelType === 'string') {
       syrupWriter.writeString(label);
-    } else if (labelType === 'bytestring') {
+    } else if (effectiveLabelType === 'bytestring') {
       syrupWriter.writeBytestring(encodeStringToImmutableArrayBuffer(label));
     }
     writeBody(value, syrupWriter);

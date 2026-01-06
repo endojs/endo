@@ -338,6 +338,13 @@ export class CborReader {
   /** @type {string} */
   name;
 
+  /**
+   * Record label type preference for this codec.
+   * CBOR uses plain strings for record labels (not symbols).
+   * @type {'string'}
+   */
+  recordLabelType = 'string';
+
   /** @type {CborReaderStackEntry[]} */
   #stack = [];
 

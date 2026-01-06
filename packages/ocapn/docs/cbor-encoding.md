@@ -31,12 +31,12 @@ for OCapN messages, as an alternative to Syrup encoding.
 | Symbol | Tag 280 + text string | `280("method")` |
 | List | Array (major 4) | `[1, 2, 3]` |
 | Struct | Map (major 5) | `{"a": 1, "b": 2}` |
-| Record | Tag 27 + array | `27(["op:deliver", ...])` |
-| Tagged | Tag 55799 + array | `55799(["decimal", "3.14"])` |
-| Error | Record with label "desc:error" | `27(["desc:error", "message"])` |
-| Target (in-band) | Record marker | `27([280("target")])` |
-| Promise (in-band) | Record marker | `27([280("promise")])` |
-| Error (in-band) | Record with message | `27([280("error"), "TypeError"])` |
+| Record | Tag 27 + array | `27(["deliver", ...])` |
+| Tagged | Record encapsulating tag string and value | `27(["tag", "decimal", "3.14"])` |
+| Error | Record with string label | `27(["error", "message"])` |
+| Target (in-band) | Record marker | `27(["target"])` |
+| Promise (in-band) | Record marker | `27(["promise"])` |
+| Error (in-band) | Record with message | `27(["error", "TypeError"])` |
 | Embedded CBOR | Tag 24 + byte string | `24(h'...')` |
 
 ## CBOR Major Types Used
@@ -49,8 +49,11 @@ for OCapN messages, as an alternative to Syrup encoding.
 | 3 | Text string | String values |
 | 4 | Array | List values |
 | 5 | Map | Struct values |
-| 6 | Tag | Symbols (280), Records (27), Bignums (2/3), Tagged (55799) |
+| 6 | Tag | Symbols (280), Records (27), Bignums (2/3), Embedded CBOR (24) |
 | 7 | Float/Simple | Float64, Boolean, Null, Undefined |
+
+**Note**: This encoding prohibits indefinite-length values. All arrays, maps,
+strings, and byte strings MUST use definite-length encoding.
 
 ## Detailed Encoding
 
@@ -105,20 +108,20 @@ as CBOR bignums (Tags 2 and 3), never as CBOR native integers.
 > ensures consistent encoding regardless of magnitude. CBOR's compact integer
 > encoding could be added as an optimization in a future version.
 
-**Positive integers** (n >= 0): Tag 2 + byte string of big-endian magnitude
+**Positive integers** (n >= 0): Tag 2 then byte string of big-endian magnitude n
 
 ```
 0xC2 <bytestring of n>
 ```
 
-**Negative integers** (n < 0): Tag 3 + byte string of big-endian (-1 - n)
+**Negative integers** (n < 0): Tag 3 then byte string of big-endian (-1 - n)
 
 ```
 0xC3 <bytestring of (-1 - n)>
 ```
 
-The byte string uses minimal encoding: no leading zero bytes unless the value
-is zero (encoded as empty byte string or single `0x00` byte).
+The byte string uses minimal encoding: no leading zero bytes, even for numeric
+value zero (which is represented using an empty byte string).
 
 **Examples**:
 
@@ -163,7 +166,8 @@ Any other NaN bit pattern MUST be rejected.
 
 ### String
 
-UTF-8 encoded text string, excluding surrogate code points (U+D800–U+DFFF).
+UTF-8 encoded text string of definite byte length. Note that UTF-8 encoding
+precludes surrogate code points (U+D800–U+DFFF).
 
 ```
 0x60-0x7B <length info> <UTF-8 bytes>
@@ -172,8 +176,8 @@ UTF-8 encoded text string, excluding surrogate code points (U+D800–U+DFFF).
 - Major type 3 (text string)
 - Length encoded per CBOR rules:
   - 0-23: Single byte `0x60 | length`
-  - 24-255: `0x78` + 1 byte length
-  - 256-65535: `0x79` + 2 byte big-endian length
+  - 24-255: `0x78` then 1 byte length
+  - 256-65535: `0x79` then 2 byte big-endian length
 
 **Examples**:
 
@@ -185,7 +189,7 @@ UTF-8 encoded text string, excluding surrogate code points (U+D800–U+DFFF).
 
 ### ByteArray
 
-Raw byte sequence.
+Raw byte sequence of definite length.
 
 ```
 0x40-0x5B <length info> <bytes>
@@ -270,8 +274,8 @@ same prefix.
 
 ### Record
 
-Tag 27 wrapping an array. The first element is the record label (a string or
-symbol), followed by the record fields.
+Tag 27 wrapping an array. The first element is the record label (a string),
+followed by the record fields.
 
 ```
 0xD8 0x1B <array>
@@ -280,70 +284,73 @@ symbol), followed by the record fields.
 - Bytes 0-1: Tag 27 (`0xD8` = tag with 1-byte number, `0x1B` = 27)
 - Remaining: Array with label as first element
 
-> **Tag number 27**: This is the "Self-Described CBOR Sequence" tag, commonly
-> used for record-like structures in CBOR-based protocols.
+> **Tag number 27**: This is the "Serialised language-independent object with
+> type name and constructor arguments" tag, used for record-like structures in
+> CBOR-based protocols.
 
-**OCapN records use symbol labels** (Tag 280 strings) for type identification:
+**OCapN CBOR records use plain string labels** for type identification:
 
 | Record Type | Label | Example |
 |-------------|-------|---------|
-| op:deliver | `280("op:deliver")` | `27([280("op:deliver"), ...])` |
-| desc:import-object | `280("desc:import-object")` | `27([280("desc:import-object"), position])` |
-| desc:error | `280("desc:error")` | `27([280("desc:error"), "message"])` |
+| deliver | `"deliver"` | `27(["deliver", ...])` |
+| import-object | `"import-object"` | `27(["import-object", position])` |
+| error | `"error"` | `27(["error", "message"])` |
 
-**Example - desc:import-object with position 5**:
+> **Note**: Syrup uses symbol (selector) labels for records, while CBOR uses
+> plain strings. This distinction is handled automatically by the codec layer.
+
+**Example - import-object with position 5**:
 
 ```
-D8 1B                       # Tag 27
-   82                       # Array of 2 elements
-      D9 01 18              # Tag 280
-         72                 # Text string, 18 bytes
-            64 65 73 63 3A 69 6D 70 6F 72 74 2D 6F 62 6A 65 63 74
-                            # "desc:import-object"
-      C2 41 05              # Tag 2, byte string h'05' = integer 5
+D8 1B                     # Tag 27
+  82                      # Array of 2 elements
+    6D                    # Text string, 13 bytes
+      69 6D 70 6F 72 74 2D 6F 62 6A 65 63 74
+                          # "import-object"
+    C2 41 05              # Tag 2, byte string h'05' = integer 5
 ```
 
-**Diagnostic**: `27([280("desc:import-object"), 2(h'05')])`
+**Diagnostic**: `27(["import-object", 2(h'05')])`
 
 ### Tagged (OCapN Tagged Values)
 
-Tag 55799 wrapping an array of [tag-name, payload].
-
-> **Tag number 55799**: This is the CBOR ["Self-Described CBOR"][SelfDescribe]
-> magic number defined in RFC 8949 §3.4.6. Using it here provides a clear marker
-> for OCapN tagged values while remaining valid CBOR.
+A Record with label "tag" containing the tag name and payload value.
 
 ```
-0xD9 0xD9 0xF7 <array of [tag-name, payload]>
+0xD8 0x1B <array of ["tag", tag-name, payload]>
 ```
+
+This represents OCapN tagged values consistently with the OCapN specification,
+using a Record to encapsulate the tag semantics rather than a CBOR tag number.
 
 **Example - Tagged decimal "3.14"**:
 
 ```
-D9 D9 F7                    # Tag 55799
-   82                       # Array of 2 elements
-      67                    # Text string, 7 bytes
-         64 65 63 69 6D 61 6C  # "decimal"
-      64                    # Text string, 4 bytes
-         33 2E 31 34        # "3.14"
+D8 1B                     # Tag 27
+  83                      # Array of 3 elements
+    63                    # Text string, 3 bytes
+      74 61 67            # "tag"
+    67                    # Text string, 7 bytes
+      64 65 63 69 6D 61 6C  # "decimal"
+    64                    # Text string, 4 bytes
+      33 2E 31 34         # "3.14"
 ```
 
-**Diagnostic**: `55799(["decimal", "3.14"])`
+**Diagnostic**: `27(["tag", "decimal", "3.14"])`
 
 ### Error
 
-An error is a Record with label "desc:error" containing a message string.
+An error is a Record with string label "error" containing a message string.
 
 ```
-D8 1B                       # Tag 27 (Record)
-   82                       # Array of 2 elements
-      D9 01 18              # Tag 280 (Symbol)
-         6A                 # Text string, 10 bytes
-            64 65 73 63 3A 65 72 72 6F 72  # "desc:error"
-      <message string>
+D8 1B                     # Tag 27 (Record)
+  82                      # Array of 2 elements
+    65                    # Text string, 5 bytes
+      65 72 72 6F 72      # "error"
+    <message string>
 ```
 
-**Diagnostic**: `27([280("desc:error"), "Error message here"])`
+**Diagnostic**: `27(["error", "Error message here"])`
 
 ## Passable Data and Slots
 
@@ -395,26 +402,26 @@ are placeholders that reference entries in parallel arrays outside the body.
 A reference to a remote object (target) in the CapTP tables.
 
 ```
-27([280("target")])
+27(["target"])
 ```
 
 The index into the `targets` parallel array is implicit: targets are numbered
 in depth-first, left-to-right order of appearance in the body.
 
-**Diagnostic**: `27([280("target")])`
+**Diagnostic**: `27(["target"])`
 
 #### Promise Marker
 
 A reference to a promise in the CapTP tables.
 
 ```
-27([280("promise")])
+27(["promise"])
 ```
 
 The index into the `promises` parallel array is implicit: promises are numbered
 in depth-first, left-to-right order of appearance in the body.
 
-**Diagnostic**: `27([280("promise")])`
+**Diagnostic**: `27(["promise"])`
 
 #### Error Marker
 
@@ -422,14 +429,37 @@ An error value with a message string. Errors may optionally have an identifier
 for correlation purposes.
 
 ```
-27([280("error"), message])
+27(["error", message])
 ```
 
 Where `message` is a text string describing the error. The parallel `errors`
 array may contain additional metadata (error identifier as ByteArray, or empty
 byte string for anonymous errors).
 
-**Diagnostic**: `27([280("error"), "TypeError: undefined is not a function"])`
+**Diagnostic**: `27(["error", "TypeError: undefined is not a function"])`
+
+### Message Envelope Structure
+
+Operations that carry passable data (`deliver`, `deliver-only`) use an
+envelope structure containing the body and parallel reference arrays:
+
+```
+27(["deliver-only",
+  to-desc,                   # Target descriptor
+  body,                      # Tag 24 byte string (embedded CBOR)
+  targets,                   # List of integers
+  promises,                  # List of integers
+  errors                     # List of ByteArrays
+])
+```
+
+The **body** is a Tag 24 encoded CBOR byte string containing passable values
+with in-band markers. The **parallel arrays** (`targets`, `promises`, `errors`)
+provide the CapTP table positions corresponding to each marker type, in order
+of appearance within the body.
+
+This separation allows intermediaries to forward the body bytes unchanged while
+remapping only the positions in the parallel arrays.
 
 ### Parallel Arrays Structure
 
@@ -457,32 +487,33 @@ Consider a passable array containing two targets, a promise, and an error:
 
 **Encoded body** (inside Tag 24 byte string):
 ```cbor
-[                                    ; Array of 4 elements
-  27([280("target")]),               ; First target  → targets[0]
-  27([280("target")]),               ; Second target → targets[1]
-  27([280("promise")]),              ; First promise → promises[0]
-  27([280("error"), "TypeError"])    ; First error   → errors[0]
+[                            # Array of 4 elements
+  27(["target"]),            # First target  → targets[0]
+  27(["target"]),            # Second target → targets[1]
+  27(["promise"]),           # First promise → promises[0]
+  27(["error", "TypeError"]) # First error   → errors[0]
 ]
 ```
 
 **Parallel arrays**:
 ```
-targets:  [-10, 2]      ; CapTP positions for targets
-promises: [3]           ; CapTP positions for promises
-errors:   [h'']         ; Error identifiers (unidentified in this case)
+targets:  [-10, 2]       # CapTP positions for targets
+promises: [3]            # CapTP positions for promises
+errors:   [h'']          # Error identifiers (unidentified in this case)
 ```
 
 **Diagnostic notation**:
 
 Standard CBOR diagnostic notation shows Tag 24 as a hex byte string:
 ```
-24(h'84d81b82d9011866746172676574d81b82d9011866746172676574...')
+24(h'84d81b81667461726765d81b816674617267...')
 ```
 
 Some tools may expand Tag 24 contents for readability. For documentation
 purposes, we can annotate embedded CBOR with `24(<...>)` to show structure:
+
 ```
-24(<[27([280("target")]), 27([280("target")]), 27([280("promise")]), 27([280("error"), "TypeError"])]>)
+24(<[27(["target"]), 27(["target"]), 27(["promise"]), 27(["error", "TypeError"])]>)
 ```
 
 The angle brackets `<...>` are not standard diagnostic notation but serve to
@@ -527,9 +558,9 @@ cases—it is up to the target's implementation.
 
 ```cbor
 [
-  280("transfer"),                    ; Method selector
-  27([280("target")]),                ; recipient → targets[0]
-  2(h'64')                            ; amount: 100
+  280("transfer"),           # Method selector
+  27(["target"]),            # recipient → targets[0]
+  2(h'64')                   # amount: 100
 ]
 ```
 
@@ -537,8 +568,8 @@ cases—it is up to the target's implementation.
 
 ```cbor
 [
-  27([280("target")]),                ; x → targets[0]
-  2(h'64')                            ; y: 100
+  27(["target"]),            # x → targets[0]
+  2(h'64')                   # y: 100
 ]
 ```
 
@@ -551,45 +582,45 @@ appear in the body. This ensures consistent indexing regardless of nesting.
 
 ```cbor
 [280("call"),
-  {"recipient": 27([280("target")]),       ; → targets[0]
-   "amounts": [27([280("target")]),        ; → targets[1]
-               27([280("target")])]},      ; → targets[2]
-  27([280("promise")])]                    ; → promises[0]
+  {"recipient": 27(["target"]),   # → targets[0]
+   "amounts": [27(["target"]),    # → targets[1]
+               27(["target"])]},  # → targets[2]
+  27(["promise"])]                # → promises[0]
 ```
 
 The `targets` array would have 3 entries and `promises` would have 1 entry.
 
 ## CapTP Operations
 
-All CapTP operations are encoded as Records (Tag 27) with symbol labels.
+All CapTP operations are encoded as Records (Tag 27) with string labels.
 
-### op:start-session
+### start-session
 
 ```
-27([280("op:start-session"),
-    captp-version,           # String: "1.0"
-    session-pubkey,          # Public key record
-    acceptable-location,     # OCapN peer record  
-    acceptable-location-sig  # Signature record
+27(["start-session",
+  captp-version,             # String: "1.0"
+  session-pubkey,            # Public key record
+  acceptable-location,       # OCapN peer record
+  acceptable-location-sig    # Signature record
 ])
 ```
 
-### op:deliver-only
+### deliver-only
 
 Delivers a message without expecting a return value.
 
 ```
-27([280("op:deliver-only"),
-    to-desc,                 # desc:export record (target descriptor)
-    body,                    # Tag 24 byte string (embedded CBOR passables)
-    targets,                 # List of integers (CapTP positions)
-    promises,                # List of integers (CapTP positions)
-    errors                   # List of ByteArrays (error identifiers)
+27(["deliver-only",
+  to-desc,                   # export record (target descriptor)
+  body,                      # Tag 24 byte string (embedded CBOR passables)
+  targets,                   # List of integers (CapTP positions)
+  promises,                  # List of integers (CapTP positions)
+  errors                     # List of ByteArrays (error identifiers)
 ])
 ```
 
 **Fields**:
-- `to-desc`: The target object to deliver to (a `desc:export` record)
+- `to-desc`: The target object to deliver to (an `export` record)
 - `body`: Embedded CBOR (Tag 24) containing the method selector and arguments
   with in-band `target`, `promise`, and `error` markers
 - `targets`: Parallel array mapping each `target` marker's index to its CapTP
@@ -602,33 +633,34 @@ Delivers a message without expecting a return value.
 **Example** - calling `foo.bar(target1, promise1)`:
 
 ```cbor
-27([280("op:deliver-only"),
-    27([280("desc:export"), 2(h'00')]),     ; to-desc: export position 0
-    24(h'...'),                              ; body: [280("bar"), target, promise]
-    [2(h'05')],                              ; targets: [5] (position 5)
-    [2(h'03')],                              ; promises: [3] (position 3)
-    []                                       ; errors: none
+27(["deliver-only",
+  27(["export",
+    2(h'00')]),               # to-desc: export position 0
+  24(h'...'),                 # body: [280("bar"), target, promise]
+  [2(h'05')],                 # targets: [5] (position 5)
+  [2(h'03')],                 # promises: [3] (position 3)
+  []                          # errors: none
 ])
 ```
 
-### op:deliver
+### deliver
 
 Delivers a message and expects a return value (promise pipelining).
 
 ```
-27([280("op:deliver"),
-    to-desc,                 # desc:export or desc:answer
-    body,                    # Tag 24 byte string (embedded CBOR passables)
-    targets,                 # List of integers (CapTP positions)
-    promises,                # List of integers (CapTP positions)
-    errors,                  # List of ByteArrays (error identifiers)
-    answer-pos,              # Non-negative integer or false
-    resolve-me-desc          # desc:import-object or desc:import-promise
+27(["deliver",
+  to-desc,                   # export or answer
+  body,                      # Tag 24 byte string (embedded CBOR passables)
+  targets,                   # List of integers (CapTP positions)
+  promises,                  # List of integers (CapTP positions)
+  errors,                    # List of ByteArrays (error identifiers)
+  answer-pos,                # Non-negative integer or false
+  resolve-me-desc            # import-object or import-promise
 ])
 ```
 
 **Fields**:
-- `to-desc`: The target to deliver to (`desc:export` or `desc:answer`)
+- `to-desc`: The target to deliver to (`export` or `answer`)
 - `body`: Embedded CBOR (Tag 24) containing method selector and arguments
 - `targets`: Parallel array for target markers → CapTP positions
 - `promises`: Parallel array for promise markers → CapTP positions
@@ -639,90 +671,92 @@ Delivers a message and expects a return value (promise pipelining).
 **Example** - calling `foo.baz(target1)` expecting answer at position 7:
 
 ```cbor
-27([280("op:deliver"),
-    27([280("desc:export"), 2(h'00')]),      ; to-desc: export 0
-    24(h'...'),                               ; body: [280("baz"), target]
-    [2(h'02')],                               ; targets: [2]
-    [],                                       ; promises: none
-    [],                                       ; errors: none
-    2(h'07'),                                 ; answer-pos: 7
-    27([280("desc:import-promise"), 2(h'07')]) ; resolve-me-desc
+27(["deliver",
+  27(["export",
+    2(h'00')]),               # to-desc: export 0
+  24(h'...'),                 # body: [280("baz"), target]
+  [2(h'02')],                 # targets: [2]
+  [],                         # promises: none
+  [],                         # errors: none
+  2(h'07'),                   # answer-pos: 7
+  27(["import-promise",
+    2(h'07')])                # resolve-me-desc
 ])
 ```
 
-### op:listen
+### listen
 
 Registers interest in a promise's resolution.
 
 ```
-27([280("op:listen"),
-    to-desc,                 # desc:export or desc:answer (promise to listen to)
-    listen-desc,             # desc:import-object (where to send resolution)
-    wants-partial            # Boolean (receive partial results?)
+27(["listen",
+  to-desc,                   # export or answer (promise to listen to)
+  listen-desc,               # import-object (where to send resolution)
+  wants-partial              # Boolean (receive partial results?)
 ])
 ```
 
-**Note**: `op:listen` does not carry passable data, so it has no parallel arrays.
+**Note**: `listen` does not carry passable data, so it has no parallel arrays.
 
-### op:gc-export
+### gc-export
 
 ```
-27([280("op:gc-export"),
-    export-position,         # Non-negative integer
-    wire-delta               # Positive integer
+27(["gc-export",
+  export-position,           # Non-negative integer
+  wire-delta                 # Positive integer
 ])
 ```
 
-### op:gc-answer
+### gc-answer
 
 ```
-27([280("op:gc-answer"),
-    answer-position          # Non-negative integer
+27(["gc-answer",
+  answer-position            # Non-negative integer
 ])
 ```
 
-### op:abort
+### abort
 
 ```
-27([280("op:abort"),
-    reason                   # String
+27(["abort",
+  reason                     # String
 ])
 ```
 
 ## CapTP Descriptors
 
-### desc:import-object
+### import-object
 
 ```
-27([280("desc:import-object"), position])
+27(["import-object", position])
 ```
 
 Where `position` is a non-negative integer.
 
-### desc:import-promise
+### import-promise
 
 ```
-27([280("desc:import-promise"), position])
+27(["import-promise", position])
 ```
 
-### desc:export
+### export
 
 ```
-27([280("desc:export"), position])
+27(["export", position])
 ```
 
-### desc:answer
+### answer
 
 ```
-27([280("desc:answer"), answer-pos])
+27(["answer", answer-pos])
 ```
 
-### desc:sig-envelope
+### sig-envelope
 
 ```
-27([280("desc:sig-envelope"),
-    24(<signed-object>),     # Embedded CBOR: the object that was signed
-    signature                # Signature record
+27(["sig-envelope",
+  24(<signed-object>),       # Embedded CBOR: the object that was signed
+  signature                  # Signature record
 ])
 ```
 
@@ -732,26 +766,26 @@ verification without reserialization. This design makes the protocol resilient
 to any defects in canonicalization—the verifier extracts and verifies against
 the original bytes rather than re-encoding the parsed object.
 
-### desc:handoff-give
+### handoff-give
 
 ```
-27([280("desc:handoff-give"),
-    receiver-key,            # Public key record
-    exporter-location,       # OCapN peer record
-    session,                 # ByteArray (Session ID, 32 bytes)
-    gifter-side,             # ByteArray (Public ID, 32 bytes)
-    gift-id                  # Non-negative integer
+27(["handoff-give",
+  receiver-key,              # Public key record
+  exporter-location,         # OCapN peer record
+  session,                   # ByteArray (Session ID, 32 bytes)
+  gifter-side,               # ByteArray (Public ID, 32 bytes)
+  gift-id                    # Non-negative integer
 ])
 ```
 
-### desc:handoff-receive
+### handoff-receive
 
 ```
-27([280("desc:handoff-receive"),
-    receiving-session,       # ByteArray (Session ID, 32 bytes)
-    receiving-side,          # ByteArray (Public ID, 32 bytes)
-    handoff-count,           # Non-negative integer
-    signed-give              # desc:sig-envelope containing desc:handoff-give
+27(["handoff-receive",
+  receiving-session,         # ByteArray (Session ID, 32 bytes)
+  receiving-side,            # ByteArray (Public ID, 32 bytes)
+  handoff-count,             # Non-negative integer
+  signed-give                # sig-envelope containing handoff-give
 ])
 ```
 
@@ -761,37 +795,37 @@ the original bytes rather than re-encoding the parsed object.
 
 ```
 [280("public-key"),
- [280("ecc"),
-  [280("curve"), 280("Ed25519")],
-  [280("flags"), 280("eddsa")],
-  [280("q"), q-value]]]      # q-value: ByteArray, 32 bytes
+  [280("ecc"),
+    [280("curve"), 280("Ed25519")],
+    [280("flags"), 280("eddsa")],
+    [280("q"), q-value]]]    # q-value: ByteArray, 32 bytes
 ```
 
 ### Signature
 
 ```
 [280("sig-val"),
- [280("eddsa"),
-  [280("r"), r-value],       # r-value: ByteArray, 32 bytes
-  [280("s"), s-value]]]      # s-value: ByteArray, 32 bytes
+  [280("eddsa"),
+    [280("r"), r-value],     # r-value: ByteArray, 32 bytes
+    [280("s"), s-value]]]    # s-value: ByteArray, 32 bytes
 ```
 
 ### OCapN Peer (Locator)
 
 ```
-27([280("ocapn-peer"),
-    transport,               # Symbol (e.g., 280("tcp"))
-    designator,              # String
-    hints                    # Struct or false
+27(["peer",
+  transport,                 # Symbol (e.g., 280("tcp"))
+  designator,                # String
+  hints                      # Struct or false
 ])
 ```
 
 ### Sturdyref
 
 ```
-27([280("ocapn-sturdyref"),
-    peer,                    # OCapN peer record
-    swissnum                 # ByteArray
+27(["sturdyref",
+  peer,                      # OCapN peer record
+  swissnum                   # ByteArray
 ])
 ```
 

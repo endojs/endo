@@ -241,6 +241,13 @@ export class CborWriter {
   name;
 
   /**
+   * Record label type preference for this codec.
+   * CBOR uses plain strings for record labels (not symbols).
+   * @type {'string'}
+   */
+  recordLabelType = 'string';
+
+  /**
    * Stack tracking nested structures for validation.
    * Each entry is the type of structure we're inside.
    * @type {Array<'record' | 'list' | 'dictionary' | 'set'>}
