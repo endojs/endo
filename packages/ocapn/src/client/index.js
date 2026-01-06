@@ -250,6 +250,13 @@ const handleSessionHandshakeMessage = (
         selfIdentity.keyPair.publicKey.id,
         peerPublicKey.id,
       );
+      /** @type {Session | undefined} */
+      let session;
+      const onAbort = () => {
+        if (session) {
+          sessionManager.endSession(session);
+        }
+      };
       const ocapn = makeOcapn(
         logger,
         connection,
@@ -261,11 +268,12 @@ const handleSessionHandshakeMessage = (
         grantTracker,
         giftTable,
         sturdyRefTracker,
+        onAbort,
         debugLabel,
         enableImportCollection,
         debugMode,
       );
-      const session = makeSession({
+      session = makeSession({
         id: sessionId,
         selfIdentity,
         peerLocation,
