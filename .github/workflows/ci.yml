@@ -435,16 +435,24 @@ jobs:
       - name: Start OCapN test server
         working-directory: endo
         run: |
-          yarn workspace @endo/ocapn run test:python &
+          yarn workspace @endo/ocapn run test:python > /tmp/ocapn-server.log 2>&1 &
           echo $! > /tmp/ocapn-server.pid
           # Wait for server to be ready
           sleep 5
+          # Show initial server output
+          cat /tmp/ocapn-server.log
 
       - name: Run Python test suite
         working-directory: ocapn-test-suite
         run: |
           source ./venv/bin/activate
           python ./test_runner.py 'ocapn://test.tcp-testing-only?host=127.0.0.1&port=22046'
+
+      - name: Show OCapN server logs on failure
+        if: failure()
+        run: |
+          echo "=== OCapN Server Logs ==="
+          cat /tmp/ocapn-server.log || echo "No log file found"
 
       - name: Stop OCapN test server
         if: always()
