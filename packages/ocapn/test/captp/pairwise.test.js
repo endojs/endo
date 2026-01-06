@@ -227,38 +227,38 @@ test('makePairwiseTable - getRefCount returns correct count after commitSentRefC
 
   table.registerSlot(slot, obj);
 
-  // Simulate sending the local slot (getSlotForValue during serialization)
-  table.getSlotForValue(obj);
+  // Simulate sending the local slot
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
   t.is(table.getRefCount(slot), 1);
 });
 
-test('makePairwiseTable - multiple getSlotForValue calls only count once per commit for local slot', t => {
+test('makePairwiseTable - multiple recordSentSlot calls count each call', t => {
   const table = makeTestTable();
   const slot = makeSlot('o', true, 1n);
   const obj = Far('test', { getValue: () => 42 });
 
   table.registerSlot(slot, obj);
 
-  // Multiple calls in same commit cycle only increment by 1 (uses Set internally)
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
+  // Multiple calls in same commit cycle now count each call
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
-  t.is(table.getRefCount(slot), 1);
+  t.is(table.getRefCount(slot), 3);
 });
 
-test('makePairwiseTable - getValueForSlot increments pending received refcount for remote slot', t => {
+test('makePairwiseTable - recordReceivedSlot increments pending received refcount for remote slot', t => {
   const table = makeTestTable();
   const slot = makeSlot('o', false, 1n); // remote slot
   const obj = Far('test', { getValue: () => 42 });
 
   table.registerSlot(slot, obj);
 
-  // Simulate receiving the remote slot (getValueForSlot during deserialization)
-  table.getValueForSlot(slot);
+  // Simulate receiving the remote slot
+  table.recordReceivedSlot(slot);
   table.commitReceivedRefCounts();
 
   t.is(table.getRefCount(slot), 1);
@@ -272,8 +272,8 @@ test('makePairwiseTable - clearPendingRefCounts aborts pending counts', t => {
   table.registerSlot(slot, obj);
 
   // Add pending refcounts but don't commit
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
 
   // Clear pending instead of committing
   table.clearPendingRefCounts();
@@ -292,11 +292,11 @@ test('makePairwiseTable - commitSentRefCounts only commits sent refs, aborts rec
   table.registerSlot(localSlot, obj1);
   table.registerSlot(remoteSlot, obj2);
 
-  // Simulate sending local slot (getSlotForValue during serialization)
-  table.getSlotForValue(obj1);
+  // Simulate sending local slot
+  table.recordSentSlot(localSlot);
 
-  // Simulate receiving remote slot (getValueForSlot during deserialization)
-  table.getValueForSlot(remoteSlot);
+  // Simulate receiving remote slot
+  table.recordReceivedSlot(remoteSlot);
 
   // Commit only sent refcounts
   table.commitSentRefCounts();
@@ -318,11 +318,11 @@ test('makePairwiseTable - commitReceivedRefCounts only commits received refs, ab
   table.registerSlot(localSlot, obj1);
   table.registerSlot(remoteSlot, obj2);
 
-  // Simulate sending local slot (getSlotForValue during serialization)
-  table.getSlotForValue(obj1);
+  // Simulate sending local slot
+  table.recordSentSlot(localSlot);
 
-  // Simulate receiving remote slot (getValueForSlot during deserialization)
-  table.getValueForSlot(remoteSlot);
+  // Simulate receiving remote slot
+  table.recordReceivedSlot(remoteSlot);
 
   // Commit only received refcounts
   table.commitReceivedRefCounts();
@@ -342,7 +342,7 @@ test('makePairwiseTable - dropSlot fully removes slot when refcount reaches zero
   const obj = Far('test', { getValue: () => 42 });
 
   table.registerSlot(slot, obj);
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
   t.is(table.getRefCount(slot), 1);
@@ -363,15 +363,15 @@ test('makePairwiseTable - dropSlot partially reduces refcount when delta < refco
   table.registerSlot(slot, obj);
 
   // Build up refcount to 5 by committing 5 separate times
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
   t.is(table.getRefCount(slot), 5);
@@ -392,7 +392,7 @@ test('makePairwiseTable - dropSlot with delta > refcount removes slot completely
   const obj = Far('test', { getValue: () => 42 });
 
   table.registerSlot(slot, obj);
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
   t.is(table.getRefCount(slot), 1);
@@ -411,7 +411,7 @@ test('makePairwiseTable - dropSlot removes from export table for local slots', t
   const obj = Far('test', { getValue: () => 42 });
 
   table.registerSlot(slot, obj);
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
   table.dropSlot(slot, 1);
@@ -429,7 +429,7 @@ test('makePairwiseTable - dropSlot removes from import table for remote slots', 
   const obj = Far('test', { getValue: () => 42 });
 
   table.registerSlot(slot, obj);
-  table.getValueForSlot(slot);
+  table.recordReceivedSlot(slot);
   table.commitReceivedRefCounts();
 
   table.dropSlot(slot, 1);
@@ -456,7 +456,7 @@ test('makePairwiseTable - onSlotCollected called when import is garbage collecte
   let obj = /** @type {any} */ (Far('test', { getValue: () => 42 }));
 
   table.registerSlot(slot, obj);
-  table.getValueForSlot(slot);
+  table.recordReceivedSlot(slot);
   table.commitReceivedRefCounts();
 
   t.is(table.getRefCount(slot), 1);
@@ -549,7 +549,7 @@ test('makePairwiseTable - destroy clears all tables', t => {
 
   table.registerSlot(slot1, obj1);
   table.registerSlot(slot2, obj2);
-  table.getSlotForValue(obj1);
+  table.recordSentSlot(slot1);
   table.commitSentRefCounts();
   table.registerSettler(slot3, settler);
 
@@ -664,15 +664,15 @@ test('makePairwiseTable - destroy clears pending refcounts', t => {
   table.registerSlot(slot, obj);
 
   // Add pending refcounts but don't commit
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
 
   // Destroy before committing
   table.destroy(Error('Test session destroyed'));
 
   // Re-register and commit should start fresh
   table.registerSlot(slot, obj);
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
 
   // Should only have 1 refcount from the new operation, not 3
@@ -819,14 +819,15 @@ test('makePairwiseTable - sending remote value does not increment its refcount',
 
   // Register the remote import
   table.registerSlot(remoteSlot, remoteObj);
-  table.getValueForSlot(remoteSlot);
+  table.recordReceivedSlot(remoteSlot);
   table.commitReceivedRefCounts();
 
   t.is(table.getRefCount(remoteSlot), 1);
 
   // Now "send" the remote value (look it up for serialization)
-  // This should NOT increment the refcount because we're just passing it back
+  // recordSentSlot should NOT increment remote slot refcount (predicate filters it out)
   table.getSlotForValue(remoteObj);
+  table.recordSentSlot(remoteSlot); // This should be a no-op for remote slots
   table.commitSentRefCounts();
 
   // Refcount should still be 1, not 2
@@ -844,14 +845,15 @@ test('makePairwiseTable - receiving local value does not increment its refcount'
 
   // Register the local export
   table.registerSlot(localSlot, localObj);
-  table.getSlotForValue(localObj);
+  table.recordSentSlot(localSlot);
   table.commitSentRefCounts();
 
   t.is(table.getRefCount(localSlot), 1);
 
   // Now "receive" the local value back (deserialize a slot that references our own export)
-  // This should NOT increment the refcount because it's our own export coming back
+  // recordReceivedSlot should NOT increment local slot refcount (predicate filters it out)
   table.getValueForSlot(localSlot);
+  table.recordReceivedSlot(localSlot); // This should be a no-op for local slots
   table.commitReceivedRefCounts();
 
   // Refcount should still be 1, not 2
@@ -871,27 +873,28 @@ test('makePairwiseTable - mixed send/receive only affects appropriate slots', t 
 
   // Set up initial state with 1 refcount each
   table.registerSlot(localSlot, localObj);
-  // Remote is registered with refcount 1 automatically
+  // Remote is registered - record received slot
   table.registerSlot(remoteSlot, remoteObj);
-  table.commitReceivedRefCounts(); // Commit the import registration
+  table.recordReceivedSlot(remoteSlot);
+  table.commitReceivedRefCounts();
 
   // Send local once
-  table.getSlotForValue(localObj);
+  table.recordSentSlot(localSlot);
   table.commitSentRefCounts();
 
   t.is(table.getRefCount(localSlot), 1);
   t.is(table.getRefCount(remoteSlot), 1);
 
   // Send local again (should increment)
-  table.getSlotForValue(localObj);
-  // Send remote (should NOT increment - wrong direction)
-  table.getSlotForValue(remoteObj);
+  table.recordSentSlot(localSlot);
+  // Send remote (should NOT increment - wrong direction, predicate filters it)
+  table.recordSentSlot(remoteSlot);
   table.commitSentRefCounts();
 
   // Receive remote again (should increment)
-  table.getValueForSlot(remoteSlot);
-  // Receive local (should NOT increment - wrong direction)
-  table.getValueForSlot(localSlot);
+  table.recordReceivedSlot(remoteSlot);
+  // Receive local (should NOT increment - wrong direction, predicate filters it)
+  table.recordReceivedSlot(localSlot);
   table.commitReceivedRefCounts();
 
   // Local should be 2 (from second send), remote should be 2 (from second receive)
@@ -927,20 +930,20 @@ test('makePairwiseTable - refcount accumulates across multiple commit cycles', t
   table.registerSlot(slot, obj);
 
   // First cycle - increments by 1
-  table.getSlotForValue(obj);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
   t.is(table.getRefCount(slot), 1);
 
-  // Second cycle - multiple calls still only increment by 1 (uses Set)
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
-  table.commitSentRefCounts();
-  t.is(table.getRefCount(slot), 2);
-
-  // Third cycle - increments by 1 again
-  table.getSlotForValue(obj);
+  // Second cycle - multiple calls now increment by 2 (counts each call)
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
   t.is(table.getRefCount(slot), 3);
+
+  // Third cycle - increments by 1 again
+  table.recordSentSlot(slot);
+  table.commitSentRefCounts();
+  t.is(table.getRefCount(slot), 4);
 });
 
 test('makePairwiseTable - mixed commit/abort/clear operations', t => {
@@ -950,20 +953,20 @@ test('makePairwiseTable - mixed commit/abort/clear operations', t => {
 
   table.registerSlot(slot, obj);
 
-  // Build up and commit (increments by 1, not 2, since Set is used)
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
-  table.commitSentRefCounts();
-  t.is(table.getRefCount(slot), 1);
-
-  // Build up and abort
-  table.getSlotForValue(obj);
-  table.getSlotForValue(obj);
-  table.clearPendingRefCounts();
-  t.is(table.getRefCount(slot), 1); // Should still be 1
-
-  // Build up and commit again
-  table.getSlotForValue(obj);
+  // Build up and commit (now counts each call separately)
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
   table.commitSentRefCounts();
   t.is(table.getRefCount(slot), 2);
+
+  // Build up and abort
+  table.recordSentSlot(slot);
+  table.recordSentSlot(slot);
+  table.clearPendingRefCounts();
+  t.is(table.getRefCount(slot), 2); // Should still be 2
+
+  // Build up and commit again
+  table.recordSentSlot(slot);
+  table.commitSentRefCounts();
+  t.is(table.getRefCount(slot), 3);
 });

@@ -1,73 +1,13 @@
 // @ts-check
-/* global globalThis, setImmediate, setTimeout, FinalizationRegistry */
+/* global setTimeout */
 
 import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import v8 from 'node:v8';
-import vm from 'node:vm';
 import { makeTestClientPair, getOcapnDebug } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeSlot } from '../src/captp/pairwise.js';
-
-// Enable GC using Node.js v8 wizardry (same pattern as packages/promise-kit)
-/** @type {() => void} */
-let engineGC;
-if (typeof globalThis.gc !== 'function') {
-  v8.setFlagsFromString('--expose_gc');
-  engineGC = vm.runInNewContext('gc');
-  v8.setFlagsFromString('--no-expose_gc');
-} else {
-  engineGC = globalThis.gc;
-}
-
-/**
- * Trigger GC and wait for finalizers to run.
- * Based on packages/captp/test/gc-and-finalize.js
- */
-const gcAndFinalize = async () => {
-  await new Promise(setImmediate);
-  await new Promise(setImmediate);
-  engineGC();
-  await new Promise(setImmediate);
-  await new Promise(setImmediate);
-  await new Promise(setImmediate);
-};
-
-/** @type {FinalizationRegistry<() => void>} */
-const sentinelRegistry = new FinalizationRegistry(callback => callback());
-
-/**
- * Wait for GC to run by using a sentinel object.
- * Based on packages/promise-kit/test/promise-kit.test.js pattern.
- * @returns {Promise<void>}
- */
-const waitForSentinelGc = async () => {
-  await undefined;
-  /** @type {object | null} */
-  let sentinel = {};
-  const collected = new Promise(resolve => {
-    sentinelRegistry.register(sentinel, () => resolve(undefined));
-  });
-  // Make sentinel unreachable
-  sentinel = null;
-
-  // Trigger GC until sentinel is collected
-  const endTime = Date.now() + 5000;
-  while (Date.now() < endTime) {
-    // eslint-disable-next-line no-await-in-loop
-    await gcAndFinalize();
-    // Check if sentinel was collected by racing with a timeout
-    // eslint-disable-next-line no-await-in-loop
-    const result = await Promise.race([
-      collected.then(() => 'collected'),
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 100)),
-    ]);
-    if (result === 'collected') {
-      return;
-    }
-  }
-};
+import { waitForSentinelGc } from './_gc-util.js';
 
 /**
  * Wait for a message of a specific type to be sent, with GC triggering.
@@ -761,4 +701,461 @@ test('op:gc-answer is sent when answer promise is garbage collected', async t =>
   );
 
   shutdownBoth();
+});
+
+// =============================================================================
+// Tests ported from ocapn-test-suite/tests/op_gc.py
+// These tests mirror the Python test suite structure for interoperability testing
+// =============================================================================
+
+/**
+ * Wait for op:gc-export message(s) for a specific export position, with GC triggering.
+ * @param {Array<{direction: string, message: any}>} sentMessages - Array to check for messages
+ * @param {bigint} exportPosition - The export position to wait for
+ * @param {number} [timeoutMs] - Timeout in milliseconds
+ * @returns {Promise<Array<any>>} - All matching gc-export messages found
+ */
+const waitForGcExportsForPosition = async (
+  sentMessages,
+  exportPosition,
+  timeoutMs = 5000,
+) => {
+  await undefined;
+  const endTime = Date.now() + timeoutMs;
+  while (Date.now() < endTime) {
+    // Wait for sentinel GC to ensure GC has actually run
+    // eslint-disable-next-line no-await-in-loop
+    await waitForSentinelGc();
+
+    // Check for messages
+    const found = sentMessages.filter(
+      m =>
+        m.message.type === 'op:gc-export' &&
+        m.message.exportPosition === exportPosition,
+    );
+    if (found.length > 0) {
+      return found.map(f => f.message);
+    }
+
+    // Wait a bit before trying again
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return [];
+};
+
+/**
+ * Sum up all wireDelta values from gc-export messages.
+ * @param {Array<{wireDelta: bigint}>} gcMessages
+ * @returns {bigint}
+ */
+const sumWireDelta = gcMessages => {
+  return gcMessages.reduce((sum, msg) => sum + msg.wireDelta, 0n);
+};
+
+test('ocapn-test-suite: op:gc-export emitted for single object', async t => {
+  // Mirrors test_gc_export_emitted_single_object from op_gc.py
+  // When A sends a local object to B's discard service (that immediately drops it),
+  // B should send op:gc-export back to A.
+
+  const testObjectTable = new Map();
+  // A "discard" service that accepts objects but doesn't hold references
+  testObjectTable.set(
+    'EchoGc',
+    Far('echoGc', {
+      receive: (..._args) => _args,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // Track messages sent by B (the service side)
+    /** @type {Array<{direction: string, message: any}>} */
+    const sentByB = [];
+    getOcapnDebug(ocapnB).subscribeMessages((direction, message) => {
+      if (direction === 'send') {
+        sentByB.push({ direction, message });
+      }
+    });
+
+    // A creates a local object to send to B
+    const localObjFromA = Far('localObj', { getValue: () => 42 });
+
+    // Get B's EchoGc service
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoGc = await E(bootstrapB).fetch(encodeSwissnum('EchoGc'));
+
+    // Send the local object to B's service
+    await E(echoGc).receive(localObjFromA);
+
+    // Get the export position for the object A sent
+    const exportSlot =
+      getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(localObjFromA);
+    if (!exportSlot) {
+      throw new Error('localObjFromA should have an export slot');
+    }
+    const exportPosition = BigInt(exportSlot.slice(2));
+
+    // Clear messages so we only capture GC messages
+    sentByB.length = 0;
+
+    // Wait for B to send op:gc-export for this position
+    const gcMessages = await waitForGcExportsForPosition(
+      sentByB,
+      exportPosition,
+    );
+
+    t.true(gcMessages.length > 0, 'B should have sent op:gc-export');
+    t.is(
+      sumWireDelta(gcMessages),
+      1n,
+      'wire-delta should be 1 for single reference',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('ocapn-test-suite: op:gc-export with multiple references in same message', async t => {
+  // Mirrors test_gc_export_with_multiple_refrences from op_gc.py
+  // When A sends the same object multiple times in one message's arguments,
+  // B should eventually report the total wire-delta matching the number of references.
+
+  const testObjectTable = new Map();
+  // Service that accepts multiple args and returns them (like Python's echoGc)
+  testObjectTable.set(
+    'EchoGc',
+    Far('echoGc', {
+      receiveMany: async (...args) => args,
+    }),
+  );
+
+  // Disable import collection on B to prevent GC during test setup
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+    clientBOptions: { enableImportCollection: false },
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // A creates a local object
+    const localObjFromA = Far('localObj', { getValue: () => 42 });
+
+    // Get B's EchoGc service
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoGc = await E(bootstrapB).fetch(encodeSwissnum('EchoGc'));
+
+    // Send the same object 4 times in one send-only message
+    const refCount = 4;
+    E.sendOnly(echoGc).receiveMany(
+      localObjFromA,
+      localObjFromA,
+      localObjFromA,
+      localObjFromA,
+    );
+
+    // Wait for the message queue to flush by making a round-trip call
+    await E(echoGc).receiveMany();
+
+    // Get the export position
+    const exportSlot =
+      getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(localObjFromA);
+    if (!exportSlot) {
+      throw new Error('localObjFromA should have an export slot');
+    }
+    const exportPosition = BigInt(exportSlot.slice(2));
+
+    // Verify A's ref count matches the number of times the object appeared in the message
+    t.is(
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(exportSlot),
+      refCount,
+      `ref count should be ${refCount} for ${refCount} references in same message`,
+    );
+
+    // Verify B has imported the object with matching ref count
+    const importSlotOnB = makeSlot('o', false, BigInt(exportSlot.slice(2)));
+    t.is(
+      getOcapnDebug(ocapnB).ocapnTable.getRefCount(importSlotOnB),
+      refCount,
+      `B should track ${refCount} references for the imported object`,
+    );
+
+    // Now manually trigger GC by sending gc-export with full wire-delta
+    const gcExportMessage = {
+      type: 'op:gc-export',
+      exportPosition,
+      wireDelta: BigInt(refCount),
+    };
+    const gcBytes = ocapnB.writeOcapnMessage(gcExportMessage);
+    ocapnA.dispatchMessageData(gcBytes);
+
+    // Verify A's ref count is now 0
+    t.is(
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(exportSlot),
+      0,
+      'A should have 0 references after gc-export with full wire-delta',
+    );
+
+    // Verify the object is removed from A's export table
+    t.is(
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(exportSlot),
+      undefined,
+      'object should be removed from A export table',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('ocapn-test-suite: op:gc-export with multiple references in different messages', async t => {
+  // Mirrors test_gc_export_with_multiple_refrences_in_different_messages from op_gc.py
+  // When A sends the same object in multiple separate messages,
+  // B should eventually report the total wire-delta.
+  //
+  // We disable import collection on B to prevent GC from happening during the
+  // test setup, then verify A's ref count matches the expected value.
+
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'EchoGc',
+    Far('echoGc', {
+      receive: _args => _args,
+    }),
+  );
+
+  // Disable import collection on B to prevent GC during test setup
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+    clientBOptions: { enableImportCollection: false },
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // Track messages sent by B
+    /** @type {Array<{direction: string, message: any}>} */
+    const sentByB = [];
+    getOcapnDebug(ocapnB).subscribeMessages((direction, message) => {
+      if (direction === 'send') {
+        sentByB.push({ direction, message });
+      }
+    });
+
+    // A creates a local object
+    const localObjFromA = Far('localObj', { getValue: () => 42 });
+
+    // Get B's EchoGc service
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoGc = await E(bootstrapB).fetch(encodeSwissnum('EchoGc'));
+
+    // Send the same object 4 times in DIFFERENT messages
+    const refCount = 4;
+    for (let i = 0; i < refCount; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await E(echoGc).receive(localObjFromA);
+    }
+
+    // Get the export position
+    const exportSlot =
+      getOcapnDebug(ocapnA).ocapnTable.getSlotForValue(localObjFromA);
+    if (!exportSlot) {
+      throw new Error('localObjFromA should have an export slot');
+    }
+    const exportPosition = BigInt(exportSlot.slice(2));
+
+    // Verify A's tracked ref count matches the number of separate sends
+    // (With B's import collection disabled, no gc-export should have arrived yet)
+    t.is(
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(exportSlot),
+      refCount,
+      `A should track ${refCount} references for ${refCount} separate messages`,
+    );
+
+    // Verify B has imported the object
+    // B's import slot for an object from A would be o-N (negative because it's an import)
+    const importSlotOnB = makeSlot('o', false, BigInt(exportSlot.slice(2)));
+    const importedValueOnB =
+      getOcapnDebug(ocapnB).ocapnTable.getValueForSlot(importSlotOnB);
+    t.truthy(importedValueOnB, 'B should have imported the object');
+
+    // Now manually trigger GC on B's side by sending gc-export
+    // This simulates what would happen if B's import collection was enabled
+    const gcExportMessage = {
+      type: 'op:gc-export',
+      exportPosition,
+      wireDelta: BigInt(refCount), // Drop all references
+    };
+    const gcBytes = ocapnB.writeOcapnMessage(gcExportMessage);
+    ocapnA.dispatchMessageData(gcBytes);
+
+    // Verify A's ref count is now 0
+    t.is(
+      getOcapnDebug(ocapnA).ocapnTable.getRefCount(exportSlot),
+      0,
+      'A should have 0 references after gc-export with full wire-delta',
+    );
+
+    // Verify the object is removed from A's export table
+    t.is(
+      getOcapnDebug(ocapnA).ocapnTable.getValueForSlot(exportSlot),
+      undefined,
+      'object should be removed from A export table',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('ocapn-test-suite: op:gc-answer after promise fulfillment', async t => {
+  // Mirrors test_gc_answer from op_gc.py
+  // When A makes a call to B that returns a value (creating an answer on B's side),
+  // then A drops the reference to that answer, A should send op:gc-answer to B.
+
+  const testObjectTable = new Map();
+  // A greeter service that returns a greeting
+  testObjectTable.set(
+    'Greeter',
+    Far('greeter', {
+      greet: name => `Hello ${name}!`,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{direction: string, message: any}>} */
+    const sentByA = [];
+    getOcapnDebug(ocapnA).subscribeMessages((direction, message) => {
+      if (direction === 'send') {
+        sentByA.push({ direction, message });
+      }
+    });
+
+    // Get B's Greeter service
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const greeter = await E(bootstrapB).fetch(encodeSwissnum('Greeter'));
+
+    // Make a call that creates an answer on B's side
+    const greeting = await E(greeter).greet('World');
+    t.is(greeting, 'Hello World!', 'greeting should be correct');
+
+    // Clear messages before letting the promise go out of scope
+    sentByA.length = 0;
+
+    // Wait for op:gc-answer to be sent by A
+    const gcMessage = await waitForGcMessage(sentByA, 'op:gc-answer');
+
+    // Verify the message was sent
+    t.truthy(gcMessage, 'should have sent an op:gc-answer message');
+    t.is(gcMessage.type, 'op:gc-answer', 'should be op:gc-answer');
+    t.is(
+      typeof gcMessage.answerPosition,
+      'bigint',
+      'answerPosition should be a bigint',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('ocapn-test-suite: op:gc-answer after callback promise fulfillment', async t => {
+  // Mirrors test_gc_answer from op_gc.py (lines 126-154)
+  // This tests the callback pattern:
+  // 1. A sends a local object to B's greeter
+  // 2. B's greeter calls back to A's object (creating an answer on B's side)
+  // 3. A fulfills the promise
+  // 4. B sends op:gc-answer to A when the answer is garbage collected
+
+  const testObjectTable = new Map();
+  // A greeter service that calls back to the object passed to it
+  // This mirrors the Python test suite's greeter (swiss: VMDDd1voKWarCe2GvgLbxbVFysNzRPzx)
+  testObjectTable.set(
+    'CallbackGreeter',
+    Far('callbackGreeter', {
+      greet: async objectToGreet => {
+        // Call the object and wait for the result
+        // This creates an answer on B's side (the question promise)
+        const greeting = await E(objectToGreet).receiveGreeting('Hello');
+        return greeting;
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // Track messages sent by B (the greeter side)
+    /** @type {Array<{direction: string, message: any}>} */
+    const sentByB = [];
+    getOcapnDebug(ocapnB).subscribeMessages((direction, message) => {
+      if (direction === 'send') {
+        sentByB.push({ direction, message });
+      }
+    });
+
+    // A creates a local object that will receive the greeting callback
+    const objectToGreet = Far('objectToGreet', {
+      receiveGreeting: greeting => {
+        return `Received: ${greeting}`;
+      },
+    });
+
+    // Get B's CallbackGreeter service
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const greeter = await E(bootstrapB).fetch(
+      encodeSwissnum('CallbackGreeter'),
+    );
+
+    // Clear messages to focus on the callback interaction
+    sentByB.length = 0;
+
+    // A calls B's greeter with A's local object
+    // B's greeter will call back to A's object, creating an answer on B's side
+    // When A responds, B's answer is fulfilled and should be GC'd
+    const result = await E(greeter).greet(objectToGreet);
+    t.is(result, 'Received: Hello', 'callback result should be correct');
+
+    // Wait for B to send op:gc-answer for the answer it created when calling A's object
+    const gcMessage = await waitForGcMessage(sentByB, 'op:gc-answer');
+
+    // Verify the message was sent
+    t.truthy(gcMessage, 'B should have sent an op:gc-answer message');
+    t.is(gcMessage.type, 'op:gc-answer', 'should be op:gc-answer');
+    t.is(
+      typeof gcMessage.answerPosition,
+      'bigint',
+      'answerPosition should be a bigint',
+    );
+  } finally {
+    shutdownBoth();
+  }
 });

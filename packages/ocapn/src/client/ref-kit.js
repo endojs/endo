@@ -146,7 +146,9 @@ export const makeReferenceKit = (
   const makeRemoteAnswer = externalAnswerPromise => {
     // Use a mutable reference that can be set after creation
     let target;
-    const { promise: internalPromise, settler } = makeRemoteKit(() => target);
+    const { promise: internalPromise, settler: rawSettler } = makeRemoteKit(
+      () => target,
+    );
     // Default to the internal promise, but can be overridden
 
     // Decide which promise to register: prefer externalAnswerPromise (E()'s promise) when available
@@ -154,6 +156,24 @@ export const makeReferenceKit = (
     // Update the handler's target to use the registered promise
     // This ensures pipelining serializes the correct promise
     target = answerPromise;
+
+    // Wrap the settler to clear `target` when the promise settles.
+    // This breaks the reference cycle: internalPromise -> handler -> () => target -> answerPromise
+    // Without this, the answerPromise is never GC'd because the handler keeps a reference to it.
+    const settler = harden({
+      resolve: value => {
+        target = undefined; // Clear before resolving to allow GC
+        rawSettler.resolve(value);
+      },
+      reject: reason => {
+        target = undefined; // Clear before rejecting to allow GC
+        rawSettler.reject(reason);
+      },
+      resolveWithPresence: () => {
+        target = undefined;
+        return rawSettler.resolveWithPresence();
+      },
+    });
 
     return {
       internalPromise,
@@ -217,6 +237,8 @@ export const makeReferenceKit = (
         value = makeRemoteObject(position, `Remote Object ${position}`);
         ocapnTable.registerSlot(slot, value);
       }
+      // Record that we're receiving this reference in the current message
+      ocapnTable.recordReceivedSlot(slot);
       return value;
     },
     provideRemotePromiseValue: position => {
@@ -228,6 +250,8 @@ export const makeReferenceKit = (
         ocapnTable.registerSettler(slot, settler);
         ocapnTable.registerSlot(slot, promise);
       }
+      // Record that we're receiving this reference in the current message
+      ocapnTable.recordReceivedSlot(slot);
       return value;
     },
     provideLocalExportValue: position => {
@@ -252,6 +276,8 @@ export const makeReferenceKit = (
         value = makeRemoteResolver(position);
         ocapnTable.registerSlot(slot, value);
       }
+      // Record that we're receiving this reference in the current message
+      ocapnTable.recordReceivedSlot(slot);
       return value;
     },
     provideRemoteBootstrapValue: () => {
@@ -270,6 +296,8 @@ export const makeReferenceKit = (
       if (type !== 'o' || !isLocal) {
         throw new Error(`OCapN: Expected local object slot, got slot: ${slot}`);
       }
+      // Record that we're sending this reference in the current message
+      ocapnTable.recordSentSlot(slot);
       return position;
     },
     provideLocalPromisePosition: value => {
@@ -280,6 +308,8 @@ export const makeReferenceKit = (
           `OCapN: Expected local promise slot, got slot: ${slot}`,
         );
       }
+      // Record that we're sending this reference in the current message
+      ocapnTable.recordSentSlot(slot);
       return position;
     },
     provideRemoteExportPosition: value => {
@@ -332,7 +362,7 @@ export const makeReferenceKit = (
       // Register the settler only so that it will be rejected on session disconnect.
       ocapnTable.registerSettler(slot, settler);
 
-      // Wrap the settler to it from the table when settled normally.
+      // Wrap the settler to remove it from the table when settled normally.
       const wrappedSettler = harden({
         resolve: value => {
           // Remove settler from table as it has now been settled.
