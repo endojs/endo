@@ -282,7 +282,7 @@ const handleSessionHandshakeMessage = (
         ocapn,
         connection,
       });
-      logger.info(`session established`);
+      logger.info(`session established for ${locationId}`);
       sessionManager.resolveSession(locationId, connection, session);
 
       break;
