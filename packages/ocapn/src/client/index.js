@@ -192,7 +192,7 @@ const handleSessionHandshakeMessage = (
       const locationId = locationToLocationId(peerLocation);
       if (sessionManager.getActiveSession(locationId)) {
         // throw error
-        throw Error('Active session already exists');
+        throw Error(`Active session already exists for ${locationId}`);
       }
 
       // Check if the location signature is valid
@@ -370,7 +370,7 @@ const handleHandshakeMessageData = (
       }
     }
   } catch (err) {
-    logger.error(`Unexpected error whiler processing handshake message:`, err);
+    logger.error(`Unexpected error while processing handshake message:`, err);
     sendAbortAndClose(connection, 'internal error');
     sessionManager.deleteConnection(connection);
   }
@@ -527,9 +527,9 @@ export const makeClient = ({
 
   /** @type {Logger} */
   const logger = harden({
-    log: (...args) => console.log(`${debugLabel}:`, ...args),
-    error: (...args) => console.error(`${debugLabel}:`, ...args),
-    info: (...args) => verbose && console.info(`${debugLabel}:`, ...args),
+    log: (...args) => console.log(`${debugLabel} [${Date.now()}]:`, ...args),
+    error: (...args) => console.error(`${debugLabel} [${Date.now()}}:`, ...args),
+    info: (...args) => verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
   });
 
   const sessionManager = makeSessionManager();
@@ -633,6 +633,8 @@ export const makeClient = ({
       client.logger.info(`handleConnectionClose called`, { reason });
       const session = sessionManager.getSessionForConnection(connection);
       if (session) {
+        const locationId = locationToLocationId(session.peer.location);
+        logger.info(`handling connection close for ${locationId}`)
         session.ocapn.abort(reason);
         sessionManager.endSession(session);
       } else {
