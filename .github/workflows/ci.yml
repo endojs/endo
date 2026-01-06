@@ -460,3 +460,115 @@ jobs:
           if [ -f /tmp/ocapn-server.pid ]; then
             kill $(cat /tmp/ocapn-server.pid) || true
           fi
+
+  test-ocapn-python-stress:
+    name: test-ocapn-python-stress
+    # Stress test for flaky handoff tests - runs 100 iterations
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Endo
+        uses: actions/checkout@v4
+        with:
+          path: endo
+
+      - name: Checkout OCapN Test Suite
+        uses: actions/checkout@v4
+        with:
+          # https://github.com/kumavis/ocapn-test-suite/tree/fix-3pho-teardown2
+          repository: kumavis/ocapn-test-suite
+          ref: cba11761278337d84019616d79148b16b4660239
+          path: ocapn-test-suite
+
+      - run: corepack enable
+        working-directory: endo
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.x
+          cache: yarn
+          cache-dependency-path: endo/yarn.lock
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Node dependencies
+        working-directory: endo
+        run: yarn install --immutable
+
+      - name: Build Endo
+        working-directory: endo
+        run: yarn build
+
+      - name: Set up Python virtual environment
+        working-directory: ocapn-test-suite
+        run: |
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install stem cryptography
+
+      - name: Start OCapN test server
+        working-directory: endo
+        run: |
+          yarn workspace @endo/ocapn run test:python > /tmp/ocapn-server.log 2>&1 &
+          echo $! > /tmp/ocapn-server.pid
+          # Wait for server to be ready
+          sleep 5
+          # Show initial server output
+          cat /tmp/ocapn-server.log
+
+      - name: Run handoff test 100 times
+        working-directory: ocapn-test-suite
+        run: |
+          source ./venv/bin/activate
+          OCAPN_URI='ocapn://test.tcp-testing-only?host=127.0.0.1&port=22046'
+          # Run the full HandoffRemoteAsExporter class which includes test_handoff_receive_invalid_signature
+          TEST_MODULE='tests.third_party_handoffs.HandoffRemoteAsExporter'
+
+          for i in $(seq 1 100); do
+            echo ""
+            echo "========================================"
+            echo "=== Iteration $i / 100 ==="
+            echo "========================================"
+            
+            # Run the test and capture output
+            if ! python ./test_runner.py "$OCAPN_URI" --test-module "$TEST_MODULE" -v > /tmp/test-output.log 2>&1; then
+              echo ""
+              echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+              echo "!!! TEST FAILED on iteration $i !!!"
+              echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+              echo ""
+              echo "=== PYTHON TEST OUTPUT ==="
+              cat /tmp/test-output.log
+              echo ""
+              echo "=== ENDO CLIENT LOGS (for failed test only) ==="
+              cat /tmp/ocapn-server.log
+              exit 1
+            fi
+            
+            # Clear logs after successful test so we only have logs from the failed iteration
+            echo "" > /tmp/ocapn-server.log
+            echo "Test passed"
+          done
+
+          echo ""
+          echo "========================================"
+          echo "=== All 100 iterations passed! ==="
+          echo "========================================"
+
+      - name: Show OCapN server logs on failure
+        if: failure()
+        run: |
+          echo "=== OCapN Server Logs (from failed iteration) ==="
+          cat /tmp/ocapn-server.log || echo "No log file found"
+
+      - name: Stop OCapN test server
+        if: always()
+        run: |
+          if [ -f /tmp/ocapn-server.pid ]; then
+            kill $(cat /tmp/ocapn-server.pid) || true
+          fi
