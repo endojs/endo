@@ -380,7 +380,7 @@ export const table = [
     }),
     makeExpectedValue: testKit => ({
       type: 'op:get',
-      receiverDesc: testKit.referenceKit.provideLocalAnswerValue(5n),
+      receiverDesc: testKit.makeLocalAnswer(5n),
       fieldName: 'someField',
       answerPosition: 10n,
     }),
@@ -412,7 +412,7 @@ export const table = [
     }),
     makeExpectedValue: testKit => ({
       type: 'op:index',
-      receiverDesc: testKit.referenceKit.provideLocalAnswerValue(5n),
+      receiverDesc: testKit.makeLocalAnswer(5n),
       index: 0n,
       answerPosition: 10n,
     }),
@@ -444,7 +444,7 @@ export const table = [
     }),
     makeExpectedValue: testKit => ({
       type: 'op:untag',
-      receiverDesc: testKit.referenceKit.provideLocalAnswerValue(5n),
+      receiverDesc: testKit.makeLocalAnswer(5n),
       tag: 'anotherTag',
       answerPosition: 10n,
     }),

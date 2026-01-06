@@ -9,17 +9,19 @@ import { makeRefCounter } from './refcount.js';
  * @typedef {import('./finalize.js').FinalizingMap<Slot, object>} ImportTable
  *
  * @typedef {object} PairwiseTable
- * @property {(value: object) => Slot | undefined} getSlotForValue
- * @property {(slot: Slot) => object | undefined} getValueForSlot
- * @property {(slot: Slot, value: object) => void} registerSlot
- * @property {(slot: Slot, refcount: number) => void} dropSlot
- * @property {(slot: Slot) => number} getRefCount
- * @property {() => void} clearPendingRefCounts
- * @property {() => void} commitSentRefCounts
- * @property {() => void} commitReceivedRefCounts
- * @property {(slot: Slot, settler: Settler) => void} registerSettler
- * @property {(slot: Slot) => Settler} takeSettler
- * @property {() => void} destroy
+ * @property {(value: object) => Slot | undefined} getSlotForValue - Lookup the slot for a value. Does NOT increment refcount.
+ * @property {(slot: Slot) => object | undefined} getValueForSlot - Lookup the value for a slot. Does NOT increment refcount.
+ * @property {(slot: Slot, value: object) => void} registerSlot - Register a slot and value. Does NOT increment refcount.
+ * @property {(slot: Slot, refcount: number) => void} dropSlot - Decrements refcount by the given amount, Drops the slot and value if the refcount reaches 0.
+ * @property {(slot: Slot) => number} getRefCount - Get the committed refcount for the slot.
+ * @property {(slot: Slot) => void} recordSentSlot - Increments refcount for the slot.
+ * @property {(slot: Slot) => void} recordReceivedSlot - Increments refcount for the slot.
+ * @property {() => void} clearPendingRefCounts - Clear all pending refcounts.
+ * @property {() => void} commitSentRefCounts - Commit all pending sent refcounts.
+ * @property {() => void} commitReceivedRefCounts - Commit all pending received refcounts.
+ * @property {(slot: Slot, settler: Settler) => void} registerSettler - Register a settler for a slot. Does NOT increment refcount.
+ * @property {(slot: Slot) => Settler} takeSettler - Take a settler for a slot. The settler is removed from the table. Untaken settlers are rejected when the table is destroyed.
+ * @property {(reason?: Error) => void} destroy - Destroy the table. Reject all pending settlers and clear all tables.
  */
 
 /**
@@ -81,12 +83,17 @@ export const makePairwiseTable = ({
       // eslint-disable-next-line no-use-before-define
       refCounts.delete(slot);
       onSlotCollected(slot, refCount);
+      // eslint-disable-next-line no-use-before-define
+      settlers.delete(slot);
     },
     { weakValues: enableImportCollection },
   );
 
   const settlers = new Map();
   const registerSettler = (slot, settler) => {
+    if (isSlotLocal(slot)) {
+      throw new Error('Local settlers are not supported');
+    }
     settlers.set(slot, settler);
   };
   const takeSettler = slot => {
@@ -118,25 +125,23 @@ export const makePairwiseTable = ({
   );
 
   const getSlotForValue = value => {
-    const slot = valueToSlot.get(value);
-    if (slot !== undefined) {
-      // Record potential outbound refcount for this slot (we're sending it).
-      pendingSentRefCounts.add(slot);
-    }
-    return slot;
+    return valueToSlot.get(value);
   };
+
   const getValueForSlot = slot => {
-    let value;
     if (isSlotLocal(slot)) {
-      value = exportTable.get(slot);
+      return exportTable.get(slot);
     } else {
-      value = importTable.get(slot);
+      return importTable.get(slot);
     }
-    if (value !== undefined) {
-      // Record potential inbound refcount for this slot (we're receiving it).
-      pendingReceivedRefCounts.add(slot);
-    }
-    return value;
+  };
+
+  const recordSentSlot = slot => {
+    pendingSentRefCounts.add(slot);
+  };
+
+  const recordReceivedSlot = slot => {
+    pendingReceivedRefCounts.add(slot);
   };
 
   const registerSlot = (slot, value) => {
@@ -154,9 +159,6 @@ export const makePairwiseTable = ({
       importTable.set(slot, value);
       valueToSlot.set(value, slot);
       importHook(value, slot);
-      // When we register a new import, it's because we're receiving it in a message.
-      // Track it for refcounting.
-      pendingReceivedRefCounts.add(slot);
     }
   };
 
@@ -199,12 +201,25 @@ export const makePairwiseTable = ({
     pendingSentRefCounts.abort();
   };
 
-  const destroy = () => {
+  /**
+   * Reject all pending settlers with the given reason.
+   * This is called when the session ends to ensure all pending promises are rejected.
+   * @param {Error} reason
+   */
+  const rejectAllSettlers = reason => {
+    for (const settler of settlers.values()) {
+      settler.reject(reason);
+    }
+    settlers.clear();
+  };
+
+  const destroy = reason => {
+    // Reject all pending settlers before clearing tables
+    rejectAllSettlers(reason);
     exportTable.clearWithoutFinalizing();
     importTable.clearWithoutFinalizing();
     refCounts.clear();
     clearPendingRefCounts();
-    settlers.clear();
   };
 
   /** @type {PairwiseTable} */
@@ -216,6 +231,8 @@ export const makePairwiseTable = ({
     registerSlot,
     dropSlot,
     getRefCount,
+    recordSentSlot,
+    recordReceivedSlot,
     clearPendingRefCounts,
     commitSentRefCounts,
     commitReceivedRefCounts,

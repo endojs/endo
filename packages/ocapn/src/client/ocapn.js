@@ -3,7 +3,7 @@
 /**
  * @import { RemoteKit, Settler } from '@endo/eventual-send'
  * @import { Slot } from '../captp/types.js'
- * @import { ReferenceKit } from './ref-kit.js'
+ * @import { ReferenceKit, TakeNextRemoteAnswer, RemoteKitHandler } from './ref-kit.js'
  * @import { OcapnTable } from '../captp/ocapn-tables.js'
  * @import { GrantTracker, HandoffGiveDetails } from './grant-tracker.js'
  * @import { OcapnLocation } from '../codecs/components.js'
@@ -51,7 +51,6 @@ import { makeGrantDetails } from './grant-tracker.js';
  * @typedef {(node: OcapnLocation, swissNum: SwissNum) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
  * @typedef {(nodeLocation: OcapnLocation, swissNum: SwissNum) => any} GetRemoteSturdyRef
- * @typedef {Record<string, any>} Handler
  * @typedef {'object' | 'promise' | 'question'} SlotType
  */
 
@@ -203,11 +202,11 @@ const makeOcapnCommsKit = ({
 };
 
 /**
- * @typedef {(handler: Handler) => RemoteKit} MakeRemoteKitForHandler
+ * @typedef {(handler: RemoteKitHandler) => RemoteKit} MakeRemoteKitForHandler
  * Makes a HandledPromise and settler for the given handler
- * @typedef {(targetGetter: () => unknown, mode?: 'deliver' | 'deliver-only') => Handler} MakeHandlerForRemoteReference
- * Makes a HandledPromise handler for the given target and mode
- * @typedef {(targetGetter: () => unknown, mode?: 'deliver' | 'deliver-only') => RemoteKit} MakeRemoteKit
+ * @typedef {(targetGetter: () => unknown) => RemoteKitHandler} MakeHandlerForRemoteReference
+ * Makes a HandledPromise handler for the given target
+ * @typedef {(targetGetter: () => unknown) => RemoteKit} MakeRemoteKit
  * Make a HandledPromise and settler that sends op:deliver to the `targetSlot`
  * @typedef {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} SendHandoff
  */
@@ -259,7 +258,7 @@ const makeMakeRemoteKitForHandler = ({ logger, quietReject }) => {
  * @param {() => boolean} opts.didUnplug
  * @param {((reason?: any, returnIt?: boolean) => void)} opts.quietReject
  * @param {((obj: Record<string, any>) => void)} opts.send
- * @param {() => { promise: Promise<unknown>, position: bigint, resolver: LocalResolver }} opts.takeNextRemoteAnswer
+ * @param {TakeNextRemoteAnswer} opts.takeNextRemoteAnswer
  * @returns {MakeHandlerForRemoteReference}
  */
 const makeMakeHandlerForRemoteReference = ({
@@ -269,32 +268,38 @@ const makeMakeHandlerForRemoteReference = ({
   quietReject,
   takeNextRemoteAnswer,
 }) => {
-  const makeHandlerForRemoteReference = (targetGetter, mode = 'deliver') => {
-    const sendDeliver = args => {
-      if (mode === 'deliver-only') {
-        send({
-          type: 'op:deliver-only',
-          to: targetGetter(),
-          args: harden(args),
-        });
-        return Promise.resolve();
-      } else if (mode === 'deliver') {
-        const {
-          promise: answerPromise,
-          position: answerPosition,
-          resolver: resolveMeDesc,
-        } = takeNextRemoteAnswer();
-        send({
-          type: 'op:deliver',
-          to: targetGetter(),
-          args: harden(args),
-          answerPosition,
-          resolveMeDesc,
-        });
-        return answerPromise;
-      } else {
-        throw new Error(`OCapN APPLY FUNCTION: Invalid mode: ${mode}`);
-      }
+  const makeHandlerForRemoteReference = targetGetter => {
+    /**
+     * Send op:deliver and return the internal promise for the answer.
+     * @param {unknown[]} args
+     * @param {Promise<unknown>} [externalAnswerPromise] - The promise E() returns to the caller
+     */
+    const sendDeliver = (args, externalAnswerPromise) => {
+      const {
+        internalPromise,
+        position: answerPosition,
+        resolver: resolveMeDesc,
+      } = takeNextRemoteAnswer(externalAnswerPromise);
+      send({
+        type: 'op:deliver',
+        to: targetGetter(),
+        args: harden(args),
+        answerPosition,
+        resolveMeDesc,
+      });
+      return internalPromise;
+    };
+
+    /**
+     * Send op:deliver-only (fire and forget, no answer expected).
+     * @param {unknown[]} args
+     */
+    const sendDeliverOnly = args => {
+      send({
+        type: 'op:deliver-only',
+        to: targetGetter(),
+        args: harden(args),
+      });
     };
 
     /**
@@ -302,10 +307,10 @@ const makeMakeHandlerForRemoteReference = ({
      * attribute access and method invocation of this remote promise
      * as also being questions / remote handled promises
      *
-     * @type {import('@endo/eventual-send').EHandler<{}>}
+     * @type {RemoteKitHandler}
      */
     const handler = harden({
-      get(_o, prop) {
+      get(_o, prop, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
@@ -323,10 +328,11 @@ const makeMakeHandlerForRemoteReference = ({
 
         // Create a question for the answer
         const {
-          promise: answerPromise,
+          internalPromise,
+          answerPromise,
           position: answerPosition,
           resolver: resolveMeDesc,
-        } = takeNextRemoteAnswer();
+        } = takeNextRemoteAnswer(externalAnswerPromise);
 
         // Check if the string looks like a non-negative integer (for array index access)
         // JavaScript proxies receive "0", "1", etc. for array-style access like obj[0]
@@ -348,7 +354,7 @@ const makeMakeHandlerForRemoteReference = ({
           });
         }
 
-        // Send op:listen for the answer so B knows how to send the result back
+        // Send op:listen for the answerPromise so B knows how to send the result back
         send({
           type: 'op:listen',
           to: answerPromise,
@@ -356,26 +362,43 @@ const makeMakeHandlerForRemoteReference = ({
           wantsPartial: false,
         });
 
-        return answerPromise;
+        return internalPromise;
       },
-      applyFunction(_o, args) {
+      applyFunction(_o, args, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
         logger.info(`applyFunction`, targetGetter(), args);
-        return sendDeliver(args);
+        return sendDeliver(args, externalAnswerPromise);
       },
-      applyMethod(_o, prop, args) {
+      applyFunctionSendOnly(_o, args) {
+        if (didUnplug() !== false) {
+          return;
+        }
+        logger.info(`applyFunctionSendOnly`, targetGetter(), args);
+        sendDeliverOnly(args);
+      },
+      applyMethod(_o, prop, args, externalAnswerPromise) {
         if (didUnplug() !== false) {
           return quietReject(didUnplug());
         }
         logger.info(`applyMethod`, targetGetter(), prop, args);
-        // eslint-disable-next-line no-use-before-define
         if (typeof prop !== 'string') {
           throw new Error('OCapN APPLY METHOD: Property must be a string');
         }
         const methodSelector = makeSelector(prop);
-        return sendDeliver([methodSelector, ...args]);
+        return sendDeliver([methodSelector, ...args], externalAnswerPromise);
+      },
+      applyMethodSendOnly(_o, prop, args) {
+        if (didUnplug() !== false) {
+          return;
+        }
+        logger.info(`applyMethodSendOnly`, targetGetter(), prop, args);
+        if (typeof prop !== 'string') {
+          throw new Error('OCapN APPLY METHOD: Property must be a string');
+        }
+        const methodSelector = makeSelector(prop);
+        sendDeliverOnly([methodSelector, ...args]);
       },
     });
 
@@ -395,8 +418,8 @@ const makeMakeRemoteKit = ({
   makeHandlerForRemoteReference,
 }) => {
   /** @type {MakeRemoteKit} */
-  const makeRemoteKit = (targetGetter, mode = 'deliver') => {
-    const handler = makeHandlerForRemoteReference(targetGetter, mode);
+  const makeRemoteKit = targetGetter => {
+    const handler = makeHandlerForRemoteReference(targetGetter);
     return makeRemoteKitForHandler(handler);
   };
 
@@ -601,7 +624,7 @@ const makeBootstrapObject = (
 
 /**
  * @typedef {object} Ocapn
- * @property {((reason?: any) => void)} abort
+ * @property {((reason?: Error) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
  * @property {() => object} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
@@ -648,11 +671,19 @@ export const makeOcapn = (
     logger.info(`onReject`, reason);
   };
 
+  /**
+   * @param {Error} [reason]
+   */
   const abort = reason => {
     logger.info(`client received abort`, reason);
     connection.end();
+    const disconnectError = harden(
+      reason
+        ? Error('Session disconnected', { cause: reason })
+        : Error('Session disconnected'),
+    );
     // eslint-disable-next-line no-use-before-define
-    ocapnTable.destroy();
+    ocapnTable.destroy(disconnectError);
   };
 
   /**
@@ -693,15 +724,14 @@ export const makeOcapn = (
   };
 
   const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
-    // This could probably just be `E(resolveMeDesc).fulfill(hp)`
-    // which should handle rejections. But might be more overhead
-    // on the wire.
+    // Use E.sendOnly since we don't need a response from fulfill/break calls.
+    // This sends via op:deliver-only
     Promise.resolve(promise).then(
       val => {
-        E(resolveMeDesc).fulfill(val);
+        E.sendOnly(resolveMeDesc).fulfill(val);
       },
       reason => {
-        E(resolveMeDesc).break(reason);
+        E.sendOnly(resolveMeDesc).break(reason);
       },
     );
   };
@@ -715,7 +745,7 @@ export const makeOcapn = (
       // Answer with our handled promise
       if (answerPosition !== false) {
         // eslint-disable-next-line no-use-before-define
-        referenceKit.fulfillLocalAnswerWithPromise(
+        referenceKit.makeLocalAnswerPromiseAndFulfill(
           answerPosition,
           deliverPromise,
         );
@@ -731,8 +761,7 @@ export const makeOcapn = (
 
       // Add context and pass the error to the reject handler.
       deliverPromise.catch(cause => {
-        const err = new Error('OCapN: Error during deliver-only');
-        err.cause = cause;
+        const err = Error('OCapN: Error during deliver-only', { cause });
         onReject(err);
       });
     },
@@ -768,7 +797,7 @@ export const makeOcapn = (
       });
 
       // eslint-disable-next-line no-use-before-define
-      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, getPromise);
+      referenceKit.makeLocalAnswerPromiseAndFulfill(answerPosition, getPromise);
     },
     'op:index': message => {
       const { receiverDesc, index, answerPosition } = message;
@@ -808,7 +837,10 @@ export const makeOcapn = (
       });
 
       // eslint-disable-next-line no-use-before-define
-      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, indexPromise);
+      referenceKit.makeLocalAnswerPromiseAndFulfill(
+        answerPosition,
+        indexPromise,
+      );
     },
     'op:untag': message => {
       const { receiverDesc, tag, answerPosition } = message;
@@ -837,7 +869,10 @@ export const makeOcapn = (
       });
 
       // eslint-disable-next-line no-use-before-define
-      referenceKit.fulfillLocalAnswerWithPromise(answerPosition, untagPromise);
+      referenceKit.makeLocalAnswerPromiseAndFulfill(
+        answerPosition,
+        untagPromise,
+      );
     },
     'op:gc-export': message => {
       const { exportPosition, wireDelta } = message;
@@ -910,8 +945,9 @@ export const makeOcapn = (
     send,
     didUnplug,
     quietReject,
-    // eslint-disable-next-line no-use-before-define
-    takeNextRemoteAnswer: () => referenceKit.takeNextRemoteAnswer(),
+    takeNextRemoteAnswer: externalAnswerPromise =>
+      // eslint-disable-next-line no-use-before-define
+      referenceKit.takeNextRemoteAnswer(externalAnswerPromise),
   });
 
   const makeRemoteKit = makeMakeRemoteKit({

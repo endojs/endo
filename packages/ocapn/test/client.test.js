@@ -11,10 +11,12 @@ import {
   makeTestClient,
   makeTestClientPair,
   makeUntagTestHelper,
+  getOcapnDebug,
 } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeOcapnKeyPair, signLocation } from '../src/cryptography.js';
 import { writeOcapnHandshakeMessage } from '../src/codecs/operations.js';
+import { makeSlot } from '../src/captp/pairwise.js';
 
 test('test slow send', async t => {
   const testObjectTable = new Map();
@@ -409,7 +411,7 @@ test('session can be re-established after normal abort', async t => {
     );
 
     // Abort the session from A's side
-    firstSessionA.ocapn.abort('Normal abort for testing');
+    firstSessionA.ocapn.abort(Error('Normal abort for testing'));
 
     // Wait for connections to close and sessions to be cleaned up
     await waitUntilTrue(
@@ -596,6 +598,16 @@ testWithErrorUnwrapping(
   async t => {
     const bobObjectTable = new Map();
     bobObjectTable.set(
+      'SlowObj',
+      Far('slowObj', {
+        slowMethod: async () => {
+          return Far('resultObj', {
+            getValue: () => 99,
+          });
+        },
+      }),
+    );
+    bobObjectTable.set(
       'EchoObj',
       Far('echoObj', {
         echo: async obj => obj,
@@ -609,31 +621,30 @@ testWithErrorUnwrapping(
     const {
       sessionA: { ocapn: ocapnA },
     } = await establishSession();
+    const bootstrapB = ocapnA.getRemoteBootstrap();
 
-    // Alice creates a local object that returns a promise
-    const aliceSlowObj = Far('slowObj', {
-      slowMethod: async () => {
-        return Far('resultObj', {
-          getValue: () => 99,
-        });
-      },
-    });
+    // Alice gets Bob's SlowObj (a REMOTE object)
+    const bobSlowObj = await E(bootstrapB).fetch(encodeSwissnum('SlowObj'));
 
-    // Alice creates an answer promise by calling slowMethod without awaiting
-    const answerPromise = E(aliceSlowObj).slowMethod();
+    // Alice calls slowMethod on the REMOTE object, creating a REMOTE answer promise
+    // This is the key difference: answerPromise is a remote answer (a-N slot), not a local promise
+    const answerPromise = E(bobSlowObj).slowMethod();
 
     // Alice gets Bob's EchoObj
-    const bootstrapB = ocapnA.getRemoteBootstrap();
     const bobEchoObj = await E(bootstrapB).fetch(encodeSwissnum('EchoObj'));
 
-    // Alice passes the answer promise to Bob's echo method
+    // Alice passes the remote answer promise to Bob's echo method
+    // This tests that remote answer promises can be sent as arguments,
+    // and that they can be returned (as re-exported promises).
     const echoedAnswerPromise = E(bobEchoObj).echo(answerPromise);
+    // Due to promise wrapping, we will not be able to directly inspect the echoed answer promise in the OcapnTable.
+    // It is is expected to be returned as a new export-promise (p-N slot).
 
     // Alice pipelines a call through the echoed answer promise
     // This tests that answer promises can be echoed and still work correctly
     const result = await E(echoedAnswerPromise).getValue();
-
     t.is(result, 99, 'Pipelined call on echoed answer promise should succeed');
+
     shutdownBoth();
   },
 );
@@ -1325,6 +1336,247 @@ test('op:untag with nested payload containing remotable', async t => {
   }
 });
 
+test('session disconnect rejects pending promises and subsequent calls', async t => {
+  const testObjectTable = new Map();
+  /** @type {((value: unknown) => void) | undefined} */
+  let slowResolve;
+  testObjectTable.set(
+    'SlowResponder',
+    Far('slowResponder', {
+      slowMethod: () => {
+        // Return a promise that we control - it will never resolve
+        return new Promise(resolve => {
+          slowResolve = resolve;
+        });
+      },
+      fastMethod: () => 'fast result',
+    }),
+  );
+
+  const { establishSession, shutdownBoth, getConnectionAtoB } =
+    await makeTestClientPair({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    const connectionAtoB = getConnectionAtoB();
+    if (!connectionAtoB) {
+      throw new Error('Connection A to B should exist');
+    }
+
+    // Get a remote reference from B
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const slowResponder = await E(bootstrapB).fetch(
+      encodeSwissnum('SlowResponder'),
+    );
+
+    // Start a slow call that will never resolve
+    const pendingPromise = E(slowResponder).slowMethod();
+
+    // Verify we can make successful calls before disconnect
+    const fastResult = await E(slowResponder).fastMethod();
+    t.is(fastResult, 'fast result', 'Fast method works before disconnect');
+
+    // Abort the session from A's side
+    ocapnA.abort(Error('Testing session disconnect'));
+
+    // Wait for the connection to be destroyed
+    await waitUntilTrue(() => connectionAtoB.isDestroyed);
+
+    // The pending promise should reject with session disconnected error
+    const pendingError = await t.throwsAsync(
+      async () => {
+        await pendingPromise;
+      },
+      {
+        instanceOf: Error,
+      },
+      'Pending promise should reject when session disconnects',
+    );
+    t.regex(
+      pendingError.message,
+      /Session disconnected/,
+      'Error message should indicate session disconnected',
+    );
+
+    // After disconnect, invoking E() on the remote reference should also reject
+    const postDisconnectError = await t.throwsAsync(
+      async () => {
+        await E(slowResponder).fastMethod();
+      },
+      {
+        instanceOf: Error,
+      },
+      'E() call after disconnect should reject',
+    );
+    t.regex(
+      postDisconnectError.message,
+      /Session disconnected/,
+      'Post-disconnect error should indicate session disconnected',
+    );
+
+    // Silence the slowResolve to prevent memory leak warnings
+    if (slowResolve) {
+      slowResolve('ignored');
+    }
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('local answer promise on B is not rejected on connection close', async t => {
+  const testObjectTable = new Map();
+  /** @type {((value: unknown) => void) | undefined} */
+  let slowResolveOnB;
+  /** @type {Promise<unknown> | undefined} */
+  let capturedLocalAnswerPromise;
+
+  testObjectTable.set(
+    'PromiseHandler',
+    Far('promiseHandler', {
+      // B creates a slow method that returns a promise we control
+      slowMethod: () => {
+        return new Promise(resolve => {
+          slowResolveOnB = resolve;
+        });
+      },
+      // B captures a promise sent as an argument
+      capturePromise: receivedPromise => {
+        capturedLocalAnswerPromise = receivedPromise;
+        return 'captured';
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth, getConnectionAtoB } =
+    await makeTestClientPair({
+      makeDefaultSwissnumTable: () => testObjectTable,
+    });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    const connectionAtoB = getConnectionAtoB();
+    if (!connectionAtoB) {
+      throw new Error('Connection A to B should exist');
+    }
+
+    // Get remote reference to B's PromiseHandler
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const promiseHandler = await E(bootstrapB).fetch(
+      encodeSwissnum('PromiseHandler'),
+    );
+
+    // Step 1: A calls B's slowMethod, creating an answer promise.
+    // On A's side: this is a remote answer promise (A waits for B's answer)
+    // On B's side: this is a local answer promise (B's pending result)
+    const remoteAnswerOnA = E(promiseHandler).slowMethod();
+
+    // Debug: Check A's slot for remoteAnswerOnA
+    const ocapnTableA = getOcapnDebug(ocapnA).ocapnTable;
+    const slotOnA = ocapnTableA.getSlotForValue(remoteAnswerOnA);
+    console.log('A: slot for remoteAnswerOnA:', slotOnA);
+    console.log(
+      'A: remoteAnswerOnA is promise?',
+      remoteAnswerOnA instanceof Promise,
+    );
+    console.log(
+      'A: remoteAnswerOnA constructor:',
+      remoteAnswerOnA?.constructor?.name,
+    );
+
+    // Check if answer position 0 was registered
+    const answerSlot0 = ocapnTableA.getValueForSlot(makeSlot('a', false, 0n));
+    console.log('A: value for slot a-0:', answerSlot0);
+    console.log(
+      'A: is remoteAnswerOnA === a-0 value?',
+      remoteAnswerOnA === answerSlot0,
+    );
+
+    // Step 2: A sends the pending answer promise back to B as an argument.
+    // When B deserializes this argument, B recognizes it as a reference to
+    // its own local answer (the promise from slowMethod).
+    const captureResult =
+      await E(promiseHandler).capturePromise(remoteAnswerOnA);
+    t.is(captureResult, 'captured', 'Promise was captured by B');
+
+    // Verify B received and captured a promise
+    t.truthy(capturedLocalAnswerPromise, 'B should have captured the promise');
+    t.true(
+      isPromise(capturedLocalAnswerPromise),
+      'Captured value should be a promise',
+    );
+
+    // Debug: Check B's slots
+    const ocapnTableB = getOcapnDebug(ocapnB).ocapnTable;
+    const slotOnB = ocapnTableB.getSlotForValue(capturedLocalAnswerPromise);
+    const answerPosition = ocapnTableB.getLocalAnswerToPosition(
+      capturedLocalAnswerPromise,
+    );
+    console.log('B: slot for capturedLocalAnswerPromise:', slotOnB);
+    console.log('B: getLocalAnswerToPosition result:', answerPosition);
+
+    // Verify the captured promise is B's local answer.
+    // Note: We use getLocalAnswerToPosition, not getSlotForValue, because
+    // local answers are special in OCapN - calling getSlotForValue would
+    // cause it to be re-exported as a promise instead.
+    t.truthy(
+      answerPosition !== undefined,
+      'Captured promise should be a local answer in B table',
+    );
+
+    // Step 3: Abort the session from A's side
+    ocapnA.abort(Error('Testing session disconnect'));
+
+    // Wait for the connection to be destroyed
+    await waitUntilTrue(() => connectionAtoB.isDestroyed);
+
+    // Step 4: A's remote answer promise should be rejected (connection closed)
+    const remoteError = await t.throwsAsync(
+      async () => {
+        await remoteAnswerOnA;
+      },
+      {
+        instanceOf: Error,
+      },
+      "A's remote promise should reject when session disconnects",
+    );
+    t.regex(
+      remoteError.message,
+      /Session disconnected/,
+      "A's error message should indicate session disconnected",
+    );
+
+    // Step 5: B's LOCAL answer promise should NOT be rejected.
+    // Since B owns this answer locally, closing the connection shouldn't affect it.
+    // Resolve the underlying promise and verify the local answer resolves.
+    if (slowResolveOnB) {
+      slowResolveOnB('resolved after disconnect');
+    }
+
+    // The local answer promise on B should resolve successfully
+    const localResult = await capturedLocalAnswerPromise;
+    t.is(
+      localResult,
+      'resolved after disconnect',
+      "B's local answer promise should resolve normally after disconnect",
+    );
+  } finally {
+    // Ensure slowResolve is called to prevent memory leak warnings
+    if (slowResolveOnB) {
+      slowResolveOnB('cleanup');
+    }
+    shutdownBoth();
+  }
+});
+
 test('serialization error in E() call arguments rejects the promise', async t => {
   const testObjectTable = new Map();
   testObjectTable.set(
@@ -1383,6 +1635,272 @@ test('serialization error in E() call arguments rejects the promise', async t =>
     // We should still be able to make successful calls
     const result = await E(receiver).acceptAnything('valid string');
     t.is(result, 'valid string', 'Should still work after serialization error');
+  } finally {
+    shutdownBoth();
+  }
+});
+
+// Tests for E() vs E.sendOnly() message types
+test('E() sends op:deliver with answer tracking', async t => {
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: val => val,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{type: string}>} */
+    const sentMessages = [];
+    const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          sentMessages.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoService = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
+
+    // Clear messages from setup
+    sentMessages.length = 0;
+
+    // Use E() which expects a response
+    const result = await E(echoService).echo('hello');
+    t.is(result, 'hello');
+
+    unsubscribe();
+
+    // Should have sent op:deliver (not op:deliver-only)
+    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
+    const deliverOnlyMessages = sentMessages.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.true(
+      deliverMessages.length >= 1,
+      'E() should send at least one op:deliver message',
+    );
+    t.is(
+      deliverOnlyMessages.length,
+      0,
+      'E() should NOT send op:deliver-only messages',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('E.sendOnly() sends op:deliver-only without answer tracking', async t => {
+  const testObjectTable = new Map();
+  /** @type {string | undefined} */
+  let receivedValue;
+  testObjectTable.set(
+    'Receiver',
+    Far('receiver', {
+      receive: val => {
+        receivedValue = val;
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{type: string}>} */
+    const sentMessages = [];
+    const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          sentMessages.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const receiver = await E(bootstrapB).fetch(encodeSwissnum('Receiver'));
+
+    // Clear messages from setup
+    sentMessages.length = 0;
+
+    // Use E.sendOnly() which does not expect a response
+    E.sendOnly(receiver).receive('fire-and-forget');
+
+    // Wait a bit for the message to be sent and processed
+    await waitUntilTrue(() => receivedValue === 'fire-and-forget');
+
+    unsubscribe();
+
+    // Should have sent op:deliver-only (not op:deliver)
+    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
+    const deliverOnlyMessages = sentMessages.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.is(
+      deliverMessages.length,
+      0,
+      'E.sendOnly() should NOT send op:deliver messages',
+    );
+    t.true(
+      deliverOnlyMessages.length >= 1,
+      'E.sendOnly() should send at least one op:deliver-only message',
+    );
+
+    t.is(
+      /** @type {string | undefined} */ (receivedValue),
+      'fire-and-forget',
+      'Value should have been received',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('E.sendOnly() on function call sends op:deliver-only', async t => {
+  const testObjectTable = new Map();
+  /** @type {string | undefined} */
+  let receivedValue;
+  testObjectTable.set(
+    'Func',
+    Far('func', val => {
+      receivedValue = val;
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    // Track messages sent by A
+    /** @type {Array<{type: string}>} */
+    const sentMessages = [];
+    const unsubscribe = getOcapnDebug(ocapnA).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          sentMessages.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const func = await E(bootstrapB).fetch(encodeSwissnum('Func'));
+
+    // Clear messages from setup
+    sentMessages.length = 0;
+
+    // Use E.sendOnly() with function call syntax
+    E.sendOnly(func)('function-call-value');
+
+    // Wait a bit for the message to be sent and processed
+    await waitUntilTrue(() => receivedValue === 'function-call-value');
+
+    unsubscribe();
+
+    // Should have sent op:deliver-only (not op:deliver)
+    const deliverMessages = sentMessages.filter(m => m.type === 'op:deliver');
+    const deliverOnlyMessages = sentMessages.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.is(
+      deliverMessages.length,
+      0,
+      'E.sendOnly() function call should NOT send op:deliver messages',
+    );
+    t.true(
+      deliverOnlyMessages.length >= 1,
+      'E.sendOnly() function call should send at least one op:deliver-only message',
+    );
+
+    t.is(
+      /** @type {string | undefined} */ (receivedValue),
+      'function-call-value',
+      'Value should have been received',
+    );
+  } finally {
+    shutdownBoth();
+  }
+});
+
+test('resolver callbacks use op:deliver-only', async t => {
+  // When Bob responds to a call from Alice, he calls fulfill/break on
+  // a remote resolver. These should use op:deliver-only since we don't
+  // need a response from the resolver call.
+
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'Echo',
+    Far('echo', {
+      echo: val => val,
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+      sessionB: { ocapn: ocapnB },
+    } = await establishSession();
+
+    // Track messages sent by B (the responder)
+    /** @type {Array<{type: string}>} */
+    const messagesSentByB = [];
+    const unsubscribe = getOcapnDebug(ocapnB).subscribeMessages(
+      (direction, message) => {
+        if (direction === 'send') {
+          messagesSentByB.push(message);
+        }
+      },
+    );
+
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+    const echoService = await E(bootstrapB).fetch(encodeSwissnum('Echo'));
+
+    // Clear messages from setup
+    messagesSentByB.length = 0;
+
+    // Make a call - B will respond by calling fulfill on the resolver
+    const result = await E(echoService).echo('test');
+    t.is(result, 'test');
+
+    unsubscribe();
+
+    // B's response should use op:deliver-only for the resolver callback
+    const deliverOnlyMessages = messagesSentByB.filter(
+      m => m.type === 'op:deliver-only',
+    );
+
+    t.true(
+      deliverOnlyMessages.length >= 1,
+      'Resolver callbacks should use op:deliver-only',
+    );
   } finally {
     shutdownBoth();
   }

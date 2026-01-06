@@ -294,14 +294,14 @@ export const makeUntagTestHelper = senderSession => {
   const callAndUntag = (target, method, args, expectedTag) => {
     // Create answer for the method call result (this is where the tagged value will be)
     const {
-      promise: callAnswerPromise,
+      answerPromise: callAnswerPromise,
       position: callAnswerPosition,
       resolver: callResolveMeDesc,
     } = referenceKit.takeNextRemoteAnswer();
 
     // Create answer for the untag result
     const {
-      promise: untagAnswerPromise,
+      answerPromise: untagAnswerPromise,
       position: untagAnswerPosition,
       resolver: untagResolveMeDesc,
     } = referenceKit.takeNextRemoteAnswer();
@@ -319,7 +319,7 @@ export const makeUntagTestHelper = senderSession => {
     // The receiver will process this by looking up its local answer at callAnswerPosition
     sendMessage({
       type: 'op:untag',
-      receiverDesc: callAnswerPromise, // This is our remote answer promise
+      receiverDesc: callAnswerPromise, // We are pipelining over the op:deliver answer promise
       tag: expectedTag,
       answerPosition: untagAnswerPosition,
     });

@@ -98,7 +98,7 @@ const formatEntry = entry => {
  * @param {ExpectedEntry[]} expected - Expected entries with partial matching
  */
 const assertMessageTranscript = (t, transcript, expected) => {
-  if (transcript.length < expected.length) {
+  if (transcript.length !== expected.length) {
     t.fail(
       `Transcript too short: expected ${expected.length} entries, got ${transcript.length}\n\n` +
         `Actual transcript:\n${transcript.map(formatEntry).join('\n')}`,
@@ -591,5 +591,95 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
     ]);
   } finally {
     shutdownAll();
+  }
+});
+
+test('pipeline: remote answer promise sent as argument is local to receiver (no op:listen)', async t => {
+  // This test verifies that when Alice sends a remote answer promise (from a call to Bob)
+  // back to Bob as an argument, Bob does NOT send op:listen for it because:
+  // - From Bob's perspective, that promise is a LOCAL answer (a+N), not a remote one
+  // - Bob already has the settler for it, so no subscription is needed
+
+  const testObjectTable = new Map();
+  testObjectTable.set(
+    'SlowService',
+    Far('slowService', {
+      // Returns a promise that resolves after a tick
+      getDelayedValue: async () => {
+        await Promise.resolve(); // Simulate async work
+        return 42;
+      },
+    }),
+  );
+  testObjectTable.set(
+    'Awaiter',
+    Far('awaiter', {
+      // Awaits the given promise and returns its value doubled
+      awaitAndDouble: async promise => {
+        const value = await promise;
+        return value * 2;
+      },
+    }),
+  );
+
+  const { establishSession, shutdownBoth } = await makeTestClientPair({
+    makeDefaultSwissnumTable: () => testObjectTable,
+    clientAOptions: { enableImportCollection: false },
+    clientBOptions: { enableImportCollection: false },
+  });
+
+  try {
+    const {
+      sessionA: { ocapn: ocapnA },
+    } = await establishSession();
+
+    const recorder = createMessageRecorder(ocapnA, 'A', 'B');
+    const bootstrapB = ocapnA.getRemoteBootstrap();
+
+    // Step 1: Alice fetches SlowService and Awaiter from Bob
+    const slowService = await E(bootstrapB).fetch(
+      encodeSwissnum('SlowService'),
+    );
+    const awaiter = await E(bootstrapB).fetch(encodeSwissnum('Awaiter'));
+
+    // Clear the transcript to focus on the interesting part
+    recorder.transcript.length = 0;
+
+    // Step 2: Alice calls getDelayedValue on SlowService (creates remote answer promise)
+    const delayedValuePromise = E(slowService).getDelayedValue();
+
+    // Step 3: Alice immediately passes that remote answer promise to Awaiter
+    // From Alice's perspective: delayedValuePromise is a remote answer (a-N)
+    // From Bob's perspective: when he receives it, it's a local answer (a+N)
+    const result = await E(awaiter).awaitAndDouble(delayedValuePromise);
+
+    t.is(result, 84, 'Awaiter should return 42 * 2 = 84');
+    recorder.unsubscribe();
+
+    // Verify the transcript
+    // Key assertion: Bob should NOT send op:listen for the answer promise
+    // because it's local to him (a+N from his perspective)
+    assertMessageTranscript(t, recorder.transcript, [
+      // A calls getDelayedValue on SlowService
+      { from: 'A', message: { type: 'op:deliver' } },
+      // A calls awaitAndDouble on Awaiter with the answer promise
+      { from: 'A', message: { type: 'op:deliver' } },
+      // B sends resolution for getDelayedValue
+      { from: 'B', message: { type: 'op:deliver-only' } },
+      // B sends resolution for awaitAndDouble
+      { from: 'B', message: { type: 'op:deliver-only' } },
+    ]);
+
+    // Additional assertion: verify NO op:listen messages in the transcript
+    const opListenMessages = recorder.transcript.filter(
+      entry => entry.message.type === 'op:listen',
+    );
+    t.is(
+      opListenMessages.length,
+      0,
+      'No one (especially not Bob) should send op:listen',
+    );
+  } finally {
+    shutdownBoth();
   }
 });

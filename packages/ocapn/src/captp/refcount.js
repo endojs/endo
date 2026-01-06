@@ -13,8 +13,9 @@
  * @returns {RefCounter}
  */
 export const makeRefCounter = (specimenToRefCount, predicate) => {
-  /** @type {Set<Slot>} */
-  const seen = new Set();
+  // Track how many times each slot is added within a single message.
+  /** @type {Map<Slot, number>} */
+  const pendingCounts = new Map();
 
   return harden({
     /**
@@ -23,20 +24,21 @@ export const makeRefCounter = (specimenToRefCount, predicate) => {
      */
     add(specimen) {
       if (predicate(specimen)) {
-        seen.add(specimen);
+        const currentCount = pendingCounts.get(specimen) || 0;
+        pendingCounts.set(specimen, currentCount + 1);
       }
       return specimen;
     },
     commit() {
-      // Increment the reference count for each seen specimen.
-      for (const specimen of seen.keys()) {
+      // Increment the reference count for each seen specimen by the number of times it was added.
+      for (const [specimen, count] of pendingCounts.entries()) {
         const numRefs = specimenToRefCount.get(specimen) || 0;
-        specimenToRefCount.set(specimen, numRefs + 1);
+        specimenToRefCount.set(specimen, numRefs + count);
       }
-      seen.clear();
+      pendingCounts.clear();
     },
     abort() {
-      seen.clear();
+      pendingCounts.clear();
     },
   });
 };

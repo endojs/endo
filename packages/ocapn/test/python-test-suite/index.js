@@ -7,6 +7,7 @@ import { Far } from '@endo/marshal';
 import { getSelectorName } from '../../src/selector.js';
 import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../../src/client/index.js';
+import { startGcScheduler } from '../_gc-util.js';
 
 /**
  * @typedef {import('../../src/client/types.js').Client} Client
@@ -150,7 +151,10 @@ const makeTestObjectTable = client => {
 };
 
 const start = async () => {
-  const client = makeClient();
+  // Run the GC scheduler in the background
+  startGcScheduler();
+
+  const client = makeClient({ verbose: true });
   const testObjectTable = makeTestObjectTable(client);
   // Register the test objects with the client's swissnumTable
   for (const [swissStr, object] of testObjectTable.entries()) {
