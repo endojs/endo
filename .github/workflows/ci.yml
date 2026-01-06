@@ -397,9 +397,9 @@ jobs:
       - name: Checkout OCapN Test Suite
         uses: actions/checkout@v4
         with:
-          # https://github.com/ocapn/ocapn-test-suite/pull/24
+          # https://github.com/ocapn/ocapn-test-suite/pull/26
           repository: kumavis/ocapn-test-suite
-          ref: 08d4a3a132f301a54ab2d86f02e237efc9bd3093
+          ref: 32ed83d2d09bbc55e6a3f36e6615e6885152342c
           path: ocapn-test-suite
 
       - run: corepack enable
