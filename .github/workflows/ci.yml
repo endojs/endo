@@ -478,7 +478,7 @@ jobs:
         with:
           # https://github.com/kumavis/ocapn-test-suite/tree/fix-3pho-teardown2
           repository: kumavis/ocapn-test-suite
-          ref: 0c9cc8ebb8548a27b984e93165e56e2cbb839f40
+          ref: 9d0a9f7f4fcde110a54dc9d239ec54c77f6eb105
           path: ocapn-test-suite
 
       - run: corepack enable
