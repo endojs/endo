@@ -104,15 +104,51 @@ function createProgram() {
 }
 
 /**
- * Extract type names from a type string using regex
+ * Check if a type is a type parameter (generic like T, K, V)
+ * @param {ts.Type} type
+ * @returns {boolean}
+ */
+function isTypeParameter(type) {
+  // eslint-disable-next-line no-bitwise
+  return (type.flags & ts.TypeFlags.TypeParameter) !== 0;
+}
+
+/**
+ * Collect type parameter names from call signatures
+ * @param {ts.Type} type
+ * @returns {Set<string>}
+ */
+function collectTypeParameterNames(type) {
+  const names = new Set();
+  for (const sig of type.getCallSignatures()) {
+    const typeParams = sig.getTypeParameters();
+    if (typeParams) {
+      for (const tp of typeParams) {
+        const sym = tp.getSymbol();
+        if (sym) {
+          names.add(sym.getName());
+        }
+      }
+    }
+  }
+  return names;
+}
+
+/**
+ * Extract type names from a type string using regex, filtering out known type parameters
  * @param {string} typeString
+ * @param {Set<string>} [typeParamNames] - Names of type parameters to exclude
  * @returns {string[]}
  */
-function extractTypeNamesFromString(typeString) {
+function extractTypeNamesFromString(typeString, typeParamNames = new Set()) {
   const refs = [];
   const matches = typeString.match(/\b[A-Z][a-zA-Z0-9]*\b/g) || [];
   for (const match of matches) {
-    if (!BUILT_IN_TYPES.has(match) && !refs.includes(match)) {
+    if (
+      !BUILT_IN_TYPES.has(match) &&
+      !typeParamNames.has(match) &&
+      !refs.includes(match)
+    ) {
       refs.push(match);
     }
   }
@@ -124,9 +160,15 @@ function extractTypeNamesFromString(typeString) {
  * @param {ts.Type} type
  * @param {ts.TypeChecker} checker
  * @param {Set<string>} [visited]
+ * @param {Set<string>} [typeParamNames] - Known type parameter names to exclude from string extraction
  * @returns {string[]}
  */
-function extractTypeReferences(type, checker, visited = new Set()) {
+function extractTypeReferences(
+  type,
+  checker,
+  visited = new Set(),
+  typeParamNames = new Set(),
+) {
   const refs = [];
   const typeString = checker.typeToString(type);
 
@@ -135,11 +177,28 @@ function extractTypeReferences(type, checker, visited = new Set()) {
   }
   visited.add(typeString);
 
+  // If this is a type parameter (generic like T), extract its constraint instead
+  if (isTypeParameter(type)) {
+    const constraint = checker.getBaseConstraintOfType(type);
+    if (constraint) {
+      refs.push(
+        ...extractTypeReferences(constraint, checker, visited, typeParamNames),
+      );
+    }
+    // Don't add the type parameter name itself (e.g., 'T')
+    return [...new Set(refs)];
+  }
+
+  // Collect type parameter names from this type's call signatures
+  const localTypeParams = collectTypeParameterNames(type);
+  const allTypeParams = new Set([...typeParamNames, ...localTypeParams]);
+
   const symbol = type.getSymbol() || type.aliasSymbol;
   if (symbol) {
     const name = symbol.getName();
     if (
       !BUILT_IN_TYPES.has(name) &&
+      !allTypeParams.has(name) &&
       /^[A-Z]/.test(name) &&
       !name.startsWith('__')
     ) {
@@ -147,24 +206,34 @@ function extractTypeReferences(type, checker, visited = new Set()) {
     }
   }
 
-  refs.push(...extractTypeNamesFromString(typeString));
+  // Use string-based extraction as fallback, but filter out type parameters
+  refs.push(...extractTypeNamesFromString(typeString, allTypeParams));
 
   if (type.isUnion()) {
     for (const unionType of type.types) {
-      refs.push(...extractTypeReferences(unionType, checker, visited));
+      refs.push(
+        ...extractTypeReferences(unionType, checker, visited, allTypeParams),
+      );
     }
   }
 
   if (type.isIntersection()) {
     for (const intersectionType of type.types) {
-      refs.push(...extractTypeReferences(intersectionType, checker, visited));
+      refs.push(
+        ...extractTypeReferences(
+          intersectionType,
+          checker,
+          visited,
+          allTypeParams,
+        ),
+      );
     }
   }
 
   const typeArgs = /** @type {any} */ (type).typeArguments;
   if (typeArgs) {
     for (const arg of typeArgs) {
-      refs.push(...extractTypeReferences(arg, checker, visited));
+      refs.push(...extractTypeReferences(arg, checker, visited, allTypeParams));
     }
   }
 
@@ -220,11 +289,37 @@ function extractMembersFromJSDocTypedef(typedefTag, checker) {
       if (isMethod) {
         const signatures = propType.getCallSignatures();
         for (const sig of signatures) {
+          // Collect type parameter names from the signature to filter them out
+          const sigTypeParamNames = new Set();
+          const typeParams = sig.getTypeParameters();
+          if (typeParams) {
+            for (const tp of typeParams) {
+              const sym = tp.getSymbol();
+              if (sym) {
+                sigTypeParamNames.add(sym.getName());
+              }
+            }
+          }
+
           const returnType = checker.getReturnTypeOfSignature(sig);
-          referencedTypes.push(...extractTypeReferences(returnType, checker));
+          referencedTypes.push(
+            ...extractTypeReferences(
+              returnType,
+              checker,
+              new Set(),
+              sigTypeParamNames,
+            ),
+          );
           for (const param of sig.getParameters()) {
             const paramType = checker.getTypeOfSymbol(param);
-            referencedTypes.push(...extractTypeReferences(paramType, checker));
+            referencedTypes.push(
+              ...extractTypeReferences(
+                paramType,
+                checker,
+                new Set(),
+                sigTypeParamNames,
+              ),
+            );
           }
         }
       } else {
