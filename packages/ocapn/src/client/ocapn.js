@@ -77,7 +77,6 @@ const sink = harden(() => {});
  * @typedef {object} OcapnCommsKit
  * @property {(message: any) => void} dispatch
  * @property {(message: any) => void} send
- * @property {(reason?: any) => void} abort
  * @property {(reason?: any) => void} quietReject
  * @property {() => boolean} didUnplug
  * @property {(reason?: Error) => void} doUnplug
@@ -182,17 +181,10 @@ const makeOcapnCommsKit = ({
     return innerDispatch(message);
   };
 
-  // Abort a connection.
-  const abort = (reason = undefined) => {
-    logger.info('abort', reason);
-    doUnplug(reason);
-  };
-
   // Can't harden stats.
   return {
     dispatch,
     send,
-    abort,
     quietReject,
     didUnplug,
     doUnplug,
