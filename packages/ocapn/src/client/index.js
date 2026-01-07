@@ -4,7 +4,7 @@
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { SturdyRef } from './sturdyrefs.js'
- * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager, SwissNum } from './types.js'
+ * @import { Client, Connection, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SwissNum } from './types.js'
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
@@ -268,6 +268,61 @@ export const makeClient = ({
     );
   };
 
+  /**
+   * Internal handler for incoming message data from a connection.
+   * @param {Connection} connection
+   * @param {Uint8Array} data
+   */
+  const handleMessageData = (connection, data) => {
+    logger.info(`handleMessageData called`);
+    const session = sessionManager.getSessionForConnection(connection);
+    if (session) {
+      handleActiveSessionMessageData(
+        logger,
+        sessionManager,
+        connection,
+        session,
+        data,
+      );
+    } else {
+      handleHandshakeMessageData(
+        logger,
+        sessionManager,
+        connection,
+        sendAbortAndClose,
+        data,
+        captpVersion,
+        prepareOcapn,
+      );
+    }
+  };
+
+  /**
+   * Internal handler for connection close events.
+   * @param {Connection} connection
+   * @param {Error} [reason]
+   */
+  const handleConnectionClose = (connection, reason) => {
+    logger.info(`handleConnectionClose called`, { reason });
+    const session = sessionManager.getSessionForConnection(connection);
+    if (session) {
+      const locationId = locationToLocationId(session.peer.location);
+      logger.info(`handling connection close for ${locationId}`);
+      session.ocapn.abort(reason);
+      sessionManager.endSession(session);
+    } else {
+      // If no session exists, check if there's a pending session for this connection
+      sessionManager.rejectPendingSessionForConnection(connection);
+    }
+    sessionManager.deleteConnection(connection);
+  };
+
+  /** @type {NetlayerHandlers} */
+  const netlayerHandlers = harden({
+    handleMessageData,
+    handleConnectionClose,
+  });
+
   /** @type {Client} */
   const client = harden({
     captpVersion,
@@ -277,59 +332,23 @@ export const makeClient = ({
     sessionManager,
     sturdyRefTracker,
     /**
-     * @param {NetLayer} netlayer
+     * Registers a netlayer by calling the provided factory with handlers, logger, and captpVersion.
+     * @template {NetLayer} T
+     * @param {(handlers: NetlayerHandlers, logger: Logger, captpVersion: string) => T | Promise<T>} makeNetlayer
+     * @returns {Promise<T>}
      */
-    registerNetlayer(netlayer) {
+    async registerNetlayer(makeNetlayer) {
+      const netlayer = await makeNetlayer(
+        netlayerHandlers,
+        logger,
+        captpVersion,
+      );
       const { transport } = netlayer.location;
       if (netlayers.has(transport)) {
         throw Error(`Netlayer already registered for transport: ${transport}`);
       }
       netlayers.set(transport, netlayer);
-    },
-    /**
-     * @param {Connection} connection
-     * @param {Uint8Array} data
-     */
-    handleMessageData(connection, data) {
-      client.logger.info(`handleMessageData called`);
-      const session = sessionManager.getSessionForConnection(connection);
-      if (session) {
-        handleActiveSessionMessageData(
-          logger,
-          sessionManager,
-          connection,
-          session,
-          data,
-        );
-      } else {
-        handleHandshakeMessageData(
-          logger,
-          sessionManager,
-          connection,
-          sendAbortAndClose,
-          data,
-          captpVersion,
-          prepareOcapn,
-        );
-      }
-    },
-    /**
-     * @param {Connection} connection
-     * @param {Error} reason
-     */
-    handleConnectionClose(connection, reason) {
-      client.logger.info(`handleConnectionClose called`, { reason });
-      const session = sessionManager.getSessionForConnection(connection);
-      if (session) {
-        const locationId = locationToLocationId(session.peer.location);
-        logger.info(`handling connection close for ${locationId}`);
-        session.ocapn.abort(reason);
-        sessionManager.endSession(session);
-      } else {
-        // If no session exists, check if there's a pending session for this connection
-        sessionManager.rejectPendingSessionForConnection(connection);
-      }
-      sessionManager.deleteConnection(connection);
+      return netlayer;
     },
     /**
      * @param {OcapnLocation} location

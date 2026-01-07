@@ -8,7 +8,7 @@ import { sendHandshake } from '../client/handshake.js';
 import { locationToLocationId } from '../client/util.js';
 
 /**
- * @import { Connection, NetLayer, Client } from '../client/types.js'
+ * @import { Connection, NetLayer, NetlayerHandlers } from '../client/types.js'
  * @import { OcapnLocation } from '../codecs/components.js'
  */
 
@@ -81,7 +81,9 @@ const makeConnection = (netlayer, socket, isOutgoing, options = {}) => {
 
 /**
  * @param {object} options
- * @param {Client} options.client
+ * @param {NetlayerHandlers} options.handlers
+ * @param {import('../client/types.js').Logger} options.logger
+ * @param {string} options.captpVersion
  * @param {number} [options.specifiedPort]
  * @param {string} [options.specifiedHostname]
  * @param {string} [options.specifiedDesignator]
@@ -89,15 +91,15 @@ const makeConnection = (netlayer, socket, isOutgoing, options = {}) => {
  * @returns {Promise<TcpTestOnlyNetLayer>}
  */
 export const makeTcpNetLayer = async ({
-  client,
+  handlers,
+  logger,
+  captpVersion,
   specifiedPort = 0,
   specifiedHostname = '127.0.0.1',
   // Unclear if a fallback value is reasonable.
   specifiedDesignator = '0000',
   writeLatencyMs = 0,
 }) => {
-  const { logger } = client;
-
   // Create and start TCP server
   const server = net.createServer();
 
@@ -163,7 +165,7 @@ export const makeTcpNetLayer = async ({
 
     socket.on('data', data => {
       const bytes = bufferToBytes(data);
-      client.handleMessageData(connection, bytes);
+      handlers.handleMessageData(connection, bytes);
     });
 
     socket.on('error', err => {
@@ -173,7 +175,7 @@ export const makeTcpNetLayer = async ({
 
     socket.on('close', () => {
       logger.info('Connection closed');
-      client.handleConnectionClose(connection);
+      handlers.handleConnectionClose(connection);
     });
 
     return { connection, socket };
@@ -186,7 +188,7 @@ export const makeTcpNetLayer = async ({
   const connect = location => {
     logger.info('Connecting to', location);
     const { connection } = internalEstablishConnection(location);
-    sendHandshake(connection, connection.selfIdentity, client.captpVersion);
+    sendHandshake(connection, connection.selfIdentity, captpVersion);
     return connection;
   };
 
@@ -201,15 +203,15 @@ export const makeTcpNetLayer = async ({
     const existingConnection = connections.get(location.designator);
     // Only reuse connection if it's not destroyed
     if (existingConnection && !existingConnection.isDestroyed) {
-      client.logger.info(`lookupOrConnect returning existing connection`);
+      logger.info(`lookupOrConnect returning existing connection`);
       return existingConnection;
     }
     // Remove destroyed connection from map
     if (existingConnection) {
-      client.logger.info(`lookupOrConnect removing destroyed connection`);
+      logger.info(`lookupOrConnect removing destroyed connection`);
       connections.delete(location.designator);
     }
-    client.logger.info(`lookupOrConnect creating new connection`);
+    logger.info(`lookupOrConnect creating new connection`);
     const newConnection = connect(location);
     connections.set(location.designator, newConnection);
     return newConnection;
@@ -247,7 +249,7 @@ export const makeTcpNetLayer = async ({
       try {
         const bytes = bufferToBytes(data);
         if (!connection.isDestroyed) {
-          client.handleMessageData(connection, bytes);
+          handlers.handleMessageData(connection, bytes);
         } else {
           logger.info(
             'TcpTestOnlyNetLayer received message after connection was destroyed',
@@ -270,7 +272,7 @@ export const makeTcpNetLayer = async ({
 
     socket.on('close', () => {
       logger.info('Client disconnected from server');
-      client.handleConnectionClose(connection);
+      handlers.handleConnectionClose(connection);
     });
   });
 

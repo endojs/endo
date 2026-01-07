@@ -102,6 +102,13 @@
  */
 
 /**
+ * Handlers returned by registerNetlayer for the netlayer to call.
+ * @typedef {object} NetlayerHandlers
+ * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
+ * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
+ */
+
+/**
  * @typedef {object} Client
  * @property {Logger} logger
  * @property {string} debugLabel
@@ -109,9 +116,7 @@
  * @property {SessionManager} sessionManager
  * @property {SturdyRefTracker} sturdyRefTracker
  * @property {string} captpVersion
- * @property {(netlayer: NetLayer) => void} registerNetlayer
- * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
- * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
+ * @property {<T extends NetLayer>(makeNetlayer: (handlers: NetlayerHandlers, logger: Logger, captpVersion: string) => T | Promise<T>) => Promise<T>} registerNetlayer
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(sturdyRef: SturdyRef) => Promise<any>} enlivenSturdyRef

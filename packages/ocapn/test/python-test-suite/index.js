@@ -160,8 +160,15 @@ const start = async () => {
   for (const [swissStr, object] of testObjectTable.entries()) {
     client.sturdyRefTracker.register(swissStr, object);
   }
-  const tcpNetlayer = await makeTcpNetLayer({ client, specifiedPort: 22046 });
-  client.registerNetlayer(tcpNetlayer);
+  // Register netlayer with client
+  await client.registerNetlayer((handlers, logger, captpVersion) =>
+    makeTcpNetLayer({
+      handlers,
+      logger,
+      captpVersion,
+      specifiedPort: 22046,
+    }),
+  );
 };
 
 start();

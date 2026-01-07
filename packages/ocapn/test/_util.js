@@ -182,12 +182,17 @@ export const makeTestClient = async ({
     debugMode: true,
     ...clientOptions,
   });
-  const netlayer = await makeTcpNetLayer({
-    client,
-    specifiedDesignator: debugLabel,
-    writeLatencyMs,
-  });
-  client.registerNetlayer(netlayer);
+  // Register netlayer with client
+  const netlayer = await client.registerNetlayer(
+    (handlers, logger, captpVersion) =>
+      makeTcpNetLayer({
+        handlers,
+        logger,
+        captpVersion,
+        specifiedDesignator: debugLabel,
+        writeLatencyMs,
+      }),
+  );
   const { location } = netlayer;
   const locationId = locationToLocationId(location);
   return { client, netlayer, location, locationId };
