@@ -25,10 +25,12 @@ const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
  */
 export const getOcapnDebug = ocapn => {
   assert(
-    ocapn.debug,
+    // eslint-disable-next-line no-underscore-dangle
+    ocapn._debug,
     'debug object not available - client must be created with debugMode: true',
   );
-  return ocapn.debug;
+  // eslint-disable-next-line no-underscore-dangle
+  return ocapn._debug;
 };
 
 /**

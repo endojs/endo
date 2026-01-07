@@ -653,6 +653,7 @@ const makeBootstrapObject = (
 };
 
 /**
+ * **EXPERIMENTAL**: Internal APIs for testing. Subject to change.
  * @typedef {object} OcapnDebug
  * @property {OcapnTable} ocapnTable
  * @property {(message: object) => void} sendMessage
@@ -666,7 +667,7 @@ const makeBootstrapObject = (
  * @property {() => object} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
  * @property {(message: any) => Uint8Array} writeOcapnMessage
- * @property {OcapnDebug} [debug] - @experimental Only present when `debugMode` is true.
+ * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
  */
 
 /**
@@ -683,7 +684,7 @@ const makeBootstrapObject = (
  * @param {SturdyRefTracker} sturdyRefTracker
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
- * @param {boolean} [debugMode] - If true, exposes `debug` object with internal APIs for testing. Default: false.
+ * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -1240,7 +1241,8 @@ export const makeOcapn = (
     referenceKit,
   };
   if (debugMode) {
-    ocapn.debug = {
+    // eslint-disable-next-line no-underscore-dangle
+    ocapn._debug = {
       ocapnTable,
       sendMessage: send,
       subscribeMessages,

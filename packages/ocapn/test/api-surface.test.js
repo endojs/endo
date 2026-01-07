@@ -33,6 +33,8 @@ const ENTRY_POINTS = ['Client'];
 
 /** @type {string[]} */
 const INTERNAL_ONLY_TYPES = [
+  'OcapnDebug',
+  'OcapnTable',
   // 'Session',
   // 'Ocapn',
   // 'SessionManager',
@@ -291,7 +293,7 @@ function collectTypeDefinitions() {
  * Walk type graph starting from entry points
  * @param {Map<string, TypeDef>} allTypes
  * @param {string[]} entryPoints
- * @returns {{reachable: Map<string, {type: TypeDef, path: string[]}>, unreachable: string[]}}
+ * @returns {{reachable: Map<string, {type: TypeDef, path: string[]}>, unreachable: string[], skippedMembers: Array<{typeName: string, memberName: string}>}}
  */
 function walkTypeGraph(allTypes, entryPoints) {
   /** @type {Map<string, {type: TypeDef, path: string[]}>} */
@@ -300,6 +302,8 @@ function walkTypeGraph(allTypes, entryPoints) {
   const visited = new Set();
   /** @type {Array<{typeName: string, path: string[]}>} */
   const queue = [];
+  /** @type {Array<{typeName: string, memberName: string}>} */
+  const skippedMembers = [];
 
   for (const entry of entryPoints) {
     queue.push({ typeName: entry, path: [entry] });
@@ -327,6 +331,13 @@ function walkTypeGraph(allTypes, entryPoints) {
     reachable.set(typeName, { type: typeDef, path });
 
     for (const member of typeDef.members) {
+      // Skip walking underscore-prefixed members (internal/experimental APIs)
+      // but note them as encountered
+      if (member.name.startsWith('_')) {
+        skippedMembers.push({ typeName, memberName: member.name });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       for (const ref of member.referencedTypes) {
         if (!visited.has(ref)) {
           queue.push({
@@ -345,21 +356,27 @@ function walkTypeGraph(allTypes, entryPoints) {
     }
   }
 
-  return { reachable, unreachable };
+  return { reachable, unreachable, skippedMembers };
 }
 
 /**
  * Analyze API surface and return structured result
- * @returns {{allTypes: Map<string, TypeDef>, reachable: Map<string, {type: TypeDef, path: string[]}>, leakedTypes: string[], missingInternalTypes: string[]}}
+ * @returns {{allTypes: Map<string, TypeDef>, reachable: Map<string, {type: TypeDef, path: string[]}>, leakedTypes: string[], missingInternalTypes: string[], skippedMembers: Array<{typeName: string, memberName: string}>}}
  */
 function analyzeApiSurface() {
   const allTypes = collectTypeDefinitions();
-  const { reachable } = walkTypeGraph(allTypes, ENTRY_POINTS);
+  const { reachable, skippedMembers } = walkTypeGraph(allTypes, ENTRY_POINTS);
   const leakedTypes = INTERNAL_ONLY_TYPES.filter(t => reachable.has(t));
   const missingInternalTypes = INTERNAL_ONLY_TYPES.filter(
     t => !allTypes.has(t),
   );
-  return { allTypes, reachable, leakedTypes, missingInternalTypes };
+  return {
+    allTypes,
+    reachable,
+    leakedTypes,
+    missingInternalTypes,
+    skippedMembers,
+  };
 }
 
 /**
@@ -384,7 +401,8 @@ function formatTypeForSnapshot(typeDef) {
         prop.referencedTypes.length > 0
           ? ` → [${prop.referencedTypes.sort().join(', ')}]`
           : '';
-      lines.push(`    - ${prop.name}${refs}`);
+      const skipped = prop.name.startsWith('_') ? ' (skipped)' : '';
+      lines.push(`    - ${prop.name}${refs}${skipped}`);
     }
   }
 
@@ -395,7 +413,8 @@ function formatTypeForSnapshot(typeDef) {
         method.referencedTypes.length > 0
           ? ` → [${method.referencedTypes.sort().join(', ')}]`
           : '';
-      lines.push(`    - ${method.name}${refs}`);
+      const skipped = method.name.startsWith('_') ? ' (skipped)' : '';
+      lines.push(`    - ${method.name}${refs}${skipped}`);
     }
   }
 
@@ -407,7 +426,7 @@ function formatTypeForSnapshot(typeDef) {
  * @returns {string}
  */
 function generateApiSnapshot() {
-  const { reachable } = analyzeApiSurface();
+  const { reachable, skippedMembers } = analyzeApiSurface();
 
   const lines = [];
 
@@ -416,6 +435,20 @@ function generateApiSnapshot() {
   lines.push(`Entry points: ${ENTRY_POINTS.join(', ')}`);
   lines.push(`Reachable types: ${reachable.size}`);
   lines.push('');
+
+  // Log skipped underscore-prefixed members (not walked but noted)
+  if (skippedMembers.length > 0) {
+    lines.push('SKIPPED MEMBERS (underscore-prefixed, not walked):');
+    const sortedSkipped = [...skippedMembers].sort((a, b) =>
+      `${a.typeName}.${a.memberName}`.localeCompare(
+        `${b.typeName}.${b.memberName}`,
+      ),
+    );
+    for (const { typeName, memberName } of sortedSkipped) {
+      lines.push(`  - ${typeName}.${memberName}`);
+    }
+    lines.push('');
+  }
 
   const sortedReachable = [...reachable.entries()].sort((a, b) =>
     a[0].localeCompare(b[0]),

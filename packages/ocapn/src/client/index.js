@@ -174,7 +174,7 @@ const makeSessionManager = () => {
  * @param {Map<string, any>} [options.giftTable]
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
- * @param {boolean} [options.debugMode] - If true, exposes `debug` object on Ocapn instances with internal APIs for testing. Default: false.
+ * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
  * @returns {Client}
  */
 export const makeClient = ({
