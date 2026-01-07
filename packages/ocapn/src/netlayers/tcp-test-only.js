@@ -3,7 +3,8 @@
 
 import net from 'net';
 
-import { makeSelfIdentity, sendHello } from '../client/index.js';
+import { makeSelfIdentity } from '../client/index.js';
+import { sendHandshake } from '../client/handshake.js';
 import { locationToLocationId } from '../client/util.js';
 
 /**
@@ -185,7 +186,7 @@ export const makeTcpNetLayer = async ({
   const connect = location => {
     logger.info('Connecting to', location);
     const { connection } = internalEstablishConnection(location);
-    sendHello(connection, connection.selfIdentity, client.captpVersion);
+    sendHandshake(connection, connection.selfIdentity, client.captpVersion);
     return connection;
   };
 
