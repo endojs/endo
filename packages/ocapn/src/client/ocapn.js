@@ -80,7 +80,7 @@ const sink = harden(() => {});
  * @property {(reason?: any) => void} abort
  * @property {(reason?: any) => void} quietReject
  * @property {() => boolean} didUnplug
- * @property {() => void} doUnplug
+ * @property {(reason?: Error) => void} doUnplug
  * @property {Record<string, number>} sendStats
  * @property {Record<string, number>} recvStats
  * @property {(observer: MessageObserver) => () => void} subscribeMessages
@@ -641,6 +641,7 @@ const makeBootstrapObject = (
  * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
  * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {() => void} endSession
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} giftTable
  * @param {SturdyRefTracker} sturdyRefTracker
@@ -657,6 +658,7 @@ export const makeOcapn = (
   provideSession,
   getActiveSession,
   getPeerPublicKeyForSessionId,
+  endSession,
   grantTracker,
   giftTable,
   sturdyRefTracker,
@@ -677,14 +679,21 @@ export const makeOcapn = (
    */
   const abort = reason => {
     logger.info(`client received abort`, reason);
-    connection.end();
     const disconnectError = harden(
       reason
         ? Error('Session disconnected', { cause: reason })
         : Error('Session disconnected'),
     );
+    // Mark as unplugged first so no further messages are sent
+    // eslint-disable-next-line no-use-before-define
+    doUnplug(disconnectError);
+    connection.end();
     // eslint-disable-next-line no-use-before-define
     ocapnTable.destroy(disconnectError);
+    // Notify the session manager to immediately end the session.
+    // This prevents race conditions where a new connection arrives
+    // before the socket 'close' event fires.
+    endSession();
   };
 
   /**
@@ -926,15 +935,21 @@ export const makeOcapn = (
     };
   };
 
-  const { dispatch, send, quietReject, didUnplug, subscribeMessages } =
-    makeOcapnCommsKit({
-      logger,
-      makeDispatch,
-      onReject,
-      commitSendSlots,
-      // eslint-disable-next-line no-use-before-define
-      rawSend: serializeAndSendMessage,
-    });
+  const {
+    dispatch,
+    send,
+    quietReject,
+    didUnplug,
+    doUnplug,
+    subscribeMessages,
+  } = makeOcapnCommsKit({
+    logger,
+    makeDispatch,
+    onReject,
+    commitSendSlots,
+    // eslint-disable-next-line no-use-before-define
+    rawSend: serializeAndSendMessage,
+  });
 
   const makeRemoteKitForHandler = makeMakeRemoteKitForHandler({
     logger,

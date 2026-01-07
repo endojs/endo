@@ -259,6 +259,10 @@ const handleSessionHandshakeMessage = (
         provideSession,
         sessionManager.getActiveSession,
         sessionManager.getPeerPublicKeyForSessionId,
+        () => {
+          // eslint-disable-next-line no-use-before-define
+          sessionManager.endSession(session);
+        },
         grantTracker,
         giftTable,
         sturdyRefTracker,
