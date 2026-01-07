@@ -6,6 +6,7 @@
     "README.md",
     "docs/get-started.md",
     "docs/guide.md",
+    "docs/message-passing.md",
     "docs/reference.md",
     "docs/lockdown.md",
     "docs/errors.md",
@@ -19,6 +20,8 @@
   ],
   "exclude": [
     "**/tmp/**",
+    "**/dist/**",
+    "**/node_modules/**",
     "packages/cjs-module-analyzer",
     "packages/cli",
     "packages/compartment-mapper",
@@ -32,7 +35,8 @@
     "packages/stream-types-test",
     "packages/syrup",
     "packages/test262-runner/",
-    "packages/where"
+    "packages/where",
+    "api-docs/"
   ],
   "plugin": [
     "typedoc-plugin-mermaid"
@@ -42,6 +46,7 @@
   "entryPointStrategy": "packages",
   "customCss": "docs/assets/custom.css",
   "useTsLinkResolution": true,
+  "tsconfig": "./tsconfig.json",
   "out": "api-docs",
   "includeVersion": true
 }

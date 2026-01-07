@@ -49,6 +49,32 @@ jobs:
       - name: build API docs
         run: yarn docs
 
+  docs-markdown:
+    # begin macro
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # end macro
+
+      - name: Run yarn build
+        run: yarn build
+
       # build the API docs in markdown for agoric/documentation repo to verify it works
       - name: build API docs in markdown
         run: yarn docs:markdown-for-agoric-documentation-repo
