@@ -67,10 +67,11 @@ const sink = harden(() => {});
 /**
  * @typedef {object} MakeOcapnCommsKitOptions
  * @property {Logger} logger
- * @property {(sendStats: Record<string, number>, recvStats: Record<string, number>) => (message: any) => void} makeDispatch
+ * @property {(message: any) => void} rawDispatch
  * @property {(reason?: any) => void} onReject
  * @property {(message: any) => void} rawSend
- * @property {() => void} commitSendSlots
+ * @property {() => void} clearPendingRefCounts
+ * @property {() => void} commitSentRefCounts
  */
 
 /**
@@ -80,8 +81,7 @@ const sink = harden(() => {});
  * @property {(reason?: any) => void} quietReject
  * @property {() => boolean} didUnplug
  * @property {(reason?: Error) => void} doUnplug
- * @property {Record<string, number>} sendStats
- * @property {Record<string, number>} recvStats
+ * @property {() => { send: Record<string, number>; recv: Record<string, number> }} getStats
  * @property {(observer: MessageObserver) => () => void} subscribeMessages
  */
 
@@ -91,10 +91,11 @@ const sink = harden(() => {});
  */
 const makeOcapnCommsKit = ({
   logger,
-  makeDispatch,
   onReject,
+  rawDispatch,
   rawSend,
-  commitSendSlots,
+  clearPendingRefCounts,
+  commitSentRefCounts,
 }) => {
   /** @type {Record<string, number>} */
   const sendStats = {};
@@ -143,55 +144,98 @@ const makeOcapnCommsKit = ({
   };
 
   /**
-   * @param {Record<string, any>} obj
+   * @param {Record<string, any>} message
    */
-  const send = obj => {
-    sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
-    commitSendSlots();
+  const send = message => {
+    // Don't throw here if unplugged, just don't send.
+    if (didUnplug()) {
+      logger.info(`Unplugged, not sending message:`, message);
+      return;
+    }
+
+    logger.info(`Sending message:`, message);
 
     // Notify message observers
     for (const observer of messageObservers) {
       try {
-        observer('send', obj);
+        observer('send', message);
       } catch (err) {
         // Ignore observer errors
       }
     }
 
-    // Don't throw here if unplugged, just don't send.
-    if (unplugError !== false) {
-      return;
+    try {
+      // Prepare for sending the message.
+      clearPendingRefCounts();
+      // Actually send the message. Throws on serialization error.
+      rawSend(message);
+      // Finalize the sending of the message.
+      commitSentRefCounts();
+      sendStats[message.type] = (sendStats[message.type] || 0) + 1;
+    } catch (error) {
+      // Message send failed.
+      logger.info('Error in send', error);
+      clearPendingRefCounts();
+      throw error;
     }
-
-    // Actually send the message. Throws on serialization error.
-    rawSend(obj);
   };
 
   // Return a dispatch function that notifies observers.
-  const innerDispatch = makeDispatch(sendStats, recvStats);
   const dispatch = message => {
+    if (didUnplug()) {
+      logger.info('Unplugged, not dispatching message:', message);
+      return;
+    }
+
+    if (
+      typeof message !== 'object' ||
+      message === null ||
+      message.type === undefined
+    ) {
+      throw Error(`Invalid message: ${message}`);
+    }
+
+    logger.info(`Dispatching message:`, message);
+
     // Notify message observers before dispatching
     for (const observer of messageObservers) {
       try {
         observer('receive', message);
       } catch (err) {
-        // Ignore observer errors
+        // Only log observer errors.
+        logger.info('Error in message observer', err);
       }
     }
-    return innerDispatch(message);
+
+    try {
+      // Actually dispatch the message. If it made it this far, its unlikely to throw.
+      rawDispatch(message);
+      // Finalize the dispatching of the message.
+      recvStats[message.type] = (recvStats[message.type] || 0) + 1;
+    } catch (error) {
+      // Message dispatch failed.
+      logger.info('Error in dispatch', error);
+      throw error;
+    }
+  };
+
+  const getStats = () => {
+    return harden({
+      send: { ...sendStats },
+      recv: { ...recvStats },
+    });
   };
 
   // Can't harden stats.
-  return {
+  return harden({
+    getStats,
     dispatch,
     send,
     quietReject,
     didUnplug,
     doUnplug,
-    sendStats,
-    recvStats,
     subscribeMessages,
-  };
+  });
 };
 
 /**
@@ -304,7 +348,7 @@ const makeMakeHandlerForRemoteReference = ({
      */
     const handler = harden({
       get(_o, prop, externalAnswerPromise) {
-        if (didUnplug() !== false) {
+        if (didUnplug()) {
           return quietReject(didUnplug());
         }
         logger.info(`get`, targetGetter(), prop);
@@ -358,21 +402,21 @@ const makeMakeHandlerForRemoteReference = ({
         return internalPromise;
       },
       applyFunction(_o, args, externalAnswerPromise) {
-        if (didUnplug() !== false) {
+        if (didUnplug()) {
           return quietReject(didUnplug());
         }
         logger.info(`applyFunction`, targetGetter(), args);
         return sendDeliver(args, externalAnswerPromise);
       },
       applyFunctionSendOnly(_o, args) {
-        if (didUnplug() !== false) {
+        if (didUnplug()) {
           return;
         }
         logger.info(`applyFunctionSendOnly`, targetGetter(), args);
         sendDeliverOnly(args);
       },
       applyMethod(_o, prop, args, externalAnswerPromise) {
-        if (didUnplug() !== false) {
+        if (didUnplug()) {
           return quietReject(didUnplug());
         }
         logger.info(`applyMethod`, targetGetter(), prop, args);
@@ -383,7 +427,7 @@ const makeMakeHandlerForRemoteReference = ({
         return sendDeliver([methodSelector, ...args], externalAnswerPromise);
       },
       applyMethodSendOnly(_o, prop, args) {
-        if (didUnplug() !== false) {
+        if (didUnplug()) {
           return;
         }
         logger.info(`applyMethodSendOnly`, targetGetter(), prop, args);
@@ -658,10 +702,6 @@ export const makeOcapn = (
   enableImportCollection = true,
   debugMode = false,
 ) => {
-  const commitSendSlots = () => {
-    logger.info(`commitSendSlots`);
-  };
-
   const onReject = reason => {
     logger.info(`onReject`, reason);
   };
@@ -738,7 +778,7 @@ export const makeOcapn = (
     );
   };
 
-  const handler = harden({
+  const ocapnSystemMessageHandler = harden({
     'op:deliver': message => {
       const { to, answerPosition, args, resolveMeDesc } = message;
       logger.info(`deliver`, { to, toType: typeof to, args, answerPosition });
@@ -906,25 +946,14 @@ export const makeOcapn = (
   });
 
   /**
-   * @param {Record<string, number>} sendStats
-   * @param {Record<string, number>} recvStats
-   * @returns {(message: any) => void}
+   * @param {Record<string, any>} message
    */
-  const makeDispatch = (sendStats, recvStats) => {
-    return message => {
-      try {
-        if (typeof message !== 'object' || message === null) {
-          throw Error(`Invalid message: ${message}`);
-        }
-        const fn = handler[message.type];
-        if (!fn) {
-          throw Error(`Unknown message type: ${message.type}`);
-        }
-        fn(message);
-      } catch (error) {
-        logger.info('Error in dispatch', error);
-      }
-    };
+  const dispatchMessage = message => {
+    const fn = ocapnSystemMessageHandler[message.type];
+    if (!fn) {
+      throw Error(`Unknown message type: ${message.type}`);
+    }
+    fn(message);
   };
 
   const {
@@ -936,11 +965,14 @@ export const makeOcapn = (
     subscribeMessages,
   } = makeOcapnCommsKit({
     logger,
-    makeDispatch,
     onReject,
-    commitSendSlots,
+    rawDispatch: dispatchMessage,
     // eslint-disable-next-line no-use-before-define
     rawSend: serializeAndSendMessage,
+    // eslint-disable-next-line no-use-before-define
+    clearPendingRefCounts: () => ocapnTable.clearPendingRefCounts(),
+    // eslint-disable-next-line no-use-before-define
+    commitSentRefCounts: () => ocapnTable.commitSentRefCounts(),
   });
 
   const makeRemoteKitForHandler = makeMakeRemoteKitForHandler({
@@ -1140,18 +1172,11 @@ export const makeOcapn = (
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
 
   function serializeAndSendMessage(message) {
-    logger.info(`sending message`, message);
     try {
-      ocapnTable.clearPendingRefCounts();
       const bytes = writeOcapnMessage(message);
       connection.write(bytes);
-      // Tell the engine message serialization has completed.
-      ocapnTable.commitSentRefCounts();
     } catch (error) {
-      // Tell the engine message serialization has failed.
-      ocapnTable.clearPendingRefCounts();
-      logger.info(`sending message error`, error);
-      // Re-throw so the caller can handle the error (e.g., reject the answer promise).
+      logger.info(`Message serialization error`, error);
       throw error;
     }
   }
@@ -1185,15 +1210,7 @@ export const makeOcapn = (
         connection.end();
         throw err;
       }
-      logger.info(`dispatch`, message);
-      if (!didUnplug()) {
-        dispatch(message);
-      } else {
-        logger.info(
-          'Client received message after session was unplugged',
-          message,
-        );
-      }
+      dispatch(message);
     }
   };
 
