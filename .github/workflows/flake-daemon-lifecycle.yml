@@ -1,14 +1,14 @@
-name: Flake Repro - daemon lifecycle (100x)
+name: Flake Repro - daemon lifecycle (500x)
 
 on:
   pull_request:
   workflow_dispatch:
 
 jobs:
-  daemon-lifecycle-100x:
-    name: daemon lifecycle (node 22, ubuntu) x100
+  daemon-lifecycle-500x:
+    name: daemon lifecycle (node 22, ubuntu) x500
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -29,14 +29,23 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Run @endo/daemon lifecycle test 100x (fail-fast)
+      - name: Run @endo/daemon lifecycle test 500x (fail-fast)
         env:
           ENDO_FLAKE_DEBUG: '1'
+          ENDO_FLAKE_ITERATIONS: '500'
+          # Set to '1' to add CPU load (more CI-like scheduling pressure).
+          ENDO_FLAKE_STRESS: '1'
         run: |
           set -euo pipefail
-          for i in $(seq 1 100); do
+          if [ "${ENDO_FLAKE_STRESS:-0}" = "1" ]; then
+            node -e 'function spin(){let x=0;for(let i=0;i<5e7;i++) x+=i;setImmediate(spin);} spin();' &
+            STRESS_PID=$!
+            trap 'kill "${STRESS_PID}" 2>/dev/null || true' EXIT
+          fi
+
+          for i in $(seq 1 "${ENDO_FLAKE_ITERATIONS}"); do
             echo ""
-            echo "===== iteration ${i}/100 ====="
+            echo "===== iteration ${i}/${ENDO_FLAKE_ITERATIONS} ====="
             yarn workspace @endo/daemon test test/endo.test.js -m lifecycle
           done
 
