@@ -4,8 +4,6 @@
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { Ocapn } from './ocapn.js'
- * @import { GrantTracker } from './grant-tracker.js'
- * @import { SturdyRefTracker } from './sturdyrefs.js'
  * @import { Connection, Logger, SelfIdentity, Session, SessionManager, SessionId } from './types.js'
  */
 
@@ -20,7 +18,6 @@ import {
   verifyLocationSignature,
 } from '../cryptography.js';
 import { compareImmutableArrayBuffers } from '../syrup/compare.js';
-import { makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
 import { locationToLocationId } from './util.js';
@@ -113,34 +110,22 @@ const makeSession = ({
 };
 
 /**
- * @param {string} debugLabel
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
- * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {(connection: Connection, reason: string) => void} sendAbortAndClose
- * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} giftTable
- * @param {SturdyRefTracker} sturdyRefTracker
  * @param {any} message
  * @param {string} captpVersion
- * @param {boolean} enableImportCollection
- * @param {boolean} debugMode
+ * @param {(connection: Connection, sessionId: SessionId, peerLocation: OcapnLocation) => Ocapn} prepareOcapn
  */
 const handleSessionHandshakeMessage = (
-  debugLabel,
   logger,
   sessionManager,
   connection,
-  provideSession,
   sendAbortAndClose,
-  grantTracker,
-  giftTable,
-  sturdyRefTracker,
   message,
   captpVersion,
-  enableImportCollection,
-  debugMode,
+  prepareOcapn,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
@@ -220,25 +205,8 @@ const handleSessionHandshakeMessage = (
         selfIdentity.keyPair.publicKey.id,
         peerPublicKey.id,
       );
-      const ocapn = makeOcapn(
-        logger,
-        connection,
-        sessionId,
-        peerLocation,
-        provideSession,
-        sessionManager.getActiveSession,
-        sessionManager.getPeerPublicKeyForSessionId,
-        () => {
-          // eslint-disable-next-line no-use-before-define
-          sessionManager.endSession(session);
-        },
-        grantTracker,
-        giftTable,
-        sturdyRefTracker,
-        debugLabel,
-        enableImportCollection,
-        debugMode,
-      );
+
+      const ocapn = prepareOcapn(connection, sessionId, peerLocation);
       const session = makeSession({
         id: sessionId,
         selfIdentity,
@@ -268,34 +236,22 @@ const handleSessionHandshakeMessage = (
 };
 
 /**
- * @param {string} debugLabel
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
- * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {(connection: Connection, reason: string) => void} sendAbortAndClose
- * @param {GrantTracker} grantTracker
- * @param {Map<string, any>} giftTable
- * @param {SturdyRefTracker} sturdyRefTracker
  * @param {Uint8Array} data
  * @param {string} captpVersion
- * @param {boolean} enableImportCollection
- * @param {boolean} debugMode
+ * @param {(connection: Connection, sessionId: SessionId, peerLocation: OcapnLocation) => Ocapn} prepareOcapn
  */
 export const handleHandshakeMessageData = (
-  debugLabel,
   logger,
   sessionManager,
   connection,
-  provideSession,
   sendAbortAndClose,
-  grantTracker,
-  giftTable,
-  sturdyRefTracker,
   data,
   captpVersion,
-  enableImportCollection,
-  debugMode,
+  prepareOcapn,
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
@@ -317,19 +273,13 @@ export const handleHandshakeMessageData = (
       }
       if (!connection.isDestroyed) {
         handleSessionHandshakeMessage(
-          debugLabel,
           logger,
           sessionManager,
           connection,
-          provideSession,
           sendAbortAndClose,
-          grantTracker,
-          giftTable,
-          sturdyRefTracker,
           message,
           captpVersion,
-          enableImportCollection,
-          debugMode,
+          prepareOcapn,
         );
       } else {
         logger.info(

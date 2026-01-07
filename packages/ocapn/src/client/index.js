@@ -14,6 +14,7 @@ import { makeGrantTracker } from './grant-tracker.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
 import { handleHandshakeMessageData } from './handshake.js';
+import { makeOcapn } from './ocapn.js';
 
 /**
  * @param {OcapnLocation} myLocation
@@ -224,7 +225,7 @@ export const makeClient = ({
   };
 
   const grantTracker = makeGrantTracker();
-
+  const sturdyRefTracker = makeSturdyRefTracker(swissnumTable);
   /**
    * Check if a location matches one of our own netlayers (self-location)
    * @param {OcapnLocation} location
@@ -240,6 +241,33 @@ export const makeClient = ({
     return false;
   };
 
+  const prepareOcapn = (connection, sessionId, peerLocation) => {
+    return makeOcapn(
+      logger,
+      connection,
+      sessionId,
+      peerLocation,
+      // eslint-disable-next-line no-use-before-define
+      client.provideSession,
+      sessionManager.getActiveSession,
+      sessionManager.getPeerPublicKeyForSessionId,
+      () => {
+        const activeSession = sessionManager.getActiveSession(
+          locationToLocationId(peerLocation),
+        );
+        if (activeSession) {
+          sessionManager.endSession(activeSession);
+        }
+      },
+      grantTracker,
+      giftTable,
+      sturdyRefTracker,
+      debugLabel,
+      enableImportCollection,
+      debugMode,
+    );
+  };
+
   /** @type {Client} */
   const client = harden({
     captpVersion,
@@ -247,7 +275,7 @@ export const makeClient = ({
     logger,
     grantTracker,
     sessionManager,
-    sturdyRefTracker: makeSturdyRefTracker(swissnumTable),
+    sturdyRefTracker,
     /**
      * @param {NetLayer} netlayer
      */
@@ -275,19 +303,13 @@ export const makeClient = ({
         );
       } else {
         handleHandshakeMessageData(
-          debugLabel,
           logger,
           sessionManager,
           connection,
-          client.provideSession,
           sendAbortAndClose,
-          grantTracker,
-          giftTable,
-          client.sturdyRefTracker,
           data,
           captpVersion,
-          enableImportCollection,
-          debugMode,
+          prepareOcapn,
         );
       }
     },
