@@ -6,7 +6,7 @@ name: CI
 on:
   push:
     branches: [master]
-  pull_request:
+  workflow_dispatch:
 
 # This file has necessary redundancies since of github actions aren't supporting:
 # - the definition of macros, which could be called from each job.

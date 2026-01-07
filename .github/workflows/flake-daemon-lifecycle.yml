@@ -1,0 +1,42 @@
+name: Flake Repro - daemon lifecycle (100x)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  daemon-lifecycle-100x:
+    name: daemon lifecycle (node 22, ubuntu) x100
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build
+        run: yarn build
+
+      - name: Run @endo/daemon lifecycle test 100x (fail-fast)
+        env:
+          ENDO_FLAKE_DEBUG: '1'
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 100); do
+            echo ""
+            echo "===== iteration ${i}/100 ====="
+            yarn workspace @endo/daemon test test/endo.test.js -m lifecycle
+          done
+

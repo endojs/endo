@@ -42,8 +42,6 @@ import {
  * @param {Promise<never>} cancelled
  */
 const delay = async (ms, cancelled) => {
-  // Do not attempt to set up a timer if already cancelled.
-  await Promise.race([cancelled, undefined]);
   return new Promise((resolve, reject) => {
     const handle = setTimeout(resolve, ms);
     cancelled.catch(error => {
@@ -51,6 +49,18 @@ const delay = async (ms, cancelled) => {
       clearTimeout(handle);
     });
   });
+};
+
+/**
+ * Debug logging for flaky-test investigation.
+ *
+ * @param  {...any} args
+ */
+const flakeDebug = (...args) => {
+  // eslint-disable-next-line no-unsafe-optional-chaining
+  if (globalThis.process?.env?.ENDO_FLAKE_DEBUG) {
+    console.log(...args);
+  }
 };
 
 /**
@@ -345,21 +355,45 @@ const makeDaemonCore = async (
       );
 
     const gracefulCancel = async () => {
+      flakeDebug(`Requesting worker terminate`, { workerId512 });
       E.sendOnly(workerDaemonFacet).terminate();
-      const cancelWorkerGracePeriod = () => {
-        throw new Error('Exited gracefully before grace period elapsed');
-      };
-      const workerGracePeriodCancelled = Promise.race([
-        gracePeriodElapsed,
-        workerTerminated,
-      ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
-      await delay(gracePeriodMs, workerGracePeriodCancelled)
-        .then(() => {
-          throw new Error(
-            `Worker termination grace period ${gracePeriodMs}ms elapsed`,
-          );
-        })
-        .catch(forceCancel);
+
+      // If the worker doesn't terminate within the grace period, escalate to a
+      // forced cancellation which will kill the worker process.
+      const workerTerminatedSentinel = Symbol('workerTerminated');
+      const workerTerminatedCancelled = /** @type {Promise<never>} */ (
+        workerTerminated.then(
+          () => Promise.reject(workerTerminatedSentinel),
+          () => Promise.reject(workerTerminatedSentinel),
+        )
+      );
+
+      try {
+        await delay(gracePeriodMs, workerTerminatedCancelled);
+        flakeDebug(`Worker termination grace period elapsed; forcing cancel`, {
+          workerId512,
+          gracePeriodMs,
+        });
+        forceCancel(
+          new Error(`Worker termination grace period ${gracePeriodMs}ms elapsed`),
+        );
+      } catch (error) {
+        if (error !== workerTerminatedSentinel) {
+          flakeDebug(`Worker cancellation interrupted; forcing cancel`, {
+            workerId512,
+            error,
+          });
+          // If we got here due to daemon cancellation, preserve the reason and
+          // force cancellation.
+          forceCancel(/** @type {any} */ (error));
+        } else {
+          flakeDebug(`Worker terminated within grace period`, {
+            workerId512,
+            gracePeriodMs,
+          });
+        }
+      }
+
       await workerTerminated;
     };
 

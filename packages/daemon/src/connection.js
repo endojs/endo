@@ -84,7 +84,7 @@ export const makeNetstringCapTP = (
     messageToBytes,
   );
   const messageReader = mapReader(
-    makeNetstringReader(bytesReader),
+    makeNetstringReader(bytesReader, { name }),
     bytesToMessage,
   );
   return makeMessageCapTP(

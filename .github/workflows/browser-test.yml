@@ -2,8 +2,7 @@ name: Browser Tests
 on:
   push:
     branches: [master]
-  pull_request:
-    branches: [master]
+  workflow_dispatch:
   schedule:
     - cron: '0 0 * * *' # Runs every day at midnight
 jobs:
