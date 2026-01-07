@@ -1,12 +1,12 @@
-name: Flake Repro - daemon lifecycle (500x)
+name: Flake Repro - daemon lifecycle (stress)
 
 on:
   pull_request:
   workflow_dispatch:
 
 jobs:
-  daemon-lifecycle-500x:
-    name: daemon lifecycle (node 22, ubuntu) x500
+  daemon-lifecycle-stress:
+    name: daemon lifecycle stress (node 22, ubuntu)
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -29,23 +29,22 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Run @endo/daemon lifecycle test 500x (fail-fast)
+      - name: Run @endo/daemon lifecycle stress repro (fail-fast)
         env:
           ENDO_FLAKE_DEBUG: '1'
           ENDO_FLAKE_ITERATIONS: '500'
-          # Set to '1' to add CPU load (more CI-like scheduling pressure).
-          ENDO_FLAKE_STRESS: '1'
+          ENDO_FLAKE_PAYLOAD_BYTES: '262144'
+          ENDO_FLAKE_JITTER_MS: '5'
         run: |
           set -euo pipefail
-          if [ "${ENDO_FLAKE_STRESS:-0}" = "1" ]; then
-            node -e 'function spin(){let x=0;for(let i=0;i<5e7;i++) x+=i;setImmediate(spin);} spin();' &
-            STRESS_PID=$!
-            trap 'kill "${STRESS_PID}" 2>/dev/null || true' EXIT
-          fi
+          yarn workspace @endo/daemon test test/flake-lifecycle-repro.test.js
 
-          for i in $(seq 1 "${ENDO_FLAKE_ITERATIONS}"); do
-            echo ""
-            echo "===== iteration ${i}/${ENDO_FLAKE_ITERATIONS} ====="
-            yarn workspace @endo/daemon test test/endo.test.js -m lifecycle
-          done
+      - name: Upload daemon tmp logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: daemon-tmp
+          path: |
+            packages/daemon/tmp/**
+          retention-days: 14
 
