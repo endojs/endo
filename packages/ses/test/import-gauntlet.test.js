@@ -406,3 +406,37 @@ test('this in module scope must be undefined', async t => {
 
   await compartment.import('./index.js');
 });
+
+test('re-exported names should be available in imported modules', async t => {
+  t.plan(3);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/index.js': `
+      export { a } from './a.js';   
+      import { deferredTest } from './c.js';
+      export let b = 'b';
+      export const assertLiveBinding = () => deferredTest();
+    `,
+    'https://example.com/a.js': `
+      export const a = 'a';
+    `,
+    'https://example.com/c.js': `
+      import { a, b } from './index.js';
+      t.is(a, 'a', 're-exported name "a" from importing module should be string "a"');
+      t.pass("b is a known export even in a cycle and an attempt to import it doesn't fail with error")
+      export const deferredTest = () =>
+        t.is(b, 'b', 'exported name "b" should be string "b" after the cycle was resolved');
+    `,
+  });
+  const importHook = makeImportHook('https://example.com');
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook,
+    __options__: true,
+  });
+
+  const { namespace } = await compartment.import('./index.js');
+  namespace.assertLiveBinding();
+});

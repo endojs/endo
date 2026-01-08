@@ -354,6 +354,25 @@ export const makeModuleInstance = (
   };
   notifiers['*'] = notifyStar;
 
+  const wireUpExportNotifier = (exportName, notify) => {
+    if (!notifiers[exportName] && notify !== false) {
+      notifiers[exportName] = notify;
+
+      // exported live binding state
+      let value;
+      const update = newValue => (value = newValue);
+      notify(update);
+      exportsProps[exportName] = {
+        get() {
+          return value;
+        },
+        set: undefined,
+        enumerable: true,
+        configurable: false,
+      };
+    }
+  };
+
   // Per the calling convention for the moduleFunctor generated from
   // an ESM, the `imports` function gets called once up front
   // to populate or arrange the population of imports and reexports.
@@ -407,30 +426,15 @@ export const makeModuleInstance = (
         }
       }
       if (reexportMap[specifier]) {
-        // Make named reexports candidates too.
+        // Set up reexport notifiers instantly so they are available in cycles.
         for (const [localName, exportedName] of reexportMap[specifier]) {
-          candidateAll[exportedName] = importNotifiers[localName];
+          wireUpExportNotifier(exportedName, importNotifiers[localName]);
         }
       }
     }
 
     for (const [exportName, notify] of entries(candidateAll)) {
-      if (!notifiers[exportName] && notify !== false) {
-        notifiers[exportName] = notify;
-
-        // exported live binding state
-        let value;
-        const update = newValue => (value = newValue);
-        notify(update);
-        exportsProps[exportName] = {
-          get() {
-            return value;
-          },
-          set: undefined,
-          enumerable: true,
-          configurable: false,
-        };
-      }
+      wireUpExportNotifier(exportName, notify);
     }
 
     // Sort the module exports namespace as per spec.
