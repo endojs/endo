@@ -9,15 +9,29 @@ The exo-stream protocol uses bidirectional promise chains for streaming over Cap
 By default, the protocol is fully synchronized and just as chatty as naive protocols,
 suitable for deliberate synchronization. With a buffer value in excess of 1, promise
 chain nodes propagate via CapTP before the event loop yields to I/O, keeping the
-responder busy while the initiator processes values:
+responder busy while the initiator consumes values:
 
 1. **Initiator** creates a "synchronization" promise chain and holds its resolver
 2. **Initiator** calls `stream(synHead)` passing the synchronization chain head
 3. **Responder** creates an "acknowledgement" promise chain and holds its resolver
 4. **Responder** returns the acknowledgement chain head directly
 5. **Initiator** sends synchronization messages by resolving nodes on the synchronization chain
-6. **Responder** awaits synchornization messages, then produces values on the acknowledgement chain
-7. Both sides hold their resolvers locally. No resolvers cross the wire.
+6. **Responder** awaits synchronization messages, then produces values on the acknowledgement chain
+
+Both sides hold their resolvers locally. No resolvers cross the wire.
+
+Streams come in the **Reader** and **Writer** flavors that vary only
+in usage, because the protocol is symmetric.
+
+- For a **Reader**, the **Initiator** is the **Consumer** and the **Responder**
+  is the **Producer**.
+- For a **Writer**, the **Initiator** is the **Producer** and the **Responder**
+  is the **Consumer**.
+- We leave a void in the terminology for configurations where neither or both
+  parties send data.
+  **Duplex** passable streams are best modeled with a pair of unentangled
+  reader and writer, even if they share a duplex connection for purposes of
+  transport.
 
 ## Terminology
 
@@ -33,22 +47,22 @@ sequenceDiagram
     participant I as Initiator
     participant R as Responder
 
-    Note over I: Create synchronize chain<br/>(hold resolver locally)
-    Note over I: Pre-resolve buffer synchronizes
+    Note over I: Create synchronization chain<br/>(hold resolver locally)
+    Note over I: Pre-resolve buffer synchronizations
 
     I->>R: stream(synHead)
-    
-    Note over R: Create acknowledge chain<br/>Start pump loop
+
+    Note over R: Create acknowledgement chain<br/>Start pump loop
 
     R-->>I: ackHead (promise)
 
     loop For each value
-        Note over R: Await synchronize ✓
+        Note over R: Await synchronization ✓
         Note over R: Call iterator.next(synValue)
         Note over R: Resolve ack node
-        
+
         R-->>I: ack node {value, promise}
-        
+
         Note over I: Receive value
         I-->>R: Resolve syn node
     end

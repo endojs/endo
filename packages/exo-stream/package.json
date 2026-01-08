@@ -27,6 +27,7 @@
       "types": "./types.d.ts",
       "default": "./index.js"
     },
+    "./async-iterate.js": "./async-iterate.js",
     "./stream-bytes-iterator.js": "./stream-bytes-iterator.js",
     "./iterate-bytes-stream.js": "./iterate-bytes-stream.js",
     "./stream-iterator.js": "./stream-iterator.js",
