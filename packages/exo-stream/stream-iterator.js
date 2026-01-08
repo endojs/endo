@@ -4,24 +4,14 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 
 import { PassableStreamInterface } from './type-guards.js';
+import { asyncIterate } from './async-iterate.js';
 
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { Pattern } from '@endo/patterns' */
+/** @import { SomehowAsyncIterable } from './async-iterate.js' */
 
 const { freeze } = Object;
-
-/**
- * A type that can be iterated asynchronously.
- * Mirrors Stream<TRead, TWrite, TReadReturn, TWriteReturn> template parameters.
- * The `@endo/stream` Stream type is also accepted since it extends AsyncIterator.
- *
- * @template TRead
- * @template [TWrite=undefined]
- * @template [TReadReturn=unknown]
- * @template [TWriteReturn=unknown]
- * @typedef {AsyncIterable<TRead, TReadReturn, TWrite> | Iterable<TRead, TReadReturn, TWrite> | AsyncIterator<TRead, TReadReturn, TWrite> | Iterator<TRead, TReadReturn, TWrite>} SomehowAsyncIterable
- */
 
 /**
  * A yielding node in a bidirectional promise chain.
@@ -92,36 +82,17 @@ const { freeze } = Object;
  */
 
 /**
- * Returns the iterator for the given iterable object.
- * Supports both synchronous and asynchronous iterables.
+ * Convert a local iterator to a remote PassableStream reference (Responder side).
  *
- * @template TRead
- * @template [TWrite=undefined]
- * @template [TReadReturn=undefined]
- * @template [TWriteReturn=undefined]
- * @param {SomehowAsyncIterable<TRead, TWrite, TReadReturn, TWriteReturn>} iterable
- * @returns {AsyncIterator<TRead, TReadReturn, TWrite> | Iterator<TRead, TReadReturn, TWrite>}
- */
-const asyncIterate = iterable => {
-  if (Symbol.asyncIterator in iterable) {
-    return iterable[Symbol.asyncIterator]();
-  } else if (Symbol.iterator in iterable) {
-    return iterable[Symbol.iterator]();
-  } else if ('next' in iterable) {
-    return iterable;
-  }
-  throw new TypeError('Expected an iterable or iterator');
-};
-
-/**
- * Convert a local iterator to a remote PassableStream reference.
+ * For a Reader, this is the Producer: it wraps a local iterator and produces
+ * values for the remote Initiator/Consumer.
  *
  * The stream uses bidirectional promise chains for flow control:
- * - Initiator sends synchronizes (with optional values) via the synchronize chain
- * - Responder sends acknowledges via the acknowledge chain
- * - Synchronize values are passed to iterator.next() like generator.next(value)
+ * - Initiator sends synchronizations (with optional values) via the synchronization chain
+ * - Responder sends acknowledgements via the acknowledgement chain
+ * - Synchronization values are passed to iterator.next() like generator.next(value)
  *
- * With buffer > 1, the responder pre-pulls values and sends acknowledgements
+ * With buffer > 0, the responder pre-pulls values and sends acknowledgements
  * before waiting for synchronization messages, allowing the initiator to receive
  * values without additional round-trips.
  *
@@ -179,17 +150,13 @@ export const streamIterator = (iterator, options = {}) => {
           // eslint-disable-next-line no-await-in-loop
           const result = await iter.next(/** @type {any} */ (synValue));
 
-          const { promise, resolve } = makePromiseKit();
-          const ackNode = freeze({
-            value: result.value,
-            promise: result.done ? null : promise,
-          });
-          ackResolve(ackNode);
-          ackResolve = resolve;
-
           if (result.done) {
+            ackResolve(freeze({ value: result.value, promise: null }));
             break;
           }
+          const { promise, resolve } = makePromiseKit();
+          ackResolve(freeze({ value: result.value, promise }));
+          ackResolve = resolve;
         }
       })().catch(err => {
         // Abort: resolve tail with rejection

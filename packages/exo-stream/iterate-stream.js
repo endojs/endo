@@ -32,7 +32,11 @@ const { freeze } = Object;
  */
 
 /**
- * Convert a remote PassableStream reference to a local Stream.
+ * Convert a remote PassableStream reference to a local Stream (Initiator side).
+ *
+ * For a Reader, this is the Consumer: it initiates streaming and consumes
+ * values from the remote Responder/Producer.
+ *
  * Uses the bidirectional promise chain protocol for streaming with flow control.
  * With buffer > 1, nodes propagate via CapTP before I/O yields, keeping the responder busy.
  *

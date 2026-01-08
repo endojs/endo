@@ -7,9 +7,8 @@ import { iterateBytesStream } from '../iterate-bytes-stream.js';
 import { streamIterator } from '../stream-iterator.js';
 import { iterateStream } from '../iterate-stream.js';
 
-// Test bytes stream round-trip
 test('bytes stream round-trip', async t => {
-  const chunks = [
+  const messages = [
     new Uint8Array([1, 2, 3]),
     new Uint8Array([4, 5, 6]),
     new Uint8Array([7, 8, 9]),
@@ -17,8 +16,8 @@ test('bytes stream round-trip', async t => {
 
   // Create a local async iterator
   async function* localIterator() {
-    for (const chunk of chunks) {
-      yield chunk;
+    for (const message of messages) {
+      yield message;
     }
   }
 
@@ -30,18 +29,17 @@ test('bytes stream round-trip', async t => {
 
   // Collect results
   const results = [];
-  for await (const chunk of reader) {
-    results.push(chunk);
+  for await (const message of reader) {
+    results.push(message);
   }
 
   // Verify
-  t.is(results.length, chunks.length);
-  for (let i = 0; i < chunks.length; i += 1) {
-    t.deepEqual(results[i], chunks[i]);
+  t.is(results.length, messages.length);
+  for (let i = 0; i < messages.length; i += 1) {
+    t.deepEqual(results[i], messages[i]);
   }
 });
 
-// Test passable stream round-trip
 test('passable stream round-trip', async t => {
   const values = [
     { type: 'message', text: 'hello' },
@@ -75,7 +73,6 @@ test('passable stream round-trip', async t => {
   }
 });
 
-// Test empty bytes stream
 test('empty bytes stream', async t => {
   async function* emptyIterator() {
     // yields nothing
@@ -85,14 +82,13 @@ test('empty bytes stream', async t => {
   const reader = await iterateBytesStream(streamRef);
 
   const results = [];
-  for await (const chunk of reader) {
-    results.push(chunk);
+  for await (const message of reader) {
+    results.push(message);
   }
 
   t.is(results.length, 0);
 });
 
-// Test empty passable stream
 test('empty passable stream', async t => {
   async function* emptyIterator() {
     // yields nothing
@@ -109,24 +105,22 @@ test('empty passable stream', async t => {
   t.is(results.length, 0);
 });
 
-// Test bytes stream with synchronous iterator (array)
 test('bytes stream from array', async t => {
-  const chunks = [new Uint8Array([10, 20]), new Uint8Array([30, 40])];
+  const messages = [new Uint8Array([10, 20]), new Uint8Array([30, 40])];
 
-  const streamRef = streamBytesIterator(chunks);
+  const streamRef = streamBytesIterator(messages);
   const reader = await iterateBytesStream(streamRef);
 
   const results = [];
-  for await (const chunk of reader) {
-    results.push(chunk);
+  for await (const message of reader) {
+    results.push(message);
   }
 
-  t.is(results.length, chunks.length);
-  t.deepEqual(results[0], chunks[0]);
-  t.deepEqual(results[1], chunks[1]);
+  t.is(results.length, messages.length);
+  t.deepEqual(results[0], messages[0]);
+  t.deepEqual(results[1], messages[1]);
 });
 
-// Test passable stream with synchronous iterator (array)
 test('passable stream from array', async t => {
   const values = ['hello', 'world', 42, true, null];
 
@@ -141,22 +135,20 @@ test('passable stream from array', async t => {
   t.deepEqual(results, values);
 });
 
-// Test single-item bytes stream
 test('single-item bytes stream', async t => {
-  const chunk = new Uint8Array([255, 0, 128]);
+  const message = new Uint8Array([255, 0, 128]);
 
-  const streamRef = streamBytesIterator([chunk]);
+  const streamRef = streamBytesIterator([message]);
   const reader = await iterateBytesStream(streamRef);
 
   const result = await reader.next();
   t.false(result.done);
-  t.deepEqual(result.value, chunk);
+  t.deepEqual(result.value, message);
 
   const done = await reader.next();
   t.true(done.done);
 });
 
-// Test large bytes stream
 test('large bytes stream', async t => {
   const largeChunk = new Uint8Array(10000);
   for (let i = 0; i < largeChunk.length; i += 1) {
@@ -167,15 +159,14 @@ test('large bytes stream', async t => {
   const reader = await iterateBytesStream(streamRef);
 
   const results = [];
-  for await (const chunk of reader) {
-    results.push(chunk);
+  for await (const message of reader) {
+    results.push(message);
   }
 
   t.is(results.length, 1);
   t.deepEqual(results[0], largeChunk);
 });
 
-// Test passable stream with buffer option
 test('passable stream with buffer', async t => {
   const values = [1, 2, 3, 4, 5];
 
@@ -197,26 +188,84 @@ test('passable stream with buffer', async t => {
   t.deepEqual(results, values);
 });
 
-// Test bytes stream with buffer option
 test('bytes stream with buffer', async t => {
-  const chunks = [
+  const messages = [
     new Uint8Array([1]),
     new Uint8Array([2]),
     new Uint8Array([3]),
   ];
 
-  const streamRef = streamBytesIterator(chunks);
+  const streamRef = streamBytesIterator(messages);
   const reader = await iterateBytesStream(streamRef, { buffer: 1 });
 
   const results = [];
-  for await (const chunk of reader) {
-    results.push(chunk);
+  for await (const message of reader) {
+    results.push(message);
   }
 
-  t.is(results.length, chunks.length);
+  t.is(results.length, messages.length);
 });
 
-// Test passable stream with readPattern validation
+test('bytes stream stringLengthLimit allows small messages', async t => {
+  // Small message that becomes ~4 characters of base64
+  const messages = [new Uint8Array([1, 2, 3])];
+
+  const streamRef = streamBytesIterator(messages);
+  // 10 character limit should allow small messages (base64 of 3 bytes = 4 chars)
+  const reader = await iterateBytesStream(streamRef, { stringLengthLimit: 10 });
+
+  const results = [];
+  for await (const message of reader) {
+    results.push(message);
+  }
+
+  t.is(results.length, 1);
+  t.deepEqual(results[0], messages[0]);
+});
+
+test('bytes stream stringLengthLimit rejects large messages', async t => {
+  // Large message that becomes ~14 characters of base64 (10 bytes * 4/3 ≈ 14)
+  const messages = [new Uint8Array(10)];
+
+  const streamRef = streamBytesIterator(messages);
+  // 10 character limit should reject this (~14 char base64)
+  const reader = await iterateBytesStream(streamRef, { stringLengthLimit: 10 });
+
+  // Should throw when trying to read the oversized message
+  await t.throwsAsync(async () => reader.next(), {
+    message: /must not be bigger than/,
+  });
+});
+
+test('bytes stream stringLengthLimit at exact boundary', async t => {
+  // 6 bytes of binary becomes exactly 8 characters of base64 (6 * 4/3 = 8)
+  const messages = [new Uint8Array(6)];
+
+  const streamRef = streamBytesIterator(messages);
+  // 8 character limit should allow exactly 6 bytes of data
+  const reader = await iterateBytesStream(streamRef, { stringLengthLimit: 8 });
+
+  const results = [];
+  for await (const message of reader) {
+    results.push(message);
+  }
+
+  t.is(results.length, 1);
+});
+
+test('bytes stream stringLengthLimit one under boundary rejects', async t => {
+  // 6 bytes of binary becomes exactly 8 characters of base64
+  const messages = [new Uint8Array(6)];
+
+  const streamRef = streamBytesIterator(messages);
+  // 7 character limit should reject 6 bytes (which produces 8 chars)
+  const reader = await iterateBytesStream(streamRef, { stringLengthLimit: 7 });
+
+  await t.throwsAsync(async () => reader.next(), {
+    message: /must not be bigger than/,
+  });
+});
+
 test('passable stream with valid readPattern', async t => {
   const values = harden([
     { type: 'a', count: 1 },
@@ -235,7 +284,6 @@ test('passable stream with valid readPattern', async t => {
   t.deepEqual(results, values);
 });
 
-// Test passable stream with readPattern validation failure
 test('passable stream with invalid readPattern rejects', async t => {
   const values = harden([
     { type: 'a', count: 1 },
@@ -257,7 +305,6 @@ test('passable stream with invalid readPattern rejects', async t => {
   });
 });
 
-// Test that producer exposes patterns via methods
 test('stream exposes readPattern and readReturnPattern', async t => {
   const readPattern = M.number();
   const readReturnPattern = M.string();
@@ -271,7 +318,6 @@ test('stream exposes readPattern and readReturnPattern', async t => {
   t.is(streamRef.readReturnPattern(), readReturnPattern);
 });
 
-// Test stream with undefined patterns
 test('stream with undefined patterns returns undefined', async t => {
   const streamRef = streamIterator([1, 2, 3]);
 
@@ -279,7 +325,6 @@ test('stream with undefined patterns returns undefined', async t => {
   t.is(streamRef.readReturnPattern(), undefined);
 });
 
-// Test early close via return()
 test('passable stream early close', async t => {
   let produced = 0;
   async function* source() {
@@ -312,7 +357,6 @@ test('passable stream early close', async t => {
   t.true(produced < 10);
 });
 
-// Test immediate close via raw stream() API
 test('passable stream immediate close via raw stream API', async t => {
   let started = false;
   async function* source() {
@@ -338,7 +382,6 @@ test('passable stream immediate close via raw stream API', async t => {
   t.false(started);
 });
 
-// Test many items
 test('passable stream many items', async t => {
   const count = 100;
   const values = Array.from({ length: count }, (_, i) => i);
@@ -354,29 +397,27 @@ test('passable stream many items', async t => {
   t.deepEqual(results, values);
 });
 
-// Test bytes stream many chunks
-test('bytes stream many chunks', async t => {
+test('bytes stream many messages', async t => {
   const count = 50;
-  const chunks = Array.from(
+  const messages = Array.from(
     { length: count },
     (_, i) => new Uint8Array([i, i + 1, i + 2]),
   );
 
-  const streamRef = streamBytesIterator(chunks);
+  const streamRef = streamBytesIterator(messages);
   const reader = await iterateBytesStream(streamRef);
 
   const results = [];
-  for await (const chunk of reader) {
-    results.push(chunk);
+  for await (const message of reader) {
+    results.push(message);
   }
 
   t.is(results.length, count);
   for (let i = 0; i < count; i += 1) {
-    t.deepEqual(results[i], chunks[i]);
+    t.deepEqual(results[i], messages[i]);
   }
 });
 
-// Test passable stream with high buffer
 test('passable stream high buffer', async t => {
   const values = [1, 2, 3, 4, 5];
 
@@ -391,7 +432,6 @@ test('passable stream high buffer', async t => {
   t.deepEqual(results, values);
 });
 
-// Test consuming same stream twice fails
 test('passable stream consumed once', async t => {
   const values = [1, 2, 3];
 
@@ -414,7 +454,6 @@ test('passable stream consumed once', async t => {
   t.is(results2.length, 0);
 });
 
-// Test native async generator with explicit return value
 test('native async generator with explicit return value', async t => {
   async function* generate() {
     yield 1;
@@ -440,7 +479,6 @@ test('native async generator with explicit return value', async t => {
   t.deepEqual(r4, { value: undefined, done: true });
 });
 
-// Test that bridged stream preserves explicit return value
 test('bridged stream preserves explicit return value', async t => {
   async function* generate() {
     yield harden({ n: 1 });
@@ -467,7 +505,6 @@ test('bridged stream preserves explicit return value', async t => {
   t.deepEqual(r4, { value: undefined, done: true });
 });
 
-// Test native async generator iterator.return(value) behavior as baseline
 test('native async generator return(value) behavior', async t => {
   async function* generate() {
     yield 1;
@@ -496,7 +533,6 @@ test('native async generator return(value) behavior', async t => {
   t.deepEqual(afterReturn, { value: undefined, done: true });
 });
 
-// Test that bridged stream matches native iterator.return(value) behavior
 test('bridged stream return(value) behavior', async t => {
   async function* generate() {
     yield 1;

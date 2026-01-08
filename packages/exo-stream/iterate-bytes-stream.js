@@ -35,7 +35,12 @@ const { freeze } = Object;
  */
 
 /**
- * Convert a remote PassableBytesReader reference to a local AsyncIterableIterator<Uint8Array>.
+ * Convert a remote PassableBytesReader reference to a local AsyncIterableIterator<Uint8Array>
+ * (Initiator/Consumer side).
+ *
+ * This is the Consumer for a bytes Reader: it initiates streaming and consumes
+ * bytes from the remote Responder/Producer.
+ *
  * Base64 strings are automatically decoded to bytes.
  * Uses the bidirectional promise chain protocol for streaming with flow control.
  * With buffer > 1, nodes propagate via CapTP before I/O yields, keeping the responder busy.
