@@ -659,11 +659,11 @@ export const makeHostMaker = ({
     };
 
     /** @type {EndoHost['cancel']} */
-    const cancel = async (petName, reason = new Error('Cancelled')) => {
-      assertPetName(petName);
-      const id = petStore.identifyLocal(petName);
+    const cancel = async (petNameOrPath, reason = new Error('Cancelled')) => {
+      const petNamePath = namePathFrom(petNameOrPath);
+      const id = await directory.identify(...petNamePath);
       if (id === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+        throw new TypeError(`Unknown pet name: ${q(petNameOrPath)}`);
       }
       return cancelValue(/** @type {FormulaIdentifier} */ (id), reason);
     };
