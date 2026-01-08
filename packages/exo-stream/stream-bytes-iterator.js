@@ -6,9 +6,11 @@ import { mapReader } from '@endo/stream';
 import { makePromiseKit } from '@endo/promise-kit';
 
 import { PassableBytesReaderInterface } from './type-guards.js';
+import { asyncIterate } from './async-iterate.js';
 
 /** @import { Passable } from '@endo/pass-style' */
-/** @import { SomehowAsyncIterable, StreamNode } from './stream-iterator.js' */
+/** @import { SomehowAsyncIterable } from './async-iterate.js' */
+/** @import { StreamNode } from './stream-iterator.js' */
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { Pattern } from '@endo/patterns' */
 
@@ -42,28 +44,13 @@ const { freeze } = Object;
  */
 
 /**
- * Returns the iterator for the given iterable object.
- * Supports both synchronous and asynchronous iterables.
+ * Convert a local AsyncIterator<Uint8Array> to a remote PassableBytesReader reference
+ * (Responder/Producer side).
  *
- * @template T The item type of the iterable.
- * @param {SomehowAsyncIterable<T>} iterable The iterable object.
- * @returns {AsyncIterator<T> | Iterator<T>}
- */
-const asyncIterate = iterable => {
-  if (Symbol.asyncIterator in iterable) {
-    return iterable[Symbol.asyncIterator]();
-  } else if (Symbol.iterator in iterable) {
-    return iterable[Symbol.iterator]();
-  } else if ('next' in iterable) {
-    return iterable;
-  }
-  throw new TypeError('Expected an iterable or iterator');
-};
-
-/**
- * Convert a local AsyncIterator<Uint8Array> to a remote PassableBytesReader reference.
+ * This is the Producer for a bytes Reader: it wraps a local bytes iterator and
+ * produces base64-encoded values for the remote Initiator/Consumer.
+ *
  * Bytes are automatically base64-encoded for transmission over CapTP.
- *
  * Uses streamBase64() method instead of stream() to allow future migration
  * to direct bytes transport when CapTP supports it. At that time, bytes-streamable
  * Exos can implement stream() directly, and initiators can gracefully transition
@@ -73,8 +60,8 @@ const asyncIterate = iterable => {
  * Only readReturnPattern can be customized.
  *
  * The reader uses bidirectional promise chains for flow control:
- * - Initiator sends synchronizes via the synchronize chain to induce production
- * - Responder sends acknowledges (base64 strings) via the acknowledge chain
+ * - Initiator sends synchronizations via the synchronization chain to induce production
+ * - Responder sends acknowledgements (base64 strings) via the acknowledgement chain
  *
  * @param {SomehowAsyncIterable<Uint8Array>} bytesIterator
  * @param {StreamBytesIteratorOptions} [options]
@@ -123,17 +110,13 @@ export const streamBytesIterator = (bytesIterator, options = {}) => {
           // eslint-disable-next-line no-await-in-loop
           const result = await iter.next();
 
-          const { promise, resolve } = makePromiseKit();
-          const ackNode = freeze({
-            value: result.value,
-            promise: result.done ? null : promise,
-          });
-          ackResolve(ackNode);
-          ackResolve = resolve;
-
           if (result.done) {
+            ackResolve(freeze({ value: result.value, promise: null }));
             break;
           }
+          const { promise, resolve } = makePromiseKit();
+          ackResolve(freeze({ value: result.value, promise }));
+          ackResolve = resolve;
         }
       })().catch(err => {
         // Abort: resolve tail with rejection

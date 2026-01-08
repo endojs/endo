@@ -39,11 +39,19 @@ that enable pipelining, flow control, and clean termination semantics.
 
 ### Terminology
 
-- **Initiator**: The side that starts streaming (creates synchronize chain, iterates remotely)
+- **Initiator**: The side that starts streaming (creates synchronization chain, iterates remotely)
 - **Responder**: The side that provides values (wraps a local async iterator)
-- **Synchronize chain**: Promise chain from initiator to responder (requests data, like TCP SYN)
-- **Acknowledge chain**: Promise chain from responder to initiator (provides data, like TCP ACK)
+- **Synchronization chain**: Promise chain from initiator to responder.
+- **Acknowledgement chain**: Promise chain from responder to initiator.
 - **Stream node**: A node in either promise chain
+
+Streams come in **Reader** and **Writer** flavors that vary only in usage (the
+protocol is symmetric):
+
+- For a **Reader**, the **Initiator** is the **Consumer** and the **Responder**
+  is the **Producer**
+- For a **Writer**, the **Initiator** is the **Producer** and the **Responder**
+  is the **Consumer**
 
 ## Data Structures
 
@@ -89,6 +97,7 @@ interface PassableStream {
 }
 
 // Where ERef<T> = T | PromiseLike<T>
+// Pattern is from @endo/patterns - a structure for runtime type validation
 ```
 
 **Methods:**
@@ -125,13 +134,12 @@ function initiate(streamRef, buffer = 1):
     // Iteration loop
     while true:
         let node = await nodePromise
-        let value = node.value
-        
+
         if node.promise === null:
             // Stream ended - this is the return value
-            return value
-        
-        yield value
+            return node.value
+
+        yield node.value
         
         // Send synchronize for next value
         let {promise, resolve} = promiseKit()
@@ -237,6 +245,20 @@ When the initiator wants to stop iteration:
 2. Responder receives synchronize with `promise === null`
 3. Responder resolves ack node with `{value: undefined, promise: null}`
 4. Responder may call `iterator.return()` for cleanup
+
+### Early Close (Responder-Initiated)
+
+When the responder wants to stop iteration early (e.g., resource exhaustion, internal error
+that shouldn't propagate as rejection):
+
+1. Responder resolves ack node with `{value: returnValue, promise: null}`
+2. Initiator receives node with `promise === null`
+3. Initiator treats this as normal completion with the return value
+4. Synchronize chain becomes orphaned (no further awaits)
+
+This is structurally identical to normal completion—the responder simply sends a return
+node before the underlying iterator is exhausted. For errors that should propagate,
+see Error Propagation below.
 
 ### Immediate Close
 
