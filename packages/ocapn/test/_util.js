@@ -4,7 +4,7 @@
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
 /**
- * @import { Client, Connection, LocationId, Session } from '../src/client/types.js'
+ * @import { Client, ClientDebug, Connection, LocationId, Session } from '../src/client/types.js'
  * @import { OcapnLocation } from '../src/codecs/components.js'
  * @import { TcpTestOnlyNetLayer } from '../src/netlayers/tcp-test-only.js'
  * @import { Ocapn, OcapnDebug } from '../src/client/ocapn.js'
@@ -154,6 +154,7 @@ export const waitUntilTrue = async (fn, timeoutMs = 1000, delayMs = 20) => {
 /**
  * @typedef {object} ClientKit
  * @property {Client} client
+ * @property {ClientDebug} debug - Debug object (always present in test clients)
  * @property {TcpTestOnlyNetLayer} netlayer
  * @property {OcapnLocation} location
  * @property {LocationId} locationId
@@ -182,6 +183,13 @@ export const makeTestClient = async ({
     debugMode: true,
     ...clientOptions,
   });
+  assert(
+    // eslint-disable-next-line no-underscore-dangle
+    client._debug,
+    'makeTestClient requires debugMode - client._debug must be present',
+  );
+  // eslint-disable-next-line no-underscore-dangle
+  const { _debug: debug } = client;
   // Register netlayer with client
   const netlayer = await client.registerNetlayer(
     (handlers, logger, captpVersion) =>
@@ -195,7 +203,7 @@ export const makeTestClient = async ({
   );
   const { location } = netlayer;
   const locationId = locationToLocationId(location);
-  return { client, netlayer, location, locationId };
+  return { client, debug, netlayer, location, locationId };
 };
 
 /**
@@ -237,22 +245,22 @@ export const makeTestClientPair = async ({
   };
 
   const establishSession = async () => {
-    const sessionA = await clientKitA.client.provideSession(
+    const sessionA = await clientKitA.debug.provideInternalSession(
       clientKitB.location,
     );
-    const sessionB = await clientKitB.client.provideSession(
+    const sessionB = await clientKitB.debug.provideInternalSession(
       clientKitA.location,
     );
     return { sessionA, sessionB };
   };
 
   const getConnectionAtoB = () => {
-    return clientKitA.client.sessionManager.getActiveSession(
+    return clientKitA.debug.sessionManager.getActiveSession(
       clientKitB.locationId,
     )?.connection;
   };
   const getConnectionBtoA = () => {
-    return clientKitB.client.sessionManager.getActiveSession(
+    return clientKitB.debug.sessionManager.getActiveSession(
       clientKitA.locationId,
     )?.connection;
   };

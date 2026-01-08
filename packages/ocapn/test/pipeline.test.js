@@ -519,12 +519,12 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
   try {
     // B eagerly establishes session to C so we can record the B→C transcript
     // The sturdyref enlivening will reuse this existing session
-    const sessionBtoC = await clientKitB.client.provideSession(
+    const sessionBtoC = await clientKitB.debug.provideInternalSession(
       clientKitC.location,
     );
 
     // A connects to B
-    const sessionAtoB = await clientKitA.client.provideSession(
+    const sessionAtoB = await clientKitA.debug.provideInternalSession(
       clientKitB.location,
     );
 

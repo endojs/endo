@@ -109,16 +109,27 @@
  */
 
 /**
- * @typedef {object} Client
+ * Debug/testing interface exposing internal APIs.
+ * Only available when client is created with `debugMode: true`.
+ * @typedef {object} ClientDebug
  * @property {Logger} logger
  * @property {string} debugLabel
+ * @property {string} captpVersion
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
  * @property {SturdyRefTracker} sturdyRefTracker
- * @property {string} captpVersion
+ * @property {(location: OcapnLocation) => Promise<Session>} provideInternalSession
+ */
+
+/**
+ * @typedef {object} Client
  * @property {<T extends NetLayer>(makeNetlayer: (handlers: NetlayerHandlers, logger: Logger, captpVersion: string) => T | Promise<T>) => Promise<T>} registerNetlayer
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(sturdyRef: SturdyRef) => Promise<any>} enlivenSturdyRef
+ * @property {(swissStr: string, object: any) => void} registerSturdyRef
+ * Register an object with a swissnum string so it can be resolved via SturdyRef.
  * @property {() => void} shutdown
+ * @property {ClientDebug} [_debug]
+ * Only present when client is created with `debugMode: true`. Exposes internal APIs for testing.
  */

@@ -241,14 +241,41 @@ export const makeClient = ({
     return false;
   };
 
+  /**
+   * Internal function to provide full session (used internally and for debug).
+   * @param {OcapnLocation} location
+   * @returns {Promise<Session>}
+   */
+  const provideInternalSession = location => {
+    logger.info(`provideInternalSession called with`, { location });
+    const locationId = locationToLocationId(location);
+    // Get existing session.
+    const activeSession = sessionManager.getActiveSession(locationId);
+    if (activeSession) {
+      logger.info(`provideInternalSession returning existing session`);
+      return Promise.resolve(activeSession);
+    }
+    // Get existing pending session.
+    const pendingSession = sessionManager.getPendingSessionPromise(locationId);
+    if (pendingSession) {
+      logger.info(`provideInternalSession returning existing pending session`);
+      return pendingSession;
+    }
+    // Connect and establish a new session.
+    logger.info(
+      `provideInternalSession connecting and establishing new session`,
+    );
+    const newSessionPromise = establishSession(location);
+    return newSessionPromise;
+  };
+
   const prepareOcapn = (connection, sessionId, peerLocation) => {
     return makeOcapn(
       logger,
       connection,
       sessionId,
       peerLocation,
-      // eslint-disable-next-line no-use-before-define
-      client.provideSession,
+      provideInternalSession,
       sessionManager.getActiveSession,
       sessionManager.getPeerPublicKeyForSessionId,
       () => {
@@ -324,13 +351,7 @@ export const makeClient = ({
   });
 
   /** @type {Client} */
-  const client = harden({
-    captpVersion,
-    debugLabel,
-    logger,
-    grantTracker,
-    sessionManager,
-    sturdyRefTracker,
+  const client = {
     /**
      * Registers a netlayer by calling the provided factory with handlers, logger, and captpVersion.
      * @template {NetLayer} T
@@ -355,27 +376,7 @@ export const makeClient = ({
      * @returns {Promise<Session>}
      */
     provideSession(location) {
-      client.logger.info(`provideSession called with`, { location });
-      const locationId = locationToLocationId(location);
-      // Get existing session.
-      const activeSession = sessionManager.getActiveSession(locationId);
-      if (activeSession) {
-        client.logger.info(`provideSession returning existing session`);
-        return Promise.resolve(activeSession);
-      }
-      // Get existing pending session.
-      const pendingSession =
-        sessionManager.getPendingSessionPromise(locationId);
-      if (pendingSession) {
-        client.logger.info(`provideSession returning existing pending session`);
-        return pendingSession;
-      }
-      // Connect and establish a new session.
-      client.logger.info(
-        `provideSession connecting and establishing new session`,
-      );
-      const newSessionPromise = establishSession(location);
-      return newSessionPromise;
+      return provideInternalSession(location);
     },
     /**
      * Create a SturdyRef object
@@ -384,7 +385,7 @@ export const makeClient = ({
      * @returns {SturdyRef}
      */
     makeSturdyRef(location, swissNum) {
-      return client.sturdyRefTracker.makeSturdyRef(location, swissNum);
+      return sturdyRefTracker.makeSturdyRef(location, swissNum);
     },
     /**
      * Enliven a SturdyRef by fetching the actual object
@@ -394,18 +395,39 @@ export const makeClient = ({
     enlivenSturdyRef(sturdyRef) {
       return enlivenSturdyRef(
         sturdyRef,
-        location => client.provideSession(location),
+        provideInternalSession,
         isSelfLocation,
         swissnumTable,
       );
     },
+    /**
+     * Register an object with a swissnum string so it can be resolved via SturdyRef.
+     * @param {string} swissStr
+     * @param {any} object
+     */
+    registerSturdyRef(swissStr, object) {
+      sturdyRefTracker.register(swissStr, object);
+    },
     shutdown() {
-      client.logger.info(`shutdown called`);
+      logger.info(`shutdown called`);
       for (const netlayer of netlayers.values()) {
         netlayer.shutdown();
       }
     },
-  });
+  };
 
-  return client;
+  if (debugMode) {
+    // eslint-disable-next-line no-underscore-dangle
+    client._debug = {
+      logger,
+      debugLabel,
+      captpVersion,
+      grantTracker,
+      sessionManager,
+      sturdyRefTracker,
+      provideInternalSession,
+    };
+  }
+
+  return harden(client);
 };

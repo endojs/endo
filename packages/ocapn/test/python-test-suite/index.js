@@ -158,7 +158,7 @@ const start = async () => {
   const testObjectTable = makeTestObjectTable(client);
   // Register the test objects with the client's swissnumTable
   for (const [swissStr, object] of testObjectTable.entries()) {
-    client.sturdyRefTracker.register(swissStr, object);
+    client.registerSturdyRef(swissStr, object);
   }
   // Register netlayer with client
   await client.registerNetlayer((handlers, logger, captpVersion) =>
