@@ -35,12 +35,13 @@ const ENTRY_POINTS = ['Client'];
 const INTERNAL_ONLY_TYPES = [
   'OcapnDebug',
   'OcapnTable',
-  // 'Session',
-  // 'Ocapn',
-  // 'SessionManager',
-  // 'GrantTracker',
-  // 'SturdyRefTracker',
-  // 'ReferenceKit',
+  'Ocapn',
+  'SessionManager',
+  'InternalSession',
+  'PendingSession',
+  'GrantTracker',
+  'SturdyRefTracker',
+  'ReferenceKit',
 ];
 
 // Built-in types to exclude from referenced types

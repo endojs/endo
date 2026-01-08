@@ -4,7 +4,7 @@
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { SturdyRef } from './sturdyrefs.js'
- * @import { Client, Connection, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SwissNum } from './types.js'
+ * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SwissNum } from './types.js'
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
@@ -44,7 +44,7 @@ const sendAbortAndClose = (connection, reason = 'unknown reason') => {
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
- * @param {Session} session
+ * @param {InternalSession} session
  * @param {Uint8Array} data
  */
 const handleActiveSessionMessageData = (
@@ -70,11 +70,11 @@ const handleActiveSessionMessageData = (
  * @returns {SessionManager}
  */
 const makeSessionManager = () => {
-  /** @type {Map<LocationId, Session>} */
+  /** @type {Map<LocationId, InternalSession>} */
   const activeSessions = new Map();
   /** @type {Map<LocationId, PendingSession>} */
   const pendingSessions = new Map();
-  /** @type {Map<Connection, Session>} */
+  /** @type {Map<Connection, InternalSession>} */
   const connectionToSession = new Map();
   /** @type {Map<string, OcapnPublicKey>} */
   const sessionIdToPeerPublicKey = new Map();
@@ -202,8 +202,8 @@ export const makeClient = ({
 
   /**
    * @param {OcapnLocation} location
-   * @returns {Promise<Session>}
-   * Establishes a new session but initiating a connection.
+   * @returns {Promise<InternalSession>}
+   * Establishes a new session by initiating a connection.
    */
   const establishSession = location => {
     const netlayer = netlayers.get(location.transport);
@@ -244,7 +244,7 @@ export const makeClient = ({
   /**
    * Internal function to provide full session (used internally and for debug).
    * @param {OcapnLocation} location
-   * @returns {Promise<Session>}
+   * @returns {Promise<InternalSession>}
    */
   const provideInternalSession = location => {
     logger.info(`provideInternalSession called with`, { location });
@@ -375,8 +375,14 @@ export const makeClient = ({
      * @param {OcapnLocation} location
      * @returns {Promise<Session>}
      */
-    provideSession(location) {
-      return provideInternalSession(location);
+    async provideSession(location) {
+      const internalSession = await provideInternalSession(location);
+      /** @type {Session} */
+      const session = harden({
+        getBootstrap: () => internalSession.ocapn.getRemoteBootstrap(),
+        abort: reason => internalSession.ocapn.abort(reason),
+      });
+      return session;
     },
     /**
      * Create a SturdyRef object

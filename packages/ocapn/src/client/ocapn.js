@@ -10,7 +10,7 @@
  * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../codecs/descriptors.js'
  * @import { SyrupReader } from '../syrup/decode.js'
  * @import { SturdyRefTracker } from './sturdyrefs.js'
- * @import { Connection, LocationId, Logger, Session, SessionId, SwissNum } from './types.js'
+ * @import { Connection, InternalSession, LocationId, Logger, SessionId, SwissNum } from './types.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  */
 
@@ -675,8 +675,8 @@ const makeBootstrapObject = (
  * @param {Connection} connection
  * @param {SessionId} sessionId
  * @param {OcapnLocation} peerLocation
- * @param {(location: OcapnLocation) => Promise<Session>} provideSession
- * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
+ * @param {(location: OcapnLocation) => Promise<InternalSession>} provideSession
+ * @param {((locationId: LocationId) => InternalSession | undefined)} getActiveSession
  * @param {(sessionId: SessionId) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {() => void} endSession
  * @param {GrantTracker} grantTracker

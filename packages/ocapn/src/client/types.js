@@ -30,13 +30,22 @@
 /**
  * @typedef {object} PendingSession
  * @property {Connection | undefined} outgoingConnection
- * @property {Promise<Session>} promise
- * @property {(session: Session) => void} resolve
+ * @property {Promise<InternalSession>} promise
+ * @property {(session: InternalSession) => void} resolve
  * @property {(reason?: Error) => void} reject
  */
 
 /**
+ * Minimal public session interface.
+ * For full session access (testing/debugging), use debug.provideInternalSession().
  * @typedef {object} Session
+ * @property {() => object} getBootstrap - Get the remote bootstrap object
+ * @property {(reason?: Error) => void} abort - Abort the session
+ */
+
+/**
+ * Full internal session with all properties for internal use and testing.
+ * @typedef {object} InternalSession
  * @property {SessionId} id
  * @property {object} peer
  * @property {OcapnPublicKey} peer.publicKey
@@ -82,16 +91,16 @@
 
 /**
  * @typedef {object} SessionManager
- * @property {(location: LocationId) => Session | undefined} getActiveSession
+ * @property {(location: LocationId) => InternalSession | undefined} getActiveSession
  * @property {(location: LocationId) => Connection | undefined} getOutgoingConnection
- * @property {(location: LocationId) => Promise<Session> | undefined} getPendingSessionPromise
- * @property {(connection: Connection) => Session | undefined} getSessionForConnection
+ * @property {(location: LocationId) => Promise<InternalSession> | undefined} getPendingSessionPromise
+ * @property {(connection: Connection) => InternalSession | undefined} getSessionForConnection
  * @property {(location: LocationId, connection: Connection) => PendingSession} makePendingSession
- * @property {(location: LocationId, connection: Connection, session: Session) => void} resolveSession
+ * @property {(location: LocationId, connection: Connection, session: InternalSession) => void} resolveSession
  * @property {(connection: Connection) => void} deleteConnection
  * When a connection is no longer relevant to establishing a session.
  * Does not close the connection. Does not close or delete the session.
- * @property {(session: Session) => void} endSession
+ * @property {(session: InternalSession) => void} endSession
  * When a session has ended (eg connection closed).
  * Does not close the connection. Does not delete the session.
  * Does not communicate with the peer.
@@ -118,7 +127,8 @@
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
  * @property {SturdyRefTracker} sturdyRefTracker
- * @property {(location: OcapnLocation) => Promise<Session>} provideInternalSession
+ * @property {(location: OcapnLocation) => Promise<InternalSession>} provideInternalSession
+ * Returns the full InternalSession object with all internal properties for debugging/testing.
  */
 
 /**

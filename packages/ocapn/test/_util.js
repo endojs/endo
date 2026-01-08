@@ -4,7 +4,7 @@
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
 /**
- * @import { Client, ClientDebug, Connection, LocationId, Session } from '../src/client/types.js'
+ * @import { Client, ClientDebug, Connection, InternalSession, LocationId, Session } from '../src/client/types.js'
  * @import { OcapnLocation } from '../src/codecs/components.js'
  * @import { TcpTestOnlyNetLayer } from '../src/netlayers/tcp-test-only.js'
  * @import { Ocapn, OcapnDebug } from '../src/client/ocapn.js'
@@ -215,7 +215,7 @@ export const makeTestClient = async ({
  * @returns {Promise<{
  *   clientKitA: ClientKit,
  *   clientKitB: ClientKit,
- *   establishSession: () => Promise<{ sessionA: Session, sessionB: Session }>,
+ *   establishSession: () => Promise<{ sessionA: InternalSession, sessionB: InternalSession }>,
  *   shutdownBoth: () => void,
  *   getConnectionAtoB: () => Connection | undefined,
  *   getConnectionBtoA: () => Connection | undefined,
@@ -287,7 +287,7 @@ export const makeTestClientPair = async ({
  * This helper sends both op:deliver (to call a method that returns a tagged value)
  * and op:untag (to extract the payload) in sequence, enabling true pipelining tests.
  *
- * @param {Session} senderSession - The session that will send the messages
+ * @param {InternalSession} senderSession - The session that will send the messages
  * @returns {object} Helper object with callAndUntag method
  */
 export const makeUntagTestHelper = senderSession => {
