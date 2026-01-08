@@ -510,7 +510,7 @@ export interface Mail {
   // Mail operations:
   listMessages(): Promise<Array<StampedMessage>>;
   followMessages(): AsyncGenerator<StampedMessage, undefined, undefined>;
-  resolve(messageNumber: number, resolutionName: string): Promise<void>;
+  resolve(messageNumber: number, resolutionName: string | string[]): Promise<void>;
   reject(messageNumber: number, message?: string): Promise<void>;
   adopt(
     messageNumber: number,
@@ -519,15 +519,15 @@ export interface Mail {
   ): Promise<void>;
   dismiss(messageNumber: number): Promise<void>;
   request(
-    recipientName: string,
+    recipientName: string | string[],
     what: string,
-    responseName: string,
+    responseName?: string | string[],
   ): Promise<unknown>;
   send(
-    recipientName: string,
+    recipientName: string | string[],
     strings: Array<string>,
     edgeNames: Array<string>,
-    petNames: Array<string>,
+    petNames: Array<string | string[]>,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): void;
 }
@@ -647,7 +647,7 @@ export interface EndoHost extends EndoAgent {
     powersName: string,
     resultName?: string | string[],
   ): Promise<unknown>;
-  cancel(petName: string, reason: Error): Promise<void>;
+  cancel(petName: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
