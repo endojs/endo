@@ -1887,3 +1887,140 @@ test('reverse locate remote value', async t => {
   const [reverseLocatedName] = await E(hostA).reverseLocate(greetingsLocator);
   t.is(reverseLocatedName, 'greetings');
 });
+
+// Tests for pet name path support in methods that previously only accepted single pet names.
+
+test('cancel with pet name path', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory and put a counter in it
+  await E(host).makeDirectory(['subdir']);
+  await E(host).provideWorker(['worker']);
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).makeUnconfined(
+    'worker',
+    counterLocation,
+    'NONE',
+    ['subdir', 'counter'],
+  );
+
+  // Increment the counter
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      [['subdir', 'counter']],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      [['subdir', 'counter']],
+    ),
+  );
+
+  // Cancel using a pet name path
+  await E(host).cancel(['subdir', 'counter']);
+
+  // Counter should be reset after cancellation
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      [['subdir', 'counter']],
+    ),
+  );
+});
+
+test('send with pet name path for recipient and values', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory structure in the host
+  await E(host).makeDirectory(['values']);
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '42', [], [], ['values', 'the-answer']);
+
+  // Create a guest and set up its directory with a values subdirectory
+  const guest = await E(host).provideGuest('guest');
+
+  // Create a directory in the guest's namespace and put a value in it
+  await E(guest).makeDirectory(['my-values']);
+  // Copy the answer to the guest's directory
+  const answerId = await E(host).identify(...['values', 'the-answer']);
+  await E(guest).write(['my-values', 'answer'], answerId);
+
+  // Guest sends to HOST using a path for the value
+  await E(guest).send(
+    'HOST',
+    ['Here is the answer: '],
+    ['gift'],
+    [['my-values', 'answer']],
+  );
+
+  // Check that the message was delivered to host
+  const messages = await E(host).listMessages();
+  const packageMessages = messages.filter(
+    (/** @type {{ type: string }} */ m) => m.type === 'package',
+  );
+  t.is(packageMessages.length, 1);
+  t.deepEqual(packageMessages[0].names, ['gift']);
+});
+
+test('resolve with pet name path', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory and put a value in it
+  await E(host).makeDirectory(['responses']);
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '"the response"', [], [], ['responses', 'resp']);
+
+  // Create a guest and have it make a request
+  const guest = E(host).provideGuest('guest');
+
+  const iteratorRef = E(host).followMessages();
+  E.sendOnly(guest).request('HOST', 'a response');
+  const { value: message } = await E(iteratorRef).next();
+  t.is(message.number, 0);
+
+  // Resolve using a pet name path
+  await E(host).resolve(message.number, ['responses', 'resp']);
+
+  // Verify the resolution worked by checking we can dismiss the message
+  await E(host).dismiss(message.number);
+  const messagesAfter = await E(host).listMessages();
+  t.is(messagesAfter.length, 0);
+});
+
+test('request with pet name path for response storage', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory for responses in the guest's namespace
+  const guest = await E(host).provideGuest('guest');
+  await E(guest).makeDirectory(['responses']);
+
+  // Have the guest make a request, storing response in a path within guest's directory
+  const iteratorRef = E(host).followMessages();
+  E.sendOnly(guest).request('HOST', 'give me something', ['responses', 'result']);
+
+  // Host receives and resolves the request
+  const { value: message } = await E(iteratorRef).next();
+  t.is(message.type, 'request');
+
+  // Create something to respond with
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '"here you go"', [], [], ['gift']);
+  await E(host).resolve(message.number, 'gift');
+
+  // Verify the response was stored at the path in guest's directory
+  const result = await E(guest).lookup(['responses', 'result']);
+  t.is(result, 'here you go');
+});
