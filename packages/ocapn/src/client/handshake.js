@@ -4,7 +4,7 @@
  * @import { OcapnLocation, OcapnSignature } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { Ocapn } from './ocapn.js'
- * @import { Connection, InternalSession, Logger, SelfIdentity, SessionManager, SessionId } from './types.js'
+ * @import { Connection, Logger, SelfIdentity, SessionManager, SessionId } from './types.js'
  */
 
 import { ONE_N, ZERO_N } from '@endo/nat';
@@ -44,14 +44,17 @@ export const sendHandshake = (connection, selfIdentity, captpVersion) => {
  * @param {Connection} outgoingConnection
  * @param {Connection} incommingConnection
  * @param {OcapnPublicKey} incommingPublicKey
+ * @param {(connection: Connection) => SelfIdentity} getSelfIdentityForConnection
  * @returns {{ preferredConnection: Connection, connectionToClose: Connection }}
  */
 const compareSessionKeysForCrossedHellos = (
   outgoingConnection,
   incommingConnection,
   incommingPublicKey,
+  getSelfIdentityForConnection,
 ) => {
-  const outgoingPublicKey = outgoingConnection.selfIdentity.keyPair.publicKey;
+  const outgoingPublicKey =
+    getSelfIdentityForConnection(outgoingConnection).keyPair.publicKey;
   const outgoingId = outgoingPublicKey.id;
   const incommingId = incommingPublicKey.id;
   const result = compareImmutableArrayBuffers(outgoingId, incommingId);
@@ -61,6 +64,10 @@ const compareSessionKeysForCrossedHellos = (
       : [incommingConnection, outgoingConnection];
   return { preferredConnection, connectionToClose };
 };
+
+/**
+ * @import { InternalSession } from './types.js'
+ */
 
 /**
  * @param {object} options
@@ -113,6 +120,7 @@ const makeSession = ({
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
+ * @param {(connection: Connection) => SelfIdentity} getSelfIdentityForConnection
  * @param {(connection: Connection, reason: string) => void} sendAbortAndClose
  * @param {any} message
  * @param {string} captpVersion
@@ -122,6 +130,7 @@ const handleSessionHandshakeMessage = (
   logger,
   sessionManager,
   connection,
+  getSelfIdentityForConnection,
   sendAbortAndClose,
   message,
   captpVersion,
@@ -178,6 +187,7 @@ const handleSessionHandshakeMessage = (
           outgoingConnection,
           incommingConnection,
           peerPublicKey,
+          getSelfIdentityForConnection,
         );
         // Close the non-preferred connection
         sendAbortAndClose(connectionToClose, 'Crossed hellos mitigated');
@@ -196,11 +206,12 @@ const handleSessionHandshakeMessage = (
         // We've received a hello, so we need to send our own
         // Send our op:start-session
         logger.info('Server sending op:start-session');
-        sendHandshake(connection, connection.selfIdentity, captpVersion);
+        const selfIdentity = getSelfIdentityForConnection(connection);
+        sendHandshake(connection, selfIdentity, captpVersion);
       }
 
       // Create session
-      const { selfIdentity } = connection;
+      const selfIdentity = getSelfIdentityForConnection(connection);
       const sessionId = makeSessionId(
         selfIdentity.keyPair.publicKey.id,
         peerPublicKey.id,
@@ -239,6 +250,7 @@ const handleSessionHandshakeMessage = (
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
+ * @param {(connection: Connection) => SelfIdentity} getSelfIdentityForConnection
  * @param {(connection: Connection, reason: string) => void} sendAbortAndClose
  * @param {Uint8Array} data
  * @param {string} captpVersion
@@ -248,6 +260,7 @@ export const handleHandshakeMessageData = (
   logger,
   sessionManager,
   connection,
+  getSelfIdentityForConnection,
   sendAbortAndClose,
   data,
   captpVersion,
@@ -276,6 +289,7 @@ export const handleHandshakeMessageData = (
           logger,
           sessionManager,
           connection,
+          getSelfIdentityForConnection,
           sendAbortAndClose,
           message,
           captpVersion,

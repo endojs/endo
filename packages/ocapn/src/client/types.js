@@ -73,10 +73,11 @@
  */
 
 /**
+ * Minimal public connection interface exposed to netlayer consumers.
  * @typedef {object} Connection
+ * @property {'Connection'} [__brand] - Type brand to prevent structural compatibility
  * @property {NetLayer} netlayer
  * @property {boolean} isOutgoing
- * @property {SelfIdentity} selfIdentity
  * @property {(bytes: Uint8Array) => void} write
  * @property {() => void} end
  * @property {boolean} isDestroyed
@@ -111,8 +112,18 @@
  */
 
 /**
+ * Socket operations provided by netlayer for a connection.
+ * @typedef {object} SocketOperations
+ * @property {(bytes: Uint8Array) => void} write - Write bytes to the socket
+ * @property {() => void} end - Close the socket
+ */
+
+/**
  * Handlers returned by registerNetlayer for the netlayer to call.
  * @typedef {object} NetlayerHandlers
+ * @property {(netlayer: NetLayer, isOutgoing: boolean, socket: SocketOperations) => Connection} makeConnection
+ * Creates a connection wrapper. Client internally handles identity creation.
+ * Caller is responsible for initiating handshake if needed (client does this in establishSession).
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  */
@@ -133,7 +144,7 @@
 
 /**
  * @typedef {object} Client
- * @property {<T extends NetLayer>(makeNetlayer: (handlers: NetlayerHandlers, logger: Logger, captpVersion: string) => T | Promise<T>) => Promise<T>} registerNetlayer
+ * @property {<T extends NetLayer>(makeNetlayer: (handlers: NetlayerHandlers, logger: Logger) => T | Promise<T>) => Promise<T>} registerNetlayer
  * @property {(location: OcapnLocation) => Promise<Session>} provideSession
  * @property {(location: OcapnLocation, swissNum: SwissNum) => SturdyRef} makeSturdyRef
  * @property {(sturdyRef: SturdyRef) => Promise<any>} enlivenSturdyRef

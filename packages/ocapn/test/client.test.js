@@ -159,7 +159,8 @@ test('client aborts on start-session with wrong version', async t => {
   };
 
   const { connection: firstConnection } =
-    clientKitA.netlayer.testing.establishConnection(clientKitB.location);
+    // eslint-disable-next-line no-underscore-dangle
+    clientKitA.netlayer._debug.establishConnection(clientKitB.location);
 
   try {
     t.false(firstConnection.isDestroyed, 'Connection should not be destroyed');
@@ -194,7 +195,8 @@ test('client aborts on unparseable message BEFORE establishing session', async t
     await makeTestClientPair();
 
   const { connection: firstConnection } =
-    clientKitA.netlayer.testing.establishConnection(clientKitB.location);
+    // eslint-disable-next-line no-underscore-dangle
+    clientKitA.netlayer._debug.establishConnection(clientKitB.location);
 
   try {
     t.false(firstConnection.isDestroyed, 'Connection should not be destroyed');

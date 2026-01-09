@@ -4,7 +4,7 @@
  * @import { OcapnLocation } from '../codecs/components.js'
  * @import { OcapnPublicKey } from '../cryptography.js'
  * @import { SturdyRef } from './sturdyrefs.js'
- * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SwissNum } from './types.js'
+ * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SocketOperations, SwissNum } from './types.js'
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
@@ -13,7 +13,7 @@ import { makeOcapnKeyPair, signLocation } from '../cryptography.js';
 import { makeGrantTracker } from './grant-tracker.js';
 import { makeSturdyRefTracker, enlivenSturdyRef } from './sturdyrefs.js';
 import { locationToLocationId, toHex } from './util.js';
-import { handleHandshakeMessageData } from './handshake.js';
+import { handleHandshakeMessageData, sendHandshake } from './handshake.js';
 import { makeOcapn } from './ocapn.js';
 
 /**
@@ -200,6 +200,22 @@ export const makeClient = ({
 
   const sessionManager = makeSessionManager();
 
+  /** @type {WeakMap<Connection, SelfIdentity>} */
+  const connectionSelfIdentityMap = new WeakMap();
+
+  /**
+   * Get the self identity for a connection.
+   * @param {Connection} connection
+   * @returns {SelfIdentity}
+   */
+  const getSelfIdentityForConnection = connection => {
+    const selfIdentity = connectionSelfIdentityMap.get(connection);
+    if (!selfIdentity) {
+      throw Error('Connection not found in self identity map');
+    }
+    return selfIdentity;
+  };
+
   /**
    * @param {OcapnLocation} location
    * @returns {Promise<InternalSession>}
@@ -217,6 +233,9 @@ export const makeClient = ({
       throw Error('Refusing to connect to self');
     }
     const connection = netlayer.connect(location);
+    const selfIdentity = getSelfIdentityForConnection(connection);
+    // Send handshake for outgoing connections
+    sendHandshake(connection, selfIdentity, captpVersion);
     const pendingSession = sessionManager.makePendingSession(
       destinationLocationId,
       connection,
@@ -316,6 +335,7 @@ export const makeClient = ({
         logger,
         sessionManager,
         connection,
+        getSelfIdentityForConnection,
         sendAbortAndClose,
         data,
         captpVersion,
@@ -344,8 +364,44 @@ export const makeClient = ({
     sessionManager.deleteConnection(connection);
   };
 
+  /**
+   * Creates a connection for the given netlayer and socket.
+   * Does not send handshake - caller is responsible for initiating handshake when appropriate.
+   * @param {NetLayer} netlayer
+   * @param {boolean} isOutgoing
+   * @param {SocketOperations} socket
+   * @returns {Connection}
+   */
+  const makeConnection = (netlayer, isOutgoing, socket) => {
+    let isDestroyed = false;
+    const selfIdentity = makeSelfIdentity(netlayer.location);
+
+    /** @type {Connection} */
+    const connection = harden({
+      netlayer,
+      isOutgoing,
+      get isDestroyed() {
+        return isDestroyed;
+      },
+      write(bytes) {
+        socket.write(bytes);
+      },
+      end() {
+        if (isDestroyed) return;
+        isDestroyed = true;
+        socket.end();
+      },
+    });
+
+    // Store self identity for this connection
+    connectionSelfIdentityMap.set(connection, selfIdentity);
+
+    return connection;
+  };
+
   /** @type {NetlayerHandlers} */
   const netlayerHandlers = harden({
+    makeConnection,
     handleMessageData,
     handleConnectionClose,
   });
@@ -353,17 +409,13 @@ export const makeClient = ({
   /** @type {Client} */
   const client = {
     /**
-     * Registers a netlayer by calling the provided factory with handlers, logger, and captpVersion.
+     * Registers a netlayer by calling the provided factory with handlers and logger.
      * @template {NetLayer} T
-     * @param {(handlers: NetlayerHandlers, logger: Logger, captpVersion: string) => T | Promise<T>} makeNetlayer
+     * @param {(handlers: NetlayerHandlers, logger: Logger) => T | Promise<T>} makeNetlayer
      * @returns {Promise<T>}
      */
     async registerNetlayer(makeNetlayer) {
-      const netlayer = await makeNetlayer(
-        netlayerHandlers,
-        logger,
-        captpVersion,
-      );
+      const netlayer = await makeNetlayer(netlayerHandlers, logger);
       const { transport } = netlayer.location;
       if (netlayers.has(transport)) {
         throw Error(`Netlayer already registered for transport: ${transport}`);

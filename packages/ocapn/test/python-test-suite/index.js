@@ -161,11 +161,10 @@ const start = async () => {
     client.registerSturdyRef(swissStr, object);
   }
   // Register netlayer with client
-  await client.registerNetlayer((handlers, logger, captpVersion) =>
+  await client.registerNetlayer((handlers, logger) =>
     makeTcpNetLayer({
       handlers,
       logger,
-      captpVersion,
       specifiedPort: 22046,
     }),
   );
