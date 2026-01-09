@@ -5,13 +5,7 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import {
-  assertNamePath,
-  assertName,
-  assertPetName,
-  assertPetNamePath,
-  namePathFrom,
-} from './pet-name.js';
+import { assertEdgeName, namePathFrom } from './pet-name.js';
 
 import {
   ResponderInterface,
@@ -127,7 +121,6 @@ export const makeMailboxMaker = ({ provide }) => {
     /** @type {Mail['resolve']} */
     const resolve = async (messageNumber, resolutionNameOrPath) => {
       const resolutionNamePath = namePathFrom(resolutionNameOrPath);
-      assertNamePath(resolutionNamePath);
       if (
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
@@ -167,7 +160,6 @@ export const makeMailboxMaker = ({ provide }) => {
     /** @type {Mail['send']} */
     const send = async (toNameOrPath, strings, edgeNames, petNamesOrPaths) => {
       const toNamePath = namePathFrom(toNameOrPath);
-      assertNamePath(toNamePath);
       const toId = await E(directory).identify(...toNamePath);
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
@@ -178,8 +170,7 @@ export const makeMailboxMaker = ({ provide }) => {
       );
 
       const petNamePaths = petNamesOrPaths.map(namePathFrom);
-      petNamePaths.forEach(assertPetNamePath);
-      edgeNames.forEach(assertPetName);
+      edgeNames.forEach(assertEdgeName);
       if (petNamePaths.length !== edgeNames.length) {
         throw new Error(
           `Message must have one edge name (${q(
@@ -233,9 +224,18 @@ export const makeMailboxMaker = ({ provide }) => {
     };
 
     /** @type {Mail['adopt']} */
-    const adopt = async (messageNumber, edgeName, petNamePath) => {
-      assertName(edgeName);
-      assertNamePath(petNamePath);
+    const adopt = async (messageNumber, edgeNameOrPath, petNameOrPath) => {
+      // Normalize edgeName - accept string or single-element array for consistency
+      const edgeNamePath = namePathFrom(edgeNameOrPath);
+      if (edgeNamePath.length !== 1) {
+        throw new Error(
+          `Edge name must be a single name, got path with ${edgeNamePath.length} elements`,
+        );
+      }
+      const [edgeName] = edgeNamePath;
+      assertEdgeName(edgeName);
+      // Normalize petNamePath - accept string or array for consistency
+      const petNamePath = namePathFrom(petNameOrPath);
       if (
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
@@ -272,7 +272,6 @@ export const makeMailboxMaker = ({ provide }) => {
       await null;
       if (responseNameOrPath !== undefined) {
         const responseNamePath = namePathFrom(responseNameOrPath);
-        assertPetNamePath(responseNamePath);
         const responseId = await E(directory).identify(...responseNamePath);
         if (responseId !== undefined) {
           return provide(/** @type {FormulaIdentifier} */ (responseId));
@@ -280,7 +279,6 @@ export const makeMailboxMaker = ({ provide }) => {
       }
 
       const toNamePath = namePathFrom(toNameOrPath);
-      assertNamePath(toNamePath);
       const toId = await E(directory).identify(...toNamePath);
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
@@ -305,9 +303,7 @@ export const makeMailboxMaker = ({ provide }) => {
 
       if (responseNameOrPath !== undefined) {
         const responseNamePath = namePathFrom(responseNameOrPath);
-        assertPetNamePath(responseNamePath);
         await E(directory).write(responseNamePath, responseId);
-      }
       }
 
       return responseP;

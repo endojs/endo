@@ -2,7 +2,7 @@
 
 /// <reference types="./types.d.ts" />
 
-/** @import { Name, NamePath, PetName, SpecialName } from './types.js' */
+/** @import { EdgeName, Name, NamePath, PetName, SpecialName } from './types.js' */
 
 import { q } from '@endo/errors';
 
@@ -54,6 +54,17 @@ export const assertSpecialName = name => {
 export const assertName = name => {
   if (typeof name !== 'string' || !isName(name)) {
     throw new Error(`Invalid name ${q(name)}`);
+  }
+};
+
+/**
+ * Edge names can be either regular pet names or special names.
+ * @param {string} edgeName
+ * @returns {asserts edgeName is EdgeName}
+ */
+export const assertEdgeName = edgeName => {
+  if (typeof edgeName !== 'string' || !isName(edgeName)) {
+    throw new Error(`Invalid edge name ${q(edgeName)}`);
   }
 };
 

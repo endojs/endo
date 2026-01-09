@@ -6,6 +6,7 @@ import type { Reader, Writer, Stream } from '@endo/stream';
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
 declare const SpecialNameBrand: unique symbol;
+declare const EdgeNameBrand: unique symbol;
 declare const FormulaNumberBrand: unique symbol;
 declare const NodeNumberBrand: unique symbol;
 declare const FormulaIdentifierBrand: unique symbol;
@@ -15,6 +16,9 @@ export type PetName = string & { [PetNameBrand]: true };
 
 /** A validated special name (uppercase, e.g., 'SELF', 'HOST', 'ENDO') */
 export type SpecialName = string & { [SpecialNameBrand]: true };
+
+/** A validated edge name for message edges (pet names or special names) */
+export type EdgeName = string & { [EdgeNameBrand]: true };
 
 /** A 128-character hex string identifying a formula within a node */
 export type FormulaNumber = string & { [FormulaNumberBrand]: true };
@@ -36,7 +40,6 @@ export type NameOrPath = Name | NamePath;
 
 /** An array of names or paths */
 export type NamesOrPaths = NameOrPath[];
-
 export type SomehowAsyncIterable<T> =
   | AsyncIterable<T>
   | Iterable<T>
@@ -301,7 +304,7 @@ export type Request = {
 export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
-  names: Array<Name>; // edge names
+  names: Array<EdgeName>; // edge names
   ids: Array<string>; // formula identifiers
 };
 
@@ -477,28 +480,28 @@ export type LocatorNameChange =
   | { remove: string; names?: Name[] };
 
 export interface NameHub {
-  has(...petNamePath: string[]): Promise<boolean>;
-  identify(...petNamePath: string[]): Promise<string | undefined>;
-  locate(...petNamePath: string[]): Promise<string | undefined>;
+  has(...petNamePath: Name[]): Promise<boolean>;
+  identify(...petNamePath: Name[]): Promise<string | undefined>;
+  locate(...petNamePath: Name[]): Promise<string | undefined>;
   reverseLocate(locator: string): Promise<Name[]>;
   followLocatorNameChanges(
     locator: string,
   ): AsyncGenerator<LocatorNameChange, undefined, undefined>;
-  list(...petNamePath: string[]): Promise<Array<Name>>;
-  listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
+  list(...petNamePath: Name[]): Promise<Array<Name>>;
+  listIdentifiers(...petNamePath: Name[]): Promise<Array<string>>;
   followNameChanges(
-    ...petNamePath: string[]
+    ...petNamePath: Name[]
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
-  lookup(petNamePath: string | string[]): Promise<unknown>;
+  lookup(petNamePath: NameOrPath): Promise<unknown>;
   reverseLookup(value: unknown): Array<Name>;
-  write(petNamePath: string | string[], id: string): Promise<void>;
-  remove(...petNamePath: string[]): Promise<void>;
-  move(fromPetName: string[], toPetName: string[]): Promise<void>;
-  copy(fromPetName: string[], toPetName: string[]): Promise<void>;
+  write(petNamePath: NameOrPath, id: string): Promise<void>;
+  remove(...petNamePath: Name[]): Promise<void>;
+  move(fromPetName: NamePath, toPetName: NamePath): Promise<void>;
+  copy(fromPetName: NamePath, toPetName: NamePath): Promise<void>;
 }
 
 export interface EndoDirectory extends NameHub {
-  makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
+  makeDirectory(petNamePath: NamePath): Promise<EndoDirectory>;
 }
 
 export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
@@ -510,24 +513,24 @@ export interface Mail {
   // Mail operations:
   listMessages(): Promise<Array<StampedMessage>>;
   followMessages(): AsyncGenerator<StampedMessage, undefined, undefined>;
-  resolve(messageNumber: number, resolutionName: string | string[]): Promise<void>;
+  resolve(messageNumber: number, resolutionName: NameOrPath): Promise<void>;
   reject(messageNumber: number, message?: string): Promise<void>;
   adopt(
     messageNumber: number,
-    edgeName: string,
-    petName: string[],
+    edgeName: NameOrPath,
+    petName: NameOrPath,
   ): Promise<void>;
   dismiss(messageNumber: number): Promise<void>;
   request(
-    recipientName: string | string[],
+    recipientName: NameOrPath,
     what: string,
-    responseName?: string | string[],
+    responseName?: NameOrPath,
   ): Promise<unknown>;
   send(
-    recipientName: string | string[],
+    recipientName: NameOrPath,
     strings: Array<string>,
-    edgeNames: Array<string>,
-    petNames: Array<string | string[]>,
+    edgeNames: Array<EdgeName>,
+    petNames: NamesOrPaths,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): void;
 }
@@ -612,48 +615,45 @@ export type FarEndoGuest = FarRef<EndoGuest>;
 export interface EndoHost extends EndoAgent {
   storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
-    petName: string | string[],
+    petName: NameOrPath,
   ): Promise<FarRef<EndoReadable>>;
-  storeValue<T extends Passable>(
-    value: T,
-    petName: string | string[],
-  ): Promise<void>;
+  storeValue<T extends Passable>(value: T, petName: NameOrPath): Promise<void>;
   provideGuest(
-    petName?: string,
+    petName?: PetName,
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoGuest>;
   provideHost(
-    petName?: string,
+    petName?: PetName,
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
-  makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
-  provideWorker(petNamePath: string | string[]): Promise<EndoWorker>;
+  makeDirectory(petNamePath: NameOrPath): Promise<EndoDirectory>;
+  provideWorker(petNamePath: NameOrPath): Promise<EndoWorker>;
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: Name | undefined,
     source: string,
     codeNames: Array<string>,
-    petNames: Array<string>,
-    resultName?: string | string[],
+    petNames: NamesOrPaths,
+    resultName?: NameOrPath,
   ): Promise<unknown>;
   makeUnconfined(
-    workerName: string | undefined,
+    workerName: Name | undefined,
     specifier: string,
-    powersName: string,
-    resultName?: string | string[],
+    powersName: Name,
+    resultName?: NameOrPath,
   ): Promise<unknown>;
   makeBundle(
-    workerPetName: string | undefined,
-    bundleName: string,
-    powersName: string,
-    resultName?: string | string[],
+    workerPetName: Name | undefined,
+    bundleName: Name,
+    powersName: Name,
+    resultName?: NameOrPath,
   ): Promise<unknown>;
-  cancel(petName: string | string[], reason?: Error): Promise<void>;
+  cancel(petName: NameOrPath, reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
-  invite(guestName: string): Promise<Invitation>;
-  accept(invitationLocator: string, guestName: string): Promise<void>;
+  invite(guestName: PetName): Promise<Invitation>;
+  accept(invitationLocator: string, guestName: PetName): Promise<void>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
