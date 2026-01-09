@@ -58,6 +58,18 @@ guides in the `docs/` directory, and package-specific documentation.
 should use long lines (paragraphs joined without manual wrapping), as GitHub
 uses a different Markdown flavor for those contexts.
 
+### Mermaid Diagrams
+
+Use 2-space indentation for Mermaid diagrams:
+
+```
+sequenceDiagram
+  participant A as Alice
+  participant B as Bob
+
+  A->>B: send(Carol)
+```
+
 ## Rebuilding `ses`
 
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
