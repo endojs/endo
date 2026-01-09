@@ -12,6 +12,7 @@ import {
   assertNames,
   assertPetName,
   assertPetNamePath,
+  assertEdgeName,
   namePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -536,8 +537,7 @@ export const makeMailboxMaker = ({
       );
 
       const petNamePaths = petNamesOrPaths.map(namePathFrom);
-      petNamePaths.forEach(assertPetNamePath);
-      edgeNames.forEach(assertPetName);
+      edgeNames.forEach(assertEdgeName);
       if (petNamePaths.length !== edgeNames.length) {
         throw new Error(
           `Message must have one edge name (${q(
@@ -587,9 +587,18 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['adopt']} */
-    const adopt = async (messageNumber, edgeName, petNamePath) => {
-      assertName(edgeName);
-      assertPetNamePath(petNamePath);
+    const adopt = async (messageNumber, edgeNameOrPath, petNameOrPath) => {
+      // Normalize edgeName - accept string or single-element array for consistency
+      const edgeNamePath = namePathFrom(edgeNameOrPath);
+      if (edgeNamePath.length !== 1) {
+        throw new Error(
+          `Edge name must be a single name, got path with ${edgeNamePath.length} elements`,
+        );
+      }
+      const [edgeName] = edgeNamePath;
+      assertEdgeName(edgeName);
+      // Normalize petNamePath - accept string or array for consistency
+      const petNamePath = namePathFrom(petNameOrPath);
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
@@ -621,7 +630,6 @@ export const makeMailboxMaker = ({
       await null;
       if (responseNameOrPath !== undefined) {
         const responseNamePath = namePathFrom(responseNameOrPath);
-        assertPetNamePath(responseNamePath);
         const resolutionId = await E(directory).identify(...responseNamePath);
         if (resolutionId !== undefined) {
           context.thisDiesIfThatDies(resolutionId);
@@ -630,7 +638,6 @@ export const makeMailboxMaker = ({
       }
 
       const toNamePath = namePathFrom(toNameOrPath);
-      assertNamePath(toNamePath);
       const toId = await E(directory).identify(...toNamePath);
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
@@ -659,7 +666,6 @@ export const makeMailboxMaker = ({
 
       if (responseNameOrPath !== undefined) {
         const responseNamePath = namePathFrom(responseNameOrPath);
-        assertPetNamePath(responseNamePath);
         await E(directory).write(responseNamePath, resolutionId);
       }
 
