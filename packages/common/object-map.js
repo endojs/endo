@@ -1,4 +1,30 @@
-const { entries, fromEntries } = Object;
+/**
+ * @typedef {<O extends Record<string, unknown>>(
+ *   obj: O,
+ * ) => { [K in keyof O]: K extends string ? [K, O[K]] : never }[keyof O][]} TypedEntries
+ */
+export const typedEntries = /** @type {TypedEntries} */ (Object.entries);
+
+/**
+ * @typedef {<
+ *   const Entries extends ReadonlyArray<readonly [PropertyKey, unknown]>,
+ * >(
+ *   entries: Entries,
+ * ) => { [Entry in Entries[number] as Entry[0]]: Entry[1] }} FromTypedEntries
+ */
+export const fromTypedEntries = /** @type {FromTypedEntries} */ (
+  Object.fromEntries
+);
+
+/**
+ * @typedef {<A extends unknown[], V>(
+ *   arr: A,
+ *   mapper: <K extends number>(el: A[K], idx: K, arr: A) => V,
+ * ) => V[]} TypedMap
+ */
+export const typedMap = /** @type {TypedMap} */ (
+  Function.prototype.call.bind(Array.prototype.map)
+);
 
 /**
  * By analogy with how `Array.prototype.map` will map the elements of
@@ -33,17 +59,18 @@ const { entries, fromEntries } = Object;
  * if all the mapped values are Passable, then the returned object will be
  * a CopyRecord.
  *
- * @template {Record<string, any>} O
+ * @template {Record<string, unknown>} O
  * @template R map result
  * @param {O} original
- * @param {(value: O[keyof O], key: keyof O) => R} mapFn
- * @returns {Record<keyof O, R>}
+ * @param {<K extends string & keyof O>(value: O[K], key: K) => R} mapFn
+ * @returns {{ [K in keyof O]: K extends string ? R : never }}
  */
 export const objectMap = (original, mapFn) => {
-  const ents = entries(original);
-  const mapEnts = ents.map(
-    ([k, v]) => /** @type {[keyof O, R]} */ ([k, mapFn(v, k)]),
-  );
-  return /** @type {Record<keyof O, R>} */ (harden(fromEntries(mapEnts)));
+  const oldEntries = typedEntries(original);
+  /** @type {<K extends string & keyof O>(entry: [K, O[K]]) => [K, R]} */
+  const mapEntry = ([k, v]) => [k, mapFn(v, k)];
+  const newEntries = typedMap(oldEntries, mapEntry);
+  const newObj = fromTypedEntries(newEntries);
+  return /** @type {any} */ (harden(newObj));
 };
 harden(objectMap);
