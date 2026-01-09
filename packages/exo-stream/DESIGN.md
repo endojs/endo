@@ -20,6 +20,14 @@ responder busy while the initiator consumes values:
 
 Both sides hold their resolvers locally. No resolvers cross the wire.
 
+## Terminology
+
+- **Initiator**: The side that starts streaming (creates synchronization chain,
+  iterates remotely)
+- **Responder**: The side that provides values (wraps a local async iterator),
+- **Synchronization chain**: Promise chain from initiator to responder,
+- **Acknowledgement chain**: Promise chain from responder to initiator.
+
 Streams come in the **Reader** and **Writer** flavors that vary only
 in usage, because the protocol is symmetric.
 
@@ -33,48 +41,61 @@ in usage, because the protocol is symmetric.
   reader and writer, even if they share a duplex connection for purposes of
   transport.
 
-## Terminology
-
-- **Initiator**: The side that starts streaming (creates synchronization chain, iterates remotely)
-- **Responder**: The side that provides values (wraps a local async iterator)
-- **Synchronization chain**: Promise chain from initiator to responder.
-- **Acknowledgement chain**: Promise chain from responder to initiator.
-
 ## Protocol Flow
 
 ```mermaid
 sequenceDiagram
-    participant I as Initiator
-    participant R as Responder
+  participant I as Initiator
+  participant R as Responder
 
-    Note over I: Create synchronization chain<br/>(hold resolver locally)
-    Note over I: Pre-resolve buffer synchronizations
+  Note over I: Create synHead, promise chain
+  Note over I: Start local iterator pump
 
-    I->>R: stream(synHead)
+  I->>R: request stream(synHead)
 
-    Note over R: Create acknowledgement chain<br/>Start pump loop
+  loop Initiator Buffers Syn
+    I-->>R: Syn
+  end
 
-    R-->>I: ackHead (promise)
+  Note over R: Create ackHead, promise chain
+  Note over R: Start local iterator pump
 
-    loop For each value
-        Note over R: Await synchronization ✓
-        Note over R: Call iterator.next(synValue)
-        Note over R: Resolve ack node
+  loop Responder Buffers Ack
+    Note over R: iterator.next(), get Ack
+    R-->>I: Ack
 
-        R-->>I: ack node {value, promise}
+    Note over I: await head of Acks
+    Note over I: iterator.next(Ack), get Syn
+    Note over I: resolve tail of Syns
+    I-->>R: Syn
+  end
 
-        Note over I: Receive value
-        I-->>R: Resolve syn node
-    end
+  R-->>I: (ackHead)stream response
 
-    alt Normal completion
-        Note over R: iterator.next() returns done
-        R-->>I: {value: returnValue, promise: null}
-    else Early close (initiator)
-        I-->>R: {value, promise: null}
-        Note over R: Receive close signal
-        R-->>I: {value: undefined, promise: null}
-    end
+  loop Streaming
+    Note over R: await head of Syns
+    Note over R: iterator.next(Syn), get Ack
+    Note over R: resolve tail of Acks
+    R-->>I: Ack
+
+    Note over I: await head of Acks
+    Note over I: iterator.next(Ack), get Syn
+    Note over I: resolve tail of Syns
+    I-->>R: Syn
+  end
+
+  alt Responder Exhausted
+    Note over R: iterator.next(Syn), get final Ack
+    R-->>I: final Ack
+  else Initiator Early Return
+    I-->>R: final Syn
+    Note over R: iterator.return(Syn), get Ack
+    R-->>I: final Ack
+  else Initiator Early Throw
+    I-->>R: final Syn rejected
+    Note over R: iterator.throw(Err), get Ack
+    R-->>I: final Ack rejected
+  end
 ```
 
 ### Bytes Stream Flow
@@ -94,27 +115,6 @@ sequenceDiagram
    - Synchronizes flow: initiator → responder (via synchronize promise chain)
    - Acknowledges flow: responder → initiator (via acknowledge promise chain)
    - CapTP transmits resolved nodes opportunistically
-
-### Flow Control
-
-The `buffer` option allows pre-synchronizing N values:
-
-```
-buffer=1 (default):
-  Initiator: syn → await ack → syn → await ack → ...
-  One round-trip per value (responder primed with one syn)
-
-buffer=3:
-  Initiator: syn, syn, syn → await ack → syn → await ack → ...
-  Responder can send 2 values ahead before needing more syns
-```
-
-## Error Handling
-
-- **Responder errors**: Resolve ack tail with `Promise.reject(error)`
-- **Initiator errors**: Resolve syn tail with `{value: undefined, promise: null}`
-- **Initiator close**: Resolve syn with `{value, promise: null}`
-- **Pattern mismatch**: `mustMatch` throws, initiator can abort
 
 ## Why E.get() Pipelining Works
 
