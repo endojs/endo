@@ -10,7 +10,9 @@
 
 /**
  * @import {LanguageForExtension, PackageDescriptor} from './types.js'
- * @import {Node} from './types/node-modules.js'
+ * @import {LogFn} from './types/external.js'
+ * @import {Exports, Imports, Node} from './types/node-modules.js'
+ * @import {PatternDescriptor} from './types/pattern-replacement.js'
  */
 
 import { join, relativize } from './node-module-specifier.js';
@@ -60,15 +62,20 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
 
 /**
  * @param {string} name - the name of the referrer package.
- * @param {object} exports - the `exports` field from a package.json.
+ * @param {Exports} exports - the `exports` field from a package.json.
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {LanguageForExtension} types - an object to populate
  * with any recognized module's type, if implied by a tag.
- * @yields {[string, string]}
- * @returns {Generator<[string, string]>}
+ * @yields {[string, string | null]}
+ * @returns {Generator<[string, string | null]>}
  */
 function* interpretExports(name, exports, conditions, types) {
+  // Null targets are exclusions (Node.js semantics).
+  if (exports === null) {
+    yield [name, null];
+    return;
+  }
   if (isArray(exports)) {
     for (const section of exports) {
       const results = [...interpretExports(name, section, conditions, types)];
@@ -116,6 +123,54 @@ function* interpretExports(name, exports, conditions, types) {
 }
 
 /**
+ * Interprets the `imports` field from a package.json file.
+ * The imports field provides self-referencing subpath patterns that
+ * can be used to create private internal mappings.
+ *
+ * @param {string} _name - the name of the package (unused, kept for signature
+ * parity with `interpretExports` and `interpretBrowserField`)
+ * @param {Imports} imports - the `imports` field from a package.json.
+ * @param {Set<string>} conditions - build conditions about the target environment
+ * @param {LogFn} log
+ * @yields {[string, string | null]}
+ * @returns {Generator<[string, string | null]>}
+ */
+function* interpretImports(_name, imports, conditions, log) {
+  if (Object(imports) !== imports) {
+    throw Error(
+      `Cannot interpret package.json imports property, must be object, got ${imports}`,
+    );
+  }
+  for (const [key, value] of entries(imports)) {
+    // imports keys must start with '#'
+    if (!key.startsWith('#')) {
+      log(`Ignoring invalid imports key "${key}": must start with "#"`);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    if (value === null) {
+      // Null targets are exclusions (Node.js semantics).
+      yield [key, null];
+    } else if (typeof value === 'string') {
+      yield [key, relativize(value)];
+    } else if (Object(value) === value && !isArray(value)) {
+      // Handle conditional imports
+      for (const [condition, target] of entries(value)) {
+        if (conditions.has(condition)) {
+          if (target === null) {
+            yield [key, null];
+          } else if (typeof target === 'string') {
+            yield [key, relativize(target)];
+          }
+          // Take only the first matching condition
+          break;
+        }
+      }
+    }
+  }
+}
+
+/**
  * Given an unpacked `package.json`, generate a series of `[name, target]`
  * pairs to represent what this package exports. `name` is what the
  * caller/importer asked for (for example, the `ses` in `import { stuff } from
@@ -130,7 +185,7 @@ function* interpretExports(name, exports, conditions, types) {
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {LanguageForExtension} types - an object to populate
  * with any recognized module's type, if implied by a tag.
- * @yields {[string, string]}
+ * @yields {[string, string | null]}
  */
 export const inferExportsEntries = function* inferExportsEntries(
   { main, module, exports },
@@ -198,6 +253,157 @@ export const inferExportsAndAliases = (
     externalAliases,
     fromEntries(inferExportsEntries(descriptor, conditions, types)),
   );
+
+  // expose default module as package root
+  // may be overwritten by browser field
+  // see https://github.com/endojs/endo/issues/1363
+  if (module === undefined && exports === undefined) {
+    const defaultModule = main !== undefined ? relativize(main) : './index.js';
+    externalAliases['.'] = defaultModule;
+    // in commonjs, expose package root as default module
+    if (type !== 'module') {
+      internalAliases['.'] = defaultModule;
+    }
+  }
+
+  // if present, allow "browser" field to populate moduleMap
+  if (conditions.has('browser') && browser !== undefined) {
+    for (const [specifier, target] of interpretBrowserField(
+      name,
+      browser,
+      main,
+    )) {
+      const specifierIsRelative =
+        specifier.startsWith('./') || specifier === '.';
+      // only relative entries in browser field affect external aliases
+      if (specifierIsRelative) {
+        externalAliases[specifier] = target;
+      }
+      internalAliases[specifier] = target;
+    }
+  }
+};
+
+/**
+ * Determines if a key or value contains a wildcard pattern.
+ *
+ * @param {string} key
+ * @param {string | null} value
+ * @returns {boolean}
+ */
+const hasWildcard = (key, value) =>
+  key.includes('*') || (value !== null && value.includes('*'));
+
+/**
+ * Returns the number of `*` characters in a string.
+ *
+ * @param {string} str
+ * @returns {number}
+ */
+const countWildcards = str => (str.match(/\*/g) || []).length;
+
+/**
+ * Validates a wildcard pattern entry and logs warnings for invalid patterns.
+ * Returns true if the pattern is valid and should be used.
+ *
+ * @param {string} key
+ * @param {string} value
+ * @param {LogFn} log
+ * @returns {boolean}
+ */
+const validateWildcardPattern = (key, value, log) => {
+  if (key.includes('**') || value.includes('**')) {
+    log(`Ignoring globstar pattern "${key}": "${value}"`);
+    return false;
+  }
+  const keyCount = countWildcards(key);
+  const valueCount = countWildcards(value);
+  if (keyCount > 1 || valueCount > 1) {
+    log(`Ignoring pattern with multiple wildcards "${key}": "${value}"`);
+    return false;
+  }
+  if (keyCount !== valueCount) {
+    log(
+      `Ignoring pattern with mismatched wildcard count "${key}" (${keyCount}) vs "${value}" (${valueCount})`,
+    );
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Infers exports, internal aliases, and wildcard patterns from a package descriptor.
+ * This extends `inferExportsAndAliases` by also extracting wildcard patterns
+ * from the `exports` and `imports` fields.
+ *
+ * @param {PackageDescriptor} descriptor
+ * @param {Node['externalAliases']} externalAliases
+ * @param {Node['internalAliases']} internalAliases
+ * @param {PatternDescriptor[]} patterns - array to populate with wildcard patterns
+ * @param {Set<string>} conditions
+ * @param {Record<string, string>} types
+ * @param {LogFn} log
+ */
+export const inferExportsAliasesAndPatterns = (
+  descriptor,
+  externalAliases,
+  internalAliases,
+  patterns,
+  conditions,
+  types,
+  log,
+) => {
+  const { name, type, main, module, exports, imports, browser } = descriptor;
+
+  // Process exports field - separate wildcards from concrete exports.
+  for (const [key, value] of inferExportsEntries(
+    descriptor,
+    conditions,
+    types,
+  )) {
+    if (value === null) {
+      // Null targets are exclusions.
+      // Only wildcard null targets need to be stored as patterns;
+      // concrete null targets are excluded by omission from aliases.
+      if (key.includes('*')) {
+        patterns.push({ from: key, to: null });
+      }
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    if (hasWildcard(key, value)) {
+      if (validateWildcardPattern(key, value, log)) {
+        patterns.push({ from: key, to: value });
+      }
+    } else {
+      externalAliases[key] = value;
+    }
+  }
+
+  // Process imports field (package self-referencing).
+  if (imports !== undefined) {
+    for (const [key, value] of interpretImports(
+      name,
+      imports,
+      conditions,
+      log,
+    )) {
+      if (value === null) {
+        if (key.includes('*')) {
+          patterns.push({ from: key, to: null });
+        }
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      if (hasWildcard(key, value)) {
+        if (validateWildcardPattern(key, value, log)) {
+          patterns.push({ from: key, to: value });
+        }
+      } else {
+        internalAliases[key] = value;
+      }
+    }
+  }
 
   // expose default module as package root
   // may be overwritten by browser field
