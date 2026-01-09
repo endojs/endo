@@ -15,6 +15,7 @@ import type {
 import type { CanonicalName } from './canonical-name.js';
 import type { FileUrlString } from './external.js';
 import type { SomePackagePolicy } from './policy-schema.js';
+import type { PatternDescriptor } from './pattern-replacement.js';
 import type { LiteralUnion } from './typescript.js';
 
 /**
@@ -105,6 +106,13 @@ export interface PackageCompartmentDescriptor
 
   scopes: Record<string, ScopeDescriptor<PackageCompartmentDescriptorName>>;
 
+  /**
+   * Wildcard patterns for dynamic module resolution within this compartment.
+   * `*` matches exactly one path segment (Node.js semantics).
+   * Stripped during digest/archiving - expanded patterns become concrete module entries.
+   */
+  patterns?: PatternDescriptor[];
+
   sourceDirname: string;
 }
 
@@ -158,6 +166,7 @@ export interface DigestedCompartmentDescriptor
   path: never;
   retained: never;
   scopes: never;
+  patterns: never;
   parsers: never;
   types: never;
   __createdBy: never;
@@ -182,6 +191,7 @@ export type ModuleConfiguration =
 
 export type ModuleConfigurationCreator =
   | 'link'
+  | 'link-pattern'
   | 'transform'
   | 'import-hook'
   | 'digest'

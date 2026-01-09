@@ -14,7 +14,7 @@
 
 /* eslint no-shadow: 0 */
 
-import { inferExportsAndAliases } from './infer-exports.js';
+import { inferExportsAliasesAndPatterns } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { join } from './node-module-specifier.js';
 import {
@@ -577,11 +577,14 @@ const graphPackage = async (
   const externalAliases = {};
   /** @type {Node['internalAliases']} */
   const internalAliases = {};
+  /** @type {Node['patterns']} */
+  const patterns = [];
 
-  inferExportsAndAliases(
+  inferExportsAliasesAndPatterns(
     packageDescriptor,
     externalAliases,
     internalAliases,
+    patterns,
     conditions,
     types,
   );
@@ -602,6 +605,7 @@ const graphPackage = async (
     explicitExports: exportsDescriptor !== undefined,
     externalAliases,
     internalAliases,
+    patterns,
     dependencyLocations,
     types,
     parsers,
@@ -955,6 +959,7 @@ const translateGraph = (
       label,
       sourceDirname,
       internalAliases,
+      patterns,
       parsers,
       types,
       packageDescriptor,
@@ -1032,6 +1037,7 @@ const translateGraph = (
       sourceDirname,
       modules: moduleDescriptors,
       scopes,
+      ...(patterns.length > 0 ? { patterns } : {}),
       parsers,
       types,
       policy: /** @type {SomePackagePolicy} */ (packagePolicy),
