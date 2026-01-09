@@ -57,7 +57,7 @@
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "prettier-fixtures": "prettier --write --with-node-modules './test/fixtures-*/**/*.*js'",
-    "test": "ava"
+    "test": "ses-ava"
   },
   "dependencies": {
     "@endo/cjs-module-analyzer": "workspace:^",
@@ -72,6 +72,7 @@
     "@endo/evasive-transform": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "c8": "catalog:dev",
@@ -117,9 +118,13 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.*"
+      "test/**/*.test.*",
+      "!test/**/*.node-condition.test.*"
     ],
     "timeout": "2m"
+  },
+  "sesAvaConfigs": {
+    "node-condition": "test/_ava-node-condition.config.js"
   },
   "typeCoverage": {
     "atLeast": 86.14
