@@ -5,7 +5,7 @@ const memo = new WeakMap();
 /**
  * Empirically determines whether the `harden` exported by `@endo/harden`
  * is a noop harden.
- * @param {(object: object) => boolean} harden
+ * @param {<T>(object: T) => T} harden
  */
 const hardenIsNoop = harden => {
   let isNoop = memo.get(harden);
