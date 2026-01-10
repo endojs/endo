@@ -620,15 +620,16 @@ export const main = async rawArgs => {
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
+    .option('-a, --all', 'include all logs (daemon and workers)')
     .option(
       '-p,--ping <interval>',
       'milliseconds between daemon restart checks',
     )
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
-      const { follow, ping } = cmd.opts();
+      const { follow, ping, all } = cmd.opts();
       const { log: logCommand } = await import('./commands/log.js');
-      await logCommand({ follow, ping });
+      await logCommand({ follow, ping, all });
     });
 
   program
