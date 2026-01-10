@@ -27,26 +27,27 @@ named sources and bundling them into a form that vats can load, as indicated
 by the `moduleFormat` below.
 
 The resulting bundle is suitable for use with `@endo/import-bundle`.
-The default format is of a bundle is `"endoZipBase64"`.
+The default format is of a bundle is "endoZipBase64".
 
 ## Conditions
 
 Node.js introduced [conditions](https://nodejs.org/api/packages.html#conditional-exports).
-The `--condition` and `-C` flags accordingly influence `bundle-source` module
+The `--condition`/`-C` option accordingly influences `bundle-source` module
 resolution decisions.
 
-The `browser` condition additionally implies the selection of the `browser`
+The "browser" condition additionally implies the selection of the `browser`
 entry instead of `main` in `package.json`, if not overridden by explicit
 `exports`.
 
-The `development` condition additionally implies that the bundle may import
+The "development" condition additionally implies that the bundle may import
 `devDependencies` from the package containing the entry module.
 
 ## Comment Elision
 
-The `--elide-comments (`-e`) flag with `--format` (`-f`) `endoScript` or
-`endoZipBase64` (default) causes the bundler to blank out the interior of
-comments, without compromising line or column number cursor advancement.
+The `--elide-comments`/`-e` option with default format "endoZipBase64" or
+explicit format "endoScript" via `--format`/`-f` causes the bundler to blank out
+the interior of comments, without compromising line or column number location of
+the remaining source code.
 This can reduce bundle size without harming the debug experience any more than
 other transforms.
 
@@ -78,8 +79,8 @@ Use this feature in conjunction with
 
 ## Source maps
 
-With the `moduleFormat` of `endoZipBase64`, the bundler can generate source
-maps but does not include them in the bundle itself.
+With the default `moduleFormat` of "endoZipBase64", the bundler can generate
+source maps but does not include them in the bundle itself.
 Use the `cacheSourceMaps` option to render source maps into a per-user per-host
 cache.
 
@@ -118,9 +119,12 @@ map for every physical module.
 It is not yet quite clever enough to collect source maps for sources that do
 not exist.
 
-## getExport moduleFormat
+## `moduleFormat` explanations
 
-The most primitive `moduleFormat` is the `"getExport"` format.
+<a id="getexport-moduleformat"></a>
+### getExport
+
+The most primitive `moduleFormat` is "getExport".
 It generates a script where the completion value (last expression evaluated)
 is a function that accepts an optional `sourceUrlPrefix`.
 
@@ -129,7 +133,7 @@ cosnt { source } = await bundleSource('program.js', { format: 'getExport' });
 const exports = eval(source)();
 ```
 
-A bundle in `getExport` format can import host modules through a
+A bundle in "getExport" format can import host modules through a
 lexically-scoped CommonJS `require` function.
 One can be endowed using a Hardened JavaScript `Compartment`.
 
@@ -142,22 +146,23 @@ const exports = compartment.evaluate(source)();
 ```
 
 > [!WARNING]
-> The `getExport` format was previously implemented using
+> The "getExport" format was previously implemented using
 > [Rollup](https://rollupjs.org/) and is implemented with
 > `@endo/compartment-mapper/functor.js` starting with version 4 of
 > `@endo/bundle-source`.
-> See `nestedEvaluate` below for compatibility caveats.
+> See [nestedEvaluate](#nestedevaluate) below for compatibility caveats.
 
-## nestedEvaluate moduleFormat
+<a id="nestedevaluate-moduleformat"></a>
+### nestedEvaluate
 
-This is logically similar to the `getExport` format, except that the code
+This is logically similar to the "getExport" format, except that the code
 may additionally depend upon a `nestedEvaluate(src)` function to be used
 to evaluate submodules in the same context as the parent function.
 
 The advantage of this format is that it helps preserve the filenames within
 the bundle in the event of any stack traces.
 
-The completion value of a `nestedEvaluate` bundle is a function that accepts
+The completion value of a "nestedEvaluate" bundle is a function that accepts
 the `sourceUrlPrefix` for every module in the bundle, which will appear in stack
 traces and assist debuggers to find a matching source file.
 
@@ -177,7 +182,7 @@ In the absence of a `nextedEvaluate` function in lexical scope, the bundle will
 use the `eval` function in lexical scope.
 
 > [!WARNING]
-> The `nestedEvaluate` format was previously implemented using
+> The "nestedEvaluate" format was previously implemented using
 > [Rollup](https://rollupjs.org/) and is implemented with
 > `@endo/compartment-mapper/functor.js` starting with version 4 of
 > `@endo/bundle-source`.
@@ -198,13 +203,13 @@ use the `eval` function in lexical scope.
 > 4. Version 3 and 4 generate different text.
 >    Any treatment of that text that is sensitive to the exact shape of the
 >    text is fragile and may break even between minor and patch versions.
-> 5. Version 4 makes flags already supported by `endoZipBase64` format
+> 5. Version 4 makes flags already supported by format "endoZipBase64"
 >    universal to all formats, including `dev`, `elideComments`,
 >    `noTransforms`, and `conditions`.
 
 ## endoScript moduleFormat
 
-The `ses` shim uses the `endoScript` format to generate its distribution bundles,
+The `ses` shim uses the "endoScript" format to generate its distribution bundles,
 suitable for injecting in a web page with a `<script>` tag.
 For this format, extract the `source` from the generated JSON envelope and place
 it in a file you embed in a web page, an Agoric
@@ -217,17 +222,18 @@ const compartment = new Compartment();
 compartment.evaluate(source);
 ```
 
-Unlike `getExport` and `nestedEvaluate`, the `dev` option to `bundleSource` is
+Unlike "getExport" and "nestedEvaluate", the `dev` option to `bundleSource` is
 required for any bundle that imports `devDependencies`.
-The `endoScript` format does not support importing host modules with CommonJS
+The "endoScript" format does not support importing host modules with CommonJS
 `require`.
 
-## endoZipBase64 moduleFormat
+<a id="endozipbase64-moduleformat"></a>
+### endoZipBase64
 
 An Endo (zip, base64) bundle is an object with properties:
 
-- `moduleFormat` is `"endoZipBase64"`
-- `endoZipBase64` is a base 64 encoded zip file.
+- `moduleFormat` is "endoZipBase64".
+- `endoZipBase64` is a zip file encoded in Base64.
 - `endoZipBase64Sha512`, if present, is the SHA-512 of the
   `compartment-map.json` file inside the `endoZipBase64` archive.
   If the `compartment-map.json` includes the SHA-512 of every module, this is
@@ -237,13 +243,13 @@ An Endo (zip, base64) bundle is an object with properties:
 
 To inspect the contents of a bundle in a JSON file:
 
-```
+```sh
 jq -r .endoZipBase64 | base64 -d | xxd | less
 ```
 
 To extract the contents:
 
-```
+```sh
 jq -r .endoZipBase64 | base64 -d > bundle.zip
 unzip bundle.zip -d bundle
 ```
@@ -263,13 +269,13 @@ in a bundle are currently precompiled, so instead of finding source text, you
 will find a JSON record describing the bindings and behavior of the module,
 including code that is similar to the source but not identical.
 
-The bundle may have any of these `"parser"` properties:
+The bundle may have any of these `parser` properties:
 
-- `pre-mjs-json`: precompiled ESM
-- `pre-cjs-json`: precompiled CommonJS
-- `json`: raw JSON (exports the corresponding value as `default`)
-- `text`: UTF-8 encoded text (exports the corresponding `string` as `default`)
-- `bytes`: bytes (exports the corresponding `Uint8Array` as `default`)
+- "pre-mjs-json": precompiled ESM
+- "pre-cjs-json": precompiled CommonJS
+- "json": raw JSON (exports the corresponding value as `default`)
+- "text": UTF-8 encoded text (exports the corresponding string as `default`)
+- "bytes": a sequence of octets (exports the corresponding Uint8Array as `default`)
 
 The JSON of a `pre-mjs-json` module will have all the properties of an object
 generated with `StaticModuleRecord` from `@endo/static-module-record`, but
@@ -282,6 +288,5 @@ particularly:
 So, to extract the source-similar program for visual inspection:
 
 ```
-jq -r .__syncModuleProgram module.js > module.source.js
+jq -r .__syncModuleProgram__ module.js > module.source.js
 ```
-
