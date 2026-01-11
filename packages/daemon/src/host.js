@@ -24,6 +24,13 @@ import {
 } from './formula-identifier.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
+import {
+  hostHelp,
+  guestHelp,
+  directoryHelp,
+  mailHelp,
+  makeHelp,
+} from './help-text.js';
 
 import { HostInterface } from './interfaces.js';
 
@@ -765,8 +772,11 @@ export const makeHostMaker = ({
       accept,
     };
 
+    const help = makeHelp(hostHelp, [guestHelp, directoryHelp, mailHelp]);
+
     const hostExo = makeExo('EndoHost', HostInterface, {
       ...host,
+      help,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
         makeIteratorRef(host.followLocatorNameChanges(locator)),
