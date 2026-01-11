@@ -2,17 +2,17 @@
 
 import { E } from '@endo/eventual-send';
 
-const llamadromeSpecifier = new URL('llm-agent.js', import.meta.url).href;
+const llalSpecifier = new URL('agent.js', import.meta.url).href;
 
 export const main = async agent => {
-  await E(agent).provideGuest('llamadrome', {
+  await E(agent).provideGuest('lal', {
     introducedNames: {},
-    agentName: 'powers-for-llamadrome',
+    agentName: 'profile-for-lal',
   });
   await E(agent).makeUnconfined(
     'MAIN',
-    llamadromeSpecifier,
-    'powers-for-llamadrome',
-    ['PINS', 'llamadrome-server'],
+    llalSpecifier,
+    'profile-for-lal',
+    'supervisor-for-lal',
   );
 };
