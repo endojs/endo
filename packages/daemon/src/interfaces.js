@@ -171,9 +171,9 @@ export const HostInterface = M.interface('EndoHost', {
     M.promise(),
   ),
   deliver: M.call(M.record()).returns(),
-  // === Host-specific operations ===
+  // Host
   // Store a blob
-  storeBlob: M.call(M.remotable(), NameShape).returns(M.promise()),
+  storeBlob: M.call(M.remotable()).optional(NameShape).returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
@@ -224,16 +224,16 @@ export const HostInterface = M.interface('EndoHost', {
   // Create an invitation
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
-  accept: M.call(IdShape, IdShape, NameShape).returns(M.promise()),
+  accept: M.call(LocatorShape, NameShape).returns(M.promise()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {
   accept: M.call(IdShape).returns(M.promise()),
-  locate: M.call().returns(M.string()),
+  locate: M.call().returns(M.promise()),
 });
 
 export const InspectorHubInterface = M.interface('EndoInspectorHub', {
-  lookup: M.call(M.string()).returns(M.promise()),
+  lookup: M.call(NameOrPathShape).returns(M.promise()),
   list: M.call().returns(M.array()),
 });
 
