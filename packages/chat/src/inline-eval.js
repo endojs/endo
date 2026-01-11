@@ -1,5 +1,6 @@
 // @ts-check
-/* global document */
+/* global document, setTimeout */
+/* eslint-disable no-use-before-define */
 
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 
@@ -7,6 +8,7 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @typedef {object} ParsedEval
  * @property {string} source - The JavaScript source code
  * @property {Array<{codeName: string, petName: string}>} endowments - Parsed endowments
+ * @property {number} [cursorPosition] - Cursor position in source (0-indexed character offset)
  */
 
 /**
@@ -206,7 +208,7 @@ export const createInlineEval = ({
       } else if (e.key === 'Enter') {
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
-          onExpand(getData()); // eslint-disable-line no-use-before-define
+          onExpand(getData(true)); // eslint-disable-line no-use-before-define
         } else if (isValid()) { // eslint-disable-line no-use-before-define
           e.preventDefault();
           onSubmit(getData()); // eslint-disable-line no-use-before-define
@@ -235,7 +237,7 @@ export const createInlineEval = ({
       } else if (e.key === 'Enter') {
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
-          onExpand(getData()); // eslint-disable-line no-use-before-define
+          onExpand(getData(true)); // eslint-disable-line no-use-before-define
         } else if (isValid()) { // eslint-disable-line no-use-before-define
           e.preventDefault();
           onSubmit(getData()); // eslint-disable-line no-use-before-define
@@ -299,9 +301,10 @@ export const createInlineEval = ({
 
   /**
    * Get parsed data from all fields.
+   * @param {boolean} [includeCursor] - Include cursor position
    * @returns {ParsedEval}
    */
-  const getData = () => {
+  const getData = (includeCursor = false) => {
     const endowments = endowmentFields
       .filter(f => f.$petName.value.trim())
       .map(f => ({
@@ -309,10 +312,17 @@ export const createInlineEval = ({
         codeName: f.$codeName.value.trim() || toJsIdentifier(f.$petName.value.trim()),
       }));
 
-    return {
+    /** @type {ParsedEval} */
+    const result = {
       source: $source.value.trim(),
       endowments,
     };
+
+    if (includeCursor) {
+      result.cursorPosition = $source.selectionStart ?? 0;
+    }
+
+    return result;
   };
 
   /**
@@ -343,7 +353,7 @@ export const createInlineEval = ({
     if (e.key === 'Enter') {
       if (e.metaKey || e.ctrlKey) {
         e.preventDefault();
-        onExpand(getData());
+        onExpand(getData(true));
       } else if (!e.shiftKey && isValid()) {
         e.preventDefault();
         onSubmit(getData());

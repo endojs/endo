@@ -17,6 +17,7 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @property {Endowment[]} endowments - Code name to pet name mappings
  * @property {string} resultName - Optional pet name for the result
  * @property {string} workerName - Worker to use (default: MAIN)
+ * @property {number} [cursorPosition] - Initial cursor position (0-indexed character offset)
  */
 
 /**
@@ -60,7 +61,7 @@ export const createEvalForm = async ({
   $container.innerHTML = `
     <div class="eval-form">
       <div class="eval-header">
-        <span class="eval-title">Evaluate</span>
+        <span class="eval-title">Evaluate JavaScript</span>
         <button class="eval-close" title="Close (Esc)">&times;</button>
       </div>
       <div class="eval-editor-container"></div>
@@ -390,6 +391,16 @@ export const createEvalForm = async ({
       $workerNameInput.value = data.workerName;
       isDirty = false;
       updateSubmitButton();
+
+      // Set cursor position if provided (convert character offset to line/column)
+      if (data.cursorPosition !== undefined && data.cursorPosition >= 0) {
+        // Monaco uses 1-indexed line and column
+        const lines = data.source.slice(0, data.cursorPosition).split('\n');
+        const line = lines.length;
+        const column = (lines[lines.length - 1]?.length ?? 0) + 1;
+        editor.setCursorPosition(line, column);
+      }
+      editor.focus();
     },
     focus: () => editor.focus(),
   };

@@ -108,7 +108,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
         $item.addEventListener('click', e => {
           e.preventDefault();
           e.stopPropagation();
-          selectSuggestion(index);
+          selectSuggestion(index, true);
         });
 
         $menu.appendChild($item);
@@ -128,8 +128,8 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
   const findNextFocusable = () => {
     const focusables = Array.from(
       document.querySelectorAll(
-        'input:not([disabled]), button:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )
+        'input:not([disabled]), button:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
     );
     const currentIndex = focusables.indexOf($input);
     if (currentIndex >= 0 && currentIndex < focusables.length - 1) {

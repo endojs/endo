@@ -8,6 +8,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @property {() => void} focus - Focus the input
  * @property {() => void} clear - Clear the input
  * @property {() => boolean} isMenuVisible - Check if autocomplete menu is visible
+ * @property {() => string | null} getLastRecipient - Get the last recipient for continuation
  */
 
 /**
@@ -147,5 +148,6 @@ export const sendFormComponent = ({
     focus: () => $input.focus(),
     clear: () => tokenComponent.clear(),
     isMenuVisible: () => tokenComponent.isMenuVisible(),
+    getLastRecipient: () => lastRecipient,
   };
 };
