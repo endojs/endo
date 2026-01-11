@@ -53,6 +53,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/cli": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",

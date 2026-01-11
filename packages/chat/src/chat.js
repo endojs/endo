@@ -13,6 +13,7 @@ import { createCommandExecutor } from './command-executor.js';
 import { getCommand, getCategories, getCommandsByCategory } from './command-registry.js';
 import { createMessagePicker } from './message-picker.js';
 import { createHelpModal } from './help-modal.js';
+import { prepareTextWithPlaceholders, renderMarkdown } from './markdown-render.js';
 
 const template = `
 <style>
@@ -100,6 +101,59 @@ const template = `
     background: var(--accent-primary);
   }
 
+  /* Profile breadcrumbs */
+  #profile-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    background: var(--bg-hover);
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  #profile-bar:empty {
+    display: none;
+  }
+
+  .profile-breadcrumb {
+    color: var(--accent-primary);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+  }
+
+  .profile-breadcrumb:hover {
+    background: var(--bg-active);
+  }
+
+  .profile-breadcrumb.current {
+    color: var(--text-primary);
+    cursor: default;
+    font-weight: 500;
+  }
+
+  .profile-breadcrumb.current:hover {
+    background: transparent;
+  }
+
+  .profile-separator {
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  /* Adjust pets list for profile bar */
+  #pets {
+    padding-bottom: 40px;
+  }
+
   body.resizing {
     cursor: col-resize;
     user-select: none;
@@ -160,6 +214,17 @@ const template = `
   }
 
   .pet-item button:hover {
+    background: var(--accent-primary);
+    color: white;
+  }
+
+  .pet-item .enter-button {
+    background: var(--accent-light);
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
+  }
+
+  .pet-item .enter-button:hover {
     background: var(--accent-primary);
     color: white;
   }
@@ -498,6 +563,17 @@ const template = `
   .eval-editor-container {
     height: 300px;
     border-bottom: 1px solid var(--border-light);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .eval-editor-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
   }
 
   .eval-endowments {
@@ -1264,6 +1340,163 @@ const template = `
     font-weight: 500;
   }
 
+  /* Markdown rendering styles */
+  .md-paragraph {
+    margin: 0 0 8px;
+  }
+
+  .md-paragraph:last-child {
+    margin-bottom: 0;
+  }
+
+  .md-heading {
+    margin: 12px 0 6px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .md-heading:first-child {
+    margin-top: 0;
+  }
+
+  .md-h1 { font-size: 1.5em; }
+  .md-h2 { font-size: 1.3em; }
+  .md-h3 { font-size: 1.15em; }
+  .md-h4 { font-size: 1.05em; }
+  .md-h5 { font-size: 1em; }
+  .md-h6 { font-size: 0.95em; color: var(--text-secondary); }
+
+  .md-list {
+    margin: 8px 0;
+    padding-left: 24px;
+  }
+
+  .md-list:last-child {
+    margin-bottom: 0;
+  }
+
+  .md-list-item {
+    margin: 4px 0;
+  }
+
+  .message .inline-code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9em;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+  }
+
+  .message.sent .inline-code {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .md-code-fence {
+    margin: 12px 0;
+    padding: 12px 16px;
+    background: #e9ecef;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    position: relative;
+  }
+
+  .md-code-fence-language {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-bottom-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-md);
+    text-transform: lowercase;
+  }
+
+  .message.sent .md-code-fence-language {
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  .md-code-fence code {
+    color: #24292f;
+    white-space: pre;
+    display: block;
+  }
+
+  .message.sent .md-code-fence {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .message.sent .md-code-fence code {
+    color: #24292f;
+  }
+
+  /* Code syntax highlighting - light mode */
+  .code-keyword {
+    color: #cf222e;
+    font-weight: 500;
+  }
+
+  .code-string {
+    color: #0a3069;
+  }
+
+  .code-comment {
+    color: #6e7781;
+    font-style: italic;
+  }
+
+  .code-number {
+    color: #0550ae;
+  }
+
+  /* Syntax highlighting for sent messages - use same light mode colors */
+  .message.sent .md-code-fence .code-keyword {
+    color: #cf222e;
+  }
+
+  .message.sent .md-code-fence .code-string {
+    color: #0a3069;
+  }
+
+  .message.sent .md-code-fence .code-comment {
+    color: #6e7781;
+  }
+
+  .message.sent .md-code-fence .code-number {
+    color: #0550ae;
+  }
+
+  /* Markdown chip slot (invisible, just holds position) */
+  .md-chip-slot {
+    display: inline;
+  }
+
+  /* Message body markdown overrides */
+  .message-body strong {
+    font-weight: 600;
+  }
+
+  .message-body em {
+    font-style: italic;
+  }
+
+  .message-body s {
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+
+  .message.sent .message-body strong {
+    color: inherit;
+  }
+
   .token {
     position: relative;
     display: inline-block;
@@ -1816,7 +2049,7 @@ const template = `
     display: none;
   }
 
-  /* Command menu (attached to hamburger) */
+  /* Cat menu (attached to cat button) */
   #chat-command-popover {
     display: none;
     position: absolute;
@@ -1831,6 +2064,13 @@ const template = `
     z-index: 300;
     max-height: 400px;
     overflow-y: auto;
+  }
+
+  /* Wider cat menu on desktop */
+  @media (min-width: 768px) {
+    #chat-command-popover {
+      min-width: 400px;
+    }
   }
 
   #chat-command-popover.visible {
@@ -1915,6 +2155,7 @@ const template = `
 
 <div id="pets">
   <div class="pet-list"></div>
+  <div id="profile-bar"></div>
 </div>
 
 <div id="resize-handle"></div>
@@ -1942,13 +2183,7 @@ const template = `
       <button class="command-cancel-footer" id="command-cancel-footer" title="Cancel (Esc)">&times;</button>
     </div>
     <div id="chat-button-wrapper" style="position: relative;">
-      <button id="chat-menu-button" title="Commands">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
+      <button id="chat-menu-button" title="Commands">🐈‍⬛</button>
       <button id="chat-send-button">Send</button>
       <div id="chat-command-popover"></div>
     </div>
@@ -2005,33 +2240,7 @@ const relativeTime = date => {
   return '';
 };
 
-/**
- * Appends text to a parent element, converting newlines to <br> elements.
- * All other content is escaped via createTextNode.
- * @param {HTMLElement} $parent
- * @param {string} text
- */
-const appendTextWithBreaks = ($parent, text) => {
-  if (text == null) return;
-  const str = typeof text === 'string' ? text : String(text);
-  const lines = str.split('\n');
-  for (let i = 0; i < lines.length; i += 1) {
-    if (i > 0) {
-      $parent.appendChild(document.createElement('br'));
-    }
-    if (lines[i]) {
-      $parent.appendChild(document.createTextNode(lines[i]));
-    }
-  }
-};
-
 const numberFormatter = new Intl.NumberFormat();
-
-// TODO: Add markdown formatting to chat messages
-// Support: bold (**), italic (*), strikethrough (~~), inline code (`), code fences (```)
-// Code fences should have syntax highlighting (consider Prism.js or highlight.js)
-// Must work with interpolated tokens (@petName) - process text segments between tokens
-// No underline, no arbitrary HTML, tokens should not be confused with markdown
 
 /**
  * @param {HTMLElement} $parent
@@ -2141,24 +2350,23 @@ const inboxComponent = async ($parent, $end, powers) => {
     $body.appendChild($error);
     $message.appendChild($body);
 
+    // Create sender/recipient chip to be injected into message content
+    /** @type {HTMLElement | null} */
+    let $senderChip = null;
     if (!isSent) {
       const fromNames = await E(powers).reverseIdentify(fromId);
       const fromName = fromNames?.[0];
       if (fromName === undefined) {
         continue;
       }
-      const $from = document.createElement('b');
-      $from.innerText = `@${fromName}`;
-      $body.appendChild($from);
-      $body.appendChild(document.createTextNode(' '));
+      $senderChip = document.createElement('b');
+      $senderChip.innerText = `@${fromName}`;
     } else {
       const toNames = await E(powers).reverseIdentify(toId);
       const toName = toNames?.[0];
       if (toName !== undefined) {
-        const $to = document.createElement('b');
-        $to.innerText = `@${toName}`;
-        $body.appendChild($to);
-        $body.appendChild(document.createTextNode(' '));
+        $senderChip = document.createElement('b');
+        $senderChip.innerText = `@${toName}`;
       }
     }
 
@@ -2166,7 +2374,12 @@ const inboxComponent = async ($parent, $end, powers) => {
       const { description, settled } = message;
 
       const $description = document.createElement('span');
-      $description.innerText = ` ${JSON.stringify(description)} `;
+      // Inject sender chip before the description text
+      if ($senderChip) {
+        $description.appendChild($senderChip);
+        $description.appendChild(document.createTextNode(' '));
+      }
+      $description.appendChild(document.createTextNode(JSON.stringify(description)));
       $body.appendChild($description);
 
       const $input = document.createElement('span');
@@ -2205,16 +2418,43 @@ const inboxComponent = async ($parent, $end, powers) => {
       assert(Array.isArray(strings));
       assert(Array.isArray(names));
 
-      let index = 0;
-      for (
-        index = 0;
-        index < Math.min(strings.length, names.length);
-        index += 1
-      ) {
-        assert.typeof(strings[index], 'string');
-        appendTextWithBreaks($body, strings[index]);
+      // Prepare text with placeholders for markdown rendering
+      const textWithPlaceholders = prepareTextWithPlaceholders(strings);
+      const { fragment, insertionPoints } = renderMarkdown(textWithPlaceholders);
+
+      // Inject sender chip into the first paragraph or heading
+      // But NOT into code fence wrappers or lists - prepend a new paragraph instead
+      if ($senderChip) {
+        // Find first element that's a plain paragraph (not code fence wrapper) or heading
+        const $firstPara = fragment.querySelector('p:not(.md-code-fence-wrapper), h1, h2, h3, h4, h5, h6');
+        const $firstChild = fragment.firstChild;
+        const isCodeFenceOrList = $firstChild && (
+          ($firstChild instanceof Element && $firstChild.classList.contains('md-code-fence-wrapper')) ||
+          ($firstChild instanceof Element && $firstChild.tagName === 'UL') ||
+          ($firstChild instanceof Element && $firstChild.tagName === 'OL')
+        );
+
+        if ($firstPara && !isCodeFenceOrList) {
+          // Insert into existing paragraph or heading
+          $firstPara.insertBefore(document.createTextNode(' '), $firstPara.firstChild);
+          $firstPara.insertBefore($senderChip, $firstPara.firstChild);
+        } else {
+          // Prepend a new paragraph for the chip
+          const $chipPara = document.createElement('p');
+          $chipPara.className = 'md-paragraph';
+          $chipPara.appendChild($senderChip);
+          fragment.insertBefore($chipPara, fragment.firstChild);
+        }
+      }
+
+      // Append the rendered markdown
+      $body.appendChild(fragment);
+
+      // Create token chips for each insertion point
+      for (let index = 0; index < Math.min(insertionPoints.length, names.length); index += 1) {
         assert.typeof(names[index], 'string');
         const edgeName = names[index];
+        const $slot = insertionPoints[index];
 
         const $token = document.createElement('span');
         $token.className = 'token';
@@ -2261,10 +2501,9 @@ const inboxComponent = async ($parent, $end, powers) => {
         $popup.appendChild($adopt);
 
         $token.appendChild($popup);
-        $body.appendChild($token);
-      }
-      if (strings.length > names.length) {
-        appendTextWithBreaks($body, strings[index]);
+
+        // Replace the placeholder slot with the token
+        $slot.replaceWith($token);
       }
     }
 
@@ -2280,9 +2519,9 @@ const inboxComponent = async ($parent, $end, powers) => {
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} $end
  * @param {unknown} powers
- * @param {{ showValue: (value: unknown) => void }} options
+ * @param {{ showValue: (value: unknown) => void, enterHost: (name: string) => void }} options
  */
-const inventoryComponent = async ($parent, $end, powers, { showValue }) => {
+const inventoryComponent = async ($parent, $end, powers, { showValue, enterHost }) => {
   const $list = $parent.querySelector('.pet-list') || $parent;
 
   const $names = new Map();
@@ -2301,6 +2540,12 @@ const inventoryComponent = async ($parent, $end, powers, { showValue }) => {
       const $buttons = document.createElement('span');
       $buttons.className = 'pet-buttons';
 
+      const $enter = document.createElement('button');
+      $enter.className = 'enter-button';
+      $enter.textContent = 'Enter';
+      $enter.title = 'Enter this host profile';
+      $buttons.appendChild($enter);
+
       const $show = document.createElement('button');
       $show.className = 'show-button';
       $show.textContent = 'View';
@@ -2314,6 +2559,7 @@ const inventoryComponent = async ($parent, $end, powers, { showValue }) => {
       $item.appendChild($buttons);
       $list.appendChild($item);
 
+      $enter.onclick = () => enterHost(name);
       $show.onclick = () =>
         E(powers).lookup(name).then(showValue, window.reportError);
       $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
@@ -2355,9 +2601,13 @@ const controlsComponent = ($parent, { focusValue, blurValue }) => {
 /**
  * @param {HTMLElement} $parent
  * @param {unknown} powers
- * @param {{ showValue: (value: unknown) => void }} options
+ * @param {object} options
+ * @param {(value: unknown) => void} options.showValue
+ * @param {(hostName: string) => Promise<void>} options.enterProfile
+ * @param {() => void} options.exitProfile
+ * @param {boolean} options.canExitProfile
  */
-const chatBarComponent = ($parent, powers, { showValue }) => {
+const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfile, canExitProfile }) => {
   const $chatBar = /** @type {HTMLElement} */ (
     $parent.querySelector('#chat-bar')
   );
@@ -2428,8 +2678,9 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
     }
 
     let hints = '';
-    if (commandName === 'eval') {
+    if (commandName === 'js') {
       hints = `
+        <span class="modeline-hint"><kbd>@</kbd> add endowment</span>
         <span class="modeline-hint"><kbd>Enter</kbd> evaluate</span>
         <span class="modeline-hint"><kbd>Cmd+Enter</kbd> expand to editor</span>
         <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
@@ -2446,7 +2697,7 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
     $chatBar.classList.add('has-modeline');
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'eval'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -2519,6 +2770,7 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
     workers: 'Workers',
     agents: 'Agents',
     bundles: 'Bundles',
+    profile: 'Profile',
     system: 'System',
   };
 
@@ -2538,8 +2790,17 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
       $chatBar.classList.add('has-modeline');
     } else {
       $chatBar.classList.remove('has-content');
-      $chatBar.classList.remove('has-modeline');
-      $modeline.innerHTML = '';
+      // Show space hint when empty and there's a last recipient
+      const lastRecipient = sendForm.getLastRecipient();
+      if (mode === 'send' && lastRecipient) {
+        $modeline.innerHTML = `
+          <span class="modeline-hint"><kbd>Space</kbd> continue with @${lastRecipient}</span>
+        `;
+        $chatBar.classList.add('has-modeline');
+      } else {
+        $chatBar.classList.remove('has-modeline');
+        $modeline.innerHTML = '';
+      }
     }
   };
 
@@ -2620,11 +2881,20 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
     onSubmit: async (commandName, data) => {
       messagePicker.disable();
       $commandError.textContent = '';
+
+      // Special handling for enter command - uses profile navigation
+      if (commandName === 'enter') {
+        const { hostName } = /** @type {{ hostName: string }} */ (data);
+        exitCommandMode(); // eslint-disable-line no-use-before-define
+        await enterProfile(hostName);
+        return;
+      }
+
       const result = await executor.execute(commandName, data);
       if (result.success) {
         exitCommandMode(); // eslint-disable-line no-use-before-define
-        // Always show eval results (even undefined), skip show/list which handle their own display
-        if (commandName === 'eval') {
+        // Always show js results (even undefined), skip show/list which handle their own display
+        if (commandName === 'js') {
           showValue(result.value);
         } else if (result.value !== undefined && commandName !== 'show' && commandName !== 'list') {
           showValue(result.value);
@@ -2659,6 +2929,7 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
           endowments: data.endowments,
           resultName: '',
           workerName: 'MAIN',
+          cursorPosition: data.cursorPosition,
         });
       }
     },
@@ -2751,7 +3022,7 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
       });
     }
 
-    mode = 'eval';
+    mode = 'js';
     $evalFormBackdrop.style.display = 'block';
     $evalFormContainer.style.display = 'block';
     evalForm.show();
@@ -2790,11 +3061,20 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
     if (currentCommand && inlineForm.isValid()) {
       $commandError.textContent = '';
       const data = inlineForm.getData();
+
+      // Special handling for enter command - uses profile navigation
+      if (currentCommand === 'enter') {
+        const { hostName } = /** @type {{ hostName: string }} */ (data);
+        exitCommandMode();
+        await enterProfile(hostName);
+        return;
+      }
+
       const result = await executor.execute(currentCommand, data);
       if (result.success) {
         exitCommandMode();
-        // Always show eval results (even undefined), skip show/list which handle their own display
-        if (currentCommand === 'eval') {
+        // Always show js results (even undefined), skip show/list which handle their own display
+        if (currentCommand === 'js') {
           showValue(result.value);
         } else if (result.value !== undefined && currentCommand !== 'show' && currentCommand !== 'list') {
           showValue(result.value);
@@ -2821,16 +3101,30 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
     // Route based on command mode
     switch (command.mode) {
       case 'modal':
-        // For now only eval uses modal
-        if (commandName === 'eval') {
+        // Reset mode since we're leaving selecting state
+        mode = 'send';
+        // For now only js uses modal
+        if (commandName === 'js') {
           showEvalForm();
         }
         break;
 
       case 'immediate':
+        // Reset mode since we're leaving selecting state
+        mode = 'send';
         // Special handling for help command
         if (commandName === 'help') {
           helpModal.show();
+          break;
+        }
+        // Special handling for exit command
+        if (commandName === 'exit') {
+          if (canExitProfile) {
+            exitProfile();
+          } else {
+            $error.textContent = 'Already at home profile';
+            setTimeout(() => { $error.textContent = ''; }, 3000);
+          }
           break;
         }
         // Execute immediately with current data
@@ -2839,6 +3133,8 @@ const chatBarComponent = ($parent, powers, { showValue }) => {
             showValue(result.value);
           }
         });
+        // Refocus the input after immediate command
+        setTimeout(() => $input.focus(), 50);
         break;
 
       case 'inline':
@@ -3254,7 +3550,52 @@ const resizeHandleComponent = $parent => {
   document.addEventListener('mouseup', onMouseUp);
 };
 
-const bodyComponent = ($parent, powers) => {
+/**
+ * Render the profile breadcrumb bar.
+ *
+ * @param {HTMLElement} $profileBar
+ * @param {string[]} profilePath
+ * @param {(depth: number) => void} onNavigate - Called with depth to navigate to
+ */
+const renderProfileBar = ($profileBar, profilePath, onNavigate) => {
+  $profileBar.innerHTML = '';
+
+  // Always show "Home" as the root
+  const $home = document.createElement('span');
+  $home.className = 'profile-breadcrumb';
+  if (profilePath.length === 0) {
+    $home.classList.add('current');
+  }
+  $home.textContent = 'Home';
+  $home.onclick = () => onNavigate(0);
+  $profileBar.appendChild($home);
+
+  // Add each segment of the path
+  for (let i = 0; i < profilePath.length; i += 1) {
+    const $sep = document.createElement('span');
+    $sep.className = 'profile-separator';
+    $sep.textContent = '›';
+    $profileBar.appendChild($sep);
+
+    const $crumb = document.createElement('span');
+    $crumb.className = 'profile-breadcrumb';
+    if (i === profilePath.length - 1) {
+      $crumb.classList.add('current');
+    }
+    $crumb.textContent = profilePath[i];
+    const depth = i + 1;
+    $crumb.onclick = () => onNavigate(depth);
+    $profileBar.appendChild($crumb);
+  }
+};
+
+/**
+ * @param {HTMLElement} $parent
+ * @param {unknown} rootPowers
+ * @param {string[]} profilePath
+ * @param {(newPath: string[]) => void} onProfileChange
+ */
+const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -3262,26 +3603,89 @@ const bodyComponent = ($parent, powers) => {
   );
   const $anchor = /** @type {HTMLElement} */ ($parent.querySelector('#anchor'));
   const $pets = /** @type {HTMLElement} */ ($parent.querySelector('#pets'));
+  const $profileBar = /** @type {HTMLElement} */ (
+    $parent.querySelector('#profile-bar')
+  );
 
   // Set up resizable sidebar
   resizeHandleComponent($parent);
 
-  // To they who can avoid forward-references for entangled component
-  // dependency-injection, I salute you and welcome your pull requests.
-  /* eslint-disable no-use-before-define */
-  const { showValue, dismissValue } = controlsComponent($parent, {
-    focusValue: value => focusValue(value),
-    blurValue: () => blurValue(),
-  });
-  inboxComponent($messages, $anchor, powers).catch(window.reportError);
-  inventoryComponent($pets, null, powers, { showValue }).catch(
-    window.reportError,
-  );
-  chatBarComponent($parent, powers, { showValue });
-  const { focusValue, blurValue } = valueComponent($parent, powers, {
-    dismissValue,
-  });
-  /* eslint-enable no-use-before-define */
+  // Resolve powers for the current profile path
+  const resolvePowers = async () => {
+    /** @type {unknown} */
+    let powers = rootPowers;
+    for (const name of profilePath) {
+      powers = E(powers).lookup(name);
+    }
+    return powers;
+  };
+
+  // Handle entering a host (adding to profile path)
+  // Validates that the target has the minimum required interface before entering
+  const enterHost = async (/** @type {string} */ hostName) => {
+    try {
+      // Resolve current powers and look up the target
+      const currentPowers = await resolvePowers();
+      const targetPowers = await E(currentPowers).lookup(hostName);
+
+      // Verify the target has the minimum required interface for a profile
+      // by checking if it responds to identify() - a lightweight check
+      const selfId = await E(targetPowers).identify('SELF');
+      if (selfId === undefined) {
+        throw new Error(`"${hostName}" does not appear to be a valid host`);
+      }
+
+      // Passed validation - proceed with profile change
+      onProfileChange([...profilePath, hostName]);
+    } catch (error) {
+      // Report the error - the user can see why entering failed
+      window.reportError(/** @type {Error} */ (error));
+    }
+  };
+
+  // Handle navigating to a specific depth in the profile path
+  const navigateToDepth = (/** @type {number} */ depth) => {
+    if (depth < profilePath.length) {
+      onProfileChange(profilePath.slice(0, depth));
+    }
+  };
+
+  // Handle exiting to parent profile
+  const exitProfile = () => {
+    if (profilePath.length > 0) {
+      onProfileChange(profilePath.slice(0, -1));
+    }
+  };
+
+  // Render the profile breadcrumbs
+  renderProfileBar($profileBar, profilePath, navigateToDepth);
+
+  // Initialize components with resolved powers
+  resolvePowers()
+    .then(resolvedPowers => {
+      // To they who can avoid forward-references for entangled component
+      // dependency-injection, I salute you and welcome your pull requests.
+      /* eslint-disable no-use-before-define */
+      const { showValue, dismissValue } = controlsComponent($parent, {
+        focusValue: value => focusValue(value),
+        blurValue: () => blurValue(),
+      });
+      inboxComponent($messages, $anchor, resolvedPowers).catch(window.reportError);
+      inventoryComponent($pets, $profileBar, resolvedPowers, { showValue, enterHost }).catch(
+        window.reportError,
+      );
+      chatBarComponent($parent, resolvedPowers, {
+        showValue,
+        enterProfile: enterHost,
+        exitProfile,
+        canExitProfile: profilePath.length > 0,
+      });
+      const { focusValue, blurValue } = valueComponent($parent, resolvedPowers, {
+        dismissValue,
+      });
+      /* eslint-enable no-use-before-define */
+    })
+    .catch(window.reportError);
 };
 
 /**
@@ -3290,6 +3694,16 @@ const bodyComponent = ($parent, powers) => {
  * @param {unknown} powers - The powers object from HubCap
  */
 export const make = async powers => {
-  document.body.innerHTML = '';
-  bodyComponent(document.body, powers);
+  /** @type {string[]} */
+  let currentProfilePath = [];
+
+  const rebuild = () => {
+    document.body.innerHTML = '';
+    bodyComponent(document.body, powers, currentProfilePath, newPath => {
+      currentProfilePath = newPath;
+      rebuild();
+    });
+  };
+
+  rebuild();
 };

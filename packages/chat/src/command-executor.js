@@ -69,7 +69,8 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
         }
 
         // ============ EXECUTION ============
-        case 'eval': {
+        case 'eval':
+        case 'js': {
           const { source, endowments = [], resultName, workerName = 'MAIN' } = params;
           const codeNames = /** @type {Array<{codeName: string, petName: string}>} */ (endowments).map(e => e.codeName);
           const petNamePaths = /** @type {Array<{codeName: string, petName: string}>} */ (endowments).map(e => e.petName.split('.'));
@@ -90,6 +91,7 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
         }
 
         // ============ NAMING/STORAGE ============
+        case 'ls':
         case 'list': {
           const { path } = params;
           const pathParts = path ? String(path).split('.') : [];
@@ -107,6 +109,7 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           return { success: true, value };
         }
 
+        case 'rm':
         case 'remove': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
@@ -114,6 +117,7 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           return { success: true, message: `"${petName}" removed` };
         }
 
+        case 'mv':
         case 'move': {
           const { fromName, toName } = params;
           const fromPath = String(fromName).split('.');
@@ -122,6 +126,7 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           return { success: true, message: `"${fromName}" moved to "${toName}"` };
         }
 
+        case 'cp':
         case 'copy': {
           const { fromName, toName } = params;
           const fromPath = String(fromName).split('.');
@@ -159,16 +164,22 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
         }
 
         // ============ HOSTS/GUESTS ============
+        case 'mkhost':
         case 'host': {
-          const { hostName } = params;
-          await E(powers).provideHost(String(hostName));
-          return { success: true, message: `Host "${hostName}" created` };
+          const { handleName, agentName } = params;
+          await E(powers).provideHost(String(handleName), {
+            agentName: String(agentName),
+          });
+          return { success: true, message: `Host "${agentName}" created` };
         }
 
+        case 'mkguest':
         case 'guest': {
-          const { guestName } = params;
-          await E(powers).provideGuest(String(guestName));
-          return { success: true, message: `Guest "${guestName}" created` };
+          const { handleName, agentName } = params;
+          await E(powers).provideGuest(String(handleName), {
+            agentName: String(agentName),
+          });
+          return { success: true, message: `Guest "${agentName}" created` };
         }
 
         // ============ BUNDLES ============
@@ -201,11 +212,6 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           const error = reason ? new Error(String(reason)) : new Error('Cancelled');
           await E(powers).cancel(pathParts, error);
           return { success: true, message: `"${petName}" cancelled` };
-        }
-
-        case 'info': {
-          const peerInfo = await E(powers).getPeerInfo();
-          return { success: true, value: peerInfo };
         }
 
         default:

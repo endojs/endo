@@ -49,6 +49,8 @@ export const createInlineCommandForm = ({
   let autocompleteInstances = [];
   /** @type {HTMLElement[]} */
   let fieldElements = [];
+  /** @type {Record<string, HTMLInputElement>} */
+  let fieldInputsByName = {};
   /** @type {import('./inline-eval.js').InlineEvalAPI | null} */
   let inlineEvalInstance = null;
 
@@ -97,11 +99,29 @@ export const createInlineCommandForm = ({
         $input.addEventListener('input', () => {
           formData[field.name] = $input.value;
           updateValidity();
+          // Auto-populate agentName from handleName for mkhost/mkguest
+          if (field.name === 'handleName' && (currentCommand === 'mkhost' || currentCommand === 'mkguest' || currentCommand === 'host' || currentCommand === 'guest')) {
+            const agentInput = fieldInputsByName.agentName;
+            if (agentInput && !agentInput.dataset.userModified) {
+              const newValue = $input.value ? `profile-for-${$input.value}` : '';
+              agentInput.value = newValue;
+              formData.agentName = newValue;
+              updateValidity();
+            }
+          }
         });
+
+        // Track if user manually modifies agentName
+        if (field.name === 'agentName') {
+          $input.addEventListener('input', () => {
+            $input.dataset.userModified = 'true';
+          }, { once: true });
+        }
 
         // Initialize form data
         formData[field.name] = $input.value;
         fieldElements.push($input);
+        fieldInputsByName[field.name] = $input;
         break;
       }
 
@@ -173,7 +193,7 @@ export const createInlineCommandForm = ({
     if (!currentCommand) return false;
 
     // Special handling for eval
-    if (currentCommand === 'eval' && inlineEvalInstance) {
+    if (currentCommand === 'js' && inlineEvalInstance) {
       return inlineEvalInstance.isValid();
     }
 
@@ -207,6 +227,7 @@ export const createInlineCommandForm = ({
     formData = {};
     autocompleteInstances = [];
     fieldElements = [];
+    fieldInputsByName = {};
 
     const command = getCommand(commandName);
     if (!command) {
@@ -215,7 +236,7 @@ export const createInlineCommandForm = ({
     }
 
     // Special handling for eval command - use inline eval component
-    if (commandName === 'eval') {
+    if (commandName === 'js') {
       $container.innerHTML = '';
 
       const $evalContainer = document.createElement('div');
@@ -228,7 +249,7 @@ export const createInlineCommandForm = ({
         powers,
         onSubmit: data => {
           // Convert to the format expected by the executor
-          onSubmit('eval', {
+          onSubmit('js', {
             source: data.source,
             endowments: data.endowments,
             workerName: 'MAIN',
@@ -324,7 +345,7 @@ export const createInlineCommandForm = ({
    */
   const focus = () => {
     // Special handling for eval
-    if (currentCommand === 'eval' && inlineEvalInstance) {
+    if (currentCommand === 'js' && inlineEvalInstance) {
       inlineEvalInstance.focus();
       return;
     }
@@ -343,6 +364,7 @@ export const createInlineCommandForm = ({
     }
     autocompleteInstances = [];
     fieldElements = [];
+    fieldInputsByName = {};
 
     if (inlineEvalInstance) {
       inlineEvalInstance.dispose();

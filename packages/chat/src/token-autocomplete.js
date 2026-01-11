@@ -391,6 +391,8 @@ export const tokenAutocompleteComponent = ($input, $menu, { E, makeRefIterator, 
   const clear = () => {
     $input.innerHTML = '';
     hideMenu();
+    // Dispatch input event to notify listeners
+    $input.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
   // Handle input events

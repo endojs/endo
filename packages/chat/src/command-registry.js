@@ -96,9 +96,9 @@ export const COMMANDS = {
   },
 
   // ============ EXECUTION ============
-  eval: {
-    name: 'eval',
-    label: 'Evaluate',
+  js: {
+    name: 'js',
+    label: 'Evaluate JavaScript',
     description: 'Evaluate JavaScript code',
     category: 'execution',
     mode: 'inline', // Inline by default, Cmd+Enter expands to modal
@@ -107,6 +107,7 @@ export const COMMANDS = {
       { name: 'endowments', label: 'Endowments', type: 'endowments', required: false },
     ],
     submitLabel: 'Evaluate',
+    aliases: ['eval'],
   },
 
   // ============ NAMING/STORAGE ============
@@ -222,27 +223,31 @@ export const COMMANDS = {
   },
 
   // ============ HOSTS/GUESTS ============
-  host: {
-    name: 'host',
+  mkhost: {
+    name: 'mkhost',
     label: 'Make Host',
     description: 'Create a new host',
     category: 'agents',
     mode: 'inline',
     fields: [
-      { name: 'hostName', label: 'Host name', type: 'petNamePath', required: true, placeholder: 'host-name' },
+      { name: 'handleName', label: 'Handle', type: 'petNamePath', required: true, placeholder: 'SELF' },
+      { name: 'agentName', label: 'Powers', type: 'petNamePath', required: true, placeholder: 'host-name' },
     ],
     submitLabel: 'Create',
+    aliases: ['host'],
   },
-  guest: {
-    name: 'guest',
+  mkguest: {
+    name: 'mkguest',
     label: 'Make Guest',
     description: 'Create a new guest',
     category: 'agents',
     mode: 'inline',
     fields: [
-      { name: 'guestName', label: 'Guest name', type: 'petNamePath', required: true, placeholder: 'guest-name' },
+      { name: 'handleName', label: 'Handle', type: 'petNamePath', required: true, placeholder: 'HOST' },
+      { name: 'agentName', label: 'Powers', type: 'petNamePath', required: true, placeholder: 'guest-name' },
     ],
     submitLabel: 'Create',
+    aliases: ['guest'],
   },
 
   // ============ BUNDLES ============
@@ -275,6 +280,27 @@ export const COMMANDS = {
     submitLabel: 'Create',
   },
 
+  // ============ PROFILE ============
+  enter: {
+    name: 'enter',
+    label: 'Enter',
+    description: 'Enter a host as current profile',
+    category: 'profile',
+    mode: 'inline',
+    fields: [
+      { name: 'hostName', label: 'Host', type: 'petNamePath', required: true, placeholder: 'host-name' },
+    ],
+    submitLabel: 'Enter',
+  },
+  exit: {
+    name: 'exit',
+    label: 'Exit',
+    description: 'Exit to parent profile',
+    category: 'profile',
+    mode: 'immediate',
+    fields: [],
+  },
+
   // ============ SYSTEM ============
   cancel: {
     name: 'cancel',
@@ -287,14 +313,6 @@ export const COMMANDS = {
       { name: 'reason', label: 'Reason', type: 'text', required: false, placeholder: 'Cancellation reason' },
     ],
     submitLabel: 'Cancel',
-  },
-  info: {
-    name: 'info',
-    label: 'Info',
-    description: 'Show peer information',
-    category: 'system',
-    mode: 'immediate',
-    fields: [],
   },
   help: {
     name: 'help',
@@ -335,8 +353,8 @@ export const filterCommands = prefix => {
  */
 const ALIASES = Object.fromEntries(
   Object.values(COMMANDS).flatMap(cmd =>
-    (cmd.aliases || []).map(alias => [alias, cmd.name])
-  )
+    (cmd.aliases || []).map(alias => [alias, cmd.name]),
+  ),
 );
 
 /**

@@ -1,8 +1,10 @@
 // @ts-check
 /* global document */
 
-// Must be imported first to initialize SES and make `harden` available globally
-import '@endo/init';
+// Initialize SES and make `harden` available globally
+// Using debug.js for better stack traces during development
+// Note: Monaco is loaded in an iframe to avoid SES conflicts
+import '@endo/init/debug.js';
 
 import { connectToGateway } from './connection.js';
 import { make } from './chat.js';
