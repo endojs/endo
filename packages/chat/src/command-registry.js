@@ -2,7 +2,7 @@
 
 /**
  * Field types for command parameters.
- * @typedef {'petNamePath' | 'messageNumber' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
+ * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
  */
 
 /**
@@ -150,11 +150,11 @@ export const COMMANDS = {
   remove: {
     name: 'remove',
     label: 'Remove',
-    description: 'Remove a name from inventory',
+    description: 'Remove names from inventory',
     category: 'storage',
     mode: 'inline',
     fields: [
-      { name: 'petName', label: 'Name', type: 'petNamePath', required: true, placeholder: 'pet-name' },
+      { name: 'petNames', label: 'Names', type: 'petNamePaths', required: true, placeholder: 'name1 name2 path.to.name' },
     ],
     submitLabel: 'Remove',
     aliases: ['rm'],

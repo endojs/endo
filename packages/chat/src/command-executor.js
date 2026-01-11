@@ -120,10 +120,20 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
 
         case 'rm':
         case 'remove': {
-          const { petName } = params;
-          const pathParts = String(petName).split('.');
-          await E(powers).remove(...pathParts);
-          return { success: true, message: `"${petName}" removed` };
+          const { petName, petNames } = params;
+          // Support both single petName (legacy) and petNames array (new)
+          const paths = petNames || [petName];
+          const results = await Promise.all(
+            paths.map(async name => {
+              const pathParts = String(name).split('.');
+              await E(powers).remove(...pathParts);
+              return name;
+            }),
+          );
+          const message = results.length === 1
+            ? `"${results[0]}" removed`
+            : `Removed ${results.length} names: ${results.map(n => `"${n}"`).join(', ')}`;
+          return { success: true, message };
         }
 
         case 'mv':
@@ -193,23 +203,29 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
 
         // ============ BUNDLES ============
         case 'mkbundle': {
-          const { bundleName, powersName, resultName, workerName = 'MAIN' } = params;
+          const { bundleName, powersName, resultName, workerName = 'MAIN', env = {} } = params;
           const result = await E(powers).makeBundle(
             String(workerName),
             String(bundleName),
-            String(powersName),
-            resultName ? String(resultName) : undefined,
+            {
+              powersName: String(powersName),
+              resultName: resultName ? String(resultName) : undefined,
+              env: /** @type {Record<string, string>} */ (env),
+            },
           );
           return { success: true, value: result, message: resultName ? `Bundle instantiated as "${resultName}"` : 'Bundle instantiated' };
         }
 
         case 'mkplugin': {
-          const { specifier, powersName, resultName, workerName = 'MAIN' } = params;
+          const { specifier, powersName, resultName, workerName = 'MAIN', env = {} } = params;
           const result = await E(powers).makeUnconfined(
             String(workerName),
             String(specifier),
-            String(powersName),
-            resultName ? String(resultName) : undefined,
+            {
+              powersName: String(powersName),
+              resultName: resultName ? String(resultName) : undefined,
+              env: /** @type {Record<string, string>} */ (env),
+            },
           );
           return { success: true, value: result, message: resultName ? `Plugin created as "${resultName}"` : 'Plugin created' };
         }

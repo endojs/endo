@@ -218,20 +218,54 @@ const template = `
     color: white;
   }
 
-  .pet-item .enter-button {
-    background: var(--accent-light);
-    color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-  }
-
-  .pet-item .enter-button:hover {
-    background: var(--accent-primary);
-    color: white;
-  }
-
   .pet-buttons {
     display: flex;
     gap: 4px;
+    align-items: center;
+  }
+
+  .pet-menu-container {
+    position: relative;
+  }
+
+  .pet-menu-trigger {
+    padding: 4px 6px;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .pet-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    min-width: 100px;
+    z-index: 100;
+    padding: 4px;
+  }
+
+  .pet-menu-container:hover .pet-menu,
+  .pet-menu:hover {
+    display: block;
+  }
+
+  .pet-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 10px;
+    opacity: 1;
+    background: transparent;
+    border-radius: var(--radius-sm);
+  }
+
+  .pet-menu button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
   }
 
   .pet-name {
@@ -874,6 +908,86 @@ const template = `
 
   .inline-petname-menu.visible {
     display: block;
+  }
+
+  /* Chip-based multi-path input */
+  .petname-paths-wrapper {
+    position: relative;
+  }
+
+  .chip-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    min-height: 36px;
+    cursor: text;
+  }
+
+  .chip-container:focus-within {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-light);
+  }
+
+  .chip-input {
+    flex: 1;
+    min-width: 100px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: var(--text-primary);
+    padding: 4px 0;
+  }
+
+  .chip-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .path-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    background: var(--accent-light);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--accent-primary);
+    white-space: nowrap;
+  }
+
+  .path-chip-text {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .path-chip-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--accent-primary);
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.7;
+  }
+
+  .path-chip-remove:hover {
+    opacity: 1;
+    background: var(--accent-primary);
+    color: white;
   }
 
   /* Command bar modes */
@@ -2605,20 +2719,37 @@ const inventoryComponent = async ($parent, $end, powers, { showValue, enterHost 
       const $buttons = document.createElement('span');
       $buttons.className = 'pet-buttons';
 
+      // Hover menu for Enter and View
+      const $menuContainer = document.createElement('span');
+      $menuContainer.className = 'pet-menu-container';
+
+      const $menuTrigger = document.createElement('button');
+      $menuTrigger.className = 'pet-menu-trigger';
+      $menuTrigger.textContent = '⋯';
+      $menuTrigger.title = 'More actions';
+      $menuContainer.appendChild($menuTrigger);
+
+      const $menu = document.createElement('div');
+      $menu.className = 'pet-menu';
+
       const $enter = document.createElement('button');
-      $enter.className = 'enter-button';
       $enter.textContent = 'Enter';
       $enter.title = 'Enter this host profile';
-      $buttons.appendChild($enter);
+      $menu.appendChild($enter);
 
       const $show = document.createElement('button');
-      $show.className = 'show-button';
       $show.textContent = 'View';
-      $buttons.appendChild($show);
+      $show.title = 'View this value';
+      $menu.appendChild($show);
 
+      $menuContainer.appendChild($menu);
+      $buttons.appendChild($menuContainer);
+
+      // Remove button stays visible
       const $remove = document.createElement('button');
       $remove.className = 'remove-button';
       $remove.textContent = '×';
+      $remove.title = 'Remove';
       $buttons.appendChild($remove);
 
       $item.appendChild($buttons);

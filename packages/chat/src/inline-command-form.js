@@ -4,6 +4,7 @@
 
 import { getCommand } from './command-registry.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
+import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createInlineEval } from './inline-eval.js';
 
 /**
@@ -45,7 +46,7 @@ export const createInlineCommandForm = ({
   let currentCommand = null;
   /** @type {Record<string, unknown>} */
   let formData = {};
-  /** @type {Array<{ dispose: () => void }>} */
+  /** @type {Array<{ dispose: () => void, focus?: () => void }>} */
   let autocompleteInstances = [];
   /** @type {HTMLElement[]} */
   let fieldElements = [];
@@ -122,6 +123,39 @@ export const createInlineCommandForm = ({
         formData[field.name] = $input.value;
         fieldElements.push($input);
         fieldInputsByName[field.name] = $input;
+        break;
+      }
+
+      case 'petNamePaths': {
+        const $inputWrapper = document.createElement('div');
+        $inputWrapper.className = 'inline-field-input-wrapper petname-paths-wrapper';
+
+        const $menu = document.createElement('div');
+        $menu.className = 'inline-petname-menu';
+
+        $wrapper.appendChild($inputWrapper);
+        $wrapper.appendChild($menu);
+
+        // Initialize multi-path autocomplete with chip UI
+        const autocomplete = petNamePathsAutocomplete($inputWrapper, $menu, {
+          E,
+          powers,
+          onSubmit: () => {
+            // Update form data before submit
+            formData[field.name] = autocomplete.getValue();
+            if (isValid() && currentCommand) {
+              onSubmit(currentCommand, { ...formData });
+            }
+          },
+          onChange: () => {
+            formData[field.name] = autocomplete.getValue();
+            updateValidity();
+          },
+        });
+        autocompleteInstances.push(autocomplete);
+
+        // Initialize form data
+        formData[field.name] = [];
         break;
       }
 
@@ -204,6 +238,10 @@ export const createInlineCommandForm = ({
       if (field.required) {
         const value = formData[field.name];
         if (value === undefined || value === null || value === '') {
+          return false;
+        }
+        // Check array fields (like petNamePaths)
+        if (Array.isArray(value) && value.length === 0) {
           return false;
         }
       }
@@ -352,6 +390,15 @@ export const createInlineCommandForm = ({
 
     if (fieldElements.length > 0) {
       fieldElements[0].focus();
+      return;
+    }
+
+    // Check autocomplete instances for focus method (e.g., petNamePaths)
+    for (const instance of autocompleteInstances) {
+      if (typeof instance.focus === 'function') {
+        instance.focus();
+        return;
+      }
     }
   };
 
