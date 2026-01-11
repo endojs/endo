@@ -11,6 +11,7 @@ import {
   assertPetNamePath,
   namePathFrom,
 } from './pet-name.js';
+import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
@@ -294,8 +295,11 @@ export const makeDirectoryMaker = ({
     const petStore = await provide(petStoreId, 'pet-store');
     const directory = makeDirectoryNode(petStore);
 
+    const help = makeHelp(directoryHelp);
+
     return makeExo('EndoDirectory', DirectoryInterface, {
       ...directory,
+      help,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
         makeIteratorRef(directory.followLocatorNameChanges(locator)),

@@ -698,6 +698,7 @@ export const makeMailboxMaker = ({
         throw new Error('Mail fraud: alleged sender does not recognize parcel');
       }
       await deliver(message);
+      return undefined;
     };
 
     const handle = makeExo('Handle', HandleInterface, {

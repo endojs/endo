@@ -33,6 +33,7 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+import { blobHelp, endoHelp, makeHelp } from './help-text.js';
 
 // Sorted:
 import {
@@ -434,11 +435,13 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
+    const help = makeHelp(blobHelp);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
       `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
       BlobInterface,
       {
+        help,
         sha512: () => sha512,
         streamBase64,
         text,
@@ -1295,8 +1298,10 @@ const makeDaemonCore = async (
       pins: pinsId,
       peers: peersId,
     }) => {
+      const help = makeHelp(endoHelp);
       /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = makeExo('Endo', EndoInterface, {
+        help,
         ping: async () => 'pong',
         terminate: async () => {
           cancel(new Error('Termination requested'));
