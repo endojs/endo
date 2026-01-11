@@ -238,7 +238,7 @@ export const InspectorHubInterface = M.interface('EndoInspectorHub', {
 });
 
 export const InspectorInterface = M.interface('EndoInspector', {
-  lookup: M.call(M.string()).returns(M.promise()),
+  lookup: M.call(NameOrPathShape).returns(M.promise()),
   list: M.call().returns(M.array()),
 });
 
