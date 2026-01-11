@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -306,11 +306,14 @@ export const makeHostMaker = ({
 
     /**
      * Helper function for makeUnconfined and makeBundle.
-     * @param {string} powersName
      * @param {Name | undefined} workerName
-     * @param {string | string[]} [resultName]
+     * @param {MakeCapletOptions} [options]
      */
-    const prepareMakeCaplet = (powersName, workerName, resultName) => {
+    const prepareMakeCaplet = (workerName, options = {}) => {
+      const { powersName = 'NONE', resultName, env = {} } = options;
+      if (workerName !== undefined) {
+        assertName(workerName);
+      }
       assertPowersName(powersName);
 
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
@@ -336,24 +339,14 @@ export const makeHostMaker = ({
         );
       }
 
-      return { tasks, workerId, powersId };
+      return { tasks, workerId, powersId, env };
     };
 
     /** @type {EndoHost['makeUnconfined']} */
-    const makeUnconfined = async (
-      workerName,
-      specifier,
-      powersName,
-      resultName,
-    ) => {
-      if (workerName !== undefined) {
-        assertName(workerName);
-      }
-      assertPowersName(powersName);
-      const { tasks, workerId, powersId } = prepareMakeCaplet(
-        powersName,
+    const makeUnconfined = async (workerName, specifier, options) => {
+      const { tasks, workerId, powersId, env } = prepareMakeCaplet(
         workerName,
-        resultName,
+        options,
       );
 
       // Behold, recursion:
@@ -365,36 +358,21 @@ export const makeHostMaker = ({
         tasks,
         workerId,
         powersId,
+        env,
       );
       return value;
     };
 
-    /**
-     * @param {string | undefined} workerName
-     * @param {string} bundleName
-     * @param {string} powersName
-     * @param {string | string[] | undefined} resultName
-     */
-    const makeBundle = async (
-      workerName,
-      bundleName,
-      powersName,
-      resultName,
-    ) => {
-      if (workerName !== undefined) {
-        assertName(workerName);
-      }
-      assertName(bundleName);
-      assertPowersName(powersName);
+    /** @type {EndoHost['makeBundle']} */
+    const makeBundle = async (workerName, bundleName, options) => {
       const bundleId = petStore.identifyLocal(bundleName);
       if (bundleId === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, powersId } = prepareMakeCaplet(
-        powersName,
+      const { tasks, workerId, powersId, env } = prepareMakeCaplet(
         workerName,
-        resultName,
+        options,
       );
 
       // Behold, recursion:
@@ -406,6 +384,7 @@ export const makeHostMaker = ({
         tasks,
         workerId,
         powersId,
+        env,
       );
       return value;
     };

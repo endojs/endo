@@ -25,6 +25,15 @@ const LocatorShape = M.string();
 // Message numbers are non-negative integers
 const MessageNumberShape = M.number();
 
+// Environment variables as string-to-string record
+const EnvShape = M.recordOf(M.string(), M.string());
+
+// Options for makeUnconfined and makeBundle
+const MakeCapletOptionsShape = M.splitRecord(
+  {},
+  { powersName: NameShape, resultName: NameOrPathShape, env: EnvShape },
+);
+
 // #region Interfaces
 
 export const WorkerInterface = M.interface('EndoWorker', {});
@@ -206,17 +215,15 @@ export const HostInterface = M.interface('EndoHost', {
   makeUnconfined: M.call(
     M.or(NameShape, M.undefined()),
     M.string(),
-    NameShape,
   )
-    .optional(NameOrPathShape)
+    .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a bundle caplet
   makeBundle: M.call(
     M.or(NameShape, M.undefined()),
     NameShape,
-    NameShape,
   )
-    .optional(NameShape)
+    .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
@@ -278,8 +285,12 @@ export const WorkerFacetForDaemonInterface = M.interface(
       M.promise(),
     ).returns(M.promise()),
     // These methods receive promises that get resolved inside the worker
-    makeBundle: M.call(M.any(), M.any(), M.any()).returns(M.promise()),
-    makeUnconfined: M.call(M.string(), M.any(), M.any()).returns(M.promise()),
+    // Args: (readableP, powersP, contextP, env)
+    makeBundle: M.call(M.any(), M.any(), M.any(), EnvShape).returns(M.promise()),
+    // Args: (specifier, powersP, contextP, env)
+    makeUnconfined: M.call(M.string(), M.any(), M.any(), EnvShape).returns(
+      M.promise(),
+    ),
   },
 );
 

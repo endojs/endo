@@ -132,12 +132,10 @@ const prepareHostWithTestNetwork = async t => {
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
-  const network = E(host).makeUnconfined(
-    'MAIN',
-    serviceLocation,
-    'AGENT',
-    'test-network',
-  );
+  const network = E(host).makeUnconfined('MAIN', serviceLocation, {
+    powersName: 'AGENT',
+    resultName: 'test-network',
+  });
 
   // set address via request
   const iteratorRef = E(host).followMessages();
@@ -571,12 +569,10 @@ test('move renames value, for a single caplet name hub', async t => {
   const { host } = await prepareHost(t);
 
   const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
-  const nameHub = await E(host).makeUnconfined(
-    'MAIN',
-    nameHubPath,
-    'NONE',
-    'name-hub',
-  );
+  const nameHub = await E(host).makeUnconfined('MAIN', nameHubPath, {
+    powersName: 'NONE',
+    resultName: 'name-hub',
+  });
 
   await E(host).storeValue(10, 'ten');
   const tenId = await E(host).identify('ten');
@@ -594,18 +590,14 @@ test('move moves value, between different caplet name hubs', async t => {
   const { host } = await prepareHost(t);
 
   const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
-  const nameHub1 = await E(host).makeUnconfined(
-    'MAIN',
-    nameHubPath,
-    'NONE',
-    'name-hub1',
-  );
-  const nameHub2 = await E(host).makeUnconfined(
-    'MAIN',
-    nameHubPath,
-    'NONE',
-    'name-hub2',
-  );
+  const nameHub1 = await E(host).makeUnconfined('MAIN', nameHubPath, {
+    powersName: 'NONE',
+    resultName: 'name-hub1',
+  });
+  const nameHub2 = await E(host).makeUnconfined('MAIN', nameHubPath, {
+    powersName: 'NONE',
+    resultName: 'name-hub2',
+  });
 
   await E(host).storeValue(10, 'ten');
   const tenId = await E(host).identify('ten');
@@ -627,7 +619,10 @@ test('move preserves original name if writing to new name hub fails', async t =>
   t.true(await E(host).has('ten'));
 
   const failedHubPath = path.join(dirname, 'test', 'failed-hub.js');
-  await E(host).makeUnconfined('MAIN', failedHubPath, 'NONE', 'failed-hub');
+  await E(host).makeUnconfined('MAIN', failedHubPath, {
+    powersName: 'NONE',
+    resultName: 'failed-hub',
+  });
 
   await t.throwsAsync(E(host).move(['ten'], ['failed-hub', 'ten']), {
     message: 'I had one job.',
@@ -763,7 +758,10 @@ test('persist unconfined services and their requests', async t => {
 
     const servicePath = path.join(dirname, 'test', 'service.js');
     const serviceLocation = url.pathToFileURL(servicePath).href;
-    await E(host).makeUnconfined('w1', serviceLocation, 'a1', 's1');
+    await E(host).makeUnconfined('w1', serviceLocation, {
+      powersName: 'a1',
+      resultName: 's1',
+    });
 
     await E(host).provideWorker(['w2']);
     const answer = await E(host).evaluate(
@@ -825,7 +823,10 @@ test('persist confined services and their requests', async t => {
 
     const servicePath = path.join(dirname, 'test', 'service.js');
     await doMakeBundle(host, servicePath, bundleName =>
-      E(host).makeBundle('w1', bundleName, 'a1', 's1'),
+      E(host).makeBundle('w1', bundleName, {
+        powersName: 'a1',
+        resultName: 's1',
+      }),
     );
 
     await E(host).provideWorker(['w2']);
@@ -1269,7 +1270,10 @@ test('direct cancellation', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('worker', counterLocation, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
   t.is(
     1,
     await E(host).evaluate(
@@ -1336,7 +1340,10 @@ test('indirect cancellation via worker', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('worker', counterLocation, 'AGENT', 'counter');
+  await E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'AGENT',
+    resultName: 'counter',
+  });
   t.is(
     1,
     await E(host).evaluate(
@@ -1404,13 +1411,19 @@ test('indirect cancellation via caplet', async t => {
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('w1', counterLocation, 'AGENT', 'counter');
+  await E(host).makeUnconfined('w1', counterLocation, {
+    powersName: 'AGENT',
+    resultName: 'counter',
+  });
 
   await E(host).provideWorker(['w2']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
   const doublerPath = path.join(dirname, 'test', 'doubler.js');
   const doublerLocation = url.pathToFileURL(doublerPath).href;
-  await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
+  await E(host).makeUnconfined('w2', doublerLocation, {
+    powersName: 'guest-agent',
+    resultName: 'doubler',
+  });
   {
     const { value: message } = await E(messages).next();
     t.is(message.type, 'request');
@@ -1453,7 +1466,10 @@ test('cancel because of requested capability', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
+  E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'guest-agent',
+    resultName: 'counter',
+  });
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
   const { value: message } = await E(messages).next();
@@ -1526,12 +1542,10 @@ test('unconfined service can respond to cancellation', async t => {
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   const capletLocation = url.pathToFileURL(capletPath).href;
-  await E(host).makeUnconfined(
-    'worker',
-    capletLocation,
-    'NONE',
-    'context-consumer',
-  );
+  await E(host).makeUnconfined('worker', capletLocation, {
+    powersName: 'NONE',
+    resultName: 'context-consumer',
+  });
 
   const result = E(host).evaluate(
     'worker',
@@ -1550,7 +1564,10 @@ test('confined service can respond to cancellation', async t => {
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   await doMakeBundle(host, capletPath, bundleName =>
-    E(host).makeBundle('worker', bundleName, 'NONE', 'context-consumer'),
+    E(host).makeBundle('worker', bundleName, {
+      powersName: 'NONE',
+      resultName: 'context-consumer',
+    }),
   );
 
   const result = E(host).evaluate(
@@ -1578,7 +1595,10 @@ test('name and reuse inspector', async t => {
   await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterPath, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
 
   const inspector = await E(host).evaluate(
     'worker',
@@ -1605,7 +1625,10 @@ test('eval-mediated worker name', async t => {
   await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterPath, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
 
   t.is(
     await E(host).evaluate(
@@ -1673,7 +1696,10 @@ test('lookup with petname path (caplet with lookup method)', async t => {
   const { host } = await prepareHost(t);
 
   const lookupPath = path.join(dirname, 'test', 'lookup.js');
-  await E(host).makeUnconfined('MAIN', lookupPath, 'NONE', 'lookup');
+  await E(host).makeUnconfined('MAIN', lookupPath, {
+    powersName: 'NONE',
+    resultName: 'lookup',
+  });
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
@@ -1979,12 +2005,10 @@ test('cancel with pet name path', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined(
-    'worker',
-    counterLocation,
-    'NONE',
-    ['subdir', 'counter'],
-  );
+  await E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'NONE',
+    resultName: ['subdir', 'counter'],
+  });
 
   // Increment the counter
   t.is(
@@ -2230,4 +2254,142 @@ test('eval request uses guest namespace, not host namespace', async t => {
   // Result should be 43 (42 + 1), not 101 (100 + 1)
   const result = await resultP;
   t.is(result, 43);
+});
+
+// Tests for environment variable injection
+
+test('makeUnconfined passes env to caplet make function', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEchoLocation = url.pathToFileURL(envEchoPath).href;
+
+  const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
+    powersName: 'NONE',
+    resultName: 'env-echo',
+    env: {
+      API_KEY: 'secret123',
+      DEBUG: 'true',
+      EMPTY_VAR: '',
+    },
+  });
+
+  // Verify the caplet received the environment variables
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {
+    API_KEY: 'secret123',
+    DEBUG: 'true',
+    EMPTY_VAR: '',
+  });
+
+  // Test getEnvVar
+  t.is(await E(envEcho).getEnvVar('API_KEY'), 'secret123');
+  t.is(await E(envEcho).getEnvVar('DEBUG'), 'true');
+  t.is(await E(envEcho).getEnvVar('EMPTY_VAR'), '');
+  t.is(await E(envEcho).getEnvVar('NONEXISTENT'), undefined);
+
+  // Test hasEnvVar
+  t.true(await E(envEcho).hasEnvVar('API_KEY'));
+  t.true(await E(envEcho).hasEnvVar('EMPTY_VAR'));
+  t.false(await E(envEcho).hasEnvVar('NONEXISTENT'));
+});
+
+test('makeUnconfined with empty env object', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEchoLocation = url.pathToFileURL(envEchoPath).href;
+
+  const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
+    powersName: 'NONE',
+    resultName: 'env-echo',
+    env: {},
+  });
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+test('makeUnconfined without env option defaults to empty env', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEchoLocation = url.pathToFileURL(envEchoPath).href;
+
+  const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
+    powersName: 'NONE',
+    resultName: 'env-echo',
+  });
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+test('makeBundle passes env to caplet make function', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
+    E(host).makeBundle('worker', bundleName, {
+      powersName: 'NONE',
+      resultName: 'env-echo',
+      env: {
+        CONFIG_PATH: '/etc/app/config.json',
+        LOG_LEVEL: 'verbose',
+      },
+    }),
+  );
+
+  // Verify the caplet received the environment variables
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {
+    CONFIG_PATH: '/etc/app/config.json',
+    LOG_LEVEL: 'verbose',
+  });
+
+  t.is(await E(envEcho).getEnvVar('CONFIG_PATH'), '/etc/app/config.json');
+  t.is(await E(envEcho).getEnvVar('LOG_LEVEL'), 'verbose');
+});
+
+test('makeBundle with empty env object', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
+    E(host).makeBundle('worker', bundleName, {
+      powersName: 'NONE',
+      resultName: 'env-echo',
+      env: {},
+    }),
+  );
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+test('makeBundle without env option defaults to empty env', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
+    E(host).makeBundle('worker', bundleName, {
+      powersName: 'NONE',
+      resultName: 'env-echo',
+    }),
+  );
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
 });

@@ -505,9 +505,10 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} workerId
    * @param {FormulaIdentifier} powersId
    * @param {string} specifier
+   * @param {Record<string, string>} env
    * @param {Context} context
    */
-  const makeUnconfined = async (workerId, powersId, specifier, context) => {
+  const makeUnconfined = async (workerId, powersId, specifier, env, context) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -520,16 +521,18 @@ const makeDaemonCore = async (
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
+      env,
     );
   };
 
   /**
-   * @param {FormulaIdentifier} workerId
-   * @param {FormulaIdentifier} powersId
-   * @param {FormulaIdentifier} bundleId
+   * @param {string} workerId
+   * @param {string} powersId
+   * @param {string} bundleId
+   * @param {Record<string, string>} [env]
    * @param {Context} context
    */
-  const makeBundle = async (workerId, powersId, bundleId, context) => {
+  const makeBundle = async (workerId, powersId, bundleId, env, context) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -543,6 +546,7 @@ const makeDaemonCore = async (
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
+      env,
     );
   };
 
@@ -1212,13 +1216,13 @@ const makeDaemonCore = async (
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
     'make-unconfined': (
-      { worker: workerId, powers: powersId, specifier },
+      { worker: workerId, powers: powersId, specifier, env = {} },
       context,
-    ) => makeUnconfined(workerId, powersId, specifier, context),
+    ) => makeUnconfined(workerId, powersId, specifier, env, context),
     'make-bundle': (
-      { worker: workerId, powers: powersId, bundle: bundleId },
+      { worker: workerId, powers: powersId, bundle: bundleId, env = {} },
       context,
-    ) => makeBundle(workerId, powersId, bundleId, context),
+    ) => makeBundle(workerId, powersId, bundleId, env, context),
     host: async (formula, context, id) => {
       const {
         handle: handleId,
@@ -2242,6 +2246,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    env = {},
   ) => {
     const { powersId, capletFormulaNumber, workerId } =
       await formulaGraphJobs.enqueue(() =>
@@ -2260,6 +2265,7 @@ const makeDaemonCore = async (
       worker: workerId,
       powers: powersId,
       specifier,
+      env,
     };
     return formulate(capletFormulaNumber, formula);
   };
@@ -2272,6 +2278,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    env = {},
   ) => {
     const { powersId, capletFormulaNumber, workerId } =
       await formulaGraphJobs.enqueue(() =>
@@ -2290,6 +2297,7 @@ const makeDaemonCore = async (
       worker: workerId,
       powers: powersId,
       bundle: bundleId,
+      env,
     };
     return formulate(capletFormulaNumber, formula);
   };

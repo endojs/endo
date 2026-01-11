@@ -40,6 +40,19 @@ export type NameOrPath = Name | NamePath;
 
 /** An array of names or paths */
 export type NamesOrPaths = NameOrPath[];
+
+/** Environment variables as a string-to-string record */
+export type EnvRecord = Record<string, string>;
+
+/** Options for makeUnconfined and makeBundle */
+export type MakeCapletOptions = {
+  /** Pet name for the powers to grant (defaults to no powers) */
+  powersName?: Name;
+  /** Pet name to store the result under */
+  resultName?: NameOrPath;
+  /** Environment variables to inject */
+  env?: EnvRecord;
+};
 export type SomehowAsyncIterable<T> =
   | AsyncIterable<T>
   | Iterable<T>
@@ -206,14 +219,16 @@ type MakeUnconfinedFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   specifier: string;
+  env?: EnvRecord;
   // TODO formula slots
 };
 
 type MakeBundleFormula = {
   type: 'make-bundle';
-  worker: FormulaIdentifier;
-  powers: FormulaIdentifier;
-  bundle: FormulaIdentifier;
+  worker: string;
+  powers: string;
+  bundle: string;
+  env?: EnvRecord;
   // TODO formula slots
 };
 
@@ -713,14 +728,12 @@ export interface EndoHost extends EndoAgent {
   makeUnconfined(
     workerName: Name | undefined,
     specifier: string,
-    powersName: Name,
-    resultName?: NameOrPath,
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeBundle(
     workerPetName: Name | undefined,
     bundleName: Name,
-    powersName: Name,
-    resultName?: NameOrPath,
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
   cancel(petName: NameOrPath, reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
@@ -976,8 +989,9 @@ export interface DaemonCore {
     hostHandleId: FormulaIdentifier,
     bundleId: FormulaIdentifier,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerId?: FormulaIdentifier,
-    specifiedPowersId?: FormulaIdentifier,
+    specifiedWorkerId?: string,
+    specifiedPowersId?: string,
+    env?: EnvRecord,
   ) => FormulateResult<unknown>;
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
@@ -1079,8 +1093,9 @@ export interface DaemonCore {
     hostHandleId: FormulaIdentifier,
     specifier: string,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerId?: FormulaIdentifier,
-    specifiedPowersId?: FormulaIdentifier,
+    specifiedWorkerId?: string,
+    specifiedPowersId?: string,
+    env?: EnvRecord,
   ) => FormulateResult<unknown>;
 
   formulateWorker: (
