@@ -4,7 +4,8 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-import { Ollama } from 'ollama';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 /** @import { FarRef } from '@endo/eventual-send' */
 
@@ -70,6 +71,7 @@ import { Ollama } from 'ollama';
 
 /**
  * @typedef {object} ToolCall
+ * @property {string} [id] - Tool call ID (required for Anthropic)
  * @property {object} function
  * @property {string} function.name
  * @property {Record<string, unknown> | string} function.arguments
@@ -80,12 +82,14 @@ import { Ollama } from 'ollama';
  * @property {'system' | 'user' | 'assistant' | 'tool'} role
  * @property {string} content
  * @property {ToolCall[]} [tool_calls]
+ * @property {string} [tool_call_id] - For tool role messages, the ID of the tool call being responded to
  */
 
 /**
  * @typedef {object} ToolResult
  * @property {'tool'} role
  * @property {string} content
+ * @property {string} [tool_call_id] - ID of the tool call being responded to
  */
 
 /**
@@ -507,6 +511,28 @@ For multi-line content, include literal newlines in the string.`,
     },
   },
 
+  // --- Identity ---
+  {
+    type: 'function',
+    function: {
+      name: 'identify',
+      description:
+        'Get the formula ID for a pet name. Use identify("SELF") to get your own ID, ' +
+        'which you can compare against the "from" field of messages to determine if you sent them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNamePath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The pet name path to identify, e.g., ["SELF"] or ["HOST"].',
+          },
+        },
+        required: ['petNamePath'],
+      },
+    },
+  },
+
   // --- Capability inspection ---
   {
     type: 'function',
@@ -581,13 +607,17 @@ will appear in future listMessages() calls.
 - makeDirectory(petNamePath) - Create a subdirectory
 
 ### Mail Operations
-- listMessages() - List inbox messages
+- listMessages() - List inbox messages (includes BOTH sent and received messages)
 - adopt(messageNumber, edgeName, petName) - Adopt a value from a message
 - dismiss(messageNumber) - Remove a message from inbox
 - request(recipientName, description, responseName?) - Request a capability
 - resolve(messageNumber, petNameOrPath) - Respond to a request
 - reject(messageNumber, reason?) - Decline a request
 - send(recipientName, strings, edgeNames, petNames) - Send a message
+
+### Identity
+- identify(petNamePath) - Get the formula ID for a pet name (e.g., identify(["SELF"]) returns your ID)
+- Compare message "from" field to your SELF ID to determine if you sent or received a message
 
 ### Capability Inspection
 - inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
@@ -604,7 +634,30 @@ For messages with capability references:
   // Recipient sees: "Here is @result as requested."
   // They can adopt @result to get the value named "my-result"
 
-For code or multi-line content, include everything in a single string:
+## Quasi-Markdown Formatting
+
+Messages support a markdown dialect for rich text formatting:
+
+### Block-level elements
+- Headings: \`# Heading 1\` through \`###### Heading 6\`
+- Code fences: \`\`\`language\\ncode\\n\`\`\`
+- Unordered lists: \`- item\` or \`* item\`
+- Ordered lists: \`1. item\` or \`1) item\`
+- Paragraphs: Separated by blank lines
+
+### Inline formatting (NOTE: differs from standard markdown!)
+- Bold: \`*text*\` (single asterisks, NOT double)
+- Italic: \`/text/\` (forward slashes, NOT asterisks)
+- Underline: \`_text_\` (underscores)
+- Strikethrough: \`~text~\` (tildes)
+- Inline code: \`\\\`code\\\`\` (backticks)
+
+### Examples
+- Bold: \`*important*\` renders as **important**
+- Italic: \`/emphasis/\` renders as _emphasis_
+- Code: \`\\\`const x = 1\\\`\` renders as inline code
+
+For multi-line code:
   send("HOST", ["Here is the implementation:\\n\`\`\`javascript\\nfunction add(a, b) {\\n  return a + b;\\n}\\n\`\`\`"], [], [])
 
 ## Special Pet Names
@@ -618,16 +671,22 @@ For code or multi-line content, include everything in a single string:
 IMPORTANT: You must ONLY respond with tool calls. Do not include any text content.
 When you need to communicate, use the send() tool to send messages.
 
-Workflow for each message:
-1. Read the message content from listMessages() - note the "from" field
-2. Take appropriate action (adopt values, resolve/reject requests, etc.)
-3. ALWAYS send a reply to the sender: send(message.from, ["Your response here"], [], [])
-4. Call dismiss(messageNumber) to remove it from your inbox
+Workflow for processing messages:
+1. First, identify yourself: lookup("SELF") gives you a reference you can use with identify("SELF") to get your formula ID
+2. Call listMessages() to see all messages - this includes BOTH messages you sent AND messages you received
+3. For each message, check BOTH the "from" AND "to" fields:
+   - If "from" matches your SELF ID: this is a message YOU sent (you can skip or dismiss it)
+   - If "from" does NOT match your SELF ID: this is a message FROM someone else that you should process
+4. For received messages:
+   - Take appropriate action (adopt values, resolve/reject requests, etc.)
+   - ALWAYS send a reply to the sender using the "from" field as recipient
+   - Call dismiss(messageNumber) after handling
 5. Proceed to the next message
 
-You MUST reply to every message. Use the "from" field as the recipient for your reply.
-It does not hurt to send an acknowledgment (e.g., "I received your message, working on it...")
-before using other tools to gather information for a more complete response.
+IMPORTANT: The message list contains your own sent messages too! Always check if you are the
+sender before trying to "reply" to a message - you don't want to reply to yourself.
+
+You MUST reply to every message you RECEIVE (where "from" is not yourself).
 Always dismiss messages after handling them - this is essential for proper operation.
 
 ## Error Handling
@@ -662,19 +721,188 @@ export const make = (guestPowers, _contextP, { env }) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  /** @type {Record<string, string>} */
-  const ollamaHeaders = {};
-  if (env.LAL_AUTH_TOKEN) {
-    ollamaHeaders.Authorization = `Bearer ${env.LAL_AUTH_TOKEN}`;
+  // Configuration via environment variables:
+  // LAL_HOST: Base URL for API
+  //   - Ollama: http://localhost:11434/v1 (default)
+  //   - OpenAI: https://api.openai.com/v1
+  //   - Anthropic: https://api.anthropic.com (auto-detected)
+  // LAL_MODEL: Model name
+  //   - Ollama default: qwen3
+  //   - Anthropic default: claude-opus-4-5-20251101
+  //     https://www.anthropic.com/news/claude-opus-4-5
+  //     https://openrouter.ai/anthropic/claude-opus-4.5
+  // LAL_AUTH_TOKEN: API key (optional for local Ollama)
+
+  const baseURL = env.LAL_HOST || 'http://localhost:11434/v1';
+  const isAnthropic = baseURL.includes('anthropic.com');
+  const defaultModel = isAnthropic ? 'claude-opus-4-5-20251101' : 'qwen3';
+  const model = env.LAL_MODEL || defaultModel;
+
+  /** @type {OpenAI | undefined} */
+  let openai;
+  /** @type {Anthropic | undefined} */
+  let anthropic;
+
+  if (isAnthropic) {
+    anthropic = new Anthropic({
+      apiKey: env.LAL_AUTH_TOKEN || '',
+    });
+    console.log(`[LAL] Using Anthropic with model: ${model}`);
+  } else {
+    openai = new OpenAI({
+      apiKey: env.LAL_AUTH_TOKEN || 'ollama', // Ollama ignores API key but SDK requires one
+      baseURL,
+    });
+    console.log(`[LAL] Using OpenAI-compatible API at ${baseURL} with model: ${model}`);
   }
 
-  const ollama = new Ollama({
-    host: env.LAL_HOST || 'http://localhost:11434',
-    headers: ollamaHeaders,
-  });
+  /**
+   * Convert our tool format to Anthropic's format.
+   * @param {Tool[]} openaiTools
+   * @returns {Anthropic.Tool[]}
+   */
+  const toAnthropicTools = openaiTools =>
+    openaiTools.map(t => ({
+      name: t.function.name,
+      description: t.function.description,
+      input_schema: /** @type {Anthropic.Tool.InputSchema} */ (t.function.parameters),
+    }));
 
-  /** @type {string} */
-  const model = env.LAL_MODEL || 'qwen3';
+  /**
+   * Convert our messages to Anthropic's format.
+   * @param {ChatMessage[]} messages
+   * @returns {{system: string, messages: Anthropic.MessageParam[]}}
+   */
+  const toAnthropicMessages = messages => {
+    let system = '';
+    /** @type {Anthropic.MessageParam[]} */
+    const anthropicMessages = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        system = msg.content;
+      } else if (msg.role === 'user') {
+        anthropicMessages.push({ role: 'user', content: msg.content });
+      } else if (msg.role === 'assistant') {
+        /** @type {Anthropic.ContentBlockParam[]} */
+        const content = [];
+        if (msg.content) {
+          content.push({ type: 'text', text: msg.content });
+        }
+        if (msg.tool_calls) {
+          for (const tc of msg.tool_calls) {
+            const args = typeof tc.function.arguments === 'string'
+              ? JSON.parse(tc.function.arguments)
+              : tc.function.arguments;
+            content.push({
+              type: 'tool_use',
+              id: tc.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              name: tc.function.name,
+              input: args,
+            });
+          }
+        }
+        if (content.length > 0) {
+          anthropicMessages.push({ role: 'assistant', content });
+        }
+      } else if (msg.role === 'tool') {
+        // Use the tool_call_id stored in the message
+        const toolUseId = msg.tool_call_id || 'unknown';
+        anthropicMessages.push({
+          role: 'user',
+          content: [{
+            type: 'tool_result',
+            tool_use_id: toolUseId,
+            content: msg.content,
+          }],
+        });
+      }
+    }
+
+    return { system, messages: anthropicMessages };
+  };
+
+  /**
+   * Chat with the LLM.
+   * @param {ChatMessage[]} messages
+   * @returns {Promise<{message: ChatMessage}>}
+   */
+  const chat = async messages => {
+    if (isAnthropic && anthropic) {
+      const { system, messages: anthropicMessages } = toAnthropicMessages(messages);
+      console.log('[LAL] Calling Anthropic API...');
+      console.log('[LAL] Messages:', JSON.stringify(anthropicMessages, null, 2));
+      let response;
+      try {
+        response = await anthropic.messages.create({
+          model,
+          max_tokens: 4096,
+          system,
+          tools: toAnthropicTools(tools),
+          messages: anthropicMessages,
+        });
+        console.log('[LAL] Anthropic response received');
+      } catch (error) {
+        console.error('[LAL] Anthropic API error:', error);
+        throw error;
+      }
+
+      // Convert Anthropic response to our format
+      /** @type {ChatMessage} */
+      const message = { role: 'assistant', content: '' };
+      /** @type {ToolCall[]} */
+      const toolCalls = [];
+
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          message.content += block.text;
+        } else if (block.type === 'tool_use') {
+          toolCalls.push({
+            id: block.id,
+            function: {
+              name: block.name,
+              arguments: JSON.stringify(block.input),
+            },
+          });
+        }
+      }
+
+      if (toolCalls.length > 0) {
+        message.tool_calls = toolCalls;
+      }
+
+      return { message };
+    } else if (openai) {
+      const response = await openai.chat.completions.create({
+        model,
+        // @ts-ignore - Our tool format matches OpenAI's
+        tools,
+        // @ts-ignore
+        messages,
+      });
+      const choice = response.choices[0];
+      if (!choice) {
+        return { message: { role: 'assistant', content: '' } };
+      }
+      // Convert OpenAI format to our internal format
+      /** @type {ChatMessage} */
+      const message = {
+        role: 'assistant',
+        content: choice.message.content || '',
+      };
+      if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+        message.tool_calls = choice.message.tool_calls.map(tc => ({
+          id: tc.id,
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
+        }));
+      }
+      return { message };
+    }
+    throw new Error('No LLM provider configured');
+  };
 
   /** @type {ChatMessage[]} */
   const transcript = [
@@ -805,6 +1033,15 @@ export const make = (guestPowers, _contextP, { env }) => {
         return E(powers).send(recipientName, strings, edgeNames, petNames);
       }
 
+      // Identity
+      case 'identify': {
+        const { petNamePath } = args;
+        if (!petNamePath) {
+          throw new Error('petNamePath is required');
+        }
+        return E(powers).identify(...petNamePath);
+      }
+
       // Capability inspection
       case 'inspectCapability': {
         const { petNameOrPath } = args;
@@ -867,6 +1104,7 @@ export const make = (guestPowers, _contextP, { env }) => {
       results.push({
         role: 'tool',
         content: JSON.stringify(result),
+        tool_call_id: toolCall.id,
       });
     }
 
@@ -908,11 +1146,7 @@ export const make = (guestPowers, _contextP, { env }) => {
       let continueLoop = true;
       while (continueLoop) {
         console.log(`[lal] ${JSON.stringify(transcript[transcript.length-1], null, 2)}`);
-        const response = await ollama.chat({
-          model,
-          tools,
-          messages: /** @type {any} */ (transcript),
-        });
+        const response = await chat(transcript);
 
         const { message: responseMessage } = response;
         if (!responseMessage) {

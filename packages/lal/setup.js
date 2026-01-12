@@ -1,3 +1,4 @@
+/* global process */
 // endo run --UNCONFINED start.js \
 //   --powers AGENT \
 //   -E LAL_HOST=$LAL_HOST \

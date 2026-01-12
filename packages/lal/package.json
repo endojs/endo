@@ -33,11 +33,12 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@endo/daemon": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/patterns": "workspace:^",
-    "ollama": "^0.6.3"
+    "openai": "^4.77.0"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
