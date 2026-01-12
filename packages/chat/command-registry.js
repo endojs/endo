@@ -263,36 +263,6 @@ export const COMMANDS = {
     aliases: ['guest'],
   },
 
-  // ============ BUNDLES ============
-  mkbundle: {
-    name: 'mkbundle',
-    label: 'Make Bundle',
-    description: 'Instantiate a bundle',
-    category: 'bundles',
-    mode: 'inline',
-    fields: [
-      { name: 'bundleName', label: 'Bundle', type: 'petNamePath', required: true, placeholder: 'bundle-name' },
-      { name: 'powersName', label: 'Powers', type: 'petNamePath', required: true, defaultValue: 'NONE' },
-      { name: 'resultName', label: 'Save as', type: 'petNamePath', required: false, placeholder: 'result-name' },
-      { name: 'workerName', label: 'Worker', type: 'petNamePath', required: false, defaultValue: 'MAIN' },
-    ],
-    submitLabel: 'Create',
-  },
-  mkplugin: {
-    name: 'mkplugin',
-    label: 'Make Plugin',
-    description: 'Run an unconfined module',
-    category: 'bundles',
-    mode: 'inline',
-    fields: [
-      { name: 'specifier', label: 'Module', type: 'text', required: true, placeholder: './path/to/module.js' },
-      { name: 'powersName', label: 'Powers', type: 'petNamePath', required: true, defaultValue: 'NONE' },
-      { name: 'resultName', label: 'Save as', type: 'petNamePath', required: false, placeholder: 'result-name' },
-      { name: 'workerName', label: 'Worker', type: 'petNamePath', required: false, defaultValue: 'MAIN' },
-    ],
-    submitLabel: 'Create',
-  },
-
   // ============ PROFILE ============
   enter: {
     name: 'enter',

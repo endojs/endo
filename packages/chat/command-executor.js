@@ -201,35 +201,6 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           return { success: true, message: `Guest "${agentName}" created` };
         }
 
-        // ============ BUNDLES ============
-        case 'mkbundle': {
-          const { bundleName, powersName, resultName, workerName = 'MAIN', env = {} } = params;
-          const result = await E(powers).makeBundle(
-            String(workerName),
-            String(bundleName),
-            {
-              powersName: String(powersName),
-              resultName: resultName ? String(resultName) : undefined,
-              env: /** @type {Record<string, string>} */ (env),
-            },
-          );
-          return { success: true, value: result, message: resultName ? `Bundle instantiated as "${resultName}"` : 'Bundle instantiated' };
-        }
-
-        case 'mkplugin': {
-          const { specifier, powersName, resultName, workerName = 'MAIN', env = {} } = params;
-          const result = await E(powers).makeUnconfined(
-            String(workerName),
-            String(specifier),
-            {
-              powersName: String(powersName),
-              resultName: resultName ? String(resultName) : undefined,
-              env: /** @type {Record<string, string>} */ (env),
-            },
-          );
-          return { success: true, value: result, message: resultName ? `Plugin created as "${resultName}"` : 'Plugin created' };
-        }
-
         // ============ SYSTEM ============
         case 'cancel': {
           const { petName, reason } = params;

@@ -3,7 +3,7 @@
 /* eslint-disable no-continue */
 
 import { E } from '@endo/far';
-import { passStyleOf } from '@endo/pass-style';
+import { passStyleOf, getInterfaceOf } from '@endo/pass-style';
 import { makeRefIterator } from './ref-iterator.js';
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
@@ -16,2258 +16,14 @@ import { createHelpModal } from './help-modal.js';
 import { prepareTextWithPlaceholders, renderMarkdown } from './markdown-render.js';
 
 const template = `
-<style>
-
-  :root {
-    /* Colors - Light theme inspired by modern chat apps */
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --bg-sidebar: #f1f3f5;
-    --bg-hover: #e9ecef;
-    --bg-active: #dee2e6;
-    
-    --text-primary: #212529;
-    --text-secondary: #495057;
-    --text-muted: #868e96;
-    
-    --accent-primary: #228be6;
-    --accent-hover: #1c7ed6;
-    --accent-light: #e7f5ff;
-    
-    --border-color: #dee2e6;
-    --border-light: #e9ecef;
-    
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
-    
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    
-    --transition-fast: 150ms ease;
-    --transition-normal: 200ms ease;
-    
-    --sidebar-width: 280px;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--text-primary);
-    background: var(--bg-primary);
-    height: 100vh;
-    overflow: hidden;
-    margin: 0;
-    padding: 0;
-  }
-
-  /* Sidebar - Inventory */
-  #pets {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: var(--sidebar-width);
-    background: var(--bg-sidebar);
-    border-right: 1px solid var(--border-color);
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Resize handle */
-  #resize-handle {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: var(--sidebar-width);
-    width: 6px;
-    margin-left: -3px;
-    cursor: col-resize;
-    background: transparent;
-    z-index: 50;
-    transition: background var(--transition-fast);
-  }
-
-  #resize-handle:hover,
-  #resize-handle.dragging {
-    background: var(--accent-primary);
-  }
-
-  /* Profile breadcrumbs */
-  #profile-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 8px 12px;
-    background: var(--bg-hover);
-    border-top: 1px solid var(--border-color);
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-
-  #profile-bar:empty {
-    display: none;
-  }
-
-  .profile-breadcrumb {
-    color: var(--accent-primary);
-    cursor: pointer;
-    padding: 2px 6px;
-    border-radius: var(--radius-sm);
-    transition: background var(--transition-fast);
-  }
-
-  .profile-breadcrumb:hover {
-    background: var(--bg-active);
-  }
-
-  .profile-breadcrumb.current {
-    color: var(--text-primary);
-    cursor: default;
-    font-weight: 500;
-  }
-
-  .profile-breadcrumb.current:hover {
-    background: transparent;
-  }
-
-  .profile-separator {
-    color: var(--text-muted);
-    font-size: 10px;
-  }
-
-  /* Adjust pets list for profile bar */
-  #pets {
-    padding-bottom: 40px;
-  }
-
-  body.resizing {
-    cursor: col-resize;
-    user-select: none;
-  }
-
-  body.resizing * {
-    cursor: col-resize !important;
-  }
-
-  #pets::before {
-    content: 'Inventory';
-    display: block;
-    padding: 20px 16px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-  }
-
-  .pet-list {
-    display: flex;
-    flex-direction: column;
-    padding: 0 8px 8px;
-    gap: 2px;
-  }
-
-  .pet-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    color: var(--text-primary);
-    transition: background var(--transition-fast);
-    gap: 8px;
-  }
-
-  .pet-item:hover {
-    background: var(--bg-hover);
-  }
-
-  .pet-item button {
-    opacity: 0;
-    padding: 4px 8px;
-    font-size: 12px;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: var(--bg-active);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .pet-item:hover button {
-    opacity: 1;
-  }
-
-  .pet-item button:hover {
-    background: var(--accent-primary);
-    color: white;
-  }
-
-  .pet-buttons {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-
-  .pet-menu-container {
-    position: relative;
-  }
-
-  .pet-menu-trigger {
-    padding: 4px 6px;
-    font-size: 14px;
-    line-height: 1;
-  }
-
-  .pet-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    min-width: 100px;
-    z-index: 100;
-    padding: 4px;
-  }
-
-  .pet-menu-container:hover .pet-menu,
-  .pet-menu:hover {
-    display: block;
-  }
-
-  .pet-menu button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 6px 10px;
-    opacity: 1;
-    background: transparent;
-    border-radius: var(--radius-sm);
-  }
-
-  .pet-menu button:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .pet-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Main content - Messages */
-  #messages {
-    position: absolute;
-    top: 0;
-    left: var(--sidebar-width);
-    right: 0;
-    bottom: 60px;
-    padding: 20px 24px;
-    padding-top: calc(100vh - 160px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--bg-primary);
-  }
-
-  /* Chat input bar */
-  #chat-bar {
-    position: absolute;
-    left: var(--sidebar-width);
-    right: 0;
-    bottom: 0;
-    height: auto;
-    min-height: 60px;
-    padding: 12px 24px;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .command-row {
-    position: relative;
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    width: 100%;
-  }
-
-  #chat-modeline {
-    display: none;
-    font-size: 11px;
-    color: var(--text-muted);
-    padding-top: 4px;
-  }
-
-  #chat-modeline kbd {
-    display: inline-block;
-    padding: 2px 5px;
-    font-size: 10px;
-    font-family: inherit;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 3px;
-    margin-right: 4px;
-  }
-
-  #chat-modeline .modeline-hint {
-    margin-right: 16px;
-  }
-
-  #chat-bar.has-modeline #chat-modeline {
-    display: block;
-  }
-
-  #chat-bar #chat-message {
-    flex: 1;
-    min-width: 0;
-  }
-
-  #chat-bar button {
-    flex-shrink: 0;
-  }
-
-  #chat-input-wrapper {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-  }
-
-  #chat-error {
-    display: none;
-    position: absolute;
-    left: 0;
-    bottom: 100%;
-    margin-bottom: 6px;
-    padding: 6px 10px;
-    background: #c92a2a;
-    color: #ffffff;
-    font-size: 12px;
-    border-radius: var(--radius-md);
-    white-space: nowrap;
-    z-index: 10;
-    box-shadow: var(--shadow-md);
-  }
-
-  #chat-error:not(:empty) {
-    display: block;
-  }
-
-  #chat-error::after {
-    content: '';
-    position: absolute;
-    left: 16px;
-    top: 100%;
-    border: 6px solid transparent;
-    border-top-color: #c92a2a;
-  }
-
-  #chat-input-wrapper:has(#chat-error:not(:empty)) #chat-message {
-    border-color: #e03131;
-  }
-
-  #chat-input-wrapper #chat-message {
-    width: 100%;
-    min-height: 38px;
-    padding: 8px 12px;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1.4;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    outline: none;
-    overflow-x: hidden;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-
-  #chat-input-wrapper #chat-message:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
-  #chat-input-wrapper #chat-message:empty::before {
-    content: attr(data-placeholder);
-    color: var(--text-muted);
-    pointer-events: none;
-  }
-
-  /* Token styling in contenteditable */
-  .chat-token {
-    display: inline-block;
-    padding: 1px 6px;
-    margin: 0 1px;
-    background: var(--accent-light);
-    color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: var(--radius-sm);
-    font-weight: 500;
-    font-size: 13px;
-    line-height: 1.4;
-    white-space: nowrap;
-    user-select: all;
-  }
-
-  .chat-token::before {
-    content: '@';
-    opacity: 0.7;
-  }
-
-  .chat-token .token-edge {
-    opacity: 0.7;
-  }
-
-  .chat-token .token-edge::before {
-    content: ':';
-  }
-
-  /* Token autocomplete menu */
-  .token-menu {
-    display: none;
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    max-height: 200px;
-    overflow-y: auto;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    margin-bottom: 4px;
-    z-index: 200;
-  }
-
-  .token-menu.visible {
-    display: block;
-  }
-
-  .token-menu-item {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .token-menu-item:hover,
-  .token-menu-item.selected {
-    background: var(--accent-light);
-  }
-
-  .token-menu-item.selected {
-    background: var(--accent-primary);
-    color: white;
-  }
-
-  .token-menu-item .token-prefix {
-    color: var(--accent-primary);
-    font-weight: 500;
-  }
-
-  .token-menu-item.selected .token-prefix {
-    color: white;
-  }
-
-  .token-menu-empty {
-    padding: 12px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
-  .token-menu-hint {
-    padding: 8px 12px;
-    border-top: 1px solid var(--border-light);
-    font-size: 11px;
-    color: var(--text-muted);
-    background: var(--bg-secondary);
-  }
-
-  .token-menu-hint kbd {
-    display: inline-block;
-    padding: 2px 5px;
-    font-size: 10px;
-    font-family: inherit;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 3px;
-    margin: 0 2px;
-  }
-
-  .command-desc {
-    color: var(--text-muted);
-    font-size: 12px;
-    margin-left: 4px;
-  }
-
-  .token-menu-item.selected .command-desc {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  /* Eval Form Styles */
-  #eval-form-container {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 800px;
-    max-height: 90vh;
-    z-index: 1000;
-    background: var(--bg-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    overflow: visible;
-  }
-
-  #eval-form-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
-
-  .eval-form {
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh;
-  }
-
-  .eval-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-
-  .eval-title {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--text-primary);
-  }
-
-  .eval-close {
-    background: none;
-    border: none;
-    font-size: 20px;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 4px 8px;
-    line-height: 1;
-  }
-
-  .eval-close:hover {
-    color: var(--text-primary);
-  }
-
-  .eval-editor-container {
-    height: 300px;
-    border-bottom: 1px solid var(--border-light);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .eval-editor-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-
-  .eval-endowments {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .eval-endowments-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  .eval-add-endowment {
-    margin-top: 8px;
-    background: none;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 4px 8px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-
-  .eval-add-endowment:hover {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-  }
-
-  .eval-endowments-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-  }
-
-  .eval-endowment-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .eval-codename {
-    flex: 1;
-    padding: 6px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-family: 'SF Mono', 'Fira Code', monospace;
-  }
-
-  .eval-codename:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-  }
-
-  .eval-arrow {
-    color: var(--text-muted);
-    font-size: 14px;
-  }
-
-  .eval-petname-wrapper {
-    flex: 1;
-    position: relative;
-  }
-
-  .eval-petname {
-    width: 100%;
-    padding: 6px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    box-sizing: border-box;
-  }
-
-  .eval-petname:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-  }
-
-  .eval-petname-menu {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    margin-top: 4px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    z-index: 300;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .eval-petname-menu.visible {
-    display: block;
-  }
-
-  .eval-petname-menu .token-menu-item {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--text-primary);
-  }
-
-  .eval-petname-menu .token-menu-item:hover,
-  .eval-petname-menu .token-menu-item.selected {
-    background: var(--accent-primary);
-    color: white;
-  }
-
-  .eval-petname-menu .token-menu-empty {
-    padding: 12px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
-  .eval-petname-menu .token-menu-hint {
-    padding: 8px 12px;
-    border-top: 1px solid var(--border-light);
-    font-size: 11px;
-    color: var(--text-muted);
-    background: var(--bg-secondary);
-  }
-
-  .eval-petname-menu .token-menu-hint kbd {
-    display: inline-block;
-    padding: 2px 5px;
-    font-size: 10px;
-    font-family: inherit;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 3px;
-  }
-
-  .eval-remove-endowment {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px;
-    line-height: 1;
-  }
-
-  .eval-remove-endowment:hover {
-    color: #e53e3e;
-  }
-
-  .eval-options {
-    display: flex;
-    gap: 16px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .eval-option {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .eval-option label {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .eval-option input {
-    padding: 6px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-  }
-
-  .eval-option input:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-  }
-
-  .eval-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--bg-secondary);
-  }
-
-  .eval-error {
-    color: #e53e3e;
-    font-size: 13px;
-  }
-
-  .eval-submit {
-    background: var(--accent-primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .eval-submit:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-
-  .eval-submit:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  #anchor {
-    height: 20px;
-  }
-
-  /* Inline Command Form Styles */
-  .inline-command-form {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-    align-items: center;
-    flex: 1;
-  }
-
-  .inline-field {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .inline-field-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-
-  .inline-field-input-wrapper {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .inline-field-input {
-    width: 100%;
-    padding: 8px 12px;
-    font-size: 14px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    outline: none;
-  }
-
-  .inline-field-input:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-
-  .inline-field-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .message-number-input {
-    width: 80px;
-    min-width: 80px;
-    flex: 0 0 auto;
-  }
-
-  .inline-petname-menu {
-    display: none;
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 4px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    z-index: 300;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .inline-petname-menu.visible {
-    display: block;
-  }
-
-  /* Chip-based multi-path input */
-  .petname-paths-wrapper {
-    position: relative;
-  }
-
-  .chip-container {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    min-height: 36px;
-    cursor: text;
-  }
-
-  .chip-container:focus-within {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-
-  .chip-input {
-    flex: 1;
-    min-width: 100px;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 14px;
-    color: var(--text-primary);
-    padding: 4px 0;
-  }
-
-  .chip-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .path-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    background: var(--accent-light);
-    border: 1px solid var(--accent-primary);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    color: var(--accent-primary);
-    white-space: nowrap;
-  }
-
-  .path-chip-text {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .path-chip-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--accent-primary);
-    cursor: pointer;
-    border-radius: 50%;
-    font-size: 14px;
-    line-height: 1;
-    opacity: 0.7;
-  }
-
-  .path-chip-remove:hover {
-    opacity: 1;
-    background: var(--accent-primary);
-    color: white;
-  }
-
-  /* Command bar modes */
-  #chat-bar.command-mode #chat-input-wrapper {
-    display: none;
-  }
-
-  #chat-bar.command-mode .command-header {
-    display: flex;
-    align-items: baseline;
-    flex-shrink: 0;
-  }
-
-  .command-header {
-    display: none;
-  }
-
-  .command-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent-primary);
-  }
-
-  /* Hide cancel button from header - it moves to footer in command mode */
-  #chat-bar.command-mode .command-header .command-cancel {
-    display: none;
-  }
-
-  .command-cancel {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 2px 6px;
-    line-height: 1;
-  }
-
-  .command-cancel:hover {
-    color: var(--text-primary);
-  }
-
-  #inline-form-container {
-    display: none;
-    flex: 1;
-    min-width: 0;
-  }
-
-  #chat-bar.command-mode #inline-form-container {
-    display: flex;
-  }
-
-  #chat-bar.command-mode .command-footer {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .command-footer {
-    display: none;
-  }
-
-  .command-cancel-footer {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px 8px;
-    line-height: 1;
-  }
-
-  .command-cancel-footer:hover {
-    color: var(--text-primary);
-  }
-
-  #command-error {
-    display: none;
-    position: absolute;
-    left: 0;
-    bottom: 100%;
-    margin-bottom: 6px;
-    padding: 6px 10px;
-    background: #c92a2a;
-    color: #ffffff;
-    font-size: 12px;
-    border-radius: var(--radius-md);
-    white-space: nowrap;
-    z-index: 10;
-    box-shadow: var(--shadow-md);
-  }
-
-  #command-error:not(:empty) {
-    display: block;
-  }
-
-  #command-error::after {
-    content: '';
-    position: absolute;
-    left: 16px;
-    top: 100%;
-    border: 6px solid transparent;
-    border-top-color: #c92a2a;
-  }
-
-  #chat-bar.command-mode #chat-send-button {
-    display: none;
-  }
-
-  #chat-bar.command-mode #chat-button-wrapper {
-    display: none;
-  }
-
-  /* Inline Eval Styles */
-  .inline-eval-container {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .inline-eval-wrapper {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .inline-eval-endowments {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  .inline-eval-endowment-group {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
-    white-space: nowrap;
-  }
-
-  .inline-eval-chip {
-    display: inline-flex;
-    align-items: baseline;
-    padding: 1px 6px;
-    background: var(--accent-light);
-    color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: var(--radius-sm);
-    font-weight: 500;
-    font-size: 13px;
-    line-height: 1.4;
-  }
-
-  .inline-eval-chip::before {
-    content: '@';
-    opacity: 0.7;
-  }
-
-  .inline-eval-petname-wrapper,
-  .inline-eval-codename-wrapper {
-    position: relative;
-    display: inline-block;
-  }
-
-  .inline-eval-petname-wrapper .inline-petname-menu {
-    left: -12px;
-    min-width: 150px;
-  }
-
-  .inline-eval-petname {
-    border: none;
-    background: transparent;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--accent-primary);
-    outline: none;
-    padding: 0;
-    margin: 0;
-    min-width: 20px;
-  }
-
-  .inline-eval-arrow {
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-
-  .inline-eval-codename {
-    border: none;
-    background: transparent;
-    font-size: 13px;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-weight: 400;
-    color: var(--text-primary);
-    outline: none;
-    padding: 0;
-    margin: 0;
-    min-width: 20px;
-  }
-
-  .inline-eval-petname::placeholder {
-    color: var(--accent-primary);
-    opacity: 0.5;
-  }
-
-  .inline-eval-codename::placeholder {
-    color: var(--text-muted);
-    opacity: 0.7;
-  }
-
-  .inline-eval-sizer {
-    position: absolute;
-    visibility: hidden;
-    white-space: pre;
-    padding: 0;
-  }
-
-  .inline-eval-sizer-petname {
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .inline-eval-sizer-codename {
-    font-size: 13px;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-weight: 400;
-  }
-
-  .inline-eval-input {
-    flex: 1;
-    min-width: 100px;
-    padding: 8px 12px;
-    font-size: 14px;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    outline: none;
-  }
-
-  .inline-eval-input:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
-  .inline-eval-input::placeholder {
-    color: var(--text-muted);
-    font-family: inherit;
-  }
-
-  .inline-eval-menu {
-    display: none;
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 4px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    z-index: 300;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .inline-eval-menu.visible {
-    display: block;
-  }
-
-  /* Message number highlighting */
-  .message.highlighted {
-    box-shadow: 0 0 0 2px var(--accent-primary);
-    background: var(--accent-light);
-  }
-
-  .message .message-num-badge {
-    display: none;
-    position: absolute;
-    top: -6px;
-    left: -6px;
-    background: #000000;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    z-index: 5;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-
-  .message.highlighted .message-num-badge {
-    display: block;
-  }
-
-  /* Message picking mode */
-  .message-picking-mode .message.selectable {
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .message-picking-mode .message.selectable:hover {
-    box-shadow: 0 0 0 2px var(--accent-primary);
-    background: var(--accent-light);
-  }
-
-  .message-picking-mode .message.selectable .message-num-badge {
-    display: block;
-    opacity: 0.7;
-  }
-
-  .message-picking-mode .message.selectable:hover .message-num-badge {
-    opacity: 1;
-  }
-
-  .message-picking-mode .message.selectable.highlighted .message-num-badge {
-    opacity: 1;
-    background: #37b24d;
-  }
-
-  .message {
-    display: flex;
-    flex-direction: row;
-    gap: 12px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    transition: box-shadow var(--transition-fast);
-  }
-
-  .message-body {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .message:hover {
-    box-shadow: var(--shadow-sm);
-  }
-
-  .message.sent {
-    background: #3b82f6;
-    color: #ffffff;
-    border-color: #2563eb;
-  }
-
-  .message.sent strong {
-    color: #ffffff;
-  }
-
-  .message.sent .timestamp {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .message.sent b {
-    background: #dbe4ff;
-    color: #1a1a1a;
-    font-weight: 500;
-  }
-
-  .message strong {
-    color: var(--accent-primary);
-    font-weight: 600;
-  }
-
-  .timestamp {
-    position: relative;
-    flex-shrink: 0;
-    font-size: 11px;
-    color: var(--text-muted);
-    cursor: default;
-  }
-
-  .timestamp-tooltip {
-    display: none;
-    position: absolute;
-    left: 0;
-    top: 0;
-    padding: 8px 12px;
-    background: #2d3748;
-    color: #f7fafc;
-    border-radius: var(--radius-md);
-    font-size: 12px;
-    font-family: var(--font-mono);
-    line-height: 1.5;
-    z-index: 10;
-    box-shadow: var(--shadow-md);
-    flex-direction: row;
-    gap: 12px;
-  }
-
-  .timestamp:hover .timestamp-tooltip {
-    display: flex;
-  }
-
-  .timestamp-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .timestamp-num {
-    color: var(--text-muted);
-  }
-
-  .timestamp-times {
-    display: flex;
-    flex-direction: column;
-    white-space: nowrap;
-  }
-
-  .timestamp-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 4px;
-    margin: -2px -4px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-  }
-
-  .timestamp-line:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .timestamp-copy {
-    opacity: 0;
-    font-size: 10px;
-    transition: opacity 0.15s;
-  }
-
-  .timestamp-line:hover .timestamp-copy {
-    opacity: 0.7;
-  }
-
-  .timestamp-copy:hover {
-    opacity: 1;
-  }
-
-  .dismiss-button {
-    padding: 4px 8px;
-    font-size: 14px;
-    line-height: 1;
-    background: transparent;
-    color: #e53e3e;
-    border: 1px solid #e53e3e;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-  }
-
-  .dismiss-button:hover {
-    background: #e53e3e;
-    color: #ffffff;
-  }
-
-  .message b {
-    background: #3b82f6;
-    color: #ffffff;
-    padding: 2px 6px;
-    border-radius: var(--radius-sm);
-    font-weight: 500;
-  }
-
-  /* Markdown rendering styles */
-  .md-paragraph {
-    margin: 0 0 8px;
-  }
-
-  .md-paragraph:last-child {
-    margin-bottom: 0;
-  }
-
-  .md-heading {
-    margin: 12px 0 6px;
-    font-weight: 600;
-    line-height: 1.3;
-  }
-
-  .md-heading:first-child {
-    margin-top: 0;
-  }
-
-  .md-h1 { font-size: 1.5em; }
-  .md-h2 { font-size: 1.3em; }
-  .md-h3 { font-size: 1.15em; }
-  .md-h4 { font-size: 1.05em; }
-  .md-h5 { font-size: 1em; }
-  .md-h6 { font-size: 0.95em; color: var(--text-secondary); }
-
-  .md-list {
-    margin: 8px 0;
-    padding-left: 24px;
-  }
-
-  .md-list:last-child {
-    margin-bottom: 0;
-  }
-
-  .md-list-item {
-    margin: 4px 0;
-  }
-
-  .message .inline-code {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 0.9em;
-    padding: 2px 6px;
-    background: rgba(0, 0, 0, 0.08);
-    border-radius: 4px;
-  }
-
-  .message.sent .inline-code {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .md-code-fence {
-    margin: 12px 0;
-    padding: 12px 16px;
-    background: #e9ecef;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    overflow-x: auto;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    position: relative;
-  }
-
-  .md-code-fence-language {
-    position: absolute;
-    top: 0;
-    right: 0;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: var(--text-muted);
-    background: var(--bg-secondary);
-    border-bottom-left-radius: var(--radius-sm);
-    border-top-right-radius: var(--radius-md);
-    text-transform: lowercase;
-  }
-
-  .message.sent .md-code-fence-language {
-    color: var(--text-muted);
-    background: rgba(0, 0, 0, 0.08);
-  }
-
-  .md-code-fence code {
-    color: #24292f;
-    white-space: pre;
-    display: block;
-  }
-
-  .message.sent .md-code-fence {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(255, 255, 255, 0.5);
-  }
-
-  .message.sent .md-code-fence code {
-    color: #24292f;
-  }
-
-  /* Code syntax highlighting - light mode */
-  .code-keyword {
-    color: #cf222e;
-    font-weight: 500;
-  }
-
-  .code-string {
-    color: #0a3069;
-  }
-
-  .code-comment {
-    color: #6e7781;
-    font-style: italic;
-  }
-
-  .code-number {
-    color: #0550ae;
-  }
-
-  /* Syntax highlighting for sent messages - use same light mode colors */
-  .message.sent .md-code-fence .code-keyword {
-    color: #cf222e;
-  }
-
-  .message.sent .md-code-fence .code-string {
-    color: #0a3069;
-  }
-
-  .message.sent .md-code-fence .code-comment {
-    color: #6e7781;
-  }
-
-  .message.sent .md-code-fence .code-number {
-    color: #0550ae;
-  }
-
-  /* Markdown chip slot (invisible, just holds position) */
-  .md-chip-slot {
-    display: inline;
-  }
-
-  /* Message body markdown overrides */
-  .message-body strong {
-    font-weight: 600;
-  }
-
-  .message-body em {
-    font-style: italic;
-  }
-
-  .message-body s {
-    text-decoration: line-through;
-    opacity: 0.7;
-  }
-
-  .message.sent .message-body strong {
-    color: inherit;
-  }
-
-  .token {
-    position: relative;
-    display: inline-block;
-  }
-
-  .token b {
-    cursor: pointer;
-  }
-
-  .token-popup {
-    display: none;
-    position: absolute;
-    left: 0;
-    top: 100%;
-    padding: 8px;
-    padding-top: 12px;
-    background: #2d3748;
-    border-radius: var(--radius-md);
-    z-index: 10;
-    box-shadow: var(--shadow-md);
-    white-space: nowrap;
-    gap: 6px;
-  }
-
-  .token-popup::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -8px;
-    height: 8px;
-  }
-
-  .token:hover .token-popup {
-    display: flex;
-  }
-
-  .token-popup input {
-    padding: 6px 8px;
-    font-size: 12px;
-    width: 120px;
-  }
-
-  .token-popup button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-
-  /* Form elements */
-  input, textarea, select {
-    font-family: inherit;
-    font-size: 14px;
-    padding: 10px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    transition: all var(--transition-fast);
-    outline: none;
-  }
-
-  input:focus, textarea:focus, select:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
-  input.big {
-    font-size: 16px;
-    padding: 12px 14px;
-  }
-
-  input.half-wide {
-    width: 120px;
-  }
-
-  select {
-    cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 32px;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-  }
-
-  button {
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    padding: 10px 16px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--accent-primary);
-    color: white;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  button:hover {
-    background: var(--accent-hover);
-  }
-
-  button:active {
-    transform: scale(0.98);
-  }
-
-  .message button {
-    font-size: 12px;
-    padding: 6px 12px;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-  }
-
-  .message button:hover {
-    background: var(--accent-primary);
-    color: white;
-    border-color: var(--accent-primary);
-  }
-
-  .message input {
-    font-size: 13px;
-    padding: 6px 10px;
-    margin: 0 4px;
-  }
-
-  .message select {
-    font-size: 13px;
-    padding: 6px 28px 6px 10px;
-  }
-
-  /* Modal frames */
-  .frame {
-    display: none;
-    position: fixed;
-    inset: 0;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    z-index: 200;
-  }
-
-  .frame[data-show=true] {
-    display: flex;
-  }
-
-  .window {
-    background: var(--bg-primary);
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    max-height: calc(100vh - 80px);
-    max-width: calc(100vw - 80px);
-    min-width: 400px;
-    overflow: auto;
-  }
-
-  .window p {
-    margin: 0 0 16px;
-  }
-
-  .window label {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-
-  #value-value {
-    padding: 16px;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 14px;
-    max-width: 600px;
-    overflow-x: auto;
-  }
-
-  /* Value rendering */
-  .string {
-    white-space: pre-wrap;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    word-break: break-word;
-    color: #c92a2a;
-  }
-
-  .number {
-    color: #5c7cfa;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-  }
-
-  .bigint {
-    color: #37b24d;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-  }
-
-  .remotable, .tag {
-    font-style: italic;
-    color: var(--accent-primary);
-  }
-
-  .error {
-    color: #e03131;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 13px;
-    padding: 8px 12px;
-    background: #fff5f5;
-    border-radius: var(--radius-sm);
-    border: 1px solid #ffc9c9;
-  }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-  }
-
-  /* Help Modal Styles */
-  #help-modal-container {
-    display: none;
-    position: fixed;
-    inset: 0;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    z-index: 1000;
-  }
-
-  .help-modal {
-    background: var(--bg-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    max-width: 700px;
-    width: 90%;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .help-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .help-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .help-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 4px 8px;
-    line-height: 1;
-  }
-
-  .help-close:hover {
-    color: var(--text-primary);
-  }
-
-  .help-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px 20px;
-  }
-
-  .help-intro {
-    margin-bottom: 16px;
-    padding: 12px 16px;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    color: var(--text-secondary);
-  }
-
-  .help-intro p {
-    margin: 0;
-  }
-
-  .help-intro kbd {
-    display: inline-block;
-    padding: 2px 6px;
-    font-size: 12px;
-    font-family: inherit;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    margin: 0 2px;
-  }
-
-  .help-category {
-    margin-bottom: 20px;
-  }
-
-  .help-category-title {
-    margin: 0 0 8px;
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-  }
-
-  .help-commands {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .help-command {
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    cursor: pointer;
-    transition: background var(--transition-fast);
-  }
-
-  .help-command:hover {
-    background: var(--bg-hover);
-  }
-
-  .help-command.expanded {
-    background: var(--bg-hover);
-  }
-
-  .help-command-header {
-    display: flex;
-    align-items: center;
-    padding: 10px 14px;
-    gap: 10px;
-  }
-
-  .help-command-name {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent-primary);
-    min-width: 100px;
-  }
-
-  .help-command-desc {
-    flex: 1;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .help-command-toggle {
-    font-size: 16px;
-    color: var(--text-muted);
-    width: 20px;
-    text-align: center;
-  }
-
-  .help-command-details {
-    padding: 0 14px 14px;
-    border-top: 1px solid var(--border-light);
-    margin-top: 4px;
-    padding-top: 12px;
-  }
-
-  .help-usage {
-    margin-bottom: 10px;
-  }
-
-  .help-usage code {
-    display: block;
-    padding: 8px 12px;
-    background: var(--bg-primary);
-    border-radius: var(--radius-sm);
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 13px;
-    color: var(--text-primary);
-  }
-
-  .help-examples {
-    margin-bottom: 10px;
-  }
-
-  .help-examples strong {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-
-  .help-examples code {
-    display: block;
-    padding: 6px 10px;
-    margin-bottom: 4px;
-    background: var(--bg-primary);
-    border-radius: var(--radius-sm);
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .help-notes {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
-
-  .help-footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--border-light);
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .help-footer kbd {
-    display: inline-block;
-    padding: 2px 6px;
-    font-size: 11px;
-    font-family: inherit;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-  }
-
-  /* Value Modal Actions Row */
-  .value-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border-light);
-  }
-
-  .value-save-form {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex: 1;
-  }
-
-  .value-save-form label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-
-  .value-save-form input {
-    flex: 1;
-    min-width: 120px;
-    padding: 8px 12px;
-    font-size: 14px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    outline: none;
-  }
-
-  .value-save-form input:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
-  .value-save-form button {
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .value-actions > button {
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-  }
-
-  .value-actions > button:hover {
-    background: var(--bg-hover);
-  }
-
-  /* Hamburger Menu Button */
-  #chat-menu-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    padding: 0;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    flex-shrink: 0;
-  }
-
-  #chat-menu-button:hover {
-    background: var(--bg-hover);
-    border-color: var(--accent-primary);
-  }
-
-  #chat-menu-button svg {
-    width: 18px;
-    height: 18px;
-    stroke: var(--text-secondary);
-  }
-
-  #chat-menu-button:hover svg {
-    stroke: var(--accent-primary);
-  }
-
-  /* Hide send button by default, show when has content */
-  #chat-send-button {
-    display: none;
-  }
-
-  #chat-bar.has-content #chat-send-button {
-    display: block;
-  }
-
-  #chat-bar.has-content #chat-menu-button,
-  #chat-bar.command-mode #chat-menu-button {
-    display: none;
-  }
-
-  /* Cat menu (attached to cat button) */
-  #chat-command-popover {
-    display: none;
-    position: absolute;
-    bottom: 100%;
-    right: 0;
-    margin-bottom: 8px;
-    min-width: 200px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    z-index: 300;
-    max-height: 400px;
-    overflow-y: auto;
-  }
-
-  /* Wider cat menu on desktop */
-  @media (min-width: 768px) {
-    #chat-command-popover {
-      min-width: 400px;
-    }
-  }
-
-  #chat-command-popover.visible {
-    display: block;
-  }
-
-  .command-popover-header {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border-light);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-  }
-
-  .command-popover-section {
-    padding: 6px 0;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .command-popover-section:last-child {
-    border-bottom: none;
-  }
-
-  .command-popover-category {
-    padding: 6px 14px 4px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-  }
-
-  .command-popover-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 14px;
-    cursor: pointer;
-    transition: background var(--transition-fast);
-  }
-
-  .command-popover-item:hover {
-    background: var(--bg-hover);
-  }
-
-  .command-popover-item-name {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--accent-primary);
-    min-width: 80px;
-  }
-
-  .command-popover-item-desc {
-    font-size: 12px;
-    color: var(--text-secondary);
-    flex: 1;
-  }
-
-  .command-popover-footer {
-    padding: 8px 14px;
-    border-top: 1px solid var(--border-light);
-    font-size: 11px;
-    color: var(--text-muted);
-    text-align: center;
-  }
-
-  .command-popover-footer kbd {
-    display: inline-block;
-    padding: 2px 5px;
-    font-size: 10px;
-    font-family: inherit;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 3px;
-    margin: 0 2px;
-  }
-
-</style>
-
 <div id="pets">
+  <div class="inventory-header">
+    <span class="inventory-title">Inventory</span>
+    <label class="inventory-toggle">
+      <input type="checkbox" id="show-special-toggle">
+      <span>SPECIAL</span>
+    </label>
+  </div>
   <div class="pet-list"></div>
   <div id="profile-bar"></div>
 </div>
@@ -2311,13 +67,38 @@ const template = `
 
 <div id="value-frame" class="frame">
   <div id="value-window" class="window">
-    <p><div id="value-value"></div>
+    <div class="value-header">
+      <span id="value-title" class="value-title">Value</span>
+      <select id="value-type" class="value-type-select">
+        <option value="unknown">Unknown</option>
+        <option value="profile">Profile</option>
+        <option value="directory">Directory</option>
+        <option value="worker">Worker</option>
+        <option value="handle">Handle</option>
+        <option value="invitation">Invitation</option>
+        <option value="readable">Readable</option>
+        <option value="string">String</option>
+        <option value="number">Number</option>
+        <option value="bigint">BigInt</option>
+        <option value="boolean">Boolean</option>
+        <option value="symbol">Symbol</option>
+        <option value="null">Null</option>
+        <option value="undefined">Undefined</option>
+        <option value="copyArray">Array</option>
+        <option value="copyRecord">Record</option>
+        <option value="error">Error</option>
+        <option value="promise">Promise</option>
+        <option value="remotable">Remotable</option>
+      </select>
+    </div>
+    <div id="value-value"></div>
     <div class="value-actions">
       <div class="value-save-form">
         <label>Save as:</label>
         <input type="text" id="value-save-name" placeholder="pet.name.path" />
         <button id="value-save-button">Save</button>
       </div>
+      <button id="value-enter-profile" style="display: none;">Enter Profile</button>
       <button id="value-close">Close</button>
     </div>
   </div>
@@ -2698,73 +479,156 @@ const inboxComponent = async ($parent, $end, powers) => {
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} $end
  * @param {unknown} powers
- * @param {{ showValue: (value: unknown) => void, enterHost: (name: string) => void }} options
+ * @param {{ showValue: (value: unknown, petNamePath?: string[]) => void }} options
+ * @param {string[]} [path] - Current path for nested inventories
  */
-const inventoryComponent = async ($parent, $end, powers, { showValue, enterHost }) => {
+const inventoryComponent = async ($parent, $end, powers, { showValue }, path = []) => {
   const $list = $parent.querySelector('.pet-list') || $parent;
 
+  /** @type {Map<string, { $wrapper: HTMLElement, cleanup?: () => void }>} */
   const $names = new Map();
+
+  /**
+   * Check if a name is "special" (all uppercase letters/numbers/hyphens).
+   * @param {string} name
+   * @returns {boolean}
+   */
+  const isSpecialName = name => /^[A-Z][A-Z0-9_-]*$/.test(name);
+
+  /**
+   * Create an inventory item with disclosure triangle.
+   * @param {string} name
+   */
+  const createItem = name => {
+    const itemPath = [...path, name];
+
+    const $wrapper = document.createElement('div');
+    $wrapper.className = 'pet-item-wrapper';
+    if (isSpecialName(name)) {
+      $wrapper.classList.add('special');
+    }
+
+    const $row = document.createElement('div');
+    $row.className = 'pet-item-row';
+
+    // Disclosure triangle
+    const $disclosure = document.createElement('button');
+    $disclosure.className = 'pet-disclosure';
+    $disclosure.textContent = '▶';
+    $disclosure.title = 'Expand';
+    $row.appendChild($disclosure);
+
+    const $name = document.createElement('span');
+    $name.className = 'pet-name';
+    $name.textContent = name;
+    $name.title = 'Click to view';
+    $row.appendChild($name);
+
+    const $buttons = document.createElement('span');
+    $buttons.className = 'pet-buttons';
+
+    // Remove button (disabled for special names)
+    const $remove = document.createElement('button');
+    $remove.className = 'remove-button';
+    $remove.textContent = '×';
+    if (isSpecialName(name)) {
+      $remove.disabled = true;
+      $remove.title = 'Cannot remove system name';
+    } else {
+      $remove.title = 'Remove';
+    }
+    $buttons.appendChild($remove);
+
+    $row.appendChild($buttons);
+    $wrapper.appendChild($row);
+
+    // Children container (initially hidden)
+    const $children = document.createElement('div');
+    $children.className = 'pet-children';
+    $wrapper.appendChild($children);
+
+    $list.appendChild($wrapper);
+
+    // Event handlers
+    $name.onclick = () =>
+      E(powers).lookup(...itemPath).then(value => showValue(value, itemPath), window.reportError);
+    $remove.onclick = () => E(powers).remove(...itemPath).catch(window.reportError);
+
+    // Track expansion state and cleanup
+    let isExpanded = false;
+    /** @type {(() => void) | undefined} */
+    let childCleanup;
+
+    // Disclosure triangle click handler
+    $disclosure.onclick = async () => {
+      if (isExpanded) {
+        // Collapse
+        isExpanded = false;
+        $disclosure.classList.remove('expanded');
+        $disclosure.title = 'Expand';
+        $children.classList.remove('expanded');
+        // Clean up child subscriptions
+        if (childCleanup) {
+          childCleanup();
+          childCleanup = undefined;
+        }
+        $children.innerHTML = '';
+      } else {
+        // Expand - try to load children
+        $disclosure.classList.add('loading');
+        try {
+          const target = await E(powers).lookup(...itemPath);
+          // Check if it has followNameChanges (is a name hub)
+          // We probe by trying to get the async iterator
+          const changesIterator = E(target).followNameChanges();
+          // If we get here without error, it's expandable
+          isExpanded = true;
+          $disclosure.classList.remove('loading');
+          $disclosure.classList.add('expanded');
+          $disclosure.title = 'Collapse';
+          $children.classList.add('expanded');
+
+          // Start nested inventory watching the nested target
+          // Pass empty path since target is now the root for this subtree
+          // But we need to wrap operations to use the full path from root powers
+          const nestedPowers = {
+            /** @param {string[]} subPath */
+            lookup: (...subPath) => E(powers).lookup(...itemPath, ...subPath),
+            /** @param {string[]} subPath */
+            remove: (...subPath) => E(powers).remove(...itemPath, ...subPath),
+            followNameChanges: () => changesIterator,
+          };
+
+          inventoryComponent(
+            $children,
+            null,
+            nestedPowers,
+            { showValue },
+            [], // Reset path since nestedPowers handles the prefix
+          ).catch(() => {
+            // Silently handle errors (e.g., if the item is removed)
+          });
+        } catch {
+          // Not expandable (no followNameChanges method or error)
+          $disclosure.classList.remove('loading');
+          $disclosure.classList.add('hidden');
+        }
+      }
+    };
+
+    return { $wrapper, cleanup: () => childCleanup?.() };
+  };
+
   for await (const change of makeRefIterator(E(powers).followNameChanges())) {
     if ('add' in change) {
       const name = change.add;
-
-      const $item = document.createElement('div');
-      $item.className = 'pet-item';
-
-      const $name = document.createElement('span');
-      $name.className = 'pet-name';
-      $name.textContent = name;
-      $item.appendChild($name);
-
-      const $buttons = document.createElement('span');
-      $buttons.className = 'pet-buttons';
-
-      // Hover menu for Enter and View
-      const $menuContainer = document.createElement('span');
-      $menuContainer.className = 'pet-menu-container';
-
-      const $menuTrigger = document.createElement('button');
-      $menuTrigger.className = 'pet-menu-trigger';
-      $menuTrigger.textContent = '⋯';
-      $menuTrigger.title = 'More actions';
-      $menuContainer.appendChild($menuTrigger);
-
-      const $menu = document.createElement('div');
-      $menu.className = 'pet-menu';
-
-      const $enter = document.createElement('button');
-      $enter.textContent = 'Enter';
-      $enter.title = 'Enter this host profile';
-      $menu.appendChild($enter);
-
-      const $show = document.createElement('button');
-      $show.textContent = 'View';
-      $show.title = 'View this value';
-      $menu.appendChild($show);
-
-      $menuContainer.appendChild($menu);
-      $buttons.appendChild($menuContainer);
-
-      // Remove button stays visible
-      const $remove = document.createElement('button');
-      $remove.className = 'remove-button';
-      $remove.textContent = '×';
-      $remove.title = 'Remove';
-      $buttons.appendChild($remove);
-
-      $item.appendChild($buttons);
-      $list.appendChild($item);
-
-      $enter.onclick = () => enterHost(name);
-      $show.onclick = () =>
-        E(powers).lookup(name).then(showValue, window.reportError);
-      $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
-
-      $names.set(name, $item);
+      const item = createItem(name);
+      $names.set(name, item);
     } else if ('remove' in change) {
-      const $item = $names.get(change.remove);
-      if ($item !== undefined) {
-        $item.remove();
+      const item = $names.get(change.remove);
+      if (item !== undefined) {
+        item.cleanup?.();
+        item.$wrapper.remove();
         $names.delete(change.remove);
       }
     }
@@ -2774,16 +638,20 @@ const inventoryComponent = async ($parent, $end, powers, { showValue, enterHost 
 
 /**
  * @param {HTMLElement} $parent
- * @param {{ focusValue: (value: unknown) => void, blurValue: () => void }} callbacks
+ * @param {{ focusValue: (value: unknown, petNamePath?: string[]) => void | Promise<void>, blurValue: () => void }} callbacks
  */
 const controlsComponent = ($parent, { focusValue, blurValue }) => {
   const $valueFrame = /** @type {HTMLElement} */ (
     $parent.querySelector('#value-frame')
   );
 
-  const showValue = value => {
+  /**
+   * @param {unknown} value
+   * @param {string[]} [petNamePath]
+   */
+  const showValue = (value, petNamePath) => {
     $valueFrame.dataset.show = 'true';
-    focusValue(value);
+    focusValue(value, petNamePath);
   };
 
   const dismissValue = () => {
@@ -3616,11 +1484,67 @@ const render = value => {
 };
 
 /**
+ * Map from remotable interface tags to semantic types.
+ * @type {Record<string, string>}
+ */
+const INTERFACE_TO_TYPE = {
+  EndoHost: 'profile',
+  EndoGuest: 'profile',
+  Endo: 'profile',
+  EndoDirectory: 'directory',
+  EndoWorker: 'worker',
+  Handle: 'handle',
+  Invitation: 'invitation',
+  EndoReadable: 'readable',
+  AsyncIterator: 'readable',
+};
+
+/**
+ * Infer the semantic type from a value.
+ * @param {unknown} value
+ * @returns {string}
+ */
+const inferType = value => {
+  const passStyle = passStyleOf(value);
+
+  // For primitives, use the pass style directly
+  if (passStyle !== 'remotable') {
+    return passStyle;
+  }
+
+  // For remotables, try to infer from the interface tag
+  const iface = getInterfaceOf(value);
+  if (iface) {
+    // Interface format is "Alleged: TypeName" or just "TypeName"
+    const match = iface.match(/^(?:Alleged:\s*)?(\w+)/);
+    if (match) {
+      const typeName = match[1];
+      if (typeName in INTERFACE_TO_TYPE) {
+        return INTERFACE_TO_TYPE[typeName];
+      }
+    }
+  }
+
+  return 'remotable';
+};
+
+/**
  * @param {HTMLElement} $parent
  * @param {unknown} powers
- * @param {{ dismissValue: () => void }} options
+ * @param {object} options
+ * @param {() => void} options.dismissValue
+ * @param {(hostName: string) => Promise<void>} options.enterProfile
  */
-const valueComponent = ($parent, powers, { dismissValue }) => {
+const valueComponent = ($parent, powers, { dismissValue, enterProfile }) => {
+  const $frame = /** @type {HTMLElement} */ (
+    $parent.querySelector('#value-frame')
+  );
+  const $title = /** @type {HTMLElement} */ (
+    $parent.querySelector('#value-title')
+  );
+  const $type = /** @type {HTMLSelectElement} */ (
+    $parent.querySelector('#value-type')
+  );
   const $value = /** @type {HTMLElement} */ (
     $parent.querySelector('#value-value')
   );
@@ -3633,19 +1557,58 @@ const valueComponent = ($parent, powers, { dismissValue }) => {
   const $saveButton = /** @type {HTMLButtonElement} */ (
     $parent.querySelector('#value-save-button')
   );
+  const $enterProfile = /** @type {HTMLButtonElement} */ (
+    $parent.querySelector('#value-enter-profile')
+  );
 
   /** @type {unknown} */
   let currentValue;
+  /** @type {string[] | undefined} */
+  let currentPetNamePath;
+
+  /**
+   * Update Enter Profile button visibility based on type.
+   */
+  const updateEnterProfileVisibility = () => {
+    const selectedType = $type.value;
+    if (selectedType === 'profile' && currentPetNamePath && currentPetNamePath.length > 0) {
+      $enterProfile.style.display = 'block';
+    } else {
+      $enterProfile.style.display = 'none';
+    }
+  };
 
   const clearValue = () => {
     $value.innerHTML = '';
     $saveName.value = '';
+    $title.textContent = 'Value';
+    $type.value = 'unknown';
     currentValue = undefined;
+    currentPetNamePath = undefined;
+    $enterProfile.style.display = 'none';
     dismissValue();
   };
 
   $close.addEventListener('click', () => {
     clearValue();
+  });
+
+  // Dismiss when clicking on the backdrop (but not the modal window)
+  $frame.addEventListener('click', event => {
+    if (event.target === $frame) {
+      clearValue();
+    }
+  });
+
+  $type.addEventListener('change', () => {
+    updateEnterProfileVisibility();
+  });
+
+  $enterProfile.addEventListener('click', async () => {
+    if (!currentPetNamePath) return;
+    const hostName = currentPetNamePath.join('.');
+    clearValue();
+    await enterProfile(hostName);
   });
 
   const handleSave = async () => {
@@ -3687,12 +1650,46 @@ const valueComponent = ($parent, powers, { dismissValue }) => {
     }
   };
 
-  /** @param {unknown} value */
-  const focusValue = value => {
+  /**
+   * @param {unknown} value
+   * @param {string[]} [petNamePath]
+   */
+  const focusValue = async (value, petNamePath) => {
     currentValue = value;
+    currentPetNamePath = petNamePath;
     window.addEventListener('keyup', handleKey);
+
+    // Render the value
     $value.innerHTML = '';
     $value.appendChild(render(value));
+
+    // Infer and set the type
+    const inferredType = inferType(value);
+    $type.value = inferredType;
+
+    // Update Enter Profile visibility based on inferred type
+    updateEnterProfileVisibility();
+
+    // Get pet names via reverse lookup and update title
+    try {
+      const petNames = /** @type {string[]} */ (await E(powers).reverseLookup(value));
+      if (petNames.length > 0) {
+        $title.textContent = petNames.join(', ');
+      } else if (petNamePath && petNamePath.length > 0) {
+        // Fall back to the path we used to look it up
+        $title.textContent = petNamePath.join('.');
+      } else {
+        $title.textContent = 'Value';
+      }
+    } catch {
+      // If reverse lookup fails, use the path or default
+      if (petNamePath && petNamePath.length > 0) {
+        $title.textContent = petNamePath.join('.');
+      } else {
+        $title.textContent = 'Value';
+      }
+    }
+
     $saveName.focus();
   };
 
@@ -3802,6 +1799,19 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
   const $profileBar = /** @type {HTMLElement} */ (
     $parent.querySelector('#profile-bar')
   );
+  const $petList = /** @type {HTMLElement} */ ($pets.querySelector('.pet-list'));
+  const $showSpecialToggle = /** @type {HTMLInputElement} */ (
+    $parent.querySelector('#show-special-toggle')
+  );
+
+  // Set up special names toggle
+  $showSpecialToggle.addEventListener('change', () => {
+    if ($showSpecialToggle.checked) {
+      $petList.classList.add('show-special');
+    } else {
+      $petList.classList.remove('show-special');
+    }
+  });
 
   // Set up resizable sidebar
   resizeHandleComponent($parent);
@@ -3863,11 +1873,11 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
       // dependency-injection, I salute you and welcome your pull requests.
       /* eslint-disable no-use-before-define */
       const { showValue, dismissValue } = controlsComponent($parent, {
-        focusValue: value => focusValue(value),
+        focusValue: (value, petNamePath) => focusValue(value, petNamePath),
         blurValue: () => blurValue(),
       });
       inboxComponent($messages, $anchor, resolvedPowers).catch(window.reportError);
-      inventoryComponent($pets, $profileBar, resolvedPowers, { showValue, enterHost }).catch(
+      inventoryComponent($pets, $profileBar, resolvedPowers, { showValue }).catch(
         window.reportError,
       );
       chatBarComponent($parent, resolvedPowers, {
@@ -3878,6 +1888,7 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
       });
       const { focusValue, blurValue } = valueComponent($parent, resolvedPowers, {
         dismissValue,
+        enterProfile: enterHost,
       });
       /* eslint-enable no-use-before-define */
     })

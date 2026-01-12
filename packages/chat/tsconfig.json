@@ -3,7 +3,6 @@
   "include": [
     "*.js",
     "*.ts",
-    "src",
     "test"
   ]
 }

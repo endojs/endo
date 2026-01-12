@@ -70,13 +70,12 @@
   "files": [
     "./*.d.ts",
     "./*.js",
+    "./*.css",
+    "./*.html",
     "./*.map",
     "LICENSE*",
     "SECURITY*",
-    "dist",
-    "lib",
-    "src",
-    "tools"
+    "dist"
   ],
   "publishConfig": {
     "access": "public"
