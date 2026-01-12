@@ -35,10 +35,16 @@ export const createMonacoEditor = async (
   /** @type {(() => void) | null} */
   let addEndowmentCallback = null;
 
-  // Wait for iframe to be ready
-  await new Promise((resolve) => {
+  // Wait for iframe to be ready (with timeout)
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      window.removeEventListener('message', handleMessage);
+      reject(new Error('Monaco editor failed to load within 10 seconds'));
+    }, 10000);
+
     const handleMessage = (/** @type {MessageEvent} */ event) => {
       if (event.data?.type === 'monaco-ready') {
+        clearTimeout(timeout);
         window.removeEventListener('message', handleMessage);
         resolve(undefined);
       }

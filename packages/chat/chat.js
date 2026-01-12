@@ -741,8 +741,10 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
       return;
     }
 
+    // Resolve alias to get the actual command
+    const command = getCommand(commandName);
     let hints = '';
-    if (commandName === 'js') {
+    if (command && command.name === 'js') {
       hints = `
         <span class="modeline-hint"><kbd>@</kbd> add endowment</span>
         <span class="modeline-hint"><kbd>Enter</kbd> evaluate</span>

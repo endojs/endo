@@ -226,8 +226,8 @@ export const createInlineCommandForm = ({
   const isValid = () => {
     if (!currentCommand) return false;
 
-    // Special handling for eval
-    if (currentCommand === 'js' && inlineEvalInstance) {
+    // Special handling for eval (handles aliases like 'eval' -> 'js')
+    if (inlineEvalInstance) {
       return inlineEvalInstance.isValid();
     }
 
@@ -274,7 +274,8 @@ export const createInlineCommandForm = ({
     }
 
     // Special handling for eval command - use inline eval component
-    if (commandName === 'js') {
+    // Check command.name to handle aliases like 'eval' -> 'js'
+    if (command.name === 'js') {
       $container.innerHTML = '';
 
       const $evalContainer = document.createElement('div');
@@ -382,8 +383,8 @@ export const createInlineCommandForm = ({
    * Focus the first field.
    */
   const focus = () => {
-    // Special handling for eval
-    if (currentCommand === 'js' && inlineEvalInstance) {
+    // Special handling for eval (handles aliases like 'eval' -> 'js')
+    if (inlineEvalInstance) {
       inlineEvalInstance.focus();
       return;
     }
