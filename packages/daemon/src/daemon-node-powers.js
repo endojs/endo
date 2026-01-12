@@ -233,7 +233,8 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
    */
   const removePath = async path => {
     await writeJobs.enqueue(async () => {
-      return fs.promises.rm(path);
+      // Use force: true to make removal idempotent (no error if already removed)
+      return fs.promises.rm(path, { force: true });
     });
   };
 
