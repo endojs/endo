@@ -645,6 +645,12 @@ const makePatternKit = () => {
   const getPassStyleCover = (passStyle, encodePassable) =>
     provideStaticRanks(encodePassable)[passStyle].cover;
 
+  /** @type {(encodePassable: KeyToDBKey) => number} */
+  const getEncodingPrefixLength = encodePassable => {
+    const [encodingPrefix] = provideStaticRanks(encodePassable)['*'].cover;
+    return encodingPrefix.length;
+  };
+
   /** @type {GetRankCover} */
   const getRankCover = (patt, encodePassable) => {
     // This partially validates encodePassable.
@@ -660,16 +666,29 @@ const makePatternKit = () => {
     const passStyle = passStyleOf(patt);
     switch (passStyle) {
       case 'copyArray': {
-        // XXX this doesn't get along with the world of cover === pair of
-        // strings. In the meantime, fall through to the default which
-        // returns a cover that covers all copyArrays.
-        //
-        // const rankCovers = patt.map(p => getRankCover(p, encodePassable));
-        // return harden([
-        //   rankCovers.map(([left, _right]) => left),
-        //   rankCovers.map(([_left, right]) => right),
-        // ]);
-        break;
+        // The fallback below would cover all CopyArrays, but we can do better
+        // by leveraging a run of initial Keys.
+        const nonKeyIdx = patt.findIndex(v => !isKey(v));
+        nonKeyIdx !== -1 ||
+          Fail`internal: all-Key copyArray ${q(patt)} must itself be a Key`;
+        // Discover the prefix that will start both bounds by encoding a
+        // CopyArray consisting of those Keys followed by a null sentinel element.
+        const epLen = getEncodingPrefixLength(encodePassable);
+        const sentinel = null;
+        const embeddedSentinel = encodePassable(sentinel).slice(epLen);
+        const keyArr = harden([...patt.slice(0, nonKeyIdx), sentinel]);
+        const encodedKeyArr = encodePassable(keyArr);
+        const prefixLength = encodedKeyArr.lastIndexOf(embeddedSentinel);
+        const prefix = encodedKeyArr.slice(0, prefixLength);
+        // Combine that prefix with the RankCover of the first non-Key element.
+        const [lowerSuffix, upperSuffix] = getRankCover(
+          patt[nonKeyIdx],
+          encodePassable,
+        );
+        return [
+          `${prefix}${lowerSuffix.slice(epLen)}`,
+          `${prefix}${upperSuffix.slice(epLen)}`,
+        ];
       }
       case 'copyRecord': {
         // XXX this doesn't get along with the world of cover === pair of
