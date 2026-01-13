@@ -260,8 +260,10 @@ test('unionRankCovers (covers, compare?) signature', t => {
   // Explicit compare
   t.deepEqual(unionRankCovers(covers, compareRankRemotablesTied), ['a', 'e']);
   t.deepEqual(unionRankCovers(covers, compareRank), ['a', 'e']);
-  // Empty union returns identity element ['{', '']
-  t.deepEqual(unionRankCovers(harden([])), ['{', '']);
+  // Empty union throws
+  t.throws(() => unionRankCovers(harden([])), {
+    message: 'Cannot union empty covers',
+  });
 });
 
 test('intersectRankCovers (covers, compare?) signature', t => {
@@ -279,6 +281,8 @@ test('intersectRankCovers (covers, compare?) signature', t => {
     'd',
   ]);
   t.deepEqual(intersectRankCovers(covers, compareRank), ['c', 'd']);
-  // Empty intersection returns identity element ['', '{']
-  t.deepEqual(intersectRankCovers(harden([])), ['', '{']);
+  // Empty intersection throws
+  t.throws(() => intersectRankCovers(harden([])), {
+    message: 'Cannot intersect empty covers',
+  });
 });
