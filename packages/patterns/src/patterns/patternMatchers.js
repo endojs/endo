@@ -653,7 +653,7 @@ const makePatternKit = () => {
     if (isKey(patt)) {
       const encoded = encodePassable(patt);
       if (encoded !== undefined) {
-        return [encoded, `${encoded}~`];
+        return [encoded, encoded];
       }
     }
 
@@ -989,8 +989,8 @@ const makePatternKit = () => {
       ),
 
     getRankCover: (_matchPayload, encodePassable) =>
-      // TODO Could be more precise
-      getPassStyleCover('bigint', encodePassable),
+      // eslint-disable-next-line no-use-before-define
+      matchGTEHelper.getRankCover(0n, encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1098,7 +1098,7 @@ const makePatternKit = () => {
     getRankCover: (rightOperand, encodePassable) => {
       const passStyle = passStyleOf(rightOperand);
       const [lowerBound] = getPassStyleCover(passStyle, encodePassable);
-      return [lowerBound, `${encodePassable(rightOperand)}~`];
+      return [lowerBound, encodePassable(rightOperand)];
     },
   });
 
