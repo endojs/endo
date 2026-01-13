@@ -945,22 +945,13 @@ const makePatternKit = () => {
       (reject &&
         reject`match:kind: payload: ${allegedKeyKind} - A kind name must be a string`),
 
-    getRankCover: (kind, encodePassable) => {
-      /** @type {import('@endo/pass-style').PassStyle} */
-      let style;
-      switch (kind) {
-        case 'copySet':
-        case 'copyMap': {
-          style = 'tagged';
-          break;
-        }
-        default: {
-          style = /** @type {import('@endo/pass-style').PassStyle} */ (kind);
-          break;
-        }
-      }
-      return getPassStyleCover(style, encodePassable);
-    },
+    getRankCover: (kind, encodePassable) =>
+      getPassStyleCover(
+        kind === 'copySet' || kind === 'copyMap'
+          ? 'tagged'
+          : /** @type {PassStyle} */ (kind),
+        encodePassable,
+      ),
   });
 
   /** @type {MatchHelper<[Pattern, Pattern]>} */
@@ -1189,18 +1180,11 @@ const makePatternKit = () => {
 
     getRankCover: (rightOperand, encodePassable) => {
       const passStyle = passStyleOf(rightOperand);
-      // The prefer-const makes no sense when some of the variables need
-      // to be `let`
-      // eslint-disable-next-line prefer-const
-      let [leftBound, rightBound] = getPassStyleCover(
-        passStyle,
-        encodePassable,
-      );
-      const newRightBound = `${encodePassable(/** @type {Key} */ (rightOperand))}~`;
-      if (newRightBound !== undefined) {
-        rightBound = newRightBound;
-      }
-      return [leftBound, rightBound];
+      const [lowerBound] = getPassStyleCover(passStyle, encodePassable);
+      return [
+        lowerBound,
+        `${encodePassable(/** @type {Key} */ (rightOperand))}~`,
+      ];
     },
   });
 
@@ -1225,18 +1209,8 @@ const makePatternKit = () => {
 
     getRankCover: (rightOperand, encodePassable) => {
       const passStyle = passStyleOf(rightOperand);
-      // The prefer-const makes no sense when some of the variables need
-      // to be `let`
-      // eslint-disable-next-line prefer-const
-      let [leftBound, rightBound] = getPassStyleCover(
-        passStyle,
-        encodePassable,
-      );
-      const newLeftBound = encodePassable(/** @type {Key} */ (rightOperand));
-      if (newLeftBound !== undefined) {
-        leftBound = newLeftBound;
-      }
-      return [leftBound, rightBound];
+      const [, upperBound] = getPassStyleCover(passStyle, encodePassable);
+      return [encodePassable(/** @type {Key} */ (rightOperand)), upperBound];
     },
   });
 
