@@ -23,7 +23,7 @@ import {
 } from '@endo/pass-style';
 import {
   compareRank,
-  getPassStyleCover,
+  provideStaticRanks,
   intersectRankCovers,
   unionRankCovers,
   recordNames,
@@ -53,6 +53,7 @@ import { generateCollectionPairEntries } from '../keys/keycollection-operators.j
  * @import {CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style';
  * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, ConfirmPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js';
  * @import {MatchHelper, PatternKit} from './types.js';
+ * @import {KeyToDBKey} from '../types.js';
  */
 
 const { entries, values, hasOwn } = Object;
@@ -642,14 +643,22 @@ const makePatternKit = () => {
 
   // /////////////////////// getRankCover //////////////////////////////////////
 
+  /** @type {(passStyle: PassStyle, encodePassable: KeyToDBKey) => RankCover} */
+  const getPassStyleCover = (passStyle, encodePassable) =>
+    provideStaticRanks(encodePassable)[passStyle].cover;
+
   /** @type {GetRankCover} */
   const getRankCover = (patt, encodePassable) => {
+    // This partially validates encodePassable.
+    provideStaticRanks(encodePassable);
+
     if (isKey(patt)) {
       const encoded = encodePassable(patt);
       if (encoded !== undefined) {
         return [encoded, `${encoded}~`];
       }
     }
+
     const passStyle = passStyleOf(patt);
     switch (passStyle) {
       case 'copyArray': {
@@ -672,7 +681,7 @@ const makePatternKit = () => {
         // const pattKeys = ownKeys(patt);
         // const pattEntries = harden(pattKeys.map(key => [key, patt[key]]));
         // const [leftEntriesLimit, rightEntriesLimit] =
-        //   getRankCover(pattEntries);
+        //   getRankCover(pattEntries, encodePassable);
         // return harden([
         //   fromUniqueEntries(leftEntriesLimit),
         //   fromUniqueEntries(rightEntriesLimit),
@@ -703,6 +712,7 @@ const makePatternKit = () => {
             //
             // const [leftElementLimit, rightElementLimit] = getRankCover(
             //   patt.payload[0],
+            //   encodePassable,
             // );
             // return harden([
             //   makeCopySet([leftElementLimit]),
@@ -749,7 +759,7 @@ const makePatternKit = () => {
         break; // fall through to default
       }
     }
-    return getPassStyleCover(passStyle);
+    return getPassStyleCover(passStyle, encodePassable);
   };
 
   /**
@@ -780,7 +790,8 @@ const makePatternKit = () => {
       (reject &&
         reject`match:any payload: ${matcherPayload} - Must be undefined`),
 
-    getRankCover: (_matchPayload, _encodePassable) => ['', '{'],
+    getRankCover: (_matchPayload, encodePassable) =>
+      provideStaticRanks(encodePassable)['*'].cover,
   });
 
   /** @type {MatchHelper} */
@@ -857,7 +868,8 @@ const makePatternKit = () => {
 
     confirmIsWellFormed: confirmPattern,
 
-    getRankCover: (_patt, _encodePassable) => ['', '{'],
+    getRankCover: (_patt, encodePassable) =>
+      matchAnyHelper.getRankCover(undefined, encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -899,7 +911,7 @@ const makePatternKit = () => {
       (reject &&
         reject`match:kind: payload: ${allegedKeyKind} - A kind name must be a string`),
 
-    getRankCover: (kind, _encodePassable) => {
+    getRankCover: (kind, encodePassable) => {
       let style;
       switch (kind) {
         case 'copySet':
@@ -912,7 +924,7 @@ const makePatternKit = () => {
           break;
         }
       }
-      return getPassStyleCover(style);
+      return getPassStyleCover(style, encodePassable);
     },
   });
 
@@ -941,7 +953,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_kind, _encodePassable) => getPassStyleCover('tagged'),
+    getRankCover: (_kind, encodePassable) =>
+      getPassStyleCover('tagged', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -962,8 +975,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_matchPayload, _encodePassable) =>
-      getPassStyleCover('bigint'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('bigint', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -987,9 +1000,9 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_matchPayload, _encodePassable) =>
+    getRankCover: (_matchPayload, encodePassable) =>
       // TODO Could be more precise
-      getPassStyleCover('bigint'),
+      getPassStyleCover('bigint', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1013,8 +1026,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_matchPayload, _encodePassable) =>
-      getPassStyleCover('string'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('string', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1046,8 +1059,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_matchPayload, _encodePassable) =>
-      getPassStyleCover('symbol'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('symbol', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1082,8 +1095,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_remotableDesc, _encodePassable) =>
-      getPassStyleCover('remotable'),
+    getRankCover: (_remotableDesc, encodePassable) =>
+      getPassStyleCover('remotable', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1099,7 +1112,10 @@ const makePatternKit = () => {
       // The prefer-const makes no sense when some of the variables need
       // to be `let`
       // eslint-disable-next-line prefer-const
-      let [leftBound, rightBound] = getPassStyleCover(passStyle);
+      let [leftBound, rightBound] = getPassStyleCover(
+        passStyle,
+        encodePassable,
+      );
       const newRightBound = `${encodePassable(rightOperand)}~`;
       if (newRightBound !== undefined) {
         rightBound = newRightBound;
@@ -1132,7 +1148,10 @@ const makePatternKit = () => {
       // The prefer-const makes no sense when some of the variables need
       // to be `let`
       // eslint-disable-next-line prefer-const
-      let [leftBound, rightBound] = getPassStyleCover(passStyle);
+      let [leftBound, rightBound] = getPassStyleCover(
+        passStyle,
+        encodePassable,
+      );
       const newLeftBound = encodePassable(rightOperand);
       if (newLeftBound !== undefined) {
         leftBound = newLeftBound;
@@ -1197,7 +1216,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: _entryPatt => getPassStyleCover('copyRecord'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('copyRecord', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1221,7 +1241,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: () => getPassStyleCover('copyArray'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('copyArray', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1244,8 +1265,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: (_matchPayload, _encodePassable) =>
-      getPassStyleCover('byteArray'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('byteArray', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1277,7 +1298,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: () => getPassStyleCover('tagged'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('tagged', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1318,7 +1340,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: () => getPassStyleCover('tagged'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('tagged', encodePassable),
   });
 
   /**
@@ -1530,7 +1553,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: () => getPassStyleCover('tagged'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('tagged', encodePassable),
   });
 
   /** @type {MatchHelper} */
@@ -1572,7 +1596,8 @@ const makePatternKit = () => {
         reject,
       ),
 
-    getRankCover: _entryPatt => getPassStyleCover('tagged'),
+    getRankCover: (_matchPayload, encodePassable) =>
+      getPassStyleCover('tagged', encodePassable),
   });
 
   /**
@@ -1684,11 +1709,10 @@ const makePatternKit = () => {
       );
     },
 
-    getRankCover: ([
-      _requiredPatt,
-      _optionalPatt = undefined,
-      _restPatt = undefined,
-    ]) => getPassStyleCover('copyArray'),
+    getRankCover: (
+      [_requiredPatt, _optionalPatt = undefined, _restPatt = undefined],
+      encodePassable,
+    ) => getPassStyleCover('copyArray', encodePassable),
   });
 
   /**
@@ -1796,11 +1820,10 @@ const makePatternKit = () => {
       );
     },
 
-    getRankCover: ([
-      requiredPatt,
-      _optionalPatt = undefined,
-      _restPatt = undefined,
-    ]) => getPassStyleCover(passStyleOf(requiredPatt)),
+    getRankCover: (
+      [requiredPatt, _optionalPatt = undefined, _restPatt = undefined],
+      encodePassable,
+    ) => getPassStyleCover(passStyleOf(requiredPatt), encodePassable),
   });
 
   /** @type {Record<string, MatchHelper>} */

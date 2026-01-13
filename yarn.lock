@@ -874,6 +874,7 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
+    "@endo/memoize": "workspace:^"
     "@endo/nat": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
@@ -893,7 +894,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/memoize@workspace:packages/memoize":
+"@endo/memoize@workspace:^, @endo/memoize@workspace:packages/memoize":
   version: 0.0.0-use.local
   resolution: "@endo/memoize@workspace:packages/memoize"
   dependencies:
