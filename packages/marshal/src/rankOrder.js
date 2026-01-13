@@ -1,5 +1,7 @@
+import { objectMap } from '@endo/common/object-map.js';
 import { getEnvironmentOption as getenv } from '@endo/env-options';
 import { Fail, q } from '@endo/errors';
+import { memoize } from '@endo/memoize';
 import { getTag, passStyleOf, nameForPassableSymbol } from '@endo/pass-style';
 import {
   passStylePrefixes,
@@ -116,6 +118,7 @@ harden(compareNumerics);
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
+ * @typedef {PassStyleRanksRecord & { '*': { cover: RankCover } }} StaticRanksRecord
  */
 
 const passStyleRanks = /** @type {PassStyleRanksRecord} */ (
@@ -156,9 +159,40 @@ harden(passStyleRanks);
  *
  * @param {PassStyle} passStyle
  * @returns {RankCover}
+ * @deprecated Coverage depends upon format; use provideStaticRanks instead.
  */
 export const getPassStyleCover = passStyle => passStyleRanks[passStyle].cover;
 harden(getPassStyleCover);
+
+// Use singleton null as a sentinel for detecting an encodePassable output
+// prefix (e.g., the "~" that starts compactOrdered output).
+const { null: nullTypePrefix } = passStylePrefixes;
+nullTypePrefix.length === 1 ||
+  Fail`internal: null pass style prefix must be a single character, not ${q(nullTypePrefix)}`;
+
+export const provideStaticRanks = memoize(
+  /** @type {(encodePassable: ((p: Passable) => string)) => StaticRanksRecord} */
+  encodePassable => {
+    const encodedNull = encodePassable(null);
+    encodedNull.endsWith(nullTypePrefix) ||
+      Fail`expected null encoding ${q(nullTypePrefix)} not found in ${q(encodedNull)}`;
+    const prefix = encodedNull.slice(0, -nullTypePrefix.length);
+    return harden({
+      __proto__: null,
+      ...objectMap(passStyleRanks, ({ index, cover }) => {
+        const [lower, upper] = cover;
+        const prefixedCover = /** @type {RankCover} */ ([
+          `${prefix}${lower}`,
+          `${prefix}${upper}`,
+        ]);
+        return { index, cover: prefixedCover };
+      }),
+      // The full upper bound ends with `{` because `|` is reserved to exceed
+      // all pass style prefixes; @see {@link passStylePrefixes}.
+      '*': { cover: [prefix, `${prefix}{`] },
+    });
+  },
+);
 
 /**
  * @type {WeakMap<RankCompare,WeakSet<Passable[]>>}
@@ -474,7 +508,11 @@ export const getIndexCover = (sorted, compare, [leftKey, rightKey]) => {
 };
 harden(getIndexCover);
 
-/** @type {RankCover} */
+/**
+ * @type {RankCover}
+ * @deprecated Coverage depends upon format; use
+ *   `provideStaticRanks(encodePassable)['*'].cover` instead.
+ */
 export const FullRankCover = harden(['', '{']);
 
 /**
@@ -528,6 +566,7 @@ const minRank = (compare, a, b) => (compare(a, b) <= 0 ? a : b);
  * @returns {RankCover}
  */
 export const unionRankCovers = (compare, covers) => {
+  covers.length > 0 || Fail`Cannot union empty covers`;
   /**
    * @param {RankCover} a
    * @param {RankCover} b
@@ -537,7 +576,7 @@ export const unionRankCovers = (compare, covers) => {
     minRank(compare, leftA, leftB),
     maxRank(compare, rightA, rightB),
   ];
-  return covers.reduce(unionRankCoverPair, ['{', '']);
+  return covers.reduce(unionRankCoverPair);
 };
 harden(unionRankCovers);
 
@@ -547,6 +586,7 @@ harden(unionRankCovers);
  * @returns {RankCover}
  */
 export const intersectRankCovers = (compare, covers) => {
+  covers.length > 0 || Fail`Cannot intersect empty covers`;
   /**
    * @param {RankCover} a
    * @param {RankCover} b
@@ -556,7 +596,7 @@ export const intersectRankCovers = (compare, covers) => {
     maxRank(compare, leftA, leftB),
     minRank(compare, rightA, rightB),
   ];
-  return covers.reduce(intersectRankCoverPair, ['', '{']);
+  return covers.reduce(intersectRankCoverPair);
 };
 harden(intersectRankCovers);
 

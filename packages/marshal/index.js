@@ -24,6 +24,7 @@ export {
   compareAntiRank,
   makeFullOrderComparatorKit,
   getPassStyleCover,
+  provideStaticRanks,
   intersectRankCovers,
   unionRankCovers,
 } from './src/rankOrder.js';
