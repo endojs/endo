@@ -8,9 +8,10 @@ import { nameForPassableSymbol, passableSymbolForName } from '../src/symbol.js';
 
 /**
  * @import { Arbitrary } from 'fast-check';
- * @import { Key } from '@endo/patterns';
  * @import { Passable, CopyTagged } from '../src/types.js';
  */
+// @ts-expect-error circular dependencies are fine in tools/.
+/** @import { Key } from '@endo/patterns'; */
 
 /** @type ((reason: string) => never) */
 const reject = reason => {
@@ -62,7 +63,7 @@ export const makeArbitraries = (
   const notThen = arbString.filter(s => s !== 'then');
 
   /** @type {(Arbitrary<Key>)[]} */
-  const keyableLeaves = [
+  const keyableLeaves = /** @type {Arbitrary<Key>[]} */ ([
     fc.constantFrom(null, undefined, false, true),
     arbString,
     arbString
@@ -97,7 +98,7 @@ export const makeArbitraries = (
       fc.record({}, { noNullPrototype: true })
     ),
     fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
-  ];
+  ]);
 
   const arbKeyLeaf = fc.oneof(...keyableLeaves);
 
@@ -134,30 +135,36 @@ export const makeArbitraries = (
    */
   /** @type {<T>(arb: Arbitrary<T>, makeLiftArgs: (input: T) => Parameters<typeof lift>[0]) => Arbitrary<LiftedPair>} */
   const withLiftingDetail = (arb, makeLiftArgs) =>
-    recoverableMap(fc.tuple(arb, arbLiftingDetail), input => {
-      const [specimen, detail] = input;
-      const args = makeLiftArgs(specimen);
-      return /** @type {LiftedPair} */ ([args[0], lift(args, detail)]);
-    });
+    recoverableMap(
+      /** @type {any} */ (fc.tuple(arb, arbLiftingDetail)),
+      input => {
+        const [specimen, detail] = input;
+        const args = makeLiftArgs(specimen);
+        return /** @type {LiftedPair} */ ([args[0], lift(args, detail)]);
+      },
+    );
 
   const recursives = fc.letrec(tie => ({
     liftedKeyDag: fc.oneof(
       { withCrossShrink: true },
       // Base case: lift a leaf into a [leaf, lifted] pair.
-      withLiftingDetail(arbKeyLeaf, leaf => [leaf]),
+      withLiftingDetail(/** @type {any} */ (arbKeyLeaf), leaf => [leaf]),
       // Recursive cases: compose lifted pairs, project into an [unlifted, liftedParts] pair,
       // and lift that.
       withLiftingDetail(
-        fc.oneof(
-          // copyArray
-          recoverableMap(fc.array(tie('liftedKeyDag')), pairsArr =>
-            [0, 1].map(i => pairsArr.map(pair => pair[i])),
-          ),
-          // copyRecord
-          recoverableMap(
-            fc.dictionary(notThen, tie('liftedKeyDag')),
-            pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
-          ),
+        /** @type {any} */ (
+          fc.oneof(
+            // copyArray
+            recoverableMap(
+              /** @type {any} */ (fc.array(tie('liftedKeyDag'))),
+              pairsArr => [0, 1].map(i => pairsArr.map(pair => pair[i])),
+            ),
+            // copyRecord
+            recoverableMap(
+              /** @type {any} */ (fc.dictionary(notThen, tie('liftedKeyDag'))),
+              pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
+            ),
+          )
         ),
         ([compositeKey, liftedParts]) =>
           /** @type {any} */ ([compositeKey, liftedParts]),
@@ -166,82 +173,96 @@ export const makeArbitraries = (
     liftedArbDag: fc.oneof(
       { withCrossShrink: true },
       // Base case: lift a leaf into a [leaf, lifted] pair.
-      withLiftingDetail(arbLeaf, leaf => [leaf]),
+      withLiftingDetail(/** @type {any} */ (arbLeaf), leaf => [leaf]),
       // Recursive cases: compose lifted pairs, project into an [unlifted, liftedParts] pair,
       // and lift that.
       withLiftingDetail(
-        fc.oneof(
-          // copyArray
-          recoverableMap(fc.array(tie('liftedArbDag')), pairsArr =>
-            [0, 1].map(i => pairsArr.map(pair => pair[i])),
-          ),
-          // copyRecord
-          recoverableMap(
-            fc.dictionary(notThen, tie('liftedArbDag')),
-            pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
-          ),
-          // promise
-          recoverableMap(tie('liftedArbDag'), pair =>
-            [0, 1].map(i => Promise.resolve(pair[i])),
-          ),
-          // arbitrary tagged (but maybe using a known tag)
-          recoverableMap(
-            fc.tuple(
-              fc.oneof(
-                arbString,
-                fc.constantFrom('copySet', 'copyBag', 'copyMap'),
-              ),
-              tie('liftedArbDag'),
+        /** @type {any} */ (
+          fc.oneof(
+            // copyArray
+            recoverableMap(
+              /** @type {any} */ (fc.array(tie('liftedArbDag'))),
+              pairsArr => [0, 1].map(i => pairsArr.map(pair => pair[i])),
             ),
-            ([tag, payloadPair]) =>
-              [0, 1].map(i => makeTagged(tag, payloadPair[i])),
-          ),
-          // copySet: an array of unique Passables
-          // TODO: A valid copySet payload must be a reverse sorted array.
-          recoverableMap(
-            fc.uniqueArray(tie('liftedKeyDag'), {
-              selector: pair => pair[0],
-            }),
-            pairsArr =>
-              [0, 1].map(i =>
-                makeTagged(
-                  'copySet',
-                  pairsArr.map(pair => pair[i]),
-                ),
-              ),
-          ),
-          // copyBag: an array of [Passable, count] tuples in which each Passable is unique
-          // TODO: A valid copyBag payload must be a reverse sorted array.
-          recoverableMap(
-            fc.uniqueArray(
-              fc.tuple(tie('liftedKeyDag'), fc.bigInt({ min: 1n })),
-              { selector: pairKeyedEntry => pairKeyedEntry[0][0] },
+            // copyRecord
+            recoverableMap(
+              /** @type {any} */ (fc.dictionary(notThen, tie('liftedArbDag'))),
+              pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
             ),
-            pairKeyedEntries =>
-              [0, 1].map(i =>
-                makeTagged(
-                  'copyBag',
-                  pairKeyedEntries.map(([pair, value]) => [pair[i], value]),
-                ),
+            // promise
+            recoverableMap(/** @type {any} */ (tie('liftedArbDag')), pair =>
+              [0, 1].map(i => Promise.resolve(pair[i])),
+            ),
+            // arbitrary tagged (but maybe using a known tag)
+            recoverableMap(
+              /** @type {any} */ (
+                fc.tuple(
+                  fc.oneof(
+                    arbString,
+                    fc.constantFrom('copySet', 'copyBag', 'copyMap'),
+                  ),
+                  tie('liftedArbDag'),
+                )
               ),
-          ),
-          // copyMap: a `{ keys: Passable[], values: Passable[] }` record in which keys are unique and both arrays have the same length
-          // TODO: A valid copyMap payload must be a reverse sorted array.
-          recoverableMap(
-            fc.uniqueArray(fc.tuple(tie('liftedKeyDag'), tie('liftedArbDag')), {
-              selector: pairKeyedEntry => pairKeyedEntry[0][0],
-            }),
-            pairKeyedEntries =>
-              [0, 1].map(i =>
-                makeTagged(
-                  'copyMap',
-                  pairKeyedEntries.map(([keyPair, valuePair]) => [
-                    keyPair[i],
-                    valuePair[i],
-                  ]),
-                ),
+              ([tag, payloadPair]) =>
+                [0, 1].map(i => makeTagged(tag, payloadPair[i])),
+            ),
+            // copySet: an array of unique Passables
+            // TODO: A valid copySet payload must be a reverse sorted array.
+            recoverableMap(
+              /** @type {any} */ (
+                fc.uniqueArray(tie('liftedKeyDag'), {
+                  selector: pair => pair[0],
+                })
               ),
-          ),
+              pairsArr =>
+                [0, 1].map(i =>
+                  makeTagged(
+                    'copySet',
+                    pairsArr.map(pair => pair[i]),
+                  ),
+                ),
+            ),
+            // copyBag: an array of [Passable, count] tuples in which each Passable is unique
+            // TODO: A valid copyBag payload must be a reverse sorted array.
+            recoverableMap(
+              /** @type {any} */ (
+                fc.uniqueArray(
+                  fc.tuple(tie('liftedKeyDag'), fc.bigInt({ min: 1n })),
+                  { selector: pairKeyedEntry => pairKeyedEntry[0][0] },
+                )
+              ),
+              pairKeyedEntries =>
+                [0, 1].map(i =>
+                  makeTagged(
+                    'copyBag',
+                    pairKeyedEntries.map(([pair, value]) => [pair[i], value]),
+                  ),
+                ),
+            ),
+            // copyMap: a `{ keys: Passable[], values: Passable[] }` record in which keys are unique and both arrays have the same length
+            // TODO: A valid copyMap payload must be a reverse sorted array.
+            recoverableMap(
+              /** @type {any} */ (
+                fc.uniqueArray(
+                  fc.tuple(tie('liftedKeyDag'), tie('liftedArbDag')),
+                  {
+                    selector: pairKeyedEntry => pairKeyedEntry[0][0],
+                  },
+                )
+              ),
+              pairKeyedEntries =>
+                [0, 1].map(i =>
+                  makeTagged(
+                    'copyMap',
+                    pairKeyedEntries.map(([keyPair, valuePair]) => [
+                      keyPair[i],
+                      valuePair[i],
+                    ]),
+                  ),
+                ),
+            ),
+          )
         ),
         ([specimen, liftedParts]) =>
           /** @type {any} */ ([specimen, liftedParts]),
