@@ -32,9 +32,7 @@ const { arbKey, arbLiftedPassable: arbPassableAndPattern } = makeArbitraries(
       try {
         const matchKind = shouldMakeMatcher ? kindOf(harden(x)) : undefined;
         if (matchKind) return M.kind(matchKind);
-      } catch (_err) {
-        // eslint-disable-next-line no-empty
-      }
+      } catch (_err) {}
       return patt;
     },
   },
