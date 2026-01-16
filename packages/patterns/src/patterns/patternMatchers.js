@@ -30,6 +30,7 @@ import {
   recordValues,
   qp,
 } from '@endo/marshal';
+import { memoize } from '@endo/memoize';
 
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
 import {
@@ -58,6 +59,16 @@ import { generateCollectionPairEntries } from '../keys/keycollection-operators.j
 
 const { entries, values, hasOwn } = Object;
 const { ownKeys } = Reflect;
+
+const provideEncodePassableMetadata = memoize(
+  /** @param {KeyToDBKey} encodePassable */
+  encodePassable => {
+    const staticRanks = provideStaticRanks(encodePassable);
+    const [encodingPrefix] = staticRanks['*'].cover;
+    const encodingPrefixLength = encodingPrefix.length;
+    return { staticRanks, encodingPrefix, encodingPrefixLength };
+  },
+);
 
 /** @type {WeakSet<Pattern>} */
 const patternMemo = new WeakSet();
@@ -648,16 +659,11 @@ const makePatternKit = () => {
   const getPassStyleCover = (passStyle, encodePassable) =>
     provideStaticRanks(encodePassable)[passStyle].cover;
 
-  /** @type {(encodePassable: KeyToDBKey) => number} */
-  const getEncodingPrefixLength = encodePassable => {
-    const [encodingPrefix] = provideStaticRanks(encodePassable)['*'].cover;
-    return encodingPrefix.length;
-  };
-
   /** @type {GetRankCover} */
   const getRankCover = (patt, encodePassable) => {
     // This partially validates encodePassable.
-    provideStaticRanks(encodePassable);
+    const { encodingPrefixLength: epLen } =
+      provideEncodePassableMetadata(encodePassable);
 
     if (isKey(patt)) {
       const encoded = encodePassable(patt);
@@ -676,7 +682,6 @@ const makePatternKit = () => {
           Fail`internal: all-Key copyArray ${q(patt)} must itself be a Key`;
         // Discover the prefix that will start both bounds by encoding a
         // CopyArray consisting of those Keys followed by a null sentinel element.
-        const epLen = getEncodingPrefixLength(encodePassable);
         const sentinel = null;
         const embeddedSentinel = encodePassable(sentinel).slice(epLen);
         const keyArr = harden([...patt.slice(0, nonKeyIdx), sentinel]);
@@ -931,11 +936,28 @@ const makePatternKit = () => {
       (reject &&
         reject`match:kind: payload: ${allegedKeyKind} - A kind name must be a string`),
 
-    getRankCover: (kind, encodePassable) =>
-      getPassStyleCover(
-        kind === 'copySet' || kind === 'copyMap' ? 'tagged' : kind,
-        encodePassable,
-      ),
+    getRankCover: (kind, encodePassable) => {
+      const { staticRanks } = provideEncodePassableMetadata(encodePassable);
+
+      // If `kind` is a pass style, that defines the covering range.
+      const passStyleCover = kind !== '*' ? staticRanks[kind]?.cover : null;
+      if (passStyleCover) return passStyleCover;
+
+      // If `kind` is a known {@link Kind}, *that* defines the covering range.
+      // XXX We really need a registry of known tags to avoid such hard-coding.
+      if (
+        kind === 'copySet' ||
+        kind === 'copyBag' ||
+        kind === 'copyMap' ||
+        kind.startsWith('match:') ||
+        kind.startsWith('guard:')
+      ) {
+        return staticRanks.tagged.cover;
+      }
+
+      // To support future evolution, assume `kind` is an unknown pass style.
+      return staticRanks['*'].cover;
+    },
   });
 
   /** @type {MatchHelper} */

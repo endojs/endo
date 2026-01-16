@@ -1065,6 +1065,7 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/memoize": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"

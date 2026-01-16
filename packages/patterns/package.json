@@ -38,6 +38,7 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/marshal": "workspace:^",
+    "@endo/memoize": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },
