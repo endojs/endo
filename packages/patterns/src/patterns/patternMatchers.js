@@ -696,7 +696,8 @@ const makePatternKit = () => {
       case 'copyArray': {
         // The fallback below would cover all CopyArrays, but we can do better
         // by leveraging a run of initial Keys.
-        const nonKeyIdx = patt.findIndex(v => !isKey(v));
+        const patterns = /** @type {CopyArray<Passable>} */ (patt);
+        const nonKeyIdx = patterns.findIndex(v => !isKey(v));
         nonKeyIdx !== -1 ||
           Fail`internal: all-Key copyArray ${q(patt)} must itself be a Key`;
         // Discover the prefix that will start both bounds by encoding a
@@ -704,13 +705,15 @@ const makePatternKit = () => {
         const epLen = getEncodingPrefixLength(encodePassable);
         const sentinel = null;
         const embeddedSentinel = encodePassable(sentinel).slice(epLen);
-        const keyArr = harden([...patt.slice(0, nonKeyIdx), sentinel]);
+        const keyArr = harden(
+          /** @type {Key[]} */ ([...patterns.slice(0, nonKeyIdx), sentinel]),
+        );
         const encodedKeyArr = encodePassable(keyArr);
         const prefixLength = encodedKeyArr.lastIndexOf(embeddedSentinel);
         const prefix = encodedKeyArr.slice(0, prefixLength);
         // Combine that prefix with the RankCover of the first non-Key element.
         const [lowerSuffix, upperSuffix] = getRankCover(
-          patt[nonKeyIdx],
+          patterns[nonKeyIdx],
           encodePassable,
         );
         return [
