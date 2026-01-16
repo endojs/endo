@@ -64,7 +64,14 @@ const provideEncodePassableMetadata = memoize(
     const staticRanks = provideStaticRanks(encodePassable);
     const [encodingPrefix] = staticRanks['*'].cover;
     const encodingPrefixLength = encodingPrefix.length;
-    return { staticRanks, encodingPrefix, encodingPrefixLength };
+    const inner = harden(['inner']);
+    const outer = harden(['outer', [inner]]);
+    const innerEncoded = encodePassable(inner);
+    const outerEncoded = encodePassable(outer);
+    const isEmbeddable = outerEncoded.includes(
+      innerEncoded.slice(encodingPrefixLength),
+    );
+    return { staticRanks, encodingPrefix, encodingPrefixLength, isEmbeddable };
   },
 );
 
@@ -660,7 +667,7 @@ const makePatternKit = () => {
   /** @type {GetRankCover} */
   const getRankCover = (patt, encodePassable) => {
     // This partially validates encodePassable.
-    const { encodingPrefixLength: epLen } =
+    const { encodingPrefixLength: epLen, isEmbeddable } =
       provideEncodePassableMetadata(encodePassable);
 
     if (isKey(patt)) {
@@ -678,6 +685,8 @@ const makePatternKit = () => {
         const nonKeyIdx = patt.findIndex(v => !isKey(v));
         nonKeyIdx !== -1 ||
           Fail`internal: all-Key copyArray ${q(patt)} must itself be a Key`;
+        if (!isEmbeddable && nonKeyIdx === 0) break;
+
         // Discover the prefix that will start both bounds by encoding a
         // CopyArray consisting of those Keys followed by a null sentinel element.
         const sentinel = null;
@@ -686,7 +695,12 @@ const makePatternKit = () => {
         const encodedKeyArr = encodePassable(keyArr);
         const prefixLength = encodedKeyArr.lastIndexOf(embeddedSentinel);
         const prefix = encodedKeyArr.slice(0, prefixLength);
-        // Combine that prefix with the RankCover of the first non-Key element.
+
+        // If encodePassable is not embeddable, just use the key elements.
+        if (!isEmbeddable) return [`${prefix}`, `${prefix}~`];
+
+        // Otherwise, combine that prefix with the RankCover of the first
+        // non-Key element for even tighter bounds.
         const [lowerSuffix, upperSuffix] = getRankCover(
           patt[nonKeyIdx],
           encodePassable,
