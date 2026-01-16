@@ -78,6 +78,7 @@ let MM;
  * Exported primarily for testing.
  */
 export const defaultLimits = harden({
+  __proto__: null,
   decimalDigitsLimit: 100,
   stringLengthLimit: 100_000,
   symbolNameLengthLimit: 100,
@@ -1918,6 +1919,8 @@ const makePatternKit = () => {
 
   /** @type {Record<string, MatchHelper<any>>} */
   const HelpersByMatchTag = harden({
+    __proto__: null,
+
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
     'match:or': matchOrHelper,
@@ -2411,6 +2414,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
 };
 
 const GuardPayloadShapes = harden({
+  __proto__: null,
   'guard:awaitArgGuard': AwaitArgGuardPayloadShape,
   'guard:rawGuard': RawGuardPayloadShape,
   'guard:methodGuard': MethodGuardPayloadShape,
