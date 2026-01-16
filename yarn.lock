@@ -710,6 +710,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/memoize": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
