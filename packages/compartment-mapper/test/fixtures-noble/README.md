@@ -1,0 +1,1 @@
+This is a narrowed-down copy of actual noble hashes package to capture an issue in loading it from cjs.
