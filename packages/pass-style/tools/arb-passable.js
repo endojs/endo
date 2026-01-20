@@ -94,9 +94,9 @@ export const makeArbitraries = (
       () => !excludePassStyles.includes('byteArray'),
     ),
     fc.constantFrom(-0, NaN, Infinity, -Infinity),
-    // This was producing null-prototype objects:
-    // fc.record({}),
-    fc.constant(undefined).map(() => ({})),
+    /** @type {Arbitrary<Record<string, Key>>} */ (
+      fc.record({}, { noNullPrototype: true })
+    ),
     fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
   ];
 
