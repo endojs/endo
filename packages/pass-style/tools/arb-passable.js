@@ -13,6 +13,9 @@ import { nameForPassableSymbol, passableSymbolForName } from '../src/symbol.js';
 // @ts-expect-error circular dependencies are fine in tools/.
 /** @import { Key } from '@endo/patterns'; */
 
+/** Avoid wasting time on overly large data structures. */
+const maxLength = 100;
+
 /** @type ((reason: string) => never) */
 const reject = reason => {
   throw Error(reason);
@@ -156,12 +159,16 @@ export const makeArbitraries = (
           fc.oneof(
             // copyArray
             recoverableMap(
-              /** @type {any} */ (fc.array(tie('liftedKeyDag'))),
+              /** @type {any} */ (fc.array(tie('liftedKeyDag'), { maxLength })),
               pairsArr => [0, 1].map(i => pairsArr.map(pair => pair[i])),
             ),
             // copyRecord
             recoverableMap(
-              /** @type {any} */ (fc.dictionary(notThen, tie('liftedKeyDag'))),
+              /** @type {any} */ (
+                fc.dictionary(notThen, tie('liftedKeyDag'), {
+                  maxKeys: maxLength,
+                })
+              ),
               pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
             ),
           )
@@ -181,12 +188,16 @@ export const makeArbitraries = (
           fc.oneof(
             // copyArray
             recoverableMap(
-              /** @type {any} */ (fc.array(tie('liftedArbDag'))),
+              /** @type {any} */ (fc.array(tie('liftedArbDag'), { maxLength })),
               pairsArr => [0, 1].map(i => pairsArr.map(pair => pair[i])),
             ),
             // copyRecord
             recoverableMap(
-              /** @type {any} */ (fc.dictionary(notThen, tie('liftedArbDag'))),
+              /** @type {any} */ (
+                fc.dictionary(notThen, tie('liftedArbDag'), {
+                  maxKeys: maxLength,
+                })
+              ),
               pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
             ),
             // promise
@@ -212,6 +223,7 @@ export const makeArbitraries = (
             recoverableMap(
               /** @type {any} */ (
                 fc.uniqueArray(tie('liftedKeyDag'), {
+                  maxLength,
                   selector: pair => pair[0],
                 })
               ),
@@ -229,7 +241,10 @@ export const makeArbitraries = (
               /** @type {any} */ (
                 fc.uniqueArray(
                   fc.tuple(tie('liftedKeyDag'), fc.bigInt({ min: 1n })),
-                  { selector: pairKeyedEntry => pairKeyedEntry[0][0] },
+                  {
+                    maxLength,
+                    selector: pairKeyedEntry => pairKeyedEntry[0][0],
+                  },
                 )
               ),
               pairKeyedEntries =>
@@ -247,6 +262,7 @@ export const makeArbitraries = (
                 fc.uniqueArray(
                   fc.tuple(tie('liftedKeyDag'), tie('liftedArbDag')),
                   {
+                    maxLength,
                     selector: pairKeyedEntry => pairKeyedEntry[0][0],
                   },
                 )
@@ -271,11 +287,13 @@ export const makeArbitraries = (
   }));
   /**
    * @typedef {{
-   *    liftedKeyDag: Arbitrary<LiftedPair<Key, Lifted>>,
-   *    liftedArbDag: Arbitrary<LiftedPair<Passable, Lifted>>,
-   *  }} Recursives
+   *   liftedKeyDag: Arbitrary<LiftedPair<Key, Lifted>>,
+   *   liftedArbDag: Arbitrary<LiftedPair<Passable, Lifted>>,
+   * }} LiftedRecord
    */
-  const { liftedKeyDag, liftedArbDag } = /** @type {Recursives} */ (recursives);
+  const { liftedKeyDag, liftedArbDag } = /** @type {LiftedRecord} */ (
+    recursives
+  );
 
   /**
    * A factory for arbitrary [unliftedKey, liftedKey] pairs.
