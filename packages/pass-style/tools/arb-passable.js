@@ -11,6 +11,9 @@ import { nameForPassableSymbol, passableSymbolForName } from '../src/symbol.js';
  * @import { Passable, CopyTagged } from '../src/types.js';
  */
 
+/** Avoid wasting time on overly large data structures. */
+const maxLength = 100;
+
 /** @type ((reason: string) => never) */
 const reject = reason => {
   throw Error(reason);
@@ -148,12 +151,13 @@ export const makeArbitraries = (
       withLiftingDetail(
         fc.oneof(
           // copyArray
-          recoverableMap(fc.array(tie('liftedKeyDag')), pairsArr =>
-            [0, 1].map(i => pairsArr.map(pair => pair[i])),
+          recoverableMap(
+            fc.array(tie('liftedKeyDag'), { maxLength }),
+            pairsArr => [0, 1].map(i => pairsArr.map(pair => pair[i])),
           ),
           // copyRecord
           recoverableMap(
-            fc.dictionary(notThen, tie('liftedKeyDag')),
+            fc.dictionary(notThen, tie('liftedKeyDag'), { maxKeys: maxLength }),
             pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
           ),
         ),
@@ -170,12 +174,13 @@ export const makeArbitraries = (
       withLiftingDetail(
         fc.oneof(
           // copyArray
-          recoverableMap(fc.array(tie('liftedArbDag')), pairsArr =>
-            [0, 1].map(i => pairsArr.map(pair => pair[i])),
+          recoverableMap(
+            fc.array(tie('liftedArbDag'), { maxLength }),
+            pairsArr => [0, 1].map(i => pairsArr.map(pair => pair[i])),
           ),
           // copyRecord
           recoverableMap(
-            fc.dictionary(notThen, tie('liftedArbDag')),
+            fc.dictionary(notThen, tie('liftedArbDag'), { maxKeys: maxLength }),
             pairsRec => [0, 1].map(i => objectMap(pairsRec, p => p[i])),
           ),
           // promise
@@ -198,6 +203,7 @@ export const makeArbitraries = (
           // TODO: A valid copySet payload must be a reverse sorted array.
           recoverableMap(
             fc.uniqueArray(tie('liftedKeyDag'), {
+              maxLength,
               selector: pair => pair[0],
             }),
             pairsArr =>
@@ -213,7 +219,7 @@ export const makeArbitraries = (
           recoverableMap(
             fc.uniqueArray(
               fc.tuple(tie('liftedKeyDag'), fc.bigInt({ min: 1n })),
-              { selector: pairKeyedEntry => pairKeyedEntry[0][0] },
+              { maxLength, selector: pairKeyedEntry => pairKeyedEntry[0][0] },
             ),
             pairKeyedEntries =>
               [0, 1].map(i =>
@@ -227,6 +233,7 @@ export const makeArbitraries = (
           // TODO: A valid copyMap payload must be a reverse sorted array.
           recoverableMap(
             fc.uniqueArray(fc.tuple(tie('liftedKeyDag'), tie('liftedArbDag')), {
+              maxLength,
               selector: pairKeyedEntry => pairKeyedEntry[0][0],
             }),
             pairKeyedEntries =>
