@@ -57,8 +57,9 @@ export const makeArbitraries = (
   } = {},
 ) => {
   const arbString = fc.oneof(
+    { withCrossShrink: true },
     fc.string({ unit: 'grapheme-ascii' }),
-    fc.string(),
+    fc.string({ unit: 'binary' }),
   );
   const notThen = arbString.filter(s => s !== 'then');
 
