@@ -1,4 +1,9 @@
 /**
+ * Must not escape this module.
+ */
+const encapsulatedPumpkin = harden({});
+
+/**
  * Given a one-argument function `fn` or a WeakMap-key compatible
  * argument `arg`, returns `memoFn`, a memoizing form of that function
  * that will only call `fn(arg)` for a given `arg` the first time.
@@ -17,9 +22,23 @@ export const memoize = fn => {
   const memo = new WeakMap();
   const memoFn = arg => {
     if (memo.has(arg)) {
-      return memo.get(arg);
+      const memoedResult = memo.get(arg);
+      if (Object.is(memoedResult, encapsulatedPumpkin)) {
+        throw new TypeError('no recursion through memoization with same arg');
+      }
+      return memoedResult;
     }
-    const result = fn(arg);
+    // This both prevents recursion through memoization,
+    // and errors early on a non-weak-key-compat arg, rather than calling `fn`.
+    memo.set(arg, encapsulatedPumpkin);
+    let result;
+    try {
+      result = fn(arg);
+    } catch (e) {
+      // if `fn` throws, clear the recursion protection on the way out.
+      memo.delete(arg);
+      throw e;
+    }
     memo.set(arg, result);
     return result;
   };
