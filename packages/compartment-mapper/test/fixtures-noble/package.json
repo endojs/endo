@@ -4,6 +4,6 @@
   "description": "Example using @noble/hashes for cryptographic hashing",
   "main": "index.js",
   "dependencies": {
-    "@noble/hashes": "^1.3.3"
+    "@noble/hashes": "1.3.3"
   }
 }
