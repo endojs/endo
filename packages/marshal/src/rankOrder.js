@@ -159,7 +159,8 @@ harden(passStyleRanks);
  *
  * @param {PassStyle} passStyle
  * @returns {RankCover}
- * @deprecated Coverage depends upon format; use provideStaticRanks instead.
+ * @deprecated Coverage depends upon format; use {@link provideStaticRanks}
+ *   instead.
  */
 export const getPassStyleCover = passStyle => passStyleRanks[passStyle].cover;
 harden(getPassStyleCover);
