@@ -127,10 +127,10 @@ testAcrossFormats(
     await fc.assert(
       fc.property(
         arbKey,
-        fc.array(arbPassable).filter(x => !isKey(harden(x))),
+        fc.array(arbPassable, { minLength: 1 }).filter(x => !isKey(harden(x))),
         fc.array(arbPassable),
-        (first, rest, other) => {
-          const cover = getRankCover(harden([first, ...rest]), encodePassable);
+        (key, rest, other) => {
+          const cover = getRankCover(harden([key, ...rest]), encodePassable);
           t.true(
             isInteriorRange(cover, coverAnyCopyArray),
             `leading-Key CopyArray coverage is a subset of any-CopyArray coverage: ${q(cover)} ⊆ ${q(coverAnyCopyArray)}`,
