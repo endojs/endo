@@ -132,3 +132,12 @@ test('evadeCensor() - actual evasions in ESM + elide', async t => {
 
   t.snapshot(code);
 });
+
+test('evadeCensor() - noCodeTransforms skips string and code evasions', async t => {
+  const { code } = evadeCensorSync(evadeThat, {
+    sourceType: 'module',
+    noCodeTransforms: true,
+  });
+
+  t.snapshot(code);
+});

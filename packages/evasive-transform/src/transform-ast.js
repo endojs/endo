@@ -35,7 +35,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @internal
  * @typedef TransformAstOptionsWithoutSourceMap
  * @property {boolean} [elideComments]
- * @property {boolean} [noStringTransform]
+ * @property {boolean} [noCodeTransforms]
  */
 
 /**
@@ -50,7 +50,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  */
 export function transformAst(
   ast,
-  { elideComments = false, noStringTransform = false } = {},
+  { elideComments = false, noCodeTransforms = false } = {},
 ) {
   const transformComment = elideComments ? elideComment : evadeComment;
   traverse(ast, {
@@ -67,16 +67,16 @@ export function transformAst(
       }
       (innerComments || []).forEach(node => transformComment(node));
       (trailingComments || []).forEach(node => transformComment(node));
-      if (!noStringTransform) {
+      if (!noCodeTransforms) {
         evadeStrings(p);
         evadeTemplates(p);
+        
+        // Prevent `-->` from appearing in output (HTML comment end marker)
+        evadeDecrementGreater(p);
+        
+        // evade import ( in RegExp literals
+        evadeRegexpLiteral(p);
       }
-
-      // Prevent `-->` from appearing in output (HTML comment end marker)
-      evadeDecrementGreater(p);
-
-      // evade import ( in RegExp literals
-      evadeRegexpLiteral(p);
     },
   });
 }
