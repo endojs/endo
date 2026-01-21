@@ -110,6 +110,7 @@ const evadeThat = `
         await import('some-module');
     \`;
 
+    const re = /import (.*)/g;
     
     import("some-module");
     if (a--> b) {}
@@ -117,7 +118,6 @@ const evadeThat = `
 
 test('evadeCensor() - actual evasions in ESM', async t => {
   const { code } = evadeCensorSync(evadeThat, {
-    preventHtmlCommentRegression: true,
     sourceType: 'module',
   });
 
@@ -126,7 +126,6 @@ test('evadeCensor() - actual evasions in ESM', async t => {
 
 test('evadeCensor() - actual evasions in ESM + elide', async t => {
   const { code } = evadeCensorSync(evadeThat, {
-    preventHtmlCommentRegression: true,
     sourceType: 'module',
     elideComments: true,
   });

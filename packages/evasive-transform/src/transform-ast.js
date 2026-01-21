@@ -6,7 +6,12 @@
 
 import babelTraverse from '@babel/traverse';
 import { evadeComment, elideComment } from './transform-comment.js';
-import { evadeStrings, evadeTemplates } from './transform-strings.js';
+import {
+  evadeStrings,
+  evadeTemplates,
+  evadeDecrementGreater,
+  evadeRegexpLiteral,
+} from './transform-code.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
 // `node -r esm`, we must use the pattern below.
@@ -66,6 +71,12 @@ export function transformAst(
         evadeStrings(p);
         evadeTemplates(p);
       }
+
+      // Prevent `-->` from appearing in output (HTML comment end marker)
+      evadeDecrementGreater(p);
+
+      // evade import ( in RegExp literals
+      evadeRegexpLiteral(p);
     },
   });
 }

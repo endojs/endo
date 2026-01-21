@@ -1,4 +1,5 @@
 const evadeRegexp = /import\s*\(|<!--|-->/g;
+const importRegexp = /import(\s*\()/g;
 
 /**
  * Creates a BinaryExpression adding two expressions
@@ -168,4 +169,47 @@ export const evadeTemplates = p => {
     quasis: newQuasis,
     expressions: newExpressions,
   });
+};
+
+/**
+ * Transforms RegExp literals containing "import" to use a character class
+ * to break the pattern detection.
+ *
+ * `/import(/` -> `/im[p]ort(/`
+ *
+ * @param {import('@babel/traverse').NodePath} p
+ * @returns {void}
+ */
+export const evadeRegexpLiteral = p => {
+  if (p.node.type !== 'RegExpLiteral') {
+    return;
+  }
+  /** @type {import('@babel/types').RegExpLiteral} */
+  const node = p.node;
+  const { pattern } = node;
+
+  if (importRegexp.test(pattern)) {
+    importRegexp.lastIndex = 0;
+    node.pattern = pattern.replace(importRegexp, 'im[p]ort$1');
+  }
+};
+
+/**
+ * Prevents `-->` from appearing in output by adding 
+ * an empty block comment to force spacing.
+ *
+ * @param {import('@babel/traverse').NodePath} p
+ * @returns {void}
+ */
+export const evadeDecrementGreater = p => {
+  if (
+    p.node.type === 'BinaryExpression' &&
+    p.node.operator === '>' &&
+    p.node.left.type === 'UpdateExpression' &&
+    p.node.left.operator === '--' &&
+    !p.node.left.trailingComments?.length
+  ) {
+    // Add an empty block comment to force a space between -- and >
+    p.node.left.trailingComments = [{ type: 'CommentBlock', value: '' }];
+  }
 };
