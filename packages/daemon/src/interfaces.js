@@ -34,6 +34,17 @@ const MakeCapletOptionsShape = M.splitRecord(
   { powersName: NameShape, resultName: NameOrPathShape, env: EnvShape },
 );
 
+// Shared method guard for evaluate (used by both Host and Guest)
+// Host.evaluate executes directly; Guest.evaluate sends an eval-proposal
+const EvaluateMethodGuard = M.call(
+  M.or(NameShape, M.undefined()),
+  M.string(),
+  M.arrayOf(M.string()),
+  NamesOrPathsShape,
+)
+  .optional(NamePathShape)
+  .returns(M.promise());
+
 // #region Interfaces
 
 export const WorkerInterface = M.interface('EndoWorker', {});
@@ -136,9 +147,12 @@ export const GuestInterface = M.interface('EndoGuest', {
     .optional(NameOrPathShape)
     .returns(M.promise()),
   // Send a package message
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
     M.string(),                    // source
@@ -148,6 +162,8 @@ export const GuestInterface = M.interface('EndoGuest', {
     .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
+  // Propose code evaluation to host (same signature as Host.evaluate)
+  evaluate: EvaluateMethodGuard,
 });
 
 export const HostInterface = M.interface('EndoHost', {
@@ -183,9 +199,12 @@ export const HostInterface = M.interface('EndoHost', {
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
@@ -193,36 +212,19 @@ export const HostInterface = M.interface('EndoHost', {
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a host
-  provideHost: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NamePathShape).returns(M.promise()),
-  // Evaluate code
-  evaluate: M.call(
-    M.or(NameShape, M.undefined()),
-    M.string(),
-    M.arrayOf(M.string()),
-    NamesOrPathsShape,
-  )
-    .optional(NamePathShape)
-    .returns(M.promise()),
+  // Evaluate code (Host executes directly; Guest sends eval-proposal)
+  evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
-  makeUnconfined: M.call(
-    M.or(NameShape, M.undefined()),
-    M.string(),
-  )
+  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string())
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a bundle caplet
-  makeBundle: M.call(
-    M.or(NameShape, M.undefined()),
-    NameShape,
-  )
+  makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Cancel a value
@@ -242,6 +244,17 @@ export const HostInterface = M.interface('EndoHost', {
   // Approve a sandboxed evaluation request
   approveEvaluation: M.call(MessageNumberShape)
     .optional(M.or(NameShape, M.undefined()))
+    .returns(M.promise()),
+  // Grant an eval-proposal (execute the proposed code)
+  grantEvaluate: M.call(MessageNumberShape).returns(M.promise()),
+  // Send a counter-proposal back to the proposer
+  counterEvaluate: M.call(
+    MessageNumberShape,
+    M.string(),
+    M.arrayOf(M.string()),
+    NamesOrPathsShape,
+  )
+    .optional(M.or(NameShape, M.undefined()), NamePathShape)
     .returns(M.promise()),
 });
 
@@ -286,7 +299,9 @@ export const WorkerFacetForDaemonInterface = M.interface(
     ).returns(M.promise()),
     // These methods receive promises that get resolved inside the worker
     // Args: (readableP, powersP, contextP, env)
-    makeBundle: M.call(M.any(), M.any(), M.any(), EnvShape).returns(M.promise()),
+    makeBundle: M.call(M.any(), M.any(), M.any(), EnvShape).returns(
+      M.promise(),
+    ),
     // Args: (specifier, powersP, contextP, env)
     makeUnconfined: M.call(M.string(), M.any(), M.any(), EnvShape).returns(
       M.promise(),

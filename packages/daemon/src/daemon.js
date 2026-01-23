@@ -508,7 +508,13 @@ const makeDaemonCore = async (
    * @param {Record<string, string>} env
    * @param {Context} context
    */
-  const makeUnconfined = async (workerId, powersId, specifier, env, context) => {
+  const makeUnconfined = async (
+    workerId,
+    powersId,
+    specifier,
+    env,
+    context,
+  ) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -1212,7 +1218,12 @@ const makeDaemonCore = async (
     eval: ({ worker, source, names, values }, context) =>
       makeEval(worker, source, names, values, context),
     'readable-blob': ({ content }) => makeReadableBlob(content),
-    lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
+    lookup: ({ hub, path }, context) =>
+      makeLookup(
+        hub,
+        /** @type {import('./types.js').NamePath} */ (path),
+        context,
+      ),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
     'make-unconfined': (
@@ -1441,7 +1452,12 @@ const makeDaemonCore = async (
     ) =>
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      makeInvitation(id, hostAgentId, hostHandleId, guestName),
+      makeInvitation(
+        id,
+        hostAgentId,
+        hostHandleId,
+        /** @type {import('./types.js').PetName} */ (guestName),
+      ),
   };
 
   /**
@@ -2467,10 +2483,10 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {FormulaIdentifier} id
-   * @param {FormulaIdentifier} hostAgentId
-   * @param {FormulaIdentifier} hostHandleId
-   * @param {PetName} guestName
+   * @param {string} id
+   * @param {string} hostAgentId
+   * @param {string} hostHandleId
+   * @param {import('./types.js').PetName} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
     const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));

@@ -1,16 +1,14 @@
 // @ts-check
 
+import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
+import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
-import {
-  guestHelp,
-  directoryHelp,
-  mailHelp,
-  makeHelp,
-} from './help-text.js';
+import { namePathFrom } from './pet-name.js';
+import { guestHelp, directoryHelp, mailHelp, makeHelp } from './help-text.js';
 
-/** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
+/** @import { Context, EdgeName, EndoGuest, MakeDirectoryNode, MakeMailbox, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 
 /**
@@ -97,6 +95,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       send,
       requestEvaluation: mailboxRequestEvaluation,
       deliver,
+      evaluate: mailboxEvaluate,
     } = mailbox;
 
     /**
@@ -109,6 +108,67 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
      */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
       mailboxRequestEvaluation('HOST', source, codeNames, petNamePaths, resultName);
+
+    /**
+     * Propose code evaluation to the host.
+     * Same signature as Host.evaluate() - returns promise that resolves when Host grants.
+     * @param {Name | undefined} workerPetName
+     * @param {string} source
+     * @param {Array<string>} codeNames
+     * @param {NamesOrPaths} petNamesOrPaths
+     * @param {NameOrPath} [resultNameOrPath]
+     * @returns {Promise<unknown>} - Resolves with evaluation result when Host grants
+     */
+    const evaluate = async (
+      workerPetName,
+      source,
+      codeNames,
+      petNamesOrPaths,
+      resultNameOrPath,
+    ) => {
+      const petNamePaths = petNamesOrPaths.map(namePathFrom);
+      if (petNamePaths.length !== codeNames.length) {
+        throw new Error(
+          `Evaluation must have the same number of code names (${q(
+            codeNames.length,
+          )}) as pet names (${q(petNamePaths.length)})`,
+        );
+      }
+
+      // Resolve all pet names to formula IDs from guest's namespace
+      const ids = await Promise.all(
+        petNamePaths.map(async petNamePath => {
+          const id = await E(directory).identify(...petNamePath);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNamePath)}`);
+          }
+          return id;
+        }),
+      );
+
+      // Create edge names from the pet names (for display in the proposal)
+      const edgeNames = /** @type {EdgeName[]} */ (
+        petNamePaths.map(path => (Array.isArray(path) ? path.join('.') : path))
+      );
+
+      // Get optional result name and worker name as strings
+      const resultName = resultNameOrPath
+        ? namePathFrom(resultNameOrPath).join('.')
+        : undefined;
+      const workerName = workerPetName || undefined;
+
+      // Send proposal to host and wait for grant
+      return mailboxEvaluate(
+        hostHandleId,
+        source,
+        codeNames,
+        edgeNames,
+        ids,
+        workerName,
+        resultName,
+      );
+    };
+
 
     /** @type {EndoGuest} */
     const guest = {
@@ -141,6 +201,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       send,
       requestEvaluation,
       deliver,
+      // Guest-specific: propose evaluation to host
+      evaluate,
     };
 
     const help = makeHelp(guestHelp, [directoryHelp, mailHelp]);

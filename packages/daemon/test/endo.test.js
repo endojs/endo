@@ -2085,7 +2085,13 @@ test('resolve with pet name path', async t => {
   // Create a directory and put a value in it
   await E(host).makeDirectory(['responses']);
   await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '"the response"', [], [], ['responses', 'resp']);
+  await E(host).evaluate(
+    'worker',
+    '"the response"',
+    [],
+    [],
+    ['responses', 'resp'],
+  );
 
   // Create a guest and have it make a request
   const guest = E(host).provideGuest('guest');
@@ -2113,7 +2119,10 @@ test('request with pet name path for response storage', async t => {
 
   // Have the guest make a request, storing response in a path within guest's directory
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'give me something', ['responses', 'result']);
+  E.sendOnly(guest).request('HOST', 'give me something', [
+    'responses',
+    'result',
+  ]);
 
   // Host receives and resolves the request
   const { value: message } = await E(iteratorRef).next();
@@ -2393,3 +2402,92 @@ test('makeBundle without env option defaults to empty env', async t => {
   const allEnv = await E(envEcho).getEnv();
   t.deepEqual(allEnv, {});
 });
+
+// Eval-proposal tests
+
+test('guest evaluate sends eval-proposal to host', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten']);
+
+  // Share 'ten' with the guest via a message
+  await E(host).send('guest', ['Here is a value:'], ['x'], ['ten']);
+
+  // Guest adopts the value
+  const guestMessages = await E(guest).listMessages();
+  const pkg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'x', ['ten']);
+
+  // Guest initiates evaluation proposal
+  const evaluatePromise = E(guest).evaluate(
+    'worker',
+    'x + 1',
+    ['x'],
+    ['ten'],
+    ['result'],
+  );
+
+  // Wait a tick for the proposal to be delivered
+  await null;
+
+  // Host should have received the eval-proposal
+  const hostMessages = await E(host).listMessages();
+  const message = hostMessages.find(m => m.type === 'eval-proposal');
+
+  t.truthy(message, 'Host should have received eval-proposal');
+  t.is(message.type, 'eval-proposal');
+  t.is(message.source, 'x + 1');
+  t.deepEqual(message.codeNames, ['x']);
+  t.is(message.workerName, 'worker');
+  t.is(message.resultName, 'result');
+
+  // Grant the proposal
+  const result = await E(host).grantEvaluate(message.number);
+  t.is(result, 11);
+
+  // Guest's evaluate promise should resolve with the result
+  const guestResult = await evaluatePromise;
+  t.is(guestResult, 11);
+});
+
+test('host grantEvaluate executes proposed code', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).storeValue(5, 'five');
+
+  // Share 'five' with the guest
+  await E(host).send('guest', ['Here is a value:'], ['n'], ['five']);
+  const guestMessages = await E(guest).listMessages();
+  const pkg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'n', ['five']);
+
+  // Guest proposes evaluation
+  const evaluatePromise = E(guest).evaluate(
+    'worker',
+    'n * 2',
+    ['n'],
+    ['five'],
+    ['doubled'],
+  );
+
+  // Wait for proposal delivery
+  await null;
+
+  // Host grants it
+  const hostMessages = await E(host).listMessages();
+  const message = hostMessages.find(m => m.type === 'eval-proposal');
+  const result = await E(host).grantEvaluate(message.number);
+
+  t.is(result, 10);
+  t.is(await evaluatePromise, 10);
+
+  // Result should be stored under host's namespace
+  const storedResult = await E(host).lookup(['doubled']);
+  t.is(storedResult, 10);
+});
+
+// TODO: Add counterEvaluate test when Guest has grantEvaluate capability

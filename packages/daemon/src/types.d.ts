@@ -376,7 +376,19 @@ export type EvalRequest = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type Message = Request | Package | EvalRequest;
+export type EvalProposal = {
+  type: 'eval-proposal';
+  source: string; // JavaScript source code
+  codeNames: Array<string>; // variable names used in source
+  edgeNames: Array<string>; // edge names for values (sender's namespace)
+  ids: Array<string>; // formula identifiers for the values
+  workerName?: string; // worker to execute on
+  resultName?: string; // where sender wants result stored
+  responder: ERef<Responder>; // resolves with evaluation result when granted
+  settled: Promise<'fulfilled' | 'rejected'>; // tracks settlement state
+};
+
+export type Message = Request | Package | EvalRequest | EvalProposal;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -615,6 +627,35 @@ export interface Mail {
     guestHandleId: string;
   };
   deliver(message: EnvelopedMessage): Promise<void>;
+  // Eval-proposal operations:
+  evaluate(
+    toId: string,
+    source: string,
+    codeNames: Array<string>,
+    edgeNames: Array<EdgeName>,
+    ids: Array<string>,
+    workerName?: string,
+    resultName?: string,
+  ): Promise<unknown>;
+  grantEvaluate(
+    messageNumber: number,
+    executeEval: (
+      source: string,
+      codeNames: string[],
+      ids: string[],
+      workerName?: string,
+      resultName?: string,
+    ) => Promise<{ id: string; value: unknown }>,
+  ): Promise<unknown>;
+  counterEvaluate(
+    messageNumber: number,
+    source: string,
+    codeNames: Array<string>,
+    edgeNames: Array<EdgeName>,
+    ids: Array<string>,
+    workerName?: string,
+    resultName?: string,
+  ): Promise<unknown>;
 }
 
 export type MakeMailbox = (args: {
@@ -698,6 +739,14 @@ export interface EndoGuest extends EndoAgent {
     petNamePaths: NamesOrPaths,
     resultName?: NameOrPath,
   ): Promise<unknown>;
+  // Same signature as EndoHost.evaluate - returns promise that resolves when Host grants
+  evaluate(
+    workerPetName: Name | undefined,
+    source: string,
+    codeNames: Array<string>,
+    petNames: NamesOrPaths,
+    resultName?: NamePath,
+  ): Promise<unknown>;
 }
 
 export type FarEndoGuest = FarRef<EndoGuest>;
@@ -746,6 +795,15 @@ export interface EndoHost extends EndoAgent {
     messageNumber: number,
     workerName?: Name,
   ): Promise<void>;
+  grantEvaluate(messageNumber: number): Promise<unknown>;
+  counterEvaluate(
+    messageNumber: number,
+    source: string,
+    codeNames: Array<string>,
+    petNames: NamesOrPaths,
+    workerPetName?: Name,
+    resultName?: NamePath,
+  ): Promise<unknown>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -867,11 +925,13 @@ export interface WorkerDaemonFacet {
     bundle: ERef<EndoReadable>,
     powers: ERef<unknown>,
     context: ERef<FarContext>,
+    env: EnvRecord,
   ): Promise<unknown>;
   makeUnconfined(
     path: string,
     powers: ERef<unknown>,
     context: ERef<FarContext>,
+    env: EnvRecord,
   ): Promise<unknown>;
 }
 

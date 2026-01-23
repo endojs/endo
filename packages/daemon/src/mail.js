@@ -28,7 +28,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, Envelope, EnvelopedMessage, EvalRequest, FormulaIdentifier, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, Envelope, EnvelopedMessage, EvalProposal, EvalRequest, FormulaIdentifier, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
@@ -823,6 +823,190 @@ export const makeMailboxMaker = ({
 
     await loadMailboxState();
 
+    /**
+     * Send an eval-proposal to the host.
+     * This is used by guests to propose code evaluation.
+     * Returns a promise that resolves when the proposal is granted.
+     * @param {string} toId - The host handle ID
+     * @param {string} source - JavaScript source code
+     * @param {Array<string>} codeNames - Variable names used in source
+     * @param {Array<string>} edgeNames - Edge names for display
+     * @param {Array<string>} ids - Formula identifiers for the values
+     * @param {string} [workerName] - Worker to execute on
+     * @param {string} [resultName] - Where sender wants result stored
+     * @returns {Promise<unknown>} - Resolves with evaluation result when granted
+     */
+    const evaluate = async (
+      toId,
+      source,
+      codeNames,
+      edgeNames,
+      ids,
+      workerName,
+      resultName,
+    ) => {
+      const to = /** @type {Handle} */ (await provide(toId));
+
+      // Create a responder to receive the evaluation result
+      /** @type {PromiseKit<string>} */
+      const { promise: responseIdP, resolve: resolveResponseId } =
+        makePromiseKit();
+      const settled = responseIdP.then(
+        () => /** @type {const} */ ('fulfilled'),
+        () => /** @type {const} */ ('rejected'),
+      );
+      const responder = makeExo('EndoResponder', ResponderInterface, {
+        respondId: resolveResponseId,
+      });
+
+      /** @type {EvalProposal & { from: string, to: string }} */
+      const message = harden({
+        type: /** @type {const} */ ('eval-proposal'),
+        source,
+        codeNames,
+        edgeNames,
+        ids,
+        workerName,
+        resultName,
+        responder,
+        settled,
+        from: selfId,
+        to: toId,
+      });
+
+      await post(to, message);
+
+      // Wait for the response and provide the result
+      const responseId = await responseIdP;
+      return provide(responseId);
+    };
+
+    /**
+     * Grant an eval-proposal by executing the proposed code.
+     * Resolves the proposer's promise with the evaluation result.
+     * @param {number} messageNumber - The message number of the eval-proposal
+     * @param {(source: string, codeNames: string[], ids: string[], workerName?: string, resultName?: string) => Promise<{id: string, value: unknown}>} executeEval - Function to execute the evaluation
+     */
+    const grantEvaluate = async (messageNumber, executeEval) => {
+      if (
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
+      ) {
+        throw new Error(`Invalid message number ${q(messageNumber)}`);
+      }
+      const message = messages.get(BigInt(messageNumber));
+      if (message === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (message.type !== 'eval-proposal') {
+        throw new Error(
+          `Message ${q(messageNumber)} is not an eval-proposal, it is ${q(message.type)}`,
+        );
+      }
+      const proposal = /** @type {EvalProposal} */ (message);
+      const { source, codeNames, ids, workerName, resultName, responder } =
+        proposal;
+
+      // Execute the evaluation using the provided executor
+      const { id, value } = await executeEval(
+        source,
+        codeNames,
+        ids,
+        workerName,
+        resultName,
+      );
+
+      // Resolve the proposer's promise with the result ID
+      E.sendOnly(responder).respondId(id);
+
+      return value;
+    };
+
+    /**
+     * Send a counter-proposal back to the original proposer.
+     * When the counter-proposal is granted, resolves both the counter's promise
+     * and the original proposal's promise with the result.
+     * @param {number} messageNumber - The message number of the original eval-proposal
+     * @param {string} source - Modified JavaScript source code
+     * @param {Array<string>} codeNames - Variable names used in source
+     * @param {Array<string>} edgeNames - Edge names for values (counter-proposer's namespace)
+     * @param {Array<string>} ids - Formula identifiers for the values
+     * @param {string} [workerName] - Worker to execute on
+     * @param {string} [resultName] - Where to store result
+     * @returns {Promise<unknown>} - Resolves with evaluation result when counter is granted
+     */
+    const counterEvaluate = async (
+      messageNumber,
+      source,
+      codeNames,
+      edgeNames,
+      ids,
+      workerName,
+      resultName,
+    ) => {
+      if (
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
+      ) {
+        throw new Error(`Invalid message number ${q(messageNumber)}`);
+      }
+      const message = messages.get(BigInt(messageNumber));
+      if (message === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (message.type !== 'eval-proposal') {
+        throw new Error(
+          `Message ${q(messageNumber)} is not an eval-proposal, it is ${q(message.type)}`,
+        );
+      }
+      const originalProposal = /** @type {EvalProposal & { from: string }} */ (
+        message
+      );
+      const originalSenderId = originalProposal.from;
+      const originalResponder = originalProposal.responder;
+
+      // Send counter-proposal back to original sender
+      const to = /** @type {Handle} */ (await provide(originalSenderId));
+
+      // Create a responder for the counter-proposal
+      /** @type {PromiseKit<string>} */
+      const { promise: responseIdP, resolve: resolveResponseId } =
+        makePromiseKit();
+      const settled = responseIdP.then(
+        () => /** @type {const} */ ('fulfilled'),
+        () => /** @type {const} */ ('rejected'),
+      );
+      const responder = makeExo('EndoResponder', ResponderInterface, {
+        respondId: resolveResponseId,
+      });
+
+      /** @type {EvalProposal & { from: string, to: string }} */
+      const counterMessage = harden({
+        type: /** @type {const} */ ('eval-proposal'),
+        source,
+        codeNames,
+        edgeNames,
+        ids,
+        workerName,
+        resultName,
+        responder,
+        settled,
+        from: selfId,
+        to: originalSenderId,
+      });
+
+      await post(to, counterMessage);
+
+      // Wait for the counter-proposal to be granted
+      const responseId = await responseIdP;
+
+      // Resolve the original proposal's responder with the same result
+      E.sendOnly(originalResponder).respondId(responseId);
+
+      return provide(responseId);
+    };
+
+
     return harden({
       handle: () => handle,
       deliver,
@@ -837,6 +1021,9 @@ export const makeMailboxMaker = ({
       reject,
       dismiss,
       adopt,
+      evaluate,
+      grantEvaluate,
+      counterEvaluate,
     });
   };
 
