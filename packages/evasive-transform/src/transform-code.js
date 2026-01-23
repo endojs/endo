@@ -195,7 +195,7 @@ export const evadeRegexpLiteral = p => {
 };
 
 /**
- * Prevents `-->` from appearing in output by adding 
+ * Prevents `-->` from appearing in output by adding
  * an empty block comment to force spacing.
  *
  * @param {import('@babel/traverse').NodePath} p

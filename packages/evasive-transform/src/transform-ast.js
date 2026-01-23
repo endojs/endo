@@ -70,10 +70,10 @@ export function transformAst(
       if (!noCodeTransforms) {
         evadeStrings(p);
         evadeTemplates(p);
-        
+
         // Prevent `-->` from appearing in output (HTML comment end marker)
         evadeDecrementGreater(p);
-        
+
         // evade import ( in RegExp literals
         evadeRegexpLiteral(p);
       }
