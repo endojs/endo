@@ -949,11 +949,26 @@ const makePatternKit = () => {
         reject`match:kind: payload: ${allegedKeyKind} - A kind name must be a string`),
 
     getRankCover: (kind, encodePassable) => {
-      const passStyle = provideEncodePassableMetadata(encodePassable)
-        .staticRanks[kind]
-        ? kind
-        : 'tagged';
-      return getPassStyleCover(passStyle, encodePassable);
+      const { staticRanks } = provideEncodePassableMetadata(encodePassable);
+
+      // If `kind` is a pass style, that defines the covering range.
+      const passStyleCover = kind !== '*' ? staticRanks[kind]?.cover : null;
+      if (passStyleCover) return passStyleCover;
+
+      // If `kind` is a known {@link Kind}, *that* defines the covering range.
+      // XXX We really need a registry of known tags to avoid such hard-coding.
+      if (
+        kind === 'copySet' ||
+        kind === 'copyBag' ||
+        kind === 'copyMap' ||
+        kind.startsWith('match:*') ||
+        kind.startsWith('guard:')
+      ) {
+        return staticRanks.tagged.cover;
+      }
+
+      // To support future evolution, assume `kind` is an unknown pass style.
+      return staticRanks['*'].cover;
     },
   });
 
