@@ -36,18 +36,18 @@ node packages/cli/bin/endo --help
 Start, stop, and manage the Endo daemon:
 
 ```sh
-endo start      # Start the daemon
-endo stop       # Stop the daemon
-endo restart    # Restart the daemon
-endo ping       # Check if the daemon is responsive
-endo log -f     # Follow the daemon log
+endo start    # Start the daemon
+endo stop     # Stop the daemon
+endo restart  # Restart the daemon
+endo ping     # Check if the daemon is responsive
+endo log -f   # Follow the daemon log
 ```
 
 Reset state:
 
 ```sh
-endo clean      # Erase ephemeral state (logs, sockets)
-endo purge      # Erase all persistent state (requires confirmation)
+endo clean  # Erase ephemeral state (logs, sockets)
+endo purge  # Erase all persistent state (requires confirmation)
 ```
 
 ## Running Programs
@@ -56,9 +56,9 @@ Run a confined program:
 
 ```sh
 endo run program.js
-endo run program.js --powers NONE    # No special powers (default)
-endo run program.js --powers AGENT   # All of the primary user's agency
-endo run program.js --powers ENDO    # All of the power of the daemon
+endo run program.js --powers NONE   # No special powers (default)
+endo run program.js --powers AGENT  # All of the primary user's agency
+endo run program.js --powers ENDO   # All of the power of the daemon
 ```
 
 Make a persistent worker wherein programs can run:
@@ -82,23 +82,23 @@ Each agent has its own namespace of names.
 A path of names can traverse into nested namespaces.
 
 ```sh
-endo ls|list                    # List known names
-endo ls|list some-directory     # List names in a directory
-endo ls|list path.to.directory  # List names in a deeply nested directory
-endo show my-value              # Print a value
-endo cat my-blob                # Dump blob contents
-endo rm|remove old-name         # Forget a name
-endo mv|move old-name new-name  # Rename
-endo cp|copy src-name dst-name  # Duplicate a name
+endo list                    # List known names (or: endo ls)
+endo list some-directory     # List names in a directory
+endo list path.to.directory  # List names in a deeply nested directory
+endo show my-value           # Print a value
+endo cat my-blob             # Dump blob contents
+endo remove old-name         # Forget a name (or: endo rm)
+endo move old-name new-name  # Rename (or: endo mv)
+endo copy src-name dst-name  # Duplicate a name (or: endo cp)
 ```
 
 Store values:
 
 ```sh
-endo store --name my-blob --path ./file.txt   # Store a file
-endo store --name my-text --text "hello"      # Store text
-endo store --name my-data --json '{"a":1}'    # Store JSON
-echo "data" | endo store --name piped --stdin # Store from stdin
+endo store --name my-blob --path ./file.txt    # Store a file
+endo store --name my-text --text "hello"       # Store text
+endo store --name my-data --json '{"a":1}'     # Store JSON
+echo "data" | endo store --name piped --stdin  # Store from stdin
 ```
 
 Create directories for organizing names:
@@ -113,8 +113,10 @@ Evaluate JavaScript in a worker:
 
 ```sh
 endo eval '1 + 1' --name two
-endo eval 'a + b' a b --name sum   # With named values as arguments
-endo eval 'x * 2' --worker my-worker --name doubled
+endo eval 'a + b' a b --name sum  # With named values as arguments
+endo eval 'x * 2' \
+  --worker my-worker \
+  --name doubled
 ```
 
 ## Agents and Messages
@@ -127,39 +129,43 @@ People can have more than one.
 Create agents:
 
 ```sh
-endo mkhost alice           # Create a host agent (unlimited local authority)
-endo mkguest bob            # Create a guest agent (limited local authority)
+endo mkhost alice  # Create a host agent (unlimited local authority)
+endo mkguest bob   # Create a guest agent (limited authority)
 ```
 
-Send messages with embedded references:
+Send messages with embedded references (alice the host sends to bob the guest):
 
 ```sh
-endo send bob "Here is @my-value for you"
-endo send bob "Take @this-thing:your-name"  # Recipient sees it as "your-name"
+endo send bob "Here is @my-value for you" --as alice
+endo send bob "Take @this-thing:your-name" --as alice  # bob sees it as "your-name"
 ```
 
-Check inbox and handle messages:
+Check inbox and handle messages (bob the guest receives from alice):
 
 ```sh
-endo inbox                  # List received messages
-endo inbox --follow         # Follow messages as they arrive
-endo adopt 1 value-name     # Adopt a value from message #1
-endo dismiss 1              # Delete message #1
+endo inbox --as bob               # List bob's received messages
+endo inbox --follow --as bob      # Follow messages as they arrive
+endo adopt 1 value-name --as bob  # Adopt a value from message #1
+endo dismiss 1 --as bob           # Delete message #1
 ```
 
 Request and grant capabilities:
 
 ```sh
-endo request "I need access to the database" --to HOST
-endo resolve 1 database-ref  # Grant request #1 with a named value
-endo reject 1 "Not authorized"
+# bob (guest) requests a capability from alice (host)
+endo request "I need access to the database" --as bob --to alice
+
+# alice (host) reviews inbox and grants or rejects
+endo inbox --as alice                      # See bob's request
+endo resolve 1 database-ref --as alice     # Grant request #1 with a named value
+endo reject 1 "Not authorized" --as alice  # Or reject it
 ```
 
 Act as a different agent:
 
 ```sh
 endo list --as alice
-endo send bob "Hello" --as alice
+endo list --as bob
 ```
 
 ## Workers
@@ -175,11 +181,11 @@ endo spawn --name my-worker
 Find daemon-related paths:
 
 ```sh
-endo where state   # State directory
-endo where sock    # Unix socket / named pipe
-endo where log     # Log file
-endo where cache   # Cache directory
-endo where run     # PID file directory
+endo where state  # State directory
+endo where sock   # Unix socket / named pipe
+endo where log    # Log file
+endo where cache  # Cache directory
+endo where run    # PID file directory
 ```
 
 ## License
