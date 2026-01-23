@@ -81,13 +81,18 @@ const main = async () => {
    */
   const scheduleReconnect = () => {
     if (isShuttingDown) return;
-    console.error(`[Gateway] Will attempt to reconnect in ${RECONNECT_INTERVAL_MS / 1000}s...`);
+    console.error(
+      `[Gateway] Will attempt to reconnect in ${RECONNECT_INTERVAL_MS / 1000}s...`,
+    );
     setTimeout(async () => {
       if (isShuttingDown) return;
       try {
         await connectToDaemon(); // eslint-disable-line no-use-before-define
       } catch (error) {
-        console.error('[Gateway] Reconnection failed:', /** @type {Error} */ (error).message);
+        console.error(
+          '[Gateway] Reconnection failed:',
+          /** @type {Error} */ (error).message,
+        );
         scheduleReconnect();
       }
     }, RECONNECT_INTERVAL_MS);
@@ -140,9 +145,14 @@ const main = async () => {
     try {
       await connectToDaemon();
     } catch (error) {
-      console.error('[Gateway] Failed to connect to Endo daemon:', /** @type {Error} */ (error).message);
+      console.error(
+        '[Gateway] Failed to connect to Endo daemon:',
+        /** @type {Error} */ (error).message,
+      );
       console.error('[Gateway] Is the daemon running? Try: endo start');
-      console.error(`[Gateway] Retrying in ${RECONNECT_INTERVAL_MS / 1000}s...`);
+      console.error(
+        `[Gateway] Retrying in ${RECONNECT_INTERVAL_MS / 1000}s...`,
+      );
       await new Promise(resolve => setTimeout(resolve, RECONNECT_INTERVAL_MS));
     }
   }

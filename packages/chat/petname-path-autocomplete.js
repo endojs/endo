@@ -117,7 +117,8 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
 
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
-    $hint.innerHTML = '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>.</kbd> drill down';
+    $hint.innerHTML =
+      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>.</kbd> drill down';
     $menu.appendChild($hint);
   };
 

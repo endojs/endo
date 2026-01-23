@@ -27,7 +27,11 @@
  * @param {() => void} [options.onChange] - Called when value changes
  * @returns {PetNamePathsAutocompleteAPI}
  */
-export const petNamePathsAutocomplete = ($container, $menu, { E, powers, onSubmit, onChange }) => {
+export const petNamePathsAutocomplete = (
+  $container,
+  $menu,
+  { E, powers, onSubmit, onChange },
+) => {
   /** @type {string[]} */
   let completedPaths = [];
   /** @type {string[]} */
@@ -120,7 +124,8 @@ export const petNamePathsAutocomplete = ($container, $menu, { E, powers, onSubmi
     });
 
     // Update placeholder
-    $input.placeholder = completedPaths.length === 0 ? 'name or path.to.name' : '';
+    $input.placeholder =
+      completedPaths.length === 0 ? 'name or path.to.name' : '';
   };
 
   /**
@@ -203,7 +208,8 @@ export const petNamePathsAutocomplete = ($container, $menu, { E, powers, onSubmi
 
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
-    $hint.innerHTML = '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit';
+    $hint.innerHTML =
+      '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit';
     $menu.appendChild($hint);
   };
 
@@ -316,7 +322,11 @@ export const petNamePathsAutocomplete = ($container, $menu, { E, powers, onSubmi
   // Handle keyboard
   $input.addEventListener('keydown', e => {
     // Backspace on empty input removes last chip
-    if (e.key === 'Backspace' && $input.value === '' && completedPaths.length > 0) {
+    if (
+      e.key === 'Backspace' &&
+      $input.value === '' &&
+      completedPaths.length > 0
+    ) {
       e.preventDefault();
       completedPaths.pop();
       renderChips();
@@ -360,7 +370,8 @@ export const petNamePathsAutocomplete = ($container, $menu, { E, powers, onSubmi
       case 'ArrowUp':
         e.preventDefault();
         if (suggestions.length > 0) {
-          selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
+          selectedIndex =
+            (selectedIndex - 1 + suggestions.length) % suggestions.length;
           renderMenu();
         }
         break;
@@ -396,7 +407,9 @@ export const petNamePathsAutocomplete = ($container, $menu, { E, powers, onSubmi
           // If there's a selected suggestion, use it
           if (suggestions.length > 0) {
             const { pathPrefix } = parseInput($input.value);
-            const fullPath = [...pathPrefix, suggestions[selectedIndex]].join('.');
+            const fullPath = [...pathPrefix, suggestions[selectedIndex]].join(
+              '.',
+            );
             completedPaths.push(fullPath);
           } else {
             completedPaths.push($input.value.trim());

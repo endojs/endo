@@ -38,7 +38,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
   font-size: 15px;
   line-height: 1.5;
   color: var(--text-primary);
@@ -223,7 +225,9 @@ body.resizing * {
   text-align: center;
   flex-shrink: 0;
   opacity: 0.6;
-  transition: transform var(--transition-fast), opacity var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
   border-radius: var(--radius-sm);
 }
 
@@ -245,8 +249,13 @@ body.resizing * {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Nested pet list */
@@ -1358,15 +1367,43 @@ body.resizing * {
   background: #37b24d;
 }
 
+/*
+ * Message bubble color scheme.
+ *
+ * Each message defines its own color scheme via CSS custom properties:
+ * - --bubble-fg: foreground (text) color
+ * - --bubble-bg: background color
+ * - --bubble-border: border color
+ * - --bubble-muted: muted text (timestamps, secondary info)
+ * - --bubble-chip-fg: chip/token foreground
+ * - --bubble-chip-bg: chip/token background
+ * - --bubble-code-bg: code fence background
+ * - --bubble-code-fg: code fence text color
+ *
+ * Received messages use dark text on light background.
+ * Sent messages use light text on blue background.
+ */
 .message {
+  /* Received message colors (default) */
+  --bubble-fg: var(--text-primary);
+  --bubble-bg: var(--bg-secondary);
+  --bubble-border: var(--border-light);
+  --bubble-muted: var(--text-muted);
+  --bubble-chip-fg: #ffffff;
+  --bubble-chip-bg: #3b82f6;
+  --bubble-code-bg: #e9ecef;
+  --bubble-code-fg: #24292f;
+  --bubble-code-inline-bg: rgba(0, 0, 0, 0.08);
+
   display: flex;
   flex-direction: row;
   gap: 12px;
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: var(--bg-secondary);
+  background: var(--bubble-bg);
+  color: var(--bubble-fg);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--bubble-border);
   transition: box-shadow var(--transition-fast);
 }
 
@@ -1380,28 +1417,25 @@ body.resizing * {
 }
 
 .message.sent {
-  background: #3b82f6;
-  color: #ffffff;
-  border-color: #2563eb;
-}
-
-.message.sent strong {
-  color: #ffffff;
-}
-
-.message.sent .timestamp {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.message.sent b {
-  background: #dbe4ff;
-  color: #1a1a1a;
-  font-weight: 500;
+  /* Sent message colors - uses semi-transparent overlays for insets */
+  --bubble-fg: #ffffff;
+  --bubble-bg: #3b82f6;
+  --bubble-border: #2563eb;
+  --bubble-muted: rgba(255, 255, 255, 0.7);
+  --bubble-chip-fg: #ffffff;
+  --bubble-chip-bg: rgba(255, 255, 255, 0.2);
+  --bubble-code-bg: rgba(255, 255, 255, 0.9);
+  --bubble-code-fg: #24292f;
+  --bubble-code-inline-bg: rgba(255, 255, 255, 0.2);
 }
 
 .message strong {
-  color: var(--accent-primary);
+  color: var(--bubble-fg);
   font-weight: 600;
+}
+
+.message .timestamp {
+  color: var(--bubble-muted);
 }
 
 .timestamp {
@@ -1496,8 +1530,8 @@ body.resizing * {
 }
 
 .message b {
-  background: #3b82f6;
-  color: #ffffff;
+  background: var(--bubble-chip-bg);
+  color: var(--bubble-chip-fg);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   font-weight: 500;
@@ -1522,12 +1556,25 @@ body.resizing * {
   margin-top: 0;
 }
 
-.md-h1 { font-size: 1.5em; }
-.md-h2 { font-size: 1.3em; }
-.md-h3 { font-size: 1.15em; }
-.md-h4 { font-size: 1.05em; }
-.md-h5 { font-size: 1em; }
-.md-h6 { font-size: 0.95em; color: var(--text-secondary); }
+.md-h1 {
+  font-size: 1.5em;
+}
+.md-h2 {
+  font-size: 1.3em;
+}
+.md-h3 {
+  font-size: 1.15em;
+}
+.md-h4 {
+  font-size: 1.05em;
+}
+.md-h5 {
+  font-size: 1em;
+}
+.md-h6 {
+  font-size: 0.95em;
+  color: var(--text-secondary);
+}
 
 .md-list {
   margin: 8px 0;
@@ -1546,12 +1593,8 @@ body.resizing * {
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 0.9em;
   padding: 2px 6px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--bubble-code-inline-bg);
   border-radius: 4px;
-}
-
-.message.sent .inline-code {
-  background: rgba(255, 255, 255, 0.2);
 }
 
 .md-code-fence {
@@ -1573,17 +1616,13 @@ body.resizing * {
   right: 0;
   padding: 2px 8px;
   font-size: 11px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: var(--text-muted);
   background: var(--bg-secondary);
   border-bottom-left-radius: var(--radius-sm);
   border-top-right-radius: var(--radius-md);
   text-transform: lowercase;
-}
-
-.message.sent .md-code-fence-language {
-  color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.08);
 }
 
 .md-code-fence code {
@@ -1592,13 +1631,19 @@ body.resizing * {
   display: block;
 }
 
-.message.sent .md-code-fence {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 255, 255, 0.5);
+/* Code fence styling inside messages uses bubble color scheme */
+.message .md-code-fence {
+  background: var(--bubble-code-bg);
+  border-color: var(--bubble-border);
 }
 
-.message.sent .md-code-fence code {
-  color: #24292f;
+.message .md-code-fence code {
+  color: var(--bubble-code-fg);
+}
+
+.message .md-code-fence-language {
+  color: var(--bubble-muted);
+  background: var(--bubble-bg);
 }
 
 /* Code syntax highlighting - light mode */
@@ -1620,23 +1665,6 @@ body.resizing * {
   color: #0550ae;
 }
 
-/* Syntax highlighting for sent messages - use same light mode colors */
-.message.sent .md-code-fence .code-keyword {
-  color: #cf222e;
-}
-
-.message.sent .md-code-fence .code-string {
-  color: #0a3069;
-}
-
-.message.sent .md-code-fence .code-comment {
-  color: #6e7781;
-}
-
-.message.sent .md-code-fence .code-number {
-  color: #0550ae;
-}
-
 /* Markdown chip slot (invisible, just holds position) */
 .md-chip-slot {
   display: inline;
@@ -1654,10 +1682,6 @@ body.resizing * {
 .message-body s {
   text-decoration: line-through;
   opacity: 0.7;
-}
-
-.message.sent .message-body strong {
-  color: inherit;
 }
 
 .token {
@@ -1709,7 +1733,9 @@ body.resizing * {
 }
 
 /* Form elements */
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: 14px;
   padding: 10px 12px;
@@ -1721,7 +1747,9 @@ input, textarea, select {
   outline: none;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-light);
 }
@@ -1804,7 +1832,7 @@ button:active {
   z-index: 200;
 }
 
-.frame[data-show=true] {
+.frame[data-show='true'] {
   display: flex;
 }
 
@@ -1859,7 +1887,8 @@ button:active {
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
-.remotable, .tag {
+.remotable,
+.tag {
   font-style: italic;
   color: var(--accent-primary);
 }
@@ -2350,4 +2379,245 @@ button:active {
   border: 1px solid var(--border-color);
   border-radius: 3px;
   margin: 0 2px;
+}
+
+/* Eval Proposal Message */
+.eval-proposal-message {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eval-proposal-from {
+  font-size: 13px;
+  color: var(--bubble-muted, var(--text-secondary));
+}
+
+.eval-proposal-from b {
+  background: var(--bubble-chip-bg, #3b82f6);
+  color: var(--bubble-chip-fg, #ffffff);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.eval-proposal-endowments {
+  font-size: 13px;
+}
+
+.eval-proposal-endowments-label {
+  font-weight: 500;
+  color: var(--bubble-muted, var(--text-secondary));
+  margin-bottom: 4px;
+}
+
+.eval-proposal-endowments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+}
+
+.eval-proposal-no-endowments {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.eval-proposal-mapping {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.eval-proposal-mapping code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bubble-code-inline-bg, var(--bg-tertiary));
+  color: var(--bubble-fg, var(--text-primary));
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.eval-proposal-mapping .token b {
+  background: var(--bubble-chip-bg, var(--accent-bg));
+  color: var(--bubble-chip-fg, var(--accent-primary));
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.eval-proposal-options {
+  font-size: 12px;
+  color: var(--bubble-muted, var(--text-muted));
+  padding: 8px 12px;
+  background: var(--bubble-code-inline-bg, var(--bg-tertiary));
+  border-radius: var(--radius-sm);
+}
+
+.eval-proposal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.eval-proposal-grant,
+.eval-proposal-counter,
+.eval-proposal-reject,
+.eval-proposal-show-result {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.eval-proposal-grant {
+  background: var(--success-color);
+  color: white;
+  border: none;
+}
+
+.eval-proposal-grant:hover:not(:disabled) {
+  background: #059669;
+}
+
+.eval-proposal-counter {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.eval-proposal-counter:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.eval-proposal-reject {
+  background: var(--error-color, #dc2626);
+  color: white;
+  border: none;
+}
+
+.eval-proposal-reject:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.eval-proposal-show-result {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+}
+
+.eval-proposal-show-result:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.eval-proposal-grant:disabled,
+.eval-proposal-counter:disabled,
+.eval-proposal-reject:disabled,
+.eval-proposal-show-result:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.eval-proposal-reject-reason {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  width: 160px;
+}
+
+.eval-proposal-reject-reason::placeholder {
+  color: var(--text-muted);
+}
+
+.eval-proposal-reject-reason:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.eval-proposal-status {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+
+.eval-proposal-status.status-granted {
+  background: #059669;
+  color: #ffffff;
+}
+
+.eval-proposal-status.status-rejected {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.eval-proposal-rejection-reason {
+  color: #dc2626;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+/* Sent message variant - overrides not covered by bubble variables */
+.message.sent .eval-proposal-no-endowments {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.message.sent .eval-proposal-status.status-granted {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.message.sent .eval-proposal-status.status-rejected {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.message.sent .eval-proposal-reject-reason {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.message.sent .eval-proposal-reject-reason::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.message.sent .eval-proposal-rejection-reason {
+  color: #fca5a5;
+}
+
+/* Counter-proposal form backdrop */
+#counter-proposal-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+#counter-proposal-container {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
 }

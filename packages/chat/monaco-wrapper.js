@@ -54,7 +54,10 @@ export const createMonacoEditor = async (
 
   // Set initial value
   if (initialValue) {
-    $iframe.contentWindow?.postMessage({ type: 'set-value', value: initialValue }, '*');
+    $iframe.contentWindow?.postMessage(
+      { type: 'set-value', value: initialValue },
+      '*',
+    );
   }
 
   // Handle messages from iframe
@@ -88,10 +91,16 @@ export const createMonacoEditor = async (
     getValue: () => currentValue,
     setValue: value => {
       currentValue = value ?? '';
-      $iframe.contentWindow?.postMessage({ type: 'set-value', value: currentValue }, '*');
+      $iframe.contentWindow?.postMessage(
+        { type: 'set-value', value: currentValue },
+        '*',
+      );
     },
     setCursorPosition: (line, column) => {
-      $iframe.contentWindow?.postMessage({ type: 'set-cursor', line, column }, '*');
+      $iframe.contentWindow?.postMessage(
+        { type: 'set-cursor', line, column },
+        '*',
+      );
     },
     focus: () => {
       $iframe.contentWindow?.postMessage({ type: 'focus' }, '*');

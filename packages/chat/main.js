@@ -86,7 +86,8 @@ const hideReconnecting = () => {
  */
 const scheduleReconnect = () => {
   setTimeout(() => {
-    connectAndRun().catch(error => { // eslint-disable-line no-use-before-define
+    connectAndRun().catch(error => {
+      // eslint-disable-line no-use-before-define
       console.error('[Chat] Reconnection failed:', error);
       showReconnecting(/** @type {Error} */ (error).message);
       scheduleReconnect();

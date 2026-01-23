@@ -82,8 +82,12 @@ export const createInlineEval = ({
     </div>
   `;
 
-  const $endowmentsContainer = /** @type {HTMLElement} */ ($container.querySelector('.inline-eval-endowments'));
-  const $source = /** @type {HTMLInputElement} */ ($container.querySelector('.inline-eval-input'));
+  const $endowmentsContainer = /** @type {HTMLElement} */ (
+    $container.querySelector('.inline-eval-endowments')
+  );
+  const $source = /** @type {HTMLInputElement} */ (
+    $container.querySelector('.inline-eval-input')
+  );
 
   /** @type {EndowmentField[]} */
   const endowmentFields = [];
@@ -172,7 +176,10 @@ export const createInlineEval = ({
     $field.appendChild($codeNameWrapper);
 
     // Initialize autocomplete for pet name
-    const autocomplete = petNamePathAutocomplete($petName, $petNameMenu, { E, powers });
+    const autocomplete = petNamePathAutocomplete($petName, $petNameMenu, {
+      E,
+      powers,
+    });
 
     // Auto-update codeName when petName changes
     $petName.addEventListener('input', () => {
@@ -209,7 +216,8 @@ export const createInlineEval = ({
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           onExpand(getData(true)); // eslint-disable-line no-use-before-define
-        } else if (isValid()) { // eslint-disable-line no-use-before-define
+        } else if (isValid()) {
+          // eslint-disable-line no-use-before-define
           e.preventDefault();
           onSubmit(getData()); // eslint-disable-line no-use-before-define
         }
@@ -238,7 +246,8 @@ export const createInlineEval = ({
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           onExpand(getData(true)); // eslint-disable-line no-use-before-define
-        } else if (isValid()) { // eslint-disable-line no-use-before-define
+        } else if (isValid()) {
+          // eslint-disable-line no-use-before-define
           e.preventDefault();
           onSubmit(getData()); // eslint-disable-line no-use-before-define
         }
@@ -309,7 +318,8 @@ export const createInlineEval = ({
       .filter(f => f.$petName.value.trim())
       .map(f => ({
         petName: f.$petName.value.trim(),
-        codeName: f.$codeName.value.trim() || toJsIdentifier(f.$petName.value.trim()),
+        codeName:
+          f.$codeName.value.trim() || toJsIdentifier(f.$petName.value.trim()),
       }));
 
     /** @type {ParsedEval} */
@@ -361,7 +371,11 @@ export const createInlineEval = ({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onCancel();
-    } else if (e.key === 'Backspace' && $source.value === '' && $source.selectionStart === 0) {
+    } else if (
+      e.key === 'Backspace' &&
+      $source.value === '' &&
+      $source.selectionStart === 0
+    ) {
       // Backspace at start of empty source - delete last endowment or cancel
       if (endowmentFields.length > 0) {
         e.preventDefault();

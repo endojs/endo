@@ -12,37 +12,35 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  */
 
 /**
- * @typedef {object} EvalFormData
+ * @typedef {object} CounterProposalData
+ * @property {number} messageNumber - Original proposal message number
  * @property {string} source - JavaScript source code
  * @property {Endowment[]} endowments - Code name to pet name mappings
  * @property {string} resultName - Optional pet name for the result
  * @property {string} workerName - Worker to use (default: MAIN)
- * @property {number} [cursorPosition] - Initial cursor position (0-indexed character offset)
  */
 
 /**
- * @typedef {object} EvalFormAPI
- * @property {() => void} show - Show the eval form
- * @property {() => void} hide - Hide the eval form
+ * @typedef {object} CounterProposalFormAPI
+ * @property {() => void} show - Show the form
+ * @property {() => void} hide - Hide the form
  * @property {() => boolean} isVisible - Check if form is visible
- * @property {() => boolean} isDirty - Check if form has unsaved changes
- * @property {() => EvalFormData} getData - Get current form data
- * @property {(data: EvalFormData) => void} setData - Set form data (for history)
+ * @property {(data: CounterProposalData) => void} setProposal - Set form data from original proposal
  * @property {() => void} focus - Focus the editor
  */
 
 /**
- * Create the eval form component.
+ * Create the counter-proposal form component.
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element for the form
  * @param {(target: unknown) => unknown} options.E - Eventual send function
  * @param {unknown} options.powers - Powers object
- * @param {(data: EvalFormData) => Promise<void>} options.onSubmit - Called when form is submitted
+ * @param {(data: CounterProposalData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when form is closed
- * @returns {Promise<EvalFormAPI>}
+ * @returns {Promise<CounterProposalFormAPI>}
  */
-export const createEvalForm = async ({
+export const createCounterProposalForm = async ({
   $container,
   E,
   powers,
@@ -54,14 +52,13 @@ export const createEvalForm = async ({
   let source = '';
   /** @type {Endowment[]} */
   let endowments = [];
-  let resultName = '';
-  let workerName = 'MAIN';
+  let messageNumber = 0;
 
-  // Create form HTML structure
+  // Create form HTML structure - reuse eval-form CSS classes
   $container.innerHTML = `
-    <div class="eval-form">
+    <div class="eval-form counter-proposal-form">
       <div class="eval-header">
-        <span class="eval-title">Evaluate JavaScript</span>
+        <span class="eval-title">Counter-propose Evaluation</span>
         <button class="eval-close" title="Close (Esc)">&times;</button>
       </div>
       <div class="eval-editor-container"></div>
@@ -74,17 +71,17 @@ export const createEvalForm = async ({
       </div>
       <div class="eval-options">
         <div class="eval-option">
-          <label for="eval-result-name">Result name (optional)</label>
-          <input type="text" id="eval-result-name" placeholder="my-result" />
+          <label for="counter-result-name">Result name (optional)</label>
+          <input type="text" id="counter-result-name" placeholder="my-result" />
         </div>
         <div class="eval-option">
-          <label for="eval-worker-name">Worker</label>
-          <input type="text" id="eval-worker-name" value="MAIN" />
+          <label for="counter-worker-name">Worker</label>
+          <input type="text" id="counter-worker-name" value="MAIN" />
         </div>
       </div>
       <div class="eval-footer">
         <span class="eval-error"></span>
-        <button class="eval-submit" title="Evaluate (Cmd+Enter)">Evaluate</button>
+        <button class="eval-submit counter-submit" title="Send counter-proposal (Cmd+Enter)">Counter-propose Evaluate</button>
       </div>
     </div>
   `;
@@ -99,10 +96,10 @@ export const createEvalForm = async ({
     $container.querySelector('.eval-add-endowment')
   );
   const $resultNameInput = /** @type {HTMLInputElement} */ (
-    $container.querySelector('#eval-result-name')
+    $container.querySelector('#counter-result-name')
   );
   const $workerNameInput = /** @type {HTMLInputElement} */ (
-    $container.querySelector('#eval-worker-name')
+    $container.querySelector('#counter-worker-name')
   );
   const $closeBtn = /** @type {HTMLButtonElement} */ (
     $container.querySelector('.eval-close')
@@ -137,7 +134,6 @@ export const createEvalForm = async ({
 
   // Handle Escape from Monaco - move focus to endowments or options
   $editorContainer.addEventListener('monaco-escape', () => {
-    // Focus the first endowment codename input, or result name if no endowments
     const $firstCodeName = $endowmentsList.querySelector('.eval-codename');
     if ($firstCodeName) {
       /** @type {HTMLInputElement} */ ($firstCodeName).focus();
@@ -263,9 +259,6 @@ export const createEvalForm = async ({
         $petNameInput.focus();
       }
     });
-
-    // Focus the code name input
-    $codeNameInput.focus();
   };
 
   const handleSubmit = async () => {
@@ -292,10 +285,11 @@ export const createEvalForm = async ({
     const validEndowments = endowments.filter(e => e.codeName && e.petName);
 
     $submitBtn.disabled = true;
-    $submitBtn.textContent = 'Evaluating...';
+    $submitBtn.textContent = 'Sending...';
 
     try {
       await onSubmit({
+        messageNumber,
         source,
         endowments: validEndowments,
         resultName: $resultNameInput.value.trim(),
@@ -310,7 +304,7 @@ export const createEvalForm = async ({
       showError(/** @type {Error} */ (err).message);
     } finally {
       $submitBtn.disabled = false;
-      $submitBtn.textContent = 'Evaluate';
+      $submitBtn.textContent = 'Counter-propose Evaluate';
       updateSubmitButton();
     }
   };
@@ -318,8 +312,7 @@ export const createEvalForm = async ({
   const resetForm = () => {
     source = '';
     endowments = [];
-    resultName = '';
-    workerName = 'MAIN';
+    messageNumber = 0;
     isDirty = false;
 
     editor.setValue('');
@@ -359,14 +352,12 @@ export const createEvalForm = async ({
     handleSubmit();
   });
 
-  // Track option changes
+  // Track option changes for dirty state
   $resultNameInput.addEventListener('input', () => {
-    resultName = $resultNameInput.value;
     isDirty = true;
   });
 
   $workerNameInput.addEventListener('input', () => {
-    workerName = $workerNameInput.value;
     isDirty = true;
   });
 
@@ -386,14 +377,8 @@ export const createEvalForm = async ({
     show,
     hide,
     isVisible: () => isVisible,
-    isDirty: () => isDirty,
-    getData: () => ({
-      source,
-      endowments: [...endowments],
-      resultName,
-      workerName,
-    }),
-    setData: data => {
+    setProposal: data => {
+      messageNumber = data.messageNumber;
       source = data.source;
       editor.setValue(data.source);
       endowments = [];
@@ -401,21 +386,10 @@ export const createEvalForm = async ({
       for (const e of data.endowments) {
         addEndowmentRow(e.codeName, e.petName);
       }
-      resultName = data.resultName;
       $resultNameInput.value = data.resultName;
-      workerName = data.workerName;
       $workerNameInput.value = data.workerName;
       isDirty = false;
       updateSubmitButton();
-
-      // Set cursor position if provided (convert character offset to line/column)
-      if (data.cursorPosition !== undefined && data.cursorPosition >= 0) {
-        // Monaco uses 1-indexed line and column
-        const lines = data.source.slice(0, data.cursorPosition).split('\n');
-        const line = lines.length;
-        const column = (lines[lines.length - 1]?.length ?? 0) + 1;
-        editor.setCursorPosition(line, column);
-      }
       editor.focus();
     },
     focus: () => editor.focus(),

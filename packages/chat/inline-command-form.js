@@ -93,7 +93,10 @@ export const createInlineCommandForm = ({
         $wrapper.appendChild($inputWrapper);
 
         // Initialize autocomplete
-        const autocomplete = petNamePathAutocomplete($input, $menu, { E, powers });
+        const autocomplete = petNamePathAutocomplete($input, $menu, {
+          E,
+          powers,
+        });
         autocompleteInstances.push(autocomplete);
 
         // Track changes
@@ -101,10 +104,18 @@ export const createInlineCommandForm = ({
           formData[field.name] = $input.value;
           updateValidity();
           // Auto-populate agentName from handleName for mkhost/mkguest
-          if (field.name === 'handleName' && (currentCommand === 'mkhost' || currentCommand === 'mkguest' || currentCommand === 'host' || currentCommand === 'guest')) {
+          if (
+            field.name === 'handleName' &&
+            (currentCommand === 'mkhost' ||
+              currentCommand === 'mkguest' ||
+              currentCommand === 'host' ||
+              currentCommand === 'guest')
+          ) {
             const agentInput = fieldInputsByName.agentName;
             if (agentInput && !agentInput.dataset.userModified) {
-              const newValue = $input.value ? `profile-for-${$input.value}` : '';
+              const newValue = $input.value
+                ? `profile-for-${$input.value}`
+                : '';
               agentInput.value = newValue;
               formData.agentName = newValue;
               updateValidity();
@@ -114,9 +125,13 @@ export const createInlineCommandForm = ({
 
         // Track if user manually modifies agentName
         if (field.name === 'agentName') {
-          $input.addEventListener('input', () => {
-            $input.dataset.userModified = 'true';
-          }, { once: true });
+          $input.addEventListener(
+            'input',
+            () => {
+              $input.dataset.userModified = 'true';
+            },
+            { once: true },
+          );
         }
 
         // Initialize form data
@@ -128,7 +143,8 @@ export const createInlineCommandForm = ({
 
       case 'petNamePaths': {
         const $inputWrapper = document.createElement('div');
-        $inputWrapper.className = 'inline-field-input-wrapper petname-paths-wrapper';
+        $inputWrapper.className =
+          'inline-field-input-wrapper petname-paths-wrapper';
 
         const $menu = document.createElement('div');
         $menu.className = 'inline-petname-menu';
@@ -178,7 +194,9 @@ export const createInlineCommandForm = ({
         });
 
         $input.addEventListener('input', () => {
-          formData[field.name] = $input.value ? Number($input.value) : undefined;
+          formData[field.name] = $input.value
+            ? Number($input.value)
+            : undefined;
           updateValidity();
         });
 
@@ -349,9 +367,11 @@ export const createInlineCommandForm = ({
       } else if (e.key === 'Backspace') {
         // If in first field and it's empty, cancel command mode
         const $target = /** @type {HTMLInputElement} */ (e.target);
-        const isFirstField = fieldElements.length > 0 && fieldElements[0] === $target;
+        const isFirstField =
+          fieldElements.length > 0 && fieldElements[0] === $target;
         const isEmpty = !$target.value;
-        const atStart = $target.selectionStart === 0 && $target.selectionEnd === 0;
+        const atStart =
+          $target.selectionStart === 0 && $target.selectionEnd === 0;
         if (isFirstField && isEmpty && atStart) {
           e.preventDefault();
           onCancel();
