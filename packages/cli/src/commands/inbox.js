@@ -23,6 +23,8 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested';
       } else if (type === 'package') {
         verb = 'sent';
+      } else if (type === 'eval-proposal') {
+        verb = 'proposed to evaluate';
       } else {
         verb = 'sent an unrecognizable message';
       }
@@ -65,6 +67,16 @@ export const inbox = async ({ follow, agentNames }) =>
             strings,
             edgeNames,
           )} at ${JSON.stringify(date)}`,
+        );
+      } else if (message.type === 'eval-proposal') {
+        const { source } = message;
+        assert.typeof(source, 'string');
+        // Show first line of source code, truncated
+        const firstLine = source.split('\n')[0];
+        const preview =
+          firstLine.length > 40 ? `${firstLine.slice(0, 40)}...` : firstLine;
+        console.log(
+          `${number}. ${provenance}${q(preview)} at ${JSON.stringify(date)}`,
         );
       } else {
         console.log(`${number}. ${provenance}, consider upgrading.`);
