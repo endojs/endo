@@ -1,4 +1,6 @@
 // @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -34,6 +36,7 @@ import Anthropic from '@anthropic-ai/sdk';
  * @property {(recipientName: NameOrPath, strings: string[], edgeNames: string[], petNames: NameOrPath[]) => Promise<void>} send
  * @property {(...petNamePath: string[]) => Promise<string | undefined>} identify
  * @property {() => FarRef<AsyncGenerator<InboxMessage, undefined, undefined>>} followMessages
+ * @property {(workerName: string | undefined, source: string, codeNames: string[], edgeNames: string[], resultName?: string[]) => Promise<unknown>} evaluate
  */
 
 /**
@@ -109,6 +112,10 @@ import Anthropic from '@anthropic-ai/sdk';
  * @property {string[]} [strings]
  * @property {string[]} [edgeNames]
  * @property {NameOrPath[]} [petNames]
+ * @property {string} [workerName]
+ * @property {string} [source]
+ * @property {string[]} [codeNames]
+ * @property {string[]} [resultName]
  */
 
 /**
@@ -349,7 +356,8 @@ const tools = [
     type: 'function',
     function: {
       name: 'reject',
-      description: 'Decline a request message. The requester receives an error.',
+      description:
+        'Decline a request message. The requester receives an error.',
       parameters: {
         type: 'object',
         properties: {
@@ -525,7 +533,8 @@ For multi-line content, include literal newlines in the string.`,
           petNamePath: {
             type: 'array',
             items: { type: 'string' },
-            description: 'The pet name path to identify, e.g., ["SELF"] or ["HOST"].',
+            description:
+              'The pet name path to identify, e.g., ["SELF"] or ["HOST"].',
           },
         },
         required: ['petNamePath'],
@@ -553,6 +562,61 @@ For multi-line content, include literal newlines in the string.`,
           },
         },
         required: ['petNameOrPath'],
+      },
+    },
+  },
+
+  // --- Code evaluation proposal ---
+  {
+    type: 'function',
+    function: {
+      name: 'evaluate',
+      description: `\
+Propose code for evaluation to your HOST for approval.
+
+IMPORTANT: This does NOT execute code directly. Instead, it sends an evaluation
+proposal to your HOST. The HOST can then:
+- Grant the proposal (execute the code)
+- Reject the proposal
+- Counter with a modified version
+
+Use this when you need to run code that requires capabilities from your HOST.
+
+The code can reference values from your directory using the codeNames/edgeNames mapping:
+- codeNames: Variable names that will be available in your source code
+- edgeNames: Pet names of values from your directory to provide as those variables
+
+Example: To run "E(counter).increment()" where counter is a value you have named "my-counter":
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"])
+
+When the HOST grants the proposal, you will receive a notification with the result value.
+You should then use send() to deliver that result to whoever requested it.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          workerName: {
+            type: 'string',
+            description:
+              'Optional worker name to execute in. Use undefined for the default worker.',
+          },
+          source: {
+            type: 'string',
+            description: 'The JavaScript source code to evaluate.',
+          },
+          codeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Variable names used in the source code that need to be provided.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Pet names from your directory providing the values for each codeName.',
+          },
+        },
+        required: ['source', 'codeNames', 'edgeNames'],
       },
     },
   },
@@ -621,6 +685,100 @@ will appear in future listMessages() calls.
 
 ### Capability Inspection
 - inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
+
+### Code Evaluation (Proposal)
+- evaluate(workerName?, source, codeNames, edgeNames) - Propose code for HOST approval
+
+## Code Evaluation Proposals
+
+When you need to run code that manipulates capabilities or performs computations,
+use the evaluate() tool to propose code to your HOST for approval.
+
+IMPORTANT: evaluate() does NOT run code directly. It sends a proposal to your HOST.
+The HOST must explicitly grant the proposal before the code executes.
+
+Example: If you have a counter named "my-counter" and want to increment it:
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"])
+
+The codeNames array lists variable names used in your source code.
+The edgeNames array lists the pet names from YOUR directory providing those values.
+When the HOST grants, the code runs and you receive the result in your notification.
+
+### Proposal Responses
+
+After you submit an eval-proposal, you will be notified when the HOST responds:
+
+**GRANTED**: The HOST executed your code.
+- You will receive the result value directly in the notification
+- You should:
+  1. Use send() to deliver the result/capability back to the original requester
+  2. Report success to the sender
+  3. The result is included in the notification - use it immediately
+
+**REJECTED**: The HOST declined your proposal.
+- You will receive the rejection reason
+- You should:
+  1. Send a follow-up message to the sender explaining the situation
+  2. Ask clarifying questions if the task is still relevant
+  3. Consider alternative approaches
+
+**COUNTER-PROPOSAL**: The HOST modified your code and sent it back.
+- You will receive the modified code as an eval-proposal message
+- Review the changes carefully
+- You can:
+  1. Accept by submitting a new evaluate() with the suggested code
+  2. Reject if the changes don't meet your needs
+  3. Send a message explaining why you disagree
+
+### Globals Available in Evaluated Code
+
+When your code executes (after HOST grants), these globals are available:
+
+- **E(target)** - Eventual-send for remote method calls on capabilities
+  Example: \`E(counter).increment()\` calls increment() on a remote counter
+  Example: \`E(store).get("key")\` retrieves a value from a remote store
+
+- **M** - Pattern matchers for interface guards
+  Example: \`M.string()\` matches strings
+  Example: \`M.interface('Foo', { bar: M.call().returns(M.number()) })\`
+
+- **makeExo(tag, interface, methods)** - Create new capability objects
+  Example:
+  \`\`\`javascript
+  makeExo('Counter', M.interface('Counter', {
+    increment: M.call().returns(M.number()),
+    getValue: M.call().returns(M.number()),
+  }), {
+    increment() { return ++this.state.count; },
+    getValue() { return this.state.count; },
+  })
+  \`\`\`
+
+Use these to:
+- Invoke methods on capabilities passed as endowments
+- Create new capabilities to send back to requesters
+- Define type-safe interfaces for your created objects
+
+### Responding to Proposal Status Changes
+
+CRITICAL: You MUST respond to every proposal status notification you receive.
+When you are notified that your proposal was granted, rejected, or counter-proposed,
+you should IMMEDIATELY take follow-up action:
+
+**On GRANTED**: Use send() to deliver results or report success to the original requester
+**On REJECTED**: Use send() to explain the situation and ask clarifying questions
+**On COUNTER-PROPOSAL**: Review and either accept, reject, or negotiate via send()
+
+Never ignore a proposal status notification. The sender is waiting for your response.
+
+### Workflow Example
+
+1. Receive request: "Please increment my counter"
+2. Propose: evaluate(undefined, "E(counter).increment()", ["counter"], ["user-counter"])
+3. Wait for notification...
+4. If GRANTED: The notification includes the result - use send() to deliver it back to requester
+5. If REJECTED: send() an apology/question to the requester
+6. If COUNTER-PROPOSAL: review, then accept or negotiate
 
 ## Message Format for send()
 
@@ -753,7 +911,9 @@ export const make = (guestPowers, _contextP, { env }) => {
       apiKey: env.LAL_AUTH_TOKEN || 'ollama', // Ollama ignores API key but SDK requires one
       baseURL,
     });
-    console.log(`[LAL] Using OpenAI-compatible API at ${baseURL} with model: ${model}`);
+    console.log(
+      `[LAL] Using OpenAI-compatible API at ${baseURL} with model: ${model}`,
+    );
   }
 
   /**
@@ -765,7 +925,9 @@ export const make = (guestPowers, _contextP, { env }) => {
     openaiTools.map(t => ({
       name: t.function.name,
       description: t.function.description,
-      input_schema: /** @type {Anthropic.Tool.InputSchema} */ (t.function.parameters),
+      input_schema: /** @type {Anthropic.Tool.InputSchema} */ (
+        t.function.parameters
+      ),
     }));
 
   /**
@@ -791,12 +953,15 @@ export const make = (guestPowers, _contextP, { env }) => {
         }
         if (msg.tool_calls) {
           for (const tc of msg.tool_calls) {
-            const args = typeof tc.function.arguments === 'string'
-              ? JSON.parse(tc.function.arguments)
-              : tc.function.arguments;
+            const args =
+              typeof tc.function.arguments === 'string'
+                ? JSON.parse(tc.function.arguments)
+                : tc.function.arguments;
             content.push({
               type: 'tool_use',
-              id: tc.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              id:
+                tc.id ||
+                `tool_${Date.now()}_${Math.random().toString(36).slice(2)}`,
               name: tc.function.name,
               input: args,
             });
@@ -810,11 +975,13 @@ export const make = (guestPowers, _contextP, { env }) => {
         const toolUseId = msg.tool_call_id || 'unknown';
         anthropicMessages.push({
           role: 'user',
-          content: [{
-            type: 'tool_result',
-            tool_use_id: toolUseId,
-            content: msg.content,
-          }],
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: toolUseId,
+              content: msg.content,
+            },
+          ],
         });
       }
     }
@@ -829,9 +996,13 @@ export const make = (guestPowers, _contextP, { env }) => {
    */
   const chat = async messages => {
     if (isAnthropic && anthropic) {
-      const { system, messages: anthropicMessages } = toAnthropicMessages(messages);
+      const { system, messages: anthropicMessages } =
+        toAnthropicMessages(messages);
       console.log('[LAL] Calling Anthropic API...');
-      console.log('[LAL] Messages:', JSON.stringify(anthropicMessages, null, 2));
+      console.log(
+        '[LAL] Messages:',
+        JSON.stringify(anthropicMessages, null, 2),
+      );
       let response;
       try {
         response = await anthropic.messages.create({
@@ -911,6 +1082,42 @@ export const make = (guestPowers, _contextP, { env }) => {
       content: systemPrompt,
     },
   ];
+
+  // ---- Eval Proposal Tracking ----
+
+  /**
+   * @typedef {object} PendingProposal
+   * @property {number} proposalId
+   * @property {string} source
+   * @property {string[]} codeNames
+   * @property {string[]} edgeNames
+   * @property {string} [workerName]
+   * @property {Promise<unknown>} promise
+   */
+
+  /** @type {Map<number, PendingProposal>} */
+  const pendingProposals = new Map();
+  let nextProposalId = 1;
+
+  /**
+   * @typedef {object} ProposalNotification
+   * @property {'granted' | 'rejected'} status
+   * @property {number} proposalId
+   * @property {string} source
+   * @property {unknown} [result]
+   * @property {string} [error]
+   */
+
+  /** @type {ProposalNotification[]} */
+  const notificationQueue = [];
+
+  /**
+   * Inject a notification about a proposal response into the transcript.
+   * @param {ProposalNotification} notification
+   */
+  const injectProposalNotification = notification => {
+    notificationQueue.push(notification);
+  };
 
   /**
    * Execute a tool call and return the result.
@@ -1056,6 +1263,72 @@ export const make = (guestPowers, _contextP, { env }) => {
         }
       }
 
+      // Code evaluation proposal
+      case 'evaluate': {
+        const { workerName, source, codeNames = [], edgeNames = [] } = args;
+        if (source === undefined) {
+          throw new Error('source is required');
+        }
+
+        // Send an eval-proposal to the HOST for approval
+        const proposalPromise = E(powers).evaluate(
+          workerName,
+          source,
+          codeNames,
+          edgeNames,
+        );
+
+        // Track this proposal
+        const proposalId = nextProposalId;
+        nextProposalId += 1;
+
+        pendingProposals.set(proposalId, {
+          proposalId,
+          source,
+          codeNames,
+          edgeNames,
+          workerName,
+          promise: proposalPromise,
+        });
+
+        // Watch for the proposal to settle
+        proposalPromise.then(
+          result => {
+            console.log(
+              `[proposal] #${proposalId} granted with result:`,
+              result,
+            );
+            pendingProposals.delete(proposalId);
+            injectProposalNotification({
+              status: 'granted',
+              proposalId,
+              source,
+              result,
+            });
+          },
+          error => {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            console.log(`[proposal] #${proposalId} rejected:`, errorMessage);
+            pendingProposals.delete(proposalId);
+            injectProposalNotification({
+              status: 'rejected',
+              proposalId,
+              source,
+              error: errorMessage,
+            });
+          },
+        );
+
+        // Return immediately - the LLM will be notified when the proposal settles
+        return {
+          proposalId,
+          status: 'pending',
+          message: `Proposal #${proposalId} sent to HOST for approval. You will be notified when the HOST responds.`,
+          source,
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1112,6 +1385,142 @@ export const make = (guestPowers, _contextP, { env }) => {
   };
 
   /**
+   * Format a proposal notification as a user message for the LLM.
+   * @param {ProposalNotification} notification
+   * @returns {string}
+   */
+  const formatProposalNotification = notification => {
+    const { status, proposalId, source } = notification;
+    const sourcePreview =
+      source.length > 100 ? `${source.slice(0, 100)}...` : source;
+
+    if (status === 'granted') {
+      const resultStr =
+        notification.result !== undefined
+          ? `\nResult: ${JSON.stringify(notification.result)}`
+          : '\nResult: (no return value)';
+      return `Your eval-proposal #${proposalId} was GRANTED by the HOST.
+Source: ${sourcePreview}${resultStr}
+
+The code was executed successfully. If you specified a resultName, the result is now stored there.
+You should:
+1. If you have a capability to send back, use send() to deliver it to the original requester
+2. If you were performing a task, report the outcome to the sender
+3. Continue with any follow-up actions as needed`;
+    } else {
+      return `Your eval-proposal #${proposalId} was REJECTED by the HOST.
+Source: ${sourcePreview}
+Reason: ${notification.error || 'No reason given'}
+
+The HOST declined to execute your proposed code. You should:
+1. Send a follow-up message to the sender asking for clarification or explaining the situation
+2. Consider whether a different approach might work
+3. If appropriate, propose modified code that addresses the HOST's concerns`;
+    }
+  };
+
+  /**
+   * Process any pending notifications and add them to the transcript.
+   * @returns {boolean} True if notifications were processed
+   */
+  const processNotifications = () => {
+    if (notificationQueue.length === 0) {
+      return false;
+    }
+
+    while (notificationQueue.length > 0) {
+      const notification = notificationQueue.shift();
+      if (notification) {
+        const message = formatProposalNotification(notification);
+        console.log(
+          `[notification] Proposal #${notification.proposalId} ${notification.status}`,
+        );
+        transcript.push({
+          role: 'user',
+          content: message,
+        });
+      }
+    }
+    return true;
+  };
+
+  /**
+   * Run the agentic loop until no more tool calls.
+   * @returns {Promise<void>}
+   */
+  const runAgenticLoop = async () => {
+    let continueLoop = true;
+    while (continueLoop) {
+      // Check for pending notifications before each LLM call
+      processNotifications();
+
+      console.log(
+        `[lal] ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
+      );
+      const response = await chat(transcript);
+
+      const { message: responseMessage } = response;
+      if (!responseMessage) {
+        break;
+      }
+
+      // Add the assistant's response to the transcript
+      transcript.push(/** @type {ChatMessage} */ (responseMessage));
+      console.log(
+        `[lal] sent: ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
+      );
+
+      // Check if there are tool calls to process
+      const { tool_calls: toolCalls } = responseMessage;
+      if (toolCalls && toolCalls.length > 0) {
+        const toolResults = await processToolCalls(
+          /** @type {ToolCall[]} */ (toolCalls),
+        );
+        console.log(
+          `[lal] tool results: ${JSON.stringify(toolResults, null, 2)}`,
+        );
+        transcript.push(...toolResults);
+
+        // After processing tools, check if we have new notifications
+        // This allows the loop to continue if proposals settled
+        if (notificationQueue.length > 0) {
+          continue;
+        }
+      } else {
+        // No more tool calls - but check if we have notifications to process
+        if (notificationQueue.length > 0) {
+          continue;
+        }
+
+        // Check if we have pending proposals - wait for them to settle
+        if (pendingProposals.size > 0) {
+          console.log(
+            `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
+          );
+          // Wait for any pending proposal to settle
+          const pendingPromises = [...pendingProposals.values()].map(p =>
+            p.promise.then(
+              () => {},
+              () => {},
+            ),
+          );
+          await Promise.race(pendingPromises);
+          // Continue the loop to process the notification
+          continue;
+        }
+
+        // Really done
+        continueLoop = false;
+
+        // If the LLM produced text content (which it shouldn't), log it
+        if (responseMessage.content) {
+          console.log(`[assistant] ${responseMessage.content}`);
+        }
+      }
+    }
+  };
+
+  /**
    * Run the agent loop, processing incoming messages.
    *
    * @returns {Promise<void>}
@@ -1125,56 +1534,69 @@ export const make = (guestPowers, _contextP, { env }) => {
 
     // Follow messages and notify the LLM
     for await (const message of makeRefIterator(E(powers).followMessages())) {
-      const { from: fromId, number } =
-        /** @type {InboxMessage} */ (message);
+      const {
+        from: fromId,
+        number,
+        type,
+      } = /** @type {InboxMessage & {type?: string}} */ (message);
 
       // Skip our own messages
       if (fromId === selfId) {
         continue;
       }
 
-      console.log(`[mail] New message #${number}`);
+      console.log(`[mail] New message #${number} (type: ${type || 'package'})`);
+      console.log(
+        `[lal] Transcript has ${transcript.length} messages before processing`,
+      );
 
-      // Notify the LLM that there's mail
-      transcript.push({
-        role: 'user',
-        content:
-          'You have new mail. Check your messages and respond appropriately.',
-      });
+      // Check if this is a counter-proposal (eval-proposal from someone else)
+      if (type === 'eval-proposal') {
+        // This is a counter-proposal from the HOST
+        const { source, codeNames, edgeNames, workerName, resultName } =
+          /** @type {any} */ (message);
+        assert.typeof(source, 'string');
+        const sourcePreview =
+          source.length > 200 ? `${source.slice(0, 200)}...` : source;
 
-      // Agentic loop: keep calling LLM until it stops producing tool calls
-      let continueLoop = true;
-      while (continueLoop) {
-        console.log(`[lal] ${JSON.stringify(transcript[transcript.length-1], null, 2)}`);
-        const response = await chat(transcript);
+        const endowmentsDesc =
+          Array.isArray(codeNames) && codeNames.length > 0
+            ? `\nEndowments: ${codeNames.map((/** @type {string} */ cn, /** @type {number} */ i) => `${cn} <- ${edgeNames?.[i] || '?'}`).join(', ')}`
+            : '\nNo endowments';
 
-        const { message: responseMessage } = response;
-        if (!responseMessage) {
-          break;
-        }
+        transcript.push({
+          role: 'user',
+          content: `You received a COUNTER-PROPOSAL from your HOST (message #${number}).
 
-        // Add the assistant's response to the transcript
-        transcript.push(/** @type {ChatMessage} */ (responseMessage));
-        console.log(`[lal] sent: ${JSON.stringify(transcript[transcript.length-1], null, 2)}`);
+The HOST has modified your proposed code and is suggesting this alternative:
 
-        // Check if there are tool calls to process
-        const { tool_calls: toolCalls } = responseMessage;
-        if (toolCalls && toolCalls.length > 0) {
-          const toolResults = await processToolCalls(
-            /** @type {ToolCall[]} */ (toolCalls),
-          );
-          console.log(`[lal] tool results: ${JSON.stringify(toolResults, null, 2)}`);
-          transcript.push(...toolResults);
-        } else {
-          // No more tool calls, exit the loop
-          continueLoop = false;
+\`\`\`javascript
+${sourcePreview}
+\`\`\`
+${endowmentsDesc}
+${workerName ? `Worker: ${workerName}` : ''}
+${resultName ? `Result will be stored as: ${resultName}` : ''}
 
-          // If the LLM produced text content (which it shouldn't), log it
-          if (responseMessage.content) {
-            console.log(`[assistant] ${responseMessage.content}`);
-          }
-        }
+You should:
+1. Review the counter-proposal carefully
+2. If it meets your needs, you can submit a new eval-proposal with the suggested code
+3. If you disagree, you can reject this counter-proposal and explain why, or propose different code
+4. After deciding, dismiss message #${number}`,
+        });
+      } else {
+        // Regular message (package or request)
+        transcript.push({
+          role: 'user',
+          content:
+            'You have new mail. Check your messages and respond appropriately.',
+        });
       }
+
+      // Run the agentic loop
+      await runAgenticLoop();
+      console.log(
+        `[lal] Transcript has ${transcript.length} messages after processing`,
+      );
     }
   };
 
