@@ -46,9 +46,8 @@ without calling `fn`.
 Otherwise:
    * If `fn(arg)` throws, then `memoFn(arg)` throws without any further effect
      beyond that performed by the `fn(arg)` call.
-   * If `fn(arg)` returns a `result`, but `arg` is not a valid WeakMap key,
-     then `memoFn(arg)` throws without any further effect
-     beyond that performed by the `fn(arg)` call.
+   * If `arg` is not a valid WeakMap key,
+     then `memoFn(arg)` throws without any effect.
 
 Notice that throws from `fn(arg)` are not memoized, but rejected promises
 returned by `fn(arg)` ***are*** memoized.
