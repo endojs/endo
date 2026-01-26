@@ -50,11 +50,8 @@ result1 === result2; // true
 - **Rejected promises are memoized**: If the wrapped function returns a
   rejected promise, that promise is cached like any other return value.
 - **Invalid keys throw**: If an argument is not a valid `WeakMap` key
-  (e.g., a primitive string or number), the memoized function throws after
+  (e.g., a primitive string or number), the memoized function throws before
   invoking the wrapped function.
-  The implementers wish to reserve the option of changing this to throw
-  *before* invoking the wrapped function.
-  Please refrain from depending upon this detail.
 
 ## Memoization Safety
 
