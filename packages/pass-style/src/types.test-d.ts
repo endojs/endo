@@ -1,4 +1,5 @@
 /* eslint-disable */
+import { ONE_N } from '@endo/nat';
 import { expectAssignable, expectType, expectNotType } from 'tsd';
 import { Far } from './make-far.js';
 import { passStyleOf } from './passStyleOf.js';
@@ -18,7 +19,7 @@ expectType<'undefined'>(passStyleOf(undefined));
 expectType<'string'>(passStyleOf('str'));
 expectType<'boolean'>(passStyleOf(true));
 expectType<'number'>(passStyleOf(1));
-expectType<'bigint'>(passStyleOf(1n));
+expectType<'bigint'>(passStyleOf(ONE_N));
 expectType<'symbol'>(passStyleOf(passableSymbolForName('foo')));
 expectType<'null'>(passStyleOf(null));
 expectType<'promise'>(passStyleOf(Promise.resolve()));

@@ -14,6 +14,7 @@
  * @import { OcapnPublicKey } from '../cryptography.js'
  */
 
+import { ZERO_N } from '@endo/nat';
 import { E, HandledPromise } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -826,7 +827,7 @@ export const makeOcapn = (
         }
 
         // Check if the index is within bounds
-        if (index < 0n || index >= resolved.length) {
+        if (index < ZERO_N || index >= resolved.length) {
           throw Error(
             `Index ${index} out of bounds for array of length ${resolved.length}`,
           );
@@ -1189,7 +1190,7 @@ export const makeOcapn = (
     }
   };
 
-  const localBootstrapSlot = makeSlot('o', true, 0n);
+  const localBootstrapSlot = makeSlot('o', true, ZERO_N);
   const bootstrapObj = makeBootstrapObject(
     ourIdLabel,
     logger,

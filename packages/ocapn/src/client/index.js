@@ -9,6 +9,7 @@
  * @import { Client, Connection, LocationId, Logger, NetLayer, PendingSession, SelfIdentity, Session, SessionManager } from './types.js'
  */
 
+import { ONE_N, ZERO_N } from '@endo/nat';
 import { makePromiseKit } from '@endo/promise-kit';
 import {
   readOcapnHandshakeMessage,
@@ -64,7 +65,7 @@ const makeSession = ({
   connection,
 }) => {
   const { keyPair, location, locationSignature } = selfIdentity;
-  let nextHandoffCount = 0n;
+  let nextHandoffCount = ZERO_N;
   return harden({
     id,
     connection,
@@ -84,7 +85,7 @@ const makeSession = ({
     },
     takeNextHandoffCount: () => {
       const current = nextHandoffCount;
-      nextHandoffCount += 1n;
+      nextHandoffCount += ONE_N;
       return current;
     },
   });

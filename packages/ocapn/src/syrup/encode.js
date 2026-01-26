@@ -1,5 +1,6 @@
 // @ts-check
 
+import { ZERO_N } from '@endo/nat';
 import { BufferWriter } from './buffer-writer.js';
 
 const quote = JSON.stringify;
@@ -118,7 +119,7 @@ function writeInteger(bufferWriter, value) {
   if (typeof value !== 'bigint') {
     throw Error(`writeInteger: Expected bigint, got ${typeof value}`);
   }
-  const string = value >= 0n ? `${value}+` : `${-value}-`;
+  const string = value >= ZERO_N ? `${value}+` : `${-value}-`;
   bufferWriter.writeString(string);
 }
 

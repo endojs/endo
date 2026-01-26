@@ -643,6 +643,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/nat": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -784,6 +785,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/stream-types-test@workspace:packages/stream-types-test"
   dependencies:
+    "@endo/nat": "workspace:^"
     "@endo/stream": "workspace:^"
     eslint: "catalog:dev"
     ses: "workspace:^"

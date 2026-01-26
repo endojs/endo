@@ -15,6 +15,7 @@
 
 /** @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey */
 
+import { ONE_N, ZERO_N } from '@endo/nat';
 import { Far, Remotable } from '@endo/marshal';
 import { makeSlot, parseSlot } from '../captp/pairwise.js';
 
@@ -114,13 +115,13 @@ export const makeReferenceKit = (
   makeHandoff,
   sendHandoff,
 ) => {
-  let nextExportPosition = 1n;
+  let nextExportPosition = ONE_N;
   const provideSlotForValue = value => {
     let slot = ocapnTable.getSlotForValue(value);
     if (slot === undefined) {
       // If there is no slot for this value, its our own export.
       const position = nextExportPosition;
-      nextExportPosition += 1n;
+      nextExportPosition += ONE_N;
       const type = value instanceof Promise ? 'p' : 'o';
       slot = makeSlot(type, true, position);
       ocapnTable.registerSlot(slot, value);
@@ -208,7 +209,7 @@ export const makeReferenceKit = (
   };
 
   const makeRemoteBootstrap = () => {
-    return makeRemoteObject(0n, 'Remote Bootstrap');
+    return makeRemoteObject(ZERO_N, 'Remote Bootstrap');
   };
 
   const makeLocalResolver = (slot, settler) => {
@@ -226,7 +227,7 @@ export const makeReferenceKit = (
   };
 
   // Track the next answer position.
-  let nextAnswerPosition = 0n;
+  let nextAnswerPosition = ZERO_N;
 
   /** @type {ReferenceKit} */
   const referenceKit = harden({
@@ -281,7 +282,7 @@ export const makeReferenceKit = (
       return value;
     },
     provideRemoteBootstrapValue: () => {
-      const slot = makeSlot('o', false, 0n);
+      const slot = makeSlot('o', false, ZERO_N);
       let value = ocapnTable.getValueForSlot(slot);
       if (value === undefined) {
         value = makeRemoteBootstrap();
@@ -347,7 +348,7 @@ export const makeReferenceKit = (
        *   The resolver is used to resolve the internal promise (which should resolve the external answer promise).
        */
       const answerPosition = nextAnswerPosition;
-      nextAnswerPosition += 1n;
+      nextAnswerPosition += ONE_N;
 
       // Create a promise + settler pair with an optional externalAnswerPromise.
       // The settler is needed to resolve the promise when the answer comes back.
