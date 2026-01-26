@@ -2,7 +2,8 @@
 # Memoization Safety
 
 Let's examime the contingent safety properties of the `memoize` function
-implemented by the `memoize.js` module, whose implementation at the time of this writing is
+implemented by the `memoize.js` module, whose implementation at the time of
+this writing is
 ```js
 /**
  * @template {WeakKey} A
@@ -39,6 +40,16 @@ By "contingent safety", we mean the safety guarantees that follow given that
 certain requirements are met. Before we examine these, let's first understand
 the non-contingent semantics of this code.
 ## Base semantics
+
+***Hardened JS***: Even the supposedly non-contingent base semantics does
+depend on a key assumption: That the primordial intrinsics still conform to
+the JavaScript spec. In particular, that `WeakMap` is a conforming WeakMap
+constructor, and that `memo.has`, `memo.get`, `memo.set`, and `memo.delete`
+call WeakMap methods that conform to the JavaScript spec. Hardened JS
+`lockdown()` locks these down, so if this assumption was not violated before
+`lockdown()` then it ***cannot*** be violated, even maliciously, after
+`lockdown()`.
+
 Given a function `fn`, the call `memoize(fn)` returns a `fn`-like function, `memoFn`.
 The one-arg function `memoFn` is a memoizing form of `fn`
 as a one-argument function. When `memoFn(arg)` is called the first time for any
