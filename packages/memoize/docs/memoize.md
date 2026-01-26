@@ -5,49 +5,56 @@ Let's examime the contingent safety properties of the `memoize` function
 implemented by the `memoize.js` module, whose implementation at the time of this writing is
 ```js
 /**
- * @template {{}} A Should be WeakMap-key compatible
- * @template R Can be anything
+ * @template {WeakKey} A
+ * @template R
  * @param {(arg: A) => R} fn
  * @returns {(arg: A) => R}
  */
 export const memoize = fn => {
   const memo = new WeakMap();
   const memoFn = arg => {
-    if (weakmapHas(memo, arg)) {
-      return weakmapGet(memo, arg);
+    if (memo.has(arg)) {
+      const memoedResult = memo.get(arg);
+      if (memoedResult === encapsulatedPumpkin) {
+        throw new TypeError('no recursion through memoization with same arg');
+      }
+      return memoedResult;
     }
-    const result = fn(arg);
-    weakmapSet(memo, arg, result);
+    memo.set(arg, encapsulatedPumpkin);
+    let result;
+    try {
+      result = fn(arg);
+    } catch (e) {
+      memo.delete(arg);
+      throw e;
+    }
+    memo.set(arg, result);
     return result;
   };
   return harden(memoFn);
 };
 harden(memoize);
 ```
-
 By "contingent safety", we mean the safety guarantees that follow given that
 certain requirements are met. Before we examine these, let's first understand
 the non-contingent semantics of this code.
-
 ## Base semantics
-
 Given a function `fn`, the call `memoize(fn)` returns a `fn`-like function, `memoFn`.
 The one-arg function `memoFn` is a memoizing form of `fn`
 as a one-argument function. When `memoFn(arg)` is called the first time for any
 given `arg`, it calls `fn(arg)`.
-
 If `arg` is a valid `WeakMap` key and `fn(arg)` returns a result
 rather than throwing, then the mapping from `arg` to this result is memoized in
 `memoFn`'s encapsulated `WeakMap`, and `result` is returned.
 All further calls `memoFn(arg)` with the same
 `memoFn` and the same `arg` will return the same memoized result
 without calling `fn`.
-
 Otherwise:
-   * If `fn(arg)` throws, then `memoFn(arg)` throws without any further effect
-     beyond that performed by the `fn(arg)` call.
-   * If `arg` is not a valid WeakMap key,
-     then `memoFn(arg)` throws without any effect.
+   * If `arg` is not a valid WeakMap key, then `memoFn(arg)` throws without any
+     effect.
+   * If `arg` is  a valid WeakMap key, but `fn(arg)` throws, then `memoFn(arg)`
+     propagates the error without any further effect beyond that performed by
+     the `fn(arg)` call.
 
 Notice that throws from `fn(arg)` are not memoized, but rejected promises
 returned by `fn(arg)` ***are*** memoized.
