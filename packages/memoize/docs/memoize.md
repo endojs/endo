@@ -36,9 +36,11 @@ export const memoize = fn => {
 };
 harden(memoize);
 ```
+
 By "contingent safety", we mean the safety guarantees that follow given that
 certain requirements are met. Before we examine these, let's first understand
 the non-contingent semantics of this code.
+
 ## Base semantics
 
 ***Hardened JS***: Even the supposedly non-contingent base semantics does
@@ -54,12 +56,14 @@ Given a function `fn`, the call `memoize(fn)` returns a `fn`-like function, `mem
 The one-arg function `memoFn` is a memoizing form of `fn`
 as a one-argument function. When `memoFn(arg)` is called the first time for any
 given `arg`, it calls `fn(arg)`.
+
 If `arg` is a valid `WeakMap` key and `fn(arg)` returns a result
 rather than throwing, then the mapping from `arg` to this result is memoized in
 `memoFn`'s encapsulated `WeakMap`, and `result` is returned.
 All further calls `memoFn(arg)` with the same
 `memoFn` and the same `arg` will return the same memoized result
 without calling `fn`.
+
 Otherwise:
    * If `arg` is not a valid WeakMap key, then `memoFn(arg)` throws without any
      effect.
