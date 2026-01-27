@@ -103,6 +103,7 @@ export const OcapnSignatureCodec = makeOcapnListComponentCodec(
       syrupWriter,
     );
   },
+  1, // 1 field: eddsa array
 );
 
 /**
@@ -150,6 +151,7 @@ export const OcapnPublicKeyCodec = makeOcapnListComponentCodec(
       syrupWriter,
     );
   },
+  1, // 1 field: ecc array
 );
 
 /**

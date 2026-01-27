@@ -232,27 +232,32 @@ export const makeReferenceKit = (
   const referenceKit = harden({
     provideRemoteObjectValue: position => {
       const slot = makeSlot('o', false, position);
-      let value = ocapnTable.getValueForSlot(slot);
-      if (value === undefined) {
-        value = makeRemoteObject(position, `Remote Object ${position}`);
-        ocapnTable.registerSlot(slot, value);
+      const existing = ocapnTable.getValueForSlot(slot);
+      if (existing !== undefined) {
+        // Record that we're receiving this reference in the current message
+        ocapnTable.recordReceivedSlot(slot);
+        return existing;
       }
+      const value = makeRemoteObject(position, `Remote Object ${position}`);
+      ocapnTable.registerSlot(slot, value);
       // Record that we're receiving this reference in the current message
       ocapnTable.recordReceivedSlot(slot);
       return value;
     },
     provideRemotePromiseValue: position => {
       const slot = makeSlot('p', false, position);
-      let value = ocapnTable.getValueForSlot(slot);
-      if (value === undefined) {
-        const { promise, settler } = makeRemotePromise(position);
-        value = promise;
-        ocapnTable.registerSettler(slot, settler);
-        ocapnTable.registerSlot(slot, promise);
+      const existing = ocapnTable.getValueForSlot(slot);
+      if (existing !== undefined) {
+        // Record that we're receiving this reference in the current message
+        ocapnTable.recordReceivedSlot(slot);
+        return /** @type {Promise<unknown>} */ (existing);
       }
+      const { promise, settler } = makeRemotePromise(position);
+      ocapnTable.registerSettler(slot, settler);
+      ocapnTable.registerSlot(slot, promise);
       // Record that we're receiving this reference in the current message
       ocapnTable.recordReceivedSlot(slot);
-      return value;
+      return promise;
     },
     provideLocalExportValue: position => {
       // Exports are either promises or objects.
@@ -271,22 +276,26 @@ export const makeReferenceKit = (
     // Only used by ResolveMeDescCodec
     provideRemoteResolverValue: position => {
       const slot = makeSlot('o', false, position);
-      let value = ocapnTable.getValueForSlot(slot);
-      if (value === undefined) {
-        value = makeRemoteResolver(position);
-        ocapnTable.registerSlot(slot, value);
+      const existing = ocapnTable.getValueForSlot(slot);
+      if (existing !== undefined) {
+        // Record that we're receiving this reference in the current message
+        ocapnTable.recordReceivedSlot(slot);
+        return existing;
       }
+      const value = makeRemoteResolver(position);
+      ocapnTable.registerSlot(slot, value);
       // Record that we're receiving this reference in the current message
       ocapnTable.recordReceivedSlot(slot);
       return value;
     },
     provideRemoteBootstrapValue: () => {
       const slot = makeSlot('o', false, 0n);
-      let value = ocapnTable.getValueForSlot(slot);
-      if (value === undefined) {
-        value = makeRemoteBootstrap();
-        ocapnTable.registerSlot(slot, value);
+      const existing = ocapnTable.getValueForSlot(slot);
+      if (existing !== undefined) {
+        return existing;
       }
+      const value = makeRemoteBootstrap();
+      ocapnTable.registerSlot(slot, value);
       return value;
     },
 

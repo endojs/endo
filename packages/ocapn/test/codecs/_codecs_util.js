@@ -5,7 +5,8 @@
  * @import { ReferenceKit } from '../../src/client/ref-kit.js'
  * @import { OcapnLocation } from '../../src/codecs/components.js'
  * @import { HandoffGiveSigEnvelope, HandoffReceiveSigEnvelope } from '../../src/codecs/descriptors.js'
- * @import { SyrupCodec } from '../../src/syrup/codec.js'
+ * @import { DataCodec as DataCodec } from '../../src/syrup/codec.js'
+ * @import { OcapnReader, OcapnWriter } from '../../src/codec-interface.js'
  * @import { Settler } from '@endo/eventual-send'
  * @import { PublicKeyId, SessionId, SwissNum } from '../../src/client/types.js'
  */
@@ -25,6 +26,9 @@ import { makePassableCodecs } from '../../src/codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../../src/codecs/operations.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';
+import { makeCborReader } from '../../src/cbor/decode.js';
+import { makeCborWriter } from '../../src/cbor/encode.js';
+import { cborToDiagnostic } from '../../src/cbor/diagnostic/index.js';
 import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
 import {
   makeOcapnKeyPairFromPrivateKey,
@@ -34,6 +38,55 @@ import {
 import { uint8ArrayToImmutableArrayBuffer } from '../../src/buffer-utils.js';
 import { makeOcapnTable } from '../../src/captp/ocapn-tables.js';
 import { makeSlot } from '../../src/captp/pairwise.js';
+
+/**
+ * A codec configuration providing reader and writer factories.
+ *
+ * @typedef {object} Codec
+ * @property {string} name - Codec name (e.g., "syrup", "cbor")
+ * @property {(options?: {name?: string}) => OcapnWriter} makeWriter
+ * @property {(bytes: Uint8Array, options?: {name?: string}) => OcapnReader} makeReader
+ * @property {(bytes: Uint8Array) => string} toDiagnostic - Convert bytes to readable format
+ */
+
+/**
+ * Syrup codec configuration.
+ * @type {Codec}
+ */
+export const SyrupCodec = Object.freeze({
+  name: 'syrup',
+  makeWriter: (options = {}) => makeSyrupWriter(options),
+  makeReader: (bytes, options = {}) => makeSyrupReader(bytes, options),
+  toDiagnostic: bytes => {
+    const { value, isValidUtf8 } = maybeDecode(bytes);
+    if (isValidUtf8 && value !== undefined) {
+      return value;
+    }
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join(' ');
+  },
+});
+
+/**
+ * CBOR codec configuration.
+ * @type {Codec}
+ */
+export const CborCodec = Object.freeze({
+  name: 'cbor',
+  makeWriter: (options = {}) => makeCborWriter(options),
+  makeReader: (bytes, options = {}) => makeCborReader(bytes, options),
+  toDiagnostic: bytes => cborToDiagnostic(bytes),
+});
+
+/**
+ * All codecs available for testing.
+ * Both Syrup and CBOR are supported - enter* methods now accept element counts
+ * which enables CBOR's definite-length encoding while being ignored by Syrup.
+ *
+ * @type {Codec[]}
+ */
+export const AllCodecs = [SyrupCodec, CborCodec];
 
 const bufferToHex = arrayBuffer => {
   // Convert ImmutableArrayBuffer to regular ArrayBuffer
@@ -121,11 +174,11 @@ export const exampleReceiverSideId = /** @type {PublicKeyId} */ (
  * @property {(position: bigint) => Promise<unknown>} makeLocalPromise
  * @property {(position: bigint) => Promise<unknown>} makeRemoteAnswer
  * @property {(position: bigint) => Promise<unknown>} makeLocalAnswer
- * @property {SyrupCodec} ReferenceCodec
- * @property {SyrupCodec} DescImportObjectCodec
- * @property {SyrupCodec} DescSigEnvelopeReadCodec
- * @property {SyrupCodec} OcapnMessageUnionCodec
- * @property {SyrupCodec} PassableCodec
+ * @property {DataCodec} ReferenceCodec
+ * @property {DataCodec} DescImportObjectCodec
+ * @property {DataCodec} DescSigEnvelopeReadCodec
+ * @property {DataCodec} OcapnMessageUnionCodec
+ * @property {DataCodec} PassableCodec
  */
 
 /**
@@ -280,8 +333,8 @@ export const makeCodecTestKit = (
  * @property {boolean} [only] // only run this test (via test.only)
  * @property {OcapnLocation} [ownLocation]
  * @property {OcapnLocation} [peerLocation]
- * @property {SyrupCodec} [codec]
- * @property {(testKit: CodecTestKit) => SyrupCodec} [getCodec]
+ * @property {DataCodec} [dataCodec] - Data codec to test (e.g., PassableCodec)
+ * @property {(testKit: CodecTestKit) => DataCodec} [getCodec]
  * @property {(testKit: CodecTestKit) => void} [beforeTest]
  * @property {any} [value]
  * @property {(testKit: CodecTestKit) => any} [makeValue]
@@ -291,15 +344,20 @@ export const makeCodecTestKit = (
  */
 
 /**
+ * @typedef {object} TestBidirectionallyOptions
+ * @property {Codec} [codec] - Wire codec to use (e.g., SyrupCodec, CborCodec)
+ */
+
+/**
  * @param {any} t
- * @param {CodecTestEntry} testEntry
+ * @param {CodecTestEntry & TestBidirectionallyOptions} testEntry
  */
 export const testBidirectionally = (
   t,
   {
     ownLocation = exporterLocation,
     peerLocation = receiverLocation,
-    codec: specifiedCodec,
+    dataCodec: specifiedDataCodec,
     getCodec,
     beforeTest,
     value,
@@ -308,18 +366,17 @@ export const testBidirectionally = (
     skipRead = false,
     customAssert,
     name = '(unknown test entry)',
+    codec = SyrupCodec,
   },
 ) => {
-  // const inputSyrupString = getSyrupString(syrup);
-  // const testDescriptor = `${name} ${inputSyrupString}`;
   const testDescriptor = name;
   if ([value, makeValue].filter(arg => arg !== undefined).length > 1) {
     throw Error(`Only one of value, makeValue can be provided for ${name}`);
   }
   const testKit = makeCodecTestKit(ownLocation, peerLocation);
-  const codec = specifiedCodec || (getCodec && getCodec(testKit));
-  if (!codec) {
-    throw Error(`codec or getCodec must be provided for ${name}`);
+  const dataCodec = specifiedDataCodec || (getCodec && getCodec(testKit));
+  if (!dataCodec) {
+    throw Error(`dataCodec or getCodec must be provided for ${name}`);
   }
 
   if (beforeTest) {
@@ -332,31 +389,21 @@ export const testBidirectionally = (
   }
   const expectedValue = makeExpectedValue ? makeExpectedValue(testKit) : value;
 
-  // Test write.
-  // const expectedOutputSyrupString = getSyrupString(expectedOutputSyrup);
-  // const expectedOutputSyrupBytes = getSyrupBytes(expectedOutputSyrup);
-  const syrupWriter = makeSyrupWriter({ name: testDescriptor });
+  // Test write using the configured wire codec.
+  const writer = codec.makeWriter({ name: testDescriptor });
   notThrowsWithErrorUnwrapping(
     t,
     () => {
-      codec.write(inputValue, syrupWriter);
+      dataCodec.write(inputValue, writer);
     },
-    `write syrup: ${testDescriptor}`,
+    `write ${codec.name}: ${testDescriptor}`,
   );
-  const actualSyrupResultBytes = syrupWriter.getBytes();
-  const { value: actualSyrupResultString, isValidUtf8 } = maybeDecode(
-    actualSyrupResultBytes,
-  );
+  const actualResultBytes = writer.getBytes();
 
-  // Snapshot the syrup result as a string (if possible) otherwise hex encoded bytes.
-  if (isValidUtf8) {
-    t.snapshot(actualSyrupResultString, testDescriptor);
-  } else {
-    const hexEncoded = Array.from(actualSyrupResultBytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join(' ');
-    t.snapshot(hexEncoded, testDescriptor);
-  }
+  // Snapshot the result in diagnostic format
+  // Include wire codec name to differentiate snapshots between Syrup and CBOR
+  const diagnosticString = codec.toDiagnostic(actualResultBytes);
+  t.snapshot(diagnosticString, `[${codec.name}] ${testDescriptor}`);
 
   // It doesn't always make sense for the same codec to write and read the same value.
   // This is because the codecs close over the import/export table.
@@ -364,11 +411,10 @@ export const testBidirectionally = (
     return;
   }
 
-  const readValueResult = codec.read(
-    makeSyrupReader(actualSyrupResultBytes, {
-      name: `${testDescriptor} read back`,
-    }),
-  );
+  const reader = codec.makeReader(actualResultBytes, {
+    name: `${testDescriptor} read back`,
+  });
+  const readValueResult = dataCodec.read(reader);
 
   if (customAssert) {
     customAssert(
@@ -387,12 +433,21 @@ export const testBidirectionally = (
 };
 
 /**
+ * Run table tests with a specific codec format.
+ *
  * @param {any} test
  * @param {string} tableName
  * @param {CodecTestEntry[]} table
- * @param {(testKit: CodecTestKit) => SyrupCodec} getCodec
+ * @param {(testKit: CodecTestKit) => DataCodec} getCodec
+ * @param {Codec} [codec] - Codec format to use (defaults to SyrupCodec)
  */
-export const runTableTests = (test, tableName, table, getCodec) => {
+export const runTableTests = (
+  test,
+  tableName,
+  table,
+  getCodec,
+  codec = SyrupCodec,
+) => {
   let hasOnly = false;
   for (const [index, entry] of table.entries()) {
     const { name = `test-${index}`, only } = entry;
@@ -400,11 +455,12 @@ export const runTableTests = (test, tableName, table, getCodec) => {
     if (only) {
       hasOnly = true;
     }
-    testFunction(`affirmative table tests ${tableName}: ${name}`, t => {
+    testFunction(`${tableName} [${codec.name}]: ${name}`, t => {
       testBidirectionally(t, {
         // @ts-expect-error - name is specified more than once
         name,
         getCodec,
+        codec,
         ...entry,
       });
     });
@@ -413,6 +469,21 @@ export const runTableTests = (test, tableName, table, getCodec) => {
     test.only('Disallow "only" in tables', t => {
       t.fail('"only" is not allowed in tables');
     });
+  }
+};
+
+/**
+ * Run table tests with all available codec formats (Syrup and CBOR).
+ * This ensures feature parity between codecs.
+ *
+ * @param {any} test
+ * @param {string} tableName
+ * @param {CodecTestEntry[]} table
+ * @param {(testKit: CodecTestKit) => DataCodec} getCodec
+ */
+export const runTableTestsAllCodecs = (test, tableName, table, getCodec) => {
+  for (const codec of AllCodecs) {
+    runTableTests(test, tableName, table, getCodec, codec);
   }
 };
 

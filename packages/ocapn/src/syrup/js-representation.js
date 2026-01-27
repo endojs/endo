@@ -241,7 +241,7 @@ export const DictionaryCodec = freeze({
     }
     indexes.sort((i, j) => compareUint8Arrays(keyBytes[i], keyBytes[j]));
 
-    syrupWriter.enterDictionary();
+    syrupWriter.enterDictionary(keys.length);
     for (const index of indexes) {
       const key = keys[index];
       const entry = value[key];
@@ -265,7 +265,8 @@ const RecordCodec = makeCodec('SyrupRecordCodec', {
     return { [Symbol.toStringTag]: 'Record', label, values };
   },
   write: (value, syrupWriter) => {
-    syrupWriter.enterRecord();
+    // Element count = 1 (label) + values.length
+    syrupWriter.enterRecord(1 + value.values.length);
     syrupWriter.writeSelectorFromString(value.label);
     for (const entry of value.values) {
       AnyCodec.write(entry, syrupWriter);

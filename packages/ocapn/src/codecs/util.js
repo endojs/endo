@@ -2,8 +2,7 @@
  * @import { HandoffGiveDetails } from '../client/grant-tracker.js'
  * @import { ReferenceKit } from '../client/ref-kit.js'
  * @import { SyrupCodec, SyrupRecordCodec, SyrupRecordDefinition, SyrupRecordUnionCodec } from '../syrup/codec.js'
- * @import { SyrupReader } from '../syrup/decode.js'
- * @import { SyrupWriter } from '../syrup/encode.js'
+ * @import { OcapnReader, OcapnWriter } from '../codec-interface.js'
  */
 
 import {
@@ -40,28 +39,44 @@ export const makeOcapnRecordCodecFromDefinition = (
 /**
  * @param {string} codecName
  * @param {string} label
- * @param {function(SyrupReader): any} readBody
- * @param {function(any, SyrupWriter): void} writeBody
+ * @param {function(OcapnReader): any} readBody
+ * @param {function(any, OcapnWriter): void} writeBody
+ * @param {number} [fieldCount] - Number of fields in the record body (required for CBOR)
  * @returns {SyrupRecordCodec}
  */
-export const makeOcapnRecordCodec = (codecName, label, readBody, writeBody) => {
+export const makeOcapnRecordCodec = (
+  codecName,
+  label,
+  readBody,
+  writeBody,
+  fieldCount,
+) => {
   // Syrup Records as used in OCapN are always labeled with selectors
-  return makeRecordCodec(codecName, label, 'selector', readBody, writeBody);
+  return makeRecordCodec(
+    codecName,
+    label,
+    'selector',
+    readBody,
+    writeBody,
+    fieldCount,
+  );
 };
 
 /**
  * @typedef {SyrupCodec & {
  *   label: string;
- *   readBody: (SyrupReader) => any;
- *   writeBody: (any, SyrupWriter) => void;
+ *   elementCount?: number;
+ *   readBody: (reader: OcapnReader) => any;
+ *   writeBody: (value: any, writer: OcapnWriter) => void;
  * }} OcapnListComponentCodec
  */
 
 /**
  * @param {string} codecName
  * @param {string} label
- * @param {function(SyrupReader): any} readBody
- * @param {function(any, SyrupWriter): void} writeBody
+ * @param {function(OcapnReader): any} readBody
+ * @param {function(any, OcapnWriter): void} writeBody
+ * @param {number} [fieldCount] - Number of fields in the body (required for CBOR)
  * @returns {OcapnListComponentCodec}
  */
 export const makeOcapnListComponentCodec = (
@@ -69,7 +84,10 @@ export const makeOcapnListComponentCodec = (
   label,
   readBody,
   writeBody,
+  fieldCount,
 ) => {
+  // Element count = 1 (label) + field count
+  const elementCount = fieldCount !== undefined ? 1 + fieldCount : undefined;
   const { read, write } = makeCodec(codecName, {
     read: syrupReader => {
       syrupReader.enterList();
@@ -82,7 +100,7 @@ export const makeOcapnListComponentCodec = (
       return result;
     },
     write: (value, syrupWriter) => {
-      syrupWriter.enterList();
+      syrupWriter.enterList(elementCount);
       syrupWriter.writeSelectorFromString(label);
       writeBody(value, syrupWriter);
       syrupWriter.exitList();
@@ -90,6 +108,7 @@ export const makeOcapnListComponentCodec = (
   });
   return freeze({
     label,
+    elementCount,
     read,
     readBody,
     write,
@@ -124,7 +143,6 @@ export const makeOcapnListComponentUnionCodec = (
       return codec.readBody(syrupReader);
     },
     write: (value, syrupWriter) => {
-      syrupWriter.enterList();
       const label = value.type;
       if (typeof label !== 'string') {
         throw Error(`Expected label, got ${typeof label}`);
@@ -133,6 +151,7 @@ export const makeOcapnListComponentUnionCodec = (
       if (!codec) {
         throw Error(`Unknown label ${label}`);
       }
+      syrupWriter.enterList(codec.elementCount);
       syrupWriter.writeSelectorFromString(label);
       codec.writeBody(value, syrupWriter);
       syrupWriter.exitList();
@@ -183,7 +202,7 @@ export const makeValueInfoRecordUnionCodec = (
   };
 
   /**
-   * @param {SyrupReader} syrupReader
+   * @param {OcapnReader} syrupReader
    * @returns {any}
    */
   const read = syrupReader => {
@@ -192,7 +211,7 @@ export const makeValueInfoRecordUnionCodec = (
 
   /**
    * @param {any} value
-   * @param {SyrupWriter} syrupWriter
+   * @param {OcapnWriter} syrupWriter
    */
   const write = (value, syrupWriter) => {
     const { type, isLocal, isThirdParty, grantDetails } =

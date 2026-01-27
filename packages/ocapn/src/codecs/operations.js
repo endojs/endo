@@ -139,7 +139,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
      * @param {SyrupWriter} syrupWriter
      */
     write: (args, syrupWriter) => {
-      syrupWriter.enterList();
+      syrupWriter.enterList(args.length);
       for (const arg of args) {
         PassableCodec.write(arg, syrupWriter);
       }
