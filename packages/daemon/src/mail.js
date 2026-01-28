@@ -5,7 +5,13 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import { assertPetName, assertPetNamePath } from './pet-name.js';
+import { assertValidId } from './formula-identifier.js';
+import {
+  assertPetNames,
+  assertNamePath,
+  assertName,
+  assertNames,
+} from './pet-name.js';
 
 import {
   ResponderInterface,
@@ -16,7 +22,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Envelope, EnvelopedMessage, Handle, Mail, MakeMailbox, Provide, Request, StampedMessage, Topic } from './types.js' */
+/** @import { Envelope, EnvelopedMessage, FormulaIdentifier, Handle, Mail, MakeMailbox, Name, NameOrPath, PetName, Provide, Request, StampedMessage, Topic } from './types.js' */
 
 /**
  * @param {string} description
@@ -120,7 +126,7 @@ export const makeMailboxMaker = ({ provide }) => {
 
     /** @type {Mail['resolve']} */
     const resolve = async (messageNumber, resolutionName) => {
-      assertPetName(resolutionName);
+      assertName(resolutionName);
       if (
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
@@ -159,14 +165,18 @@ export const makeMailboxMaker = ({ provide }) => {
 
     /** @type {Mail['send']} */
     const send = async (toName, strings, edgeNames, petNames) => {
+      assertName(toName);
+      assertNames(edgeNames);
+      assertPetNames(petNames);
       const toId = petStore.identifyLocal(toName);
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
-      const to = /** @type {Handle} */ (await provide(toId));
+      const to = await provide(
+        /** @type {FormulaIdentifier} */ (toId),
+        'handle',
+      );
 
-      petNames.forEach(assertPetName);
-      edgeNames.forEach(assertPetName);
       if (petNames.length !== edgeNames.length) {
         throw new Error(
           `Message must have one edge name (${q(
@@ -219,8 +229,8 @@ export const makeMailboxMaker = ({ provide }) => {
 
     /** @type {Mail['adopt']} */
     const adopt = async (messageNumber, edgeName, petNamePath) => {
-      assertPetName(edgeName);
-      assertPetNamePath(petNamePath);
+      assertName(edgeName);
+      assertNamePath(petNamePath);
       if (
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
@@ -254,11 +264,15 @@ export const makeMailboxMaker = ({ provide }) => {
 
     /** @type {Mail['request']} */
     const request = async (toName, description, responseName) => {
+      assertName(toName);
+      if (responseName !== undefined) {
+        assertName(responseName);
+      }
       await null;
       if (responseName !== undefined) {
         const responseId = await E(directory).identify(responseName);
         if (responseId !== undefined) {
-          return provide(responseId);
+          return provide(/** @type {FormulaIdentifier} */ (responseId));
         }
       }
 
@@ -266,7 +280,10 @@ export const makeMailboxMaker = ({ provide }) => {
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
-      const to = /** @type {Handle} */ (await provide(toId));
+      const to = await provide(
+        /** @type {FormulaIdentifier} */ (toId),
+        'handle',
+      );
 
       const { request: req, response: responseIdP } = makeRequest(
         description,
@@ -278,10 +295,11 @@ export const makeMailboxMaker = ({ provide }) => {
       await post(to, req);
 
       const responseId = await responseIdP;
+      assertValidId(responseId);
       const responseP = provide(responseId);
 
       if (responseName !== undefined) {
-        await E(directory).write(responseName, responseId);
+        await E(directory).write([responseName], responseId);
       }
 
       return responseP;
@@ -305,9 +323,11 @@ export const makeMailboxMaker = ({ provide }) => {
      * @param {string} allegedFromId
      */
     const receive = async (envelope, allegedFromId) => {
-      const sender = /** @type {Promise<Handle>} */ (provide(allegedFromId));
+      assertValidId(allegedFromId);
+      const senderId = allegedFromId;
+      const sender = provide(senderId, 'handle');
       const message = await E(sender).open(envelope);
-      if (allegedFromId !== message.from) {
+      if (senderId !== message.from) {
         throw new Error('Mail fraud: alleged sender does not recognize parcel');
       }
       deliver(message);
