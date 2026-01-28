@@ -24,7 +24,6 @@ import { formatLocator, idFromLocator } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidNumber,
-  assertValidId,
   assertFormulaNumber,
   assertNodeNumber,
   parseId,
@@ -81,17 +80,9 @@ const delay = async (ms, cancelled) => {
 const makeInspector = (type, number, record) =>
   makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
     lookup: async petNameOrPath => {
-      /** @type {string} */
-      let petName;
-      if (Array.isArray(petNameOrPath)) {
-        if (petNameOrPath.length !== 1) {
-          throw Error('Inspector.lookup(path) requires path length of 1');
-        }
-        petName = petNameOrPath[0];
-      } else {
-        petName = petNameOrPath;
-      }
-      assertName(petName);
+      const petName = Array.isArray(petNameOrPath)
+        ? petNameOrPath[0]
+        : petNameOrPath;
       if (!Object.hasOwn(record, petName)) {
         return undefined;
       }
@@ -347,8 +338,7 @@ const makeDaemonCore = async (
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
-      assertValidId(requestedId);
-      const { node, id } = parseId(requestedId);
+      const { node } = parseId(requestedId);
       if (node !== localNodeNumber) {
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
@@ -356,7 +346,7 @@ const makeDaemonCore = async (
           )}`,
         );
       }
-      return provide(id);
+      return provide(requestedId);
     },
   });
 
@@ -460,8 +450,8 @@ const makeDaemonCore = async (
   /**
    * @param {FormulaIdentifier} workerId
    * @param {string} source
-   * @param {Array<string>} codeNames
-   * @param {Array<FormulaIdentifier>} ids
+   * @param {Array<Name>} codeNames
+   * @param {Array<string>} ids
    * @param {Context} context
    */
   const makeEval = async (workerId, source, codeNames, ids, context) => {
@@ -496,7 +486,7 @@ const makeDaemonCore = async (
   /**
    * Creates a controller for a `lookup` formula.
    *
-   * @param {FormulaIdentifier} hubId
+   * @param {string} hubId
    * @param {NamePath} path
    * @param {Context} context
    */
@@ -1333,11 +1323,8 @@ const makeDaemonCore = async (
           );
         },
         addPeerInfo: async peerInfo => {
-          const knownPeers = /** @type {KnownPeersStore} */ (
-            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
-          );
+          const knownPeers = await provide(peersId, 'pet-store');
           const { node: nodeNumber, addresses } = peerInfo;
-          assertNodeNumber(nodeNumber);
           if (knownPeers.has(nodeNumber)) {
             // We already have this peer.
             // TODO: merge connection info
@@ -1436,7 +1423,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {FormulaIdentifier} id
+   * @param {string} id
    * @param {FormulaNumber} formulaNumber
    * @param {Formula} formula
    * @param {Context} context
@@ -1548,18 +1535,18 @@ const makeDaemonCore = async (
 
   /**
    * @param {NodeNumber} nodeNumber
-   * @returns {Promise<FormulaIdentifier>}
+   * @returns {Promise<string>}
    */
   const getPeerIdForNodeIdentifier = async nodeNumber => {
     if (nodeNumber === localNodeNumber) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    const knownPeers = /** @type {KnownPeersStore} */ (
-      /** @type {unknown} */ (await provide(knownPeersId, 'pet-store'))
-    );
+    const knownPeers = await provide(knownPeersId, 'pet-store');
     // The knownPeers pet store uses node numbers as keys, not pet names.
     // This is a deliberate aberration of the pet store abstraction.
-    const peerId = knownPeers.identifyLocal(nodeNumber);
+    const peerId = knownPeers.identifyLocal(
+      /** @type {Name} */ (/** @type {unknown} */ (nodeNumber)),
+    );
     if (peerId === undefined) {
       throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
@@ -1633,12 +1620,13 @@ const makeDaemonCore = async (
       return { invitationNumber };
     });
 
+    const guestNameTyped = /** @type {PetName} */ (guestName);
     /** @type {InvitationFormula} */
     const formula = {
       type: 'invitation',
       hostAgent: hostAgentId,
       hostHandle: hostHandleId,
-      guestName,
+      guestName: guestNameTyped,
     };
 
     return /** @type {FormulateResult<Invitation>} */ (
@@ -1656,8 +1644,8 @@ const makeDaemonCore = async (
    * reference on the already-incarnated agent.
    *
    * @param {FormulaNumber} formulaNumber - The formula number of the handle to formulate.
-   * @param {FormulaIdentifier} agentId - The formula identifier of the handle's agent.
-   * @returns {Promise<FormulaIdentifier>}
+   * @param {string} agentId - The formula identifier of the handle's agent.
+   * @returns {Promise<string>}
    */
   const formulateNumberedHandle = async (formulaNumber, agentId) => {
     /** @type {HandleFormula} */
@@ -2151,11 +2139,11 @@ const makeDaemonCore = async (
    * Formulates a `lookup` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
    * @param {FormulaNumber} formulaNumber - The lookup formula's number.
-   * @param {FormulaIdentifier} hubId - The formula identifier of the naming
+   * @param {string} hubId - The formula identifier of the naming
    * hub to call `lookup` on. A "naming hub" is an objected with a variadic
    * lookup method. It includes objects such as guests and hosts.
    * @param {NamePath} petNamePath - The pet name path to look up.
-   * @returns {Promise<{ id: FormulaIdentifier, value: EndoWorker }>}
+   * @returns {Promise<{ id: string, value: EndoWorker }>}
    */
   const formulateNumberedLookup = (formulaNumber, hubId, petNamePath) => {
     /** @type {LookupFormula} */
@@ -2579,12 +2567,12 @@ const makeDaemonCore = async (
     const petStore = await provide(petStoreId, 'pet-store');
 
     /**
-     * @param {string | string[]} petNameOrPath - The pet name to inspect.
+     * @param {NameOrPath} petNameOrPath - The pet name to inspect.
      * @returns {Promise<KnownEndoInspectors[string]>} An
      * inspector for the value of the given pet name.
      */
     const lookup = async petNameOrPath => {
-      /** @type {string} */
+      /** @type {Name} */
       let petName;
       if (Array.isArray(petNameOrPath)) {
         if (petNameOrPath.length !== 1) {

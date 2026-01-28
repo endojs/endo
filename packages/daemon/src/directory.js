@@ -14,7 +14,7 @@ import {
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, FormulaIdentifier, Name, NamePath, PetName } from './types.js' */
+/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName } from './types.js' */
 
 /**
  * @param {object} args

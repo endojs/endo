@@ -5,7 +5,6 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import { assertValidId } from './formula-identifier.js';
 import {
   assertPetNames,
   assertName,
