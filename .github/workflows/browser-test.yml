@@ -6,6 +6,11 @@ on:
     branches: [master]
   schedule:
     - cron: '0 0 * * *' # Runs every day at midnight
+
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   browser-tests:
     timeout-minutes: 30

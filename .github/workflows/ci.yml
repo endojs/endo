@@ -8,6 +8,11 @@ on:
     branches: [master]
   pull_request:
 
+# Minimal permissions for workflows and jobs (cache uses actions API).
+permissions:
+  contents: read
+  actions: write
+
 # This file has necessary redundancies since of github actions aren't supporting:
 # - the definition of macros, which could be called from each job.
 # - reporting the status of steps in the PR (only jobs and workflows are reported).
