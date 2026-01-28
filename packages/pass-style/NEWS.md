@@ -2,11 +2,14 @@ User-visible changes in `@endo/pass-style`:
 
 # Next release
 
-- deprecates `assertChecker`. Use `Fail` in the confirm/reject pattern instead, as supported by `@endo/errors/rejector.js`.
+- Deprecates `assertChecker`. Use `Fail` in the confirm/reject pattern instead, as supported by `@endo/errors/rejector.js`.
 - Enables `passStyleOf` to make errors passable as a side-effect when SES locks
   down with `hardenTaming` set to `unsafe`, which impacts errors on V8 starting
   with Node.js 21, and similar engines, that own a `stack` getter and setter
   that would otherwise be repaired as a side-effect of `harden`.
+- Update typing of `CopyArray<T>` to be compatible with `ReadonlyArray<T>` since
+  we know dynamically that the CopyArray is hardened, so we may as well show
+  statically that mutation is not allowed.
 
 # 1.6.3 (2025-07-11)
 

@@ -202,7 +202,7 @@ export type PassableCap =
 /**
  * A Passable sequence of Passable values.
  */
-export type CopyArray<T extends Passable = any> = Array<T>;
+export type CopyArray<T extends Passable = any> = ReadonlyArray<T>;
 
 /**
  * A hardened immutable ArrayBuffer.

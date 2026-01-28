@@ -44,6 +44,12 @@ expectPassable(fn());
 
 expectPassable({});
 expectPassable({ a: {} });
+expectPassable({ a: { b: {} } });
+expectPassable(['car', 'cdr']);
+expectPassable(['car', 'cdr'] as string[]);
+expectPassable([['a'], ['b']] as const);
+expectPassable(['car', 'cdr'] as Readonly<string[]>);
+expectPassable(['car', 'cdr'] as Readonly<[string, string]>);
 // @ts-expect-error not passable
 expectPassable(fn);
 // FIXME promise for a non-Passable is not Passable
