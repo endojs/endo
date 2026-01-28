@@ -1337,8 +1337,8 @@ const makePatternKit = () => {
     needOutResults = false,
   ) => {
     let count = 0n;
-    let inResults = needInResults ? [] : undefined;
-    let outResults = needOutResults ? [] : undefined;
+    const inResults = needInResults ? [] : undefined;
+    const outResults = needOutResults ? [] : undefined;
     // Since this feature is motivated by ERTP's use on
     // non-fungible (`set`, `copySet`) amounts,
     // their arrays store their elements in decending lexicographic order.
@@ -1352,15 +1352,15 @@ const makePatternKit = () => {
         if (matches(element, elementPatt)) {
           count += 1n;
           if (inResults) {
-            inResults = [...inResults, element];
+            inResults.push(element);
           }
         } else if (outResults) {
-          outResults = [...outResults, element];
+          outResults.push(element);
         }
       } else if (outResults === undefined) {
         break;
       } else {
-        outResults = [...outResults, element];
+        outResults.push(element);
       }
     }
     const valid =
@@ -1387,8 +1387,8 @@ const makePatternKit = () => {
     needOutResults = false,
   ) => {
     let count = 0n;
-    let inResults = needInResults ? [] : undefined;
-    let outResults = needOutResults ? [] : undefined;
+    const inResults = needInResults ? [] : undefined;
+    const outResults = needOutResults ? [] : undefined;
     // Since this feature is motivated by ERTP's use on
     // semi-fungible (`copyBag`) amounts,
     // their arrays store their elements in decending lexicographic order.
@@ -1404,25 +1404,25 @@ const makePatternKit = () => {
           if (num <= numRest) {
             count += num;
             if (inResults) {
-              inResults = [...inResults, [element, num]];
+              inResults.push([element, num]);
             }
           } else {
             const numIn = numRest;
             count += numIn;
             if (inResults) {
-              inResults = [...inResults, [element, numRest]];
+              inResults.push([element, numRest]);
             }
             if (outResults) {
-              outResults = [...outResults, [element, num - numRest]];
+              outResults.push([element, num - numRest]);
             }
           }
         } else if (outResults) {
-          outResults = [...outResults, [element, num]];
+          outResults.push([element, num]);
         }
       } else if (outResults === undefined) {
         break;
       } else {
-        outResults = [...outResults, [element, num]];
+        outResults.push([element, num]);
       }
     }
     const valid =
