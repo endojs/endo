@@ -5,7 +5,6 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import { assertValidId } from './formula-identifier.js';
 import {
   assertPetNames,
   assertNamePath,
@@ -22,7 +21,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Envelope, EnvelopedMessage, FormulaIdentifier, Handle, Mail, MakeMailbox, Name, NameOrPath, PetName, Provide, Request, StampedMessage, Topic } from './types.js' */
+/** @import { Envelope, EnvelopedMessage, Handle, Mail, MakeMailbox, Name, NameOrPath, PetName, Provide, Request, StampedMessage, Topic } from './types.js' */
 
 /**
  * @param {string} description

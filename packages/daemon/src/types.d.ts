@@ -91,10 +91,6 @@ type IdRecord = {
   node: NodeNumber;
 };
 
-type ParseIdRecord = IdRecord & {
-  id: FormulaIdentifier;
-};
-
 type EndoFormula = {
   type: 'endo';
   networks: FormulaIdentifier;
@@ -158,8 +154,8 @@ type EvalFormula = {
   type: 'eval';
   worker: FormulaIdentifier;
   source: string;
-  names: Array<string>; // lexical names
-  values: Array<FormulaIdentifier>; // formula identifiers
+  names: Array<Name>; // lexical names
+  values: Array<string>; // formula identifiers
   // TODO formula slots
 };
 
@@ -252,8 +248,8 @@ type DirectoryFormula = {
 
 type InvitationFormula = {
   type: 'invitation';
-  hostAgent: FormulaIdentifier;
-  hostHandle: FormulaIdentifier;
+  hostAgent: string; // identifier
+  hostHandle: string; // identifier
   guestName: PetName;
 };
 
@@ -770,7 +766,7 @@ export interface WorkerDaemonFacet {
   terminate(): Promise<void>;
   evaluate(
     source: string,
-    names: Array<string>,
+    names: Array<Name>,
     values: Array<unknown>,
     id: FormulaIdentifier,
     cancelled: Promise<never>,
@@ -825,12 +821,12 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
 
 type FormulateNumberedGuestParams = {
   guestFormulaNumber: FormulaNumber;
-  handleId: FormulaIdentifier;
-  guestId: FormulaIdentifier;
-  hostAgentId: FormulaIdentifier;
-  hostHandleId: FormulaIdentifier;
-  storeId: FormulaIdentifier;
-  workerId: FormulaIdentifier;
+  handleId: string;
+  guestId: string;
+  hostAgentId: string;
+  hostHandleId: string;
+  storeId: string;
+  workerId: string;
 };
 
 type FormulateHostDependenciesParams = {
@@ -842,14 +838,14 @@ type FormulateHostDependenciesParams = {
 
 type FormulateNumberedHostParams = {
   hostFormulaNumber: FormulaNumber;
-  hostId: FormulaIdentifier;
-  handleId: FormulaIdentifier;
-  workerId: FormulaIdentifier;
-  storeId: FormulaIdentifier;
-  inspectorId: FormulaIdentifier;
-  endoId: FormulaIdentifier;
-  networksDirectoryId: FormulaIdentifier;
-  pinsDirectoryId: FormulaIdentifier;
+  hostId: string;
+  handleId: string;
+  workerId: string;
+  storeId: string;
+  inspectorId: string;
+  endoId: string;
+  networksDirectoryId: string;
+  pinsDirectoryId: string;
 };
 
 export type FormulaValueTypes = {
@@ -910,8 +906,8 @@ export interface DaemonCore {
   formulateEval: (
     nameHubId: FormulaIdentifier,
     source: string,
-    codeNames: Array<string>,
-    endowmentIdsOrPaths: (FormulaIdentifier | NamePath)[],
+    codeNames: Array<Name>,
+    endowmentIdsOrPaths: (string | string[])[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
   ) => FormulateResult<unknown>;
@@ -962,7 +958,7 @@ export interface DaemonCore {
   ) => FormulateResult<EndoHost>;
 
   formulatePeer: (
-    networksId: FormulaIdentifier,
+    networksId: string,
     nodeNumber: NodeNumber,
     addresses: Array<string>,
   ) => FormulateResult<EndoPeer>;
@@ -973,8 +969,8 @@ export interface DaemonCore {
   ) => FormulateResult<FarRef<EndoReadable>>;
 
   formulateInvitation: (
-    hostAgentId: FormulaIdentifier,
-    hostHandleId: FormulaIdentifier,
+    hostAgentId: string,
+    hostHandleId: string,
     guestName: PetName,
     deferredTasks: DeferredTasks<InvitationDeferredTaskParams>,
   ) => FormulateResult<Invitation>;
