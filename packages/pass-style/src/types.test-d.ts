@@ -33,6 +33,28 @@ expectType<PassStyle>(passStyleOf(someUnknown));
 
 const expectPassable = (val: Passable) => {};
 
+() => {
+  const arr = ['hello'] as string[];
+  expectPassable(arr);
+  arr.push('world');
+  const slice = arr.slice();
+  expectPassable(slice);
+  arr.shift();
+  slice.shift();
+};
+
+() => {
+  const roArr = ['hello'] as Readonly<string[]>;
+  expectPassable(roArr);
+  // @ts-expect-error immutable
+  roArr.push('world');
+  const roSlice = roArr.slice();
+  expectPassable(roSlice);
+  // @ts-expect-error immutable
+  roArr.shift();
+  roSlice.shift();
+};
+
 const fn = () => {};
 
 expectPassable(1);
@@ -44,6 +66,12 @@ expectPassable(fn());
 
 expectPassable({});
 expectPassable({ a: {} });
+expectPassable({ a: { b: {} } });
+expectPassable(['car', 'cdr']);
+expectPassable(['car', 'cdr'] as string[]);
+expectPassable([['a'], ['b']] as const);
+expectPassable(['car', 'cdr'] as Readonly<string[]>);
+expectPassable(['car', 'cdr'] as Readonly<[string, string]>);
 // @ts-expect-error not passable
 expectPassable(fn);
 // FIXME promise for a non-Passable is not Passable
