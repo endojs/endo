@@ -1324,19 +1324,21 @@ const makePatternKit = () => {
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {CopyArray} [inResults]
-   * @param {CopyArray} [outResults]
-   * @returns {boolean}
+   * @param {boolean} [needInResults]
+   * @param {boolean} [needOutResults]
+   * @returns {{ valid: boolean, inResults?: Array, outResults?: Array }}
    */
   const confirmElementsHasSplit = (
     elements,
     elementPatt,
     bound,
     reject,
-    inResults = undefined,
-    outResults = undefined,
+    needInResults = false,
+    needOutResults = false,
   ) => {
     let count = 0n;
+    let inResults = needInResults ? [] : undefined;
+    let outResults = needOutResults ? [] : undefined;
     // Since this feature is motivated by ERTP's use on
     // non-fungible (`set`, `copySet`) amounts,
     // their arrays store their elements in decending lexicographic order.
@@ -1349,20 +1351,22 @@ const makePatternKit = () => {
       if (count < bound) {
         if (matches(element, elementPatt)) {
           count += 1n;
-          if (inResults) inResults.push(element);
+          if (inResults) {
+            inResults = [...inResults, element];
+          }
         } else if (outResults) {
-          outResults.push(element);
+          outResults = [...outResults, element];
         }
       } else if (outResults === undefined) {
         break;
       } else {
-        outResults.push(element);
+        outResults = [...outResults, element];
       }
     }
-    return (
+    const valid =
       count >= bound ||
-      (reject && reject`Has only ${q(count)} matches, but needs ${q(bound)}`)
-    );
+      (reject && reject`Has only ${q(count)} matches, but needs ${q(bound)}`);
+    return { valid, inResults, outResults };
   };
 
   /**
@@ -1370,19 +1374,21 @@ const makePatternKit = () => {
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {CopyArray<[Key, bigint]>} [inResults]
-   * @param {CopyArray<[Key, bigint]>} [outResults]
-   * @returns {boolean}
+   * @param {boolean} [needInResults]
+   * @param {boolean} [needOutResults]
+   * @returns {{ valid: boolean, inResults?: Array<[Key, bigint]>, outResults?: Array<[Key, bigint]> }}
    */
   const pairsHasSplit = (
     pairs,
     elementPatt,
     bound,
     reject,
-    inResults = undefined,
-    outResults = undefined,
+    needInResults = false,
+    needOutResults = false,
   ) => {
     let count = 0n;
+    let inResults = needInResults ? [] : undefined;
+    let outResults = needOutResults ? [] : undefined;
     // Since this feature is motivated by ERTP's use on
     // semi-fungible (`copyBag`) amounts,
     // their arrays store their elements in decending lexicographic order.
@@ -1397,26 +1403,32 @@ const makePatternKit = () => {
         if (matches(element, elementPatt)) {
           if (num <= numRest) {
             count += num;
-            if (inResults) inResults.push([element, num]);
+            if (inResults) {
+              inResults = [...inResults, [element, num]];
+            }
           } else {
             const numIn = numRest;
             count += numIn;
-            if (inResults) inResults.push([element, numRest]);
-            if (outResults) outResults.push([element, num - numRest]);
+            if (inResults) {
+              inResults = [...inResults, [element, numRest]];
+            }
+            if (outResults) {
+              outResults = [...outResults, [element, num - numRest]];
+            }
           }
         } else if (outResults) {
-          outResults.push([element, num]);
+          outResults = [...outResults, [element, num]];
         }
       } else if (outResults === undefined) {
         break;
       } else {
-        outResults.push([element, num]);
+        outResults = [...outResults, [element, num]];
       }
     }
-    return (
+    const valid =
       count >= bound ||
-      (reject && reject`Has only ${q(count)} matches, but needs ${q(bound)}`)
-    );
+      (reject && reject`Has only ${q(count)} matches, but needs ${q(bound)}`);
+    return { valid, inResults, outResults };
   };
 
   /**
@@ -1437,60 +1449,55 @@ const makePatternKit = () => {
     needInResults = false,
     needOutResults = false,
   ) => {
-    const inResults = needInResults ? [] : undefined;
-    const outResults = needOutResults ? [] : undefined;
     const kind = kindOf(specimen);
     switch (kind) {
       case 'copyArray': {
-        if (
-          !confirmElementsHasSplit(
-            specimen,
-            elementPatt,
-            bound,
-            reject,
-            inResults,
-            outResults,
-          )
-        ) {
+        const result = confirmElementsHasSplit(
+          specimen,
+          elementPatt,
+          bound,
+          reject,
+          needInResults,
+          needOutResults,
+        );
+        if (!result.valid) {
           // check logic already performed by confirmContainerHasSplit
           return false;
         }
-        return [inResults, outResults];
+        return [result.inResults, result.outResults];
       }
       case 'copySet': {
-        if (
-          !confirmElementsHasSplit(
-            specimen.payload,
-            elementPatt,
-            bound,
-            reject,
-            inResults,
-            outResults,
-          )
-        ) {
+        const result = confirmElementsHasSplit(
+          specimen.payload,
+          elementPatt,
+          bound,
+          reject,
+          needInResults,
+          needOutResults,
+        );
+        if (!result.valid) {
           return false;
         }
         return [
-          inResults && makeCopySet(inResults),
-          outResults && makeCopySet(outResults),
+          result.inResults && makeCopySet(result.inResults),
+          result.outResults && makeCopySet(result.outResults),
         ];
       }
       case 'copyBag': {
-        if (
-          !pairsHasSplit(
-            specimen.payload,
-            elementPatt,
-            bound,
-            reject,
-            inResults,
-            outResults,
-          )
-        ) {
+        const result = pairsHasSplit(
+          specimen.payload,
+          elementPatt,
+          bound,
+          reject,
+          needInResults,
+          needOutResults,
+        );
+        if (!result.valid) {
           return false;
         }
         return [
-          inResults && makeCopyBag(inResults),
-          outResults && makeCopyBag(outResults),
+          result.inResults && makeCopyBag(result.inResults),
+          result.outResults && makeCopyBag(result.outResults),
         ];
       }
       default: {
