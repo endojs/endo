@@ -3,7 +3,7 @@ import { expectAssignable, expectType, expectNotType } from 'tsd';
 import { Far } from './make-far.js';
 import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
-import type { Checker, CopyTagged, Passable, PassStyle } from './types.js';
+import type { Checker, CopyArray, CopyReadonlyArray, CopyTagged, Passable, PassStyle } from './types.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
 import { passableSymbolForName } from './symbol.js';
 
@@ -34,6 +34,22 @@ expectType<PassStyle>(passStyleOf(someUnknown));
 const expectPassable = (val: Passable) => {};
 
 const fn = () => {};
+
+// CopyArray is mutable, so we can test mutation methods.
+const arr: CopyArray<number> = [];
+arr.push(1);
+arr.slice(0, 1);
+arr.shift();
+expectPassable(arr);
+
+// Not so for CopyReadonlyArray.
+const roArr: CopyReadonlyArray<number> = [];
+// @ts-expect-error not mutable
+roArr.push(1);
+roArr.slice(0, 1);
+// @ts-expect-error not mutable
+roArr.shift();
+expectPassable(roArr);
 
 expectPassable(1);
 expectPassable(null);
