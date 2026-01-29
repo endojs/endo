@@ -1321,12 +1321,13 @@ const makePatternKit = () => {
   });
 
   /**
-   * @param {CopyArray} elements
+   * @template {Passable} [T=Passable]
+   * @param {CopyArray<T>} elements
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {CopyArray} [inResults]
-   * @param {CopyArray} [outResults]
+   * @param {T[]} [inResults]
+   * @param {T[]} [outResults]
    * @returns {boolean}
    */
   const confirmElementsHasSplit = (
@@ -1371,8 +1372,8 @@ const makePatternKit = () => {
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {CopyArray<[Key, bigint]>} [inResults]
-   * @param {CopyArray<[Key, bigint]>} [outResults]
+   * @param {[Key, bigint][]} [inResults]
+   * @param {[Key, bigint][]} [outResults]
    * @returns {boolean}
    */
   const pairsHasSplit = (
