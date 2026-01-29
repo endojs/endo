@@ -1456,7 +1456,7 @@ const makePatternKit = () => {
           // check logic already performed by confirmContainerHasSplit
           return false;
         }
-        return [inResults, outResults];
+        return [harden(inResults), harden(outResults)];
       }
       case 'copySet': {
         if (
