@@ -1,5 +1,6 @@
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
+/* eslint-disable no-continue */
 import harden from '@endo/harden';
 import {
   q,
@@ -1348,16 +1349,15 @@ const makePatternKit = () => {
     // decending. Thus we iterate `elements` in reverse order.
     for (let i = elements.length - 1; i >= 0; i -= 1) {
       const element = elements[i];
-      if (count < bound) {
-        if (matches(element, elementPatt)) {
-          count += 1n;
-          if (inResults) inResults.push(element);
-        } else if (outResults) {
-          outResults.push(element);
-        }
-      } else if (outResults === undefined) {
-        break;
-      } else {
+      if (count >= bound) {
+        if (!outResults) break;
+        outResults.push(element);
+        continue;
+      }
+      if (matches(element, elementPatt)) {
+        count += 1n;
+        if (inResults) inResults.push(element);
+      } else if (outResults) {
         outResults.push(element);
       }
     }
@@ -1395,23 +1395,18 @@ const makePatternKit = () => {
     for (let i = pairs.length - 1; i >= 0; i -= 1) {
       const [element, num] = pairs[i];
       const numRest = bound - count;
-      if (numRest >= 1n) {
-        if (matches(element, elementPatt)) {
-          if (num <= numRest) {
-            count += num;
-            if (inResults) inResults.push([element, num]);
-          } else {
-            const numIn = numRest;
-            count += numIn;
-            if (inResults) inResults.push([element, numRest]);
-            if (outResults) outResults.push([element, num - numRest]);
-          }
-        } else if (outResults) {
-          outResults.push([element, num]);
-        }
-      } else if (outResults === undefined) {
-        break;
-      } else {
+      if (numRest <= 0n) {
+        if (!outResults) break;
+        outResults.push([element, num]);
+        continue;
+      }
+      if (matches(element, elementPatt)) {
+        const isPartial = num > numRest;
+        const numTake = isPartial ? numRest : num;
+        count += numTake;
+        if (inResults) inResults.push([element, numTake]);
+        if (isPartial && outResults) outResults.push([element, num - numTake]);
+      } else if (outResults) {
         outResults.push([element, num]);
       }
     }
