@@ -1,4 +1,4 @@
-# import-bundle
+# `@endo/import-bundle`
 
 `importBundle` is an async function that evaluates the bundles created by
 `bundle-source`, turning them back into callable functions:
@@ -161,3 +161,7 @@ await importBundle(
 ```
 
 Use `node --inspect-brk` and `debugger` statements.
+
+## License
+
+[Apache-2.0](./LICENSE)

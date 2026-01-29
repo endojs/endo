@@ -1,3 +1,7 @@
-# [name]
+# `@endo/skel`
 
-This `[package]` package is a skeleton package.
+Description of this package.
+
+## License
+
+[Apache-2.0](./LICENSE)

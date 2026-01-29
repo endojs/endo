@@ -1,4 +1,4 @@
-# Endo Streams
+# `@endo/stream`
 
 Endo models streams as hardened async iterators.
 Async iterators are sufficient to model back-pressure or pacing
@@ -138,3 +138,7 @@ frozen.
 The user is responsible for hardening the transported values if that is their
 intent.
 Some values like array buffers cannot be frozen.
+
+## License
+
+[Apache-2.0](./LICENSE)
