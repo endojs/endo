@@ -1,13 +1,15 @@
 // @ts-check
+// DataView does not default to host byte order like TypedArrays, so we must
+// pass an explicit endianness argument.
+
 import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
 
 /**
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
- * @param {object} opts
- * @param {number} [opts.maxMessageLength] - defaults to 1MB
- * @param {string} [opts.name]
- * @param {boolean} [opts.littleEndian] - defaults to host byte order
+ * @param {object} options
+ * @param {number} [options.maxMessageLength] - defaults to 1MB
+ * @param {string} [options.name]
  * @returns {import('@endo/stream').Writer<Uint8Array, undefined>}
  */
 export const makeLp32Writer = (
@@ -15,7 +17,6 @@ export const makeLp32Writer = (
   {
     name = '<unknown-lp32-writer>',
     maxMessageLength = 1024 * 1024, // 1MB
-    littleEndian = hostIsLittleEndian,
   } = {},
 ) => {
   const writer = harden({
@@ -27,7 +28,7 @@ export const makeLp32Writer = (
         )} must not exceed ${maxMessageLength} bytes in length`;
       const array8 = new Uint8Array(4 + message.byteLength);
       const data = new DataView(array8.buffer);
-      data.setUint32(0, message.byteLength, littleEndian);
+      data.setUint32(0, message.byteLength, hostIsLittleEndian);
       array8.set(message, 4);
       return output.next(array8);
     },
