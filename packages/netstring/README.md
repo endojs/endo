@@ -24,8 +24,8 @@ See [`@endo/stream`](../stream/README.md) for more about Endo's stream model.
 import { makeNetstringReader } from '@endo/netstring';
 
 const reader = makeNetstringReader(byteStream, {
-  name: '<my-stream>',       // optional, for error messages
-  maxMessageLength: 1000000, // optional, defaults to 999999999
+  name: 'my-stream',              // optional, for error messages, default <unknown>
+  maxMessageLength: 999_999_999 , // optional, default 999,999,999
 });
 
 for await (const message of reader) {
