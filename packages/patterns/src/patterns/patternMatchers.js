@@ -1339,7 +1339,7 @@ const makePatternKit = () => {
     inResults = undefined,
     outResults = undefined,
   ) => {
-    let count = 0n;
+    let inCount = 0n;
     // Since this feature is motivated by ERTP's use on
     // non-fungible (`set`, `copySet`) amounts,
     // their arrays store their elements in decending lexicographic order.
@@ -1349,21 +1349,19 @@ const makePatternKit = () => {
     // decending. Thus we iterate `elements` in reverse order.
     for (let i = elements.length - 1; i >= 0; i -= 1) {
       const element = elements[i];
-      if (count >= bound) {
+      if (inCount >= bound) {
         if (!outResults) break;
         outResults.push(element);
-        continue;
-      }
-      if (matches(element, elementPatt)) {
-        count += 1n;
+      } else if (matches(element, elementPatt)) {
+        inCount += 1n;
         if (inResults) inResults.push(element);
       } else if (outResults) {
         outResults.push(element);
       }
     }
     return (
-      count >= bound ||
-      (reject && reject`Has only ${q(count)} matches, but needs ${q(bound)}`)
+      inCount >= bound ||
+      (reject && reject`Has only ${q(inCount)} matches, but needs ${q(bound)}`)
     );
   };
 
@@ -1384,7 +1382,7 @@ const makePatternKit = () => {
     inResults = undefined,
     outResults = undefined,
   ) => {
-    let count = 0n;
+    let inCount = 0n;
     // Since this feature is motivated by ERTP's use on
     // semi-fungible (`copyBag`) amounts,
     // their arrays store their elements in decending lexicographic order.
@@ -1394,16 +1392,14 @@ const makePatternKit = () => {
     // decending. Thus we iterate `pairs` in reverse order.
     for (let i = pairs.length - 1; i >= 0; i -= 1) {
       const [element, num] = pairs[i];
-      const numRest = bound - count;
-      if (numRest <= 0n) {
+      const stillNeeds = bound - inCount;
+      if (stillNeeds <= 0n) {
         if (!outResults) break;
         outResults.push([element, num]);
-        continue;
-      }
-      if (matches(element, elementPatt)) {
-        const isPartial = num > numRest;
-        const numTake = isPartial ? numRest : num;
-        count += numTake;
+      } else if (matches(element, elementPatt)) {
+        const isPartial = num > stillNeeds;
+        const numTake = isPartial ? stillNeeds : num;
+        inCount += numTake;
         if (inResults) inResults.push([element, numTake]);
         if (isPartial && outResults) outResults.push([element, num - numTake]);
       } else if (outResults) {
@@ -1411,8 +1407,8 @@ const makePatternKit = () => {
       }
     }
     return (
-      count >= bound ||
-      (reject && reject`Has only ${q(count)} matches, but needs ${q(bound)}`)
+      inCount >= bound ||
+      (reject && reject`Has only ${q(inCount)} matches, but needs ${q(bound)}`)
     );
   };
 
