@@ -1,0 +1,36 @@
+name: Update action pins (major)
+
+on:
+  schedule:
+    - cron: '0 3 1 * *' # Monthly on the 1st
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Update action pins (major)
+        run: node scripts/update-action-pins.mjs --major --report /tmp/action-pin-report.md
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8
+        with:
+          commit-message: 'chore: update action pins (major)'
+          title: 'chore: update action pins (major)'
+          body-path: '/tmp/action-pin-report.md'
+          branch: 'chore/update-action-pins-major'
+          labels: 'automation'

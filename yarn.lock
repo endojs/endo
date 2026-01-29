@@ -9847,6 +9847,7 @@ __metadata:
     typedoc-plugin-mermaid: "npm:^1.12.0"
     typescript: "npm:~5.9.2"
     typescript-eslint: "npm:^8.39.1"
+    yaml: "npm:^2.8.1"
     zx: "npm:^8.1.8"
   languageName: unknown
   linkType: soft
