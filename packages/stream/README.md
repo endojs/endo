@@ -11,6 +11,16 @@ These streams depend on full Endo environment initialization, as with `@endo/ini
 to ensure that they are run in Hardened JavaScript with remote promise support
 (eventual send).
 
+This stream package also establishes a precedent for separate readers and
+writers for duplex connections.
+We create parallel reader and writer types, and connections consist of a
+`{reader, writer}` pair.
+Separating read and write is consistent with the object capability model.
+This is in contrast to systems that conflate the read and write capabilities
+and use different names for the methods.
+We use `next` for both reading and writing, as is consistent with the precedent
+established by iterators and generators in the base language.
+
 ## Writing
 
 To write to a stream, give a value to the next method.
