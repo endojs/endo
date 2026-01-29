@@ -4,7 +4,7 @@ Adapters for Node.js streams to Endo's async iterable streams.
 
 ## Overview
 
-This package provides functions to adapt Node.js `Readable` and `Writable`
+This package provides functions to adapt Node.js [`Readable`][node-readable] and [`Writable`][node-writable]
 streams to Endo's stream interface, which models streams as hardened async
 iterators of `Uint8Array` chunks.
 
@@ -14,7 +14,7 @@ See [`@endo/stream`](../stream/README.md) for more about Endo's stream model.
 
 ### Reading from a Node.js stream
 
-`makeNodeReader` adapts a Node.js `Readable` stream to an Endo reader:
+`makeNodeReader` adapts a Node.js [`Readable`][node-readable] stream to an Endo reader:
 
 ```js
 import { makeNodeReader } from '@endo/stream-node';
@@ -29,7 +29,7 @@ for await (const chunk of reader) {
 
 ### Writing to a Node.js stream
 
-`makeNodeWriter` adapts a Node.js `Writable` stream to an Endo writer:
+`makeNodeWriter` adapts a Node.js [`Writable`][node-writable] stream to an Endo writer:
 
 ```js
 import { makeNodeWriter } from '@endo/stream-node';
@@ -58,26 +58,34 @@ await pump(writer, reader);
 
 ### `makeNodeReader(input)`
 
-Adapts a Node.js `Readable` stream to an Endo reader.
+Adapts a Node.js [`Readable`][node-readable] stream to an Endo reader.
 
-- Converts Node.js `Buffer` chunks to `Uint8Array`
-- The stream must not be in object mode
-- The stream must not have an encoding set
+- Converts Node.js [`Buffer`][node-buffer] chunks to `Uint8Array`
+- The stream must not be in [object mode][node-object-mode]
+- The stream must not have an [encoding set][node-readable-set-encoding]
 
 **Parameters:**
-- `input` - A Node.js `Readable` stream
+- `input` - A Node.js [`Readable`][node-readable] stream
 
 **Returns:** A `Reader<Uint8Array>` async iterator
 
 ### `makeNodeWriter(output)`
 
-Adapts a Node.js `Writable` stream to an Endo writer.
+Adapts a Node.js [`Writable`][node-writable] stream to an Endo writer.
 
-- Respects back-pressure via the `drain` event
-- The stream must not be in object mode
+- Respects [backpressure][node-backpressure] via the [`drain` event][node-drain]
+- The stream must not be in [object mode][node-object-mode]
 
 **Parameters:**
-- `output` - A Node.js `Writable` stream
+- `output` - A Node.js [`Writable`][node-writable] stream
+
+[node-readable]: https://nodejs.org/api/stream.html#class-streamreadable
+[node-writable]: https://nodejs.org/api/stream.html#class-streamwritable
+[node-buffer]: https://nodejs.org/api/buffer.html#class-buffer
+[node-object-mode]: https://nodejs.org/api/stream.html#object-mode
+[node-readable-set-encoding]: https://nodejs.org/api/stream.html#readablesetencodingencoding
+[node-backpressure]: https://nodejs.org/api/stream.html#backpressure
+[node-drain]: https://nodejs.org/api/stream.html#event-drain
 
 **Returns:** A `Writer<Uint8Array>` with `next`, `return`, and `throw` methods
 
