@@ -1327,8 +1327,12 @@ const makePatternKit = () => {
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {T[]} [inResults]
-   * @param {T[]} [outResults]
+   * @param {T[] | undefined} inResults
+   * @param {T[] | undefined} outResults
+   * @param {-1 | 1} direction -1 for picking from the end (which gives
+   * intuitive results with descending lexicographic CopySet/CopyBag payloads);
+   * 1 for picking from the start (which gives intuitive results with other
+   * arrays)
    * @returns {boolean}
    */
   const confirmElementsHasSplit = (
@@ -1336,18 +1340,14 @@ const makePatternKit = () => {
     elementPatt,
     bound,
     reject,
-    inResults = undefined,
-    outResults = undefined,
+    inResults,
+    outResults,
+    direction,
   ) => {
     let inCount = 0n;
-    // Since this feature is motivated by ERTP's use on
-    // non-fungible (`set`, `copySet`) amounts,
-    // their arrays store their elements in decending lexicographic order.
-    // But this function has to make some choice amoung equally good minimal
-    // results. It is more intuitive for the choice to be the first `bound`
-    // matching elements in ascending lexicigraphic order, rather than
-    // decending. Thus we iterate `elements` in reverse order.
-    for (let i = elements.length - 1; i >= 0; i -= 1) {
+    const firstIndex = direction === -1 ? elements.length - 1 : 0;
+    const stopIndex = direction === -1 ? -1 : elements.length;
+    for (let i = firstIndex; i !== stopIndex; i += direction) {
       const element = elements[i];
       if (inCount >= bound) {
         if (!outResults) break;
@@ -1455,6 +1455,7 @@ const makePatternKit = () => {
             reject,
             inResults,
             outResults,
+            1,
           ) && harden([inResults, outResults])
         );
       }
@@ -1467,6 +1468,7 @@ const makePatternKit = () => {
             reject,
             inResults,
             outResults,
+            -1,
           ) &&
           harden([
             inResults && makeCopySet(inResults),

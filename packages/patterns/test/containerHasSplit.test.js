@@ -84,16 +84,16 @@ const testContainerHasSplit = test.macro((t, config) => {
     specimen,
     pattern: M.string(),
     bound: 1n,
-    expectAccepted: ['bar'],
-    expectRejected: [2, 'foo', 1],
+    expectAccepted: ['foo'],
+    expectRejected: [1, 2, 'bar'],
   });
 
   test('split first two matches from copyArray', testContainerHasSplit, {
     specimen,
     pattern: M.string(),
     bound: 2n,
-    expectAccepted: ['bar', 'foo'],
-    expectRejected: [2, 1],
+    expectAccepted: ['foo', 'bar'],
+    expectRejected: [1, 2],
   });
 
   test('fail against copyArray', testContainerHasSplit, {
