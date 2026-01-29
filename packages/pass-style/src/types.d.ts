@@ -117,13 +117,13 @@ export type Container<PC extends PassableCap, E extends Error> =
   | CopyReadonlyArrayInterface<PC, E>
   | CopyRecordInterface<PC, E>
   | CopyTaggedInterface<PC, E>;
-interface CopyArrayInterface<PC extends PassableCap, E extends Error>
+export interface CopyArrayInterface<PC extends PassableCap, E extends Error>
   extends CopyArray<Passable<PC, E>> {}
-interface CopyReadonlyArrayInterface<PC extends PassableCap, E extends Error>
+export interface CopyReadonlyArrayInterface<PC extends PassableCap, E extends Error>
   extends CopyReadonlyArray<Passable<PC, E>> {}
-interface CopyRecordInterface<PC extends PassableCap, E extends Error>
+export interface CopyRecordInterface<PC extends PassableCap, E extends Error>
   extends CopyRecord<Passable<PC, E>> {}
-interface CopyTaggedInterface<PC extends PassableCap, E extends Error>
+export interface CopyTaggedInterface<PC extends PassableCap, E extends Error>
   extends CopyTagged<string, Passable<PC, E>> {}
 
 export type PassStyleOf = {
