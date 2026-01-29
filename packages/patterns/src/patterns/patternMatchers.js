@@ -1443,56 +1443,46 @@ const makePatternKit = () => {
     const kind = kindOf(specimen);
     switch (kind) {
       case 'copyArray': {
-        if (
-          !confirmElementsHasSplit(
+        return (
+          confirmElementsHasSplit(
             specimen,
             elementPatt,
             bound,
             reject,
             inResults,
             outResults,
-          )
-        ) {
-          // check logic already performed by confirmContainerHasSplit
-          return false;
-        }
-        return [harden(inResults), harden(outResults)];
+          ) && [harden(inResults), harden(outResults)]
+        );
       }
       case 'copySet': {
-        if (
-          !confirmElementsHasSplit(
+        return (
+          confirmElementsHasSplit(
             specimen.payload,
             elementPatt,
             bound,
             reject,
             inResults,
             outResults,
-          )
-        ) {
-          return false;
-        }
-        return [
-          inResults && makeCopySet(inResults),
-          outResults && makeCopySet(outResults),
-        ];
+          ) && [
+            inResults && makeCopySet(inResults),
+            outResults && makeCopySet(outResults),
+          ]
+        );
       }
       case 'copyBag': {
-        if (
-          !pairsHasSplit(
+        return (
+          pairsHasSplit(
             specimen.payload,
             elementPatt,
             bound,
             reject,
             inResults,
             outResults,
-          )
-        ) {
-          return false;
-        }
-        return [
-          inResults && makeCopyBag(inResults),
-          outResults && makeCopyBag(outResults),
-        ];
+          ) && [
+            inResults && makeCopyBag(inResults),
+            outResults && makeCopyBag(outResults),
+          ]
+        );
       }
       default: {
         return reject && reject`unexpected ${q(kind)}`;
