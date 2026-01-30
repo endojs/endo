@@ -219,6 +219,42 @@ export type Kind =
   | `guard:${string}`;
 
 /**
+ * A template for a template literal where the template consists of prose
+ * strings in natural language. This prose should suggest the meaning of the
+ * substitution holes to a human or LLM.
+ * All the programmatic meaning is only in the values
+ * of the substitution holes. The prose in the template, being in natural
+ * language, might be misunderstood, and so is always unreliable.
+ *
+ * A MethodGuard has two optional ProseTemplate fields: One for the arguments
+ * and one for the return result. Thus, a GUI for speaking to exos can
+ * show the args in substitution holes of args prose (think "@" cards in social
+ * media), and similarly can show the response as a substitution holes in
+ * result prose.
+ *
+ * We type it as `CopyArray` rather than `TemplateStringsArray` because the
+ * prose template stored in a MethodGuard must be passable by copy,
+ * and therefore must not have the `raw` property.
+ */
+export type ProseTemplate = CopyArray;
+
+/**
+ * `LooseProseTemplate` is for uses where we want to accept a genuine
+ * template object as well, with a `raw` property we will ignore. It is to
+ * be coerced to a `ProseTemplate` by copying the indexed contents without
+ * the `raw` property.
+ */
+export type LooseProseTemplate = ProseTemplate | TemplateStringsArray;
+
+/**
+ * A template tag expecting a prose template
+ */
+export type ProseTemplateTag = (
+  proseTemplate: LooseProseTemplate,
+  ...args: any[]
+) => any;
+
+/**
  * Matchers for characterizing Passables and compound shapes.
  */
 export type PatternMatchers = {
@@ -630,6 +666,32 @@ export type GuardMakers = {
   callWhen: (...argGuards: ArgGuard[]) => MethodGuardMaker;
 
   /**
+   * Programmatically, `M.proseCall(argsTemplate, ...args)`
+   * means the same thing as `M.call(...args)` except that it also stores
+   * the `argsTemplate` in the method guard as unreliable guidance to humans
+   * or LLMs about the meaning of these args in this call. `M.proseCall` is
+   * a valid template literal tag function, as so can be callled either way.
+   * ```js
+   * // The following method guards all have the same programmatic meaning
+   * { incr: M.call(M.nat()).returns(M.nat()) }
+   * { incr: M.proseCall(['by ',''], M.nat()).proseReturns(['new value is ',''], M.nat()) }
+   * { incr: M.proseCall`by ${M.nat()}`.proseReturns`new value is ${M.nat()}` }
+   * ```
+   */
+  proseCall: (
+    argsTemplate: LooseProseTemplate,
+    ...argPatterns: SyncValueGuard[]
+  ) => MethodGuardMaker;
+
+  /**
+   * `M.proseCallWhen` is to `M.callWhen` as `M.proseCall` it to `M.call`
+   */
+  proseCallWhen: (
+    argsTemplate: LooseProseTemplate,
+    ...argGuards: ArgGuard[]
+  ) => MethodGuardMaker;
+
+  /**
    * Guard a positional parameter in `M.callWhen`, awaiting it and matching its
    * fulfillment against the provided pattern.
    * For example, `M.callWhen(M.await(M.nat())).returns()` will await the first
@@ -738,6 +800,10 @@ export type MethodGuardMaker = MethodGuardOptional & MethodGuardRestReturns;
  */
 export type MethodGuardReturns = {
   returns: (returnGuard?: SyncValueGuard) => MethodGuard;
+  proseReturns: (
+    resultTemplate: LooseProseTemplate,
+    returnGuard?: SyncValueGuard,
+  ) => MethodGuard;
 };
 
 /**
@@ -764,9 +830,11 @@ export type MethodGuardOptional = {
 
 export type MethodGuardPayload = {
   callKind: 'sync' | 'async';
+  argsTemplate?: ProseTemplate;
   argGuards: ArgGuard[];
   optionalArgGuards?: ArgGuard[];
   restArgGuard?: SyncValueGuard;
+  resultTemplate?: ProseTemplate;
   returnGuard: SyncValueGuard;
 };
 
