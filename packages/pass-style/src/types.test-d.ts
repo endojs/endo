@@ -74,7 +74,7 @@ expectPassable(['car', 'cdr'] as Readonly<string[]>);
 expectPassable(['car', 'cdr'] as Readonly<[string, string]>);
 // @ts-expect-error not passable
 expectPassable(fn);
-// FIXME promise for a non-Passable is not Passable
+// @ts-expect-error promise for a non-Passable is not Passable
 expectPassable(Promise.resolve(fn));
 // @ts-expect-error not passable
 expectPassable({ a: { b: fn } });
@@ -84,6 +84,7 @@ expectPassable({ a: remotable });
 expectPassable(copyTagged);
 expectPassable(Promise.resolve(remotable));
 expectPassable({ a: Promise.resolve(remotable) });
+// @ts-expect-error promise for a non-Passable is not Passable
 expectPassable({ a: Promise.resolve(fn) });
 
 expectAssignable<Checker>((cond: boolean, details: string) => cond);

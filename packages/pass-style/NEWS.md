@@ -12,6 +12,11 @@ User-visible changes in `@endo/pass-style`:
   that the CopyArray is hardened, so this typing statically reveals where
   mutation is attempted.  Use `Passable[]` if you want to have a mutable array
   that contains only passable values.
+- Updates `Passable` to exclude promises that are not assignable to
+  `Promise<Passable>`.  This typing statically reveals when a promise is passed
+  that will likely fulfil to a non-passable value at runtime, which would
+  typically be surfaced as a rejection of the original passed promise with a
+  system error.
 
 # 1.6.3 (2025-07-11)
 
