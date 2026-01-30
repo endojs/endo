@@ -2030,10 +2030,16 @@ const makePatternKit = () => {
       makeInterfaceGuard(interfaceName, methodGuards, options),
     call: (...argPatterns) =>
       // eslint-disable-next-line no-use-before-define
-      makeMethodGuardMaker('sync', argPatterns),
+      makeMethodGuardMaker('sync', undefined, argPatterns),
     callWhen: (...argGuards) =>
       // eslint-disable-next-line no-use-before-define
-      makeMethodGuardMaker('async', argGuards),
+      makeMethodGuardMaker('async', undefined, argGuards),
+    proseCall: (argsTemplate, ...argPatterns) =>
+      // eslint-disable-next-line no-use-before-define
+      makeMethodGuardMaker('sync', argsTemplate, argPatterns),
+    proseCallWhen: (argsTemplate, ...argGuards) =>
+      // eslint-disable-next-line no-use-before-define
+      makeMethodGuardMaker('async', argsTemplate, argGuards),
 
     await: argPattern =>
       // eslint-disable-next-line no-use-before-define
@@ -2124,14 +2130,17 @@ const RawGuardPayloadShape = M.record();
 export const RawGuardShape = M.kind('guard:rawGuard');
 
 export const isRawGuard = specimen => matches(specimen, RawGuardShape);
+harden(isRawGuard);
 
 export const assertRawGuard = specimen =>
   mustMatch(specimen, RawGuardShape, 'rawGuard');
+harden(assertRawGuard);
 
 /**
  * @returns {RawGuard}
  */
 const makeRawGuard = () => makeTagged('guard:rawGuard', {});
+harden(makeRawGuard);
 
 // M.call(...)
 // M.callWhen(...)
@@ -2143,21 +2152,43 @@ export const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
 const ArgGuardShape = M.or(RawGuardShape, AwaitArgGuardShape, M.pattern());
 export const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
-const SyncMethodGuardPayloadShape = harden({
-  callKind: 'sync',
-  argGuards: SyncValueGuardListShape,
-  optionalArgGuards: M.opt(SyncValueGuardListShape),
-  restArgGuard: M.opt(SyncValueGuardShape),
-  returnGuard: SyncValueGuardShape,
-});
+export const ProseTemplateShape = M.array();
 
-const AsyncMethodGuardPayloadShape = harden({
-  callKind: 'async',
-  argGuards: ArgGuardListShape,
-  optionalArgGuards: M.opt(ArgGuardListShape),
-  restArgGuard: M.opt(SyncValueGuardShape),
-  returnGuard: SyncValueGuardShape,
-});
+/**
+ * @param {LooseProseTemplate} looseProseTemplate
+ * @returns {ProseTemplate}
+ */
+const tightedProseTemplate = looseProseTemplate =>
+  harden([...looseProseTemplate]);
+harden(tightedProseTemplate);
+
+const SyncMethodGuardPayloadShape = M.splitRecord(
+  {
+    callKind: 'sync',
+    argGuards: SyncValueGuardListShape,
+    returnGuard: SyncValueGuardShape,
+  },
+  {
+    argsTemplate: ProseTemplateShape,
+    optionalArgGuards: SyncValueGuardListShape,
+    restArgGuard: SyncValueGuardShape,
+    resultTemplate: ProseTemplateShape,
+  },
+);
+
+const AsyncMethodGuardPayloadShape = M.splitRecord(
+  {
+    callKind: 'async',
+    argGuards: ArgGuardListShape,
+    returnGuard: SyncValueGuardShape,
+  },
+  {
+    argsTemplate: ProseTemplateShape,
+    optionalArgGuards: ArgGuardListShape,
+    restArgGuard: SyncValueGuardShape,
+    resultTemplate: ProseTemplateShape,
+  },
+);
 
 export const MethodGuardPayloadShape = M.or(
   SyncMethodGuardPayloadShape,
@@ -2177,6 +2208,7 @@ hideAndHardenFunction(assertMethodGuard);
 
 /**
  * @param {'sync'|'async'} callKind
+ * @param {LooseProseTemplate | undefined} argsTemplate
  * @param {ArgGuard[]} argGuards
  * @param {ArgGuard[]} [optionalArgGuards]
  * @param {SyncValueGuard} [restArgGuard]
@@ -2184,40 +2216,65 @@ hideAndHardenFunction(assertMethodGuard);
  */
 const makeMethodGuardMaker = (
   callKind,
+  argsTemplate,
   argGuards,
   optionalArgGuards = undefined,
   restArgGuard = undefined,
-) =>
-  harden({
+) => {
+  argsTemplate = argsTemplate && tightedProseTemplate(argsTemplate);
+
+  /**
+   * @param {LooseProseTemplate} [resultTemplate]
+   * @param {SyncValueGuard} [returnGuard]
+   * @returns {MethodGuard}
+   */
+  const commonReturns = (
+    resultTemplate = undefined,
+    returnGuard = M.undefined(),
+  ) => {
+    resultTemplate = resultTemplate && tightedProseTemplate(resultTemplate);
+    /** @type {MethodGuard} */
+    const result = makeTagged('guard:methodGuard', {
+      callKind,
+      argsTemplate,
+      argGuards,
+      optionalArgGuards,
+      restArgGuard,
+      resultTemplate,
+      returnGuard,
+    });
+    assertMethodGuard(result);
+    return result;
+  };
+
+  return harden({
     optional: (...optArgGuards) => {
       optionalArgGuards === undefined ||
         Fail`Can only have one set of optional guards`;
       restArgGuard === undefined ||
         Fail`optional arg guards must come before rest arg`;
-      return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
+      return makeMethodGuardMaker(
+        callKind,
+        argsTemplate,
+        argGuards,
+        optArgGuards,
+      );
     },
     rest: rArgGuard => {
       restArgGuard === undefined || Fail`Can only have one rest arg`;
       return makeMethodGuardMaker(
         callKind,
+        argsTemplate,
         argGuards,
         optionalArgGuards,
         rArgGuard,
       );
     },
-    returns: (returnGuard = M.undefined()) => {
-      /** @type {MethodGuard} */
-      const result = makeTagged('guard:methodGuard', {
-        callKind,
-        argGuards,
-        optionalArgGuards,
-        restArgGuard,
-        returnGuard,
-      });
-      assertMethodGuard(result);
-      return result;
-    },
+    returns: (returnGuard = M.undefined()) =>
+      commonReturns(undefined, returnGuard),
+    proseReturns: commonReturns,
   });
+};
 
 export const InterfaceGuardPayloadShape = M.splitRecord(
   {
