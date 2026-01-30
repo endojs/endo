@@ -1413,16 +1413,28 @@ const makePatternKit = () => {
   };
 
   /**
+   * Confirms that `specimen` contains at least `bound` instances of an element
+   * matched by `elementPatt`, optionally returning those bounded matches and/or
+   * their complement as specified by `needInResults` and `needOutResults`
+   * (ensuring for CopyBags that at most one Key is split across both, but
+   * otherwise making no guarantee regarding the order in which elements are
+   * considered beyond a best-effort attempt to align with intuition).
+   * If the specimen does not contain enough matching instances, this function
+   * terminates as directed by `reject` (i.e., either returning `false` or
+   * throwing an error).
+   *
    * @typedef {CopyArray | CopySet | CopyBag} Container
    * @param {Container} specimen
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {boolean} [needInResults]
-   * @param {boolean} [needOutResults]
-   * @returns {[Container | undefined, Container | undefined] | false}
+   * @param {boolean} [needInResults] collect and return matches inside a
+   *   container of the same shape as `specimen`
+   * @param {boolean} [needOutResults] collect and return rejects inside a
+   *   container of the same shape as `specimen`
+   * @returns {[matches: Container | undefined, discards: Container | undefined] | false}
    */
-  const confirmContainerHasSplit = (
+  const containerHasSplit = (
     specimen,
     elementPatt,
     bound,
@@ -1507,14 +1519,7 @@ const makePatternKit = () => {
       ) {
         return false;
       }
-      return !!confirmContainerHasSplit(
-        specimen,
-        elementPatt,
-        bound,
-        reject,
-        false,
-        false,
-      );
+      return !!containerHasSplit(specimen, elementPatt, bound, reject);
     },
 
     confirmIsWellFormed: (payload, reject) =>
@@ -2048,7 +2053,7 @@ const makePatternKit = () => {
     getRankCover,
     M,
     kindOf,
-    containerHasSplit: confirmContainerHasSplit,
+    containerHasSplit,
   });
 };
 
