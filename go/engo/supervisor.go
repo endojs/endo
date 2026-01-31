@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -119,6 +120,13 @@ func (s *Supervisor) Spawn(pid ID, runWorker RunWorker) ID {
 		}()
 		err := runWorker(ctx, cancel, pid, id, inbox.Fetch, s.outbox.Deliver, s.PortClosedCh)
 		if err != nil && err != context.Canceled && err != io.EOF {
+			// Check if this is a recoverable error that should cause graceful shutdown
+			// rather than a panic
+			if isGracefulShutdownError(err) {
+				fmt.Fprintf(os.Stderr, "worker %d: %v\n", id, err)
+				s.cancel() // Trigger graceful shutdown
+				return
+			}
 			panic(err)
 		}
 	}()
@@ -196,7 +204,7 @@ func (s *Supervisor) Start() {
 									message.ResponseCh <- Message{
 										Headers: Headers{
 											Type:  "error",
-											Error: fmt.Sprintf("port already open worker=%d port=%id", message.Headers.From, message.Headers.Port),
+											Error: fmt.Sprintf("port already open worker=%d port=%d", message.Headers.From, message.Headers.Port),
 										},
 									}
 								} else {
@@ -229,7 +237,7 @@ func (s *Supervisor) Start() {
 									message.ResponseCh <- Message{
 										Headers: Headers{
 											Type:  "error",
-											Error: fmt.Sprintf("no port worker=%d port=%id", message.Headers.From, message.Headers.Port),
+											Error: fmt.Sprintf("no port worker=%d port=%d", message.Headers.From, message.Headers.Port),
 										},
 									}
 								} else {
@@ -311,12 +319,34 @@ func (s *Supervisor) Wait() {
 	s.wg.Wait()
 }
 
+// Done returns a channel that is closed when the supervisor is shutting down.
+// Use this to detect graceful shutdown triggered by worker errors.
+func (s *Supervisor) Done() <-chan struct{} {
+	return s.ctx.Done()
+}
+
 func isDebug(term string) bool {
 	debug := os.Getenv("DEBUG")
 	for _, token := range strings.Split(debug, ",") {
 		if token == term {
 			return true
 		}
+	}
+	return false
+}
+
+// isGracefulShutdownError returns true for errors that should cause
+// graceful shutdown rather than a panic. These are typically configuration
+// or resource limit errors that are the user's fault, not a bug.
+func isGracefulShutdownError(err error) bool {
+	// ErrMessageTooLarge indicates a message exceeded the buffer size limit
+	if errors.Is(err, ErrMessageTooLarge) {
+		return true
+	}
+	// Check if the error message contains our known recoverable error patterns
+	errStr := err.Error()
+	if strings.Contains(errStr, "message exceeds buffer size") {
+		return true
 	}
 	return false
 }

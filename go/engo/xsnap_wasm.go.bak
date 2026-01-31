@@ -1,0 +1,621 @@
+package main
+
+// XSnap WASM Worker - Wazero-based implementation
+//
+// This provides an alternative to the CGO-based XSnap worker,
+// using WebAssembly for better portability and safety.
+
+import (
+	"bytes"
+	"context"
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"sync"
+	"time"
+
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
+)
+
+//go:embed xsnap.wasm
+var xsnapWasm []byte
+
+const wasmBufferSize = 65536
+
+// XSnapWasmWorker manages an XSnap instance running in WebAssembly
+type XSnapWasmWorker struct {
+	ctx    context.Context
+	cancel func()
+	id     ID
+	pid    ID
+
+	// Message handling
+	fetch   func(context.Context) ([]Message, error)
+	deliver func(context.Context, Message) error
+
+	// Wazero runtime and module
+	runtime wazero.Runtime
+	module  api.Module
+
+	// WASM exports
+	xsnapBuffer   api.Function
+	xsnapCreate   api.Function
+	xsnapDestroy  api.Function
+	xsnapEvaluate api.Function
+	xsnapCommand  api.Function
+
+	// Buffer pointer (cached)
+	bufferPtr uint32
+
+	// Synchronization
+	mu sync.Mutex
+}
+
+// =============================================================================
+// RunXSnapWasmWorker - Main entry point matching RunWorker interface
+// =============================================================================
+
+func RunXSnapWasmWorker(
+	ctx context.Context,
+	cancel func(),
+	pid ID,
+	id ID,
+	fetch func(context.Context) ([]Message, error),
+	deliver func(context.Context, Message) error,
+	getPortClosedCh func(ID, ID) (chan Message, error),
+) error {
+	w := &XSnapWasmWorker{
+		ctx:     ctx,
+		cancel:  cancel,
+		id:      id,
+		pid:     pid,
+		fetch:   fetch,
+		deliver: deliver,
+	}
+
+	if err := w.initialize(); err != nil {
+		return fmt.Errorf("failed to initialize WASM runtime: %w", err)
+	}
+	defer w.Close()
+
+	// Evaluate the xsnap runtime
+	if err := w.Evaluate(string(xsnapRuntime)); err != nil {
+		return fmt.Errorf("failed to load xsnap runtime: %w", err)
+	}
+
+	// Main message loop
+	for {
+		messages, err := fetch(ctx)
+		if err != nil {
+			return err
+		}
+		for _, message := range messages {
+			if err := w.handleCommand(message); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+// initialize sets up the Wazero runtime and instantiates the WASM module
+func (w *XSnapWasmWorker) initialize() error {
+	// Create runtime with compiler for better performance
+	config := wazero.NewRuntimeConfigCompiler()
+	w.runtime = wazero.NewRuntimeWithConfig(w.ctx, config)
+
+	// Define host functions
+	builder := w.runtime.NewHostModuleBuilder("env")
+
+	// Our custom imports
+	builder.NewFunctionBuilder().WithFunc(w.wasmTimeNowMs).Export("wasm_time_now_ms")
+	builder.NewFunctionBuilder().WithFunc(w.wasmIssueCommand).Export("wasm_issue_command")
+	builder.NewFunctionBuilder().WithFunc(w.wasmConsoleLog).Export("wasm_console_log")
+	builder.NewFunctionBuilder().WithFunc(w.wasmAlloc).Export("wasm_alloc")
+	builder.NewFunctionBuilder().WithFunc(w.wasmFree).Export("wasm_free")
+
+	// setjmp/longjmp - XS exception handling
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, buf uint32) int32 { return 0 }).Export("setjmp")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, buf, val uint32) {}).Export("longjmp")
+
+	// XS platform functions
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, the, status uint32) {
+		fmt.Printf("[xsnap %d] fxAbort status=%d\n", w.id, status)
+	}).Export("fxAbort")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, data uint32) {}).Export("fxReleaseSharedChunk")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, data uint32) {}).Export("fxLockSharedChunk")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, data uint32) {}).Export("fxUnlockSharedChunk")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, size uint32) uint32 { return 0 }).Export("fxCreateSharedChunk")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, the, data, count uint32) int32 { return 0 }).Export("fxNotifySharedChunk")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, the, address uint32, timeout float64, resolveFunction uint32) int32 { return 0 }).Export("fxWaitSharedChunk")
+
+	// C library string functions
+	builder.NewFunctionBuilder().WithFunc(w.strlen).Export("strlen")
+	builder.NewFunctionBuilder().WithFunc(w.memcpy).Export("memcpy")
+	builder.NewFunctionBuilder().WithFunc(w.memset).Export("memset")
+	builder.NewFunctionBuilder().WithFunc(w.memmove).Export("memmove")
+	builder.NewFunctionBuilder().WithFunc(w.strcmp).Export("strcmp")
+	builder.NewFunctionBuilder().WithFunc(w.strcpy).Export("strcpy")
+	builder.NewFunctionBuilder().WithFunc(w.strncmp).Export("strncmp")
+	builder.NewFunctionBuilder().WithFunc(w.strcat).Export("strcat")
+	builder.NewFunctionBuilder().WithFunc(w.strchr).Export("strchr")
+
+	// C library printf functions (stubs)
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, buf, size, fmtPtr, args uint32) int32 { return 0 }).Export("vsnprintf")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, buf, size, fmtPtr, arg1 uint32) int32 { return 0 }).Export("snprintf")
+
+	// Math functions
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Trunc(x) }).Export("trunc")
+	builder.NewFunctionBuilder().WithFunc(func(x, y float64) float64 { return math.Mod(x, y) }).Export("fmod")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Log(x) }).Export("log")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Ceil(x) }).Export("ceil")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Floor(x) }).Export("floor")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Abs(x) }).Export("fabs")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Round(x) }).Export("round")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Round(x) }).Export("nearbyint")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Acos(x) }).Export("acos")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Acosh(x) }).Export("acosh")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Asin(x) }).Export("asin")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Asinh(x) }).Export("asinh")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Atan(x) }).Export("atan")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Atanh(x) }).Export("atanh")
+	builder.NewFunctionBuilder().WithFunc(func(y, x float64) float64 { return math.Atan2(y, x) }).Export("atan2")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Cbrt(x) }).Export("cbrt")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Cos(x) }).Export("cos")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Cosh(x) }).Export("cosh")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Exp(x) }).Export("exp")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Expm1(x) }).Export("expm1")
+	builder.NewFunctionBuilder().WithFunc(func(x, y float64) float64 { return math.Hypot(x, y) }).Export("hypot")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Sqrt(x) }).Export("sqrt")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Log1p(x) }).Export("log1p")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Log10(x) }).Export("log10")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Log2(x) }).Export("log2")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Sin(x) }).Export("sin")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Sinh(x) }).Export("sinh")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Tan(x) }).Export("tan")
+	builder.NewFunctionBuilder().WithFunc(func(x float64) float64 { return math.Tanh(x) }).Export("tanh")
+	builder.NewFunctionBuilder().WithFunc(func(x, y float64) float64 { return math.Pow(x, y) }).Export("pow")
+
+	// stdlib functions
+	builder.NewFunctionBuilder().WithFunc(func() int32 { return int32(time.Now().UnixNano() & 0x7FFFFFFF) }).Export("rand")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, m api.Module, base, nel, width, compar uint32) {}).Export("qsort")
+	builder.NewFunctionBuilder().WithFunc(func(ctx context.Context, m api.Module, key, base, nel, width, compar uint32) uint32 { return 0 }).Export("bsearch")
+
+	_, err := builder.Instantiate(w.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create host module: %w", err)
+	}
+
+	// Compile the WASM module
+	compiled, err := w.runtime.CompileModule(w.ctx, xsnapWasm)
+	if err != nil {
+		return fmt.Errorf("failed to compile WASM module: %w", err)
+	}
+
+	// Instantiate
+	moduleConfig := wazero.NewModuleConfig().
+		WithName("xsnap").
+		WithStartFunctions()
+
+	w.module, err = w.runtime.InstantiateModule(w.ctx, compiled, moduleConfig)
+	if err != nil {
+		return fmt.Errorf("failed to instantiate WASM module: %w", err)
+	}
+
+	// Get exports
+	w.xsnapBuffer = w.module.ExportedFunction("xsnap_buffer")
+	w.xsnapCreate = w.module.ExportedFunction("xsnap_create")
+	w.xsnapDestroy = w.module.ExportedFunction("xsnap_destroy")
+	w.xsnapEvaluate = w.module.ExportedFunction("xsnap_evaluate")
+	w.xsnapCommand = w.module.ExportedFunction("xsnap_command")
+
+	if w.xsnapBuffer == nil || w.xsnapCreate == nil || w.xsnapEvaluate == nil {
+		return errors.New("missing required WASM exports")
+	}
+
+	// Get buffer pointer
+	results, err := w.xsnapBuffer.Call(w.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get buffer pointer: %w", err)
+	}
+	w.bufferPtr = uint32(results[0])
+
+	// Create XS machine
+	results, err = w.xsnapCreate.Call(w.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create XS machine: %w", err)
+	}
+	if results[0] != 0 {
+		return errors.New("XS machine creation failed")
+	}
+
+	return nil
+}
+
+// Close cleans up the WASM runtime
+func (w *XSnapWasmWorker) Close() error {
+	if w.xsnapDestroy != nil {
+		w.xsnapDestroy.Call(w.ctx)
+	}
+	if w.runtime != nil {
+		return w.runtime.Close(w.ctx)
+	}
+	return nil
+}
+
+// Evaluate executes JavaScript code
+func (w *XSnapWasmWorker) Evaluate(code string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	codeBytes := []byte(code)
+	if len(codeBytes) > wasmBufferSize {
+		return fmt.Errorf("code too large: %d bytes (max %d)", len(codeBytes), wasmBufferSize)
+	}
+
+	mem := w.module.Memory()
+	if !mem.Write(w.bufferPtr, codeBytes) {
+		return errors.New("failed to write code to WASM memory")
+	}
+
+	results, err := w.xsnapEvaluate.Call(w.ctx, uint64(len(codeBytes)))
+	if err != nil {
+		return fmt.Errorf("evaluate call failed: %w", err)
+	}
+
+	result := int32(results[0])
+	if result < 0 {
+		errLen := -result
+		errBytes, ok := mem.Read(w.bufferPtr, uint32(errLen))
+		if ok {
+			return fmt.Errorf("JS error: %s", string(errBytes))
+		}
+		return errors.New("JS error (unable to read message)")
+	}
+
+	return nil
+}
+
+// Command sends a command to the XSnap machine
+func (w *XSnapWasmWorker) Command(data []byte) ([]byte, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if len(data) > wasmBufferSize {
+		return nil, fmt.Errorf("command too large: %d bytes (max %d)", len(data), wasmBufferSize)
+	}
+
+	mem := w.module.Memory()
+	if !mem.Write(w.bufferPtr, data) {
+		return nil, errors.New("failed to write command to WASM memory")
+	}
+
+	if w.xsnapCommand == nil {
+		return nil, errors.New("xsnap_command not exported")
+	}
+
+	results, err := w.xsnapCommand.Call(w.ctx, uint64(len(data)))
+	if err != nil {
+		return nil, fmt.Errorf("command call failed: %w", err)
+	}
+
+	result := int32(results[0])
+	if result < 0 {
+		errLen := -result
+		errBytes, ok := mem.Read(w.bufferPtr, uint32(errLen))
+		if ok {
+			return nil, fmt.Errorf("command error: %s", string(errBytes))
+		}
+		return nil, errors.New("command error (unable to read message)")
+	}
+
+	// If result > 0, it's the response length
+	if result > 0 {
+		response, ok := mem.Read(w.bufferPtr, uint32(result))
+		if !ok {
+			return nil, errors.New("failed to read response from WASM memory")
+		}
+		// Make a copy since the buffer may be reused
+		responseCopy := make([]byte, len(response))
+		copy(responseCopy, response)
+		return responseCopy, nil
+	}
+
+	return nil, nil
+}
+
+// =============================================================================
+// Message Handling (mirrors xsnap.go)
+// =============================================================================
+
+func (w *XSnapWasmWorker) handleCommand(request Message) error {
+	if request.Headers.Type == "terminate" {
+		w.cancel()
+		return nil
+	}
+
+	// Format message for XSnap: '?' prefix + headers\x01body
+	requestBytes, err := formatMessage([]byte{'?'}, request)
+	if err != nil {
+		return err
+	}
+
+	// Send to XSnap and get response
+	responseBytes, err := w.Command(requestBytes)
+	if err != nil {
+		return err
+	}
+
+	if responseBytes == nil || len(responseBytes) == 0 {
+		return nil
+	}
+
+	// Parse response
+	var response Message
+	if err := w.parseMeteredMessageBytesInto(&response, responseBytes); err != nil {
+		return err
+	}
+
+	if request.ResponseCh != nil {
+		// Synchronous request
+		response.Headers.To = request.Headers.From
+		response.Headers.From = request.Headers.To
+		response.Headers.Port = request.Headers.Port
+		request.ResponseCh <- response
+	} else if len(response.Body) > 0 {
+		// Async response with body - deliver back
+		response.Headers.To = request.Headers.From
+		response.Headers.From = w.id
+		if err := w.deliver(w.ctx, response); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *XSnapWasmWorker) parseMeteredMessageBytesInto(message *Message, meteredMessageBytes []byte) error {
+	index := bytes.Index(meteredMessageBytes, []byte{'\x01'})
+	if index < 0 {
+		return fmt.Errorf("invalid metered message, must have \\x01 delimiter")
+	}
+	meterBytes := meteredMessageBytes[:index]
+	messageBytes := meteredMessageBytes[index+1:]
+
+	var meter Meter
+	if err := json.Unmarshal(meterBytes, &meter); err != nil {
+		return fmt.Errorf("invalid metered message, cannot parse JSON meter: %w", err)
+	}
+	message.Meter = &meter
+
+	return w.parseMessageInto(message, messageBytes)
+}
+
+func (w *XSnapWasmWorker) parseMessageInto(message *Message, messageBytes []byte) error {
+	index := bytes.Index(messageBytes, []byte{'\x01'})
+	if index < 0 {
+		return fmt.Errorf("invalid message, must have \\x01 delimiter")
+	}
+	headersBytes := messageBytes[:index]
+	bodyBytes := messageBytes[index+1:]
+	if err := json.Unmarshal(headersBytes, &message.Headers); err != nil {
+		return fmt.Errorf("invalid message, cannot parse JSON headers: %w", err)
+	}
+	message.Body = bodyBytes
+	return nil
+}
+
+// =============================================================================
+// Host Imports (called by WASM)
+// =============================================================================
+
+func (w *XSnapWasmWorker) wasmTimeNowMs(ctx context.Context) int64 {
+	return time.Now().UnixMilli()
+}
+
+func (w *XSnapWasmWorker) wasmIssueCommand(ctx context.Context, m api.Module, length uint32) uint32 {
+	mem := m.Memory()
+	cmdBytes, ok := mem.Read(w.bufferPtr, length)
+	if !ok {
+		return 0
+	}
+
+	// Parse the command message
+	var request Message
+	if err := w.parseMessageInto(&request, cmdBytes); err != nil {
+		fmt.Printf("[xsnap %d] issueCommand parse error: %v\n", w.id, err)
+		return 0
+	}
+
+	request.Headers.From = w.id
+	request.ResponseCh = make(chan Message, 1)
+
+	if err := w.deliver(w.ctx, request); err != nil {
+		fmt.Printf("[xsnap %d] issueCommand delivery error: %v\n", w.id, err)
+		return 0
+	}
+
+	// Wait for response
+	select {
+	case <-w.ctx.Done():
+		return 0
+	case response := <-request.ResponseCh:
+		// Format response and write to buffer
+		responseBytes, err := formatMessage([]byte{'/'}, response)
+		if err != nil {
+			fmt.Printf("[xsnap %d] issueCommand response format error: %v\n", w.id, err)
+			return 0
+		}
+		if len(responseBytes) > wasmBufferSize {
+			fmt.Printf("[xsnap %d] issueCommand response too large: %d bytes\n", w.id, len(responseBytes))
+			return 0
+		}
+		mem.Write(w.bufferPtr, responseBytes)
+		return uint32(len(responseBytes))
+	}
+}
+
+func (w *XSnapWasmWorker) wasmConsoleLog(ctx context.Context, m api.Module, length uint32) {
+	mem := m.Memory()
+	msgBytes, ok := mem.Read(w.bufferPtr, length)
+	if ok {
+		fmt.Printf("[xsnap %d] %s\n", w.id, string(msgBytes))
+	}
+}
+
+func (w *XSnapWasmWorker) wasmAlloc(ctx context.Context, size uint32) uint32 {
+	return 0 // The WASM module has its own allocator
+}
+
+func (w *XSnapWasmWorker) wasmFree(ctx context.Context, ptr uint32) {
+	// No-op for bump allocator
+}
+
+// =============================================================================
+// C Library String Functions (called by WASM)
+// =============================================================================
+
+func (w *XSnapWasmWorker) strlen(ctx context.Context, m api.Module, s uint32) uint32 {
+	mem := m.Memory()
+	var length uint32
+	for {
+		b, ok := mem.ReadByte(s + length)
+		if !ok || b == 0 {
+			break
+		}
+		length++
+	}
+	return length
+}
+
+func (w *XSnapWasmWorker) memcpy(ctx context.Context, m api.Module, dst, src, n uint32) uint32 {
+	mem := m.Memory()
+	data, ok := mem.Read(src, n)
+	if ok {
+		mem.Write(dst, data)
+	}
+	return dst
+}
+
+func (w *XSnapWasmWorker) memset(ctx context.Context, m api.Module, s uint32, c int32, n uint32) uint32 {
+	mem := m.Memory()
+	data := make([]byte, n)
+	for i := range data {
+		data[i] = byte(c)
+	}
+	mem.Write(s, data)
+	return s
+}
+
+func (w *XSnapWasmWorker) memmove(ctx context.Context, m api.Module, dst, src, n uint32) uint32 {
+	mem := m.Memory()
+	data, ok := mem.Read(src, n)
+	if ok {
+		// Make a copy to handle overlapping regions
+		copied := make([]byte, len(data))
+		copy(copied, data)
+		mem.Write(dst, copied)
+	}
+	return dst
+}
+
+func (w *XSnapWasmWorker) strcmp(ctx context.Context, m api.Module, s1, s2 uint32) int32 {
+	mem := m.Memory()
+	for {
+		b1, ok1 := mem.ReadByte(s1)
+		b2, ok2 := mem.ReadByte(s2)
+		if !ok1 || !ok2 {
+			return 0
+		}
+		if b1 != b2 {
+			return int32(b1) - int32(b2)
+		}
+		if b1 == 0 {
+			return 0
+		}
+		s1++
+		s2++
+	}
+}
+
+func (w *XSnapWasmWorker) strcpy(ctx context.Context, m api.Module, dst, src uint32) uint32 {
+	mem := m.Memory()
+	d := dst
+	for {
+		b, ok := mem.ReadByte(src)
+		if !ok {
+			break
+		}
+		mem.WriteByte(d, b)
+		if b == 0 {
+			break
+		}
+		src++
+		d++
+	}
+	return dst
+}
+
+func (w *XSnapWasmWorker) strncmp(ctx context.Context, m api.Module, s1, s2, n uint32) int32 {
+	mem := m.Memory()
+	for i := uint32(0); i < n; i++ {
+		b1, ok1 := mem.ReadByte(s1 + i)
+		b2, ok2 := mem.ReadByte(s2 + i)
+		if !ok1 || !ok2 {
+			return 0
+		}
+		if b1 != b2 {
+			return int32(b1) - int32(b2)
+		}
+		if b1 == 0 {
+			return 0
+		}
+	}
+	return 0
+}
+
+func (w *XSnapWasmWorker) strcat(ctx context.Context, m api.Module, dst, src uint32) uint32 {
+	mem := m.Memory()
+	// Find end of dst
+	d := dst
+	for {
+		b, ok := mem.ReadByte(d)
+		if !ok || b == 0 {
+			break
+		}
+		d++
+	}
+	// Copy src
+	for {
+		b, ok := mem.ReadByte(src)
+		if !ok {
+			break
+		}
+		mem.WriteByte(d, b)
+		if b == 0 {
+			break
+		}
+		src++
+		d++
+	}
+	return dst
+}
+
+func (w *XSnapWasmWorker) strchr(ctx context.Context, m api.Module, s uint32, c int32) uint32 {
+	mem := m.Memory()
+	for {
+		b, ok := mem.ReadByte(s)
+		if !ok {
+			return 0
+		}
+		if b == byte(c) {
+			return s
+		}
+		if b == 0 {
+			return 0
+		}
+		s++
+	}
+}

@@ -24,6 +24,7 @@ func main() {
 		Eval              []string `short:"e"`
 		Bundle            []string `short:"b"`
 		PrecompiledBundle []string `short:"B"`
+		UseWasm           bool     `long:"wasm" description:"Use WASM-based XSnap instead of CGO"`
 	}
 
 	args, err := flags.ParseArgs(&opts, os.Args)
@@ -38,7 +39,15 @@ func main() {
 	supervisor.Start()
 
 	bindingsId := supervisor.Spawn(0, RunBindingsWorker)
-	xsnapId := supervisor.Spawn(bindingsId, RunXsnapWorker)
+
+	// Choose XSnap implementation: WASM (pure Go) or CGO
+	var xsnapRunner RunWorker
+	if opts.UseWasm || os.Getenv("ENGO_USE_WASM") != "" {
+		xsnapRunner = RunXSnapWasmWorker
+	} else {
+		xsnapRunner = RunXsnapWorker
+	}
+	xsnapId := supervisor.Spawn(bindingsId, xsnapRunner)
 
 	evalSource := func(source string) {
 		responseCh := make(chan Message, 1)
@@ -60,9 +69,14 @@ func main() {
 			Body:       append(bodyBytes, 1),
 			ResponseCh: responseCh,
 		})
-		<-responseCh
-		// txt, _ := json.Marshal(res.Headers)
-		// fmt.Printf("> %s (%s)\n", res.Body, txt)
+		select {
+		case <-responseCh:
+			// txt, _ := json.Marshal(res.Headers)
+			// fmt.Printf("> %s (%s)\n", res.Body, txt)
+		case <-supervisor.Done():
+			// Supervisor is shutting down (worker crash or graceful shutdown)
+			return
+		}
 	}
 
 	importModule := func(path string) {
@@ -91,9 +105,13 @@ func main() {
 			Body:       append(bodyBytes, 1),
 			ResponseCh: responseCh,
 		})
-		<-responseCh
-		// txt, _ := json.Marshal(res.Headers)
-		// fmt.Printf("> %s (%s)\n", res.Body, txt)
+		select {
+		case <-responseCh:
+			// txt, _ := json.Marshal(res.Headers)
+			// fmt.Printf("> %s (%s)\n", res.Body, txt)
+		case <-supervisor.Done():
+			return
+		}
 	}
 
 	importBundle := func(path string, native bool) {
@@ -124,9 +142,13 @@ func main() {
 			Body:       append(bodyBytes, 1),
 			ResponseCh: responseCh,
 		})
-		<-responseCh
-		// txt, _ := json.Marshal(res.Headers)
-		// fmt.Printf("> %s (%s)\n", res.Body, txt)
+		select {
+		case <-responseCh:
+			// txt, _ := json.Marshal(res.Headers)
+			// fmt.Printf("> %s (%s)\n", res.Body, txt)
+		case <-supervisor.Done():
+			return
+		}
 	}
 
 	for _, arg := range opts.Eval {
