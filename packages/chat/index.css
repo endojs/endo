@@ -2154,7 +2154,35 @@ button:active {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+/* Pet name tokens in value title */
+.value-title .token {
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.value-title .token b {
+  background: var(--accent-primary);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* Message context token (distinct style from pet name) */
+.token.message-token {
+  display: inline-block;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
 }
 
 .value-type-select {

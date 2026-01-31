@@ -531,6 +531,44 @@ export const tokenAutocompleteComponent = (
       return;
     }
 
+    // Handle Backspace to delete tokens when cursor is immediately after one
+    if (e.key === 'Backspace' && !isMenuVisible) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) {
+          const node = range.startContainer;
+          const offset = range.startOffset;
+
+          // Case 1: Cursor at start of text node, previous sibling is a token
+          if (node.nodeType === Node.TEXT_NODE && offset === 0) {
+            const prev = node.previousSibling;
+            if (
+              prev instanceof HTMLElement &&
+              prev.classList.contains('chat-token')
+            ) {
+              e.preventDefault();
+              prev.remove();
+              return;
+            }
+          }
+
+          // Case 2: Cursor directly in the input element, previous child is a token
+          if (node === $input && offset > 0) {
+            const prev = $input.childNodes[offset - 1];
+            if (
+              prev instanceof HTMLElement &&
+              prev.classList.contains('chat-token')
+            ) {
+              e.preventDefault();
+              prev.remove();
+              return;
+            }
+          }
+        }
+      }
+    }
+
     if (!isMenuVisible) return;
 
     switch (e.key) {
@@ -552,6 +590,13 @@ export const tokenAutocompleteComponent = (
         break;
 
       case 'Tab':
+      case ' ':
+        if (filteredNames.length > 0) {
+          e.preventDefault();
+          insertToken(filteredNames[selectedIndex], '');
+        }
+        break;
+
       case 'Enter':
         if (filteredNames.length > 0) {
           e.preventDefault();

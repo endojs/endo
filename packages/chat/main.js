@@ -84,22 +84,25 @@ const hideReconnecting = () => {
 /**
  * Schedule a reconnection attempt.
  */
-const scheduleReconnect = () => {
+/**
+ * Schedule a reconnection attempt.
+ * @param {() => Promise<void>} reconnect
+ */
+function scheduleReconnect(reconnect) {
   setTimeout(() => {
-    connectAndRun().catch(error => {
-      // eslint-disable-line no-use-before-define
+    reconnect().catch(error => {
       console.error('[Chat] Reconnection failed:', error);
       showReconnecting(/** @type {Error} */ (error).message);
-      scheduleReconnect();
+      scheduleReconnect(reconnect);
     });
   }, RECONNECT_INTERVAL_MS);
-};
+}
 
 /**
  * Connect to the gateway and initialize the chat UI.
  * Handles reconnection on disconnect.
  */
-const connectAndRun = async () => {
+async function connectAndRun() {
   document.body.innerHTML = `
     <h1>🔌 Connecting to Endo Gateway...</h1>
     <p>Port: <code>${endoPort}</code></p>
@@ -142,15 +145,15 @@ const connectAndRun = async () => {
     () => {
       console.log('[Chat] Connection closed, will reconnect...');
       showReconnecting('Connection lost');
-      scheduleReconnect();
+      scheduleReconnect(connectAndRun);
     },
     error => {
       console.error('[Chat] Connection error:', error);
       showReconnecting(error.message);
-      scheduleReconnect();
+      scheduleReconnect(connectAndRun);
     },
   );
-};
+}
 
 connectAndRun().catch(error => {
   console.error('Application error:', error);

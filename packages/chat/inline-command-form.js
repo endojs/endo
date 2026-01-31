@@ -30,6 +30,7 @@ import { createInlineEval } from './inline-eval.js';
  * @param {(isValid: boolean) => void} options.onValidityChange - Called when validity changes
  * @param {(messageNumber: number) => void} [options.onMessageNumberClick] - Called when message number clicked
  * @param {(data: import('./inline-eval.js').ParsedEval) => void} [options.onExpandEval] - Called to expand eval to modal
+ * @param {(messageNumber: number) => Promise<string[]>} [options.getMessageEdgeNames] - Get edge names for a message
  * @returns {InlineCommandFormAPI}
  */
 export const createInlineCommandForm = ({
@@ -41,6 +42,7 @@ export const createInlineCommandForm = ({
   onValidityChange,
   onMessageNumberClick,
   onExpandEval,
+  getMessageEdgeNames,
 }) => {
   /** @type {string | null} */
   let currentCommand = null;
@@ -123,8 +125,8 @@ export const createInlineCommandForm = ({
           }
         });
 
-        // Track if user manually modifies agentName
-        if (field.name === 'agentName') {
+        // Track if user manually modifies agentName or petName
+        if (field.name === 'agentName' || field.name === 'petName') {
           $input.addEventListener(
             'input',
             () => {
@@ -205,7 +207,170 @@ export const createInlineCommandForm = ({
         break;
       }
 
-      case 'edgeName':
+      case 'edgeName': {
+        const $inputWrapper = document.createElement('div');
+        $inputWrapper.className = 'inline-field-input-wrapper';
+
+        const $input = document.createElement('input');
+        $input.type = 'text';
+        $input.className = 'inline-field-input edgeName-input';
+        $input.placeholder = field.placeholder || '';
+        $input.value = field.defaultValue || '';
+        $input.dataset.fieldName = field.name;
+        $input.autocomplete = 'off';
+        $input.dataset.formType = 'other';
+        $input.dataset.lpignore = 'true';
+
+        const $menu = document.createElement('div');
+        $menu.className = 'inline-petname-menu';
+
+        $inputWrapper.appendChild($input);
+        $inputWrapper.appendChild($menu);
+        $wrapper.appendChild($inputWrapper);
+
+        /** @type {string[]} */
+        let edgeNameOptions = [];
+        let selectedIndex = -1;
+
+        const renderMenu = () => {
+          const filterValue = $input.value.toLowerCase();
+          const filtered = edgeNameOptions.filter(name =>
+            name.toLowerCase().includes(filterValue),
+          );
+
+          if (filtered.length === 0) {
+            $menu.innerHTML =
+              '<div class="token-menu-empty">No edge names</div>';
+            $menu.classList.add('visible');
+            return;
+          }
+
+          $menu.innerHTML = '';
+          filtered.forEach((name, index) => {
+            const $item = document.createElement('div');
+            $item.className = 'token-menu-item';
+            if (index === selectedIndex) {
+              $item.classList.add('selected');
+            }
+            $item.textContent = name;
+            $item.addEventListener('click', () => {
+              $input.value = name;
+              formData[field.name] = name;
+              $menu.classList.remove('visible');
+              updateValidity();
+              // Copy to petName field if it exists and is empty or not user-modified
+              const petNameInput = fieldInputsByName.petName;
+              if (petNameInput && !petNameInput.dataset.userModified) {
+                petNameInput.value = name;
+                formData.petName = name;
+                updateValidity();
+              }
+            });
+            $menu.appendChild($item);
+          });
+          $menu.classList.add('visible');
+        };
+
+        const hideMenu = () => {
+          $menu.classList.remove('visible');
+          selectedIndex = -1;
+        };
+
+        // Update edge name options when message number changes
+        const updateEdgeNames = async () => {
+          const messageNumber = formData.messageNumber;
+          if (
+            getMessageEdgeNames &&
+            typeof messageNumber === 'number' &&
+            messageNumber > 0
+          ) {
+            try {
+              edgeNameOptions = await getMessageEdgeNames(messageNumber);
+            } catch {
+              edgeNameOptions = [];
+            }
+          } else {
+            edgeNameOptions = [];
+          }
+        };
+
+        $input.addEventListener('focus', async () => {
+          await updateEdgeNames();
+          if (edgeNameOptions.length > 0) {
+            renderMenu();
+          }
+        });
+
+        $input.addEventListener('input', () => {
+          formData[field.name] = $input.value;
+          updateValidity();
+          if (edgeNameOptions.length > 0) {
+            selectedIndex = -1;
+            renderMenu();
+          }
+          // Copy to petName field when edgeName changes
+          const petNameInput = fieldInputsByName.petName;
+          if (petNameInput && !petNameInput.dataset.userModified) {
+            petNameInput.value = $input.value;
+            formData.petName = $input.value;
+            updateValidity();
+          }
+        });
+
+        $input.addEventListener('blur', () => {
+          // Delay to allow click on menu item
+          setTimeout(hideMenu, 150);
+        });
+
+        $input.addEventListener('keydown', e => {
+          if (!$menu.classList.contains('visible')) return;
+
+          const filterValue = $input.value.toLowerCase();
+          const filtered = edgeNameOptions.filter(name =>
+            name.toLowerCase().includes(filterValue),
+          );
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
+            renderMenu();
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, 0);
+            renderMenu();
+          } else if (e.key === 'Tab' || e.key === 'Enter') {
+            if (selectedIndex >= 0 && selectedIndex < filtered.length) {
+              e.preventDefault();
+              $input.value = filtered[selectedIndex];
+              formData[field.name] = filtered[selectedIndex];
+              hideMenu();
+              updateValidity();
+              // Copy to petName
+              const petNameInput = fieldInputsByName.petName;
+              if (petNameInput && !petNameInput.dataset.userModified) {
+                petNameInput.value = filtered[selectedIndex];
+                formData.petName = filtered[selectedIndex];
+                updateValidity();
+              }
+            }
+          } else if (e.key === 'Escape') {
+            hideMenu();
+          }
+        });
+
+        formData[field.name] = $input.value;
+        fieldElements.push($input);
+        fieldInputsByName[field.name] = $input;
+
+        // Track disposal
+        autocompleteInstances.push({
+          dispose: () => {
+            hideMenu();
+          },
+        });
+        break;
+      }
+
       case 'text':
       case 'locator': {
         const $input = document.createElement('input');

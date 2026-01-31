@@ -1,5 +1,5 @@
 // @ts-check
-/* global document, window */
+/* global document, window, setTimeout, clearTimeout */
 
 /**
  * @typedef {object} MonacoEditorAPI
@@ -37,11 +37,7 @@ export const createMonacoEditor = async (
 
   // Wait for iframe to be ready (with timeout)
   await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      window.removeEventListener('message', handleMessage);
-      reject(new Error('Monaco editor failed to load within 10 seconds'));
-    }, 10000);
-
+    let timeout;
     const handleMessage = (/** @type {MessageEvent} */ event) => {
       if (event.data?.type === 'monaco-ready') {
         clearTimeout(timeout);
@@ -49,6 +45,11 @@ export const createMonacoEditor = async (
         resolve(undefined);
       }
     };
+
+    timeout = setTimeout(() => {
+      window.removeEventListener('message', handleMessage);
+      reject(new Error('Monaco editor failed to load within 10 seconds'));
+    }, 10000);
     window.addEventListener('message', handleMessage);
   });
 

@@ -8,6 +8,7 @@
  * @property {(paths: string[]) => void} setValue - Set the paths
  * @property {() => boolean} isMenuVisible - Check if autocomplete menu is visible
  * @property {() => void} dispose - Clean up event listeners
+ * @property {() => void} focus - Focus the input element
  */
 
 /**
@@ -144,11 +145,16 @@ export const petNamePathsAutocomplete = (
    */
   const fetchSuggestions = async pathPrefix => {
     try {
+      /** @type {unknown} */
       let target = powers;
       if (pathPrefix.length > 0) {
-        target = E(powers).lookup(...pathPrefix);
+        target = /** @type {{ lookup: (...path: string[]) => unknown }} */ (
+          E(powers)
+        ).lookup(...pathPrefix);
       }
-      const names = await E(target).list();
+      const names = await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
+        E(target)
+      ).list();
       const result = [];
       for await (const name of names) {
         result.push(name);
@@ -209,7 +215,7 @@ export const petNamePathsAutocomplete = (
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
     $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit';
+      '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
   };
 
@@ -242,7 +248,7 @@ export const petNamePathsAutocomplete = (
     } else if (mode === 'drilldown') {
       // Create chip for current path, start drilling into it
       completedPaths.push(fullPath);
-      $input.value = fullPath + '.';
+      $input.value = `${fullPath}.`;
       // Remove the chip we just added - we're continuing to edit it
       completedPaths.pop();
       renderChips();

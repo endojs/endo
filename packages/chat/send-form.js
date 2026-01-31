@@ -4,11 +4,20 @@
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /**
+ * @typedef {object} SendFormState
+ * @property {boolean} menuVisible - Token autocomplete menu is showing
+ * @property {boolean} hasToken - Input contains at least one token chip
+ * @property {boolean} hasText - Input contains text (not just tokens)
+ * @property {boolean} isEmpty - Input is completely empty
+ */
+
+/**
  * @typedef {object} SendFormAPI
  * @property {() => void} focus - Focus the input
  * @property {() => void} clear - Clear the input
  * @property {() => boolean} isMenuVisible - Check if autocomplete menu is visible
  * @property {() => string | null} getLastRecipient - Get the last recipient for continuation
+ * @property {() => SendFormState} getState - Get current input state for modeline
  */
 
 /**
@@ -22,7 +31,9 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(target: unknown) => unknown} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
  * @param {unknown} options.powers - Powers object
+ * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
+ * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -33,7 +44,9 @@ export const sendFormComponent = ({
   E,
   makeRefIterator,
   powers,
+  showValue,
   shouldHandleEnter = () => true,
+  onStateChange,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -80,6 +93,30 @@ export const sendFormComponent = ({
     // Check if message is empty
     const hasContent = strings.some(s => s.trim()) || petNames.length > 0;
     if (!hasContent) {
+      return;
+    }
+
+    // Single token with no message opens the value modal
+    const onlyToken =
+      petNames.length === 1 && strings.every(part => !part.trim());
+    if (onlyToken) {
+      const [petName] = petNames;
+      const petNamePath = petName.split('.');
+      Promise.all([
+        E(powers).identify(...petNamePath),
+        E(powers).lookup(...petNamePath),
+      ]).then(
+        ([id, value]) => {
+          if (showValue) {
+            showValue(value, id, petNamePath, undefined);
+          }
+          tokenComponent.clear();
+          clearError();
+        },
+        (/** @type {Error} */ error) => {
+          $error.textContent = error.message;
+        },
+      );
       return;
     }
 
@@ -142,12 +179,38 @@ export const sendFormComponent = ({
     }
   });
 
-  $input.addEventListener('input', clearError);
+  /**
+   * Get the current state of the input for modeline display.
+   * @returns {SendFormState}
+   */
+  const getState = () => {
+    const { strings, petNames } = tokenComponent.getMessage();
+    const menuVisible = tokenComponent.isMenuVisible();
+    const hasToken = petNames.length > 0;
+    const hasText = strings.some(s => s.trim().length > 0);
+    const isEmpty = !hasToken && !hasText;
+    return { menuVisible, hasToken, hasText, isEmpty };
+  };
+
+  const notifyStateChange = () => {
+    if (onStateChange) {
+      onStateChange(getState());
+    }
+  };
+
+  $input.addEventListener('input', () => {
+    clearError();
+    notifyStateChange();
+  });
+
+  // Also notify on keyup for menu state changes
+  $input.addEventListener('keyup', notifyStateChange);
 
   return {
     focus: () => $input.focus(),
     clear: () => tokenComponent.clear(),
     isMenuVisible: () => tokenComponent.isMenuVisible(),
     getLastRecipient: () => lastRecipient,
+    getState,
   };
 };

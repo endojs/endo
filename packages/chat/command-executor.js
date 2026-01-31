@@ -13,7 +13,7 @@ import { E } from '@endo/far';
 /**
  * @typedef {object} ExecutorContext
  * @property {unknown} powers - The powers object
- * @property {(value: unknown) => void} showValue - Display a value
+ * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void>} showValue - Display a value
  * @property {(message: string) => void} showMessage - Display a message
  * @property {(error: Error) => void} showError - Display an error
  */
@@ -160,7 +160,7 @@ export const createCommandExecutor = ({
           const pathParts = path ? String(path).split('.') : [];
           const names = await E(powers).list(...pathParts);
           const sortedNames = harden([...names].sort());
-          showValue(sortedNames);
+          showValue(sortedNames, undefined, undefined, undefined);
           return { success: true, value: sortedNames };
         }
 
@@ -168,7 +168,8 @@ export const createCommandExecutor = ({
           const { petName } = params;
           const pathParts = String(petName).split('.');
           const value = await E(powers).lookup(...pathParts);
-          showValue(value);
+          const id = await E(powers).identify(...pathParts);
+          showValue(value, id, pathParts, undefined);
           return { success: true, value };
         }
 

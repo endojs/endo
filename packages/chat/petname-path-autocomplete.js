@@ -53,11 +53,16 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
    */
   const fetchSuggestions = async pathPrefix => {
     try {
+      /** @type {unknown} */
       let target = powers;
       if (pathPrefix.length > 0) {
-        target = E(powers).lookup(...pathPrefix);
+        target = /** @type {{ lookup: (...path: string[]) => unknown }} */ (
+          E(powers)
+        ).lookup(...pathPrefix);
       }
-      const names = await E(target).list();
+      const names = await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
+        E(target)
+      ).list();
       const result = [];
       for await (const name of names) {
         result.push(name);
@@ -118,7 +123,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
     $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>.</kbd> drill down';
+      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>.</kbd> drill down · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
   };
 

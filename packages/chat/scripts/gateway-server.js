@@ -143,6 +143,7 @@ const main = async () => {
   // Initial connection with retry loop
   while (!isConnected && !isShuttingDown) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       await connectToDaemon();
     } catch (error) {
       console.error(
@@ -153,6 +154,7 @@ const main = async () => {
       console.error(
         `[Gateway] Retrying in ${RECONNECT_INTERVAL_MS / 1000}s...`,
       );
+      // eslint-disable-next-line no-await-in-loop
       await new Promise(resolve => setTimeout(resolve, RECONNECT_INTERVAL_MS));
     }
   }
