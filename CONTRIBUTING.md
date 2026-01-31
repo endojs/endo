@@ -11,6 +11,18 @@ Endo is a yarn workspaces repository. Running yarn in the root will install and 
 Note: running yarn `--ignore-scripts` will not complete the setup of SES.
 Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
+## Action pinning
+
+GitHub Actions are pinned to commit SHAs.
+Run `node scripts/update-action-pins.mjs` to refresh patch/minor pins.
+Run `node scripts/update-action-pins.mjs --major` for major upgrades.
+Use `--min-age-days 0` to bypass the default 5-day age gate (for zero-day fixes).
+The updater reads the `# vX` comment on each `uses:` line.
+If no version comment exists, it infers the latest tag for that action.
+
+CI enforces pinning with `node scripts/update-action-pins.mjs --check-pins`.
+If this check fails, run the updater and commit the resulting changes.
+
 ## Creating a new package
 
 Run <code>[scripts/create-package.sh](./scripts/create-package.sh) $name</code>,
