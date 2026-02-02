@@ -382,6 +382,55 @@ export const petNamePathsAutocomplete = (
         }
         break;
 
+      case 'Home':
+        e.preventDefault();
+        if (suggestions.length > 0) {
+          selectedIndex = 0;
+          renderMenu();
+        }
+        break;
+
+      case 'End':
+        e.preventDefault();
+        if (suggestions.length > 0) {
+          selectedIndex = suggestions.length - 1;
+          renderMenu();
+        }
+        break;
+
+      case 'PageDown':
+        e.preventDefault();
+        if (suggestions.length > 0) {
+          const first = $menu.querySelector('.token-menu-item');
+          const itemHeight = first ? first.offsetHeight : 32;
+          const pageSize = Math.max(
+            1,
+            Math.floor($menu.clientHeight / itemHeight),
+          );
+          const step = Math.max(1, pageSize - 1);
+          selectedIndex = Math.min(
+            selectedIndex + step,
+            suggestions.length - 1,
+          );
+          renderMenu();
+        }
+        break;
+
+      case 'PageUp':
+        e.preventDefault();
+        if (suggestions.length > 0) {
+          const first = $menu.querySelector('.token-menu-item');
+          const itemHeight = first ? first.offsetHeight : 32;
+          const pageSize = Math.max(
+            1,
+            Math.floor($menu.clientHeight / itemHeight),
+          );
+          const step = Math.max(1, pageSize - 1);
+          selectedIndex = Math.max(selectedIndex - step, 0);
+          renderMenu();
+        }
+        break;
+
       case '.':
         // Select and drill down
         if (suggestions.length > 0) {

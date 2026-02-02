@@ -338,6 +338,43 @@ export const createInlineCommandForm = ({
             e.preventDefault();
             selectedIndex = Math.max(selectedIndex - 1, 0);
             renderMenu();
+          } else if (e.key === 'Home') {
+            e.preventDefault();
+            selectedIndex = 0;
+            renderMenu();
+          } else if (e.key === 'End') {
+            e.preventDefault();
+            selectedIndex = Math.max(0, filtered.length - 1);
+            renderMenu();
+          } else if (e.key === 'PageDown') {
+            e.preventDefault();
+            if (filtered.length > 0) {
+              const first = $menu.querySelector('.token-menu-item');
+              const itemHeight = first ? first.offsetHeight : 32;
+              const pageSize = Math.max(
+                1,
+                Math.floor($menu.clientHeight / itemHeight),
+              );
+              const step = Math.max(1, pageSize - 1);
+              selectedIndex = Math.min(
+                selectedIndex + step,
+                filtered.length - 1,
+              );
+              renderMenu();
+            }
+          } else if (e.key === 'PageUp') {
+            e.preventDefault();
+            if (filtered.length > 0) {
+              const first = $menu.querySelector('.token-menu-item');
+              const itemHeight = first ? first.offsetHeight : 32;
+              const pageSize = Math.max(
+                1,
+                Math.floor($menu.clientHeight / itemHeight),
+              );
+              const step = Math.max(1, pageSize - 1);
+              selectedIndex = Math.max(selectedIndex - step, 0);
+              renderMenu();
+            }
           } else if (e.key === 'Tab' || e.key === 'Enter') {
             if (selectedIndex >= 0 && selectedIndex < filtered.length) {
               e.preventDefault();

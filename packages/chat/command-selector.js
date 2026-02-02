@@ -12,6 +12,10 @@ import { filterCommands, getCommandList } from './command-registry.js';
  * @property {(prefix: string) => void} filter - Filter commands by prefix
  * @property {() => void} selectNext - Move selection down
  * @property {() => void} selectPrev - Move selection up
+ * @property {() => void} selectFirst - Move selection to first item (Home)
+ * @property {() => void} selectLast - Move selection to last item (End)
+ * @property {() => void} selectPageDown - Move selection down one page
+ * @property {() => void} selectPageUp - Move selection up one page
  * @property {() => string | null} getSelected - Get currently selected command name
  * @property {() => void} confirmSelection - Confirm the current selection
  */
@@ -72,6 +76,52 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
     if (filteredCommands.length > 0) {
       selectedIndex =
         (selectedIndex - 1 + filteredCommands.length) % filteredCommands.length;
+      render();
+    }
+  };
+
+  const selectFirst = () => {
+    if (filteredCommands.length > 0) {
+      selectedIndex = 0;
+      render();
+    }
+  };
+
+  const selectLast = () => {
+    if (filteredCommands.length > 0) {
+      selectedIndex = filteredCommands.length - 1;
+      render();
+    }
+  };
+
+  /**
+   * Step size for Page Down/Up: one less than visible rows so the user sees motion.
+   * @returns {number}
+   */
+  const getPageStep = () => {
+    const first = $menu.querySelector('.token-menu-item');
+    if (!first) return 1;
+    const itemHeight = first.offsetHeight;
+    const viewHeight = $menu.clientHeight;
+    const pageSize = Math.max(1, Math.floor(viewHeight / itemHeight));
+    return Math.max(1, pageSize - 1);
+  };
+
+  const selectPageDown = () => {
+    if (filteredCommands.length > 0) {
+      const step = getPageStep();
+      selectedIndex = Math.min(
+        selectedIndex + step,
+        filteredCommands.length - 1,
+      );
+      render();
+    }
+  };
+
+  const selectPageUp = () => {
+    if (filteredCommands.length > 0) {
+      const step = getPageStep();
+      selectedIndex = Math.max(selectedIndex - step, 0);
       render();
     }
   };
@@ -147,6 +197,12 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
     $hint.innerHTML =
       '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd>/<kbd>Enter</kbd> select · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
+
+    // Keep the selected item in view when navigating with arrow keys
+    const $selected = $menu.querySelector('.token-menu-item.selected');
+    if ($selected) {
+      $selected.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }
   };
 
   // Close menu on outside click
@@ -164,6 +220,10 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
     filter,
     selectNext,
     selectPrev,
+    selectFirst,
+    selectLast,
+    selectPageDown,
+    selectPageUp,
     getSelected,
     confirmSelection,
   };

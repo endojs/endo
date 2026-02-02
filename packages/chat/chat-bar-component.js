@@ -16,6 +16,7 @@ import {
 } from './command-registry.js';
 import { createMessagePicker } from './message-picker.js';
 import { createHelpModal } from './help-modal.js';
+import { kbd, modKey } from './platform-keys.js';
 
 /**
  * @param {HTMLElement} $parent
@@ -113,7 +114,7 @@ export const chatBarComponent = (
       hints = `
         <span class="modeline-hint"><kbd>@</kbd> add endowment</span>
         <span class="modeline-hint"><kbd>Enter</kbd> evaluate</span>
-        <span class="modeline-hint"><kbd>Cmd+Enter</kbd> expand to editor</span>
+        <span class="modeline-hint">${kbd(modKey, 'Enter')} expand to editor</span>
         <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
       `;
     } else {
@@ -391,9 +392,18 @@ export const chatBarComponent = (
         return;
       }
 
+      // For js/eval: reset command line immediately so guest proposals don't block the UI.
+      // (Guest evaluate() resolves only when the host grants; we show the result when it does.)
+      const isEval = commandName === 'js' || commandName === 'eval';
+      if (isEval) {
+        exitCommandMode(); // eslint-disable-line no-use-before-define
+      }
+
       const result = await executor.execute(commandName, data);
       if (result.success) {
-        exitCommandMode(); // eslint-disable-line no-use-before-define
+        if (!isEval) {
+          exitCommandMode(); // eslint-disable-line no-use-before-define
+        }
         const resultName =
           'resultName' in data && data.resultName
             ? String(data.resultName)
@@ -410,7 +420,7 @@ export const chatBarComponent = (
           showValue(result.value, undefined, resultPath, undefined);
         }
       }
-      // Error case: showError callback already set $commandError.textContent
+      // Error case: showError callback already set $commandError or $error.textContent
     },
     onCancel: () => {
       messagePicker.disable();
@@ -687,9 +697,18 @@ export const chatBarComponent = (
         return;
       }
 
+      // For js/eval: reset command line immediately so guest proposals don't block the UI
+      const isEval =
+        currentCommand === 'js' || currentCommand === 'eval';
+      if (isEval) {
+        exitCommandMode();
+      }
+
       const result = await executor.execute(currentCommand, data);
       if (result.success) {
-        exitCommandMode();
+        if (!isEval) {
+          exitCommandMode();
+        }
         const resultName =
           'resultName' in data && data.resultName
             ? String(data.resultName)
@@ -706,7 +725,7 @@ export const chatBarComponent = (
           showValue(result.value, undefined, resultPath, undefined);
         }
       }
-      // Error case: showError callback already set $commandError.textContent
+      // Error case: showError callback already set $commandError or $error.textContent
     }
   });
 
@@ -832,6 +851,22 @@ export const chatBarComponent = (
         case 'ArrowUp':
           event.preventDefault();
           commandSelector.selectPrev();
+          break;
+        case 'Home':
+          event.preventDefault();
+          commandSelector.selectFirst();
+          break;
+        case 'End':
+          event.preventDefault();
+          commandSelector.selectLast();
+          break;
+        case 'PageDown':
+          event.preventDefault();
+          commandSelector.selectPageDown();
+          break;
+        case 'PageUp':
+          event.preventDefault();
+          commandSelector.selectPageUp();
           break;
         case 'Tab':
         case 'Enter':

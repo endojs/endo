@@ -589,6 +589,57 @@ export const tokenAutocompleteComponent = (
         }
         break;
 
+      case 'Home':
+        e.preventDefault();
+        if (filteredNames.length > 0) {
+          selectedIndex = 0;
+          updateFilter();
+        }
+        break;
+
+      case 'End':
+        e.preventDefault();
+        if (filteredNames.length > 0) {
+          selectedIndex = filteredNames.length - 1;
+          updateFilter();
+        }
+        break;
+
+      case 'PageDown': {
+        e.preventDefault();
+        if (filteredNames.length > 0) {
+          const first = $menu.querySelector('.token-menu-item');
+          const itemHeight = first ? first.offsetHeight : 32;
+          const pageSize = Math.max(
+            1,
+            Math.floor($menu.clientHeight / itemHeight),
+          );
+          const step = Math.max(1, pageSize - 1);
+          selectedIndex = Math.min(
+            selectedIndex + step,
+            filteredNames.length - 1,
+          );
+          updateFilter();
+        }
+        break;
+      }
+
+      case 'PageUp': {
+        e.preventDefault();
+        if (filteredNames.length > 0) {
+          const first = $menu.querySelector('.token-menu-item');
+          const itemHeight = first ? first.offsetHeight : 32;
+          const pageSize = Math.max(
+            1,
+            Math.floor($menu.clientHeight / itemHeight),
+          );
+          const step = Math.max(1, pageSize - 1);
+          selectedIndex = Math.max(selectedIndex - step, 0);
+          updateFilter();
+        }
+        break;
+      }
+
       case 'Tab':
       case ' ':
         if (filteredNames.length > 0) {

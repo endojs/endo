@@ -39,6 +39,7 @@
     "prepack": "tsc --build tsconfig.build.json",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:e2e": "playwright test",
     "test:xs": "exit 0"
   },
   "dependencies": {
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
+    "@playwright/test": "^1.40.0",
     "@endo/daemon": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
@@ -62,6 +64,7 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "happy-dom": "^15.0.0",
     "tsd": "catalog:dev",
     "typescript": "~5.9.2",
     "vite": "^6.0.0",

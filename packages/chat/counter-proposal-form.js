@@ -4,6 +4,7 @@
 
 import { createMonacoEditor } from './monaco-wrapper.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
+import { keyCombo, modKey } from './platform-keys.js';
 
 /**
  * @typedef {object} Endowment
@@ -67,7 +68,7 @@ export const createCounterProposalForm = async ({
           <span>Endowments</span>
         </div>
         <div class="eval-endowments-list"></div>
-        <button class="eval-add-endowment" title="Add endowment (Cmd+E)">+ Add</button>
+        <button class="eval-add-endowment" title="Add endowment (${keyCombo(modKey, 'E')})">+ Add</button>
       </div>
       <div class="eval-options">
         <div class="eval-option">
@@ -81,7 +82,7 @@ export const createCounterProposalForm = async ({
       </div>
       <div class="eval-footer">
         <span class="eval-error"></span>
-        <button class="eval-submit counter-submit" title="Send counter-proposal (Cmd+Enter)">Counter-propose Evaluate</button>
+        <button class="eval-submit counter-submit" title="Send counter-proposal (${keyCombo(modKey, 'Enter')})">Counter-propose Evaluate</button>
       </div>
     </div>
   `;
