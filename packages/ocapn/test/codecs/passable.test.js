@@ -2,6 +2,7 @@
 
 /**
  * @import { CodecTestEntry } from './_codecs_util.js'
+ * @import { Passable } from '@endo/pass-style'
  */
 
 import test from '@endo/ses-ava/test.js';
@@ -189,12 +190,20 @@ const table = [
   },
   {
     name: 'tagged with reference (local promise)',
+    // We need to cast to Passable because these are Promise<unknown>.
     makeValue: testKit =>
-      makeTagged('promiseTag', testKit.makeLocalPromise(101n)),
+      makeTagged(
+        'promiseTag',
+        /** @type {Extract<Passable, Promise<any>>} */ (
+          testKit.makeLocalPromise(101n)
+        ),
+      ),
     makeExpectedValue: testKit =>
       makeTagged(
         'promiseTag',
-        testKit.referenceKit.provideRemotePromiseValue(101n),
+        /** @type {Extract<Passable, Promise<any>>} */ (
+          testKit.referenceKit.provideRemotePromiseValue(101n)
+        ),
       ),
   },
   {
