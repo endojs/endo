@@ -28,6 +28,7 @@ import { idFromLocator, parseLocator } from '../src/locator.js';
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
+ * @import {FormulaNumber, NodeNumber} from '../src/types.js';
  */
 
 const cryptoPowers = makeCryptoPowers(crypto);
@@ -357,6 +358,19 @@ test('anonymous spawn and evaluate', async t => {
   t.is(ten, 10);
 });
 
+test('evaluate allows mixed-case code names', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).storeValue(5, 'five');
+  const six = await E(host).evaluate(
+    'MAIN',
+    'fooBar + 1',
+    ['fooBar'],
+    ['five'],
+  );
+  t.is(six, 6);
+});
+
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { host } = await prepareHost(t);
@@ -407,13 +421,13 @@ test('persist spawn and evaluation', async t => {
   }
 });
 
-test('store without name', async t => {
+test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-  const readable = await E(host).storeBlob(readerRef);
-  const actualText = await E(readable).text();
-  t.is(actualText, 'hello\n');
+  await t.throwsAsync(E(host).storeBlob(readerRef), {
+    message: 'Invalid name path',
+  });
 });
 
 test('store with name', async t => {
@@ -433,6 +447,38 @@ test('store with name', async t => {
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
+});
+
+test('store blob in subdirectory', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).makeDirectory('subdir');
+    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readable = await E(host).storeBlob(readerRef, [
+      'subdir',
+      'hello-text',
+    ]);
+    const actualText = await E(readable).text();
+    t.is(actualText, 'hello\n');
+  }
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const readable = await E(host).lookup(['subdir', 'hello-text']);
+    const actualText = await E(readable).text();
+    t.is(actualText, 'hello\n');
+  }
+});
+
+test('store blob requires a name', async t => {
+  const { host } = await prepareHost(t);
+
+  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  await t.throwsAsync(E(host).storeBlob(readerRef, []), {
+    message: 'Invalid name path',
+  });
 });
 
 test('move renames value', async t => {
@@ -1565,7 +1611,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
   await t.throwsAsync(
     E(host).evaluate(
       'MAIN',
-      'E(AGENT).lookup(["ten", "someName"])',
+      'E(AGENT).lookup(["ten", "some-name"])',
       ['AGENT'],
       ['AGENT'],
     ),
@@ -1624,10 +1670,9 @@ test('read unknown node id', async t => {
   // write a bogus value for a bogus nodeId
   const node = await cryptoPowers.randomHex512();
   const number = await cryptoPowers.randomHex512();
-  const id = formatId({
-    node,
-    number,
-  });
+  const nodeId = /** @type {NodeNumber} */ (node);
+  const numberId = /** @type {FormulaNumber} */ (number);
+  const id = formatId({ node: nodeId, number: numberId });
   await E(host).write(['abc'], id);
 
   // observe reification failure

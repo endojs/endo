@@ -5,10 +5,16 @@ import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { formatLocator, idFromLocator } from './locator.js';
+import {
+  assertNames,
+  assertNamePath,
+  assertPetNamePath,
+  namePathFrom,
+} from './pet-name.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context } from './types.js' */
+/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, FormulaIdentifier, Name, NamePath, PetName } from './types.js' */
 
 /**
  * @param {object} args
@@ -27,16 +33,15 @@ export const makeDirectoryMaker = ({
   const makeDirectoryNode = petStore => {
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
-      if (typeof petNamePath === 'string') {
-        petNamePath = [petNamePath];
-      }
-      const [headName, ...tailNames] = petNamePath;
+      const namePath = namePathFrom(petNamePath);
+      assertNamePath(namePath);
+      const [headName, ...tailNames] = namePath;
 
       const id = petStore.identifyLocal(headName);
       if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
-      const value = provide(id, 'hub');
+      const value = provide(/** @type {FormulaIdentifier} */ (id), 'hub');
       return tailNames.reduce(
         (directory, petName) => E(directory).lookup(petName),
         value,
@@ -54,51 +59,56 @@ export const makeDirectoryMaker = ({
     };
 
     /**
-     * @param {Array<string>} petNamePath
-     * @returns {Promise<{ hub: NameHub, name: string }>}
+     * @param {NamePath} petNamePath
+     * @returns {Promise<{ hub: NameHub, name: Name }>}
      */
     const lookupTailNameHub = async petNamePath => {
       if (petNamePath.length === 0) {
         throw new TypeError(`Empty pet name path`);
       }
-      const headPath = petNamePath.slice(0, -1);
       const tailName = petNamePath[petNamePath.length - 1];
-      if (headPath.length === 0) {
+      if (petNamePath.length === 1) {
         // eslint-disable-next-line no-use-before-define
         return { hub: directory, name: tailName };
       }
-      const nameHub = /** @type {NameHub} */ (await lookup(headPath));
-      return { hub: nameHub, name: tailName };
+      const prefixPath = /** @type {NamePath} */ (petNamePath.slice(0, -1));
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      return { hub, name: tailName };
     };
 
     /** @type {EndoDirectory['has']} */
     const has = async (...petNamePath) => {
+      assertNames(petNamePath);
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
         return petStore.has(petName);
       }
       const { hub, name } = await lookupTailNameHub(petNamePath);
-      return hub.has(name);
+      return E(hub).has(name);
     };
 
     /** @type {EndoDirectory['identify']} */
     const identify = async (...petNamePath) => {
+      assertNames(petNamePath);
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
         return petStore.identifyLocal(petName);
       }
       const { hub, name } = await lookupTailNameHub(petNamePath);
-      return hub.identify(name);
+      return E(hub).identify(name);
     };
 
     /** @type {EndoDirectory['locate']} */
     const locate = async (...petNamePath) => {
+      assertNames(petNamePath);
       const id = await identify(...petNamePath);
       if (id === undefined) {
         return undefined;
       }
 
-      const formulaType = await getTypeForId(id);
+      const formulaType = await getTypeForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
       return formatLocator(id, formulaType);
     };
 
@@ -128,16 +138,17 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['list']} */
     const list = async (...petNamePath) => {
+      assertNames(petNamePath);
       if (petNamePath.length === 0) {
         return petStore.list();
       }
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
-      return hub.list();
+      return E(hub).list();
     };
 
     /** @type {EndoDirectory['listIdentifiers']} */
     const listIdentifiers = async (...petNamePath) => {
-      petNamePath = petNamePath || [];
+      assertNames(petNamePath);
       const names = await list(...petNamePath);
       const identities = new Set();
       await Promise.all(
@@ -155,84 +166,99 @@ export const makeDirectoryMaker = ({
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
+      assertNames(petNamePath);
       if (petNamePath.length === 0) {
         yield* petStore.followNameChanges();
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
-      yield* hub.followNameChanges();
+      yield* await E(hub).followNameChanges();
     };
 
     /** @type {EndoDirectory['remove']} */
     const remove = async (...petNamePath) => {
+      const { prefixPath, petName } = assertPetNamePath(petNamePath);
       await null;
-      if (petNamePath.length === 1) {
-        const petName = petNamePath[0];
+      if (prefixPath.length === 0) {
         await petStore.remove(petName);
         return;
       }
-      const { hub, name } = await lookupTailNameHub(petNamePath);
-      await hub.remove(name);
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      await E(hub).remove(petName);
     };
 
     /** @type {EndoDirectory['move']} */
     const move = async (fromPath, toPath) => {
-      const { hub: fromHub, name: fromName } =
-        await lookupTailNameHub(fromPath);
-      const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
+      const { prefixPath: fromPrefixPath, petName: fromPetName } =
+        assertPetNamePath(fromPath);
+      const { prefixPath: toPrefixPath, petName: toPetName } =
+        assertPetNamePath(toPath);
+      await null;
 
-      if (fromHub === toHub) {
-        // eslint-disable-next-line no-use-before-define
-        if (fromHub === directory) {
-          await petStore.rename(fromName, toName);
-        } else {
-          await E(fromHub).move([fromName], [toName]);
+      // Optimize for same-hub moves (rename)
+      if (fromPrefixPath.length === toPrefixPath.length) {
+        const samePrefix = fromPrefixPath.every(
+          (name, i) => name === toPrefixPath[i],
+        );
+        if (samePrefix) {
+          if (fromPrefixPath.length === 0) {
+            await petStore.rename(fromPetName, toPetName);
+          } else {
+            const hub = /** @type {NameHub} */ (await lookup(fromPrefixPath));
+            await E(hub).move([fromPetName], [toPetName]);
+          }
+          return;
         }
-        return;
       }
 
-      const id = await E(fromHub).identify(fromName);
+      // Cross-hub move: copy then remove
+      // eslint-disable-next-line no-use-before-define
+      const id = await directory.identify(...fromPath);
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
       // First write to the "to" hub so that the original name is preserved on the
       // "from" hub in case of failure.
-      await E(toHub).write([toName], id);
-      await E(fromHub).remove(fromName);
+      // eslint-disable-next-line no-use-before-define
+      await directory.write(toPath, id);
+      // eslint-disable-next-line no-use-before-define
+      await directory.remove(...fromPath);
     };
 
     /** @type {EndoDirectory['copy']} */
     const copy = async (fromPath, toPath) => {
+      assertNamePath(fromPath);
+      assertPetNamePath(toPath);
+      const fromNamePath = /** @type {NamePath} */ (fromPath);
       const { hub: fromHub, name: fromName } =
-        await lookupTailNameHub(fromPath);
-      const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
-      const id = await fromHub.identify(fromName);
+        await lookupTailNameHub(fromNamePath);
+      const id = await E(fromHub).identify(fromName);
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
-      await toHub.write([toName], id);
+      // eslint-disable-next-line no-use-before-define
+      await directory.write(toPath, id);
     };
 
     /** @type {EndoDirectory['write']} */
     const write = async (petNamePath, id) => {
-      if (typeof petNamePath === 'string') {
-        petNamePath = [petNamePath];
-      }
+      const { prefixPath, petName } = assertPetNamePath(
+        namePathFrom(petNamePath),
+      );
       await null;
-      if (petNamePath.length === 1) {
-        const petName = petNamePath[0];
+      if (prefixPath.length === 0) {
         await petStore.write(petName, id);
         return;
       }
-      const { hub, name } = await lookupTailNameHub(petNamePath);
-      await hub.write([name], id);
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      await E(hub).write([petName], id);
     };
 
     /** @type {EndoDirectory['makeDirectory']} */
     const makeDirectory = async directoryPetNamePath => {
-      const { value: directory, id } = await formulateDirectory();
+      const { value: newDirectory, id } = await formulateDirectory();
       await write(directoryPetNamePath, id);
-      return directory;
+      return newDirectory;
     };
 
     /** @type {EndoDirectory} */
@@ -258,7 +284,7 @@ export const makeDirectoryMaker = ({
 
   /**
    * @param {object} args
-   * @param {string} args.petStoreId
+   * @param {FormulaIdentifier} args.petStoreId
    * @param {Context} args.context
    */
   const makeIdentifiedDirectory = async ({ petStoreId, context }) => {

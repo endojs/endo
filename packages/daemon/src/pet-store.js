@@ -5,7 +5,7 @@ import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
 
-/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
+/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
 
 /**
  * @param {FilePowers} filePowers
@@ -14,11 +14,11 @@ import { makeBidirectionalMultimap } from './multimap.js';
 export const makePetStoreMaker = (filePowers, config) => {
   /**
    * @param {string} petNameDirectoryPath
-   * @param {(name: string) => void} assertValidName
+   * @param {(name: string) => asserts name is Name} assertValidName
    * @returns {Promise<PetStore>}
    */
   const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
-    /** @type {BidirectionalMultimap<string, string>} */
+    /** @type {BidirectionalMultimap<string, Name>} */
     const idsToPetNames = makeBidirectionalMultimap();
     /** @type {NameChangesTopic} */
     const nameChangesTopic = makeChangeTopic();
@@ -43,20 +43,28 @@ export const makePetStoreMaker = (filePowers, config) => {
 
     /**
      * @param {string} id - The id receiving a name new name.
-     * @param {string} petName - The new name.
+     * @param {Name} petName - The new name.
      */
     const publishNameAddition = (id, petName) => {
       const idRecord = parseId(id);
-      nameChangesTopic.publisher.next({ add: petName, value: idRecord });
-      publishIdChangeToSubscribers(id, { add: idRecord, names: [petName] });
+      nameChangesTopic.publisher.next({
+        add: petName,
+        value: idRecord,
+      });
+      publishIdChangeToSubscribers(id, {
+        add: idRecord,
+        names: [petName],
+      });
     };
 
     /**
      * @param {string} id - The id from which a name is being removed.
-     * @param {string} petName - The removed name.
+     * @param {Name} petName - The removed name.
      */
     const publishNameRemoval = (id, petName) => {
-      nameChangesTopic.publisher.next({ remove: petName });
+      nameChangesTopic.publisher.next({
+        remove: petName,
+      });
       if (id !== undefined) {
         publishIdChangeToSubscribers(id, {
           remove: parseId(id),
@@ -134,10 +142,10 @@ export const makePetStoreMaker = (filePowers, config) => {
           /** @type {string} */ (idsToPetNames.getKey(name)),
         );
 
-        yield /** @type {PetStoreNameChange} */ ({
+        yield {
           add: name,
           value: idRecord,
-        });
+        };
       }
       yield* subscription;
     };
@@ -151,10 +159,10 @@ export const makePetStoreMaker = (filePowers, config) => {
       const subscription = idTopic.subscribe();
 
       const existingNames = idsToPetNames.getAllFor(id).sort();
-      yield /** @type {PetStoreIdNameChange} */ ({
+      yield {
         add: parseId(id),
         names: existingNames,
-      });
+      };
 
       yield* subscription;
     };

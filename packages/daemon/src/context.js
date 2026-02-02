@@ -3,11 +3,11 @@
 import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Context } from './types.js' */
+/** @import { Context, FormulaIdentifier } from './types.js' */
 
 export const makeContextMaker = ({ controllerForId, provideController }) => {
   /**
-   * @param {string} id
+   * @param {FormulaIdentifier} id
    */
   const makeContext = id => {
     let done = false;
@@ -16,7 +16,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     const { promise: disposed, resolve: resolveDisposed } =
       /** @type {PromiseKit<void>} */ (makePromiseKit());
 
-    /** @type {Map<string, Context>} */
+    /** @type {Map<FormulaIdentifier, Context>} */
     const dependents = new Map();
     /** @type {Array<() => void>} */
     const hooks = [];
@@ -45,7 +45,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     };
 
     /**
-     * @param {string} dependentId
+     * @param {FormulaIdentifier} dependentId
      */
     const thatDiesIfThisDies = dependentId => {
       assert(!done);
@@ -54,7 +54,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     };
 
     /**
-     * @param {string} dependencyId
+     * @param {FormulaIdentifier} dependencyId
      */
     const thisDiesIfThatDies = dependencyId => {
       const dependencyController = provideController(dependencyId);

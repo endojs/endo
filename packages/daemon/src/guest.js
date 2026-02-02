@@ -4,7 +4,7 @@ import { makeExo } from '@endo/exo';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 
-/** @import { Context, EndoGuest, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
+/** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 
 /**
@@ -15,12 +15,12 @@ import { GuestInterface } from './interfaces.js';
  */
 export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
   /**
-   * @param {string} guestId
-   * @param {string} handleId
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
-   * @param {string} petStoreId
-   * @param {string} mainWorkerId
+   * @param {FormulaIdentifier} guestId
+   * @param {FormulaIdentifier} handleId
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
+   * @param {FormulaIdentifier} petStoreId
+   * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
    */
   const makeGuest = async (

@@ -5,13 +5,13 @@ import { M } from '@endo/patterns';
 
 import { q } from '@endo/errors';
 
-/** @import {NameHub} from '../src/types.js' */
+/** @import {FormulaIdentifier, Name, NameHub} from '../src/types.js' */
 
 // This caplet is a mock name hub for testing NameHub.move().
 export const make = () => {
-  /** @type {Map<string, string>} */
+  /** @type {Map<FormulaIdentifier, string>} */
   const idToName = new Map();
-  /** @type {Map<string, string>} */
+  /** @type {Map<string, FormulaIdentifier>} */
   const nameToId = new Map();
 
   /**
@@ -38,7 +38,7 @@ export const make = () => {
 
   /**
    * @param {string[]} petNamePath
-   * @param {string} id
+   * @param {FormulaIdentifier} id
    */
   const write = async (petNamePath, id) => {
     const petName = parsePetNamePath(petNamePath);
@@ -81,7 +81,7 @@ export const make = () => {
 
         const toName = parsePetNamePath(toPath);
 
-        await remove(fromName);
+        await remove(/** @type {Name} */ (fromName));
         await write([toName], id);
       },
 

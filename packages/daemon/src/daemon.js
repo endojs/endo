@@ -12,9 +12,16 @@ import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { makeRemoteControlProvider } from './remote-control.js';
-import { assertPetName } from './pet-name.js';
+import { assertPetName, assertName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
-import { assertValidNumber, parseId, formatId } from './formula-identifier.js';
+import {
+  assertValidNumber,
+  assertValidId,
+  assertFormulaNumber,
+  assertNodeNumber,
+  parseId,
+  formatId,
+} from './formula-identifier.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -35,7 +42,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, Name, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -63,7 +70,18 @@ const delay = async (ms, cancelled) => {
  */
 const makeInspector = (type, number, record) =>
   makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
-    lookup: async petName => {
+    lookup: async petNameOrPath => {
+      /** @type {string} */
+      let petName;
+      if (Array.isArray(petNameOrPath)) {
+        if (petNameOrPath.length !== 1) {
+          throw Error('Inspector.lookup(path) requires path length of 1');
+        }
+        petName = petNameOrPath[0];
+      } else {
+        petName = petNameOrPath;
+      }
+      assertName(petName);
       if (!Object.hasOwn(record, petName)) {
         return undefined;
       }
@@ -95,8 +113,7 @@ const makeFarContext = context =>
 const deriveId = (path, rootNonce, digester) => {
   digester.updateText(rootNonce);
   digester.updateText(path);
-  const nonce = digester.digestHex();
-  return nonce;
+  return digester.digestHex();
 };
 
 /**
@@ -134,8 +151,10 @@ const makeDaemonCore = async (
   const formulaGraphJobs = makeSerialJobs();
   // This is the id of the node that is hosting the values.
   // This will likely get replaced with a public key in the future.
-  const localNodeId = deriveId('node', rootEntropy, cryptoPowers.makeSha512());
-  console.log('Node', localNodeId);
+  const localNodeNumber = /** @type {NodeNumber} */ (
+    deriveId('node', rootEntropy, cryptoPowers.makeSha512())
+  );
+  console.log('Node', localNodeNumber);
 
   // We generate formulas for some entities that are presumed to exist
   // because they are parts of the daemon's root object.
@@ -145,17 +164,15 @@ const makeDaemonCore = async (
    * @param {Formula} formula
    */
   const preformulate = async (derivation, formula) => {
-    const formulaId = deriveId(
-      derivation,
-      rootEntropy,
-      cryptoPowers.makeSha512(),
+    const formulaNumber = /** @type {FormulaNumber} */ (
+      deriveId(derivation, rootEntropy, cryptoPowers.makeSha512())
     );
     const id = formatId({
-      number: formulaId,
-      node: localNodeId,
+      number: formulaNumber,
+      node: localNodeNumber,
     });
-    await persistencePowers.writeFormula(formulaId, formula);
-    return { id, formulaId };
+    await persistencePowers.writeFormula(formulaNumber, formula);
+    return { id, formulaNumber };
   };
 
   const { id: knownPeersId } = await preformulate('peers', {
@@ -195,22 +212,22 @@ const makeDaemonCore = async (
 
   /**
    * Forward look-up, for answering "what is the value of this id".
-   * @type {Map<string, Controller>}
+   * @type {Map<FormulaIdentifier, Controller>}
    */
   const controllerForId = new Map();
 
   /**
    * Forward look-up, for answering "what is the formula for this id".
-   * @type {Map<string, Formula>}
+   * @type {Map<FormulaIdentifier, Formula>}
    */
   const formulaForId = new Map();
 
-  /** @type {WeakMap<{}, string>} */
+  /** @type {WeakMap<object, FormulaIdentifier>} */
   const agentIdForHandle = new WeakMap();
 
   // The following are functions that manage that state.
 
-  /** @param {string} id */
+  /** @param {FormulaIdentifier} id */
   const getFormulaForId = async id => {
     // No synchronous preamble.
     await null;
@@ -225,9 +242,9 @@ const makeDaemonCore = async (
     return formula;
   };
 
-  /** @param {string} id */
+  /** @param {FormulaIdentifier} id */
   const getTypeForId = async id => {
-    if (parseId(id).node !== localNodeId) {
+    if (parseId(id).node !== localNodeNumber) {
       return 'remote';
     }
     const { type } = await getFormulaForId(id);
@@ -237,14 +254,14 @@ const makeDaemonCore = async (
   /**
    * Reverse look-up, for answering "what is my name for this near or far
    * reference", and not for "what is my name for this promise".
-   * @type {WeakMultimap<Record<string | symbol, unknown>, string>}
+   * @type {WeakMultimap<Record<string | symbol, unknown>, FormulaIdentifier>}
    */
   const idForRef = makeWeakMultimap();
 
-  /** @type {Map<string, object>} */
+  /** @type {Map<FormulaIdentifier, object>} */
   const refForId = new Map();
 
-  /** @type {WeakMultimap<Record<string | symbol, unknown>, string>['get']} */
+  /** @type {WeakMultimap<Record<string | symbol, unknown>, FormulaIdentifier>['get']} */
   const getIdForRef = ref => idForRef.get(ref);
 
   /** @type {Provide} */
@@ -257,19 +274,19 @@ const makeDaemonCore = async (
 
   // The following concern connections to other daemons.
 
-  const provideRemoteControl = makeRemoteControlProvider(localNodeId);
+  const provideRemoteControl = makeRemoteControlProvider(localNodeNumber);
 
   /**
-   * @param {string} remoteNodeId
+   * @param {NodeNumber} remoteNodeNumber
    * @param {(error: Error) => void} cancelPeer
    * @param {Promise<never>} peerCancelled
    */
-  const providePeer = async (remoteNodeId, cancelPeer, peerCancelled) => {
-    const remoteControl = provideRemoteControl(remoteNodeId);
+  const providePeer = async (remoteNodeNumber, cancelPeer, peerCancelled) => {
+    const remoteControl = provideRemoteControl(remoteNodeNumber);
     return remoteControl.connect(
       async () => {
         // eslint-disable-next-line no-use-before-define
-        const peerId = await getPeerIdForNodeIdentifier(remoteNodeId);
+        const peerId = await getPeerIdForNodeIdentifier(remoteNodeNumber);
         return provide(peerId, 'peer');
       },
       cancelPeer,
@@ -282,15 +299,16 @@ const makeDaemonCore = async (
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
-      const { node } = parseId(requestedId);
-      if (node !== localNodeId) {
+      assertValidId(requestedId);
+      const { node, id } = parseId(requestedId);
+      if (node !== localNodeNumber) {
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
             node,
           )}`,
         );
       }
-      return provide(requestedId);
+      return provide(id);
     },
   });
 
@@ -308,6 +326,7 @@ const makeDaemonCore = async (
       cancelConnection,
       connectionCancelled,
     ) => {
+      assertNodeNumber(remoteNodeId);
       const remoteControl = provideRemoteControl(remoteNodeId);
       /** @param {Error} error */
       const wrappedCancel = error => E(cancelConnection)(error);
@@ -391,10 +410,10 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} workerId
+   * @param {FormulaIdentifier} workerId
    * @param {string} source
    * @param {Array<string>} codeNames
-   * @param {Array<string>} ids
+   * @param {Array<FormulaIdentifier>} ids
    * @param {Context} context
    */
   const makeEval = async (workerId, source, codeNames, ids, context) => {
@@ -429,8 +448,8 @@ const makeDaemonCore = async (
   /**
    * Creates a controller for a `lookup` formula.
    *
-   * @param {string} hubId
-   * @param {string[]} path
+   * @param {FormulaIdentifier} hubId
+   * @param {NamePath} path
    * @param {Context} context
    */
   const makeLookup = async (hubId, path, context) => {
@@ -441,8 +460,8 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} workerId
-   * @param {string} powersId
+   * @param {FormulaIdentifier} workerId
+   * @param {FormulaIdentifier} powersId
    * @param {string} specifier
    * @param {Context} context
    */
@@ -463,9 +482,9 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} workerId
-   * @param {string} powersId
-   * @param {string} bundleId
+   * @param {FormulaIdentifier} workerId
+   * @param {FormulaIdentifier} powersId
+   * @param {FormulaIdentifier} bundleId
    * @param {Context} context
    */
   const makeBundle = async (workerId, powersId, bundleId, context) => {
@@ -494,7 +513,7 @@ const makeDaemonCore = async (
     return id;
   };
 
-  /** @param {string} id */
+  /** @param {FormulaIdentifier} id */
   const mustGetRefForId = id => {
     const ref = refForId.get(id);
     if (ref === undefined) {
@@ -610,29 +629,38 @@ const makeDaemonCore = async (
         leastAuthority: () => provide(leastAuthorityId, 'guest'),
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
-        nodeId: () => localNodeId,
+        nodeNumber: () => localNodeNumber,
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
-          await Promise.allSettled(networkIds.map(id => provide(id)));
+          await Promise.allSettled(
+            networkIds.map(id =>
+              provide(/** @type {FormulaIdentifier} */ (id)),
+            ),
+          );
         },
         revivePins: async () => {
           const pinsDirectory = await provide(pinsId, 'directory');
           const pinIds = await pinsDirectory.listIdentifiers();
-          await Promise.allSettled(pinIds.map(id => provide(id)));
+          await Promise.allSettled(
+            pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
+          );
         },
         addPeerInfo: async peerInfo => {
-          const knownPeers = await provide(peersId, 'pet-store');
-          const { node: nodeId, addresses } = peerInfo;
-          if (knownPeers.has(nodeId)) {
+          const knownPeers = /** @type {KnownPeersStore} */ (
+            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
+          );
+          const { node: nodeNumber, addresses } = peerInfo;
+          assertNodeNumber(nodeNumber);
+          if (knownPeers.has(nodeNumber)) {
             // We already have this peer.
             // TODO: merge connection info
             return;
           }
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
-            await formulatePeer(networksId, nodeId, addresses);
-          await knownPeers.write(nodeId, peerId);
+            await formulatePeer(networksId, nodeNumber, addresses);
+          await knownPeers.write(nodeNumber, peerId);
         },
       });
       return endoBootstrap;
@@ -712,8 +740,8 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} id
-   * @param {string} formulaNumber
+   * @param {FormulaIdentifier} id
+   * @param {FormulaNumber} formulaNumber
    * @param {Formula} formula
    * @param {Context} context
    */
@@ -737,12 +765,12 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} id
+   * @param {FormulaIdentifier} id
    * @param {Context} context
    */
   const evaluateFormulaForId = async (id, context) => {
     const { number: formulaNumber, node: formulaNode } = parseId(id);
-    const isRemote = formulaNode !== localNodeId;
+    const isRemote = formulaNode !== localNodeNumber;
     if (isRemote) {
       const peer = providePeer(formulaNode, context.cancel, context.cancelled);
       return E(peer).provide(id);
@@ -759,7 +787,7 @@ const makeDaemonCore = async (
   const formulate = async (formulaNumber, formula) => {
     const id = formatId({
       number: formulaNumber,
-      node: localNodeId,
+      node: localNodeNumber,
     });
 
     formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
@@ -797,9 +825,9 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['provideController']} */
   const provideController = id => {
-    let controller = controllerForId.get(id);
-    if (controller !== undefined) {
-      return controller;
+    const existingController = controllerForId.get(id);
+    if (existingController !== undefined) {
+      return existingController;
     }
 
     const { promise, resolve } = /** @type {PromiseKit<unknown>} */ (
@@ -810,32 +838,37 @@ const makeDaemonCore = async (
     // eslint-disable-next-line no-use-before-define
     const context = makeContext(id);
     promise.catch(context.cancel);
-    controller = harden({
+    const newController = harden({
       context,
       value: promise,
     });
-    controllerForId.set(id, controller);
+    controllerForId.set(id, newController);
 
     // The controller must be in place before we evaluate the formula.
     resolve(evaluateFormulaForId(id, context));
 
-    return controller;
+    return newController;
   };
 
   /**
-   * @param {string} nodeId
-   * @returns {Promise<string>}
+   * @param {NodeNumber} nodeNumber
+   * @returns {Promise<FormulaIdentifier>}
    */
-  const getPeerIdForNodeIdentifier = async nodeId => {
-    if (nodeId === localNodeId) {
+  const getPeerIdForNodeIdentifier = async nodeNumber => {
+    if (nodeNumber === localNodeNumber) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    const knownPeers = await provide(knownPeersId, 'pet-store');
-    const peerId = knownPeers.identifyLocal(nodeId);
+    const knownPeers = /** @type {KnownPeersStore} */ (
+      /** @type {unknown} */ (await provide(knownPeersId, 'pet-store'))
+    );
+    // The knownPeers pet store uses node numbers as keys, not pet names.
+    // This is a deliberate aberration of the pet store abstraction.
+    const peerId = knownPeers.identifyLocal(nodeNumber);
     if (peerId === undefined) {
-      throw new Error(`No peer found for node identifier ${q(nodeId)}.`);
+      throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
-    return peerId;
+    const { id: verifiedPeerId } = parseId(peerId);
+    return verifiedPeerId;
   };
 
   /** @type {DaemonCore['cancelValue']} */
@@ -852,14 +885,14 @@ const makeDaemonCore = async (
       async () => {
         await null;
         const values = {
-          formulaNumber: await randomHex512(),
+          formulaNumber: /** @type {FormulaNumber} */ (await randomHex512()),
           contentSha512: await contentStore.store(makeRefReader(readerRef)),
         };
 
         await deferredTasks.execute({
           readableBlobId: formatId({
             number: values.formulaNumber,
-            node: localNodeId,
+            node: localNodeNumber,
           }),
         });
 
@@ -879,9 +912,9 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
-   * @param {string} guestName
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
+   * @param {PetName} guestName
    * @param {DeferredTasks<InvitationDeferredTaskParams>} deferredTasks
    */
   const formulateInvitation = async (
@@ -891,10 +924,12 @@ const makeDaemonCore = async (
     deferredTasks,
   ) => {
     const identifiers = await formulaGraphJobs.enqueue(async () => {
-      const invitationNumber = await randomHex512();
+      const invitationNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
       const invitationId = formatId({
         number: invitationNumber,
-        node: localNodeId,
+        node: localNodeNumber,
       });
       await deferredTasks.execute({
         invitationId,
@@ -924,9 +959,9 @@ const makeDaemonCore = async (
    * Explicitly incarnating the handle formula later simply looks up the handle
    * reference on the already-incarnated agent.
    *
-   * @param {string} formulaNumber - The formula number of the handle to formulate.
-   * @param {string} agentId - The formula identifier of the handle's agent.
-   * @returns {Promise<string>}
+   * @param {FormulaNumber} formulaNumber - The formula number of the handle to formulate.
+   * @param {FormulaIdentifier} agentId - The formula identifier of the handle's agent.
+   * @returns {Promise<FormulaIdentifier>}
    */
   const formulateNumberedHandle = async (formulaNumber, agentId) => {
     /** @type {HandleFormula} */
@@ -937,7 +972,7 @@ const makeDaemonCore = async (
     await persistencePowers.writeFormula(formulaNumber, formula);
     const id = formatId({
       number: formulaNumber,
-      node: localNodeId,
+      node: localNodeNumber,
     });
     formulaForId.set(id, formula);
     return id;
@@ -947,7 +982,7 @@ const makeDaemonCore = async (
    * Formulates a `pet-store` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
    *
-   * @param {string} formulaNumber - The formula number of the pet store to formulate.
+   * @param {FormulaNumber} formulaNumber - The formula number of the pet store to formulate.
    * @returns {FormulateResult<PetStore>} The formulated pet store.
    */
   const formulateNumberedPetStore = async formulaNumber => {
@@ -965,9 +1000,9 @@ const makeDaemonCore = async (
    */
   const formulateDirectory = async () => {
     const { id: petStoreId } = await formulateNumberedPetStore(
-      await randomHex512(),
+      /** @type {FormulaNumber} */ (await randomHex512()),
     );
-    const formulaNumber = await randomHex512();
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
     /** @type {DirectoryFormula} */
     const formula = {
       type: 'directory',
@@ -982,7 +1017,7 @@ const makeDaemonCore = async (
    * Formulates a `worker` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
    *
-   * @param {string} formulaNumber - The worker formula number.
+   * @param {FormulaNumber} formulaNumber - The worker formula number.
    * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
   const formulateNumberedWorker = formulaNumber => {
@@ -1003,12 +1038,14 @@ const makeDaemonCore = async (
     await null;
     return formulateNumberedWorker(
       await formulaGraphJobs.enqueue(async () => {
-        const formulaNumber = await randomHex512();
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
 
         await deferredTasks.execute({
           workerId: formatId({
             number: formulaNumber,
-            node: localNodeId,
+            node: localNodeNumber,
           }),
         });
 
@@ -1025,16 +1062,22 @@ const makeDaemonCore = async (
       specifiedIdentifiers;
 
     await null;
-    const storeId = (await formulateNumberedPetStore(await randomHex512())).id;
+    const storeId = (
+      await formulateNumberedPetStore(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+      )
+    ).id;
 
-    const hostFormulaNumber = await randomHex512();
+    const hostFormulaNumber = /** @type {FormulaNumber} */ (
+      await randomHex512()
+    );
     const hostId = formatId({
       number: hostFormulaNumber,
-      node: localNodeId,
+      node: localNodeNumber,
     });
 
     const handleId = await formulateNumberedHandle(
-      await randomHex512(),
+      /** @type {FormulaNumber} */ (await randomHex512()),
       hostId,
     );
 
@@ -1046,7 +1089,10 @@ const makeDaemonCore = async (
       storeId,
       /* eslint-disable no-use-before-define */
       inspectorId: (
-        await formulateNumberedPetInspector(await randomHex512(), storeId)
+        await formulateNumberedPetInspector(
+          /** @type {FormulaNumber} */ (await randomHex512()),
+          storeId,
+        )
       ).id,
       workerId: await provideWorkerId(specifiedWorkerId),
       /* eslint-enable no-use-before-define */
@@ -1102,13 +1148,15 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateGuestDependencies']} */
   const formulateGuestDependencies = async (hostAgentId, hostHandleId) => {
-    const guestFormulaNumber = await randomHex512();
+    const guestFormulaNumber = /** @type {FormulaNumber} */ (
+      await randomHex512()
+    );
     const guestId = formatId({
       number: guestFormulaNumber,
-      node: localNodeId,
+      node: localNodeNumber,
     });
     const handleId = await formulateNumberedHandle(
-      await randomHex512(),
+      /** @type {FormulaNumber} */ (await randomHex512()),
       guestId,
     );
     return harden({
@@ -1117,8 +1165,16 @@ const makeDaemonCore = async (
       handleId,
       hostAgentId,
       hostHandleId,
-      storeId: (await formulateNumberedPetStore(await randomHex512())).id,
-      workerId: (await formulateNumberedWorker(await randomHex512())).id,
+      storeId: (
+        await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex512()),
+        )
+      ).id,
+      workerId: (
+        await formulateNumberedWorker(
+          /** @type {FormulaNumber} */ (await randomHex512()),
+        )
+      ).id,
     });
   };
 
@@ -1160,7 +1216,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} [specifiedWorkerId]
+   * @param {FormulaIdentifier} [specifiedWorkerId]
    */
   const provideWorkerId = async specifiedWorkerId => {
     await null;
@@ -1168,7 +1224,9 @@ const makeDaemonCore = async (
       return specifiedWorkerId;
     }
 
-    const workerFormulaNumber = await randomHex512();
+    const workerFormulaNumber = /** @type {FormulaNumber} */ (
+      await randomHex512()
+    );
     const workerFormulation =
       await formulateNumberedWorker(workerFormulaNumber);
     return workerFormulation.id;
@@ -1178,10 +1236,12 @@ const makeDaemonCore = async (
   const formulateMarshalValue = async (value, deferredTasks) => {
     const { marshalFormulaNumber } = await formulaGraphJobs.enqueue(
       async () => {
-        const ownFormulaNumber = await randomHex512();
+        const ownFormulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
         const ownId = formatId({
           number: ownFormulaNumber,
-          node: localNodeId,
+          node: localNodeNumber,
         });
 
         const identifiers = harden({
@@ -1218,10 +1278,12 @@ const makeDaemonCore = async (
   ) => {
     const { workerId, endowmentIds, evalFormulaNumber } =
       await formulaGraphJobs.enqueue(async () => {
-        const ownFormulaNumber = await randomHex512();
+        const ownFormulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
         const ownId = formatId({
           number: ownFormulaNumber,
-          node: localNodeId,
+          node: localNodeNumber,
         });
 
         const identifiers = harden({
@@ -1236,9 +1298,9 @@ const makeDaemonCore = async (
                 /* eslint-disable no-use-before-define */
                 (
                   await formulateNumberedLookup(
-                    await randomHex512(),
+                    /** @type {FormulaNumber} */ (await randomHex512()),
                     nameHubId,
-                    formulaIdOrPath,
+                    /** @type {NamePath} */ (formulaIdOrPath),
                   )
                 ).id
                 /* eslint-enable no-use-before-define */
@@ -1269,12 +1331,12 @@ const makeDaemonCore = async (
   /**
    * Formulates a `lookup` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
-   * @param {string} formulaNumber - The lookup formula's number.
-   * @param {string} hubId - The formula identifier of the naming
+   * @param {FormulaNumber} formulaNumber - The lookup formula's number.
+   * @param {FormulaIdentifier} hubId - The formula identifier of the naming
    * hub to call `lookup` on. A "naming hub" is an objected with a variadic
    * lookup method. It includes objects such as guests and hosts.
-   * @param {string[]} petNamePath - The pet name path to look up.
-   * @returns {Promise<{ id: string, value: EndoWorker }>}
+   * @param {NamePath} petNamePath - The pet name path to look up.
+   * @returns {Promise<{ id: FormulaIdentifier, value: EndoWorker }>}
    */
   const formulateNumberedLookup = (formulaNumber, hubId, petNamePath) => {
     /** @type {LookupFormula} */
@@ -1290,9 +1352,9 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
-   * @param {string} [specifiedPowersId]
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
+   * @param {FormulaIdentifier} [specifiedPowersId]
    */
   const providePowersId = async (
     hostAgentId,
@@ -1314,11 +1376,11 @@ const makeDaemonCore = async (
 
   /**
    * Helper for `formulateUnconfined` and `formulateBundle`.
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
    * @param {DeferredTasks<MakeCapletDeferredTaskParams>} deferredTasks
-   * @param {string} [specifiedWorkerId]
-   * @param {string} [specifiedPowersId]
+   * @param {FormulaIdentifier} [specifiedWorkerId]
+   * @param {FormulaIdentifier} [specifiedPowersId]
    */
   const formulateCapletDependencies = async (
     hostAgentId,
@@ -1327,7 +1389,9 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
   ) => {
-    const ownFormulaNumber = await randomHex512();
+    const ownFormulaNumber = /** @type {FormulaNumber} */ (
+      await randomHex512()
+    );
     const identifiers = harden({
       powersId: await providePowersId(
         hostAgentId,
@@ -1336,7 +1400,7 @@ const makeDaemonCore = async (
       ),
       capletId: formatId({
         number: ownFormulaNumber,
-        node: localNodeId,
+        node: localNodeNumber,
       }),
       capletFormulaNumber: ownFormulaNumber,
       workerId: await provideWorkerId(specifiedWorkerId),
@@ -1406,8 +1470,8 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} formulaNumber
-   * @param {string} petStoreId
+   * @param {FormulaNumber} formulaNumber
+   * @param {FormulaIdentifier} petStoreId
    */
   const formulateNumberedPetInspector = (formulaNumber, petStoreId) => {
     /** @type {PetInspectorFormula} */
@@ -1421,15 +1485,15 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulatePeer']} */
-  const formulatePeer = async (networksDirectoryId, nodeId, addresses) => {
-    const formulaNumber = await randomHex512();
+  const formulatePeer = async (networksDirectoryId, nodeNumber, addresses) => {
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
     // TODO: validate addresses
     // TODO: mutable state like addresses should not be stored in formula
     /** @type {PeerFormula} */
     const formula = {
       type: 'peer',
       networks: networksDirectoryId,
-      node: nodeId,
+      node: nodeNumber,
       addresses,
     };
     return /** @type {FormulateResult<EndoPeer>} */ (
@@ -1439,7 +1503,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateLoopbackNetwork']} */
   const formulateLoopbackNetwork = async () => {
-    const formulaNumber = await randomHex512();
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
     /** @type {LoopbackNetworkFormula} */
     const formula = {
       type: 'loopback-network',
@@ -1454,21 +1518,23 @@ const makeDaemonCore = async (
     const { id, value } = await formulateDirectory();
     // Make default networks.
     const { id: loopbackNetworkId } = await formulateLoopbackNetwork();
-    await E(value).write(['loop'], loopbackNetworkId);
+    await E(value).write(/** @type {NamePath} */ (['loop']), loopbackNetworkId);
     return { id, value };
   };
 
   /** @type {DaemonCore['formulateEndo']} */
   const formulateEndo = async specifiedFormulaNumber => {
     const identifiers = await formulaGraphJobs.enqueue(async () => {
-      const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
+      const formulaNumber = /** @type {FormulaNumber} */ (
+        await (specifiedFormulaNumber ?? randomHex512())
+      );
       const endoId = formatId({
         number: formulaNumber,
-        node: localNodeId,
+        node: localNodeNumber,
       });
 
       const { id: defaultHostWorkerId } = await formulateNumberedWorker(
-        await randomHex512(),
+        /** @type {FormulaNumber} */ (await randomHex512()),
       );
       const { id: networksDirectoryId } = await formulateNetworksDirectory();
       const { id: pinsDirectoryId } = await formulateDirectory();
@@ -1507,14 +1573,16 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} networksDirectoryId
+   * @param {FormulaIdentifier} networksDirectoryId
    * @returns {Promise<EndoNetwork[]>}
    */
   const getAllNetworks = async networksDirectoryId => {
     const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
     const networks = await Promise.all(
-      networkIds.map(id => provide(id, 'network')),
+      networkIds.map(id =>
+        provide(/** @type {FormulaIdentifier} */ (id), 'network'),
+      ),
     );
     return networks;
   };
@@ -1533,8 +1601,8 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} networksDirectoryId
-   * @param {string} nodeId
+   * @param {FormulaIdentifier} networksDirectoryId
+   * @param {NodeNumber} nodeId
    * @param {string[]} addresses
    * @param {Context} context
    */
@@ -1566,10 +1634,10 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} id
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
-   * @param {string} guestName
+   * @param {FormulaIdentifier} id
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
+   * @param {PetName} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
     const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));
@@ -1600,6 +1668,8 @@ const makeDaemonCore = async (
       if (!guestHandleNumber) {
         throw makeError('Handle locator must have an "id" parameter');
       }
+      assertNodeNumber(guestNodeNumber);
+      assertFormulaNumber(guestHandleNumber);
 
       const guestHandleId = formatId({
         node: guestNodeNumber,
@@ -1621,7 +1691,10 @@ const makeDaemonCore = async (
       console.log('Cancelled:');
       await controller.context.cancel(new Error('Invitation accepted'));
 
-      await E(hostAgent).write([guestName], guestHandleId);
+      await E(hostAgent).write(
+        /** @type {NamePath} */ ([guestName]),
+        guestHandleId,
+      );
 
       return provide(guestHandleId);
     };
@@ -1665,7 +1738,7 @@ const makeDaemonCore = async (
     makeMailbox,
     makeDirectoryNode,
     getAllNetworkAddresses,
-    localNodeId,
+    localNodeNumber,
   });
 
   /**
@@ -1674,32 +1747,37 @@ const makeDaemonCore = async (
    * un-nameable values such as the `MAIN` worker. See `KnownEndoInspectors` for
    * more details.
    *
-   * @param {string} petStoreId
+   * @param {FormulaIdentifier} petStoreId
    * @returns {Promise<EndoInspector>}
    */
   const makePetStoreInspector = async petStoreId => {
     const petStore = await provide(petStoreId, 'pet-store');
 
     /**
-     * @param {string|string[]} petName - The pet name to inspect.
+     * @param {string | string[]} petNameOrPath - The pet name to inspect.
      * @returns {Promise<KnownEndoInspectors[string]>} An
      * inspector for the value of the given pet name.
      */
-    const lookup = async petName => {
-      if (Array.isArray(petName)) {
-        if (petName.length !== 1) {
+    const lookup = async petNameOrPath => {
+      /** @type {string} */
+      let petName;
+      if (Array.isArray(petNameOrPath)) {
+        if (petNameOrPath.length !== 1) {
           throw Error(
             'PetStoreInspector.lookup(path) requires path length of 1',
           );
         }
-        petName = petName[0];
+        petName = petNameOrPath[0];
+      } else {
+        petName = petNameOrPath;
       }
+      assertName(petName);
       const id = petStore.identifyLocal(petName);
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const { number: formulaNumber } = parseId(id);
-      const formula = await getFormulaForId(id);
+      const { id: formulaId, number: formulaNumber } = parseId(id);
+      const formula = await getFormulaForId(formulaId);
       if (
         !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
           formula.type,
@@ -1772,7 +1850,7 @@ const makeDaemonCore = async (
       return makeInspector(formula.type, formulaNumber, harden({}));
     };
 
-    /** @returns {string[]} The list of all names in the pet store. */
+    /** @returns {Name[]} The list of all names in the pet store. */
     const list = () => petStore.list();
 
     const info = makeExo('EndoInspectorHub', InspectorHubInterface, {
@@ -1787,7 +1865,7 @@ const makeDaemonCore = async (
   return {
     formulateEndo,
     provide,
-    nodeId: localNodeId,
+    nodeNumber: localNodeNumber,
   };
 };
 
@@ -1817,7 +1895,7 @@ const provideEndoBootstrap = async (
   if (isInitialized) {
     const endoId = formatId({
       number: endoFormulaNumber,
-      node: daemonCore.nodeId,
+      node: daemonCore.nodeNumber,
     });
     return /** @type {Promise<FarRef<EndoBootstrap>>} */ (
       daemonCore.provide(endoId)
