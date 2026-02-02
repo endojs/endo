@@ -80,9 +80,7 @@ export type PassByCopy = Atom | Error | CopyArray | CopyRecord | CopyTagged;
 export type PassByRef =
   | RemotableObject
   | RemotableBrand<any, any>
-  | Promise<RemotableObject>
-  | Promise<RemotableBrand<any, any>>
-  | Promise<PassByCopy>;
+  | Promise<Passable>;
 
 /**
  * A Passable is acyclic data that can be marshalled. It must be hardened to
@@ -108,20 +106,44 @@ export type PassByRef =
  * using 'slots').
  */
 export type Passable<
-  PC extends PassableCap = PassableCap,
-  E extends Error = Error,
-> = void | Atom | Container<PC, E> | PC | E;
+  /**
+   * Promises are now explicitly part of the Passable types, so the PC
+   * parameter is only here for backward compatibility for limiting the
+   * non-promise PassableCaps.
+   */
+  PC extends AwaitedPassableCap = AwaitedPassableCap,
+  /**
+   * E was initially just Error (non-keys) or never (keys), now we use it more
+   * generally to indicate when the Passable is allowed to contain Promises as
+   * well (never still means keys).
+   */
+  E extends Error | Promise<unknown> = Error | Promise<unknown>,
+> =
+  | AwaitedPassable<PC, E>
+  | (E extends Promise<unknown> ? Promise<AwaitedPassable<PC, E>> : never);
 
-export type Container<PC extends PassableCap, E extends Error> =
+/**
+ * An AwaitedPassable is the non-Promise parts of Passable.
+ */
+export type AwaitedPassable<
+  PC extends AwaitedPassableCap = AwaitedPassableCap,
+  E extends Error | Promise<any> = Error | Promise<any>,
+> = void | Atom | Container<PC, E> | PC | Exclude<E, Promise<any>>;
+
+export type Container<PC extends AwaitedPassableCap, E extends Error | Promise<any>> =
   | CopyArrayInterface<PC, E>
   | CopyRecordInterface<PC, E>
   | CopyTaggedInterface<PC, E>;
-export interface CopyArrayInterface<PC extends PassableCap, E extends Error>
+export interface CopyArrayInterface<PC extends AwaitedPassableCap, E extends Error | Promise<any>>
   extends CopyArray<Passable<PC, E>> {}
-export interface CopyRecordInterface<PC extends PassableCap, E extends Error>
-  extends CopyRecord<Passable<PC, E>> {}
-export interface CopyTaggedInterface<PC extends PassableCap, E extends Error>
-  extends CopyTagged<string, Passable<PC, E>> {}
+export interface CopyRecordInterface<
+  PC extends AwaitedPassableCap,
+  E extends Error | Promise<any>,
+> extends CopyRecord<Passable<PC, E>> {}
+export interface CopyTaggedInterface<
+  PC extends AwaitedPassableCap,
+  E extends Error | Promise<any>,
+> extends CopyTagged<string, Passable<PC, E>> {}
 
 export type PassStyleOf = {
   (p: undefined): 'undefined';
@@ -139,6 +161,7 @@ export type PassStyleOf = {
   (p: Iterator<any, any, undefined>): 'remotable';
   <T extends PassStyled<PassStyleMarker, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
+  (p: unknown): never;
   (p: any): PassStyle;
 };
 
@@ -194,13 +217,11 @@ export type RemotableMethodName = PropertyKey;
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-export type PassableCap =
-  | Promise<any>
-  | RemotableObject
-  | RemotableBrand<any, any>;
+export type PassableCap = AwaitedPassableCap | Promise<Passable>;
 
 /**
- * Types you would get from Awaited<PassableCap>
+ * The non-promise authority-bearing leaves of a Passable's pass-by-copy
+ * superstructure.
  */
 export type AwaitedPassableCap = RemotableObject | RemotableBrand<any, any>;
 
