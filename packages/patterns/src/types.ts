@@ -10,7 +10,7 @@ import type {
   Passable,
   PassStyle,
   Atom,
-  RemotableObject,
+  AwaitedPassableCap,
 } from '@endo/pass-style';
 import type {
   PartialCompare,
@@ -72,12 +72,9 @@ export type { FullCompare } from '@endo/marshal';
  *    in fact only in the mutually incomparable case can the rank be said to
  *    contain more than one key.
  */
-export type Key = Exclude<
-  Passable<RemotableObject | RemotableBrand<any, any>, never>,
-  Error | Promise<any>
->;
+export type Key = Passable<AwaitedPassableCap, never>;
 
-export type ScalarKey = Atom | RemotableObject | RemotableBrand<any, any>;
+export type ScalarKey = Atom | AwaitedPassableCap;
 
 export type KeyToDBKey = (key: Key) => string;
 export type GetRankCover = (
