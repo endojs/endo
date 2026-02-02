@@ -23,7 +23,10 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested';
       } else if (type === 'package') {
         verb = 'sent';
-      } else if (type === 'eval-proposal') {
+      } else if (
+        type === 'eval-proposal-reviewer' ||
+        type === 'eval-proposal-proposer'
+      ) {
         verb = 'proposed to evaluate';
       } else {
         verb = 'sent an unrecognizable message';
@@ -68,7 +71,10 @@ export const inbox = async ({ follow, agentNames }) =>
             edgeNames,
           )} at ${JSON.stringify(date)}`,
         );
-      } else if (message.type === 'eval-proposal') {
+      } else if (
+        message.type === 'eval-proposal-reviewer' ||
+        message.type === 'eval-proposal-proposer'
+      ) {
         const { source } = message;
         assert.typeof(source, 'string');
         // Show first line of source code, truncated
