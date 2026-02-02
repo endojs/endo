@@ -138,6 +138,7 @@ export type AgentDeferredTaskParams = {
 
 type HostFormula = {
   type: 'host';
+  hostHandle?: FormulaIdentifier;
   handle: FormulaIdentifier;
   worker: FormulaIdentifier;
   inspector: FormulaIdentifier;
@@ -376,19 +377,28 @@ export type EvalRequest = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type EvalProposal = {
-  type: 'eval-proposal';
+export type EvalProposalBase = {
   source: string; // JavaScript source code
   codeNames: Array<string>; // variable names used in source
   edgeNames: Array<string>; // edge names for values (sender's namespace)
   ids: Array<string>; // formula identifiers for the values
   workerName?: string; // worker to execute on
-  resultName?: string; // where sender wants result stored
-  responder: ERef<Responder>; // resolves with evaluation result when granted
   settled: Promise<'fulfilled' | 'rejected'>; // tracks settlement state
+  resultId: Promise<string>; // resolves with evaluation result identifier
+  result: Promise<unknown>; // resolves with evaluation result value
 };
 
-export type Message = Request | Package | EvalRequest | EvalProposal;
+export type EvalProposalReviewer = EvalProposalBase & {
+  type: 'eval-proposal-reviewer';
+  responder: ERef<Responder>; // used to resolve the proposal
+};
+
+export type EvalProposalProposer = EvalProposalBase & {
+  type: 'eval-proposal-proposer';
+  resultName?: string; // where sender wants result stored (sender's namespace)
+};
+
+export type Message = Request | Package | EvalRequest | EvalProposal | EvalProposalReviewer | EvalProposalProposer;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -644,7 +654,6 @@ export interface Mail {
       codeNames: string[],
       ids: string[],
       workerName?: string,
-      resultName?: string,
     ) => Promise<{ id: string; value: unknown }>,
   ): Promise<unknown>;
   counterEvaluate(
@@ -730,6 +739,11 @@ export interface EndoAgent extends EndoDirectory {
    * @returns The pet names for the given formula identifier.
    */
   reverseIdentify(id: string): Array<Name>;
+  /**
+   * @param id The formula identifier to look up.
+   * @returns The value for the given formula identifier.
+   */
+  lookupById(id: string): Promise<unknown>;
 }
 
 export interface EndoGuest extends EndoAgent {
@@ -984,16 +998,18 @@ type FormulateNumberedGuestParams = {
 };
 
 type FormulateHostDependenciesParams = {
-  endoId: FormulaIdentifier;
-  networksDirectoryId: FormulaIdentifier;
-  pinsDirectoryId: FormulaIdentifier;
-  specifiedWorkerId?: FormulaIdentifier;
+  endoId: string;
+  networksDirectoryId: string;
+  pinsDirectoryId: string;
+  specifiedWorkerId?: string;
+  hostHandleId?: string;
 };
 
 type FormulateNumberedHostParams = {
   hostFormulaNumber: FormulaNumber;
   hostId: string;
   handleId: string;
+  hostHandleId: string;
   workerId: string;
   storeId: string;
   mailboxStoreId: string;
@@ -1104,7 +1120,8 @@ export interface DaemonCore {
     networksDirectoryId: FormulaIdentifier,
     pinsDirectoryId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
-    specifiedWorkerId?: FormulaIdentifier | undefined,
+    specifiedWorkerId?: string | undefined,
+    hostHandleId?: string,
   ) => FormulateResult<EndoHost>;
 
   /**

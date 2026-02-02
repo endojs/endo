@@ -28,7 +28,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, Envelope, EnvelopedMessage, EvalProposal, EvalRequest, FormulaIdentifier, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, Envelope, EnvelopedMessage, EvalProposalProposer, EvalProposalReviewer, EvalRequest, FormulaIdentifier, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
@@ -502,15 +502,16 @@ export const makeMailboxMaker = ({
     /**
      * @param {Handle} recipient
      * @param {EnvelopedMessage} message
+     * @param {EnvelopedMessage} [senderMessage]
      */
-    const post = async (recipient, message) => {
+    const post = async (recipient, message, senderMessage = message) => {
       /** @param {object} allegedRecipient */
       const envelope = makeEnvelope();
       outbox.set(envelope, message);
       await E(recipient).receive(envelope, selfId);
       // Send to own inbox.
       if (message.from !== message.to) {
-        await deliver(message);
+        await deliver(senderMessage);
       }
     };
 
@@ -859,25 +860,49 @@ export const makeMailboxMaker = ({
         respondId: resolveResponseId,
       });
 
-      /** @type {EvalProposal & { from: string, to: string }} */
-      const message = harden({
-        type: /** @type {const} */ ('eval-proposal'),
+      const resultId = responseIdP;
+      const result = responseIdP.then(id => provide(id));
+
+      /** @type {EvalProposalReviewer & { from: string, to: string }} */
+      const reviewerMessage = harden({
+        type: /** @type {const} */ ('eval-proposal-reviewer'),
+        source,
+        codeNames,
+        edgeNames,
+        ids,
+        workerName,
+        responder,
+        settled,
+        resultId,
+        result,
+        from: selfId,
+        to: toId,
+      });
+
+      /** @type {EvalProposalProposer & { from: string, to: string }} */
+      const proposerMessage = harden({
+        type: /** @type {const} */ ('eval-proposal-proposer'),
         source,
         codeNames,
         edgeNames,
         ids,
         workerName,
         resultName,
-        responder,
         settled,
+        resultId,
+        result,
         from: selfId,
         to: toId,
       });
 
-      await post(to, message);
+      await post(to, reviewerMessage, proposerMessage);
 
       // Wait for the response and provide the result
       const responseId = await responseIdP;
+      if (resultName) {
+        const resultNamePath = namePathFrom(resultName.split('.'));
+        await E(directory).write(resultNamePath, responseId);
+      }
       return provide(responseId);
     };
 
@@ -885,7 +910,7 @@ export const makeMailboxMaker = ({
      * Grant an eval-proposal by executing the proposed code.
      * Resolves the proposer's promise with the evaluation result.
      * @param {number} messageNumber - The message number of the eval-proposal
-     * @param {(source: string, codeNames: string[], ids: string[], workerName?: string, resultName?: string) => Promise<{id: string, value: unknown}>} executeEval - Function to execute the evaluation
+     * @param {(source: string, codeNames: string[], ids: string[], workerName?: string) => Promise<{id: string, value: unknown}>} executeEval - Function to execute the evaluation
      */
     const grantEvaluate = async (messageNumber, executeEval) => {
       if (
@@ -898,14 +923,13 @@ export const makeMailboxMaker = ({
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
-      if (message.type !== 'eval-proposal') {
+      if (message.type !== 'eval-proposal-reviewer') {
         throw new Error(
           `Message ${q(messageNumber)} is not an eval-proposal, it is ${q(message.type)}`,
         );
       }
-      const proposal = /** @type {EvalProposal} */ (message);
-      const { source, codeNames, ids, workerName, resultName, responder } =
-        proposal;
+      const proposal = /** @type {EvalProposalReviewer} */ (message);
+      const { source, codeNames, ids, workerName, responder } = proposal;
 
       // Execute the evaluation using the provided executor
       const { id, value } = await executeEval(
@@ -913,7 +937,6 @@ export const makeMailboxMaker = ({
         codeNames,
         ids,
         workerName,
-        resultName,
       );
 
       // Resolve the proposer's promise with the result ID
@@ -954,12 +977,12 @@ export const makeMailboxMaker = ({
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
-      if (message.type !== 'eval-proposal') {
+      if (message.type !== 'eval-proposal-reviewer') {
         throw new Error(
           `Message ${q(messageNumber)} is not an eval-proposal, it is ${q(message.type)}`,
         );
       }
-      const originalProposal = /** @type {EvalProposal & { from: string }} */ (
+      const originalProposal = /** @type {EvalProposalReviewer & { from: string }} */ (
         message
       );
       const originalSenderId = originalProposal.from;
@@ -980,25 +1003,50 @@ export const makeMailboxMaker = ({
         respondId: resolveResponseId,
       });
 
-      /** @type {EvalProposal & { from: string, to: string }} */
-      const counterMessage = harden({
-        type: /** @type {const} */ ('eval-proposal'),
+      const resultId = responseIdP;
+      const result = responseIdP.then(id => provide(id));
+
+      /** @type {EvalProposalReviewer & { from: string, to: string }} */
+      const counterReviewerMessage = harden({
+        type: /** @type {const} */ ('eval-proposal-reviewer'),
+        source,
+        codeNames,
+        edgeNames,
+        ids,
+        workerName,
+        responder,
+        settled,
+        resultId,
+        result,
+        from: selfId,
+        to: originalSenderId,
+      });
+
+      /** @type {EvalProposalProposer & { from: string, to: string }} */
+      const counterProposerMessage = harden({
+        type: /** @type {const} */ ('eval-proposal-proposer'),
         source,
         codeNames,
         edgeNames,
         ids,
         workerName,
         resultName,
-        responder,
         settled,
+        resultId,
+        result,
         from: selfId,
         to: originalSenderId,
       });
 
-      await post(to, counterMessage);
+      await post(to, counterReviewerMessage, counterProposerMessage);
 
       // Wait for the counter-proposal to be granted
       const responseId = await responseIdP;
+
+      if (resultName) {
+        const resultNamePath = namePathFrom(resultName.split('.'));
+        await E(directory).write(resultNamePath, responseId);
+      }
 
       // Resolve the original proposal's responder with the same result
       E.sendOnly(originalResponder).respondId(responseId);

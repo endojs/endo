@@ -1234,8 +1234,9 @@ const makeDaemonCore = async (
       { worker: workerId, powers: powersId, bundle: bundleId, env = {} },
       context,
     ) => makeBundle(workerId, powersId, bundleId, env, context),
-    host: async (formula, context, id) => {
-      const {
+    host: async (
+      {
+        hostHandle: hostHandleId,
         handle: handleId,
         petStore: petStoreId,
         mailboxStore: mailboxStoreId,
@@ -1255,6 +1256,7 @@ const makeDaemonCore = async (
       const agent = await makeHost(
         id,
         handleId,
+        hostHandleId,
         petStoreId,
         mailboxStoreId,
         mailHubId,
@@ -1857,6 +1859,7 @@ const makeDaemonCore = async (
       hostFormulaNumber,
       hostId,
       handleId,
+      hostHandleId: remainingSpecifiedIdentifiers.hostHandleId ?? handleId,
       storeId,
       mailboxStoreId,
       mailHubId,
@@ -1877,6 +1880,7 @@ const makeDaemonCore = async (
     /** @type {HostFormula} */
     const formula = {
       type: 'host',
+      hostHandle: identifiers.hostHandleId,
       handle: identifiers.handleId,
       petStore: identifiers.storeId,
       mailboxStore: identifiers.mailboxStoreId,
@@ -1900,6 +1904,7 @@ const makeDaemonCore = async (
     pinsDirectoryId,
     deferredTasks,
     specifiedWorkerId,
+    hostHandleId,
   ) => {
     await null;
     return formulateNumberedHost(
@@ -1909,6 +1914,7 @@ const makeDaemonCore = async (
           networksDirectoryId,
           pinsDirectoryId,
           specifiedWorkerId,
+          hostHandleId,
         });
 
         await deferredTasks.execute({

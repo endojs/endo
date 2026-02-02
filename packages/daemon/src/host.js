@@ -84,6 +84,7 @@ export const makeHostMaker = ({
   /**
    * @param {string} hostId
    * @param {string} handleId
+   * @param {string | undefined} hostHandleId
    * @param {string} storeId
    * @param {string} mailboxStoreId
    * @param {string} mailHubId
@@ -99,6 +100,7 @@ export const makeHostMaker = ({
   const makeHost = async (
     hostId,
     handleId,
+    hostHandleId,
     storeId,
     mailboxStoreId,
     mailHubId,
@@ -122,6 +124,7 @@ export const makeHostMaker = ({
       ...platformNames,
       AGENT: hostId,
       SELF: handleId,
+      HOST: hostHandleId ?? handleId,
       MAIN: mainWorkerId,
       ENDO: endoId,
       NETS: networksDirectoryId,
@@ -261,7 +264,6 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
-      assertNames(codeNames);
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         assertNamePath(resultNamePath);
@@ -483,6 +485,8 @@ export const makeHostMaker = ({
               petName,
               /** @type {PetName | undefined} */ (agentName),
             ),
+            undefined,
+            handleId,
           );
         host = { value: Promise.resolve(value), id };
       }
@@ -744,6 +748,13 @@ export const makeHostMaker = ({
     };
 
     const { reverseIdentify } = specialStore;
+
+    /**
+     * Look up a value by its formula identifier.
+     * @param {string} id - The formula identifier.
+     * @returns {Promise<unknown>} The value.
+     */
+    const lookupById = async id => provide(id);
     const {
       has,
       identify,
@@ -784,25 +795,11 @@ export const makeHostMaker = ({
      */
     const grantEvaluate = async messageNumber => {
       // Create an executor callback that uses formulateEval
-      const executeEval = async (
-        source,
-        codeNames,
-        ids,
-        workerName,
-        resultName,
-      ) => {
+      const executeEval = async (source, codeNames, ids, workerName) => {
         /** @type {DeferredTasks<EvalDeferredTaskParams>} */
         const tasks = makeDeferredTasks();
 
         const workerId = prepareWorkerFormulation(workerName, tasks.push);
-
-        if (resultName !== undefined) {
-          const resultNamePath = resultName.split('.');
-          assertNamePath(resultNamePath);
-          tasks.push(identifiers =>
-            E(directory).write(resultNamePath, identifiers.evalId),
-          );
-        }
 
         const { id, value } = await formulateEval(
           hostId,
@@ -881,6 +878,7 @@ export const makeHostMaker = ({
       has,
       identify,
       reverseIdentify,
+      lookupById,
       locate,
       reverseLocate,
       list,

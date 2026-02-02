@@ -84,6 +84,13 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       copy,
       makeDirectory,
     } = directory;
+
+    /**
+     * Look up a value by its formula identifier directly.
+     * @param {string} id - The formula identifier.
+     * @returns {Promise<unknown>} The value for the given formula identifier.
+     */
+    const lookupById = async id => provide(id);
     const {
       listMessages,
       followMessages,
@@ -183,6 +190,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       followLocatorNameChanges,
       followNameChanges,
       lookup,
+      lookupById,
       reverseLookup,
       write,
       move,

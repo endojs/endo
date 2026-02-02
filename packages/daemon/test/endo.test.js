@@ -1758,6 +1758,25 @@ test('list special names', async t => {
   );
 });
 
+test('host exposes HOST special name', async t => {
+  const { host } = await prepareHost(t);
+
+  const selfId = await E(host).identify('SELF');
+  const hostId = await E(host).identify('HOST');
+  t.is(hostId, selfId);
+});
+
+test('child host HOST points at parent handle', async t => {
+  const { host } = await prepareHost(t);
+
+  const parentHandleId = await E(host).identify('SELF');
+  const childHost = await E(host).provideHost('child-host');
+  const childHostId = await E(childHost).identify('HOST');
+
+  t.is(childHostId, parentHandleId);
+  t.not(childHostId, await E(childHost).identify('SELF'));
+});
+
 test('guest cannot access host methods', async t => {
   const { host } = await prepareHost(t);
 
@@ -2432,16 +2451,26 @@ test('guest evaluate sends eval-proposal to host', async t => {
   // Wait a tick for the proposal to be delivered
   await null;
 
-  // Host should have received the eval-proposal
+  // Host should have received the eval-proposal (reviewer view)
   const hostMessages = await E(host).listMessages();
-  const message = hostMessages.find(m => m.type === 'eval-proposal');
+  const message = hostMessages.find(m => m.type === 'eval-proposal-reviewer');
 
   t.truthy(message, 'Host should have received eval-proposal');
-  t.is(message.type, 'eval-proposal');
+  t.is(message.type, 'eval-proposal-reviewer');
   t.is(message.source, 'x + 1');
   t.deepEqual(message.codeNames, ['x']);
   t.is(message.workerName, 'worker');
-  t.is(message.resultName, 'result');
+  t.false('resultName' in message);
+  t.is(typeof message.resultId?.then, 'function');
+  t.is(typeof message.result?.then, 'function');
+
+  // Sender should see their resultName on the proposer echo
+  const guestMessagesAfter = await E(guest).listMessages();
+  const proposerMessage = guestMessagesAfter.find(
+    m => m.type === 'eval-proposal-proposer',
+  );
+  t.truthy(proposerMessage, 'Guest should have proposer echo');
+  t.is(proposerMessage.resultName, 'result');
 
   // Grant the proposal
   const result = await E(host).grantEvaluate(message.number);
@@ -2450,6 +2479,8 @@ test('guest evaluate sends eval-proposal to host', async t => {
   // Guest's evaluate promise should resolve with the result
   const guestResult = await evaluatePromise;
   t.is(guestResult, 11);
+  t.is(await E(guest).lookup(['result']), 11);
+  t.is(await E(host).identify('result'), undefined);
 });
 
 test('host grantEvaluate executes proposed code', async t => {
@@ -2479,15 +2510,66 @@ test('host grantEvaluate executes proposed code', async t => {
 
   // Host grants it
   const hostMessages = await E(host).listMessages();
-  const message = hostMessages.find(m => m.type === 'eval-proposal');
+  const message = hostMessages.find(m => m.type === 'eval-proposal-reviewer');
   const result = await E(host).grantEvaluate(message.number);
 
   t.is(result, 10);
   t.is(await evaluatePromise, 10);
 
-  // Result should be stored under host's namespace
-  const storedResult = await E(host).lookup(['doubled']);
+  // Result should be stored under guest's namespace
+  const storedResult = await E(guest).lookup(['doubled']);
   t.is(storedResult, 10);
+  t.is(await E(host).identify('doubled'), undefined);
 });
 
-// TODO: Add counterEvaluate test when Guest has grantEvaluate capability
+test('counterEvaluate sends proposer/reviewer messages', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).storeValue(5, 'five');
+
+  // Share 'five' with the guest
+  await E(host).send('guest', ['Here is a value:'], ['n'], ['five']);
+  const guestMessages = await E(guest).listMessages();
+  const pkg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'n', ['five']);
+
+  // Guest proposes evaluation
+  void E(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
+
+  // Wait for proposal delivery
+  await null;
+
+  const hostMessages = await E(host).listMessages();
+  const proposal = hostMessages.find(m => m.type === 'eval-proposal-reviewer');
+  t.truthy(proposal, 'Host should have received eval-proposal');
+
+  // Host sends counter-proposal
+  await E(host).counterEvaluate(
+    proposal.number,
+    'n * 3',
+    ['n'],
+    ['five'],
+    'worker',
+    ['tripled'],
+  );
+
+  await null;
+
+  const hostMessagesAfter = await E(host).listMessages();
+  const hostCounter = hostMessagesAfter.find(
+    m => m.type === 'eval-proposal-proposer' && m.source === 'n * 3',
+  );
+  const guestMessagesAfter = await E(guest).listMessages();
+  const guestCounter = guestMessagesAfter.find(
+    m => m.type === 'eval-proposal-reviewer' && m.source === 'n * 3',
+  );
+
+  t.truthy(hostCounter, 'Host should have proposer echo for counter');
+  t.truthy(guestCounter, 'Guest should receive counter-proposal');
+  t.is(hostCounter.resultName, 'tripled');
+  t.false('resultName' in guestCounter);
+  t.is(typeof guestCounter.resultId?.then, 'function');
+  t.is(typeof guestCounter.result?.then, 'function');
+});
