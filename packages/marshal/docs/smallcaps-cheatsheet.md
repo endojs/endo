@@ -13,7 +13,7 @@ An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax
 | byteArray        | ByteArray     | `buf.toImmutable()`   | // undecided & unimplemented |
 | passable symbols | Symbol        | `passableSymbolForName('foo')` | `"%foo"` // in transition |
 | copyArray        | List          | `[a,b]`               | `[<a>,<b>]`          |
-| copyRecord       | Struct        | `{x:a,y:b}`           | `{<x>:<a>,<y>:<b>}`  |
+| copyRecord       | Struct        | `{foo:a,'#foo':b}`    | `{"!#foo":<b>,"foo":<a>}` // keys sorted  |
 | tagged           | Tagged        | `makeTagged(t,p)`     | `{"#tag":<t>,"payload":<p>}` |
 | remotable        | Target        | `Far('foo', {})`      | `"$0.foo"`           |
 | promise          | Promise       | `Promise.resolve()`   | `"&1"`               |
@@ -21,10 +21,9 @@ An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax
 
 * The `-0` encoding is defined as above, but not yet implemented in JS.
 * In JS, passable symbols are in transition from JavaScript symbols to their own representation
-* The number after `"$"` or `"&"` is an index into a separate slots array.
+* The number after `"$"` or `"&"` (for remotable/Target or promise/Promise) is an index into a separate slots array.
 * ***Special strings*** begin with any of the `!"#$%&'()*+,-` characters.
 * `<expr>` is nested encoding of `expr`.
-* Since `x` and `y` can only be strings, `<x>` and `<y>` are the nested encodings of those strings.
 * To be passable, arrays, records, and errors must also be hardened.
 * Structs [can only have string-named properties](https://github.com/endojs/endo/blob/master/packages/pass-style/doc/copyRecord-guarantees.md).
 * Errors can also carry an optional `errorId` string property.
