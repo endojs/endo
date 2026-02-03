@@ -1,15 +1,13 @@
 /**
- * Parses the input and returns it as a number if it's valid, otherwise throws error.
+ * Parses the input and returns it as a bigint if it's a valid integer.
  *
  * @param {string} input
- * @returns {number}
+ * @returns {bigint}
  */
-export const parseNumber = input => {
-  const result = /[0-9]/.test(input || '') ? Number(input) : NaN;
-
-  if (Number.isNaN(result)) {
+export const parseBigint = (input = '') => {
+  const trimmed = input.trim();
+  if (!/^(0|[1-9][0-9]*)$/.test(trimmed)) {
     throw new Error(`Invalid number: ${input}`);
   }
-
-  return result;
+  return BigInt(trimmed);
 };
