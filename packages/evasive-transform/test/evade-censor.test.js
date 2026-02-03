@@ -92,6 +92,20 @@ test('evadeCensor() - successful source transform w/ source map, source URL & un
   t.snapshot(map);
 });
 
+test('evadeCensor() - transformed regexp works', async t => {
+  const { code } = evadeCensorSync(
+    `const a = /[import (]+/g;
+     const b = /import (.*)/gi;`,
+    {
+      sourceType: 'module',
+    },
+  );
+  // eslint-disable-next-line no-new-func
+  const [regA, regB] = new Function(`${code};return [a,b];`)();
+  t.true(regA.test('qiopz'));
+  t.true(regB.test('import a from b'));
+});
+
 // import in a string will triger censorship in SES
 const evadeThat = `
     // HTML comment <!-- should be evaded -->
