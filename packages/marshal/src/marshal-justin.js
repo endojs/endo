@@ -178,6 +178,11 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
           assert.typeof(sym, 'symbol');
           return;
         }
+        case 'byteArray': {
+          const { data } = rawTree;
+          assert.typeof(data, 'string');
+          return;
+        }
         case 'tagged': {
           const { tag, payload } = rawTree;
           assert.typeof(tag, 'string');
@@ -339,6 +344,11 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             return out.next(`Symbol.${suffix}`);
           }
           return out.next(`passableSymbolForName(${quote(registeredName)})`);
+        }
+        case 'byteArray': {
+          const { data } = rawTree;
+          assert.typeof(data, 'string');
+          return out.next(`hexToByteArray(${quote(data)})`);
         }
         case 'tagged': {
           const { tag, payload } = rawTree;

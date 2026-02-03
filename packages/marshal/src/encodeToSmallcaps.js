@@ -15,6 +15,8 @@ import {
   assertPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
+  byteArrayToHex,
+  hexToByteArray,
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
@@ -55,8 +57,9 @@ const DASH = '-'.charCodeAt(0);
  *  * `%` - symbol
  *  * `$` - remotable
  *  * `&` - promise
+ *  * `*` - byteArray (hardened Immutable ArrayBuffer)
  *
- * All other special characters (`"'()*,`) are reserved for future use.
+ * All other special characters (`"'(),`) are reserved for future use.
  *
  * The manifest constants that smallcaps currently uses for values:
  *  * `#undefined`
@@ -229,8 +232,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
         return passable.map(encodeToSmallcapsRecur);
       }
       case 'byteArray': {
-        // TODO implement
-        throw Fail`marsal of byteArray not yet implemented: ${passable}`;
+        return `*${byteArrayToHex(passable)}`;
       }
       case 'tagged': {
         return {
@@ -406,6 +408,10 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
             }
             return result;
           }
+          case '*': {
+            const base64str = encoding.slice(1);
+            return hexToByteArray(base64str);
+          }
           default: {
             throw Fail`Special char ${q(
               c,
@@ -471,3 +477,4 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
   };
   return harden(decodeFromSmallcaps);
 };
+harden(makeDecodeFromSmallcaps);
