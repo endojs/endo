@@ -7,6 +7,8 @@
 // encodes to Smallcaps, a JSON-representable data structure, and leaves it to
 // the caller (`marshal.js`) to stringify it.
 
+import { X, Fail, q } from '@endo/errors';
+import { ZERO_N } from '@endo/nat';
 import {
   passStyleOf,
   isErrorLike,
@@ -16,7 +18,6 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
-import { X, Fail, q } from '@endo/errors';
 
 /** @import {Passable, RemotableObject} from '@endo/pass-style' */
 // FIXME define actual types
@@ -206,7 +207,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
       }
       case 'bigint': {
         const str = String(passable);
-        return /** @type {bigint} */ (passable) < 0n ? str : `+${str}`;
+        return /** @type {bigint} */ (passable) < ZERO_N ? str : `+${str}`;
       }
       case 'symbol': {
         assertPassableSymbol(passable);

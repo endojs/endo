@@ -1,4 +1,6 @@
 /* eslint-disable no-bitwise */
+import { b, q, Fail } from '@endo/errors';
+import { ZERO_N } from '@endo/nat';
 import {
   getTag,
   makeTagged,
@@ -12,8 +14,6 @@ import {
 /**
  * @import {CopyRecord, PassStyle, Passable, RemotableObject, ByteArray} from '@endo/pass-style'
  */
-
-import { b, q, Fail } from '@endo/errors';
 
 const { isArray } = Array;
 const { fromEntries, is } = Object;
@@ -165,10 +165,10 @@ const decodeBinary64 = (encoded, skip = 0) => {
  * @returns {string}
  */
 const encodeBigInt = n => {
-  const abs = n < 0n ? -n : n;
+  const abs = n < ZERO_N ? -n : n;
   const nDigits = abs.toString().length;
   const lDigits = nDigits.toString().length;
-  if (n < 0n) {
+  if (n < ZERO_N) {
     return `n${
       // A "#" for each digit beyond the first
       // in the decimal *count* of decimal digits.
