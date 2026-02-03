@@ -15,13 +15,18 @@ const formulaTypes = new Set([
   'least-authority',
   'lookup',
   'loopback-network',
+  'mail-hub',
+  'mailbox-store',
   'make-bundle',
   'make-unconfined',
   'marshal',
+  'message',
   'peer',
   'pet-inspector',
   'pet-store',
+  'promise',
   'readable-blob',
+  'resolver',
   'worker',
 ]);
 
