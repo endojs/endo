@@ -34,6 +34,6 @@ An example-based summary of the Smallcaps encoding of the OCapN [Abstract Syntax
 
 For every JSON encoding with no special strings, the JSON and smallcaps decodings are the same.
 
-For every value with no special strings that round trips through JSON, the JSON and smallcaps encodings are the same.
+If a value `v` round-trips through `JSON.parse(JSON.stringify(v))` and contains no special strings, then the smallcaps encoding of `v` is identical to `JSON.stringify(v)`.
 
 In other words, for these simple values, ***you can ignore the differences between smallcaps and JSON***.
