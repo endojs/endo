@@ -3,6 +3,7 @@ User-visible changes in `@endo/patterns`:
 # Next release
 
 - The `sloppy` option for `@endo/patterns` interface guards is deprecated. Use `defaultGuards` instead.
+- PatternMatchers now includes a `M.discriminated(keyName, subPatternsRecord)` function to match a CopyRecord against a sub-pattern selected by the value of a specified discriminator key (i.e., for matching values of a discriminated union type). Behaviorally, the new matchers are slightly weaker than those from `M.or(...patterns)`, but more efficient, and they produce more precise error messages upon match failure. Note that the sub-patterns apply to a derived CopyRecord that lacks the discriminator property, so e.g. `M.discriminated('flavor', { original: M.and({ flavor: 'original' }, M.any()) })` does not match anything, while `M.discriminated('flavor', { original: M.any() })` matches any CopyRecord with a "flavor" property whose value is "original".
 - `@endo/patterns` now exports a new `getNamedMethodGuards(interfaceGuard)` that returns that interface guard's record of method guards. The motivation is to support interface inheritance expressed by patterns like
    ```js
    const I2 = M.interface('I2', {
