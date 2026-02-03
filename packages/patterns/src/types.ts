@@ -464,6 +464,13 @@ export type PatternMatchers = {
   mapOf: (keyPatt?: Pattern, valuePatt?: Pattern, limits?: Limits) => Matcher;
 
   /**
+   * Matches any CopyRecord that has a property named by `key` with a string
+   * value that identifies a sub-Pattern against which the CopyRecord of all
+   * other properties matches.
+   */
+  discriminated: (keyName: string, subPatts: CopyRecord<Pattern>) => Matcher;
+
+  /**
    * Matches any array --- typically an arguments list --- consisting of
    *   - an initial portion matched by `required`, and
    *   - a middle portion of length up to the length of `optional` that is
