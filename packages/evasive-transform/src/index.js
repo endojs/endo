@@ -21,7 +21,8 @@ import { generate } from './generate.js';
  * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
  * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
  * @property {boolean} [useLocationUnmap] - deprecated, vestigial
- * @property {boolean} [noCodeTransforms] - if true, will skip evasive transforms on string and template literals.
+ * @property {boolean} [onlyComments] - if true, will limit transformation to
+     comment contents, preserving code positions within each line
  * @public
  */
 

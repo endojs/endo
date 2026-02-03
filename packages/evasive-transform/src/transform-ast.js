@@ -74,7 +74,7 @@ export function transformAst(
         // Prevent `-->` from appearing in output (HTML comment end marker)
         evadeDecrementGreater(p);
 
-        // evade import ( in RegExp literals
+        // evade `import(` in RegExp literals
         evadeRegexpLiteral(p);
       }
     },
