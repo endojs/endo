@@ -48,6 +48,7 @@
     "lint:fix": "yarn lint:eslint -- --fix",
     "lint:workspaces:fix": "yarn workspaces foreach --all run lint-fix",
     "lint:prettier": "prettier --check .github packages",
+    "release:npm": "lerna publish from-package",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
     "test:c8": "yarn workspaces foreach --all run test:c8",
     "test:xs": "yarn workspaces foreach --all run test:xs",
