@@ -12,17 +12,26 @@ The LLM agent uses tool calls to interact with the Endo daemon, enabling it to:
 
 ## Configuration
 
-The agent is configured via environment variables:
+The agent is configured via environment variables.
+If `LAL_HOST` contains `anthropic.com`, the Anthropic provider is used;
+otherwise the llama.cpp (OpenAI-compatible) provider is used.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LAL_HOST` | Ollama API host URL | `http://localhost:11434` |
-| `LAL_MODEL` | Model name to use | `qwen3` |
-| `LAL_AUTH_TOKEN` | Bearer token for authentication (optional) | - |
+| `LAL_HOST` | API base URL (Ollama, llama.cpp, or Anthropic) | `http://localhost:11434/v1` |
+| `LAL_MODEL` | Model name | `qwen3` (llama.cpp) or `claude-opus-4-5-20251101` (Anthropic) |
+| `LAL_AUTH_TOKEN` | API key (optional for local servers) | - |
+| `LAL_MAX_TOKENS` | Max completion tokens (llama.cpp provider) | `4096` |
+| `LAL_MAX_MESSAGES` | Truncate to last N messages before sending (avoids context-size errors) | - |
 
 Example configuration files are provided:
 - `local.env.example` - Local Ollama instance
 - `cloud.env.example` - Remote Ollama with authentication
+- `openai.env.example` - OpenAI API (OpenAI-compatible provider)
+- `opus.env.example` - Anthropic Claude (Opus)
+
+For a llama.cpp server that returns "context size" errors, set `LAL_MAX_MESSAGES`
+(e.g. to `30`) to send only the last N messages and stay under the server's limit.
 
 ## Usage
 

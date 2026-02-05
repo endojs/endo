@@ -6,8 +6,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
+import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
 
@@ -582,15 +581,21 @@ proposal to your HOST. The HOST can then:
 
 Use this when you need to run code that requires capabilities from your HOST.
 
+You should ALWAYS specify resultName. The HOST stores the evaluation result under
+this pet name in your directory when the proposal is granted. You can then
+lookup(resultName) or send it to the requester. If you omit resultName, you only
+get the result in the notification and have no stable name to reference or send.
+
 The code can reference values from your directory using the codeNames/edgeNames mapping:
 - codeNames: Variable names that will be available in your source code
 - edgeNames: Pet names of values from your directory to provide as those variables
 
-Example: To run "E(counter).increment()" where counter is a value you have named "my-counter":
-  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"])
+Example: To run "E(counter).increment()" where counter is a value you have named "my-counter",
+and store the result as "increment-result":
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
 
-When the HOST grants the proposal, you will receive a notification with the result value.
-You should then use send() to deliver that result to whoever requested it.`,
+When the HOST grants the proposal, the result is stored at resultName and you will
+receive a notification. Use lookup(resultName) to get the value and send() to deliver it.`,
       parameters: {
         type: 'object',
         properties: {
@@ -615,8 +620,16 @@ You should then use send() to deliver that result to whoever requested it.`,
             description:
               'Pet names from your directory providing the values for each codeName.',
           },
+          resultName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description:
+              'Pet name (or path) where the HOST will store the evaluation result. You should always specify this so you can lookup and send the result after the proposal is granted.',
+          },
         },
-        required: ['source', 'codeNames', 'edgeNames'],
+        required: ['source', 'codeNames', 'edgeNames', 'resultName'],
       },
     },
   },
@@ -687,7 +700,7 @@ will appear in future listMessages() calls.
 - inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
 
 ### Code Evaluation (Proposal)
-- evaluate(workerName?, source, codeNames, edgeNames) - Propose code for HOST approval
+- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code for HOST approval. resultName is required.
 
 ## Code Evaluation Proposals
 
@@ -697,8 +710,14 @@ use the evaluate() tool to propose code to your HOST for approval.
 IMPORTANT: evaluate() does NOT run code directly. It sends a proposal to your HOST.
 The HOST must explicitly grant the proposal before the code executes.
 
-Example: If you have a counter named "my-counter" and want to increment it:
-  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"])
+IMPORTANT: Always specify resultName. When the HOST grants the proposal, the result
+is stored under this pet name in your directory. You can then lookup(resultName) and
+send it to the requester. If you omit resultName, you only get the result in the
+notification and have no stable name to reference or send.
+
+Example: If you have a counter named "my-counter" and want to increment it, storing
+the result as "increment-result":
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
 
 The codeNames array lists variable names used in your source code.
 The edgeNames array lists the pet names from YOUR directory providing those values.
@@ -709,11 +728,9 @@ When the HOST grants, the code runs and you receive the result in your notificat
 After you submit an eval-proposal, you will be notified when the HOST responds:
 
 **GRANTED**: The HOST executed your code.
-- You will receive the result value directly in the notification
-- You should:
-  1. Use send() to deliver the result/capability back to the original requester
-  2. Report success to the sender
-  3. The result is included in the notification - use it immediately
+- The result is stored at the resultName you specified (e.g. lookup(resultName) to get it)
+- You will also receive the result value in the notification
+- You should: Use lookup(resultName) to get the value, then send() to deliver it back to the original requester
 
 **REJECTED**: The HOST declined your proposal.
 - You will receive the rejection reason
@@ -774,9 +791,9 @@ Never ignore a proposal status notification. The sender is waiting for your resp
 ### Workflow Example
 
 1. Receive request: "Please increment my counter"
-2. Propose: evaluate(undefined, "E(counter).increment()", ["counter"], ["user-counter"])
+2. Propose: evaluate(undefined, "E(counter).increment()", ["counter"], ["user-counter"], "increment-result")
 3. Wait for notification...
-4. If GRANTED: The notification includes the result - use send() to deliver it back to requester
+4. If GRANTED: The result is stored at "increment-result" - use lookup("increment-result") then send() to deliver it back to requester
 5. If REJECTED: send() an apology/question to the requester
 6. If COUNTER-PROPOSAL: review, then accept or negotiate
 
@@ -879,201 +896,15 @@ export const make = (guestPowers, _contextP, { env }) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  // Configuration via environment variables:
-  // LAL_HOST: Base URL for API
-  //   - Ollama: http://localhost:11434/v1 (default)
-  //   - OpenAI: https://api.openai.com/v1
-  //   - Anthropic: https://api.anthropic.com (auto-detected)
-  // LAL_MODEL: Model name
-  //   - Ollama default: qwen3
-  //   - Anthropic default: claude-opus-4-5-20251101
-  //     https://www.anthropic.com/news/claude-opus-4-5
-  //     https://openrouter.ai/anthropic/claude-opus-4.5
-  // LAL_AUTH_TOKEN: API key (optional for local Ollama)
-
-  const baseURL = env.LAL_HOST || 'http://localhost:11434/v1';
-  const isAnthropic = baseURL.includes('anthropic.com');
-  const defaultModel = isAnthropic ? 'claude-opus-4-5-20251101' : 'qwen3';
-  const model = env.LAL_MODEL || defaultModel;
-
-  /** @type {OpenAI | undefined} */
-  let openai;
-  /** @type {Anthropic | undefined} */
-  let anthropic;
-
-  if (isAnthropic) {
-    anthropic = new Anthropic({
-      apiKey: env.LAL_AUTH_TOKEN || '',
-    });
-    console.log(`[LAL] Using Anthropic with model: ${model}`);
-  } else {
-    openai = new OpenAI({
-      apiKey: env.LAL_AUTH_TOKEN || 'ollama', // Ollama ignores API key but SDK requires one
-      baseURL,
-    });
-    console.log(
-      `[LAL] Using OpenAI-compatible API at ${baseURL} with model: ${model}`,
-    );
-  }
-
-  /**
-   * Convert our tool format to Anthropic's format.
-   * @param {Tool[]} openaiTools
-   * @returns {Anthropic.Tool[]}
-   */
-  const toAnthropicTools = openaiTools =>
-    openaiTools.map(t => ({
-      name: t.function.name,
-      description: t.function.description,
-      input_schema: /** @type {Anthropic.Tool.InputSchema} */ (
-        t.function.parameters
-      ),
-    }));
-
-  /**
-   * Convert our messages to Anthropic's format.
-   * @param {ChatMessage[]} messages
-   * @returns {{system: string, messages: Anthropic.MessageParam[]}}
-   */
-  const toAnthropicMessages = messages => {
-    let system = '';
-    /** @type {Anthropic.MessageParam[]} */
-    const anthropicMessages = [];
-
-    for (const msg of messages) {
-      if (msg.role === 'system') {
-        system = msg.content;
-      } else if (msg.role === 'user') {
-        anthropicMessages.push({ role: 'user', content: msg.content });
-      } else if (msg.role === 'assistant') {
-        /** @type {Anthropic.ContentBlockParam[]} */
-        const content = [];
-        if (msg.content) {
-          content.push({ type: 'text', text: msg.content });
-        }
-        if (msg.tool_calls) {
-          for (const tc of msg.tool_calls) {
-            const args =
-              typeof tc.function.arguments === 'string'
-                ? JSON.parse(tc.function.arguments)
-                : tc.function.arguments;
-            content.push({
-              type: 'tool_use',
-              id:
-                tc.id ||
-                `tool_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-              name: tc.function.name,
-              input: args,
-            });
-          }
-        }
-        if (content.length > 0) {
-          anthropicMessages.push({ role: 'assistant', content });
-        }
-      } else if (msg.role === 'tool') {
-        // Use the tool_call_id stored in the message
-        const toolUseId = msg.tool_call_id || 'unknown';
-        anthropicMessages.push({
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              tool_use_id: toolUseId,
-              content: msg.content,
-            },
-          ],
-        });
-      }
-    }
-
-    return { system, messages: anthropicMessages };
-  };
+  // LAL_HOST, LAL_MODEL, LAL_AUTH_TOKEN; see providers/index.js.
+  const provider = createProvider(env);
 
   /**
    * Chat with the LLM.
    * @param {ChatMessage[]} messages
    * @returns {Promise<{message: ChatMessage}>}
    */
-  const chat = async messages => {
-    if (isAnthropic && anthropic) {
-      const { system, messages: anthropicMessages } =
-        toAnthropicMessages(messages);
-      console.log('[LAL] Calling Anthropic API...');
-      console.log(
-        '[LAL] Messages:',
-        JSON.stringify(anthropicMessages, null, 2),
-      );
-      let response;
-      try {
-        response = await anthropic.messages.create({
-          model,
-          max_tokens: 4096,
-          system,
-          tools: toAnthropicTools(tools),
-          messages: anthropicMessages,
-        });
-        console.log('[LAL] Anthropic response received');
-      } catch (error) {
-        console.error('[LAL] Anthropic API error:', error);
-        throw error;
-      }
-
-      // Convert Anthropic response to our format
-      /** @type {ChatMessage} */
-      const message = { role: 'assistant', content: '' };
-      /** @type {ToolCall[]} */
-      const toolCalls = [];
-
-      for (const block of response.content) {
-        if (block.type === 'text') {
-          message.content += block.text;
-        } else if (block.type === 'tool_use') {
-          toolCalls.push({
-            id: block.id,
-            function: {
-              name: block.name,
-              arguments: JSON.stringify(block.input),
-            },
-          });
-        }
-      }
-
-      if (toolCalls.length > 0) {
-        message.tool_calls = toolCalls;
-      }
-
-      return { message };
-    } else if (openai) {
-      const response = await openai.chat.completions.create({
-        model,
-        // @ts-ignore - Our tool format matches OpenAI's
-        tools,
-        // @ts-ignore
-        messages,
-      });
-      const choice = response.choices[0];
-      if (!choice) {
-        return { message: { role: 'assistant', content: '' } };
-      }
-      // Convert OpenAI format to our internal format
-      /** @type {ChatMessage} */
-      const message = {
-        role: 'assistant',
-        content: choice.message.content || '',
-      };
-      if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-        message.tool_calls = choice.message.tool_calls.map(tc => ({
-          id: tc.id,
-          function: {
-            name: tc.function.name,
-            arguments: tc.function.arguments,
-          },
-        }));
-      }
-      return { message };
-    }
-    throw new Error('No LLM provider configured');
-  };
+  const chat = messages => provider.chat(messages, tools);
 
   /** @type {ChatMessage[]} */
   const transcript = [
@@ -1265,9 +1096,18 @@ export const make = (guestPowers, _contextP, { env }) => {
 
       // Code evaluation proposal
       case 'evaluate': {
-        const { workerName, source, codeNames = [], edgeNames = [] } = args;
+        const {
+          workerName,
+          source,
+          codeNames = [],
+          edgeNames = [],
+          resultName,
+        } = args;
         if (source === undefined) {
           throw new Error('source is required');
+        }
+        if (resultName === undefined) {
+          throw new Error('resultName is required');
         }
 
         // Send an eval-proposal to the HOST for approval
@@ -1276,6 +1116,7 @@ export const make = (guestPowers, _contextP, { env }) => {
           source,
           codeNames,
           edgeNames,
+          resultName,
         );
 
         // Track this proposal
@@ -1551,7 +1392,10 @@ The HOST declined to execute your proposed code. You should:
       );
 
       // Check if this is a counter-proposal (eval-proposal from someone else)
-      if (type === 'eval-proposal') {
+      if (
+        type === 'eval-proposal-reviewer' ||
+        type === 'eval-proposal-proposer'
+      ) {
         // This is a counter-proposal from the HOST
         const { source, codeNames, edgeNames, workerName, resultName } =
           /** @type {any} */ (message);
@@ -1593,7 +1437,22 @@ You should:
       }
 
       // Run the agentic loop
-      await runAgenticLoop();
+      try {
+        await runAgenticLoop();
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error('[agent] LLM error, notifying sender:', errorMessage);
+        // send() expects a pet name or path; inbox message "from" is a handle ID (e.g. hex).
+        // Only send back when the sender is known by a valid name (e.g. HOST).
+        const isValidName =
+          typeof fromId === 'string' &&
+          (/^[a-z][a-z0-9-]{0,127}$/.test(fromId) ||
+            /^[A-Z][A-Z0-9-]{0,127}$/.test(fromId));
+        if (isValidName) {
+          await E(powers).send(fromId, [errorMessage], [], []);
+        }
+      }
       console.log(
         `[lal] Transcript has ${transcript.length} messages after processing`,
       );
