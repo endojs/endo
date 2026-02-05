@@ -28,6 +28,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
    * @param {FormulaIdentifier} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
+   * @param {string} [mailHubId] - Formula id for MAIL hub view (when provided, MAIL is added to special names)
    */
   const makeGuest = async (
     guestId,
@@ -39,6 +40,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
     mailHubId,
     mainWorkerId,
     context,
+    mailHubId,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
     context.thisDiesIfThatDies(hostAgentId);
@@ -49,12 +51,15 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
 
     const basePetStore = await provide(petStoreId, 'pet-store');
     const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
-    const specialStore = makePetSitter(basePetStore, {
+    const specialNames = {
       AGENT: guestId,
       SELF: handleId,
       HOST: hostHandleId,
-      MAIL: mailHubId,
-    });
+    };
+    if (mailHubId !== undefined) {
+      specialNames.MAIL = mailHubId;
+    }
+    const specialStore = makePetSitter(basePetStore, specialNames);
 
     const directory = makeDirectoryNode(specialStore);
     const mailbox = await makeMailbox({
@@ -211,6 +216,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       deliver,
       // Guest-specific: propose evaluation to host
       evaluate,
+      // Used by daemon to provide MAIL hub view
+      getMailHub: () => mailbox.getMailHub(),
     };
 
     const help = makeHelp(guestHelp, [directoryHelp, mailHelp]);

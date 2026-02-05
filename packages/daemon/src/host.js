@@ -96,6 +96,7 @@ export const makeHostMaker = ({
    * @param {string} leastAuthorityId
    * @param {{[name: string]: string}} platformNames
    * @param {Context} context
+   * @param {string} [mailHubId] - Formula id for MAIL hub view (when provided, MAIL is added to special names)
    */
   const makeHost = async (
     hostId,
@@ -112,6 +113,7 @@ export const makeHostMaker = ({
     leastAuthorityId,
     platformNames,
     context,
+    mailHubId,
   ) => {
     context.thisDiesIfThatDies(storeId);
     context.thisDiesIfThatDies(mainWorkerId);
@@ -120,7 +122,7 @@ export const makeHostMaker = ({
 
     const basePetStore = await provide(storeId, 'pet-store');
     const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
-    const specialStore = makePetSitter(basePetStore, {
+    const specialNames = {
       ...platformNames,
       AGENT: hostId,
       SELF: handleId,
@@ -130,9 +132,12 @@ export const makeHostMaker = ({
       NETS: networksDirectoryId,
       PINS: pinsDirectoryId,
       INFO: inspectorId,
-      MAIL: mailHubId,
       NONE: leastAuthorityId,
-    });
+    };
+    if (mailHubId !== undefined) {
+      specialNames.MAIL = mailHubId;
+    }
+    const specialStore = makePetSitter(basePetStore, specialNames);
 
     const directory = makeDirectoryNode(specialStore);
     const mailbox = await makeMailbox({

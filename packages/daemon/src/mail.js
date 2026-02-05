@@ -28,11 +28,160 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, Envelope, EnvelopedMessage, EvalProposalProposer, EvalProposalReviewer, EvalRequest, FormulaIdentifier, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, Envelope, EnvelopedMessage, EvalProposalProposer, EvalProposalReviewer, EvalRequest, FormulaIdentifier, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
 const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
+
+/** @typedef {(...petNamePath: string[]) => Promise<unknown>} HubLookup */
+
+/**
+ * Create a read-only NameHub view over a single message.
+ * Exposes FROM, TO, and for package messages each edge name -> capability.
+ *
+ * @param {StampedMessage} message
+ * @param {Provide} provide
+ * @returns {NameHub}
+ */
+const makeMessageHub = (message, provide) => {
+  const slotNames = ['FROM', 'TO'];
+  const slotIds = [message.from, message.to];
+  if (message.type === 'package') {
+    slotNames.push(...message.names);
+    slotIds.push(...message.ids);
+  }
+  const nameToId = new Map(slotNames.map((n, i) => [n, slotIds[i]]));
+
+  const readOnlyError = () => {
+    throw new Error('MAIL view is read-only');
+  };
+
+  return makeExo('MailMessageHub', {}, {
+    async has(...namePath) {
+      if (namePath.length !== 1) return false;
+      return nameToId.has(namePath[0]);
+    },
+    async identify(...namePath) {
+      if (namePath.length !== 1) return undefined;
+      return nameToId.get(namePath[0]);
+    },
+    async list() {
+      return harden([...nameToId.keys()].sort());
+    },
+    async lookup(nameOrPath) {
+      const path = Array.isArray(nameOrPath) ? nameOrPath : [nameOrPath];
+      if (path.length !== 1) {
+        throw new TypeError(`Message hub lookup requires a single name`);
+      }
+      const id = nameToId.get(path[0]);
+      if (id === undefined) {
+        throw new TypeError(`Unknown name in message: ${q(path[0])}`);
+      }
+      return provide(id);
+    },
+    async reverseLookup() {
+      return harden([]);
+    },
+    async locate() {
+      return undefined;
+    },
+    async reverseLocate() {
+      return harden([]);
+    },
+    async listIdentifiers() {
+      return harden([]);
+    },
+    async *followNameChanges() {},
+    async *followLocatorNameChanges() {},
+    async write() {
+      readOnlyError();
+    },
+    async remove() {
+      readOnlyError();
+    },
+    async move() {
+      readOnlyError();
+    },
+    async copy() {
+      readOnlyError();
+    },
+  });
+};
+
+/**
+ * Create a read-only NameHub view over the mailbox.
+ * Keys are message numbers as strings ("0", "1", ...). No next-id exposed.
+ *
+ * @param {Map<bigint, StampedMessage>} messages
+ * @param {Provide} provide
+ * @returns {NameHub}
+ */
+const makeMailHub = (messages, provide) => {
+  const readOnlyError = () => {
+    throw new Error('MAIL view is read-only');
+  };
+
+  return makeExo('MailHub', {}, {
+    async has(...namePath) {
+      if (namePath.length !== 1) return false;
+      const n = namePath[0];
+      const num = parseInt(n, 10);
+      if (String(num) !== n || num < 0) return false;
+      return messages.has(BigInt(num));
+    },
+    async identify(...namePath) {
+      if (namePath.length !== 1) return undefined;
+      return undefined;
+    },
+    async list() {
+      const nums = [...messages.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      return harden(nums.map(n => String(n)));
+    },
+    async lookup(nameOrPath) {
+      const path = Array.isArray(nameOrPath) ? nameOrPath : [nameOrPath];
+      if (path.length !== 1) {
+        throw new TypeError(`Mail hub lookup requires a single name`);
+      }
+      const n = path[0];
+      const num = parseInt(n, 10);
+      if (String(num) !== n || num < 0) {
+        throw new TypeError(`Invalid mail slot: ${q(n)}`);
+      }
+      const message = messages.get(BigInt(num));
+      if (message === undefined) {
+        throw new TypeError(`No message ${q(n)}`);
+      }
+      return makeMessageHub(message, provide);
+    },
+    async reverseLookup() {
+      return harden([]);
+    },
+    async locate() {
+      return undefined;
+    },
+    async reverseLocate() {
+      return harden([]);
+    },
+    async listIdentifiers() {
+      return harden([]);
+    },
+    async *followNameChanges() {},
+    async *followLocatorNameChanges() {},
+    async write() {
+      readOnlyError();
+    },
+    async remove() {
+      readOnlyError();
+    },
+    async move() {
+      readOnlyError();
+    },
+    async copy() {
+      readOnlyError();
+    },
+  });
+};
 
 /**
  * @param {string} name
@@ -571,6 +720,12 @@ export const makeMailboxMaker = ({
 
       const petNamePaths = petNamesOrPaths.map(namePathFrom);
       edgeNames.forEach(assertEdgeName);
+      const uniqueEdgeNames = new Set(edgeNames);
+      if (uniqueEdgeNames.size !== edgeNames.length) {
+        throw new Error(
+          'Duplicate edge names in message are not allowed; each edge name must be unique.',
+        );
+      }
       if (petNamePaths.length !== edgeNames.length) {
         throw new Error(
           `Message must have one edge name (${q(
@@ -1054,6 +1209,7 @@ export const makeMailboxMaker = ({
       return provide(responseId);
     };
 
+    const mailHub = makeMailHub(messages, provide);
 
     return harden({
       handle: () => handle,
@@ -1072,6 +1228,7 @@ export const makeMailboxMaker = ({
       evaluate,
       grantEvaluate,
       counterEvaluate,
+      getMailHub: () => mailHub,
     });
   };
 
