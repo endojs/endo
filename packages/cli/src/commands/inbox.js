@@ -67,12 +67,14 @@ export const inbox = async ({ follow, agentNames }) =>
         );
       } else if (message.type === 'package') {
         const { strings, names: edgeNames, replyTo } = message;
-        const replyContext =
-          replyTo === undefined
-            ? ''
-            : messageNumberById.has(replyTo)
-              ? ` (in reply to ${messageNumberById.get(replyTo)})`
-              : ' (in reply to unknown)';
+        let replyContext = '';
+        if (replyTo !== undefined) {
+          const replyNumber = messageNumberById.get(replyTo);
+          replyContext =
+            replyNumber === undefined
+              ? ' (in reply to unknown)'
+              : ` (in reply to ${replyNumber})`;
+        }
         console.log(
           `${number}. ${provenance}${formatMessage(
             strings,

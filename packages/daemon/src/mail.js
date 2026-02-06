@@ -5,7 +5,7 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import { assertValidId } from './formula-identifier.js';
+import { assertFormulaNumber, assertValidId } from './formula-identifier.js';
 import {
   assertPetNames,
   assertName,
@@ -77,6 +77,8 @@ const MESSAGE_SPECIAL_NAMES = new Set([
   'TO',
   'DATE',
   'TYPE',
+  'MESSAGE',
+  'REPLY',
   'DESCRIPTION',
   'STRINGS',
   'PROMISE',
@@ -108,6 +110,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {DaemonCore['formulatePromise']} args.formulatePromise
  * @param {DaemonCore['formulateMessage']} args.formulateMessage
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
+ * @param {() => Promise<string>} args.randomHex512
  * @returns {MakeMailbox}
  */
 export const makeMailboxMaker = ({
@@ -116,6 +119,7 @@ export const makeMailboxMaker = ({
   formulatePromise,
   formulateMessage,
   getFormulaForId,
+  randomHex512,
 }) => {
   /**
     @type {MakeMailbox} */
@@ -151,8 +155,9 @@ export const makeMailboxMaker = ({
      * @param {string} description
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
+     * @param {string} replyToMessageId
      */
-    const makeRequest = async (description, fromId, toId) => {
+    const makeRequest = async (description, fromId, toId, replyToMessageId) => {
       const { promiseId, resolverId } = await formulatePromise();
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
@@ -163,6 +168,7 @@ export const makeMailboxMaker = ({
         type: /** @type {const} */ ('request'),
         from: fromId,
         to: toId,
+        messageId: replyToMessageId,
         description,
         promiseId,
         resolverId,
@@ -177,10 +183,14 @@ export const makeMailboxMaker = ({
      * @returns {MessageFormula}
      */
     const makeMessageFormula = (envelope, date) => {
+      const { messageId, replyTo } = envelope;
+      const replyToRecord = replyTo === undefined ? {} : { replyTo };
       if (envelope.type === 'request') {
         return harden({
           type: 'message',
           messageType: envelope.type,
+          messageId,
+          ...replyToRecord,
           from: /** @type {FormulaIdentifier} */ (envelope.from),
           to: /** @type {FormulaIdentifier} */ (envelope.to),
           date,
@@ -193,6 +203,8 @@ export const makeMailboxMaker = ({
         return harden({
           type: 'message',
           messageType: envelope.type,
+          messageId,
+          ...replyToRecord,
           from: /** @type {FormulaIdentifier} */ (envelope.from),
           to: /** @type {FormulaIdentifier} */ (envelope.to),
           date,
@@ -208,7 +220,23 @@ export const makeMailboxMaker = ({
      * @param {EnvelopedMessage} envelope
      */
     const assertMessageEnvelope = envelope => {
+      if (typeof envelope.messageId !== 'string') {
+        throw new Error('Invalid messageId');
+      }
+      assertFormulaNumber(envelope.messageId);
+      if (
+        envelope.replyTo !== undefined &&
+        typeof envelope.replyTo !== 'string'
+      ) {
+        throw new Error('Invalid replyTo');
+      }
+      if (envelope.replyTo !== undefined) {
+        assertFormulaNumber(envelope.replyTo);
+      }
       if (envelope.type === 'request') {
+        if (envelope.replyTo !== undefined) {
+          throw new Error('Request messages cannot have replyTo');
+        }
         if (typeof envelope.description !== 'string') {
           throw new Error('Invalid request description');
         }
@@ -258,6 +286,13 @@ export const makeMailboxMaker = ({
      * @returns {StampedMessage}
      */
     const makeStampedMessage = (messageNumber, formula) => {
+      if (typeof formula.messageId !== 'string') {
+        throw new Error('Message formula is missing messageId');
+      }
+      assertFormulaNumber(formula.messageId);
+      if (formula.replyTo !== undefined) {
+        assertFormulaNumber(formula.replyTo);
+      }
       /** @type {PromiseKit<void>} */
       const dismissal = makePromiseKit();
       const dismisser = makeDismisser(messageNumber, dismissal);
@@ -284,6 +319,8 @@ export const makeMailboxMaker = ({
           promiseId: formula.promiseId,
           resolverId: formula.resolverId,
           settled,
+          messageId: formula.messageId,
+          replyTo: formula.replyTo,
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -315,6 +352,8 @@ export const makeMailboxMaker = ({
           strings: formula.strings,
           names: formula.names,
           ids: formula.ids,
+          messageId: formula.messageId,
+          replyTo: formula.replyTo,
           number: messageNumber,
           date: formula.date,
           dismissed: dismissal.promise,
@@ -528,6 +567,10 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
+      const replyToMessageId =
+        /** @type {import('./types.js').FormulaNumber} */ (
+          await randomHex512()
+        );
       const to = await provide(
         /** @type {FormulaIdentifier} */ (toId),
         'handle',
@@ -560,11 +603,70 @@ export const makeMailboxMaker = ({
         strings,
         names: edgeNames,
         ids,
+        messageId: replyToMessageId,
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });
 
       // add to recipient mailbox
+      await post(to, message);
+    };
+
+    /** @type {Mail['reply']} */
+    const reply = async (messageNumber, strings, edgeNames, petNames) => {
+      assertNames(edgeNames);
+      assertUniqueEdgeNames(edgeNames);
+      assertPetNames(petNames);
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      const parent = messages.get(normalizedMessageNumber);
+      if (parent === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (typeof parent.messageId !== 'string') {
+        throw new Error(`Message ${q(messageNumber)} has no messageId`);
+      }
+      const otherId = parent.from === selfId ? parent.to : parent.from;
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
+      const to = await provide(
+        /** @type {FormulaIdentifier} */ (otherId),
+        'handle',
+      );
+
+      if (petNames.length !== edgeNames.length) {
+        throw new Error(
+          `Message must have one edge name (${q(
+            edgeNames.length,
+          )}) for every pet name (${q(petNames.length)})`,
+        );
+      }
+      if (strings.length < petNames.length) {
+        throw new Error(
+          `Message must have one string before every value delivered`,
+        );
+      }
+
+      const ids = petNames.map(petName => {
+        const id = petStore.identifyLocal(petName);
+        if (id === undefined) {
+          throw new Error(`Unknown pet name ${q(petName)}`);
+        }
+        assertValidId(id);
+        return /** @type {FormulaIdentifier} */ (id);
+      });
+
+      const message = harden({
+        type: /** @type {const} */ ('package'),
+        strings,
+        names: edgeNames,
+        ids,
+        messageId,
+        replyTo: parent.messageId,
+        from: selfId,
+        to: /** @type {FormulaIdentifier} */ (otherId),
+      });
+
       await post(to, message);
     };
 
@@ -633,11 +735,15 @@ export const makeMailboxMaker = ({
         /** @type {FormulaIdentifier} */ (toId),
         'handle',
       );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
 
       const { request: req, response: resolutionIdP } = await makeRequest(
         description,
         selfId,
         /** @type {FormulaIdentifier} */ (toId),
+        messageId,
       );
 
       // Note: consider sending to each mailbox with different powers.
@@ -700,6 +806,7 @@ export const makeMailboxMaker = ({
       followMessages,
       request,
       send,
+      reply,
       resolve,
       reject,
       dismiss,

@@ -696,6 +696,7 @@ export const makeHostMaker = ({
       reject,
       adopt,
       dismiss,
+      reply,
       request,
       send,
       deliver,
@@ -728,6 +729,7 @@ export const makeHostMaker = ({
       reject,
       adopt,
       dismiss,
+      reply,
       request,
       send,
       // Host
