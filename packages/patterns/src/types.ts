@@ -468,7 +468,7 @@ export type PatternMatchers = {
    * value that identifies a sub-Pattern against which the CopyRecord of all
    * other properties matches.
    */
-  discriminated: (keyName: string, subPatts: CopyRecord<Pattern>) => Matcher;
+  choose: (keyName: string, subPatts: CopyRecord<Pattern>) => Matcher;
 
   /**
    * Matches any array --- typically an arguments list --- consisting of
