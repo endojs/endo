@@ -1310,7 +1310,7 @@ const makeDaemonCore = async (
         leastAuthority: () => provide(leastAuthorityId, 'guest'),
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
-        nodeNumber: () => localNodeNumber,
+        nodeId: () => localNodeNumber,
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
@@ -1349,12 +1349,21 @@ const makeDaemonCore = async (
       const disallowedFn = async () => {
         throw new Error('not allowed');
       };
+      const disallowedSyncFn = () => {
+        throw new Error('not allowed');
+      };
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo('EndoGuest', GuestInterface, {
+            help: disallowedSyncFn,
             has: disallowedFn,
             identify: disallowedFn,
+            reverseIdentify: disallowedSyncFn,
+            locate: disallowedFn,
+            reverseLocate: disallowedFn,
+            followLocatorNameChanges: disallowedFn,
             list: disallowedFn,
+            listIdentifiers: disallowedFn,
             followNameChanges: disallowedFn,
             lookup: disallowedFn,
             reverseLookup: disallowedFn,
@@ -1362,6 +1371,8 @@ const makeDaemonCore = async (
             remove: disallowedFn,
             move: disallowedFn,
             copy: disallowedFn,
+            makeDirectory: disallowedFn,
+            handle: disallowedSyncFn,
             listMessages: disallowedFn,
             followMessages: disallowedFn,
             resolve: disallowedFn,
@@ -1370,7 +1381,8 @@ const makeDaemonCore = async (
             dismiss: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
-            makeDirectory: disallowedFn,
+            requestEvaluation: disallowedFn,
+            deliver: disallowedSyncFn,
           })
         )
       );
@@ -2540,6 +2552,21 @@ const makeDaemonCore = async (
     makeDirectoryNode,
   });
 
+  /**
+   * Look up the agent formula ID for a given handle formula ID.
+   *
+   * @param {FormulaIdentifier} handleId
+   * @returns {Promise<FormulaIdentifier>}
+   */
+  const getAgentIdForHandleId = async handleId => {
+    const handle = await provide(handleId, 'handle');
+    const agentId = agentIdForHandle.get(handle);
+    if (agentId === undefined) {
+      throw makeError(X`No agent found for handle ${q(handleId)}`);
+    }
+    return agentId;
+  };
+
   const makeHost = makeHostMaker({
     provide,
     provideController,
@@ -2557,6 +2584,7 @@ const makeDaemonCore = async (
     makeDirectoryNode,
     getAllNetworkAddresses,
     localNodeNumber,
+    getAgentIdForHandleId,
   });
 
   /**
