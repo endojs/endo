@@ -3,7 +3,7 @@ import test from '@endo/ses-ava/test.js';
 import { objectMetaMap } from '@endo/common/object-meta-map.js';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import { defineExoClass } from '../src/exo-makers.js';
-import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
+import { GET_INTERFACE_GUARD } from '../src/meta-methods.js';
 
 const { getPrototypeOf } = Object;
 
