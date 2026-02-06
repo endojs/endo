@@ -308,7 +308,16 @@ export type Package = {
   ids: Array<string>; // formula identifiers
 };
 
-export type Message = Request | Package;
+export type EvalRequest = {
+  type: 'eval-request';
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths: Array<NamePath>;
+  responder: ERef<Responder>;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type Message = Request | Package | EvalRequest;
 
 export type EnvelopedMessage = Message & {
   to: string;
@@ -532,6 +541,20 @@ export interface Mail {
     edgeNames: Array<EdgeName>,
     petNames: NamesOrPaths,
   ): Promise<void>;
+  requestEvaluation(
+    recipientName: NameOrPath,
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: NamesOrPaths,
+    responseName?: NameOrPath,
+  ): Promise<unknown>;
+  getEvalRequest(messageNumber: number): {
+    source: string;
+    codeNames: Array<string>;
+    petNamePaths: Array<NamePath>;
+    responder: ERef<Responder>;
+    guestHandleId: string;
+  };
   deliver(message: EnvelopedMessage): void;
 }
 
@@ -608,7 +631,14 @@ export interface EndoAgent extends EndoDirectory {
   reverseIdentify(id: string): Array<Name>;
 }
 
-export interface EndoGuest extends EndoAgent {}
+export interface EndoGuest extends EndoAgent {
+  requestEvaluation(
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: NamesOrPaths,
+    resultName?: NameOrPath,
+  ): Promise<unknown>;
+}
 
 export type FarEndoGuest = FarRef<EndoGuest>;
 
@@ -654,6 +684,10 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   invite(guestName: PetName): Promise<Invitation>;
   accept(invitationLocator: string, guestName: PetName): Promise<void>;
+  approveEvaluation(
+    messageNumber: number,
+    workerName?: Name,
+  ): Promise<void>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -1005,6 +1039,8 @@ export interface DaemonCore {
   provideController: (id: FormulaIdentifier) => Controller;
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
+
+  getAgentIdForHandleId: (handleId: FormulaIdentifier) => Promise<FormulaIdentifier>;
 }
 
 export interface DaemonCoreExternal {

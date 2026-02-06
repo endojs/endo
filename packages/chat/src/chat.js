@@ -2505,6 +2505,71 @@ const inboxComponent = async ($parent, $end, powers) => {
         // Replace the placeholder slot with the token
         $slot.replaceWith($token);
       }
+    } else if (message.type === 'eval-request') {
+      const { source, codeNames, petNamePaths, settled } = message;
+
+      // Show sender chip
+      if ($senderChip) {
+        const $senderLine = document.createElement('p');
+        $senderLine.appendChild($senderChip);
+        $senderLine.appendChild(document.createTextNode(' requests evaluation:'));
+        $body.appendChild($senderLine);
+      }
+
+      // Show source code
+      const $codeLabel = document.createElement('p');
+      $codeLabel.textContent = 'Source:';
+      $body.appendChild($codeLabel);
+
+      const $pre = document.createElement('pre');
+      const $code = document.createElement('code');
+      $code.textContent = source;
+      $pre.appendChild($code);
+      $body.appendChild($pre);
+
+      // Show endowment mappings
+      if (codeNames.length > 0) {
+        const $endowLabel = document.createElement('p');
+        $endowLabel.textContent = 'Endowments:';
+        $body.appendChild($endowLabel);
+
+        const $endowList = document.createElement('ul');
+        for (let i = 0; i < codeNames.length; i += 1) {
+          const $li = document.createElement('li');
+          const pathStr = Array.isArray(petNamePaths[i])
+            ? petNamePaths[i].join('.')
+            : String(petNamePaths[i]);
+          $li.textContent = `${codeNames[i]} <- ${pathStr}`;
+          $endowList.appendChild($li);
+        }
+        $body.appendChild($endowList);
+      }
+
+      // Approve/Reject controls
+      const $controls = document.createElement('span');
+      $body.appendChild($controls);
+
+      const $approve = document.createElement('button');
+      $approve.innerText = 'Approve';
+      $approve.onclick = () => {
+        E(powers)
+          .approveEvaluation(number)
+          .catch(error => {
+            $error.innerText = ` ${error.message}`;
+          });
+      };
+      $controls.appendChild($approve);
+
+      const $rejectBtn = document.createElement('button');
+      $rejectBtn.innerText = 'Reject';
+      $rejectBtn.onclick = () => {
+        E(powers).reject(number, 'Evaluation rejected').catch(window.reportError);
+      };
+      $controls.appendChild($rejectBtn);
+
+      settled.then(status => {
+        $controls.innerText = ` ${status} `;
+      });
     }
 
     $parent.insertBefore($message, $end);

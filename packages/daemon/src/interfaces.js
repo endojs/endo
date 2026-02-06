@@ -130,6 +130,13 @@ export const GuestInterface = M.interface('EndoGuest', {
   send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
     M.promise(),
   ),
+  // Request sandboxed evaluation (guest -> host)
+  requestEvaluation: M.call(
+    M.string(),                    // source
+    M.arrayOf(M.string()),         // codeNames
+    NamesOrPathsShape,             // petNamePaths
+  ).optional(NameOrPathShape)      // resultName
+    .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
 });
@@ -225,6 +232,10 @@ export const HostInterface = M.interface('EndoHost', {
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
   accept: M.call(LocatorShape, NameShape).returns(M.promise()),
+  // Approve a sandboxed evaluation request
+  approveEvaluation: M.call(MessageNumberShape)
+    .optional(M.or(NameShape, M.undefined()))
+    .returns(M.promise()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {
