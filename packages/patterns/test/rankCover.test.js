@@ -16,6 +16,9 @@ import { getRankCover, kindOf, M } from '../src/patterns/patternMatchers.js';
 
 /** @import {Implementation} from 'ava'; */
 
+/** Avoid wasting time on overly large data structures. */
+const maxLength = 100;
+
 const formats = ['legacyOrdered', 'compactOrdered'];
 
 const isInteriorRange = (inner, outer) =>
@@ -127,9 +130,19 @@ testAcrossFormats(
     await fc.assert(
       fc.property(
         arbKey,
-        fc.array(arbPassable, { minLength: 1 }).filter(x => !isKey(harden(x))),
-        fc.array(arbPassable),
-        (key, rest, other) => {
+        fc.array(arbPassable, { minLength: 1, maxLength }),
+        fc.array(arbPassable, { maxLength }),
+        fc.constantFrom(
+          x => new Error(String(x)),
+          x => Promise.resolve(x),
+        ),
+        (key, rest, other, makeNonKey) => {
+          if (rest.every(x => isKey(x))) {
+            // We need a non-Key, so to avoid wasting the work with fast-check
+            // `.filter` (which can lead to https://crbug.com/1201626 crashes),
+            // we just transform the first element as directed.
+            rest[0] = makeNonKey(rest[0]);
+          }
           const cover = getRankCover(harden([key, ...rest]), encodePassable);
           t.true(
             isInteriorRange(cover, coverAnyCopyArray),
