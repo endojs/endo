@@ -13,11 +13,18 @@ import {
   makeCopySet,
   getCopyMapKeys,
 } from '../src/keys/checkKey.js';
-import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
+import {
+  isPattern,
+  mustMatch,
+  matches,
+  M,
+} from '../src/patterns/patternMatchers.js';
 
 const { stringify: q } = JSON;
 
 /** @import * as ava from 'ava' */
+/** @import {CopyRecord} from '@endo/pass-style' */
+/** @import {Pattern} from '../src/types.js' */
 
 const { arbPassable } = makeArbitraries(fc);
 
@@ -1005,20 +1012,25 @@ test('M.discriminated well-formedness', async t => {
   });
 
   await fc.assert(
-    fc.property(
-      fc
-        .array(arbPassable, { minLength: 1, maxLength: 2 })
-        .filter(
-          ([keyName, patts]) =>
-            typeof keyName !== 'string' || passStyleOf(patts) !== 'copyRecord',
-        ),
-      args => {
+    fc.property(fc.array(arbPassable, { minLength: 1, maxLength: 2 }), args => {
+      const [keyName, patts] = args;
+      if (
+        typeof keyName === 'string' &&
+        passStyleOf(patts) === 'copyRecord' &&
+        isPattern(patts)
+      ) {
+        // This input seems valid, so we just check it (avoiding fast-check
+        // `.filter` which can otherwise lead to https://crbug.com/1201626
+        // crashes).
+        const typedPatts = /** @type {CopyRecord<Pattern>} */ (patts);
+        t.truthy(M.discriminated(keyName, typedPatts));
+      } else {
         // @ts-expect-error purposeful type violation for testing
         t.throws(() => M.discriminated(...args), {
           message:
             /^match:discriminated payload: \[.+?\] - Must be \[string, Record<string, Pattern>\]$/,
         });
-      },
-    ),
+      }
+    }),
   );
 });
