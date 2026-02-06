@@ -252,7 +252,7 @@ const runTests = (t, successCase, failCase) => {
 
     failCase(
       specimen,
-      M.discriminated('0', { 3: M.any() }),
+      M.choose('0', { 3: M.any() }),
       'copyArray [3,4] - Must be a copyRecord',
     );
 
@@ -435,7 +435,7 @@ const runTests = (t, successCase, failCase) => {
 
     failCase(
       specimen,
-      M.discriminated('foo', { 3: M.any() }),
+      M.choose('foo', { 3: M.any() }),
       '{"bar":4,"foo":3} - Must have discriminator key "foo" with value in ["3"]',
     );
   }
@@ -493,15 +493,12 @@ const runTests = (t, successCase, failCase) => {
       '{"bar":"baz","foo":"bar"} - Must be < {"bar":"baz","foo":"bar"}',
     );
 
-    successCase(specimen, M.discriminated('foo', { bar: M.any(), baz: null }));
+    successCase(specimen, M.choose('foo', { bar: M.any(), baz: null }));
     successCase(
       specimen,
-      M.discriminated('foo', { bar: { bar: M.string() }, baz: null }),
+      M.choose('foo', { bar: { bar: M.string() }, baz: null }),
     );
-    successCase(
-      specimen,
-      M.discriminated('foo', { bar: { bar: 'baz' }, baz: null }),
-    );
+    successCase(specimen, M.choose('foo', { bar: { bar: 'baz' }, baz: null }));
   }
   {
     const specimen = makeCopySet([3, 4]);
@@ -1004,11 +1001,11 @@ test('well formed patterns', t => {
   });
 });
 
-test('M.discriminated well-formedness', async t => {
+test('M.choose well-formedness', async t => {
   // @ts-expect-error purposeful type violation for testing
-  t.throws(() => M.discriminated(), {
+  t.throws(() => M.choose(), {
     message:
-      'match:discriminated payload: ["[undefined]","[undefined]"] - Must be [string, Record<string, Pattern>]',
+      'match:choose payload: ["[undefined]","[undefined]"] - Must be [string, Record<string, Pattern>]',
   });
 
   await fc.assert(
@@ -1023,12 +1020,12 @@ test('M.discriminated well-formedness', async t => {
         // `.filter` which can otherwise lead to https://crbug.com/1201626
         // crashes).
         const typedPatts = /** @type {CopyRecord<Pattern>} */ (patts);
-        t.truthy(M.discriminated(keyName, typedPatts));
+        t.truthy(M.choose(keyName, typedPatts));
       } else {
         // @ts-expect-error purposeful type violation for testing
-        t.throws(() => M.discriminated(...args), {
+        t.throws(() => M.choose(...args), {
           message:
-            /^match:discriminated payload: \[.+?\] - Must be \[string, Record<string, Pattern>\]$/,
+            /^match:choose payload: \[.+?\] - Must be \[string, Record<string, Pattern>\]$/,
         });
       }
     }),

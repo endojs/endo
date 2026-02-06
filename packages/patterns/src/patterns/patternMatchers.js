@@ -1648,7 +1648,7 @@ const makePatternKit = () => {
   });
 
   /** @type {MatchHelper} */
-  const matchDiscriminatedHelper = Far('match:discriminated helper', {
+  const matchChooseHelper = Far('match:choose helper', {
     confirmMatches: (specimen, [keyName, patts], reject) => {
       if (!confirmKind(specimen, 'copyRecord', reject)) return false;
       const keyValue = getOwn(specimen, keyName);
@@ -1671,7 +1671,7 @@ const makePatternKit = () => {
         false,
       ) ||
       (reject &&
-        reject`match:discriminated payload: ${payload} - Must be [string, Record<string, Pattern>]`),
+        reject`match:choose payload: ${payload} - Must be [string, Record<string, Pattern>]`),
 
     getRankCover: (patts, encodePassable) => getPassStyleCover('copyRecord'),
   });
@@ -1909,7 +1909,7 @@ const makePatternKit = () => {
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
     'match:or': matchOrHelper,
-    'match:discriminated': matchDiscriminatedHelper,
+    'match:choose': matchChooseHelper,
     'match:not': matchNotHelper,
 
     'match:scalar': matchScalarHelper,
@@ -2095,8 +2095,8 @@ const makePatternKit = () => {
       makeLimitsMatcher('match:containerHas', [elementPatt, countPatt, limits]),
     mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
       makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
-    discriminated: (keyName, pattsRecord) =>
-      makeMatcher('match:discriminated', harden([keyName, pattsRecord])),
+    choose: (keyName, pattsRecord) =>
+      makeMatcher('match:choose', harden([keyName, pattsRecord])),
     splitArray: (base, optional = undefined, rest = undefined) =>
       makeMatcher(
         'match:splitArray',
