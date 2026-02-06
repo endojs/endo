@@ -1,7 +1,7 @@
 import type { RemotableBrand } from '@endo/eventual-send';
 import type { RemotableObject, RemotableMethodName } from '@endo/pass-style';
 import type { InterfaceGuard, MethodGuard, Pattern } from '@endo/patterns';
-import type { GetInterfaceGuard } from './get-interface.js';
+import type { GetInterfaceGuard } from './meta-methods.js';
 
 export type MatchConfig = {
   declaredLen: number;

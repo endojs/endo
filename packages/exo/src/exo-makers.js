@@ -9,7 +9,7 @@ import {
   keyEQ,
 } from '@endo/patterns';
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
-import { GET_INTERFACE_GUARD } from './get-interface.js';
+import { GET_INTERFACE_GUARD } from './meta-methods.js';
 
 /**
  * @import {LooseProseTemplate, ProseTemplateTag} from '@endo/patterns';

@@ -15,7 +15,7 @@ import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M, getNamedMethodGuards } from '@endo/patterns';
 
 import { Fail, q } from '@endo/errors';
-import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
+import { GET_INTERFACE_GUARD } from '../src/meta-methods.js';
 import { defineExoClass } from '../src/exo-makers.js';
 
 const { apply } = Reflect;
