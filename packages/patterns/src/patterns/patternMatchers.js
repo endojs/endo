@@ -961,7 +961,7 @@ const makePatternKit = () => {
         kind === 'copySet' ||
         kind === 'copyBag' ||
         kind === 'copyMap' ||
-        kind.startsWith('match:*') ||
+        kind.startsWith('match:') ||
         kind.startsWith('guard:')
       ) {
         return staticRanks.tagged.cover;
