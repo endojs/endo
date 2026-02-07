@@ -23,7 +23,12 @@ import { E } from '@endo/far';
  *
  * @param {ExecutorContext} context
  */
-export const createCommandExecutor = ({ powers, showValue, showMessage, showError }) => {
+export const createCommandExecutor = ({
+  powers,
+  showValue,
+  showMessage,
+  showError,
+}) => {
   /**
    * Execute a command with the given parameters.
    *
@@ -38,34 +43,56 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
         case 'request': {
           const { recipient, description, resultName } = params;
           const recipientPath = String(recipient).split('.');
-          const resultPath = resultName ? String(resultName).split('.') : undefined;
-          await E(powers).request(recipientPath, String(description), resultPath);
+          const resultPath = resultName
+            ? String(resultName).split('.')
+            : undefined;
+          await E(powers).request(
+            recipientPath,
+            String(description),
+            resultPath,
+          );
           return { success: true, message: 'Request sent' };
         }
 
         case 'dismiss': {
           const { messageNumber } = params;
           await E(powers).dismiss(Number(messageNumber));
-          return { success: true, message: `Message #${messageNumber} dismissed` };
+          return {
+            success: true,
+            message: `Message #${messageNumber} dismissed`,
+          };
         }
 
         case 'adopt': {
           const { messageNumber, edgeName, petName } = params;
           const targetName = petName ? String(petName) : String(edgeName);
-          await E(powers).adopt(Number(messageNumber), String(edgeName), targetName);
+          await E(powers).adopt(
+            Number(messageNumber),
+            String(edgeName),
+            targetName,
+          );
           return { success: true, message: `Adopted as "${targetName}"` };
         }
 
         case 'resolve': {
           const { messageNumber, petName } = params;
           await E(powers).resolve(Number(messageNumber), String(petName));
-          return { success: true, message: `Request #${messageNumber} resolved` };
+          return {
+            success: true,
+            message: `Request #${messageNumber} resolved`,
+          };
         }
 
         case 'reject': {
           const { messageNumber, reason } = params;
-          await E(powers).reject(Number(messageNumber), reason ? String(reason) : undefined);
-          return { success: true, message: `Request #${messageNumber} rejected` };
+          await E(powers).reject(
+            Number(messageNumber),
+            reason ? String(reason) : undefined,
+          );
+          return {
+            success: true,
+            message: `Request #${messageNumber} rejected`,
+          };
         }
 
         case 'approve-eval': {
@@ -74,16 +101,32 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
             Number(messageNumber),
             workerName ? String(workerName) : undefined,
           );
-          return { success: true, message: `Eval request #${messageNumber} approved` };
+          return {
+            success: true,
+            message: `Eval request #${messageNumber} approved`,
+          };
         }
 
         // ============ EXECUTION ============
         case 'eval':
         case 'js': {
-          const { source, endowments = [], resultName, workerName = 'MAIN' } = params;
-          const codeNames = /** @type {Array<{codeName: string, petName: string}>} */ (endowments).map(e => e.codeName);
-          const petNamePaths = /** @type {Array<{codeName: string, petName: string}>} */ (endowments).map(e => e.petName.split('.'));
-          const resultPath = resultName ? String(resultName).split('.') : undefined;
+          const {
+            source,
+            endowments = [],
+            resultName,
+            workerName = 'MAIN',
+          } = params;
+          const codeNames =
+            /** @type {Array<{codeName: string, petName: string}>} */ (
+              endowments
+            ).map(e => e.codeName);
+          const petNamePaths =
+            /** @type {Array<{codeName: string, petName: string}>} */ (
+              endowments
+            ).map(e => e.petName.split('.'));
+          const resultPath = resultName
+            ? String(resultName).split('.')
+            : undefined;
 
           const result = await E(powers).evaluate(
             String(workerName),
@@ -94,7 +137,11 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           );
 
           if (resultName) {
-            return { success: true, message: `Result saved as "${resultName}"`, value: result };
+            return {
+              success: true,
+              message: `Result saved as "${resultName}"`,
+              value: result,
+            };
           }
           return { success: true, value: result };
         }
@@ -132,7 +179,10 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           const fromPath = String(fromName).split('.');
           const toPath = String(toName).split('.');
           await E(powers).move(fromPath, toPath);
-          return { success: true, message: `"${fromName}" moved to "${toName}"` };
+          return {
+            success: true,
+            message: `"${fromName}" moved to "${toName}"`,
+          };
         }
 
         case 'cp':
@@ -141,7 +191,10 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           const fromPath = String(fromName).split('.');
           const toPath = String(toName).split('.');
           await E(powers).copy(fromPath, toPath);
-          return { success: true, message: `"${fromName}" copied to "${toName}"` };
+          return {
+            success: true,
+            message: `"${fromName}" copied to "${toName}"`,
+          };
         }
 
         case 'mkdir': {
@@ -155,13 +208,20 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
         case 'invite': {
           const { guestName } = params;
           const invitation = await E(powers).invite(String(guestName));
-          return { success: true, value: invitation, message: `Invitation created for "${guestName}"` };
+          return {
+            success: true,
+            value: invitation,
+            message: `Invitation created for "${guestName}"`,
+          };
         }
 
         case 'accept': {
           const { locator, guestName } = params;
           await E(powers).accept(String(locator), String(guestName));
-          return { success: true, message: `Invitation accepted, connected as "${guestName}"` };
+          return {
+            success: true,
+            message: `Invitation accepted, connected as "${guestName}"`,
+          };
         }
 
         // ============ WORKERS ============
@@ -193,32 +253,56 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
 
         // ============ BUNDLES ============
         case 'mkbundle': {
-          const { bundleName, powersName, resultName, workerName = 'MAIN' } = params;
+          const {
+            bundleName,
+            powersName,
+            resultName,
+            workerName = 'MAIN',
+          } = params;
           const result = await E(powers).makeBundle(
             String(workerName),
             String(bundleName),
             String(powersName),
             resultName ? String(resultName) : undefined,
           );
-          return { success: true, value: result, message: resultName ? `Bundle instantiated as "${resultName}"` : 'Bundle instantiated' };
+          return {
+            success: true,
+            value: result,
+            message: resultName
+              ? `Bundle instantiated as "${resultName}"`
+              : 'Bundle instantiated',
+          };
         }
 
         case 'mkplugin': {
-          const { specifier, powersName, resultName, workerName = 'MAIN' } = params;
+          const {
+            specifier,
+            powersName,
+            resultName,
+            workerName = 'MAIN',
+          } = params;
           const result = await E(powers).makeUnconfined(
             String(workerName),
             String(specifier),
             String(powersName),
             resultName ? String(resultName) : undefined,
           );
-          return { success: true, value: result, message: resultName ? `Plugin created as "${resultName}"` : 'Plugin created' };
+          return {
+            success: true,
+            value: result,
+            message: resultName
+              ? `Plugin created as "${resultName}"`
+              : 'Plugin created',
+          };
         }
 
         // ============ SYSTEM ============
         case 'cancel': {
           const { petName, reason } = params;
           const pathParts = String(petName).split('.');
-          const error = reason ? new Error(String(reason)) : new Error('Cancelled');
+          const error = reason
+            ? new Error(String(reason))
+            : new Error('Cancelled');
           await E(powers).cancel(pathParts, error);
           return { success: true, message: `"${petName}" cancelled` };
         }

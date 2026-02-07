@@ -10,10 +10,17 @@ import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
-import { getCommand, getCategories, getCommandsByCategory } from './command-registry.js';
+import {
+  getCommand,
+  getCategories,
+  getCommandsByCategory,
+} from './command-registry.js';
 import { createMessagePicker } from './message-picker.js';
 import { createHelpModal } from './help-modal.js';
-import { prepareTextWithPlaceholders, renderMarkdown } from './markdown-render.js';
+import {
+  prepareTextWithPlaceholders,
+  renderMarkdown,
+} from './markdown-render.js';
 
 const template = `
 <style>
@@ -2379,7 +2386,9 @@ const inboxComponent = async ($parent, $end, powers) => {
         $description.appendChild($senderChip);
         $description.appendChild(document.createTextNode(' '));
       }
-      $description.appendChild(document.createTextNode(JSON.stringify(description)));
+      $description.appendChild(
+        document.createTextNode(JSON.stringify(description)),
+      );
       $body.appendChild($description);
 
       const $input = document.createElement('span');
@@ -2420,23 +2429,30 @@ const inboxComponent = async ($parent, $end, powers) => {
 
       // Prepare text with placeholders for markdown rendering
       const textWithPlaceholders = prepareTextWithPlaceholders(strings);
-      const { fragment, insertionPoints } = renderMarkdown(textWithPlaceholders);
+      const { fragment, insertionPoints } =
+        renderMarkdown(textWithPlaceholders);
 
       // Inject sender chip into the first paragraph or heading
       // But NOT into code fence wrappers or lists - prepend a new paragraph instead
       if ($senderChip) {
         // Find first element that's a plain paragraph (not code fence wrapper) or heading
-        const $firstPara = fragment.querySelector('p:not(.md-code-fence-wrapper), h1, h2, h3, h4, h5, h6');
-        const $firstChild = fragment.firstChild;
-        const isCodeFenceOrList = $firstChild && (
-          ($firstChild instanceof Element && $firstChild.classList.contains('md-code-fence-wrapper')) ||
-          ($firstChild instanceof Element && $firstChild.tagName === 'UL') ||
-          ($firstChild instanceof Element && $firstChild.tagName === 'OL')
+        const $firstPara = fragment.querySelector(
+          'p:not(.md-code-fence-wrapper), h1, h2, h3, h4, h5, h6',
         );
+        const $firstChild = fragment.firstChild;
+        const isCodeFenceOrList =
+          $firstChild &&
+          (($firstChild instanceof Element &&
+            $firstChild.classList.contains('md-code-fence-wrapper')) ||
+            ($firstChild instanceof Element && $firstChild.tagName === 'UL') ||
+            ($firstChild instanceof Element && $firstChild.tagName === 'OL'));
 
         if ($firstPara && !isCodeFenceOrList) {
           // Insert into existing paragraph or heading
-          $firstPara.insertBefore(document.createTextNode(' '), $firstPara.firstChild);
+          $firstPara.insertBefore(
+            document.createTextNode(' '),
+            $firstPara.firstChild,
+          );
           $firstPara.insertBefore($senderChip, $firstPara.firstChild);
         } else {
           // Prepend a new paragraph for the chip
@@ -2451,7 +2467,11 @@ const inboxComponent = async ($parent, $end, powers) => {
       $body.appendChild(fragment);
 
       // Create token chips for each insertion point
-      for (let index = 0; index < Math.min(insertionPoints.length, names.length); index += 1) {
+      for (
+        let index = 0;
+        index < Math.min(insertionPoints.length, names.length);
+        index += 1
+      ) {
         assert.typeof(names[index], 'string');
         const edgeName = names[index];
         const $slot = insertionPoints[index];
@@ -2512,7 +2532,9 @@ const inboxComponent = async ($parent, $end, powers) => {
       if ($senderChip) {
         const $senderLine = document.createElement('p');
         $senderLine.appendChild($senderChip);
-        $senderLine.appendChild(document.createTextNode(' requests evaluation:'));
+        $senderLine.appendChild(
+          document.createTextNode(' requests evaluation:'),
+        );
         $body.appendChild($senderLine);
       }
 
@@ -2563,7 +2585,9 @@ const inboxComponent = async ($parent, $end, powers) => {
       const $rejectBtn = document.createElement('button');
       $rejectBtn.innerText = 'Reject';
       $rejectBtn.onclick = () => {
-        E(powers).reject(number, 'Evaluation rejected').catch(window.reportError);
+        E(powers)
+          .reject(number, 'Evaluation rejected')
+          .catch(window.reportError);
       };
       $controls.appendChild($rejectBtn);
 
@@ -2586,7 +2610,12 @@ const inboxComponent = async ($parent, $end, powers) => {
  * @param {unknown} powers
  * @param {{ showValue: (value: unknown) => void, enterHost: (name: string) => void }} options
  */
-const inventoryComponent = async ($parent, $end, powers, { showValue, enterHost }) => {
+const inventoryComponent = async (
+  $parent,
+  $end,
+  powers,
+  { showValue, enterHost },
+) => {
   const $list = $parent.querySelector('.pet-list') || $parent;
 
   const $names = new Map();
@@ -2640,7 +2669,6 @@ const inventoryComponent = async ($parent, $end, powers, { showValue, enterHost 
   }
 };
 
-
 /**
  * @param {HTMLElement} $parent
  * @param {{ focusValue: (value: unknown) => void, blurValue: () => void }} callbacks
@@ -2672,7 +2700,11 @@ const controlsComponent = ($parent, { focusValue, blurValue }) => {
  * @param {() => void} options.exitProfile
  * @param {boolean} options.canExitProfile
  */
-const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfile, canExitProfile }) => {
+const chatBarComponent = (
+  $parent,
+  powers,
+  { showValue, enterProfile, exitProfile, canExitProfile },
+) => {
   const $chatBar = /** @type {HTMLElement} */ (
     $parent.querySelector('#chat-bar')
   );
@@ -2813,7 +2845,9 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
     onSelect: messageNumber => {
       if (activeMessageNumberInput) {
         activeMessageNumberInput.value = String(messageNumber);
-        activeMessageNumberInput.dispatchEvent(new Event('input', { bubbles: true }));
+        activeMessageNumberInput.dispatchEvent(
+          new Event('input', { bubbles: true }),
+        );
       }
     },
   });
@@ -2895,7 +2929,8 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
       html += '</div>';
     }
 
-    html += '<div class="command-popover-footer">Type <kbd>/</kbd> in input for quick access</div>';
+    html +=
+      '<div class="command-popover-footer">Type <kbd>/</kbd> in input for quick access</div>';
     $commandPopover.innerHTML = html;
 
     // Attach click handlers
@@ -2932,8 +2967,10 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
 
   // Close popover when clicking outside
   document.addEventListener('click', event => {
-    if (!$commandPopover.contains(/** @type {Node} */ (event.target)) &&
-        !$menuButton.contains(/** @type {Node} */ (event.target))) {
+    if (
+      !$commandPopover.contains(/** @type {Node} */ (event.target)) &&
+      !$menuButton.contains(/** @type {Node} */ (event.target))
+    ) {
       hideCommandPopover();
     }
   });
@@ -2961,7 +2998,11 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
         // Always show js results (even undefined), skip show/list which handle their own display
         if (commandName === 'js') {
           showValue(result.value);
-        } else if (result.value !== undefined && commandName !== 'show' && commandName !== 'list') {
+        } else if (
+          result.value !== undefined &&
+          commandName !== 'show' &&
+          commandName !== 'list'
+        ) {
           showValue(result.value);
         }
       }
@@ -2976,7 +3017,9 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
     },
     onMessageNumberClick: () => {
       // Enable picker and track the input
-      const $msgInput = $inlineFormContainer.querySelector('.message-number-input');
+      const $msgInput = $inlineFormContainer.querySelector(
+        '.message-number-input',
+      );
       if ($msgInput) {
         activeMessageNumberInput = /** @type {HTMLInputElement} */ ($msgInput);
         messagePicker.enable();
@@ -3019,14 +3062,20 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
     inlineForm.setCommand(commandName);
 
     // Auto-enable message picker for commands that need message numbers
-    const needsMessagePicker = command.fields.some(f => f.type === 'messageNumber');
+    const needsMessagePicker = command.fields.some(
+      f => f.type === 'messageNumber',
+    );
     if (needsMessagePicker) {
       messagePicker.enable();
       // Track the message number input
       setTimeout(() => {
-        const $msgInput = $inlineFormContainer.querySelector('.message-number-input');
+        const $msgInput = $inlineFormContainer.querySelector(
+          '.message-number-input',
+        );
         if ($msgInput) {
-          activeMessageNumberInput = /** @type {HTMLInputElement} */ ($msgInput);
+          activeMessageNumberInput = /** @type {HTMLInputElement} */ (
+            $msgInput
+          );
         }
       }, 50);
     }
@@ -3070,7 +3119,9 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
           // Pet names must be arrays (path segments for dot-delimited names)
           const codeNames = data.endowments.map(e => e.codeName);
           const petNamePaths = data.endowments.map(e => e.petName.split('.'));
-          const resultNamePath = data.resultName ? data.resultName.split('.') : undefined;
+          const resultNamePath = data.resultName
+            ? data.resultName.split('.')
+            : undefined;
           const workerName = data.workerName || 'MAIN';
 
           await E(powers).evaluate(
@@ -3141,7 +3192,11 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
         // Always show js results (even undefined), skip show/list which handle their own display
         if (currentCommand === 'js') {
           showValue(result.value);
-        } else if (result.value !== undefined && currentCommand !== 'show' && currentCommand !== 'list') {
+        } else if (
+          result.value !== undefined &&
+          currentCommand !== 'show' &&
+          currentCommand !== 'list'
+        ) {
           showValue(result.value);
         }
       }
@@ -3188,7 +3243,9 @@ const chatBarComponent = ($parent, powers, { showValue, enterProfile, exitProfil
             exitProfile();
           } else {
             $error.textContent = 'Already at home profile';
-            setTimeout(() => { $error.textContent = ''; }, 3000);
+            setTimeout(() => {
+              $error.textContent = '';
+            }, 3000);
           }
           break;
         }
@@ -3735,19 +3792,26 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
         focusValue: value => focusValue(value),
         blurValue: () => blurValue(),
       });
-      inboxComponent($messages, $anchor, resolvedPowers).catch(window.reportError);
-      inventoryComponent($pets, $profileBar, resolvedPowers, { showValue, enterHost }).catch(
+      inboxComponent($messages, $anchor, resolvedPowers).catch(
         window.reportError,
       );
+      inventoryComponent($pets, $profileBar, resolvedPowers, {
+        showValue,
+        enterHost,
+      }).catch(window.reportError);
       chatBarComponent($parent, resolvedPowers, {
         showValue,
         enterProfile: enterHost,
         exitProfile,
         canExitProfile: profilePath.length > 0,
       });
-      const { focusValue, blurValue } = valueComponent($parent, resolvedPowers, {
-        dismissValue,
-      });
+      const { focusValue, blurValue } = valueComponent(
+        $parent,
+        resolvedPowers,
+        {
+          dismissValue,
+        },
+      );
       /* eslint-enable no-use-before-define */
     })
     .catch(window.reportError);

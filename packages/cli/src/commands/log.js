@@ -55,11 +55,7 @@ const findLogFiles = async statePath => {
     });
     for (const entry of workerEntries) {
       if (entry.isDirectory()) {
-        const workerLogPath = path.join(
-          workerDir,
-          entry.name,
-          'worker.log',
-        );
+        const workerLogPath = path.join(workerDir, entry.name, 'worker.log');
         try {
           await fs.promises.access(workerLogPath, fs.constants.R_OK);
           logFiles.push(workerLogPath);
@@ -175,15 +171,11 @@ const followAllLogs = async ({ statePath, cancelled, pollIntervalMs }) => {
         filePositions.set(logPath, 0);
       });
 
-    const watcher = fs.watchFile(
-      logPath,
-      { interval: pollIntervalMs },
-      () => {
-        if (running) {
-          readNewContent(logPath);
-        }
-      },
-    );
+    const watcher = fs.watchFile(logPath, { interval: pollIntervalMs }, () => {
+      if (running) {
+        readNewContent(logPath);
+      }
+    });
     watchers.set(logPath, watcher);
   };
 

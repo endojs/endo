@@ -31,9 +31,7 @@ export const createOllamaBackend = powers => {
     },
   });
 
-  const transcript = [
-    { role: 'system', content: getSystemPrompt() },
-  ];
+  const transcript = [{ role: 'system', content: getSystemPrompt() }];
 
   /**
    * @param {string} userContent

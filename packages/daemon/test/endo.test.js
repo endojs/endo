@@ -1979,12 +1979,10 @@ test('cancel with pet name path', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined(
-    'worker',
-    counterLocation,
-    'NONE',
-    ['subdir', 'counter'],
-  );
+  await E(host).makeUnconfined('worker', counterLocation, 'NONE', [
+    'subdir',
+    'counter',
+  ]);
 
   // Increment the counter
   t.is(
@@ -2061,7 +2059,13 @@ test('resolve with pet name path', async t => {
   // Create a directory and put a value in it
   await E(host).makeDirectory(['responses']);
   await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '"the response"', [], [], ['responses', 'resp']);
+  await E(host).evaluate(
+    'worker',
+    '"the response"',
+    [],
+    [],
+    ['responses', 'resp'],
+  );
 
   // Create a guest and have it make a request
   const guest = E(host).provideGuest('guest');
@@ -2089,7 +2093,10 @@ test('request with pet name path for response storage', async t => {
 
   // Have the guest make a request, storing response in a path within guest's directory
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'give me something', ['responses', 'result']);
+  E.sendOnly(guest).request('HOST', 'give me something', [
+    'responses',
+    'result',
+  ]);
 
   // Host receives and resolves the request
   const { value: message } = await E(iteratorRef).next();
@@ -2170,11 +2177,7 @@ test('eval request rejection: guest requests, host rejects', async t => {
   }
 
   // Guest requests evaluation (no endowments needed for this test)
-  const resultP = E(guest).requestEvaluation(
-    'dangerous()',
-    [],
-    [],
-  );
+  const resultP = E(guest).requestEvaluation('dangerous()', [], []);
 
   // Host receives and rejects
   const { value: evalMsg } = await E(hostIteratorRef).next();
