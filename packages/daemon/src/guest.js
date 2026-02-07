@@ -86,8 +86,20 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       dismiss,
       request,
       send,
+      requestEvaluation: mailboxRequestEvaluation,
       deliver,
     } = mailbox;
+
+    /**
+     * Request sandboxed evaluation. Sends an eval-request to HOST.
+     * @param {string} source
+     * @param {Array<string>} codeNames
+     * @param {import('./types.js').NamesOrPaths} petNamePaths
+     * @param {import('./types.js').NameOrPath} [resultName]
+     * @returns {Promise<unknown>}
+     */
+    const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
+      mailboxRequestEvaluation('HOST', source, codeNames, petNamePaths, resultName);
 
     /** @type {EndoGuest} */
     const guest = {
@@ -118,6 +130,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       dismiss,
       request,
       send,
+      requestEvaluation,
       deliver,
     };
 

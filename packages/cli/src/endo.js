@@ -236,6 +236,21 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('approve-eval <message-number>')
+    .description('approve a sandboxed evaluation request')
+    .option(...commonOptions.as)
+    .option('-w,--worker <name>', 'Worker to use for evaluation')
+    .action(async (messageNumberText, cmd) => {
+      const { as: agentNames, worker: workerName } = cmd.opts();
+      const { approveEvalCommand } = await import('./commands/approve-eval.js');
+      return approveEvalCommand({
+        messageNumberText,
+        workerName,
+        agentNames,
+      });
+    });
+
+  program
     .command('send <agent> <message-with-embedded-references>')
     .description('send a message with @named-values @for-you:from-me')
     .option(...commonOptions.as)

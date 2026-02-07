@@ -223,6 +223,20 @@ reverseIdentify(formulaId) -> string[]
 Find all pet names that refer to a given formula identifier.
 Synchronous version of reverse lookup by identifier.`,
 
+  requestEvaluation: `\
+requestEvaluation(source, codeNames, petNamePaths, resultName?) -> Promise<any>
+Request sandboxed evaluation of JavaScript code.
+The request is sent to HOST for review and approval.
+- source: JavaScript code to evaluate
+- codeNames: Names visible in the code (e.g., ["x", "y"])
+- petNamePaths: Pet names providing values for those names (e.g., ["my-x", "my-y"])
+- resultName: Optional name to store the result
+
+The host will see the source code and endowment mappings and can approve or reject.
+On approval, the code runs in a sandboxed Compartment with only the guest's own endowments.
+
+Example: requestEvaluation("x + 1", ["x"], ["my-counter"], "result")`,
+
   // Directory operations inherit from directoryHelp
   // Mail operations inherit from mailHelp
 };
@@ -336,6 +350,18 @@ Create an invitation for a guest to connect.`,
   accept: `\
 accept(invitationId, guestHandleId, guestName) -> Promise<void>
 Accept an invitation, creating a connection.`,
+
+  approveEvaluation: `\
+approveEvaluation(messageNumber, workerName?) -> Promise<void>
+Approve a sandboxed evaluation request from a guest.
+- messageNumber: The eval-request message number
+- workerName: Optional worker to use for evaluation
+
+The eval-request contains source code and endowment mappings proposed by a guest.
+On approval, the code is evaluated in a sandboxed Compartment with only the
+guest's own endowments (not the host's), ensuring namespace isolation.
+
+Use reject(messageNumber, reason) to decline an eval request.`,
 };
 
 /** @type {HelpText} */

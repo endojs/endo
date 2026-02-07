@@ -2024,3 +2024,130 @@ test('request with pet name path for response storage', async t => {
   const result = await E(guest).lookup(['responses', 'result']);
   t.is(result, 'here you go');
 });
+
+// ============ EVAL REQUEST TESTS ============
+
+test('eval request happy path: guest requests, host approves', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a guest and give it a value to work with
+  const guest = await E(host).provideGuest('guest');
+
+  // Store a value in the host's namespace and send it to the guest
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten']);
+
+  // Grant the value to the guest via send/adopt
+  await E(host).send('guest', ['Here is ten'], ['ten-val'], ['ten']);
+  const guestMessages = await E(guest).listMessages();
+  const packageMsg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(packageMsg.number, 'ten-val', 'my-ten');
+
+  // Now the guest requests evaluation
+  const hostIteratorRef = E(host).followMessages();
+  // Drain existing messages from the iterator
+  const existingMessages = await E(host).listMessages();
+  for (let i = 0; i < existingMessages.length; i += 1) {
+    await E(hostIteratorRef).next();
+  }
+
+  // Guest requests evaluation using its pet name
+  const resultP = E(guest).requestEvaluation(
+    'x + 1',
+    ['x'],
+    ['my-ten'],
+    'result',
+  );
+
+  // Host receives the eval-request
+  const { value: evalMsg } = await E(hostIteratorRef).next();
+  t.is(evalMsg.type, 'eval-request');
+  t.is(evalMsg.source, 'x + 1');
+  t.deepEqual(evalMsg.codeNames, ['x']);
+
+  // Host approves the evaluation
+  await E(host).approveEvaluation(evalMsg.number);
+
+  // Guest gets the result
+  const result = await resultP;
+  t.is(result, 11);
+
+  // Verify the result was stored in the guest's namespace
+  const storedResult = await E(guest).lookup('result');
+  t.is(storedResult, 11);
+});
+
+test('eval request rejection: guest requests, host rejects', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Set up host message iterator
+  const hostIteratorRef = E(host).followMessages();
+  const existingMessages = await E(host).listMessages();
+  for (let i = 0; i < existingMessages.length; i += 1) {
+    await E(hostIteratorRef).next();
+  }
+
+  // Guest requests evaluation (no endowments needed for this test)
+  const resultP = E(guest).requestEvaluation(
+    'dangerous()',
+    [],
+    [],
+  );
+
+  // Host receives and rejects
+  const { value: evalMsg } = await E(hostIteratorRef).next();
+  t.is(evalMsg.type, 'eval-request');
+  await E(host).reject(evalMsg.number, 'Code looks dangerous');
+
+  // Guest gets rejection error
+  await t.throwsAsync(resultP, { message: /Code looks dangerous/ });
+});
+
+test('eval request uses guest namespace, not host namespace', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Store different values under the same name in host and guest namespaces
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '100', [], [], ['shared-name']);
+
+  // Give guest a different value under the same name
+  await E(host).evaluate('worker', '42', [], [], ['guest-value']);
+  await E(host).send('guest', ['A value'], ['val'], ['guest-value']);
+  const guestMessages = await E(guest).listMessages();
+  const packageMsg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(packageMsg.number, 'val', 'shared-name');
+
+  // Verify different values
+  const hostValue = await E(host).lookup('shared-name');
+  t.is(hostValue, 100);
+  const guestValue = await E(guest).lookup('shared-name');
+  t.is(guestValue, 42);
+
+  // Set up host message iterator
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = await E(host).listMessages();
+  for (let i = 0; i < existingHostMessages.length; i += 1) {
+    await E(hostIteratorRef).next();
+  }
+
+  // Guest requests evaluation using its pet name 'shared-name' (value = 42)
+  const resultP = E(guest).requestEvaluation(
+    'x + 1',
+    ['x'],
+    ['shared-name'],
+    'eval-result',
+  );
+
+  // Host approves
+  const { value: evalMsg } = await E(hostIteratorRef).next();
+  t.is(evalMsg.type, 'eval-request');
+  await E(host).approveEvaluation(evalMsg.number);
+
+  // Result should be 43 (42 + 1), not 101 (100 + 1)
+  const result = await resultP;
+  t.is(result, 43);
+});

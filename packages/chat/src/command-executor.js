@@ -68,6 +68,15 @@ export const createCommandExecutor = ({ powers, showValue, showMessage, showErro
           return { success: true, message: `Request #${messageNumber} rejected` };
         }
 
+        case 'approve-eval': {
+          const { messageNumber, workerName } = params;
+          await E(powers).approveEvaluation(
+            Number(messageNumber),
+            workerName ? String(workerName) : undefined,
+          );
+          return { success: true, message: `Eval request #${messageNumber} approved` };
+        }
+
         // ============ EXECUTION ============
         case 'eval':
         case 'js': {

@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -60,6 +60,7 @@ const assertPowersName = name => {
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
+ * @param {(handleId: FormulaIdentifier) => Promise<FormulaIdentifier>} args.getAgentIdForHandleId
  */
 export const makeHostMaker = ({
   provide,
@@ -78,6 +79,7 @@ export const makeHostMaker = ({
   makeMailbox,
   makeDirectoryNode,
   localNodeNumber,
+  getAgentIdForHandleId,
 }) => {
   /**
    * @param {string} hostId
@@ -694,6 +696,58 @@ export const makeHostMaker = ({
       return peerInfo;
     };
 
+    /** @type {EndoHost['approveEvaluation']} */
+    const approveEvaluation = async (messageNumber, workerName) => {
+      if (workerName !== undefined) {
+        assertName(workerName);
+      }
+      const {
+        source,
+        codeNames,
+        petNamePaths,
+        responder,
+        guestHandleId,
+      } = mailbox.getEvalRequest(messageNumber);
+
+      assertNames(codeNames);
+
+      const guestAgentId = await getAgentIdForHandleId(
+        /** @type {FormulaIdentifier} */ (guestHandleId),
+      );
+      const guestAgent = await provide(guestAgentId, 'agent');
+
+      // Resolve endowments from the guest's namespace
+      /** @type {(FormulaIdentifier | NamePath)[]} */
+      const endowmentFormulaIdsOrPaths = await Promise.all(
+        petNamePaths.map(async petNamePath => {
+          if (petNamePath.length === 1) {
+            const id = await E(guestAgent).identify(petNamePath[0]);
+            if (id === undefined) {
+              throw new Error(
+                `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
+              );
+            }
+            return /** @type {FormulaIdentifier} */ (id);
+          }
+          return petNamePath;
+        }),
+      );
+
+      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+
+      const { id: evalId } = await formulateEval(
+        guestAgentId,
+        source,
+        codeNames,
+        endowmentFormulaIdsOrPaths,
+        tasks,
+        workerId,
+      );
+      E.sendOnly(responder).respondId(evalId);
+    };
+
     const { reverseIdentify } = specialStore;
     const {
       has,
@@ -770,6 +824,7 @@ export const makeHostMaker = ({
       deliver,
       invite,
       accept,
+      approveEvaluation,
     };
 
     const help = makeHelp(hostHelp, [guestHelp, directoryHelp, mailHelp]);

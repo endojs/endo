@@ -6,6 +6,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { assertEdgeName, namePathFrom } from './pet-name.js';
+import { assertValidId } from './formula-identifier.js';
 
 import {
   ResponderInterface,
@@ -16,7 +17,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Envelope, EnvelopedMessage, Handle, Mail, MakeMailbox, Name, NameOrPath, PetName, Provide, Request, StampedMessage, Topic } from './types.js' */
+/** @import { Envelope, EnvelopedMessage, EvalRequest, Handle, Mail, MakeMailbox, Name, NameOrPath, NamePath, PetName, Provide, Request, StampedMessage, Topic } from './types.js' */
 
 /**
  * @param {string} description
@@ -38,6 +39,36 @@ const makeRequest = (description, fromId, toId) => {
     from: fromId,
     to: toId,
     description,
+    settled,
+    responder,
+  });
+  return harden({ request, response: promise });
+};
+
+/**
+ * @param {string} source
+ * @param {Array<Name>} codeNames
+ * @param {Array<NamePath>} petNamePaths
+ * @param {string} fromId
+ * @param {string} toId
+ */
+const makeEvalRequest = (source, codeNames, petNamePaths, fromId, toId) => {
+  /** @type {PromiseKit<string>} */
+  const { promise, resolve } = makePromiseKit();
+  const settled = promise.then(
+    () => /** @type {const} */ ('fulfilled'),
+    () => /** @type {const} */ ('rejected'),
+  );
+  const responder = makeExo('EndoResponder', ResponderInterface, {
+    respondId: resolve,
+  });
+  const request = harden({
+    type: /** @type {const} */ ('eval-request'),
+    from: fromId,
+    to: toId,
+    source,
+    codeNames,
+    petNamePaths,
     settled,
     responder,
   });
@@ -309,6 +340,89 @@ export const makeMailboxMaker = ({ provide }) => {
       return responseP;
     };
 
+    /** @type {Mail['requestEvaluation']} */
+    const requestEvaluation = async (
+      toNameOrPath,
+      source,
+      codeNames,
+      petNamesOrPaths,
+      responseNameOrPath,
+    ) => {
+      await null;
+      if (responseNameOrPath !== undefined) {
+        const responseNamePath = namePathFrom(responseNameOrPath);
+        const responseId = await E(directory).identify(...responseNamePath);
+        if (responseId !== undefined) {
+          return provide(/** @type {FormulaIdentifier} */ (responseId));
+        }
+      }
+
+      const normalizedPaths = petNamesOrPaths.map(namePathFrom);
+      if (codeNames.length !== normalizedPaths.length) {
+        throw new Error(
+          `Eval request must have one pet name path for each code name`,
+        );
+      }
+
+      const toNamePath = namePathFrom(toNameOrPath);
+      const toId = await E(directory).identify(...toNamePath);
+      if (toId === undefined) {
+        throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
+      }
+      const to = await provide(
+        /** @type {FormulaIdentifier} */ (toId),
+        'handle',
+      );
+
+      const { request: req, response: responseIdP } = makeEvalRequest(
+        source,
+        codeNames,
+        normalizedPaths,
+        selfId,
+        toId,
+      );
+
+      await post(to, req);
+
+      const responseId = await responseIdP;
+      assertValidId(responseId);
+      const responseP = provide(responseId);
+
+      if (responseNameOrPath !== undefined) {
+        const responseNamePath = namePathFrom(responseNameOrPath);
+        await E(directory).write(responseNamePath, responseId);
+      }
+
+      return responseP;
+    };
+
+    /** @type {Mail['getEvalRequest']} */
+    const getEvalRequest = messageNumber => {
+      if (
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
+      ) {
+        throw new Error(`Invalid message number ${q(messageNumber)}`);
+      }
+      const message = messages.get(messageNumber);
+      if (message === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (message.type !== 'eval-request') {
+        throw new Error(
+          `Message ${q(messageNumber)} is not an eval-request (is ${q(message.type)})`,
+        );
+      }
+      const evalReq = /** @type {EvalRequest & { from: string }} */ (message);
+      return harden({
+        source: evalReq.source,
+        codeNames: evalReq.codeNames,
+        petNamePaths: evalReq.petNamePaths,
+        responder: evalReq.responder,
+        guestHandleId: evalReq.from,
+      });
+    };
+
     /**
      * @param {Envelope} envelope
      */
@@ -351,6 +465,8 @@ export const makeMailboxMaker = ({ provide }) => {
       followMessages,
       request,
       send,
+      requestEvaluation,
+      getEvalRequest,
       resolve,
       reject,
       dismiss,
