@@ -96,6 +96,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       request,
       send,
       requestEvaluation: mailboxRequestEvaluation,
+      define: mailboxDefine,
+      form: mailboxForm,
       deliver,
     } = mailbox;
 
@@ -109,6 +111,25 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
      */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
       mailboxRequestEvaluation('HOST', source, codeNames, petNamePaths, resultName);
+
+    /**
+     * Propose code with named slots for host to endow.
+     * @param {string} source
+     * @param {Record<string, { label: string, pattern?: unknown }>} slots
+     * @returns {Promise<unknown>}
+     */
+    const define = (source, slots) => mailboxDefine(source, slots);
+
+    /**
+     * Send a structured form request to a recipient.
+     * @param {import('./types.js').NameOrPath} recipientName
+     * @param {string} description
+     * @param {Record<string, { label: string, pattern?: unknown }>} fields
+     * @param {import('./types.js').NameOrPath} [responseName]
+     * @returns {Promise<unknown>}
+     */
+    const form = (recipientName, description, fields, responseName) =>
+      mailboxForm(recipientName, description, fields, responseName);
 
     /** @type {EndoGuest} */
     const guest = {
@@ -140,6 +161,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       request,
       send,
       requestEvaluation,
+      define,
+      form,
       deliver,
     };
 

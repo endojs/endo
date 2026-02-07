@@ -254,7 +254,7 @@ type MailHubFormula = {
 
 type MessageFormula = {
   type: 'message';
-  messageType: 'request' | 'package';
+  messageType: 'request' | 'package' | 'eval-request' | 'definition' | 'form-request';
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
@@ -264,6 +264,11 @@ type MessageFormula = {
   strings?: string[];
   names?: string[];
   ids?: FormulaIdentifier[];
+  source?: string;
+  codeNames?: string[];
+  petNamePaths?: NamePath[];
+  slots?: Record<string, { label: string; pattern?: unknown }>;
+  fields?: Record<string, { label: string; pattern?: unknown }>;
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
@@ -361,7 +366,25 @@ export type EvalRequest = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type Message = Request | Package | EvalRequest;
+export type DefineRequest = {
+  type: 'definition';
+  source: string;
+  slots: Record<string, { label: string; pattern?: unknown }>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type FormRequest = {
+  type: 'form-request';
+  description: string;
+  fields: Record<string, { label: string; pattern?: unknown }>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type Message = Request | Package | EvalRequest | DefineRequest | FormRequest;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -599,6 +622,28 @@ export interface Mail {
     responder: ERef<Responder>;
     guestHandleId: string;
   };
+  define(
+    source: string,
+    slots: Record<string, { label: string; pattern?: unknown }>,
+  ): Promise<unknown>;
+  form(
+    recipientName: NameOrPath,
+    description: string,
+    fields: Record<string, { label: string; pattern?: unknown }>,
+    responseName?: NameOrPath,
+  ): Promise<unknown>;
+  getDefineRequest(messageNumber: number): {
+    source: string;
+    slots: Record<string, { label: string; pattern?: unknown }>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
+  getFormRequest(messageNumber: number): {
+    description: string;
+    fields: Record<string, { label: string; pattern?: unknown }>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
   deliver(message: EnvelopedMessage): Promise<void>;
 }
 
@@ -683,6 +728,16 @@ export interface EndoGuest extends EndoAgent {
     petNamePaths: NamesOrPaths,
     resultName?: NameOrPath,
   ): Promise<unknown>;
+  define(
+    source: string,
+    slots: Record<string, { label: string; pattern?: unknown }>,
+  ): Promise<unknown>;
+  form(
+    recipientName: NameOrPath,
+    description: string,
+    fields: Record<string, { label: string; pattern?: unknown }>,
+    responseName?: NameOrPath,
+  ): Promise<unknown>;
 }
 
 export type FarEndoGuest = FarRef<EndoGuest>;
@@ -732,6 +787,16 @@ export interface EndoHost extends EndoAgent {
   approveEvaluation(
     messageNumber: number,
     workerName?: Name,
+  ): Promise<void>;
+  endow(
+    messageNumber: number,
+    bindings: Record<string, NameOrPath>,
+    workerName?: Name,
+    resultName?: NameOrPath,
+  ): Promise<void>;
+  respondForm(
+    messageNumber: number,
+    values: Record<string, unknown>,
   ): Promise<void>;
 }
 

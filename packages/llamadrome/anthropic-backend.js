@@ -11,7 +11,7 @@ const tools = harden([
   {
     name: 'request_evaluation',
     description:
-      'Propose JavaScript code for sandboxed evaluation. The host reviews and approves or rejects. Code runs in a Compartment with only the specified endowments.',
+      'Propose JavaScript code for sandboxed evaluation. The host reviews and approves or rejects. Code runs in a Compartment with only the specified endowments. Prefer define_code instead, which separates code from capability binding.',
     input_schema: {
       type: 'object',
       properties: {
@@ -37,6 +37,36 @@ const tools = harden([
         },
       },
       required: ['source', 'codeNames', 'petNamePaths'],
+    },
+  },
+  {
+    name: 'define_code',
+    description:
+      'Propose code for evaluation with named capability slots. The host sees the code and decides which capabilities to provide for each slot. Preferred over request_evaluation because it separates code proposal from capability binding.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        source: {
+          type: 'string',
+          description: 'JavaScript source code to evaluate',
+        },
+        slots: {
+          type: 'object',
+          description:
+            'Named capability slots. Keys are variable names in the code, values describe what capability is needed.',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              label: {
+                type: 'string',
+                description: 'Human-readable description of what this slot needs',
+              },
+            },
+            required: ['label'],
+          },
+        },
+      },
+      required: ['source', 'slots'],
     },
   },
   {
@@ -79,6 +109,11 @@ const executeTool = async (powers, name, input) => {
         /** @type {string[]} */ (input.codeNames),
         /** @type {string[]} */ (input.petNamePaths),
         /** @type {string | undefined} */ (input.resultName),
+      );
+    case 'define_code':
+      return E(powers).define(
+        /** @type {string} */ (input.source),
+        /** @type {Record<string, { label: string }>} */ (input.slots),
       );
     case 'list_names':
       return E(powers).list();

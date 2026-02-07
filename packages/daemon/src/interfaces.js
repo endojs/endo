@@ -137,6 +137,18 @@ export const GuestInterface = M.interface('EndoGuest', {
     NamesOrPathsShape,             // petNamePaths
   ).optional(NameOrPathShape)      // resultName
     .returns(M.promise()),
+  // Propose code with named slots for host to endow
+  define: M.call(
+    M.string(),                    // source
+    M.record(),                    // slots: Record<codeName, { label, pattern? }>
+  ).returns(M.promise()),
+  // Send a structured form request to a recipient
+  form: M.call(
+    NameOrPathShape,               // recipientName
+    M.string(),                    // description
+    M.record(),                    // fields: Record<fieldName, { label, pattern? }>
+  ).optional(NameOrPathShape)      // responseName
+    .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
 });
@@ -235,6 +247,14 @@ export const HostInterface = M.interface('EndoHost', {
   // Approve a sandboxed evaluation request
   approveEvaluation: M.call(MessageNumberShape)
     .optional(M.or(NameShape, M.undefined()))
+    .returns(M.promise()),
+  // Endow a definition with capabilities and evaluate
+  endow: M.call(MessageNumberShape, M.record())
+    .optional(M.or(NameShape, M.undefined()))
+    .optional(NameOrPathShape)
+    .returns(M.promise()),
+  // Respond to a form request with values
+  respondForm: M.call(MessageNumberShape, M.record())
     .returns(M.promise()),
 });
 

@@ -705,6 +705,94 @@ export const makeHostMaker = ({
       return peerInfo;
     };
 
+    /** @type {EndoHost['endow']} */
+    const endow = async (messageNumber, bindings, workerName, resultName) => {
+      if (workerName !== undefined) {
+        assertName(workerName);
+      }
+      const {
+        source,
+        slots,
+        resolverId,
+        guestHandleId,
+      } = mailbox.getDefineRequest(messageNumber);
+
+      // Validate bindings cover every slot
+      const slotKeys = Object.keys(slots);
+      for (const key of slotKeys) {
+        if (!(key in bindings)) {
+          throw new Error(`Missing binding for slot ${q(key)}`);
+        }
+      }
+
+      const guestAgentId = await getAgentIdForHandleId(
+        /** @type {FormulaIdentifier} */ (guestHandleId),
+      );
+
+      // Resolve each binding pet name to a formula identifier from the host's namespace
+      const codeNames = slotKeys;
+      const endowmentFormulaIdsOrPaths = codeNames.map(codeName => {
+        const petNameOrPath = bindings[codeName];
+        const petNamePath = namePathFrom(petNameOrPath);
+        if (petNamePath.length === 1) {
+          const id = petStore.identifyLocal(petNamePath[0]);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
+          }
+          return /** @type {FormulaIdentifier} */ (id);
+        }
+        return petNamePath;
+      });
+
+      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+
+      if (resultName !== undefined) {
+        const resultNamePath = namePathFrom(resultName);
+        tasks.push(identifiers =>
+          E(directory).write(resultNamePath, identifiers.evalId),
+        );
+      }
+
+      const { id: evalId } = await formulateEval(
+        guestAgentId,
+        source,
+        codeNames,
+        endowmentFormulaIdsOrPaths,
+        tasks,
+        workerId,
+      );
+      const resolver = await provide(resolverId, 'resolver');
+      E.sendOnly(resolver).resolveWithId(evalId);
+    };
+
+    /** @type {EndoHost['respondForm']} */
+    const respondForm = async (messageNumber, values) => {
+      const {
+        fields,
+        resolverId,
+      } = mailbox.getFormRequest(messageNumber);
+
+      // Validate that values cover every field
+      const fieldKeys = Object.keys(fields);
+      for (const key of fieldKeys) {
+        if (!(key in values)) {
+          throw new Error(`Missing value for field ${q(key)}`);
+        }
+      }
+
+      // Marshal the values record
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const marshalTasks = makeDeferredTasks();
+      const { id: marshalledId } = await formulateMarshalValue(
+        harden(values),
+        marshalTasks,
+      );
+      const resolver = await provide(resolverId, 'resolver');
+      E.sendOnly(resolver).resolveWithId(marshalledId);
+    };
+
     /** @type {EndoHost['approveEvaluation']} */
     const approveEvaluation = async (messageNumber, workerName) => {
       if (workerName !== undefined) {
@@ -835,6 +923,8 @@ export const makeHostMaker = ({
       invite,
       accept,
       approveEvaluation,
+      endow,
+      respondForm,
     };
 
     const help = makeHelp(hostHelp, [guestHelp, directoryHelp, mailHelp]);
