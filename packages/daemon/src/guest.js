@@ -26,6 +26,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
    * @param {FormulaIdentifier} petStoreId
+   * @param {FormulaIdentifier} mailboxStoreId
+   * @param {FormulaIdentifier} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
    */
@@ -35,24 +37,31 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
     hostAgentId,
     hostHandleId,
     petStoreId,
+    mailboxStoreId,
+    mailHubId,
     mainWorkerId,
     context,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
     context.thisDiesIfThatDies(hostAgentId);
     context.thisDiesIfThatDies(petStoreId);
+    context.thisDiesIfThatDies(mailboxStoreId);
+    context.thisDiesIfThatDies(mailHubId);
     context.thisDiesIfThatDies(mainWorkerId);
 
     const basePetStore = await provide(petStoreId, 'pet-store');
+    const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
     const specialStore = makePetSitter(basePetStore, {
       AGENT: guestId,
       SELF: handleId,
       HOST: hostHandleId,
+      MAIL: mailHubId,
     });
 
     const directory = makeDirectoryNode(specialStore);
-    const mailbox = makeMailbox({
+    const mailbox = await makeMailbox({
       petStore: specialStore,
+      mailboxStore,
       directory,
       selfId: handleId,
       context,

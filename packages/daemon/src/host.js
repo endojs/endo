@@ -82,22 +82,26 @@ export const makeHostMaker = ({
   getAgentIdForHandleId,
 }) => {
   /**
-   * @param {string} hostId
-   * @param {string} handleId
-   * @param {string} storeId
-   * @param {string} inspectorId
-   * @param {string} mainWorkerId
-   * @param {string} endoId
-   * @param {string} networksDirectoryId
-   * @param {string} pinsDirectoryId
-   * @param {string} leastAuthorityId
-   * @param {{[name: string]: string}} platformNames
+   * @param {FormulaIdentifier} hostId
+   * @param {FormulaIdentifier} handleId
+   * @param {FormulaIdentifier} storeId
+   * @param {FormulaIdentifier} mailboxStoreId
+   * @param {FormulaIdentifier} mailHubId
+   * @param {FormulaIdentifier} inspectorId
+   * @param {FormulaIdentifier} mainWorkerId
+   * @param {FormulaIdentifier} endoId
+   * @param {FormulaIdentifier} networksDirectoryId
+   * @param {FormulaIdentifier} pinsDirectoryId
+   * @param {FormulaIdentifier} leastAuthorityId
+   * @param {{[name: string]: FormulaIdentifier}} platformNames
    * @param {Context} context
    */
   const makeHost = async (
     hostId,
     handleId,
     storeId,
+    mailboxStoreId,
+    mailHubId,
     inspectorId,
     mainWorkerId,
     endoId,
@@ -109,8 +113,11 @@ export const makeHostMaker = ({
   ) => {
     context.thisDiesIfThatDies(storeId);
     context.thisDiesIfThatDies(mainWorkerId);
+    context.thisDiesIfThatDies(mailboxStoreId);
+    context.thisDiesIfThatDies(mailHubId);
 
     const basePetStore = await provide(storeId, 'pet-store');
+    const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
     const specialStore = makePetSitter(basePetStore, {
       ...platformNames,
       AGENT: hostId,
@@ -120,12 +127,14 @@ export const makeHostMaker = ({
       NETS: networksDirectoryId,
       PINS: pinsDirectoryId,
       INFO: inspectorId,
+      MAIL: mailHubId,
       NONE: leastAuthorityId,
     });
 
     const directory = makeDirectoryNode(specialStore);
-    const mailbox = makeMailbox({
+    const mailbox = await makeMailbox({
       petStore: specialStore,
+      mailboxStore,
       directory,
       selfId: handleId,
       context,
@@ -705,7 +714,7 @@ export const makeHostMaker = ({
         source,
         codeNames,
         petNamePaths,
-        responder,
+        resolverId,
         guestHandleId,
       } = mailbox.getEvalRequest(messageNumber);
 
@@ -745,7 +754,8 @@ export const makeHostMaker = ({
         tasks,
         workerId,
       );
-      E.sendOnly(responder).respondId(evalId);
+      const resolver = await provide(resolverId, 'resolver');
+      E.sendOnly(resolver).resolveWithId(evalId);
     };
 
     const { reverseIdentify } = specialStore;
