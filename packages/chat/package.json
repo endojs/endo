@@ -55,12 +55,12 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
-    "@playwright/test": "^1.40.0",
     "@endo/daemon": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@endo/stream": "workspace:^",
     "@endo/where": "workspace:^",
+    "@playwright/test": "^1.40.0",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",

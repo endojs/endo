@@ -28,6 +28,7 @@
     "lint:types": "tsc",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "prepack": "tsc --build tsconfig.build.json",
+    "simulator": "node test/simulator/run-simulator.js",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0"
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
+    "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
