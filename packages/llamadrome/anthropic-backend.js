@@ -59,7 +59,8 @@ const tools = harden([
             properties: {
               label: {
                 type: 'string',
-                description: 'Human-readable description of what this slot needs',
+                description:
+                  'Human-readable description of what this slot needs',
               },
             },
             required: ['label'],

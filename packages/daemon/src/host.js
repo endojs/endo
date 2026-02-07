@@ -710,12 +710,8 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
-      const {
-        source,
-        slots,
-        resolverId,
-        guestHandleId,
-      } = mailbox.getDefineRequest(messageNumber);
+      const { source, slots, resolverId, guestHandleId } =
+        mailbox.getDefineRequest(messageNumber);
 
       // Validate bindings cover every slot
       const slotKeys = Object.keys(slots);
@@ -769,10 +765,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['respondForm']} */
     const respondForm = async (messageNumber, values) => {
-      const {
-        fields,
-        resolverId,
-      } = mailbox.getFormRequest(messageNumber);
+      const { fields, resolverId } = mailbox.getFormRequest(messageNumber);
 
       // Validate that values cover every field
       const fieldKeys = Object.keys(fields);
@@ -798,13 +791,8 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
-      const {
-        source,
-        codeNames,
-        petNamePaths,
-        resolverId,
-        guestHandleId,
-      } = mailbox.getEvalRequest(messageNumber);
+      const { source, codeNames, petNamePaths, resolverId, guestHandleId } =
+        mailbox.getEvalRequest(messageNumber);
 
       assertNames(codeNames);
 

@@ -962,10 +962,7 @@ export const makeMailboxMaker = ({
 
     /** @type {Mail['getEvalRequest']} */
     const getEvalRequest = messageNumber => {
-      const normalizedMessageNumber = mustParseBigint(
-        messageNumber,
-        'message',
-      );
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
@@ -975,9 +972,10 @@ export const makeMailboxMaker = ({
           `Message ${q(messageNumber)} is not an eval-request (is ${q(message.type)})`,
         );
       }
-      const evalReq = /** @type {EvalRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
-        message
-      );
+      const evalReq =
+        /** @type {EvalRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
+          message
+        );
       return harden({
         source: evalReq.source,
         codeNames: evalReq.codeNames,
@@ -999,13 +997,12 @@ export const makeMailboxMaker = ({
         'handle',
       );
 
-      const { request: req, response: resolutionIdP } =
-        await makeDefineRequest(
-          source,
-          slots,
-          selfId,
-          /** @type {FormulaIdentifier} */ (hostHandleId),
-        );
+      const { request: req, response: resolutionIdP } = await makeDefineRequest(
+        source,
+        slots,
+        selfId,
+        /** @type {FormulaIdentifier} */ (hostHandleId),
+      );
 
       await post(hostHandle, req);
 
@@ -1045,13 +1042,12 @@ export const makeMailboxMaker = ({
         'handle',
       );
 
-      const { request: req, response: resolutionIdP } =
-        await makeFormRequest(
-          description,
-          fields,
-          selfId,
-          /** @type {FormulaIdentifier} */ (toId),
-        );
+      const { request: req, response: resolutionIdP } = await makeFormRequest(
+        description,
+        fields,
+        selfId,
+        /** @type {FormulaIdentifier} */ (toId),
+      );
 
       await post(to, req);
 
@@ -1072,10 +1068,7 @@ export const makeMailboxMaker = ({
 
     /** @type {Mail['getDefineRequest']} */
     const getDefineRequest = messageNumber => {
-      const normalizedMessageNumber = mustParseBigint(
-        messageNumber,
-        'message',
-      );
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
@@ -1085,9 +1078,10 @@ export const makeMailboxMaker = ({
           `Message ${q(messageNumber)} is not a definition (is ${q(message.type)})`,
         );
       }
-      const defReq = /** @type {DefineRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
-        message
-      );
+      const defReq =
+        /** @type {DefineRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
+          message
+        );
       return harden({
         source: defReq.source,
         slots: defReq.slots,
@@ -1098,10 +1092,7 @@ export const makeMailboxMaker = ({
 
     /** @type {Mail['getFormRequest']} */
     const getFormRequest = messageNumber => {
-      const normalizedMessageNumber = mustParseBigint(
-        messageNumber,
-        'message',
-      );
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
@@ -1111,9 +1102,10 @@ export const makeMailboxMaker = ({
           `Message ${q(messageNumber)} is not a form-request (is ${q(message.type)})`,
         );
       }
-      const formReq = /** @type {FormRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
-        message
-      );
+      const formReq =
+        /** @type {FormRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
+          message
+        );
       return harden({
         description: formReq.description,
         fields: formReq.fields,

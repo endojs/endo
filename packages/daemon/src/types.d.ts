@@ -254,7 +254,12 @@ type MailHubFormula = {
 
 type MessageFormula = {
   type: 'message';
-  messageType: 'request' | 'package' | 'eval-request' | 'definition' | 'form-request';
+  messageType:
+    | 'request'
+    | 'package'
+    | 'eval-request'
+    | 'definition'
+    | 'form-request';
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
@@ -384,7 +389,12 @@ export type FormRequest = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type Message = Request | Package | EvalRequest | DefineRequest | FormRequest;
+export type Message =
+  | Request
+  | Package
+  | EvalRequest
+  | DefineRequest
+  | FormRequest;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -784,10 +794,7 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   invite(guestName: PetName): Promise<Invitation>;
   accept(invitationLocator: string, guestName: PetName): Promise<void>;
-  approveEvaluation(
-    messageNumber: number,
-    workerName?: Name,
-  ): Promise<void>;
+  approveEvaluation(messageNumber: number, workerName?: Name): Promise<void>;
   endow(
     messageNumber: number,
     bindings: Record<string, NameOrPath>,
@@ -1170,7 +1177,9 @@ export interface DaemonCore {
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
 
-  getAgentIdForHandleId: (handleId: FormulaIdentifier) => Promise<FormulaIdentifier>;
+  getAgentIdForHandleId: (
+    handleId: FormulaIdentifier,
+  ) => Promise<FormulaIdentifier>;
 }
 
 export interface DaemonCoreExternal {

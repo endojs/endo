@@ -3,12 +3,7 @@
 import { makeExo } from '@endo/exo';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
-import {
-  guestHelp,
-  directoryHelp,
-  mailHelp,
-  makeHelp,
-} from './help-text.js';
+import { guestHelp, directoryHelp, mailHelp, makeHelp } from './help-text.js';
 
 /** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
@@ -110,7 +105,13 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
      * @returns {Promise<unknown>}
      */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
-      mailboxRequestEvaluation('HOST', source, codeNames, petNamePaths, resultName);
+      mailboxRequestEvaluation(
+        'HOST',
+        source,
+        codeNames,
+        petNamePaths,
+        resultName,
+      );
 
     /**
      * Propose code with named slots for host to endow.

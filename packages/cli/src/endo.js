@@ -252,12 +252,17 @@ export const main = async rawArgs => {
 
   program
     .command('define <source>')
-    .description('propose code with named capability slots for the host to endow')
+    .description(
+      'propose code with named capability slots for the host to endow',
+    )
     .option(...commonOptions.as)
     .option(
       '-s,--slot <slot>',
       'Slot definition as codeName:label (repeatable)',
-      (val, acc) => { acc.push(val); return acc; },
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
       [],
     )
     .action(async (source, cmd) => {
@@ -273,7 +278,10 @@ export const main = async rawArgs => {
     .option(
       '-b,--bind <binding>',
       'Binding as codeName:petName (repeatable)',
-      (val, acc) => { acc.push(val); return acc; },
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
       [],
     )
     .option('-w,--worker <name>', 'Worker to use for evaluation')
@@ -303,15 +311,14 @@ export const main = async rawArgs => {
     .option(
       '-f,--field <field>',
       'Field definition as fieldName:label (repeatable)',
-      (val, acc) => { acc.push(val); return acc; },
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
       [],
     )
     .action(async (toName, description, cmd) => {
-      const {
-        as: agentNames,
-        field: fieldArgs,
-        name: resultName,
-      } = cmd.opts();
+      const { as: agentNames, field: fieldArgs, name: resultName } = cmd.opts();
       const { formCommand } = await import('./commands/form.js');
       return formCommand({
         toName,
@@ -329,7 +336,10 @@ export const main = async rawArgs => {
     .option(
       '-v,--value <value>',
       'Value as fieldName:value (repeatable)',
-      (val, acc) => { acc.push(val); return acc; },
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
       [],
     )
     .action(async (messageNumberText, cmd) => {
