@@ -246,8 +246,7 @@ export const HostInterface = M.interface('EndoHost', {
     .returns(M.promise()),
   // Endow a definition with capabilities and evaluate
   endow: M.call(MessageNumberShape, M.record())
-    .optional(M.or(NameShape, M.undefined()))
-    .optional(NameOrPathShape)
+    .optional(M.or(NameShape, M.undefined()), NameOrPathShape)
     .returns(M.promise()),
   // Respond to a form request with values
   respondForm: M.call(MessageNumberShape, M.record()).returns(M.promise()),
