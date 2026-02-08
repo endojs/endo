@@ -224,7 +224,7 @@ export const HostInterface = M.interface('EndoHost', {
     .returns(M.promise()),
   // Make a bundle caplet
   makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape, NameShape)
-    .optional(NameShape)
+    .optional(NameOrPathShape)
     .returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
