@@ -904,6 +904,7 @@ const makeDaemonCore = async (
     };
 
     mailHub = makeExo('MailHub', DirectoryInterface, {
+      help: (_methodName = '') => 'MailHub - Message directory for agent mail.',
       has,
       identify,
       locate,
@@ -918,6 +919,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return mailHub;
@@ -1179,6 +1181,7 @@ const makeDaemonCore = async (
     };
 
     messageHub = makeExo('MessageHub', DirectoryInterface, {
+      help: (_methodName = '') => 'MessageHub - Message envelope directory.',
       has,
       identify,
       locate,
@@ -1193,6 +1196,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return messageHub;
@@ -1382,6 +1386,8 @@ const makeDaemonCore = async (
             request: disallowedFn,
             send: disallowedFn,
             requestEvaluation: disallowedFn,
+            define: disallowedFn,
+            form: disallowedFn,
             deliver: disallowedSyncFn,
           })
         )
