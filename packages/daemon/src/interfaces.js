@@ -127,15 +127,32 @@ export const GuestInterface = M.interface('EndoGuest', {
     .optional(NameOrPathShape)
     .returns(M.promise()),
   // Send a package message
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
-    M.string(),                    // source
-    M.arrayOf(M.string()),         // codeNames
-    NamesOrPathsShape,             // petNamePaths
-  ).optional(NameOrPathShape)      // resultName
+    M.string(), // source
+    M.arrayOf(M.string()), // codeNames
+    NamesOrPathsShape, // petNamePaths
+  )
+    .optional(NameOrPathShape) // resultName
+    .returns(M.promise()),
+  // Propose code with named slots for host to endow
+  define: M.call(
+    M.string(), // source
+    M.record(), // slots: Record<codeName, { label, pattern? }>
+  ).returns(M.promise()),
+  // Send a structured form request to a recipient
+  form: M.call(
+    NameOrPathShape, // recipientName
+    M.string(), // description
+    M.record(), // fields: Record<fieldName, { label, pattern? }>
+  )
+    .optional(NameOrPathShape) // responseName
     .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
@@ -174,9 +191,12 @@ export const HostInterface = M.interface('EndoHost', {
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
@@ -184,13 +204,9 @@ export const HostInterface = M.interface('EndoHost', {
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a host
-  provideHost: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NamePathShape).returns(M.promise()),
   // Evaluate code
@@ -203,20 +219,12 @@ export const HostInterface = M.interface('EndoHost', {
     .optional(NamePathShape)
     .returns(M.promise()),
   // Make an unconfined caplet
-  makeUnconfined: M.call(
-    M.or(NameShape, M.undefined()),
-    M.string(),
-    NameShape,
-  )
+  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string(), NameShape)
     .optional(NameOrPathShape)
     .returns(M.promise()),
   // Make a bundle caplet
-  makeBundle: M.call(
-    M.or(NameShape, M.undefined()),
-    NameShape,
-    NameShape,
-  )
-    .optional(NameShape)
+  makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape, NameShape)
+    .optional(NameOrPathShape)
     .returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
@@ -236,6 +244,12 @@ export const HostInterface = M.interface('EndoHost', {
   approveEvaluation: M.call(MessageNumberShape)
     .optional(M.or(NameShape, M.undefined()))
     .returns(M.promise()),
+  // Endow a definition with capabilities and evaluate
+  endow: M.call(MessageNumberShape, M.record())
+    .optional(M.or(NameShape, M.undefined()), NameOrPathShape)
+    .returns(M.promise()),
+  // Respond to a form request with values
+  respondForm: M.call(MessageNumberShape, M.record()).returns(M.promise()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {

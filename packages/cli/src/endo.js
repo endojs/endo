@@ -251,6 +251,108 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('define <source>')
+    .description(
+      'propose code with named capability slots for the host to endow',
+    )
+    .option(...commonOptions.as)
+    .option(
+      '-s,--slot <slot>',
+      'Slot definition as codeName:label (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (source, cmd) => {
+      const { as: agentNames, slot: slotArgs } = cmd.opts();
+      const { defineCommand } = await import('./commands/define.js');
+      return defineCommand({ source, slotArgs, agentNames });
+    });
+
+  program
+    .command('endow <message-number>')
+    .description('bind capabilities to a definition and evaluate')
+    .option(...commonOptions.as)
+    .option(
+      '-b,--bind <binding>',
+      'Binding as codeName:petName (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .option('-w,--worker <name>', 'Worker to use for evaluation')
+    .option(...commonOptions.name)
+    .action(async (messageNumberText, cmd) => {
+      const {
+        as: agentNames,
+        bind: bindArgs,
+        worker: workerName,
+        name: resultName,
+      } = cmd.opts();
+      const { endowCommand } = await import('./commands/endow.js');
+      return endowCommand({
+        messageNumberText,
+        bindArgs,
+        workerName,
+        resultName,
+        agentNames,
+      });
+    });
+
+  program
+    .command('form <recipient> <description>')
+    .description('send a structured form request')
+    .option(...commonOptions.as)
+    .option(...commonOptions.name)
+    .option(
+      '-f,--field <field>',
+      'Field definition as fieldName:label (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (toName, description, cmd) => {
+      const { as: agentNames, field: fieldArgs, name: resultName } = cmd.opts();
+      const { formCommand } = await import('./commands/form.js');
+      return formCommand({
+        toName,
+        description,
+        fieldArgs,
+        resultName,
+        agentNames,
+      });
+    });
+
+  program
+    .command('respond-form <message-number>')
+    .description('respond to a form request with values')
+    .option(...commonOptions.as)
+    .option(
+      '-v,--value <value>',
+      'Value as fieldName:value (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (messageNumberText, cmd) => {
+      const { as: agentNames, value: valueArgs } = cmd.opts();
+      const { respondFormCommand } = await import('./commands/respond-form.js');
+      return respondFormCommand({
+        messageNumberText,
+        valueArgs,
+        agentNames,
+      });
+    });
+
+  program
     .command('send <agent> <message-with-embedded-references>')
     .description('send a message with @named-values @for-you:from-me')
     .option(...commonOptions.as)

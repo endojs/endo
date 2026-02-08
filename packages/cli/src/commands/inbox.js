@@ -23,6 +23,10 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested';
       } else if (type === 'package') {
         verb = 'sent';
+      } else if (type === 'definition') {
+        verb = 'proposed code';
+      } else if (type === 'form-request') {
+        verb = 'requested form';
       } else {
         verb = 'sent an unrecognizable message';
       }
@@ -65,6 +69,16 @@ export const inbox = async ({ follow, agentNames }) =>
             strings,
             edgeNames,
           )} at ${JSON.stringify(date)}`,
+        );
+      } else if (message.type === 'definition') {
+        const slotNames = Object.keys(message.slots).join(', ');
+        console.log(
+          `${number}. ${provenance}(slots: ${slotNames}) at ${JSON.stringify(date)}`,
+        );
+      } else if (message.type === 'form-request') {
+        const fieldNames = Object.keys(message.fields).join(', ');
+        console.log(
+          `${number}. ${provenance}${JSON.stringify(message.description)} (fields: ${fieldNames}) at ${JSON.stringify(date)}`,
         );
       } else {
         console.log(`${number}. ${provenance}, consider upgrading.`);

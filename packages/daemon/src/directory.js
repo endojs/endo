@@ -6,8 +6,8 @@ import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { formatLocator, idFromLocator } from './locator.js';
 import {
-  assertNames,
   assertNamePath,
+  assertNames,
   assertPetNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -35,7 +35,6 @@ export const makeDirectoryMaker = ({
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
       const namePath = namePathFrom(petNamePath);
-      assertNamePath(namePath);
       const [headName, ...tailNames] = namePath;
 
       const id = petStore.identifyLocal(headName);
@@ -64,15 +63,13 @@ export const makeDirectoryMaker = ({
      * @returns {Promise<{ hub: NameHub, name: Name }>}
      */
     const lookupTailNameHub = async petNamePath => {
-      if (petNamePath.length === 0) {
-        throw new TypeError(`Empty pet name path`);
-      }
+      assertNamePath(petNamePath);
       const tailName = petNamePath[petNamePath.length - 1];
       if (petNamePath.length === 1) {
         // eslint-disable-next-line no-use-before-define
         return { hub: directory, name: tailName };
       }
-      const prefixPath = /** @type {NamePath} */ (petNamePath.slice(0, -1));
+      const prefixPath = petNamePath.slice(0, -1);
       const hub = /** @type {NameHub} */ (await lookup(prefixPath));
       return { hub, name: tailName };
     };
@@ -84,7 +81,9 @@ export const makeDirectoryMaker = ({
         const petName = petNamePath[0];
         return petStore.has(petName);
       }
-      const { hub, name } = await lookupTailNameHub(petNamePath);
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
       return E(hub).has(name);
     };
 
@@ -95,7 +94,9 @@ export const makeDirectoryMaker = ({
         const petName = petNamePath[0];
         return petStore.identifyLocal(petName);
       }
-      const { hub, name } = await lookupTailNameHub(petNamePath);
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
       return E(hub).identify(name);
     };
 

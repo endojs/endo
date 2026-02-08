@@ -67,7 +67,11 @@ const parseInline = text => {
 
     // Check for placeholder
     if (remaining[0] === PLACEHOLDER) {
-      tokens.push({ type: 'placeholder', content: '', placeholderIndex: placeholderCount });
+      tokens.push({
+        type: 'placeholder',
+        content: '',
+        placeholderIndex: placeholderCount,
+      });
       placeholderCount += 1;
       pos += 1;
       matched = true;
@@ -375,9 +379,13 @@ const highlightCode = (code, language) => {
     /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|class|extends|import|export|from|default|async|await|yield|typeof|instanceof|in|of|void|delete|this|super|null|undefined|true|false|NaN|Infinity)\b/g;
   const jsStrings = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g;
   const jsComments = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g;
-  const jsNumbers = /\b(\d+\.?\d*(?:e[+-]?\d+)?|0x[0-9a-f]+|0b[01]+|0o[0-7]+)\b/gi;
+  const jsNumbers =
+    /\b(\d+\.?\d*(?:e[+-]?\d+)?|0x[0-9a-f]+|0b[01]+|0o[0-7]+)\b/gi;
 
-  if (!language || !['js', 'javascript', 'ts', 'typescript'].includes(language.toLowerCase())) {
+  if (
+    !language ||
+    !['js', 'javascript', 'ts', 'typescript'].includes(language.toLowerCase())
+  ) {
     // No highlighting - just preserve whitespace
     const $code = document.createElement('span');
     $code.textContent = code;
@@ -511,7 +519,9 @@ const renderBlocks = (blocks, insertionPoints) => {
             const $li = document.createElement('li');
             $li.className = 'md-list-item';
             if (Array.isArray(item.content)) {
-              $li.appendChild(renderInlineTokens(item.content, insertionPoints));
+              $li.appendChild(
+                renderInlineTokens(item.content, insertionPoints),
+              );
             }
             $list.appendChild($li);
           }
@@ -541,7 +551,12 @@ export const prepareTextWithPlaceholders = strings => {
 
   // Join strings with placeholder characters
   // strings[0] + PLACEHOLDER + strings[1] + PLACEHOLDER + ... + strings[n]
-  return strings.slice(0, -1).map(s => s + PLACEHOLDER).join('') + strings[strings.length - 1];
+  return (
+    strings
+      .slice(0, -1)
+      .map(s => s + PLACEHOLDER)
+      .join('') + strings[strings.length - 1]
+  );
 };
 
 /**

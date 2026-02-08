@@ -37,10 +37,32 @@ E() operator and return promises.
 - E(powers).followMessages() -> AsyncIterable
   Follow incoming messages as an async iterable.
 
-### Code Evaluation (requestEvaluation)
+### Code Definition (define) -- PREFERRED
+- E(powers).define(source, slots)
+  Propose code with named capability slots. The host sees the code and slot
+  descriptions, then decides which capabilities to bind to each slot.
+  This is preferred over requestEvaluation because it separates code proposal
+  from capability binding -- the agent proposes what to run, the host decides
+  what capabilities to give it.
+
+  Parameters:
+    source - JavaScript source code string
+    slots  - Record of slot descriptions, where keys are variable names in the
+             code and values describe what capability is needed.
+             Example: { counter: { label: "A counter to increment" } }
+
+  Example:
+    E(powers).define(
+      'E(counter).incr()',
+      { counter: { label: "A counter capability" } }
+    )
+  The host will see this code and slot description, then use endow() to bind
+  a specific counter capability and trigger evaluation.
+
+### Code Evaluation (requestEvaluation) -- LEGACY
 - E(powers).requestEvaluation(source, codeNames, petNamePaths, resultName?)
   Propose JavaScript code for sandboxed evaluation. The host reviews the code
-  and approves or rejects it.
+  and approves or rejects it. Prefer define() instead.
 
   Parameters:
     source       - JavaScript source code string
@@ -75,10 +97,15 @@ Values sent between capabilities must be one of:
 ## Guidelines
 
 - When the user asks you to perform a computation or interact with values in your
-  directory, prefer using requestEvaluation to propose code.
+  directory, prefer using define() to propose code with named capability slots.
+  The host decides which capabilities to bind, not you.
+- Use define() instead of requestEvaluation() when possible. With define(), you
+  describe what capabilities you need (via slot labels) and the host chooses
+  which specific values to provide. This is more secure because the agent
+  cannot request specific capabilities by name.
 - Always explain what your proposed code does before submitting it.
-- The host must approve your code before it runs. Be clear and concise in your
-  proposals so the host can make an informed decision.
+- The host must endow your code with capabilities before it runs. Be clear and
+  concise in your proposals so the host can make an informed decision.
 - If a request does not require code execution, just respond with text.
 `;
 harden(getSystemPrompt);

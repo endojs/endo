@@ -32,9 +32,7 @@ export const make = powers => {
     const selfId = await E(powers).identify('SELF');
     await E(powers).send('HOST', ['Llamadrome ready for work.'], [], []);
 
-    for await (const message of makeRefIterator(
-      E(powers).followMessages(),
-    )) {
+    for await (const message of makeRefIterator(E(powers).followMessages())) {
       const { from: fromId, strings, names } = message;
 
       if (fromId === selfId) {
