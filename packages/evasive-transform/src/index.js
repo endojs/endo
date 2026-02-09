@@ -67,7 +67,7 @@ export function evadeCensorSync(source, options) {
     sourceUrl,
     sourceType,
     elideComments = false,
-    noCodeTransforms = false,
+    onlyComments = false,
   } = options || {};
 
   // Parse the rolled-up chunk with Babel.
@@ -76,7 +76,7 @@ export function evadeCensorSync(source, options) {
     sourceType,
   });
 
-  transformAst(ast, { elideComments, noCodeTransforms });
+  transformAst(ast, { elideComments, onlyComments });
 
   if (sourceUrl) {
     return generate(ast, { source, sourceUrl, sourceMap });
