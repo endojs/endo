@@ -1,68 +1,36 @@
 // @ts-check
 
-// IMPORTANT: Set up DOM globals BEFORE importing any chat modules
-// because they reference Node, etc. at module load time
-import { Window } from 'happy-dom';
-
-// Create a persistent window for the test suite
-const testWindow = new Window({ url: 'http://localhost:3000' });
-const w = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (testWindow));
-
-// Set up globals before other imports
-// @ts-expect-error - happy-dom types
-globalThis.window = testWindow;
-// @ts-expect-error - happy-dom types
-globalThis.document = testWindow.document;
-globalThis.setTimeout = testWindow.setTimeout.bind(testWindow);
-globalThis.clearTimeout = testWindow.clearTimeout.bind(testWindow);
-if (w.Node) globalThis.Node = /** @type {typeof Node} */ (w.Node);
-if (w.NodeFilter) globalThis.NodeFilter = /** @type {typeof NodeFilter} */ (w.NodeFilter);
-if (w.KeyboardEvent) globalThis.KeyboardEvent = /** @type {typeof KeyboardEvent} */ (w.KeyboardEvent);
-if (w.Event) globalThis.Event = /** @type {typeof Event} */ (w.Event);
-if (w.HTMLElement) globalThis.HTMLElement = /** @type {typeof HTMLElement} */ (w.HTMLElement);
-
-// Now we can safely import modules that depend on DOM globals
 import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
 import { makeMockPowers } from '../helpers/mock-powers.js';
-import { tick } from '../helpers/dom-setup.js';
+import {
+  createButton,
+  createDOM,
+  createInputElements,
+  tick,
+} from '../helpers/dom-setup.js';
 import { typeText } from '../helpers/keyboard-events.js';
 import { makeRefIterator } from '../../ref-iterator.js';
 import { sendFormComponent } from '../../send-form.js';
 
+const { document: testDocument, cleanup: cleanupDOM } = createDOM();
+
 /**
  * Create fresh DOM elements for each test.
- * @param {typeof testWindow.document} doc
+ * @param {Document} doc
  */
 const createElements = doc => {
-  // Clear document body
   doc.body.innerHTML = '';
-
-  const $input = doc.createElement('div');
-  $input.setAttribute('contenteditable', 'true');
-  $input.id = 'chat-message';
-  doc.body.appendChild($input);
-
-  const $menu = doc.createElement('div');
-  $menu.className = 'token-menu';
-  $menu.id = 'token-menu';
-  doc.body.appendChild($menu);
-
-  const $error = doc.createElement('div');
-  $error.id = 'chat-error';
-  doc.body.appendChild($error);
-
-  const $sendButton = doc.createElement('button');
-  $sendButton.id = 'send-button';
-  doc.body.appendChild($sendButton);
+  const { $input, $menu, $error } = createInputElements(doc);
+  const $sendButton = createButton(doc, 'send-button');
 
   return {
-    $input: /** @type {HTMLElement} */ (/** @type {unknown} */ ($input)),
-    $menu: /** @type {HTMLElement} */ (/** @type {unknown} */ ($menu)),
-    $error: /** @type {HTMLElement} */ (/** @type {unknown} */ ($error)),
-    $sendButton: /** @type {HTMLElement} */ (/** @type {unknown} */ ($sendButton)),
+    $input,
+    $menu,
+    $error,
+    $sendButton,
   };
 };
 
@@ -71,7 +39,7 @@ const createElements = doc => {
  * @param {string[]} [names]
  */
 const setup = (names = ['alice', 'bob', 'charlie']) => {
-  const { $input, $menu, $error, $sendButton } = createElements(testWindow.document);
+  const { $input, $menu, $error, $sendButton } = createElements(testDocument);
 
   const { powers, sentMessages, addName, setValue } = makeMockPowers({ names });
 
@@ -113,6 +81,14 @@ test('initial state is empty', t => {
   t.false(state.hasToken);
   t.false(state.hasText);
   t.false(state.menuVisible);
+});
+
+test.afterEach(() => {
+  testDocument.body.innerHTML = '';
+});
+
+test.after(() => {
+  cleanupDOM();
 });
 
 // NOTE: Token autocomplete behavior (typing @, filtering suggestions, Escape to

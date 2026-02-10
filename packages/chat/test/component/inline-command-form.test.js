@@ -1,52 +1,40 @@
 // @ts-check
 
-// Set up DOM globals BEFORE importing any chat modules
-import { Window } from 'happy-dom';
-
-const testWindow = new Window({ url: 'http://localhost:3000' });
-const w = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (testWindow));
-
-// @ts-expect-error - happy-dom types
-globalThis.window = testWindow;
-// @ts-expect-error - happy-dom types
-globalThis.document = testWindow.document;
-globalThis.setTimeout = testWindow.setTimeout.bind(testWindow);
-globalThis.clearTimeout = testWindow.clearTimeout.bind(testWindow);
-if (w.Event) globalThis.Event = /** @type {typeof Event} */ (w.Event);
-if (w.KeyboardEvent) globalThis.KeyboardEvent = /** @type {typeof KeyboardEvent} */ (w.KeyboardEvent);
-
 import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { createDOM, tick } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { createInlineCommandForm } from '../../inline-command-form.js';
+
+const { window: testWindow, cleanup: cleanupDOM } = createDOM();
 
 /**
  * Create DOM container for form testing.
  * @returns {{ $container: HTMLElement, cleanup: () => void }}
  */
 const createElements = () => {
-  const $container = testWindow.document.createElement('div');
+  const $container = /** @type {HTMLElement} */ (
+    /** @type {unknown} */ (testWindow.document.createElement('div'))
+  );
   $container.className = 'form-container';
   testWindow.document.body.appendChild($container);
 
   return {
-    $container: /** @type {HTMLElement} */ (/** @type {unknown} */ ($container)),
+    $container,
     cleanup: () => {
       $container.remove();
     },
   };
 };
 
-/**
- * Wait for async operations.
- * @param {number} [ms]
- */
-const tick = (ms = 10) => new Promise(r => setTimeout(r, ms));
-
 test.afterEach(() => {
   testWindow.document.body.innerHTML = '';
+});
+
+test.after(() => {
+  cleanupDOM();
 });
 
 test('createInlineCommandForm creates API with expected methods', t => {
@@ -199,7 +187,9 @@ test('isValid returns true when required fields filled', async t => {
 
   form.setCommand('show');
 
-  const input = /** @type {HTMLInputElement} */ ($container.querySelector('input'));
+  const input = /** @type {HTMLInputElement} */ (
+    $container.querySelector('input')
+  );
   input.value = 'alice';
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick(10);
@@ -225,7 +215,9 @@ test('getData returns form field values', async t => {
 
   form.setCommand('show');
 
-  const input = /** @type {HTMLInputElement} */ ($container.querySelector('input'));
+  const input = /** @type {HTMLInputElement} */ (
+    $container.querySelector('input')
+  );
   input.value = 'my-value';
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick(10);
@@ -283,7 +275,9 @@ test('onValidityChange callback is called', async t => {
   form.setCommand('show');
   await tick(10);
 
-  const input = /** @type {HTMLInputElement} */ ($container.querySelector('input'));
+  const input = /** @type {HTMLInputElement} */ (
+    $container.querySelector('input')
+  );
   input.value = 'test';
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick(10);
@@ -316,14 +310,18 @@ test('onSubmit callback is called on Enter when valid', async t => {
 
   form.setCommand('show');
 
-  const input = /** @type {HTMLInputElement} */ ($container.querySelector('input'));
+  const input = /** @type {HTMLInputElement} */ (
+    $container.querySelector('input')
+  );
   input.value = 'test-name';
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick(10);
 
   // Press Enter
   const formEl = $container.querySelector('.inline-command-form');
-  formEl?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  formEl?.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+  );
   await tick(10);
 
   t.is(submittedCommand, 'show');
@@ -355,7 +353,9 @@ test('onCancel callback is called on Escape', async t => {
   await tick(10);
 
   const formEl = $container.querySelector('.inline-command-form');
-  formEl?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  formEl?.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  );
   await tick(10);
 
   t.true(cancelled);
@@ -522,7 +522,9 @@ test('getData returns messageNumber as number', async t => {
   form.setCommand('dismiss');
   await tick(10);
 
-  const input = /** @type {HTMLInputElement} */ ($container.querySelector('input[type="number"]'));
+  const input = /** @type {HTMLInputElement} */ (
+    $container.querySelector('input[type="number"]')
+  );
   input.value = '42';
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick(10);

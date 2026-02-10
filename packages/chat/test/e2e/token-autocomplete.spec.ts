@@ -7,11 +7,15 @@
  * - Range API for text manipulation in contenteditable
  * - DOM node splitting and insertion
  */
+/* global window */
 
 import { test, expect, Page } from '@playwright/test';
 
 // Helper to set up a page with mock pet names
-async function setupPage(page: Page, petNames: string[] = ['alice', 'bob', 'charlie']) {
+async function setupPage(
+  page: Page,
+  petNames: string[] = ['alice', 'bob', 'charlie'],
+) {
   await page.goto('/');
 
   // Wait for the app to initialize
@@ -19,11 +23,11 @@ async function setupPage(page: Page, petNames: string[] = ['alice', 'bob', 'char
 
   // Inject mock pet names into the token autocomplete
   // This requires a test harness exposed on window
-  await page.evaluate((names) => {
-    // @ts-expect-error - test harness
-    if (window.__testHarness?.setPetNames) {
-      // @ts-expect-error - test harness
-      window.__testHarness.setPetNames(names);
+  await page.evaluate(names => {
+    // eslint-disable-next-line no-underscore-dangle
+    const harness = window.__testHarness;
+    if (harness?.setPetNames) {
+      harness.setPetNames(names);
     }
   }, petNames);
 }
@@ -319,6 +323,7 @@ test.describe('Token Autocomplete', () => {
       // Get message via test harness
       const message = await page.evaluate(() => {
         // @ts-expect-error - test harness
+        // eslint-disable-next-line no-underscore-dangle
         return window.__testHarness?.getMessage?.();
       });
 
@@ -341,6 +346,7 @@ test.describe('Token Autocomplete', () => {
 
       const message = await page.evaluate(() => {
         // @ts-expect-error - test harness
+        // eslint-disable-next-line no-underscore-dangle
         return window.__testHarness?.getMessage?.();
       });
 
@@ -358,6 +364,7 @@ test.describe('Token Autocomplete', () => {
 
       const message = await page.evaluate(() => {
         // @ts-expect-error - test harness
+        // eslint-disable-next-line no-underscore-dangle
         return window.__testHarness?.getMessage?.();
       });
 

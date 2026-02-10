@@ -81,6 +81,14 @@ export const COMMANDS = {
     ],
     submitLabel: 'Dismiss',
   },
+  'dismiss-all': {
+    name: 'dismiss-all',
+    label: 'Dismiss All',
+    description: 'Dismiss all messages',
+    category: 'messaging',
+    mode: 'immediate',
+    fields: [],
+  },
   adopt: {
     name: 'adopt',
     label: 'Adopt',

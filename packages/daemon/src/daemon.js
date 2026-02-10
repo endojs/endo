@@ -1384,6 +1384,7 @@ const makeDaemonCore = async (
             listIdentifiers: disallowedFn,
             followNameChanges: disallowedFn,
             lookup: disallowedFn,
+            lookupById: disallowedFn,
             reverseLookup: disallowedFn,
             write: disallowedFn,
             remove: disallowedFn,
@@ -1397,10 +1398,12 @@ const makeDaemonCore = async (
             reject: disallowedFn,
             adopt: disallowedFn,
             dismiss: disallowedFn,
+            dismissAll: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
             requestEvaluation: disallowedFn,
             deliver: disallowedSyncFn,
+            evaluate: disallowedFn,
           })
         )
       );
@@ -1590,8 +1593,8 @@ const makeDaemonCore = async (
     if (peerId === undefined) {
       throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
-    const { id: verifiedPeerId } = parseId(peerId);
-    return verifiedPeerId;
+    parseId(peerId);
+    return peerId;
   };
 
   /** @type {DaemonCore['cancelValue']} */
@@ -2161,7 +2164,6 @@ const makeDaemonCore = async (
           evalId: ownId,
           evalFormulaNumber: ownFormulaNumber,
         });
-
         await deferredTasks.execute(identifiers);
         return identifiers;
       });
@@ -2653,8 +2655,8 @@ const makeDaemonCore = async (
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const { id: formulaId, number: formulaNumber } = parseId(id);
-      const formula = await getFormulaForId(formulaId);
+      const { number: formulaNumber } = parseId(id);
+      const formula = await getFormulaForId(id);
       if (
         !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
           formula.type,

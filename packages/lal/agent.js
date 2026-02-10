@@ -9,7 +9,7 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage } from './agent-types' */
+/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification } from './agent.types' */
 
 // ============================================================================
 // Interface Definition
@@ -772,13 +772,26 @@ Always check tool results before proceeding - don't assume success.
  * Creates a Lal agent that processes messages using an LLM.
  *
  * @param {FarRef<GuestPowers>} guestPowers - Guest powers from the Endo daemon
+ * @param {Promise<any> | any} contextP - Context (used for cancellation)
  * @returns {object} The Lal exo object
  */
-export const make = (guestPowers, _contextP, { env }) => {
+export const make = (guestPowers, contextP, { env }) => {
   console.log('[LAL]', env);
   // Cast to any for E() calls since TypeScript can't properly infer FarRef types
   /** @type {any} */
   const powers = guestPowers;
+  const getCancelled = async () => {
+    if (!contextP) return null;
+    const context = await contextP;
+    if (!context) return null;
+    if (typeof context.whenCancelled === 'function') {
+      return E(context).whenCancelled();
+    }
+    if (context.cancelled) {
+      return context.cancelled;
+    }
+    return null;
+  };
 
   // LAL_HOST, LAL_MODEL, LAL_AUTH_TOKEN; see providers/index.js.
   const provider = createProvider(env);
@@ -800,28 +813,9 @@ export const make = (guestPowers, _contextP, { env }) => {
 
   // ---- Eval Proposal Tracking ----
 
-  /**
-   * @typedef {object} PendingProposal
-   * @property {number} proposalId
-   * @property {string} source
-   * @property {string[]} codeNames
-   * @property {string[]} edgeNames
-   * @property {string} [workerName]
-   * @property {Promise<unknown>} promise
-   */
-
   /** @type {Map<number, PendingProposal>} */
   const pendingProposals = new Map();
   let nextProposalId = 1;
-
-  /**
-   * @typedef {object} ProposalNotification
-   * @property {'granted' | 'rejected'} status
-   * @property {number} proposalId
-   * @property {string} source
-   * @property {unknown} [result]
-   * @property {string} [error]
-   */
 
   /** @type {ProposalNotification[]} */
   const notificationQueue = [];
@@ -832,6 +826,70 @@ export const make = (guestPowers, _contextP, { env }) => {
    */
   const injectProposalNotification = notification => {
     notificationQueue.push(notification);
+  };
+
+  /**
+   * Best-effort sanitization for JSON-like tool arguments.
+   * @param {string} text
+   * @returns {string}
+   */
+  const sanitizeJsonLike = text => {
+    let sanitized = text.trim();
+    sanitized = sanitized.replace(/\bundefined\b/g, 'null');
+    sanitized = sanitized.replace(/,\s*([}\]])/g, '$1');
+    return sanitized;
+  };
+
+  /**
+   * Extract tool calls embedded in assistant content.
+   * @param {string} content
+   * @returns {{ toolCalls: ToolCall[], cleanedContent: string }}
+   */
+  const extractToolCallsFromContent = content => {
+    /** @type {ToolCall[]} */
+    const toolCalls = [];
+    const toolCallRe = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+    let match;
+    let index = 0;
+    while ((match = toolCallRe.exec(content)) !== null) {
+      const block = match[1].trim();
+      let name = '';
+      /** @type {string | object} */
+      let args = '{}';
+      try {
+        const parsed = JSON.parse(sanitizeJsonLike(block));
+        if (parsed && typeof parsed === 'object') {
+          name = parsed.name || '';
+          if (parsed.arguments !== undefined) {
+            args =
+              typeof parsed.arguments === 'string'
+                ? parsed.arguments
+                : JSON.stringify(parsed.arguments);
+          }
+        }
+      } catch {
+        const nameMatch = block.match(/"name"\s*:\s*"([^"]+)"/);
+        const argsMatch = block.match(/"arguments"\s*:\s*({[\s\S]*})/);
+        name = nameMatch ? nameMatch[1] : '';
+        args = argsMatch ? argsMatch[1].trim() : '{}';
+      }
+      if (name) {
+        toolCalls.push({
+          id: `tool_${Date.now()}_${index}`,
+          function: {
+            name,
+            arguments: args,
+          },
+        });
+        index += 1;
+      }
+    }
+
+    let cleanedContent = content.replace(toolCallRe, '');
+    cleanedContent = cleanedContent.replace(/<think>[\s\S]*?<\/think>/g, '');
+    cleanedContent = cleanedContent.trim();
+
+    return { toolCalls, cleanedContent };
   };
 
   /**
@@ -1079,7 +1137,11 @@ export const make = (guestPowers, _contextP, { env }) => {
         try {
           args = JSON.parse(argsRaw);
         } catch {
-          args = {};
+          try {
+            args = JSON.parse(sanitizeJsonLike(argsRaw));
+          } catch {
+            args = {};
+          }
         }
       } else {
         args = /** @type {ToolCallArgs} */ (argsRaw) || {};
@@ -1116,8 +1178,9 @@ export const make = (guestPowers, _contextP, { env }) => {
    */
   const formatProposalNotification = notification => {
     const { status, proposalId, source } = notification;
+    const sourceText = String(source);
     const sourcePreview =
-      source.length > 100 ? `${source.slice(0, 100)}...` : source;
+      sourceText.length > 100 ? `${sourceText.slice(0, 100)}...` : sourceText;
 
     if (status === 'granted') {
       const resultStr =
@@ -1189,6 +1252,18 @@ The HOST declined to execute your proposed code. You should:
         break;
       }
 
+      if (
+        (!responseMessage.tool_calls ||
+          responseMessage.tool_calls.length === 0) &&
+        responseMessage.content
+      ) {
+        const extracted = extractToolCallsFromContent(responseMessage.content);
+        if (extracted.toolCalls.length > 0) {
+          responseMessage.tool_calls = extracted.toolCalls;
+          responseMessage.content = extracted.cleanedContent;
+        }
+      }
+
       // Add the assistant's response to the transcript
       transcript.push(/** @type {ChatMessage} */ (responseMessage));
       console.log(
@@ -1196,8 +1271,10 @@ The HOST declined to execute your proposed code. You should:
       );
 
       // Check if there are tool calls to process
-      const { tool_calls: toolCalls } = responseMessage;
-      if (toolCalls && toolCalls.length > 0) {
+      const toolCalls = Array.isArray(responseMessage.tool_calls)
+        ? responseMessage.tool_calls
+        : [];
+      if (toolCalls.length !== 0) {
         const toolResults = await processToolCalls(
           /** @type {ToolCall[]} */ (toolCalls),
         );
@@ -1256,9 +1333,36 @@ The HOST declined to execute your proposed code. You should:
 
     /** @type {string | undefined} */
     const selfId = await E(powers).identify('SELF');
+    const cancelled = await getCancelled();
+    const cancelledSignal = cancelled
+      ? cancelled.then(
+          () => ({ cancelled: true }),
+          () => ({ cancelled: true }),
+        )
+      : null;
 
     // Follow messages and notify the LLM
-    for await (const message of makeRefIterator(E(powers).followMessages())) {
+    const messageIterator = makeRefIterator(E(powers).followMessages());
+    while (true) {
+      const nextMessage = messageIterator.next();
+      const raced = cancelledSignal
+        ? await Promise.race([
+            cancelledSignal,
+            nextMessage.then(result => ({ cancelled: false, result })),
+          ])
+        : { cancelled: false, result: await nextMessage };
+      if (raced.cancelled) {
+        try {
+          await messageIterator.return?.();
+        } catch {
+          // ignore iterator return errors on cancellation
+        }
+        break;
+      }
+      const { value: message, done } = raced.result;
+      if (done) {
+        break;
+      }
       const {
         from: fromId,
         number,

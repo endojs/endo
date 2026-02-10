@@ -4,7 +4,6 @@ import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
-import { assertPetName } from './pet-name.js';
 
 /** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetName, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
 
@@ -47,7 +46,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The new name.
      */
     const publishNameAddition = (id, petName) => {
-      assertPetName(petName);
+      assertValidName(petName);
       const idRecord = parseId(id);
       nameChangesTopic.publisher.next({
         add: petName,
@@ -64,7 +63,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The removed name.
      */
     const publishNameRemoval = (id, petName) => {
-      assertPetName(petName);
+      assertValidName(petName);
       nameChangesTopic.publisher.next({ remove: petName });
       if (id !== undefined) {
         publishIdChangeToSubscribers(id, {

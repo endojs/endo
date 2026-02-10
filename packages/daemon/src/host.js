@@ -12,7 +12,6 @@ import {
   assertPetName,
   assertPetNamePath,
   assertName,
-  assertNames,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -149,32 +148,6 @@ export const makeHostMaker = ({
     });
     const { petStore, handle } = mailbox;
     const getEndoBootstrap = async () => provide(endoId, 'endo');
-
-    /**
-     * @param {MakeHostOrGuestOptions | undefined} opts
-     * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
-     */
-    const normalizeHostOrGuestOptions = opts => {
-      const { introducedNames: introducedNamesRecord, agentName } = opts ?? {};
-      /** @type {Record<Name, PetName>} */
-      const introducedNames = Object.create(null);
-      if (introducedNamesRecord !== undefined) {
-        for (const [edgeName, introducedPetName] of Object.entries(
-          introducedNamesRecord,
-        )) {
-          assertName(edgeName);
-          assertPetName(introducedPetName);
-          introducedNames[edgeName] = introducedPetName;
-        }
-      }
-      if (agentName !== undefined) {
-        assertPetName(agentName);
-      }
-      return {
-        introducedNames,
-        agentName,
-      };
-    };
 
     /**
      * @param {ERef<AsyncIterableIterator<string>>} readerRef
@@ -775,8 +748,12 @@ export const makeHostMaker = ({
       remove,
       move,
       copy,
-      makeDirectory,
+      makeDirectory: makeDirectoryLocal,
     } = directory;
+    const makeDirectory = async petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      return makeDirectoryLocal(namePath);
+    };
     const {
       listMessages,
       followMessages,
@@ -784,6 +761,7 @@ export const makeHostMaker = ({
       reject,
       adopt,
       dismiss,
+      dismissAll,
       request,
       send,
       deliver,
@@ -800,17 +778,57 @@ export const makeHostMaker = ({
      */
     const grantEvaluate = async messageNumber => {
       // Create an executor callback that uses formulateEval
-      const executeEval = async (source, codeNames, ids, workerName) => {
+      const executeEval = async (
+        source,
+        codeNames,
+        ids,
+        workerName,
+        proposal,
+      ) => {
         /** @type {DeferredTasks<EvalDeferredTaskParams>} */
         const tasks = makeDeferredTasks();
 
         const workerId = prepareWorkerFormulation(workerName, tasks.push);
 
+        let nameHubId = hostId;
+        let endowmentIdsOrPaths = ids;
+
+        if (proposal?.from) {
+          const guestAgentId = await getAgentIdForHandleId(proposal.from);
+          nameHubId = guestAgentId;
+
+          if (proposal.petNamePaths) {
+            if (proposal.petNamePaths.length !== codeNames.length) {
+              throw new Error(
+                `Eval proposal must have one pet name path for each code name`,
+              );
+            }
+
+            const guestAgent = await provide(guestAgentId, 'agent');
+
+            // Resolve endowments from the guest's namespace
+            endowmentIdsOrPaths = await Promise.all(
+              proposal.petNamePaths.map(async petNamePath => {
+                if (petNamePath.length === 1) {
+                  const id = await E(guestAgent).identify(petNamePath[0]);
+                  if (id === undefined) {
+                    throw new Error(
+                      `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
+                    );
+                  }
+                  return /** @type {FormulaIdentifier} */ (id);
+                }
+                return petNamePath;
+              }),
+            );
+          }
+        }
+
         const { id, value } = await formulateEval(
-          hostId,
+          nameHubId,
           source,
           codeNames,
-          ids, // The proposal already contains resolved IDs
+          endowmentIdsOrPaths,
           tasks,
           workerId,
         );
@@ -870,6 +888,7 @@ export const makeHostMaker = ({
         messageNumber,
         source,
         codeNames,
+        petNamePaths,
         edgeNames,
         ids,
         workerNameStr,
@@ -905,6 +924,7 @@ export const makeHostMaker = ({
       reject,
       adopt,
       dismiss,
+      dismissAll,
       request,
       send,
       // Host

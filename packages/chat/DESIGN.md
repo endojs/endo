@@ -495,6 +495,8 @@ Parentheses indicate aliases.
 - No direct file system access from UI
 - WebSocket connection authenticated via daemon
 - Eval proposals require explicit grant from host
+- Guest `evaluate` mirrors Host `evaluate`, but execution is gated by the host approval flow.
+- Counter-proposal messages may include endowments the guest should not accept. The current workflow relies on user review; consider revisiting this design if it proves risky.
 
 ## Known Gaps and TODOs
 

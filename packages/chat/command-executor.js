@@ -63,6 +63,14 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'dismiss-all': {
+          await E(powers).dismissAll();
+          return {
+            success: true,
+            message: 'All messages dismissed',
+          };
+        }
+
         case 'adopt': {
           const { messageNumber, edgeName, petName } = params;
           const targetName = petName ? String(petName) : String(edgeName);

@@ -6,19 +6,18 @@ import { makeRefIterator } from './ref-iterator.js';
 
 /**
  * @param {HTMLElement} $parent
- * @param {HTMLElement | null} $end
+ * @param {HTMLElement | null} _end
  * @param {unknown} powers
  * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void> }} options
  * @param {string[]} [path] - Current path for nested inventories
  */
 export const inventoryComponent = async (
   $parent,
-  $end,
+  _end,
   powers,
   { showValue },
   path = [],
 ) => {
-  void $end; // unused but kept for interface consistency
   const $list = $parent.querySelector('.pet-list') || $parent;
 
   /** @type {Map<string, { $wrapper: HTMLElement, cleanup?: () => void }>} */

@@ -7,6 +7,7 @@
  * - Communication is via postMessage
  * - Keyboard shortcuts need real browser events
  */
+/* global document, window, setTimeout */
 
 import { test, expect, Page } from '@playwright/test';
 
@@ -89,9 +90,11 @@ test.describe('Monaco Editor', () => {
 
       // Listen for submit event
       const submitted = page.evaluate(() => {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           const container = document.querySelector('.eval-editor-container');
-          container?.addEventListener('monaco-submit', () => resolve(true), { once: true });
+          container?.addEventListener('monaco-submit', () => resolve(true), {
+            once: true,
+          });
           setTimeout(() => resolve(false), 2000);
         });
       });
@@ -111,9 +114,11 @@ test.describe('Monaco Editor', () => {
 
       // Listen for escape event
       const escaped = page.evaluate(() => {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           const container = document.querySelector('.eval-editor-container');
-          container?.addEventListener('monaco-escape', () => resolve(true), { once: true });
+          container?.addEventListener('monaco-escape', () => resolve(true), {
+            once: true,
+          });
           setTimeout(() => resolve(false), 2000);
         });
       });
@@ -208,8 +213,13 @@ test.describe('Monaco Wrapper Protocol', () => {
 
     // Send set-value message from parent
     await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[src*="monaco"]') as HTMLIFrameElement;
-      iframe?.contentWindow?.postMessage({ type: 'set-value', value: 'test content' }, '*');
+      const iframe = document.querySelector(
+        'iframe[src*="monaco"]',
+      ) as HTMLIFrameElement;
+      iframe?.contentWindow?.postMessage(
+        { type: 'set-value', value: 'test content' },
+        '*',
+      );
     });
 
     // Verify content updated
@@ -223,12 +233,16 @@ test.describe('Monaco Wrapper Protocol', () => {
 
     // Set up listener for monaco-change
     const changed = page.evaluate(() => {
-      return new Promise<string>((resolve) => {
-        window.addEventListener('message', (event) => {
-          if (event.data?.type === 'monaco-change') {
-            resolve(event.data.value);
-          }
-        }, { once: true });
+      return new Promise<string>(resolve => {
+        window.addEventListener(
+          'message',
+          event => {
+            if (event.data?.type === 'monaco-change') {
+              resolve(event.data.value);
+            }
+          },
+          { once: true },
+        );
         setTimeout(() => resolve(''), 3000);
       });
     });

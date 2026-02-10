@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+/* global process, setTimeout */
 /**
  * Standalone runner for the Lal agent simulator.
  * Uses mock guest powers and real LLM providers (Anthropic, etc.) via env.
@@ -37,15 +38,19 @@ function loadEnvFile(filePath) {
   const content = readFileSync(resolved, 'utf-8');
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const match = trimmed.match(/^export\s+(\w+)=(.*)$/);
-    if (match) {
-      const key = match[1];
-      let value = match[2].trim();
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
+    if (trimmed && !trimmed.startsWith('#')) {
+      const match = trimmed.match(/^export\s+(\w+)=(.*)$/);
+      if (match) {
+        const key = match[1];
+        let value = match[2].trim();
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
+          value = value.slice(1, -1);
+        }
+        process.env[key] = value;
       }
-      process.env[key] = value;
     }
   }
   console.log('[simulator] Loaded env from', resolved);
@@ -59,7 +64,9 @@ async function main() {
 
   const env = process.env;
   if (!env.LAL_AUTH_TOKEN && (env.LAL_HOST || '').includes('anthropic.com')) {
-    console.error('LAL_AUTH_TOKEN is required for Anthropic. Set it and try again.');
+    console.error(
+      'LAL_AUTH_TOKEN is required for Anthropic. Set it and try again.',
+    );
     process.exitCode = 1;
     return;
   }
@@ -81,7 +88,7 @@ async function main() {
     },
   });
 
-  const agent = make(powers, null, { env });
+  make(powers, null, { env });
 
   const done = whenDismissed(1);
   const timeout = new Promise((_, reject) => {
@@ -97,7 +104,13 @@ async function main() {
     if (sent.length > 0) {
       console.log('[simulator] Agent sent', sent.length, 'message(s):');
       for (const s of sent) {
-        console.log('  ->', s.recipient, ':', s.strings.join(' ').slice(0, 80) + (s.strings.join('').length > 80 ? '...' : ''));
+        console.log(
+          '  ->',
+          s.recipient,
+          ':',
+          s.strings.join(' ').slice(0, 80) +
+            (s.strings.join('').length > 80 ? '...' : ''),
+        );
       }
     }
     console.log('[simulator] Done.');

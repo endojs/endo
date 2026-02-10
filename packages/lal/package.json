@@ -45,6 +45,7 @@
     "@endo/cli": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",

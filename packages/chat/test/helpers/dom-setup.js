@@ -1,4 +1,5 @@
 // @ts-check
+/* global globalThis, setTimeout */
 
 import { Window } from 'happy-dom';
 
@@ -33,12 +34,19 @@ export const createDOM = () => {
 
   // DOM globals needed by components
   // happy-dom exposes these on the window object
-  const w = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (window));
+  const w = /** @type {Record<string, unknown>} */ (
+    /** @type {unknown} */ (window)
+  );
   if (w.Node) globalThis.Node = /** @type {typeof Node} */ (w.Node);
-  if (w.NodeFilter) globalThis.NodeFilter = /** @type {typeof NodeFilter} */ (w.NodeFilter);
-  if (w.KeyboardEvent) globalThis.KeyboardEvent = /** @type {typeof KeyboardEvent} */ (w.KeyboardEvent);
+  if (w.NodeFilter)
+    globalThis.NodeFilter = /** @type {typeof NodeFilter} */ (w.NodeFilter);
+  if (w.KeyboardEvent)
+    globalThis.KeyboardEvent = /** @type {typeof KeyboardEvent} */ (
+      w.KeyboardEvent
+    );
   if (w.Event) globalThis.Event = /** @type {typeof Event} */ (w.Event);
-  if (w.HTMLElement) globalThis.HTMLElement = /** @type {typeof HTMLElement} */ (w.HTMLElement);
+  if (w.HTMLElement)
+    globalThis.HTMLElement = /** @type {typeof HTMLElement} */ (w.HTMLElement);
 
   // Fallback Node constants if not provided by happy-dom
   if (!globalThis.Node) {
@@ -91,24 +99,24 @@ export const createDOM = () => {
  * @returns {{ $input: HTMLElement, $menu: HTMLElement, $error: HTMLElement }}
  */
 export const createInputElements = document => {
-  const $input = document.createElement('div');
+  const $input = /** @type {HTMLElement} */ (document.createElement('div'));
   $input.setAttribute('contenteditable', 'true');
   $input.id = 'chat-message';
   document.body.appendChild($input);
 
-  const $menu = document.createElement('div');
+  const $menu = /** @type {HTMLElement} */ (document.createElement('div'));
   $menu.className = 'token-menu';
   $menu.id = 'token-menu';
   document.body.appendChild($menu);
 
-  const $error = document.createElement('div');
+  const $error = /** @type {HTMLElement} */ (document.createElement('div'));
   $error.id = 'chat-error';
   document.body.appendChild($error);
 
   return {
-    $input: /** @type {HTMLElement} */ ($input),
-    $menu: /** @type {HTMLElement} */ ($menu),
-    $error: /** @type {HTMLElement} */ ($error),
+    $input,
+    $menu,
+    $error,
   };
 };
 

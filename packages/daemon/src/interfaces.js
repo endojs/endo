@@ -42,7 +42,7 @@ const EvaluateMethodGuard = M.call(
   M.arrayOf(M.string()),
   NamesOrPathsShape,
 )
-  .optional(NamePathShape)
+  .optional(NameOrPathShape)
   .returns(M.promise());
 
 // #region Interfaces
@@ -51,6 +51,23 @@ export const WorkerInterface = M.interface('EndoWorker', {});
 
 export const ResponderInterface = M.interface('EndoResponder', {
   respondId: M.call(M.or(IdShape, M.promise())).returns(),
+});
+
+export const NameHubInterface = M.interface('EndoNameHub', {
+  has: M.call().rest(NamePathShape).returns(M.promise()),
+  identify: M.call().rest(NamePathShape).returns(M.promise()),
+  locate: M.call().rest(NamePathShape).returns(M.promise()),
+  reverseLocate: M.call(LocatorShape).returns(M.promise()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  list: M.call().rest(NamePathShape).returns(M.promise()),
+  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
+  followNameChanges: M.call().returns(M.remotable()),
+  lookup: M.call(NameOrPathShape).returns(M.promise()),
+  reverseLookup: M.call(M.any()).returns(M.promise()),
+  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  remove: M.call().rest(NamePathShape).returns(M.promise()),
+  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
+  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
 });
 
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
@@ -102,7 +119,7 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
   // Copy a reference
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   // Create a new directory
-  makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
 });
 
 export const GuestInterface = M.interface('EndoGuest', {
@@ -125,7 +142,7 @@ export const GuestInterface = M.interface('EndoGuest', {
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
   // Mail
   // Get the guest's mailbox handle
   handle: M.call().returns(M.remotable()),
@@ -143,6 +160,8 @@ export const GuestInterface = M.interface('EndoGuest', {
   ),
   // Remove a message from inbox
   dismiss: M.call(MessageNumberShape).returns(M.promise()),
+  // Remove all messages from inbox
+  dismissAll: M.call().returns(M.promise()),
   // Send a request and wait for response
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
@@ -187,7 +206,7 @@ export const HostInterface = M.interface('EndoHost', {
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
@@ -198,6 +217,7 @@ export const HostInterface = M.interface('EndoHost', {
     M.promise(),
   ),
   dismiss: M.call(MessageNumberShape).returns(M.promise()),
+  dismissAll: M.call().returns(M.promise()),
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
@@ -210,7 +230,9 @@ export const HostInterface = M.interface('EndoHost', {
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
-  storeBlob: M.call(M.remotable()).optional(NameShape).returns(M.promise()),
+  storeBlob: M.call(M.remotable())
+    .optional(NameOrPathShape)
+    .returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
@@ -218,7 +240,7 @@ export const HostInterface = M.interface('EndoHost', {
   // Provide a host
   provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
-  provideWorker: M.call(NamePathShape).returns(M.promise()),
+  provideWorker: M.call(NameOrPathShape).returns(M.promise()),
   // Evaluate code (Host executes directly; Guest sends eval-proposal)
   evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet

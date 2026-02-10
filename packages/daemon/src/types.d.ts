@@ -380,6 +380,7 @@ export type EvalRequest = {
 export type EvalProposalBase = {
   source: string; // JavaScript source code
   codeNames: Array<string>; // variable names used in source
+  petNamePaths?: Array<NamePath>; // pet names providing values (sender's namespace)
   edgeNames: Array<string>; // edge names for values (sender's namespace)
   ids: Array<string>; // formula identifiers for the values
   workerName?: string; // worker to execute on
@@ -398,7 +399,13 @@ export type EvalProposalProposer = EvalProposalBase & {
   resultName?: string; // where sender wants result stored (sender's namespace)
 };
 
-export type Message = Request | Package | EvalRequest | EvalProposal | EvalProposalReviewer | EvalProposalProposer;
+export type Message =
+  | Request
+  | Package
+  | EvalRequest
+  | EvalProposal
+  | EvalProposalReviewer
+  | EvalProposalProposer;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -611,6 +618,7 @@ export interface Mail {
     petName: NameOrPath,
   ): Promise<void>;
   dismiss(messageNumber: bigint): Promise<void>;
+  dismissAll(): Promise<void>;
   request(
     recipientName: NameOrPath,
     what: string,
@@ -642,6 +650,7 @@ export interface Mail {
     toId: string,
     source: string,
     codeNames: Array<string>,
+    petNamePaths: Array<NamePath>,
     edgeNames: Array<EdgeName>,
     ids: Array<string>,
     workerName?: string,
@@ -653,13 +662,15 @@ export interface Mail {
       source: string,
       codeNames: string[],
       ids: string[],
-      workerName?: string,
+      workerName: string | undefined,
+      proposal: EvalProposalReviewer,
     ) => Promise<{ id: string; value: unknown }>,
   ): Promise<unknown>;
   counterEvaluate(
     messageNumber: number,
     source: string,
     codeNames: Array<string>,
+    petNamePaths: Array<NamePath>,
     edgeNames: Array<EdgeName>,
     ids: Array<string>,
     workerName?: string,
@@ -731,6 +742,7 @@ export interface EndoAgent extends EndoDirectory {
   reject: Mail['reject'];
   adopt: Mail['adopt'];
   dismiss: Mail['dismiss'];
+  dismissAll: Mail['dismissAll'];
   request: Mail['request'];
   send: Mail['send'];
   deliver: Mail['deliver'];
@@ -1197,7 +1209,9 @@ export interface DaemonCore {
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
 
-  getAgentIdForHandleId: (handleId: FormulaIdentifier) => Promise<FormulaIdentifier>;
+  getAgentIdForHandleId: (
+    handleId: FormulaIdentifier,
+  ) => Promise<FormulaIdentifier>;
 }
 
 export interface DaemonCoreExternal {

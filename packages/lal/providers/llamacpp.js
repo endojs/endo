@@ -56,9 +56,7 @@ export const makeLlamaCppProvider = ({
           `[LAL] Truncated to last ${maxMessages} messages (was ${messages.length})`,
         );
       }
-      console.log(
-        `[LAL] Calling llama.cpp at ${baseURL} with model: ${model}`,
-      );
+      console.log(`[LAL] Calling llama.cpp at ${baseURL} with model: ${model}`);
       let response;
       try {
         response = await client.chat.completions.create({
@@ -82,10 +80,7 @@ export const makeLlamaCppProvider = ({
         role: 'assistant',
         content: choice.message?.content ?? '',
       };
-      if (
-        choice.message?.tool_calls &&
-        choice.message.tool_calls.length > 0
-      ) {
+      if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
         message.tool_calls = choice.message.tool_calls.map(tc => ({
           id: tc.id,
           function: {

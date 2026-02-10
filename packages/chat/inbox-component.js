@@ -129,11 +129,10 @@ export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
     if (!isSent) {
       const fromNames = await E(powers).reverseIdentify(fromId);
       const fromName = fromNames?.[0];
-      if (fromName === undefined) {
-        continue;
+      if (fromName !== undefined) {
+        $senderChip = document.createElement('b');
+        $senderChip.innerText = `@${fromName}`;
       }
-      $senderChip = document.createElement('b');
-      $senderChip.innerText = `@${fromName}`;
     } else {
       const toNames = await E(powers).reverseIdentify(toId);
       const toName = toNames?.[0];
@@ -447,7 +446,10 @@ export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
                   $error.innerText = ' Result is not available.';
                   return;
                 }
-                showValue(value, id, resultPath, { number, edgeName: resultName });
+                showValue(value, id, resultPath, {
+                  number,
+                  edgeName: resultName,
+                });
               },
               (/** @type {Error} */ error) => {
                 $error.innerText = ` ${error.message}`;

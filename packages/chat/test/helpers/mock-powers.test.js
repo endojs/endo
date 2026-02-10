@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 
 import '@endo/init/debug.js';
 
@@ -89,7 +90,7 @@ test('mock powers send records messages', async t => {
 });
 
 test('mock powers storeValue adds name and value', async t => {
-  const { powers, addName } = makeMockPowers({ names: [] });
+  const { powers } = makeMockPowers({ names: [] });
 
   await E(powers).storeValue({ data: 'test' }, ['new', 'name']);
 

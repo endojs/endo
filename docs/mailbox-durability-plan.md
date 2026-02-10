@@ -52,6 +52,19 @@ Each message (request, package, eval-proposal-reviewer, eval-proposal-
 proposer, and any future types like form-response) must be serializable
 so we can persist it and rehydrate it after a restart.
 
+- **Eval-proposal semantics**: `Guest.evaluate(...)` uses the same
+  argument shape as `Host.evaluate(...)`, but the guest path is
+  approval-gated.
+  The reviewer message should carry `petNamePaths` alongside `codeNames`
+  so the host can resolve endowments in the guest's namespace at approval
+  time.
+  This keeps approval semantics explicit without introducing a separate
+  message type.
+- **Counter-proposal risk**: The back-and-forth in the eval-proposal
+  workflow risks a host counter-proposing with an endowment the guest
+  should not have.
+  We may later remove or rework counter-proposals to mitigate this, but
+  keep it in mind for now.
 - **Serializable fields**: Type, `from`, `to`, `date`, and type-specific
   fields (e.g. `description` for request; `strings`, `names`, `ids` for
   package; `source`, `codeNames`, `edgeNames`, etc. for eval-proposal)

@@ -698,8 +698,7 @@ export const chatBarComponent = (
       }
 
       // For js/eval: reset command line immediately so guest proposals don't block the UI
-      const isEval =
-        currentCommand === 'js' || currentCommand === 'eval';
+      const isEval = currentCommand === 'js' || currentCommand === 'eval';
       if (isEval) {
         exitCommandMode();
       }

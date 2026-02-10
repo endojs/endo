@@ -171,6 +171,10 @@ dismiss(messageNumber) -> Promise<void>
 Remove a message from the inbox.
 Use after you've processed a message.`,
 
+  dismissAll: `\
+dismissAll() -> Promise<void>
+Remove all messages from the inbox.`,
+
   request: `\
 request(recipientName, description, responseName?) -> Promise<any>
 Send a request to another agent asking for a capability.

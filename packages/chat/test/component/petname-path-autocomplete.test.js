@@ -1,43 +1,35 @@
 // @ts-check
 
-// Set up DOM globals BEFORE importing any chat modules
-import { Window } from 'happy-dom';
-
-const testWindow = new Window({ url: 'http://localhost:3000' });
-const w = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (testWindow));
-
-// @ts-expect-error - happy-dom types
-globalThis.window = testWindow;
-// @ts-expect-error - happy-dom types
-globalThis.document = testWindow.document;
-globalThis.setTimeout = testWindow.setTimeout.bind(testWindow);
-globalThis.clearTimeout = testWindow.clearTimeout.bind(testWindow);
-if (w.Event) globalThis.Event = /** @type {typeof Event} */ (w.Event);
-if (w.KeyboardEvent) globalThis.KeyboardEvent = /** @type {typeof KeyboardEvent} */ (w.KeyboardEvent);
-
 import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { createDOM, tick } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { petNamePathAutocomplete } from '../../petname-path-autocomplete.js';
+
+const { window: testWindow, cleanup: cleanupDOM } = createDOM();
 
 /**
  * Create DOM elements for autocomplete testing.
  * @returns {{ $input: HTMLInputElement, $menu: HTMLElement, cleanup: () => void }}
  */
 const createElements = () => {
-  const $input = /** @type {HTMLInputElement} */ (testWindow.document.createElement('input'));
+  const $input = /** @type {HTMLInputElement} */ (
+    testWindow.document.createElement('input')
+  );
   $input.type = 'text';
   testWindow.document.body.appendChild($input);
 
-  const $menu = testWindow.document.createElement('div');
+  const $menu = /** @type {HTMLElement} */ (
+    /** @type {unknown} */ (testWindow.document.createElement('div'))
+  );
   $menu.className = 'token-menu';
   testWindow.document.body.appendChild($menu);
 
   return {
     $input,
-    $menu: /** @type {HTMLElement} */ (/** @type {unknown} */ ($menu)),
+    $menu,
     cleanup: () => {
       $input.remove();
       $menu.remove();
@@ -45,14 +37,12 @@ const createElements = () => {
   };
 };
 
-/**
- * Wait for async operations.
- * @param {number} [ms]
- */
-const tick = (ms = 10) => new Promise(r => setTimeout(r, ms));
-
 test.afterEach(() => {
   testWindow.document.body.innerHTML = '';
+});
+
+test.after(() => {
+  cleanupDOM();
 });
 
 test('petNamePathAutocomplete creates API with expected methods', t => {
@@ -194,7 +184,9 @@ test('keyboard Escape hides menu', async t => {
   await tick(50);
   t.true(api.isMenuVisible());
 
-  $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  $input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  );
   await tick(10);
 
   t.false(api.isMenuVisible());
@@ -218,10 +210,11 @@ test('keyboard ArrowDown navigates to next suggestion', async t => {
   t.true(items.length >= 1);
 
   let selected = $menu.querySelector('.token-menu-item.selected');
-  const initialText = selected?.textContent;
 
   // Arrow down to next (if there is one)
-  $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  $input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+  );
   await tick(20);
 
   selected = $menu.querySelector('.token-menu-item.selected');
@@ -243,13 +236,15 @@ test('keyboard ArrowUp navigates to previous suggestion', async t => {
   await tick(100);
 
   // Go down first
-  $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  $input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+  );
   await tick(20);
 
-  const afterDown = $menu.querySelector('.token-menu-item.selected')?.textContent;
-
   // Go up
-  $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+  $input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
+  );
   await tick(20);
 
   const afterUp = $menu.querySelector('.token-menu-item.selected')?.textContent;
@@ -275,7 +270,9 @@ test('Tab selects suggestion and updates input', async t => {
   const selected = $menu.querySelector('.token-menu-item.selected');
   const expectedValue = selected?.textContent || '';
 
-  $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  $input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+  );
   await tick(50);
 
   // Input should now have the selected value
@@ -295,7 +292,9 @@ test('Enter selects suggestion', async t => {
   $input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick(50);
 
-  $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  $input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+  );
   await tick(10);
 
   t.is($input.value, 'bob');
@@ -326,7 +325,9 @@ test('menu shows hint text', async t => {
 test('handles path with dots - fetches from nested directory', async t => {
   const { $input, $menu, cleanup } = createElements();
   // Set up nested structure via values lookup
-  const values = new Map([['dir', { list: async () => ['nested1', 'nested2'] }]]);
+  const values = new Map([
+    ['dir', { list: async () => ['nested1', 'nested2'] }],
+  ]);
   const { powers } = makeMockPowers({ names: ['dir', 'other'], values });
 
   const api = petNamePathAutocomplete($input, $menu, { E, powers });
@@ -379,10 +380,12 @@ test('menu wraps around when navigating past end', async t => {
   const firstName = firstSelected?.textContent;
 
   // Navigate down N times (where N = item count) to wrap back to first
-  for (let i = 0; i < itemCount; i++) {
-    $input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-    await tick(10);
+  for (let i = 0; i < itemCount; i += 1) {
+    $input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
   }
+  await tick(10);
 
   const afterWrap = $menu.querySelector('.token-menu-item.selected');
   // After wrapping, should be back at first item

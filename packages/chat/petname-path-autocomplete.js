@@ -60,9 +60,10 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
           E(powers)
         ).lookup(...pathPrefix);
       }
-      const names = await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
-        E(target)
-      ).list();
+      const names =
+        await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
+          E(target)
+        ).list();
       const result = [];
       for await (const name of names) {
         result.push(name);

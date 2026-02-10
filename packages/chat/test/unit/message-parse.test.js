@@ -172,7 +172,7 @@ test('parseMessage handles newlines', t => {
 
 test('parseMessage handles maximum length names', t => {
   // Pattern allows up to 128 chars (0-127 means up to 127 additional chars)
-  const longName = 'a' + 'b'.repeat(127);
+  const longName = `a${'b'.repeat(127)}`;
   const result = parseMessage(`@${longName}`);
   t.is(result.petNames.length, 1);
   t.is(result.petNames[0], longName);
@@ -180,7 +180,7 @@ test('parseMessage handles maximum length names', t => {
 
 test('parseMessage truncates overly long names', t => {
   // Names longer than 128 chars should only match the first 128
-  const tooLong = 'a' + 'b'.repeat(200);
+  const tooLong = `a${'b'.repeat(200)}`;
   const result = parseMessage(`@${tooLong}`);
   t.is(result.petNames.length, 1);
   t.is(result.petNames[0].length, 128);

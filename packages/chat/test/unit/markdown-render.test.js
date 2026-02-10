@@ -1,24 +1,17 @@
 // @ts-check
 
-// Set up DOM globals BEFORE importing chat modules
-import { Window } from 'happy-dom';
-
-const testWindow = new Window({ url: 'http://localhost:3000' });
-
-// @ts-expect-error - happy-dom types
-globalThis.window = testWindow;
-// @ts-expect-error - happy-dom types
-globalThis.document = testWindow.document;
-
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { createDOM } from '../helpers/dom-setup.js';
 import {
   renderMarkdown,
   renderPlainText,
   prepareTextWithPlaceholders,
   highlightCode,
 } from '../../markdown-render.js';
+
+const { document: testDocument, cleanup: cleanupDOM } = createDOM();
 
 // ============ prepareTextWithPlaceholders tests ============
 
@@ -133,7 +126,7 @@ test('renderMarkdown handles heading level 1', t => {
 
 test('renderMarkdown handles heading levels 2-6', t => {
   for (let level = 2; level <= 6; level += 1) {
-    const markdown = '#'.repeat(level) + ' Heading ' + level;
+    const markdown = `${'#'.repeat(level)} Heading ${level}`;
     const result = renderMarkdown(markdown);
     const heading = result.fragment.querySelector(`h${level}`);
     t.truthy(heading, `h${level} should exist`);
@@ -233,7 +226,7 @@ test('renderMarkdown handles inline formatting in list items', t => {
 test('highlightCode returns fragment', t => {
   const result = highlightCode('const x = 1;', 'js');
   t.truthy(result);
-  t.true(result instanceof globalThis.document.createDocumentFragment().constructor);
+  t.true(result instanceof testDocument.createDocumentFragment().constructor);
 });
 
 test('highlightCode highlights keywords for JS', t => {
@@ -289,7 +282,13 @@ test('highlightCode handles multiple keywords', t => {
 });
 
 test('highlightCode handles template strings', t => {
-  const result = highlightCode('const s = `hello ${name}`;', 'js');
+  // eslint-disable-next-line no-template-curly-in-string
+  const code = `const s = \`hello ${'${name}'}\`;`;
+  const result = highlightCode(code, 'js');
   const str = result.querySelector('.code-string');
   t.truthy(str);
+});
+
+test.after(() => {
+  cleanupDOM();
 });

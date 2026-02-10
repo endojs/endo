@@ -2536,7 +2536,7 @@ test('counterEvaluate sends proposer/reviewer messages', async t => {
   await E(guest).adopt(pkg.number, 'n', ['five']);
 
   // Guest proposes evaluation
-  void E(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
+  E.sendOnly(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
 
   // Wait for proposal delivery
   await null;

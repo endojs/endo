@@ -318,6 +318,20 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('dismiss-all')
+    .description('delete all messages')
+    .option(...commonOptions.as)
+    .action(async cmd => {
+      const { as: agentNames } = cmd.opts();
+      const { dismissAllCommand } = await import(
+        './commands/dismiss-all.js'
+      );
+      return dismissAllCommand({
+        agentNames,
+      });
+    });
+
+  program
     .command('list [directory]')
     .alias('ls')
     .description('show names known to the current or specified directory')

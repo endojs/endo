@@ -1,5 +1,5 @@
 // @ts-check
-/* global window, document */
+/* global window, document, setTimeout */
 
 import { E } from '@endo/far';
 import { render, inferType } from './value-render.js';
@@ -43,12 +43,8 @@ export const valueComponent = (
 
   /** @type {unknown} */
   let currentValue;
-  /** @type {string | undefined} */
-  let currentId;
   /** @type {string[] | undefined} */
   let currentPetNamePath;
-  /** @type {{ number: number, edgeName: string } | undefined} */
-  let currentMessageContext;
 
   /**
    * Update Enter Profile button visibility based on type.
@@ -72,9 +68,7 @@ export const valueComponent = (
     $title.textContent = 'Value';
     $type.value = 'unknown';
     currentValue = undefined;
-    currentId = undefined;
     currentPetNamePath = undefined;
-    currentMessageContext = undefined;
     $enterProfile.style.display = 'none';
     dismissValue();
   };
@@ -148,9 +142,7 @@ export const valueComponent = (
    */
   const focusValue = async (value, id, petNamePath, messageContext) => {
     currentValue = value;
-    currentId = id;
     currentPetNamePath = petNamePath;
-    currentMessageContext = messageContext;
     window.addEventListener('keyup', handleKey);
 
     // Render the value
@@ -216,10 +208,6 @@ export const valueComponent = (
 
     updateEnterProfileVisibility();
     $saveName.focus();
-
-    // Suppress unused variable warnings
-    void currentId;
-    void currentMessageContext;
   };
 
   const blurValue = () => {

@@ -22,10 +22,16 @@ const createMockContext = () => {
 
   const powers = Far('MockPowers', {
     request: async (recipientPath, description, resultPath) => {
-      calls.push({ method: 'request', args: [recipientPath, description, resultPath] });
+      calls.push({
+        method: 'request',
+        args: [recipientPath, description, resultPath],
+      });
     },
     dismiss: async number => {
       calls.push({ method: 'dismiss', args: [number] });
+    },
+    dismissAll: async () => {
+      calls.push({ method: 'dismissAll', args: [] });
     },
     adopt: async (number, edgeName, petName) => {
       calls.push({ method: 'adopt', args: [number, edgeName, petName] });
@@ -39,8 +45,17 @@ const createMockContext = () => {
     grantEvaluate: async number => {
       calls.push({ method: 'grantEvaluate', args: [number] });
     },
-    evaluate: async (workerName, source, codeNames, petNamePaths, resultPath) => {
-      calls.push({ method: 'evaluate', args: [workerName, source, codeNames, petNamePaths, resultPath] });
+    evaluate: async (
+      workerName,
+      source,
+      codeNames,
+      petNamePaths,
+      resultPath,
+    ) => {
+      calls.push({
+        method: 'evaluate',
+        args: [workerName, source, codeNames, petNamePaths, resultPath],
+      });
       return 'eval-result';
     },
     list: async (...pathParts) => {
@@ -134,6 +149,23 @@ test('execute dismiss command', async t => {
   t.is(result.message, 'Message #42 dismissed');
   t.is(ctx.calls[0].method, 'dismiss');
   t.deepEqual(ctx.calls[0].args, [42]);
+});
+
+test('execute dismiss-all command', async t => {
+  const ctx = createMockContext();
+  const executor = createCommandExecutor({
+    powers: ctx.powers,
+    showValue: v => ctx.showValueCalls.push(v),
+    showMessage: m => ctx.showMessageCalls.push(m),
+    showError: e => ctx.showErrorCalls.push(e),
+  });
+
+  const result = await executor.execute('dismiss-all', {});
+
+  t.true(result.success);
+  t.is(result.message, 'All messages dismissed');
+  t.is(ctx.calls[0].method, 'dismissAll');
+  t.deepEqual(ctx.calls[0].args, []);
 });
 
 test('execute adopt command with explicit pet name', async t => {
@@ -263,7 +295,13 @@ test('execute js command', async t => {
   t.true(result.success);
   t.is(result.message, 'Result saved as "answer"');
   t.is(result.value, 'eval-result');
-  t.deepEqual(ctx.calls[0].args, ['MAIN', '1 + 1', ['x'], [['my-value']], ['answer']]);
+  t.deepEqual(ctx.calls[0].args, [
+    'MAIN',
+    '1 + 1',
+    ['x'],
+    [['my-value']],
+    ['answer'],
+  ]);
 });
 
 test('execute eval command (alias for js)', async t => {
@@ -355,7 +393,9 @@ test('execute remove command with multiple names', async t => {
     showError: e => ctx.showErrorCalls.push(e),
   });
 
-  const result = await executor.execute('remove', { petNames: ['a', 'b', 'c'] });
+  const result = await executor.execute('remove', {
+    petNames: ['a', 'b', 'c'],
+  });
 
   t.true(result.success);
   t.true(result.message?.includes('Removed 3 names'));
@@ -393,7 +433,10 @@ test('execute move command', async t => {
 
   t.true(result.success);
   t.is(result.message, '"old.path" moved to "new.path"');
-  t.deepEqual(ctx.calls[0].args, [['old', 'path'], ['new', 'path']]);
+  t.deepEqual(ctx.calls[0].args, [
+    ['old', 'path'],
+    ['new', 'path'],
+  ]);
 });
 
 test('execute copy command', async t => {
@@ -532,8 +575,12 @@ test('execute cancel command', async t => {
   t.is(result.message, '"broken" cancelled');
   const cancelCall = ctx.calls.find(c => c.method === 'cancel');
   t.truthy(cancelCall);
-  t.deepEqual(cancelCall?.args[0], ['broken']);
-  t.is(/** @type {Error} */ (cancelCall?.args[1]).message, 'No longer needed');
+  if (!cancelCall) {
+    t.fail('Expected cancel call');
+    return;
+  }
+  t.deepEqual(cancelCall.args[0], ['broken']);
+  t.is(/** @type {Error} */ (cancelCall.args[1]).message, 'No longer needed');
 });
 
 test('execute unknown command returns error', async t => {

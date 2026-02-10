@@ -1603,7 +1603,7 @@ body.resizing * {
   background: #e9ecef;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  overflow-x: auto;
+  overflow: hidden;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 13px;
   line-height: 1.5;
@@ -1629,6 +1629,7 @@ body.resizing * {
   color: #24292f;
   white-space: pre;
   display: block;
+  overflow-x: auto;
 }
 
 /* Code fence styling inside messages uses bubble color scheme */

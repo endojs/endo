@@ -15,6 +15,7 @@ import {
 test('COMMANDS contains expected commands', t => {
   t.true('request' in COMMANDS);
   t.true('dismiss' in COMMANDS);
+  t.true('dismiss-all' in COMMANDS);
   t.true('js' in COMMANDS);
   t.true('list' in COMMANDS);
   t.true('show' in COMMANDS);
@@ -113,6 +114,7 @@ test('getCommandsByCategory returns commands in category', t => {
   const names = messaging.map(cmd => cmd.name);
   t.true(names.includes('request'));
   t.true(names.includes('dismiss'));
+  t.true(names.includes('dismiss-all'));
   t.true(names.includes('adopt'));
 });
 
@@ -164,7 +166,9 @@ test('command fields have required properties', t => {
 });
 
 test('immediate commands have no fields', t => {
-  const immediate = Object.values(COMMANDS).filter(cmd => cmd.mode === 'immediate');
+  const immediate = Object.values(COMMANDS).filter(
+    cmd => cmd.mode === 'immediate',
+  );
   t.true(immediate.length > 0);
   for (const cmd of immediate) {
     t.is(cmd.fields.length, 0, `immediate command ${cmd.name} has no fields`);

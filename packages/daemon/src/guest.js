@@ -103,6 +103,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       reject,
       adopt,
       dismiss,
+      dismissAll,
       request,
       send,
       requestEvaluation: mailboxRequestEvaluation,
@@ -174,6 +175,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
         hostHandleId,
         source,
         codeNames,
+        petNamePaths,
         edgeNames,
         ids,
         workerName,
@@ -210,14 +212,13 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       reject,
       adopt,
       dismiss,
+      dismissAll,
       request,
       send,
       requestEvaluation,
       deliver,
       // Guest-specific: propose evaluation to host
       evaluate,
-      // Used by daemon to provide MAIL hub view
-      getMailHub: () => mailbox.getMailHub(),
     };
 
     const help = makeHelp(guestHelp, [directoryHelp, mailHelp]);

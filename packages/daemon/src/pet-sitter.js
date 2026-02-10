@@ -75,6 +75,11 @@ export const makePetSitter = (petStore, specialNames) => {
     const idSpecialNames = Object.entries(specialNames)
       .filter(([_, specialId]) => specialId === id)
       .map(([specialName, _]) => /** @type {SpecialName} */ (specialName));
+    if (idSpecialNames.includes('SELF') && idSpecialNames.includes('HOST')) {
+      const filtered = idSpecialNames.filter(name => name !== 'HOST');
+      idSpecialNames.length = 0;
+      idSpecialNames.push(...filtered);
+    }
 
     // The first published event contains the existing names for the id, if any.
     const { value: existingNames } = await subscription.next();

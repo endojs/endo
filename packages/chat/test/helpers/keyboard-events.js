@@ -1,4 +1,5 @@
 // @ts-check
+/* global globalThis */
 
 /**
  * @typedef {object} KeyboardEventOptions

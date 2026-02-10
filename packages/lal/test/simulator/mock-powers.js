@@ -26,8 +26,6 @@ export function makeMockPowers(options = {}) {
 
   /** @type {Array<{ number: number, from: string, to: string, type?: string, strings?: string[], names?: string[], ids?: string[] }>} */
   const messages = [];
-  let nextNumber = 1;
-
   /** @type {Map<number, { promise: Promise<void>, resolve: () => void }>} */
   const dismissWaiters = new Map();
 
@@ -61,7 +59,9 @@ export function makeMockPowers(options = {}) {
       number: 1,
       from: 'HOST',
       to: SELF_ID,
-      strings: ['Hello from the simulator. Please reply with a short greeting and then dismiss this message (dismiss message 1).'],
+      strings: [
+        'Hello from the simulator. Please reply with a short greeting and then dismiss this message (dismiss message 1).',
+      ],
       names: [],
       ids: [],
     });
@@ -102,7 +102,9 @@ export function makeMockPowers(options = {}) {
     },
 
     lookup(petNameOrPath) {
-      const path = Array.isArray(petNameOrPath) ? petNameOrPath : [petNameOrPath];
+      const path = Array.isArray(petNameOrPath)
+        ? petNameOrPath
+        : [petNameOrPath];
       const key = path.join('.');
       const v = directory.get(key);
       if (v === undefined) {
@@ -121,7 +123,8 @@ export function makeMockPowers(options = {}) {
       const fromKey = fromPath.join('.');
       const toKey = toPath.join('.');
       const v = directory.get(fromKey);
-      if (v === undefined) return Promise.reject(new Error(`Unknown: ${fromKey}`));
+      if (v === undefined)
+        return Promise.reject(new Error(`Unknown: ${fromKey}`));
       directory.delete(fromKey);
       directory.set(toKey, v);
       return Promise.resolve();
@@ -131,7 +134,8 @@ export function makeMockPowers(options = {}) {
       const fromKey = fromPath.join('.');
       const toKey = toPath.join('.');
       const v = directory.get(fromKey);
-      if (v === undefined) return Promise.reject(new Error(`Unknown: ${fromKey}`));
+      if (v === undefined)
+        return Promise.reject(new Error(`Unknown: ${fromKey}`));
       directory.set(toKey, v);
       return Promise.resolve();
     },
@@ -164,7 +168,9 @@ export function makeMockPowers(options = {}) {
     },
 
     adopt(messageNumber, _edgeName, petNameOrPath) {
-      const path = Array.isArray(petNameOrPath) ? petNameOrPath : [petNameOrPath];
+      const path = Array.isArray(petNameOrPath)
+        ? petNameOrPath
+        : [petNameOrPath];
       const key = path.join('.');
       directory.set(key, `adopted-from-msg-${messageNumber}`);
       return Promise.resolve();
@@ -182,12 +188,18 @@ export function makeMockPowers(options = {}) {
     },
 
     request(recipientName, description, _responseName) {
-      return Promise.resolve({ __mockRequest: true, recipientName, description });
+      return Promise.resolve({
+        __mockRequest: true,
+        recipientName,
+        description,
+      });
     },
 
     send(recipientName, strings, edgeNames, petNames) {
       const record = {
-        recipient: Array.isArray(recipientName) ? recipientName.join('.') : recipientName,
+        recipient: Array.isArray(recipientName)
+          ? recipientName.join('.')
+          : recipientName,
         strings,
         edgeNames,
         petNames: petNames.map(p => (Array.isArray(p) ? p.join('.') : p)),
@@ -200,7 +212,9 @@ export function makeMockPowers(options = {}) {
     identify(...petNamePath) {
       const key = petNamePath.join('.');
       const v = directory.get(key);
-      return Promise.resolve(v !== undefined ? /** @type {string} */ (v) : undefined);
+      return Promise.resolve(
+        v !== undefined ? /** @type {string} */ (v) : undefined,
+      );
     },
 
     followMessages() {

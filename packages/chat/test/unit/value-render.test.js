@@ -1,20 +1,13 @@
 // @ts-check
 
-// Set up DOM globals BEFORE importing chat modules
-import { Window } from 'happy-dom';
-
-const testWindow = new Window({ url: 'http://localhost:3000' });
-
-// @ts-expect-error - happy-dom types
-globalThis.window = testWindow;
-// @ts-expect-error - happy-dom types
-globalThis.document = testWindow.document;
-
 import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { createDOM } from '../helpers/dom-setup.js';
 import { render, inferType, INTERFACE_TO_TYPE } from '../../value-render.js';
+
+const { cleanup: cleanupDOM } = createDOM();
 
 // ============ render tests ============
 
@@ -91,7 +84,12 @@ test('render array with values', t => {
 });
 
 test('render nested array', t => {
-  const result = render(harden([[1, 2], [3, 4]]));
+  const result = render(
+    harden([
+      [1, 2],
+      [3, 4],
+    ]),
+  );
   // Should contain nested brackets
   const text = result.textContent || '';
   const openBrackets = (text.match(/\[/g) || []).length;
@@ -271,4 +269,8 @@ test('INTERFACE_TO_TYPE has expected mappings', t => {
   t.is(INTERFACE_TO_TYPE.Invitation, 'invitation');
   t.is(INTERFACE_TO_TYPE.EndoReadable, 'readable');
   t.is(INTERFACE_TO_TYPE.AsyncIterator, 'readable');
+});
+
+test.after(() => {
+  cleanupDOM();
 });

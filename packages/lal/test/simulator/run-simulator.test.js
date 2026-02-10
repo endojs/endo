@@ -1,4 +1,5 @@
 // @ts-check
+/* global process, setTimeout */
 /**
  * Ava test that runs the Lal agent simulator with mock powers and real env.
  * Use to debug LLM providers (Anthropic, OpenAI, llama.cpp) without a daemon.
@@ -9,18 +10,27 @@
  */
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { make } from '../../agent.js';
 import { makeMockPowers } from './mock-powers.js';
 
 const TIMEOUT_MS = 120_000;
 
 test('simulator: agent processes one message with real provider (env)', async t => {
   const env = process.env;
-  const isAnthropic = (env.LAL_HOST || '').includes('anthropic.com');
-  if (isAnthropic && !env.LAL_AUTH_TOKEN) {
-    t.skip('LAL_AUTH_TOKEN not set; skip simulator test');
+  const host = env.LAL_HOST;
+  if (!host) {
+    t.log('LAL_HOST not set; skipping simulator test');
+    t.pass();
     return;
   }
+
+  const isAnthropic = host.includes('anthropic.com');
+  if (isAnthropic && !env.LAL_AUTH_TOKEN) {
+    t.log('LAL_AUTH_TOKEN not set; skipping simulator test');
+    t.pass();
+    return;
+  }
+
+  const { make } = await import('../../agent.js');
 
   const { powers, whenDismissed, sent } = makeMockPowers({
     initialMessage: {
