@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { getRandomValues } from 'crypto';
 import {
   makeOcapnSessionCryptography,
-  SYN_LENGTH,
+  PREFIXED_SYN_LENGTH,
   SYNACK_LENGTH,
   ACK_LENGTH,
 } from '../src/bindings.js';
@@ -42,14 +42,18 @@ test('ocapn session cryptography happy path', async t => {
     }).asResponder();
   t.deepEqual(responderSigningKeys1, responderSigningKeys);
 
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck } = initiatorWriteSyn(syn);
+  // Initiator creates prefixed SYN with responder's public key
+  const prefixedSyn = new Uint8Array(PREFIXED_SYN_LENGTH);
+  const { initiatorReadSynackWriteAck } = initiatorWriteSyn(
+    responderSigningKeys.publicKey,
+    prefixedSyn,
+  );
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   const {
     initiatorVerifyingKey: responderInitiatorVerifyingKey,
     responderReadAck,
-  } = responderReadSynWriteSynack(syn, synack);
+  } = responderReadSynWriteSynack(prefixedSyn, synack);
   t.deepEqual(initiatorSigningKeys.publicKey, responderInitiatorVerifyingKey);
 
   const ack = new Uint8Array(ACK_LENGTH);

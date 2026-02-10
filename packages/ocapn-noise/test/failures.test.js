@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { getRandomValues } from 'crypto';
 import {
   makeOcapnSessionCryptography,
-  SYN_LENGTH,
+  PREFIXED_SYN_LENGTH,
   SYNACK_LENGTH,
   ACK_LENGTH,
 } from '../src/bindings.js';
@@ -32,15 +32,26 @@ const createValidHandshake = () => {
   return { initiator, responder };
 };
 
+// Helper to perform the initial SYN exchange
+const performSynExchange = (initiator, responder) => {
+  const prefixedSyn = new Uint8Array(PREFIXED_SYN_LENGTH);
+  const { initiatorReadSynackWriteAck } = initiator.initiatorWriteSyn(
+    responder.signingKeys.publicKey,
+    prefixedSyn,
+  );
+  return { prefixedSyn, initiatorReadSynackWriteAck };
+};
+
 test('handshake fails with invalid SYNACK message', async t => {
   const { initiator, responder } = createValidHandshake();
 
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const {
+    prefixedSyn,
+    initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck,
+  } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
-  responder.responderReadSynWriteSynack(syn, synack);
+  responder.responderReadSynWriteSynack(prefixedSyn, synack);
 
   // Corrupt the SYNACK message
   synack[0] = 0xff; // Corrupt first byte
@@ -57,13 +68,14 @@ test('handshake fails with invalid SYNACK message', async t => {
 test('handshake fails with invalid ACK message', async t => {
   const { initiator, responder } = createValidHandshake();
 
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const {
+    prefixedSyn,
+    initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck,
+  } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   const { responderReadAck } = responder.responderReadSynWriteSynack(
-    syn,
+    prefixedSyn,
     synack,
   );
 
@@ -93,13 +105,11 @@ test('handshake fails with no mutually supported encodings', async t => {
     supportedEncodings: [3, 4], // Only supports 3, 4
   }).asResponder();
 
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const { prefixedSyn } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
 
-  t.throws(() => responder.responderReadSynWriteSynack(syn, synack), {
+  t.throws(() => responder.responderReadSynWriteSynack(prefixedSyn, synack), {
     message:
       'OCapN Noise Protocol no mutually supported encoding versions. Responder supports 3, 4; initiator supports 2, 1',
   });
@@ -109,13 +119,14 @@ test('handshake fails with message too long for encryption', async t => {
   const { initiator, responder } = createValidHandshake();
 
   // Complete the handshake first
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const {
+    prefixedSyn,
+    initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck,
+  } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   const { responderReadAck } = responder.responderReadSynWriteSynack(
-    syn,
+    prefixedSyn,
     synack,
   );
 
@@ -140,13 +151,14 @@ test('handshake fails with message too short for decryption', async t => {
   const { initiator, responder } = createValidHandshake();
 
   // Complete the handshake first
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const {
+    prefixedSyn,
+    initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck,
+  } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   const { responderReadAck } = responder.responderReadSynWriteSynack(
-    syn,
+    prefixedSyn,
     synack,
   );
 
@@ -167,13 +179,14 @@ test('handshake fails with message too long for decryption', async t => {
   const { initiator, responder } = createValidHandshake();
 
   // Complete the handshake first
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const {
+    prefixedSyn,
+    initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck,
+  } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   const { responderReadAck } = responder.responderReadSynWriteSynack(
-    syn,
+    prefixedSyn,
     synack,
   );
 
@@ -191,7 +204,7 @@ test('handshake fails with message too long for decryption', async t => {
   });
 });
 
-test.only('handshake fails with invalid encoding versions', async t => {
+test('handshake fails with invalid encoding versions', async t => {
   // Test with encoding version > 65535
   t.throws(
     () =>
@@ -252,13 +265,14 @@ test('handshake fails with decryption of invalid message', async t => {
   const { initiator, responder } = createValidHandshake();
 
   // Complete the handshake first
-  const syn = new Uint8Array(SYN_LENGTH);
-  const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+  const {
+    prefixedSyn,
+    initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck,
+  } = performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   const { responderReadAck } = responder.responderReadSynWriteSynack(
-    syn,
+    prefixedSyn,
     synack,
   );
 
@@ -277,11 +291,10 @@ test('handshake fails with decryption of invalid message', async t => {
 });
 
 test('handshake fails with wrong message order - using initiatorReadSynackWriteAck before handshake complete', async t => {
-  const { initiator, responder: _responder } = createValidHandshake();
+  const { initiator, responder } = createValidHandshake();
 
-  const syn = new Uint8Array(SYN_LENGTH);
   const { initiatorReadSynackWriteAck: _initiatorReadSynackWriteAck } =
-    initiator.initiatorWriteSyn(syn);
+    performSynExchange(initiator, responder);
 
   const synack = new Uint8Array(SYNACK_LENGTH);
   // Don't call responderReadSynWriteSynack yet
@@ -293,4 +306,38 @@ test('handshake fails with wrong message order - using initiatorReadSynackWriteA
     message:
       "OCapN Noise Protocol initiator cannot read responder's ACK message",
   });
+});
+
+test('handshake fails when SYN intended for different responder', async t => {
+  const { initiator } = createValidHandshake();
+
+  // Create a different responder
+  const wrongResponder = makeOcapnSessionCryptography({
+    wasmModule,
+    getRandomValues,
+    supportedEncodings: [2, 3],
+  }).asResponder();
+
+  const intendedResponder = makeOcapnSessionCryptography({
+    wasmModule,
+    getRandomValues,
+    supportedEncodings: [2, 3],
+  }).asResponder();
+
+  // Initiator creates SYN for the intended responder
+  const prefixedSyn = new Uint8Array(PREFIXED_SYN_LENGTH);
+  initiator.initiatorWriteSyn(
+    intendedResponder.signingKeys.publicKey,
+    prefixedSyn,
+  );
+
+  const synack = new Uint8Array(SYNACK_LENGTH);
+
+  // Try to have the wrong responder process the SYN
+  t.throws(
+    () => wrongResponder.responderReadSynWriteSynack(prefixedSyn, synack),
+    {
+      message: 'OCapN Noise Protocol SYN intended for different responder',
+    },
+  );
 });
