@@ -8,11 +8,19 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
 import { makeDirectoryMaker } from './directory.js';
-import { makeMailboxMaker } from './mail.js';
+import { makeDeferredTasks } from './deferred-tasks.js';
+import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { makeRemoteControlProvider } from './remote-control.js';
-import { assertPetName, assertName } from './pet-name.js';
+import {
+  assertName,
+  assertNamePath,
+  assertNames,
+  assertPetName,
+  namePathFrom,
+} from './pet-name.js';
+import { formatLocator, idFromLocator } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidNumber,
@@ -34,7 +42,9 @@ import {
   InspectorHubInterface,
   InspectorInterface,
   InvitationInterface,
+  ResponderInterface,
   WorkerInterface,
+  DirectoryInterface,
   BlobInterface,
   EndoInterface,
 } from './interfaces.js';
@@ -42,7 +52,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, Name, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -115,6 +125,44 @@ const deriveId = (path, rootNonce, digester) => {
   digester.updateText(path);
   return digester.digestHex();
 };
+
+const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
+const MESSAGE_FROM_NAME = 'FROM';
+const MESSAGE_TO_NAME = 'TO';
+const MESSAGE_DATE_NAME = 'DATE';
+const MESSAGE_TYPE_NAME = 'TYPE';
+const MESSAGE_DESCRIPTION_NAME = 'DESCRIPTION';
+const MESSAGE_STRINGS_NAME = 'STRINGS';
+const MESSAGE_PROMISE_NAME = 'PROMISE';
+const MESSAGE_RESOLVER_NAME = 'RESOLVER';
+
+/**
+ * @param {string} name
+ */
+const isMessageNumberName = name => messageNumberNamePattern.test(name);
+
+/**
+ * @param {string} left
+ * @param {string} right
+ */
+const compareMessageNames = (left, right) => {
+  if (left === right) {
+    return 0;
+  }
+  return BigInt(left) < BigInt(right) ? -1 : 1;
+};
+
+/** @type {PetName} */
+const PROMISE_STATUS_NAME = /** @type {PetName} */ ('status');
+
+/**
+ * Note: "pending" is intentionally omitted; pending is represented by the
+ * absence of a status entry in the promise's pet store.
+ * @typedef {(
+ *   | { status: 'fulfilled'; valueId: string }
+ *   | { status: 'rejected'; reason: string }
+ * )} PromiseStatusRecord
+ */
 
 /**
  * @param {DaemonicPowers} powers
@@ -529,6 +577,634 @@ const makeDaemonCore = async (
     serializeBodyFormat: 'smallcaps',
   });
 
+  /**
+   * @param {unknown} record
+   * @returns {PromiseStatusRecord}
+   */
+  const parsePromiseStatusRecord = record => {
+    if (record && typeof record === 'object') {
+      const data = /** @type {any} */ (record);
+      if (data.status === 'fulfilled' && typeof data.valueId === 'string') {
+        return { status: 'fulfilled', valueId: data.valueId };
+      }
+      if (data.status === 'rejected' && typeof data.reason === 'string') {
+        return { status: 'rejected', reason: data.reason };
+      }
+    }
+    throw new Error(`Invalid promise status record ${q(record)}`);
+  };
+
+  /**
+   * @param {unknown} reason
+   */
+  const formatRejectionReason = reason => {
+    if (reason instanceof Error) {
+      return reason.message;
+    }
+    return typeof reason === 'string' ? reason : String(reason);
+  };
+
+  /**
+   * @param {FormulaIdentifier} storeId
+   * @param {Context} context
+   */
+  const makePromise = async (storeId, context) => {
+    context.thisDiesIfThatDies(storeId);
+    const petStore = await provide(storeId, 'pet-store');
+    const { promise, resolve, reject } = makePromiseKit();
+    let settled = false;
+
+    /** @param {PromiseStatusRecord} record */
+    const settle = record => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (record.status === 'fulfilled') {
+        resolve(record.valueId);
+      } else {
+        reject(harden(new Error(record.reason)));
+      }
+    };
+
+    /** @param {string} statusId */
+    const settleFromStatusId = async statusId => {
+      await null;
+      const recordValue = await provide(
+        /** @type {FormulaIdentifier} */ (statusId),
+      );
+      const record = parsePromiseStatusRecord(recordValue);
+      settle(record);
+    };
+
+    const existingStatusId = petStore.identifyLocal(PROMISE_STATUS_NAME);
+    if (existingStatusId !== undefined) {
+      settleFromStatusId(existingStatusId).catch(error => {
+        if (!settled) {
+          reject(error);
+        }
+      });
+      return promise;
+    }
+
+    const iterator = petStore.followNameChanges();
+    const closeIterator = async () => {
+      await null;
+      if (typeof iterator.return === 'function') {
+        await iterator.return(undefined);
+      }
+    };
+
+    context.onCancel(() => closeIterator());
+
+    (async () => {
+      await null;
+      try {
+        for await (const change of iterator) {
+          if ('add' in change && change.add === PROMISE_STATUS_NAME) {
+            const statusId = petStore.identifyLocal(PROMISE_STATUS_NAME);
+            if (statusId !== undefined) {
+              await settleFromStatusId(statusId);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        if (!settled) {
+          reject(error);
+        }
+      } finally {
+        await closeIterator();
+      }
+    })().catch(error => {
+      if (!settled) {
+        reject(error);
+      }
+    });
+
+    return promise;
+  };
+
+  /**
+   * @param {FormulaIdentifier} storeId
+   * @param {Context} context
+   */
+  const makeResolver = async (storeId, context) => {
+    context.thisDiesIfThatDies(storeId);
+    const petStore = await provide(storeId, 'pet-store');
+    const resolverJobs = makeSerialJobs();
+
+    /** @param {PromiseStatusRecord} record */
+    const writeStatus = async record => {
+      if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
+        return;
+      }
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      const hardenedRecord = harden(record);
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      const { id } = await formulateMarshalValue(hardenedRecord, tasks);
+      await petStore.write(PROMISE_STATUS_NAME, id);
+    };
+
+    return makeExo('EndoResolver', ResponderInterface, {
+      resolveWithId: idOrPromise =>
+        resolverJobs.enqueue(async () => {
+          await null;
+          if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
+            return;
+          }
+          try {
+            const id = await idOrPromise;
+            if (typeof id !== 'string') {
+              throw new TypeError(
+                `Promise resolution must be a formula identifier (${q(id)})`,
+              );
+            }
+            assertValidId(id);
+            await writeStatus({ status: 'fulfilled', valueId: id });
+          } catch (error) {
+            const reason = formatRejectionReason(error);
+            await writeStatus({ status: 'rejected', reason });
+          }
+        }),
+    });
+  };
+
+  /**
+   * @param {FormulaIdentifier} storeId
+   * @param {Context} context
+   */
+  const makeMailHub = async (storeId, context) => {
+    context.thisDiesIfThatDies(storeId);
+    const mailboxStore = await provide(storeId, 'mailbox-store');
+
+    const listMessageNames = () =>
+      harden(
+        mailboxStore
+          .list()
+          .filter(isMessageNumberName)
+          .sort(compareMessageNames),
+      );
+
+    /**
+     * @param {string} name
+     */
+    const identifyMessage = name =>
+      isMessageNumberName(name)
+        ? mailboxStore.identifyLocal(/** @type {Name} */ (name))
+        : undefined;
+
+    /** @type {NameHub} */
+    let mailHub;
+
+    /**
+     * @param {string | string[]} petNameOrPath
+     */
+    const lookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      if (tailNames.length === 0) {
+        const id = identifyMessage(headName);
+        if (id === undefined) {
+          throw new TypeError(`Unknown message number: ${q(headName)}`);
+        }
+        return provide(/** @type {FormulaIdentifier} */ (id), 'message');
+      }
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        lookup(headName),
+      );
+    };
+
+    /**
+     * @param {string[]} petNamePath
+     * @returns {Promise<{ hub: NameHub, name: Name }>}
+     */
+    const lookupTailNameHub = async petNamePath => {
+      assertNamePath(petNamePath);
+      const tailName = petNamePath[petNamePath.length - 1];
+      if (petNamePath.length === 1) {
+        return { hub: mailHub, name: tailName };
+      }
+      const prefixPath = /** @type {NamePath} */ (petNamePath.slice(0, -1));
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      return { hub, name: tailName };
+    };
+
+    const has = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return identifyMessage(petNamePath[0]) !== undefined;
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).has(name);
+    };
+
+    const identify = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return identifyMessage(petNamePath[0]);
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).identify(name);
+    };
+
+    const locate = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const formulaType = await getTypeForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      return formatLocator(id, formulaType);
+    };
+
+    const reverseLocate = async locator => {
+      const id = idFromLocator(locator);
+      return /** @type {Name[]} */ (
+        mailboxStore.reverseIdentify(id).filter(isMessageNumberName)
+      );
+    };
+
+    const followLocatorNameChanges = async function* followLocatorNameChanges(
+      locator,
+    ) {
+      const id = idFromLocator(locator);
+      const names = mailboxStore
+        .reverseIdentify(id)
+        .filter(isMessageNumberName);
+      if (names.length === 0) {
+        return undefined;
+      }
+      yield { add: locator, names };
+      return undefined;
+    };
+
+    const list = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        return listMessageNames();
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).list();
+    };
+
+    const listIdentifiers = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const names = await list(...petNamePath);
+      const identities = new Set();
+      await Promise.all(
+        names.map(async name => {
+          const id = await identify(...petNamePath, name);
+          if (id !== undefined) {
+            identities.add(id);
+          }
+        }),
+      );
+      return harden(Array.from(identities).sort());
+    };
+
+    const followNameChanges = async function* followNameChanges(
+      ...petNamePath
+    ) {
+      await null;
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        for await (const change of mailboxStore.followNameChanges()) {
+          if ('add' in change) {
+            if (isMessageNumberName(change.add)) {
+              yield change;
+            }
+          } else if (isMessageNumberName(change.remove)) {
+            yield change;
+          }
+        }
+        return undefined;
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      yield* await E(hub).followNameChanges();
+      return undefined;
+    };
+
+    const reverseLookup = presence => {
+      const id = getIdForRef(presence);
+      if (id === undefined) {
+        return harden([]);
+      }
+      return harden(
+        /** @type {Name[]} */ (
+          mailboxStore.reverseIdentify(id).filter(isMessageNumberName)
+        ),
+      );
+    };
+
+    const disallowedMutation = async () => {
+      throw new Error('not allowed');
+    };
+
+    mailHub = makeExo('MailHub', DirectoryInterface, {
+      has,
+      identify,
+      locate,
+      reverseLocate,
+      followLocatorNameChanges,
+      list,
+      listIdentifiers,
+      followNameChanges,
+      lookup,
+      reverseLookup,
+      write: disallowedMutation,
+      remove: disallowedMutation,
+      move: disallowedMutation,
+      copy: disallowedMutation,
+    });
+
+    return mailHub;
+  };
+
+  /**
+   * @param {MessageFormula} messageFormula
+   * @param {Context} context
+   */
+  const makeMessageHub = async (messageFormula, context) => {
+    const {
+      messageType,
+      from,
+      to,
+      date,
+      description,
+      promiseId,
+      resolverId,
+      strings,
+      names,
+      ids,
+    } = messageFormula;
+
+    if (
+      typeof from !== 'string' ||
+      typeof to !== 'string' ||
+      typeof date !== 'string'
+    ) {
+      throw new Error('Message formula is incomplete');
+    }
+
+    /** @type {Map<string, FormulaIdentifier>} */
+    const idByName = new Map();
+    /** @type {Map<string, unknown>} */
+    const valueByName = new Map();
+    /** @type {string[]} */
+    const orderedNames = [];
+
+    /**
+     * @param {string} name
+     * @param {FormulaIdentifier | undefined} id
+     * @param {unknown} value
+     */
+    const registerName = (name, id, value) => {
+      if (idByName.has(name) || valueByName.has(name)) {
+        throw new Error(`Duplicate message name ${q(name)}`);
+      }
+      if (id !== undefined) {
+        idByName.set(name, id);
+        context.thisDiesIfThatDies(id);
+      }
+      if (value !== undefined) {
+        valueByName.set(name, value);
+      }
+      orderedNames.push(name);
+    };
+
+    registerName(MESSAGE_FROM_NAME, from, undefined);
+    registerName(MESSAGE_TO_NAME, to, undefined);
+    registerName(MESSAGE_DATE_NAME, undefined, date);
+    registerName(MESSAGE_TYPE_NAME, undefined, messageType);
+
+    if (messageType === 'request') {
+      if (
+        typeof description !== 'string' ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Request message formula is incomplete');
+      }
+      registerName(MESSAGE_DESCRIPTION_NAME, undefined, description);
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+    } else if (messageType === 'package') {
+      if (
+        !Array.isArray(strings) ||
+        !Array.isArray(names) ||
+        !Array.isArray(ids)
+      ) {
+        throw new Error('Package message formula is incomplete');
+      }
+      if (names.length !== ids.length) {
+        throw new Error(
+          `Message must have one formula identifier (${q(
+            ids.length,
+          )}) for every edge name (${q(names.length)})`,
+        );
+      }
+      registerName(MESSAGE_STRINGS_NAME, undefined, harden(strings));
+      names.forEach((name, index) => {
+        registerName(name, ids[index], undefined);
+      });
+    } else {
+      throw new Error(`Unknown message type ${q(messageType)}`);
+    }
+
+    /**
+     * @param {string | string[]} petNameOrPath
+     */
+    const lookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      if (tailNames.length === 0) {
+        if (idByName.has(headName)) {
+          const id = /** @type {FormulaIdentifier} */ (idByName.get(headName));
+          if (headName === MESSAGE_FROM_NAME || headName === MESSAGE_TO_NAME) {
+            return provide(id, 'handle');
+          }
+          if (headName === MESSAGE_PROMISE_NAME) {
+            return provide(id, 'promise');
+          }
+          if (headName === MESSAGE_RESOLVER_NAME) {
+            return provide(id, 'resolver');
+          }
+          return provide(id);
+        }
+        if (valueByName.has(headName)) {
+          return valueByName.get(headName);
+        }
+        throw new TypeError(`Unknown message name: ${q(headName)}`);
+      }
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        lookup(headName),
+      );
+    };
+
+    /**
+     * @param {string[]} petNamePath
+     * @returns {Promise<{ hub: NameHub, name: Name }>}
+     */
+    /** @type {NameHub} */
+    let messageHub;
+
+    const lookupTailNameHub = async petNamePath => {
+      assertNamePath(petNamePath);
+      const tailName = petNamePath[petNamePath.length - 1];
+      if (petNamePath.length === 1) {
+        return { hub: messageHub, name: tailName };
+      }
+      const prefixPath = /** @type {NamePath} */ (petNamePath.slice(0, -1));
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      return { hub, name: tailName };
+    };
+
+    const has = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return idByName.has(petNamePath[0]) || valueByName.has(petNamePath[0]);
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).has(name);
+    };
+
+    const identify = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return idByName.get(petNamePath[0]);
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).identify(name);
+    };
+
+    const locate = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const formulaType = await getTypeForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      return formatLocator(id, formulaType);
+    };
+
+    const reverseLocate = async locator => {
+      const id = idFromLocator(locator);
+      return harden(
+        /** @type {Name[]} */ (
+          orderedNames.filter(name => idByName.get(name) === id)
+        ),
+      );
+    };
+
+    const followLocatorNameChanges = async function* followLocatorNameChanges(
+      locator,
+    ) {
+      const id = idFromLocator(locator);
+      const locatorNames = orderedNames.filter(
+        name => idByName.get(name) === id,
+      );
+      if (locatorNames.length === 0) {
+        return undefined;
+      }
+      yield { add: locator, names: /** @type {Name[]} */ (locatorNames) };
+      return undefined;
+    };
+
+    const list = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        return harden(/** @type {Name[]} */ ([...orderedNames]));
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).list();
+    };
+
+    const listIdentifiers = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const listedNames = await list(...petNamePath);
+      const identities = new Set();
+      await Promise.all(
+        listedNames.map(async name => {
+          const id = await identify(...petNamePath, name);
+          if (id !== undefined) {
+            identities.add(id);
+          }
+        }),
+      );
+      return harden(Array.from(identities).sort());
+    };
+
+    const followNameChanges = async function* followNameChanges(
+      ...petNamePath
+    ) {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        for (const name of orderedNames) {
+          const id = idByName.get(name);
+          if (id !== undefined) {
+            yield { add: /** @type {Name} */ (name), value: parseId(id) };
+          }
+        }
+        return undefined;
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      yield* await E(hub).followNameChanges();
+      return undefined;
+    };
+
+    const reverseLookup = presence => {
+      const id = getIdForRef(presence);
+      if (id === undefined) {
+        return harden([]);
+      }
+      return harden(
+        /** @type {Name[]} */ (
+          orderedNames.filter(name => idByName.get(name) === id)
+        ),
+      );
+    };
+
+    const disallowedMutation = async () => {
+      throw new Error('not allowed');
+    };
+
+    messageHub = makeExo('MessageHub', DirectoryInterface, {
+      has,
+      identify,
+      locate,
+      reverseLocate,
+      followLocatorNameChanges,
+      list,
+      listIdentifiers,
+      followNameChanges,
+      lookup,
+      reverseLookup,
+      write: disallowedMutation,
+      remove: disallowedMutation,
+      move: disallowedMutation,
+      copy: disallowedMutation,
+    });
+
+    return messageHub;
+  };
+
   /** @type {FormulaMakerTable} */
   const makers = {
     marshal: async ({ body, slots }) => {
@@ -549,25 +1225,30 @@ const makeDaemonCore = async (
       { worker: workerId, powers: powersId, bundle: bundleId },
       context,
     ) => makeBundle(workerId, powersId, bundleId, context),
-    host: async (
-      {
+    host: async (formula, context, id) => {
+      const {
         handle: handleId,
         petStore: petStoreId,
+        mailboxStore: mailboxStoreId,
+        mailHub: mailHubId,
         inspector: inspectorId,
         worker: workerId,
         endo: endoId,
         networks: networksId,
         pins: pinsId,
-      },
-      context,
-      id,
-    ) => {
+      } = formula;
+
+      if (mailHubId === undefined) {
+        throw new Error('Host formula missing mail hub');
+      }
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
         id,
         handleId,
         petStoreId,
+        mailboxStoreId,
+        mailHubId,
         inspectorId,
         workerId,
         endoId,
@@ -581,17 +1262,20 @@ const makeDaemonCore = async (
       agentIdForHandle.set(handle, id);
       return agent;
     },
-    guest: async (
-      {
+    guest: async (formula, context, id) => {
+      const {
         handle: handleId,
         hostAgent: hostAgentId,
         hostHandle: hostHandleId,
         petStore: petStoreId,
+        mailboxStore: mailboxStoreId,
+        mailHub: mailHubId,
         worker: workerId,
-      },
-      context,
-      id,
-    ) => {
+      } = formula;
+
+      if (mailHubId === undefined) {
+        throw new Error('Guest formula missing mail hub');
+      }
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeGuest(
@@ -600,6 +1284,8 @@ const makeDaemonCore = async (
         hostAgentId,
         hostHandleId,
         petStoreId,
+        mailboxStoreId,
+        mailHubId,
         workerId,
         context,
       );
@@ -703,6 +1389,16 @@ const makeDaemonCore = async (
         'pet-store',
         assertPetName,
       ),
+    'mailbox-store': (_formula, _context, _id, formulaNumber) =>
+      petStorePowers.makeIdentifiedPetStore(
+        formulaNumber,
+        'mailbox-store',
+        assertMailboxStoreName,
+      ),
+    'mail-hub': ({ store: storeId }, context) => makeMailHub(storeId, context),
+    message: (formula, context) => makeMessageHub(formula, context),
+    promise: ({ store: storeId }, context) => makePromise(storeId, context),
+    resolver: ({ store: storeId }, context) => makeResolver(storeId, context),
     'known-peers-store': (_formula, _context, _id, formulaNumber) =>
       petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
@@ -996,6 +1692,44 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Formulates a `mailbox-store` formula and synchronously adds it to the
+   * formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   *
+   * @param {FormulaNumber} formulaNumber - The formula number of the mailbox store.
+   * @returns {FormulateResult<PetStore>} The formulated mailbox store.
+   */
+  const formulateNumberedMailboxStore = async formulaNumber => {
+    /** @type {MailboxStoreFormula} */
+    const formula = {
+      type: 'mailbox-store',
+    };
+    return /** @type {FormulateResult<PetStore>} */ (
+      formulate(formulaNumber, formula)
+    );
+  };
+
+  /**
+   * Formulates a `mail-hub` formula and synchronously adds it to the
+   * formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   *
+   * @param {FormulaNumber} formulaNumber - The mail hub formula number.
+   * @param {FormulaIdentifier} mailboxStoreId
+   * @returns {FormulateResult<NameHub>} The formulated mail hub.
+   */
+  const formulateNumberedMailHub = async (formulaNumber, mailboxStoreId) => {
+    /** @type {MailHubFormula} */
+    const formula = {
+      type: 'mail-hub',
+      store: mailboxStoreId,
+    };
+    return /** @type {FormulateResult<NameHub>} */ (
+      formulate(formulaNumber, formula)
+    );
+  };
+
+  /**
    * @type {DaemonCore['formulateDirectory']}
    */
   const formulateDirectory = async () => {
@@ -1067,6 +1801,17 @@ const makeDaemonCore = async (
         /** @type {FormulaNumber} */ (await randomHex512()),
       )
     ).id;
+    const mailboxStoreId = (
+      await formulateNumberedMailboxStore(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+      )
+    ).id;
+    const mailHubId = (
+      await formulateNumberedMailHub(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+        mailboxStoreId,
+      )
+    ).id;
 
     const hostFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex512()
@@ -1087,6 +1832,8 @@ const makeDaemonCore = async (
       hostId,
       handleId,
       storeId,
+      mailboxStoreId,
+      mailHubId,
       /* eslint-disable no-use-before-define */
       inspectorId: (
         await formulateNumberedPetInspector(
@@ -1106,6 +1853,8 @@ const makeDaemonCore = async (
       type: 'host',
       handle: identifiers.handleId,
       petStore: identifiers.storeId,
+      mailboxStore: identifiers.mailboxStoreId,
+      mailHub: identifiers.mailHubId,
       inspector: identifiers.inspectorId,
       worker: identifiers.workerId,
       endo: identifiers.endoId,
@@ -1159,6 +1908,17 @@ const makeDaemonCore = async (
       /** @type {FormulaNumber} */ (await randomHex512()),
       guestId,
     );
+    const mailboxStoreId = (
+      await formulateNumberedMailboxStore(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+      )
+    ).id;
+    const mailHubId = (
+      await formulateNumberedMailHub(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+        mailboxStoreId,
+      )
+    ).id;
     return harden({
       guestFormulaNumber,
       guestId,
@@ -1170,6 +1930,8 @@ const makeDaemonCore = async (
           /** @type {FormulaNumber} */ (await randomHex512()),
         )
       ).id,
+      mailboxStoreId,
+      mailHubId,
       workerId: (
         await formulateNumberedWorker(
           /** @type {FormulaNumber} */ (await randomHex512()),
@@ -1187,6 +1949,8 @@ const makeDaemonCore = async (
       hostHandle: identifiers.hostHandleId,
       hostAgent: identifiers.hostAgentId,
       petStore: identifiers.storeId,
+      mailboxStore: identifiers.mailboxStoreId,
+      mailHub: identifiers.mailHubId,
       worker: identifiers.workerId,
     };
 
@@ -1233,7 +1997,7 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateMarshalValue']} */
-  const formulateMarshalValue = async (value, deferredTasks) => {
+  async function formulateMarshalValue(value, deferredTasks) {
     const { marshalFormulaNumber } = await formulaGraphJobs.enqueue(
       async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
@@ -1264,6 +2028,61 @@ const makeDaemonCore = async (
     };
     return /** @type {FormulateResult<void>} */ (
       formulate(marshalFormulaNumber, formula)
+    );
+  }
+
+  /** @type {DaemonCore['formulatePromise']} */
+  const formulatePromise = async () => {
+    const { storeFormulaNumber, promiseFormulaNumber, resolverFormulaNumber } =
+      await formulaGraphJobs.enqueue(async () => {
+        const storeNumber = /** @type {FormulaNumber} */ (await randomHex512());
+        const promiseNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        const resolverNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        return {
+          storeFormulaNumber: storeNumber,
+          promiseFormulaNumber: promiseNumber,
+          resolverFormulaNumber: resolverNumber,
+        };
+      });
+
+    const { id: storeId } = await formulateNumberedPetStore(storeFormulaNumber);
+
+    /** @type {PromiseFormula} */
+    const promiseFormula = {
+      type: 'promise',
+      store: storeId,
+    };
+
+    /** @type {ResolverFormula} */
+    const resolverFormula = {
+      type: 'resolver',
+      store: storeId,
+    };
+
+    const { id: promiseId } = await formulate(
+      promiseFormulaNumber,
+      promiseFormula,
+    );
+    const { id: resolverId } = await formulate(
+      resolverFormulaNumber,
+      resolverFormula,
+    );
+
+    return harden({ promiseId, resolverId });
+  };
+
+  /** @type {DaemonCore['formulateMessage']} */
+  const formulateMessage = async messageFormula => {
+    await null;
+    const formulaNumber = /** @type {FormulaNumber} */ (
+      await formulaGraphJobs.enqueue(() => randomHex512())
+    );
+    return /** @type {FormulateResult<NameHub>} */ (
+      formulate(formulaNumber, messageFormula)
     );
   };
 
@@ -1714,7 +2533,13 @@ const makeDaemonCore = async (
     formulateDirectory,
   });
 
-  const makeMailbox = makeMailboxMaker({ provide });
+  const makeMailbox = makeMailboxMaker({
+    provide,
+    formulateMarshalValue,
+    formulatePromise,
+    formulateMessage,
+    getFormulaForId,
+  });
 
   const makeGuest = makeGuestMaker({
     provide,

@@ -6,7 +6,7 @@
 
 import { q } from '@endo/errors';
 
-const validPetNamePattern = /^[a-z][a-z0-9-]{0,127}$/;
+const validPetNamePattern = /^[a-z0-9][a-z0-9-]{0,127}$/;
 const validSpecialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 
 /**
