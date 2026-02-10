@@ -15,7 +15,7 @@ import {
 import {
   makeOcapnPublicKey,
   makeSessionId,
-  verifyLocationSignature,
+  assertLocationSignatureValid,
 } from '../cryptography.js';
 import { compareImmutableArrayBuffers } from '../syrup/compare.js';
 import { makeSyrupReader } from '../syrup/decode.js';
@@ -161,13 +161,13 @@ const handleSessionHandshakeMessage = (
 
       // Check if the location signature is valid
       const peerPublicKey = makeOcapnPublicKey(sessionPublicKey.q);
-      const peerLocationSigValid = verifyLocationSignature(
-        peerLocation,
-        peerLocationSig,
-        peerPublicKey,
-      );
-      // Handle invalid location signature
-      if (!peerLocationSigValid) {
+      try {
+        assertLocationSignatureValid(
+          peerLocation,
+          peerLocationSig,
+          peerPublicKey,
+        );
+      } catch {
         logger.info('>> Server received NOT VALID location signature');
         sendAbortAndClose(connection, 'Invalid location signature');
         sessionManager.deleteConnection(connection);

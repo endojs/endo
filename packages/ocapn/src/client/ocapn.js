@@ -32,8 +32,8 @@ import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
 import {
   publicKeyDescriptorToPublicKey,
   randomGiftId,
-  verifyHandoffGiveSignature,
-  verifyHandoffReceiveSignature,
+  assertHandoffGiveSignatureValid,
+  assertHandoffReceiveSignatureValid,
   signHandoffReceive,
   makeSignedHandoffGive,
 } from '../cryptography.js';
@@ -603,27 +603,32 @@ const makeBootstrapObject = (
           `${label}: Bootstrap withdraw-gift: No session with id: ${toHex(gifterExporterSessionId)}`,
         );
       }
-      const handoffGiveIsValid = verifyHandoffGiveSignature(
-        handoffGive,
-        handoffGiveSig,
-        gifterKeyForExporter,
-      );
-      if (!handoffGiveIsValid) {
-        throw Error(`${label}: Bootstrap withdraw-gift: Invalid HandoffGive.`);
+      try {
+        assertHandoffGiveSignatureValid(
+          handoffGive,
+          handoffGiveSig,
+          gifterKeyForExporter,
+        );
+      } catch (cause) {
+        throw Error(`${label}: Bootstrap withdraw-gift: Invalid HandoffGive.`, {
+          cause,
+        });
       }
 
       // Verify HandoffReceive
       const receiverKeyForGifter = publicKeyDescriptorToPublicKey(
         receiverKeyDataForGifter,
       );
-      const handoffReceiveIsValid = verifyHandoffReceiveSignature(
-        handoffReceive,
-        handoffReceiveSig,
-        receiverKeyForGifter,
-      );
-      if (!handoffReceiveIsValid) {
+      try {
+        assertHandoffReceiveSignatureValid(
+          handoffReceive,
+          handoffReceiveSig,
+          receiverKeyForGifter,
+        );
+      } catch (cause) {
         throw Error(
           `${label}: Bootstrap withdraw-gift: Invalid HandoffReceive.`,
+          { cause },
         );
       }
 
