@@ -159,7 +159,8 @@ test('client aborts on start-session with wrong version', async t => {
   };
 
   const { connection: firstConnection } =
-    clientKitA.netlayer.testing.establishConnection(clientKitB.location);
+    // eslint-disable-next-line no-underscore-dangle
+    clientKitA.netlayer._debug.establishConnection(clientKitB.location);
 
   try {
     t.false(firstConnection.isDestroyed, 'Connection should not be destroyed');
@@ -194,7 +195,8 @@ test('client aborts on unparseable message BEFORE establishing session', async t
     await makeTestClientPair();
 
   const { connection: firstConnection } =
-    clientKitA.netlayer.testing.establishConnection(clientKitB.location);
+    // eslint-disable-next-line no-underscore-dangle
+    clientKitA.netlayer._debug.establishConnection(clientKitB.location);
 
   try {
     t.false(firstConnection.isDestroyed, 'Connection should not be destroyed');
@@ -268,10 +270,10 @@ test('client aborts on unparseable message AFTER establishing session', async t 
       () =>
         connectionAtoB.isDestroyed &&
         connectionBtoA.isDestroyed &&
-        !clientKitA.client.sessionManager.getActiveSession(
+        !clientKitA.debug.sessionManager.getActiveSession(
           clientKitB.locationId,
         ) &&
-        !clientKitB.client.sessionManager.getActiveSession(
+        !clientKitB.debug.sessionManager.getActiveSession(
           clientKitA.locationId,
         ),
     );
@@ -313,7 +315,7 @@ test('provideSession throws and cleans up pending session on handshake abort', a
 
   const hasPendingSession = () => {
     const pendingSession =
-      clientKitA.client.sessionManager.getPendingSessionPromise(
+      clientKitA.debug.sessionManager.getPendingSessionPromise(
         clientKitB.locationId,
       );
     return pendingSession !== undefined;
@@ -353,7 +355,7 @@ test('provideSession throws and cleans up pending session on handshake abort', a
     );
 
     // Verify active session was not created
-    const activeSession = clientKitA.client.sessionManager.getActiveSession(
+    const activeSession = clientKitA.debug.sessionManager.getActiveSession(
       clientKitB.locationId,
     );
     t.is(
@@ -402,11 +404,11 @@ test('session can be re-established after normal abort', async t => {
 
     // Verify sessions are active
     t.truthy(
-      clientKitA.client.sessionManager.getActiveSession(clientKitB.locationId),
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
       'Session from A to B should be active',
     );
     t.truthy(
-      clientKitB.client.sessionManager.getActiveSession(clientKitA.locationId),
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
       'Session from B to A should be active',
     );
 
@@ -418,10 +420,10 @@ test('session can be re-established after normal abort', async t => {
       () =>
         firstConnectionAtoB.isDestroyed &&
         firstConnectionBtoA.isDestroyed &&
-        !clientKitA.client.sessionManager.getActiveSession(
+        !clientKitA.debug.sessionManager.getActiveSession(
           clientKitB.locationId,
         ) &&
-        !clientKitB.client.sessionManager.getActiveSession(
+        !clientKitB.debug.sessionManager.getActiveSession(
           clientKitA.locationId,
         ),
     );
@@ -437,12 +439,12 @@ test('session can be re-established after normal abort', async t => {
 
     // Verify sessions are no longer active
     t.is(
-      clientKitA.client.sessionManager.getActiveSession(clientKitB.locationId),
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
       undefined,
       'Session from A to B should not be active after abort',
     );
     t.is(
-      clientKitB.client.sessionManager.getActiveSession(clientKitA.locationId),
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
       undefined,
       'Session from B to A should not be active after abort',
     );
@@ -468,11 +470,11 @@ test('session can be re-established after normal abort', async t => {
 
     // Verify new sessions are active
     t.truthy(
-      clientKitA.client.sessionManager.getActiveSession(clientKitB.locationId),
+      clientKitA.debug.sessionManager.getActiveSession(clientKitB.locationId),
       'New session from A to B should be active',
     );
     t.truthy(
-      clientKitB.client.sessionManager.getActiveSession(clientKitA.locationId),
+      clientKitB.debug.sessionManager.getActiveSession(clientKitA.locationId),
       'New session from B to A should be active',
     );
 
