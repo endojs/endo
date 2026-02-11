@@ -9,6 +9,8 @@
   },
   "packageManager": "yarn@4.10.3",
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
     "@endo/ses-ava": "workspace:^",
     "@jessie.js/eslint-plugin": "^0.4.2",
     "@lavamoat/allow-scripts": "^3.3.5",
@@ -46,6 +48,7 @@
     "lint:fix": "yarn lint:eslint -- --fix",
     "lint:workspaces:fix": "yarn workspaces foreach --all run lint-fix",
     "lint:prettier": "prettier --check .github packages",
+    "release:npm": "lerna publish from-package",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
     "test:c8": "yarn workspaces foreach --all run test:c8",
     "test:xs": "yarn workspaces foreach --all run test:xs",

@@ -1,4 +1,6 @@
-# Initial setup
+# Contributing to Endo
+
+## Initial setup
 
 ```sh
 git clone git@github.com:endojs/endo.git
@@ -6,12 +8,13 @@ cd endo
 yarn
 ```
 
-Endo is a yarn workspaces repository. Running yarn in the root will install and hoist most dependencies up to the root `node_modules`.
+Endo is a yarn workspaces repository. Running yarn in the root will install and
+hoist most dependencies up to the root `node_modules`.
 
 Note: running yarn `--ignore-scripts` will not complete the setup of SES.
 Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
-## Action pinning
+### Action pinning
 
 GitHub Actions are pinned to commit SHAs.
 Run `node scripts/update-action-pins.mjs` to refresh patch/minor pins.
@@ -23,21 +26,21 @@ If no version comment exists, it infers the latest tag for that action.
 CI enforces pinning with `node scripts/update-action-pins.mjs --check-pins`.
 If this check fails, run the updater and commit the resulting changes.
 
-## Creating a new package
+### Creating a new package
 
 Run <code>[scripts/create-package.sh](./scripts/create-package.sh) $name</code>,
 then update the resulting README.md, package.json (specifically setting
 `description` and [if appropriate] removing `"private": false`), index.js, and
 index.test.js files.
 
-## Markdown Style Guide
+### Markdown Style Guide
 
 When writing Markdown documentation:
 
-* Wrap lines at 80 to 100 columns for readability in terminal editors.
-* Start each sentence on a new line.
+- Wrap lines at 80 to 100 columns for readability in terminal editors.
+- Start each sentence on a new line.
   This ensures changes in one sentence do not cascade into the next in diffs.
-* Starting sentences on new lines also obviates any question of whether to use
+- Starting sentences on new lines also obviates any question of whether to use
   one or two spaces after a period.
 
 Example:
@@ -60,175 +63,83 @@ uses a different Markdown flavor for those contexts.
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
 Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
 
-# Making a Release
+## Using Changesets
 
-* Review the [next release](
-https://github.com/endojs/endo/labels/next-release
-) label for additional tasks or pending changes particular to this release.
+Endo uses [Changesets](https://github.com/changesets/changesets) to manage
+versioning and changelogs.
+A **changeset** is a Markdown file in the `.changeset/` directory that captures:
 
-* Do not release from a Git workspace.
-  In a Git workspace, `.git` is a file and not a directory.
-  At time of writing, Lerna does not account for Git workspaces when it looks
-  up the repository location.
+- Which packages need to be released
+- The [semver](https://semver.org/) bump type (major, minor, or patch)
+- A changelog entry describing the change
 
-* Create a release branch.
+Changesets are "intents to release" that accumulate until maintainers cut a
+release.
+The changeset files themselves are temporary—when a release is cut, they are
+consumed and removed from version control, with their contents incorporated into
+each package's `CHANGELOG.md`.
 
-  ```sh
-  now=`date -u +%Y-%m-%d-%H-%M-%S`
-  git checkout -b release-$now
-  ```
+This approach automates version bumping across the monorepo (including internal
+dependency updates) and generates changelogs automatically, while keeping humans
+in the loop to review and edit release notes before publishing.
 
-* Create the release CHANGELOGs.
+Contributors make versioning decisions _at contribution time_ (i.e. _in the PR
+itself_), when the context is fresh.
 
-  ```sh
-  yarn lerna version --no-push --conventional-graduate --no-git-tag-version
-  ```
+### Adding a Changeset
 
-  Use `--conventional-prerelease` instead of `--conventional-graduate` if you
-  just want to generate a dev release.
+When your PR includes changes that should be released, add a changeset:
 
-* Commit the results.
+1. Run `yarn changeset`
+2. Select the affected packages (use arrow keys to navigate, space to select,
+   enter to confirm)
+3. Choose the appropriate bump type for each package
+4. Write a clear, complete description of the change—what changed, why, and any
+   migration notes if needed. Consider security and performance implications.
+   This text will appear verbatim in `CHANGELOG.md`, so make it useful for
+   consumers of the package.
+5. Commit the generated `.changeset/*.md` file with your PR
 
-  ```sh
-  git commit -am 'chore: lerna version'
-  ```
+> Do not be alarmed by the unique, auto-generated names of the changeset files!
+> This is expected.
 
-* Identify `NEWS.md` files that need to be updated.
-  Ensure `NEWS.md` captures all user-visible changes in prose that are
-  user-relevant.
+### Editing a Changeset
 
-  ```sh
-  git grep '# Next'
-  ```
+You typically want to do this _before_ your PR lands, but all you need to do is
+find the changeset file in `.changeset/`, edit it, and commit.
 
-  For each of these files, copy the version number and timestamp from the
-  adjacent `CHANGELOG.md` generated in the previous step.
-  For example,
+### Do I Need a Changeset?
 
-  ```diff
-  -# Next release
-  +# 0.5.1 (2021-08-12)
-  ```
+Generally, you need a changeset only if your PR contains **user-facing changes**
+to a package—bug fixes, new features, breaking changes, or other modifications
+that consumers of the package would notice.
 
-  Also, capture these into a release notes document, where each heading
-  is the name of the package and the version number instead of the
-  version number and release date, like so:
+You typically **do not** need a changeset for:
 
-  ```
-  # `ses` 1.0.0
-  ```
+- Documentation-only changes
+- Test additions or fixes
+- CI/build configuration changes
+- Refactoring that doesn't change public behavior
 
-  In the release notes document, we do not manually wrap long lines.
-  All paragraphs should be joined into long lines, since Github uses a
-  different flavor of Markdown for descriptions and release notes.
+The helpful [changeset-bot](https://github.com/apps/changeset-bot) will comment
+on your PR if no changeset is present, but this won't block merging.  
 
-* Commit the results.
+> [!TIP]
+>
+> When in doubt, ask a friendly maintainer. Avoid the unfriendly ones.
 
-  ```sh
-  git commit -am 'docs: Update release notes'
-  ```
+### Release Workflow (For Maintainers)
 
-* Update `yarn.lock`.
+The release process works as follows:
 
-  ```sh
-  yarn
-  git commit -um 'chore: Update yarn.lock'
-  ```
-
-* Push the branch.
-
-  ```sh
-  git push -u origin release-$now
-  ```
-
-* Create a pull request and request a review, using the release notes
-  from above as the description.
-  This is an opportunity to:
-
-  - verify that the changes pass tests under continuous integration,
-  - reflect on whether the automatically chosen version numbers tell an
-    accurate story about the backward and mutual compatibility of the packages
-    you are about to publish,
-  - and to verify that all user-facing changes are noted in the NEWS.md files
-    with appropriate migration advice when necessary.
-
-* When your reviewer has approved your release, use `git rebase -i
-  origin/master` to remove the automatically generated `chore: lerna version`
-  commit.
-
-* Recreate the changelogs with the current date *and* generate tags for the new
-  versions. This is the effect of removing the `--no-git-tag-version` flag.
-
-  ```sh
-  yarn lerna version --no-push --conventional-graduate
-  ```
-
-* Update `yarn.lock`.
-
-  ```sh
-  yarn
-  git commit -um 'chore: Update yarn.lock'
-  ```
-
-* Publish the versions to npm.
-  Being a member of the project or organization and having two-factor
-  authentication may be necessary. It may be necessary to login with
-  `npm login`. You can check with `npm whoami`.
-
-  ```sh
-  npm whoami
-  # if it does not show you logged in, then do
-  npm login
-  # two factor authentication stuff
-  yarn lerna publish from-package
-  # repeat this command until all packages are successfully published
-  ```
-
-* To verify that packages were published, go to the npm web page for the
-  package, for example
-  [https://www.npmjs.com/package/ses](https://www.npmjs.com/package/ses).
-  ***However*** do not be alarmed if it does not show your new version for
-  a distressingly long time. Instead you can verify the version with
-
-  ```sh
-  npm view ses
-  ```
-
-* Force push these changes back to the pull request branch.
-
-  ```sh
-  git push origin -f release-$now
-  ```
-
-* Merge the release PR into master.
-  DO NOT REBASE OR SQUASH OR YOU WILL LOSE REFERENCES TO YOUR TAGS.
-
-  Notice the little triangle on the merge button and select "Create a merge
-  commit" from the drop down menu.
-  Do not rebase.
-  Do not squash.
-  Rebasing or squashing will remove the tag from the history of the `master`
-  branch.
-
-* Selecting "Create a merge commit" in that drop down is sticky. Assuming you
-  normally want "Squash and merge", be sure to set it back to that at your
-  next opportunity.
-
-* Push the released tags to Github.
-
-  ```sh
-  git tag -l | egrep -e '@[0-9]+\.[0-9]+\.[0-9]+$' | xargs git push origin
-  ```
-
-* Go to https://github.com/endojs/endo/releases and create a new release
-  using the latest tag for `ses` as the reference tag, and the release
-  notes you prepared for the pull request description.
-
-## More information
-
-To get help for the command-line options that will affect these commands, use:
-
-```sh
-yarn lerna version --help
-yarn lerna publish --help
-```
+1. As changesets accumulate on `master`, the `changesets/action` GitHub Action
+   (see [.github/workflows/release.yml](.github/workflows/release.yml))
+   automatically creates and maintains a **Release PR** titled "Version
+   Packages"
+2. This Release PR applies all pending changesets; it bumps versions, updates
+   `CHANGELOG.md` files, and deletes the consumed changeset files
+3. Maintainers review the Release PR to verify versions and changelog entries
+   look correct. Maintainer will approve and/or merge when ready.
+   Merging will also create tags and GitHub Releases for each affected package.
+4. After merging the Release PR, pull `master` and run `yarn release:npm` to
+   publish the updated packages to npm.
