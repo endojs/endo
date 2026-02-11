@@ -23,6 +23,7 @@ import {
   EnvelopeInterface,
   DismisserInterface,
   HandleInterface,
+  ResponderInterface,
 } from './interfaces.js';
 
 /** @import { ERef } from '@endo/eventual-send' */

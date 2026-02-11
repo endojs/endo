@@ -23,6 +23,7 @@ import {
 import { formatLocator, idFromLocator } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
+  assertValidId,
   assertValidNumber,
   assertFormulaNumber,
   assertNodeNumber,
