@@ -39,6 +39,7 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "ollama": "^0.5.0",
     "openai": "^4.77.0"
   },
   "devDependencies": {
