@@ -75,7 +75,7 @@ export async function bundleScript(
       dev,
     },
   );
-  const parserForLanguageForFunctor = /** @type {any} */ (parserForLanguage);
+  const parserForLanguageForFunctor = parserForLanguage;
 
   let source = await makeFunctor(powers, entry.href, {
     // For backward-compatibility, the nestedEvaluate and getExport formats

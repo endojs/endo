@@ -384,7 +384,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     loaded.set(targetName, { rootPath, bundle: todo.promise });
     const bundle = await validateOrAdd(rootPath, targetName, log, options)
       .then(
-        ({ bundleFileName }) => import(`${wr.readOnly().neighbor(bundleFileName)}`),
+        ({ bundleFileName }) =>
+          import(`${wr.readOnly().neighbor(bundleFileName)}`),
       )
       .then(m => harden(m.default))
       .catch(error => {

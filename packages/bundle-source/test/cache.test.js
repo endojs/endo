@@ -7,7 +7,8 @@ import { makeNodeBundleCache } from '../cache.js';
 
 const loadModule = specifier => import(specifier);
 
-const makeTempDest = async () => fs.mkdtemp(path.join(os.tmpdir(), 'endo-cache-'));
+const makeTempDest = async () =>
+  fs.mkdtemp(path.join(os.tmpdir(), 'endo-cache-'));
 
 test('cache can capture and verify metadata', async t => {
   const dest = await makeTempDest();
