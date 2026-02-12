@@ -222,7 +222,10 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     sortedConditions.forEach((tag, index) => {
       assert.equal(tag, sortedExpectedConditions[index]);
     });
-    if (rootOpt) {
+    if (rootOpt !== undefined && rootOpt !== null) {
+      if (typeof rootOpt !== 'string') {
+        throw Fail`bundle ${targetName} expected a string root path, not ${q(rootOpt)}`;
+      }
       moduleSource === cwd.neighbor(rootOpt).absolute() ||
         Fail`bundle ${targetName} was for ${moduleSource}, not ${rootOpt}`;
     }

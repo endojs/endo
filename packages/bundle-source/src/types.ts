@@ -77,6 +77,32 @@ export interface BundleCache {
   ) => Promise<unknown>;
 }
 
+export interface FileReader {
+  toString: () => string;
+  readText: () => Promise<string>;
+  maybeReadText: () => Promise<string | undefined>;
+  neighbor: (ref: string) => FileReader;
+  stat: () => Promise<import('fs').Stats>;
+  absolute: () => string;
+  relative: (there: string) => string;
+  exists: () => Promise<boolean>;
+}
+
+export interface FileWriter {
+  toString: () => string;
+  writeText: (txt: any, opts?: any) => Promise<void>;
+  readOnly: () => FileReader;
+  neighbor: (ref: string) => FileWriter;
+  mkdir: (opts?: any) => Promise<any>;
+  rm: (opts?: any) => Promise<void>;
+  rename: (newName: string) => Promise<void>;
+}
+
+export interface AtomicFileWriter extends Omit<FileWriter, 'neighbor'> {
+  neighbor: (ref: string) => AtomicFileWriter;
+  atomicWriteText: (txt: any, opts?: any) => Promise<import('fs').Stats>;
+}
+
 export type BundleSource = BundleSourceSimple &
   BundleSourceWithFormat &
   BundleSourceWithOptions &
