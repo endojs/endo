@@ -18,11 +18,11 @@ import { generate } from './generate.js';
  * @typedef EvadeCensorOptions
  * @property {string} [sourceMap] - Original source map in JSON string or object form
  * @property {string} [sourceUrl] - URL or filepath of the original source in `code`
- * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
+ * @property {boolean} [elideComments] - Empties the comments but preserves interior newlines.
  * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
- * @property {boolean} [useLocationUnmap] - deprecated, vestigial
  * @property {boolean} [onlyComments] - if true, will limit transformation to
-     comment contents, preserving code positions within each line
+comment contents, preserving code positions within each line
+ * @property {boolean} [useLocationUnmap] - deprecated, vestigial
  * @public
  */
 

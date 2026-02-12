@@ -2,9 +2,40 @@
 
 > Source transforms for evading censorship in [SES](https://github.com/endojs/endo/tree/master/packages/ses)-enabled applications
 
-This package provides a function which transforms comments contained in source code which would otherwise be rejected outright by SES.
+This package provides a function which transforms source code which would otherwise be rejected outright by SES.
+The transform is meaning-preserving.
 
-## Example
+It covers sequences resembling HTML comments inside of:
+- comments
+- strings
+- template strings (but not tagged template strings)
+- code itself, eg `if (a-->b)`
+
+It covers sequences resembling dynamic import use inside of:
+- comments
+- strings
+- template strings (but not tagged template strings)
+- regular expressions
+
+
+## Usage 
+
+### Options
+
+Both `evadeCensor` and `evadeCensorSync` accept a source string as the first argument and an options object as the second argument:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `sourceUrl` | `string` | The URL or filename of the source file. Used for source map generation and error messages. |
+| `sourceMap` | `string \| object` | Optional. An existing source map (as JSON string or object) to be updated with the transform's mappings. |
+| `sourceType` | `'script' \| 'module'` | Optional. Specifies whether the source is a CommonJS script (`'script'`) or an ES module (`'module'`). When provided, it helps the parser handle the code correctly. |
+| `elideComments` | `boolean` | Optional. If `true`, removes comment contents while preserving newlines. Defaults to `false`. |
+| `onlyComments` | `boolean` | Optional. If `true`, limits transformation to comment contents only, leaving code unchanged. Defaults to `false`. |
+
+### Example
+
+See example below, or see the second test in [packages/compartment-mapper/test/evasive-transform.test.js](../compartment-mapper/test/evasive-transform.test.js) for a demonstration of its usage in compartment-mapper.
+
 
 ```js
 // ESM example
@@ -25,6 +56,8 @@ const { code, map } = await evadeCensor(source, {
   sourceUrl,
   // always provide a sourceType, if known!
   sourceType,
+  elideComments: true,
+  onlyComments: true,
 });
 
 /**
