@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 /* global process */
 
 import crypto from 'crypto';
@@ -14,25 +14,14 @@ import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import { makeBundlingKit } from './endo.js';
 
+/** @import {BundleZipBase64Options, BundlingKitIO, SharedPowers} from './types.js' */
+
 const readPowers = makeReadPowers({ fs, url, crypto });
 
 /**
  * @param {string} startFilename
- * @param {object} [options]
- * @param {boolean} [options.dev]
- * @param {boolean} [options.cacheSourceMaps]
- * @param {boolean} [options.noTransforms]
- * @param {boolean} [options.elideComments]
- * @param {string[]} [options.conditions]
- * @param {Record<string, string>} [options.commonDependencies]
- * @param {(specifier: string, packageLocation: string) => Promise<import('@endo/compartment-mapper/src/types').ThirdPartyStaticModuleInterface | undefined>} [options.importHook]
- *
- * @param {object} [grantedPowers]
- * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]
- * @param {typeof import('path)['resolve']} [grantedPowers.pathResolve]
- * @param {typeof import('os')['userInfo']} [grantedPowers.userInfo]
- * @param {typeof process['env']} [grantedPowers.env]
- * @param {typeof process['platform']} [grantedPowers.platform]
+ * @param {BundleZipBase64Options} [options]
+ * @param {SharedPowers} [grantedPowers]
  */
 export async function bundleZipBase64(
   startFilename,
@@ -48,7 +37,10 @@ export async function bundleZipBase64(
     commonDependencies,
     importHook,
   } = options;
-  const powers = { ...readPowers, ...grantedPowers };
+  const powers = /** @type {typeof readPowers & SharedPowers} */ ({
+    ...readPowers,
+    ...grantedPowers,
+  });
   const {
     computeSha512,
     pathResolve = path.resolve,
@@ -68,13 +60,13 @@ export async function bundleZipBase64(
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
   } = makeBundlingKit(
-    {
+    /** @type {BundlingKitIO} */ ({
       pathResolve,
       userInfo,
       platform,
       env,
       computeSha512,
-    },
+    }),
     {
       cacheSourceMaps,
       noTransforms,
@@ -82,10 +74,11 @@ export async function bundleZipBase64(
       commonDependencies,
     },
   );
+  const importHookForArchive = /** @type {any} */ (importHook);
 
-  const compartmentMap = await mapNodeModules(powers, entry, {
+  const compartmentMap = await mapNodeModules(powers, entry.href, {
     dev,
-    conditions,
+    conditions: new Set(conditions),
     commonDependencies,
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
@@ -99,7 +92,7 @@ export async function bundleZipBase64(
       parserForLanguage,
       moduleTransforms,
       sourceMapHook,
-      importHook,
+      importHook: importHookForArchive,
     },
   );
   assert(sha512);

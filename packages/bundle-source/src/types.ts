@@ -7,6 +7,15 @@ export type ModuleFormat =
   | 'getExport';
 
 export type Logger = (...args: unknown[]) => void;
+export type ComputeSha512 = (bytes: string | Uint8Array) => string;
+
+export interface SharedPowers {
+  computeSha512?: ComputeSha512 | undefined;
+  pathResolve?: (typeof import('path'))['resolve'] | undefined;
+  userInfo?: (typeof import('os'))['userInfo'] | undefined;
+  env?: Record<string, string | undefined> | undefined;
+  platform?: string | undefined;
+}
 
 export interface CacheOpts {
   encodeBundle: (bundle: unknown) => string;
@@ -111,6 +120,67 @@ export interface AtomicFileWriter extends Omit<FileWriter, 'neighbor'> {
     txt: string | Uint8Array,
     opts?: Parameters<typeof import('fs/promises').writeFile>[2],
   ) => Promise<import('fs').Stats>;
+}
+
+export type BundleScriptModuleFormat =
+  | 'endoScript'
+  | 'nestedEvaluate'
+  | 'getExport';
+
+export interface BundleScriptOptions {
+  dev?: boolean | undefined;
+  cacheSourceMaps?: boolean | undefined;
+  noTransforms?: boolean | undefined;
+  elideComments?: boolean | undefined;
+  conditions?: string[] | undefined;
+  commonDependencies?: Record<string, string> | undefined;
+}
+
+export interface BundleZipBase64Options extends BundleScriptOptions {
+  importHook?:
+    | ((specifier: string, packageLocation: string) => Promise<unknown>)
+    | undefined;
+}
+
+export type ParserForLanguageLike =
+  import('@endo/compartment-mapper/node-powers.js').ParserForLanguage;
+
+export type ModuleTransformsLike =
+  import('@endo/compartment-mapper/node-powers.js').ModuleTransforms;
+
+export interface SourceMapDescriptor {
+  sha512: string;
+  compartment: string;
+  module: string;
+}
+
+export interface BundlingKitIO {
+  pathResolve: (typeof import('path'))['resolve'];
+  userInfo: (typeof import('os'))['userInfo'];
+  computeSha512?: ComputeSha512 | undefined;
+  platform: string;
+  env: Record<string, string | undefined>;
+}
+
+export interface BundlingKitOptions {
+  cacheSourceMaps: boolean;
+  elideComments: boolean;
+  noTransforms: boolean;
+  commonDependencies?: Record<string, string> | undefined;
+  dev?: boolean | undefined;
+}
+
+export interface BundlingKit {
+  sourceMapHook: (
+    sourceMap: string,
+    sourceDescriptor: SourceMapDescriptor,
+  ) => void;
+  sourceMapJobs: Set<Promise<void>>;
+  moduleTransforms: ModuleTransformsLike;
+  parserForLanguage: ParserForLanguageLike;
+  workspaceLanguageForExtension: Record<string, string>;
+  workspaceModuleLanguageForExtension: Record<string, string>;
+  workspaceCommonjsLanguageForExtension: Record<string, string>;
 }
 
 export type BundleSource = BundleSourceSimple &
