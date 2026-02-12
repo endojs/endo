@@ -38,6 +38,22 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   } = opts || {};
 
   /**
+   * @param {string} targetName
+   * @param {string} metaText
+   * @returns {BundleMeta}
+   */
+  const parseMetaText = (targetName, metaText) => {
+    try {
+      return JSON.parse(metaText);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw SyntaxError(`Cannot parse JSON from ${targetName}, ${error}`);
+      }
+      throw error;
+    }
+  };
+
+  /**
    * Bundle `rootPath` and unconditionally write fresh bundle + metadata files.
    *
    * Use this when you want to force a rebuild and overwrite any existing cache
@@ -59,7 +75,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       conditions = [],
     } = options;
 
-    conditions.sort();
+    const sortedConditions = [...conditions].sort();
 
     const statsByPath = new Map();
 
@@ -88,7 +104,13 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const bundle = await bundleSource(
       rootPath,
-      { ...bundleOptions, noTransforms, elideComments, format, conditions },
+      {
+        ...bundleOptions,
+        noTransforms,
+        elideComments,
+        format,
+        conditions: sortedConditions,
+      },
       {
         ...readPowers,
         read: loggedRead,
@@ -96,7 +118,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     );
 
     const code = encodeBundle(bundle);
-    await wr.mkdir({ recursive: true });
     const { mtime: bundleTime, size: bundleSize } =
       await bundleWr.atomicWriteText(code);
 
@@ -119,7 +140,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       noTransforms,
       elideComments,
       format,
-      conditions,
+      conditions: sortedConditions,
     };
 
     await metaWr.atomicWriteText(JSON.stringify(meta, null, 2));
@@ -171,18 +192,11 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       format: expectedFormat = DEFAULT_MODULE_FORMAT,
       conditions: expectedConditions = [],
     } = options;
-    expectedConditions.sort();
+    const sortedExpectedConditions = [...expectedConditions].sort();
     if (!meta) {
       const metaJson = await loadMetaText(targetName, log);
       if (metaJson) {
-        try {
-          meta = JSON.parse(metaJson);
-        } catch (error) {
-          if (error instanceof SyntaxError) {
-            throw SyntaxError(`Cannot parse JSON from ${targetName}, ${error}`);
-          }
-          throw error;
-        }
+        meta = parseMetaText(targetName, metaJson);
       }
     }
     if (!meta) {
@@ -199,14 +213,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       elideComments = false,
       conditions = [],
     } = meta;
-    conditions.sort();
+    const sortedConditions = [...conditions].sort();
     assert.equal(bundleFileName, toBundleName(targetName));
     assert.equal(format, expectedFormat);
     assert.equal(noTransforms, expectedNoTransforms);
     assert.equal(elideComments, expectedElideComments);
-    assert.equal(conditions.length, expectedConditions.length);
-    conditions.forEach((tag, index) => {
-      assert.equal(tag, expectedConditions[index]);
+    assert.equal(sortedConditions.length, sortedExpectedConditions.length);
+    sortedConditions.forEach((tag, index) => {
+      assert.equal(tag, sortedExpectedConditions[index]);
     });
     if (rootOpt) {
       moduleSource === cwd.neighbor(rootOpt).absolute() ||
@@ -268,7 +282,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const metaText = await loadMetaText(targetName, log);
 
     /** @type {BundleMeta | undefined} */
-    let meta = metaText ? JSON.parse(metaText) : undefined;
+    let meta = metaText ? parseMetaText(targetName, metaText) : undefined;
 
     if (meta !== undefined) {
       try {
@@ -362,13 +376,29 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       return found.bundle;
     }
     const todo = makePromiseKit();
+    // This promise may be rejected before any concurrent caller awaits it.
+    // HardenedJS only logs a warning if the promise is never awaited.
+    // We silence the promise completely because we want to ensure the
+    // rejection is never logged, with or without HardenedJS.
+    todo.promise.catch(() => {});
     loaded.set(targetName, { rootPath, bundle: todo.promise });
     const bundle = await validateOrAdd(rootPath, targetName, log, options)
       .then(
-        ({ bundleFileName }) =>
-          import(`${wr.readOnly().neighbor(bundleFileName)}`),
+        ({ bundleFileName }) => import(`${wr.readOnly().neighbor(bundleFileName)}`),
       )
-      .then(m => harden(m.default));
+      .then(m => harden(m.default))
+      .catch(error => {
+        todo.reject(error);
+        const latest = loaded.get(targetName);
+        if (
+          latest &&
+          latest.bundle === todo.promise &&
+          latest.rootPath === rootPath
+        ) {
+          loaded.delete(targetName);
+        }
+        throw error;
+      });
     todo.resolve(bundle);
     return bundle;
   };

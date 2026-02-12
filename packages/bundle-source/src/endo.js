@@ -6,6 +6,7 @@ import { evadeCensor } from '@endo/evasive-transform';
 import { whereEndoCache } from '@endo/where';
 import { defaultParserForLanguage as transformingParserForLanguage } from '@endo/compartment-mapper/archive-parsers.js';
 import { defaultParserForLanguage as transparentParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
+import tsBlankSpace from 'ts-blank-space';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -166,24 +167,46 @@ export const makeBundlingKit = (
   }
 
   const mtsParser = {
-    async parse(sourceBytes, ...rest) {
-      const { default: tsBlankSpace } = await import('ts-blank-space');
+    parse(
+      sourceBytes,
+      specifier,
+      moduleLocation,
+      packageLocation,
+      options = undefined,
+    ) {
       const sourceText = textDecoder.decode(sourceBytes);
       const objectText = tsBlankSpace(sourceText);
       const objectBytes = textEncoder.encode(objectText);
-      return parserForLanguage.mjs.parse(objectBytes, ...rest);
+      return parserForLanguage.mjs.parse(
+        objectBytes,
+        specifier,
+        moduleLocation,
+        packageLocation,
+        options,
+      );
     },
     heuristicImports: false,
     synchronous: false,
   };
 
   const ctsParser = {
-    async parse(sourceBytes, ...rest) {
-      const { default: tsBlankSpace } = await import('ts-blank-space');
+    parse(
+      sourceBytes,
+      specifier,
+      moduleLocation,
+      packageLocation,
+      options = undefined,
+    ) {
       const sourceText = textDecoder.decode(sourceBytes);
       const objectText = tsBlankSpace(sourceText);
       const objectBytes = textEncoder.encode(objectText);
-      return parserForLanguage.cjs.parse(objectBytes, ...rest);
+      return parserForLanguage.cjs.parse(
+        objectBytes,
+        specifier,
+        moduleLocation,
+        packageLocation,
+        options,
+      );
     },
     heuristicImports: true,
     synchronous: false,
