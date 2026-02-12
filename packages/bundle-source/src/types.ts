@@ -77,6 +77,42 @@ export interface BundleCache {
   ) => Promise<unknown>;
 }
 
+export interface FileReader {
+  toString: () => string;
+  readText: () => Promise<string>;
+  maybeReadText: () => Promise<string | undefined>;
+  neighbor: (ref: string) => FileReader;
+  stat: () => Promise<import('fs').Stats>;
+  absolute: () => string;
+  relative: (there: string) => string;
+  exists: () => Promise<boolean>;
+}
+
+export interface FileWriter {
+  toString: () => string;
+  writeText: (
+    txt: string | Uint8Array,
+    opts?: Parameters<typeof import('fs/promises').writeFile>[2],
+  ) => ReturnType<typeof import('fs/promises').writeFile>;
+  readOnly: () => FileReader;
+  neighbor: (ref: string) => FileWriter;
+  mkdir: (
+    opts?: Parameters<typeof import('fs/promises').mkdir>[1],
+  ) => ReturnType<typeof import('fs/promises').mkdir>;
+  rm: (
+    opts?: Parameters<typeof import('fs/promises').rm>[1],
+  ) => ReturnType<typeof import('fs/promises').rm>;
+  rename: (newName: string) => Promise<void>;
+}
+
+export interface AtomicFileWriter extends Omit<FileWriter, 'neighbor'> {
+  neighbor: (ref: string) => AtomicFileWriter;
+  atomicWriteText: (
+    txt: string | Uint8Array,
+    opts?: Parameters<typeof import('fs/promises').writeFile>[2],
+  ) => Promise<import('fs').Stats>;
+}
+
 export type BundleSource = BundleSourceSimple &
   BundleSourceWithFormat &
   BundleSourceWithOptions &
