@@ -159,8 +159,8 @@ export const evadeRegexpLiteral = p => {
 };
 
 /**
- * Prevents `-->` from appearing in output by adding
- * an empty block comment to force spacing.
+ * Prevents `-->` from appearing in output by transforming
+ * `x-->y` to `(0,x--)>y`.
  *
  * @param {import('@babel/traverse').NodePath} p
  * @returns {void}
@@ -170,10 +170,12 @@ export const evadeDecrementGreater = p => {
     p.node.type === 'BinaryExpression' &&
     p.node.operator === '>' &&
     p.node.left.type === 'UpdateExpression' &&
-    p.node.left.operator === '--' &&
-    !p.node.left.trailingComments?.length
+    p.node.left.operator === '--'
   ) {
-    // Add an empty block comment to force a space between -- and >
-    p.node.left.trailingComments = [{ type: 'CommentBlock', value: '' }];
+    // Wrap the UpdateExpression in a SequenceExpression: (0, x--)
+    p.node.left = {
+      type: 'SequenceExpression',
+      expressions: [{ type: 'NumericLiteral', value: 0 }, p.node.left],
+    };
   }
 };
