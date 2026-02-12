@@ -5,18 +5,13 @@
 This package provides a function which transforms source code which would otherwise be rejected outright by SES.
 The transform is meaning-preserving.
 
-It covers sequences resembling HTML comments inside of:
+It covers sequences resembling HTML comments and dynamic `import` inside of:
 - comments
 - strings
 - template strings (but not tagged template strings)
-- code itself, eg `if (a-->b)`
+- regular expression literals
 
-It covers sequences resembling dynamic `import` inside of:
-- comments
-- strings
-- template strings (but not tagged template strings)
-- regular expressions
-
+and additionally covers sequences resembling HTML comments inside of code itself (e.g., `if (a-->b)`).
 
 ## Usage 
 
