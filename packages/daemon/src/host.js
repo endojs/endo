@@ -112,7 +112,6 @@ export const makeHostMaker = ({
     leastAuthorityId,
     platformNames,
     context,
-    mailHubId,
   ) => {
     context.thisDiesIfThatDies(storeId);
     context.thisDiesIfThatDies(mainWorkerId);
@@ -678,13 +677,8 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
-      const {
-        source,
-        codeNames,
-        petNamePaths,
-        responder,
-        guestHandleId,
-      } = mailbox.getEvalRequest(messageNumber);
+      const { source, codeNames, petNamePaths, responder, guestHandleId } =
+        mailbox.getEvalRequest(messageNumber);
 
       assertNames(codeNames);
 

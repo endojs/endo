@@ -40,7 +40,6 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
     mailHubId,
     mainWorkerId,
     context,
-    mailHubId,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
     context.thisDiesIfThatDies(hostAgentId);
@@ -120,7 +119,13 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
      * @returns {Promise<unknown>}
      */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
-      mailboxRequestEvaluation('HOST', source, codeNames, petNamePaths, resultName);
+      mailboxRequestEvaluation(
+        'HOST',
+        source,
+        codeNames,
+        petNamePaths,
+        resultName,
+      );
 
     /**
      * Propose code evaluation to the host.
@@ -182,7 +187,6 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
         resultName,
       );
     };
-
 
     /** @type {EndoGuest} */
     const guest = {

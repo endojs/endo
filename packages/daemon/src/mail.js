@@ -146,7 +146,9 @@ const makeMailHub = (messages, provide) => {
       return undefined;
     },
     async list() {
-      const nums = [...messages.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      const nums = [...messages.keys()].sort((a, b) =>
+        a < b ? -1 : a > b ? 1 : 0,
+      );
       return harden(nums.map(n => String(n)));
     },
     async lookup(nameOrPath) {
@@ -422,7 +424,41 @@ export const makeMailboxMaker = ({
           ids: /** @type {FormulaIdentifier[]} */ (envelope.ids),
         });
       }
-      throw new Error('Unknown message type');
+      if (envelope.type === 'eval-request') {
+        return harden({
+          type: 'message',
+          messageType: envelope.type,
+          from: /** @type {FormulaIdentifier} */ (envelope.from),
+          to: /** @type {FormulaIdentifier} */ (envelope.to),
+          date,
+          source: envelope.source,
+          codeNames: envelope.codeNames,
+          petNamePaths: envelope.petNamePaths,
+        });
+      }
+      if (
+        envelope.type === 'eval-proposal-reviewer' ||
+        envelope.type === 'eval-proposal-proposer'
+      ) {
+        return harden({
+          type: 'message',
+          messageType: envelope.type,
+          from: /** @type {FormulaIdentifier} */ (envelope.from),
+          to: /** @type {FormulaIdentifier} */ (envelope.to),
+          date,
+          source: envelope.source,
+          codeNames: envelope.codeNames,
+          petNamePaths: envelope.petNamePaths,
+          edgeNames: envelope.edgeNames,
+          ids: /** @type {FormulaIdentifier[]} */ (envelope.ids),
+          workerName: envelope.workerName,
+          resultName:
+            envelope.type === 'eval-proposal-proposer'
+              ? envelope.resultName
+              : undefined,
+        });
+      }
+      throw new Error(`Unknown message type: ${envelope.type}`);
     };
 
     /**
@@ -452,7 +488,37 @@ export const makeMailboxMaker = ({
         }
         return;
       }
-      throw new Error('Unknown message type');
+      if (envelope.type === 'eval-request') {
+        if (typeof envelope.source !== 'string') {
+          throw new Error('Invalid eval-request source');
+        }
+        if (!Array.isArray(envelope.codeNames)) {
+          throw new Error('Invalid eval-request codeNames');
+        }
+        if (!Array.isArray(envelope.petNamePaths)) {
+          throw new Error('Invalid eval-request petNamePaths');
+        }
+        return;
+      }
+      if (
+        envelope.type === 'eval-proposal-reviewer' ||
+        envelope.type === 'eval-proposal-proposer'
+      ) {
+        if (typeof envelope.source !== 'string') {
+          throw new Error('Invalid eval-proposal source');
+        }
+        if (!Array.isArray(envelope.codeNames)) {
+          throw new Error('Invalid eval-proposal codeNames');
+        }
+        if (!Array.isArray(envelope.edgeNames)) {
+          throw new Error('Invalid eval-proposal edgeNames');
+        }
+        if (!Array.isArray(envelope.ids)) {
+          throw new Error('Invalid eval-proposal ids');
+        }
+        return;
+      }
+      throw new Error(`Unknown message type: ${envelope.type}`);
     };
 
     /**
@@ -543,7 +609,12 @@ export const makeMailboxMaker = ({
         });
       }
 
-      throw new Error('Unknown message formula type');
+      // Note: eval-request, eval-proposal-reviewer, eval-proposal-proposer
+      // are handled at send/receive time with their live settled/responder
+      // properties, not through formula persistence. This function is only
+      // called during mailbox state loading for persisted messages.
+
+      throw new Error(`Unknown message formula type: ${formula.messageType}`);
     };
 
     /**
@@ -721,7 +792,7 @@ export const makeMailboxMaker = ({
       const resolver = /** @type {ERef<Responder>} */ (
         provide(req.resolverId, 'resolver')
       );
-      E.sendOnly(resolver).resolveWithId(id);
+      E.sendOnly(resolver).respondId(id);
     };
 
     // TODO test reject
@@ -735,7 +806,7 @@ export const makeMailboxMaker = ({
         const resolver = /** @type {ERef<Responder>} */ (
           provide(req.resolverId, 'resolver')
         );
-        E.sendOnly(resolver).resolveWithId(
+        E.sendOnly(resolver).respondId(
           harden(Promise.reject(harden(new Error(reason)))),
         );
       }

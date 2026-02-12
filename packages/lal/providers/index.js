@@ -72,7 +72,9 @@ export const createProvider = env => {
 
   // Default: Use native Ollama provider
   const apiKey = env.LAL_AUTH_TOKEN;
-  console.log(`[LAL] Using native Ollama provider at ${baseURL} with model: ${model}`);
+  console.log(
+    `[LAL] Using native Ollama provider at ${baseURL} with model: ${model}`,
+  );
   return makeOllamaProvider({
     host: baseURL,
     model,

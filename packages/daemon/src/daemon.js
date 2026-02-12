@@ -713,7 +713,7 @@ const makeDaemonCore = async (
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
-      resolveWithId: idOrPromise =>
+      respondId: idOrPromise =>
         resolverJobs.enqueue(async () => {
           await null;
           if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
@@ -1234,8 +1234,8 @@ const makeDaemonCore = async (
       { worker: workerId, powers: powersId, bundle: bundleId, env = {} },
       context,
     ) => makeBundle(workerId, powersId, bundleId, env, context),
-    host: async (
-      {
+    host: async (formula, context, id) => {
+      const {
         hostHandle: hostHandleId,
         handle: handleId,
         petStore: petStoreId,

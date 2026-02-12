@@ -270,16 +270,31 @@ type MailHubFormula = {
 
 type MessageFormula = {
   type: 'message';
-  messageType: 'request' | 'package';
+  messageType:
+    | 'request'
+    | 'package'
+    | 'eval-request'
+    | 'eval-proposal-reviewer'
+    | 'eval-proposal-proposer';
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
+  // request fields
   description?: string;
   promiseId?: FormulaIdentifier;
   resolverId?: FormulaIdentifier;
+  // package fields
   strings?: string[];
   names?: string[];
   ids?: FormulaIdentifier[];
+  // eval-request fields
+  source?: string;
+  codeNames?: string[];
+  petNamePaths?: NamePath[];
+  // eval-proposal fields
+  edgeNames?: string[];
+  workerName?: string;
+  resultName?: string;
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
@@ -350,7 +365,7 @@ export type Specials = {
 };
 
 export interface Responder {
-  resolveWithId(id: string | Promise<string>): void;
+  respondId(id: string | Promise<string>): void;
 }
 
 export type Request = {
@@ -403,7 +418,6 @@ export type Message =
   | Request
   | Package
   | EvalRequest
-  | EvalProposal
   | EvalProposalReviewer
   | EvalProposalProposer;
 
@@ -817,10 +831,7 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   invite(guestName: PetName): Promise<Invitation>;
   accept(invitationLocator: string, guestName: PetName): Promise<void>;
-  approveEvaluation(
-    messageNumber: number,
-    workerName?: Name,
-  ): Promise<void>;
+  approveEvaluation(messageNumber: number, workerName?: Name): Promise<void>;
   grantEvaluate(messageNumber: number): Promise<unknown>;
   counterEvaluate(
     messageNumber: number,

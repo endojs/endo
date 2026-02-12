@@ -95,7 +95,9 @@ export const makeOllamaProvider = ({ host, model, apiKey }) => {
 
   return {
     async chat(messages, tools) {
-      console.log(`[LAL] Calling Ollama at ${host || 'localhost:11434'} with model: ${model}`);
+      console.log(
+        `[LAL] Calling Ollama at ${host || 'localhost:11434'} with model: ${model}`,
+      );
 
       let response;
       try {
@@ -123,7 +125,10 @@ export const makeOllamaProvider = ({ host, model, apiKey }) => {
         response.message.tool_calls.length > 0
       ) {
         message.tool_calls = response.message.tool_calls.map(
-          (/** @type {{ function?: { name?: string, arguments?: object }}} */ tc, /** @type {number} */ index) => ({
+          (
+            /** @type {{ function?: { name?: string, arguments?: object }}} */ tc,
+            /** @type {number} */ index,
+          ) => ({
             id: `ollama_tool_${Date.now()}_${index}`,
             function: {
               name: tc.function?.name ?? '',
