@@ -7,11 +7,20 @@ import { makeNodeBundleCache } from '../cache.js';
 
 const loadModule = specifier => import(specifier);
 
-const makeTempDest = async () =>
-  fs.mkdtemp(path.join(os.tmpdir(), 'endo-cache-'));
+const makeTempDest = async t => {
+  const dest = await fs.mkdtemp(path.join(os.tmpdir(), 'endo-cache-'));
+  // Node 18 treats .js as CommonJS unless a nearby package.json declares
+  // "type":"module", so this temp cache must opt into ESM for `import()`.
+  await fs.writeFile(
+    path.join(dest, 'package.json'),
+    JSON.stringify({ type: 'module' }),
+  );
+  t.teardown(() => fs.rm(dest, { recursive: true, force: true }));
+  return dest;
+};
 
 test('cache can capture and verify metadata', async t => {
-  const dest = await makeTempDest();
+  const dest = await makeTempDest(t);
   const entry = url.fileURLToPath(
     new URL('../demo/meaning.js', import.meta.url),
   );
@@ -22,7 +31,7 @@ test('cache can capture and verify metadata', async t => {
 });
 
 test('add/validate do not mutate caller conditions arrays', async t => {
-  const dest = await makeTempDest();
+  const dest = await makeTempDest(t);
   const entry = url.fileURLToPath(
     new URL('../demo/meaning.js', import.meta.url),
   );
@@ -50,7 +59,7 @@ test('add/validate do not mutate caller conditions arrays', async t => {
 });
 
 test('validateOrAdd throws SyntaxError with consistent message for malformed metadata', async t => {
-  const dest = await makeTempDest();
+  const dest = await makeTempDest(t);
   const entry = url.fileURLToPath(
     new URL('../demo/meaning.js', import.meta.url),
   );
@@ -60,15 +69,14 @@ test('validateOrAdd throws SyntaxError with consistent message for malformed met
   await cache.add(entry, targetName, t.log);
   await fs.writeFile(path.join(dest, `bundle-${targetName}-js-meta.json`), '{');
 
-  const error = await t.throwsAsync(() =>
-    cache.validateOrAdd(entry, targetName, t.log),
-  );
-  t.true(error instanceof SyntaxError);
-  t.regex(error.message, /Cannot parse JSON from cache-test-malformed-meta/);
+  await t.throwsAsync(() => cache.validateOrAdd(entry, targetName, t.log), {
+    instanceOf: SyntaxError,
+    message: /Cannot parse JSON from cache-test-malformed-meta/,
+  });
 });
 
 test('load can recover after a failed attempt for the same target name', async t => {
-  const dest = await makeTempDest();
+  const dest = await makeTempDest(t);
   const entry = url.fileURLToPath(
     new URL('../demo/meaning.js', import.meta.url),
   );
