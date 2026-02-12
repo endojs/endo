@@ -7,24 +7,7 @@ import { makeFileReader, makeAtomicFileWriter } from './src/fs.js';
 
 const { Fail, quote: q } = assert;
 
-/** @import {ModuleFormat} from './src/types.js' */
-
-/**
- * @typedef {(...args: unknown[]) => void} Logger A message logger.
- */
-
-/**
- * @typedef {object} BundleMeta
- * @property {string} bundleFileName
- * @property {string} bundleTime ISO format
- * @property {number} bundleSize
- * @property {boolean} noTransforms
- * @property {boolean} elideComments
- * @property {ModuleFormat} format
- * @property {string[]} conditions
- * @property {{ relative: string, absolute: string }} moduleSource
- * @property {Array<{ relativePath: string, mtime: string, size: number }>} contents
- */
+/** @import {BundleCache, BundleCacheOperationOptions, BundleCacheOptions, BundleMeta, CacheOpts, Logger, ModuleFormat} from './src/types.js' */
 
 export const jsOpts = {
   encodeBundle: bundle => `export default ${JSON.stringify(bundle)};\n`,
@@ -32,14 +15,21 @@ export const jsOpts = {
   toBundleMeta: n => `bundle-${n}-js-meta.json`,
 };
 
-/** @typedef {typeof jsOpts} CacheOpts */
-
 export const jsonOpts = {
   encodeBundle: bundle => `${JSON.stringify(bundle)}\n`,
   toBundleName: n => `bundle-${n}.json`,
   toBundleMeta: n => `bundle-${n}-json-meta.json`,
 };
 
+/**
+ * Create a disk-backed cache for generated source bundles and their metadata.
+ *
+ * @param {ReturnType<typeof makeAtomicFileWriter>} wr Writer rooted at the cache destination directory.
+ * @param {ReturnType<typeof makeFileReader>} cwd Reader rooted at the process working directory.
+ * @param {ReturnType<typeof makeReadPowers> & { basename: (path: string, suffix?: string) => string }} readPowers Reader and path helpers used by bundling.
+ * @param {BundleCacheOptions} [opts] Cache behavior, logging, and default bundling options.
+ * @returns {BundleCache}
+ */
 export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   const {
     cacheOpts: { encodeBundle, toBundleName, toBundleMeta } = jsOpts,
@@ -48,14 +38,16 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   } = opts || {};
 
   /**
+   * Bundle `rootPath` and unconditionally write fresh bundle + metadata files.
+   *
+   * Use this when you want to force a rebuild and overwrite any existing cache
+   * entry for `targetName`, regardless of whether a prior bundle is still valid.
+   *
    * @param {string} rootPath
    * @param {string} targetName
    * @param {Logger} [log]
-   * @param {object} [options]
-   * @param {boolean} [options.noTransforms]
-   * @param {boolean} [options.elideComments]
-   * @param {string[]} [options.conditions]
-   * @param {ModuleFormat} [options.format]
+   * @param {BundleCacheOperationOptions} [options]
+   * @returns {Promise<BundleMeta>}
    */
   const add = async (rootPath, targetName, log = defaultLog, options = {}) => {
     const srcRd = cwd.neighbor(rootPath);
@@ -135,6 +127,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   };
 
   /**
+   * Read cached metadata JSON as raw text.
+   *
    * @param {string} targetName
    * @param {Logger} _log
    * @returns {Promise<string | undefined>}
@@ -150,15 +144,17 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       );
 
   /**
+   * Validate an existing cache entry against bundle options and source file
+   * stats (mtime/size), throwing if any mismatch is detected.
+   *
+   * Use this when metadata should already exist and you need a strict
+   * up-to-date check before trusting a cached bundle.
+   *
    * @param {string} targetName
-   * @param {any} rootOpt
+   * @param {unknown} rootOpt Optional root path to assert against recorded metadata.
    * @param {Logger} [log]
    * @param {BundleMeta} [meta]
-   * @param {object} [options]
-   * @param {boolean} [options.noTransforms]
-   * @param {boolean} [options.elideComments]
-   * @param {ModuleFormat} [options.format]
-   * @param {string[]} [options.conditions]
+   * @param {BundleCacheOperationOptions} [options]
    * @returns {Promise<BundleMeta>}
    */
   const validate = async (
@@ -252,14 +248,15 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   };
 
   /**
+   * Attempt to reuse a valid cached bundle; otherwise rebuild and persist it.
+   *
+   * Use this as the default entry point for cache-backed bundling when you want
+   * "validate-if-present, add-if-missing-or-stale" behavior in one call.
+   *
    * @param {string} rootPath
    * @param {string} targetName
    * @param {Logger} [log]
-   * @param {object} [options]
-   * @param {boolean} [options.noTransforms]
-   * @param {boolean} [options.elideComments]
-   * @param {ModuleFormat} [options.format]
-   * @param {string[]} [options.conditions]
+   * @param {BundleCacheOperationOptions} [options]
    * @returns {Promise<BundleMeta>}
    */
   const validateOrAdd = async (
@@ -344,14 +341,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
   const loaded = new Map();
   /**
+   * Load a bundle by target name, validating existing cache entries or creating
+   * them on demand. Results are memoized per `targetName`.
+   *
    * @param {string} rootPath
    * @param {string} [targetName]
    * @param {Logger} [log]
-   * @param {object} [options]
-   * @param {boolean} [options.noTransforms]
-   * @param {boolean} [options.elideComments]
-   * @param {ModuleFormat} [options.format]
-   * @param {string[]} [options.conditions]
+   * @param {BundleCacheOperationOptions} [options]
+   * @returns {Promise<unknown>}
    */
   const load = async (
     rootPath,
@@ -385,11 +382,15 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 };
 
 /**
+ * Build a bundle cache instance configured for Node.js powers and filesystem
+ * implementations loaded from the provided module loader.
+ *
  * @param {string} dest
- * @param {{ format?: string, cacheOpts?: CacheOpts, cacheSourceMaps?: boolean, dev?: boolean, log?: Logger }} options
+ * @param {{ format?: string, cacheOpts?: CacheOpts, cacheSourceMaps?: boolean, dev?: boolean, log?: Logger } & BundleCacheOperationOptions} options
  * @param {(id: string) => Promise<any>} loadModule
  * @param {number} [pid]
  * @param {number} [nonce]
+ * @returns {Promise<BundleCache>}
  */
 export const makeNodeBundleCache = async (
   dest,

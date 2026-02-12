@@ -6,6 +6,77 @@ export type ModuleFormat =
   | 'nestedEvaluate'
   | 'getExport';
 
+export type Logger = (...args: unknown[]) => void;
+
+export interface CacheOpts {
+  encodeBundle: (bundle: unknown) => string;
+  toBundleName: (targetName: string) => string;
+  toBundleMeta: (targetName: string) => string;
+}
+
+export interface BundleCacheOperationOptions {
+  noTransforms?: boolean | undefined;
+  elideComments?: boolean | undefined;
+  format?: ModuleFormat | undefined;
+  conditions?: string[] | undefined;
+}
+
+export interface BundleCacheOptions extends BundleCacheOperationOptions {
+  cacheOpts?: CacheOpts | undefined;
+  log?: Logger | undefined;
+}
+
+export interface BundleMetaModuleSource {
+  relative: string;
+  absolute: string;
+}
+
+export interface BundleMetaContent {
+  relativePath: string;
+  mtime: string;
+  size: number;
+}
+
+export interface BundleMeta {
+  bundleFileName: string;
+  bundleTime: string;
+  bundleSize: number;
+  noTransforms: boolean;
+  elideComments: boolean;
+  format: ModuleFormat;
+  conditions: string[];
+  moduleSource: BundleMetaModuleSource;
+  contents: BundleMetaContent[];
+}
+
+export interface BundleCache {
+  add: (
+    rootPath: string,
+    targetName: string,
+    log?: Logger | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<BundleMeta>;
+  validate: (
+    targetName: string,
+    rootOpt: unknown,
+    log?: Logger | undefined,
+    meta?: BundleMeta | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<BundleMeta>;
+  validateOrAdd: (
+    rootPath: string,
+    targetName: string,
+    log?: Logger | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<BundleMeta>;
+  load: (
+    rootPath: string,
+    targetName?: string | undefined,
+    log?: Logger | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<unknown>;
+}
+
 export type BundleSource = BundleSourceSimple &
   BundleSourceWithFormat &
   BundleSourceWithOptions &

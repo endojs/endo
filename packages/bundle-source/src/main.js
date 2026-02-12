@@ -5,7 +5,7 @@ import { parseArgs } from 'util';
 import bundleSource, { SUPPORTED_FORMATS } from './bundle-source.js';
 import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 
-/** @import {ModuleFormat} from './types.js' */
+/** @import {Logger, ModuleFormat} from './types.js' */
 
 const USAGE = `\
 bundle-source [-Tft] <entry.js>
@@ -57,7 +57,7 @@ const options = /** @type {const} */ ({
  * @param {object} powers
  * @param {(spec: string) => any} powers.loadModule
  * @param {number} powers.pid
- * @param {import('../cache.js').Logger} [powers.log]
+ * @param {Logger} [powers.log]
  * @returns {Promise<void>}
  */
 export const main = async (args, { loadModule, pid, log }) => {
