@@ -74,7 +74,7 @@ export async function bundleZipBase64(
       commonDependencies,
     },
   );
-  const importHookForArchive = /** @type {any} */ (importHook);
+  const importHookForArchive = importHook;
 
   const compartmentMap = await mapNodeModules(powers, entry.href, {
     dev,

@@ -127,15 +127,14 @@ export const makeBundlingKit = (
     }
     const babelSourceType = parser === 'mjs' ? 'module' : 'script';
     const source = textDecoder.decode(sourceBytes);
-    const priorSourceMap = typeof sourceMap === 'string' ? sourceMap : undefined;
-    const { code: object, map } = await evadeCensor(
-      source,
-      {
-        sourceType: babelSourceType,
-        sourceMap: priorSourceMap,
-        elideComments,
-      },
-    );
+    const priorSourceMap =
+      typeof sourceMap === 'string' ? sourceMap : undefined;
+    const { code: object, map } = await evadeCensor(source, {
+      sourceType: babelSourceType,
+      sourceMap: priorSourceMap,
+      sourceUrl: new URL(specifier, location).href,
+      elideComments,
+    });
     const objectBytes = textEncoder.encode(object);
     return {
       bytes: objectBytes,

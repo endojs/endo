@@ -53,7 +53,7 @@ const options = /** @type {const} */ ({
 });
 
 /**
- * @param {[to: string, dest: string, ...rest: string[]]} args
+ * @param {string[]} args
  * @param {object} powers
  * @param {(spec: string) => any} powers.loadModule
  * @param {number} powers.pid

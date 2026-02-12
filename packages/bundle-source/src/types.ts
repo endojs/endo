@@ -138,7 +138,7 @@ export interface BundleScriptOptions {
 
 export interface BundleZipBase64Options extends BundleScriptOptions {
   importHook?:
-    | ((specifier: string, packageLocation: string) => Promise<unknown>)
+    | import('@endo/compartment-mapper').ExitModuleImportHook
     | undefined;
 }
 
