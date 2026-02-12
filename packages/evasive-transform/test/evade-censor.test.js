@@ -107,6 +107,36 @@ test('evadeCensor() - transformed regexp works', async t => {
   t.true(regB.test('import a from b'));
 });
 
+test('evadeCensor() - regexp with all evasion patterns', async t => {
+  const { code } = evadeCensorSync(`const re = /import ([a-z]*)|<!--|-->/g;`, {
+    sourceType: 'module',
+  });
+
+  t.log(code);
+  t.true(code.includes('\\x69')); // 'i' escaped
+  t.true(code.includes('\\x3C')); // '<' escaped
+  t.true(code.includes('\\x2D')); // '-' escaped
+
+  // eslint-disable-next-line no-new-func
+  const re = new Function(`${code};return re;`)();
+  t.deepEqual('import name'.match(re), ['import name']);
+  t.deepEqual('<!--'.match(re), ['<!--']);
+  t.deepEqual('-->'.match(re), ['-->']);
+  t.deepEqual('import name <!-- -->'.match(re), ['import name', '<!--', '-->']);
+});
+
+test('evadeCensor() - regexp with multiple occurrences of the same pattern', async t => {
+  const { code } = evadeCensorSync(`const re = /<!--.*<!--/g;`, {
+    sourceType: 'module',
+  });
+
+  t.is((code.match(/\\x3C/g) || []).length, 2);
+
+  // eslint-disable-next-line no-new-func
+  const re = new Function(`${code};return re;`)();
+  t.deepEqual('<!--a<!--'.match(re), ['<!--a<!--']);
+});
+
 // import in a string will triger censorship in SES
 const evadeThat = `
     // HTML comment <!-- should be evaded -->
@@ -126,6 +156,7 @@ const evadeThat = `
     \`;
 
     const re = /import (.*)/g;
+    const reHtmlAlike = /<!--.*-->/g;
     
     import("some-module");
     if (a--> b) {}

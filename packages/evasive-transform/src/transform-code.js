@@ -1,6 +1,10 @@
 const evadeRegexp = /import\s*\(|<!--|-->/g;
-const importRegexp = /import(\s*\()/g;
-
+// The replacement collection for regexp patterns matching the evadeRegexp is only applied to the first matched character, so it is necessary for the regexpReplacements to be maintained together with the evadeRegexp.
+const regexpReplacements = {
+  i: '\\x69',
+  '<': '\\x3C',
+  '-': '\\x2D',
+};
 /**
  * Creates a BinaryExpression adding two expressions
  *
