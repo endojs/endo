@@ -43,8 +43,42 @@ const shellOut = () =>
     });
   });
 
+const shellOutInvalidFormat = () =>
+  new Promise((resolve, reject) => {
+    const errorChunks = [];
+    const child = spawn(
+      'node',
+      ['bin/bundle-source', '--format', 'unsupported', 'demo/meaning.js'],
+      {
+        cwd,
+        stdio: ['inherit', 'inherit', 'pipe'],
+      },
+    );
+    child.on('close', code => {
+      if (code === 0) {
+        resolve(undefined);
+      } else {
+        reject(
+          new Error(
+            `Exit code: ${code}\nError output: ${new TextDecoder().decode(
+              Buffer.concat(errorChunks),
+            )}`,
+          ),
+        );
+      }
+    });
+    child.stderr.on('data', chunk => {
+      errorChunks.push(chunk);
+    });
+  });
+
 test('bundle-source command is concurrency safe', async t => {
   const concurrentJobs = Array.from({ length: 5 }).map(() => shellOut());
   await Promise.all(concurrentJobs);
   t.pass();
+});
+
+test('bundle-source usage includes endoScript format', async t => {
+  const error = await t.throwsAsync(() => shellOutInvalidFormat());
+  t.regex(error.message, /-f,--format .*endoScript/);
 });
