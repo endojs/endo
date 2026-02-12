@@ -11,7 +11,7 @@ It covers sequences resembling HTML comments inside of:
 - template strings (but not tagged template strings)
 - code itself, eg `if (a-->b)`
 
-It covers sequences resembling dynamic import use inside of:
+It covers sequences resembling dynamic `import` inside of:
 - comments
 - strings
 - template strings (but not tagged template strings)
@@ -61,7 +61,7 @@ const { code, map } = await evadeCensor(source, {
 });
 
 /**
- * The resulting file will now contain `@property {ІᛖРΟᏒТ('foo').Bar} bar`, which SES will allow (and TypeScript no longer understands, but that should be fine for the use-case). 
+ * The resulting file will now contain `@property {IMPORT('foo').Bar} bar`, which SES will allow (and TypeScript no longer understands, but that should be fine for the use-case). 
  * 
  * Note that this could be avoided entirely by stripping comments during, say, a bundling phase.
  */

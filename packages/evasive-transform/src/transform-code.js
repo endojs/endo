@@ -152,8 +152,11 @@ export const evadeRegexpLiteral = p => {
   const node = p.node;
   const { pattern } = node;
 
-  if (pattern.match(importRegexp)) {
-    node.pattern = pattern.replace(importRegexp, 'im\\x70ort$1');
+  if (pattern.match(evadeRegexp)) {
+    node.pattern = pattern.replace(
+      evadeRegexp,
+      s => regexpReplacements[s[0]] + s.substring(1),
+    );
   }
 };
 

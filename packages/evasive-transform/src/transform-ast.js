@@ -70,9 +70,7 @@ export function transformAst(
       if (!onlyComments) {
         evadeStrings(p);
         evadeTemplates(p);
-        // evade `import(` in RegExp literals
         evadeRegexpLiteral(p);
-        // Prevent `-->` from appearing in output (HTML comment end marker)
         evadeDecrementGreater(p);
       }
     },
