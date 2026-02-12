@@ -316,6 +316,23 @@ test('evadeCensor() - templates - only last quasi has pattern', async t => {
     sourceType: 'module',
   });
   // If the tests fails because updated babel stopped adding a space it's fine.
-  // Looks like a babel glitch -----v
+  // Looks like a babel glitch      ↓
   t.is(code, 'const x =`safe text ${ a}im${""}port(`');
+});
+
+test('evadeCensor() - x-->y transform preserves meaning', async t => {
+  // To prevent more time being wasted pondering order of operations: Yes, x-- > 0 &and (0, x--) > 0 are equivalent.
+
+  // Caution, load bearing space here ↓
+  const original = `let x = 1; if (x-- >0) { return 'ok'; }`;
+
+  const { code } = evadeCensorSync(original, { sourceType: 'script' });
+
+  // eslint-disable-next-line no-new-func
+  const originalResult = new Function(original)();
+  // eslint-disable-next-line no-new-func
+  const transformedResult = new Function(code)();
+
+  t.is(originalResult, transformedResult);
+  t.is(transformedResult, 'ok');
 });
