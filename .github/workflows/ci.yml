@@ -45,7 +45,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -185,7 +185,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -197,10 +196,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -272,10 +271,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -303,10 +302,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 22.x
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -333,7 +332,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 24.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -345,10 +343,10 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .node-version
           cache: yarn
 
       - name: Install dependencies
@@ -379,7 +377,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20.x]
         # may include release tags and hashes:
         moddable-version: [5.0.0]
         platform: [ubuntu-latest]
@@ -395,10 +392,11 @@ jobs:
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      # The tests run on the XS engine; Node is just driving the harness.
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: endo/.node-version
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 
@@ -493,10 +491,10 @@ jobs:
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 20.x
+          node-version-file: endo/.node-version
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 
