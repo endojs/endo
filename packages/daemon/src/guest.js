@@ -97,7 +97,34 @@ export const makeGuestMaker = ({
       request,
       send,
       deliver,
+      requestEvaluation: mailboxRequestEvaluation,
+      define: mailboxDefine,
+      form: mailboxForm,
     } = mailbox;
+
+    /** @type {EndoGuest['requestEvaluation']} */
+    const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
+      mailboxRequestEvaluation(
+        'HOST',
+        source,
+        codeNames,
+        petNamePaths,
+        resultName,
+      );
+
+    /** @type {EndoGuest['define']} */
+    const define = (source, slots) => mailboxDefine(source, slots);
+
+    /** @type {EndoGuest['form']} */
+    const form = (recipientName, description, fields, responseName) =>
+      mailboxForm(recipientName, description, fields, responseName);
+
+    /** @type {EndoGuest['storeValue']} */
+    const storeValue = async (_value, _petName) => {
+      // Guest storeValue is a stub; guests cannot marshal values directly.
+      // The host's storeValue should be used via the define/endow flow.
+      throw new Error('not allowed');
+    };
 
     /** @type {EndoGuest} */
     const guest = {
@@ -130,6 +157,11 @@ export const makeGuestMaker = ({
       request,
       send,
       deliver,
+      // Eval/Define/Form
+      requestEvaluation,
+      define,
+      form,
+      storeValue,
     };
 
     /** @param {Function} fn */
