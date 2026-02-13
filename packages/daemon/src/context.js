@@ -15,6 +15,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
       /** @type {PromiseKit<never>} */ (makePromiseKit());
     const { promise: disposed, resolve: resolveDisposed } =
       /** @type {PromiseKit<void>} */ (makePromiseKit());
+    cancelled.catch(() => {});
 
     /** @type {Map<FormulaIdentifier, Context>} */
     const dependents = new Map();

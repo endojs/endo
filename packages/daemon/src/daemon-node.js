@@ -95,12 +95,8 @@ const main = async () => {
 
   await daemonicPersistencePowers.initializePersistence();
 
-  const { endoBootstrap, cancelGracePeriod } = await makeDaemon(
-    powers,
-    daemonLabel,
-    cancel,
-    cancelled,
-    {
+  const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
+    await makeDaemon(powers, daemonLabel, cancel, cancelled, {
       /** @param {Builtins} builtins */
       APPS: ({ MAIN, NONE }) => ({
         type: /** @type {const} */ ('make-unconfined'),
@@ -108,8 +104,7 @@ const main = async () => {
         powers: NONE,
         specifier: new URL('web-server-node.js', import.meta.url).href,
       }),
-    },
-  );
+    });
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -123,6 +118,7 @@ const main = async () => {
     sockPath,
     cancelled,
     exitWithError,
+    capTpConnectionRegistrar,
   );
   const services = [privatePathService];
   await Promise.all(services.map(({ started }) => started)).then(

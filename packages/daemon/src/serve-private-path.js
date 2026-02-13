@@ -6,7 +6,13 @@ import { makeNetstringCapTP } from './connection.js';
 export const servePrivatePath = (
   sockPath,
   endoBootstrap,
-  { servePath, connectionNumbers, cancelled, exitWithError },
+  {
+    servePath,
+    connectionNumbers,
+    cancelled,
+    exitWithError,
+    capTpConnectionRegistrar = undefined,
+  },
 ) => {
   const connectionsP = servePath({ path: sockPath, cancelled });
 
@@ -43,6 +49,8 @@ export const servePrivatePath = (
           reader,
           cancelled,
           endoBootstrap,
+          undefined,
+          capTpConnectionRegistrar,
         );
 
         const closed = Promise.race([connectionClosed, capTpClosed]);

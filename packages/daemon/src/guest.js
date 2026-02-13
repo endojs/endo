@@ -1,23 +1,32 @@
 // @ts-check
 
-import { E } from '@endo/eventual-send';
+import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
-import { namePathFrom } from './pet-name.js';
+import { assertNamePath, namePathFrom } from './pet-name.js';
+import { makeDeferredTasks } from './deferred-tasks.js';
 import { guestHelp, directoryHelp, mailHelp, makeHelp } from './help-text.js';
 
-/** @import { Context, EdgeName, EndoGuest, MakeDirectoryNode, MakeMailbox, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
+ * @param {() => Promise<void>} [args.collectIfDirty]
  */
-export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
+export const makeGuestMaker = ({
+  provide,
+  formulateMarshalValue,
+  makeMailbox,
+  makeDirectoryNode,
+  collectIfDirty = async () => {},
+}) => {
   /**
    * @param {FormulaIdentifier} guestId
    * @param {FormulaIdentifier} handleId
@@ -103,21 +112,17 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       adopt,
       dismiss,
       dismissAll,
+      reply,
       request,
       send,
-      requestEvaluation: mailboxRequestEvaluation,
       deliver,
       evaluate: mailboxEvaluate,
+      requestEvaluation: mailboxRequestEvaluation,
+      define: mailboxDefine,
+      form: mailboxForm,
     } = mailbox;
 
-    /**
-     * Request sandboxed evaluation. Sends an eval-request to HOST.
-     * @param {string} source
-     * @param {Array<string>} codeNames
-     * @param {import('./types.js').NamesOrPaths} petNamePaths
-     * @param {import('./types.js').NameOrPath} [resultName]
-     * @returns {Promise<unknown>}
-     */
+    /** @type {EndoGuest['requestEvaluation']} */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
       mailboxRequestEvaluation(
         'HOST',
@@ -188,6 +193,25 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       );
     };
 
+    /** @type {EndoGuest['define']} */
+    const define = (source, slots) => mailboxDefine(source, slots);
+
+    /** @type {EndoGuest['form']} */
+    const form = (recipientName, description, fields, responseName) =>
+      mailboxForm(recipientName, description, fields, responseName);
+
+    /** @type {EndoGuest['storeValue']} */
+    const storeValue = async (value, petName) => {
+      const namePath = namePathFrom(petName);
+      assertNamePath(namePath);
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).write(namePath, identifiers.marshalId),
+      );
+      await formulateMarshalValue(value, tasks);
+    };
+
     /** @type {EndoGuest} */
     const guest = {
       // Directory
@@ -217,24 +241,60 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       adopt,
       dismiss,
       dismissAll,
+      reply,
       request,
       send,
-      requestEvaluation,
       deliver,
       // Guest-specific: propose evaluation to host
       evaluate,
+      // Eval/Define/Form
+      requestEvaluation,
+      define,
+      form,
+      storeValue,
     };
 
-    const help = makeHelp(guestHelp, [directoryHelp, mailHelp]);
+    /** @param {Function} fn */
+    const withCollection =
+      fn =>
+      async (...args) => {
+        try {
+          return await fn(...args);
+        } finally {
+          await collectIfDirty();
+        }
+      };
+
+    const iteratorMethods = new Set([
+      'followLocatorNameChanges',
+      'followMessages',
+      'followNameChanges',
+    ]);
+    const wrappedGuest = Object.fromEntries(
+      Object.entries(guest).map(([name, fn]) => [
+        name,
+        iteratorMethods.has(name) ? fn : withCollection(fn),
+      ]),
+    );
 
     return makeExo('EndoGuest', GuestInterface, {
-      ...guest,
-      help,
+      ...wrappedGuest,
       /** @param {string} locator */
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(guest.followLocatorNameChanges(locator)),
-      followMessages: () => makeIteratorRef(guest.followMessages()),
-      followNameChanges: () => makeIteratorRef(guest.followNameChanges()),
+      followLocatorNameChanges: async locator => {
+        const iterator = guest.followLocatorNameChanges(locator);
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followMessages: async () => {
+        const iterator = guest.followMessages();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followNameChanges: async () => {
+        const iterator = guest.followNameChanges();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
     });
   };
 

@@ -1,13 +1,15 @@
 // @ts-check
+/* global process */
 
 /** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */
 
 import { E } from '@endo/eventual-send';
 import { Ollama } from 'ollama';
 import { getSystemPrompt } from './system-prompt.js';
+import { saveConversation } from './conversation-store.js';
 
 /**
- * @typedef {{ processMessage: (userContent: string) => Promise<string> }} LLMBackend
+ * @typedef {{ processMessage: (userContent: string) => Promise<string>, setLastSeenNumber: (n: bigint) => void, getLastSeenNumber: () => bigint | undefined }} LLMBackend
  */
 
 /**
@@ -17,9 +19,10 @@ import { getSystemPrompt } from './system-prompt.js';
  * Best-effort extraction of fenced code blocks triggers requestEvaluation.
  *
  * @param {FarEndoGuest} powers - Endo guest powers
+ * @param {Array<{role: string, content: unknown}>} [initialMessages] - Optional saved conversation history
  * @returns {LLMBackend}
  */
-export const createOllamaBackend = powers => {
+export const createOllamaBackend = (powers, initialMessages) => {
   const ollama = new Ollama({
     ...(process.env.OLLAMA_HOST && {
       host: process.env.OLLAMA_HOST,
@@ -31,9 +34,24 @@ export const createOllamaBackend = powers => {
     },
   });
 
-  const transcript = [
-    { role: 'system', content: getSystemPrompt() },
-  ];
+  const transcript = initialMessages
+    ? [...initialMessages]
+    : [{ role: 'system', content: getSystemPrompt() }];
+
+  /** @type {bigint | undefined} */
+  let lastSeenNumber;
+
+  /**
+   * @param {bigint} n
+   */
+  const setLastSeenNumber = n => {
+    lastSeenNumber = n;
+  };
+
+  /**
+   * @returns {bigint | undefined}
+   */
+  const getLastSeenNumber = () => lastSeenNumber;
 
   /**
    * @param {string} userContent
@@ -60,15 +78,37 @@ export const createOllamaBackend = powers => {
           [],
           'last-result',
         );
-        return `${content}\n\n[Evaluation result: ${result}]`;
+        const responseText = `${content}\n\n[Evaluation result: ${result}]`;
+
+        // Save conversation state after each complete exchange
+        try {
+          await saveConversation(powers, {
+            messages: transcript,
+            ...(lastSeenNumber !== undefined && { lastSeenNumber }),
+          });
+        } catch {
+          // Best-effort persistence
+        }
+
+        return responseText;
       } catch (e) {
         return `${content}\n\n[Evaluation failed: ${/** @type {Error} */ (e).message}]`;
       }
     }
 
+    // Save conversation state after each complete exchange
+    try {
+      await saveConversation(powers, {
+        messages: transcript,
+        ...(lastSeenNumber !== undefined && { lastSeenNumber }),
+      });
+    } catch {
+      // Best-effort persistence
+    }
+
     return content;
   };
 
-  return harden({ processMessage });
+  return harden({ processMessage, setLastSeenNumber, getLastSeenNumber });
 };
 harden(createOllamaBackend);
