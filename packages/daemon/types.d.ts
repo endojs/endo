@@ -1,3 +1,4 @@
+import type { CapTPOptions } from '@endo/captp';
 import type { Config, EndoBootstrap } from './src/types.js';
 
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
@@ -15,6 +16,7 @@ export function makeEndoClient<TBootstrap>(
   sockPath: string,
   cancelled: Promise<void>,
   bootstrap?: TBootstrap,
+  capTpOptions?: CapTPOptions,
 ): Promise<{
   getBootstrap: () => Promise<EndoBootstrap>;
   closed: Promise<void>;

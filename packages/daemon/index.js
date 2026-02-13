@@ -62,6 +62,8 @@ export const terminate = async (config = defaultConfig) => {
     'harbinger',
     config.sockPath,
     cancelled,
+    undefined,
+    { onReject: () => {} },
   );
   const bootstrap = getBootstrap();
   await E(bootstrap)

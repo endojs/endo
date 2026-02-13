@@ -111,6 +111,8 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {DaemonCore['formulateMessage']} args.formulateMessage
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {() => Promise<string>} args.randomHex512
+ * @param {DaemonCore['pinTransient']} [args.pinTransient]
+ * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @returns {MakeMailbox}
  */
 export const makeMailboxMaker = ({
@@ -120,6 +122,8 @@ export const makeMailboxMaker = ({
   formulateMessage,
   getFormulaForId,
   randomHex512,
+  pinTransient = () => {},
+  unpinTransient = () => {},
 }) => {
   /**
     @type {MakeMailbox} */
@@ -158,7 +162,7 @@ export const makeMailboxMaker = ({
      * @param {string} replyToMessageId
      */
     const makeRequest = async (description, fromId, toId, replyToMessageId) => {
-      const { promiseId, resolverId } = await formulatePromise();
+      const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
         () => /** @type {const} */ ('fulfilled'),
@@ -747,7 +751,12 @@ export const makeMailboxMaker = ({
       );
 
       // Note: consider sending to each mailbox with different powers.
-      await post(to, req);
+      try {
+        await post(to, req);
+      } finally {
+        unpinTransient(req.promiseId);
+        unpinTransient(req.resolverId);
+      }
 
       const resolutionId = /** @type {FormulaIdentifier} */ (
         await resolutionIdP
