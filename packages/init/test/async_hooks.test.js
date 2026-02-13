@@ -20,6 +20,13 @@ const gcP = (async () => {
 })();
 
 test('async_hooks Promise patch', async t => {
+  // Skip this test on Node.js 24+ where the patch is not applied
+  const nodeVersion = parseInt(process.versions.node.split('.')[0], 10);
+  if (nodeVersion >= 24) {
+    t.pass('Skipping test on Node.js 24+ where async_hooks patch is not applied');
+    return;
+  }
+
   const hasAsyncSymbols =
     Object.getOwnPropertySymbols(Promise.prototype).length > 1;
   let resolve;
@@ -76,7 +83,7 @@ test('async_hooks Promise patch', async t => {
     });
   })();
 
-  return q
+  await q
     .then(() => new Promise(r => setTimeout(r, 0, gcP)))
     .then(gc => gc())
     .then(() => new Promise(r => setTimeout(r)));
