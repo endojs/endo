@@ -84,7 +84,7 @@ test('async_hooks Promise patch', async t => {
 
 test('AsyncLocalStorage patch', async t => {
   // Skip this test on Node.js 24+ where the patch is known to be broken
-  const nodeVersion = parseInt(process.version.split('.')[0].slice(1), 10);
+  const nodeVersion = parseInt(process.versions.node.split('.')[0], 10);
   if (nodeVersion >= 24) {
     t.pass('Skipping test on Node.js 24+ where async_hooks patch is broken');
     return;

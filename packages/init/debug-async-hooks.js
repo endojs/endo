@@ -1,4 +1,4 @@
-// debug-async-hooks.js - call lockdown with async_hooks patch for debugging
+// debug-async-hooks.js - export lockdown with async_hooks patch for debugging
 
 // Install async_hooks patches for Node.js debugging in lockdown mode
 // This is a specialized entrypoint for debugging scenarios where async_hooks
