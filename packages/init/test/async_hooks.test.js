@@ -23,7 +23,9 @@ test('async_hooks Promise patch', async t => {
   // Skip this test on Node.js 24+ where the patch is not applied
   const nodeVersion = parseInt(process.versions.node.split('.')[0], 10);
   if (nodeVersion >= 24) {
-    t.pass('Skipping test on Node.js 24+ where async_hooks patch is not applied');
+    t.pass(
+      'Skipping test on Node.js 24+ where async_hooks patch is not applied',
+    );
     return;
   }
 
