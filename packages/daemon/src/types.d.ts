@@ -256,7 +256,12 @@ type MailHubFormula = {
 
 type MessageFormula = {
   type: 'message';
-  messageType: 'request' | 'package';
+  messageType:
+    | 'request'
+    | 'package'
+    | 'eval-request'
+    | 'definition'
+    | 'form-request';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -268,6 +273,11 @@ type MessageFormula = {
   strings?: string[];
   names?: string[];
   ids?: FormulaIdentifier[];
+  source?: string;
+  codeNames?: string[];
+  petNamePaths?: NamePath[];
+  slots?: Record<string, { label: string; pattern?: unknown }>;
+  fields?: Record<string, { label: string; pattern?: unknown }>;
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
@@ -361,7 +371,40 @@ export type Package = MessageBase & {
   ids: Array<FormulaIdentifier>; // formula identifiers
 };
 
-export type Message = Request | Package;
+export type EvalRequest = MessageBase & {
+  type: 'eval-request';
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths: Array<NamePath>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type DefineRequest = MessageBase & {
+  type: 'definition';
+  source: string;
+  slots: Record<string, { label: string; pattern?: unknown }>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type FormRequest = MessageBase & {
+  type: 'form-request';
+  description: string;
+  fields: Record<string, { label: string; pattern?: unknown }>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type Message =
+  | Request
+  | Package
+  | EvalRequest
+  | DefineRequest
+  | FormRequest;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -592,6 +635,42 @@ export interface Mail {
     petNames: Array<string>,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): Promise<void>;
+  requestEvaluation(
+    recipientName: string,
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<string | string[]>,
+    responseName?: string | string[],
+  ): Promise<unknown>;
+  getEvalRequest(messageNumber: number): {
+    source: string;
+    codeNames: Array<string>;
+    petNamePaths: Array<NamePath>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
+  define(
+    source: string,
+    slots: Record<string, { label: string; pattern?: unknown }>,
+  ): Promise<unknown>;
+  form(
+    recipientName: string,
+    description: string,
+    fields: Record<string, { label: string; pattern?: unknown }>,
+    responseName?: string | string[],
+  ): Promise<unknown>;
+  getDefineRequest(messageNumber: number): {
+    source: string;
+    slots: Record<string, { label: string; pattern?: unknown }>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
+  getFormRequest(messageNumber: number): {
+    description: string;
+    fields: Record<string, { label: string; pattern?: unknown }>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
 }
 
 export type MakeMailbox = (args: {
@@ -669,7 +748,28 @@ export interface EndoAgent extends EndoDirectory {
   reverseIdentify(id: string): Array<Name>;
 }
 
-export interface EndoGuest extends EndoAgent {}
+export interface EndoGuest extends EndoAgent {
+  requestEvaluation(
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<string | string[]>,
+    resultName?: string | string[],
+  ): Promise<unknown>;
+  define(
+    source: string,
+    slots: Record<string, { label: string; pattern?: unknown }>,
+  ): Promise<unknown>;
+  form(
+    recipientName: string,
+    description: string,
+    fields: Record<string, { label: string; pattern?: unknown }>,
+    responseName?: string | string[],
+  ): Promise<unknown>;
+  storeValue<T extends Passable>(
+    value: T,
+    petName: string | string[],
+  ): Promise<void>;
+}
 
 export type FarEndoGuest = FarRef<EndoGuest>;
 
@@ -718,6 +818,20 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
+  approveEvaluation(
+    messageNumber: number,
+    workerName?: string,
+  ): Promise<void>;
+  endow(
+    messageNumber: number,
+    bindings: Record<string, string | string[]>,
+    workerName?: string,
+    resultName?: string | string[],
+  ): Promise<void>;
+  respondForm(
+    messageNumber: number,
+    values: Record<string, unknown>,
+  ): Promise<void>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -1108,6 +1222,10 @@ export interface DaemonCore {
   provideController: (id: FormulaIdentifier) => Controller;
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
+
+  getAgentIdForHandleId: (
+    handleId: FormulaIdentifier,
+  ) => Promise<FormulaIdentifier>;
 }
 
 export interface DaemonCoreExternal {
