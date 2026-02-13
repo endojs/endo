@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 
 /** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */
 

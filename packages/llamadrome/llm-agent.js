@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -85,7 +87,10 @@ export const make = powers => {
 
       // Skip messages already processed before a restart
       const lastSeen = backend.getLastSeenNumber();
-      if (lastSeen !== undefined && messageNumber <= lastSeen) {
+      if (
+        lastSeen !== undefined &&
+        messageNumber <= /** @type {bigint} */ (lastSeen)
+      ) {
         continue;
       }
 
@@ -95,9 +100,10 @@ export const make = powers => {
       }
 
       const { strings, names } = message;
+      const nameList = /** @type {string[]} */ (names || []);
       const userContent = strings
         .map((fragment, i) =>
-          i < (names || []).length ? `${fragment} @${names[i]}` : fragment,
+          i < nameList.length ? `${fragment} @${nameList[i]}` : fragment,
         )
         .join(' ');
 

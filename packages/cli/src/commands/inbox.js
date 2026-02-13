@@ -89,9 +89,10 @@ export const inbox = async ({ follow, agentNames }) =>
         );
       } else if (message.type === 'eval-request') {
         const { source, codeNames } = message;
+        const codeNameList = /** @type {string[]} */ (codeNames);
         const endowments =
-          codeNames.length > 0
-            ? ` with endowments: ${codeNames.join(', ')}`
+          codeNameList.length > 0
+            ? ` with endowments: ${codeNameList.join(', ')}`
             : '';
         console.log(
           `${number}. ${provenance}${q(source)}${endowments} at ${q(date)}`,

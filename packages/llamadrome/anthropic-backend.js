@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-await-in-loop */
 
 /** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */
 /** @import { LLMBackend } from './ollama-backend.js' */
