@@ -30,6 +30,12 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested';
       } else if (type === 'package') {
         verb = message.replyTo === undefined ? 'sent' : 'replied to';
+      } else if (type === 'eval-request') {
+        verb = 'requested evaluation of';
+      } else if (type === 'definition') {
+        verb = 'proposed definition';
+      } else if (type === 'form-request') {
+        verb = 'sent form';
       } else {
         verb = 'sent an unrecognizable message';
       }
@@ -80,6 +86,29 @@ export const inbox = async ({ follow, agentNames }) =>
             strings,
             edgeNames,
           )}${replyContext} at ${JSON.stringify(date)}`,
+        );
+      } else if (message.type === 'eval-request') {
+        const { source, codeNames } = message;
+        const endowments =
+          codeNames.length > 0
+            ? ` with endowments: ${codeNames.join(', ')}`
+            : '';
+        console.log(
+          `${number}. ${provenance}${q(source)}${endowments} at ${q(date)}`,
+        );
+      } else if (message.type === 'definition') {
+        const { source, slots } = message;
+        const slotNames = Object.keys(slots || {}).join(', ');
+        const slotInfo = slotNames ? ` (slots: ${slotNames})` : '';
+        console.log(
+          `${number}. ${provenance}${q(source)}${slotInfo} at ${q(date)}`,
+        );
+      } else if (message.type === 'form-request') {
+        const { description, fields } = message;
+        const fieldNames = Object.keys(fields || {}).join(', ');
+        const fieldInfo = fieldNames ? ` (fields: ${fieldNames})` : '';
+        console.log(
+          `${number}. ${provenance}${q(description)}${fieldInfo} at ${q(date)}`,
         );
       } else {
         console.log(`${number}. ${provenance}, consider upgrading.`);
