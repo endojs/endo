@@ -76,9 +76,7 @@ export const make = powers => {
       await E(powers).send('HOST', ['Llamadrome ready for work.'], [], []);
     }
 
-    for await (const message of makeRefIterator(
-      E(powers).followMessages(),
-    )) {
+    for await (const message of makeRefIterator(E(powers).followMessages())) {
       const { from: fromId, number: messageNumber } = message;
 
       if (fromId === selfId) {

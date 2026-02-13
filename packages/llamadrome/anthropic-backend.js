@@ -170,7 +170,10 @@ const executeTool = async (powers, name, input) => {
     case 'lookup_value':
       return E(powers).lookup(/** @type {string} */ (input.name));
     case 'store_result':
-      await E(powers).storeValue(input.value, /** @type {string} */ (input.name));
+      await E(powers).storeValue(
+        input.value,
+        /** @type {string} */ (input.name),
+      );
       return `Stored value under "${input.name}"`;
     case 'chain_eval': {
       const bindings = /** @type {Record<string, string>} */ (input.bindings);

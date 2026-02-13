@@ -716,8 +716,6 @@ export const makeHostMaker = ({
       const { source, codeNames, petNamePaths, resolverId, guestHandleId } =
         mailbox.getEvalRequest(messageNumber);
 
-      assertNames(codeNames);
-
       const guestAgentId = await getAgentIdForHandleId(
         /** @type {FormulaIdentifier} */ (guestHandleId),
       );
@@ -830,7 +828,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const marshalTasks = makeDeferredTasks();
       const { id: marshalledId } = await formulateMarshalValue(
-        harden(values),
+        /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
         marshalTasks,
       );
       const resolver = await provide(resolverId, 'resolver');

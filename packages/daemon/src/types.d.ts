@@ -821,10 +821,7 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
-  approveEvaluation(
-    messageNumber: bigint,
-    workerName?: string,
-  ): Promise<void>;
+  approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,

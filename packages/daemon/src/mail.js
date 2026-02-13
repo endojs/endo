@@ -197,10 +197,9 @@ export const makeMailboxMaker = ({
       fromId,
       toId,
     ) => {
-      const messageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
-        );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
@@ -229,10 +228,9 @@ export const makeMailboxMaker = ({
      * @param {FormulaIdentifier} toId
      */
     const makeDefineRequest = async (source, slots, fromId, toId) => {
-      const messageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
-        );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
@@ -260,10 +258,9 @@ export const makeMailboxMaker = ({
      * @param {FormulaIdentifier} toId
      */
     const makeFormRequest = async (description, fields, fromId, toId) => {
-      const messageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
-        );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
@@ -568,8 +565,8 @@ export const makeMailboxMaker = ({
           from: formula.from,
           to: formula.to,
           source: formula.source,
-          codeNames: formula.codeNames,
-          petNamePaths: formula.petNamePaths,
+          codeNames: /** @type {string[]} */ (formula.codeNames),
+          petNamePaths: /** @type {NamePath[]} */ (formula.petNamePaths),
           promiseId: formula.promiseId,
           resolverId: formula.resolverId,
           settled,
@@ -1209,12 +1206,7 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['form']} */
-    const form = async (
-      toName,
-      description,
-      fields,
-      responseName,
-    ) => {
+    const form = async (toName, description, fields, responseName) => {
       assertName(toName);
       await null;
       if (responseName !== undefined) {
