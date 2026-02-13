@@ -2222,11 +2222,7 @@ test('eval request rejection: guest requests, host rejects', async t => {
   }
 
   // Guest requests evaluation (no endowments needed for this test)
-  const resultP = E(guest).requestEvaluation(
-    'dangerous()',
-    [],
-    [],
-  );
+  const resultP = E(guest).requestEvaluation('dangerous()', [], []);
 
   // Host receives and rejects
   const { value: evalMsg } = await E(hostIteratorRef).next();

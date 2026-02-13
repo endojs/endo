@@ -1,6 +1,16 @@
 // @ts-check
 
 import { E } from '@endo/eventual-send';
+import { appendFileSync } from 'fs';
+
+const debugLog = (...args) => {
+  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  try {
+    appendFileSync('/tmp/mail-debug.log', `${new Date().toISOString()} ${msg}\n`);
+  } catch (e) {
+    // ignore
+  }
+};
 import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
@@ -761,9 +771,17 @@ export const makeMailboxMaker = ({
      * @param {EnvelopedMessage} message
      * @param {EnvelopedMessage} [senderMessage]
      */
+    // Track envelope identities for debugging
+    let envelopeCounter = 0;
+    /** @type {WeakMap<{}, number>} */
+    const envelopeIds = new WeakMap();
+
     const post = async (recipient, message, senderMessage = message) => {
       /** @param {object} allegedRecipient */
       const envelope = makeEnvelope();
+      envelopeCounter += 1;
+      envelopeIds.set(envelope, envelopeCounter);
+      debugLog('post: envId', envelopeCounter, 'selfId', selfId);
       outbox.set(envelope, message);
       await E(recipient).receive(envelope, selfId);
       // Send to own inbox.
@@ -1066,6 +1084,8 @@ export const makeMailboxMaker = ({
      * @param {Envelope} envelope
      */
     const open = envelope => {
+      const envId = envelopeIds.get(envelope);
+      debugLog('open: envId', envId !== undefined ? envId : 'UNKNOWN', 'selfId', selfId);
       const message = outbox.get(envelope);
       if (message === undefined) {
         throw new Error('Mail fraud: unrecognized parcel');

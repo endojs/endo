@@ -76,10 +76,11 @@ export const DismisserInterface = M.interface('EndoDismisser', {
   dismiss: M.call().returns(),
 });
 
-export const HandleInterface = M.interface('EndoHandle', {
-  receive: M.call(M.remotable('Envelope'), IdShape).returns(M.promise()),
-  open: M.call(M.remotable('Envelope')).returns(M.record()),
-});
+export const HandleInterface = M.interface(
+  'EndoHandle',
+  {},
+  { defaultGuards: 'passable' },
+);
 
 export const AsyncIteratorInterface = M.interface('AsyncIterator', {
   next: M.call().returns(M.promise()),

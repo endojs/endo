@@ -194,8 +194,20 @@ export const COMMANDS = {
     category: 'messaging',
     mode: 'inline',
     fields: [
-      { name: 'messageNumber', label: 'Message #', type: 'messageNumber', required: true, placeholder: '#' },
-      { name: 'workerName', label: 'Worker', type: 'petNamePath', required: false, placeholder: 'worker-name' },
+      {
+        name: 'messageNumber',
+        label: 'Message #',
+        type: 'messageNumber',
+        required: true,
+        placeholder: '#',
+      },
+      {
+        name: 'workerName',
+        label: 'Worker',
+        type: 'petNamePath',
+        required: false,
+        placeholder: 'worker-name',
+      },
     ],
     submitLabel: 'Approve',
   },

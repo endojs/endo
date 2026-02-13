@@ -119,7 +119,10 @@ export const createCommandExecutor = ({
             Number(messageNumber),
             workerName ? String(workerName) : undefined,
           );
-          return { success: true, message: `Eval request #${messageNumber} approved` };
+          return {
+            success: true,
+            message: `Eval request #${messageNumber} approved`,
+          };
         }
 
         // ============ EXECUTION ============

@@ -323,9 +323,7 @@ export const main = async rawArgs => {
     .option(...commonOptions.as)
     .action(async cmd => {
       const { as: agentNames } = cmd.opts();
-      const { dismissAllCommand } = await import(
-        './commands/dismiss-all.js'
-      );
+      const { dismissAllCommand } = await import('./commands/dismiss-all.js');
       return dismissAllCommand({
         agentNames,
       });
