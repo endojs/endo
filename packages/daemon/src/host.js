@@ -12,6 +12,7 @@ import {
   assertPetName,
   assertPetNamePath,
   assertName,
+  assertNames,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -241,6 +242,7 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
+      assertNames(codeNames);
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         assertNamePath(resultNamePath);

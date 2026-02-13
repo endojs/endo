@@ -76,6 +76,10 @@ export const DismisserInterface = M.interface('EndoDismisser', {
   dismiss: M.call().returns(),
 });
 
+// CRITICAL: HandleInterface must use defaultGuards: 'passable' to preserve
+// envelope object identity when passed through E() calls. Explicit guards
+// like M.remotable('Envelope') cause envelope identity loss and "mail fraud"
+// errors.
 export const HandleInterface = M.interface(
   'EndoHandle',
   {},

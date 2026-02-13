@@ -830,11 +830,33 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    ollama: "npm:^0.5.0"
     openai: "npm:^4.77.0"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/llamadrome@workspace:packages/llamadrome":
+  version: 0.0.0-use.local
+  resolution: "@endo/llamadrome@workspace:packages/llamadrome"
+  dependencies:
+    "@anthropic-ai/sdk": "npm:^0.39.0"
+    "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ollama: "npm:^0.6.3"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -9671,6 +9693,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ollama@npm:^0.5.0":
+  version: 0.5.18
+  resolution: "ollama@npm:0.5.18"
+  dependencies:
+    whatwg-fetch: "npm:^3.6.20"
+  checksum: 10c0/3ed3c98f1aebf734136032704079d87929f583bab99b4359685d5f1a427b607d5aa3268ff334cda6b2d741166d80245180d9d2d65b2c2a8c8bf4146b2ea0c72d
+  languageName: node
+  linkType: hard
+
+"ollama@npm:^0.6.3":
+  version: 0.6.3
+  resolution: "ollama@npm:0.6.3"
+  dependencies:
+    whatwg-fetch: "npm:^3.6.20"
+  checksum: 10c0/040742dd1f96ad06d5508e387d8d953b3cfab527427f5dd463be7ccd589877eccfbf13ccea0bcb4d6b044a90a327c82c3089834fd3c0ea7243bb830a9c07295d
+  languageName: node
+  linkType: hard
+
 "once@npm:^1.3.0, once@npm:^1.3.1, once@npm:^1.4.0":
   version: 1.4.0
   resolution: "once@npm:1.4.0"
@@ -12974,6 +13014,13 @@ __metadata:
   version: 2.0.0
   resolution: "well-known-symbols@npm:2.0.0"
   checksum: 10c0/cb6c12e98877e8952ec28d13ae6f4fdb54ae1cb49b16a728720276dadd76c930e6cb0e174af3a4620054dd2752546f842540122920c6e31410208abd4958ee6b
+  languageName: node
+  linkType: hard
+
+"whatwg-fetch@npm:^3.6.20":
+  version: 3.6.20
+  resolution: "whatwg-fetch@npm:3.6.20"
+  checksum: 10c0/fa972dd14091321d38f36a4d062298df58c2248393ef9e8b154493c347c62e2756e25be29c16277396046d6eaa4b11bd174f34e6403fff6aaca9fb30fa1ff46d
   languageName: node
   linkType: hard
 
