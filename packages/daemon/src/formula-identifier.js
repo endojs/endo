@@ -1,7 +1,7 @@
 // @ts-check
 /// <ref types="ses">
 
-/** @import { IdRecord, ParseIdRecord, FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
+/** @import { IdRecord, FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
 
 import { makeError, q } from '@endo/errors';
 
@@ -77,10 +77,9 @@ export const parseId = id => {
   }
 
   const { number, node } = groups;
-  const formulaId = /** @type {FormulaIdentifier} */ (id);
   const formulaNumber = /** @type {FormulaNumber} */ (number);
   const nodeNumber = /** @type {NodeNumber} */ (node);
-  return { id: formulaId, number: formulaNumber, node: nodeNumber };
+  return { number: formulaNumber, node: nodeNumber };
 };
 
 /**
