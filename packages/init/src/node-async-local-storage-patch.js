@@ -1,112 +1,95 @@
 /* eslint-disable no-underscore-dangle */
-/* global process */
 
 import { AsyncLocalStorage, executionAsyncResource } from 'node:async_hooks';
 
-// Only apply the patch on Node.js versions before 24
-// In Node.js 24+, the internal AsyncLocalStorage implementation changed
-// and this patch is incompatible (specifically, _enable() no longer exists)
-const nodeVersion = parseInt(process.versions.node.split('.')[0], 10);
+const { is: ObjectIs } = Object;
+const { apply: ReflectApply } = Reflect;
 
-if (nodeVersion >= 24) {
-  // Skip the patch on Node.js 24+ to avoid breaking AsyncLocalStorage
-  // The patch is not needed on these versions anyway since the inspector
-  // no longer relies on async_hooks
-  // eslint-disable-next-line no-console
-  console.warn(
-    '@endo/init/debug-async-hooks.js: Skipping async_hooks patch on Node.js 24+ (incompatible)',
-  );
-} else {
-  // Apply the patch for Node.js versions before 24
-  const { is: ObjectIs } = Object;
-  const { apply: ReflectApply } = Reflect;
+/** @type {WeakMap<AsyncLocalStorageInternal, WeakMap>} */
+const resourceStoreMaps = new WeakMap();
 
-  /** @type {WeakMap<AsyncLocalStorageInternal, WeakMap>} */
-  const resourceStoreMaps = new WeakMap();
+/** @type {(key: AsyncLocalStorageInternal) => WeakMap} */
+const getStoreMap = resourceStoreMaps.get.bind(resourceStoreMaps);
 
-  /** @type {(key: AsyncLocalStorageInternal) => WeakMap} */
-  const getStoreMap = resourceStoreMaps.get.bind(resourceStoreMaps);
+/**
+ * @typedef {object} AsyncLocalStorageInternal
+ * @property {boolean} enabled
+ * @property {typeof _propagate} _propagate
+ * @property {(this: AsyncLocalStorage) => void} _enable
+ */
 
-  /**
-   * @typedef {object} AsyncLocalStorageInternal
-   * @property {boolean} enabled
-   * @property {typeof _propagate} _propagate
-   * @property {(this: AsyncLocalStorage) => void} _enable
-   */
-
-  Object.defineProperty(AsyncLocalStorage.prototype, 'kResourceStore', {
-    configurable: true,
-    /**
-     * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
-     */
-    set() {
-      resourceStoreMaps.set(this, new WeakMap());
-    },
-  });
-
+Object.defineProperty(AsyncLocalStorage.prototype, 'kResourceStore', {
+  configurable: true,
   /**
    * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
-   * @param {object} resource
-   * @param {object} triggerResource
-   * @param {string} [type]
    */
-  function _propagate(resource, triggerResource, type) {
-    if (!this.enabled) return;
+  set() {
+    resourceStoreMaps.set(this, new WeakMap());
+  },
+});
 
-    const storeMap = getStoreMap(this);
-    storeMap.set(resource, storeMap.get(triggerResource));
+/**
+ * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
+ * @param {object} resource
+ * @param {object} triggerResource
+ * @param {string} [type]
+ */
+function _propagate(resource, triggerResource, type) {
+  if (!this.enabled) return;
+
+  const storeMap = getStoreMap(this);
+  storeMap.set(resource, storeMap.get(triggerResource));
+}
+
+// @ts-expect-error propagate is internal
+AsyncLocalStorage.prototype._propagate = _propagate;
+
+/**
+ * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
+ * @param {any} store
+ */
+AsyncLocalStorage.prototype.enterWith = function enterWith(store) {
+  this._enable();
+  const resource = executionAsyncResource();
+  getStoreMap(this).set(resource, store);
+};
+
+/**
+ * @template R
+ * @template {any[]} TArgs
+ * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
+ * @param {any} store
+ * @param {(...args: TArgs) => R} callback
+ * @param  {...TArgs} args
+ * @returns {R}
+ */
+AsyncLocalStorage.prototype.run = function run(store, callback, ...args) {
+  // Avoid creation of an AsyncResource if store is already active
+  if (ObjectIs(store, this.getStore())) {
+    return ReflectApply(callback, null, args);
   }
 
-  // @ts-expect-error propagate is internal
-  AsyncLocalStorage.prototype._propagate = _propagate;
+  this._enable();
+  const storeMap = getStoreMap(this);
 
-  /**
-   * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
-   * @param {any} store
-   */
-  AsyncLocalStorage.prototype.enterWith = function enterWith(store) {
-    this._enable();
-    const resource = executionAsyncResource();
-    getStoreMap(this).set(resource, store);
-  };
+  const resource = executionAsyncResource();
 
-  /**
-   * @template R
-   * @template {any[]} TArgs
-   * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
-   * @param {any} store
-   * @param {(...args: TArgs) => R} callback
-   * @param  {...TArgs} args
-   * @returns {R}
-   */
-  AsyncLocalStorage.prototype.run = function run(store, callback, ...args) {
-    // Avoid creation of an AsyncResource if store is already active
-    if (ObjectIs(store, this.getStore())) {
-      return ReflectApply(callback, null, args);
-    }
+  const oldStore = storeMap.get(resource);
 
-    this._enable();
-    const storeMap = getStoreMap(this);
+  storeMap.set(resource, store);
 
-    const resource = executionAsyncResource();
+  try {
+    return ReflectApply(callback, null, args);
+  } finally {
+    storeMap.set(resource, oldStore);
+  }
+};
 
-    const oldStore = storeMap.get(resource);
-
-    storeMap.set(resource, store);
-
-    try {
-      return ReflectApply(callback, null, args);
-    } finally {
-      storeMap.set(resource, oldStore);
-    }
-  };
-
-  /**
-   * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
-   */
-  AsyncLocalStorage.prototype.getStore = function getStore() {
-    return this.enabled
-      ? getStoreMap(this).get(executionAsyncResource())
-      : undefined;
-  };
-}
+/**
+ * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
+ */
+AsyncLocalStorage.prototype.getStore = function getStore() {
+  return this.enabled
+    ? getStoreMap(this).get(executionAsyncResource())
+    : undefined;
+};
