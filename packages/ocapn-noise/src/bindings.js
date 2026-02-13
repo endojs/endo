@@ -17,13 +17,13 @@
 /**
  * @typedef {object} InitiatorResult
  * @property {SigningKeys} signingKeys - The generated or provided signing keys
- * @property {(syn: Uint8Array) => InitiatorWriteSynResult} initiatorWriteSyn - Function to write SYN message
+ * @property {(intendedResponderKey: Uint8Array, prefixedSyn: Uint8Array) => InitiatorWriteSynResult} initiatorWriteSyn - Function to write prefixed SYN message
  */
 
 /**
  * @typedef {object} ResponderResult
  * @property {SigningKeys} signingKeys - The generated or provided signing keys
- * @property {(syn: Uint8Array, synack: Uint8Array) => ResponderReadSynWriteSynackResult} responderReadSynWriteSynack - Function to read SYN and write SYNACK
+ * @property {(prefixedSyn: Uint8Array, synack: Uint8Array) => ResponderReadSynWriteSynackResult} responderReadSynWriteSynack - Function to read prefixed SYN and write SYNACK
  */
 
 /**
@@ -63,6 +63,8 @@
 // const PUBLIC_CRYPT_KEY_LENGTH = 32;
 const SIGNING_KEY_OFFSET = 64;
 const SIGNING_KEY_LENGTH = 32;
+const INTENDED_RESPONDER_KEY_OFFSET = 96;
+const INTENDED_RESPONDER_KEY_LENGTH = 32;
 const INITIATOR_VERIFYING_KEY_OFFSET = 128;
 const VERIFYING_KEY_LENGTH = 32;
 // const INITIATOR_SIGNATURE_OFFSET = 160;
@@ -73,6 +75,7 @@ const FIRST_ENCODING_OFFSET = 224;
 const SYN_PAYLOAD_LENGTH = 100;
 const SYN_OFFSET = 256;
 export const SYN_LENGTH = 32 + SYN_PAYLOAD_LENGTH;
+export const PREFIXED_SYN_LENGTH = INTENDED_RESPONDER_KEY_LENGTH + SYN_LENGTH;
 // const SYNACK_PAYLOAD_OFFSET = 416;
 const SYNACK_PAYLOAD_LENGTH = 97;
 const SYNACK_OFFSET = 544;
@@ -270,34 +273,72 @@ export const makeOcapnSessionCryptography = ({
   };
 
   /**
-   * Writes the SYN message for the initiator.
+   * Writes the prefixed SYN message for the initiator.
+   * The prefixed SYN includes the intended responder's public key in cleartext
+   * followed by the encrypted SYN message, enabling relay routing.
    *
-   * @param {Uint8Array} syn - Buffer to write the SYN message to (must be SYN_LENGTH bytes)
+   * @param {Uint8Array} intendedResponderKey - The responder's ed25519 public verifying key (32 bytes)
+   * @param {Uint8Array} prefixedSyn - Buffer to write the prefixed SYN message to (must be PREFIXED_SYN_LENGTH bytes)
    * @returns {InitiatorWriteSynResult} Result containing the next handshake function
    * @throws {Error} If SYN message cannot be written
    */
-  const initiatorWriteSyn = syn => {
+  const initiatorWriteSyn = (intendedResponderKey, prefixedSyn) => {
+    // Store the intended responder key in the buffer for potential future use
+    buffer
+      .subarray(
+        INTENDED_RESPONDER_KEY_OFFSET,
+        INTENDED_RESPONDER_KEY_OFFSET + INTENDED_RESPONDER_KEY_LENGTH,
+      )
+      .set(intendedResponderKey);
+
     const code = wasmInstance.exports.initiator_write_syn();
     if (code === 1) {
       throw new Error(
         `OCapN Noise Protocol could not write initiator's SYN message`,
       );
     }
-    syn.set(buffer.subarray(SYN_OFFSET, SYN_OFFSET + SYN_LENGTH));
+
+    // Output: intended responder key (32 bytes cleartext) + SYN (132 bytes)
+    prefixedSyn
+      .subarray(0, INTENDED_RESPONDER_KEY_LENGTH)
+      .set(intendedResponderKey);
+    prefixedSyn
+      .subarray(
+        INTENDED_RESPONDER_KEY_LENGTH,
+        INTENDED_RESPONDER_KEY_LENGTH + SYN_LENGTH,
+      )
+      .set(buffer.subarray(SYN_OFFSET, SYN_OFFSET + SYN_LENGTH));
 
     return { initiatorReadSynackWriteAck };
   };
 
   /**
-   * Reads the SYN message and writes the SYNACK message for the responder.
+   * Reads the prefixed SYN message and writes the SYNACK message for the responder.
+   * The prefixed SYN includes the intended responder's public key in cleartext
+   * followed by the encrypted SYN message.
    *
-   * @param {Uint8Array} syn - The SYN message from the initiator
+   * @param {Uint8Array} prefixedSyn - The prefixed SYN message from the initiator (PREFIXED_SYN_LENGTH bytes)
    * @param {Uint8Array} synack - Buffer to write the SYNACK message to (must be SYNACK_LENGTH bytes)
    * @returns {ResponderReadSynWriteSynackResult} Result containing initiator's key, accepted encoding, and next function
-   * @throws {Error} If SYN message is invalid, signature verification fails, or no mutually supported encodings
+   * @throws {Error} If SYN message is invalid, intended for wrong responder, signature verification fails, or no mutually supported encodings
    */
-  const responderReadSynWriteSynack = (syn, synack) => {
-    buffer.subarray(SYN_OFFSET, SYN_OFFSET + SYN_LENGTH).set(syn);
+  const responderReadSynWriteSynack = (prefixedSyn, synack) => {
+    // Extract intended responder key and SYN from prefixed message
+    buffer
+      .subarray(
+        INTENDED_RESPONDER_KEY_OFFSET,
+        INTENDED_RESPONDER_KEY_OFFSET + INTENDED_RESPONDER_KEY_LENGTH,
+      )
+      .set(prefixedSyn.subarray(0, INTENDED_RESPONDER_KEY_LENGTH));
+    buffer
+      .subarray(SYN_OFFSET, SYN_OFFSET + SYN_LENGTH)
+      .set(
+        prefixedSyn.subarray(
+          INTENDED_RESPONDER_KEY_LENGTH,
+          INTENDED_RESPONDER_KEY_LENGTH + SYN_LENGTH,
+        ),
+      );
+
     let code = wasmInstance.exports.responder_read_syn();
     if (code === 1) {
       throw new Error(
@@ -322,6 +363,10 @@ export const makeOcapnSessionCryptography = ({
     } else if (code === 6) {
       throw new Error(
         "OCapN Noise Protocol initiator's purported ed25519 signature does not correspond to their actual x25519 public encryption key",
+      );
+    } else if (code === 7) {
+      throw new Error(
+        'OCapN Noise Protocol SYN intended for different responder',
       );
     }
 

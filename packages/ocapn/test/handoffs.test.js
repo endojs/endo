@@ -20,17 +20,25 @@ const makeTestClientTrio = async ({
   makeDefaultSwissnumTable,
   verbose = false,
 }) => {
-  const { client: clientA } = await makeTestClient({
+  const { client: clientA, debug: debugA } = await makeTestClient({
     debugLabel: 'A',
     makeDefaultSwissnumTable,
     verbose,
   });
-  const { client: clientB, location: locationB } = await makeTestClient({
+  const {
+    client: clientB,
+    debug: debugB,
+    location: locationB,
+  } = await makeTestClient({
     debugLabel: 'B',
     makeDefaultSwissnumTable,
     verbose,
   });
-  const { client: clientC, location: locationC } = await makeTestClient({
+  const {
+    client: clientC,
+    debug: debugC,
+    location: locationC,
+  } = await makeTestClient({
     debugLabel: 'C',
     makeDefaultSwissnumTable,
     verbose,
@@ -41,14 +49,17 @@ const makeTestClientTrio = async ({
     clientC.shutdown();
   };
   // A -> B, A -> C
-  const { ocapn: ocapnB } = await clientA.provideSession(locationB);
-  const { ocapn: ocapnC } = await clientA.provideSession(locationC);
-  const bootstrapB = ocapnB.getRemoteBootstrap();
-  const bootstrapC = ocapnC.getRemoteBootstrap();
+  const sessionB = await debugA.provideInternalSession(locationB);
+  const sessionC = await debugA.provideInternalSession(locationC);
+  const bootstrapB = sessionB.ocapn.getRemoteBootstrap();
+  const bootstrapC = sessionC.ocapn.getRemoteBootstrap();
   return {
     clientA,
     clientB,
     clientC,
+    debugA,
+    debugB,
+    debugC,
     locationB,
     locationC,
     bootstrapB,
@@ -77,7 +88,7 @@ testWithErrorUnwrapping('sturdyref transported as sturdyref', async t => {
     }),
   );
 
-  const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
+  const { debugC, locationB, bootstrapB, bootstrapC, shutdownAll } =
     await makeTestClientTrio({
       makeDefaultSwissnumTable: () => testObjectTable,
     });
@@ -88,11 +99,11 @@ testWithErrorUnwrapping('sturdyref transported as sturdyref', async t => {
   let clientCSessionForB;
   const locationIdB = locationToLocationId(locationB);
 
-  clientCSessionForB = clientC.sessionManager.getActiveSession(locationIdB);
+  clientCSessionForB = debugC.sessionManager.getActiveSession(locationIdB);
   t.falsy(clientCSessionForB, 'C has no session for B');
   await E(catSitterC).takeCareOf(catB);
 
-  clientCSessionForB = clientC.sessionManager.getActiveSession(locationIdB);
+  clientCSessionForB = debugC.sessionManager.getActiveSession(locationIdB);
   t.truthy(clientCSessionForB, 'C has a session for B');
 
   shutdownAll();
@@ -120,7 +131,7 @@ testWithErrorUnwrapping('third party handoff', async t => {
     }),
   );
 
-  const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
+  const { debugC, locationB, bootstrapB, bootstrapC, shutdownAll } =
     await makeTestClientTrio({
       makeDefaultSwissnumTable: () => testObjectTable,
     });
@@ -131,14 +142,14 @@ testWithErrorUnwrapping('third party handoff', async t => {
   let clientCSessionForB;
   const locationIdB = locationToLocationId(locationB);
 
-  clientCSessionForB = clientC.sessionManager.getActiveSession(locationIdB);
+  clientCSessionForB = debugC.sessionManager.getActiveSession(locationIdB);
   t.falsy(clientCSessionForB, 'C has no session for B');
 
   const objB = await E(objMakerB).makeObj();
   const number = await E(objUserC).useObj(objB);
   t.is(number, 42, 'number is 42');
 
-  clientCSessionForB = clientC.sessionManager.getActiveSession(locationIdB);
+  clientCSessionForB = debugC.sessionManager.getActiveSession(locationIdB);
   t.truthy(clientCSessionForB, 'C has a session for B');
 
   shutdownAll();
@@ -168,7 +179,7 @@ testWithErrorUnwrapping(
       }),
     );
 
-    const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
+    const { debugC, locationB, bootstrapB, bootstrapC, shutdownAll } =
       await makeTestClientTrio({
         makeDefaultSwissnumTable: () => testObjectTable,
       });
@@ -183,7 +194,7 @@ testWithErrorUnwrapping(
     t.is(result1, 1, 'first handoff successful');
 
     // After first handoff, C->B session should exist
-    const sessionCtoB = clientC.sessionManager.getActiveSession(
+    const sessionCtoB = debugC.sessionManager.getActiveSession(
       locationToLocationId(locationB),
     );
 
@@ -221,7 +232,11 @@ testWithErrorUnwrapping(
     });
     testObjectTable.set('TestObj', testObj);
 
-    const { client: clientA, location: locationA } = await makeTestClient({
+    const {
+      client: clientA,
+      debug: debugA,
+      location: locationA,
+    } = await makeTestClient({
       debugLabel: 'A',
       makeDefaultSwissnumTable: () => testObjectTable,
     });
@@ -229,17 +244,21 @@ testWithErrorUnwrapping(
       debugLabel: 'B',
       makeDefaultSwissnumTable: () => testObjectTable,
     });
-    const { client: clientC, location: locationC } = await makeTestClient({
+    const {
+      client: clientC,
+      debug: debugC,
+      location: locationC,
+    } = await makeTestClient({
       debugLabel: 'C',
       makeDefaultSwissnumTable: () => testObjectTable,
     });
 
     try {
       // Set up sessions: A->B, A->C, C->B, and C->A
-      const sessionAB = await clientA.provideSession(locationB);
-      const sessionAC = await clientA.provideSession(locationC);
-      const sessionCB = await clientC.provideSession(locationB);
-      const sessionCA = await clientC.provideSession(locationA);
+      const sessionAB = await debugA.provideInternalSession(locationB);
+      const sessionAC = await debugA.provideInternalSession(locationC);
+      const sessionCB = await debugC.provideInternalSession(locationB);
+      const sessionCA = await debugC.provideInternalSession(locationA);
 
       // Get the bootstrap for B from both A and C
       const bootstrapBFromA = sessionAB.ocapn.getRemoteBootstrap();
@@ -356,7 +375,7 @@ testWithErrorUnwrapping('deposit-gift rejects non-local gift', async t => {
     getValue: () => 'from-A',
   });
 
-  const { client: clientA } = await makeTestClient({
+  const { client: clientA, debug: debugA } = await makeTestClient({
     debugLabel: 'A',
     makeDefaultSwissnumTable: () => testObjectTable,
   });
@@ -367,7 +386,7 @@ testWithErrorUnwrapping('deposit-gift rejects non-local gift', async t => {
 
   try {
     // Set up session: A->B
-    const sessionAB = await clientA.provideSession(locationB);
+    const sessionAB = await debugA.provideInternalSession(locationB);
     const bootstrapBFromA = sessionAB.ocapn.getRemoteBootstrap();
 
     // A tries to deposit its own local object (objA) at B
@@ -404,7 +423,7 @@ testWithErrorUnwrapping(
     // remotables (e.g., structs/copyRecords).
     const testObjectTable = new Map();
 
-    const { client: clientA } = await makeTestClient({
+    const { client: clientA, debug: debugA } = await makeTestClient({
       debugLabel: 'A',
       makeDefaultSwissnumTable: () => testObjectTable,
     });
@@ -415,7 +434,7 @@ testWithErrorUnwrapping(
 
     try {
       // Set up session: A->B
-      const sessionAB = await clientA.provideSession(locationB);
+      const sessionAB = await debugA.provideInternalSession(locationB);
       const bootstrapBFromA = sessionAB.ocapn.getRemoteBootstrap();
 
       // A tries to deposit a struct (copyRecord) at B
@@ -475,7 +494,7 @@ testWithErrorUnwrapping(
       }),
     );
 
-    const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
+    const { debugC, locationB, bootstrapB, bootstrapC, shutdownAll } =
       await makeTestClientTrio({
         makeDefaultSwissnumTable: () => testObjectTable,
       });
@@ -491,7 +510,7 @@ testWithErrorUnwrapping(
     // Verify C doesn't have a session with B yet
     const locationIdB = locationToLocationId(locationB);
     let clientCSessionForB =
-      clientC.sessionManager.getActiveSession(locationIdB);
+      debugC.sessionManager.getActiveSession(locationIdB);
     t.falsy(clientCSessionForB, 'C has no session for B initially');
 
     // A asks B to make an object - this creates an "answer" local to B
@@ -507,7 +526,7 @@ testWithErrorUnwrapping(
     );
 
     // Verify C now has a session with B (handoff occurred)
-    clientCSessionForB = clientC.sessionManager.getActiveSession(locationIdB);
+    clientCSessionForB = debugC.sessionManager.getActiveSession(locationIdB);
     t.truthy(clientCSessionForB, 'C has a session for B after handoff');
 
     shutdownAll();

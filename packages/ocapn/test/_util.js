@@ -4,7 +4,7 @@
 /** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
 
 /**
- * @import { Client, Connection, LocationId, Session } from '../src/client/types.js'
+ * @import { Client, ClientDebug, Connection, InternalSession, LocationId, Session } from '../src/client/types.js'
  * @import { OcapnLocation } from '../src/codecs/components.js'
  * @import { TcpTestOnlyNetLayer } from '../src/netlayers/tcp-test-only.js'
  * @import { Ocapn, OcapnDebug } from '../src/client/ocapn.js'
@@ -25,10 +25,12 @@ const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
  */
 export const getOcapnDebug = ocapn => {
   assert(
-    ocapn.debug,
+    // eslint-disable-next-line no-underscore-dangle
+    ocapn._debug,
     'debug object not available - client must be created with debugMode: true',
   );
-  return ocapn.debug;
+  // eslint-disable-next-line no-underscore-dangle
+  return ocapn._debug;
 };
 
 /**
@@ -152,6 +154,7 @@ export const waitUntilTrue = async (fn, timeoutMs = 1000, delayMs = 20) => {
 /**
  * @typedef {object} ClientKit
  * @property {Client} client
+ * @property {ClientDebug} debug - Debug object (always present in test clients)
  * @property {TcpTestOnlyNetLayer} netlayer
  * @property {OcapnLocation} location
  * @property {LocationId} locationId
@@ -180,15 +183,25 @@ export const makeTestClient = async ({
     debugMode: true,
     ...clientOptions,
   });
-  const netlayer = await makeTcpNetLayer({
-    client,
-    specifiedDesignator: debugLabel,
-    writeLatencyMs,
-  });
-  client.registerNetlayer(netlayer);
+  assert(
+    // eslint-disable-next-line no-underscore-dangle
+    client._debug,
+    'makeTestClient requires debugMode - client._debug must be present',
+  );
+  // eslint-disable-next-line no-underscore-dangle
+  const { _debug: debug } = client;
+  // Register netlayer with client
+  const netlayer = await client.registerNetlayer((handlers, logger) =>
+    makeTcpNetLayer({
+      handlers,
+      logger,
+      specifiedDesignator: debugLabel,
+      writeLatencyMs,
+    }),
+  );
   const { location } = netlayer;
   const locationId = locationToLocationId(location);
-  return { client, netlayer, location, locationId };
+  return { client, debug, netlayer, location, locationId };
 };
 
 /**
@@ -200,7 +213,7 @@ export const makeTestClient = async ({
  * @returns {Promise<{
  *   clientKitA: ClientKit,
  *   clientKitB: ClientKit,
- *   establishSession: () => Promise<{ sessionA: Session, sessionB: Session }>,
+ *   establishSession: () => Promise<{ sessionA: InternalSession, sessionB: InternalSession }>,
  *   shutdownBoth: () => void,
  *   getConnectionAtoB: () => Connection | undefined,
  *   getConnectionBtoA: () => Connection | undefined,
@@ -230,22 +243,22 @@ export const makeTestClientPair = async ({
   };
 
   const establishSession = async () => {
-    const sessionA = await clientKitA.client.provideSession(
+    const sessionA = await clientKitA.debug.provideInternalSession(
       clientKitB.location,
     );
-    const sessionB = await clientKitB.client.provideSession(
+    const sessionB = await clientKitB.debug.provideInternalSession(
       clientKitA.location,
     );
     return { sessionA, sessionB };
   };
 
   const getConnectionAtoB = () => {
-    return clientKitA.client.sessionManager.getActiveSession(
+    return clientKitA.debug.sessionManager.getActiveSession(
       clientKitB.locationId,
     )?.connection;
   };
   const getConnectionBtoA = () => {
-    return clientKitB.client.sessionManager.getActiveSession(
+    return clientKitB.debug.sessionManager.getActiveSession(
       clientKitA.locationId,
     )?.connection;
   };
@@ -272,7 +285,7 @@ export const makeTestClientPair = async ({
  * This helper sends both op:deliver (to call a method that returns a tagged value)
  * and op:untag (to extract the payload) in sequence, enabling true pipelining tests.
  *
- * @param {Session} senderSession - The session that will send the messages
+ * @param {InternalSession} senderSession - The session that will send the messages
  * @returns {object} Helper object with callAndUntag method
  */
 export const makeUntagTestHelper = senderSession => {

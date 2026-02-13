@@ -8,24 +8,34 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
 import { makeDirectoryMaker } from './directory.js';
-import { makeMailboxMaker } from './mail.js';
+import { makeDeferredTasks } from './deferred-tasks.js';
+import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { makeRemoteControlProvider } from './remote-control.js';
-import { assertPetName, assertName } from './pet-name.js';
+import {
+  assertName,
+  assertNamePath,
+  assertNames,
+  assertPetName,
+  namePathFrom,
+} from './pet-name.js';
+import { formatLocator, idFromLocator } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidNumber,
+  assertValidId,
   assertFormulaNumber,
   assertNodeNumber,
   parseId,
   formatId,
 } from './formula-identifier.js';
+import { makeFormulaGraph } from './graph.js';
+import { makeResidenceTracker } from './residence.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
-import { blobHelp, endoHelp, makeHelp } from './help-text.js';
 
 // Sorted:
 import {
@@ -34,7 +44,9 @@ import {
   InspectorHubInterface,
   InspectorInterface,
   InvitationInterface,
+  ResponderInterface,
   WorkerInterface,
+  DirectoryInterface,
   BlobInterface,
   EndoInterface,
 } from './interfaces.js';
@@ -42,7 +54,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, Name, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -71,9 +83,17 @@ const delay = async (ms, cancelled) => {
 const makeInspector = (type, number, record) =>
   makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
     lookup: async petNameOrPath => {
-      const petName = Array.isArray(petNameOrPath)
-        ? petNameOrPath[0]
-        : petNameOrPath;
+      /** @type {string} */
+      let petName;
+      if (Array.isArray(petNameOrPath)) {
+        if (petNameOrPath.length !== 1) {
+          throw Error('Inspector.lookup(path) requires path length of 1');
+        }
+        petName = petNameOrPath[0];
+      } else {
+        petName = petNameOrPath;
+      }
+      assertName(petName);
       if (!Object.hasOwn(record, petName)) {
         return undefined;
       }
@@ -108,6 +128,46 @@ const deriveId = (path, rootNonce, digester) => {
   return digester.digestHex();
 };
 
+const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
+const MESSAGE_FROM_NAME = 'FROM';
+const MESSAGE_TO_NAME = 'TO';
+const MESSAGE_DATE_NAME = 'DATE';
+const MESSAGE_TYPE_NAME = 'TYPE';
+const MESSAGE_ID_NAME = 'MESSAGE';
+const MESSAGE_REPLY_TO_NAME = 'REPLY';
+const MESSAGE_DESCRIPTION_NAME = 'DESCRIPTION';
+const MESSAGE_STRINGS_NAME = 'STRINGS';
+const MESSAGE_PROMISE_NAME = 'PROMISE';
+const MESSAGE_RESOLVER_NAME = 'RESOLVER';
+
+/**
+ * @param {string} name
+ */
+const isMessageNumberName = name => messageNumberNamePattern.test(name);
+
+/**
+ * @param {string} left
+ * @param {string} right
+ */
+const compareMessageNames = (left, right) => {
+  if (left === right) {
+    return 0;
+  }
+  return BigInt(left) < BigInt(right) ? -1 : 1;
+};
+
+/** @type {PetName} */
+const PROMISE_STATUS_NAME = /** @type {PetName} */ ('status');
+
+/**
+ * Note: "pending" is intentionally omitted; pending is represented by the
+ * absence of a status entry in the promise's pet store.
+ * @typedef {(
+ *   | { status: 'fulfilled'; valueId: string }
+ *   | { status: 'rejected'; reason: string }
+ * )} PromiseStatusRecord
+ */
+
 /**
  * @param {DaemonicPowers} powers
  * @param {string} rootEntropy
@@ -132,6 +192,8 @@ const makeDaemonCore = async (
   const contentStore = persistencePowers.makeContentSha512Store();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
+  /** @type {Map<string, (reason?: Error) => Promise<void>>} */
+  const workerTerminationByNumber = new Map();
   /**
    * Mutations of the formula graph must be serialized through this queue.
    * "Mutations" include:
@@ -141,12 +203,34 @@ const makeDaemonCore = async (
    * - Cancellation
    */
   const formulaGraphJobs = makeSerialJobs();
+  let formulaGraphLockDepth = 0;
+  /**
+   * @template T
+   * @param {() => Promise<T>} [asyncFn]
+   * @returns {Promise<T>}
+   */
+  const withFormulaGraphLock = async (asyncFn = async () => undefined) => {
+    if (formulaGraphLockDepth > 0) {
+      // Already holding the lock; avoid deadlock.
+      return asyncFn();
+    }
+    formulaGraphLockDepth += 1;
+    try {
+      return await formulaGraphJobs.enqueue(asyncFn);
+    } finally {
+      formulaGraphLockDepth -= 1;
+    }
+  };
   // This is the id of the node that is hosting the values.
   // This will likely get replaced with a public key in the future.
   const localNodeNumber = /** @type {NodeNumber} */ (
     deriveId('node', rootEntropy, cryptoPowers.makeSha512())
   );
   console.log('Node', localNodeNumber);
+  const endoFormulaId = formatId({
+    number: /** @type {FormulaNumber} */ (rootEntropy),
+    node: localNodeNumber,
+  });
 
   // We generate formulas for some entities that are presumed to exist
   // because they are parts of the daemon's root object.
@@ -214,6 +298,124 @@ const makeDaemonCore = async (
    */
   const formulaForId = new Map();
 
+  /**
+   * @param {Formula} formula
+   * @returns {FormulaIdentifier[]}
+   */
+  const extractDeps = formula => {
+    switch (formula.type) {
+      case 'endo':
+        return [
+          formula.networks,
+          formula.pins,
+          formula.peers,
+          formula.host,
+          formula.leastAuthority,
+        ];
+      case 'host':
+        return [
+          formula.handle,
+          formula.worker,
+          formula.inspector,
+          formula.petStore,
+          formula.mailboxStore,
+          formula.mailHub,
+          formula.endo,
+          formula.networks,
+          formula.pins,
+        ];
+      case 'guest':
+        return [
+          formula.handle,
+          formula.hostHandle,
+          formula.hostAgent,
+          formula.petStore,
+          formula.mailboxStore,
+          formula.mailHub,
+          formula.worker,
+        ];
+      case 'marshal':
+        return formula.slots ?? [];
+      case 'eval':
+        return [formula.worker, ...(formula.values ?? [])];
+      case 'lookup':
+        return [formula.hub];
+      case 'make-unconfined':
+        return [formula.worker, formula.powers];
+      case 'make-bundle':
+        return [formula.worker, formula.powers, formula.bundle];
+      case 'peer':
+        return [formula.networks];
+      case 'handle':
+        return [formula.agent];
+      case 'mail-hub':
+        return [formula.store];
+      case 'message':
+        return [
+          formula.from,
+          formula.to,
+          ...(formula.ids ?? []),
+          ...(formula.promiseId ? [formula.promiseId] : []),
+          ...(formula.resolverId ? [formula.resolverId] : []),
+        ];
+      case 'promise':
+      case 'resolver':
+        return [formula.store];
+      case 'pet-inspector':
+        return [formula.petStore];
+      case 'directory':
+        return [formula.petStore];
+      case 'invitation':
+        return [formula.hostAgent, formula.hostHandle];
+      default:
+        return [];
+    }
+  };
+
+  const isLocalId = id => parseId(id).node === localNodeNumber;
+
+  const formulaGraph = makeFormulaGraph({ extractDeps, isLocalId });
+
+  formulaGraph.addRoot(knownPeersId);
+  formulaGraph.addRoot(leastAuthorityId);
+  formulaGraph.addRoot(mainWorkerId);
+  formulaGraph.addRoot(endoFormulaId);
+  for (const id of Object.values(platformNames)) {
+    formulaGraph.addRoot(/** @type {FormulaIdentifier} */ (id));
+  }
+
+  // Transient roots protect formulas from collection for the duration of
+  // a command. Without this, a formula created by a command could be
+  // collected before the command has a chance to assign it a pet name
+  // (which would give it a durable reference). Transient roots are
+  // pinned at the start of a command and unpinned in its finally block.
+  /** @type {Set<FormulaIdentifier>} */
+  const transientRoots = new Set();
+  let transientRootsDirty = false;
+
+  /**
+   * Temporarily adds a formula to the root set, protecting it from
+   * collection until unpinned.
+   *
+   * @param {FormulaIdentifier} id
+   */
+  const pinTransient = id => {
+    transientRoots.add(id);
+    transientRootsDirty = true;
+  };
+
+  /**
+   * Removes a formula from the transient root set, allowing it to be
+   * collected if no other references remain.
+   *
+   * @param {FormulaIdentifier} id
+   */
+  const unpinTransient = id => {
+    if (transientRoots.delete(id)) {
+      transientRootsDirty = true;
+    }
+  };
+
   /** @type {WeakMap<object, FormulaIdentifier>} */
   const agentIdForHandle = new WeakMap();
 
@@ -230,7 +432,10 @@ const makeDaemonCore = async (
     }
 
     formula = await persistencePowers.readFormula(parseId(id).number);
-    formulaForId.set(id, formula);
+    await withFormulaGraphLock(async () => {
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
     return formula;
   };
 
@@ -256,6 +461,33 @@ const makeDaemonCore = async (
   /** @type {WeakMultimap<Record<string | symbol, unknown>, FormulaIdentifier>['get']} */
   const getIdForRef = ref => idForRef.get(ref);
 
+  /** @param {unknown} value */
+  const getLocalIdForRef = value => {
+    if (
+      (typeof value !== 'object' || value === null) &&
+      typeof value !== 'function'
+    ) {
+      return undefined;
+    }
+    const id = /** @type {FormulaIdentifier | undefined} */ (
+      getIdForRef(/** @type {any} */ (value))
+    );
+    return id !== undefined && isLocalId(id) ? id : undefined;
+  };
+
+  const residenceTracker = makeResidenceTracker({
+    getLocalIdForRef,
+    getFormula: id => formulaForId.get(id),
+    terminateWorker: (workerId, reason) => {
+      const terminate = workerTerminationByNumber.get(workerId);
+      if (terminate) {
+        terminate(reason).catch(() => {});
+      }
+    },
+  });
+
+  const capTpConnectionRegistrar = residenceTracker.register;
+
   /** @type {Provide} */
   const provide = (id, _expectedType) =>
     /** @type {any} */ (
@@ -263,6 +495,327 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       provideController(id).value
     );
+
+  const enableFormulaCollection = true;
+
+  /** @param {FormulaIdentifier} id */
+  const dropLiveValue = id => {
+    controllerForId.delete(id);
+    const ref = refForId.get(id);
+    if (ref !== undefined) {
+      refForId.delete(id);
+      idForRef.delete(ref, id);
+    }
+  };
+
+  const seedFormulaGraphFromPersistence = async () => {
+    const formulaNumbers = await persistencePowers.listFormulas();
+    const entries = await Promise.all(
+      formulaNumbers.map(async formulaNumber => {
+        const formula = await persistencePowers.readFormula(formulaNumber);
+        const id = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+        return { id, formula };
+      }),
+    );
+    await withFormulaGraphLock(async () => {
+      for (const { id, formula } of entries) {
+        if (!formulaForId.has(id)) {
+          formulaForId.set(id, formula);
+        }
+        formulaGraph.onFormulaAdded(id, formula);
+      }
+    });
+
+    const petStoreTypes = new Map([
+      ['pet-store', assertPetName],
+      ['mailbox-store', assertMailboxStoreName],
+      ['known-peers-store', assertValidNumber],
+    ]);
+
+    await Promise.all(
+      entries.map(async ({ id, formula }) => {
+        const assertValidName = petStoreTypes.get(formula.type);
+        if (assertValidName === undefined) {
+          return;
+        }
+        const { number: formulaNumber } = parseId(id);
+        const petStore = await petStorePowers.makeIdentifiedPetStore(
+          formulaNumber,
+          formula.type,
+          assertValidName,
+        );
+        const storedIds = petStore
+          .list()
+          .map(petName => petStore.identifyLocal(petName))
+          .filter(storedId => storedId !== undefined);
+        if (storedIds.length === 0) {
+          return;
+        }
+        await withFormulaGraphLock(async () => {
+          for (const storedId of storedIds) {
+            formulaGraph.onPetStoreWrite(
+              /** @type {FormulaIdentifier} */ (id),
+              /** @type {FormulaIdentifier} */ (storedId),
+            );
+          }
+        });
+      }),
+    );
+  };
+
+  const collectIfDirty = async () => {
+    if (!enableFormulaCollection) {
+      return;
+    }
+    await withFormulaGraphLock(async () => {
+      if (!formulaGraph.isDirty() && !transientRootsDirty) {
+        return;
+      }
+
+      const localIds = new Set(formulaForId.keys());
+      /** @type {Map<FormulaIdentifier, Set<FormulaIdentifier>>} */
+      const groupMembers = new Map();
+      for (const id of localIds) {
+        const group = formulaGraph.findGroup(id);
+        const set = groupMembers.get(group) || new Set();
+        set.add(id);
+        groupMembers.set(group, set);
+      }
+
+      /** @type {Map<FormulaIdentifier, Set<FormulaIdentifier>>} */
+      const groupDeps = new Map();
+      const addGroupEdge = (fromGroup, toGroup) => {
+        if (fromGroup === toGroup) {
+          return;
+        }
+        const set = groupDeps.get(fromGroup) || new Set();
+        set.add(toGroup);
+        groupDeps.set(fromGroup, set);
+      };
+
+      for (const [id, deps] of formulaGraph.formulaDeps.entries()) {
+        if (localIds.has(id)) {
+          const fromGroup = formulaGraph.findGroup(id);
+          for (const dep of deps) {
+            if (localIds.has(dep)) {
+              addGroupEdge(fromGroup, formulaGraph.findGroup(dep));
+            }
+          }
+        }
+      }
+
+      for (const [storeId, ids] of formulaGraph.petStoreEdges.entries()) {
+        if (localIds.has(storeId)) {
+          const fromGroup = formulaGraph.findGroup(storeId);
+          for (const id of ids) {
+            if (localIds.has(id)) {
+              addGroupEdge(fromGroup, formulaGraph.findGroup(id));
+            }
+          }
+        }
+      }
+
+      /** @type {Map<FormulaIdentifier, number>} */
+      const refCount = new Map();
+      for (const group of groupMembers.keys()) {
+        refCount.set(group, 0);
+      }
+      for (const deps of groupDeps.values()) {
+        for (const dep of deps) {
+          refCount.set(dep, (refCount.get(dep) || 0) + 1);
+        }
+      }
+
+      /** @type {Set<FormulaIdentifier>} */
+      const rootGroups = new Set();
+      for (const rootId of formulaGraph.roots) {
+        if (localIds.has(rootId)) {
+          rootGroups.add(formulaGraph.findGroup(rootId));
+        }
+      }
+      for (const rootId of transientRoots) {
+        if (localIds.has(rootId)) {
+          rootGroups.add(formulaGraph.findGroup(rootId));
+        }
+      }
+
+      /** @type {FormulaIdentifier[]} */
+      const queue = [];
+      for (const [group, count] of refCount.entries()) {
+        if (count === 0 && !rootGroups.has(group)) {
+          queue.push(group);
+        }
+      }
+
+      /** @type {Set<FormulaIdentifier>} */
+      const collectedGroups = new Set();
+      while (queue.length > 0) {
+        const group = queue.shift();
+        if (group !== undefined && !collectedGroups.has(group)) {
+          collectedGroups.add(group);
+          for (const dep of groupDeps.get(group) || []) {
+            const nextCount = (refCount.get(dep) || 0) - 1;
+            refCount.set(dep, nextCount);
+            if (nextCount === 0 && !rootGroups.has(dep)) {
+              queue.push(dep);
+            }
+          }
+        }
+      }
+
+      if (collectedGroups.size === 0) {
+        formulaGraph.clearDirty();
+        transientRootsDirty = false;
+        return;
+      }
+
+      /** @type {FormulaIdentifier[]} */
+      const collectedIds = [];
+      for (const group of collectedGroups) {
+        const members = groupMembers.get(group);
+        if (members !== undefined) {
+          for (const id of members) {
+            collectedIds.push(id);
+          }
+        }
+      }
+
+      /** @type {Map<FormulaIdentifier, Formula>} */
+      const collectedFormulas = new Map();
+      for (const id of collectedIds) {
+        const formula = formulaForId.get(id);
+        if (formula !== undefined) {
+          collectedFormulas.set(id, formula);
+        }
+      }
+
+      const cancelReason = new Error('Collected formula');
+      await Promise.allSettled(
+        collectedIds.map(async id => {
+          const controller = controllerForId.get(id);
+          if (controller) {
+            await controller.context.cancel(cancelReason, '!');
+          }
+        }),
+      );
+
+      for (const id of collectedIds) {
+        dropLiveValue(id);
+      }
+
+      residenceTracker.disconnectRetainersHolding(collectedIds);
+
+      for (const id of collectedIds) {
+        const formula = collectedFormulas.get(id);
+        if (formula !== undefined) {
+          formulaForId.delete(id);
+          formulaGraph.onFormulaRemoved(id);
+          if (
+            formula.type === 'pet-store' ||
+            formula.type === 'mailbox-store' ||
+            formula.type === 'known-peers-store'
+          ) {
+            formulaGraph.onPetStoreRemoveAll(id);
+          }
+        }
+      }
+
+      await Promise.allSettled(
+        collectedIds.map(async id => {
+          await persistencePowers.deleteFormula(parseId(id).number);
+        }),
+      );
+
+      await Promise.allSettled(
+        Array.from(collectedFormulas.entries()).map(async ([id, formula]) => {
+          if (
+            formula.type === 'pet-store' ||
+            formula.type === 'mailbox-store' ||
+            formula.type === 'known-peers-store'
+          ) {
+            await petStorePowers.deletePetStore(
+              parseId(id).number,
+              formula.type,
+            );
+          }
+        }),
+      );
+
+      formulaGraph.clearDirty();
+      transientRootsDirty = false;
+    });
+
+    try {
+      const endoBootstrap = await provide(endoFormulaId, 'endo');
+      await E(endoBootstrap).revivePins();
+    } catch {
+      // Ignore pin revival failures during collection.
+    }
+  };
+
+  /**
+   * @param {FormulaIdentifier} petStoreId
+   * @param {PetStore} petStore
+   */
+  const wrapPetStore = (petStoreId, petStore) => {
+    /**
+     * @param {FormulaIdentifier} id
+     */
+    const removeEdgeIfUnreferenced = async id => {
+      const names = petStore.reverseIdentify(id);
+      if (names.length === 0) {
+        await withFormulaGraphLock(async () => {
+          formulaGraph.onPetStoreRemove(petStoreId, id);
+        });
+      }
+    };
+
+    return harden({
+      ...petStore,
+      write: async (petName, id) => {
+        const previousId = petStore.identifyLocal(petName);
+        await petStore.write(petName, id);
+        await withFormulaGraphLock(async () => {
+          formulaGraph.onPetStoreWrite(petStoreId, id);
+        });
+        if (previousId && previousId !== id) {
+          await removeEdgeIfUnreferenced(
+            /** @type {FormulaIdentifier} */ (previousId),
+          );
+        }
+      },
+      remove: async petName => {
+        const previousId = petStore.identifyLocal(petName);
+        await petStore.remove(petName);
+        if (previousId) {
+          await removeEdgeIfUnreferenced(
+            /** @type {FormulaIdentifier} */ (previousId),
+          );
+        }
+      },
+      rename: async (fromPetName, toPetName) => {
+        const fromId = petStore.identifyLocal(fromPetName);
+        const overwrittenId = petStore.identifyLocal(toPetName);
+        await petStore.rename(fromPetName, toPetName);
+        if (fromId) {
+          await withFormulaGraphLock(async () => {
+            formulaGraph.onPetStoreWrite(
+              petStoreId,
+              /** @type {FormulaIdentifier} */ (fromId),
+            );
+          });
+        }
+        if (overwrittenId && overwrittenId !== fromId) {
+          await removeEdgeIfUnreferenced(
+            /** @type {FormulaIdentifier} */ (overwrittenId),
+          );
+        }
+      },
+    });
+  };
 
   // The following concern connections to other daemons.
 
@@ -291,7 +844,8 @@ const makeDaemonCore = async (
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
-      const { node } = parseId(requestedId);
+      assertValidId(requestedId);
+      const { node, id } = parseId(requestedId);
       if (node !== localNodeNumber) {
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
@@ -299,7 +853,7 @@ const makeDaemonCore = async (
           )}`,
         );
       }
-      return provide(requestedId);
+      return provide(id);
     },
   });
 
@@ -352,7 +906,21 @@ const makeDaemonCore = async (
         workerId512,
         daemonWorkerFacet,
         Promise.race([forceCancelled, gracePeriodElapsed]),
+        capTpConnectionRegistrar,
       );
+
+    const terminateWorker = async (_reason = undefined) => {
+      E.sendOnly(workerDaemonFacet).terminate();
+      await Promise.race([
+        workerTerminated,
+        delay(gracePeriodMs, gracePeriodElapsed).catch(() => {}),
+      ]).catch(() => {});
+    };
+
+    workerTerminationByNumber.set(workerId512, terminateWorker);
+    workerTerminated.finally(() => {
+      workerTerminationByNumber.delete(workerId512);
+    });
 
     const gracefulCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
@@ -387,13 +955,11 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
-    const help = makeHelp(blobHelp);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
       `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
       BlobInterface,
       {
-        help,
         sha512: () => sha512,
         streamBase64,
         text,
@@ -405,8 +971,8 @@ const makeDaemonCore = async (
   /**
    * @param {FormulaIdentifier} workerId
    * @param {string} source
-   * @param {Array<Name>} codeNames
-   * @param {Array<string>} ids
+   * @param {Array<string>} codeNames
+   * @param {Array<FormulaIdentifier>} ids
    * @param {Context} context
    */
   const makeEval = async (workerId, source, codeNames, ids, context) => {
@@ -441,7 +1007,7 @@ const makeDaemonCore = async (
   /**
    * Creates a controller for a `lookup` formula.
    *
-   * @param {string} hubId
+   * @param {FormulaIdentifier} hubId
    * @param {NamePath} path
    * @param {Context} context
    */
@@ -522,6 +1088,645 @@ const makeDaemonCore = async (
     serializeBodyFormat: 'smallcaps',
   });
 
+  /**
+   * @param {unknown} record
+   * @returns {PromiseStatusRecord}
+   */
+  const parsePromiseStatusRecord = record => {
+    if (record && typeof record === 'object') {
+      const data = /** @type {any} */ (record);
+      if (data.status === 'fulfilled' && typeof data.valueId === 'string') {
+        return { status: 'fulfilled', valueId: data.valueId };
+      }
+      if (data.status === 'rejected' && typeof data.reason === 'string') {
+        return { status: 'rejected', reason: data.reason };
+      }
+    }
+    throw new Error(`Invalid promise status record ${q(record)}`);
+  };
+
+  /**
+   * @param {unknown} reason
+   */
+  const formatRejectionReason = reason => {
+    if (reason instanceof Error) {
+      return reason.message;
+    }
+    return typeof reason === 'string' ? reason : String(reason);
+  };
+
+  /**
+   * @param {FormulaIdentifier} storeId
+   * @param {Context} context
+   */
+  const makePromise = async (storeId, context) => {
+    context.thisDiesIfThatDies(storeId);
+    const petStore = await provide(storeId, 'pet-store');
+    const { promise, resolve, reject } = makePromiseKit();
+    let settled = false;
+
+    /** @param {PromiseStatusRecord} record */
+    const settle = record => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (record.status === 'fulfilled') {
+        resolve(record.valueId);
+      } else {
+        reject(harden(new Error(record.reason)));
+      }
+    };
+
+    /** @param {string} statusId */
+    const settleFromStatusId = async statusId => {
+      await null;
+      const recordValue = await provide(
+        /** @type {FormulaIdentifier} */ (statusId),
+      );
+      const record = parsePromiseStatusRecord(recordValue);
+      settle(record);
+    };
+
+    const existingStatusId = petStore.identifyLocal(PROMISE_STATUS_NAME);
+    if (existingStatusId !== undefined) {
+      settleFromStatusId(existingStatusId).catch(error => {
+        if (!settled) {
+          reject(error);
+        }
+      });
+      return promise;
+    }
+
+    const iterator = petStore.followNameChanges();
+    const closeIterator = async () => {
+      await null;
+      if (typeof iterator.return === 'function') {
+        await iterator.return(undefined);
+      }
+    };
+
+    context.onCancel(() => closeIterator());
+
+    (async () => {
+      await null;
+      try {
+        for await (const change of iterator) {
+          if ('add' in change && change.add === PROMISE_STATUS_NAME) {
+            const statusId = petStore.identifyLocal(PROMISE_STATUS_NAME);
+            if (statusId !== undefined) {
+              await settleFromStatusId(statusId);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        if (!settled) {
+          reject(error);
+        }
+      } finally {
+        await closeIterator();
+      }
+    })().catch(error => {
+      if (!settled) {
+        reject(error);
+      }
+    });
+
+    return promise;
+  };
+
+  /**
+   * @param {FormulaIdentifier} storeId
+   * @param {Context} context
+   */
+  const makeResolver = async (storeId, context) => {
+    context.thisDiesIfThatDies(storeId);
+    const petStore = await provide(storeId, 'pet-store');
+    const resolverJobs = makeSerialJobs();
+
+    /** @param {PromiseStatusRecord} record */
+    const writeStatus = async record => {
+      if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
+        return;
+      }
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      const hardenedRecord = harden(record);
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      const { id } = await formulateMarshalValue(hardenedRecord, tasks);
+      await petStore.write(PROMISE_STATUS_NAME, id);
+    };
+
+    return makeExo('EndoResolver', ResponderInterface, {
+      resolveWithId: idOrPromise =>
+        resolverJobs.enqueue(async () => {
+          await null;
+          if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
+            return;
+          }
+          try {
+            const id = await idOrPromise;
+            if (typeof id !== 'string') {
+              throw new TypeError(
+                `Promise resolution must be a formula identifier (${q(id)})`,
+              );
+            }
+            assertValidId(id);
+            await writeStatus({ status: 'fulfilled', valueId: id });
+          } catch (error) {
+            const reason = formatRejectionReason(error);
+            await writeStatus({ status: 'rejected', reason });
+          }
+        }),
+    });
+  };
+
+  /**
+   * @param {FormulaIdentifier} storeId
+   * @param {Context} context
+   */
+  const makeMailHub = async (storeId, context) => {
+    context.thisDiesIfThatDies(storeId);
+    const mailboxStore = await provide(storeId, 'mailbox-store');
+
+    const listMessageNames = () =>
+      harden(
+        mailboxStore
+          .list()
+          .filter(isMessageNumberName)
+          .sort(compareMessageNames),
+      );
+
+    /**
+     * @param {string} name
+     */
+    const identifyMessage = name =>
+      isMessageNumberName(name)
+        ? mailboxStore.identifyLocal(/** @type {Name} */ (name))
+        : undefined;
+
+    /** @type {NameHub} */
+    let mailHub;
+
+    /**
+     * @param {string | string[]} petNameOrPath
+     */
+    const lookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      if (tailNames.length === 0) {
+        const id = identifyMessage(headName);
+        if (id === undefined) {
+          throw new TypeError(`Unknown message number: ${q(headName)}`);
+        }
+        return provide(/** @type {FormulaIdentifier} */ (id), 'message');
+      }
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        lookup(headName),
+      );
+    };
+
+    /**
+     * @param {string[]} petNamePath
+     * @returns {Promise<{ hub: NameHub, name: Name }>}
+     */
+    const lookupTailNameHub = async petNamePath => {
+      assertNamePath(petNamePath);
+      const tailName = petNamePath[petNamePath.length - 1];
+      if (petNamePath.length === 1) {
+        return { hub: mailHub, name: tailName };
+      }
+      const prefixPath = /** @type {NamePath} */ (petNamePath.slice(0, -1));
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      return { hub, name: tailName };
+    };
+
+    const has = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return identifyMessage(petNamePath[0]) !== undefined;
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).has(name);
+    };
+
+    const identify = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return identifyMessage(petNamePath[0]);
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).identify(name);
+    };
+
+    const locate = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const formulaType = await getTypeForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      return formatLocator(id, formulaType);
+    };
+
+    const reverseLocate = async locator => {
+      const id = idFromLocator(locator);
+      return /** @type {Name[]} */ (
+        mailboxStore.reverseIdentify(id).filter(isMessageNumberName)
+      );
+    };
+
+    const followLocatorNameChanges = async function* followLocatorNameChanges(
+      locator,
+    ) {
+      const id = idFromLocator(locator);
+      const names = mailboxStore
+        .reverseIdentify(id)
+        .filter(isMessageNumberName);
+      if (names.length === 0) {
+        return undefined;
+      }
+      yield { add: locator, names };
+      return undefined;
+    };
+
+    const list = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        return listMessageNames();
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).list();
+    };
+
+    const listIdentifiers = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const names = await list(...petNamePath);
+      const identities = new Set();
+      await Promise.all(
+        names.map(async name => {
+          const id = await identify(...petNamePath, name);
+          if (id !== undefined) {
+            identities.add(id);
+          }
+        }),
+      );
+      return harden(Array.from(identities).sort());
+    };
+
+    const followNameChanges = async function* followNameChanges(
+      ...petNamePath
+    ) {
+      await null;
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        for await (const change of mailboxStore.followNameChanges()) {
+          if ('add' in change) {
+            if (isMessageNumberName(change.add)) {
+              yield change;
+            }
+          } else if (isMessageNumberName(change.remove)) {
+            yield change;
+          }
+        }
+        return undefined;
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      yield* await E(hub).followNameChanges();
+      return undefined;
+    };
+
+    const reverseLookup = presence => {
+      const id = getIdForRef(presence);
+      if (id === undefined) {
+        return harden([]);
+      }
+      return harden(
+        /** @type {Name[]} */ (
+          mailboxStore.reverseIdentify(id).filter(isMessageNumberName)
+        ),
+      );
+    };
+
+    const disallowedMutation = async () => {
+      throw new Error('not allowed');
+    };
+
+    mailHub = makeExo('MailHub', DirectoryInterface, {
+      has,
+      identify,
+      locate,
+      reverseLocate,
+      followLocatorNameChanges,
+      list,
+      listIdentifiers,
+      followNameChanges,
+      lookup,
+      reverseLookup,
+      write: disallowedMutation,
+      remove: disallowedMutation,
+      move: disallowedMutation,
+      copy: disallowedMutation,
+    });
+
+    return mailHub;
+  };
+
+  /**
+   * @param {MessageFormula} messageFormula
+   * @param {Context} context
+   */
+  const makeMessageHub = async (messageFormula, context) => {
+    const {
+      messageType,
+      messageId,
+      replyTo,
+      from,
+      to,
+      date,
+      description,
+      promiseId,
+      resolverId,
+      strings,
+      names,
+      ids,
+    } = messageFormula;
+
+    if (
+      typeof messageId !== 'string' ||
+      typeof from !== 'string' ||
+      typeof to !== 'string' ||
+      typeof date !== 'string'
+    ) {
+      throw new Error('Message formula is incomplete');
+    }
+    assertFormulaNumber(messageId);
+    if (replyTo !== undefined) {
+      assertFormulaNumber(replyTo);
+    }
+
+    /** @type {Map<string, FormulaIdentifier>} */
+    const idByName = new Map();
+    /** @type {Map<string, unknown>} */
+    const valueByName = new Map();
+    /** @type {string[]} */
+    const orderedNames = [];
+
+    /**
+     * @param {string} name
+     * @param {FormulaIdentifier | undefined} id
+     * @param {unknown} value
+     */
+    const registerName = (name, id, value) => {
+      if (idByName.has(name) || valueByName.has(name)) {
+        throw new Error(`Duplicate message name ${q(name)}`);
+      }
+      if (id !== undefined) {
+        idByName.set(name, id);
+        context.thisDiesIfThatDies(id);
+      }
+      if (value !== undefined) {
+        valueByName.set(name, value);
+      }
+      orderedNames.push(name);
+    };
+
+    registerName(MESSAGE_FROM_NAME, from, undefined);
+    registerName(MESSAGE_TO_NAME, to, undefined);
+    registerName(MESSAGE_DATE_NAME, undefined, date);
+    registerName(MESSAGE_TYPE_NAME, undefined, messageType);
+    registerName(MESSAGE_ID_NAME, undefined, messageId);
+    if (replyTo !== undefined) {
+      registerName(MESSAGE_REPLY_TO_NAME, undefined, replyTo);
+    }
+
+    if (messageType === 'request') {
+      if (
+        typeof description !== 'string' ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Request message formula is incomplete');
+      }
+      registerName(MESSAGE_DESCRIPTION_NAME, undefined, description);
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+    } else if (messageType === 'package') {
+      if (
+        !Array.isArray(strings) ||
+        !Array.isArray(names) ||
+        !Array.isArray(ids)
+      ) {
+        throw new Error('Package message formula is incomplete');
+      }
+      if (names.length !== ids.length) {
+        throw new Error(
+          `Message must have one formula identifier (${q(
+            ids.length,
+          )}) for every edge name (${q(names.length)})`,
+        );
+      }
+      registerName(MESSAGE_STRINGS_NAME, undefined, harden(strings));
+      names.forEach((name, index) => {
+        registerName(name, ids[index], undefined);
+      });
+    } else {
+      throw new Error(`Unknown message type ${q(messageType)}`);
+    }
+
+    /**
+     * @param {string | string[]} petNameOrPath
+     */
+    const lookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      if (tailNames.length === 0) {
+        if (idByName.has(headName)) {
+          const id = /** @type {FormulaIdentifier} */ (idByName.get(headName));
+          if (headName === MESSAGE_FROM_NAME || headName === MESSAGE_TO_NAME) {
+            return provide(id, 'handle');
+          }
+          if (headName === MESSAGE_PROMISE_NAME) {
+            return provide(id, 'promise');
+          }
+          if (headName === MESSAGE_RESOLVER_NAME) {
+            return provide(id, 'resolver');
+          }
+          return provide(id);
+        }
+        if (valueByName.has(headName)) {
+          return valueByName.get(headName);
+        }
+        throw new TypeError(`Unknown message name: ${q(headName)}`);
+      }
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        lookup(headName),
+      );
+    };
+
+    /**
+     * @param {string[]} petNamePath
+     * @returns {Promise<{ hub: NameHub, name: Name }>}
+     */
+    /** @type {NameHub} */
+    let messageHub;
+
+    const lookupTailNameHub = async petNamePath => {
+      assertNamePath(petNamePath);
+      const tailName = petNamePath[petNamePath.length - 1];
+      if (petNamePath.length === 1) {
+        return { hub: messageHub, name: tailName };
+      }
+      const prefixPath = /** @type {NamePath} */ (petNamePath.slice(0, -1));
+      const hub = /** @type {NameHub} */ (await lookup(prefixPath));
+      return { hub, name: tailName };
+    };
+
+    const has = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return idByName.has(petNamePath[0]) || valueByName.has(petNamePath[0]);
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).has(name);
+    };
+
+    const identify = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 1) {
+        return idByName.get(petNamePath[0]);
+      }
+      const { hub, name } = await lookupTailNameHub(
+        /** @type {NamePath} */ (petNamePath),
+      );
+      return E(hub).identify(name);
+    };
+
+    const locate = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const formulaType = await getTypeForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      return formatLocator(id, formulaType);
+    };
+
+    const reverseLocate = async locator => {
+      const id = idFromLocator(locator);
+      return harden(
+        /** @type {Name[]} */ (
+          orderedNames.filter(name => idByName.get(name) === id)
+        ),
+      );
+    };
+
+    const followLocatorNameChanges = async function* followLocatorNameChanges(
+      locator,
+    ) {
+      const id = idFromLocator(locator);
+      const locatorNames = orderedNames.filter(
+        name => idByName.get(name) === id,
+      );
+      if (locatorNames.length === 0) {
+        return undefined;
+      }
+      yield { add: locator, names: /** @type {Name[]} */ (locatorNames) };
+      return undefined;
+    };
+
+    const list = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        return harden(/** @type {Name[]} */ ([...orderedNames]));
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).list();
+    };
+
+    const listIdentifiers = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const listedNames = await list(...petNamePath);
+      const identities = new Set();
+      await Promise.all(
+        listedNames.map(async name => {
+          const id = await identify(...petNamePath, name);
+          if (id !== undefined) {
+            identities.add(id);
+          }
+        }),
+      );
+      return harden(Array.from(identities).sort());
+    };
+
+    const followNameChanges = async function* followNameChanges(
+      ...petNamePath
+    ) {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        for (const name of orderedNames) {
+          const id = idByName.get(name);
+          if (id !== undefined) {
+            yield { add: /** @type {Name} */ (name), value: parseId(id) };
+          }
+        }
+        return undefined;
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      yield* await E(hub).followNameChanges();
+      return undefined;
+    };
+
+    const reverseLookup = presence => {
+      const id = getIdForRef(presence);
+      if (id === undefined) {
+        return harden([]);
+      }
+      return harden(
+        /** @type {Name[]} */ (
+          orderedNames.filter(name => idByName.get(name) === id)
+        ),
+      );
+    };
+
+    const disallowedMutation = async () => {
+      throw new Error('not allowed');
+    };
+
+    messageHub = makeExo('MessageHub', DirectoryInterface, {
+      has,
+      identify,
+      locate,
+      reverseLocate,
+      followLocatorNameChanges,
+      list,
+      listIdentifiers,
+      followNameChanges,
+      lookup,
+      reverseLookup,
+      write: disallowedMutation,
+      remove: disallowedMutation,
+      move: disallowedMutation,
+      copy: disallowedMutation,
+    });
+
+    return messageHub;
+  };
+
   /** @type {FormulaMakerTable} */
   const makers = {
     marshal: async ({ body, slots }) => {
@@ -542,25 +1747,30 @@ const makeDaemonCore = async (
       { worker: workerId, powers: powersId, bundle: bundleId },
       context,
     ) => makeBundle(workerId, powersId, bundleId, context),
-    host: async (
-      {
+    host: async (formula, context, id) => {
+      const {
         handle: handleId,
         petStore: petStoreId,
+        mailboxStore: mailboxStoreId,
+        mailHub: mailHubId,
         inspector: inspectorId,
         worker: workerId,
         endo: endoId,
         networks: networksId,
         pins: pinsId,
-      },
-      context,
-      id,
-    ) => {
+      } = formula;
+
+      if (mailHubId === undefined) {
+        throw new Error('Host formula missing mail hub');
+      }
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
         id,
         handleId,
         petStoreId,
+        mailboxStoreId,
+        mailHubId,
         inspectorId,
         workerId,
         endoId,
@@ -574,17 +1784,20 @@ const makeDaemonCore = async (
       agentIdForHandle.set(handle, id);
       return agent;
     },
-    guest: async (
-      {
+    guest: async (formula, context, id) => {
+      const {
         handle: handleId,
         hostAgent: hostAgentId,
         hostHandle: hostHandleId,
         petStore: petStoreId,
+        mailboxStore: mailboxStoreId,
+        mailHub: mailHubId,
         worker: workerId,
-      },
-      context,
-      id,
-    ) => {
+      } = formula;
+
+      if (mailHubId === undefined) {
+        throw new Error('Guest formula missing mail hub');
+      }
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeGuest(
@@ -593,6 +1806,8 @@ const makeDaemonCore = async (
         hostAgentId,
         hostHandleId,
         petStoreId,
+        mailboxStoreId,
+        mailHubId,
         workerId,
         context,
       );
@@ -612,10 +1827,8 @@ const makeDaemonCore = async (
       pins: pinsId,
       peers: peersId,
     }) => {
-      const help = makeHelp(endoHelp);
       /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = makeExo('Endo', EndoInterface, {
-        help,
         ping: async () => 'pong',
         terminate: async () => {
           cancel(new Error('Termination requested'));
@@ -624,7 +1837,7 @@ const makeDaemonCore = async (
         leastAuthority: () => provide(leastAuthorityId, 'guest'),
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
-        nodeId: () => localNodeNumber,
+        nodeNumber: () => localNodeNumber,
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
@@ -642,8 +1855,11 @@ const makeDaemonCore = async (
           );
         },
         addPeerInfo: async peerInfo => {
-          const knownPeers = await provide(peersId, 'pet-store');
+          const knownPeers = /** @type {KnownPeersStore} */ (
+            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
+          );
           const { node: nodeNumber, addresses } = peerInfo;
+          assertNodeNumber(nodeNumber);
           if (knownPeers.has(nodeNumber)) {
             // We already have this peer.
             // TODO: merge connection info
@@ -669,7 +1885,6 @@ const makeDaemonCore = async (
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo('EndoGuest', GuestInterface, {
-            help: disallowedSyncFn,
             has: disallowedFn,
             identify: disallowedFn,
             reverseIdentify: disallowedSyncFn,
@@ -693,27 +1908,50 @@ const makeDaemonCore = async (
             reject: disallowedFn,
             adopt: disallowedFn,
             dismiss: disallowedFn,
+            reply: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
             requestEvaluation: disallowedFn,
-            deliver: disallowedSyncFn,
+            define: disallowedFn,
+            form: disallowedFn,
+            storeValue: disallowedFn,
+            deliver: disallowedFn,
           })
         )
       );
     },
-    'pet-store': (_formula, _context, _id, formulaNumber) =>
-      petStorePowers.makeIdentifiedPetStore(
-        formulaNumber,
-        'pet-store',
-        assertPetName,
+    'pet-store': async (_formula, _context, id, formulaNumber) =>
+      wrapPetStore(
+        id,
+        await petStorePowers.makeIdentifiedPetStore(
+          formulaNumber,
+          'pet-store',
+          assertPetName,
+        ),
       ),
-    'known-peers-store': (_formula, _context, _id, formulaNumber) =>
-      petStorePowers.makeIdentifiedPetStore(
-        formulaNumber,
-        'known-peers-store',
-        // The known peers store is just a pet store that only accepts node identifiers
-        // (i.e. formula numbers) as "names".
-        assertValidNumber,
+    'mailbox-store': async (_formula, _context, id, formulaNumber) =>
+      wrapPetStore(
+        id,
+        await petStorePowers.makeIdentifiedPetStore(
+          formulaNumber,
+          'mailbox-store',
+          assertMailboxStoreName,
+        ),
+      ),
+    'mail-hub': ({ store: storeId }, context) => makeMailHub(storeId, context),
+    message: (formula, context) => makeMessageHub(formula, context),
+    promise: ({ store: storeId }, context) => makePromise(storeId, context),
+    resolver: ({ store: storeId }, context) => makeResolver(storeId, context),
+    'known-peers-store': async (_formula, _context, id, formulaNumber) =>
+      wrapPetStore(
+        id,
+        await petStorePowers.makeIdentifiedPetStore(
+          formulaNumber,
+          'known-peers-store',
+          // The known peers store is just a pet store that only accepts node identifiers
+          // (i.e. formula numbers) as "names".
+          assertValidNumber,
+        ),
       ),
     'pet-inspector': ({ petStore: petStoreId }) =>
       // Behold, unavoidable forward-reference:
@@ -744,7 +1982,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} id
+   * @param {FormulaIdentifier} id
    * @param {FormulaNumber} formulaNumber
    * @param {Formula} formula
    * @param {Context} context
@@ -794,8 +2032,11 @@ const makeDaemonCore = async (
       node: localNodeNumber,
     });
 
-    formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
-    formulaForId.set(id, formula);
+    await withFormulaGraphLock(async () => {
+      formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
 
     // Memoize for lookup.
     console.log(`Making ${formula.type} ${id}`);
@@ -856,18 +2097,18 @@ const makeDaemonCore = async (
 
   /**
    * @param {NodeNumber} nodeNumber
-   * @returns {Promise<string>}
+   * @returns {Promise<FormulaIdentifier>}
    */
   const getPeerIdForNodeIdentifier = async nodeNumber => {
     if (nodeNumber === localNodeNumber) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    const knownPeers = await provide(knownPeersId, 'pet-store');
+    const knownPeers = /** @type {KnownPeersStore} */ (
+      /** @type {unknown} */ (await provide(knownPeersId, 'pet-store'))
+    );
     // The knownPeers pet store uses node numbers as keys, not pet names.
     // This is a deliberate aberration of the pet store abstraction.
-    const peerId = knownPeers.identifyLocal(
-      /** @type {Name} */ (/** @type {unknown} */ (nodeNumber)),
-    );
+    const peerId = knownPeers.identifyLocal(nodeNumber);
     if (peerId === undefined) {
       throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
@@ -877,7 +2118,9 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['cancelValue']} */
   const cancelValue = async (id, reason) => {
-    await formulaGraphJobs.enqueue();
+    // Wait for any in-flight graph operation (formulation, collection)
+    // to finish before cancelling.
+    await withFormulaGraphLock();
     const controller = provideController(id);
     console.log('Cancelled:');
     return controller.context.cancel(reason);
@@ -885,7 +2128,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateReadableBlob']} */
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
-    const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
+    const { formulaNumber, contentSha512 } = await withFormulaGraphLock(
       async () => {
         await null;
         const values = {
@@ -927,7 +2170,7 @@ const makeDaemonCore = async (
     guestName,
     deferredTasks,
   ) => {
-    const identifiers = await formulaGraphJobs.enqueue(async () => {
+    const identifiers = await withFormulaGraphLock(async () => {
       const invitationNumber = /** @type {FormulaNumber} */ (
         await randomHex512()
       );
@@ -941,13 +2184,12 @@ const makeDaemonCore = async (
       return { invitationNumber };
     });
 
-    const guestNameTyped = /** @type {PetName} */ (guestName);
     /** @type {InvitationFormula} */
     const formula = {
       type: 'invitation',
       hostAgent: hostAgentId,
       hostHandle: hostHandleId,
-      guestName: guestNameTyped,
+      guestName,
     };
 
     return /** @type {FormulateResult<Invitation>} */ (
@@ -965,8 +2207,8 @@ const makeDaemonCore = async (
    * reference on the already-incarnated agent.
    *
    * @param {FormulaNumber} formulaNumber - The formula number of the handle to formulate.
-   * @param {string} agentId - The formula identifier of the handle's agent.
-   * @returns {Promise<string>}
+   * @param {FormulaIdentifier} agentId - The formula identifier of the handle's agent.
+   * @returns {Promise<FormulaIdentifier>}
    */
   const formulateNumberedHandle = async (formulaNumber, agentId) => {
     /** @type {HandleFormula} */
@@ -979,7 +2221,10 @@ const makeDaemonCore = async (
       number: formulaNumber,
       node: localNodeNumber,
     });
-    formulaForId.set(id, formula);
+    await withFormulaGraphLock(async () => {
+      formulaForId.set(id, formula);
+      formulaGraph.onFormulaAdded(id, formula);
+    });
     return id;
   };
 
@@ -996,6 +2241,44 @@ const makeDaemonCore = async (
       type: 'pet-store',
     };
     return /** @type {FormulateResult<PetStore>} */ (
+      formulate(formulaNumber, formula)
+    );
+  };
+
+  /**
+   * Formulates a `mailbox-store` formula and synchronously adds it to the
+   * formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   *
+   * @param {FormulaNumber} formulaNumber - The formula number of the mailbox store.
+   * @returns {FormulateResult<PetStore>} The formulated mailbox store.
+   */
+  const formulateNumberedMailboxStore = async formulaNumber => {
+    /** @type {MailboxStoreFormula} */
+    const formula = {
+      type: 'mailbox-store',
+    };
+    return /** @type {FormulateResult<PetStore>} */ (
+      formulate(formulaNumber, formula)
+    );
+  };
+
+  /**
+   * Formulates a `mail-hub` formula and synchronously adds it to the
+   * formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   *
+   * @param {FormulaNumber} formulaNumber - The mail hub formula number.
+   * @param {FormulaIdentifier} mailboxStoreId
+   * @returns {FormulateResult<NameHub>} The formulated mail hub.
+   */
+  const formulateNumberedMailHub = async (formulaNumber, mailboxStoreId) => {
+    /** @type {MailHubFormula} */
+    const formula = {
+      type: 'mail-hub',
+      store: mailboxStoreId,
+    };
+    return /** @type {FormulateResult<NameHub>} */ (
       formulate(formulaNumber, formula)
     );
   };
@@ -1042,7 +2325,7 @@ const makeDaemonCore = async (
   const formulateWorker = async deferredTasks => {
     await null;
     return formulateNumberedWorker(
-      await formulaGraphJobs.enqueue(async () => {
+      await withFormulaGraphLock(async () => {
         const formulaNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
         );
@@ -1072,6 +2355,17 @@ const makeDaemonCore = async (
         /** @type {FormulaNumber} */ (await randomHex512()),
       )
     ).id;
+    const mailboxStoreId = (
+      await formulateNumberedMailboxStore(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+      )
+    ).id;
+    const mailHubId = (
+      await formulateNumberedMailHub(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+        mailboxStoreId,
+      )
+    ).id;
 
     const hostFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex512()
@@ -1092,6 +2386,8 @@ const makeDaemonCore = async (
       hostId,
       handleId,
       storeId,
+      mailboxStoreId,
+      mailHubId,
       /* eslint-disable no-use-before-define */
       inspectorId: (
         await formulateNumberedPetInspector(
@@ -1111,6 +2407,8 @@ const makeDaemonCore = async (
       type: 'host',
       handle: identifiers.handleId,
       petStore: identifiers.storeId,
+      mailboxStore: identifiers.mailboxStoreId,
+      mailHub: identifiers.mailHubId,
       inspector: identifiers.inspectorId,
       worker: identifiers.workerId,
       endo: identifiers.endoId,
@@ -1133,7 +2431,7 @@ const makeDaemonCore = async (
   ) => {
     await null;
     return formulateNumberedHost(
-      await formulaGraphJobs.enqueue(async () => {
+      await withFormulaGraphLock(async () => {
         const identifiers = await formulateHostDependencies({
           endoId,
           networksDirectoryId,
@@ -1164,6 +2462,17 @@ const makeDaemonCore = async (
       /** @type {FormulaNumber} */ (await randomHex512()),
       guestId,
     );
+    const mailboxStoreId = (
+      await formulateNumberedMailboxStore(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+      )
+    ).id;
+    const mailHubId = (
+      await formulateNumberedMailHub(
+        /** @type {FormulaNumber} */ (await randomHex512()),
+        mailboxStoreId,
+      )
+    ).id;
     return harden({
       guestFormulaNumber,
       guestId,
@@ -1175,6 +2484,8 @@ const makeDaemonCore = async (
           /** @type {FormulaNumber} */ (await randomHex512()),
         )
       ).id,
+      mailboxStoreId,
+      mailHubId,
       workerId: (
         await formulateNumberedWorker(
           /** @type {FormulaNumber} */ (await randomHex512()),
@@ -1192,6 +2503,8 @@ const makeDaemonCore = async (
       hostHandle: identifiers.hostHandleId,
       hostAgent: identifiers.hostAgentId,
       petStore: identifiers.storeId,
+      mailboxStore: identifiers.mailboxStoreId,
+      mailHub: identifiers.mailHubId,
       worker: identifiers.workerId,
     };
 
@@ -1204,7 +2517,7 @@ const makeDaemonCore = async (
   const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
     await null;
     return formulateNumberedGuest(
-      await formulaGraphJobs.enqueue(async () => {
+      await withFormulaGraphLock(async () => {
         const identifiers = await formulateGuestDependencies(
           hostAgentId,
           hostHandleId,
@@ -1238,26 +2551,24 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateMarshalValue']} */
-  const formulateMarshalValue = async (value, deferredTasks) => {
-    const { marshalFormulaNumber } = await formulaGraphJobs.enqueue(
-      async () => {
-        const ownFormulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
-        const ownId = formatId({
-          number: ownFormulaNumber,
-          node: localNodeNumber,
-        });
+  async function formulateMarshalValue(value, deferredTasks) {
+    const { marshalFormulaNumber } = await withFormulaGraphLock(async () => {
+      const ownFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
+      const ownId = formatId({
+        number: ownFormulaNumber,
+        node: localNodeNumber,
+      });
 
-        const identifiers = harden({
-          marshalId: ownId,
-          marshalFormulaNumber: ownFormulaNumber,
-        });
+      const identifiers = harden({
+        marshalId: ownId,
+        marshalFormulaNumber: ownFormulaNumber,
+      });
 
-        await deferredTasks.execute(identifiers);
-        return identifiers;
-      },
-    );
+      await deferredTasks.execute(identifiers);
+      return identifiers;
+    });
 
     const { body, slots } = marshaller.toCapData(value);
 
@@ -1269,6 +2580,67 @@ const makeDaemonCore = async (
     };
     return /** @type {FormulateResult<void>} */ (
       formulate(marshalFormulaNumber, formula)
+    );
+  }
+
+  /** @type {DaemonCore['formulatePromise']} */
+  const formulatePromise = async pin => {
+    const { storeFormulaNumber, promiseFormulaNumber, resolverFormulaNumber } =
+      await withFormulaGraphLock(async () => {
+        const storeNumber = /** @type {FormulaNumber} */ (await randomHex512());
+        const promiseNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        const resolverNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        return {
+          storeFormulaNumber: storeNumber,
+          promiseFormulaNumber: promiseNumber,
+          resolverFormulaNumber: resolverNumber,
+        };
+      });
+
+    const { id: storeId } = await formulateNumberedPetStore(storeFormulaNumber);
+
+    /** @type {PromiseFormula} */
+    const promiseFormula = {
+      type: 'promise',
+      store: storeId,
+    };
+
+    /** @type {ResolverFormula} */
+    const resolverFormula = {
+      type: 'resolver',
+      store: storeId,
+    };
+
+    const { id: promiseId } = await formulate(
+      promiseFormulaNumber,
+      promiseFormula,
+    );
+    if (pin) {
+      pin(promiseId);
+    }
+    const { id: resolverId } = await formulate(
+      resolverFormulaNumber,
+      resolverFormula,
+    );
+    if (pin) {
+      pin(resolverId);
+    }
+
+    return harden({ promiseId, resolverId });
+  };
+
+  /** @type {DaemonCore['formulateMessage']} */
+  const formulateMessage = async messageFormula => {
+    // Wait for any in-flight graph operation (formulation, collection)
+    // to finish before formulating.
+    await withFormulaGraphLock();
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+    return /** @type {FormulateResult<NameHub>} */ (
+      formulate(formulaNumber, messageFormula)
     );
   };
 
@@ -1282,7 +2654,7 @@ const makeDaemonCore = async (
     specifiedWorkerId,
   ) => {
     const { workerId, endowmentIds, evalFormulaNumber } =
-      await formulaGraphJobs.enqueue(async () => {
+      await withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
         );
@@ -1337,11 +2709,11 @@ const makeDaemonCore = async (
    * Formulates a `lookup` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
    * @param {FormulaNumber} formulaNumber - The lookup formula's number.
-   * @param {string} hubId - The formula identifier of the naming
+   * @param {FormulaIdentifier} hubId - The formula identifier of the naming
    * hub to call `lookup` on. A "naming hub" is an objected with a variadic
    * lookup method. It includes objects such as guests and hosts.
    * @param {NamePath} petNamePath - The pet name path to look up.
-   * @returns {Promise<{ id: string, value: EndoWorker }>}
+   * @returns {Promise<{ id: FormulaIdentifier, value: EndoWorker }>}
    */
   const formulateNumberedLookup = (formulaNumber, hubId, petNamePath) => {
     /** @type {LookupFormula} */
@@ -1424,7 +2796,7 @@ const makeDaemonCore = async (
     specifiedPowersId,
   ) => {
     const { powersId, capletFormulaNumber, workerId } =
-      await formulaGraphJobs.enqueue(() =>
+      await withFormulaGraphLock(() =>
         formulateCapletDependencies(
           hostAgentId,
           hostHandleId,
@@ -1454,7 +2826,7 @@ const makeDaemonCore = async (
     specifiedPowersId,
   ) => {
     const { powersId, capletFormulaNumber, workerId } =
-      await formulaGraphJobs.enqueue(() =>
+      await withFormulaGraphLock(() =>
         formulateCapletDependencies(
           hostAgentId,
           hostHandleId,
@@ -1529,7 +2901,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateEndo']} */
   const formulateEndo = async specifiedFormulaNumber => {
-    const identifiers = await formulaGraphJobs.enqueue(async () => {
+    const identifiers = await withFormulaGraphLock(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (
         await (specifiedFormulaNumber ?? randomHex512())
       );
@@ -1572,9 +2944,13 @@ const makeDaemonCore = async (
       leastAuthority: leastAuthorityId,
     };
 
-    return /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
-      formulate(identifiers.formulaNumber, formula)
+    const result = /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
+      await formulate(identifiers.formulaNumber, formula)
     );
+    await withFormulaGraphLock(async () => {
+      formulaGraph.addRoot(result.id);
+    });
+    return result;
   };
 
   /**
@@ -1691,7 +3067,7 @@ const makeDaemonCore = async (
       // TODO ensure that this is sufficient to cancel the previous
       // incarnation, this invitation, such that it can no longer be redeemed,
       // and such that overwriting the invitation also revokes the invitation.
-      await formulaGraphJobs.enqueue();
+      await withFormulaGraphLock();
       const controller = provideController(id);
       console.log('Cancelled:');
       await controller.context.cancel(new Error('Invitation accepted'));
@@ -1719,12 +3095,23 @@ const makeDaemonCore = async (
     formulateDirectory,
   });
 
-  const makeMailbox = makeMailboxMaker({ provide });
+  const makeMailbox = makeMailboxMaker({
+    provide,
+    formulateMarshalValue,
+    formulatePromise,
+    formulateMessage,
+    getFormulaForId,
+    randomHex512,
+    pinTransient,
+    unpinTransient,
+  });
 
   const makeGuest = makeGuestMaker({
     provide,
+    formulateMarshalValue,
     makeMailbox,
     makeDirectoryNode,
+    collectIfDirty,
   });
 
   /**
@@ -1760,6 +3147,7 @@ const makeDaemonCore = async (
     getAllNetworkAddresses,
     localNodeNumber,
     getAgentIdForHandleId,
+    collectIfDirty,
   });
 
   /**
@@ -1775,12 +3163,12 @@ const makeDaemonCore = async (
     const petStore = await provide(petStoreId, 'pet-store');
 
     /**
-     * @param {NameOrPath} petNameOrPath - The pet name to inspect.
+     * @param {string | string[]} petNameOrPath - The pet name to inspect.
      * @returns {Promise<KnownEndoInspectors[string]>} An
      * inspector for the value of the given pet name.
      */
     const lookup = async petNameOrPath => {
-      /** @type {Name} */
+      /** @type {string} */
       let petName;
       if (Array.isArray(petNameOrPath)) {
         if (petNameOrPath.length !== 1) {
@@ -1883,10 +3271,12 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCoreExternal} */
+  await seedFormulaGraphFromPersistence();
   return {
     formulateEndo,
     provide,
     nodeNumber: localNodeNumber,
+    capTpConnectionRegistrar,
   };
 };
 
@@ -1897,7 +3287,7 @@ const makeDaemonCore = async (
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  * @param {Specials} args.specials
- * @returns {Promise<FarRef<EndoBootstrap>>}
+ * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
  */
 const provideEndoBootstrap = async (
   powers,
@@ -1912,19 +3302,23 @@ const provideEndoBootstrap = async (
     gracePeriodElapsed,
     specials,
   });
+  const { capTpConnectionRegistrar } = daemonCore;
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
     const endoId = formatId({
       number: endoFormulaNumber,
       node: daemonCore.nodeNumber,
     });
-    return /** @type {Promise<FarRef<EndoBootstrap>>} */ (
-      daemonCore.provide(endoId)
-    );
+    return {
+      endoBootstrap: /** @type {Promise<FarRef<EndoBootstrap>>} */ (
+        daemonCore.provide(endoId)
+      ),
+      capTpConnectionRegistrar,
+    };
   } else {
     const { value: endoBootstrap } =
       await daemonCore.formulateEndo(endoFormulaNumber);
-    return endoBootstrap;
+    return { endoBootstrap, capTpConnectionRegistrar };
   }
 };
 
@@ -1957,17 +3351,18 @@ export const makeDaemon = async (
     throw error;
   });
 
-  const endoBootstrap = await provideEndoBootstrap(powers, {
-    cancel,
-    gracePeriodMs,
-    gracePeriodElapsed,
-    specials,
-  });
+  const { endoBootstrap, capTpConnectionRegistrar } =
+    await provideEndoBootstrap(powers, {
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+      specials,
+    });
 
   await Promise.allSettled([
     E(endoBootstrap).reviveNetworks(),
     E(endoBootstrap).revivePins(),
   ]);
 
-  return { endoBootstrap, cancelGracePeriod };
+  return { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar };
 };

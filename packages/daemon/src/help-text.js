@@ -188,6 +188,11 @@ Send a package message with values to another agent.
 Example: send("HOST", ["Here is ", " for you"], ["gift"], ["my-counter"])
   Sends: "Here is @gift for you" where @gift refers to "my-counter"`,
 
+  storeValue: `\
+storeValue(value, petNameOrPath) -> Promise<void>
+Store a passable value in the agent's directory.
+Values must be passable (numbers, strings, arrays, records, etc.).`,
+
   deliver: `\
 deliver(message) -> void
 Internal method to deliver a message to this mailbox.
@@ -236,6 +241,41 @@ The host will see the source code and endowment mappings and can approve or reje
 On approval, the code runs in a sandboxed Compartment with only the guest's own endowments.
 
 Example: requestEvaluation("x + 1", ["x"], ["my-counter"], "result")`,
+
+  define: `\
+define(source, slots) -> Promise<any>
+Propose code with named capability slots for the host to endow.
+Unlike requestEvaluation, the guest does NOT specify which capabilities to bind.
+The host sees the code and slot descriptions, then decides which capabilities
+to provide for each slot using the endow() command.
+
+- source: JavaScript code to evaluate
+- slots: Record of slot descriptions, e.g. { counter: { label: "A counter to increment" } }
+
+The host reviews the code and slots, then calls endow() to bind capabilities
+and trigger evaluation. This separates code proposal from capability binding.
+
+Example: define("E(counter).incr()", { counter: { label: "A counter capability" } })`,
+
+  form: `\
+form(recipientName, description, fields, responseName?) -> Promise<Record>
+Send a structured form request to another agent.
+The recipient fills out the form fields and the result is returned as a record.
+
+- recipientName: Pet name of the recipient (e.g., "HOST")
+- description: Human-readable description of the form
+- fields: Record of field definitions, e.g. { name: { label: "Your name" } }
+- responseName: Optional pet name to store the response
+
+Example: form("HOST", "Configure settings", { name: { label: "Your name" } })`,
+
+  storeValue: `\
+storeValue(value, petNameOrPath) -> Promise<void>
+Store a passable value (number, string, array, record, etc.) in your directory.
+- storeValue(42, "answer") stores the number 42 as "answer"
+- storeValue({x: 1, y: 2}, "point") stores a record as "point"
+- storeValue(["a", "b"], ["subdir", "items"]) stores in a subdirectory
+Values must be passable (no functions or non-transferable objects).`,
 
   // Directory operations inherit from directoryHelp
   // Mail operations inherit from mailHelp
@@ -362,6 +402,33 @@ On approval, the code is evaluated in a sandboxed Compartment with only the
 guest's own endowments (not the host's), ensuring namespace isolation.
 
 Use reject(messageNumber, reason) to decline an eval request.`,
+
+  endow: `\
+endow(messageNumber, bindings, workerName?, resultName?) -> Promise<void>
+Bind capabilities to a guest's code definition and evaluate it.
+This is the host-side counterpart to the guest's define() method.
+
+- messageNumber: The definition message number
+- bindings: Record mapping slot names to pet names, e.g. { counter: "my-counter" }
+- workerName: Optional worker to use for evaluation
+- resultName: Optional pet name to store the result
+
+The host decides which capabilities to provide for each slot.
+The code proposed by the guest runs with these host-chosen bindings.
+
+Example: endow(0, { counter: "my-counter" })`,
+
+  respondForm: `\
+respondForm(messageNumber, values) -> Promise<void>
+Respond to a structured form request with values.
+
+- messageNumber: The form-request message number
+- values: Record mapping field names to values, e.g. { name: "Alice" }
+
+Each value must match the pattern specified by the form field (if any).
+The guest that sent the form request receives the values record.
+
+Example: respondForm(0, { name: "Alice", age: 30 })`,
 };
 
 /** @type {HelpText} */
@@ -481,3 +548,10 @@ export const makeHelp = (helpText, fallbacks = []) => {
   };
   return help;
 };
+harden(directoryHelp);
+harden(mailHelp);
+harden(guestHelp);
+harden(hostHelp);
+harden(blobHelp);
+harden(endoHelp);
+harden(makeHelp);

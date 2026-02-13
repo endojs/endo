@@ -1,5 +1,5 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
 
 // Establish a perimeter:
 import '@endo/init/debug.js';
@@ -8,6 +8,7 @@ import test from 'ava';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -23,7 +24,7 @@ import {
   makeRefIterator,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
-import { formatId } from '../src/formula-identifier.js';
+import { formatId, parseId } from '../src/formula-identifier.js';
 import { idFromLocator, parseLocator } from '../src/locator.js';
 
 /**
@@ -54,6 +55,88 @@ const takeCount = async (asyncIterator, count) => {
   return values;
 };
 
+/**
+ * @param {string} targetPath
+ */
+const pathExists = async targetPath => {
+  try {
+    await fs.promises.stat(targetPath);
+    return true;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'ENOENT') {
+        return false;
+      }
+    }
+    throw error;
+  }
+};
+
+/**
+ * @param {string} statePath
+ * @param {string} id
+ */
+const formulaPathForId = (statePath, id) => {
+  const { number } = parseId(id);
+  const head = number.slice(0, 2);
+  const tail = number.slice(2);
+  return path.join(statePath, 'formulas', head, `${tail}.json`);
+};
+
+/**
+ * @param {string} filePath
+ * @param {RegExp | string} matcher
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
+ */
+const waitForText = async (filePath, matcher, opts = {}) => {
+  const { timeoutMs = 2000, intervalMs = 50 } = opts;
+  const startTime = Date.now();
+  const matches = text =>
+    matcher instanceof RegExp ? matcher.test(text) : text.includes(matcher);
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const text = await fs.promises.readFile(filePath, 'utf-8').catch(() => '');
+    if (matches(text)) {
+      return text;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error(
+        `Timed out waiting for ${String(matcher)} in ${filePath}`,
+      );
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * @param {() => Promise<boolean>} predicate
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
+ */
+const waitForCondition = async (predicate, opts = {}) => {
+  const { timeoutMs = 2000, intervalMs = 50 } = opts;
+  const startTime = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await predicate()) {
+      return;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error('Timed out waiting for condition');
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * @param {import('ava').ExecutionContext<any>} t
+ * @param {Promise<unknown>} promise
+ * @param {string} [message]
+ */
 /**
  * Calls `host.followNameChanges()`, takes all already-existing names from the iterator,
  * and returns the iterator.
@@ -184,6 +267,13 @@ const doMakeBundle = async (host, filePath, callback) => {
 };
 
 let configPathId = 0;
+const MAX_UNIX_SOCKET_PATH = 90;
+const SOCKET_PATH_OVERHEAD =
+  path.join(dirname, 'tmp').length + 1 + 'endo.sock'.length + 8;
+const MAX_CONFIG_DIR_LENGTH = Math.max(
+  8,
+  MAX_UNIX_SOCKET_PATH - SOCKET_PATH_OVERHEAD,
+);
 
 /**
  * @param {string} testTitle - The title of the current test.
@@ -193,12 +283,14 @@ let configPathId = 0;
 const getConfigDirectoryName = (testTitle, configNumber) => {
   const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
 
-  // We truncate the subdirectory name to 30 characters in an attempt to respect
-  // the maximum Unix domain socket path length.
+  // We truncate the subdirectory name in an attempt to respect the maximum
+  // Unix domain socket path length.
   // With our apologies to John Jacob Jingleheimerschmidt, for whom this may
   // not be enough.
   const basePath =
-    defaultPath.length <= 22 ? defaultPath : defaultPath.slice(0, 22);
+    defaultPath.length <= MAX_CONFIG_DIR_LENGTH
+      ? defaultPath
+      : defaultPath.slice(0, MAX_CONFIG_DIR_LENGTH);
   const testId = String(configPathId).padStart(4, '0');
   const configId = String(configNumber).padStart(2, '0');
   const configSubDirectory = `${basePath}#${testId}-${configId}`;
@@ -855,20 +947,21 @@ test('persist confined services and their requests', async t => {
 test('guest facet receives a message for host', async t => {
   const { host } = await prepareHost(t);
 
-  const guest = E(host).provideGuest('guest');
+  const guest = E(host).provideGuest('guest', { agentName: 'guest-agent' });
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'a number', 'number');
+  const numberP = E(guest).request('HOST', 'a number', 'number');
   const { value: message0 } = await E(iteratorRef).next();
-  t.is(message0.number, 0);
+  t.is(message0.number, 0n);
   await E(host).resolve(message0.number, 'ten1');
+  await numberP;
 
   await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
 
   const { value: message1 } = await E(iteratorRef).next();
-  t.is(message1.number, 1);
+  t.is(message1.number, 1n);
   await E(host).adopt(message1.number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
@@ -899,6 +992,128 @@ test('guest facet receives a message for host', async t => {
       { type: 'package', from: guestId, to: hostId },
     ],
   );
+});
+
+test('reply links to parent message', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = E(host).followMessages();
+  const guestMessages = E(guest).followMessages();
+
+  await E(guest).send('HOST', ['hello'], [], []);
+
+  const [{ value: hostMessage }, { value: sentMessage }] = await Promise.all([
+    E(hostMessages).next(),
+    E(guestMessages).next(),
+  ]);
+
+  t.is(hostMessage.type, 'package');
+  t.is(sentMessage.type, 'package');
+  t.is(hostMessage.messageId, sentMessage.messageId);
+
+  await E(host).reply(hostMessage.number, ['hi'], [], []);
+
+  const { value: replyMessage } = await E(guestMessages).next();
+  t.is(replyMessage.type, 'package');
+  t.is(replyMessage.replyTo, hostMessage.messageId);
+});
+
+test('message hub avoids kebab-case reply metadata names', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = E(host).followMessages();
+
+  await E(guest).send('HOST', ['hello'], [], []);
+  const { value: hostMessage } = await E(hostMessages).next();
+  await E(host).reply(hostMessage.number, ['hi'], [], []);
+  const { value: replyMessage } = await E(hostMessages).next();
+
+  const messageHub = await E(host).lookup(['MAIL', String(hostMessage.number)]);
+  const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
+  const messageNames = await E(messageHub).list();
+  const replyNames = await E(replyHub).list();
+
+  t.true(replyNames.includes('FROM'));
+  t.true(replyNames.includes('TO'));
+  t.true(replyNames.includes('DATE'));
+  t.true(replyNames.includes('TYPE'));
+  t.true(replyNames.includes('MESSAGE'));
+  t.true(replyNames.includes('REPLY'));
+  t.true(replyNames.includes('STRINGS'));
+});
+
+test('mailboxes persist messages across restart', async t => {
+  const { cancelled, config, host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const iteratorRef = E(host).followMessages();
+
+  E.sendOnly(guest).request('HOST', 'first request', 'response0');
+  E.sendOnly(guest).request('HOST', 'second request', 'response1');
+
+  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message1 } = await E(iteratorRef).next();
+  t.is(message0.number, 0n);
+  t.is(message1.number, 1n);
+
+  await E(host).dismiss(message0.number);
+
+  const inboxBefore = await E(host).listMessages();
+  t.deepEqual(
+    inboxBefore.map(({ number, description }) => ({ number, description })),
+    [{ number: 1n, description: 'second request' }],
+  );
+
+  await restart(config);
+
+  const { host: hostAfter } = await makeHost(config, cancelled);
+  const inboxAfter = await E(hostAfter).listMessages();
+  t.deepEqual(
+    inboxAfter.map(({ number, description }) => ({ number, description })),
+    [{ number: 1n, description: 'second request' }],
+  );
+
+  const guestAfter = await E(hostAfter).provideGuest('guest-after-restart');
+  await E(guestAfter).send('HOST', ['hello'], [], []);
+
+  const inboxAfterDelivery = await E(hostAfter).listMessages();
+  t.deepEqual(
+    inboxAfterDelivery.map(({ number, type }) => ({ number, type })),
+    [
+      { number: 1n, type: 'request' },
+      { number: 2n, type: 'package' },
+    ],
+  );
+});
+
+test('rehydrated requests can be resolved after restart', async t => {
+  const { cancelled, config, host } = await prepareHost(t);
+
+  await E(host).storeValue(10, 'ten');
+
+  const guest = E(host).provideGuest('guest');
+  const guestMessages = E(guest).followMessages();
+
+  E.sendOnly(guest).request('HOST', 'need a number');
+
+  const { value: guestMessage } = await E(guestMessages).next();
+  const { promiseId: promiseIdP } = E.get(guestMessage);
+  const promiseId = await promiseIdP;
+  await E(host).write(['pending'], promiseId);
+
+  await restart(config);
+
+  const { host: hostAfter } = await makeHost(config, cancelled);
+  const inboxAfter = await E(hostAfter).listMessages();
+  const requestMessage = inboxAfter.find(message => message.type === 'request');
+  t.truthy(requestMessage);
+  await E(hostAfter).resolve(requestMessage.number, 'ten');
+
+  const resolvedId = await E(hostAfter).lookup(['pending']);
+  const tenId = await E(hostAfter).identify('ten');
+  t.is(resolvedId, tenId);
 });
 
 test('followNamehanges first publishes existing names', async t => {
@@ -1189,6 +1404,409 @@ test('pins restored on restart', async t => {
   }
 });
 
+test('collects formulas after pet name removal', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).storeValue({ ok: true }, 'temp-value');
+  const locator = await E(host).locate('temp-value');
+  const id = idFromLocator(locator);
+  const { number: formulaNumber } = parseId(id);
+  const head = formulaNumber.slice(0, 2);
+  const tail = formulaNumber.slice(2);
+  const formulaPath = path.join(
+    config.statePath,
+    'formulas',
+    head,
+    `${tail}.json`,
+  );
+
+  t.true(await pathExists(formulaPath));
+  await E(host).remove('temp-value');
+  t.false(await pathExists(formulaPath));
+});
+
+test('terminates worker retaining collected values', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).provideWorker('worker');
+  const workerId = await E(host).identify('worker');
+  const { number: workerNumber } = parseId(workerId);
+  const workerStoppedPattern = new RegExp(
+    `Endo worker (?:connection closed|exited).*unique identifier ${workerNumber}`,
+  );
+  const endoLogPath = path.join(config.statePath, 'endo.log');
+  await E(host).evaluate(
+    'worker',
+    `
+      E(host).provideHost('retained-host').then(retained => {
+        globalThis.retained = retained;
+        return 'ok';
+      })
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+
+  await E(host).remove('retained-host');
+
+  await t.throwsAsync(E(host).evaluate('worker', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+  await waitForText(endoLogPath, workerStoppedPattern);
+  await waitForText(
+    endoLogPath,
+    /became unreachable by any pet name path and was collected/u,
+  );
+});
+
+test('terminates worker retaining derived value after dependency collection', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  const counterLocationLiteral = JSON.stringify(counterLocation);
+
+  await E(host).provideWorker('worker-a');
+  await E(host).provideWorker('worker-b');
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'powers', 'caplet')
+        .then(caplet => {
+          globalThis.caplet = caplet;
+          return 'ok';
+        })
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  const powersId = await E(host).identify('powers');
+  const capletId = await E(host).identify('caplet');
+  const workerBId = await E(host).identify('worker-b');
+  const { number: workerBNumber } = parseId(workerBId);
+  const workerBStoppedPattern = new RegExp(
+    `Endo worker (?:connection closed|exited).*unique identifier ${workerBNumber}`,
+  );
+  const endoLogPath = path.join(config.statePath, 'endo.log');
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      globalThis.caplet = caplet;
+      'ok';
+    `,
+    ['caplet'],
+    ['caplet'],
+  );
+
+  await E(host).remove('powers');
+  t.true(await pathExists(formulaPathForId(config.statePath, powersId)));
+
+  await E(host).remove('caplet');
+  await waitForCondition(async () => {
+    const capletExists = await pathExists(
+      formulaPathForId(config.statePath, capletId),
+    );
+    const powersExists = await pathExists(
+      formulaPathForId(config.statePath, powersId),
+    );
+    return !capletExists && !powersExists;
+  });
+
+  await t.throwsAsync(E(host).evaluate('worker-b', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+  await waitForText(endoLogPath, workerBStoppedPattern);
+});
+
+test('recreates counter after collection resets state', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).provideWorker('worker-a');
+  await E(host).provideWorker('worker-b');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  const counterLocationLiteral = JSON.stringify(counterLocation);
+  const retainerPath = path.join(dirname, 'test', '_retainer.js');
+  const retainerLocation = url.pathToFileURL(retainerPath).href;
+  const retainerLocationLiteral = JSON.stringify(retainerLocation);
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'NONE', 'counter')
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker-b',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker-b',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      E(host)
+        .makeUnconfined('worker-b', ${retainerLocationLiteral}, 'NONE', 'retainer')
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      E(retainer).retain(counter);
+      'ok';
+    `,
+    ['retainer', 'counter'],
+    ['retainer', 'counter'],
+  );
+
+  await E(host).remove('counter');
+  await t.throwsAsync(E(host).evaluate('worker-b', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'NONE', 'counter')
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker-c',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+});
+
+test('PINS values survive collection', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a counter via eval in MAIN
+  await E(host).evaluate(
+    'MAIN',
+    `
+      (() => {
+        let value = 0;
+        return makeExo(
+          'Counter',
+          M.interface('Counter', {}, { defaultGuards: 'passable' }),
+          {
+            incr: () => value += 1,
+            get: () => value,
+          }
+        );
+      })();
+    `,
+    [],
+    [],
+    ['counter'],
+  );
+
+  // Increment counter (value = 1)
+  const counter = await E(host).lookup(['counter']);
+  t.is(await E(counter).incr(), 1);
+
+  // Get the formula ID before move
+  const counterId = await E(host).identify('counter');
+
+  // Move counter to PINS — counter now only lives in PINS
+  await E(host).move(['counter'], ['PINS', 'my-counter']);
+
+  // Verify formula file still exists after the move (collection ran in move's finally block)
+  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+
+  // Look up counter through PINS
+  const pinnedCounter = await E(host).lookup(['PINS', 'my-counter']);
+
+  // Verify counter state preserved
+  t.is(await E(pinnedCounter).get(), 1);
+
+  // Increment again, verify value = 2 (formula is live, not a stale reincarnation)
+  t.is(await E(pinnedCounter).incr(), 2);
+});
+
+test('PINS values reincarnate after cancellation', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a counter caplet
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).makeUnconfined('MAIN', counterLocation, 'NONE', 'counter');
+
+  // Increment counter to build up state
+  t.is(
+    1,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  // Get counter ID and pin to PINS while keeping the host pet name for cancel
+  const counterId = await E(host).identify('counter');
+  await E(host).write(['counter-pin'], counterId);
+  await E(host).move(['counter-pin'], ['PINS', 'my-counter']);
+
+  // Cancel the counter — forces deincarnation even though retained by PINS
+  await E(host).cancel('counter');
+
+  // Remove the host pet name — now only PINS references the formula
+  await E(host).remove('counter');
+
+  // Formula file should still exist (PINS protected it from collection)
+  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+
+  // Look up through PINS — reincarnated with reset state
+  const reincarnated = await E(host).lookup(['PINS', 'my-counter']);
+  t.is(await E(reincarnated).incr(), 1);
+  t.is(await E(reincarnated).incr(), 2);
+});
+
+test('facet group (agent + handle) collects atomically', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a guest with both handle and agent names
+  await E(host).provideGuest('guest-handle', { agentName: 'guest-agent' });
+
+  // Get IDs for guest and handle
+  const guestId = await E(host).identify('guest-agent');
+  const handleId = await E(host).identify('guest-handle');
+
+  // Read the guest formula JSON from disk to extract dependency IDs
+  const guestFormulaPath = formulaPathForId(config.statePath, guestId);
+  const guestFormula = JSON.parse(
+    await fs.promises.readFile(guestFormulaPath, 'utf-8'),
+  );
+
+  const dependencyIds = [
+    guestFormula.petStore,
+    guestFormula.mailboxStore,
+    guestFormula.mailHub,
+    guestFormula.worker,
+  ];
+
+  // Verify all formula files exist on disk
+  const allIds = [guestId, handleId, ...dependencyIds];
+  for (const id of allIds) {
+    t.true(
+      await pathExists(formulaPathForId(config.statePath, id)),
+      `Formula file for ${id} should exist before removal`,
+    );
+  }
+
+  // Remove both pet name references
+  await E(host).remove('guest-handle');
+  await E(host).remove('guest-agent');
+
+  // Wait for all formula files to be deleted
+  await waitForCondition(async () => {
+    const results = await Promise.all(
+      allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+    );
+    return results.every(exists => !exists);
+  });
+
+  // Assert all formula files no longer exist
+  for (const id of allIds) {
+    t.false(
+      await pathExists(formulaPathForId(config.statePath, id)),
+      `Formula file for ${id} should be collected`,
+    );
+  }
+});
+
+test('unnamed eval results are collected', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a named eval to establish a baseline (ensures MAIN worker exists)
+  await E(host).evaluate('MAIN', '10', [], [], ['named']);
+  const namedId = await E(host).identify('named');
+  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+
+  // Count all formula files on disk
+  const formulasDir = path.join(config.statePath, 'formulas');
+  const countFormulas = async () => {
+    const entries = await fs.promises.readdir(formulasDir, {
+      recursive: true,
+    });
+    return entries.filter(f => f.endsWith('.json')).length;
+  };
+  const countBefore = await countFormulas();
+
+  // Run an unnamed eval — returns 42 but has no pet name
+  const result = await E(host).evaluate('MAIN', '42', [], []);
+  t.is(result, 42);
+
+  // Count formula files again
+  const countAfter = await countFormulas();
+
+  // Assert the count is the same (unnamed eval formula was created then collected)
+  t.is(countAfter, countBefore);
+
+  // Verify the named eval formula still exists (it was not collected)
+  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+});
+
 test('direct cancellation', async t => {
   const { host } = await prepareHost(t);
 
@@ -1324,8 +1942,9 @@ test('indirect cancellation via worker', async t => {
 });
 
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
-test.failing('indirect cancellation via caplet', async t => {
+test('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
+  const messages = E(host).followMessages();
 
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1337,7 +1956,12 @@ test.failing('indirect cancellation via caplet', async t => {
   const doublerPath = path.join(dirname, 'test', 'doubler.js');
   const doublerLocation = url.pathToFileURL(doublerPath).href;
   await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
-  E(host).resolve(0, 'counter');
+  {
+    const { value: message } = await E(messages).next();
+    t.is(message.type, 'request');
+    t.is(message.description, 'a counter, suitable for doubling');
+    await E(host).resolve(message.number, 'counter');
+  }
 
   t.is(
     1,
@@ -1377,8 +2001,9 @@ test('cancel because of requested capability', async t => {
   E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
-  await E(messages).next();
-  E(host).resolve(0, 'zero');
+  const { value: message } = await E(messages).next();
+  t.is(message.type, 'request');
+  await E(host).resolve(message.number, 'zero');
 
   t.is(
     1,
@@ -1834,7 +2459,7 @@ test('invite, accept, and send mail', async t => {
     strings: [hi],
     names: [salutationsName],
     ids: [salutationsId],
-  } = messages.find(({ number }) => number === 1);
+  } = messages.find(({ number }) => number === 1n);
   t.is(hi, 'Hello');
   t.is(salutationsName, 'salutations');
   t.is(salutationsId, expectedSalutationsId);

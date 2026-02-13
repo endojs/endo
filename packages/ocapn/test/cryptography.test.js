@@ -7,8 +7,8 @@ import {
   makeSessionId,
   signHandoffGive,
   signHandoffReceive,
-  verifyHandoffGiveSignature,
-  verifyHandoffReceiveSignature,
+  assertHandoffGiveSignatureValid,
+  assertHandoffReceiveSignatureValid,
 } from '../src/cryptography.js';
 import {
   makeHandoffGiveDescriptor,
@@ -64,12 +64,13 @@ test('makeWithdrawGiftDescriptor', t => {
     handoffGiveSignature,
   );
 
-  const signedGiveIsValid = verifyHandoffGiveSignature(
-    signedHandoffGive.object,
-    signedHandoffGive.signature,
-    gifterKey.publicKey,
+  t.notThrows(() =>
+    assertHandoffGiveSignatureValid(
+      signedHandoffGive.object,
+      signedHandoffGive.signature,
+      gifterKey.publicKey,
+    ),
   );
-  t.is(signedGiveIsValid, true);
 
   // The SignedReceive is created in the exporter-receiver session,
   // but signed by the receiver's key from the gifter-receiver session.
@@ -98,12 +99,13 @@ test('makeWithdrawGiftDescriptor', t => {
       handoffReceiveSignature,
     );
 
-    const signedReceiveIsValid = verifyHandoffReceiveSignature(
-      signedHandoffReceive.object,
-      signedHandoffReceive.signature,
-      receiverKeyForGifter.publicKey,
+    t.notThrows(() =>
+      assertHandoffReceiveSignatureValid(
+        signedHandoffReceive.object,
+        signedHandoffReceive.signature,
+        receiverKeyForGifter.publicKey,
+      ),
     );
-    t.is(signedReceiveIsValid, true);
   }
 });
 

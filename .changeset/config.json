@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
+  "access": "public",
+  "baseBranch": "master",
+  "bumpVersionsWithWorkspaceProtocolOnly": true,
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "endojs/endo"
+    }
+  ],
+  "commit": false,
+  "fixed": [],
+  "ignore": [],
+  "linked": [],
+  "privatePackages": {
+    "tag": true,
+    "version": true
+  },
+  "updateInternalDependencies": "patch"
+}

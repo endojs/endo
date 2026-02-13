@@ -2,7 +2,7 @@
 
 /**
  * @import { OcapnLocation } from '../codecs/components.js'
- * @import { Session, SwissNum } from './types.js'
+ * @import { InternalSession, SwissNum } from './types.js'
  */
 
 import { E } from '@endo/eventual-send';
@@ -46,7 +46,7 @@ export const getSturdyRefDetails = sturdyRef => {
 /**
  * Enliven a SturdyRef by fetching the actual object
  * @param {SturdyRef} sturdyRef
- * @param {(location: OcapnLocation) => Promise<Session>} provideSession
+ * @param {(location: OcapnLocation) => Promise<InternalSession>} provideSession
  * @param {(location: OcapnLocation) => boolean} isSelfLocation
  * @param {Map<string, any>} swissnumTable
  * @returns {Promise<any>}

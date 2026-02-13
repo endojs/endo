@@ -38,7 +38,7 @@ const sessionIdHashPrefixBytes = textEncoder.encode('prot0');
  * @property {PublicKeyId} id
  * @property {ArrayBufferLike} bytes
  * @property {OcapnPublicKeyDescriptor} descriptor
- * @property {(msg: ArrayBufferLike, sig: OcapnSignature) => boolean} verify
+ * @property {(msg: ArrayBufferLike, sig: OcapnSignature) => void} assertSignatureValid - Throws if signature is invalid
  */
 
 /**
@@ -95,15 +95,19 @@ export const makeOcapnPublicKey = publicKeyBytes => {
     bytes: publicKeyBytes,
     descriptor: publicKeyDescriptor,
     /**
+     * Asserts that the signature is valid for the given message.
      * @param {ArrayBufferLike} msgBytes
      * @param {OcapnSignature} ocapnSig
-     * @returns {boolean}
+     * @throws {Error} If the signature is invalid
      */
-    verify: (msgBytes, ocapnSig) => {
+    assertSignatureValid: (msgBytes, ocapnSig) => {
       const sigBytes = ocapNSignatureToBytes(ocapnSig);
       const msgUint8 = immutableArrayBufferToUint8Array(msgBytes);
       const pkUint8 = immutableArrayBufferToUint8Array(publicKeyBytes);
-      return ed25519.verify(sigBytes, msgUint8, pkUint8);
+      const isValid = ed25519.verify(sigBytes, msgUint8, pkUint8);
+      if (!isValid) {
+        throw new Error('Invalid signature');
+      }
     },
   });
 };
@@ -213,14 +217,19 @@ export const signLocation = (location, keyPair) => {
 };
 
 /**
+ * Asserts that the location signature is valid.
  * @param {OcapnLocation} location
  * @param {OcapnSignature} signature
  * @param {OcapnPublicKey} publicKey
- * @returns {boolean}
+ * @throws {Error} If the signature is invalid
  */
-export const verifyLocationSignature = (location, signature, publicKey) => {
+export const assertLocationSignatureValid = (
+  location,
+  signature,
+  publicKey,
+) => {
   const locationBytes = getLocationBytesForSignature(location);
-  return publicKey.verify(locationBytes, signature);
+  publicKey.assertSignatureValid(locationBytes, signature);
 };
 
 /**
@@ -262,18 +271,19 @@ export const makeSignedHandoffGive = (
 };
 
 /**
+ * Asserts that the handoff give signature is valid.
  * @param {HandoffGive} handoffGive
  * @param {OcapnSignature} signature
  * @param {OcapnPublicKey} publicKey
- * @returns {boolean}
+ * @throws {Error} If the signature is invalid
  */
-export const verifyHandoffGiveSignature = (
+export const assertHandoffGiveSignatureValid = (
   handoffGive,
   signature,
   publicKey,
 ) => {
   const handoffGiveBytes = serializeHandoffGive(handoffGive);
-  return publicKey.verify(handoffGiveBytes, signature);
+  publicKey.assertSignatureValid(handoffGiveBytes, signature);
 };
 
 /**
@@ -287,18 +297,19 @@ export const signHandoffReceive = (handoffReceive, keyPair) => {
 };
 
 /**
+ * Asserts that the handoff receive signature is valid.
  * @param {HandoffReceive} handoffReceive
  * @param {OcapnSignature} signature
  * @param {OcapnPublicKey} publicKey
- * @returns {boolean}
+ * @throws {Error} If the signature is invalid
  */
-export const verifyHandoffReceiveSignature = (
+export const assertHandoffReceiveSignatureValid = (
   handoffReceive,
   signature,
   publicKey,
 ) => {
   const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
-  return publicKey.verify(handoffReceiveBytes, signature);
+  publicKey.assertSignatureValid(handoffReceiveBytes, signature);
 };
 
 /**
