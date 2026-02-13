@@ -210,6 +210,7 @@ const makeDaemonCore = async (
    * @returns {Promise<T>}
    */
   const withFormulaGraphLock = async (asyncFn = async () => undefined) => {
+    await null;
     if (formulaGraphLockDepth > 0) {
       // Already holding the lock; avoid deadlock.
       return asyncFn();
@@ -695,6 +696,7 @@ const makeDaemonCore = async (
       const cancelReason = new Error('Collected formula');
       await Promise.allSettled(
         collectedIds.map(async id => {
+          await null;
           const controller = controllerForId.get(id);
           if (controller) {
             await controller.context.cancel(cancelReason, '!');
@@ -725,12 +727,14 @@ const makeDaemonCore = async (
 
       await Promise.allSettled(
         collectedIds.map(async id => {
+          await null;
           await persistencePowers.deleteFormula(parseId(id).number);
         }),
       );
 
       await Promise.allSettled(
         Array.from(collectedFormulas.entries()).map(async ([id, formula]) => {
+          await null;
           if (
             formula.type === 'pet-store' ||
             formula.type === 'mailbox-store' ||
@@ -765,6 +769,7 @@ const makeDaemonCore = async (
      * @param {FormulaIdentifier} id
      */
     const removeEdgeIfUnreferenced = async id => {
+      await null;
       const names = petStore.reverseIdentify(id);
       if (names.length === 0) {
         await withFormulaGraphLock(async () => {
@@ -1905,30 +1910,35 @@ const makeDaemonCore = async (
         )
       );
     },
-    'pet-store': async (_formula, _context, id, formulaNumber) =>
-      wrapPetStore(
+    'pet-store': async (_formula, _context, id, formulaNumber) => {
+      await null;
+      return wrapPetStore(
         id,
         await petStorePowers.makeIdentifiedPetStore(
           formulaNumber,
           'pet-store',
           assertPetName,
         ),
-      ),
-    'mailbox-store': async (_formula, _context, id, formulaNumber) =>
-      wrapPetStore(
+      );
+    },
+    'mailbox-store': async (_formula, _context, id, formulaNumber) => {
+      await null;
+      return wrapPetStore(
         id,
         await petStorePowers.makeIdentifiedPetStore(
           formulaNumber,
           'mailbox-store',
           assertMailboxStoreName,
         ),
-      ),
+      );
+    },
     'mail-hub': ({ store: storeId }, context) => makeMailHub(storeId, context),
     message: (formula, context) => makeMessageHub(formula, context),
     promise: ({ store: storeId }, context) => makePromise(storeId, context),
     resolver: ({ store: storeId }, context) => makeResolver(storeId, context),
-    'known-peers-store': async (_formula, _context, id, formulaNumber) =>
-      wrapPetStore(
+    'known-peers-store': async (_formula, _context, id, formulaNumber) => {
+      await null;
+      return wrapPetStore(
         id,
         await petStorePowers.makeIdentifiedPetStore(
           formulaNumber,
@@ -1937,7 +1947,8 @@ const makeDaemonCore = async (
           // (i.e. formula numbers) as "names".
           assertValidNumber,
         ),
-      ),
+      );
+    },
     'pet-inspector': ({ petStore: petStoreId }) =>
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
