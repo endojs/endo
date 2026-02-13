@@ -373,6 +373,7 @@ export type Package = MessageBase & {
 
 export type EvalRequest = MessageBase & {
   type: 'eval-request';
+  replyTo?: FormulaNumber;
   source: string;
   codeNames: Array<string>;
   petNamePaths: Array<NamePath>;
@@ -383,6 +384,7 @@ export type EvalRequest = MessageBase & {
 
 export type DefineRequest = MessageBase & {
   type: 'definition';
+  replyTo?: FormulaNumber;
   source: string;
   slots: Record<string, { label: string; pattern?: unknown }>;
   promiseId: FormulaIdentifier;
@@ -392,6 +394,7 @@ export type DefineRequest = MessageBase & {
 
 export type FormRequest = MessageBase & {
   type: 'form-request';
+  replyTo?: FormulaNumber;
   description: string;
   fields: Record<string, { label: string; pattern?: unknown }>;
   promiseId: FormulaIdentifier;
@@ -642,7 +645,7 @@ export interface Mail {
     petNamePaths: Array<string | string[]>,
     responseName?: string | string[],
   ): Promise<unknown>;
-  getEvalRequest(messageNumber: number): {
+  getEvalRequest(messageNumber: bigint): {
     source: string;
     codeNames: Array<string>;
     petNamePaths: Array<NamePath>;
@@ -659,13 +662,13 @@ export interface Mail {
     fields: Record<string, { label: string; pattern?: unknown }>,
     responseName?: string | string[],
   ): Promise<unknown>;
-  getDefineRequest(messageNumber: number): {
+  getDefineRequest(messageNumber: bigint): {
     source: string;
     slots: Record<string, { label: string; pattern?: unknown }>;
     resolverId: FormulaIdentifier;
     guestHandleId: string;
   };
-  getFormRequest(messageNumber: number): {
+  getFormRequest(messageNumber: bigint): {
     description: string;
     fields: Record<string, { label: string; pattern?: unknown }>;
     resolverId: FormulaIdentifier;
@@ -819,17 +822,17 @@ export interface EndoHost extends EndoAgent {
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(
-    messageNumber: number,
+    messageNumber: bigint,
     workerName?: string,
   ): Promise<void>;
   endow(
-    messageNumber: number,
+    messageNumber: bigint,
     bindings: Record<string, string | string[]>,
     workerName?: string,
     resultName?: string | string[],
   ): Promise<void>;
   respondForm(
-    messageNumber: number,
+    messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;
 }

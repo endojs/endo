@@ -416,6 +416,17 @@ export const makeMailboxMaker = ({
         if (typeof envelope.source !== 'string') {
           throw new Error('Invalid eval-request source');
         }
+        if (!Array.isArray(envelope.codeNames)) {
+          throw new Error('Invalid eval-request codeNames');
+        }
+        if (!Array.isArray(envelope.petNamePaths)) {
+          throw new Error('Invalid eval-request petNamePaths');
+        }
+        if (envelope.codeNames.length !== envelope.petNamePaths.length) {
+          throw new Error(
+            `Eval request must have one pet name path for each code name`,
+          );
+        }
         return;
       }
       if (envelope.type === 'definition') {

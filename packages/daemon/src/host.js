@@ -52,7 +52,7 @@ const assertPowersName = name => {
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
- * @param {DaemonCore['getAgentIdForHandleId']} [args.getAgentIdForHandleId]
+ * @param {DaemonCore['getAgentIdForHandleId']} args.getAgentIdForHandleId
  * @param {() => Promise<void>} [args.collectIfDirty]
  */
 export const makeHostMaker = ({

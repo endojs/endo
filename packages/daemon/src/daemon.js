@@ -1915,7 +1915,7 @@ const makeDaemonCore = async (
             define: disallowedFn,
             form: disallowedFn,
             storeValue: disallowedFn,
-            deliver: disallowedSyncFn,
+            deliver: disallowedFn,
           })
         )
       );
@@ -3108,6 +3108,7 @@ const makeDaemonCore = async (
 
   const makeGuest = makeGuestMaker({
     provide,
+    formulateMarshalValue,
     makeMailbox,
     makeDirectoryNode,
     collectIfDirty,

@@ -1,21 +1,26 @@
 // @ts-check
 
+import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
+import { assertNamePath, namePathFrom } from './pet-name.js';
+import { makeDeferredTasks } from './deferred-tasks.js';
 
-/** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {() => Promise<void>} [args.collectIfDirty]
  */
 export const makeGuestMaker = ({
   provide,
+  formulateMarshalValue,
   makeMailbox,
   makeDirectoryNode,
   collectIfDirty = async () => {},
@@ -120,10 +125,15 @@ export const makeGuestMaker = ({
       mailboxForm(recipientName, description, fields, responseName);
 
     /** @type {EndoGuest['storeValue']} */
-    const storeValue = async (_value, _petName) => {
-      // Guest storeValue is a stub; guests cannot marshal values directly.
-      // The host's storeValue should be used via the define/endow flow.
-      throw new Error('not allowed');
+    const storeValue = async (value, petName) => {
+      const namePath = namePathFrom(petName);
+      assertNamePath(namePath);
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).write(namePath, identifiers.marshalId),
+      );
+      await formulateMarshalValue(value, tasks);
     };
 
     /** @type {EndoGuest} */
