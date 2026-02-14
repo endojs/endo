@@ -11,19 +11,13 @@ const { stringify: q } = JSON;
 
 export const inbox = async ({ follow, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    const selfId = await E(agent).identify('SELF');
     const messages = follow
       ? makeRefIterator(E(agent).followMessages())
       : await E(agent).listMessages();
-    const messageNumberById = new Map();
-    if (!follow) {
-      for (const message of messages) {
-        messageNumberById.set(message.messageId, message.number);
-      }
-    }
     for await (const message of messages) {
-      messageNumberById.set(message.messageId, message.number);
-      const { number, type, from, to, date } = message;
+      const { number, type, fromNames, date } = message;
+      const fromName = fromNames[0];
+      const isSelf = fromNames.includes('SELF');
 
       let verb = '';
       if (type === 'request') {
@@ -40,52 +34,21 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'sent an unrecognizable message';
       }
 
-      let provenance = 'unrecognizable message';
-      if (from === selfId && to === selfId) {
-        provenance = `you ${verb} yourself `;
-      } else if (from === selfId) {
-        const [toName] = await E(agent).reverseIdentify(to);
-        if (toName === undefined) {
-          continue;
-        }
-        provenance = `${verb} ${q(toName)} `;
-      } else if (to === selfId) {
-        const [fromName] = await E(agent).reverseIdentify(from);
-        if (fromName === undefined) {
-          continue;
-        }
-        provenance = `${q(fromName)} ${verb} `;
-      } else {
-        const [toName] = await E(agent).reverseIdentify(to);
-        const [fromName] = await E(agent).reverseIdentify(from);
-        if (fromName === undefined || toName === undefined) {
-          continue;
-        }
-        provenance = `${q(fromName)} ${verb} ${q(toName)} `;
-      }
+      const senderLabel = fromName !== undefined ? q(fromName) : 'unknown';
+      const provenance = isSelf ? `you ${verb} ` : `${senderLabel} ${verb} `;
 
       if (message.type === 'request') {
         const { description } = message;
         console.log(
-          `${number}. ${provenance}${JSON.stringify(
-            description,
-          )} at ${JSON.stringify(date)}`,
+          `${number}. ${provenance}${q(description)} at ${q(date)}`,
         );
       } else if (message.type === 'package') {
-        const { strings, names: edgeNames, replyTo } = message;
-        let replyContext = '';
-        if (replyTo !== undefined) {
-          const replyNumber = messageNumberById.get(replyTo);
-          replyContext =
-            replyNumber === undefined
-              ? ' (in reply to unknown)'
-              : ` (in reply to ${replyNumber})`;
-        }
+        const { strings, names: edgeNames } = message;
         console.log(
           `${number}. ${provenance}${formatMessage(
             strings,
             edgeNames,
-          )}${replyContext} at ${JSON.stringify(date)}`,
+          )} at ${q(date)}`,
         );
       } else if (message.type === 'eval-request') {
         const { source, codeNames } = message;
