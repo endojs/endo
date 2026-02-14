@@ -4,15 +4,69 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
-import { assertNamePath, namePathFrom } from './pet-name.js';
+import { assertNamePath, assertPetNamePath, namePathFrom } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
-/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Provide } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, FormulaIdentifier, GuestMessage, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Provide, StampedMessage } from './types.js' */
 import { GuestInterface } from './interfaces.js';
+
+/**
+ * Transform a StampedMessage into a GuestMessage by stripping identifiers
+ * and resolving the sender to a live handle reference and petnames.
+ *
+ * @param {StampedMessage} message
+ * @param {object} deps
+ * @param {Provide} deps.provide
+ * @param {{ reverseIdentify: (id: string) => string[] }} deps.petStore
+ * @returns {Promise<GuestMessage>}
+ */
+const toGuestMessage = async (message, { provide, petStore }) => {
+  const { from, number, date, type, dismissed, dismisser } = message;
+
+  const fromHandle = await provide(from, 'handle');
+  const fromNames = petStore.reverseIdentify(from);
+
+  /** @type {Record<string, unknown>} */
+  const content = {};
+
+  if (type === 'request') {
+    content.description = message.description;
+  } else if (type === 'package') {
+    content.strings = message.strings;
+    content.names = message.names;
+    if (message.replyTo !== undefined) {
+      content.replyTo = message.replyTo;
+    }
+  } else if (type === 'eval-request') {
+    content.source = message.source;
+    content.codeNames = message.codeNames;
+    content.petNamePaths = message.petNamePaths;
+  } else if (type === 'definition') {
+    content.source = message.source;
+    content.slots = message.slots;
+  } else if (type === 'form-request') {
+    content.description = message.description;
+    content.fields = message.fields;
+  }
+
+  return harden(
+    /** @type {GuestMessage} */ ({
+      number,
+      date,
+      type,
+      fromHandle,
+      fromNames: harden(fromNames),
+      dismissed,
+      dismisser,
+      ...content,
+    }),
+  );
+};
 
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['getIdForRef']} args.getIdForRef
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
@@ -20,6 +74,7 @@ import { GuestInterface } from './interfaces.js';
  */
 export const makeGuestMaker = ({
   provide,
+  getIdForRef,
   formulateMarshalValue,
   makeMailbox,
   makeDirectoryNode,
@@ -73,27 +128,20 @@ export const makeGuestMaker = ({
     });
     const { handle } = mailbox;
 
-    const { reverseIdentify } = specialStore;
+    // Confined directory: only petname/value methods, no identifier methods.
     const {
       has,
-      identify,
-      locate,
-      reverseLocate,
       list,
-      listIdentifiers,
       followNameChanges,
-      followLocatorNameChanges,
       lookup,
       reverseLookup,
-      write,
       move,
       remove,
       copy,
       makeDirectory,
     } = directory;
+
     const {
-      listMessages,
-      followMessages,
       resolve,
       reject,
       adopt,
@@ -106,6 +154,52 @@ export const makeGuestMaker = ({
       define: mailboxDefine,
       form: mailboxForm,
     } = mailbox;
+
+    // Guest write: accepts a live value, resolves to identifier internally.
+    /** @type {EndoGuest['write']} */
+    const write = async (petNamePath, value) => {
+      const namePath = namePathFrom(petNamePath);
+      assertPetNamePath(namePath);
+      const resolvedValue = await value;
+      const id = getIdForRef(resolvedValue);
+      if (id === undefined) {
+        throw new TypeError(
+          'Cannot name a value that is not a known reference',
+        );
+      }
+      await directory.write(namePath, id);
+    };
+
+    // Identity comparison on live values.
+    /** @type {EndoGuest['equals']} */
+    const equals = async (a, b) => {
+      const resolvedA = await a;
+      const resolvedB = await b;
+      const idA = getIdForRef(resolvedA);
+      const idB = getIdForRef(resolvedB);
+      if (idA === undefined || idB === undefined) {
+        return false;
+      }
+      return idA === idB;
+    };
+
+    // Transform messages to strip identifiers.
+    const messageDeps = { provide, petStore: specialStore };
+
+    /** @type {EndoGuest['listMessages']} */
+    const listMessages = async () => {
+      const rawMessages = await mailbox.listMessages();
+      return Promise.all(
+        rawMessages.map(msg => toGuestMessage(msg, messageDeps)),
+      );
+    };
+
+    /** @type {EndoGuest['followMessages']} */
+    const followMessages = async function* followMessages() {
+      for await (const msg of mailbox.followMessages()) {
+        yield toGuestMessage(msg, messageDeps);
+      }
+    };
 
     /** @type {EndoGuest['requestEvaluation']} */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
@@ -138,15 +232,9 @@ export const makeGuestMaker = ({
 
     /** @type {EndoGuest} */
     const guest = {
-      // Directory
+      // Confined directory
       has,
-      identify,
-      reverseIdentify,
-      locate,
-      reverseLocate,
       list,
-      listIdentifiers,
-      followLocatorNameChanges,
       followNameChanges,
       lookup,
       reverseLookup,
@@ -155,6 +243,7 @@ export const makeGuestMaker = ({
       remove,
       copy,
       makeDirectory,
+      equals,
       // Mail
       handle,
       listMessages,
@@ -185,11 +274,7 @@ export const makeGuestMaker = ({
         }
       };
 
-    const iteratorMethods = new Set([
-      'followLocatorNameChanges',
-      'followMessages',
-      'followNameChanges',
-    ]);
+    const iteratorMethods = new Set(['followMessages', 'followNameChanges']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,
@@ -199,11 +284,8 @@ export const makeGuestMaker = ({
 
     return makeExo('EndoGuest', GuestInterface, {
       ...wrappedGuest,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = guest.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
+      help(_topic) {
+        return 'A confined Endo guest. Operates on petnames and live values only.';
       },
       followMessages: async () => {
         const iterator = guest.followMessages();
