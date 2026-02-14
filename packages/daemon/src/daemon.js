@@ -3267,7 +3267,7 @@ const makeDaemonCore = async (
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  * @param {Specials} args.specials
- * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap> | Promise<FarRef<EndoBootstrap>>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
+ * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
  */
 const provideEndoBootstrap = async (
   powers,
@@ -3289,12 +3289,10 @@ const provideEndoBootstrap = async (
       number: endoFormulaNumber,
       node: daemonCore.nodeNumber,
     });
-    return {
-      endoBootstrap: /** @type {Promise<FarRef<EndoBootstrap>>} */ (
-        daemonCore.provide(endoId)
-      ),
-      capTpConnectionRegistrar,
-    };
+    const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
+      await daemonCore.provide(endoId)
+    );
+    return { endoBootstrap, capTpConnectionRegistrar };
   } else {
     const { value: endoBootstrap } =
       await daemonCore.formulateEndo(endoFormulaNumber);
