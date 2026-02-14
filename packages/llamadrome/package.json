@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "exit 0",
+    "setup": "endo run --UNCONFINED setup.js --powers AGENT",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
@@ -32,6 +33,7 @@
     "test:xs": "exit 0"
   },
   "devDependencies": {
+    "@endo/cli": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",

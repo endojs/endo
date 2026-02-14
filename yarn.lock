@@ -821,6 +821,7 @@ __metadata:
   resolution: "@endo/llamadrome@workspace:packages/llamadrome"
   dependencies:
     "@anthropic-ai/sdk": "npm:^0.39.0"
+    "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
