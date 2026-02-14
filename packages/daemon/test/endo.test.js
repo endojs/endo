@@ -984,12 +984,14 @@ test('guest facet receives a message for host', async t => {
   );
 
   // Guest should have own sent messages.
+  // GuestMessage carries fromNames (petname array) instead of raw identifiers.
+  // The guest sent both messages, so fromNames resolves to ['SELF'].
   const guestInbox = await E(guest).listMessages();
   t.deepEqual(
-    guestInbox.map(({ type, from, to }) => ({ type, from, to })),
+    guestInbox.map(({ type, fromNames }) => ({ type, fromNames })),
     [
-      { type: 'request', from: guestId, to: hostId },
-      { type: 'package', from: guestId, to: hostId },
+      { type: 'request', fromNames: ['SELF'] },
+      { type: 'package', fromNames: ['SELF'] },
     ],
   );
 });
