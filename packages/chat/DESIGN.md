@@ -2,13 +2,85 @@
 
 ## Overview
 
-Familiar Chat is a web-based interface for interacting with the Endo daemon. It provides a command-driven UI for managing an inventory of named values (pet names), sending messages between peers, and evaluating JavaScript expressions in isolated workers.
+Familiar Chat is a web-based interface for interacting with the Endo daemon.
+It provides a command-driven UI for managing an inventory of named values
+(pet names), sending messages between peers, and evaluating JavaScript
+expressions in isolated workers.
+
+## Design Invariants
+
+These invariants must hold across the entire UI.
+Violations indicate bugs or missing features.
+
+### 1. Modeline Completeness
+
+**Every keyboard action available in the current state MUST be hinted in the
+modeline.**
+
+The modeline displays contextual hints showing what keyboard actions are
+available.
+If a keyboard shortcut works in a given state but is not shown in the modeline,
+that is a bug.
+
+### 2. Keyboard-Manual Parity
+
+**Every keyboard-accessible action MUST have a corresponding manual
+(mouse/touch) action.**
+
+Users should never be forced to use the keyboard.
+Every operation achievable via keyboard shortcuts must also be achievable
+through:
+- Clickable buttons
+- Menu items
+- Direct manipulation (drag, click)
+
+### 3. State Visibility
+
+**The current UI mode and available actions MUST be visually apparent.**
+
+Users should always know:
+- What mode they're in (send, selecting, inline command, etc.)
+- What actions are available
+- What will happen when they press Enter
+
+### 4. Escape Consistency
+
+**Escape MUST always return to a safer/simpler state without losing critical
+data.**
+
+- From any modal: close and return to previous state
+- From command mode: return to send mode
+- From autocomplete menu: close menu, preserve typed text
+- Never lose unsaved work without confirmation
+
+### 5. Progressive Complexity
+
+**Simple tasks MUST remain simple; complexity is opt-in.**
+
+- Sending a message: `@recipient message` + Enter
+- Inspecting a value: `@name` + Enter
+- Commands: `/command` reveals structured form
+- Advanced eval: ⌘Enter (Ctrl+Enter on Windows/Linux) expands to full editor
+
+### 6. Autocomplete List Navigation
+
+**All autocomplete dropdowns MUST use the same list-navigation and paging behavior.**
+
+- **Home** selects the first item; **End** selects the last item.
+- **Page Down** moves selection down by **(visible rows − 1)** so the previous row stays visible and the user sees the list move.
+- **Page Up** moves selection up by **(visible rows − 1)** so one row of overlap is preserved and motion is visible.
+- Visible row count is computed from the menu container height and single-row height: `pageSize = floor(containerHeight / itemHeight)`; the step is `max(1, pageSize − 1)`.
+
+This applies to: command selector, token autocomplete, pet name path autocomplete, pet name paths autocomplete, and inline command form edge-name dropdown.
 
 ## Design Principles
 
 ### 1. Structured Input Over Text Parsing
 
-Commands use structured form fields rather than parsing free-form text. Each command has a defined schema with typed fields (pet name paths, message numbers, text, etc.). This provides:
+Commands use structured form fields rather than parsing free-form text.
+Each command has a defined schema with typed fields (pet name paths, message
+numbers, text, etc.).
+This provides:
 
 - Clear visual affordances for each parameter
 - Field-specific autocomplete and validation
@@ -21,10 +93,10 @@ The UI prioritizes keyboard efficiency:
 
 - `/` triggers command selection from any state
 - `@` creates token references in messages and endowment fields
-- Tab/Space advance between fields
-- Enter submits, Escape cancels
-- Backspace in empty first field returns to base mode
-- Arrow keys navigate autocomplete menus and command history
+- Tab/Space advances between fields or completes selections
+- Enter submits or inspects depending on context
+- Backspace in empty fields removes chips or returns to base mode
+- Arrow keys navigate autocomplete menus
 
 ### 3. Progressive Disclosure
 
@@ -33,17 +105,19 @@ Simple operations stay simple; complexity is revealed as needed:
 - Base mode: Direct message sending with `@recipient message`
 - Slash commands: Structured forms for specific operations
 - Inline eval: Quick expressions with optional endowments
-- Modal eval: Full editor for complex code (Cmd+Enter to expand)
+- Modal eval: Full editor for complex code (⌘Enter to expand)
 
 ### 4. Visual Feedback
 
 Clear visual cues for state and context:
 
 - Token chips: Named values appear as styled chips with `@` prefix
+- Path chips: Multi-value fields show completed paths as removable chips
 - Error bubbles: Positioned above the command line with speech pointer
 - Message badges: Number indicators for message picking
 - Mode indicators: Command label shows active command
 - Modeline hints: Contextual keyboard shortcuts
+- Profile indicator: Shows current profile path in header
 
 ### 5. Contextual Autocomplete
 
@@ -52,59 +126,337 @@ Autocomplete adapts to context:
 - Pet name paths: Hierarchical completion with `.` separator
 - Case-sensitive matching for precision
 - Menu positioned near input field
-- Tab/Space/Enter to accept suggestions
+- Tab/Space to accept suggestions
+- `.` to drill down into path
+- Enter to inspect (in send mode token autocomplete)
+- List navigation: ↑↓ by row; Home/End first/last; Page Up/Down by (visible rows − 1) so the user sees motion (see invariant 6)
+
+### 6. Platform-Appropriate Modifier Keys
+
+Keyboard modifiers must be displayed using platform conventions:
+
+- **macOS**: Use Unicode symbols: `⌘` (Command), `⌥` (Option), `⇧` (Shift), `⌃` (Control)
+- **Windows/Linux**: Use text abbreviations: `Ctrl`, `Alt`, `Shift`
+
+For example, "Cmd+Enter" should display as `⌘Enter` on Mac and `Ctrl+Enter` on Windows/Linux.
+
+## Command Bar States and Modeline
+
+The command bar is the primary input area.
+It transitions between distinct modes, each with specific keyboard behaviors
+documented in the modeline.
+
+### State: Empty (Send Mode)
+
+**Visual**: Empty input field, placeholder text visible
+
+**Modeline**:
+- `@ inspect or message` - Type @ to start token entry
+- `/ commands` - Type / to open command menu
+- `Space continue with @{lastRecipient}` - (only if previous recipient exists)
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| `@` | Begin token autocomplete | Click token button (if exists) |
+| `/` | Open command menu | Click menu button |
+| `Space` | Insert last recipient (if any) | N/A - convenience shortcut |
+
+### State: Token Autocomplete Visible
+
+**Visual**: Autocomplete menu showing matching pet names
+
+**Modeline**:
+- `select reference` - Currently selecting a reference
+- `Space chat` - Complete token and continue typing message
+- `Enter inspect` - Complete token and inspect the value
+- `↑↓ navigate` - Arrow keys to select different match
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| `↑` / `↓` | Navigate suggestions | Click on suggestion |
+| `Space` / `Tab` | Complete token, add space, continue typing | Click suggestion |
+| `Enter` | Complete token and inspect value | Double-click suggestion |
+| `:` | Enter edge name mode | N/A - keyboard shortcut |
+| `Escape` | Close menu | Click outside menu |
+| `Backspace` | Delete character / close if at trigger | N/A |
+
+### State: Token Only (Chip Present, No Message)
+
+**Visual**: Single token chip in input, cursor after it
+
+**Modeline**:
+- `Enter inspect or write message` - Dual purpose based on content
+- `⌫ delete chip` - Backspace removes the chip
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| `Enter` | Inspect the referenced value | Click chip |
+| `Backspace` | Delete the chip | Click × on chip (if visible) |
+| Any text | Begin composing message | Type directly |
+
+### State: Token + Message Text
+
+**Visual**: Token chip followed by message text
+
+**Modeline**:
+- `Enter send` - Send message to recipient
+- `@ embed reference` - Add another token
+- `⌫ delete chip` - Backspace at chip boundary deletes it
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| `Enter` | Send message | Click Send button |
+| `@` | Begin another token | N/A - keyboard shortcut |
+| `Backspace` (at chip) | Delete chip | Click × on chip |
+
+### State: Text Only (No Token)
+
+**Visual**: Text in input but no token chip
+
+**Modeline**:
+- `@ add recipient to send` - Need recipient to send
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| `@` | Begin token autocomplete | N/A |
+
+### State: Command Selecting (After `/`)
+
+**Visual**: Command menu visible with filtered options
+
+**Modeline**:
+- `type command name` - Filter by typing
+- `Enter select` - Select highlighted command
+- `Esc cancel` - Return to send mode
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| Type | Filter commands | N/A |
+| `↑` / `↓` | Navigate commands | Hover over command |
+| `Enter` / `Tab` / `Space` | Select command | Click command |
+| `Escape` | Cancel, return to send | Click outside menu |
+
+### State: Inline Command Form
+
+**Visual**: Command form with labeled fields
+
+**Modeline** (varies by command, example for general):
+- `Enter submit` - Execute the command
+- `Tab next field` - Move to next field
+- `Esc cancel` - Return to send mode
+
+**Keyboard Actions**:
+
+| Key | Action | Manual Equivalent |
+|-----|--------|-------------------|
+| `Tab` | Next field | Click field |
+| `Shift+Tab` | Previous field | Click field |
+| `Enter` | Submit form | Click Execute button |
+| `Escape` | Cancel command | Click × button |
+
+### State: Eval Command (Inline)
+
+**Modeline**:
+- `@ add endowment` - Add a binding
+- `Enter evaluate` - Run the code
+- `⌘Enter expand to editor` - Open modal editor
+- `Esc cancel` - Return to send mode
+
+## Value Modal
+
+The value modal displays inspected values and allows saving them with pet
+names.
+
+### Value States
+
+| State | Title Display | Description |
+|-------|---------------|-------------|
+| Has ID + pet names | `@foo @bar` (blue chips) | Value retained in store with names |
+| Has ID + no pet names | `(unnamed)` | Value retained but not named |
+| Has message context | `#42:attachment` (gray chip) | Value from inbox message |
+| Ephemeral (no ID) | `Ephemeral Value` | Transient value (e.g., from `/list`) |
+
+A value can show BOTH message context chip AND pet name chips if applicable.
+
+### Modal Actions
+
+| Action | Keyboard | Manual |
+|--------|----------|--------|
+| Close | `Escape` | Click × or backdrop |
+| Save | `Enter` (in name field) | Click Save button |
+| Enter Profile | N/A | Click "Enter Profile" (for host types) |
+
+## Field Types
+
+The command system supports several field types, each with specialized
+rendering and behavior:
+
+| Type | Description | UI Component |
+|------|-------------|--------------|
+| `petNamePath` | Single hierarchical path (e.g., `dir.subdir.name`) | Text input with autocomplete |
+| `petNamePaths` | Multiple paths | Chip container with autocomplete |
+| `messageNumber` | Reference to a message | Number input with message picker |
+| `text` | Free-form text | Plain text input |
+| `edgeName` | Edge name from a message | Text input with autocomplete |
+| `locator` | Endo locator URL | Text input |
+| `source` | JavaScript source code | Monaco editor (inline or modal) |
+| `endowments` | Pet name to identifier bindings | Specialized chip + binding UI |
+
+### Pet Name Path Autocomplete
+
+For single-path fields (`petNamePath`):
+
+- Type to filter suggestions from current level
+- `.` accepts selection and drills into it
+- Tab/Enter accepts selection
+- Escape closes menu
+
+### Multi-Path Chip Input
+
+For multi-value fields (`petNamePaths`), completed paths become visual chips:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [path.to.first ×] [second-name ×] [third.path| ]            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Keyboard behavior:
+- `.` accepts current suggestion, creates chip, continues drilling into it
+- Space accepts current suggestion, creates chip, starts fresh path
+- Enter accepts current input and submits the form
+- Backspace (on empty input) removes the last chip
+- Arrow keys navigate suggestions
 
 ## Component Architecture
 
-### Command Bar States
+### File Structure
 
 ```
-send (base mode)
-  |-- "/" at start --> selecting
-  |-- "@" --> token autocomplete
+packages/chat/
+  # Core Components
+  chat.js                          # Main entry, UI orchestrator
+  main.js                          # Application bootstrap
+  connection.js                    # WebSocket connection to daemon
 
-selecting (command menu visible)
-  |-- select command --> inline form
-  |-- Escape --> send
+  # UI Components (extracted from chat.js)
+  inbox-component.js               # Message display with tokens
+  inventory-component.js           # Pet name listing panel
+  chat-bar-component.js            # Command input and execution
+  value-component.js               # Value inspection modal
 
-inline form (command-specific fields)
-  |-- Enter --> execute
-  |-- Escape --> send
-  |-- Backspace (empty first field) --> send
+  # Shared Utilities
+  value-render.js                  # Value rendering to DOM
+  time-formatters.js               # Date/time formatting
 
-eval form (inline or modal)
-  |-- "@" --> create endowment
-  |-- Cmd+Enter --> expand to modal
-  |-- Enter --> evaluate
+  # Command System
+  command-registry.js              # Command definitions and field types
+  command-selector.js              # Slash command menu
+  command-executor.js              # Command execution logic
+  inline-command-form.js           # Dynamic form rendering
+
+  # Autocomplete Components
+  token-autocomplete.js            # Token chip autocomplete for send mode
+  petname-path-autocomplete.js     # Single path autocomplete
+  petname-paths-autocomplete.js    # Multi-path chip autocomplete
+
+  # Eval Components
+  inline-eval.js                   # Inline eval form
+  eval-form.js                     # Modal eval editor
+  counter-proposal-form.js         # Counter-proposal editor
+  monaco-wrapper.js                # Monaco editor integration
+  monaco-iframe-main.js            # Monaco editor bootstrap
+
+  # Message Components
+  send-form.js                     # Message sending with tokens
+  message-picker.js                # Message number selection
+  markdown-render.js               # Markdown to DOM
+
+  # Other
+  help-modal.js                    # Help overlay
+  ref-iterator.js                  # Reference iteration
+  index.css                        # Styles
+
+  # Test Configuration
+  playwright.config.ts             # Playwright E2E test configuration
 ```
 
-### Endowment Fields (Eval Command)
+### Component Responsibilities
 
-Endowments bind pet names to JavaScript identifiers:
+| Component | Responsibility |
+|-----------|----------------|
+| `chat.js` | Orchestrates components, manages profile navigation |
+| `inbox-component.js` | Renders messages, token chips, eval proposals |
+| `inventory-component.js` | Displays pet names, handles expansion |
+| `chat-bar-component.js` | Command input, mode management, modeline |
+| `value-component.js` | Value modal, save functionality |
+| `send-form.js` | Message composition, state tracking |
+| `token-autocomplete.js` | Token chip creation, autocomplete |
 
-```
-[@petName] → codeName
-```
+## Inventory Panel
 
-- Pet name in chip (with autocomplete)
-- Arrow separator
-- Code name in monospace (auto-inferred from pet name)
-- Kebab-case converts to camelCase automatically
-- `=` key allows manual codeName override
+The inventory displays named values with contextual actions:
 
-### Message Picker
+- Disclosure triangle to expand directories
+- Click name to inspect value
+- × button to remove (disabled for SPECIAL names)
+- SPECIAL toggle to show/hide system names
 
-When selecting message numbers:
+### Expansion Behavior
 
-- All messages show number badges (top-left, white on black)
-- Click to select, highlighted messages show selection
-- Number populates the message number field
+Directories (values with `followNameChanges`) can be expanded:
+- Click disclosure triangle to expand/collapse
+- Nested items use wrapped powers for correct paths
+- Collapse cleans up subscriptions
 
-### Error Display
+## Message Display
+
+Messages in the inbox show:
+
+### Package Messages
+- Sender chip (`@name`)
+- Markdown-rendered content
+- Token chips for embedded values (clickable to inspect)
+
+### Eval Proposal Messages
+- Proposer chip
+- Source code in syntax-highlighted fence
+- Endowments mapping (codeName ← @petName)
+- Action buttons: Grant, Counter-proposal, Reject
+
+### Request Messages
+- Description text
+- Resolve/Reject inputs
+- Status after settlement
+
+## Profile System
+
+Users can navigate between host profiles:
+
+- Profile path shown in breadcrumb bar
+- `/enter` command to enter a host as current profile
+- `/exit` command to return to parent profile
+- Each profile has its own inventory view
+- Breadcrumbs are clickable to navigate up
+
+## Error Handling
 
 - Command mode: Red bubble above command row
 - Send mode: Red bubble above input field
 - Both use speech pointer indicating source
+- Errors clear on next input
 
 ## CSS Variables
 
@@ -118,24 +470,177 @@ The UI uses CSS custom properties for theming:
 - `--radius-sm`, `--radius-md`, `--radius-lg`: Border radii
 - `--shadow-sm`, `--shadow-md`, `--shadow-lg`: Box shadows
 - `--transition-fast`: Animation timing
+- `--sidebar-width`: Inventory panel width (resizable)
 
 ## Command Categories
 
-- **Messaging**: request, dismiss, adopt, resolve, reject
-- **Execution**: eval
-- **Storage**: list, show, remove, move, copy, mkdir
-- **Connections**: invite, accept
-- **Workers**: spawn
-- **Agents**: host, guest
-- **Bundles**: mkbundle, mkplugin
-- **System**: cancel, info, help
+| Category | Commands | Description |
+|----------|----------|-------------|
+| Messaging | request, dismiss, adopt, resolve, reject | Peer communication |
+| Execution | js (eval) | JavaScript evaluation |
+| Storage | list (ls), show, remove (rm), move (mv), copy (cp), mkdir | Inventory management |
+| Connections | invite, accept | Peer connections |
+| Workers | spawn | Worker management |
+| Agents | mkhost (host), mkguest (guest) | Profile creation |
+| Profile | enter, exit | Profile navigation |
+| Bundles | mkbundle, mkplugin | Module instantiation |
+| System | cancel, help | System operations |
 
-Some commands have aliases: `ls` (list), `rm` (remove), `mv` (move), `cp` (copy)
+Parentheses indicate aliases.
 
-## Future Considerations
+## Security Considerations
 
-- Command history with IndexedDB persistence
-- Monaco editor integration for modal eval
-- Markdown formatting in messages
-- Syntax highlighting in code blocks
-- Dark mode theme support
+- Monaco editor runs in sandboxed iframe
+- All pet name references are resolved through daemon APIs
+- No direct file system access from UI
+- WebSocket connection authenticated via daemon
+- Eval proposals require explicit grant from host
+- Guest `evaluate` mirrors Host `evaluate`, but execution is gated by the host approval flow.
+- Counter-proposal messages may include endowments the guest should not accept. The current workflow relies on user review; consider revisiting this design if it proves risky.
+
+## Known Gaps and TODOs
+
+This section tracks known violations of design invariants or missing features.
+
+### Modeline Implementation Notes
+
+The modeline at the bottom of the chat bar shows the overall command bar state.
+Additionally, autocomplete dropdown menus contain their own inline hints
+specific to menu navigation:
+
+- **Token autocomplete**: `↑↓ navigate · Tab/Enter select · : add label ·
+  Esc cancel`
+- **Pet name path autocomplete**: `↑↓ navigate · Tab select · . drill down ·
+  Esc cancel`
+- **Pet name paths autocomplete**: `↑↓ navigate · . drill down · Space add ·
+  Enter submit · Esc cancel`
+
+These inline hints complement, rather than duplicate, the modeline.
+
+### Modeline Gaps
+- [ ] Verify all inline command forms show appropriate modeline hints
+- [ ] Verify eval form modeline is complete
+
+### Keyboard-Manual Parity Gaps
+- [ ] Space to insert last recipient has no manual equivalent (acceptable
+  convenience)
+- [ ] Edge name entry (`:`) has no manual equivalent
+
+### Other
+- [ ] Command history (up/down arrow) not yet implemented
+- [ ] Chip × button not always visible for deletion
+
+## Test Coverage
+
+The chat package has unit and component tests using AVA and happy-dom.
+Tests are organized by type:
+
+```
+test/
+  index.test.js              # Infrastructure verification
+  helpers/
+    mock-powers.js           # Mock daemon powers for testing
+    mock-powers.test.js      # Tests for the mock itself
+    dom-setup.js             # happy-dom setup utilities
+    keyboard-events.js       # Keyboard event simulation
+  unit/
+    command-registry.test.js # Command definitions and utilities
+    command-executor.test.js # Command execution logic
+    message-parse.test.js    # Message parsing for @references
+    ref-iterator.test.js     # Remote async iterator wrapper
+    time-formatters.test.js  # Date/time formatting
+    markdown-render.test.js  # Markdown parsing and rendering
+    value-render.test.js     # Value rendering and type inference
+  component/
+    send-form.test.js        # Send form component state
+    petname-path-autocomplete.test.js  # Single path autocomplete
+    petname-paths-autocomplete.test.js # Multi-path chip autocomplete
+    inline-command-form.test.js        # Inline command form rendering
+    monaco-wrapper.test.js             # Monaco postMessage protocol docs
+  e2e/                       # Playwright tests (requires real browser)
+    README.md                # E2E test documentation
+    token-autocomplete.spec.ts  # Token @mention autocomplete
+    monaco-editor.spec.ts       # Monaco editor integration
+```
+
+### Testing Approach
+
+**Mock Powers**: The `makeMockPowers()` function creates a `Far()` remotable that
+simulates the daemon's powers interface.
+It tracks method calls, supports async iteration, and can be configured with
+initial names, values, and IDs.
+
+**DOM Testing**: happy-dom provides a lightweight DOM implementation.
+Global setup is done BEFORE importing chat modules because they reference DOM
+globals at module load time.
+
+### Untestable Behaviors (Require Full Browser)
+
+Some behaviors cannot be tested with happy-dom due to Selection API limitations:
+
+- **Token autocomplete in contenteditable**: Typing `@`, filtering suggestions,
+  arrow navigation, and Escape to close menu all require the browser's Selection
+  API for cursor positioning in contenteditable elements.
+- **Monaco editor integration**: Runs in an iframe with cross-window messaging.
+- **WebSocket connection**: Requires actual or mock server.
+
+These behaviors require Playwright for proper E2E testing.
+
+### E2E Tests (Playwright)
+
+End-to-end tests using Playwright are in `test/e2e/`:
+
+```
+test/e2e/
+  README.md                    # Documentation for e2e test approach
+  token-autocomplete.spec.ts   # Token @mention autocomplete tests
+  monaco-editor.spec.ts        # Monaco editor integration tests
+```
+
+**Token Autocomplete Tests** cover:
+- Menu visibility (`@` opens menu, `@@` escapes, Escape/Backspace closes)
+- Filtering (case-insensitive, "No matches" display)
+- Navigation (ArrowUp/Down, wrap-around)
+- Selection (Tab, Enter, Space, click)
+- Edge names (`:` enters mode, typing edge name)
+- Token deletion (Backspace after token)
+- getMessage parsing (single/multiple tokens, edge names)
+- Edge cases (`@` not triggered after alphanumeric)
+
+**Monaco Editor Tests** cover:
+- Loading (iframe loads, editor focused)
+- Content (typing updates, initial value)
+- Keyboard shortcuts (Cmd+Enter submit, Escape, Cmd+E add endowment)
+- Syntax highlighting, line numbers, multi-line
+- dispose removes iframe
+- postMessage protocol tests
+
+**Component Tests (happy-dom)** include `monaco-wrapper.test.js` which documents
+the postMessage protocol without requiring a browser.
+
+### Test Count by Module
+
+| Module | Tests | Coverage |
+|--------|-------|----------|
+| command-registry | 16 | Complete - all utilities |
+| command-executor | 32 | Complete - all 20+ commands |
+| message-parse | 20 | Complete - parsing edge cases |
+| ref-iterator | 8 | Complete - async iteration |
+| time-formatters | 16 | Complete - formatting utilities |
+| markdown-render | 27 | Complete - parsing and rendering |
+| value-render | 36 | Complete - all pass-style types |
+| mock-powers | 10 | Complete - mock verification |
+| send-form | 4 | Partial - state management only |
+| petname-path-autocomplete | 17 | Complete - API, navigation, selection |
+| petname-paths-autocomplete | 20 | Complete - chips, callbacks, navigation |
+| inline-command-form | 24 | Complete - rendering, validation, submission |
+| monaco-wrapper | 1 | Protocol documentation (skipped tests document API) |
+| **Unit/Component Total** | **236** | |
+
+### E2E Test Count (Playwright)
+
+| Spec File | Tests | Coverage |
+|-----------|-------|----------|
+| token-autocomplete.spec.ts | 25 | Menu, filtering, navigation, selection, edge names |
+| monaco-editor.spec.ts | 14 | Loading, content, shortcuts, protocol |
+| **E2E Total** | **39** | |

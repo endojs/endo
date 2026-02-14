@@ -2,13 +2,15 @@
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
+import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
-/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, FormulaIdentifier, GuestMessage, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Provide, StampedMessage } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, GuestMessage, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamesOrPaths, Provide, StampedMessage } from './types.js' */
 import { GuestInterface } from './interfaces.js';
+import { guestHelp, makeHelp } from './help-text.js';
 
 /**
  * Transform a StampedMessage into a GuestMessage by stripping identifiers
@@ -99,6 +101,7 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
+   * @param {string} [mailHubId] - Formula id for MAIL hub view (when provided, MAIL is added to special names)
    */
   const makeGuest = async (
     guestId,
@@ -120,12 +123,15 @@ export const makeGuestMaker = ({
 
     const basePetStore = await provide(petStoreId, 'pet-store');
     const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
-    const specialStore = makePetSitter(basePetStore, {
+    const specialNames = {
       AGENT: guestId,
       SELF: handleId,
       HOST: hostHandleId,
-      MAIL: mailHubId,
-    });
+    };
+    if (mailHubId !== undefined) {
+      specialNames.MAIL = mailHubId;
+    }
+    const specialStore = makePetSitter(basePetStore, specialNames);
 
     const directory = makeDirectoryNode(specialStore);
     const mailbox = await makeMailbox({
@@ -155,10 +161,12 @@ export const makeGuestMaker = ({
       reject,
       adopt,
       dismiss,
+      dismissAll,
       reply,
       request,
       send,
       deliver,
+      evaluate: mailboxEvaluate,
       requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
@@ -205,6 +213,67 @@ export const makeGuestMaker = ({
         resultName,
       );
 
+    /**
+     * Propose code evaluation to the host.
+     * Same signature as Host.evaluate() - returns promise that resolves when Host grants.
+     * @param {Name | undefined} workerPetName
+     * @param {string} source
+     * @param {Array<string>} codeNames
+     * @param {NamesOrPaths} petNamesOrPaths
+     * @param {NameOrPath} [resultNameOrPath]
+     * @returns {Promise<unknown>} - Resolves with evaluation result when Host grants
+     */
+    const evaluate = async (
+      workerPetName,
+      source,
+      codeNames,
+      petNamesOrPaths,
+      resultNameOrPath,
+    ) => {
+      const petNamePaths = petNamesOrPaths.map(namePathFrom);
+      if (petNamePaths.length !== codeNames.length) {
+        throw new Error(
+          `Evaluation must have the same number of code names (${q(
+            codeNames.length,
+          )}) as pet names (${q(petNamePaths.length)})`,
+        );
+      }
+
+      // Resolve all pet names to formula IDs from guest's namespace
+      const ids = await Promise.all(
+        petNamePaths.map(async petNamePath => {
+          const id = await E(directory).identify(...petNamePath);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNamePath)}`);
+          }
+          return id;
+        }),
+      );
+
+      // Create edge names from the pet names (for display in the proposal)
+      const edgeNames = /** @type {EdgeName[]} */ (
+        petNamePaths.map(path => (Array.isArray(path) ? path.join('.') : path))
+      );
+
+      // Get optional result name and worker name as strings
+      const resultName = resultNameOrPath
+        ? namePathFrom(resultNameOrPath).join('.')
+        : undefined;
+      const workerName = workerPetName || undefined;
+
+      // Send proposal to host and wait for grant
+      return mailboxEvaluate(
+        hostHandleId,
+        source,
+        codeNames,
+        petNamePaths,
+        edgeNames,
+        ids,
+        workerName,
+        resultName,
+      );
+    };
+
     /** @type {EndoGuest['define']} */
     const define = (source, slots) => mailboxDefine(source, slots);
 
@@ -245,10 +314,13 @@ export const makeGuestMaker = ({
       reject,
       adopt,
       dismiss,
+      dismissAll,
       reply,
       request,
       send,
       deliver,
+      // Guest-specific: propose evaluation to host
+      evaluate,
       // Eval/Define/Form
       requestEvaluation,
       define,
@@ -267,15 +339,16 @@ export const makeGuestMaker = ({
         }
       };
 
-    const iteratorMethods = new Set(['followMessages', 'followNameChanges']);
+    const unwrappedMethods = new Set(['handle']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,
-        iteratorMethods.has(name) ? fn : withCollection(fn),
+        unwrappedMethods.has(name) ? fn : withCollection(fn),
       ]),
     );
 
     return makeExo('EndoGuest', GuestInterface, {
+      help: makeHelp(guestHelp),
       ...wrappedGuest,
       help(_topic) {
         return 'A confined Endo guest. Operates on petnames and live values only.';

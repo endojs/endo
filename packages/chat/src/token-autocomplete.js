@@ -527,6 +527,7 @@ export const tokenAutocompleteComponent = (
       (e.key === 'Enter' || e.key === 'Tab' || e.key === ' ')
     ) {
       e.preventDefault();
+      e.stopImmediatePropagation();
       completeEdgeNameEntry();
       return;
     }
@@ -555,6 +556,7 @@ export const tokenAutocompleteComponent = (
       case 'Enter':
         if (filteredNames.length > 0) {
           e.preventDefault();
+          e.stopImmediatePropagation();
           insertToken(filteredNames[selectedIndex], '');
         }
         break;

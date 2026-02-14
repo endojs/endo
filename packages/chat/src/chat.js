@@ -1636,6 +1636,41 @@ const template = `
     padding: 6px 28px 6px 10px;
   }
 
+  .definition-slots {
+    margin: 8px 0;
+  }
+
+  .definition-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    flex-wrap: wrap;
+  }
+
+  .definition-slot-row label {
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    min-width: 80px;
+  }
+
+  .slot-description {
+    color: var(--text-muted);
+    font-size: 12px;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .slot-binding-input {
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    width: 140px;
+  }
+
   /* Modal frames */
   .frame {
     display: none;
@@ -2271,7 +2306,14 @@ const inboxComponent = async ($parent, $end, powers) => {
       }),
     );
 
-    const { number, from: fromId, to: toId, date, dismissed } = message;
+    const {
+      number: rawNumber,
+      from: fromId,
+      to: toId,
+      date,
+      dismissed,
+    } = message;
+    const number = Number(rawNumber);
 
     const isSent = fromId === selfId;
 
@@ -2407,7 +2449,14 @@ const inboxComponent = async ($parent, $end, powers) => {
       const $reject = document.createElement('button');
       $reject.innerText = 'reject';
       $reject.onclick = () => {
-        E(powers).reject(number, $pet.value).catch(window.reportError);
+        E(powers)
+          .reject(number, $pet.value)
+          .then(() => {
+            $input.innerText = ' Rejected ';
+          })
+          .catch(error => {
+            $error.innerText = ` ${error.message}`;
+          });
       };
       $input.appendChild($reject);
 
@@ -2587,13 +2636,152 @@ const inboxComponent = async ($parent, $end, powers) => {
       $rejectBtn.onclick = () => {
         E(powers)
           .reject(number, 'Evaluation rejected')
-          .catch(window.reportError);
+          .then(() => {
+            $controls.innerText = ' Rejected ';
+          })
+          .catch(error => {
+            $error.innerText = ` ${error.message}`;
+          });
       };
       $controls.appendChild($rejectBtn);
 
       settled.then(status => {
         $controls.innerText = ` ${status} `;
       });
+    } else if (message.type === 'definition') {
+      const { source, slots, settled } = message;
+
+      // Show sender chip
+      if ($senderChip) {
+        const $senderLine = document.createElement('p');
+        $senderLine.appendChild($senderChip);
+        $senderLine.appendChild(
+          document.createTextNode(' proposed definition:'),
+        );
+        $body.appendChild($senderLine);
+      }
+
+      // Show source code
+      const $pre = document.createElement('pre');
+      const $code = document.createElement('code');
+      $code.textContent = source;
+      $pre.appendChild($code);
+      $body.appendChild($pre);
+
+      // Show slots that need binding
+      const slotEntries = Object.entries(slots || {});
+      if (slotEntries.length > 0) {
+        const $slotsLabel = document.createElement('p');
+        $slotsLabel.textContent = 'Capability slots:';
+        $body.appendChild($slotsLabel);
+
+        const $slotList = document.createElement('div');
+        $slotList.className = 'definition-slots';
+
+        /** @type {Record<string, HTMLInputElement>} */
+        const bindingInputs = {};
+
+        for (const [slotName, slotInfo] of slotEntries) {
+          const $row = document.createElement('div');
+          $row.className = 'definition-slot-row';
+
+          const $label = document.createElement('label');
+          $label.textContent = `${slotName}: `;
+          $label.title =
+            /** @type {{ label: string }} */ (slotInfo).label || '';
+          $row.appendChild($label);
+
+          const $desc = document.createElement('span');
+          $desc.className = 'slot-description';
+          $desc.textContent =
+            /** @type {{ label: string }} */ (slotInfo).label || '';
+          $row.appendChild($desc);
+
+          const $input = document.createElement('input');
+          $input.type = 'text';
+          $input.placeholder = 'pet name';
+          $input.className = 'slot-binding-input';
+          $row.appendChild($input);
+          bindingInputs[slotName] = $input;
+
+          $slotList.appendChild($row);
+        }
+        $body.appendChild($slotList);
+
+        // Endow/Reject controls
+        const $controls = document.createElement('span');
+        $body.appendChild($controls);
+
+        const $endow = document.createElement('button');
+        $endow.innerText = 'Endow';
+        $endow.onclick = () => {
+          /** @type {Record<string, string>} */
+          const bindings = {};
+          for (const [slotName, $input] of Object.entries(bindingInputs)) {
+            const val = $input.value.trim();
+            if (val) {
+              bindings[slotName] = val;
+            }
+          }
+          E(powers)
+            .endow(number, bindings)
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $controls.appendChild($endow);
+
+        const $rejectBtn = document.createElement('button');
+        $rejectBtn.innerText = 'Reject';
+        $rejectBtn.onclick = () => {
+          E(powers)
+            .reject(number, 'Definition rejected')
+            .then(() => {
+              $controls.innerText = ' Rejected ';
+            })
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $controls.appendChild($rejectBtn);
+
+        settled.then(status => {
+          $controls.innerText = ` ${status} `;
+        });
+      } else {
+        // No slots — just approve/reject like an eval
+        const $controls = document.createElement('span');
+        $body.appendChild($controls);
+
+        const $endow = document.createElement('button');
+        $endow.innerText = 'Approve';
+        $endow.onclick = () => {
+          E(powers)
+            .endow(number, {})
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $controls.appendChild($endow);
+
+        const $rejectBtn = document.createElement('button');
+        $rejectBtn.innerText = 'Reject';
+        $rejectBtn.onclick = () => {
+          E(powers)
+            .reject(number, 'Definition rejected')
+            .then(() => {
+              $controls.innerText = ' Rejected ';
+            })
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $controls.appendChild($rejectBtn);
+
+        settled.then(status => {
+          $controls.innerText = ` ${status} `;
+        });
+      }
     }
 
     $parent.insertBefore($message, $end);

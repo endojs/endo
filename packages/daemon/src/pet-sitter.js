@@ -1,10 +1,10 @@
 // @ts-check
 
 import { q } from '@endo/errors';
-import { isPetName } from './pet-name.js';
+import { isPetName, assertName } from './pet-name.js';
 import { parseId } from './formula-identifier.js';
 
-/** @import { IdRecord, Name, PetStore, PetStoreIdNameChange } from './types.js' */
+/** @import { PetStore, IdRecord, PetStoreIdNameChange, Name, SpecialName } from './types.js' */
 
 /**
  * @param {PetStore} petStore
@@ -37,7 +37,8 @@ export const makePetSitter = (petStore, specialNames) => {
    * @returns {IdRecord}
    */
   const idRecordForName = petName => {
-    const id = identifyLocal(/** @type {Name} */ (petName));
+    assertName(petName);
+    const id = identifyLocal(petName);
     if (id === undefined) {
       throw new Error(`Formula does not exist for pet name ${q(petName)}`);
     }
@@ -45,17 +46,22 @@ export const makePetSitter = (petStore, specialNames) => {
   };
 
   /** @type {PetStore['list']} */
-  const list = () =>
-    /** @type {Name[]} */ (
-      harden([...Object.keys(specialNames).sort(), ...petStore.list()])
-    );
+  const list = () => {
+    const specialKeys =
+      /** @type {SpecialName[]} */
+      (Object.keys(specialNames).sort());
+    return harden([...specialKeys, ...petStore.list()]);
+  };
 
   /** @type {PetStore['followNameChanges']} */
   const followNameChanges = async function* currentAndSubsequentNames() {
-    for (const name of Object.keys(specialNames).sort()) {
+    const specialKeys =
+      /** @type {SpecialName[]} */
+      (Object.keys(specialNames).sort());
+    for (const name of specialKeys) {
       const idRecord = idRecordForName(name);
       yield /** @type {{ add: Name, value: IdRecord }} */ ({
-        add: /** @type {Name} */ (name),
+        add: name,
         value: idRecord,
       });
     }
@@ -66,11 +72,14 @@ export const makePetSitter = (petStore, specialNames) => {
   const followIdNameChanges = async function* currentAndSubsequentIds(id) {
     const subscription = petStore.followIdNameChanges(id);
 
-    const idSpecialNames = /** @type {Name[]} */ (
-      Object.entries(specialNames)
-        .filter(([_, specialId]) => specialId === id)
-        .map(([specialName, _]) => specialName)
-    );
+    const idSpecialNames = Object.entries(specialNames)
+      .filter(([_, specialId]) => specialId === id)
+      .map(([specialName, _]) => /** @type {SpecialName} */ (specialName));
+    if (idSpecialNames.includes('SELF') && idSpecialNames.includes('HOST')) {
+      const filtered = idSpecialNames.filter(name => name !== 'HOST');
+      idSpecialNames.length = 0;
+      idSpecialNames.push(...filtered);
+    }
 
     // The first published event contains the existing names for the id, if any.
     const { value: existingNames } = await subscription.next();
@@ -88,7 +97,7 @@ export const makePetSitter = (petStore, specialNames) => {
     const names = Array.from(petStore.reverseIdentify(id));
     for (const [specialName, specialId] of Object.entries(specialNames)) {
       if (specialId === id) {
-        names.push(/** @type {Name} */ (specialName));
+        names.push(/** @type {SpecialName} */ (specialName));
       }
     }
     return harden(names);

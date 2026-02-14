@@ -23,8 +23,8 @@ import {
 import { formatLocator, idFromLocator } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
-  assertValidNumber,
   assertValidId,
+  assertValidNumber,
   assertFormulaNumber,
   assertNodeNumber,
   parseId,
@@ -36,6 +36,13 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+import {
+  blobHelp,
+  directoryHelp,
+  endoHelp,
+  guestHelp,
+  makeHelp,
+} from './help-text.js';
 
 // Sorted:
 import {
@@ -845,7 +852,7 @@ const makeDaemonCore = async (
     /** @param {string} requestedId */
     provide: async requestedId => {
       assertValidId(requestedId);
-      const { node, id } = parseId(requestedId);
+      const { node } = parseId(requestedId);
       if (node !== localNodeNumber) {
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
@@ -853,7 +860,7 @@ const makeDaemonCore = async (
           )}`,
         );
       }
-      return provide(id);
+      return provide(requestedId);
     },
   });
 
@@ -955,11 +962,13 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
+    const help = makeHelp(blobHelp);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
       `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
       BlobInterface,
       {
+        help,
         sha512: () => sha512,
         streamBase64,
         text,
@@ -1022,9 +1031,16 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} workerId
    * @param {FormulaIdentifier} powersId
    * @param {string} specifier
+   * @param {Record<string, string>} env
    * @param {Context} context
    */
-  const makeUnconfined = async (workerId, powersId, specifier, context) => {
+  const makeUnconfined = async (
+    workerId,
+    powersId,
+    specifier,
+    env,
+    context,
+  ) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -1037,16 +1053,18 @@ const makeDaemonCore = async (
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
+      env,
     );
   };
 
   /**
-   * @param {FormulaIdentifier} workerId
-   * @param {FormulaIdentifier} powersId
-   * @param {FormulaIdentifier} bundleId
+   * @param {string} workerId
+   * @param {string} powersId
+   * @param {string} bundleId
+   * @param {Record<string, string>} [env]
    * @param {Context} context
    */
-  const makeBundle = async (workerId, powersId, bundleId, context) => {
+  const makeBundle = async (workerId, powersId, bundleId, env, context) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -1060,6 +1078,7 @@ const makeDaemonCore = async (
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
+      env,
     );
   };
 
@@ -1220,7 +1239,7 @@ const makeDaemonCore = async (
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
-      resolveWithId: idOrPromise =>
+      respondId: idOrPromise =>
         resolverJobs.enqueue(async () => {
           await null;
           if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
@@ -1422,6 +1441,7 @@ const makeDaemonCore = async (
     };
 
     mailHub = makeExo('MailHub', DirectoryInterface, {
+      help: makeHelp(directoryHelp),
       has,
       identify,
       locate,
@@ -1436,6 +1456,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return mailHub;
@@ -1708,6 +1729,7 @@ const makeDaemonCore = async (
     };
 
     messageHub = makeExo('MessageHub', DirectoryInterface, {
+      help: makeHelp(directoryHelp),
       has,
       identify,
       locate,
@@ -1722,6 +1744,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return messageHub;
@@ -1736,19 +1759,25 @@ const makeDaemonCore = async (
     eval: ({ worker, source, names, values }, context) =>
       makeEval(worker, source, names, values, context),
     'readable-blob': ({ content }) => makeReadableBlob(content),
-    lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
+    lookup: ({ hub, path }, context) =>
+      makeLookup(
+        hub,
+        /** @type {import('./types.js').NamePath} */ (path),
+        context,
+      ),
     worker: (_formula, context, _id, formulaNumber) =>
       makeIdentifiedWorker(formulaNumber, context),
     'make-unconfined': (
-      { worker: workerId, powers: powersId, specifier },
+      { worker: workerId, powers: powersId, specifier, env = {} },
       context,
-    ) => makeUnconfined(workerId, powersId, specifier, context),
+    ) => makeUnconfined(workerId, powersId, specifier, env, context),
     'make-bundle': (
-      { worker: workerId, powers: powersId, bundle: bundleId },
+      { worker: workerId, powers: powersId, bundle: bundleId, env = {} },
       context,
-    ) => makeBundle(workerId, powersId, bundleId, context),
+    ) => makeBundle(workerId, powersId, bundleId, env, context),
     host: async (formula, context, id) => {
       const {
+        hostHandle: hostHandleId,
         handle: handleId,
         petStore: petStoreId,
         mailboxStore: mailboxStoreId,
@@ -1768,6 +1797,7 @@ const makeDaemonCore = async (
       const agent = await makeHost(
         id,
         handleId,
+        hostHandleId,
         petStoreId,
         mailboxStoreId,
         mailHubId,
@@ -1827,8 +1857,10 @@ const makeDaemonCore = async (
       pins: pinsId,
       peers: peersId,
     }) => {
+      const help = makeHelp(endoHelp);
       /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = makeExo('Endo', EndoInterface, {
+        help,
         ping: async () => 'pong',
         terminate: async () => {
           cancel(new Error('Termination requested'));
@@ -1837,7 +1869,7 @@ const makeDaemonCore = async (
         leastAuthority: () => provide(leastAuthorityId, 'guest'),
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
-        nodeNumber: () => localNodeNumber,
+        nodeId: () => localNodeNumber,
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
@@ -1885,6 +1917,7 @@ const makeDaemonCore = async (
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo('EndoGuest', GuestInterface, {
+            help: makeHelp(guestHelp),
             has: disallowedFn,
             identify: disallowedFn,
             reverseIdentify: disallowedSyncFn,
@@ -1895,6 +1928,7 @@ const makeDaemonCore = async (
             listIdentifiers: disallowedFn,
             followNameChanges: disallowedFn,
             lookup: disallowedFn,
+            lookupById: disallowedFn,
             reverseLookup: disallowedFn,
             write: disallowedFn,
             remove: disallowedFn,
@@ -1908,14 +1942,16 @@ const makeDaemonCore = async (
             reject: disallowedFn,
             adopt: disallowedFn,
             dismiss: disallowedFn,
+            dismissAll: disallowedFn,
             reply: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
             requestEvaluation: disallowedFn,
+            evaluate: disallowedFn,
             define: disallowedFn,
             form: disallowedFn,
             storeValue: disallowedFn,
-            deliver: disallowedFn,
+            deliver: disallowedSyncFn,
           })
         )
       );
@@ -1978,7 +2014,12 @@ const makeDaemonCore = async (
     ) =>
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      makeInvitation(id, hostAgentId, hostHandleId, guestName),
+      makeInvitation(
+        id,
+        hostAgentId,
+        hostHandleId,
+        /** @type {import('./types.js').PetName} */ (guestName),
+      ),
   };
 
   /**
@@ -2112,8 +2153,8 @@ const makeDaemonCore = async (
     if (peerId === undefined) {
       throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
-    const { id: verifiedPeerId } = parseId(peerId);
-    return verifiedPeerId;
+    parseId(peerId);
+    return peerId;
   };
 
   /** @type {DaemonCore['cancelValue']} */
@@ -2385,6 +2426,7 @@ const makeDaemonCore = async (
       hostFormulaNumber,
       hostId,
       handleId,
+      hostHandleId: remainingSpecifiedIdentifiers.hostHandleId ?? handleId,
       storeId,
       mailboxStoreId,
       mailHubId,
@@ -2405,6 +2447,7 @@ const makeDaemonCore = async (
     /** @type {HostFormula} */
     const formula = {
       type: 'host',
+      hostHandle: identifiers.hostHandleId,
       handle: identifiers.handleId,
       petStore: identifiers.storeId,
       mailboxStore: identifiers.mailboxStoreId,
@@ -2428,6 +2471,7 @@ const makeDaemonCore = async (
     pinsDirectoryId,
     deferredTasks,
     specifiedWorkerId,
+    hostHandleId,
   ) => {
     await null;
     return formulateNumberedHost(
@@ -2437,6 +2481,7 @@ const makeDaemonCore = async (
           networksDirectoryId,
           pinsDirectoryId,
           specifiedWorkerId,
+          hostHandleId,
         });
 
         await deferredTasks.execute({
@@ -2687,7 +2732,6 @@ const makeDaemonCore = async (
           evalId: ownId,
           evalFormulaNumber: ownFormulaNumber,
         });
-
         await deferredTasks.execute(identifiers);
         return identifiers;
       });
@@ -2794,6 +2838,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    env = {},
   ) => {
     const { powersId, capletFormulaNumber, workerId } =
       await withFormulaGraphLock(() =>
@@ -2812,6 +2857,7 @@ const makeDaemonCore = async (
       worker: workerId,
       powers: powersId,
       specifier,
+      env,
     };
     return formulate(capletFormulaNumber, formula);
   };
@@ -2824,6 +2870,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    env = {},
   ) => {
     const { powersId, capletFormulaNumber, workerId } =
       await withFormulaGraphLock(() =>
@@ -2842,6 +2889,7 @@ const makeDaemonCore = async (
       worker: workerId,
       powers: powersId,
       bundle: bundleId,
+      env,
     };
     return formulate(capletFormulaNumber, formula);
   };
@@ -3015,10 +3063,10 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {FormulaIdentifier} id
-   * @param {FormulaIdentifier} hostAgentId
-   * @param {FormulaIdentifier} hostHandleId
-   * @param {PetName} guestName
+   * @param {string} id
+   * @param {string} hostAgentId
+   * @param {string} hostHandleId
+   * @param {import('./types.js').PetName} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
     const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));
@@ -3186,8 +3234,8 @@ const makeDaemonCore = async (
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const { id: formulaId, number: formulaNumber } = parseId(id);
-      const formula = await getFormulaForId(formulaId);
+      const { number: formulaNumber } = parseId(id);
+      const formula = await getFormulaForId(id);
       if (
         !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
           formula.type,

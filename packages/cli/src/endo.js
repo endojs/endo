@@ -38,6 +38,18 @@ const parseOptionAsMapping = (optionValueString, obj) => {
   return obj;
 };
 
+const parseEnvOption = (optionValueString, obj) => {
+  // arguments are provided as "KEY=VALUE"
+  const eqIndex = optionValueString.indexOf('=');
+  if (eqIndex === -1) {
+    throw `Environment variable must be in KEY=VALUE format, got: ${optionValueString}`;
+  }
+  const key = optionValueString.slice(0, eqIndex);
+  const value = optionValueString.slice(eqIndex + 1);
+  obj[key] = value;
+  return obj;
+};
+
 export const main = async rawArgs => {
   const program = new Command();
 
@@ -125,12 +137,19 @@ export const main = async rawArgs => {
       '-p,--powers <endowment>',
       'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
     )
+    .option(
+      '-E,--env <key=value>',
+      'Environment variable to inject (can be used multiple times)',
+      parseEnvOption,
+      {},
+    )
     .action(async (filePath, args, cmd) => {
       const {
         as: agentNames,
         bundle: bundleName,
         UNCONFINED: importPath,
         powers: powersName = 'NONE',
+        env = {},
       } = cmd.opts();
       const { run } = await import('./commands/run.js');
       return run({
@@ -140,6 +159,7 @@ export const main = async rawArgs => {
         importPath,
         powersName,
         agentNames,
+        env,
       });
     });
 
@@ -156,6 +176,12 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
+    .option(
+      '-E,--env <key=value>',
+      'Environment variable to inject (can be used multiple times)',
+      parseEnvOption,
+      {},
+    )
     .action(async (filePath, cmd) => {
       const {
         UNCONFINED: importPath,
@@ -164,6 +190,7 @@ export const main = async rawArgs => {
         worker: workerName = undefined,
         as: agentNames,
         powers: powersName = 'NONE',
+        env = {},
       } = cmd.opts();
       const { makeCommand } = await import('./commands/make.js');
       return makeCommand({
@@ -174,6 +201,7 @@ export const main = async rawArgs => {
         workerName,
         agentNames,
         powersName,
+        env,
       });
     });
 
@@ -397,6 +425,18 @@ export const main = async rawArgs => {
       const { dismissCommand } = await import('./commands/dismiss.js');
       return dismissCommand({
         messageNumberText,
+        agentNames,
+      });
+    });
+
+  program
+    .command('dismiss-all')
+    .description('delete all messages')
+    .option(...commonOptions.as)
+    .action(async cmd => {
+      const { as: agentNames } = cmd.opts();
+      const { dismissAllCommand } = await import('./commands/dismiss-all.js');
+      return dismissAllCommand({
         agentNames,
       });
     });
@@ -747,15 +787,16 @@ export const main = async rawArgs => {
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
+    .option('-a, --all', 'include all logs (daemon and workers)')
     .option(
       '-p,--ping <interval>',
       'milliseconds between daemon restart checks',
     )
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
-      const { follow, ping } = cmd.opts();
+      const { follow, ping, all } = cmd.opts();
       const { log: logCommand } = await import('./commands/log.js');
-      await logCommand({ follow, ping });
+      await logCommand({ follow, ping, all });
     });
 
   program

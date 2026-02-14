@@ -24,6 +24,11 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested';
       } else if (type === 'package') {
         verb = message.replyTo === undefined ? 'sent' : 'replied to';
+      } else if (
+        type === 'eval-proposal-reviewer' ||
+        type === 'eval-proposal-proposer'
+      ) {
+        verb = 'proposed to evaluate';
       } else if (type === 'eval-request') {
         verb = 'requested evaluation of';
       } else if (type === 'definition') {
@@ -71,6 +76,19 @@ export const inbox = async ({ follow, agentNames }) =>
         const fieldInfo = fieldNames ? ` (fields: ${fieldNames})` : '';
         console.log(
           `${number}. ${provenance}${q(description)}${fieldInfo} at ${q(date)}`,
+        );
+      } else if (
+        message.type === 'eval-proposal-reviewer' ||
+        message.type === 'eval-proposal-proposer'
+      ) {
+        const { source } = message;
+        assert.typeof(source, 'string');
+        // Show first line of source code, truncated
+        const firstLine = source.split('\n')[0];
+        const preview =
+          firstLine.length > 40 ? `${firstLine.slice(0, 40)}...` : firstLine;
+        console.log(
+          `${number}. ${provenance}${q(preview)} at ${JSON.stringify(date)}`,
         );
       } else {
         console.log(`${number}. ${provenance}, consider upgrading.`);

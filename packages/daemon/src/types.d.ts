@@ -402,12 +402,36 @@ export type FormRequest = MessageBase & {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
+export type EvalProposalBase = {
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths?: Array<NamePath>;
+  edgeNames: Array<string>;
+  ids: Array<string>;
+  workerName?: string;
+  settled: Promise<'fulfilled' | 'rejected'>;
+  resultId: Promise<string>;
+  result: Promise<unknown>;
+};
+
+export type EvalProposalReviewer = EvalProposalBase & {
+  type: 'eval-proposal-reviewer';
+  responder: ERef<Responder>;
+};
+
+export type EvalProposalProposer = EvalProposalBase & {
+  type: 'eval-proposal-proposer';
+  resultName?: string;
+};
+
 export type Message =
   | Request
   | Package
   | EvalRequest
   | DefineRequest
-  | FormRequest;
+  | FormRequest
+  | EvalProposalReviewer
+  | EvalProposalProposer;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -675,6 +699,7 @@ export interface Mail {
     petName: string[],
   ): Promise<void>;
   dismiss(messageNumber: bigint): Promise<void>;
+  dismissAll(): Promise<void>;
   reply(
     messageNumber: bigint,
     strings: Array<string>,
@@ -729,6 +754,37 @@ export interface Mail {
     resolverId: FormulaIdentifier;
     guestHandleId: string;
   };
+  // Eval-proposal workflow
+  evaluate(
+    toId: string,
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<NamePath>,
+    edgeNames: Array<string>,
+    ids: Array<string>,
+    workerName?: string,
+    resultName?: string,
+  ): Promise<unknown>;
+  grantEvaluate(
+    messageNumber: bigint,
+    executeEval: (
+      source: string,
+      codeNames: string[],
+      ids: string[],
+      workerName: string | undefined,
+      proposal: EvalProposalReviewer,
+    ) => Promise<{ id: string; value: unknown }>,
+  ): Promise<unknown>;
+  counterEvaluate(
+    messageNumber: bigint,
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<NamePath>,
+    edgeNames: Array<string>,
+    ids: Array<string>,
+    workerName?: string,
+    resultName?: string,
+  ): Promise<unknown>;
 }
 
 export type MakeMailbox = (args: {
@@ -857,6 +913,14 @@ export interface EndoGuest {
     codeNames: Array<string>,
     petNamePaths: Array<string | string[]>,
     resultName?: string | string[],
+  ): Promise<unknown>;
+  /** Propose code evaluation to host with full eval-proposal workflow */
+  evaluate(
+    workerPetName: string | undefined,
+    source: string,
+    codeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    resultNameOrPath?: string | string[],
   ): Promise<unknown>;
   define(
     source: string,

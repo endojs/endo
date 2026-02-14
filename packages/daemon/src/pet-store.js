@@ -5,7 +5,7 @@ import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
 
-/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
+/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetName, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
 
 /**
  * @param {string} formulaNumber
@@ -61,6 +61,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The new name.
      */
     const publishNameAddition = (id, petName) => {
+      assertValidName(petName);
       const idRecord = parseId(id);
       nameChangesTopic.publisher.next({
         add: petName,
@@ -77,9 +78,8 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {Name} petName - The removed name.
      */
     const publishNameRemoval = (id, petName) => {
-      nameChangesTopic.publisher.next({
-        remove: petName,
-      });
+      assertValidName(petName);
+      nameChangesTopic.publisher.next({ remove: petName });
       if (id !== undefined) {
         publishIdChangeToSubscribers(id, {
           remove: parseId(id),
@@ -147,7 +147,11 @@ export const makePetStoreMaker = (filePowers, config) => {
     };
 
     /** @type {PetStore['list']} */
-    const list = () => harden(idsToPetNames.getAll().sort());
+    const list = () => {
+      // All names in the pet store have been validated before storage
+      const names = /** @type {PetName[]} */ (idsToPetNames.getAll().sort());
+      return harden(names);
+    };
 
     /** @type {PetStore['followNameChanges']} */
     const followNameChanges = async function* currentAndSubsequentNames() {
@@ -244,7 +248,9 @@ export const makePetStoreMaker = (filePowers, config) => {
       if (formulaPetNames === undefined) {
         return harden([]);
       }
-      return harden([...formulaPetNames]);
+      // All names in the pet store have been validated before storage
+      const names = /** @type {PetName[]} */ ([...formulaPetNames]);
+      return harden(names);
     };
 
     const petStore = {

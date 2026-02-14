@@ -1,19 +1,20 @@
 // @ts-check
+/* global setTimeout, process */
 
 import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Path to the monorepo root
-const repoRoot = path.resolve(__dirname, '../..');
+const repoRoot = path.resolve(dirname, '../..');
 
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
 
 // Path to the gateway server script
-const gatewayServerPath = path.join(__dirname, 'scripts/gateway-server.js');
+const gatewayServerPath = path.join(dirname, 'scripts/gateway-server.js');
 
 /**
  * @typedef {object} EndoPluginOptions
@@ -43,19 +44,20 @@ const ensureEndoRunning = async () => {
       if (code === 0) {
         console.log('[Endo Plugin] Endo daemon is running');
         resolve();
-      } else {
-        // Code 1 might just mean it's already running, which is fine
-        // Check stderr for actual errors
-        if (
-          stderr.includes('already running') ||
-          stderr.includes('ECONNREFUSED') === false
-        ) {
-          console.log('[Endo Plugin] Endo daemon is running');
-          resolve();
-        } else {
-          reject(new Error(`Failed to start Endo daemon: ${stderr}`));
-        }
+        return;
       }
+
+      // Code 1 might just mean it's already running, which is fine
+      // Check stderr for actual errors
+      const shouldResolve =
+        stderr.includes('already running') || !stderr.includes('ECONNREFUSED');
+      if (shouldResolve) {
+        console.log('[Endo Plugin] Endo daemon is running');
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Failed to start Endo daemon: ${stderr}`));
     });
 
     child.on('error', reject);
@@ -80,7 +82,7 @@ const startGatewayServer = async port => {
 
     const child = spawn('node', [gatewayServerPath, JSON.stringify({ port })], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: __dirname,
+      cwd: dirname,
     });
 
     let stdout = '';

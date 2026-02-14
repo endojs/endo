@@ -171,6 +171,10 @@ dismiss(messageNumber) -> Promise<void>
 Remove a message from the inbox.
 Use after you've processed a message.`,
 
+  dismissAll: `\
+dismissAll() -> Promise<void>
+Remove all messages from the inbox.`,
+
   request: `\
 request(recipientName, description, responseName?) -> Promise<any>
 Send a request to another agent asking for a capability.
@@ -346,20 +350,28 @@ Example: evaluate(undefined, "x + y", ["x", "y"], ["a", "b"], ["result"])
   Runs "x + y" where x=lookup("a"), y=lookup("b"), stores result as "result"`,
 
   makeUnconfined: `\
-makeUnconfined(workerName, specifier, powersName, resultName?) -> Promise<any>
+makeUnconfined(workerName, specifier, options?) -> Promise<any>
 Load and instantiate an unconfined module (has access to Node.js APIs).
 - workerName: Worker to use (undefined for new worker)
 - specifier: Module path or URL
-- powersName: Pet name of the powers object to provide
-- resultName: Optional name to store the result`,
+- options: Optional object with:
+  - powersName: Pet name of the powers to grant (default: 'NONE')
+  - resultName: Pet name or path to store the result
+  - env: Environment variables as { KEY: "value" } record
+
+The module's make(powers, context, { env }) function is called.`,
 
   makeBundle: `\
-makeBundle(workerName, bundleName, powersName, resultName?) -> Promise<any>
+makeBundle(workerName, bundleName, options?) -> Promise<any>
 Instantiate a pre-bundled module.
 - workerName: Worker to use (undefined for new worker)
 - bundleName: Pet name of the bundle
-- powersName: Pet name of the powers object to provide
-- resultName: Optional name to store the result`,
+- options: Optional object with:
+  - powersName: Pet name of the powers to grant (default: 'NONE')
+  - resultName: Pet name or path to store the result
+  - env: Environment variables as { KEY: "value" } record
+
+The module's make(powers, context, { env }) function is called.`,
 
   cancel: `\
 cancel(petNameOrPath, reason?) -> Promise<void>

@@ -22,15 +22,52 @@ const IdShape = M.string();
 // Locators are formatted formula identifiers
 const LocatorShape = M.string();
 
-// Message numbers are non-negative integers
-const MessageNumberShape = M.number();
+// Message numbers are non-negative BigInts
+const MessageNumberShape = M.bigint();
+
+// Environment variables as string-to-string record
+const EnvShape = M.recordOf(M.string(), M.string());
+
+// Options for makeUnconfined and makeBundle
+const MakeCapletOptionsShape = M.splitRecord(
+  {},
+  { powersName: NameShape, resultName: NameOrPathShape, env: EnvShape },
+);
+
+// Shared method guard for evaluate (used by both Host and Guest)
+// Host.evaluate executes directly; Guest.evaluate sends an eval-proposal
+const EvaluateMethodGuard = M.call(
+  M.or(NameShape, M.undefined()),
+  M.string(),
+  M.arrayOf(M.string()),
+  NamesOrPathsShape,
+)
+  .optional(NameOrPathShape)
+  .returns(M.promise());
 
 // #region Interfaces
 
 export const WorkerInterface = M.interface('EndoWorker', {});
 
 export const ResponderInterface = M.interface('EndoResponder', {
-  respondId: M.call(M.or(IdShape, M.promise())).returns(),
+  resolveWithId: M.call(M.or(IdShape, M.promise())).returns(),
+});
+
+export const NameHubInterface = M.interface('EndoNameHub', {
+  has: M.call().rest(NamePathShape).returns(M.promise()),
+  identify: M.call().rest(NamePathShape).returns(M.promise()),
+  locate: M.call().rest(NamePathShape).returns(M.promise()),
+  reverseLocate: M.call(LocatorShape).returns(M.promise()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  list: M.call().rest(NamePathShape).returns(M.promise()),
+  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
+  followNameChanges: M.call().returns(M.remotable()),
+  lookup: M.call(NameOrPathShape).returns(M.promise()),
+  reverseLookup: M.call(M.any()).returns(M.promise()),
+  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  remove: M.call().rest(NamePathShape).returns(M.promise()),
+  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
+  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
 });
 
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
@@ -39,10 +76,15 @@ export const DismisserInterface = M.interface('EndoDismisser', {
   dismiss: M.call().returns(),
 });
 
-export const HandleInterface = M.interface('EndoHandle', {
-  receive: M.call(M.remotable('Envelope'), IdShape).returns(M.promise()),
-  open: M.call(M.remotable('Envelope')).returns(M.record()),
-});
+// CRITICAL: HandleInterface must use defaultGuards: 'passable' to preserve
+// envelope object identity when passed through E() calls. Explicit guards
+// like M.remotable('Envelope') cause envelope identity loss and "mail fraud"
+// errors.
+export const HandleInterface = M.interface(
+  'EndoHandle',
+  {},
+  { defaultGuards: 'passable' },
+);
 
 export const AsyncIteratorInterface = M.interface('AsyncIterator', {
   next: M.call().returns(M.promise()),
@@ -82,16 +124,16 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
   // Copy a reference
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   // Create a new directory
-  makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
 });
 
 export const GuestInterface = M.interface('EndoGuest', {
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),
-  // Confined directory (petname/value only -- no identify/locate/reverse*/listIdentifiers)
+  // Confined directory (petname/value only -- no identify/locate/reverse*/listIdentifiers/lookupById)
   has: M.call().rest(NamePathShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
+  followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
   // Store a passable value (same as host storeValue)
@@ -99,38 +141,65 @@ export const GuestInterface = M.interface('EndoGuest', {
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
   // Identity comparison on live values
   equals: M.call(M.any(), M.any()).returns(M.promise()),
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
-  followMessages: M.call().returns(M.remotable()),
+  // Subscribe to messages (returns iterator ref)
+  followMessages: M.call().returns(M.promise()),
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
   reject: M.call(MessageNumberShape).optional(M.string()).returns(M.promise()),
   adopt: M.call(MessageNumberShape, NameOrPathShape, NameOrPathShape).returns(
     M.promise(),
   ),
   dismiss: M.call(MessageNumberShape).returns(M.promise()),
+  // Remove all messages from inbox
+  dismissAll: M.call().returns(M.promise()),
+  // Send a request and wait for response
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
+  // Send a package message
   send: M.call(
     NameOrPathShape,
     M.arrayOf(M.string()),
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
+  // Reply to a message
+  reply: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
-    M.string(),
-    M.arrayOf(M.string()),
-    NamesOrPathsShape,
+    M.string(), // source
+    M.arrayOf(M.string()), // codeNames
+    NamesOrPathsShape, // petNamePaths
   )
-    .optional(NameOrPathShape)
+    .optional(NameOrPathShape) // resultName
+    .returns(M.promise()),
+  // Define code with named slots
+  define: M.call(
+    M.string(), // source
+    M.record(), // slots
+  ).returns(M.promise()),
+  // Request a form from a recipient
+  form: M.call(
+    NameOrPathShape, // recipientName
+    M.string(), // description
+    M.record(), // fields
+  )
+    .optional(NameOrPathShape) // responseName
     .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
+  // Propose code evaluation to host (same signature as Host.evaluate)
+  evaluate: EvaluateMethodGuard,
 });
 
 export const HostInterface = M.interface('EndoHost', {
@@ -142,27 +211,29 @@ export const HostInterface = M.interface('EndoHost', {
   reverseIdentify: M.call(IdShape).returns(M.array()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
+  followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
+  lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
   write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
-  followMessages: M.call().returns(M.remotable()),
+  followMessages: M.call().returns(M.promise()),
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
   reject: M.call(MessageNumberShape).optional(M.string()).returns(M.promise()),
   adopt: M.call(MessageNumberShape, NameOrPathShape, NameOrPathShape).returns(
     M.promise(),
   ),
   dismiss: M.call(MessageNumberShape).returns(M.promise()),
+  dismissAll: M.call().returns(M.promise()),
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
@@ -175,7 +246,9 @@ export const HostInterface = M.interface('EndoHost', {
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
-  storeBlob: M.call(M.remotable()).optional(NameShape).returns(M.promise()),
+  storeBlob: M.call(M.remotable())
+    .optional(NameOrPathShape)
+    .returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
@@ -183,23 +256,16 @@ export const HostInterface = M.interface('EndoHost', {
   // Provide a host
   provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
-  provideWorker: M.call(NamePathShape).returns(M.promise()),
-  // Evaluate code
-  evaluate: M.call(
-    M.or(NameShape, M.undefined()),
-    M.string(),
-    M.arrayOf(M.string()),
-    NamesOrPathsShape,
-  )
-    .optional(NamePathShape)
-    .returns(M.promise()),
+  provideWorker: M.call(NameOrPathShape).returns(M.promise()),
+  // Evaluate code (Host executes directly; Guest sends eval-proposal)
+  evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
-  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string(), NameShape)
-    .optional(NameOrPathShape)
+  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string())
+    .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a bundle caplet
-  makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape, NameShape)
-    .optional(NameShape)
+  makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape)
+    .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
@@ -219,6 +285,39 @@ export const HostInterface = M.interface('EndoHost', {
   approveEvaluation: M.call(MessageNumberShape)
     .optional(M.or(NameShape, M.undefined()))
     .returns(M.promise()),
+  // Grant an eval-proposal (execute the proposed code)
+  grantEvaluate: M.call(MessageNumberShape).returns(M.promise()),
+  // Send a counter-proposal back to the proposer
+  counterEvaluate: M.call(
+    MessageNumberShape,
+    M.string(),
+    M.arrayOf(M.string()),
+    NamesOrPathsShape,
+  )
+    .optional(M.or(NameShape, M.undefined()), NamePathShape)
+    .returns(M.promise()),
+  // Reply to a message
+  reply: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
+  // Endow a definition request with bindings
+  endow: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // bindings
+  )
+    .optional(
+      M.or(NameShape, M.undefined()), // workerName
+      NameOrPathShape, // resultName
+    )
+    .returns(M.promise()),
+  // Respond to a form request with values
+  respondForm: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // values
+  ).returns(M.promise()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {
@@ -261,8 +360,14 @@ export const WorkerFacetForDaemonInterface = M.interface(
       M.promise(),
     ).returns(M.promise()),
     // These methods receive promises that get resolved inside the worker
-    makeBundle: M.call(M.any(), M.any(), M.any()).returns(M.promise()),
-    makeUnconfined: M.call(M.string(), M.any(), M.any()).returns(M.promise()),
+    // Args: (readableP, powersP, contextP, env)
+    makeBundle: M.call(M.any(), M.any(), M.any(), EnvShape).returns(
+      M.promise(),
+    ),
+    // Args: (specifier, powersP, contextP, env)
+    makeUnconfined: M.call(M.string(), M.any(), M.any(), EnvShape).returns(
+      M.promise(),
+    ),
   },
 );
 
