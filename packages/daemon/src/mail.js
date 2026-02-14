@@ -139,6 +139,7 @@ export const makeMailboxMaker = ({
   formulatePromise,
   formulateMessage,
   getFormulaForId,
+  getTypeForId,
   randomHex512,
   pinTransient = () => {},
   unpinTransient = () => {},
@@ -379,6 +380,26 @@ export const makeMailboxMaker = ({
           resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
+      if (
+        envelope.type === 'eval-proposal-reviewer' ||
+        envelope.type === 'eval-proposal-proposer'
+      ) {
+        return harden({
+          type: 'message',
+          messageType: envelope.type,
+          messageId,
+          ...replyToRecord,
+          from: /** @type {FormulaIdentifier} */ (envelope.from),
+          to: /** @type {FormulaIdentifier} */ (envelope.to),
+          date,
+          source: envelope.source,
+          codeNames: envelope.codeNames,
+          petNamePaths: envelope.petNamePaths,
+          edgeNames: envelope.edgeNames,
+          ids: envelope.ids,
+          workerName: envelope.workerName,
+        });
+      }
       throw new Error('Unknown message type');
     };
 
@@ -457,6 +478,18 @@ export const makeMailboxMaker = ({
         }
         if (typeof envelope.fields !== 'object' || envelope.fields === null) {
           throw new Error('Invalid form-request fields');
+        }
+        return;
+      }
+      if (
+        envelope.type === 'eval-proposal-reviewer' ||
+        envelope.type === 'eval-proposal-proposer'
+      ) {
+        if (typeof envelope.source !== 'string') {
+          throw new Error('Invalid eval-proposal source');
+        }
+        if (!Array.isArray(envelope.codeNames)) {
+          throw new Error('Invalid eval-proposal codeNames');
         }
         return;
       }
@@ -813,8 +846,9 @@ export const makeMailboxMaker = ({
      * @returns {Promise<Handle>}
      */
     const provideHandle = async id => {
-      const formula = await getFormulaForId(id);
-      if (formula.type === 'host' || formula.type === 'guest') {
+      const type = await getTypeForId(id);
+      if (type === 'host' || type === 'guest') {
+        const formula = await getFormulaForId(id);
         return provide(
           /** @type {FormulaIdentifier} */ (formula.handle),
           'handle',
@@ -839,17 +873,17 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['resolve']} */
-    const resolve = async (messageNumber, resolutionName) => {
-      assertName(resolutionName);
+    const resolve = async (messageNumber, resolutionNameOrPath) => {
+      const resolutionPath = namePathFrom(resolutionNameOrPath);
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'request');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
         throw new Error(`Invalid request, ${q(messageNumber)}`);
       }
-      const id = petStore.identifyLocal(resolutionName);
+      const id = await E(directory).identify(...resolutionPath);
       if (id === undefined) {
         throw new TypeError(
-          `No formula exists for the pet name ${q(resolutionName)}`,
+          `No formula exists for the pet name ${q(resolutionNameOrPath)}`,
         );
       }
       // TODO validate shape of request
@@ -878,14 +912,13 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['send']} */
-    const send = async (toName, strings, edgeNames, petNames) => {
-      assertName(toName);
+    const send = async (toNameOrPath, strings, edgeNames, petNamesOrPaths) => {
+      const toPath = namePathFrom(toNameOrPath);
       assertNames(edgeNames);
       assertUniqueEdgeNames(edgeNames);
-      assertPetNames(petNames);
-      const toId = petStore.identifyLocal(toName);
+      const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toName}`);
+        throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
       }
       const replyToMessageId =
         /** @type {import('./types.js').FormulaNumber} */ (
@@ -893,27 +926,30 @@ export const makeMailboxMaker = ({
         );
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
-      if (petNames.length !== edgeNames.length) {
+      if (petNamesOrPaths.length !== edgeNames.length) {
         throw new Error(
           `Message must have one edge name (${q(
             edgeNames.length,
-          )}) for every pet name (${q(petNames.length)})`,
+          )}) for every pet name (${q(petNamesOrPaths.length)})`,
         );
       }
-      if (strings.length < petNames.length) {
+      if (strings.length < petNamesOrPaths.length) {
         throw new Error(
           `Message must have one string before every value delivered`,
         );
       }
 
-      const ids = petNames.map(petName => {
-        const id = petStore.identifyLocal(petName);
-        if (id === undefined) {
-          throw new Error(`Unknown pet name ${q(petName)}`);
-        }
-        assertValidId(id);
-        return /** @type {FormulaIdentifier} */ (id);
-      });
+      const ids = await Promise.all(
+        petNamesOrPaths.map(async petNameOrPath => {
+          const petPath = namePathFrom(petNameOrPath);
+          const id = await E(directory).identify(...petPath);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
+          }
+          assertValidId(id);
+          return /** @type {FormulaIdentifier} */ (id);
+        }),
+      );
 
       const message = harden({
         type: /** @type {const} */ ('package'),
@@ -1009,8 +1045,9 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['adopt']} */
-    const adopt = async (messageNumber, edgeName, petNamePath) => {
+    const adopt = async (messageNumber, edgeName, petNameOrPath) => {
       assertName(edgeName);
+      const petNamePath = namePathFrom(petNameOrPath);
       assertPetNamePath(petNamePath);
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
@@ -1041,12 +1078,10 @@ export const makeMailboxMaker = ({
     /** @type {Mail['request']} */
     const request = async (toName, description, responseName) => {
       assertName(toName);
-      if (responseName !== undefined) {
-        assertName(responseName);
-      }
       await null;
       if (responseName !== undefined) {
-        const resolutionId = await E(directory).identify(responseName);
+        const responseNamePath = namePathFrom(responseName);
+        const resolutionId = await E(directory).identify(...responseNamePath);
         if (resolutionId !== undefined) {
           context.thisDiesIfThatDies(resolutionId);
           return provide(/** @type {FormulaIdentifier} */ (resolutionId));
@@ -1086,7 +1121,8 @@ export const makeMailboxMaker = ({
       const responseP = provide(resolutionId);
 
       if (responseName !== undefined) {
-        await E(directory).write(responseName, resolutionId);
+        const responseNamePath = namePathFrom(responseName);
+        await E(directory).write(responseNamePath, resolutionId);
       }
 
       return responseP;
@@ -1161,16 +1197,15 @@ export const makeMailboxMaker = ({
         /** @type {FormulaIdentifier} */ (toId),
       );
 
-      try {
-        await post(to, req);
-      } finally {
-        unpinTransient(req.promiseId);
-        unpinTransient(req.resolverId);
-      }
+      await post(to, req);
 
       const resolutionId = /** @type {FormulaIdentifier} */ (
         await resolutionIdP
       );
+      // Unpin after resolution to prevent collection during async wait.
+      unpinTransient(req.promiseId);
+      unpinTransient(req.resolverId);
+
       assertValidId(resolutionId);
       context.thisDiesIfThatDies(resolutionId);
       const responseP = provide(resolutionId);
@@ -1354,6 +1389,10 @@ export const makeMailboxMaker = ({
     ) => {
       const to = /** @type {Handle} */ (await provide(toId));
 
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
+
       // Create a responder to receive the evaluation result
       /** @type {PromiseKit<string>} */
       const { promise: responseIdP, resolve: resolveResponseId } =
@@ -1371,6 +1410,7 @@ export const makeMailboxMaker = ({
       /** @type {EvalProposalReviewer & { from: string, to: string }} */
       const reviewerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-reviewer'),
+        messageId,
         source,
         codeNames,
         petNamePaths,
@@ -1388,6 +1428,7 @@ export const makeMailboxMaker = ({
       /** @type {EvalProposalProposer & { from: string, to: string }} */
       const proposerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-proposer'),
+        messageId,
         source,
         codeNames,
         petNamePaths,
@@ -1402,7 +1443,16 @@ export const makeMailboxMaker = ({
         to: toId,
       });
 
-      await post(to, reviewerMessage, proposerMessage);
+      // Deliver the proposer view to our own inbox first,
+      // so it's available before the recipient sees the reviewer.
+      if (reviewerMessage.from !== reviewerMessage.to) {
+        await deliver(proposerMessage);
+      }
+
+      // Send the reviewer view to the recipient (host) via envelope.
+      const envelope = makeEnvelope();
+      outbox.set(envelope, reviewerMessage);
+      await E(to).receive(envelope, selfId);
 
       // Wait for the response and provide the result
       const responseId = await responseIdP;
@@ -1440,8 +1490,7 @@ export const makeMailboxMaker = ({
         proposal,
       );
 
-      // Resolve the proposer's promise with the result ID
-      E.sendOnly(responder).respondId(id);
+      E.sendOnly(responder).resolveWithId(id);
 
       return value;
     };
@@ -1473,10 +1522,14 @@ export const makeMailboxMaker = ({
       const originalProposal =
         /** @type {EvalProposalReviewer & { from: string }} */ (message);
       const originalSenderId = originalProposal.from;
-      const originalResponder = originalProposal.responder;
 
       // Send counter-proposal back to original sender
       const to = /** @type {Handle} */ (await provide(originalSenderId));
+
+      const counterMessageId =
+        /** @type {import('./types.js').FormulaNumber} */ (
+          await randomHex512()
+        );
 
       // Create a responder for the counter-proposal
       /** @type {PromiseKit<string>} */
@@ -1493,6 +1546,7 @@ export const makeMailboxMaker = ({
       /** @type {EvalProposalReviewer & { from: string, to: string }} */
       const counterReviewerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-reviewer'),
+        messageId: counterMessageId,
         source,
         codeNames,
         petNamePaths,
@@ -1510,6 +1564,7 @@ export const makeMailboxMaker = ({
       /** @type {EvalProposalProposer & { from: string, to: string }} */
       const counterProposerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-proposer'),
+        messageId: counterMessageId,
         source,
         codeNames,
         petNamePaths,
@@ -1524,26 +1579,15 @@ export const makeMailboxMaker = ({
         to: originalSenderId,
       });
 
-      await post(to, counterReviewerMessage, counterProposerMessage);
-
-      // Resolve the original proposal with the counter message
-      try {
-        await E(originalResponder).respondId(counterReviewerMessage);
-      } catch {
-        try {
-          await E(originalResponder).respondId(undefined);
-        } catch {
-          // Ignore if responder is already gone.
-        }
+      // Deliver the counter-proposal proposer view to our own inbox first.
+      if (counterReviewerMessage.from !== counterReviewerMessage.to) {
+        await deliver(counterProposerMessage);
       }
 
-      // Wait for counter to be granted
-      const responseId = await responseIdP;
-      if (resultName) {
-        const resultNamePath = namePathFrom(resultName.split('.'));
-        await E(directory).write(resultNamePath, responseId);
-      }
-      return provide(responseId);
+      // Send the counter-proposal reviewer view to the original proposer.
+      const counterEnvelope = makeEnvelope();
+      outbox.set(counterEnvelope, counterReviewerMessage);
+      await E(to).receive(counterEnvelope, selfId);
     };
 
     const handle = makeExo('Handle', HandleInterface, {

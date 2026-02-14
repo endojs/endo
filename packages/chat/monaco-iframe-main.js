@@ -1,6 +1,6 @@
 // @ts-check
 /* global document, window, self */
-/* eslint-disable no-restricted-globals, no-bitwise */
+/* eslint-disable no-restricted-globals, no-bitwise, import/no-unresolved */
 // This file runs INSIDE the Monaco iframe, OUTSIDE of SES
 // Do not import this from the main application
 

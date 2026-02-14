@@ -2575,7 +2575,10 @@ const inboxComponent = async ($parent, $end, powers) => {
         $slot.replaceWith($token);
       }
     } else if (message.type === 'eval-request') {
-      const { source, codeNames, petNamePaths, settled } = message;
+      const { source, codeNames, petNamePaths, settled } =
+        /** @type {{ source: string, codeNames: string[], petNamePaths: Array<string | string[]>, settled: Promise<string> }} */ (
+          message
+        );
 
       // Show sender chip
       if ($senderChip) {
@@ -2617,8 +2620,8 @@ const inboxComponent = async ($parent, $end, powers) => {
       }
 
       // Approve/Reject controls
-      const $controls = document.createElement('span');
-      $body.appendChild($controls);
+      const $evalControls = document.createElement('span');
+      $body.appendChild($evalControls);
 
       const $approve = document.createElement('button');
       $approve.innerText = 'Approve';
@@ -2629,7 +2632,7 @@ const inboxComponent = async ($parent, $end, powers) => {
             $error.innerText = ` ${error.message}`;
           });
       };
-      $controls.appendChild($approve);
+      $evalControls.appendChild($approve);
 
       const $rejectBtn = document.createElement('button');
       $rejectBtn.innerText = 'Reject';
@@ -2637,16 +2640,16 @@ const inboxComponent = async ($parent, $end, powers) => {
         E(powers)
           .reject(number, 'Evaluation rejected')
           .then(() => {
-            $controls.innerText = ' Rejected ';
+            $evalControls.innerText = ' Rejected ';
           })
           .catch(error => {
             $error.innerText = ` ${error.message}`;
           });
       };
-      $controls.appendChild($rejectBtn);
+      $evalControls.appendChild($rejectBtn);
 
       settled.then(status => {
-        $controls.innerText = ` ${status} `;
+        $evalControls.innerText = ` ${status} `;
       });
     } else if (message.type === 'definition') {
       const { source, slots, settled } = message;
@@ -2709,8 +2712,8 @@ const inboxComponent = async ($parent, $end, powers) => {
         $body.appendChild($slotList);
 
         // Endow/Reject controls
-        const $controls = document.createElement('span');
-        $body.appendChild($controls);
+        const $defnSlotsControls = document.createElement('span');
+        $body.appendChild($defnSlotsControls);
 
         const $endow = document.createElement('button');
         $endow.innerText = 'Endow';
@@ -2729,7 +2732,7 @@ const inboxComponent = async ($parent, $end, powers) => {
               $error.innerText = ` ${error.message}`;
             });
         };
-        $controls.appendChild($endow);
+        $defnSlotsControls.appendChild($endow);
 
         const $rejectBtn = document.createElement('button');
         $rejectBtn.innerText = 'Reject';
@@ -2737,21 +2740,21 @@ const inboxComponent = async ($parent, $end, powers) => {
           E(powers)
             .reject(number, 'Definition rejected')
             .then(() => {
-              $controls.innerText = ' Rejected ';
+              $defnSlotsControls.innerText = ' Rejected ';
             })
             .catch(error => {
               $error.innerText = ` ${error.message}`;
             });
         };
-        $controls.appendChild($rejectBtn);
+        $defnSlotsControls.appendChild($rejectBtn);
 
         settled.then(status => {
-          $controls.innerText = ` ${status} `;
+          $defnSlotsControls.innerText = ` ${status} `;
         });
       } else {
         // No slots — just approve/reject like an eval
-        const $controls = document.createElement('span');
-        $body.appendChild($controls);
+        const $defnControls = document.createElement('span');
+        $body.appendChild($defnControls);
 
         const $endow = document.createElement('button');
         $endow.innerText = 'Approve';
@@ -2762,7 +2765,7 @@ const inboxComponent = async ($parent, $end, powers) => {
               $error.innerText = ` ${error.message}`;
             });
         };
-        $controls.appendChild($endow);
+        $defnControls.appendChild($endow);
 
         const $rejectBtn = document.createElement('button');
         $rejectBtn.innerText = 'Reject';
@@ -2770,16 +2773,16 @@ const inboxComponent = async ($parent, $end, powers) => {
           E(powers)
             .reject(number, 'Definition rejected')
             .then(() => {
-              $controls.innerText = ' Rejected ';
+              $defnControls.innerText = ' Rejected ';
             })
             .catch(error => {
               $error.innerText = ` ${error.message}`;
             });
         };
-        $controls.appendChild($rejectBtn);
+        $defnControls.appendChild($rejectBtn);
 
         settled.then(status => {
-          $controls.innerText = ` ${status} `;
+          $defnControls.innerText = ` ${status} `;
         });
       }
     }
