@@ -1,9 +1,9 @@
 // @ts-check
-/* global process */
 /* eslint-disable no-await-in-loop */
 
 /** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */
 /** @import { LLMBackend } from './ollama-backend.js' */
+/** @import { LLMConfig } from './llm-agent.js' */
 /** @import { ConversationState, PendingToolCall } from './conversation-store.js' */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -201,16 +201,18 @@ const executeTool = async (powers, name, input) => {
  * model produces a final text response.
  *
  * @param {FarEndoGuest} powers - Endo guest powers
+ * @param {LLMConfig} config - LLM configuration from setup
  * @param {Array<{role: string, content: unknown}>} [initialMessages] - Optional saved conversation history
  * @param {Array<PendingToolCall>} [pendingToolCalls] - Tool calls pending from before a restart
  * @returns {LLMBackend & { resumePending: () => Promise<string | null> }}
  */
 export const createAnthropicBackend = (
   powers,
+  config,
   initialMessages,
   pendingToolCalls,
 ) => {
-  const anthropic = new Anthropic();
+  const anthropic = new Anthropic({ apiKey: config.apiKey });
   /** @type {Array<{role: string, content: unknown}>} */
   const messages = initialMessages ? [...initialMessages] : [];
 
@@ -337,7 +339,7 @@ export const createAnthropicBackend = (
     messages.push({ role: 'user', content: toolResults });
 
     let response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929',
+      model: config.model || 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       system: getSystemPrompt(),
       messages,
@@ -353,7 +355,7 @@ export const createAnthropicBackend = (
       messages.push({ role: 'user', content: moreResults });
 
       response = await anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929',
+        model: config.model || 'claude-sonnet-4-5-20250929',
         max_tokens: 4096,
         system: getSystemPrompt(),
         messages,
@@ -381,7 +383,7 @@ export const createAnthropicBackend = (
     messages.push({ role: 'user', content: userContent });
 
     let response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929',
+      model: config.model || 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       system: getSystemPrompt(),
       messages,
@@ -397,7 +399,7 @@ export const createAnthropicBackend = (
       messages.push({ role: 'user', content: toolResults });
 
       response = await anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929',
+        model: config.model || 'claude-sonnet-4-5-20250929',
         max_tokens: 4096,
         system: getSystemPrompt(),
         messages,

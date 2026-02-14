@@ -1,7 +1,7 @@
 // @ts-check
-/* global process */
 
 /** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */
+/** @import { LLMConfig } from './llm-agent.js' */
 
 import { E } from '@endo/eventual-send';
 import { Ollama } from 'ollama';
@@ -19,17 +19,18 @@ import { saveConversation } from './conversation-store.js';
  * Best-effort extraction of fenced code blocks triggers requestEvaluation.
  *
  * @param {FarEndoGuest} powers - Endo guest powers
+ * @param {LLMConfig} config - LLM configuration from setup
  * @param {Array<{role: string, content: unknown}>} [initialMessages] - Optional saved conversation history
  * @returns {LLMBackend}
  */
-export const createOllamaBackend = (powers, initialMessages) => {
+export const createOllamaBackend = (powers, config, initialMessages) => {
   const ollama = new Ollama({
-    ...(process.env.OLLAMA_HOST && {
-      host: process.env.OLLAMA_HOST,
+    ...(config.ollamaHost && {
+      host: config.ollamaHost,
     }),
     headers: {
-      ...(process.env.OLLAMA_API_KEY && {
-        Authorization: `Bearer ${process.env.OLLAMA_API_KEY}`,
+      ...(config.ollamaApiKey && {
+        Authorization: `Bearer ${config.ollamaApiKey}`,
       }),
     },
   });
@@ -61,7 +62,7 @@ export const createOllamaBackend = (powers, initialMessages) => {
     transcript.push({ role: 'user', content: userContent });
 
     const response = await ollama.chat({
-      model: process.env.OLLAMA_MODEL || 'qwen3',
+      model: config.model || 'qwen3',
       messages: transcript,
     });
 

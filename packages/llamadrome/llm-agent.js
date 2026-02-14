@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 /* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
@@ -16,12 +15,16 @@ const LlamadromeInterface = M.interface('Llamadrome', {
 });
 
 /**
+ * @typedef {{ backend: string, apiKey: string | undefined, model: string | undefined, ollamaHost: string | undefined, ollamaApiKey: string | undefined }} LLMConfig
+ */
+
+/**
  * Create a Llamadrome LLM agent as an Endo guest module.
  *
- * Selects the LLM backend based on the LLM_BACKEND environment variable
- * ("ollama" or "anthropic", defaulting to "ollama"). Loads saved conversation
- * state on startup so the agent survives daemon restarts. Resumes pending
- * tool calls that were interrupted by a restart.
+ * Reads LLM configuration from the guest's pet store (persisted at setup
+ * time) and selects the appropriate backend ("ollama" or "anthropic").
+ * Loads saved conversation state on startup so the agent survives daemon
+ * restarts. Resumes pending tool calls that were interrupted by a restart.
  *
  * @param {import('@endo/daemon/src/types.js').FarEndoGuest} powers
  */
@@ -29,19 +32,25 @@ export const make = powers => {
   (async () => {
     const selfId = await E(powers).identify('SELF');
 
+    // Load LLM config persisted by setup.js
+    const config = /** @type {LLMConfig} */ (
+      await E(powers).lookup('llm-config')
+    );
+
     // Load saved conversation state if available
     const savedState = await loadConversation(powers);
     const initialMessages = savedState ? savedState.messages : undefined;
 
-    const backendType = process.env.LLM_BACKEND || 'ollama';
+    const backendType = config.backend || 'ollama';
     const backend =
       backendType === 'anthropic'
         ? createAnthropicBackend(
             powers,
+            config,
             initialMessages,
             savedState ? savedState.pendingToolCalls : undefined,
           )
-        : createOllamaBackend(powers, initialMessages);
+        : createOllamaBackend(powers, config, initialMessages);
 
     // Restore last seen message number from saved state
     if (savedState && savedState.lastSeenNumber !== undefined) {

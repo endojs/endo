@@ -21,7 +21,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "setup": "endo run --UNCONFINED setup.js --powers AGENT",
+    "setup": "env $(cat .env | grep -v '^#' | grep -v '^$' | xargs) endo run --UNCONFINED setup.js --powers AGENT",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
