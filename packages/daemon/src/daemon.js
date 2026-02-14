@@ -3108,6 +3108,7 @@ const makeDaemonCore = async (
 
   const makeGuest = makeGuestMaker({
     provide,
+    getIdForRef,
     formulateMarshalValue,
     makeMailbox,
     makeDirectoryNode,
