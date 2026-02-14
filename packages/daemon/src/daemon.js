@@ -36,7 +36,13 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
-import { endoHelp, makeHelp } from './help-text.js';
+import {
+  blobHelp,
+  directoryHelp,
+  endoHelp,
+  guestHelp,
+  makeHelp,
+} from './help-text.js';
 
 // Sorted:
 import {
@@ -956,11 +962,13 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
+    const help = makeHelp(blobHelp);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
       `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
       BlobInterface,
       {
+        help,
         sha512: () => sha512,
         streamBase64,
         text,
@@ -1423,6 +1431,7 @@ const makeDaemonCore = async (
     };
 
     mailHub = makeExo('MailHub', DirectoryInterface, {
+      help: makeHelp(directoryHelp),
       has,
       identify,
       locate,
@@ -1437,6 +1446,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return mailHub;
@@ -1709,6 +1719,7 @@ const makeDaemonCore = async (
     };
 
     messageHub = makeExo('MessageHub', DirectoryInterface, {
+      help: makeHelp(directoryHelp),
       has,
       identify,
       locate,
@@ -1723,6 +1734,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return messageHub;
@@ -1888,6 +1900,7 @@ const makeDaemonCore = async (
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo('EndoGuest', GuestInterface, {
+            help: makeHelp(guestHelp),
             has: disallowedFn,
             identify: disallowedFn,
             reverseIdentify: disallowedSyncFn,

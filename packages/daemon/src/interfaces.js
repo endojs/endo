@@ -127,16 +127,42 @@ export const GuestInterface = M.interface('EndoGuest', {
     .optional(NameOrPathShape)
     .returns(M.promise()),
   // Send a package message
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
+  // Reply to a message
+  reply: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
-    M.string(),                    // source
-    M.arrayOf(M.string()),         // codeNames
-    NamesOrPathsShape,             // petNamePaths
-  ).optional(NameOrPathShape)      // resultName
+    M.string(), // source
+    M.arrayOf(M.string()), // codeNames
+    NamesOrPathsShape, // petNamePaths
+  )
+    .optional(NameOrPathShape) // resultName
     .returns(M.promise()),
+  // Define code with named slots
+  define: M.call(
+    M.string(), // source
+    M.record(), // slots
+  ).returns(M.promise()),
+  // Request a form from a recipient
+  form: M.call(
+    NameOrPathShape, // recipientName
+    M.string(), // description
+    M.record(), // fields
+  )
+    .optional(NameOrPathShape) // responseName
+    .returns(M.promise()),
+  // Store a passable value
+  storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
 });
@@ -174,9 +200,12 @@ export const HostInterface = M.interface('EndoHost', {
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
@@ -184,13 +213,9 @@ export const HostInterface = M.interface('EndoHost', {
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a host
-  provideHost: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NamePathShape).returns(M.promise()),
   // Evaluate code
@@ -203,19 +228,11 @@ export const HostInterface = M.interface('EndoHost', {
     .optional(NamePathShape)
     .returns(M.promise()),
   // Make an unconfined caplet
-  makeUnconfined: M.call(
-    M.or(NameShape, M.undefined()),
-    M.string(),
-    NameShape,
-  )
+  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string(), NameShape)
     .optional(NameOrPathShape)
     .returns(M.promise()),
   // Make a bundle caplet
-  makeBundle: M.call(
-    M.or(NameShape, M.undefined()),
-    NameShape,
-    NameShape,
-  )
+  makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape, NameShape)
     .optional(NameShape)
     .returns(M.promise()),
   // Cancel a value
@@ -236,6 +253,28 @@ export const HostInterface = M.interface('EndoHost', {
   approveEvaluation: M.call(MessageNumberShape)
     .optional(M.or(NameShape, M.undefined()))
     .returns(M.promise()),
+  // Reply to a message
+  reply: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
+  // Endow a definition request with bindings
+  endow: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // bindings
+  )
+    .optional(
+      M.or(NameShape, M.undefined()), // workerName
+      NameOrPathShape, // resultName
+    )
+    .returns(M.promise()),
+  // Respond to a form request with values
+  respondForm: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // values
+  ).returns(M.promise()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {
