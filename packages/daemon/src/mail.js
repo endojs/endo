@@ -478,6 +478,7 @@ export const makeMailboxMaker = ({
             messages.delete(messageNumber);
             dismissal.resolve();
           });
+          return undefined;
         },
       });
 
