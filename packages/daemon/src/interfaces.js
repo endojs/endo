@@ -118,9 +118,6 @@ export const GuestInterface = M.interface('EndoGuest', {
   send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
     M.promise(),
   ),
-  reply: M.call(MessageNumberShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
     M.string(),
@@ -128,14 +125,6 @@ export const GuestInterface = M.interface('EndoGuest', {
     NamesOrPathsShape,
   ).optional(NameOrPathShape)
     .returns(M.promise()),
-  // Define a formula from source and slots
-  define: M.call(M.string(), M.record()).returns(M.promise()),
-  // Form: request structured data
-  form: M.call(NameOrPathShape, M.string(), M.record())
-    .optional(NameOrPathShape)
-    .returns(M.promise()),
-  // Store a passable value under a petname
-  storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
 });
