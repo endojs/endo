@@ -507,6 +507,7 @@ export const tokenAutocompleteComponent = ($input, $menu, { E, makeRefIterator, 
       (e.key === 'Enter' || e.key === 'Tab' || e.key === ' ')
     ) {
       e.preventDefault();
+      e.stopImmediatePropagation();
       completeEdgeNameEntry();
       return;
     }
@@ -535,6 +536,7 @@ export const tokenAutocompleteComponent = ($input, $menu, { E, makeRefIterator, 
       case 'Enter':
         if (filteredNames.length > 0) {
           e.preventDefault();
+          e.stopImmediatePropagation();
           insertToken(filteredNames[selectedIndex], '');
         }
         break;
