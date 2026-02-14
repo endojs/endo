@@ -205,9 +205,8 @@ const makeDaemonCore = async (
   const formulaGraphJobs = makeSerialJobs();
   let formulaGraphLockDepth = 0;
   /**
-   * @template T
-   * @param {() => Promise<T>} [asyncFn]
-   * @returns {Promise<T>}
+   * @param {() => Promise<any>} [asyncFn]
+   * @returns {Promise<any>}
    */
   const withFormulaGraphLock = async (asyncFn = async () => undefined) => {
     await null;
@@ -545,7 +544,9 @@ const makeDaemonCore = async (
         const { number: formulaNumber } = parseId(id);
         const petStore = await petStorePowers.makeIdentifiedPetStore(
           formulaNumber,
-          formula.type,
+          /** @type {'pet-store' | 'mailbox-store' | 'known-peers-store'} */ (
+            formula.type
+          ),
           assertValidName,
         );
         const storedIds = petStore
@@ -1785,7 +1786,7 @@ const makeDaemonCore = async (
         platformNames,
         context,
       );
-      const handle = agent.handle();
+      const handle = /** @type {any} */ (agent).handle();
       agentIdForHandle.set(handle, id);
       return agent;
     },
@@ -1816,7 +1817,7 @@ const makeDaemonCore = async (
         workerId,
         context,
       );
-      const handle = agent.handle();
+      const handle = /** @type {any} */ (agent).handle();
       agentIdForHandle.set(handle, id);
       return agent;
     },
@@ -2940,13 +2941,13 @@ const makeDaemonCore = async (
       leastAuthority: leastAuthorityId,
     };
 
-    const result = /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
-      await formulate(identifiers.formulaNumber, formula)
-    );
+    const result = await formulate(identifiers.formulaNumber, formula);
     await withFormulaGraphLock(async () => {
       formulaGraph.addRoot(result.id);
     });
-    return result;
+    return /** @type {{ id: FormulaIdentifier, value: FarRef<EndoBootstrap> }} */ (
+      result
+    );
   };
 
   /**
@@ -3266,7 +3267,7 @@ const makeDaemonCore = async (
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  * @param {Specials} args.specials
- * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
+ * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap> | Promise<FarRef<EndoBootstrap>>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
  */
 const provideEndoBootstrap = async (
   powers,

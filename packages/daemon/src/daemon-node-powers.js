@@ -449,7 +449,7 @@ export const makeDaemonicPersistencePowers = (
       }
       throw error;
     });
-    /** @type {string[]} */
+    /** @type {import('./types.js').FormulaNumber[]} */
     const numbers = [];
     await Promise.all(
       heads.map(async head => {
@@ -466,7 +466,11 @@ export const makeDaemonicPersistencePowers = (
         for (const file of files) {
           if (file.endsWith('.json')) {
             const tail = file.slice(0, -'.json'.length);
-            numbers.push(`${head}${tail}`);
+            numbers.push(
+              /** @type {import('./types.js').FormulaNumber} */ (
+                `${head}${tail}`
+              ),
+            );
           }
         }
       }),

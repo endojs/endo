@@ -159,9 +159,9 @@ export const makeMailboxMaker = ({
      * @param {string} description
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
-     * @param {string} replyToMessageId
+     * @param {import('./types.js').FormulaNumber} messageId
      */
-    const makeRequest = async (description, fromId, toId, replyToMessageId) => {
+    const makeRequest = async (description, fromId, toId, messageId) => {
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
@@ -172,7 +172,7 @@ export const makeMailboxMaker = ({
         type: /** @type {const} */ ('request'),
         from: fromId,
         to: toId,
-        messageId: replyToMessageId,
+        messageId,
         description,
         promiseId,
         resolverId,
@@ -571,10 +571,9 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
-      const replyToMessageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
-        );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
       const to = await provide(
         /** @type {FormulaIdentifier} */ (toId),
         'handle',
@@ -607,7 +606,7 @@ export const makeMailboxMaker = ({
         strings,
         names: edgeNames,
         ids,
-        messageId: replyToMessageId,
+        messageId,
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });

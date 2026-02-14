@@ -343,6 +343,7 @@ export interface Responder {
 
 export type MessageBase = {
   messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
 };
 
 export type Request = MessageBase & {
@@ -355,7 +356,6 @@ export type Request = MessageBase & {
 
 export type Package = MessageBase & {
   type: 'package';
-  replyTo?: FormulaNumber;
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<Name>; // edge names
   ids: Array<FormulaIdentifier>; // formula identifiers
