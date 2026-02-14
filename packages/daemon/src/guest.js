@@ -4,7 +4,7 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
-import { assertNamePath, assertPetNamePath, namePathFrom } from './pet-name.js';
+import { assertNamePath, namePathFrom } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EndoGuest, FormulaIdentifier, GuestMessage, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Provide, StampedMessage } from './types.js' */
@@ -23,7 +23,14 @@ import { GuestInterface } from './interfaces.js';
 const toGuestMessage = async (message, { provide, petStore }) => {
   const { from, number, date, type, dismissed, dismisser } = message;
 
-  const fromHandle = await provide(from, 'handle');
+  let fromHandle;
+  try {
+    fromHandle = await provide(from, 'handle');
+  } catch (_err) {
+    // If the handle formula was garbage collected or is otherwise
+    // unavailable, use a null sentinel so the message is still delivered.
+    fromHandle = null;
+  }
   const fromNames = petStore.reverseIdentify(from);
 
   /** @type {Record<string, unknown>} */
@@ -34,6 +41,8 @@ const toGuestMessage = async (message, { provide, petStore }) => {
   } else if (type === 'package') {
     content.strings = message.strings;
     content.names = message.names;
+    // replyTo is a FormulaNumber (random hex) without a node component,
+    // safe to expose as an opaque correlation token for reply threading.
     if (message.replyTo !== undefined) {
       content.replyTo = message.replyTo;
     }
@@ -155,21 +164,6 @@ export const makeGuestMaker = ({
       form: mailboxForm,
     } = mailbox;
 
-    // Guest write: accepts a live value, resolves to identifier internally.
-    /** @type {EndoGuest['write']} */
-    const write = async (petNamePath, value) => {
-      const namePath = namePathFrom(petNamePath);
-      assertPetNamePath(namePath);
-      const resolvedValue = await value;
-      const id = getIdForRef(resolvedValue);
-      if (id === undefined) {
-        throw new TypeError(
-          'Cannot name a value that is not a known reference',
-        );
-      }
-      await directory.write(namePath, id);
-    };
-
     // Identity comparison on live values.
     /** @type {EndoGuest['equals']} */
     const equals = async (a, b) => {
@@ -238,7 +232,6 @@ export const makeGuestMaker = ({
       followNameChanges,
       lookup,
       reverseLookup,
-      write,
       move,
       remove,
       copy,

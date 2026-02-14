@@ -94,8 +94,8 @@ export const GuestInterface = M.interface('EndoGuest', {
   followNameChanges: M.call().returns(M.remotable()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
-  // Name a live value (not a formula identifier)
-  write: M.call(NameOrPathShape, M.any()).returns(M.promise()),
+  // Store a passable value (same as host storeValue)
+  storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
@@ -115,15 +115,19 @@ export const GuestInterface = M.interface('EndoGuest', {
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
     M.string(),
     M.arrayOf(M.string()),
     NamesOrPathsShape,
-  ).optional(NameOrPathShape)
+  )
+    .optional(NameOrPathShape)
     .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
@@ -162,9 +166,12 @@ export const HostInterface = M.interface('EndoHost', {
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
-  send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
-    M.promise(),
-  ),
+  send: M.call(
+    NameOrPathShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
@@ -172,13 +179,9 @@ export const HostInterface = M.interface('EndoHost', {
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a host
-  provideHost: M.call()
-    .optional(NameShape, M.record())
-    .returns(M.promise()),
+  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NamePathShape).returns(M.promise()),
   // Evaluate code
@@ -191,19 +194,11 @@ export const HostInterface = M.interface('EndoHost', {
     .optional(NamePathShape)
     .returns(M.promise()),
   // Make an unconfined caplet
-  makeUnconfined: M.call(
-    M.or(NameShape, M.undefined()),
-    M.string(),
-    NameShape,
-  )
+  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string(), NameShape)
     .optional(NameOrPathShape)
     .returns(M.promise()),
   // Make a bundle caplet
-  makeBundle: M.call(
-    M.or(NameShape, M.undefined()),
-    NameShape,
-    NameShape,
-  )
+  makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape, NameShape)
     .optional(NameShape)
     .returns(M.promise()),
   // Cancel a value

@@ -54,6 +54,15 @@
 - Syntax check without SES runtime: `node --check <file.js>`
 - Full module loading requires the Endo daemon (SES lockdown provides `harden` as a global).
 
+### Validation (run before submitting changes)
+
+```sh
+yarn format
+yarn lint
+yarn test
+yarn docs
+```
+
 ## Package Structure
 
 - Monorepo with `packages/` workspace layout.

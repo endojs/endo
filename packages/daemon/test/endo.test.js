@@ -1012,13 +1012,74 @@ test('reply links to parent message', async t => {
 
   t.is(hostMessage.type, 'package');
   t.is(sentMessage.type, 'package');
-  t.is(hostMessage.messageId, sentMessage.messageId);
+  // Host sees messageId; guest GuestMessage does not (identifiers stripped).
+  // Verify both sides received the same message by comparing the number.
+  t.is(hostMessage.number, sentMessage.number);
 
   await E(host).reply(hostMessage.number, ['hi'], [], []);
 
   const { value: replyMessage } = await E(guestMessages).next();
   t.is(replyMessage.type, 'package');
+  // The guest receives replyTo as an opaque correlation token (FormulaNumber),
+  // which matches the host's messageId for the parent message.
   t.is(replyMessage.replyTo, hostMessage.messageId);
+});
+
+test('guest equals() compares live value references', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten']);
+
+  // Look up the same value twice via the guest.
+  const a = E(guest).lookup('ten');
+  const b = E(guest).lookup('ten');
+  t.true(await E(guest).equals(a, b));
+
+  // Store a different value and compare.
+  await E(host).evaluate('worker', '20', [], [], ['twenty']);
+  const c = E(guest).lookup('twenty');
+  t.false(await E(guest).equals(a, c));
+});
+
+test('guest equals() returns false for unknown values', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten']);
+
+  const known = E(guest).lookup('ten');
+  // A plain object not tracked by the daemon.
+  t.false(await E(guest).equals(known, { unknown: true }));
+  t.false(await E(guest).equals({ unknown: true }, known));
+  t.false(await E(guest).equals({ a: 1 }, { b: 2 }));
+});
+
+test('guest storeValue() stores a passable value under a pet name', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  await E(guest).storeValue(42, 'answer');
+
+  const result = await E(guest).lookup('answer');
+  t.is(result, 42);
+});
+
+test('guest cannot access identifier methods', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+
+  // identify, reverseIdentify, locate, reverseLocate, listIdentifiers,
+  // and followLocatorNameChanges should not exist on the guest.
+  await t.throwsAsync(() => E(guest).identify('SELF'), {
+    message: /not a function|no such method|target has no method/i,
+  });
+  await t.throwsAsync(() => E(guest).locate('SELF'), {
+    message: /not a function|no such method|target has no method/i,
+  });
 });
 
 test('message hub avoids kebab-case reply metadata names', async t => {
@@ -2526,12 +2587,10 @@ test('cancel with pet name path', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined(
-    'worker',
-    counterLocation,
-    'NONE',
-    ['subdir', 'counter'],
-  );
+  await E(host).makeUnconfined('worker', counterLocation, 'NONE', [
+    'subdir',
+    'counter',
+  ]);
 
   // Increment the counter
   t.is(
@@ -2608,7 +2667,13 @@ test('resolve with pet name path', async t => {
   // Create a directory and put a value in it
   await E(host).makeDirectory(['responses']);
   await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '"the response"', [], [], ['responses', 'resp']);
+  await E(host).evaluate(
+    'worker',
+    '"the response"',
+    [],
+    [],
+    ['responses', 'resp'],
+  );
 
   // Create a guest and have it make a request
   const guest = E(host).provideGuest('guest');
@@ -2636,7 +2701,10 @@ test('request with pet name path for response storage', async t => {
 
   // Have the guest make a request, storing response in a path within guest's directory
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'give me something', ['responses', 'result']);
+  E.sendOnly(guest).request('HOST', 'give me something', [
+    'responses',
+    'result',
+  ]);
 
   // Host receives and resolves the request
   const { value: message } = await E(iteratorRef).next();
@@ -2717,11 +2785,7 @@ test('eval request rejection: guest requests, host rejects', async t => {
   }
 
   // Guest requests evaluation (no endowments needed for this test)
-  const resultP = E(guest).requestEvaluation(
-    'dangerous()',
-    [],
-    [],
-  );
+  const resultP = E(guest).requestEvaluation('dangerous()', [], []);
 
   // Host receives and rejects
   const { value: evalMsg } = await E(hostIteratorRef).next();

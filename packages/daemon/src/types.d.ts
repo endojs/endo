@@ -425,58 +425,6 @@ export type StampedMessage = EnvelopedMessage & {
   dismisser: ERef<Dismisser>;
 };
 
-/**
- * Message as seen by a confined guest. Identifiers are stripped;
- * sender identity is provided as a live handle reference and petnames.
- */
-export type GuestMessageBase = {
-  number: bigint;
-  date: string;
-  type: string;
-  fromHandle: FarRef<Handle>;
-  fromNames: Name[];
-  dismissed: Promise<void>;
-  dismisser: ERef<Dismisser>;
-};
-
-export type GuestRequestMessage = GuestMessageBase & {
-  type: 'request';
-  description: string;
-};
-
-export type GuestPackageMessage = GuestMessageBase & {
-  type: 'package';
-  replyTo?: FormulaNumber;
-  strings: Array<string>;
-  names: Array<Name>;
-};
-
-export type GuestEvalRequestMessage = GuestMessageBase & {
-  type: 'eval-request';
-  source: string;
-  codeNames: Array<string>;
-  petNamePaths: Array<NamePath>;
-};
-
-export type GuestDefinitionMessage = GuestMessageBase & {
-  type: 'definition';
-  source: string;
-  slots: Record<string, { label: string; pattern?: unknown }>;
-};
-
-export type GuestFormRequestMessage = GuestMessageBase & {
-  type: 'form-request';
-  description: string;
-  fields: Record<string, { label: string; pattern?: unknown }>;
-};
-
-export type GuestMessage =
-  | GuestRequestMessage
-  | GuestPackageMessage
-  | GuestEvalRequestMessage
-  | GuestDefinitionMessage
-  | GuestFormRequestMessage;
-
 export interface Invitation {
   accept(guestHandleLocator: string): Promise<void>;
 }
@@ -572,6 +520,61 @@ export interface Handle {
   receive(envelope: Envelope, allegedFromId: string): void;
   open(envelope: Envelope): EnvelopedMessage;
 }
+
+/**
+ * Message as seen by a confined guest. Identifiers are stripped;
+ * sender identity is provided as a live handle reference and petnames.
+ */
+export type GuestMessageBase = {
+  number: bigint;
+  date: string;
+  type: string;
+  fromHandle: FarRef<Handle>;
+  fromNames: Name[];
+  dismissed: Promise<void>;
+  dismisser: ERef<Dismisser>;
+};
+
+export type GuestRequestMessage = GuestMessageBase & {
+  type: 'request';
+  description: string;
+};
+
+export type GuestPackageMessage = GuestMessageBase & {
+  type: 'package';
+  /** Opaque correlation token linking this reply to its parent message.
+   *  This is a FormulaNumber (random hex) without a node component, so it
+   *  cannot be used to construct a locator or access a formula. */
+  replyTo?: FormulaNumber;
+  strings: Array<string>;
+  names: Array<Name>;
+};
+
+export type GuestEvalRequestMessage = GuestMessageBase & {
+  type: 'eval-request';
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths: Array<NamePath>;
+};
+
+export type GuestDefinitionMessage = GuestMessageBase & {
+  type: 'definition';
+  source: string;
+  slots: Record<string, { label: string; pattern?: unknown }>;
+};
+
+export type GuestFormRequestMessage = GuestMessageBase & {
+  type: 'form-request';
+  description: string;
+  fields: Record<string, { label: string; pattern?: unknown }>;
+};
+
+export type GuestMessage =
+  | GuestRequestMessage
+  | GuestPackageMessage
+  | GuestEvalRequestMessage
+  | GuestDefinitionMessage
+  | GuestFormRequestMessage;
 
 export type MakeSha512 = () => Sha512;
 
@@ -811,9 +814,7 @@ export interface EndoGuest {
   followNameChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(petNamePath: string | string[]): Promise<unknown>;
   reverseLookup(value: unknown): Promise<Name[]>;
-  /** Name a live value reference. Unlike the directory write(), this accepts
-   *  a live value, not a formula identifier. */
-  write(petNamePath: string | string[], value: unknown): Promise<void>;
+  /** Remove a pet name from the directory. */
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPath: string[], toPath: string[]): Promise<void>;
   copy(fromPath: string[], toPath: string[]): Promise<void>;

@@ -38,15 +38,11 @@ resume from your last exchange with full conversation history preserved.
   Check whether two values refer to the same underlying capability.
   Returns false if either value is unknown.
 
-### Naming
-- E(powers).write(petName, value) -> Promise<void>
-  Give a pet name to a live value you already hold. The value must be
-  a known capability reference (obtained via lookup, adopt, etc.).
-
-### Value Storage
+### Naming and Storage
 - E(powers).storeValue(value, petName) -> Promise<void>
-  Store a passable value (number, string, array, record, etc.) in your directory.
-  Use this to persist intermediate results across daemon restarts.
+  Store any passable value (number, string, array, record, capability reference,
+  etc.) in your directory under a pet name. Use this to name values you receive
+  and to persist intermediate results across daemon restarts.
 
 ### Messaging
 - E(powers).send(recipientName, strings, edgeNames, petNames)
