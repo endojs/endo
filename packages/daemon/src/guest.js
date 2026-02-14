@@ -187,9 +187,6 @@ export const makeGuestMaker = ({
       };
 
     const unwrappedMethods = new Set([
-      'followLocatorNameChanges',
-      'followMessages',
-      'followNameChanges',
       'handle',
       'reverseIdentify',
     ]);

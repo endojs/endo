@@ -900,9 +900,6 @@ export const makeHostMaker = ({
       };
 
     const unwrappedMethods = new Set([
-      'followLocatorNameChanges',
-      'followMessages',
-      'followNameChanges',
       'handle',
       'reverseIdentify',
     ]);

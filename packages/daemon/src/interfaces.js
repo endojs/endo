@@ -94,10 +94,10 @@ export const GuestInterface = M.interface('EndoGuest', {
   reverseIdentify: M.call(IdShape).returns(M.array()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
+  followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
   write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
@@ -111,7 +111,7 @@ export const GuestInterface = M.interface('EndoGuest', {
   // List all messages
   listMessages: M.call().returns(M.promise()),
   // Subscribe to messages (returns iterator ref)
-  followMessages: M.call().returns(M.remotable()),
+  followMessages: M.call().returns(M.promise()),
   // Respond to a request with a formula identifier
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
   // Decline a request
@@ -176,10 +176,10 @@ export const HostInterface = M.interface('EndoHost', {
   reverseIdentify: M.call(IdShape).returns(M.array()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
+  followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
   write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
@@ -190,7 +190,7 @@ export const HostInterface = M.interface('EndoHost', {
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
-  followMessages: M.call().returns(M.remotable()),
+  followMessages: M.call().returns(M.promise()),
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
   reject: M.call(MessageNumberShape).optional(M.string()).returns(M.promise()),
   adopt: M.call(MessageNumberShape, NameOrPathShape, NameOrPathShape).returns(

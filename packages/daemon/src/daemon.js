@@ -852,7 +852,7 @@ const makeDaemonCore = async (
     /** @param {string} requestedId */
     provide: async requestedId => {
       assertValidId(requestedId);
-      const { node, id } = parseId(requestedId);
+      const { node } = parseId(requestedId);
       if (node !== localNodeNumber) {
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
@@ -860,7 +860,7 @@ const makeDaemonCore = async (
           )}`,
         );
       }
-      return provide(id);
+      return provide(requestedId);
     },
   });
 
