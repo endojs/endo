@@ -27,8 +27,6 @@ const LlamadromeInterface = M.interface('Llamadrome', {
  */
 export const make = powers => {
   (async () => {
-    const selfId = await E(powers).identify('SELF');
-
     // Load saved conversation state if available
     const savedState = await loadConversation(powers);
     const initialMessages = savedState ? savedState.messages : undefined;
@@ -79,9 +77,9 @@ export const make = powers => {
     }
 
     for await (const message of makeRefIterator(E(powers).followMessages())) {
-      const { from: fromId, number: messageNumber } = message;
+      const { number: messageNumber, fromNames } = message;
 
-      if (fromId === selfId) {
+      if (fromNames.includes('SELF')) {
         continue;
       }
 
