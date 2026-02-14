@@ -50,7 +50,7 @@ const EvaluateMethodGuard = M.call(
 export const WorkerInterface = M.interface('EndoWorker', {});
 
 export const ResponderInterface = M.interface('EndoResponder', {
-  respondId: M.call(M.or(IdShape, M.promise())).returns(),
+  resolveWithId: M.call(M.or(IdShape, M.promise())).returns(),
 });
 
 export const NameHubInterface = M.interface('EndoNameHub', {
@@ -136,10 +136,10 @@ export const GuestInterface = M.interface('EndoGuest', {
   reverseIdentify: M.call(IdShape).returns(M.array()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
+  followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
@@ -154,7 +154,7 @@ export const GuestInterface = M.interface('EndoGuest', {
   // List all messages
   listMessages: M.call().returns(M.promise()),
   // Subscribe to messages (returns iterator ref)
-  followMessages: M.call().returns(M.remotable()),
+  followMessages: M.call().returns(M.promise()),
   // Respond to a request with a formula identifier
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
   // Decline a request
@@ -178,6 +178,13 @@ export const GuestInterface = M.interface('EndoGuest', {
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
+  // Reply to a message
+  reply: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
     M.string(), // source
@@ -186,6 +193,21 @@ export const GuestInterface = M.interface('EndoGuest', {
   )
     .optional(NameOrPathShape) // resultName
     .returns(M.promise()),
+  // Define code with named slots
+  define: M.call(
+    M.string(), // source
+    M.record(), // slots
+  ).returns(M.promise()),
+  // Request a form from a recipient
+  form: M.call(
+    NameOrPathShape, // recipientName
+    M.string(), // description
+    M.record(), // fields
+  )
+    .optional(NameOrPathShape) // responseName
+    .returns(M.promise()),
+  // Store a passable value
+  storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
   // Propose code evaluation to host (same signature as Host.evaluate)
@@ -201,10 +223,10 @@ export const HostInterface = M.interface('EndoHost', {
   reverseIdentify: M.call(IdShape).returns(M.array()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
+  followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  followNameChanges: M.call().returns(M.remotable()),
+  followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
@@ -216,7 +238,7 @@ export const HostInterface = M.interface('EndoHost', {
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
-  followMessages: M.call().returns(M.remotable()),
+  followMessages: M.call().returns(M.promise()),
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
   reject: M.call(MessageNumberShape).optional(M.string()).returns(M.promise()),
   adopt: M.call(MessageNumberShape, NameOrPathShape, NameOrPathShape).returns(
@@ -286,6 +308,28 @@ export const HostInterface = M.interface('EndoHost', {
   )
     .optional(M.or(NameShape, M.undefined()), NamePathShape)
     .returns(M.promise()),
+  // Reply to a message
+  reply: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  ).returns(M.promise()),
+  // Endow a definition request with bindings
+  endow: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // bindings
+  )
+    .optional(
+      M.or(NameShape, M.undefined()), // workerName
+      NameOrPathShape, // resultName
+    )
+    .returns(M.promise()),
+  // Respond to a form request with values
+  respondForm: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // values
+  ).returns(M.promise()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {

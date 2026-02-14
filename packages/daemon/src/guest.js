@@ -10,6 +10,7 @@ import { makeDeferredTasks } from './deferred-tasks.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
+import { guestHelp, makeHelp } from './help-text.js';
 
 /**
  * @param {object} args
@@ -264,19 +265,16 @@ export const makeGuestMaker = ({
         }
       };
 
-    const iteratorMethods = new Set([
-      'followLocatorNameChanges',
-      'followMessages',
-      'followNameChanges',
-    ]);
+    const unwrappedMethods = new Set(['handle', 'reverseIdentify']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,
-        iteratorMethods.has(name) ? fn : withCollection(fn),
+        unwrappedMethods.has(name) ? fn : withCollection(fn),
       ]),
     );
 
     return makeExo('EndoGuest', GuestInterface, {
+      help: makeHelp(guestHelp),
       ...wrappedGuest,
       /** @param {string} locator */
       followLocatorNameChanges: async locator => {

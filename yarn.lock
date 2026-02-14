@@ -842,26 +842,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/llamadrome@workspace:packages/llamadrome":
-  version: 0.0.0-use.local
-  resolution: "@endo/llamadrome@workspace:packages/llamadrome"
-  dependencies:
-    "@anthropic-ai/sdk": "npm:^0.39.0"
-    "@endo/daemon": "workspace:^"
-    "@endo/eventual-send": "workspace:^"
-    "@endo/exo": "workspace:^"
-    "@endo/lockdown": "workspace:^"
-    "@endo/patterns": "workspace:^"
-    "@endo/ses-ava": "workspace:^"
-    ava: "catalog:dev"
-    c8: "catalog:dev"
-    eslint: "catalog:dev"
-    ollama: "npm:^0.6.3"
-    tsd: "catalog:dev"
-    typescript: "npm:~5.9.2"
-  languageName: unknown
-  linkType: soft
-
 "@endo/lockdown@workspace:^, @endo/lockdown@workspace:packages/lockdown":
   version: 0.0.0-use.local
   resolution: "@endo/lockdown@workspace:packages/lockdown"
@@ -9699,15 +9679,6 @@ __metadata:
   dependencies:
     whatwg-fetch: "npm:^3.6.20"
   checksum: 10c0/3ed3c98f1aebf734136032704079d87929f583bab99b4359685d5f1a427b607d5aa3268ff334cda6b2d741166d80245180d9d2d65b2c2a8c8bf4146b2ea0c72d
-  languageName: node
-  linkType: hard
-
-"ollama@npm:^0.6.3":
-  version: 0.6.3
-  resolution: "ollama@npm:0.6.3"
-  dependencies:
-    whatwg-fetch: "npm:^3.6.20"
-  checksum: 10c0/040742dd1f96ad06d5508e387d8d953b3cfab527427f5dd463be7ccd589877eccfbf13ccea0bcb4d6b044a90a327c82c3089834fd3c0ea7243bb830a9c07295d
   languageName: node
   linkType: hard
 

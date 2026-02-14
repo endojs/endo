@@ -804,6 +804,26 @@ export const makeMailboxMaker = ({
     };
 
     /**
+     * Resolve a formula identifier to its handle.
+     * If the id points to an agent (host or guest formula), follows the
+     * formula's handle field to provide the actual handle.
+     * If it already points to a handle formula, provides it directly.
+     *
+     * @param {FormulaIdentifier} id
+     * @returns {Promise<Handle>}
+     */
+    const provideHandle = async id => {
+      const formula = await getFormulaForId(id);
+      if (formula.type === 'host' || formula.type === 'guest') {
+        return provide(
+          /** @type {FormulaIdentifier} */ (formula.handle),
+          'handle',
+        );
+      }
+      return provide(id, 'handle');
+    };
+
+    /**
      * @param {Handle} recipient
      * @param {EnvelopedMessage} message
      */
@@ -871,10 +891,7 @@ export const makeMailboxMaker = ({
         /** @type {import('./types.js').FormulaNumber} */ (
           await randomHex512()
         );
-      const to = await provide(
-        /** @type {FormulaIdentifier} */ (toId),
-        'handle',
-      );
+      const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
       if (petNames.length !== edgeNames.length) {
         throw new Error(
@@ -929,9 +946,8 @@ export const makeMailboxMaker = ({
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex512()
       );
-      const to = await provide(
+      const to = await provideHandle(
         /** @type {FormulaIdentifier} */ (otherId),
-        'handle',
       );
 
       if (petNames.length !== edgeNames.length) {
@@ -1042,10 +1058,7 @@ export const makeMailboxMaker = ({
         throw new Error(`Unknown recipient ${toName}`);
       }
       assertValidId(toId);
-      const to = await provide(
-        /** @type {FormulaIdentifier} */ (toId),
-        'handle',
-      );
+      const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex512()
       );
@@ -1138,10 +1151,7 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${q(toName)}`);
       }
-      const to = await provide(
-        /** @type {FormulaIdentifier} */ (toId),
-        'handle',
-      );
+      const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
       const { request: req, response: resolutionIdP } = await makeEvalRequest(
         source,
@@ -1205,9 +1215,8 @@ export const makeMailboxMaker = ({
       if (hostHandleId === undefined) {
         throw new Error('No HOST found in namespace');
       }
-      const hostHandle = await provide(
+      const hostHandle = await provideHandle(
         /** @type {FormulaIdentifier} */ (hostHandleId),
-        'handle',
       );
 
       const { request: req, response: resolutionIdP } = await makeDefineRequest(
@@ -1250,10 +1259,7 @@ export const makeMailboxMaker = ({
         throw new Error(`Unknown recipient ${q(toName)}`);
       }
       assertValidId(toId);
-      const to = await provide(
-        /** @type {FormulaIdentifier} */ (toId),
-        'handle',
-      );
+      const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
       const { request: req, response: resolutionIdP } = await makeFormRequest(
         description,

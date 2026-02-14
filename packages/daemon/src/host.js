@@ -26,6 +26,7 @@ import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 import { HostInterface } from './interfaces.js';
+import { hostHelp, makeHelp } from './help-text.js';
 
 /**
  * @param {string} name
@@ -1024,19 +1025,16 @@ export const makeHostMaker = ({
         }
       };
 
-    const iteratorMethods = new Set([
-      'followLocatorNameChanges',
-      'followMessages',
-      'followNameChanges',
-    ]);
+    const unwrappedMethods = new Set(['handle', 'reverseIdentify']);
     const wrappedHost = Object.fromEntries(
       Object.entries(host).map(([name, fn]) => [
         name,
-        iteratorMethods.has(name) ? fn : withCollection(fn),
+        unwrappedMethods.has(name) ? fn : withCollection(fn),
       ]),
     );
 
     const hostExo = makeExo('EndoHost', HostInterface, {
+      help: makeHelp(hostHelp),
       ...wrappedHost,
       /** @param {string} locator */
       followLocatorNameChanges: async locator => {

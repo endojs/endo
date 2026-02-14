@@ -62,7 +62,7 @@ export const makeLlamaCppProvider = ({
         response = await client.chat.completions.create({
           model,
           max_tokens: maxTokens,
-            tools,
+          tools,
           // @ts-expect-error - our message format matches OpenAI's for this path
           messages: sendMessages,
         });

@@ -36,6 +36,13 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+import {
+  blobHelp,
+  directoryHelp,
+  endoHelp,
+  guestHelp,
+  makeHelp,
+} from './help-text.js';
 
 // Sorted:
 import {
@@ -845,7 +852,7 @@ const makeDaemonCore = async (
     /** @param {string} requestedId */
     provide: async requestedId => {
       assertValidId(requestedId);
-      const { node, id } = parseId(requestedId);
+      const { node } = parseId(requestedId);
       if (node !== localNodeNumber) {
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
@@ -853,7 +860,7 @@ const makeDaemonCore = async (
           )}`,
         );
       }
-      return provide(id);
+      return provide(requestedId);
     },
   });
 
@@ -955,11 +962,13 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
+    const help = makeHelp(blobHelp);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
       `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
       BlobInterface,
       {
+        help,
         sha512: () => sha512,
         streamBase64,
         text,
@@ -1432,6 +1441,7 @@ const makeDaemonCore = async (
     };
 
     mailHub = makeExo('MailHub', DirectoryInterface, {
+      help: makeHelp(directoryHelp),
       has,
       identify,
       locate,
@@ -1446,6 +1456,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return mailHub;
@@ -1718,6 +1729,7 @@ const makeDaemonCore = async (
     };
 
     messageHub = makeExo('MessageHub', DirectoryInterface, {
+      help: makeHelp(directoryHelp),
       has,
       identify,
       locate,
@@ -1732,6 +1744,7 @@ const makeDaemonCore = async (
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
+      makeDirectory: disallowedMutation,
     });
 
     return messageHub;
@@ -1844,8 +1857,10 @@ const makeDaemonCore = async (
       pins: pinsId,
       peers: peersId,
     }) => {
+      const help = makeHelp(endoHelp);
       /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = makeExo('Endo', EndoInterface, {
+        help,
         ping: async () => 'pong',
         terminate: async () => {
           cancel(new Error('Termination requested'));
@@ -1854,7 +1869,7 @@ const makeDaemonCore = async (
         leastAuthority: () => provide(leastAuthorityId, 'guest'),
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
-        nodeNumber: () => localNodeNumber,
+        nodeId: () => localNodeNumber,
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
@@ -1902,6 +1917,7 @@ const makeDaemonCore = async (
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo('EndoGuest', GuestInterface, {
+            help: makeHelp(guestHelp),
             has: disallowedFn,
             identify: disallowedFn,
             reverseIdentify: disallowedSyncFn,
