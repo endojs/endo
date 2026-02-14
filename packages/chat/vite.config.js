@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { defineConfig } from 'vite';
 import { makeEndoPlugin } from './vite-endo-plugin.js';
 

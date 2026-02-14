@@ -73,7 +73,7 @@ export const NameHubInterface = M.interface('EndoNameHub', {
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
 
 export const DismisserInterface = M.interface('EndoDismisser', {
-  dismiss: M.call().returns(),
+  dismiss: M.call().returns(M.promise()),
 });
 
 // CRITICAL: HandleInterface must use defaultGuards: 'passable' to preserve

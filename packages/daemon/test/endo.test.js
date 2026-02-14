@@ -56,6 +56,20 @@ const takeCount = async (asyncIterator, count) => {
 };
 
 /**
+ * Drain `count` values from an async iterator (sequential by necessity).
+ * @param {EReturn<AsyncIterator<unknown>>} iteratorRef
+ * @param {number} count
+ */
+const drainIterator = async (iteratorRef, count) => {
+  let remaining = count;
+  while (remaining > 0) {
+    // eslint-disable-next-line no-await-in-loop
+    await E(iteratorRef).next();
+    remaining -= 1;
+  }
+};
+
+/**
  * @param {string} targetPath
  */
 const pathExists = async targetPath => {
@@ -1033,7 +1047,7 @@ test('message hub avoids kebab-case reply metadata names', async t => {
 
   const messageHub = await E(host).lookup(['MAIL', String(hostMessage.number)]);
   const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
-  const messageNames = await E(messageHub).list();
+  await E(messageHub).list();
   const replyNames = await E(replyHub).list();
 
   t.true(replyNames.includes('FROM'));
@@ -1477,7 +1491,7 @@ test('terminates worker retaining derived value after dependency collection', as
     'worker-a',
     `
       E(host)
-        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'powers', 'caplet')
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'powers', resultName: 'caplet' })
         .then(caplet => {
           globalThis.caplet = caplet;
           return 'ok';
@@ -1543,7 +1557,7 @@ test('recreates counter after collection resets state', async t => {
     'worker-a',
     `
       E(host)
-        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'NONE', 'counter')
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'NONE', resultName: 'counter' })
         .then(() => 'ok')
     `,
     ['host'],
@@ -1572,7 +1586,7 @@ test('recreates counter after collection resets state', async t => {
     'worker-b',
     `
       E(host)
-        .makeUnconfined('worker-b', ${retainerLocationLiteral}, 'NONE', 'retainer')
+        .makeUnconfined('worker-b', ${retainerLocationLiteral}, { powersName: 'NONE', resultName: 'retainer' })
         .then(() => 'ok')
     `,
     ['host'],
@@ -1598,7 +1612,7 @@ test('recreates counter after collection resets state', async t => {
     'worker-a',
     `
       E(host)
-        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'NONE', 'counter')
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'NONE', resultName: 'counter' })
         .then(() => 'ok')
     `,
     ['host'],
@@ -1670,7 +1684,10 @@ test('PINS values reincarnate after cancellation', async t => {
   // Create a counter caplet
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('MAIN', counterLocation, 'NONE', 'counter');
+  await E(host).makeUnconfined('MAIN', counterLocation, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
 
   // Increment counter to build up state
   t.is(
@@ -1747,10 +1764,13 @@ test('facet group (agent + handle) collects atomically', async t => {
 
   // Verify all formula files exist on disk
   const allIds = [guestId, handleId, ...dependencyIds];
-  for (const id of allIds) {
+  const existResults = await Promise.all(
+    allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+  );
+  for (let i = 0; i < allIds.length; i += 1) {
     t.true(
-      await pathExists(formulaPathForId(config.statePath, id)),
-      `Formula file for ${id} should exist before removal`,
+      existResults[i],
+      `Formula file for ${allIds[i]} should exist before removal`,
     );
   }
 
@@ -1767,10 +1787,13 @@ test('facet group (agent + handle) collects atomically', async t => {
   });
 
   // Assert all formula files no longer exist
-  for (const id of allIds) {
+  const collectedResults = await Promise.all(
+    allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+  );
+  for (let i = 0; i < allIds.length; i += 1) {
     t.false(
-      await pathExists(formulaPathForId(config.statePath, id)),
-      `Formula file for ${id} should be collected`,
+      collectedResults[i],
+      `Formula file for ${allIds[i]} should be collected`,
     );
   }
 });
@@ -2663,7 +2686,7 @@ test('resolve with pet name path', async t => {
   const iteratorRef = E(host).followMessages();
   E.sendOnly(guest).request('HOST', 'a response');
   const { value: message } = await E(iteratorRef).next();
-  t.is(message.number, 0);
+  t.is(message.number, 0n);
 
   // Resolve using a pet name path
   await E(host).resolve(message.number, ['responses', 'resp']);
@@ -2683,7 +2706,7 @@ test('request with pet name path for response storage', async t => {
 
   // Have the guest make a request, storing response in a path within guest's directory
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'give me something', [
+  const requestP = E(guest).request('HOST', 'give me something', [
     'responses',
     'result',
   ]);
@@ -2696,6 +2719,9 @@ test('request with pet name path for response storage', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '"here you go"', [], [], ['gift']);
   await E(host).resolve(message.number, 'gift');
+
+  // Wait for the request to complete (including directory write)
+  await requestP;
 
   // Verify the response was stored at the path in guest's directory
   const result = await E(guest).lookup(['responses', 'result']);
@@ -2723,10 +2749,10 @@ test('eval request happy path: guest requests, host approves', async t => {
   // Now the guest requests evaluation
   const hostIteratorRef = E(host).followMessages();
   // Drain existing messages from the iterator
-  const existingMessages = await E(host).listMessages();
-  for (let i = 0; i < existingMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
 
   // Guest requests evaluation using its pet name
   const resultP = E(guest).requestEvaluation(
@@ -2761,10 +2787,10 @@ test('eval request rejection: guest requests, host rejects', async t => {
 
   // Set up host message iterator
   const hostIteratorRef = E(host).followMessages();
-  const existingMessages = await E(host).listMessages();
-  for (let i = 0; i < existingMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
 
   // Guest requests evaluation (no endowments needed for this test)
   const resultP = E(guest).requestEvaluation('dangerous()', [], []);
@@ -2802,10 +2828,10 @@ test('eval request uses guest namespace, not host namespace', async t => {
 
   // Set up host message iterator
   const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = await E(host).listMessages();
-  for (let i = 0; i < existingHostMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
 
   // Guest requests evaluation using its pet name 'shared-name' (value = 42)
   const resultP = E(guest).requestEvaluation(
@@ -2980,6 +3006,13 @@ test('guest evaluate sends eval-proposal to host', async t => {
   const pkg = guestMessages.find(m => m.type === 'package');
   await E(guest).adopt(pkg.number, 'x', ['ten']);
 
+  // Set up host message iterator BEFORE the evaluate call
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
   // Guest initiates evaluation proposal
   const evaluatePromise = E(guest).evaluate(
     'worker',
@@ -2989,12 +3022,8 @@ test('guest evaluate sends eval-proposal to host', async t => {
     ['result'],
   );
 
-  // Wait a tick for the proposal to be delivered
-  await null;
-
-  // Host should have received the eval-proposal (reviewer view)
-  const hostMessages = await E(host).listMessages();
-  const message = hostMessages.find(m => m.type === 'eval-proposal-reviewer');
+  // Wait for the proposal message via iterator
+  const { value: message } = await E(hostIteratorRef).next();
 
   t.truthy(message, 'Host should have received eval-proposal');
   t.is(message.type, 'eval-proposal-reviewer');
@@ -3037,6 +3066,13 @@ test('host grantEvaluate executes proposed code', async t => {
   const pkg = guestMessages.find(m => m.type === 'package');
   await E(guest).adopt(pkg.number, 'n', ['five']);
 
+  // Set up host message iterator BEFORE the evaluate call
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
   // Guest proposes evaluation
   const evaluatePromise = E(guest).evaluate(
     'worker',
@@ -3046,12 +3082,8 @@ test('host grantEvaluate executes proposed code', async t => {
     ['doubled'],
   );
 
-  // Wait for proposal delivery
-  await null;
-
-  // Host grants it
-  const hostMessages = await E(host).listMessages();
-  const message = hostMessages.find(m => m.type === 'eval-proposal-reviewer');
+  // Wait for proposal message via iterator
+  const { value: message } = await E(hostIteratorRef).next();
   const result = await E(host).grantEvaluate(message.number);
 
   t.is(result, 10);
@@ -3076,15 +3108,26 @@ test('counterEvaluate sends proposer/reviewer messages', async t => {
   const pkg = guestMessages.find(m => m.type === 'package');
   await E(guest).adopt(pkg.number, 'n', ['five']);
 
+  // Set up host message iterator BEFORE the evaluate call
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
   // Guest proposes evaluation
   E.sendOnly(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
 
-  // Wait for proposal delivery
-  await null;
-
-  const hostMessages = await E(host).listMessages();
-  const proposal = hostMessages.find(m => m.type === 'eval-proposal-reviewer');
+  // Wait for proposal to arrive via iterator
+  const { value: proposal } = await E(hostIteratorRef).next();
   t.truthy(proposal, 'Host should have received eval-proposal');
+
+  // Set up guest message iterator for counter-proposal
+  const guestIteratorRef = E(guest).followMessages();
+  const existingGuestMessages = /** @type {unknown[]} */ (
+    await E(guest).listMessages()
+  );
+  await drainIterator(guestIteratorRef, existingGuestMessages.length);
 
   // Host sends counter-proposal
   await E(host).counterEvaluate(
@@ -3096,15 +3139,13 @@ test('counterEvaluate sends proposer/reviewer messages', async t => {
     ['tripled'],
   );
 
-  await null;
+  // Wait for counter-proposal to arrive at guest
+  const { value: guestCounter } = await E(guestIteratorRef).next();
 
+  // Host should have the proposer echo (delivered synchronously during counterEvaluate)
   const hostMessagesAfter = await E(host).listMessages();
   const hostCounter = hostMessagesAfter.find(
     m => m.type === 'eval-proposal-proposer' && m.source === 'n * 3',
-  );
-  const guestMessagesAfter = await E(guest).listMessages();
-  const guestCounter = guestMessagesAfter.find(
-    m => m.type === 'eval-proposal-reviewer' && m.source === 'n * 3',
   );
 
   t.truthy(hostCounter, 'Host should have proposer echo for counter');

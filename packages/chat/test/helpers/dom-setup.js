@@ -1,5 +1,6 @@
 // @ts-check
 /* global globalThis, setTimeout */
+/* eslint-disable import/no-unresolved */
 
 import { Window } from 'happy-dom';
 
