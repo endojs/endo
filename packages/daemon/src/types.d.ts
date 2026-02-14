@@ -425,6 +425,58 @@ export type StampedMessage = EnvelopedMessage & {
   dismisser: ERef<Dismisser>;
 };
 
+/**
+ * Message as seen by a confined guest. Identifiers are stripped;
+ * sender identity is provided as a live handle reference and petnames.
+ */
+export type GuestMessageBase = {
+  number: bigint;
+  date: string;
+  type: string;
+  fromHandle: FarRef<Handle>;
+  fromNames: Name[];
+  dismissed: Promise<void>;
+  dismisser: ERef<Dismisser>;
+};
+
+export type GuestRequestMessage = GuestMessageBase & {
+  type: 'request';
+  description: string;
+};
+
+export type GuestPackageMessage = GuestMessageBase & {
+  type: 'package';
+  replyTo?: FormulaNumber;
+  strings: Array<string>;
+  names: Array<Name>;
+};
+
+export type GuestEvalRequestMessage = GuestMessageBase & {
+  type: 'eval-request';
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths: Array<NamePath>;
+};
+
+export type GuestDefinitionMessage = GuestMessageBase & {
+  type: 'definition';
+  source: string;
+  slots: Record<string, { label: string; pattern?: unknown }>;
+};
+
+export type GuestFormRequestMessage = GuestMessageBase & {
+  type: 'form-request';
+  description: string;
+  fields: Record<string, { label: string; pattern?: unknown }>;
+};
+
+export type GuestMessage =
+  | GuestRequestMessage
+  | GuestPackageMessage
+  | GuestEvalRequestMessage
+  | GuestDefinitionMessage
+  | GuestFormRequestMessage;
+
 export interface Invitation {
   accept(guestHandleLocator: string): Promise<void>;
 }
@@ -751,7 +803,54 @@ export interface EndoAgent extends EndoDirectory {
   reverseIdentify(id: string): Array<Name>;
 }
 
-export interface EndoGuest extends EndoAgent {
+export interface EndoGuest {
+  // Confined directory (no identifier methods)
+  help(topic?: string): string;
+  has(...petNamePath: string[]): Promise<boolean>;
+  list(...petNamePath: string[]): Promise<Name[]>;
+  followNameChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
+  lookup(petNamePath: string | string[]): Promise<unknown>;
+  reverseLookup(value: unknown): Promise<Name[]>;
+  /** Name a live value reference. Unlike the directory write(), this accepts
+   *  a live value, not a formula identifier. */
+  write(petNamePath: string | string[], value: unknown): Promise<void>;
+  remove(...petNamePath: string[]): Promise<void>;
+  move(fromPath: string[], toPath: string[]): Promise<void>;
+  copy(fromPath: string[], toPath: string[]): Promise<void>;
+  makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
+  /** Compare two live value references for identity. */
+  equals(a: unknown, b: unknown): Promise<boolean>;
+  // Mail (messages are GuestMessage, not StampedMessage)
+  handle(): Handle;
+  listMessages(): Promise<Array<GuestMessage>>;
+  followMessages(): AsyncGenerator<GuestMessage, undefined, undefined>;
+  resolve(messageNumber: bigint, resolutionName: string): Promise<void>;
+  reject(messageNumber: bigint, message?: string): Promise<void>;
+  adopt(
+    messageNumber: bigint,
+    edgeName: string,
+    petName: string[],
+  ): Promise<void>;
+  dismiss(messageNumber: bigint): Promise<void>;
+  reply(
+    messageNumber: bigint,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNames: Array<string>,
+  ): Promise<void>;
+  request(
+    recipientName: string,
+    what: string,
+    responseName: string,
+  ): Promise<unknown>;
+  send(
+    recipientName: string,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNames: Array<string>,
+  ): Promise<void>;
+  deliver(message: EnvelopedMessage): void;
+  // Guest-specific
   requestEvaluation(
     source: string,
     codeNames: Array<string>,
