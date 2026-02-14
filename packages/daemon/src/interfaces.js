@@ -88,54 +88,42 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
 export const GuestInterface = M.interface('EndoGuest', {
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),
-  // Directory
+  // Confined directory (petname/value only -- no identify/locate/reverse*/listIdentifiers)
   has: M.call().rest(NamePathShape).returns(M.promise()),
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseIdentify: M.call(IdShape).returns(M.array()),
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.remotable()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
-  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  // Name a live value (not a formula identifier)
+  write: M.call(NameOrPathShape, M.any()).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   makeDirectory: M.call(NamePathShape).returns(M.promise()),
+  // Identity comparison on live values
+  equals: M.call(M.any(), M.any()).returns(M.promise()),
   // Mail
-  // Get the guest's mailbox handle
   handle: M.call().returns(M.remotable()),
-  // List all messages
   listMessages: M.call().returns(M.promise()),
-  // Subscribe to messages (returns iterator ref)
   followMessages: M.call().returns(M.remotable()),
-  // Respond to a request with a formula identifier
   resolve: M.call(MessageNumberShape, NameOrPathShape).returns(M.promise()),
-  // Decline a request
   reject: M.call(MessageNumberShape).optional(M.string()).returns(M.promise()),
-  // Adopt a reference from an incoming message
   adopt: M.call(MessageNumberShape, NameOrPathShape, NameOrPathShape).returns(
     M.promise(),
   ),
-  // Remove a message from inbox
   dismiss: M.call(MessageNumberShape).returns(M.promise()),
-  // Send a request and wait for response
   request: M.call(NameOrPathShape, M.string())
     .optional(NameOrPathShape)
     .returns(M.promise()),
-  // Send a package message
   send: M.call(NameOrPathShape, M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape).returns(
     M.promise(),
   ),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
-    M.string(),                    // source
-    M.arrayOf(M.string()),         // codeNames
-    NamesOrPathsShape,             // petNamePaths
-  ).optional(NameOrPathShape)      // resultName
+    M.string(),
+    M.arrayOf(M.string()),
+    NamesOrPathsShape,
+  ).optional(NameOrPathShape)
     .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
