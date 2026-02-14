@@ -5,6 +5,7 @@
  * Supports context-size and request options that differ from Anthropic.
  */
 
+// eslint-disable-next-line import/no-unresolved
 import OpenAI from 'openai';
 
 /**
@@ -79,7 +80,10 @@ export const makeLlamaCppProvider = ({
         role: 'assistant',
         content: choice.message?.content ?? '',
       };
-      if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
+      if (
+        choice.message?.tool_calls &&
+        /** @type {unknown[]} */ (choice.message.tool_calls).length > 0
+      ) {
         message.tool_calls = choice.message.tool_calls.map(tc => ({
           id: tc.id,
           function: {

@@ -1522,7 +1522,6 @@ export const makeMailboxMaker = ({
       const originalProposal =
         /** @type {EvalProposalReviewer & { from: string }} */ (message);
       const originalSenderId = originalProposal.from;
-      const originalResponder = originalProposal.responder;
 
       // Send counter-proposal back to original sender
       const to = /** @type {Handle} */ (await provide(originalSenderId));

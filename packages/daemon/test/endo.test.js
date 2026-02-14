@@ -56,6 +56,20 @@ const takeCount = async (asyncIterator, count) => {
 };
 
 /**
+ * Drain `count` values from an async iterator (sequential by necessity).
+ * @param {EReturn<AsyncIterator<unknown>>} iteratorRef
+ * @param {number} count
+ */
+const drainIterator = async (iteratorRef, count) => {
+  let remaining = count;
+  while (remaining > 0) {
+    // eslint-disable-next-line no-await-in-loop
+    await E(iteratorRef).next();
+    remaining -= 1;
+  }
+};
+
+/**
  * @param {string} targetPath
  */
 const pathExists = async targetPath => {
@@ -1033,7 +1047,7 @@ test('message hub avoids kebab-case reply metadata names', async t => {
 
   const messageHub = await E(host).lookup(['MAIL', String(hostMessage.number)]);
   const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
-  const messageNames = await E(messageHub).list();
+  await E(messageHub).list();
   const replyNames = await E(replyHub).list();
 
   t.true(replyNames.includes('FROM'));
@@ -1750,10 +1764,13 @@ test('facet group (agent + handle) collects atomically', async t => {
 
   // Verify all formula files exist on disk
   const allIds = [guestId, handleId, ...dependencyIds];
-  for (const id of allIds) {
+  const existResults = await Promise.all(
+    allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+  );
+  for (let i = 0; i < allIds.length; i += 1) {
     t.true(
-      await pathExists(formulaPathForId(config.statePath, id)),
-      `Formula file for ${id} should exist before removal`,
+      existResults[i],
+      `Formula file for ${allIds[i]} should exist before removal`,
     );
   }
 
@@ -1770,10 +1787,13 @@ test('facet group (agent + handle) collects atomically', async t => {
   });
 
   // Assert all formula files no longer exist
-  for (const id of allIds) {
+  const collectedResults = await Promise.all(
+    allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+  );
+  for (let i = 0; i < allIds.length; i += 1) {
     t.false(
-      await pathExists(formulaPathForId(config.statePath, id)),
-      `Formula file for ${id} should be collected`,
+      collectedResults[i],
+      `Formula file for ${allIds[i]} should be collected`,
     );
   }
 });
@@ -2729,10 +2749,10 @@ test('eval request happy path: guest requests, host approves', async t => {
   // Now the guest requests evaluation
   const hostIteratorRef = E(host).followMessages();
   // Drain existing messages from the iterator
-  const existingMessages = await E(host).listMessages();
-  for (let i = 0; i < existingMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
 
   // Guest requests evaluation using its pet name
   const resultP = E(guest).requestEvaluation(
@@ -2767,10 +2787,10 @@ test('eval request rejection: guest requests, host rejects', async t => {
 
   // Set up host message iterator
   const hostIteratorRef = E(host).followMessages();
-  const existingMessages = await E(host).listMessages();
-  for (let i = 0; i < existingMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
 
   // Guest requests evaluation (no endowments needed for this test)
   const resultP = E(guest).requestEvaluation('dangerous()', [], []);
@@ -2808,10 +2828,10 @@ test('eval request uses guest namespace, not host namespace', async t => {
 
   // Set up host message iterator
   const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = await E(host).listMessages();
-  for (let i = 0; i < existingHostMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
 
   // Guest requests evaluation using its pet name 'shared-name' (value = 42)
   const resultP = E(guest).requestEvaluation(
@@ -2988,10 +3008,10 @@ test('guest evaluate sends eval-proposal to host', async t => {
 
   // Set up host message iterator BEFORE the evaluate call
   const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = await E(host).listMessages();
-  for (let i = 0; i < existingHostMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
 
   // Guest initiates evaluation proposal
   const evaluatePromise = E(guest).evaluate(
@@ -3048,10 +3068,10 @@ test('host grantEvaluate executes proposed code', async t => {
 
   // Set up host message iterator BEFORE the evaluate call
   const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = await E(host).listMessages();
-  for (let i = 0; i < existingHostMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
 
   // Guest proposes evaluation
   const evaluatePromise = E(guest).evaluate(
@@ -3090,10 +3110,10 @@ test('counterEvaluate sends proposer/reviewer messages', async t => {
 
   // Set up host message iterator BEFORE the evaluate call
   const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = await E(host).listMessages();
-  for (let i = 0; i < existingHostMessages.length; i += 1) {
-    await E(hostIteratorRef).next();
-  }
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
 
   // Guest proposes evaluation
   E.sendOnly(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
@@ -3104,10 +3124,10 @@ test('counterEvaluate sends proposer/reviewer messages', async t => {
 
   // Set up guest message iterator for counter-proposal
   const guestIteratorRef = E(guest).followMessages();
-  const existingGuestMessages = await E(guest).listMessages();
-  for (let i = 0; i < existingGuestMessages.length; i += 1) {
-    await E(guestIteratorRef).next();
-  }
+  const existingGuestMessages = /** @type {unknown[]} */ (
+    await E(guest).listMessages()
+  );
+  await drainIterator(guestIteratorRef, existingGuestMessages.length);
 
   // Host sends counter-proposal
   await E(host).counterEvaluate(
