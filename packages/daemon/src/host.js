@@ -619,11 +619,11 @@ export const makeHostMaker = ({
     };
 
     /** @type {EndoHost['cancel']} */
-    const cancel = async (petName, reason = new Error('Cancelled')) => {
-      assertPetName(petName);
-      const id = petStore.identifyLocal(petName);
+    const cancel = async (petNameOrPath, reason = new Error('Cancelled')) => {
+      const namePath = namePathFrom(petNameOrPath);
+      const id = await E(directory).identify(...namePath);
       if (id === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+        throw new TypeError(`Unknown pet name: ${q(petNameOrPath)}`);
       }
       return cancelValue(/** @type {FormulaIdentifier} */ (id), reason);
     };
@@ -1025,7 +1025,19 @@ export const makeHostMaker = ({
         }
       };
 
-    const unwrappedMethods = new Set(['handle', 'reverseIdentify']);
+    // Methods that create formulas and resolve them through promise chains
+    // (E.sendOnly(resolver).resolveWithId) must NOT trigger collection on
+    // return, because the resolver runs asynchronously and hasn't written
+    // the formula ID to the pet store yet. Collection at this point would
+    // find the just-created formula unreachable and delete it.
+    const unwrappedMethods = new Set([
+      'handle',
+      'reverseIdentify',
+      'approveEvaluation',
+      'endow',
+      'grantEvaluate',
+      'respondForm',
+    ]);
     const wrappedHost = Object.fromEntries(
       Object.entries(host).map(([name, fn]) => [
         name,

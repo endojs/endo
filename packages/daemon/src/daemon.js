@@ -165,6 +165,10 @@ const compareMessageNames = (left, right) => {
 
 /** @type {PetName} */
 const PROMISE_STATUS_NAME = /** @type {PetName} */ ('status');
+// Stores the resolved formula identifier as a direct pet store entry so the
+// formula graph keeps the resolved value reachable (prevents premature
+// collection before the consumer names it).
+const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
 
 /**
  * Note: "pending" is intentionally omitted; pending is represented by the
@@ -575,6 +579,15 @@ const makeDaemonCore = async (
 
   const collectIfDirty = async () => {
     if (!enableFormulaCollection) {
+      return;
+    }
+    // Never run collection re-entrantly while the formula graph lock is held.
+    // During formulation (e.g. formulateGuest), sub-formulas are created
+    // incrementally and the graph is temporarily incomplete.  Running collection
+    // at that point would incorrectly identify newly-created formulas as
+    // unreachable.  The dirty flag is preserved so the next non-re-entrant
+    // collectIfDirty call will pick it up.
+    if (formulaGraphLockDepth > 0) {
       return;
     }
     await withFormulaGraphLock(async () => {
@@ -1239,7 +1252,7 @@ const makeDaemonCore = async (
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
-      respondId: idOrPromise =>
+      resolveWithId: idOrPromise =>
         resolverJobs.enqueue(async () => {
           await null;
           if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
@@ -1253,6 +1266,12 @@ const makeDaemonCore = async (
               );
             }
             assertValidId(id);
+            // Write the resolved formula ID as a direct pet store entry so
+            // the formula graph keeps the resolved value reachable.
+            // This must happen before writeStatus because writeStatus
+            // triggers the promise to resolve, and collection may run
+            // before the consumer has a chance to name the result.
+            await petStore.write(RESOLVED_VALUE_NAME, id);
             await writeStatus({ status: 'fulfilled', valueId: id });
           } catch (error) {
             const reason = formatRejectionReason(error);
@@ -3149,6 +3168,7 @@ const makeDaemonCore = async (
     formulatePromise,
     formulateMessage,
     getFormulaForId,
+    getTypeForId,
     randomHex512,
     pinTransient,
     unpinTransient,
