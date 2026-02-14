@@ -31,7 +31,7 @@ const CONVERSATION_STATE_NAME = 'conversation-state';
 export const saveConversation = async (powers, state) => {
   // Convert bigint lastSeenNumber to string for passability
   const passableState = harden({
-    messages: state.messages,
+    messages: [...state.messages],
     ...(state.lastSeenNumber !== undefined && {
       lastSeenNumber: String(state.lastSeenNumber),
     }),
