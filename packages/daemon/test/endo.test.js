@@ -1030,17 +1030,14 @@ test('guest equals() compares live value references', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '10', [], [], ['ten']);
 
-  // Look up the same value twice via the guest.
-  const a = E(guest).lookup('ten');
-  const b = E(guest).lookup('ten');
+  // Special names SELF and HOST are remotable handles tracked by the daemon.
+  const a = E(guest).lookup('SELF');
+  const b = E(guest).lookup('SELF');
   t.true(await E(guest).equals(a, b));
 
-  // Store a different value and compare.
-  await E(host).evaluate('worker', '20', [], [], ['twenty']);
-  const c = E(guest).lookup('twenty');
+  // Different remotable handles should not be equal.
+  const c = E(guest).lookup('HOST');
   t.false(await E(guest).equals(a, c));
 });
 
@@ -1048,11 +1045,10 @@ test('guest equals() returns false for unknown values', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '10', [], [], ['ten']);
 
-  const known = E(guest).lookup('ten');
-  // A plain object not tracked by the daemon.
+  // SELF is a remotable handle tracked by the daemon.
+  const known = E(guest).lookup('SELF');
+  // A plain object not tracked by the daemon should not be equal.
   t.false(await E(guest).equals(known, { unknown: true }));
   t.false(await E(guest).equals({ unknown: true }, known));
   t.false(await E(guest).equals({ a: 1 }, { b: 2 }));
