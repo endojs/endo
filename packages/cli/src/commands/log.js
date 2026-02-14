@@ -25,7 +25,7 @@ const delay = async (ms, cancelled) => {
 
 /**
  * Find all log files in the state directory.
- * Matches *.log at top level and worker/*/worker.log
+ * Matches *.log at top level and worker/{id}/worker.log
  *
  * @param {string} statePath
  * @returns {Promise<string[]>}

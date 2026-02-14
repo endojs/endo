@@ -180,10 +180,11 @@ export const GuestInterface = M.interface('EndoGuest', {
   ).returns(M.promise()),
   // Request sandboxed evaluation (guest -> host)
   requestEvaluation: M.call(
-    M.string(),                    // source
-    M.arrayOf(M.string()),         // codeNames
-    NamesOrPathsShape,             // petNamePaths
-  ).optional(NameOrPathShape)      // resultName
+    M.string(), // source
+    M.arrayOf(M.string()), // codeNames
+    NamesOrPathsShape, // petNamePaths
+  )
+    .optional(NameOrPathShape) // resultName
     .returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),

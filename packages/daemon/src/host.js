@@ -12,6 +12,7 @@ import {
   assertPetName,
   assertPetNamePath,
   assertName,
+  assertNames,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -33,6 +34,16 @@ import { HostInterface } from './interfaces.js';
 const assertPowersName = name => {
   ['NONE', 'AGENT', 'ENDO'].includes(name) || assertPetName(name);
 };
+
+/**
+ * Normalizes host or guest options, providing default values.
+ * @param {MakeHostOrGuestOptions | undefined} opts
+ * @returns {{ introducedNames: Record<string, string>, agentName?: string }}
+ */
+const normalizeHostOrGuestOptions = opts => ({
+  introducedNames: opts?.introducedNames ?? Object.create(null),
+  agentName: opts?.agentName,
+});
 
 /**
  * @param {object} args
@@ -660,8 +671,12 @@ export const makeHostMaker = ({
       remove,
       move,
       copy,
-      makeDirectory,
+      makeDirectory: makeDirectoryLocal,
     } = directory;
+    const makeDirectory = async petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      return makeDirectoryLocal(namePath);
+    };
     const {
       listMessages,
       followMessages,
@@ -669,11 +684,24 @@ export const makeHostMaker = ({
       reject,
       adopt,
       dismiss,
+      dismissAll,
       reply,
       request,
       send,
       deliver,
+      // Note: We intentionally do not extract `evaluate` from mailbox.
+      // Host has its own `evaluate` method that executes code directly,
+      // whereas mailbox.evaluate sends an eval-proposal (used by Guest).
+      grantEvaluate: mailboxGrantEvaluate,
+      counterEvaluate: mailboxCounterEvaluate,
     } = mailbox;
+
+    /**
+     * Look up a value by its formula identifier.
+     * @param {string} id - The formula identifier.
+     * @returns {Promise<unknown>} The value.
+     */
+    const lookupById = async id => provide(id);
 
     /** @type {EndoHost['approveEvaluation']} */
     const approveEvaluation = async (messageNumber, workerName) => {
@@ -803,54 +831,6 @@ export const makeHostMaker = ({
       const resolver = await provide(resolverId, 'resolver');
       E.sendOnly(resolver).resolveWithId(marshalledId);
     };
-
-    const { reverseIdentify } = specialStore;
-
-    /**
-     * Look up a value by its formula identifier.
-     * @param {string} id - The formula identifier.
-     * @returns {Promise<unknown>} The value.
-     */
-    const lookupById = async id => provide(id);
-    const {
-      has,
-      identify,
-      lookup,
-      locate,
-      reverseLocate,
-      list,
-      listIdentifiers,
-      followNameChanges,
-      followLocatorNameChanges,
-      reverseLookup,
-      write,
-      remove,
-      move,
-      copy,
-      makeDirectory: makeDirectoryLocal,
-    } = directory;
-    const makeDirectory = async petNameOrPath => {
-      const namePath = namePathFrom(petNameOrPath);
-      return makeDirectoryLocal(namePath);
-    };
-    const {
-      listMessages,
-      followMessages,
-      resolve,
-      reject,
-      adopt,
-      dismiss,
-      dismissAll,
-      reply,
-      request,
-      send,
-      deliver,
-      // Note: We intentionally do not extract `evaluate` from mailbox.
-      // Host has its own `evaluate` method that executes code directly,
-      // whereas mailbox.evaluate sends an eval-proposal (used by Guest).
-      grantEvaluate: mailboxGrantEvaluate,
-      counterEvaluate: mailboxCounterEvaluate,
-    } = mailbox;
 
     /**
      * Grant an eval-proposal by executing the proposed code.

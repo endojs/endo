@@ -89,14 +89,30 @@ export const createEvalForm = async ({
     </div>
   `;
 
-  const $editorContainer = /** @type {HTMLElement} */ ($container.querySelector('.eval-editor-container'));
-  const $endowmentsList = /** @type {HTMLElement} */ ($container.querySelector('.eval-endowments-list'));
-  const $addEndowmentBtn = /** @type {HTMLButtonElement} */ ($container.querySelector('.eval-add-endowment'));
-  const $resultNameInput = /** @type {HTMLInputElement} */ ($container.querySelector('#eval-result-name'));
-  const $workerNameInput = /** @type {HTMLInputElement} */ ($container.querySelector('#eval-worker-name'));
-  const $closeBtn = /** @type {HTMLButtonElement} */ ($container.querySelector('.eval-close'));
-  const $submitBtn = /** @type {HTMLButtonElement} */ ($container.querySelector('.eval-submit'));
-  const $error = /** @type {HTMLElement} */ ($container.querySelector('.eval-error'));
+  const $editorContainer = /** @type {HTMLElement} */ (
+    $container.querySelector('.eval-editor-container')
+  );
+  const $endowmentsList = /** @type {HTMLElement} */ (
+    $container.querySelector('.eval-endowments-list')
+  );
+  const $addEndowmentBtn = /** @type {HTMLButtonElement} */ (
+    $container.querySelector('.eval-add-endowment')
+  );
+  const $resultNameInput = /** @type {HTMLInputElement} */ (
+    $container.querySelector('#eval-result-name')
+  );
+  const $workerNameInput = /** @type {HTMLInputElement} */ (
+    $container.querySelector('#eval-worker-name')
+  );
+  const $closeBtn = /** @type {HTMLButtonElement} */ (
+    $container.querySelector('.eval-close')
+  );
+  const $submitBtn = /** @type {HTMLButtonElement} */ (
+    $container.querySelector('.eval-submit')
+  );
+  const $error = /** @type {HTMLElement} */ (
+    $container.querySelector('.eval-error')
+  );
 
   // Create Monaco editor
   const editor = await createMonacoEditor($editorContainer, {

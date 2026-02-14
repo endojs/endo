@@ -77,7 +77,10 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
   };
 
   const getSelected = () => {
-    if (filteredCommands.length > 0 && selectedIndex < filteredCommands.length) {
+    if (
+      filteredCommands.length > 0 &&
+      selectedIndex < filteredCommands.length
+    ) {
       return filteredCommands[selectedIndex].name;
     }
     return null;
@@ -97,7 +100,9 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
     if (filteredCommands.length === 0) {
       const $empty = document.createElement('div');
       $empty.className = 'token-menu-empty';
-      $empty.textContent = currentFilter ? 'No matching commands' : 'No commands';
+      $empty.textContent = currentFilter
+        ? 'No matching commands'
+        : 'No commands';
       $menu.appendChild($empty);
     } else {
       filteredCommands.forEach((cmd, index) => {

@@ -849,9 +849,9 @@ export const make = (guestPowers, contextP, { env }) => {
     /** @type {ToolCall[]} */
     const toolCalls = [];
     const toolCallRe = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
-    let match;
+    const matches = content.matchAll(toolCallRe);
     let index = 0;
-    while ((match = toolCallRe.exec(content)) !== null) {
+    for (const match of matches) {
       const block = match[1].trim();
       let name = '';
       /** @type {string | object} */

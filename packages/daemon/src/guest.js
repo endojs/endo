@@ -7,7 +7,6 @@ import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
-import { guestHelp, directoryHelp, mailHelp, makeHelp } from './help-text.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
