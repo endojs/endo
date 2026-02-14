@@ -5,6 +5,7 @@
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
+import { passableAsJustin } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from './providers/index.js';
 
@@ -1163,7 +1164,7 @@ export const make = (guestPowers, contextP, { env }) => {
 
       results.push({
         role: 'tool',
-        content: JSON.stringify(result),
+        content: passableAsJustin(result, false),
         tool_call_id: toolCall.id,
       });
     }
