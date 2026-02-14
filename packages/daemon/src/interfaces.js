@@ -30,7 +30,7 @@ const MessageNumberShape = M.number();
 export const WorkerInterface = M.interface('EndoWorker', {});
 
 export const ResponderInterface = M.interface('EndoResponder', {
-  respondId: M.call(M.or(IdShape, M.promise())).returns(),
+  resolveWithId: M.call(M.or(IdShape, M.promise())).returns(),
 });
 
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
