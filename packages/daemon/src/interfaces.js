@@ -22,8 +22,8 @@ const IdShape = M.string();
 // Locators are formatted formula identifiers
 const LocatorShape = M.string();
 
-// Message numbers are non-negative integers
-const MessageNumberShape = M.number();
+// Message numbers are non-negative BigInts
+const MessageNumberShape = M.bigint();
 
 // Environment variables as string-to-string record
 const EnvShape = M.recordOf(M.string(), M.string());

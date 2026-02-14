@@ -5,7 +5,7 @@
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { passableAsJustin } from '@endo/marshal';
+import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from './providers/index.js';
 
@@ -221,8 +221,9 @@ const tools = [
         type: 'object',
         properties: {
           messageNumber: {
-            type: 'number',
-            description: 'The message number to respond to.',
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
           },
           petNameOrPath: {
             oneOf: [
@@ -246,8 +247,9 @@ const tools = [
         type: 'object',
         properties: {
           messageNumber: {
-            type: 'number',
-            description: 'The message number to decline.',
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
           },
           reason: {
             type: 'string',
@@ -269,8 +271,9 @@ const tools = [
         type: 'object',
         properties: {
           messageNumber: {
-            type: 'number',
-            description: 'The message number containing the value.',
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
           },
           edgeName: {
             oneOf: [
@@ -301,8 +304,9 @@ const tools = [
         type: 'object',
         properties: {
           messageNumber: {
-            type: 'number',
-            description: 'The message number to dismiss.',
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
           },
         },
         required: ['messageNumber'],
@@ -537,6 +541,29 @@ You exist in an object-capability (ocap) security environment where:
 - You can send messages to other agents (especially HOST)
 - You can request capabilities from your HOST
 - Capabilities may implement a help() method for self-documentation
+
+## Data Types (SmallCaps Encoding)
+
+Tool arguments and results use SmallCaps encoding, which extends JSON with additional types.
+Use these special string formats in your tool call arguments:
+
+| Type       | SmallCaps Format    | Example                |
+|------------|---------------------|------------------------|
+| BigInt     | "+N" or "-N"        | "+123", "-456"         |
+| undefined  | "#undefined"        | "#undefined"           |
+| Infinity   | "#Infinity"         | "#Infinity"            |
+| -Infinity  | "#-Infinity"        | "#-Infinity"           |
+| NaN        | "#NaN"              | "#NaN"                 |
+
+Examples:
+- Message number (BigInt): \`{"messageNumber": "+5"}\`
+- Checking for undefined: value === "#undefined"
+
+For regular strings that start with special characters (!, #, $, %, &, +, -), prefix with !:
+- String "!important" encodes as "!!important"
+- String "+positive" encodes as "!+positive"
+
+Most tool arguments are regular JSON values and don't need special encoding.
 
 ## Your Role
 
@@ -829,17 +856,18 @@ export const make = (guestPowers, contextP, { env }) => {
     notificationQueue.push(notification);
   };
 
+  // SmallCaps marshal for decoding LLM tool call arguments
+  const { unserialize } = makeMarshal(undefined, undefined, {
+    serializeBodyFormat: 'smallcaps',
+  });
+
   /**
-   * Best-effort sanitization for JSON-like tool arguments.
-   * @param {string} text
-   * @returns {string}
+   * Decode SmallCaps JSON string to passable value.
+   * @param {string} jsonString - Raw JSON string with SmallCaps encoding
+   * @returns {unknown}
    */
-  const sanitizeJsonLike = text => {
-    let sanitized = text.trim();
-    sanitized = sanitized.replace(/\bundefined\b/g, 'null');
-    sanitized = sanitized.replace(/,\s*([}\]])/g, '$1');
-    return sanitized;
-  };
+  const decodeSmallcaps = jsonString =>
+    unserialize({ body: `#${jsonString}`, slots: [] });
 
   /**
    * Extract tool calls embedded in assistant content.
@@ -858,7 +886,7 @@ export const make = (guestPowers, contextP, { env }) => {
       /** @type {string | object} */
       let args = '{}';
       try {
-        const parsed = JSON.parse(sanitizeJsonLike(block));
+        const parsed = JSON.parse(block);
         if (parsed && typeof parsed === 'object') {
           name = parsed.name || '';
           if (parsed.arguments !== undefined) {
@@ -1040,7 +1068,7 @@ export const make = (guestPowers, contextP, { env }) => {
       // Code evaluation proposal
       case 'evaluate': {
         const {
-          workerName,
+          workerName: rawWorkerName,
           source,
           codeNames = [],
           edgeNames = [],
@@ -1052,13 +1080,18 @@ export const make = (guestPowers, contextP, { env }) => {
         if (resultName === undefined) {
           throw new Error('resultName is required');
         }
+        // Convert "undefined" string to actual undefined
+        const workerName =
+          rawWorkerName === 'undefined' || rawWorkerName === '#undefined'
+            ? undefined
+            : rawWorkerName;
 
         // Send an eval-proposal to the HOST for approval
         const proposalPromise = E(powers).evaluate(
           workerName,
           source,
-          codeNames,
-          edgeNames,
+          harden(codeNames),
+          harden(edgeNames),
           resultName,
         );
 
@@ -1131,34 +1164,28 @@ export const make = (guestPowers, contextP, { env }) => {
     for (const toolCall of toolCalls) {
       const { name, arguments: argsRaw } = toolCall.function;
 
-      // Ollama returns arguments as an object or string depending on version
+      // Decode SmallCaps arguments ("+7" -> 7n, "#undefined" -> undefined)
       /** @type {ToolCallArgs} */
       let args;
-      if (typeof argsRaw === 'string') {
-        try {
-          args = JSON.parse(argsRaw);
-        } catch {
-          try {
-            args = JSON.parse(sanitizeJsonLike(argsRaw));
-          } catch {
-            args = {};
-          }
-        }
-      } else {
-        args = /** @type {ToolCallArgs} */ (argsRaw) || {};
+      try {
+        const jsonString =
+          typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
+        args = /** @type {ToolCallArgs} */ (decodeSmallcaps(jsonString));
+      } catch {
+        args = {};
       }
 
-      console.log(`[tool] ${name}(${JSON.stringify(args)})`);
+      console.log(`[tool] ${name}(${passableAsJustin(harden(args), false)})`);
 
       /** @type {unknown} */
       let result;
       try {
         result = await executeTool(name, args);
-        console.log(`[tool] ${name} -> ${JSON.stringify(result)}`);
+        console.log(`[tool] ${name} -> ${passableAsJustin(result, false)}`);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        result = { error: errorMessage };
+        result = harden({ error: errorMessage });
         console.error(`[tool] ${name} error: ${errorMessage}`);
       }
 
@@ -1186,7 +1213,7 @@ export const make = (guestPowers, contextP, { env }) => {
     if (status === 'granted') {
       const resultStr =
         notification.result !== undefined
-          ? `\nResult: ${JSON.stringify(notification.result)}`
+          ? `\nResult: ${passableAsJustin(notification.result, false)}`
           : '\nResult: (no return value)';
       return `Your eval-proposal #${proposalId} was GRANTED by the HOST.
 Source: ${sourcePreview}${resultStr}

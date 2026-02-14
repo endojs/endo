@@ -2449,7 +2449,14 @@ const inboxComponent = async ($parent, $end, powers) => {
       const $reject = document.createElement('button');
       $reject.innerText = 'reject';
       $reject.onclick = () => {
-        E(powers).reject(number, $pet.value).catch(window.reportError);
+        E(powers)
+          .reject(number, $pet.value)
+          .then(() => {
+            $input.innerText = ' Rejected ';
+          })
+          .catch(error => {
+            $error.innerText = ` ${error.message}`;
+          });
       };
       $input.appendChild($reject);
 
@@ -2629,7 +2636,12 @@ const inboxComponent = async ($parent, $end, powers) => {
       $rejectBtn.onclick = () => {
         E(powers)
           .reject(number, 'Evaluation rejected')
-          .catch(window.reportError);
+          .then(() => {
+            $controls.innerText = ' Rejected ';
+          })
+          .catch(error => {
+            $error.innerText = ` ${error.message}`;
+          });
       };
       $controls.appendChild($rejectBtn);
 
@@ -2724,7 +2736,12 @@ const inboxComponent = async ($parent, $end, powers) => {
         $rejectBtn.onclick = () => {
           E(powers)
             .reject(number, 'Definition rejected')
-            .catch(window.reportError);
+            .then(() => {
+              $controls.innerText = ' Rejected ';
+            })
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
         };
         $controls.appendChild($rejectBtn);
 
@@ -2752,7 +2769,12 @@ const inboxComponent = async ($parent, $end, powers) => {
         $rejectBtn.onclick = () => {
           E(powers)
             .reject(number, 'Definition rejected')
-            .catch(window.reportError);
+            .then(() => {
+              $controls.innerText = ' Rejected ';
+            })
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
         };
         $controls.appendChild($rejectBtn);
 

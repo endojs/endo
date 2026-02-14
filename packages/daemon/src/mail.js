@@ -1360,7 +1360,7 @@ export const makeMailboxMaker = ({
         makePromiseKit();
       const settled = mapSettled(responseIdP);
       const responder = makeExo('EndoResponder', ResponderInterface, {
-        respondId: resolveResponseId,
+        resolveWithId: resolveResponseId,
       });
 
       const resultId = responseIdP.catch(() => undefined);
@@ -1484,7 +1484,7 @@ export const makeMailboxMaker = ({
         makePromiseKit();
       const settled = mapSettled(responseIdP);
       const responder = makeExo('EndoResponder', ResponderInterface, {
-        respondId: resolveResponseId,
+        resolveWithId: resolveResponseId,
       });
 
       const resultId = Promise.resolve(undefined);
