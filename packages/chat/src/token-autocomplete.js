@@ -28,7 +28,11 @@
  * @param {unknown} options.powers - Powers object for following name changes
  * @returns {TokenAutocompleteAPI}
  */
-export const tokenAutocompleteComponent = ($input, $menu, { E, makeRefIterator, powers }) => {
+export const tokenAutocompleteComponent = (
+  $input,
+  $menu,
+  { E, makeRefIterator, powers },
+) => {
   /** @type {string[]} */
   // eslint-disable-next-line prefer-const
   let petNames = [];
@@ -50,7 +54,9 @@ export const tokenAutocompleteComponent = ($input, $menu, { E, makeRefIterator, 
         petNames.push(/** @type {{ add: string }} */ (change).add);
         petNames.sort();
       } else if ('remove' in /** @type {object} */ (change)) {
-        const idx = petNames.indexOf(/** @type {{ remove: string }} */ (change).remove);
+        const idx = petNames.indexOf(
+          /** @type {{ remove: string }} */ (change).remove,
+        );
         if (idx !== -1) {
           petNames.splice(idx, 1);
         }
@@ -404,16 +410,30 @@ export const tokenAutocompleteComponent = ($input, $menu, { E, makeRefIterator, 
     const node = range.startContainer;
 
     // Remove space before punctuation after token completion
-    if (node.nodeType === Node.TEXT_NODE && !enteringEdgeName && !isMenuVisible) {
+    if (
+      node.nodeType === Node.TEXT_NODE &&
+      !enteringEdgeName &&
+      !isMenuVisible
+    ) {
       const text = node.textContent || '';
       const cursorPos = range.startOffset;
       // Check if we just typed punctuation after " " that follows a token
-      if (cursorPos >= 2 && /[.,!?;:)]/.test(text[cursorPos - 1]) && text[cursorPos - 2] === ' ') {
+      if (
+        cursorPos >= 2 &&
+        /[.,!?;:)]/.test(text[cursorPos - 1]) &&
+        text[cursorPos - 2] === ' '
+      ) {
         // Check if the space is right after a token
         const prevSibling = node.previousSibling;
-        if (prevSibling && /** @type {HTMLElement} */ (prevSibling).classList?.contains('chat-token')) {
+        if (
+          prevSibling &&
+          /** @type {HTMLElement} */ (prevSibling).classList?.contains(
+            'chat-token',
+          )
+        ) {
           // Remove the space
-          node.textContent = text.slice(0, cursorPos - 2) + text.slice(cursorPos - 1);
+          node.textContent =
+            text.slice(0, cursorPos - 2) + text.slice(cursorPos - 1);
           range.setStart(node, cursorPos - 1);
           range.collapse(true);
           sel.removeAllRanges();

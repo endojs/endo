@@ -82,7 +82,7 @@ export const createMessagePicker = ({ $messagesContainer, onSelect }) => {
       }
 
       // Add click handler
-      const clickHandler = (e) => {
+      const clickHandler = e => {
         e.preventDefault();
         e.stopPropagation();
         setSelected(number); // eslint-disable-line no-use-before-define

@@ -39,9 +39,7 @@ export const inbox = async ({ follow, agentNames }) =>
 
       if (message.type === 'request') {
         const { description } = message;
-        console.log(
-          `${number}. ${provenance}${q(description)} at ${q(date)}`,
-        );
+        console.log(`${number}. ${provenance}${q(description)} at ${q(date)}`);
       } else if (message.type === 'package') {
         const { strings, names: edgeNames } = message;
         console.log(
