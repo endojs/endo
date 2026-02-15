@@ -374,16 +374,24 @@ export const makeMailboxMaker = ({
      */
     const persistMessage = async (messageNumber, formula) => {
       const messageNumberName = /** @type {PetName} */ (String(messageNumber));
-      const { id } = await formulateMessage(formula);
-      await mailboxStore.write(messageNumberName, id);
+      const { id } = await formulateMessage(formula, pinTransient);
+      try {
+        await mailboxStore.write(messageNumberName, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     /** @param {bigint} messageNumber */
     const persistNextMessageNumber = async messageNumber => {
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const { id } = await formulateMarshalValue(messageNumber, tasks);
-      await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+      const { id } = await formulateMarshalValue(messageNumber, tasks, pinTransient);
+      try {
+        await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     const loadMailboxState = async () => {

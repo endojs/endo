@@ -572,7 +572,12 @@ const makeDaemonCore = async (
     if (!enableFormulaCollection) {
       return;
     }
-    await withFormulaGraphLock(async () => {
+    // collectIfDirty is never called re-entrantly (only from
+    // withCollection finally blocks), so we bypass withFormulaGraphLock
+    // and use the raw mutex to avoid false re-entrancy bypasses from
+    // the global depth counter.
+    await null;
+    await formulaGraphJobs.enqueue(async () => {
       if (!formulaGraph.isDirty() && !transientRootsDirty) {
         return;
       }
@@ -1221,8 +1226,16 @@ const makeDaemonCore = async (
       const hardenedRecord = harden(record);
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      const { id } = await formulateMarshalValue(hardenedRecord, tasks);
-      await petStore.write(PROMISE_STATUS_NAME, id);
+      const { id } = await formulateMarshalValue(
+        hardenedRecord,
+        tasks,
+        pinTransient,
+      );
+      try {
+        await petStore.write(PROMISE_STATUS_NAME, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
@@ -2117,7 +2130,8 @@ const makeDaemonCore = async (
   const cancelValue = async (id, reason) => {
     // Wait for any in-flight graph operation (formulation, collection)
     // to finish before cancelling.
-    await withFormulaGraphLock();
+    await formulaGraphJobs.enqueue();
+    const formula = formulaForId.get(id);
     const controller = provideController(id);
     console.log('Cancelled:');
     return controller.context.cancel(reason);
@@ -2125,33 +2139,31 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateReadableBlob']} */
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
-    const { formulaNumber, contentSha512 } = await withFormulaGraphLock(
-      async () => {
+    return /** @type {FormulateResult<FarRef<EndoReadable>>} */ (
+      await withFormulaGraphLock(async () => {
         await null;
-        const values = {
-          formulaNumber: /** @type {FormulaNumber} */ (await randomHex512()),
-          contentSha512: await contentStore.store(makeRefReader(readerRef)),
-        };
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        const contentSha512 = await contentStore.store(
+          makeRefReader(readerRef),
+        );
 
         await deferredTasks.execute({
           readableBlobId: formatId({
-            number: values.formulaNumber,
+            number: formulaNumber,
             node: localNodeNumber,
           }),
         });
 
-        return values;
-      },
-    );
+        /** @type {ReadableBlobFormula} */
+        const formula = {
+          type: 'readable-blob',
+          content: contentSha512,
+        };
 
-    /** @type {ReadableBlobFormula} */
-    const formula = {
-      type: 'readable-blob',
-      content: contentSha512,
-    };
-
-    return /** @type {FormulateResult<FarRef<EndoReadable>>} */ (
-      formulate(formulaNumber, formula)
+        return formulate(formulaNumber, formula);
+      })
     );
   };
 
@@ -2167,30 +2179,29 @@ const makeDaemonCore = async (
     guestName,
     deferredTasks,
   ) => {
-    const identifiers = await withFormulaGraphLock(async () => {
-      const invitationNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
-      );
-      const invitationId = formatId({
-        number: invitationNumber,
-        node: localNodeNumber,
-      });
-      await deferredTasks.execute({
-        invitationId,
-      });
-      return { invitationNumber };
-    });
-
-    /** @type {InvitationFormula} */
-    const formula = {
-      type: 'invitation',
-      hostAgent: hostAgentId,
-      hostHandle: hostHandleId,
-      guestName,
-    };
-
     return /** @type {FormulateResult<Invitation>} */ (
-      formulate(identifiers.invitationNumber, formula)
+      await withFormulaGraphLock(async () => {
+        const invitationNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        const invitationId = formatId({
+          number: invitationNumber,
+          node: localNodeNumber,
+        });
+        await deferredTasks.execute({
+          invitationId,
+        });
+
+        /** @type {InvitationFormula} */
+        const formula = {
+          type: 'invitation',
+          hostAgent: hostAgentId,
+          hostHandle: hostHandleId,
+          guestName,
+        };
+
+        return formulate(invitationNumber, formula);
+      })
     );
   };
 
@@ -2320,23 +2331,20 @@ const makeDaemonCore = async (
    * @type {DaemonCore['formulateWorker']}
    */
   const formulateWorker = async deferredTasks => {
-    await null;
-    return formulateNumberedWorker(
-      await withFormulaGraphLock(async () => {
-        const formulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
+    return await withFormulaGraphLock(async () => {
+      const formulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
 
-        await deferredTasks.execute({
-          workerId: formatId({
-            number: formulaNumber,
-            node: localNodeNumber,
-          }),
-        });
+      await deferredTasks.execute({
+        workerId: formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        }),
+      });
 
-        return formulaNumber;
-      }),
-    );
+      return formulateNumberedWorker(formulaNumber);
+    });
   };
 
   /**
@@ -2426,24 +2434,21 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
   ) => {
-    await null;
-    return formulateNumberedHost(
-      await withFormulaGraphLock(async () => {
-        const identifiers = await formulateHostDependencies({
-          endoId,
-          networksDirectoryId,
-          pinsDirectoryId,
-          specifiedWorkerId,
-        });
+    return await withFormulaGraphLock(async () => {
+      const identifiers = await formulateHostDependencies({
+        endoId,
+        networksDirectoryId,
+        pinsDirectoryId,
+        specifiedWorkerId,
+      });
 
-        await deferredTasks.execute({
-          agentId: identifiers.hostId,
-          handleId: identifiers.handleId,
-        });
+      await deferredTasks.execute({
+        agentId: identifiers.hostId,
+        handleId: identifiers.handleId,
+      });
 
-        return identifiers;
-      }),
-    );
+      return formulateNumberedHost(identifiers);
+    });
   };
 
   /** @type {DaemonCore['formulateGuestDependencies']} */
@@ -2512,22 +2517,19 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateGuest']} */
   const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
-    await null;
-    return formulateNumberedGuest(
-      await withFormulaGraphLock(async () => {
-        const identifiers = await formulateGuestDependencies(
-          hostAgentId,
-          hostHandleId,
-        );
+    return await withFormulaGraphLock(async () => {
+      const identifiers = await formulateGuestDependencies(
+        hostAgentId,
+        hostHandleId,
+      );
 
-        await deferredTasks.execute({
-          agentId: identifiers.guestId,
-          handleId: identifiers.handleId,
-        });
+      await deferredTasks.execute({
+        agentId: identifiers.guestId,
+        handleId: identifiers.handleId,
+      });
 
-        return identifiers;
-      }),
-    );
+      return formulateNumberedGuest(identifiers);
+    });
   };
 
   /**
@@ -2548,97 +2550,109 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateMarshalValue']} */
-  async function formulateMarshalValue(value, deferredTasks) {
-    const { marshalFormulaNumber } = await withFormulaGraphLock(async () => {
-      const ownFormulaNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
-      );
-      const ownId = formatId({
-        number: ownFormulaNumber,
-        node: localNodeNumber,
-      });
-
-      const identifiers = harden({
-        marshalId: ownId,
-        marshalFormulaNumber: ownFormulaNumber,
-      });
-
-      await deferredTasks.execute(identifiers);
-      return identifiers;
-    });
-
-    const { body, slots } = marshaller.toCapData(value);
-
-    /** @type {MarshalFormula} */
-    const formula = {
-      type: 'marshal',
-      body,
-      slots,
-    };
+  async function formulateMarshalValue(value, deferredTasks, pin) {
     return /** @type {FormulateResult<void>} */ (
-      formulate(marshalFormulaNumber, formula)
+      await withFormulaGraphLock(async () => {
+        const ownFormulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex512()
+        );
+        const ownId = formatId({
+          number: ownFormulaNumber,
+          node: localNodeNumber,
+        });
+        // Pin before formulate so the formula is protected from
+        // collection even if the lock is bypassed via re-entrancy.
+        if (pin) {
+          pin(ownId);
+        }
+
+        const identifiers = harden({
+          marshalId: ownId,
+          marshalFormulaNumber: ownFormulaNumber,
+        });
+
+        await deferredTasks.execute(identifiers);
+
+        const { body, slots } = marshaller.toCapData(value);
+
+        /** @type {MarshalFormula} */
+        const formula = {
+          type: 'marshal',
+          body,
+          slots,
+        };
+        return formulate(ownFormulaNumber, formula);
+      })
     );
   }
 
   /** @type {DaemonCore['formulatePromise']} */
   const formulatePromise = async pin => {
-    const { storeFormulaNumber, promiseFormulaNumber, resolverFormulaNumber } =
-      await withFormulaGraphLock(async () => {
-        const storeNumber = /** @type {FormulaNumber} */ (await randomHex512());
-        const promiseNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
-        const resolverNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
-        );
-        return {
-          storeFormulaNumber: storeNumber,
-          promiseFormulaNumber: promiseNumber,
-          resolverFormulaNumber: resolverNumber,
-        };
-      });
+    return await withFormulaGraphLock(async () => {
+      const storeFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
+      const promiseFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
+      const resolverFormulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
 
-    const { id: storeId } = await formulateNumberedPetStore(storeFormulaNumber);
+      const { id: storeId } = await formulateNumberedPetStore(
+        storeFormulaNumber,
+      );
 
-    /** @type {PromiseFormula} */
-    const promiseFormula = {
-      type: 'promise',
-      store: storeId,
-    };
+      /** @type {PromiseFormula} */
+      const promiseFormula = {
+        type: 'promise',
+        store: storeId,
+      };
 
-    /** @type {ResolverFormula} */
-    const resolverFormula = {
-      type: 'resolver',
-      store: storeId,
-    };
+      /** @type {ResolverFormula} */
+      const resolverFormula = {
+        type: 'resolver',
+        store: storeId,
+      };
 
-    const { id: promiseId } = await formulate(
-      promiseFormulaNumber,
-      promiseFormula,
-    );
-    if (pin) {
-      pin(promiseId);
-    }
-    const { id: resolverId } = await formulate(
-      resolverFormulaNumber,
-      resolverFormula,
-    );
-    if (pin) {
-      pin(resolverId);
-    }
+      const { id: promiseId } = await formulate(
+        promiseFormulaNumber,
+        promiseFormula,
+      );
+      if (pin) {
+        pin(promiseId);
+      }
+      const { id: resolverId } = await formulate(
+        resolverFormulaNumber,
+        resolverFormula,
+      );
+      if (pin) {
+        pin(resolverId);
+      }
 
-    return harden({ promiseId, resolverId });
+      return harden({ promiseId, resolverId });
+    });
   };
 
   /** @type {DaemonCore['formulateMessage']} */
-  const formulateMessage = async messageFormula => {
-    // Wait for any in-flight graph operation (formulation, collection)
-    // to finish before formulating.
-    await withFormulaGraphLock();
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
-    return /** @type {FormulateResult<NameHub>} */ (
-      formulate(formulaNumber, messageFormula)
-    );
+  const formulateMessage = async (messageFormula, pin) => {
+    return await withFormulaGraphLock(async () => {
+      const formulaNumber = /** @type {FormulaNumber} */ (
+        await randomHex512()
+      );
+      // Pin before formulate so the formula is protected from
+      // collection even if the lock is bypassed via re-entrancy.
+      if (pin) {
+        const messageId = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+        pin(messageId);
+      }
+      return /** @type {FormulateResult<NameHub>} */ (
+        formulate(formulaNumber, messageFormula)
+      );
+    });
   };
 
   /** @type {DaemonCore['formulateEval']} */
@@ -2649,8 +2663,9 @@ const makeDaemonCore = async (
     endowmentIdsOrPaths,
     deferredTasks,
     specifiedWorkerId,
+    pin,
   ) => {
-    const { workerId, endowmentIds, evalFormulaNumber } =
+    return /** @type {FormulateResult<unknown>} */ (
       await withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
@@ -2659,6 +2674,11 @@ const makeDaemonCore = async (
           number: ownFormulaNumber,
           node: localNodeNumber,
         });
+        // Pin before formulate so the formula is protected from
+        // collection even if the lock is bypassed via re-entrancy.
+        if (pin) {
+          pin(ownId);
+        }
 
         const identifiers = harden({
           workerId: await provideWorkerId(specifiedWorkerId),
@@ -2686,19 +2706,17 @@ const makeDaemonCore = async (
         });
 
         await deferredTasks.execute(identifiers);
-        return identifiers;
-      });
 
-    /** @type {EvalFormula} */
-    const formula = {
-      type: 'eval',
-      worker: workerId,
-      source,
-      names: codeNames,
-      values: endowmentIds,
-    };
-    return /** @type {FormulateResult<unknown>} */ (
-      formulate(evalFormulaNumber, formula)
+        /** @type {EvalFormula} */
+        const formula = {
+          type: 'eval',
+          worker: identifiers.workerId,
+          source,
+          names: codeNames,
+          values: identifiers.endowmentIds,
+        };
+        return formulate(identifiers.evalFormulaNumber, formula);
+      })
     );
   };
 
@@ -2792,25 +2810,25 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
   ) => {
-    const { powersId, capletFormulaNumber, workerId } =
-      await withFormulaGraphLock(() =>
-        formulateCapletDependencies(
+    return await withFormulaGraphLock(async () => {
+      const { powersId, capletFormulaNumber, workerId } =
+        await formulateCapletDependencies(
           hostAgentId,
           hostHandleId,
           deferredTasks,
           specifiedWorkerId,
           specifiedPowersId,
-        ),
-      );
+        );
 
-    /** @type {MakeUnconfinedFormula} */
-    const formula = {
-      type: 'make-unconfined',
-      worker: workerId,
-      powers: powersId,
-      specifier,
-    };
-    return formulate(capletFormulaNumber, formula);
+      /** @type {MakeUnconfinedFormula} */
+      const formula = {
+        type: 'make-unconfined',
+        worker: workerId,
+        powers: powersId,
+        specifier,
+      };
+      return formulate(capletFormulaNumber, formula);
+    });
   };
 
   /** @type {DaemonCore['formulateBundle']} */
@@ -2822,25 +2840,25 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
   ) => {
-    const { powersId, capletFormulaNumber, workerId } =
-      await withFormulaGraphLock(() =>
-        formulateCapletDependencies(
+    return await withFormulaGraphLock(async () => {
+      const { powersId, capletFormulaNumber, workerId } =
+        await formulateCapletDependencies(
           hostAgentId,
           hostHandleId,
           deferredTasks,
           specifiedWorkerId,
           specifiedPowersId,
-        ),
-      );
+        );
 
-    /** @type {MakeBundleFormula} */
-    const formula = {
-      type: 'make-bundle',
-      worker: workerId,
-      powers: powersId,
-      bundle: bundleId,
-    };
-    return formulate(capletFormulaNumber, formula);
+      /** @type {MakeBundleFormula} */
+      const formula = {
+        type: 'make-bundle',
+        worker: workerId,
+        powers: powersId,
+        bundle: bundleId,
+      };
+      return formulate(capletFormulaNumber, formula);
+    });
   };
 
   /**
@@ -2898,55 +2916,46 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateEndo']} */
   const formulateEndo = async specifiedFormulaNumber => {
-    const identifiers = await withFormulaGraphLock(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (
-        await (specifiedFormulaNumber ?? randomHex512())
-      );
-      const endoId = formatId({
-        number: formulaNumber,
-        node: localNodeNumber,
-      });
-
-      const { id: defaultHostWorkerId } = await formulateNumberedWorker(
-        /** @type {FormulaNumber} */ (await randomHex512()),
-      );
-      const { id: networksDirectoryId } = await formulateNetworksDirectory();
-      const { id: pinsDirectoryId } = await formulateDirectory();
-
-      // Ensure the default host is formulated and persisted.
-      const { id: defaultHostId } = await formulateNumberedHost(
-        await formulateHostDependencies({
-          endoId,
-          networksDirectoryId,
-          pinsDirectoryId,
-          specifiedWorkerId: defaultHostWorkerId,
-        }),
-      );
-
-      return {
-        formulaNumber,
-        defaultHostId,
-        networksDirectoryId,
-        pinsDirectoryId,
-      };
-    });
-
-    /** @type {EndoFormula} */
-    const formula = {
-      type: 'endo',
-      networks: identifiers.networksDirectoryId,
-      pins: identifiers.pinsDirectoryId,
-      peers: knownPeersId,
-      host: identifiers.defaultHostId,
-      leastAuthority: leastAuthorityId,
-    };
-
-    const result = await formulate(identifiers.formulaNumber, formula);
-    await withFormulaGraphLock(async () => {
-      formulaGraph.addRoot(result.id);
-    });
     return /** @type {{ id: FormulaIdentifier, value: FarRef<EndoBootstrap> }} */ (
-      result
+      await withFormulaGraphLock(async () => {
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await (specifiedFormulaNumber ?? randomHex512())
+        );
+        const endoId = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+
+        const { id: defaultHostWorkerId } = await formulateNumberedWorker(
+          /** @type {FormulaNumber} */ (await randomHex512()),
+        );
+        const { id: networksDirectoryId } = await formulateNetworksDirectory();
+        const { id: pinsDirectoryId } = await formulateDirectory();
+
+        // Ensure the default host is formulated and persisted.
+        const { id: defaultHostId } = await formulateNumberedHost(
+          await formulateHostDependencies({
+            endoId,
+            networksDirectoryId,
+            pinsDirectoryId,
+            specifiedWorkerId: defaultHostWorkerId,
+          }),
+        );
+
+        /** @type {EndoFormula} */
+        const formula = {
+          type: 'endo',
+          networks: networksDirectoryId,
+          pins: pinsDirectoryId,
+          peers: knownPeersId,
+          host: defaultHostId,
+          leastAuthority: leastAuthorityId,
+        };
+
+        const result = await formulate(formulaNumber, formula);
+        formulaGraph.addRoot(result.id);
+        return result;
+      })
     );
   };
 
@@ -3128,6 +3137,8 @@ const makeDaemonCore = async (
     getAllNetworkAddresses,
     localNodeNumber,
     collectIfDirty,
+    pinTransient,
+    unpinTransient,
   });
 
   /**

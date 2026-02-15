@@ -988,6 +988,7 @@ export interface DaemonCore {
   formulateMarshalValue: (
     value: Passable,
     deferredTasks: DeferredTasks<MarshalDeferredTaskParams>,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<void>;
 
   formulatePromise: (
@@ -1002,6 +1003,7 @@ export interface DaemonCore {
 
   formulateMessage: (
     messageFormula: MessageFormula,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<NameHub>;
 
   formulateEval: (
@@ -1011,6 +1013,7 @@ export interface DaemonCore {
     endowmentIdsOrPaths: (FormulaIdentifier | NamePath)[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<unknown>;
 
   formulateGuest: (

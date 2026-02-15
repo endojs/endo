@@ -53,6 +53,8 @@ const assertPowersName = name => {
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
  * @param {() => Promise<void>} [args.collectIfDirty]
+ * @param {DaemonCore['pinTransient']} [args.pinTransient]
+ * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  */
 export const makeHostMaker = ({
   provide,
@@ -72,6 +74,8 @@ export const makeHostMaker = ({
   makeDirectoryNode,
   localNodeNumber,
   collectIfDirty = async () => {},
+  pinTransient = /** @param {any} _id */ _id => {},
+  unpinTransient = /** @param {any} _id */ _id => {},
 }) => {
   /**
    * @param {FormulaIdentifier} hostId
@@ -293,14 +297,25 @@ export const makeHostMaker = ({
         );
       }
 
-      const { value } = await formulateEval(
+      const { id, value } = await formulateEval(
         hostId,
         source,
         codeNames,
         endowmentFormulaIdsOrPaths,
         tasks,
         workerId,
+        resultName === undefined ? pinTransient : undefined,
       );
+      if (resultName === undefined) {
+        // Ephemeral eval: the formula was pinned inside formulateEval
+        // (inside the lock) so concurrent collection can't reclaim it.
+        // Unpin after the value resolves.
+        try {
+          return await value;
+        } finally {
+          unpinTransient(id);
+        }
+      }
       return value;
     };
 
@@ -756,8 +771,7 @@ export const makeHostMaker = ({
     };
 
     /** @param {Function} fn */
-    const withCollection =
-      fn =>
+    const withCollection = fn =>
       async (...args) => {
         await null;
         try {
