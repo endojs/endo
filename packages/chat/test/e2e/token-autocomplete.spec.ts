@@ -8,8 +8,9 @@
  * - DOM node splitting and insertion
  */
 /* global window */
+// @ts-nocheck - E2E test with browser globals
 
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // Helper to set up a page with mock pet names
 async function setupPage(

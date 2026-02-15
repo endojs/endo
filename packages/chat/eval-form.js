@@ -2,6 +2,9 @@
 /* global document */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { createMonacoEditor } from './monaco-wrapper.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { keyCombo, modKey } from './platform-keys.js';
@@ -37,8 +40,8 @@ import { keyCombo, modKey } from './platform-keys.js';
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element for the form
- * @param {(target: unknown) => unknown} options.E - Eventual send function
- * @param {unknown} options.powers - Powers object
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(data: EvalFormData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when form is closed
  * @returns {Promise<EvalFormAPI>}

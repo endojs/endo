@@ -2,6 +2,9 @@
 /* global document */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { createMonacoEditor } from './monaco-wrapper.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { keyCombo, modKey } from './platform-keys.js';
@@ -14,7 +17,7 @@ import { keyCombo, modKey } from './platform-keys.js';
 
 /**
  * @typedef {object} CounterProposalData
- * @property {number} messageNumber - Original proposal message number
+ * @property {bigint} messageNumber - Original proposal message number
  * @property {string} source - JavaScript source code
  * @property {Endowment[]} endowments - Code name to pet name mappings
  * @property {string} resultName - Optional pet name for the result
@@ -35,8 +38,8 @@ import { keyCombo, modKey } from './platform-keys.js';
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element for the form
- * @param {(target: unknown) => unknown} options.E - Eventual send function
- * @param {unknown} options.powers - Powers object
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(data: CounterProposalData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when form is closed
  * @returns {Promise<CounterProposalFormAPI>}
@@ -53,7 +56,8 @@ export const createCounterProposalForm = async ({
   let source = '';
   /** @type {Endowment[]} */
   let endowments = [];
-  let messageNumber = 0;
+  /** @type {bigint} */
+  let messageNumber = 0n;
 
   // Create form HTML structure - reuse eval-form CSS classes
   $container.innerHTML = `
@@ -313,7 +317,7 @@ export const createCounterProposalForm = async ({
   const resetForm = () => {
     source = '';
     endowments = [];
-    messageNumber = 0;
+    messageNumber = 0n;
     isDirty = false;
 
     editor.setValue('');

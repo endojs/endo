@@ -2,6 +2,9 @@
 /* global document, setTimeout */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 /**
  * @typedef {object} PetNamePathsAutocompleteAPI
  * @property {() => string[]} getValue - Get the current paths as array
@@ -22,8 +25,8 @@
  * @param {HTMLElement} $container - Container element (will be populated)
  * @param {HTMLElement} $menu - The autocomplete menu container
  * @param {object} options
- * @param {(target: unknown) => unknown} options.E - Eventual send function
- * @param {unknown} options.powers - Powers object for listing names
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {ERef<EndoHost>} options.powers - Powers object for listing names
  * @param {() => void} [options.onSubmit] - Called when Enter is pressed
  * @param {() => void} [options.onChange] - Called when value changes
  * @returns {PetNamePathsAutocompleteAPI}
@@ -402,7 +405,9 @@ export const petNamePathsAutocomplete = (
       case 'PageDown':
         e.preventDefault();
         if (suggestions.length > 0) {
-          const first = $menu.querySelector('.token-menu-item');
+          const first = /** @type {HTMLElement | null} */ (
+            $menu.querySelector('.token-menu-item')
+          );
           const itemHeight = first ? first.offsetHeight : 32;
           const pageSize = Math.max(
             1,
@@ -420,7 +425,9 @@ export const petNamePathsAutocomplete = (
       case 'PageUp':
         e.preventDefault();
         if (suggestions.length > 0) {
-          const first = $menu.querySelector('.token-menu-item');
+          const first = /** @type {HTMLElement | null} */ (
+            $menu.querySelector('.token-menu-item')
+          );
           const itemHeight = first ? first.offsetHeight : 32;
           const pageSize = Math.max(
             1,

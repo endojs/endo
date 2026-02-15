@@ -33,7 +33,7 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
   let isVisible = false;
   let selectedIndex = 0;
   let currentFilter = '';
-  /** @type {import('../state/command-registry.js').CommandDefinition[]} */
+  /** @type {import('./command-registry.js').CommandDefinition[]} */
   let filteredCommands = [];
 
   const show = () => {
@@ -99,7 +99,9 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
    * @returns {number}
    */
   const getPageStep = () => {
-    const first = $menu.querySelector('.token-menu-item');
+    const first = /** @type {HTMLElement | null} */ (
+      $menu.querySelector('.token-menu-item')
+    );
     if (!first) return 1;
     const itemHeight = first.offsetHeight;
     const viewHeight = $menu.clientHeight;

@@ -2,6 +2,9 @@
 /* global document, setTimeout */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 
 /**
@@ -57,8 +60,8 @@ const toJsIdentifier = petName => {
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container for the input
- * @param {(target: unknown) => unknown} options.E - Eventual send function
- * @param {unknown} options.powers - Powers object for autocomplete
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {ERef<EndoHost>} options.powers - Powers object for autocomplete
  * @param {(data: ParsedEval) => void} options.onSubmit - Called on Enter
  * @param {(data: ParsedEval) => void} options.onExpand - Called on Cmd+Enter to expand to modal
  * @param {() => void} options.onCancel - Called on Escape

@@ -1,5 +1,8 @@
 // @ts-check
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 
 /**
@@ -12,10 +15,10 @@ import { E } from '@endo/far';
 
 /**
  * @typedef {object} ExecutorContext
- * @property {unknown} powers - The powers object
- * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void>} showValue - Display a value
- * @property {(message: string) => void} showMessage - Display a message
- * @property {(error: Error) => void} showError - Display an error
+ * @property {ERef<EndoHost>} powers - The powers object
+ * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => unknown} showValue - Display a value
+ * @property {(message: string) => unknown} showMessage - Display a message
+ * @property {(error: Error) => unknown} showError - Display an error
  */
 
 /**
@@ -42,6 +45,7 @@ export const createCommandExecutor = ({
         // ============ MESSAGING ============
         case 'request': {
           const { recipient, description, resultName } = params;
+          // Split dot-notation names into paths for the request API
           const recipientPath = String(recipient).split('.');
           const resultPath = resultName
             ? String(resultName).split('.')
@@ -56,7 +60,9 @@ export const createCommandExecutor = ({
 
         case 'dismiss': {
           const { messageNumber } = params;
-          await E(powers).dismiss(Number(messageNumber));
+          await E(powers).dismiss(
+            BigInt(/** @type {number} */ (messageNumber)),
+          );
           return {
             success: true,
             message: `Message #${messageNumber} dismissed`,
@@ -73,18 +79,23 @@ export const createCommandExecutor = ({
 
         case 'adopt': {
           const { messageNumber, edgeName, petName } = params;
-          const targetName = petName ? String(petName) : String(edgeName);
+          const targetNameStr = petName ? String(petName) : String(edgeName);
+          // Interface expects petName as string[]
+          const targetNamePath = targetNameStr.split('.');
           await E(powers).adopt(
-            Number(messageNumber),
+            BigInt(/** @type {number} */ (messageNumber)),
             String(edgeName),
-            targetName,
+            targetNamePath,
           );
-          return { success: true, message: `Adopted as "${targetName}"` };
+          return { success: true, message: `Adopted as "${targetNameStr}"` };
         }
 
         case 'resolve': {
           const { messageNumber, petName } = params;
-          await E(powers).resolve(Number(messageNumber), String(petName));
+          await E(powers).resolve(
+            BigInt(/** @type {number} */ (messageNumber)),
+            String(petName),
+          );
           return {
             success: true,
             message: `Request #${messageNumber} resolved`,
@@ -94,7 +105,7 @@ export const createCommandExecutor = ({
         case 'reject': {
           const { messageNumber, reason } = params;
           await E(powers).reject(
-            Number(messageNumber),
+            BigInt(/** @type {number} */ (messageNumber)),
             reason ? String(reason) : undefined,
           );
           return {
@@ -106,7 +117,9 @@ export const createCommandExecutor = ({
         case 'grant':
         case 'allow': {
           const { messageNumber } = params;
-          await E(powers).grantEvaluate(Number(messageNumber));
+          await E(powers).grantEvaluate(
+            BigInt(/** @type {number} */ (messageNumber)),
+          );
           return {
             success: true,
             message: `Eval-proposal #${messageNumber} granted`,
@@ -116,7 +129,7 @@ export const createCommandExecutor = ({
         case 'approve-eval': {
           const { messageNumber, workerName } = params;
           await E(powers).approveEvaluation(
-            Number(messageNumber),
+            BigInt(/** @type {number} */ (messageNumber)),
             workerName ? String(workerName) : undefined,
           );
           return {
@@ -138,6 +151,7 @@ export const createCommandExecutor = ({
             /** @type {Array<{codeName: string, petName: string}>} */ (
               endowments
             ).map(e => e.codeName);
+          // Split dot-notation pet names into paths for the evaluate API
           const petNamePaths =
             /** @type {Array<{codeName: string, petName: string}>} */ (
               endowments
@@ -178,6 +192,7 @@ export const createCommandExecutor = ({
         case 'show': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
+          // @ts-expect-error lookup signature expects tuple
           const value = await E(powers).lookup(...pathParts);
           const id = await E(powers).identify(...pathParts);
           showValue(value, id, pathParts, undefined);
@@ -188,7 +203,7 @@ export const createCommandExecutor = ({
         case 'remove': {
           const { petName, petNames } = params;
           // Support both single petName (legacy) and petNames array (new)
-          const paths = petNames || [petName];
+          const paths = /** @type {unknown[]} */ (petNames || [petName]);
           const results = await Promise.all(
             paths.map(async name => {
               const pathParts = String(name).split('.');
@@ -230,6 +245,7 @@ export const createCommandExecutor = ({
         case 'mkdir': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
+          // @ts-expect-error spread argument requires tuple type
           await E(powers).makeDirectory(...pathParts);
           return { success: true, message: `Directory "${petName}" created` };
         }
@@ -288,6 +304,7 @@ export const createCommandExecutor = ({
           const error = reason
             ? new Error(String(reason))
             : new Error('Cancelled');
+          // @ts-expect-error cancel expects string, not string[]
           await E(powers).cancel(pathParts, error);
           return { success: true, message: `"${petName}" cancelled` };
         }

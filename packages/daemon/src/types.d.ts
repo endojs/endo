@@ -649,22 +649,22 @@ export interface Mail {
     messageNumber: bigint,
     strings: Array<string>,
     edgeNames: Array<string>,
-    petNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
   ): Promise<void>;
   request(
-    recipientName: string,
+    recipientNameOrPath: string | string[],
     what: string,
-    responseName: string,
+    responseNameOrPath?: string | string[],
   ): Promise<unknown>;
   send(
-    recipientName: string,
+    recipientNameOrPath: string | string[],
     strings: Array<string>,
     edgeNames: Array<string>,
-    petNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): Promise<void>;
   requestEvaluation(
-    recipientName: string,
+    recipientNameOrPath: string | string[],
     source: string,
     codeNames: Array<string>,
     petNamePaths: Array<string | string[]>,
@@ -682,7 +682,7 @@ export interface Mail {
     slots: Record<string, { label: string; pattern?: unknown }>,
   ): Promise<unknown>;
   form(
-    recipientName: string,
+    recipientNameOrPath: string | string[],
     description: string,
     fields: Record<string, { label: string; pattern?: unknown }>,
     responseName?: string | string[],
@@ -796,6 +796,7 @@ export interface EndoAgent extends EndoDirectory {
   reject: Mail['reject'];
   adopt: Mail['adopt'];
   dismiss: Mail['dismiss'];
+  dismissAll: Mail['dismissAll'];
   reply: Mail['reply'];
   request: Mail['request'];
   send: Mail['send'];
@@ -805,6 +806,11 @@ export interface EndoAgent extends EndoDirectory {
    * @returns The pet names for the given formula identifier.
    */
   reverseIdentify(id: string): Array<Name>;
+  /**
+   * @param id The formula identifier to look up.
+   * @returns The value for the given formula identifier.
+   */
+  lookupById(id: string): Promise<unknown>;
 }
 
 export interface EndoGuest extends EndoAgent {
@@ -827,7 +833,7 @@ export interface EndoGuest extends EndoAgent {
     slots: Record<string, { label: string; pattern?: unknown }>,
   ): Promise<unknown>;
   form(
-    recipientName: string,
+    recipientNameOrPath: string | string[],
     description: string,
     fields: Record<string, { label: string; pattern?: unknown }>,
     responseName?: string | string[],
@@ -863,7 +869,7 @@ export interface EndoHost extends EndoAgent {
     workerPetName: string | undefined,
     source: string,
     codeNames: Array<string>,
-    petNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
   makeUnconfined(
@@ -886,6 +892,17 @@ export interface EndoHost extends EndoAgent {
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
+  /** Grant an eval-proposal by executing the proposed code. */
+  grantEvaluate(messageNumber: bigint): Promise<unknown>;
+  /** Send a counter-proposal with modified code and/or bindings. */
+  counterEvaluate(
+    messageNumber: bigint,
+    source: string,
+    codeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    workerName?: string,
+    resultName?: string | string[],
+  ): Promise<unknown>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,

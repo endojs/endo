@@ -187,12 +187,11 @@ export const makeEndoPlugin = (options = {}) => {
         console.log(`[Endo Plugin] Gateway ready on port ${assignedPort}`);
         console.log(`[Endo Plugin] ENDO_ID: ${endoId.slice(0, 16)}...`);
 
-        // Update the define values
-        server.config.define = {
-          ...server.config.define,
+        // Update the define values (mutate because we can't reassign readonly)
+        Object.assign(server.config.define || {}, {
           'import.meta.env.ENDO_PORT': JSON.stringify(assignedPort),
           'import.meta.env.ENDO_ID': JSON.stringify(endoId),
-        };
+        });
       } catch (error) {
         console.error(`[Endo Plugin] Failed to start:`, error);
         throw error;

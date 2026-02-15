@@ -7,7 +7,6 @@ import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { assertFormulaNumber, assertValidId } from './formula-identifier.js';
 import {
-  assertPetNames,
   assertName,
   assertNames,
   assertPetNamePath,
@@ -131,6 +130,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {() => Promise<string>} args.randomHex512
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
+ * @param args.getTypeForId
  * @returns {MakeMailbox}
  */
 export const makeMailboxMaker = ({
@@ -967,10 +967,14 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['reply']} */
-    const reply = async (messageNumber, strings, edgeNames, petNames) => {
+    const reply = async (
+      messageNumber,
+      strings,
+      edgeNames,
+      petNamesOrPaths,
+    ) => {
       assertNames(edgeNames);
       assertUniqueEdgeNames(edgeNames);
-      assertPetNames(petNames);
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const parent = messages.get(normalizedMessageNumber);
       if (parent === undefined) {
@@ -987,27 +991,30 @@ export const makeMailboxMaker = ({
         /** @type {FormulaIdentifier} */ (otherId),
       );
 
-      if (petNames.length !== edgeNames.length) {
+      if (petNamesOrPaths.length !== edgeNames.length) {
         throw new Error(
           `Message must have one edge name (${q(
             edgeNames.length,
-          )}) for every pet name (${q(petNames.length)})`,
+          )}) for every pet name (${q(petNamesOrPaths.length)})`,
         );
       }
-      if (strings.length < petNames.length) {
+      if (strings.length < petNamesOrPaths.length) {
         throw new Error(
           `Message must have one string before every value delivered`,
         );
       }
 
-      const ids = petNames.map(petName => {
-        const id = petStore.identifyLocal(petName);
-        if (id === undefined) {
-          throw new Error(`Unknown pet name ${q(petName)}`);
-        }
-        assertValidId(id);
-        return /** @type {FormulaIdentifier} */ (id);
-      });
+      const ids = await Promise.all(
+        petNamesOrPaths.map(async petNameOrPath => {
+          const petPath = namePathFrom(petNameOrPath);
+          const id = await E(directory).identify(...petPath);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
+          }
+          assertValidId(id);
+          return /** @type {FormulaIdentifier} */ (id);
+        }),
+      );
 
       const message = harden({
         type: /** @type {const} */ ('package'),
@@ -1077,8 +1084,8 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['request']} */
-    const request = async (toName, description, responseName) => {
-      assertName(toName);
+    const request = async (toNameOrPath, description, responseName) => {
+      const toPath = namePathFrom(toNameOrPath);
       await null;
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
@@ -1089,9 +1096,9 @@ export const makeMailboxMaker = ({
         }
       }
 
-      const toId = petStore.identifyLocal(toName);
+      const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toName}`);
+        throw new Error(`Unknown recipient ${toPath.join('.')}`);
       }
       assertValidId(toId);
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
@@ -1159,13 +1166,13 @@ export const makeMailboxMaker = ({
 
     /** @type {Mail['requestEvaluation']} */
     const requestEvaluation = async (
-      toName,
+      toNameOrPath,
       source,
       codeNames,
       petNamesOrPaths,
       responseName,
     ) => {
-      assertName(toName);
+      const toPath = namePathFrom(toNameOrPath);
       await null;
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
@@ -1184,9 +1191,9 @@ export const makeMailboxMaker = ({
         );
       }
 
-      const toId = petStore.identifyLocal(toName);
+      const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${q(toName)}`);
+        throw new Error(`Unknown recipient ${toPath.join('.')}`);
       }
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
@@ -1278,8 +1285,8 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['form']} */
-    const form = async (toName, description, fields, responseName) => {
-      assertName(toName);
+    const form = async (toNameOrPath, description, fields, responseName) => {
+      const toPath = namePathFrom(toNameOrPath);
       await null;
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
@@ -1290,9 +1297,9 @@ export const makeMailboxMaker = ({
         }
       }
 
-      const toId = petStore.identifyLocal(toName);
+      const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${q(toName)}`);
+        throw new Error(`Unknown recipient ${toPath.join('.')}`);
       }
       assertValidId(toId);
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));

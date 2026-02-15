@@ -12,7 +12,9 @@ import { make } from './chat.js';
 const RECONNECT_INTERVAL_MS = 5000;
 
 // Get configuration from Vite plugin injection
+// @ts-expect-error Vite injects env at build time
 const endoPort = import.meta.env.ENDO_PORT;
+// @ts-expect-error Vite injects env at build time
 const endoId = import.meta.env.ENDO_ID;
 
 console.log('[Chat] Starting application...');

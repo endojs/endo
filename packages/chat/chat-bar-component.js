@@ -1,6 +1,9 @@
 // @ts-check
 /* global window, document, setTimeout */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 import { sendFormComponent } from './send-form.js';
@@ -20,9 +23,9 @@ import { kbd, modKey } from './platform-keys.js';
 
 /**
  * @param {HTMLElement} $parent
- * @param {unknown} powers
+ * @param {ERef<EndoHost>} powers
  * @param {object} options
- * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void>} options.showValue
+ * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} options.showValue
  * @param {(hostName: string) => Promise<void>} options.enterProfile
  * @param {() => void} options.exitProfile
  * @param {boolean} options.canExitProfile
@@ -458,7 +461,8 @@ export const chatBarComponent = (
     getMessageEdgeNames: async messageNumber => {
       try {
         const messages = await E(powers).listMessages();
-        const message = messages.find(m => m.number === messageNumber);
+        const targetNumber = BigInt(messageNumber);
+        const message = messages.find(m => m.number === targetNumber);
         if (!message) return [];
         // Package messages have 'names', eval-proposal messages have 'edgeNames'
         if ('names' in message && Array.isArray(message.names)) {
@@ -547,7 +551,7 @@ export const chatBarComponent = (
         powers,
         onSubmit: async data => {
           // Call E(powers).evaluate()
-          // Pet names must be arrays (path segments for dot-delimited names)
+          // Split dot-notation pet names into paths for the evaluate API
           const codeNames = data.endowments.map(e => e.codeName);
           const petNamePaths = data.endowments.map(e => e.petName.split('.'));
           const resultNamePath = data.resultName
@@ -596,7 +600,7 @@ export const chatBarComponent = (
   /**
    * Show the counter-proposal form with proposal data.
    * @param {object} proposalData
-   * @param {number} proposalData.messageNumber
+   * @param {bigint} proposalData.messageNumber
    * @param {string} proposalData.source
    * @param {string[]} proposalData.codeNames
    * @param {string[]} proposalData.edgeNames
@@ -621,10 +625,10 @@ export const chatBarComponent = (
 
           await E(powers).counterEvaluate(
             data.messageNumber,
-            workerName,
             data.source,
             codeNames,
             petNamePaths,
+            workerName,
             resultNamePath,
           );
         },

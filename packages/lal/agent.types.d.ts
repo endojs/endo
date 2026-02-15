@@ -1,10 +1,10 @@
 import type {
-  EdgeName,
+  Name,
   EndoGuest,
   NamePath,
   NameOrPath,
   StampedMessage,
-} from '@endo/daemon/src/types.js';
+} from '@endo/daemon';
 
 export type { NameOrPath };
 
@@ -67,7 +67,7 @@ export type ToolCallArgs = {
   description?: string;
   responseName?: NameOrPath;
   strings?: string[];
-  edgeNames?: EdgeName[];
+  edgeNames?: Name[];
   petNames?: NameOrPath[];
   workerName?: string;
   source?: string;
@@ -82,7 +82,7 @@ export type PendingProposal = {
   proposalId: number;
   source: string;
   codeNames: string[];
-  edgeNames: EdgeName[];
+  edgeNames: Name[];
   workerName?: string;
   promise: Promise<unknown>;
 };
@@ -93,4 +93,24 @@ export type ProposalNotification = {
   source: string;
   result?: unknown;
   error?: string;
+};
+
+/** Environment variables for configuring the LLM provider */
+export type LalEnv = {
+  LAL_HOST?: string;
+  LAL_MODEL?: string;
+  LAL_AUTH_TOKEN?: string;
+  LAL_MAX_TOKENS?: string;
+  LAL_MAX_MESSAGES?: string;
+};
+
+/** Context object for cancellation support */
+export type LalContext = {
+  whenCancelled?: () => Promise<void>;
+  cancelled?: Promise<void>;
+};
+
+/** Options passed to the make function */
+export type LalOptions = {
+  env: LalEnv;
 };

@@ -1,5 +1,8 @@
 // @ts-check
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
@@ -12,7 +15,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 
 /**
  * @typedef {object} MockPowersResult
- * @property {unknown} powers - The mock powers object
+ * @property {ERef<EndoHost>} powers - The mock powers object (cast via unknown)
  * @property {(name: string) => void} addName - Add a pet name
  * @property {(name: string) => void} removeName - Remove a pet name
  * @property {(name: string, value: unknown, id?: string) => void} setValue
@@ -177,6 +180,7 @@ export const makeMockPowers = ({
   });
 
   return {
+    // Cast via unknown since mock doesn't implement full EndoHost interface
     powers,
     sentMessages,
 

@@ -1,14 +1,17 @@
 // @ts-check
 /* global window, document */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 
 /**
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} _end
- * @param {unknown} powers
- * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void> }} options
+ * @param {ERef<EndoHost>} powers
+ * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void> }} options
  * @param {string[]} [path] - Current path for nested inventories
  */
 export const inventoryComponent = async (
@@ -86,8 +89,11 @@ export const inventoryComponent = async (
 
     // Event handlers
     $name.onclick = () => {
-      const idP = E(powers).identify(...itemPath);
-      const valueP = E(powers).lookup(...itemPath);
+      // Pass array directly since lookup accepts string | string[]
+      const idP = E(powers).identify(
+        .../** @type {[string, ...string[]]} */ (itemPath),
+      );
+      const valueP = E(powers).lookup(itemPath);
       Promise.all([idP, valueP]).then(
         ([id, value]) => showValue(value, id, itemPath, undefined),
         window.reportError,
@@ -95,7 +101,7 @@ export const inventoryComponent = async (
     };
     $remove.onclick = () =>
       E(powers)
-        .remove(...itemPath)
+        .remove(.../** @type {[string, ...string[]]} */ (itemPath))
         .catch(window.reportError);
 
     // Track expansion state and cleanup
@@ -121,9 +127,11 @@ export const inventoryComponent = async (
         // Expand - try to load children
         $disclosure.classList.add('loading');
         try {
+          // @ts-expect-error spread argument requires tuple type
           const target = await E(powers).lookup(...itemPath);
           // Check if it has followNameChanges (is a name hub)
           // We probe by trying to get the async iterator
+          // @ts-expect-error followNameChanges is on nested targets
           const changesIterator = E(target).followNameChanges();
           // If we get here without error, it's expandable
           isExpanded = true;
@@ -135,16 +143,28 @@ export const inventoryComponent = async (
           // Start nested inventory watching the nested target
           // Pass empty path since target is now the root for this subtree
           // But we need to wrap operations to use the full path from root powers
-          const nestedPowers = {
-            /** @param {string[]} subPath */
-            lookup: (...subPath) => E(powers).lookup(...itemPath, ...subPath),
-            /** @param {string[]} subPath */
-            remove: (...subPath) => E(powers).remove(...itemPath, ...subPath),
-            /** @param {string[]} subPath */
-            identify: (...subPath) =>
-              E(powers).identify(...itemPath, ...subPath),
-            followNameChanges: () => changesIterator,
-          };
+          const nestedPowers = /** @type {ERef<EndoHost>} */ (
+            /** @type {unknown} */ ({
+              /** @param {string[]} subPath */
+              lookup: (...subPath) =>
+                E(powers).lookup([...itemPath, ...subPath]),
+              /** @param {string[]} subPath */
+              remove: (...subPath) => {
+                const fullPath = [...itemPath, ...subPath];
+                return E(powers).remove(
+                  .../** @type {[string, ...string[]]} */ (fullPath),
+                );
+              },
+              /** @param {string[]} subPath */
+              identify: (...subPath) => {
+                const fullPath = [...itemPath, ...subPath];
+                return E(powers).identify(
+                  .../** @type {[string, ...string[]]} */ (fullPath),
+                );
+              },
+              followNameChanges: () => changesIterator,
+            })
+          );
 
           inventoryComponent(
             $children,

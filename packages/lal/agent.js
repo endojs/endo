@@ -10,7 +10,7 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification } from './agent.types' */
+/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification, LalContext, LalOptions } from './agent.types' */
 
 // ============================================================================
 // Interface Definition
@@ -800,23 +800,25 @@ Always check tool results before proceeding - don't assume success.
  * Creates a Lal agent that processes messages using an LLM.
  *
  * @param {FarRef<GuestPowers>} guestPowers - Guest powers from the Endo daemon
- * @param {Promise<any> | any} contextP - Context (used for cancellation)
+ * @param {Promise<LalContext> | LalContext | undefined} context - Context for cancellation support
+ * @param {LalOptions} options - Configuration options
+ * @param {import('./agent.types').LalEnv} options.env - Environment variables for LLM provider
  * @returns {object} The Lal exo object
  */
-export const make = (guestPowers, contextP, { env }) => {
+export const make = (guestPowers, context, { env }) => {
   console.log('[LAL]', env);
   // Cast to any for E() calls since TypeScript can't properly infer FarRef types
   /** @type {any} */
   const powers = guestPowers;
   const getCancelled = async () => {
-    if (!contextP) return null;
-    const context = await contextP;
     if (!context) return null;
-    if (typeof context.whenCancelled === 'function') {
-      return E(context).whenCancelled();
+    const resolvedContext = await context;
+    if (!resolvedContext) return null;
+    if (typeof resolvedContext.whenCancelled === 'function') {
+      return E(resolvedContext).whenCancelled();
     }
-    if (context.cancelled) {
-      return context.cancelled;
+    if (resolvedContext.cancelled) {
+      return resolvedContext.cancelled;
     }
     return null;
   };

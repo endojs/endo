@@ -1,5 +1,8 @@
 // @ts-check
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import '@endo/init/debug.js';
 
 import test from 'ava';
@@ -8,9 +11,10 @@ import { createCommandExecutor } from '../../command-executor.js';
 
 /**
  * Create a mock powers object that tracks calls.
- * @returns {{ powers: unknown, calls: Array<{method: string, args: unknown[]}>, showValueCalls: unknown[], showMessageCalls: string[], showErrorCalls: Error[] }}
+ * @returns {{ powers: ERef<EndoHost>, calls: Array<{method: string, args: unknown[]}>, showValueCalls: unknown[], showMessageCalls: string[], showErrorCalls: Error[] }}
  */
 const createMockContext = () => {
+  // Cast via unknown to satisfy type checker since mock doesn't implement full interface
   /** @type {Array<{method: string, args: unknown[]}>} */
   const calls = [];
   /** @type {unknown[]} */
@@ -148,7 +152,7 @@ test('execute dismiss command', async t => {
   t.true(result.success);
   t.is(result.message, 'Message #42 dismissed');
   t.is(ctx.calls[0].method, 'dismiss');
-  t.deepEqual(ctx.calls[0].args, [42]);
+  t.deepEqual(ctx.calls[0].args, [42n]);
 });
 
 test('execute dismiss-all command', async t => {
@@ -185,7 +189,7 @@ test('execute adopt command with explicit pet name', async t => {
 
   t.true(result.success);
   t.is(result.message, 'Adopted as "my-file"');
-  t.deepEqual(ctx.calls[0].args, [5, 'attachment', 'my-file']);
+  t.deepEqual(ctx.calls[0].args, [5n, 'attachment', ['my-file']]);
 });
 
 test('execute adopt command uses edge name as default pet name', async t => {
@@ -204,7 +208,7 @@ test('execute adopt command uses edge name as default pet name', async t => {
 
   t.true(result.success);
   t.is(result.message, 'Adopted as "attachment"');
-  t.deepEqual(ctx.calls[0].args, [5, 'attachment', 'attachment']);
+  t.deepEqual(ctx.calls[0].args, [5n, 'attachment', ['attachment']]);
 });
 
 test('execute resolve command', async t => {
@@ -223,7 +227,7 @@ test('execute resolve command', async t => {
 
   t.true(result.success);
   t.is(result.message, 'Request #10 resolved');
-  t.deepEqual(ctx.calls[0].args, [10, 'answer']);
+  t.deepEqual(ctx.calls[0].args, [10n, 'answer']);
 });
 
 test('execute reject command', async t => {
@@ -242,7 +246,7 @@ test('execute reject command', async t => {
 
   t.true(result.success);
   t.is(result.message, 'Request #10 rejected');
-  t.deepEqual(ctx.calls[0].args, [10, 'Not available']);
+  t.deepEqual(ctx.calls[0].args, [10n, 'Not available']);
 });
 
 test('execute grant command', async t => {
@@ -611,7 +615,9 @@ test('execute handles power errors', async t => {
   const errors = [];
 
   const executor = createCommandExecutor({
-    powers: failingPowers,
+    powers: /** @type {ERef<EndoHost>} */ (
+      /** @type {unknown} */ (failingPowers)
+    ),
     showValue: () => {},
     showMessage: () => {},
     showError: e => errors.push(e),

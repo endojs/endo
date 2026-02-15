@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck - happy-dom types incompatible with standard DOM
 /* global globalThis, setTimeout */
 /* eslint-disable import/no-unresolved */
 

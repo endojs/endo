@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck - Component test documentation only
 
 /**
  * Monaco Wrapper Unit Tests

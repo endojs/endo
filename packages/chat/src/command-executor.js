@@ -13,9 +13,9 @@ import { E } from '@endo/far';
 /**
  * @typedef {object} ExecutorContext
  * @property {unknown} powers - The powers object
- * @property {(value: unknown) => void} showValue - Display a value
- * @property {(message: string) => void} showMessage - Display a message
- * @property {(error: Error) => void} showError - Display an error
+ * @property {(value: unknown) => unknown} showValue - Display a value
+ * @property {(message: string) => unknown} showMessage - Display a message
+ * @property {(error: Error) => unknown} showError - Display an error
  */
 
 /**

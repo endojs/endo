@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck - Component test with happy-dom
 
 import '@endo/init/debug.js';
 

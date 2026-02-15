@@ -9,7 +9,7 @@
  */
 /* global document, window, setTimeout */
 
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // Helper to open the eval modal
 async function openEvalModal(page: Page) {

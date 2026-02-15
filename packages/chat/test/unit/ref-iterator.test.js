@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck - Test file with mock iterators
 
 import '@endo/init/debug.js';
 

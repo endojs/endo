@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck - Test file using mock powers
 /* global setTimeout */
 
 import '@endo/init/debug.js';

@@ -1,6 +1,9 @@
 // @ts-check
 /* global window, document */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
@@ -103,7 +106,7 @@ const template = `
 
 /**
  * @param {HTMLElement} $parent
- * @param {{ focusValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void>, blurValue: () => void }} callbacks
+ * @param {{ focusValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>, blurValue: () => void }} callbacks
  */
 const controlsComponent = ($parent, { focusValue, blurValue }) => {
   const $valueFrame = /** @type {HTMLElement} */ (
@@ -114,7 +117,7 @@ const controlsComponent = ($parent, { focusValue, blurValue }) => {
    * @param {unknown} value
    * @param {string} [id]
    * @param {string[]} [petNamePath]
-   * @param {{ number: number, edgeName: string }} [messageContext]
+   * @param {{ number: bigint, edgeName: string }} [messageContext]
    */
   const showValue = (value, id, petNamePath, messageContext) => {
     $valueFrame.dataset.show = 'true';
@@ -252,6 +255,7 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
     /** @type {unknown} */
     let powers = rootPowers;
     for (const name of profilePath) {
+      // @ts-expect-error powers type is unknown
       powers = E(powers).lookup(name);
     }
     return powers;
@@ -263,6 +267,7 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
     try {
       // Resolve current powers and look up the target
       const currentPowers = await resolvePowers();
+      // @ts-expect-error currentPowers type is unknown
       const targetPowers = await E(currentPowers).lookup(hostName);
 
       // Verify the target has the minimum required interface for a profile
@@ -309,21 +314,31 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
         blurValue: () => blurValue(),
       });
 
-      inboxComponent($messages, $anchor, resolvedPowers, { showValue }).catch(
-        window.reportError,
+      inboxComponent(
+        $messages,
+        $anchor,
+        /** @type {ERef<EndoHost>} */ (resolvedPowers),
+        { showValue },
+      ).catch(window.reportError);
+      inventoryComponent(
+        $pets,
+        $profileBar,
+        /** @type {ERef<EndoHost>} */ (resolvedPowers),
+        { showValue },
+      ).catch(window.reportError);
+      chatBarComponent(
+        $parent,
+        /** @type {ERef<EndoHost>} */ (resolvedPowers),
+        {
+          showValue,
+          enterProfile: enterHost,
+          exitProfile,
+          canExitProfile: profilePath.length > 0,
+        },
       );
-      inventoryComponent($pets, $profileBar, resolvedPowers, {
-        showValue,
-      }).catch(window.reportError);
-      chatBarComponent($parent, resolvedPowers, {
-        showValue,
-        enterProfile: enterHost,
-        exitProfile,
-        canExitProfile: profilePath.length > 0,
-      });
       const { focusValue, blurValue } = valueComponent(
         $parent,
-        resolvedPowers,
+        /** @type {ERef<EndoHost>} */ (resolvedPowers),
         {
           dismissValue,
           enterProfile: enterHost,

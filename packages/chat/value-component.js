@@ -1,12 +1,15 @@
 // @ts-check
 /* global window, document, setTimeout */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { render, inferType } from './value-render.js';
 
 /**
  * @param {HTMLElement} $parent
- * @param {unknown} powers
+ * @param {ERef<EndoHost>} powers
  * @param {object} options
  * @param {() => void} options.dismissValue
  * @param {(hostName: string) => Promise<void>} options.enterProfile
@@ -102,7 +105,10 @@ export const valueComponent = (
     try {
       // Store the value with the given pet name path
       const petNamePath = name.split('.');
-      await E(powers).storeValue(currentValue, petNamePath);
+      await E(powers).storeValue(
+        /** @type {import('@endo/pass-style').Passable} */ (currentValue),
+        petNamePath,
+      );
       $saveName.value = '';
       clearValue();
     } catch (error) {
@@ -138,7 +144,7 @@ export const valueComponent = (
    * @param {unknown} value
    * @param {string} [id]
    * @param {string[]} [petNamePath]
-   * @param {{ number: number, edgeName: string }} [messageContext]
+   * @param {{ number: bigint, edgeName: string }} [messageContext]
    */
   const focusValue = async (value, id, petNamePath, messageContext) => {
     currentValue = value;
@@ -174,9 +180,7 @@ export const valueComponent = (
     // 2. Add pet name chips if we have an id
     if (id) {
       try {
-        const petNames = /** @type {string[]} */ (
-          await E(powers).reverseIdentify(id)
-        );
+        const petNames = await E(powers).reverseIdentify(id);
         uniquePetNames = Array.from(new Set(petNames));
         for (const petName of uniquePetNames) {
           const $token = document.createElement('span');

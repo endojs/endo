@@ -2,6 +2,9 @@
 /* global window, document, setTimeout */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 /**
  * @typedef {object} ChatMessage
  * @property {string[]} strings - Text segments between tokens
@@ -23,9 +26,9 @@
  * @param {HTMLElement} $input - The contenteditable div
  * @param {HTMLElement} $menu - The autocomplete menu container
  * @param {object} options
- * @param {(target: unknown) => unknown} options.E - Eventual send function
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
- * @param {unknown} options.powers - Powers object for following name changes
+ * @param {ERef<EndoHost>} options.powers - Powers object for following name changes
  * @returns {TokenAutocompleteAPI}
  */
 export const tokenAutocompleteComponent = (
@@ -46,6 +49,8 @@ export const tokenAutocompleteComponent = (
   let enteringEdgeName = false;
   /** @type {{ petName: string, edgeName: string } | null} */
   let pendingToken = null;
+  /** @type {(() => void) | undefined} */
+  let doUpdateFilter;
 
   // Subscribe to inventory changes
   (async () => {
@@ -61,8 +66,8 @@ export const tokenAutocompleteComponent = (
           petNames.splice(idx, 1);
         }
       }
-      if (isMenuVisible) {
-        updateFilter();
+      if (isMenuVisible && doUpdateFilter) {
+        doUpdateFilter();
       }
     }
   })().catch(window.reportError);
@@ -110,6 +115,7 @@ export const tokenAutocompleteComponent = (
 
     renderMenu(filterText);
   };
+  doUpdateFilter = updateFilter;
 
   /** @param {string} filterText */
   const renderMenu = filterText => {
@@ -608,7 +614,9 @@ export const tokenAutocompleteComponent = (
       case 'PageDown': {
         e.preventDefault();
         if (filteredNames.length > 0) {
-          const first = $menu.querySelector('.token-menu-item');
+          const first = /** @type {HTMLElement | null} */ (
+            $menu.querySelector('.token-menu-item')
+          );
           const itemHeight = first ? first.offsetHeight : 32;
           const pageSize = Math.max(
             1,
@@ -627,7 +635,9 @@ export const tokenAutocompleteComponent = (
       case 'PageUp': {
         e.preventDefault();
         if (filteredNames.length > 0) {
-          const first = $menu.querySelector('.token-menu-item');
+          const first = /** @type {HTMLElement | null} */ (
+            $menu.querySelector('.token-menu-item')
+          );
           const itemHeight = first ? first.offsetHeight : 32;
           const pageSize = Math.max(
             1,

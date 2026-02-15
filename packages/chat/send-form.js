@@ -1,6 +1,9 @@
 // @ts-check
 /* global window */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /**
@@ -28,10 +31,10 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {HTMLElement} options.$menu - The autocomplete menu container
  * @param {HTMLElement} options.$error - Error display element
  * @param {HTMLElement} options.$sendButton - Send button element
- * @param {(target: unknown) => unknown} options.E - Eventual send function
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
- * @param {unknown} options.powers - Powers object
- * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
+ * @param {ERef<EndoHost>} options.powers - Powers object
+ * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
  * @returns {SendFormAPI}
@@ -103,8 +106,10 @@ export const sendFormComponent = ({
       const [petName] = petNames;
       const petNamePath = petName.split('.');
       Promise.all([
-        E(powers).identify(...petNamePath),
-        E(powers).lookup(...petNamePath),
+        E(powers).identify(
+          .../** @type {[string, ...string[]]} */ (petNamePath),
+        ),
+        E(powers).lookup(petNamePath),
       ]).then(
         ([id, value]) => {
           if (showValue) {

@@ -2,6 +2,9 @@
 /* global document, setTimeout */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 // TODO: The autocomplete dropdown menu is not appearing visually despite
 // the component working correctly (suggestions are fetched and filtered).
 // Suspected z-index or overflow clipping issue within the eval form modal.
@@ -22,8 +25,8 @@
  * @param {HTMLInputElement} $input - The text input element
  * @param {HTMLElement} $menu - The autocomplete menu container
  * @param {object} options
- * @param {(target: unknown) => unknown} options.E - Eventual send function
- * @param {unknown} options.powers - Powers object for listing names
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {ERef<EndoHost>} options.powers - Powers object for listing names
  * @returns {PetNamePathAutocompleteAPI}
  */
 export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
@@ -280,7 +283,9 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
       case 'PageDown':
         e.preventDefault();
         if (suggestions.length > 0) {
-          const first = $menu.querySelector('.token-menu-item');
+          const first = /** @type {HTMLElement | null} */ (
+            $menu.querySelector('.token-menu-item')
+          );
           const itemHeight = first ? first.offsetHeight : 32;
           const pageSize = Math.max(
             1,
@@ -298,7 +303,9 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
       case 'PageUp':
         e.preventDefault();
         if (suggestions.length > 0) {
-          const first = $menu.querySelector('.token-menu-item');
+          const first = /** @type {HTMLElement | null} */ (
+            $menu.querySelector('.token-menu-item')
+          );
           const itemHeight = first ? first.offsetHeight : 32;
           const pageSize = Math.max(
             1,

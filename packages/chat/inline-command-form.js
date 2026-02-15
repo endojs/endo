@@ -2,6 +2,9 @@
 /* global document, setTimeout */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { getCommand } from './command-registry.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
@@ -23,8 +26,8 @@ import { createInlineEval } from './inline-eval.js';
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container for the form
- * @param {(target: unknown) => unknown} options.E - Eventual send function
- * @param {unknown} options.powers - Powers object for autocomplete
+ * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {ERef<EndoHost>} options.powers - Powers object for autocomplete
  * @param {(commandName: string, data: Record<string, unknown>) => void} options.onSubmit - Submit callback
  * @param {() => void} options.onCancel - Cancel callback
  * @param {(isValid: boolean) => void} options.onValidityChange - Called when validity changes
@@ -349,7 +352,9 @@ export const createInlineCommandForm = ({
           } else if (e.key === 'PageDown') {
             e.preventDefault();
             if (filtered.length > 0) {
-              const first = $menu.querySelector('.token-menu-item');
+              const first = /** @type {HTMLElement | null} */ (
+                $menu.querySelector('.token-menu-item')
+              );
               const itemHeight = first ? first.offsetHeight : 32;
               const pageSize = Math.max(
                 1,
@@ -365,7 +370,9 @@ export const createInlineCommandForm = ({
           } else if (e.key === 'PageUp') {
             e.preventDefault();
             if (filtered.length > 0) {
-              const first = $menu.querySelector('.token-menu-item');
+              const first = /** @type {HTMLElement | null} */ (
+                $menu.querySelector('.token-menu-item')
+              );
               const itemHeight = first ? first.offsetHeight : 32;
               const pageSize = Math.max(
                 1,

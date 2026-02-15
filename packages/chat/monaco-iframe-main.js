@@ -8,6 +8,7 @@ import * as monaco from 'monaco-editor';
 
 // Configure Monaco environment - disable workers to avoid complexity
 self.MonacoEnvironment = {
+  // @ts-expect-error Monaco allows null to disable workers
   getWorker: () => null,
 };
 

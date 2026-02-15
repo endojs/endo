@@ -1,6 +1,9 @@
 // @ts-check
 /* global window, document, requestAnimationFrame, navigator, setTimeout */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 import {
@@ -17,8 +20,8 @@ import {
 /**
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} $end
- * @param {unknown} powers
- * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: number, edgeName: string }) => void | Promise<void> }} options
+ * @param {ERef<EndoHost>} powers
+ * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void> }} options
  */
 export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -305,11 +308,13 @@ export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
         codeNames,
         edgeNames,
         workerName,
-        resultName,
         settled,
         resultId,
         result,
       } = message;
+      const resultName = /** @type {string | undefined} */ (
+        'resultName' in message ? message.resultName : undefined
+      );
       assert(typeof source === 'string');
       assert(Array.isArray(codeNames));
       assert(Array.isArray(edgeNames));
@@ -427,7 +432,10 @@ export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
                   $error.innerText = ' Result is not available.';
                   return;
                 }
-                showValue(value, id, undefined, { number, edgeName: 'result' });
+                showValue(value, id, undefined, {
+                  number,
+                  edgeName: 'result',
+                });
               },
               (/** @type {Error} */ error) => {
                 $error.innerText = ` ${error.message}`;
@@ -436,10 +444,12 @@ export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
             return;
           }
           if (resultName) {
-            const resultPath = resultName.split('.');
+            const resultPath = /** @type {[string, ...string[]]} */ (
+              resultName.split('.')
+            );
             Promise.all([
               E(powers).identify(...resultPath),
-              E(powers).lookup(...resultPath),
+              E(powers).lookup(resultPath),
             ]).then(
               ([id, value]) => {
                 if (!id) {
