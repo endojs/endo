@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+        # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install Dependencies
+        run: yarn
+
+      - name: Process Changesets
+        # This action will create/update Changesets' Release PR *or* create a
+        # GitHub Release and tags if its Release PR was just merged
+        uses: changesets/action@c48e67d110a68bc90ccf1098e9646092baacaa87 # v1

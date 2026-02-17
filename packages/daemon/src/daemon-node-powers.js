@@ -13,7 +13,7 @@ import { makeSerialJobs } from './serial-jobs.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
-/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
 
 const textEncoder = new TextEncoder();
 
@@ -309,15 +309,20 @@ export const makeDaemonicPersistencePowers = (
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   };
 
+  /** @type {DaemonicPersistencePowers['provideRootNonce']} */
   const provideRootNonce = async () => {
     const noncePath = filePowers.joinPath(config.statePath, 'nonce');
-    let nonce = await filePowers.maybeReadFileText(noncePath);
-    const isNewlyCreated = nonce === undefined;
-    if (nonce === undefined) {
-      nonce = await cryptoPowers.randomHex512();
-      await filePowers.writeFileText(noncePath, `${nonce}\n`);
+    const existingNonce = await filePowers.maybeReadFileText(noncePath);
+    if (existingNonce === undefined) {
+      const rootNonce = /** @type {FormulaNumber} */ (
+        await cryptoPowers.randomHex512()
+      );
+      await filePowers.writeFileText(noncePath, `${rootNonce}\n`);
+      return { rootNonce, isNewlyCreated: true };
+    } else {
+      const rootNonce = /** @type {FormulaNumber} */ (existingNonce.trim());
+      return { rootNonce, isNewlyCreated: false };
     }
-    return { rootNonce: nonce.trim(), isNewlyCreated };
   };
 
   const makeContentSha512Store = () => {

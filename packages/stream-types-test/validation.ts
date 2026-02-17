@@ -1,6 +1,7 @@
 /* eslint-disable no-underscore-dangle, no-empty */
 /// <reference types="ses"/>
 
+import { ONE_N } from '@endo/nat';
 import {
   makeQueue,
   makeStream,
@@ -92,7 +93,7 @@ async () => {
   const s: Stream<string, number, bigint, bigint> = prime(
     (async function* generator() {
       const n: number = yield 'A';
-      return 1n;
+      return ONE_N;
     })(),
     1,
   );

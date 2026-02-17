@@ -16,10 +16,11 @@ static mut ENCRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
 static mut DECRYPT: Option<CipherState<ChaCha20Poly1305>> = None;
 
 // BUFFER layout
-//            local (initiator for SYN and ACK, resonder for SYNACK):
+//            local (initiator for SYN and ACK, responder for SYNACK):
 // 32   @0      PRIVATE_CRYPT_KEY
 // 32   @32     PUBLIC_CRYPT_KEY
 // 32   @64     SIGNING_KEY
+// 32   @96     INTENDED_RESPONDER_KEY (cleartext prefix for relay routing)
 //
 //            SYN
 // 100  @128    SYN_PAYLOAD:
@@ -57,6 +58,8 @@ const PUBLIC_CRYPT_KEY_OFFSET: usize = 32;
 const PUBLIC_CRYPT_KEY_LENGTH: usize = 32;
 const SIGNING_KEY_OFFSET: usize = 64;
 const SIGNING_KEY_LENGTH: usize = 32;
+const INTENDED_RESPONDER_KEY_OFFSET: usize = 96;
+const INTENDED_RESPONDER_KEY_LENGTH: usize = 32;
 const INITIATOR_VERIFYING_KEY_OFFSET: usize = 128;
 const VERIFYING_KEY_LENGTH: usize = 32;
 const INITIATOR_SIGNATURE_OFFSET: usize = 160;
@@ -176,6 +179,16 @@ fn initiator_write_syn() -> i32 {
 fn responder_read_syn() -> i32 {
     #[allow(static_mut_refs)]
     unsafe {
+        // Verify the intended responder key matches our own verifying key
+        // This must be checked before any cryptographic operations to support relay routing
+        let intended_responder_key =
+            &BUFFER[INTENDED_RESPONDER_KEY_OFFSET..][..INTENDED_RESPONDER_KEY_LENGTH];
+        let responder_verifying_key =
+            &BUFFER[RESPONDER_VERIFYING_KEY_OFFSET..][..VERIFYING_KEY_LENGTH];
+        if intended_responder_key != responder_verifying_key {
+            return 7; // SYN intended for different responder
+        }
+
         let responder_private_crypt_key = X25519::genkey();
         let responder_public_crypt_key = X25519::pubkey(&responder_private_crypt_key);
         BUFFER[PRIVATE_CRYPT_KEY_OFFSET..][..PRIVATE_CRYPT_KEY_LENGTH]
@@ -195,7 +208,7 @@ fn responder_read_syn() -> i32 {
             .copy_from_slice(signature.to_bytes().as_slice());
 
         HS = Some(HandshakeState::new(
-            noise_xx(),                        // IK handshake pattern
+            noise_xx(),                        // XX handshake pattern
             false,                             // Responding (not initiating)
             [],                                // Empty prologue
             Some(responder_private_crypt_key), // Responder's private key

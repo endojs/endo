@@ -1,7 +1,7 @@
 // @ts-check
 /// <ref types="ses">
 
-/** @import { IdRecord } from './types.js' */
+/** @import { IdRecord, ParseIdRecord, FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
 
 import { makeError, q } from '@endo/errors';
 
@@ -24,9 +24,29 @@ export const assertValidNumber = allegedNumber => {
 };
 
 /**
+ * @param {string} allegedFormulaNumber
+ * @returns {asserts allegedFormulaNumber is FormulaNumber}
+ */
+export const assertFormulaNumber = allegedFormulaNumber => {
+  if (!isValidNumber(allegedFormulaNumber)) {
+    throw makeError(`Invalid formula number ${q(allegedFormulaNumber)}`);
+  }
+};
+
+/**
+ * @param {string} allegedNodeNumber
+ * @returns {asserts allegedNodeNumber is NodeNumber}
+ */
+export const assertNodeNumber = allegedNodeNumber => {
+  if (!isValidNumber(allegedNodeNumber)) {
+    throw makeError(`Invalid node number ${q(allegedNodeNumber)}`);
+  }
+};
+
+/**
  * @param {string} id
  * @param {string} [petName]
- * @returns {void}
+ * @returns {asserts id is FormulaIdentifier}
  */
 export const assertValidId = (id, petName) => {
   if (typeof id !== 'string' || !idPattern.test(id)) {
@@ -40,7 +60,7 @@ export const assertValidId = (id, petName) => {
 
 /**
  * @param {string} id
- * @returns {IdRecord}
+ * @returns {ParseIdRecord}
  */
 export const parseId = id => {
   const match = idPattern.exec(id);
@@ -57,15 +77,18 @@ export const parseId = id => {
   }
 
   const { number, node } = groups;
-  return { number, node };
+  const formulaId = /** @type {FormulaIdentifier} */ (id);
+  const formulaNumber = /** @type {FormulaNumber} */ (number);
+  const nodeNumber = /** @type {NodeNumber} */ (node);
+  return { id: formulaId, number: formulaNumber, node: nodeNumber };
 };
 
 /**
  * @param {IdRecord} formulaRecord
- * @returns {string}
+ * @returns {FormulaIdentifier}
  */
 export const formatId = ({ number, node }) => {
-  const id = `${number}:${node}`;
+  const id = `${String(number)}:${String(node)}`;
   assertValidId(id);
-  return id;
+  return /** @type {FormulaIdentifier} */ (id);
 };

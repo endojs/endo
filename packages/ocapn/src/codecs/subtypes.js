@@ -1,3 +1,4 @@
+import { ZERO_N } from '@endo/nat';
 import { makeCodec } from '../syrup/codec.js';
 
 /** @import { SyrupCodec } from '../syrup/codec.js' */
@@ -10,14 +11,14 @@ export const PositiveIntegerCodec = makeCodec('PositiveInteger', {
     if (typeof value !== 'bigint') {
       throw Error('value must be a bigint');
     }
-    if (value <= 0n) {
+    if (value <= ZERO_N) {
       throw Error('value must be positive');
     }
     syrupWriter.writeInteger(value);
   },
   read: syrupReader => {
     const value = syrupReader.readInteger();
-    if (value <= 0n) {
+    if (value <= ZERO_N) {
       throw Error('value must be positive');
     }
     return value;
@@ -30,14 +31,14 @@ export const NonNegativeIntegerCodec = makeCodec('NonNegativeInteger', {
     if (typeof value !== 'bigint') {
       throw Error('value must be a bigint');
     }
-    if (value < 0n) {
+    if (value < ZERO_N) {
       throw Error('value must be non-negative');
     }
     syrupWriter.writeInteger(value);
   },
   read: syrupReader => {
     const value = syrupReader.readInteger();
-    if (value < 0n) {
+    if (value < ZERO_N) {
       throw Error('value must be non-negative');
     }
     return value;

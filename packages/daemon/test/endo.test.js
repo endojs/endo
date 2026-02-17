@@ -28,6 +28,7 @@ import { idFromLocator, parseLocator } from '../src/locator.js';
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
+ * @import {FormulaNumber, NodeNumber} from '../src/types.js';
  */
 
 const cryptoPowers = makeCryptoPowers(crypto);
@@ -357,6 +358,19 @@ test('anonymous spawn and evaluate', async t => {
   t.is(ten, 10);
 });
 
+test('evaluate allows mixed-case code names', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).storeValue(5, 'five');
+  const six = await E(host).evaluate(
+    'MAIN',
+    'fooBar + 1',
+    ['fooBar'],
+    ['five'],
+  );
+  t.is(six, 6);
+});
+
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { host } = await prepareHost(t);
@@ -407,13 +421,13 @@ test('persist spawn and evaluation', async t => {
   }
 });
 
-test('store without name', async t => {
+test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-  const readable = await E(host).storeBlob(readerRef);
-  const actualText = await E(readable).text();
-  t.is(actualText, 'hello\n');
+  await t.throwsAsync(E(host).storeBlob(readerRef), {
+    message: 'Invalid name path',
+  });
 });
 
 test('store with name', async t => {
@@ -433,6 +447,38 @@ test('store with name', async t => {
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
+});
+
+test('store blob in subdirectory', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).makeDirectory('subdir');
+    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readable = await E(host).storeBlob(readerRef, [
+      'subdir',
+      'hello-text',
+    ]);
+    const actualText = await E(readable).text();
+    t.is(actualText, 'hello\n');
+  }
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const readable = await E(host).lookup(['subdir', 'hello-text']);
+    const actualText = await E(readable).text();
+    t.is(actualText, 'hello\n');
+  }
+});
+
+test('store blob requires a name', async t => {
+  const { host } = await prepareHost(t);
+
+  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  await t.throwsAsync(E(host).storeBlob(readerRef, []), {
+    message: 'Invalid name path',
+  });
 });
 
 test('move renames value', async t => {
@@ -809,20 +855,21 @@ test('persist confined services and their requests', async t => {
 test('guest facet receives a message for host', async t => {
   const { host } = await prepareHost(t);
 
-  const guest = E(host).provideGuest('guest');
+  const guest = E(host).provideGuest('guest', { agentName: 'guest-agent' });
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'a number', 'number');
+  const numberP = E(guest).request('HOST', 'a number', 'number');
   const { value: message0 } = await E(iteratorRef).next();
-  t.is(message0.number, 0);
+  t.is(message0.number, 0n);
   await E(host).resolve(message0.number, 'ten1');
+  await numberP;
 
   await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
 
   const { value: message1 } = await E(iteratorRef).next();
-  t.is(message1.number, 1);
+  t.is(message1.number, 1n);
   await E(host).adopt(message1.number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
@@ -853,6 +900,78 @@ test('guest facet receives a message for host', async t => {
       { type: 'package', from: guestId, to: hostId },
     ],
   );
+});
+
+test('mailboxes persist messages across restart', async t => {
+  const { cancelled, config, host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const iteratorRef = E(host).followMessages();
+
+  E.sendOnly(guest).request('HOST', 'first request', 'response0');
+  E.sendOnly(guest).request('HOST', 'second request', 'response1');
+
+  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message1 } = await E(iteratorRef).next();
+  t.is(message0.number, 0n);
+  t.is(message1.number, 1n);
+
+  await E(host).dismiss(message0.number);
+
+  const inboxBefore = await E(host).listMessages();
+  t.deepEqual(
+    inboxBefore.map(({ number, description }) => ({ number, description })),
+    [{ number: 1n, description: 'second request' }],
+  );
+
+  await restart(config);
+
+  const { host: hostAfter } = await makeHost(config, cancelled);
+  const inboxAfter = await E(hostAfter).listMessages();
+  t.deepEqual(
+    inboxAfter.map(({ number, description }) => ({ number, description })),
+    [{ number: 1n, description: 'second request' }],
+  );
+
+  const guestAfter = await E(hostAfter).provideGuest('guest-after-restart');
+  await E(guestAfter).send('HOST', ['hello'], [], []);
+
+  const inboxAfterDelivery = await E(hostAfter).listMessages();
+  t.deepEqual(
+    inboxAfterDelivery.map(({ number, type }) => ({ number, type })),
+    [
+      { number: 1n, type: 'request' },
+      { number: 2n, type: 'package' },
+    ],
+  );
+});
+
+test('rehydrated requests can be resolved after restart', async t => {
+  const { cancelled, config, host } = await prepareHost(t);
+
+  await E(host).storeValue(10, 'ten');
+
+  const guest = E(host).provideGuest('guest');
+  const guestMessages = E(guest).followMessages();
+
+  E.sendOnly(guest).request('HOST', 'need a number');
+
+  const { value: guestMessage } = await E(guestMessages).next();
+  const { promiseId: promiseIdP } = E.get(guestMessage);
+  const promiseId = await promiseIdP;
+  await E(host).write(['pending'], promiseId);
+
+  await restart(config);
+
+  const { host: hostAfter } = await makeHost(config, cancelled);
+  const inboxAfter = await E(hostAfter).listMessages();
+  const requestMessage = inboxAfter.find(message => message.type === 'request');
+  t.truthy(requestMessage);
+  await E(hostAfter).resolve(requestMessage.number, 'ten');
+
+  const resolvedId = await E(hostAfter).lookup(['pending']);
+  const tenId = await E(hostAfter).identify('ten');
+  t.is(resolvedId, tenId);
 });
 
 test('followNamehanges first publishes existing names', async t => {
@@ -1278,8 +1397,9 @@ test('indirect cancellation via worker', async t => {
 });
 
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
-test.failing('indirect cancellation via caplet', async t => {
+test('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
+  const messages = E(host).followMessages();
 
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1291,7 +1411,12 @@ test.failing('indirect cancellation via caplet', async t => {
   const doublerPath = path.join(dirname, 'test', 'doubler.js');
   const doublerLocation = url.pathToFileURL(doublerPath).href;
   await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
-  E(host).resolve(0, 'counter');
+  {
+    const { value: message } = await E(messages).next();
+    t.is(message.type, 'request');
+    t.is(message.description, 'a counter, suitable for doubling');
+    await E(host).resolve(message.number, 'counter');
+  }
 
   t.is(
     1,
@@ -1331,8 +1456,9 @@ test('cancel because of requested capability', async t => {
   E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
-  await E(messages).next();
-  E(host).resolve(0, 'zero');
+  const { value: message } = await E(messages).next();
+  t.is(message.type, 'request');
+  await E(host).resolve(message.number, 'zero');
 
   t.is(
     1,
@@ -1565,7 +1691,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
   await t.throwsAsync(
     E(host).evaluate(
       'MAIN',
-      'E(AGENT).lookup(["ten", "someName"])',
+      'E(AGENT).lookup(["ten", "some-name"])',
       ['AGENT'],
       ['AGENT'],
     ),
@@ -1624,10 +1750,9 @@ test('read unknown node id', async t => {
   // write a bogus value for a bogus nodeId
   const node = await cryptoPowers.randomHex512();
   const number = await cryptoPowers.randomHex512();
-  const id = formatId({
-    node,
-    number,
-  });
+  const nodeId = /** @type {NodeNumber} */ (node);
+  const numberId = /** @type {FormulaNumber} */ (number);
+  const id = formatId({ node: nodeId, number: numberId });
   await E(host).write(['abc'], id);
 
   // observe reification failure
@@ -1789,7 +1914,7 @@ test('invite, accept, and send mail', async t => {
     strings: [hi],
     names: [salutationsName],
     ids: [salutationsId],
-  } = messages.find(({ number }) => number === 1);
+  } = messages.find(({ number }) => number === 1n);
   t.is(hi, 'Hello');
   t.is(salutationsName, 'salutations');
   t.is(salutationsId, expectedSalutationsId);

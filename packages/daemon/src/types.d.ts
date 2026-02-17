@@ -3,6 +3,40 @@ import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
+// Branded string types for pet names and special names
+declare const PetNameBrand: unique symbol;
+declare const SpecialNameBrand: unique symbol;
+declare const FormulaNumberBrand: unique symbol;
+declare const NodeNumberBrand: unique symbol;
+declare const FormulaIdentifierBrand: unique symbol;
+
+/** A validated pet name (lowercase, e.g., 'worker', 'my-app') */
+export type PetName = string & { [PetNameBrand]: true };
+
+/** A validated special name (uppercase, e.g., 'SELF', 'HOST', 'ENDO') */
+export type SpecialName = string & { [SpecialNameBrand]: true };
+
+/** A 128-character hex string identifying a formula within a node */
+export type FormulaNumber = string & { [FormulaNumberBrand]: true };
+
+/** A 128-character hex string identifying a node */
+export type NodeNumber = string & { [NodeNumberBrand]: true };
+
+/** A full formula identifier in the format {FormulaNumber}:{NodeNumber} */
+export type FormulaIdentifier = string & { [FormulaIdentifierBrand]: true };
+
+/** Either a pet name or a special name */
+export type Name = PetName | SpecialName;
+
+/** A validated path of names (array of at least one name) */
+export type NamePath = Name[];
+
+/** Either a single name or a path of names */
+export type NameOrPath = Name | NamePath;
+
+/** An array of names or paths */
+export type NamesOrPaths = NameOrPath[];
+
 export type SomehowAsyncIterable<T> =
   | AsyncIterable<T>
   | Iterable<T>
@@ -53,17 +87,21 @@ export type MignonicPowers = {
 };
 
 type IdRecord = {
-  number: string;
-  node: string;
+  number: FormulaNumber;
+  node: NodeNumber;
+};
+
+type ParseIdRecord = IdRecord & {
+  id: FormulaIdentifier;
 };
 
 type EndoFormula = {
   type: 'endo';
-  networks: string;
-  pins: string;
-  peers: string;
-  host: string;
-  leastAuthority: string;
+  networks: FormulaIdentifier;
+  pins: FormulaIdentifier;
+  peers: FormulaIdentifier;
+  host: FormulaIdentifier;
+  leastAuthority: FormulaIdentifier;
 };
 
 type LoopbackNetworkFormula = {
@@ -75,35 +113,39 @@ type WorkerFormula = {
 };
 
 export type WorkerDeferredTaskParams = {
-  workerId: string;
+  workerId: FormulaIdentifier;
 };
 
 /**
  * Deferred tasks parameters for `host` and `guest` formulas.
  */
 export type AgentDeferredTaskParams = {
-  agentId: string;
-  handleId: string;
+  agentId: FormulaIdentifier;
+  handleId: FormulaIdentifier;
 };
 
 type HostFormula = {
   type: 'host';
-  handle: string;
-  worker: string;
-  inspector: string;
-  petStore: string;
-  endo: string;
-  networks: string;
-  pins: string;
+  handle: FormulaIdentifier;
+  worker: FormulaIdentifier;
+  inspector: FormulaIdentifier;
+  petStore: FormulaIdentifier;
+  mailboxStore: FormulaIdentifier;
+  mailHub: FormulaIdentifier;
+  endo: FormulaIdentifier;
+  networks: FormulaIdentifier;
+  pins: FormulaIdentifier;
 };
 
 type GuestFormula = {
   type: 'guest';
-  handle: string;
-  hostHandle: string;
-  hostAgent: string;
-  petStore: string;
-  worker: string;
+  handle: FormulaIdentifier;
+  hostHandle: FormulaIdentifier;
+  hostAgent: FormulaIdentifier;
+  petStore: FormulaIdentifier;
+  mailboxStore: FormulaIdentifier;
+  mailHub: FormulaIdentifier;
+  worker: FormulaIdentifier;
 };
 
 type LeastAuthorityFormula = {
@@ -113,27 +155,27 @@ type LeastAuthorityFormula = {
 type MarshalFormula = {
   type: 'marshal';
   body: any;
-  slots: Array<string>;
+  slots: Array<FormulaIdentifier>;
 };
 
 type EvalFormula = {
   type: 'eval';
-  worker: string;
+  worker: FormulaIdentifier;
   source: string;
   names: Array<string>; // lexical names
-  values: Array<string>; // formula identifiers
+  values: Array<FormulaIdentifier>; // formula identifiers
   // TODO formula slots
 };
 
 export type MarshalDeferredTaskParams = {
-  marshalFormulaNumber: string;
-  marshalId: string;
+  marshalFormulaNumber: FormulaNumber;
+  marshalId: FormulaIdentifier;
 };
 
 export type EvalDeferredTaskParams = {
-  endowmentIds: string[];
-  evalId: string;
-  workerId: string;
+  endowmentIds: FormulaIdentifier[];
+  evalId: FormulaIdentifier;
+  workerId: FormulaIdentifier;
 };
 
 type ReadableBlobFormula = {
@@ -142,7 +184,7 @@ type ReadableBlobFormula = {
 };
 
 export type ReadableBlobDeferredTaskParams = {
-  readableBlobId: string;
+  readableBlobId: FormulaIdentifier;
 };
 
 type LookupFormula = {
@@ -152,46 +194,46 @@ type LookupFormula = {
    * The formula identifier of the naming hub to call lookup on.
    * A "naming hub" is an object with a variadic `lookup()` method.
    */
-  hub: string;
+  hub: FormulaIdentifier;
 
   /**
    * The pet name path.
    */
-  path: Array<string>;
+  path: NamePath;
 };
 
 type MakeUnconfinedFormula = {
   type: 'make-unconfined';
-  worker: string;
-  powers: string;
+  worker: FormulaIdentifier;
+  powers: FormulaIdentifier;
   specifier: string;
   // TODO formula slots
 };
 
 type MakeBundleFormula = {
   type: 'make-bundle';
-  worker: string;
-  powers: string;
-  bundle: string;
+  worker: FormulaIdentifier;
+  powers: FormulaIdentifier;
+  bundle: FormulaIdentifier;
   // TODO formula slots
 };
 
 export type MakeCapletDeferredTaskParams = {
-  capletId: string;
-  powersId: string;
-  workerId: string;
+  capletId: FormulaIdentifier;
+  powersId: FormulaIdentifier;
+  workerId: FormulaIdentifier;
 };
 
 type PeerFormula = {
   type: 'peer';
-  networks: string;
-  node: string;
+  networks: FormulaIdentifier;
+  node: NodeNumber;
   addresses: Array<string>;
 };
 
 type HandleFormula = {
   type: 'handle';
-  agent: string;
+  agent: FormulaIdentifier;
 };
 
 type KnownPeersStoreFormula = {
@@ -202,25 +244,59 @@ type PetStoreFormula = {
   type: 'pet-store';
 };
 
+type MailboxStoreFormula = {
+  type: 'mailbox-store';
+};
+
+type MailHubFormula = {
+  type: 'mail-hub';
+  store: FormulaIdentifier;
+};
+
+type MessageFormula = {
+  type: 'message';
+  messageType: 'request' | 'package';
+  from: FormulaIdentifier;
+  to: FormulaIdentifier;
+  date: string;
+  description?: string;
+  promiseId?: FormulaIdentifier;
+  resolverId?: FormulaIdentifier;
+  strings?: string[];
+  names?: string[];
+  ids?: FormulaIdentifier[];
+};
+
+// Pending is represented by the absence of a status entry in the promise store.
+type PromiseFormula = {
+  type: 'promise';
+  store: FormulaIdentifier;
+};
+
+type ResolverFormula = {
+  type: 'resolver';
+  store: FormulaIdentifier;
+};
+
 type PetInspectorFormula = {
   type: 'pet-inspector';
-  petStore: string;
+  petStore: FormulaIdentifier;
 };
 
 type DirectoryFormula = {
   type: 'directory';
-  petStore: string;
+  petStore: FormulaIdentifier;
 };
 
 type InvitationFormula = {
   type: 'invitation';
-  hostAgent: string; // identifier
-  hostHandle: string; // identifier
-  guestName: string;
+  hostAgent: FormulaIdentifier;
+  hostHandle: FormulaIdentifier;
+  guestName: PetName;
 };
 
 export type InvitationDeferredTaskParams = {
-  invitationId: string;
+  invitationId: FormulaIdentifier;
 };
 
 export type Formula =
@@ -240,13 +316,18 @@ export type Formula =
   | PetInspectorFormula
   | KnownPeersStoreFormula
   | PetStoreFormula
+  | MailboxStoreFormula
+  | MailHubFormula
+  | MessageFormula
+  | PromiseFormula
+  | ResolverFormula
   | DirectoryFormula
   | PeerFormula
   | InvitationFormula;
 
 export type Builtins = {
-  NONE: string;
-  MAIN: string;
+  NONE: FormulaIdentifier;
+  MAIN: FormulaIdentifier;
 };
 
 export type Specials = {
@@ -254,28 +335,29 @@ export type Specials = {
 };
 
 export interface Responder {
-  respondId(id: string | Promise<string>): void;
+  resolveWithId(id: string | Promise<string>): void;
 }
 
 export type Request = {
   type: 'request';
   description: string;
-  responder: ERef<Responder>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
 export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
-  names: Array<string>; // edge names
-  ids: Array<string>; // formula identifiers
+  names: Array<Name>; // edge names
+  ids: Array<FormulaIdentifier>; // formula identifiers
 };
 
 export type Message = Request | Package;
 
 export type EnvelopedMessage = Message & {
-  to: string;
-  from: string;
+  to: FormulaIdentifier;
+  from: FormulaIdentifier;
 };
 
 export interface Dismisser {
@@ -283,14 +365,14 @@ export interface Dismisser {
 }
 
 export type StampedMessage = EnvelopedMessage & {
-  number: number;
+  number: bigint;
   date: string;
   dismissed: Promise<void>;
   dismisser: ERef<Dismisser>;
 };
 
 export interface Invitation {
-  accept(guestHandleId: string): Promise<void>;
+  accept(guestHandleLocator: string): Promise<void>;
 }
 
 export interface Topic<
@@ -310,7 +392,7 @@ export interface Context {
   /**
    * The identifier for the associated formula.
    */
-  id: string;
+  id: FormulaIdentifier;
   /**
    * Cancel the value, preparing it for garbage collection. Cancellation
    * propagates to all values that depend on this value.
@@ -355,7 +437,7 @@ export interface Context {
 }
 
 export interface FarContext {
-  id: () => string;
+  id: () => FormulaIdentifier;
   cancel: (reason: Error) => Promise<void>;
   whenCancelled: () => Promise<never>;
   whenDisposed: () => Promise<void>;
@@ -370,8 +452,8 @@ export interface Controller<Value = unknown> {
 export type FormulaMaker<F extends Formula> = (
   formula: F,
   context: Context,
-  id: string,
-  number: string,
+  id: FormulaIdentifier,
+  number: FormulaNumber,
 ) => unknown;
 
 export type FormulaMakerTable = {
@@ -388,21 +470,21 @@ export interface Handle {
 export type MakeSha512 = () => Sha512;
 
 export type PetStoreNameChange =
-  | { add: string; value: IdRecord }
-  | { remove: string };
+  | { add: Name; value: IdRecord }
+  | { remove: Name };
 
 export type PetStoreIdNameChange =
-  | { add: IdRecord; names: string[] }
-  | { remove: IdRecord; names?: string[] };
+  | { add: IdRecord; names: Name[] }
+  | { remove: IdRecord; names?: Name[] };
 
 export type NameChangesTopic = Topic<PetStoreNameChange>;
 
 export type IdChangesTopic = Topic<PetStoreIdNameChange>;
 
 export interface PetStore {
-  has(petName: string): boolean;
-  identifyLocal(petName: string): string | undefined;
-  list(): Array<string>;
+  has(petName: Name): boolean;
+  identifyLocal(petName: Name): string | undefined;
+  list(): Array<Name>;
   /**
    * Subscribe to all name changes. First publishes all existing names in alphabetical order.
    * Then publishes diffs as names are added and removed.
@@ -416,38 +498,47 @@ export interface PetStore {
   followIdNameChanges(
     id: string,
   ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
-  write(petName: string, id: string): Promise<void>;
-  remove(petName: string): Promise<void>;
-  rename(fromPetName: string, toPetName: string): Promise<void>;
+  write(petName: PetName, id: string): Promise<void>;
+  remove(petName: PetName): Promise<void>;
+  rename(fromPetName: PetName, toPetName: PetName): Promise<void>;
   /**
    * @param id The formula identifier to look up.
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
    */
-  reverseIdentify(id: string): Array<string>;
+  reverseIdentify(id: string): Array<Name>;
 }
+
+export type KnownPeersStore = Omit<
+  PetStore,
+  'has' | 'identifyLocal' | 'write'
+> & {
+  has(nodeNumber: NodeNumber): boolean;
+  identifyLocal(nodeNumber: NodeNumber): string | undefined;
+  write(nodeNumber: NodeNumber, id: string): Promise<void>;
+};
 
 /**
  * `add` and `remove` are locators.
  */
 export type LocatorNameChange =
-  | { add: string; names: string[] }
-  | { remove: string; names?: string[] };
+  | { add: string; names: Name[] }
+  | { remove: string; names?: Name[] };
 
 export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
   locate(...petNamePath: string[]): Promise<string | undefined>;
-  reverseLocate(locator: string): Promise<string[]>;
+  reverseLocate(locator: string): Promise<Name[]>;
   followLocatorNameChanges(
     locator: string,
   ): AsyncGenerator<LocatorNameChange, undefined, undefined>;
-  list(...petNamePath: string[]): Promise<Array<string>>;
+  list(...petNamePath: string[]): Promise<Array<Name>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followNameChanges(
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(petNamePath: string | string[]): Promise<unknown>;
-  reverseLookup(value: unknown): Array<string>;
+  reverseLookup(value: unknown): Array<Name>;
   write(petNamePath: string | string[], id: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -455,7 +546,7 @@ export interface NameHub {
 }
 
 export interface EndoDirectory extends NameHub {
-  makeDirectory(petNamePath: string[]): Promise<EndoDirectory>;
+  makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
 }
 
 export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
@@ -467,14 +558,14 @@ export interface Mail {
   // Mail operations:
   listMessages(): Promise<Array<StampedMessage>>;
   followMessages(): AsyncGenerator<StampedMessage, undefined, undefined>;
-  resolve(messageNumber: number, resolutionName: string): Promise<void>;
-  reject(messageNumber: number, message?: string): Promise<void>;
+  resolve(messageNumber: bigint, resolutionName: string): Promise<void>;
+  reject(messageNumber: bigint, message?: string): Promise<void>;
   adopt(
-    messageNumber: number,
+    messageNumber: bigint,
     edgeName: string,
     petName: string[],
   ): Promise<void>;
-  dismiss(messageNumber: number): Promise<void>;
+  dismiss(messageNumber: bigint): Promise<void>;
   request(
     recipientName: string,
     what: string,
@@ -486,15 +577,16 @@ export interface Mail {
     edgeNames: Array<string>,
     petNames: Array<string>,
   ): Promise<void>;
-  deliver(message: EnvelopedMessage): void;
+  deliver(message: EnvelopedMessage): Promise<void>;
 }
 
 export type MakeMailbox = (args: {
-  selfId: string;
+  selfId: FormulaIdentifier;
   petStore: PetStore;
+  mailboxStore: PetStore;
   directory: EndoDirectory;
   context: Context;
-}) => Mail;
+}) => Promise<Mail>;
 
 export type RequestFn = (
   what: string,
@@ -534,7 +626,7 @@ export interface EndoGreeter {
 }
 
 export interface PeerInfo {
-  node: string;
+  node: NodeNumber;
   addresses: string[];
 }
 
@@ -557,9 +649,9 @@ export interface EndoAgent extends EndoDirectory {
   deliver: Mail['deliver'];
   /**
    * @param id The formula identifier to look up.
-   * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
+   * @returns The pet names for the given formula identifier.
    */
-  reverseIdentify(id: string): Array<string>;
+  reverseIdentify(id: string): Array<Name>;
 }
 
 export interface EndoGuest extends EndoAgent {}
@@ -569,7 +661,7 @@ export type FarEndoGuest = FarRef<EndoGuest>;
 export interface EndoHost extends EndoAgent {
   storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
-    petName: string,
+    petName: string | string[],
   ): Promise<FarRef<EndoReadable>>;
   storeValue<T extends Passable>(
     value: T,
@@ -583,26 +675,26 @@ export interface EndoHost extends EndoAgent {
     petName?: string,
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
-  makeDirectory(petNamePath: string[]): Promise<EndoDirectory>;
-  provideWorker(petNamePath: string[]): Promise<EndoWorker>;
+  makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
+  provideWorker(petNamePath: string | string[]): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,
     source: string,
     codeNames: Array<string>,
     petNames: Array<string>,
-    resultName?: string[],
+    resultName?: string | string[],
   ): Promise<unknown>;
   makeUnconfined(
-    workerName: string | undefined | 'MAIN',
+    workerName: string | undefined,
     specifier: string,
-    powersName: string | 'NONE' | 'SELF' | 'ENDO',
-    resultName?: string,
+    powersName: string,
+    resultName?: string | string[],
   ): Promise<unknown>;
   makeBundle(
     workerPetName: string | undefined,
     bundleName: string,
     powersName: string,
-    resultName?: string,
+    resultName?: string | string[],
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
@@ -610,17 +702,13 @@ export interface EndoHost extends EndoAgent {
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
-  accept(
-    invitationId: string,
-    guestHandleId: string,
-    guestName: string,
-  ): Promise<void>;
+  accept(invitationLocator: string, guestName: string): Promise<void>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
 
 export type EndoInspector<Record = string> = {
-  lookup: (petName: Record) => Promise<unknown>;
+  lookup: (petNameOrPath: Record | NameOrPath) => Promise<unknown>;
   list: () => Record[];
 };
 
@@ -668,7 +756,7 @@ export type AssertValidNameFn = (name: string) => void;
 export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
-    formulaType: 'pet-store' | 'known-peers-store',
+    formulaType: 'pet-store' | 'known-peers-store' | 'mailbox-store',
     assertValidName: AssertValidNameFn,
   ) => Promise<PetStore>;
 };
@@ -702,18 +790,23 @@ export type NetworkPowers = SocketPowers & {
   ) => { started: Promise<void>; stopped: Promise<void> };
 };
 
+export type RootNonceDescriptor = {
+  rootNonce: FormulaNumber;
+  isNewlyCreated: boolean;
+};
+
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
-  provideRootNonce: () => Promise<{
-    rootNonce: string;
-    isNewlyCreated: boolean;
-  }>;
+  provideRootNonce: () => Promise<RootNonceDescriptor>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;
   };
-  readFormula: (formulaNumber: string) => Promise<Formula>;
-  writeFormula: (formulaNumber: string, formula: Formula) => Promise<void>;
+  readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
+  writeFormula: (
+    formulaNumber: FormulaNumber,
+    formula: Formula,
+  ) => Promise<void>;
 };
 
 export interface DaemonWorkerFacet {}
@@ -724,7 +817,7 @@ export interface WorkerDaemonFacet {
     source: string,
     names: Array<string>,
     values: Array<unknown>,
-    id: string,
+    id: FormulaIdentifier,
     cancelled: Promise<never>,
   ): Promise<unknown>;
   makeBundle(
@@ -758,7 +851,7 @@ export type DaemonicPowers = {
 };
 
 type FormulateResult<T> = Promise<{
-  id: string;
+  id: FormulaIdentifier;
   value: T;
 }>;
 
@@ -776,32 +869,36 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
 };
 
 type FormulateNumberedGuestParams = {
-  guestFormulaNumber: string;
-  handleId: string;
-  guestId: string;
-  hostAgentId: string;
-  hostHandleId: string;
-  storeId: string;
-  workerId: string;
+  guestFormulaNumber: FormulaNumber;
+  handleId: FormulaIdentifier;
+  guestId: FormulaIdentifier;
+  hostAgentId: FormulaIdentifier;
+  hostHandleId: FormulaIdentifier;
+  storeId: FormulaIdentifier;
+  mailboxStoreId: FormulaIdentifier;
+  mailHubId: FormulaIdentifier;
+  workerId: FormulaIdentifier;
 };
 
 type FormulateHostDependenciesParams = {
-  endoId: string;
-  networksDirectoryId: string;
-  pinsDirectoryId: string;
-  specifiedWorkerId?: string;
+  endoId: FormulaIdentifier;
+  networksDirectoryId: FormulaIdentifier;
+  pinsDirectoryId: FormulaIdentifier;
+  specifiedWorkerId?: FormulaIdentifier;
 };
 
 type FormulateNumberedHostParams = {
-  hostFormulaNumber: string;
-  hostId: string;
-  handleId: string;
-  workerId: string;
-  storeId: string;
-  inspectorId: string;
-  endoId: string;
-  networksDirectoryId: string;
-  pinsDirectoryId: string;
+  hostFormulaNumber: FormulaNumber;
+  hostId: FormulaIdentifier;
+  handleId: FormulaIdentifier;
+  workerId: FormulaIdentifier;
+  storeId: FormulaIdentifier;
+  mailboxStoreId: FormulaIdentifier;
+  mailHubId: FormulaIdentifier;
+  inspectorId: FormulaIdentifier;
+  endoId: FormulaIdentifier;
+  networksDirectoryId: FormulaIdentifier;
+  pinsDirectoryId: FormulaIdentifier;
 };
 
 export type FormulaValueTypes = {
@@ -809,7 +906,12 @@ export type FormulaValueTypes = {
   network: EndoNetwork;
   peer: EndoGateway;
   'pet-store': PetStore;
+  'mailbox-store': PetStore;
+  'mail-hub': NameHub;
+  message: NameHub;
+  promise: string;
   'readable-blob': EndoReadable;
+  resolver: Responder;
   endo: EndoBootstrap;
   guest: EndoGuest;
   handle: Handle;
@@ -824,34 +926,34 @@ export type ProvideTypes = FormulaValueTypes & {
 };
 
 export type Provide = <T extends keyof ProvideTypes, U extends ProvideTypes[T]>(
-  id: string,
+  id: FormulaIdentifier,
   expectedType?: T,
 ) => Promise<U>;
 
 export interface DaemonCore {
-  cancelValue: (id: string, reason: Error) => Promise<void>;
+  cancelValue: (id: FormulaIdentifier, reason: Error) => Promise<void>;
 
   formulate: (
-    formulaNumber: string,
+    formulaNumber: FormulaNumber,
     formula: Formula,
   ) => Promise<{
-    id: string;
+    id: FormulaIdentifier;
     value: unknown;
   }>;
 
   formulateBundle: (
-    hostAgentId: string,
-    hostHandleId: string,
-    bundleId: string,
+    hostAgentId: FormulaIdentifier,
+    hostHandleId: FormulaIdentifier,
+    bundleId: FormulaIdentifier,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerId?: string,
-    specifiedPowersId?: string,
+    specifiedWorkerId?: FormulaIdentifier,
+    specifiedPowersId?: FormulaIdentifier,
   ) => FormulateResult<unknown>;
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
 
   formulateEndo: (
-    specifiedFormulaNumber: string,
+    specifiedFormulaNumber?: FormulaNumber,
   ) => FormulateResult<FarRef<EndoBootstrap>>;
 
   formulateMarshalValue: (
@@ -859,18 +961,27 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MarshalDeferredTaskParams>,
   ) => FormulateResult<void>;
 
+  formulatePromise: () => Promise<{
+    promiseId: FormulaIdentifier;
+    resolverId: FormulaIdentifier;
+  }>;
+
+  formulateMessage: (
+    messageFormula: MessageFormula,
+  ) => FormulateResult<NameHub>;
+
   formulateEval: (
-    nameHubId: string,
+    nameHubId: FormulaIdentifier,
     source: string,
-    codeNames: string[],
-    endowmentIdsOrPaths: (string | string[])[],
+    codeNames: Array<string>,
+    endowmentIdsOrPaths: (FormulaIdentifier | NamePath)[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
-    specifiedWorkerId?: string,
+    specifiedWorkerId?: FormulaIdentifier,
   ) => FormulateResult<unknown>;
 
   formulateGuest: (
-    hostId: string,
-    hostHandleId: string,
+    hostId: FormulaIdentifier,
+    hostHandleId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
   ) => FormulateResult<EndoGuest>;
 
@@ -880,16 +991,16 @@ export interface DaemonCore {
    * @returns The formula identifiers for the guest formulation's dependencies.
    */
   formulateGuestDependencies: (
-    hostAgentId: string,
-    hostHandleId: string,
+    hostAgentId: FormulaIdentifier,
+    hostHandleId: FormulaIdentifier,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
   formulateHost: (
-    endoId: string,
-    networksDirectoryId: string,
-    pinsDirectoryId: string,
+    endoId: FormulaIdentifier,
+    networksDirectoryId: FormulaIdentifier,
+    pinsDirectoryId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
-    specifiedWorkerId?: string | undefined,
+    specifiedWorkerId?: FormulaIdentifier | undefined,
   ) => FormulateResult<EndoHost>;
 
   /**
@@ -905,6 +1016,8 @@ export interface DaemonCore {
 
   formulateNetworksDirectory: () => FormulateResult<EndoDirectory>;
 
+  getFormulaForId: (id: FormulaIdentifier) => Promise<Formula>;
+
   formulateNumberedGuest: (
     identifiers: FormulateNumberedGuestParams,
   ) => FormulateResult<EndoGuest>;
@@ -914,8 +1027,8 @@ export interface DaemonCore {
   ) => FormulateResult<EndoHost>;
 
   formulatePeer: (
-    networksId: string,
-    nodeId: string,
+    networksId: FormulaIdentifier,
+    nodeNumber: NodeNumber,
     addresses: Array<string>,
   ) => FormulateResult<EndoPeer>;
 
@@ -925,30 +1038,32 @@ export interface DaemonCore {
   ) => FormulateResult<FarRef<EndoReadable>>;
 
   formulateInvitation: (
-    hostAgentId: string,
-    hostHandleId: string,
-    guestName: string,
+    hostAgentId: FormulaIdentifier,
+    hostHandleId: FormulaIdentifier,
+    guestName: PetName,
     deferredTasks: DeferredTasks<InvitationDeferredTaskParams>,
   ) => FormulateResult<Invitation>;
 
   formulateUnconfined: (
-    hostAgentId: string,
-    hostHandleId: string,
+    hostAgentId: FormulaIdentifier,
+    hostHandleId: FormulaIdentifier,
     specifier: string,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerId?: string,
-    specifiedPowersId?: string,
+    specifiedWorkerId?: FormulaIdentifier,
+    specifiedPowersId?: FormulaIdentifier,
   ) => FormulateResult<unknown>;
 
   formulateWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
   ) => FormulateResult<EndoWorker>;
 
-  getAllNetworkAddresses: (networksDirectoryId: string) => Promise<string[]>;
+  getAllNetworkAddresses: (
+    networksDirectoryId: FormulaIdentifier,
+  ) => Promise<string[]>;
 
-  getIdForRef: (ref: unknown) => string | undefined;
+  getIdForRef: (ref: unknown) => FormulaIdentifier | undefined;
 
-  getTypeForId: (id: string) => Promise<string>;
+  getTypeForId: (id: FormulaIdentifier) => Promise<string>;
 
   makeDirectoryNode: MakeDirectoryNode;
 
@@ -956,14 +1071,14 @@ export interface DaemonCore {
 
   provide: Provide;
 
-  provideController: (id: string) => Controller;
+  provideController: (id: FormulaIdentifier) => Controller;
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
 }
 
 export interface DaemonCoreExternal {
   formulateEndo: DaemonCore['formulateEndo'];
-  nodeId: string;
+  nodeNumber: NodeNumber;
   provide: DaemonCore['provide'];
 }
 

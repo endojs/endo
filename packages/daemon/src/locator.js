@@ -1,5 +1,7 @@
 // @ts-check
 
+/** @import { FormulaNumber, NodeNumber } from './types.js' */
+
 import { makeError, q } from '@endo/errors';
 import { formatId, isValidNumber, parseId } from './formula-identifier.js';
 import { isValidFormulaType } from './formula-type.js';
@@ -33,7 +35,7 @@ const assertValidLocatorType = allegedType => {
 
 /**
  * @param {string} allegedLocator
- * @returns {{ formulaType: string, node: string, number: string }}
+ * @returns {{ formulaType: string, node: NodeNumber, number: FormulaNumber }}
  */
 export const parseLocator = allegedLocator => {
   const errorPrefix = `Invalid locator ${q(allegedLocator)}:`;
@@ -70,7 +72,9 @@ export const parseLocator = allegedLocator => {
     throw makeError(`${errorPrefix} Invalid type.`);
   }
 
-  return { formulaType, node, number };
+  const nodeNumber = /** @type {NodeNumber} */ (node);
+  const formulaNumber = /** @type {FormulaNumber} */ (number);
+  return { formulaType, node: nodeNumber, number: formulaNumber };
 };
 
 /** @param {string} allegedLocator */

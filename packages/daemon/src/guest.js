@@ -4,7 +4,7 @@ import { makeExo } from '@endo/exo';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 
-/** @import { Context, EndoGuest, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
+/** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 
 /**
@@ -15,12 +15,14 @@ import { GuestInterface } from './interfaces.js';
  */
 export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
   /**
-   * @param {string} guestId
-   * @param {string} handleId
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
-   * @param {string} petStoreId
-   * @param {string} mainWorkerId
+   * @param {FormulaIdentifier} guestId
+   * @param {FormulaIdentifier} handleId
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
+   * @param {FormulaIdentifier} petStoreId
+   * @param {FormulaIdentifier} mailboxStoreId
+   * @param {FormulaIdentifier} mailHubId
+   * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
    */
   const makeGuest = async (
@@ -29,24 +31,31 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
     hostAgentId,
     hostHandleId,
     petStoreId,
+    mailboxStoreId,
+    mailHubId,
     mainWorkerId,
     context,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
     context.thisDiesIfThatDies(hostAgentId);
     context.thisDiesIfThatDies(petStoreId);
+    context.thisDiesIfThatDies(mailboxStoreId);
+    context.thisDiesIfThatDies(mailHubId);
     context.thisDiesIfThatDies(mainWorkerId);
 
     const basePetStore = await provide(petStoreId, 'pet-store');
+    const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
     const specialStore = makePetSitter(basePetStore, {
       AGENT: guestId,
       SELF: handleId,
       HOST: hostHandleId,
+      MAIL: mailHubId,
     });
 
     const directory = makeDirectoryNode(specialStore);
-    const mailbox = makeMailbox({
+    const mailbox = await makeMailbox({
       petStore: specialStore,
+      mailboxStore,
       directory,
       selfId: handleId,
       context,

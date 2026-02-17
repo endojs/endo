@@ -20,10 +20,16 @@ the Noise XX pattern with the following enhancements:
    - An ephemeral X25519 key pair for encryption
    - An Ed25519 key pair for signing and verification
 
-2. **SYN Message**: The initiator sends:
-   - Their Ed25519 public verifying key
-   - A signature of their X25519 ephemeral public key using their Ed25519 private key
-   - Supported encoding versions
+2. **Prefixed SYN Message**: The initiator sends:
+   - **Cleartext prefix**: The intended responder's Ed25519 public verifying key (32 bytes)
+   - **Encrypted payload**:
+     - Their Ed25519 public verifying key
+     - A signature of their X25519 ephemeral public key using their Ed25519 private key
+     - Supported encoding versions
+
+   The cleartext prefix enables relay/hub routing: a relay can read the intended
+   recipient and forward the message without being able to decrypt its contents.
+   The responder verifies this prefix matches their own public key.
 
 3. **SYNACK Message**: The responder sends:
    - Their Ed25519 public verifying key  
