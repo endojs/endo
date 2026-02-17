@@ -49,6 +49,7 @@ priority.
 | Credential store | `daemon-capability-credentials.md` | Secret leakage across tenants | Planned |
 | User I/O | `daemon-capability-userio.md` | Clipboard harvesting, social engineering | Planned |
 | Timer / scheduling | `daemon-capability-timer.md` | Autonomous persistent scheduling | Planned |
+| Delegates / epithets | [`daemon-capability-persona.md`](daemon-capability-persona.md) | Impersonation, undisclosed AI activity, unverifiable delegation | Draft |
 
 ### Cross-cutting concerns
 
@@ -67,7 +68,7 @@ until the individual capability shapes are settled.
 | ASI05 Unexpected Code Execution | Process (command + argument guards), Filesystem (write confinement) |
 | ASI06 Memory & Context Poisoning | Git (hook denial prevents persistent instruction injection) |
 | ASI08 Cascading Failures | Network (rate limits), Process (concurrency limits), Timer (max concurrent) |
-| ASI09 Human-Agent Trust Exploitation | User I/O (prompt controls, notification rate limits) |
+| ASI09 Human-Agent Trust Exploitation | User I/O (prompt controls, notification rate limits), Persona (mandatory AI disclosure) |
 | ASI10 Rogue Agents | Timer (recurring denial), Network (C2 prevention), Git (push restrictions) |
 
 ### LAL agent integration
