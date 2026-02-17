@@ -35,12 +35,13 @@ test.serial('terminates worker retaining collected value (cli)', async t => {
     // not trigger the export hook that registers retainees.
     await execa`endo eval --worker worker ${`E(host).provideHost('retained-host').then(retained => { globalThis.retained = retained; return 'ok'; })`} host:AGENT`;
     await execa`endo remove retained-host`;
-    // The eval fails because the worker was terminated, but the CLI
-    // does not set a non-zero exit code on command errors, so check
-    // stderr for the collection error message instead.
-    const result = await execa`endo eval --worker worker ${'1'}`;
+    // The eval fails because the worker was terminated due to collection.
+    // The CLI exits with non-zero code, so catch the error and check stderr.
+    const error = await t.throwsAsync(
+      execa`endo eval --worker worker ${'1'}`,
+    );
     t.regex(
-      result.stderr,
+      error.stderr,
       /became unreachable by any pet name path and was collected/,
     );
   } finally {
