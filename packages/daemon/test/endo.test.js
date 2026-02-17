@@ -1051,10 +1051,11 @@ test('mailboxes persist messages across restart', async t => {
   const guest = E(host).provideGuest('guest');
   const iteratorRef = E(host).followMessages();
 
+  // Await delivery of the first message before sending the second to
+  // guarantee deterministic message numbering.
   E.sendOnly(guest).request('HOST', 'first request', 'response0');
-  E.sendOnly(guest).request('HOST', 'second request', 'response1');
-
   const { value: message0 } = await E(iteratorRef).next();
+  E.sendOnly(guest).request('HOST', 'second request', 'response1');
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);

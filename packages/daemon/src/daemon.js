@@ -2131,7 +2131,6 @@ const makeDaemonCore = async (
     // Wait for any in-flight graph operation (formulation, collection)
     // to finish before cancelling.
     await formulaGraphJobs.enqueue();
-    const formula = formulaForId.get(id);
     const controller = provideController(id);
     console.log('Cancelled:');
     return controller.context.cancel(reason);
@@ -2140,7 +2139,7 @@ const makeDaemonCore = async (
   /** @type {DaemonCore['formulateReadableBlob']} */
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
     return /** @type {FormulateResult<FarRef<EndoReadable>>} */ (
-      await withFormulaGraphLock(async () => {
+      withFormulaGraphLock(async () => {
         await null;
         const formulaNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
@@ -2180,7 +2179,7 @@ const makeDaemonCore = async (
     deferredTasks,
   ) => {
     return /** @type {FormulateResult<Invitation>} */ (
-      await withFormulaGraphLock(async () => {
+      withFormulaGraphLock(async () => {
         const invitationNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
         );
@@ -2331,7 +2330,7 @@ const makeDaemonCore = async (
    * @type {DaemonCore['formulateWorker']}
    */
   const formulateWorker = async deferredTasks => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
 
       await deferredTasks.execute({
@@ -2432,7 +2431,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
   ) => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const identifiers = await formulateHostDependencies({
         endoId,
         networksDirectoryId,
@@ -2515,7 +2514,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateGuest']} */
   const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const identifiers = await formulateGuestDependencies(
         hostAgentId,
         hostHandleId,
@@ -2550,7 +2549,7 @@ const makeDaemonCore = async (
   /** @type {DaemonCore['formulateMarshalValue']} */
   async function formulateMarshalValue(value, deferredTasks, pin) {
     return /** @type {FormulateResult<void>} */ (
-      await withFormulaGraphLock(async () => {
+      withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
         );
@@ -2586,7 +2585,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulatePromise']} */
   const formulatePromise = async pin => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const storeFormulaNumber = /** @type {FormulaNumber} */ (
         await randomHex512()
       );
@@ -2633,7 +2632,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateMessage']} */
   const formulateMessage = async (messageFormula, pin) => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
       // Pin before formulate so the formula is protected from
       // collection even if the lock is bypassed via re-entrancy.
@@ -2661,7 +2660,7 @@ const makeDaemonCore = async (
     pin,
   ) => {
     return /** @type {FormulateResult<unknown>} */ (
-      await withFormulaGraphLock(async () => {
+      withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
           await randomHex512()
         );
@@ -2805,7 +2804,7 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
   ) => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const { powersId, capletFormulaNumber, workerId } =
         await formulateCapletDependencies(
           hostAgentId,
@@ -2835,7 +2834,7 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
   ) => {
-    return await withFormulaGraphLock(async () => {
+    return withFormulaGraphLock(async () => {
       const { powersId, capletFormulaNumber, workerId } =
         await formulateCapletDependencies(
           hostAgentId,
@@ -2911,8 +2910,8 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateEndo']} */
   const formulateEndo = async specifiedFormulaNumber => {
-    return /** @type {{ id: FormulaIdentifier, value: FarRef<EndoBootstrap> }} */ (
-      await withFormulaGraphLock(async () => {
+    return /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
+      withFormulaGraphLock(async () => {
         const formulaNumber = /** @type {FormulaNumber} */ (
           await (specifiedFormulaNumber ?? randomHex512())
         );
