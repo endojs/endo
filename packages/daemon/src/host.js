@@ -771,7 +771,8 @@ export const makeHostMaker = ({
     };
 
     /** @param {Function} fn */
-    const withCollection = fn =>
+    const withCollection =
+      fn =>
       async (...args) => {
         await null;
         try {

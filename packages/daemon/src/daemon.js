@@ -2332,9 +2332,7 @@ const makeDaemonCore = async (
    */
   const formulateWorker = async deferredTasks => {
     return await withFormulaGraphLock(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
-      );
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
 
       await deferredTasks.execute({
         workerId: formatId({
@@ -2599,9 +2597,8 @@ const makeDaemonCore = async (
         await randomHex512()
       );
 
-      const { id: storeId } = await formulateNumberedPetStore(
-        storeFormulaNumber,
-      );
+      const { id: storeId } =
+        await formulateNumberedPetStore(storeFormulaNumber);
 
       /** @type {PromiseFormula} */
       const promiseFormula = {
@@ -2637,9 +2634,7 @@ const makeDaemonCore = async (
   /** @type {DaemonCore['formulateMessage']} */
   const formulateMessage = async (messageFormula, pin) => {
     return await withFormulaGraphLock(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
-      );
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
       // Pin before formulate so the formula is protected from
       // collection even if the lock is bypassed via re-entrancy.
       if (pin) {

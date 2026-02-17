@@ -386,7 +386,11 @@ export const makeMailboxMaker = ({
     const persistNextMessageNumber = async messageNumber => {
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const { id } = await formulateMarshalValue(messageNumber, tasks, pinTransient);
+      const { id } = await formulateMarshalValue(
+        messageNumber,
+        tasks,
+        pinTransient,
+      );
       try {
         await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
       } finally {
