@@ -73,6 +73,7 @@ const drainIterator = async (iteratorRef, count) => {
  * @param {string} targetPath
  */
 const pathExists = async targetPath => {
+  await null;
   try {
     await fs.promises.stat(targetPath);
     return true;
@@ -103,6 +104,7 @@ const formulaPathForId = (statePath, id) => {
  * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
  */
 const waitForText = async (filePath, matcher, opts = {}) => {
+  await null;
   const { timeoutMs = 2000, intervalMs = 50 } = opts;
   const startTime = Date.now();
   const matches = text =>
@@ -130,6 +132,7 @@ const waitForText = async (filePath, matcher, opts = {}) => {
  * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
  */
 const waitForCondition = async (predicate, opts = {}) => {
+  await null;
   const { timeoutMs = 2000, intervalMs = 50 } = opts;
   const startTime = Date.now();
   // eslint-disable-next-line no-constant-condition
@@ -1045,9 +1048,7 @@ test('message hub avoids kebab-case reply metadata names', async t => {
   await E(host).reply(hostMessage.number, ['hi'], [], []);
   const { value: replyMessage } = await E(hostMessages).next();
 
-  const messageHub = await E(host).lookup(['MAIL', String(hostMessage.number)]);
   const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
-  await E(messageHub).list();
   const replyNames = await E(replyHub).list();
 
   t.true(replyNames.includes('FROM'));
@@ -1065,10 +1066,11 @@ test('mailboxes persist messages across restart', async t => {
   const guest = E(host).provideGuest('guest');
   const iteratorRef = E(host).followMessages();
 
+  // Await delivery of the first message before sending the second to
+  // guarantee deterministic message numbering.
   E.sendOnly(guest).request('HOST', 'first request', 'response0');
-  E.sendOnly(guest).request('HOST', 'second request', 'response1');
-
   const { value: message0 } = await E(iteratorRef).next();
+  E.sendOnly(guest).request('HOST', 'second request', 'response1');
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
@@ -1764,14 +1766,17 @@ test('facet group (agent + handle) collects atomically', async t => {
 
   // Verify all formula files exist on disk
   const allIds = [guestId, handleId, ...dependencyIds];
-  const existResults = await Promise.all(
-    allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+  const beforeResults = await Promise.all(
+    allIds.map(async id => {
+      await null;
+      return {
+        id,
+        exists: await pathExists(formulaPathForId(config.statePath, id)),
+      };
+    }),
   );
-  for (let i = 0; i < allIds.length; i += 1) {
-    t.true(
-      existResults[i],
-      `Formula file for ${allIds[i]} should exist before removal`,
-    );
+  for (const { id, exists } of beforeResults) {
+    t.true(exists, `Formula file for ${id} should exist before removal`);
   }
 
   // Remove both pet name references
@@ -1783,18 +1788,21 @@ test('facet group (agent + handle) collects atomically', async t => {
     const results = await Promise.all(
       allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
     );
-    return results.every(exists => !exists);
+    return results.every(e => !e);
   });
 
   // Assert all formula files no longer exist
-  const collectedResults = await Promise.all(
-    allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+  const afterResults = await Promise.all(
+    allIds.map(async id => {
+      await null;
+      return {
+        id,
+        exists: await pathExists(formulaPathForId(config.statePath, id)),
+      };
+    }),
   );
-  for (let i = 0; i < allIds.length; i += 1) {
-    t.false(
-      collectedResults[i],
-      `Formula file for ${allIds[i]} should be collected`,
-    );
+  for (const { id, exists } of afterResults) {
+    t.false(exists, `Formula file for ${id} should be collected`);
   }
 });
 

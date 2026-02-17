@@ -258,6 +258,7 @@ export const makeGuestMaker = ({
     const withCollection =
       fn =>
       async (...args) => {
+        await null;
         try {
           return await fn(...args);
         } finally {

@@ -353,6 +353,7 @@ export interface Responder {
 
 export type MessageBase = {
   messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
 };
 
 export type Request = MessageBase & {
@@ -365,7 +366,6 @@ export type Request = MessageBase & {
 
 export type Package = MessageBase & {
   type: 'package';
-  replyTo?: FormulaNumber;
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<Name>; // edge names
   ids: Array<FormulaIdentifier>; // formula identifiers
@@ -1183,6 +1183,7 @@ export interface DaemonCore {
   formulateMarshalValue: (
     value: Passable,
     deferredTasks: DeferredTasks<MarshalDeferredTaskParams>,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<void>;
 
   formulatePromise: (
@@ -1197,6 +1198,7 @@ export interface DaemonCore {
 
   formulateMessage: (
     messageFormula: MessageFormula,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<NameHub>;
 
   formulateEval: (
@@ -1206,6 +1208,7 @@ export interface DaemonCore {
     endowmentIdsOrPaths: (FormulaIdentifier | NamePath)[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<unknown>;
 
   formulateGuest: (

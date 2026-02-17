@@ -68,7 +68,8 @@ export const makeFormulaGraph = ({ extractDeps, isLocalId }) => {
    */
   const findGroup = id => {
     ensure(id);
-    const next = parent.get(id);
+    // Safe: ensure() guarantees parent.has(id).
+    const next = /** @type {FormulaIdentifier} */ (parent.get(id));
     if (next !== id) {
       const root = findGroup(next);
       parent.set(id, root);

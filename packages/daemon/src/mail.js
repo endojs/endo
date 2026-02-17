@@ -178,9 +178,9 @@ export const makeMailboxMaker = ({
      * @param {string} description
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
-     * @param {string} replyToMessageId
+     * @param {import('./types.js').FormulaNumber} messageId
      */
-    const makeRequest = async (description, fromId, toId, replyToMessageId) => {
+    const makeRequest = async (description, fromId, toId, messageId) => {
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
@@ -191,7 +191,7 @@ export const makeMailboxMaker = ({
         type: /** @type {const} */ ('request'),
         from: fromId,
         to: toId,
-        messageId: replyToMessageId,
+        messageId,
         description,
         promiseId,
         resolverId,
@@ -704,16 +704,28 @@ export const makeMailboxMaker = ({
      */
     const persistMessage = async (messageNumber, formula) => {
       const messageNumberName = /** @type {PetName} */ (String(messageNumber));
-      const { id } = await formulateMessage(formula);
-      await mailboxStore.write(messageNumberName, id);
+      const { id } = await formulateMessage(formula, pinTransient);
+      try {
+        await mailboxStore.write(messageNumberName, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     /** @param {bigint} messageNumber */
     const persistNextMessageNumber = async messageNumber => {
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const { id } = await formulateMarshalValue(messageNumber, tasks);
-      await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+      const { id } = await formulateMarshalValue(
+        messageNumber,
+        tasks,
+        pinTransient,
+      );
+      try {
+        await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     const loadMailboxState = async () => {
@@ -921,10 +933,9 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
       }
-      const replyToMessageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
-        );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
       if (petNamesOrPaths.length !== edgeNames.length) {
@@ -957,7 +968,7 @@ export const makeMailboxMaker = ({
         strings,
         names: edgeNames,
         ids,
-        messageId: replyToMessageId,
+        messageId,
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });
