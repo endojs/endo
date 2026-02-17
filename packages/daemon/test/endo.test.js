@@ -1,5 +1,5 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
 
 // Establish a perimeter:
 import '@endo/init/debug.js';
@@ -8,6 +8,7 @@ import test from 'ava';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -23,7 +24,7 @@ import {
   makeRefIterator,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
-import { formatId } from '../src/formula-identifier.js';
+import { formatId, parseId } from '../src/formula-identifier.js';
 import { idFromLocator, parseLocator } from '../src/locator.js';
 
 /**
@@ -54,6 +55,91 @@ const takeCount = async (asyncIterator, count) => {
   return values;
 };
 
+/**
+ * @param {string} targetPath
+ */
+const pathExists = async targetPath => {
+  await null;
+  try {
+    await fs.promises.stat(targetPath);
+    return true;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'ENOENT') {
+        return false;
+      }
+    }
+    throw error;
+  }
+};
+
+/**
+ * @param {string} statePath
+ * @param {string} id
+ */
+const formulaPathForId = (statePath, id) => {
+  const { number } = parseId(id);
+  const head = number.slice(0, 2);
+  const tail = number.slice(2);
+  return path.join(statePath, 'formulas', head, `${tail}.json`);
+};
+
+/**
+ * @param {string} filePath
+ * @param {RegExp | string} matcher
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
+ */
+const waitForText = async (filePath, matcher, opts = {}) => {
+  await null;
+  const { timeoutMs = 2000, intervalMs = 50 } = opts;
+  const startTime = Date.now();
+  const matches = text =>
+    matcher instanceof RegExp ? matcher.test(text) : text.includes(matcher);
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const text = await fs.promises.readFile(filePath, 'utf-8').catch(() => '');
+    if (matches(text)) {
+      return text;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error(
+        `Timed out waiting for ${String(matcher)} in ${filePath}`,
+      );
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * @param {() => Promise<boolean>} predicate
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
+ */
+const waitForCondition = async (predicate, opts = {}) => {
+  await null;
+  const { timeoutMs = 2000, intervalMs = 50 } = opts;
+  const startTime = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await predicate()) {
+      return;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error('Timed out waiting for condition');
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * @param {import('ava').ExecutionContext<any>} t
+ * @param {Promise<unknown>} promise
+ * @param {string} [message]
+ */
 /**
  * Calls `host.followNameChanges()`, takes all already-existing names from the iterator,
  * and returns the iterator.
@@ -184,6 +270,13 @@ const doMakeBundle = async (host, filePath, callback) => {
 };
 
 let configPathId = 0;
+const MAX_UNIX_SOCKET_PATH = 90;
+const SOCKET_PATH_OVERHEAD =
+  path.join(dirname, 'tmp').length + 1 + 'endo.sock'.length + 8;
+const MAX_CONFIG_DIR_LENGTH = Math.max(
+  8,
+  MAX_UNIX_SOCKET_PATH - SOCKET_PATH_OVERHEAD,
+);
 
 /**
  * @param {string} testTitle - The title of the current test.
@@ -193,12 +286,14 @@ let configPathId = 0;
 const getConfigDirectoryName = (testTitle, configNumber) => {
   const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
 
-  // We truncate the subdirectory name to 30 characters in an attempt to respect
-  // the maximum Unix domain socket path length.
+  // We truncate the subdirectory name in an attempt to respect the maximum
+  // Unix domain socket path length.
   // With our apologies to John Jacob Jingleheimerschmidt, for whom this may
   // not be enough.
   const basePath =
-    defaultPath.length <= 22 ? defaultPath : defaultPath.slice(0, 22);
+    defaultPath.length <= MAX_CONFIG_DIR_LENGTH
+      ? defaultPath
+      : defaultPath.slice(0, MAX_CONFIG_DIR_LENGTH);
   const testId = String(configPathId).padStart(4, '0');
   const configId = String(configNumber).padStart(2, '0');
   const configSubDirectory = `${basePath}#${testId}-${configId}`;
@@ -938,9 +1033,7 @@ test('message hub avoids kebab-case reply metadata names', async t => {
   await E(host).reply(hostMessage.number, ['hi'], [], []);
   const { value: replyMessage } = await E(hostMessages).next();
 
-  const messageHub = await E(host).lookup(['MAIL', String(hostMessage.number)]);
   const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
-  const messageNames = await E(messageHub).list();
   const replyNames = await E(replyHub).list();
 
   t.true(replyNames.includes('FROM'));
@@ -958,10 +1051,11 @@ test('mailboxes persist messages across restart', async t => {
   const guest = E(host).provideGuest('guest');
   const iteratorRef = E(host).followMessages();
 
+  // Await delivery of the first message before sending the second to
+  // guarantee deterministic message numbering.
   E.sendOnly(guest).request('HOST', 'first request', 'response0');
-  E.sendOnly(guest).request('HOST', 'second request', 'response1');
-
   const { value: message0 } = await E(iteratorRef).next();
+  E.sendOnly(guest).request('HOST', 'second request', 'response1');
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
@@ -1310,6 +1404,421 @@ test('pins restored on restart', async t => {
     // indicates that PINS.incr side-effect applied on restart
     t.is(await E(counter).get(), 1);
   }
+});
+
+test('collects formulas after pet name removal', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).storeValue({ ok: true }, 'temp-value');
+  const locator = await E(host).locate('temp-value');
+  const id = idFromLocator(locator);
+  const { number: formulaNumber } = parseId(id);
+  const head = formulaNumber.slice(0, 2);
+  const tail = formulaNumber.slice(2);
+  const formulaPath = path.join(
+    config.statePath,
+    'formulas',
+    head,
+    `${tail}.json`,
+  );
+
+  t.true(await pathExists(formulaPath));
+  await E(host).remove('temp-value');
+  t.false(await pathExists(formulaPath));
+});
+
+test('terminates worker retaining collected values', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).provideWorker('worker');
+  const workerId = await E(host).identify('worker');
+  const { number: workerNumber } = parseId(workerId);
+  const workerStoppedPattern = new RegExp(
+    `Endo worker (?:connection closed|exited).*unique identifier ${workerNumber}`,
+  );
+  const endoLogPath = path.join(config.statePath, 'endo.log');
+  await E(host).evaluate(
+    'worker',
+    `
+      E(host).provideHost('retained-host').then(retained => {
+        globalThis.retained = retained;
+        return 'ok';
+      })
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+
+  await E(host).remove('retained-host');
+
+  await t.throwsAsync(E(host).evaluate('worker', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+  await waitForText(endoLogPath, workerStoppedPattern);
+  await waitForText(
+    endoLogPath,
+    /became unreachable by any pet name path and was collected/u,
+  );
+});
+
+test('terminates worker retaining derived value after dependency collection', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  const counterLocationLiteral = JSON.stringify(counterLocation);
+
+  await E(host).provideWorker('worker-a');
+  await E(host).provideWorker('worker-b');
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'powers', 'caplet')
+        .then(caplet => {
+          globalThis.caplet = caplet;
+          return 'ok';
+        })
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  const powersId = await E(host).identify('powers');
+  const capletId = await E(host).identify('caplet');
+  const workerBId = await E(host).identify('worker-b');
+  const { number: workerBNumber } = parseId(workerBId);
+  const workerBStoppedPattern = new RegExp(
+    `Endo worker (?:connection closed|exited).*unique identifier ${workerBNumber}`,
+  );
+  const endoLogPath = path.join(config.statePath, 'endo.log');
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      globalThis.caplet = caplet;
+      'ok';
+    `,
+    ['caplet'],
+    ['caplet'],
+  );
+
+  await E(host).remove('powers');
+  t.true(await pathExists(formulaPathForId(config.statePath, powersId)));
+
+  await E(host).remove('caplet');
+  await waitForCondition(async () => {
+    const capletExists = await pathExists(
+      formulaPathForId(config.statePath, capletId),
+    );
+    const powersExists = await pathExists(
+      formulaPathForId(config.statePath, powersId),
+    );
+    return !capletExists && !powersExists;
+  });
+
+  await t.throwsAsync(E(host).evaluate('worker-b', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+  await waitForText(endoLogPath, workerBStoppedPattern);
+});
+
+test('recreates counter after collection resets state', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).provideWorker('worker-a');
+  await E(host).provideWorker('worker-b');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  const counterLocationLiteral = JSON.stringify(counterLocation);
+  const retainerPath = path.join(dirname, 'test', '_retainer.js');
+  const retainerLocation = url.pathToFileURL(retainerPath).href;
+  const retainerLocationLiteral = JSON.stringify(retainerLocation);
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'NONE', 'counter')
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker-b',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker-b',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      E(host)
+        .makeUnconfined('worker-b', ${retainerLocationLiteral}, 'NONE', 'retainer')
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      E(retainer).retain(counter);
+      'ok';
+    `,
+    ['retainer', 'counter'],
+    ['retainer', 'counter'],
+  );
+
+  await E(host).remove('counter');
+  await t.throwsAsync(E(host).evaluate('worker-b', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, 'NONE', 'counter')
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker-c',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+});
+
+test('PINS values survive collection', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a counter via eval in MAIN
+  await E(host).evaluate(
+    'MAIN',
+    `
+      (() => {
+        let value = 0;
+        return makeExo(
+          'Counter',
+          M.interface('Counter', {}, { defaultGuards: 'passable' }),
+          {
+            incr: () => value += 1,
+            get: () => value,
+          }
+        );
+      })();
+    `,
+    [],
+    [],
+    ['counter'],
+  );
+
+  // Increment counter (value = 1)
+  const counter = await E(host).lookup(['counter']);
+  t.is(await E(counter).incr(), 1);
+
+  // Get the formula ID before move
+  const counterId = await E(host).identify('counter');
+
+  // Move counter to PINS — counter now only lives in PINS
+  await E(host).move(['counter'], ['PINS', 'my-counter']);
+
+  // Verify formula file still exists after the move (collection ran in move's finally block)
+  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+
+  // Look up counter through PINS
+  const pinnedCounter = await E(host).lookup(['PINS', 'my-counter']);
+
+  // Verify counter state preserved
+  t.is(await E(pinnedCounter).get(), 1);
+
+  // Increment again, verify value = 2 (formula is live, not a stale reincarnation)
+  t.is(await E(pinnedCounter).incr(), 2);
+});
+
+test('PINS values reincarnate after cancellation', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a counter caplet
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).makeUnconfined('MAIN', counterLocation, 'NONE', 'counter');
+
+  // Increment counter to build up state
+  t.is(
+    1,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  // Get counter ID and pin to PINS while keeping the host pet name for cancel
+  const counterId = await E(host).identify('counter');
+  await E(host).write(['counter-pin'], counterId);
+  await E(host).move(['counter-pin'], ['PINS', 'my-counter']);
+
+  // Cancel the counter — forces deincarnation even though retained by PINS
+  await E(host).cancel('counter');
+
+  // Remove the host pet name — now only PINS references the formula
+  await E(host).remove('counter');
+
+  // Formula file should still exist (PINS protected it from collection)
+  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+
+  // Look up through PINS — reincarnated with reset state
+  const reincarnated = await E(host).lookup(['PINS', 'my-counter']);
+  t.is(await E(reincarnated).incr(), 1);
+  t.is(await E(reincarnated).incr(), 2);
+});
+
+test('facet group (agent + handle) collects atomically', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a guest with both handle and agent names
+  await E(host).provideGuest('guest-handle', { agentName: 'guest-agent' });
+
+  // Get IDs for guest and handle
+  const guestId = await E(host).identify('guest-agent');
+  const handleId = await E(host).identify('guest-handle');
+
+  // Read the guest formula JSON from disk to extract dependency IDs
+  const guestFormulaPath = formulaPathForId(config.statePath, guestId);
+  const guestFormula = JSON.parse(
+    await fs.promises.readFile(guestFormulaPath, 'utf-8'),
+  );
+
+  const dependencyIds = [
+    guestFormula.petStore,
+    guestFormula.mailboxStore,
+    guestFormula.mailHub,
+    guestFormula.worker,
+  ];
+
+  // Verify all formula files exist on disk
+  const allIds = [guestId, handleId, ...dependencyIds];
+  const beforeResults = await Promise.all(
+    allIds.map(async id => {
+      await null;
+      return {
+        id,
+        exists: await pathExists(formulaPathForId(config.statePath, id)),
+      };
+    }),
+  );
+  for (const { id, exists } of beforeResults) {
+    t.true(exists, `Formula file for ${id} should exist before removal`);
+  }
+
+  // Remove both pet name references
+  await E(host).remove('guest-handle');
+  await E(host).remove('guest-agent');
+
+  // Wait for all formula files to be deleted
+  await waitForCondition(async () => {
+    const results = await Promise.all(
+      allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+    );
+    return results.every(e => !e);
+  });
+
+  // Assert all formula files no longer exist
+  const afterResults = await Promise.all(
+    allIds.map(async id => {
+      await null;
+      return {
+        id,
+        exists: await pathExists(formulaPathForId(config.statePath, id)),
+      };
+    }),
+  );
+  for (const { id, exists } of afterResults) {
+    t.false(exists, `Formula file for ${id} should be collected`);
+  }
+});
+
+test('unnamed eval results are collected', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a named eval to establish a baseline (ensures MAIN worker exists)
+  await E(host).evaluate('MAIN', '10', [], [], ['named']);
+  const namedId = await E(host).identify('named');
+  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+
+  // Count all formula files on disk
+  const formulasDir = path.join(config.statePath, 'formulas');
+  const countFormulas = async () => {
+    const entries = await fs.promises.readdir(formulasDir, {
+      recursive: true,
+    });
+    return entries.filter(f => f.endsWith('.json')).length;
+  };
+  const countBefore = await countFormulas();
+
+  // Run an unnamed eval — returns 42 but has no pet name
+  const result = await E(host).evaluate('MAIN', '42', [], []);
+  t.is(result, 42);
+
+  // Count formula files again
+  const countAfter = await countFormulas();
+
+  // Assert the count is the same (unnamed eval formula was created then collected)
+  t.is(countAfter, countBefore);
+
+  // Verify the named eval formula still exists (it was not collected)
+  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
 });
 
 test('direct cancellation', async t => {

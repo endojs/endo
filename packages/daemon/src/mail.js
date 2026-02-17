@@ -111,6 +111,8 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {DaemonCore['formulateMessage']} args.formulateMessage
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {() => Promise<string>} args.randomHex512
+ * @param {DaemonCore['pinTransient']} [args.pinTransient]
+ * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @returns {MakeMailbox}
  */
 export const makeMailboxMaker = ({
@@ -120,6 +122,8 @@ export const makeMailboxMaker = ({
   formulateMessage,
   getFormulaForId,
   randomHex512,
+  pinTransient = () => {},
+  unpinTransient = () => {},
 }) => {
   /**
     @type {MakeMailbox} */
@@ -155,10 +159,10 @@ export const makeMailboxMaker = ({
      * @param {string} description
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
-     * @param {string} replyToMessageId
+     * @param {import('./types.js').FormulaNumber} messageId
      */
-    const makeRequest = async (description, fromId, toId, replyToMessageId) => {
-      const { promiseId, resolverId } = await formulatePromise();
+    const makeRequest = async (description, fromId, toId, messageId) => {
+      const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
       const settled = resolutionIdP.then(
         () => /** @type {const} */ ('fulfilled'),
@@ -168,7 +172,7 @@ export const makeMailboxMaker = ({
         type: /** @type {const} */ ('request'),
         from: fromId,
         to: toId,
-        messageId: replyToMessageId,
+        messageId,
         description,
         promiseId,
         resolverId,
@@ -370,16 +374,28 @@ export const makeMailboxMaker = ({
      */
     const persistMessage = async (messageNumber, formula) => {
       const messageNumberName = /** @type {PetName} */ (String(messageNumber));
-      const { id } = await formulateMessage(formula);
-      await mailboxStore.write(messageNumberName, id);
+      const { id } = await formulateMessage(formula, pinTransient);
+      try {
+        await mailboxStore.write(messageNumberName, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     /** @param {bigint} messageNumber */
     const persistNextMessageNumber = async messageNumber => {
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const { id } = await formulateMarshalValue(messageNumber, tasks);
-      await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+      const { id } = await formulateMarshalValue(
+        messageNumber,
+        tasks,
+        pinTransient,
+      );
+      try {
+        await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+      } finally {
+        unpinTransient(id);
+      }
     };
 
     const loadMailboxState = async () => {
@@ -567,10 +583,9 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
-      const replyToMessageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
-        );
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex512()
+      );
       const to = await provide(
         /** @type {FormulaIdentifier} */ (toId),
         'handle',
@@ -603,7 +618,7 @@ export const makeMailboxMaker = ({
         strings,
         names: edgeNames,
         ids,
-        messageId: replyToMessageId,
+        messageId,
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });
@@ -747,7 +762,12 @@ export const makeMailboxMaker = ({
       );
 
       // Note: consider sending to each mailbox with different powers.
-      await post(to, req);
+      try {
+        await post(to, req);
+      } finally {
+        unpinTransient(req.promiseId);
+        unpinTransient(req.resolverId);
+      }
 
       const resolutionId = /** @type {FormulaIdentifier} */ (
         await resolutionIdP

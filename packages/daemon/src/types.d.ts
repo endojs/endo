@@ -1,6 +1,7 @@
 import type { Passable } from '@endo/pass-style';
 import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
+import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
 // Branded string types for pet names and special names
@@ -342,6 +343,7 @@ export interface Responder {
 
 export type MessageBase = {
   messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
 };
 
 export type Request = MessageBase & {
@@ -354,7 +356,6 @@ export type Request = MessageBase & {
 
 export type Package = MessageBase & {
   type: 'package';
-  replyTo?: FormulaNumber;
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<Name>; // edge names
   ids: Array<FormulaIdentifier>; // formula identifiers
@@ -773,6 +774,10 @@ export type PetStorePowers = {
     formulaType: 'pet-store' | 'known-peers-store' | 'mailbox-store',
     assertValidName: AssertValidNameFn,
   ) => Promise<PetStore>;
+  deletePetStore: (
+    formulaNumber: FormulaNumber,
+    formulaType: string,
+  ) => Promise<void>;
 };
 
 export type SocketPowers = {
@@ -795,12 +800,19 @@ export type SocketPowers = {
   }) => Promise<AsyncIterableIterator<Connection>>;
 };
 
+export type CapTpConnectionRegistrar = (args: {
+  name: string;
+  close: (reason?: Error) => Promise<void>;
+  closed: Promise<void>;
+}) => CapTPOptions;
+
 export type NetworkPowers = SocketPowers & {
   makePrivatePathService: (
     endoBootstrap: FarRef<EndoBootstrap>,
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
+    capTpConnectionRegistrar?: CapTpConnectionRegistrar,
   ) => { started: Promise<void>; stopped: Promise<void> };
 };
 
@@ -821,6 +833,8 @@ export type DaemonicPersistencePowers = {
     formulaNumber: FormulaNumber,
     formula: Formula,
   ) => Promise<void>;
+  deleteFormula: (formulaNumber: FormulaNumber) => Promise<void>;
+  listFormulas: () => Promise<FormulaNumber[]>;
 };
 
 export interface DaemonWorkerFacet {}
@@ -851,6 +865,7 @@ export type DaemonicControlPowers = {
     id: string,
     daemonWorkerFacet: DaemonWorkerFacet,
     cancelled: Promise<never>,
+    capTpConnectionRegistrar?: CapTpConnectionRegistrar,
   ) => Promise<{
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
@@ -973,15 +988,22 @@ export interface DaemonCore {
   formulateMarshalValue: (
     value: Passable,
     deferredTasks: DeferredTasks<MarshalDeferredTaskParams>,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<void>;
 
-  formulatePromise: () => Promise<{
+  formulatePromise: (
+    pinTransient?: (id: FormulaIdentifier) => void,
+  ) => Promise<{
     promiseId: FormulaIdentifier;
     resolverId: FormulaIdentifier;
   }>;
 
+  pinTransient: (id: FormulaIdentifier) => void;
+  unpinTransient: (id: FormulaIdentifier) => void;
+
   formulateMessage: (
     messageFormula: MessageFormula,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<NameHub>;
 
   formulateEval: (
@@ -991,6 +1013,7 @@ export interface DaemonCore {
     endowmentIdsOrPaths: (FormulaIdentifier | NamePath)[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<unknown>;
 
   formulateGuest: (
@@ -1094,6 +1117,7 @@ export interface DaemonCoreExternal {
   formulateEndo: DaemonCore['formulateEndo'];
   nodeNumber: NodeNumber;
   provide: DaemonCore['provide'];
+  capTpConnectionRegistrar: CapTpConnectionRegistrar;
 }
 
 export type SerialJobs = {

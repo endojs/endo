@@ -52,6 +52,9 @@ const assertPowersName = name => {
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
+ * @param {() => Promise<void>} [args.collectIfDirty]
+ * @param {DaemonCore['pinTransient']} [args.pinTransient]
+ * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  */
 export const makeHostMaker = ({
   provide,
@@ -70,6 +73,9 @@ export const makeHostMaker = ({
   makeMailbox,
   makeDirectoryNode,
   localNodeNumber,
+  collectIfDirty = async () => {},
+  pinTransient = /** @param {any} _id */ _id => {},
+  unpinTransient = /** @param {any} _id */ _id => {},
 }) => {
   /**
    * @param {FormulaIdentifier} hostId
@@ -203,8 +209,10 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const { value, id } = await formulateWorker(tasks);
-      await E(directory).write(namePath, id);
+      tasks.push(identifiers =>
+        E(directory).write(namePath, identifiers.workerId),
+      );
+      const { value } = await formulateWorker(tasks);
       return value;
     };
 
@@ -289,14 +297,25 @@ export const makeHostMaker = ({
         );
       }
 
-      const { value } = await formulateEval(
+      const { id, value } = await formulateEval(
         hostId,
         source,
         codeNames,
         endowmentFormulaIdsOrPaths,
         tasks,
         workerId,
+        resultName === undefined ? pinTransient : undefined,
       );
+      if (resultName === undefined) {
+        // Ephemeral eval: the formula was pinned inside formulateEval
+        // (inside the lock) so concurrent collection can't reclaim it.
+        // Unpin after the value resolves.
+        try {
+          return await value;
+        } finally {
+          unpinTransient(id);
+        }
+      }
       return value;
     };
 
@@ -751,13 +770,48 @@ export const makeHostMaker = ({
       accept,
     };
 
+    /** @param {Function} fn */
+    const withCollection =
+      fn =>
+      async (...args) => {
+        await null;
+        try {
+          return await fn(...args);
+        } finally {
+          await collectIfDirty();
+        }
+      };
+
+    const iteratorMethods = new Set([
+      'followLocatorNameChanges',
+      'followMessages',
+      'followNameChanges',
+    ]);
+    const wrappedHost = Object.fromEntries(
+      Object.entries(host).map(([name, fn]) => [
+        name,
+        iteratorMethods.has(name) ? fn : withCollection(fn),
+      ]),
+    );
+
     const hostExo = makeExo('EndoHost', HostInterface, {
-      ...host,
+      ...wrappedHost,
       /** @param {string} locator */
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(host.followLocatorNameChanges(locator)),
-      followMessages: () => makeIteratorRef(host.followMessages()),
-      followNameChanges: () => makeIteratorRef(host.followNameChanges()),
+      followLocatorNameChanges: async locator => {
+        const iterator = host.followLocatorNameChanges(locator);
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followMessages: async () => {
+        const iterator = host.followMessages();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followNameChanges: async () => {
+        const iterator = host.followNameChanges();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
     });
 
     await provide(mainWorkerId, 'worker');

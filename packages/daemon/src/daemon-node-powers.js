@@ -13,7 +13,7 @@ import { makeSerialJobs } from './serial-jobs.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
-/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+/** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
 
 const textEncoder = new TextEncoder();
 
@@ -138,6 +138,7 @@ export const makeNetworkPowers = ({ net }) => {
    * @param {string} sockPath
    * @param {Promise<never>} cancelled
    * @param {(error: Error) => void} exitWithError
+   * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @returns {{ started: Promise<void>, stopped: Promise<void> }}
    */
   const makePrivatePathService = (
@@ -145,12 +146,14 @@ export const makeNetworkPowers = ({ net }) => {
     sockPath,
     cancelled,
     exitWithError,
+    capTpConnectionRegistrar = undefined,
   ) => {
     const privatePathService = servePrivatePath(sockPath, endoBootstrap, {
       servePath,
       connectionNumbers,
       cancelled,
       exitWithError,
+      capTpConnectionRegistrar,
     });
     return privatePathService;
   };
@@ -431,12 +434,58 @@ export const makeDaemonicPersistencePowers = (
     await filePowers.writeFileText(file, `${q(formula)}\n`);
   };
 
+  /** @type {DaemonicPersistencePowers['deleteFormula']} */
+  const deleteFormula = async formulaNumber => {
+    const { file } = makeFormulaPath(formulaNumber);
+    await filePowers.removePath(file);
+  };
+
+  /** @type {DaemonicPersistencePowers['listFormulas']} */
+  const listFormulas = async () => {
+    const formulasPath = filePowers.joinPath(config.statePath, 'formulas');
+    const heads = await filePowers.readDirectory(formulasPath).catch(error => {
+      if (error.message.startsWith('ENOENT: ')) {
+        return [];
+      }
+      throw error;
+    });
+    /** @type {import('./types.js').FormulaNumber[]} */
+    const numbers = [];
+    await Promise.all(
+      heads.map(async head => {
+        const headPath = filePowers.joinPath(formulasPath, head);
+        const files = await filePowers.readDirectory(headPath).catch(error => {
+          if (
+            error.message.startsWith('ENOTDIR: ') ||
+            error.message.startsWith('ENOENT: ')
+          ) {
+            return [];
+          }
+          throw error;
+        });
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            const tail = file.slice(0, -'.json'.length);
+            numbers.push(
+              /** @type {import('./types.js').FormulaNumber} */ (
+                `${head}${tail}`
+              ),
+            );
+          }
+        }
+      }),
+    );
+    return numbers;
+  };
+
   return harden({
     initializePersistence,
     provideRootNonce,
     makeContentSha512Store,
     readFormula,
     writeFormula,
+    deleteFormula,
+    listFormulas,
   });
 };
 
@@ -462,8 +511,14 @@ export const makeDaemonicControlPowers = (
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
+   * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    */
-  const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
+  const makeWorker = async (
+    workerId,
+    daemonWorkerFacet,
+    cancelled,
+    capTpConnectionRegistrar = undefined,
+  ) => {
     const { statePath, ephemeralStatePath } = config;
 
     const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
@@ -524,6 +579,8 @@ export const makeDaemonicControlPowers = (
       reader,
       cancelled,
       daemonWorkerFacet,
+      undefined,
+      capTpConnectionRegistrar,
     );
 
     capTpClosed.finally(() => {

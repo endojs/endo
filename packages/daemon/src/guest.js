@@ -12,8 +12,14 @@ import { GuestInterface } from './interfaces.js';
  * @param {Provide} args.provide
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
+ * @param {() => Promise<void>} [args.collectIfDirty]
  */
-export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
+export const makeGuestMaker = ({
+  provide,
+  makeMailbox,
+  makeDirectoryNode,
+  collectIfDirty = async () => {},
+}) => {
   /**
    * @param {FormulaIdentifier} guestId
    * @param {FormulaIdentifier} handleId
@@ -126,13 +132,48 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       deliver,
     };
 
+    /** @param {Function} fn */
+    const withCollection =
+      fn =>
+      async (...args) => {
+        await null;
+        try {
+          return await fn(...args);
+        } finally {
+          await collectIfDirty();
+        }
+      };
+
+    const iteratorMethods = new Set([
+      'followLocatorNameChanges',
+      'followMessages',
+      'followNameChanges',
+    ]);
+    const wrappedGuest = Object.fromEntries(
+      Object.entries(guest).map(([name, fn]) => [
+        name,
+        iteratorMethods.has(name) ? fn : withCollection(fn),
+      ]),
+    );
+
     return makeExo('EndoGuest', GuestInterface, {
-      ...guest,
+      ...wrappedGuest,
       /** @param {string} locator */
-      followLocatorNameChanges: locator =>
-        makeIteratorRef(guest.followLocatorNameChanges(locator)),
-      followMessages: () => makeIteratorRef(guest.followMessages()),
-      followNameChanges: () => makeIteratorRef(guest.followNameChanges()),
+      followLocatorNameChanges: async locator => {
+        const iterator = guest.followLocatorNameChanges(locator);
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followMessages: async () => {
+        const iterator = guest.followMessages();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followNameChanges: async () => {
+        const iterator = guest.followNameChanges();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
     });
   };
 
