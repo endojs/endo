@@ -4,7 +4,7 @@ import os from 'os';
 
 import openWebPage from 'open';
 import { E } from '@endo/far';
-import { streamBytesIterator } from '@endo/exo-stream/stream-bytes-iterator.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import bundleSource from '@endo/bundle-source';
 
 import { withEndoAgent } from '../context.js';
@@ -40,7 +40,7 @@ export const install = async ({
     const bundle = await bundleSource(programPath);
     const bundleText = JSON.stringify(bundle);
     const bundleBytes = textEncoder.encode(bundleText);
-    bundleReaderRef = streamBytesIterator([bundleBytes]);
+    bundleReaderRef = bytesReaderFromIterator([bundleBytes]);
   }
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
