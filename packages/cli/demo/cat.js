@@ -26,7 +26,7 @@
 
 import { E } from '@endo/far';
 import { passStyleOf } from '@endo/pass-style';
-import { iterateStream } from '@endo/exo-stream/iterate-stream.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { parseMessage } from '../src/message-parse.js';
 
 const template = `
@@ -286,7 +286,7 @@ const inboxComponent = async ($parent, $end, powers) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
   const selfId = await E(powers).identify('SELF');
-  for await (const message of iterateStream(E(powers).followMessages())) {
+  for await (const message of iterateReader(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane.
     const wasAtEnd = await new Promise(resolve =>
@@ -515,7 +515,7 @@ const inventoryComponent = async ($parent, $end, powers, { showValue }) => {
   $parent.insertBefore($list, $end);
 
   const $names = new Map();
-  for await (const change of iterateStream(E(powers).followNameChanges())) {
+  for await (const change of iterateReader(E(powers).followNameChanges())) {
     if ('add' in change) {
       const name = change.add;
 
@@ -549,7 +549,7 @@ const inventorySelectComponent = async ($select, powers) => {
   $select.innerHTML = '';
 
   const $names = new Map();
-  for await (const change of iterateStream(E(powers).followNameChanges())) {
+  for await (const change of iterateReader(E(powers).followNameChanges())) {
     if ('add' in change) {
       const name = change.add;
 

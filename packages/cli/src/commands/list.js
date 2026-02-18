@@ -2,7 +2,7 @@
 import os from 'os';
 import { inspect } from 'util';
 import { E } from '@endo/far';
-import { iterateStream } from '@endo/exo-stream/iterate-stream.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { withEndoHost } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 
@@ -43,7 +43,7 @@ export const list = async ({ directory, follow, json, verbose }) =>
     }
     if (follow) {
       const topic = await E(agent).followNameChanges();
-      const iterator = iterateStream(topic);
+      const iterator = iterateReader(topic);
       if (json) {
         for await (const change of iterator) {
           console.log(JSON.stringify(change));
