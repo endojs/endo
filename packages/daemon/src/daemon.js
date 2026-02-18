@@ -6,7 +6,7 @@ import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
-import { iterateBytesStream } from '@endo/exo-stream/iterate-bytes-stream.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
@@ -1585,7 +1585,7 @@ const makeDaemonCore = async (
           contentSha512: await contentStore.store(
             // Use a higher string length limit to accommodate large payloads
             // like bundles. 10MB base64 ~= 7.5MB binary.
-            await iterateBytesStream(streamRef, {
+            await iterateBytesReader(streamRef, {
               stringLengthLimit: 10_000_000,
             }),
           ),

@@ -13,8 +13,8 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import bundleSource from '@endo/bundle-source';
-import { streamBytesIterator } from '@endo/exo-stream/stream-bytes-iterator.js';
-import { iterateStream } from '@endo/exo-stream/iterate-stream.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
@@ -56,7 +56,7 @@ const takeCount = async (asyncIterator, count) => {
  */
 const prepareFollowNameChangesIterator = async host => {
   const existingNames = await E(host).list();
-  const changesIterator = iterateStream(E(host).followNameChanges());
+  const changesIterator = iterateReader(E(host).followNameChanges());
   await takeCount(changesIterator, existingNames.length);
   return changesIterator;
 };
@@ -70,7 +70,7 @@ const prepareFollowNameChangesIterator = async host => {
  */
 const prepareFollowLocatorNameChangesIterator = async (host, locator) => {
   await null;
-  const changesIterator = iterateStream(
+  const changesIterator = iterateReader(
     E(host).followLocatorNameChanges(locator),
   );
   await takeCount(changesIterator, 1);
@@ -134,7 +134,7 @@ const prepareHostWithTestNetwork = async t => {
   );
 
   // set address via request
-  const messagesIterator = iterateStream(E(host).followMessages());
+  const messagesIterator = iterateReader(E(host).followMessages());
   const { value: message } = await messagesIterator.next();
   const { number } = E.get(message);
   await E(host).storeValue('127.0.0.1:0', 'netport');
@@ -169,7 +169,7 @@ const doMakeBundle = async (host, filePath, callback) => {
   const bundle = await bundleSource(filePath);
   const bundleText = JSON.stringify(bundle);
   const bundleBytes = textEncoder.encode(bundleText);
-  const bundleReaderRef = streamBytesIterator([bundleBytes]);
+  const bundleReaderRef = bytesReaderFromIterator([bundleBytes]);
 
   await E(host).storeBlob(bundleReaderRef, bundleName);
   const result = await callback(bundleName);
@@ -418,7 +418,7 @@ test('persist spawn and evaluation', async t => {
 test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = streamBytesIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
   await t.throwsAsync(E(host).storeBlob(readerRef), {
     message: 'Invalid name path',
   });
@@ -429,7 +429,7 @@ test('store with name', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const readerRef = streamBytesIterator([
+    const readerRef = bytesReaderFromIterator([
       new TextEncoder().encode('hello\n'),
     ]);
     const readable = await E(host).storeBlob(readerRef, 'hello-text');
@@ -742,7 +742,7 @@ test('persist unconfined services and their requests', async t => {
       [],
       ['grant'],
     );
-    const messagesIterator = iterateStream(E(host).followMessages());
+    const messagesIterator = iterateReader(E(host).followMessages());
     const { value: message } = await messagesIterator.next();
     const { number, from: fromId } = E.get(message);
     const [fromName] = await E(host).reverseIdentify(await fromId);
@@ -806,7 +806,7 @@ test('persist confined services and their requests', async t => {
       [],
       ['grant'],
     );
-    const messagesIterator = iterateStream(E(host).followMessages());
+    const messagesIterator = iterateReader(E(host).followMessages());
     const { value: message } = await messagesIterator.next();
     const { number, from: fromId } = E.get(message);
     const [fromName] = await E(host).reverseIdentify(await fromId);
@@ -974,7 +974,7 @@ test('followNamehanges first publishes existing names', async t => {
   const { host } = await prepareHost(t);
 
   const existingNames = await E(host).list();
-  const changesIterator = iterateStream(E(host).followNameChanges());
+  const changesIterator = iterateReader(E(host).followNameChanges());
   const values = await takeCount(changesIterator, existingNames.length);
 
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
@@ -1064,7 +1064,7 @@ test('followLocatorNameChanges first publishes existing pet name', async t => {
   await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
-  const tenLocatorSub = iterateStream(
+  const tenLocatorSub = iterateReader(
     E(host).followLocatorNameChanges(tenLocator),
   );
   const { value } = await tenLocatorSub.next();
@@ -1075,7 +1075,7 @@ test('followLocatorNameChanges first publishes existing special name', async t =
   const { host } = await prepareHost(t);
 
   const selfLocator = await E(host).locate('SELF');
-  const selfLocatorSub = iterateStream(
+  const selfLocatorSub = iterateReader(
     E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
@@ -1090,7 +1090,7 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
   await E(host).write(['self2'], selfId);
 
   const selfLocator = await E(host).locate('SELF');
-  const selfLocatorSub = iterateStream(
+  const selfLocatorSub = iterateReader(
     E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
@@ -1445,7 +1445,7 @@ test('cancel because of requested capability', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
 
-  const messagesIterator = iterateStream(E(host).followMessages());
+  const messagesIterator = iterateReader(E(host).followMessages());
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
@@ -1712,7 +1712,7 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = streamBytesIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
   await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */

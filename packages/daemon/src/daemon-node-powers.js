@@ -5,7 +5,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
-import { streamBytesIterator } from '@endo/exo-stream/stream-bytes-iterator.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeNetstringCapTP } from './connection.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
@@ -366,7 +366,7 @@ export const makeDaemonicPersistencePowers = (
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
         const streamBase64 = () => {
           const reader = filePowers.makeFileReader(storagePath);
-          return streamBytesIterator(reader);
+          return bytesReaderFromIterator(reader);
         };
         const text = async () => {
           return filePowers.readFileText(storagePath);

@@ -1,7 +1,7 @@
 // @ts-check
 
 import { makeExo } from '@endo/exo';
-import { streamIterator } from '@endo/exo-stream/stream-iterator.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 /** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
@@ -128,9 +128,9 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       ...guest,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
-        streamIterator(guest.followLocatorNameChanges(locator)),
-      followMessages: () => streamIterator(guest.followMessages()),
-      followNameChanges: () => streamIterator(guest.followNameChanges()),
+        readerFromIterator(guest.followLocatorNameChanges(locator)),
+      followMessages: () => readerFromIterator(guest.followMessages()),
+      followNameChanges: () => readerFromIterator(guest.followNameChanges()),
     });
   };
 
