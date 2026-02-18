@@ -27,12 +27,18 @@
       "types": "./types.d.ts",
       "default": "./index.js"
     },
-    "./async-iterate.js": "./async-iterate.js",
-    "./stream-bytes-iterator.js": "./stream-bytes-iterator.js",
-    "./iterate-bytes-stream.js": "./iterate-bytes-stream.js",
-    "./stream-iterator.js": "./stream-iterator.js",
-    "./iterate-stream.js": "./iterate-stream.js",
+    "./reader-pump.js": "./reader-pump.js",
+    "./reader-from-iterator.js": "./reader-from-iterator.js",
+    "./iterate-reader.js": "./iterate-reader.js",
+    "./bytes-reader-from-iterator.js": "./bytes-reader-from-iterator.js",
+    "./iterate-bytes-reader.js": "./iterate-bytes-reader.js",
+    "./bytes-writer-from-iterator.js": "./bytes-writer-from-iterator.js",
+    "./iterate-bytes-writer.js": "./iterate-bytes-writer.js",
+    "./writer-pump.js": "./writer-pump.js",
+    "./writer-from-iterator.js": "./writer-from-iterator.js",
+    "./iterate-writer.js": "./iterate-writer.js",
     "./type-guards.js": "./type-guards.js",
+    "./async-iterate.js": "./async-iterate.js",
     "./package.json": "./package.json"
   },
   "scripts": {

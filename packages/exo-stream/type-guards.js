@@ -3,7 +3,12 @@
 import { M } from '@endo/patterns';
 
 /**
- * Interface for passable stream references.
+ * Interface for passable Reader references.
+ *
+ * For Reader streams:
+ * - Synchronization values are `undefined` (flow control only)
+ * - Acknowledgement values are `TRead` (actual data)
+ *
  * The stream() method accepts the head of a synchronize promise chain and returns
  * the head of the acknowledge promise chain directly. E.get() pipelining handles
  * remote access to the promise chain nodes.
@@ -13,16 +18,34 @@ import { M } from '@endo/patterns';
  * (e.g., bundles) due to default string length limits. Node structure validation
  * is done manually in the implementation.
  *
- * @see streamIterator - responder side for passable streams
- * @see iterateStream - initiator side for passable streams
+ * @see readerFromIterator - responder side for passable readers
+ * @see iterateReader - initiator side for passable readers
  */
-export const PassableStreamInterface = M.interface('PassableStream', {
-  // stream(synPromise: ERef<StreamNode<TWrite, TWriteReturn>>): Promise<StreamNode<TRead, TReadReturn>>
+export const PassableReaderInterface = M.interface('PassableReader', {
+  // stream(synPromise: ERef<StreamNode<undefined, Passable>>): Promise<StreamNode<TRead, TReadReturn>>
   stream: M.call(M.any()).returns(M.promise()),
   // readPattern(): Pattern | undefined - pattern for TRead
   readPattern: M.call().returns(M.opt(M.pattern())),
   // readReturnPattern(): Pattern | undefined - pattern for TReadReturn
   readReturnPattern: M.call().returns(M.opt(M.pattern())),
+});
+
+/**
+ * Interface for passable Writer references.
+ *
+ * For Writer streams:
+ * - Synchronization values are `TWrite` (actual data from initiator)
+ * - Acknowledgement values are `undefined` (flow control only)
+ *
+ * The stream() method accepts the head of a synchronize data chain and returns
+ * the head of the acknowledge flow-control chain.
+ *
+ * @see writerFromIterator - responder side for passable writers
+ * @see iterateWriter - initiator side for passable writers
+ */
+export const PassableWriterInterface = M.interface('PassableWriter', {
+  // stream(synPromise: ERef<StreamNode<TWrite, Passable>>): Promise<StreamNode<undefined, TWriteReturn>>
+  stream: M.call(M.any()).returns(M.promise()),
   // writePattern(): Pattern | undefined - pattern for TWrite
   writePattern: M.call().returns(M.opt(M.pattern())),
   // writeReturnPattern(): Pattern | undefined - pattern for TWriteReturn
@@ -30,19 +53,37 @@ export const PassableStreamInterface = M.interface('PassableStream', {
 });
 
 /**
- * Interface for passable bytes stream references.
+ * Interface for passable bytes reader references.
  * Uses streamBase64() method instead of stream() to allow future migration
  * to a direct bytes stream() method when CapTP supports binary transport.
  *
  * No readPattern() method - the interface implies Uint8Array yields
  * (transmitted as base64 strings over the wire).
  *
- * @see streamBytesIterator - responder side for bytes readers
- * @see iterateBytesStream - initiator side for bytes readers
+ * @see bytesReaderFromIterator - responder side for bytes readers
+ * @see iterateBytesReader - initiator side for bytes readers
  */
 export const PassableBytesReaderInterface = M.interface('PassableBytesReader', {
   // streamBase64(synPromise: ERef<StreamNode<Passable, Passable>>): Promise<StreamNode<string, TReadReturn>>
   streamBase64: M.call(M.any()).returns(M.promise()),
   // readReturnPattern(): Pattern | undefined - pattern for TReadReturn
   readReturnPattern: M.call().returns(M.opt(M.pattern())),
+});
+
+/**
+ * Interface for passable bytes writer references.
+ * Uses streamBase64() method instead of stream() to allow future migration
+ * to a direct bytes stream() method when CapTP supports binary transport.
+ *
+ * No writePattern() method - the interface implies Uint8Array writes
+ * (transmitted as base64 strings over the wire).
+ *
+ * @see bytesWriterFromIterator - responder side for bytes writers
+ * @see iterateBytesWriter - initiator side for bytes writers
+ */
+export const PassableBytesWriterInterface = M.interface('PassableBytesWriter', {
+  // streamBase64(synPromise: ERef<StreamNode<string, Passable>>): Promise<StreamNode<undefined, TWriteReturn>>
+  streamBase64: M.call(M.any()).returns(M.promise()),
+  // writeReturnPattern(): Pattern | undefined - pattern for TWriteReturn
+  writeReturnPattern: M.call().returns(M.opt(M.pattern())),
 });

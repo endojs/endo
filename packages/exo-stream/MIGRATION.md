@@ -1,60 +1,104 @@
-# Migration Plan: `@endo/daemon` → `@endo/exo-stream`
+# Migration Plan: `@endo/daemon` to `@endo/exo-stream`
 
 ## Overview
 
-This document describes the completed migration from `@endo/daemon`'s iterator/reader ref utilities to `@endo/exo-stream`.
+This document describes the completed migration from `@endo/daemon`'s
+iterator/reader ref utilities to `@endo/exo-stream`.
 
 ## Completed Migration
 
 ### Old API (Removed)
 
 From `@endo/daemon/reader-ref.js` (REMOVED):
-- `makeIteratorRef(iterable)` → `FarRef<Reader<T>>` - Wrap local iterator as remote reference
-- `makeReaderRef(readable)` → `FarRef<Reader<string>>` - Wrap local bytes iterator, encode to base64 (now `PassableBytesReader`)
+- `makeIteratorRef(iterable)` to `FarRef<Reader<T>>` -
+  Wrap local iterator as remote reference
+- `makeReaderRef(readable)` to `FarRef<Reader<string>>` -
+  Wrap local bytes iterator, encode to base64
+  (now `PassableBytesReader`)
 
 From `@endo/daemon/ref-reader.js` (REMOVED):
-- `makeRefIterator(iteratorRef)` → `AsyncIterableIterator<T>` - Wrap remote iterator as local
-- `makeRefReader(readerRef)` → `AsyncIterableIterator<Uint8Array>` - Wrap remote bytes iterator, decode from base64
+- `makeRefIterator(iteratorRef)` to `AsyncIterableIterator<T>` -
+  Wrap remote iterator as local
+- `makeRefReader(readerRef)` to `AsyncIterableIterator<Uint8Array>` -
+  Wrap remote bytes iterator, decode from base64
 
 ### New API in `@endo/exo-stream`
 
-| Old Function | New Function | Notes |
-|--------------|--------------|-------|
-| `makeIteratorRef(iterable)` | `streamIterator(iterable)` | Returns `PassableStream` with `stream()` method |
-| `makeReaderRef(readable)` | `streamBytesIterator(readable)` | Returns `PassableBytesReader` with `stream()` method |
-| `makeRefIterator(iteratorRef)` | `iterateStream(streamRef)` | Async; uses bidirectional promise chains |
-| `makeRefReader(readerRef)` | `iterateBytesStream(streamRef)` | Async; uses bidirectional promise chains |
+#### Readers (data flows responder to initiator)
+
+| Old Function | New Function | Module | Notes |
+|---|---|---|---|
+| `makeIteratorRef(iterable)` | `readerFromIterator(iterable)` | `reader-from-iterator.js` | Returns `PassableReader` Exo with `stream()` method |
+| `makeRefIterator(iteratorRef)` | `iterateReader(readerRef)` | `iterate-reader.js` | Synchronous; returns `AsyncIterableIterator` |
+
+#### Writers (data flows initiator to responder)
+
+| New Function | Module | Notes |
+|---|---|---|
+| `writerFromIterator(iterator)` | `writer-from-iterator.js` | Returns `PassableWriter` Exo with `stream()` method |
+| `iterateWriter(writerRef, iterator)` | `iterate-writer.js` | Sends local iterator data to remote writer; returns `Promise<void>` |
+
+#### Bytes Readers (base64 encoding over CapTP)
+
+| Old Function | New Function | Module | Notes |
+|---|---|---|---|
+| `makeReaderRef(readable)` | `bytesReaderFromIterator(readable)` | `bytes-reader-from-iterator.js` | Returns `PassableBytesReader` with `streamBase64()` method |
+| `makeRefReader(readerRef)` | `iterateBytesReader(readerRef)` | `iterate-bytes-reader.js` | Synchronous; returns `AsyncIterableIterator<Uint8Array>` |
+
+#### Bytes Writers (base64 encoding over CapTP)
+
+| New Function | Module | Notes |
+|---|---|---|
+| `bytesWriterFromIterator(iterator)` | `bytes-writer-from-iterator.js` | Returns `PassableBytesWriter` Exo with `streamBase64()` method |
+| `iterateBytesWriter(writerRef, bytesIterator)` | `iterate-bytes-writer.js` | Sends local `Uint8Array` data to remote writer; returns `Promise<void>` |
 
 ### Key Differences
 
-1. **New protocol**: The new API uses bidirectional promise chains. The
-   initiator sends synchronizes to induce the responder to send data. Unlike
-   naive protocols that require a method invocation to cause progress, with
-   buffer > 1, promise chain nodes propagate via CapTP before the event loop
-   yields to I/O, keeping the responder busy while the initiator processes
-   values.
+1. **New protocol**: The new API uses bidirectional promise chains.
+   The initiator sends synchronizes to induce the responder to send
+   data.
+   Unlike naive protocols that require a method invocation to cause
+   progress, with buffer > 0, promise chain nodes propagate via CapTP
+   before the event loop yields to I/O, keeping the responder busy
+   while the initiator processes values.
 
-2. **Import paths**: No barrel exports; each function imported from its own module:
+2. **Import paths**: No barrel exports; each function imported from
+   its own module:
    ```javascript
-   // New API
-   import { streamIterator } from '@endo/exo-stream/stream-iterator.js';
-   import { iterateStream } from '@endo/exo-stream/iterate-stream.js';
-   import { streamBytesIterator } from '@endo/exo-stream/stream-bytes-iterator.js';
-   import { iterateBytesStream } from '@endo/exo-stream/iterate-bytes-stream.js';
+   // Readers
+   import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+   import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+   // Writers
+   import { writerFromIterator } from '@endo/exo-stream/writer-from-iterator.js';
+   import { iterateWriter } from '@endo/exo-stream/iterate-writer.js';
+
+   // Bytes Readers
+   import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+   import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+
+   // Bytes Writers
+   import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
+   import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
    ```
 
-3. **Async consumer functions**: `iterateStream` and `iterateBytesStream` are
-   async (return `Promise<AsyncIterableIterator>`) because they call `stream()`
-   first.
+3. **Synchronous consumer functions**: `iterateReader` and
+   `iterateBytesReader` return `AsyncIterableIterator` directly (not
+   wrapped in a Promise).
 
-4. **New options**: Consumer functions accept options for buffering and pattern validation:
+4. **New options**: Consumer functions accept options for buffering
+   and pattern validation:
    ```javascript
-   const reader = iterateStream(streamRef, { buffer: 3, pattern: M.number() });
+   import { M } from '@endo/patterns';
+   const reader = iterateReader(readerRef, {
+     buffer: 3,
+     readPattern: M.number(),
+   });
    ```
 
 ## Migration Examples
 
-### Producer: Creating stream references
+### Producer: Creating reader references
 
 ```javascript
 // Before (daemon)
@@ -62,8 +106,8 @@ import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
 followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
 
 // After (exo-stream)
-import { streamIterator } from '@endo/exo-stream/stream-iterator.js';
-followNameChanges: () => streamIterator(directory.followNameChanges()),
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+followNameChanges: () => readerFromIterator(directory.followNameChanges()),
 ```
 
 ```javascript
@@ -72,11 +116,11 @@ import { makeReaderRef } from '@endo/daemon/reader-ref.js';
 const blobRef = makeReaderRef(bytesIterator);
 
 // After (exo-stream)
-import { streamBytesIterator } from '@endo/exo-stream/stream-bytes-iterator.js';
-const blobRef = streamBytesIterator(bytesIterator);
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+const blobRef = bytesReaderFromIterator(bytesIterator);
 ```
 
-### Consumer: Iterating stream references
+### Consumer: Iterating reader references
 
 ```javascript
 // Before (daemon)
@@ -86,9 +130,9 @@ for await (const message of makeRefIterator(E(powers).followMessages())) {
 }
 
 // After (exo-stream)
-import { iterateStream } from '@endo/exo-stream/iterate-stream.js';
-for await (const message of iterateStream(E(powers).followMessages())) {
-  // Note: await before for-await because iterateStream is async
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+for await (const message of iterateReader(E(powers).followMessages())) {
+  // ...
 }
 ```
 
@@ -100,33 +144,53 @@ for await (const chunk of makeRefReader(blobRef)) {
 }
 
 // After (exo-stream)
-import { iterateBytesStream } from '@endo/exo-stream/iterate-bytes-stream.js';
-for await (const chunk of await iterateBytesStream(blobRef)) {
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+for await (const chunk of iterateBytesReader(blobRef)) {
   // chunk is Uint8Array
 }
+```
+
+### Writer: Sending data to a remote consumer
+
+```javascript
+// After (exo-stream) — no daemon equivalent
+import { writerFromIterator } from '@endo/exo-stream/writer-from-iterator.js';
+import { iterateWriter } from '@endo/exo-stream/iterate-writer.js';
+import { makePipe } from '@endo/stream';
+
+// Responder: wrap a local sink as a PassableWriter
+const [pipeReader, pipeWriter] = makePipe();
+const writerRef = writerFromIterator(pipeWriter);
+
+// Initiator: send data from a local iterator to remote PassableWriter
+await iterateWriter(writerRef, localDataIterator);
 ```
 
 ## Files Migrated
 
 ### Daemon Package
-- ✅ `src/directory.js` - Uses `streamIterator`
-- ✅ `src/host.js` - Uses `streamIterator`
-- ✅ `src/guest.js` - Uses `streamIterator`
-- ✅ `src/daemon.js` - Uses `iterateBytesStream`
-- ✅ `src/daemon-node-powers.js` - Uses `streamBytesIterator`
-- ✅ `reader-ref.js` - REMOVED
-- ✅ `ref-reader.js` - REMOVED
+
+- `src/directory.js` - Uses `readerFromIterator`
+- `src/host.js` - Uses `readerFromIterator`
+- `src/guest.js` - Uses `readerFromIterator`
+- `src/daemon.js` - Uses `iterateBytesReader`
+- `src/daemon-node-powers.js` - Uses `bytesReaderFromIterator`
+- `reader-ref.js` - REMOVED
+- `ref-reader.js` - REMOVED
 
 ### CLI Package
-- ✅ `src/commands/bundle.js` - Uses `streamBytesIterator`
-- ✅ `src/commands/cat.js` - Uses `iterateBytesStream`
-- ✅ `src/commands/follow.js` - Uses `iterateStream`
-- ✅ `src/commands/inbox.js` - Uses `iterateStream`
-- ✅ `src/commands/install.js` - Uses `streamBytesIterator`
-- ✅ `src/commands/list.js` - Uses `iterateStream`
-- ✅ `src/commands/make.js` - Uses `streamBytesIterator`
-- ✅ `src/commands/store.js` - Uses `streamBytesIterator`
-- ✅ `demo/cat.js` - Uses `iterateStream`
+
+- `src/commands/bundle.js` - Uses `bytesReaderFromIterator`
+- `src/commands/cat.js` - Uses `iterateBytesReader`
+- `src/commands/follow.js` - Uses `iterateReader`
+- `src/commands/inbox.js` - Uses `iterateReader`
+- `src/commands/install.js` - Uses `bytesReaderFromIterator`
+- `src/commands/list.js` - Uses `iterateReader`
+- `src/commands/make.js` - Uses `bytesReaderFromIterator`
+- `src/commands/store.js` - Uses `bytesReaderFromIterator`
+- `demo/cat.js` - Uses `iterateReader`
 
 ### Tests
-- ✅ `daemon/test/endo.test.js` - Uses `iterateStream` and `iterateBytesStream`
+
+- `daemon/test/endo.test.js` - Uses `iterateReader` and
+  `iterateBytesReader`
