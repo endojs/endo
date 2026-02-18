@@ -7,53 +7,31 @@ import { mustMatch } from '@endo/patterns';
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef } from '@endo/far' */
 /** @import { Pattern } from '@endo/patterns' */
-/** @import { Stream } from '@endo/stream' */
-/** @import { PassableStream, StreamNode } from './stream-iterator.js' */
+/** @import { PassableReader, StreamNode, IterateReaderOptions } from './types.js' */
 
 const { freeze } = Object;
 
 /**
- * Options for iterateStream.
+ * Convert a remote PassableReader reference to a local iterator (Initiator/Consumer side).
  *
- * TODO: Future work should either:
- * 1. Constrain Pattern types based on template parameters (Pattern<TRead> etc.), or
- * 2. Infer template types from provided patterns.
- * The latter requires patterns to express more template arguments for terminal
- * nodes like remotables, symbols, and other non-primitive passables.
+ * This creates a Reader stream where:
+ * - Synchronization values are `undefined` (flow control only - "give me more")
+ * - Acknowledgement values are `TRead` (actual data from the responder)
  *
- * @template [TRead=Passable]
- * @template [TWrite=undefined]
- * @template [TReadReturn=undefined]
- * @template [TWriteReturn=unknown]
- * @typedef {object} IterateStreamOptions
- * @property {number} [buffer] - Number of values to pre-synchronize (default 1)
- * @property {Pattern} [readPattern] - Pattern to validate TRead (yielded values)
- * @property {Pattern} [readReturnPattern] - Pattern to validate TReadReturn (return value)
- */
-
-/**
- * Convert a remote PassableStream reference to a local Stream (Initiator side).
- *
- * For a Reader, this is the Consumer: it initiates streaming and consumes
- * values from the remote Responder/Producer.
+ * The Consumer initiates streaming and consumes values from the remote
+ * Responder/Producer.
  *
  * Uses the bidirectional promise chain protocol for streaming with flow control.
- * With buffer > 1, nodes propagate via CapTP before I/O yields, keeping the responder busy.
- *
- * The returned iterator supports bidirectional value flow:
- * - next(value) sends value upstream to the responder (like generator.next(value))
- * - return(value) closes the stream and sends a final value upstream
+ * With buffer > 0, nodes propagate via CapTP before I/O yields, keeping the responder busy.
  *
  * @template [TRead=Passable]
- * @template [TWrite=undefined]
  * @template [TReadReturn=undefined]
- * @template [TWriteReturn=unknown]
- * @param {ERef<PassableStream<TRead, TWrite, TReadReturn, TWriteReturn>>} streamRef
- * @param {IterateStreamOptions<TRead, TWrite, TReadReturn, TWriteReturn>} [options]
- * @returns {Stream<TRead, TWrite, TReadReturn, TWriteReturn>}
+ * @param {ERef<PassableReader<TRead, TReadReturn>>} readerRef
+ * @param {IterateReaderOptions<TRead, TReadReturn>} [options]
+ * @returns {AsyncIterableIterator<TRead, TReadReturn>}
  */
-export const iterateStream = (streamRef, options = {}) => {
-  const { buffer = 1, readPattern, readReturnPattern } = options;
+export const iterateReader = (readerRef, options = {}) => {
+  const { buffer = 0, readPattern, readReturnPattern } = options;
 
   // Create synchronize chain - we hold the resolver
   const { promise: synHead, resolve: initialSynResolve } = makePromiseKit();
@@ -68,7 +46,7 @@ export const iterateStream = (streamRef, options = {}) => {
 
   // Call stream() - returns a promise for the acknowledge chain head
   /** @type {Promise<StreamNode<TRead, TReadReturn>>} */
-  let nodePromise = E(streamRef).stream(synHead);
+  let nodePromise = E(readerRef).stream(synHead);
 
   // Track if we're done
   let done = false;
@@ -76,13 +54,14 @@ export const iterateStream = (streamRef, options = {}) => {
   // Track how many pre-buffered acks remain
   let preBufferRemaining = buffer;
 
-  /** @type {Stream<TRead, TWrite, TReadReturn, TWriteReturn>} */
-  // @ts-expect-error Stream type matching is complex
+  /** @type {AsyncIterableIterator<TRead, TReadReturn>} */
+  // @ts-expect-error Iterator type matching is complex
   const iterator = harden({
     /**
-     * @param {TWrite} [synValue] - Optional value to send upstream
+     * Request the next value from the stream.
+     * For Reader streams, syn is always undefined (flow control only).
      */
-    async next(synValue) {
+    async next() {
       if (done) {
         return harden({ done: true, value: undefined });
       }
@@ -90,9 +69,9 @@ export const iterateStream = (streamRef, options = {}) => {
       // With pre-buffering, acks are available before syncs are needed.
       // Without pre-buffering (buffer=0), we must send sync BEFORE awaiting ack.
       if (preBufferRemaining === 0) {
-        // Send sync first to unblock the responder
+        // Send sync first to unblock the responder (undefined for Reader)
         const { promise, resolve } = makePromiseKit();
-        synResolve(freeze({ value: synValue, promise }));
+        synResolve(freeze({ value: undefined, promise }));
         synResolve = resolve;
       }
 
@@ -125,7 +104,7 @@ export const iterateStream = (streamRef, options = {}) => {
       if (preBufferRemaining > 0) {
         preBufferRemaining -= 1;
         const { promise, resolve } = makePromiseKit();
-        synResolve(freeze({ value: synValue, promise }));
+        synResolve(freeze({ value: undefined, promise }));
         synResolve = resolve;
       }
 
@@ -138,10 +117,14 @@ export const iterateStream = (streamRef, options = {}) => {
       return harden({ done: false, value });
     },
 
+    /**
+     * Close the stream early. The responder will call iterator.return() for cleanup.
+     * @param {TReadReturn} [value] - Optional return value
+     */
     async return(value) {
       done = true;
-      // Signal close to responder with final value
-      synResolve(freeze({ value, promise: null }));
+      // Signal close to responder (syn value is undefined for Reader)
+      synResolve(freeze({ value: undefined, promise: null }));
       return harden({ done: true, value });
     },
 

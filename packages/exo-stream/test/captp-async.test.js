@@ -6,8 +6,8 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Far } from '@endo/far';
 import { makeCapTP, E } from '@endo/captp';
-import { streamIterator } from '../stream-iterator.js';
-import { iterateStream } from '../iterate-stream.js';
+import { readerFromIterator } from '../reader-from-iterator.js';
+import { iterateReader } from '../iterate-reader.js';
 
 /**
  * Create a CapTP bridge with async message dispatch.
@@ -68,24 +68,24 @@ const makeAsyncCapTPBridge = (name, bootstrap) => {
   };
 };
 
-test('async-captp: single-item stream', async t => {
+test('async-captp: single-item reader', async t => {
   async function* singleItem() {
     yield harden({ msg: 'hello' });
   }
 
-  const localStream = streamIterator(singleItem());
+  const localReader = readerFromIterator(singleItem());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeAsyncCapTPBridge('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const r1 = await reader.next();
   t.false(r1.done);
@@ -95,24 +95,24 @@ test('async-captp: single-item stream', async t => {
   t.true(r2.done);
 });
 
-test('async-captp: empty stream', async t => {
+test('async-captp: empty reader', async t => {
   async function* emptyGen() {
     // yields nothing
   }
 
-  const localStream = streamIterator(emptyGen());
+  const localReader = readerFromIterator(emptyGen());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeAsyncCapTPBridge('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const results = [];
   for await (const value of reader) {
@@ -122,26 +122,26 @@ test('async-captp: empty stream', async t => {
   t.is(results.length, 0);
 });
 
-test('async-captp: multi-item stream', async t => {
+test('async-captp: multi-item reader', async t => {
   async function* multiItem() {
     yield harden({ n: 1 });
     yield harden({ n: 2 });
     yield harden({ n: 3 });
   }
 
-  const localStream = streamIterator(multiItem());
+  const localReader = readerFromIterator(multiItem());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeAsyncCapTPBridge('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const results = [];
   for await (const value of reader) {

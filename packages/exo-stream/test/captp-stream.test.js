@@ -7,8 +7,8 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Far } from '@endo/far';
 import { makeCapTP, E } from '@endo/captp';
 import { makePipe } from '@endo/stream';
-import { streamIterator } from '../stream-iterator.js';
-import { iterateStream } from '../iterate-stream.js';
+import { readerFromIterator } from '../reader-from-iterator.js';
+import { iterateReader } from '../iterate-reader.js';
 
 /**
  * Create a CapTP connection using stream-based message passing.
@@ -55,24 +55,24 @@ const makeStreamCapTP = (name, bootstrap) => {
   };
 };
 
-test('stream-captp: single-item stream', async t => {
+test('stream-captp: single-item reader', async t => {
   async function* singleItem() {
     yield harden({ msg: 'hello' });
   }
 
-  const localStream = streamIterator(singleItem());
+  const localReader = readerFromIterator(singleItem());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeStreamCapTP('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const r1 = await reader.next();
   t.false(r1.done);
@@ -82,24 +82,24 @@ test('stream-captp: single-item stream', async t => {
   t.true(r2.done);
 });
 
-test('stream-captp: empty stream', async t => {
+test('stream-captp: empty reader', async t => {
   async function* emptyGen() {
     // yields nothing
   }
 
-  const localStream = streamIterator(emptyGen());
+  const localReader = readerFromIterator(emptyGen());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeStreamCapTP('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const results = [];
   for await (const value of reader) {
@@ -109,26 +109,26 @@ test('stream-captp: empty stream', async t => {
   t.is(results.length, 0);
 });
 
-test('stream-captp: multi-item stream', async t => {
+test('stream-captp: multi-item reader', async t => {
   async function* multiItem() {
     yield harden({ n: 1 });
     yield harden({ n: 2 });
     yield harden({ n: 3 });
   }
 
-  const localStream = streamIterator(multiItem());
+  const localReader = readerFromIterator(multiItem());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeStreamCapTP('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const results = [];
   for await (const value of reader) {
@@ -146,31 +146,30 @@ test('stream-captp: return(value) matches native behavior', async t => {
     yield harden({ n: 3 });
   }
 
-  const localStream = streamIterator(generate());
+  const localReader = readerFromIterator(generate());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeStreamCapTP('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   // Get first value
   const first = await reader.next();
   t.deepEqual(first, { value: { n: 1 }, done: false });
 
-  // Call return('a') - should return the passed value (matching native generator behavior)
+  // Call return() to close the reader early
   assert(reader.return, 'iterator should have return method');
-  const returned = await reader.return('a');
-  t.deepEqual(returned, { value: 'a', done: true });
+  const returned = await reader.return();
+  t.deepEqual(returned, { value: undefined, done: true });
 
-  // Subsequent calls to return() return undefined
-  // @ts-expect-error - Testing runtime behavior: return() without args
+  // Subsequent calls to return() also return done
   const returned2 = await reader.return();
   t.deepEqual(returned2, { value: undefined, done: true });
 

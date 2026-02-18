@@ -8,8 +8,8 @@ import { Far } from '@endo/far';
 import { makeCapTP, E } from '@endo/captp';
 import { makePipe, makeQueue } from '@endo/stream';
 import { makePromiseKit } from '@endo/promise-kit';
-import { streamIterator } from '../stream-iterator.js';
-import { iterateStream } from '../iterate-stream.js';
+import { readerFromIterator } from '../reader-from-iterator.js';
+import { iterateReader } from '../iterate-reader.js';
 
 /**
  * Create a CapTP connection using stream-based message passing.
@@ -86,7 +86,7 @@ test('subscription-captp: simple trigger case', async t => {
   }
 
   const host = Far('Host', {
-    followChanges: () => streamIterator(followChanges()),
+    followChanges: () => readerFromIterator(followChanges()),
     fire: () => fire(undefined),
   });
 
@@ -101,7 +101,7 @@ test('subscription-captp: simple trigger case', async t => {
 
   const remoteHost = await E(remoteBootstrap).getHost();
 
-  const changesIterator = iterateStream(E(remoteHost).followChanges());
+  const changesIterator = iterateReader(E(remoteHost).followChanges());
 
   const v1 = await changesIterator.next();
   t.false(v1.done);
@@ -131,7 +131,7 @@ test('subscription-captp: long-lived subscription', async t => {
 
   const host = Far('Host', {
     list: () => ['MAIN', 'SELF'],
-    followNameChanges: () => streamIterator(followNameChanges()),
+    followNameChanges: () => readerFromIterator(followNameChanges()),
     addName: name => {
       nameChangesTopic.publish(harden({ add: name }));
     },
@@ -150,7 +150,12 @@ test('subscription-captp: long-lived subscription', async t => {
   const existingNames = await E(remoteHost).list();
   t.deepEqual(existingNames, ['MAIN', 'SELF']);
 
-  const changesIterator = iterateStream(E(remoteHost).followNameChanges());
+  // buffer=1 so the generator advances past subscribe() before addName is called.
+  // With buffer=0 (fully synchronized), the generator wouldn't subscribe until
+  // after the third next() call, causing addName to publish to no subscribers.
+  const changesIterator = iterateReader(E(remoteHost).followNameChanges(), {
+    buffer: 1,
+  });
 
   const v1 = await changesIterator.next();
   t.false(v1.done);
@@ -180,7 +185,7 @@ test('subscription-captp: subscription with pre-ack buffer', async t => {
 
   const host = Far('Host', {
     list: () => ['MAIN'],
-    followNameChanges: () => streamIterator(followNameChanges()),
+    followNameChanges: () => readerFromIterator(followNameChanges()),
     addName: name => {
       nameChangesTopic.publish(harden({ add: name }));
     },
@@ -197,7 +202,7 @@ test('subscription-captp: subscription with pre-ack buffer', async t => {
 
   const remoteHost = await E(remoteBootstrap).getHost();
 
-  const changesIterator = iterateStream(E(remoteHost).followNameChanges(), {
+  const changesIterator = iterateReader(E(remoteHost).followNameChanges(), {
     buffer: 3,
   });
 
@@ -217,7 +222,7 @@ test('subscription-captp: subscription with pre-ack buffer', async t => {
 test('subscription-captp: early close stops subscription', async t => {
   const host = Far('Host', {
     followNameChanges: () =>
-      streamIterator(
+      readerFromIterator(
         (async function* followNameChanges() {
           yield harden({ add: 'MAIN' });
           yield harden({ add: 'SECOND' });
@@ -235,7 +240,7 @@ test('subscription-captp: early close stops subscription', async t => {
   const remoteBootstrap = getBootstrap();
 
   const remoteHost = await E(remoteBootstrap).getHost();
-  const changesIterator = iterateStream(E(remoteHost).followNameChanges());
+  const changesIterator = iterateReader(E(remoteHost).followNameChanges());
 
   // Get first value
   const r1 = await changesIterator.next();
@@ -244,7 +249,6 @@ test('subscription-captp: early close stops subscription', async t => {
 
   // Early close
   assert(changesIterator.return, 'iterator should have return method');
-  // @ts-expect-error - Testing runtime behavior: return() without args
   await changesIterator.return();
 
   // Should be done after return()
