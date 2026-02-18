@@ -2,4 +2,4 @@
 "@endo/compartment-mapper": patch
 ---
 
-fix(compartment-mapper): Infer module type from the import key in package.json exports (#3055)
+- Introduces additional signal to consider an export from a package an ESM module when it's selected via an `import` key in `exports` in package.json in case no other indication of it being an ESM module is present.
