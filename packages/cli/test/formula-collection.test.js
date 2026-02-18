@@ -37,9 +37,7 @@ test.serial('terminates worker retaining collected value (cli)', async t => {
     await execa`endo remove retained-host`;
     // The eval fails because the worker was terminated due to collection.
     // The CLI exits with non-zero code, so catch the error and check stderr.
-    const error = await t.throwsAsync(
-      execa`endo eval --worker worker ${'1'}`,
-    );
+    const error = await t.throwsAsync(execa`endo eval --worker worker ${'1'}`);
     t.regex(
       error.stderr,
       /became unreachable by any pet name path and was collected/,
