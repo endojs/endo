@@ -1,5 +1,5 @@
 /**
- * Tests using CapTP with async generators wrapped in streamIterator,
+ * Tests using CapTP with async generators wrapped in readerFromIterator,
  * similar to how the daemon uses followNameChanges.
  */
 import test from '@endo/ses-ava/prepare-endo.js';
@@ -7,8 +7,8 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Far } from '@endo/far';
 import { makeCapTP, E } from '@endo/captp';
 import { makePipe } from '@endo/stream';
-import { streamIterator } from '../stream-iterator.js';
-import { iterateStream } from '../iterate-stream.js';
+import { readerFromIterator } from '../reader-from-iterator.js';
+import { iterateReader } from '../iterate-reader.js';
 
 /**
  * Create a CapTP connection using stream-based message passing.
@@ -50,7 +50,7 @@ const makeStreamCapTP = (name, bootstrap) => {
 
 /**
  * Creates a "host" like the daemon does.
- * The host has a followNameChanges method that returns a stream.
+ * The host has a followNameChanges method that returns a reader.
  */
 const makeHost = () => {
   async function* followNameChanges() {
@@ -65,7 +65,7 @@ const makeHost = () => {
 
   const hostExo = Far('Host', {
     list: () => host.list(),
-    followNameChanges: () => streamIterator(host.followNameChanges()),
+    followNameChanges: () => readerFromIterator(host.followNameChanges()),
   });
 
   return hostExo;
@@ -88,7 +88,7 @@ test('generator-captp: follow name changes pattern', async t => {
   const existingNames = await E(host).list();
   t.deepEqual(existingNames, ['MAIN', 'SELF']);
 
-  const changesIterator = iterateStream(E(host).followNameChanges());
+  const changesIterator = iterateReader(E(host).followNameChanges());
 
   const values = [];
   const nameCount = /** @type {string[]} */ (existingNames).length;
@@ -122,7 +122,7 @@ test('generator-captp: follow name changes with takeCount helper', async t => {
   const host = await E(remoteBootstrap).getHost();
   const existingNames = await E(host).list();
 
-  const changesIterator = iterateStream(E(host).followNameChanges());
+  const changesIterator = iterateReader(E(host).followNameChanges());
 
   const values = [];
   let remaining = /** @type {string[]} */ (existingNames).length;
@@ -148,19 +148,19 @@ test('generator-captp: long running generator', async t => {
     }
   }
 
-  const localStream = streamIterator(counterGen());
+  const localReader = readerFromIterator(counterGen());
 
   const bootstrap = Far('bootstrap', {
-    getStream() {
-      return localStream;
+    getReader() {
+      return localReader;
     },
   });
 
   const { getBootstrap } = makeStreamCapTP('test', bootstrap);
   const remoteBootstrap = getBootstrap();
 
-  const remoteStream = await E(remoteBootstrap).getStream();
-  const reader = iterateStream(remoteStream);
+  const remoteReader = await E(remoteBootstrap).getReader();
+  const reader = iterateReader(remoteReader);
 
   const values = [];
   for await (const value of reader) {

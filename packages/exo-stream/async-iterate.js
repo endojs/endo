@@ -1,20 +1,6 @@
 // @ts-check
 
-/**
- * A type that can be iterated asynchronously.
- * Mirrors Stream<TRead, TWrite, TReadReturn, TWriteReturn> template parameters.
- * The `@endo/stream` Stream type is also accepted since it extends AsyncIterator.
- *
- * @template TRead
- * @template [TWrite=undefined]
- * @template [TReadReturn=unknown]
- * @template [TWriteReturn=unknown]
- * @typedef {AsyncIterable<TRead, TReadReturn, TWrite>
- *   | Iterable<TRead, TReadReturn, TWrite>
- *   | AsyncIterator<TRead, TReadReturn, TWrite>
- *   | Iterator<TRead, TReadReturn, TWrite>
- * } SomehowAsyncIterable
- */
+/** @import { SomehowAsyncIterable } from './types.js' */
 
 /**
  * Returns the iterator for the given iterable object.

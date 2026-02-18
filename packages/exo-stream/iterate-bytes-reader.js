@@ -7,32 +7,9 @@ import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef } from '@endo/far' */
-/** @import { PassableBytesReader } from './stream-bytes-iterator.js' */
-/** @import { StreamNode } from './stream-iterator.js' */
-/** @import { Pattern } from '@endo/patterns' */
+/** @import { PassableBytesReader, StreamNode, IterateBytesReaderOptions } from './types.js' */
 
 const { freeze } = Object;
-
-/**
- * Options for iterateBytesStream.
- * TRead is fixed to Uint8Array.
- *
- * TODO: Future work should either:
- * 1. Constrain Pattern types based on template parameters (Pattern<TReadReturn>), or
- * 2. Infer template types from provided patterns.
- * The latter requires patterns to express more template arguments for terminal
- * nodes like remotables, symbols, and other non-primitive passables.
- *
- * @template [TReadReturn=undefined]
- * @typedef {object} IterateBytesStreamOptions
- * @property {number} [buffer] - Number of values to pre-synchronize (default 1)
- * @property {Pattern} [readReturnPattern] - Pattern for TReadReturn (return value)
- * @property {number} [stringLengthLimit] - Maximum length for base64-encoded
- *   chunks in characters. The default is 100,000 (from @endo/patterns default
- *   limits). Increase this for large payloads like bundles. Note: base64
- *   encoding increases size by ~33%, so a 75KB binary payload becomes ~100KB
- *   of base64 text.
- */
 
 /**
  * Convert a remote PassableBytesReader reference to a local AsyncIterableIterator<Uint8Array>
@@ -43,22 +20,22 @@ const { freeze } = Object;
  *
  * Base64 strings are automatically decoded to bytes.
  * Uses the bidirectional promise chain protocol for streaming with flow control.
- * With buffer > 1, nodes propagate via CapTP before I/O yields, keeping the responder busy.
+ * With buffer > 0, nodes propagate via CapTP before I/O yields, keeping the responder busy.
  *
  * Calls streamBase64() on the responder, which allows future migration to direct
  * bytes transport when CapTP supports it. At that time, bytes-streamable Exos can
  * implement stream() directly, and initiators can gracefully transition to using
- * iterateStream() instead of iterateBytesStream().
+ * iterateReader() instead of iterateBytesReader().
  *
  * The interface implies Uint8Array yields. Only readReturnPattern can be customized.
  *
- * @param {ERef<PassableBytesReader>} bytesStreamRef
- * @param {IterateBytesStreamOptions} [options]
- * @returns {Promise<AsyncIterableIterator<Uint8Array>>}
+ * @param {ERef<PassableBytesReader>} bytesReaderRef
+ * @param {IterateBytesReaderOptions} [options]
+ * @returns {AsyncIterableIterator<Uint8Array>}
  */
-export const iterateBytesStream = async (bytesStreamRef, options = {}) => {
+export const iterateBytesReader = (bytesReaderRef, options = {}) => {
   const {
-    buffer = 1,
+    buffer = 0,
     readReturnPattern,
     stringLengthLimit = undefined,
   } = options;
@@ -76,19 +53,28 @@ export const iterateBytesStream = async (bytesStreamRef, options = {}) => {
 
   // Call streamBase64() - returns a promise for the acknowledge chain head
   /** @type {Promise<StreamNode<string, Passable>>} */
-  let nodePromise = E(bytesStreamRef).streamBase64(synHead);
+  let nodePromise = E(bytesReaderRef).streamBase64(synHead);
 
   // Track if we're done
   let done = false;
 
+  // Track how many pre-buffered acks remain
+  let preBufferRemaining = buffer;
+
   /** @type {AsyncIterableIterator<Uint8Array>} */
   const iterator = harden({
-    /**
-     * @param {Passable} [synValue] - Optional value to send upstream
-     */
-    async next(synValue) {
+    async next() {
       if (done) {
         return harden({ done: true, value: undefined });
+      }
+
+      // With pre-buffering, acks are available before syncs are needed.
+      // Without pre-buffering (buffer=0), we must send sync BEFORE awaiting ack.
+      if (preBufferRemaining === 0) {
+        // Send sync first to unblock the responder (always undefined for flow control)
+        const { promise, resolve } = makePromiseKit();
+        synResolve(freeze({ value: undefined, promise }));
+        synResolve = resolve;
       }
 
       // Await the current node
@@ -123,10 +109,13 @@ export const iterateBytesStream = async (bytesStreamRef, options = {}) => {
       // Decode base64 to Uint8Array
       const value = decodeBase64(/** @type {string} */ (base64Value));
 
-      // Send synchronize (with optional value) to induce next value
-      const { promise, resolve } = makePromiseKit();
-      synResolve(freeze({ value: synValue, promise }));
-      synResolve = resolve;
+      // With pre-buffering, send sync AFTER consuming ack to maintain the pipeline
+      if (preBufferRemaining > 0) {
+        preBufferRemaining -= 1;
+        const { promise, resolve } = makePromiseKit();
+        synResolve(freeze({ value: undefined, promise }));
+        synResolve = resolve;
+      }
 
       // Store the next node promise for next iteration
       nodePromise = /** @type {Promise<StreamNode<string, Passable>>} */ (
@@ -138,8 +127,8 @@ export const iterateBytesStream = async (bytesStreamRef, options = {}) => {
 
     async return(value) {
       done = true;
-      // Signal close to responder with final value
-      synResolve(freeze({ value, promise: null }));
+      // Signal close to responder
+      synResolve(freeze({ value: undefined, promise: null }));
       return harden({ done: true, value });
     },
 

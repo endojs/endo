@@ -1,25 +1,30 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeLoopback } from '@endo/captp';
-import { streamIterator } from '../stream-iterator.js';
-import { iterateStream } from '../iterate-stream.js';
-import { streamBytesIterator } from '../stream-bytes-iterator.js';
-import { iterateBytesStream } from '../iterate-bytes-stream.js';
+import { makePipe } from '@endo/stream';
+import { readerFromIterator } from '../reader-from-iterator.js';
+import { iterateReader } from '../iterate-reader.js';
+import { bytesReaderFromIterator } from '../bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '../iterate-bytes-reader.js';
+import { writerFromIterator } from '../writer-from-iterator.js';
+import { iterateWriter } from '../iterate-writer.js';
+import { bytesWriterFromIterator } from '../bytes-writer-from-iterator.js';
+import { iterateBytesWriter } from '../iterate-bytes-writer.js';
 
-// Test passable stream over CapTP membrane
-test('captp: single-item passable stream', async t => {
+// Test passable reader over CapTP membrane
+test('captp: single-item passable reader', async t => {
   const { makeFar } = makeLoopback('test');
 
   async function* singleItem() {
     yield harden({ type: 'message', text: 'hello' });
   }
 
-  // Create stream on "remote" side
-  const localStream = streamIterator(singleItem());
-  const remoteStream = await makeFar(localStream);
+  // Create reader on "remote" side
+  const localReader = readerFromIterator(singleItem());
+  const remoteReader = await makeFar(localReader);
 
   // Consume on "local" side through CapTP
-  const reader = iterateStream(remoteStream);
+  const reader = iterateReader(remoteReader);
 
   const result1 = await reader.next();
   t.false(result1.done);
@@ -29,18 +34,18 @@ test('captp: single-item passable stream', async t => {
   t.true(result2.done);
 });
 
-// Test empty stream over CapTP
-test('captp: empty passable stream', async t => {
+// Test empty reader over CapTP
+test('captp: empty passable reader', async t => {
   const { makeFar } = makeLoopback('test');
 
   async function* emptyIterator() {
     // yields nothing
   }
 
-  const localStream = streamIterator(emptyIterator());
-  const remoteStream = await makeFar(localStream);
+  const localReader = readerFromIterator(emptyIterator());
+  const remoteReader = await makeFar(localReader);
 
-  const reader = iterateStream(remoteStream);
+  const reader = iterateReader(remoteReader);
 
   const results = [];
   for await (const value of reader) {
@@ -50,8 +55,8 @@ test('captp: empty passable stream', async t => {
   t.is(results.length, 0);
 });
 
-// Test multi-item stream over CapTP
-test('captp: multi-item passable stream', async t => {
+// Test multi-item reader over CapTP
+test('captp: multi-item passable reader', async t => {
   const { makeFar } = makeLoopback('test');
 
   async function* multiItem() {
@@ -60,10 +65,10 @@ test('captp: multi-item passable stream', async t => {
     yield harden({ n: 3 });
   }
 
-  const localStream = streamIterator(multiItem());
-  const remoteStream = await makeFar(localStream);
+  const localReader = readerFromIterator(multiItem());
+  const remoteReader = await makeFar(localReader);
 
-  const reader = iterateStream(remoteStream);
+  const reader = iterateReader(remoteReader);
 
   const results = [];
   for await (const value of reader) {
@@ -73,16 +78,16 @@ test('captp: multi-item passable stream', async t => {
   t.deepEqual(results, [{ n: 1 }, { n: 2 }, { n: 3 }]);
 });
 
-// Test bytes stream over CapTP
-test('captp: bytes stream', async t => {
+// Test bytes reader over CapTP
+test('captp: bytes reader', async t => {
   const { makeFar } = makeLoopback('test');
 
   const chunks = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])];
 
-  const localStream = streamBytesIterator(chunks);
-  const remoteStream = await makeFar(localStream);
+  const localReader = bytesReaderFromIterator(chunks);
+  const remoteReader = await makeFar(localReader);
 
-  const reader = await iterateBytesStream(remoteStream);
+  const reader = await iterateBytesReader(remoteReader);
 
   const results = [];
   for await (const chunk of reader) {
@@ -94,8 +99,8 @@ test('captp: bytes stream', async t => {
   t.deepEqual(results[1], new Uint8Array([4, 5, 6]));
 });
 
-// Test stream with buffering over CapTP
-test('captp: stream with buffer', async t => {
+// Test reader with buffering over CapTP
+test('captp: reader with buffer', async t => {
   const { makeFar } = makeLoopback('test');
 
   async function* items() {
@@ -104,10 +109,10 @@ test('captp: stream with buffer', async t => {
     yield harden({ n: 3 });
   }
 
-  const localStream = streamIterator(items());
-  const remoteStream = await makeFar(localStream);
+  const localReader = readerFromIterator(items());
+  const remoteReader = await makeFar(localReader);
 
-  const reader = iterateStream(remoteStream, { buffer: 3 });
+  const reader = iterateReader(remoteReader, { buffer: 3 });
 
   const results = [];
   for await (const value of reader) {
@@ -129,10 +134,10 @@ test('captp: early close', async t => {
     }
   }
 
-  const localStream = streamIterator(manyItems());
-  const remoteStream = await makeFar(localStream);
+  const localReader = readerFromIterator(manyItems());
+  const remoteReader = await makeFar(localReader);
 
-  const reader = iterateStream(remoteStream);
+  const reader = iterateReader(remoteReader);
 
   // Only consume first 3 items
   const r1 = await reader.next();
@@ -149,9 +154,144 @@ test('captp: early close', async t => {
 
   // Close early
   assert(reader.return, 'iterator should have return method');
-  // @ts-expect-error - Testing runtime behavior: return() without args
   await reader.return();
 
   // Producer should not have yielded all 100 items
   t.true(yielded < 100);
+});
+
+// Test writer over CapTP
+test('captp: writer round-trip', async t => {
+  const { makeFar } = makeLoopback('test');
+
+  const values = [
+    harden({ type: 'message', text: 'hello' }),
+    harden({ type: 'data', value: 42 }),
+  ];
+
+  async function* source() {
+    for (const v of values) {
+      yield v;
+    }
+  }
+
+  const [pipeReader, pipeWriter] = makePipe();
+  const localWriter = writerFromIterator(pipeWriter);
+  const remoteWriter = await makeFar(localWriter);
+
+  const sendDone = iterateWriter(remoteWriter, source());
+
+  const results = [];
+  for await (const value of pipeReader) {
+    results.push(value);
+  }
+
+  await sendDone;
+
+  t.deepEqual(results, values);
+});
+
+// Test writer with buffering over CapTP
+test('captp: writer with buffer', async t => {
+  const { makeFar } = makeLoopback('test');
+
+  const values = [harden({ n: 1 }), harden({ n: 2 }), harden({ n: 3 })];
+
+  async function* source() {
+    for (const v of values) {
+      yield v;
+    }
+  }
+
+  const [pipeReader, pipeWriter] = makePipe();
+  const localWriter = writerFromIterator(pipeWriter, { buffer: 2 });
+  const remoteWriter = await makeFar(localWriter);
+
+  const sendDone = iterateWriter(remoteWriter, source(), { buffer: 2 });
+
+  const results = [];
+  for await (const value of pipeReader) {
+    results.push(value);
+  }
+
+  await sendDone;
+
+  t.deepEqual(results, values);
+});
+
+// Test empty writer over CapTP
+test('captp: empty writer', async t => {
+  const { makeFar } = makeLoopback('test');
+
+  async function* emptySource() {
+    // yields nothing
+  }
+
+  const [pipeReader, pipeWriter] = makePipe();
+  const localWriter = writerFromIterator(pipeWriter);
+  const remoteWriter = await makeFar(localWriter);
+
+  const sendDone = iterateWriter(remoteWriter, emptySource());
+
+  const results = [];
+  for await (const value of pipeReader) {
+    results.push(value);
+  }
+
+  await sendDone;
+
+  t.is(results.length, 0);
+});
+
+// Test bytes writer over CapTP
+test('captp: bytes writer round-trip', async t => {
+  const { makeFar } = makeLoopback('test');
+
+  const chunks = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])];
+
+  const [pipeReader, pipeWriter] = makePipe();
+  const localWriter = bytesWriterFromIterator(pipeWriter);
+  const remoteWriter = await makeFar(localWriter);
+
+  const sendDone = iterateBytesWriter(remoteWriter, chunks);
+
+  const results = [];
+  for await (const value of pipeReader) {
+    results.push(value);
+  }
+
+  await sendDone;
+
+  t.is(results.length, 2);
+  t.deepEqual(results[0], new Uint8Array([1, 2, 3]));
+  t.deepEqual(results[1], new Uint8Array([4, 5, 6]));
+});
+
+// Test bytes writer with buffering over CapTP
+test('captp: bytes writer with buffer', async t => {
+  const { makeFar } = makeLoopback('test');
+
+  const chunks = [
+    new Uint8Array([1]),
+    new Uint8Array([2]),
+    new Uint8Array([3]),
+  ];
+
+  const [pipeReader, pipeWriter] = makePipe();
+  const localWriter = bytesWriterFromIterator(pipeWriter, { buffer: 2 });
+  const remoteWriter = await makeFar(localWriter);
+
+  const sendDone = iterateBytesWriter(remoteWriter, chunks, { buffer: 2 });
+
+  const results = [];
+  for await (const value of pipeReader) {
+    results.push(value);
+  }
+
+  await sendDone;
+
+  t.is(results.length, 3);
+  t.deepEqual(results[0], new Uint8Array([1]));
+  t.deepEqual(results[1], new Uint8Array([2]));
+  t.deepEqual(results[2], new Uint8Array([3]));
 });

@@ -6,9 +6,9 @@ The exo-stream protocol provides non-lossy streams of passable data, with contro
 such that the producer does not overwhelm the consumer.
 
 The exo-stream protocol uses bidirectional promise chains for streaming over CapTP.
-By default, the protocol is fully synchronized and just as chatty as naive protocols,
-suitable for deliberate synchronization. With a buffer value in excess of 1, promise
-chain nodes propagate via CapTP before the event loop yields to I/O, keeping the
+By default, the protocol is fully synchronized (buffer=0) and just as chatty as naive
+protocols, suitable for deliberate synchronization. With a buffer value in excess of 0,
+promise chain nodes propagate via CapTP before the event loop yields to I/O, keeping the
 responder busy while the initiator consumes values:
 
 1. **Initiator** creates a "synchronization" promise chain and holds its resolver
@@ -33,13 +33,52 @@ in usage, because the protocol is symmetric.
 
 - For a **Reader**, the **Initiator** is the **Consumer** and the **Responder**
   is the **Producer**.
+  Data flows from responder to initiator on the acknowledgement chain.
+  The synchronization chain carries `undefined` (flow control only).
 - For a **Writer**, the **Initiator** is the **Producer** and the **Responder**
   is the **Consumer**.
+  Data flows from initiator to responder on the synchronization chain.
+  The acknowledgement chain carries `undefined` (flow control only).
 - We leave a void in the terminology for configurations where neither or both
   parties send data.
   **Duplex** passable streams are best modeled with a pair of unentangled
   reader and writer, even if they share a duplex connection for purposes of
   transport.
+
+## Module Structure
+
+Reader and writer modules are duals of each other — symmetric in structure,
+mirrored in data flow direction.
+
+### Reader Modules
+
+| Module | Function | Role |
+|--------|----------|------|
+| `reader-pump.js` | `makeReaderPump(iterator, options?)` | Core responder pump. Pulls from local iterator, produces ack data chain. |
+| `reader-from-iterator.js` | `readerFromIterator(iterator, options?)` | Responder: wraps local iterator as `PassableReader` Exo. |
+| `iterate-reader.js` | `iterateReader(readerRef, options?)` | Initiator: converts remote `PassableReader` to local `AsyncIterableIterator`. |
+
+### Writer Modules
+
+| Module | Function | Role |
+|--------|----------|------|
+| `writer-pump.js` | `makeWriterPump(iterator, options?)` | Core responder pump. Pushes received data to local sink iterator, produces ack flow-control chain. |
+| `writer-from-iterator.js` | `writerFromIterator(iterator, options?)` | Responder: wraps local sink iterator as `PassableWriter` Exo. |
+| `iterate-writer.js` | `iterateWriter(writerRef, iterator, options?)` | Initiator: sends local iterator data to remote `PassableWriter`. |
+
+### Bytes Reader Modules
+
+| Module | Function | Role |
+|--------|----------|------|
+| `bytes-reader-from-iterator.js` | `bytesReaderFromIterator(bytesIterator, options?)` | Responder: wraps `AsyncIterator<Uint8Array>` as `PassableBytesReader` Exo (base64 encoding). |
+| `iterate-bytes-reader.js` | `iterateBytesReader(bytesReaderRef, options?)` | Initiator: converts remote `PassableBytesReader` to local `AsyncIterableIterator<Uint8Array>` (base64 decoding). |
+
+### Bytes Writer Modules
+
+| Module | Function | Role |
+|--------|----------|------|
+| `bytes-writer-from-iterator.js` | `bytesWriterFromIterator(iterator, options?)` | Responder: wraps local sink iterator as `PassableBytesWriter` Exo (base64 decoding on receive). |
+| `iterate-bytes-writer.js` | `iterateBytesWriter(bytesWriterRef, bytesIterator, options?)` | Initiator: sends `Uint8Array` data to remote `PassableBytesWriter` (base64 encoding on send). |
 
 ## Protocol Flow
 
@@ -98,14 +137,34 @@ sequenceDiagram
   end
 ```
 
-### Bytes Stream Flow
+### Reader Flow
 
-1. **Responder** (`streamBytesIterator`):
+For a Reader, the synchronization chain carries `undefined` (flow control)
+and the acknowledgement chain carries `TRead` (data):
+
+- **Responder** (`readerFromIterator`): wraps a local `AsyncIterator<TRead>`,
+  pulls values and sends them on the ack chain.
+- **Initiator** (`iterateReader`): sends `undefined` syn nodes to request values,
+  receives data on the ack chain.
+
+### Writer Flow
+
+For a Writer, the synchronization chain carries `TWrite` (data)
+and the acknowledgement chain carries `undefined` (flow control):
+
+- **Responder** (`writerFromIterator`): wraps a local sink iterator,
+  receives data on the syn chain and pushes to the iterator via `iterator.next(value)`.
+- **Initiator** (`iterateWriter`): sends data from a local iterator on the syn chain,
+  receives `undefined` ack nodes as flow control.
+
+### Bytes Reader Flow
+
+1. **Responder** (`bytesReaderFromIterator`):
    - Takes `AsyncIterator<Uint8Array>`
    - Encodes each chunk to base64
-   - Creates exo with `streamBase64()` method
+   - Creates Exo with `streamBase64()` method
 
-2. **Initiator** (`iterateBytesStream`):
+2. **Initiator** (`iterateBytesReader`):
    - Creates synchronize chain
    - Calls `streamBase64(synHead)` to get acknowledge chain head
    - Sends synchronizes to induce production
@@ -114,6 +173,24 @@ sequenceDiagram
 3. **Transmission over CapTP**:
    - Synchronizes flow: initiator → responder (via synchronize promise chain)
    - Acknowledges flow: responder → initiator (via acknowledge promise chain)
+   - CapTP transmits resolved nodes opportunistically
+
+### Bytes Writer Flow
+
+1. **Initiator** (`iterateBytesWriter`):
+   - Takes local `AsyncIterator<Uint8Array>`
+   - Encodes each chunk to base64
+   - Sends base64 strings on the synchronize chain
+
+2. **Responder** (`bytesWriterFromIterator`):
+   - Creates Exo with `streamBase64()` method
+   - Receives base64 strings on the synchronize chain
+   - Decodes base64 to Uint8Array
+   - Pushes decoded bytes to local sink iterator
+
+3. **Transmission over CapTP**:
+   - Synchronizes flow: initiator → responder (base64 strings via synchronize promise chain)
+   - Acknowledges flow: responder → initiator (flow control via acknowledge promise chain)
    - CapTP transmits resolved nodes opportunistically
 
 ## Why E.get() Pipelining Works
@@ -140,9 +217,10 @@ The `streamBase64()` method exists to support graceful migration:
 
 1. **Current**: `streamBase64()` yields base64 strings
 2. **Future**: When CapTP supports binary, implement `stream()` yielding `Uint8Array`
-3. **Migration**: 
+3. **Migration**:
    - Responders implement both `stream()` and `streamBase64()`
-   - Initiators elect to migrate from using `iterateBytesStream()` to `iterateStream()`.
+   - Initiators elect to migrate from `iterateBytesReader()` to `iterateReader()`,
+     and from `iterateBytesWriter()` to `iterateWriter()`.
    - Eventually `streamBase64()` can be deprecated
 
 This allows bytes-streamable Exos to evolve without breaking existing initiators.
