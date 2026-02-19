@@ -1,166 +1,95 @@
-# Change Log
+# @endo/eventual-send
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [1.3.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.3...@endo/eventual-send@1.3.4) (2025-07-12)
+## [1.3.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.3...@endo/eventual-send@1.3.4) (2025-07-12)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.3.3](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.2...@endo/eventual-send@1.3.3) (2025-06-17)
+## [1.3.3](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.2...@endo/eventual-send@1.3.3) (2025-06-17)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.3.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.1...@endo/eventual-send@1.3.2) (2025-06-02)
+## [1.3.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.1...@endo/eventual-send@1.3.2) (2025-06-02)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.3.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.0...@endo/eventual-send@1.3.1) (2025-03-24)
+## [1.3.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.0...@endo/eventual-send@1.3.1) (2025-03-24)
 
 **Note:** Version bump only for package @endo/eventual-send
-
-
-
-
 
 ## [1.3.0](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.8...@endo/eventual-send@1.3.0) (2025-01-24)
-
 
 ### Features
 
 * EReturn type ([5aefe10](https://github.com/endojs/endo/commit/5aefe1032be33c70c097663a86f240c857dcd2a1))
 
-
-
-### [1.2.8](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.7...@endo/eventual-send@1.2.8) (2024-11-13)
+## [1.2.8](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.7...@endo/eventual-send@1.2.8) (2024-11-13)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.2.7](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.6...@endo/eventual-send@1.2.7) (2024-10-22)
+## [1.2.7](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.6...@endo/eventual-send@1.2.7) (2024-10-22)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.2.6](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.5...@endo/eventual-send@1.2.6) (2024-10-10)
+## [1.2.6](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.5...@endo/eventual-send@1.2.6) (2024-10-10)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.2.5](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.4...@endo/eventual-send@1.2.5) (2024-08-27)
-
+## [1.2.5](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.4...@endo/eventual-send@1.2.5) (2024-08-27)
 
 ### Bug Fixes
 
 * **types:** EProxy / Callable ([ea7e8cc](https://github.com/endojs/endo/commit/ea7e8cc7c0c61c68a8b93aebd51548c898f0ae1e))
 
-
-
-### [1.2.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.3...@endo/eventual-send@1.2.4) (2024-08-01)
+## [1.2.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.3...@endo/eventual-send@1.2.4) (2024-08-01)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.2.3](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.2...@endo/eventual-send@1.2.3) (2024-07-30)
-
+## [1.2.3](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.2...@endo/eventual-send@1.2.3) (2024-07-30)
 
 ### Bug Fixes
 
 * endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
 
-
-
-### [1.2.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.1...@endo/eventual-send@1.2.2) (2024-05-07)
+## [1.2.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.1...@endo/eventual-send@1.2.2) (2024-05-07)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.2.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.0...@endo/eventual-send@1.2.1) (2024-04-04)
+## [1.2.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.0...@endo/eventual-send@1.2.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/eventual-send
-
-
-
-
 
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/eventual-send@1.1.2...@endo/eventual-send@1.2.0) (2024-03-20)
-
 
 ### Features
 
 * **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
-
-
-### [1.1.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.1.1...@endo/eventual-send@1.1.2) (2024-02-23)
+## [1.1.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.1.1...@endo/eventual-send@1.1.2) (2024-02-23)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [1.1.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.1.0...@endo/eventual-send@1.1.1) (2024-02-15)
-
+## [1.1.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.1.0...@endo/eventual-send@1.1.1) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.1...@endo/eventual-send@1.1.0) (2024-01-18)
-
 
 ### Features
 
 * **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
 * **eventual-send:** breakpoint on delivery by env-options ([#1860](https://github.com/endojs/endo/issues/1860)) ([b191aaf](https://github.com/endojs/endo/commit/b191aaf3d8b9015801d3f6793f0dd21995aba48e))
 
-
 ### Bug Fixes
 
 * **eventual-send:** switch DEBUG option to be comma separated ([#1922](https://github.com/endojs/endo/issues/1922)) ([3fae760](https://github.com/endojs/endo/commit/3fae760785379c726695e3e94fed839eb8f0141c))
 
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.0...@endo/eventual-send@1.0.1) (2023-12-20)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.0...@endo/eventual-send@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.6...@endo/eventual-send@1.0.0) (2023-12-12)
-
 
 ### ⚠ BREAKING CHANGES
 
@@ -170,51 +99,39 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 * **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
 
-
 ### Bug Fixes
 
 * Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
-
 
 ### Miscellaneous Chores
 
 * **eventual-send:** restrict exports ([1f29d4a](https://github.com/endojs/endo/commit/1f29d4ae95013881d0ec113c202d0fdf00647b4d))
 
+## 0.26.10 (2021-07-28)
 
+**Note:** Version bump only for package @agoric/eventual-send
 
-### [0.17.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.5...@endo/eventual-send@0.17.6) (2023-09-12)
+## [0.17.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.5...@endo/eventual-send@0.17.6) (2023-09-12)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-
-
-
-
-### [0.17.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.5) (2023-08-07)
-
+## [0.17.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.5) (2023-08-07)
 
 ### Bug Fixes
 
 * **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
 
-
-
-### [0.17.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.4) (2023-08-07)
-
+## [0.17.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.4) (2023-08-07)
 
 ### Bug Fixes
 
 * **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
 
-
-
-### [0.17.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.2...@endo/eventual-send@0.17.3) (2023-07-19)
-
+## [0.17.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.2...@endo/eventual-send@0.17.3) (2023-07-19)
 
 ### Features
 
 * **env-options:** env-options as separate importable package ([ba266c9](https://github.com/endojs/endo/commit/ba266c95d46a7330aeb73def7a1a0a18242d75cd))
-
 
 ### Bug Fixes
 
@@ -223,22 +140,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **eventual-send:** unwrap PromiseLikes before EOnly surrounds them with ERef ([3d29f4a](https://github.com/endojs/endo/commit/3d29f4ace723624b0aa35b0112108bec3c67cb43))
 * warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
 
-
-
-### [0.17.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.1...@endo/eventual-send@0.17.2) (2023-04-20)
+## [0.17.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.1...@endo/eventual-send@0.17.2) (2023-04-20)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.17.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.0...@endo/eventual-send@0.17.1) (2023-04-14)
+## [0.17.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.0...@endo/eventual-send@0.17.1) (2023-04-14)
 
-### Features
-
-- **ses:** finite deep stacks, on by default ([#1513](https://github.com/endojs/endo/issues/1513)) ([aae0e57](https://github.com/endojs/endo/commit/aae0e57f7a6bdcc898396c65ec22616a33672d32))
-
-### Bug Fixes
-
-- **eventual-send:** default to `TRACK_TURNS=disabled` ([a4b66cd](https://github.com/endojs/endo/commit/a4b66cd53c99f54c2fe3767b181b19abb3dfc8ef))
-- **eventual-send:** hardening should not depend on `TRACK_TURNS=enabled` ([db8e74a](https://github.com/endojs/endo/commit/db8e74a9e5e8fe59ce800329fa405909d647786e))
+- Defaults to `TRACK_TURNS=disabled`
 
 ## [0.17.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.9...@endo/eventual-send@0.17.0) (2023-03-07)
 
@@ -255,89 +163,80 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 
-### [0.16.9](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.8...@endo/eventual-send@0.16.9) (2022-12-23)
+## [0.16.9](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.8...@endo/eventual-send@0.16.9) (2022-12-23)
 
 ### Bug Fixes
 
 - **eventual-send:** E.resolve safer against constructor attack ([#1390](https://github.com/endojs/endo/issues/1390)) ([e71d723](https://github.com/endojs/endo/commit/e71d723e2da30f197963da8133017ee8b5e3941e))
 - include inherited methods in missing method error ([#1382](https://github.com/endojs/endo/issues/1382)) ([f0cd522](https://github.com/endojs/endo/commit/f0cd52295521de2aaa486c6a2d1c0dfb0bea578d))
 
-### [0.16.8](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.7...@endo/eventual-send@0.16.8) (2022-11-14)
+## [0.16.8](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.7...@endo/eventual-send@0.16.8) (2022-11-14)
 
 ### Bug Fixes
 
 - assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
 - fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
 
-### [0.16.7](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.6...@endo/eventual-send@0.16.7) (2022-10-24)
+## [0.16.7](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.6...@endo/eventual-send@0.16.7) (2022-10-24)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.16.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.5...@endo/eventual-send@0.16.6) (2022-10-19)
+## [0.16.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.5...@endo/eventual-send@0.16.6) (2022-10-19)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.16.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.4...@endo/eventual-send@0.16.5) (2022-09-27)
+## [0.16.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.4...@endo/eventual-send@0.16.5) (2022-09-27)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.16.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.3...@endo/eventual-send@0.16.4) (2022-09-14)
+## [0.16.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.3...@endo/eventual-send@0.16.4) (2022-09-14)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.16.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.2...@endo/eventual-send@0.16.3) (2022-08-26)
+## [0.16.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.2...@endo/eventual-send@0.16.3) (2022-08-26)
 
-### Bug Fixes
+- Actually fixes eventual-send when used in combination with the `-r esm`
+  module loader, which does not support JavaScript's nullish operators.
 
-- **eventual-send:** Remove lingering ?. operator ([51b38c2](https://github.com/endojs/endo/commit/51b38c2ba4d3e3c1a69ad4ccf1a343dadd3eed93))
+## [0.16.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.1...@endo/eventual-send@0.16.2) (2022-08-26)
 
-### [0.16.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.1...@endo/eventual-send@0.16.2) (2022-08-26)
+- [sic] Fixes eventual-send when used in combination with the `-r esm` module
+  loader, which does not support JavaScript's nullish operators.
 
-### Bug Fixes
+## [0.16.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.0...@endo/eventual-send@0.16.1) (2022-08-25)
 
-- **eventual-send:** Remove ?. and ?? operators for RESM ([15dc777](https://github.com/endojs/endo/commit/15dc777c64dce5e50386d3fa80e209e9991c516b))
-
-### [0.16.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.0...@endo/eventual-send@0.16.1) (2022-08-25)
-
-### Features
-
-- **eventual-send:** Feature-flag track-turns ([e07019e](https://github.com/endojs/endo/commit/e07019e3c312391da26fbe6cce6a875484302288))
-
-### Bug Fixes
-
-- **eventual-send:** hoist closures to discourage argument retention ([7786d4c](https://github.com/endojs/endo/commit/7786d4c201cfc5e5fbd27cd456d45597c25284a2)), closes [#1245](https://github.com/endojs/endo/issues/1245)
+- Adds support `DEBUG=track-turns` and `TRACK_TURNS=enabled` environment
+  variables, such that turn tracking is disabled and quiet by default.
+  We believe that we have mitigated a memory leak in stack retention, and hope
+  to enable turn-tracking by default when we have verified that the feature no
+  longer leaks.
 
 ## [0.16.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.5...@endo/eventual-send@0.16.0) (2022-08-23)
 
-### ⚠ BREAKING CHANGES
+- *BREAKING*: Disallow using E proxy methods as functions.
+  Enforces the `E(x).foo()` calling convention and disallows using as bound
+  methods. Constructs like `const foo = E(x).foo; foo()` now cause a rejection.
 
-- **eventual-send:** Disallow using E proxy methods as functions (#1255)
-
-### Bug Fixes
-
-- **eventual-send:** Disallow using E proxy methods as functions ([#1255](https://github.com/endojs/endo/issues/1255)) ([43b7962](https://github.com/endojs/endo/commit/43b796232634b54c9e7de1c0a2349d22c29fc384))
-- typedef default onfulfilled handler for E.when ([c5582ca](https://github.com/endojs/endo/commit/c5582ca7473e0a5d94ef4753ff54e0626cdb1d0a))
-
-### [0.15.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.4...@endo/eventual-send@0.15.5) (2022-06-28)
+## [0.15.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.4...@endo/eventual-send@0.15.5) (2022-06-28)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.15.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.3...@endo/eventual-send@0.15.4) (2022-06-11)
+## [0.15.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.3...@endo/eventual-send@0.15.4) (2022-06-11)
 
 ### Bug Fixes
 
 - **eventual-send:** no implicit rejection silencing; just harden ([ca07d81](https://github.com/endojs/endo/commit/ca07d8150fd1e12b9e90505a7c06ada6b25d0743))
 - **eventual-send:** use `!Object.is(a, b)` instead of `a !== b` for NaNs ([2b7e418](https://github.com/endojs/endo/commit/2b7e4189182dcac17832bbdcfb6ac56e32fee456))
 
-### [0.15.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.2...@endo/eventual-send@0.15.3) (2022-04-15)
+## [0.15.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.2...@endo/eventual-send@0.15.3) (2022-04-15)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.15.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.1...@endo/eventual-send@0.15.2) (2022-04-14)
+## [0.15.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.1...@endo/eventual-send@0.15.2) (2022-04-14)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.15.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.0...@endo/eventual-send@0.15.1) (2022-04-13)
+## [0.15.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.0...@endo/eventual-send@0.15.1) (2022-04-13)
 
 ### Bug Fixes
 
@@ -358,7 +257,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **eventual-send:** evolve types based on marshal requirements ([ff388fa](https://github.com/endojs/endo/commit/ff388fa2f81446c1ae02618b78771dc17ce5c74b))
 - **eventual-send:** unwrap promises more fully ([6ba799f](https://github.com/endojs/endo/commit/6ba799f77e8d55530ecd7617c3ccad22324bade2))
 
-### [0.14.8](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.7...@endo/eventual-send@0.14.8) (2022-03-07)
+## [0.14.8](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.7...@endo/eventual-send@0.14.8) (2022-03-07)
 
 ### Features
 
@@ -368,47 +267,43 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **eventual-send:** properly declare `E` to be type `EProxy` ([3bdfdf7](https://github.com/endojs/endo/commit/3bdfdf77440f9ddea9bac1e783aaf015e9bcfa62))
 
-### [0.14.7](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.6...@endo/eventual-send@0.14.7) (2022-03-02)
+## [0.14.7](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.6...@endo/eventual-send@0.14.7) (2022-03-02)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.14.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.5...@endo/eventual-send@0.14.6) (2022-02-20)
+## [0.14.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.5...@endo/eventual-send@0.14.6) (2022-02-20)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.14.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.4...@endo/eventual-send@0.14.5) (2022-02-18)
+## [0.14.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.4...@endo/eventual-send@0.14.5) (2022-02-18)
 
 ### Bug Fixes
 
 - Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
 - **marshal:** Fix typing for TS 4.5 compatibility ([8513cfb](https://github.com/endojs/endo/commit/8513cfbaaa2308bee9f666585694e622e84fd24e))
 
-### [0.14.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.3...@endo/eventual-send@0.14.4) (2022-01-31)
+## [0.14.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.3...@endo/eventual-send@0.14.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/eventual-send
 
-### [0.14.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.2...@endo/eventual-send@0.14.3) (2022-01-27)
+## [0.14.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.2...@endo/eventual-send@0.14.3) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.14.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.1...@endo/eventual-send@0.14.2) (2022-01-25)
+## [0.14.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.1...@endo/eventual-send@0.14.2) (2022-01-25)
 
-### Features
+- Eventual send now hardens arguments and results (values and errors).
 
-- **eventual-send:** harden things where possible under SES ([2394c71](https://github.com/endojs/endo/commit/2394c71673360ce8ec8a3c30f5fa47753fb9bec5))
+## 0.14.1 (2022-01-23)
 
-### Bug Fixes
+Moved from https://github.com/Agoric/agoric-sdk to
+https://github.com/endojs/endo.
 
-- remove more extraneous spaced-comment comments ([#1009](https://github.com/endojs/endo/issues/1009)) ([980a798](https://github.com/endojs/endo/commit/980a79898a4643a359d905c308eecf70d8ab2758))
+# Unknown version
 
-### 0.14.1 (2022-01-23)
-
-### Bug Fixes
-
-- **eventual-send:** Accommodate TypeScript pickiness difference ([1c86bb0](https://github.com/endojs/endo/commit/1c86bb096c6fc8f4e5dd0220c2309534e8593b52))
-- **eventual-send:** Remove unused files ([309965c](https://github.com/endojs/endo/commit/309965c79c23079cdcf578b91b265c82d7657b09))
+Removed obsolete `HandledPromise.unwrap` and `E.unwrap` functions.
 
 ## [0.14.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.30...@agoric/eventual-send@0.14.0) (2021-12-02)
 
@@ -429,73 +324,65 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **eventual-send:** provide `returnedP` when it is available ([a779066](https://github.com/Agoric/agoric-sdk/commit/a7790660db426e1967f444c034c3dedd59ed33eb))
 - **eventual-send:** remove WeakMap workaround for pre-xsnap XS ([dcad6ac](https://github.com/Agoric/agoric-sdk/commit/dcad6ac6ac946414f6411ec1ad73017e04875d6d))
 
-### [0.13.30](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.29...@agoric/eventual-send@0.13.30) (2021-10-13)
+## [0.13.30](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.29...@agoric/eventual-send@0.13.30) (2021-10-13)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.28...@agoric/eventual-send@0.13.29) (2021-09-23)
+## [0.13.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.28...@agoric/eventual-send@0.13.29) (2021-09-23)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.27...@agoric/eventual-send@0.13.28) (2021-09-15)
+## [0.13.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.27...@agoric/eventual-send@0.13.28) (2021-09-15)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.27](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.26...@agoric/eventual-send@0.13.27) (2021-08-18)
+## [0.13.27](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.26...@agoric/eventual-send@0.13.27) (2021-08-18)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.26](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.25...@agoric/eventual-send@0.13.26) (2021-08-17)
+## [0.13.26](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.25...@agoric/eventual-send@0.13.26) (2021-08-17)
 
 ### Bug Fixes
 
 - Remove dregs of node -r esm ([#3710](https://github.com/Agoric/agoric-sdk/issues/3710)) ([e30c934](https://github.com/Agoric/agoric-sdk/commit/e30c934a9de19e930677c7b65ad98abe0be16d56))
 
-### [0.13.25](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.22...@agoric/eventual-send@0.13.25) (2021-08-15)
+## [0.13.25](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.22...@agoric/eventual-send@0.13.25) (2021-08-15)
 
-### 0.26.10 (2021-07-28)
+## [0.13.24](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.22...@agoric/eventual-send@0.13.24) (2021-08-14)
 
-**Note:** Version bump only for package @agoric/eventual-send
-
-### [0.13.24](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.22...@agoric/eventual-send@0.13.24) (2021-08-14)
-
-### 0.26.10 (2021-07-28)
+## [0.13.23](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.22...@agoric/eventual-send@0.13.23) (2021-07-28)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.23](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.22...@agoric/eventual-send@0.13.23) (2021-07-28)
+## [0.13.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.21...@agoric/eventual-send@0.13.22) (2021-07-01)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.21...@agoric/eventual-send@0.13.22) (2021-07-01)
+## [0.13.21](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.20...@agoric/eventual-send@0.13.21) (2021-06-28)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.21](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.20...@agoric/eventual-send@0.13.21) (2021-06-28)
+## [0.13.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.19...@agoric/eventual-send@0.13.20) (2021-06-25)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.19...@agoric/eventual-send@0.13.20) (2021-06-25)
+## [0.13.19](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.18...@agoric/eventual-send@0.13.19) (2021-06-24)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.19](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.18...@agoric/eventual-send@0.13.19) (2021-06-24)
+## [0.13.18](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.17...@agoric/eventual-send@0.13.18) (2021-06-24)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.18](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.17...@agoric/eventual-send@0.13.18) (2021-06-24)
+## [0.13.17](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.16...@agoric/eventual-send@0.13.17) (2021-06-23)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.17](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.16...@agoric/eventual-send@0.13.17) (2021-06-23)
+## [0.13.16](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.15...@agoric/eventual-send@0.13.16) (2021-06-16)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-### [0.13.16](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.15...@agoric/eventual-send@0.13.16) (2021-06-16)
-
-**Note:** Version bump only for package @agoric/eventual-send
-
-### [0.13.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.14...@agoric/eventual-send@0.13.15) (2021-06-15)
+## [0.13.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.14...@agoric/eventual-send@0.13.15) (2021-06-15)
 
 ### Bug Fixes
 
@@ -566,17 +453,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - use assert rather than FooError constructors ([f860c5b](https://github.com/Agoric/agoric-sdk/commit/f860c5bf5add165a08cb5bd543502857c3f57998))
 - **eventual-send:** test static method rejections ([f6bd055](https://github.com/Agoric/agoric-sdk/commit/f6bd055ccc897dc49ae92f452dcd5abf45bfae14))
 
-# [0.13.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.12.0...@agoric/eventual-send@0.13.0) (2020-12-10)
+## [0.13.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.12.0...@agoric/eventual-send@0.13.0) (2020-12-10)
 
 ### Features
 
 - **import-bundle:** Preliminary support Endo zip hex bundle format ([#1983](https://github.com/Agoric/agoric-sdk/issues/1983)) ([983681b](https://github.com/Agoric/agoric-sdk/commit/983681bfc4bf512b6bd90806ed9220cd4fefc13c))
 
-# [0.12.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.12.0-dev.0...@agoric/eventual-send@0.12.0) (2020-11-07)
+## [0.12.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.12.0-dev.0...@agoric/eventual-send@0.12.0) (2020-11-07)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-# [0.12.0-dev.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.11.1...@agoric/eventual-send@0.12.0-dev.0) (2020-10-19)
+## [0.12.0-dev.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.11.1...@agoric/eventual-send@0.12.0-dev.0) (2020-10-19)
 
 ### Features
 
@@ -615,7 +502,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-# [0.11.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.10.0...@agoric/eventual-send@0.11.0) (2020-09-16)
+## [0.11.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.10.0...@agoric/eventual-send@0.11.0) (2020-09-16)
 
 ### Bug Fixes
 
@@ -629,7 +516,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - implement CapTP forwarding over a plugin device ([b4a1be8](https://github.com/Agoric/agoric-sdk/commit/b4a1be8f600d60191570a3bbf42bc4c82af47b06))
 - implement makeLoopback and makeFar without a membrane ([b0bccba](https://github.com/Agoric/agoric-sdk/commit/b0bccbabecc2902c9d9f7319ffb0c509bccc2d01))
 
-# [0.10.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.3...@agoric/eventual-send@0.10.0) (2020-08-31)
+## [0.10.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.3...@agoric/eventual-send@0.10.0) (2020-08-31)
 
 ### Bug Fixes
 
@@ -669,7 +556,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - be lazy in choosing which handler to use ([904b610](https://github.com/Agoric/agoric-sdk/commit/904b610685a50ba32dc0712e62f4c902f61e437a))
 - be sure to propagate handler failures ([2b931fc](https://github.com/Agoric/agoric-sdk/commit/2b931fcb60afcb24fd7c331eadd12dbfc4592e85))
 
-# [0.9.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.8.0...@agoric/eventual-send@0.9.0) (2020-05-04)
+## [0.9.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.8.0...@agoric/eventual-send@0.9.0) (2020-05-04)
 
 ### Bug Fixes
 
@@ -680,11 +567,11 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - implement channel host handler ([4e68f44](https://github.com/Agoric/agoric-sdk/commit/4e68f441b46d70dee481387ab96e88f1e0b69bfa))
 
-# [0.8.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.8.0-alpha.0...@agoric/eventual-send@0.8.0) (2020-04-13)
+## [0.8.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.8.0-alpha.0...@agoric/eventual-send@0.8.0) (2020-04-13)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-# [0.8.0-alpha.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.7.0...@agoric/eventual-send@0.8.0-alpha.0) (2020-04-12)
+## [0.8.0-alpha.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.7.0...@agoric/eventual-send@0.8.0-alpha.0) (2020-04-12)
 
 ### Bug Fixes
 
@@ -694,17 +581,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - add the returnedP as the last argument to the handler ([1f83d99](https://github.com/Agoric/agoric-sdk/commit/1f83d994f48b659f3c49c4b5eb2b50ea7bb7b7a3))
 
-# [0.7.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.7.0-alpha.0...@agoric/eventual-send@0.7.0) (2020-04-02)
+## [0.7.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.7.0-alpha.0...@agoric/eventual-send@0.7.0) (2020-04-02)
 
 **Note:** Version bump only for package @agoric/eventual-send
 
-# [0.7.0-alpha.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.6.0...@agoric/eventual-send@0.7.0-alpha.0) (2020-04-02)
+## [0.7.0-alpha.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.6.0...@agoric/eventual-send@0.7.0-alpha.0) (2020-04-02)
 
 ### Features
 
 - add E.when(x, onfulfilled, onrejected) as a convenience ([4415f67](https://github.com/Agoric/agoric-sdk/commit/4415f67651f7770fddea85272ee7a02b69b9e8aa))
 
-# 0.6.0 (2020-03-26)
+## 0.6.0 (2020-03-26)
 
 ### Bug Fixes
 
@@ -721,3 +608,18 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **E:** export E.resolve to use HandledPromise.resolve ([93c508d](https://github.com/Agoric/eventual-send/commit/93c508de8439d8d6b4b6030af3f95c370c46f91f))
 - **HandledPromise:** add sync unwrap() to get presences ([5ec5b78](https://github.com/Agoric/eventual-send/commit/5ec5b78a038f11d26827358c70bb6c820ed04a2e)), closes [#412](https://github.com/Agoric/eventual-send/issues/412)
+
+## 0.5.0 (2019-12-17)
+
+Implement updated `HandledPromise` interface:
+
+- use `new HandledPromise(...args)` instead of `Promise.makeHandled(...args)`
+- use `HandledPromise.resolve(x)` (exported also as `E.resolve(x)`) which
+  returns x if it is already a HandledPromise or Promise, or x's corresponding
+  HandledPromise, or a new HandledPromise
+- the promise handler now uses `get` instead of `GET` and `applyMethod` instead of `POST`
+- delete, has, and set traps and their corresponding `E` operations have been removed as per the spec
+- the `E.C` experimental "eventual chain" proxy has been removed
+
+Moved from https://github.com/Agoric/eventual-send into the monorepo at
+https://github.com/Agoric/agoric-sdk .
