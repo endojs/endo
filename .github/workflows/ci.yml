@@ -36,7 +36,6 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
-          node-version: 22.x
           cache: yarn
 
       - name: Install dependencies
@@ -69,7 +68,6 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
-          node-version: 22.x
           cache: yarn
 
       - name: Install dependencies
@@ -93,7 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [20.x, 22.x]
         platform: [ubuntu-latest, macos-15]
         # windows-latest exhibited flakey tests that are not yet worth the
         # trouble to investigate, and blocked us from upgrading yarn from 1 to
@@ -179,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -215,7 +213,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -260,10 +258,9 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
-          node-version: 22.x
           cache: yarn
 
       - name: Install dependencies
@@ -289,10 +286,9 @@ jobs:
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
-          node-version: 22.x
           cache: yarn
 
       - name: Install dependencies
@@ -319,7 +315,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -469,10 +465,9 @@ jobs:
       - run: corepack enable
         working-directory: endo
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
-          node-version: 20.x
           cache: yarn
           cache-dependency-path: endo/yarn.lock
 
