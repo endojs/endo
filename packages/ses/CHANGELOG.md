@@ -1,10 +1,6 @@
-# Change Log
-
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+# ses
 
 ## [1.14.0](https://github.com/endojs/endo/compare/ses@1.13.1...ses@1.14.0) (2025-07-12)
-
 
 ### Features
 
@@ -12,289 +8,296 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **cache-map:** Return a kit for exposing metrics ([f513ebd](https://github.com/endojs/endo/commit/f513ebd36c01ce45eb2684d5f9db4db57a4ac526))
 * **ses:** add noAggregateLoadErrors flag ([#2832](https://github.com/endojs/endo/issues/2832)) ([b222f9f](https://github.com/endojs/endo/commit/b222f9f5c68ef373c31a68b091452b7789a6621b))
 
-
 ### Bug Fixes
 
 * **immutable-arraybuffer:** unify shim to work on more platforms ([#2855](https://github.com/endojs/endo/issues/2855)) ([25039f5](https://github.com/endojs/endo/commit/25039f561d5e0c1bac48260adcf7e1a26d661659)), closes [#2785](https://github.com/endojs/endo/issues/2785) [#2399](https://github.com/endojs/endo/issues/2399) [#2785](https://github.com/endojs/endo/issues/2785) [#2785](https://github.com/endojs/endo/issues/2785)
 
-
-
-### [1.13.1](https://github.com/endojs/endo/compare/ses@1.13.0...ses@1.13.1) (2025-06-17)
-
+## [1.13.1](https://github.com/endojs/endo/compare/ses@1.13.0...ses@1.13.1) (2025-06-17)
 
 ### Bug Fixes
 
 * **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
 
-
-
 ## [1.13.0](https://github.com/endojs/endo/compare/ses@1.12.0...ses@1.13.0) (2025-06-02)
 
+- Two new `stackFiltering:` options are added
+  - `'omit-frames'` -- Only omit likely uninteresting frames. Keep original paths.
+  - `'shorten-paths'` -- Only shorten paths to text likely clickable in an IDE
 
-### Features
+  This fills out the matrix of what should have been orthogonal options.
+  The existing `'concise'` setting both omits likely uninteresting frames and
+  shortens their paths. The existing `'verbose'` setting does neither.
 
-* **ses:** ArrayBuffer.prototype.sliceToImmutable on Hermes ([e432b14](https://github.com/endojs/endo/commit/e432b1467b52f7e5a97c66f1ea5a488c3cfaf9b5))
-* **ses:** ArrayBuffer.prototype.transferToImmutable ([#2400](https://github.com/endojs/endo/issues/2400)) ([d714d1d](https://github.com/endojs/endo/commit/d714d1dc6b0d021f956eff80c8644b0aa6844da4))
-* **ses:** Include ses-ava in stack frame filtering ([bdbdb01](https://github.com/endojs/endo/commit/bdbdb01b7e1e451ca411f27edb4fa7c0dfb2d070))
-* **ses:** init SES with evalTaming unsafe-eval or no-eval ([0dfaa8d](https://github.com/endojs/endo/commit/0dfaa8d5c8bb10458997e6af9ad41c8c430d9047))
+- Uses the `@endo/immutable-arraybuffer` shim to add `ArrayBuffer.p.immutable`, `ArrayBuffer.p.transferToImmutable`, and `ArrayBuffer.p.sliceToImmutable` to ses, in order to emulate the [Immutable ArrayBuffer proposal](https://github.com/tc39/proposal-immutable-arraybuffer). These make an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this shim's ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
+  - The shim depends on the platform providing either `structuredClone` or `Array.prototype.transfer`. Node <= 16 and provides neither, causing the shim to fail to initialize, and therefore SES to fail to initialize on such platforms.
+  - Current Hermes has even stronger constraints, lacking `structuredClone`, `transfer`, private fields, and even `class` syntax. This requires other coping strategies. See <https://github.com/endojs/endo/pull/2785>
+  - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See <https://github.com/endojs/endo/pull/2311#discussion_r1632607527> . It will require a later manual step to delete the shim or have it avoid overriting a platform implementation, after manual analysis of the compat implications.
 
+- The [evalTaming](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#evaltaming-options)
+  option `'safe-eval'` now can only throw error `SES_DIRECT_EVAL`.
+  This allows SES to initialize with `'unsafe-eval'` or `'no-eval'` on hosts with no
+  direct eval available such as Hermes for a successful lockdown that tolerates it's
+  language [features](https://github.com/facebook/hermes/blob/main/doc/Features.md).
 
-### Bug Fixes
+  The module name `ses/hermes` can now be required to call `lockdown` and
+  `repairIntrinsics` only, `Compartment` is not yet available.
 
-* **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
-* **ses:** avoid depth-first loading sequence in loadNow to prevent getting stuck in cycles ([#2804](https://github.com/endojs/endo/issues/2804)) ([37bfad6](https://github.com/endojs/endo/commit/37bfad6321cb5de630c1bc4f97f422261d6c88a6))
+  It is currently compatible with Hermes [v0.12.0](https://www.npmjs.com/package/hermes-engine-cli/v/0.12.0),
+  we plan to support [v0.13.0](https://github.com/facebook/hermes/releases/tag/v0.13.0)
+  then subsequent Hermes [tags](https://github.com/facebook/hermes/tags) or side-by-side
+  versions built for React Native depending on ecosystem usage and official
+  [support](https://github.com/reactwg/react-native-releases/blob/main/docs/support.md),
+  then Static Hermes when released.
 
+  Also `ses/hermes` can now be hooked into bundlers such as Metro to run Hardened JS.
 
+- The `Compartment` constructor now accepts a `boolean` option, `noAggregateLoadErrors`, to control how module-loading errors are reported.
+
+  By default, its value is `false`, which retains the previous behavior (it causes all relevant errors to be collected and rejected or thrown in a single exception from `compartment.import()` or `compartment.importNow()`, respectively).
+
+  If set to `true`, this will cause the *first* module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
+
+  This is mostly useful for supporting optional dependencies in CommonJS modules.
 
 ## [1.12.0](https://github.com/endojs/endo/compare/ses@1.11.0...ses@1.12.0) (2025-03-24)
 
+- The `evalTaming:` option values are renamed
+  - from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
+  - to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
 
-### Features
+  in order to follow the convention that lockdown option values use kebob-case
+  rather than camelCase. To avoid breaking old programs during the transition,
+  the old names are deprecated, but continue to work for now.
 
-* **ses:** add AsyncGeneratorFunctionInstance to commons ([07516f5](https://github.com/endojs/endo/commit/07516f5892221258ec0d4e02848047b5ad94808a))
-* **ses:** bundle and export shim compatible with Hermes compiler ([cafc398](https://github.com/endojs/endo/commit/cafc398d91e9b8c99502e25fb6d301e0841112a9))
-* **ses:** create async arrow function transform with Babel for Hermes bundle ([654791e](https://github.com/endojs/endo/commit/654791e91c687d4c38562efc411bc90e67bb81e3))
-* **ses:** include async generators in anonymous intrinsics if supported ([56ae460](https://github.com/endojs/endo/commit/56ae46002452340b89b77943674a4e406657d915))
-* **ses:** support async generators in Hermes transform for CSP ([24bbd5c](https://github.com/endojs/endo/commit/24bbd5caff0a4d4b6478d470970c020815fb5da7))
-* **ses:** support CSP in commons AsyncGeneratorFunctionInstance ([188c5d4](https://github.com/endojs/endo/commit/188c5d4d4795effbe752c54c61177c8776333de1))
-* **ses:** tame async generator function constructors if supported ([eda8a61](https://github.com/endojs/endo/commit/eda8a61846852009ad19e6f39f6c3192ba048f99))
-
-
-### Bug Fixes
-
-* **compartment-mapper:** sync module transforms in bundle.js ([1d29043](https://github.com/endojs/endo/commit/1d29043e8de08091b1b59059e91eba3be29983b7))
-* **ses:** Limit scope proxy exposure to discernably owned properties of host globalThis ([9ced73a](https://github.com/endojs/endo/commit/9ced73a97dc2e86caedf4cbd6c4236d4b5e9236d)), closes [#1305](https://github.com/endojs/endo/issues/1305)
-* **ses:** lockdown options should be kebob-case ([#2739](https://github.com/endojs/endo/issues/2739)) ([85483c0](https://github.com/endojs/endo/commit/85483c0fd34a9a071e0af66d362cd7e930de5bcc)), closes [#961](https://github.com/endojs/endo/issues/961) [#2690](https://github.com/endojs/endo/issues/2690) [#2723](https://github.com/endojs/endo/issues/2723) [#961](https://github.com/endojs/endo/issues/961) [#961](https://github.com/endojs/endo/issues/961) [#2723](https://github.com/endojs/endo/issues/2723) [#2690](https://github.com/endojs/endo/issues/2690)
-
-
+- Evaluating a non-lexical name that is also absent on the global object of a
+  compartment no longer throws a `ReferenceError` and instead produces
+  `undefined` because it proves impossible to do so without revealing what
+  properties exist on the host `globalThis` to compartmentalized code with a
+  shim.
+  This is a divergence from the expected behavior of a native Hardened
+  JavaScript implementation, like XS.
 
 ## [1.11.0](https://github.com/endojs/endo/compare/ses@1.10.0...ses@1.11.0) (2025-01-24)
 
+- Adds support for dynamic `import` in conjunction with an update to
+  `@endo/module-source`.
 
-### Features
+- Specifying the long-discontinued `mathTaming` or `dateTaming` options logs a
+  warning.
 
-* **ses:** Add XS variant of shim ([f6c8456](https://github.com/endojs/endo/commit/f6c84566bb6a698709dc3474726000f07b94f3db))
-* **ses:** Permit legacy properties of ModuleSource shim ([75f2461](https://github.com/endojs/endo/commit/75f2461acc7f53ed448f11fa5b12360109dc364f))
-* **ses:** restrict dynamic permit on Hermes ([14731fe](https://github.com/endojs/endo/commit/14731feff0b335809c5fd846a0ba73ffb7b000f7))
-* **ses:** Support dynamic import ([e56cc04](https://github.com/endojs/endo/commit/e56cc040414d0228cd24bbe2d0e2c8a8a595ae51))
+Incubating: Please do not rely on these features as they are under development
+and subject to breaking changes that will not be signaled by semver.
 
-
-### Bug Fixes
-
-* **ses:** Consistently name console methods ([fa7a1c4](https://github.com/endojs/endo/commit/fa7a1c44b48563f0762479469d3d03bc42710c47)), closes [#2643](https://github.com/endojs/endo/issues/2643)
-* **ses:** removeUnpermittedIntrinsics on Hermes via dynamic permit at runtime ([1c61fb5](https://github.com/endojs/endo/commit/1c61fb57feb9d312a302508f521621d375cd9cbc))
-* **ses:** update permits for stage 2.7.4 proposals ([#2693](https://github.com/endojs/endo/issues/2693)) ([35d5ea2](https://github.com/endojs/endo/commit/35d5ea202593362a16b16c466ae69b5f6939c539))
-* **ses:** warn on unsupported lockdownOptions mathTaming + dateTaming ([8ed8a8b](https://github.com/endojs/endo/commit/8ed8a8befb883c390db37a22b0482844590bacd1))
-* **ses:** widen type of globalThis in Compartment ([#2644](https://github.com/endojs/endo/issues/2644)) ([ff6a5ab](https://github.com/endojs/endo/commit/ff6a5ab147822b2b7d87761b9eeeafef808645e2))
-* **ses:** XS accommodations for console groupEnd absence ([fd70235](https://github.com/endojs/endo/commit/fd70235cb697b8c75d4e61d6b017f11d708798ad))
-
-
+- Adds support for an XS-specific variant of the SES shim that is triggered
+  with the `xs` package export condition.
+  This version of SES preserves all the features of `Compartment` provided
+  uniquely by the SES shim, but with the `__native__` constructor option,
+  loses support for importing precompiled module records and gains support
+  for native `ModuleSource`.
 
 ## [1.10.0](https://github.com/endojs/endo/compare/ses@1.9.1...ses@1.10.0) (2024-11-13)
 
+- Permit [Promise.try](https://github.com/tc39/proposal-promise-try),
+  since it has reached Stage 4.
 
-### Features
+- Adds a `reporting` option to `lockdown` and `repairIntrinsics`.
 
-* **ses:** Lockdown reporting option ([81b86ac](https://github.com/endojs/endo/commit/81b86ac3c3d804c0542f63c1e50040ca468960d0)), closes [#2608](https://github.com/endojs/endo/issues/2608)
-* **ses:** permit Promise.prototype.try ([#2609](https://github.com/endojs/endo/issues/2609)) ([d37a434](https://github.com/endojs/endo/commit/d37a43427452bb9e0376006ef5d2d013176433af)), closes [#2607](https://github.com/endojs/endo/issues/2607)
+  The default behavior is `"platform"` which will detect the platform and
+  report warnings according to whether a web `console`, Node.js `console`, or
+  `print` are available.
+  The web platform is distinguished by the existence of `window` or
+  `importScripts` (WebWorker).
+  The Node.js behavior is to report all warnings to `stderr` visually
+  consistent with use of a console group.
+  SES will use `print` in the absence of a `console`.
+  Captures the platform `console` at the time `lockdown` or `repairIntrinsics`
+  are called, not at the time `ses` initializes.
 
+  The `"console"` option forces the web platform behavior.
+  On Node.js, this results in group labels being reported to `stdout`.
 
-### Bug Fixes
+  The `"none"` option mutes warnings.
 
-* **ses:** Clarify lockdown types ([cf7f299](https://github.com/endojs/endo/commit/cf7f299e4f9dc0ea2ed271ecb91b66cf2792b1ed))
-* **ses:** fix [#2598](https://github.com/endojs/endo/issues/2598) with cauterizeProperty reuse ([#2624](https://github.com/endojs/endo/issues/2624)) ([d13bf9c](https://github.com/endojs/endo/commit/d13bf9c6b083f04fa7f5983fb4f4a07cd263abe9)), closes [#1221](https://github.com/endojs/endo/issues/1221) [#1221](https://github.com/endojs/endo/issues/1221) [#1221](https://github.com/endojs/endo/issues/1221) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563) [#2334](https://github.com/endojs/endo/issues/2334) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563) [#2563](https://github.com/endojs/endo/issues/2563) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563)
-
-
-
-### [1.9.1](https://github.com/endojs/endo/compare/ses@1.9.0...ses@1.9.1) (2024-10-22)
+## [1.9.1](https://github.com/endojs/endo/compare/ses@1.9.0...ses@1.9.1) (2024-10-22)
 
 **Note:** Version bump only for package ses
 
-
-
-
-
 ## [1.9.0](https://github.com/endojs/endo/compare/ses@1.8.0...ses@1.9.0) (2024-10-10)
 
-
-### Features
-
-* **module-source:** Introduce a shim that composes with lockdown ([9a3ecca](https://github.com/endojs/endo/commit/9a3ecca305b4a3b4a2e09d03ea84671969a26586))
-* **ses:** Add ModuleSource shared intrinsic ([541d1ea](https://github.com/endojs/endo/commit/541d1eac7418d1044a3d3f1c9a94bb9c824892e4))
-* **ses:** Anticipate a ModuleSource shared intrinsic ([0d210a3](https://github.com/endojs/endo/commit/0d210a33c7730e59f722fa2c9e5441eb6065e1b3))
-* **ses:** Expose console shim ([70dd851](https://github.com/endojs/endo/commit/70dd851bec5003f5a8aa7ba2cbef4c2fbc4b8cfd))
-* **ses:** shim ArrayBuffer.prototype.transfer ([#2417](https://github.com/endojs/endo/issues/2417)) ([4e5e30e](https://github.com/endojs/endo/commit/4e5e30e3077d90cde4721a235d2a1d1d9a286b85)), closes [#2419](https://github.com/endojs/endo/issues/2419) [#2418](https://github.com/endojs/endo/issues/2418) [#2419](https://github.com/endojs/endo/issues/2419) [#2414](https://github.com/endojs/endo/issues/2414) [#2414](https://github.com/endojs/endo/issues/2414) [#2418](https://github.com/endojs/endo/issues/2418) [#2414](https://github.com/endojs/endo/issues/2414) [#2418](https://github.com/endojs/endo/issues/2418)
-* **ses:** Shim console groupCollapsed and groupEnd as absent on XS ([5e8fd33](https://github.com/endojs/endo/commit/5e8fd33e7c9bf23b12640022a5ca4b11c29d0136))
-* **ses:** Tame ModuleSource ([4702335](https://github.com/endojs/endo/commit/4702335eb102a77fe95538027896f6419372a5a0))
-
-
-### Bug Fixes
-
-* **ses:** Expose ses/console-shim ([8f653b0](https://github.com/endojs/endo/commit/8f653b06c7c9013e2aec42a37d0cefadac126b75))
-* **ses:** package test correctly rejects instead of uncaught exception ([#2566](https://github.com/endojs/endo/issues/2566)) ([d0d2554](https://github.com/endojs/endo/commit/d0d25541615d98c575d392aee111544198deb0ac))
-* **ses:** Use lexical assert, not global ([b58cd9b](https://github.com/endojs/endo/commit/b58cd9be95fc7bde9fbbda7ec0bd775e8880bf01))
-
-
+- On platforms without
+  [`Array.prototype.transfer`](https://github.com/tc39/proposal-resizablearraybuffer)
+  but with a global `structuredClone`, the ses-shim's `lockdown` will now
+  install an emulation of `Array.prototype.transfer`. On platforms with neither,
+  the ses-shim will *currently* not install such an emulation.
+  However, once we verify that endo is not intended to support platforms
+  without both, we may change `lockdown` to throw, failing to lock down.
+  - XS and Node >= 22 already have `Array.prototype.transfer`.
+  - Node 18, Node 20, and all browsers have `structuredClone`
+  - Node <= 16 have neither, but are also no longer supported by Endo.
+- Now exports separate layer for console shim: `ses/console-shim.js`.
+- Adds permits for `ModuleSource`, either the native implementation or from
+  `@endo/module-source/shim.js`.
 
 ## [1.8.0](https://github.com/endojs/endo/compare/ses@1.7.0...ses@1.8.0) (2024-08-27)
 
+- New `legacyRegeneratorRuntimeTaming: 'unsafe-ignore'` lockdown option to tame
+  old `regenerator-runtime` (from 0.10.5 to 0.13.7).
+- If lockdown's `errorTrapping: 'report'` mode is selected (possibly via the
+  `'platform'`, or `'exit'` or `'abort'` modes), uncaught exceptions will be
+  written to standard error with the new `SES_UNCAUGHT_EXCEPTION:` prefix.
+  This is intended to give valuable context to users of the system, especially
+  when an uncaught exception is not an `Error` object, and therefore its origin
+  may be hard to find in source code.
 
-### Features
-
-* add regenerator runtime taming ([#2383](https://github.com/endojs/endo/issues/2383)) ([6ae7995](https://github.com/endojs/endo/commit/6ae799521e6ae8b2e938402ce1f2f9e845c2dcfb)), closes [#621](https://github.com/endojs/endo/issues/621) [#1950](https://github.com/endojs/endo/issues/1950)
-* **ses:** `errorTrapping` reports prepend `"SES_UNCAUGHT_EXCEPTION:"` ([1090063](https://github.com/endojs/endo/commit/1090063003250c1f1f3f84b96455c6eb11b580a7))
-
-
-### Bug Fixes
-
-* Delete obsolete platform-compatibility-test ([#2419](https://github.com/endojs/endo/issues/2419)) ([61660da](https://github.com/endojs/endo/commit/61660dad93d6bebbc5525a60fcfdd857f7855d0b)), closes [#2418](https://github.com/endojs/endo/issues/2418) [#2417](https://github.com/endojs/endo/issues/2417) [#1308](https://github.com/endojs/endo/issues/1308) [/github.com/endojs/endo/pull/2419#pullrequestreview-2252979514](https://github.com/endojs//github.com/endojs/endo/pull/2419/issues/pullrequestreview-2252979514) [#2418](https://github.com/endojs/endo/issues/2418) [#2417](https://github.com/endojs/endo/issues/2417)
-* IteratorResult in getAnonymousIntrinsics ([ccb1b26](https://github.com/endojs/endo/commit/ccb1b267f72d76d0753a10be751b0686a803d9a5))
-* **ses:** make test insensitive to an irrelevant env var ([#2403](https://github.com/endojs/endo/issues/2403)) ([8fc0ef7](https://github.com/endojs/endo/commit/8fc0ef7e8b31f2b03e57c4bee7d1a5bbf7c13afc)), closes [#2383](https://github.com/endojs/endo/issues/2383)
-
-
+  This is not likely to affect most systems built with SES, as stderr is
+  generally reserved for user-only messages.  If your SES system sends its
+  stderr to a program which parses it, you may need to adapt that program to be
+  tolerant of the `SES_UNCAUGHT_EXCEPTION:` prefix.  Even for such programs, it
+  is unlikely they are that sensitive to stderr formatting.
 
 ## [1.7.0](https://github.com/endojs/endo/compare/ses@1.6.0...ses@1.7.0) (2024-08-01)
-
 
 ### Features
 
 * **ses:** call lockdown before bundling SES shim ([#2337](https://github.com/endojs/endo/issues/2337)) ([8c01dd4](https://github.com/endojs/endo/commit/8c01dd4dd796d6fc492784d3a993d091fd3cd595))
 
-
-
 ## [1.6.0](https://github.com/endojs/endo/compare/ses@1.5.0...ses@1.6.0) (2024-07-30)
 
+- *NOTICE*: This version introduces multiple features to converge upon a
+  more common standard for [Hardened JavaScript](https://hardenedjs.org).
+  All code should begin migrating to these usage patterns as the older
+  patterns are now deprecated and will not be supported in a future major
+  version of SES.
 
-### Features
+- To converge on a portable pattern for using `Compartment`, introduces an
+  `__options__` property for the first argument of the `Compartment`
+  constructor that must be `true` if present and indicates the object is the
+  options bag and not the global endowments. All code going forward should
+  include this flag until the next major version of SES, when we plan for it to
+  become vesgitial and drop support for three-argument `Compartment`
+  construction.
 
-* **ses:** Capture Compartment endowments and modules options ([81eb956](https://github.com/endojs/endo/commit/81eb95630727664dacfeb8b1444356a41e286fac))
-* **ses:** Compartment single argument options ([bc94a2b](https://github.com/endojs/endo/commit/bc94a2bd29a651d76ca39ebdc68b3f75c6c5a1da))
-* **ses:** Module descriptor parity with XS ([11f1345](https://github.com/endojs/endo/commit/11f134508ff95f4d0ad029ef02746e2228ec409e))
-* **ses:** Option __noNamespaceBox__ ([d996bad](https://github.com/endojs/endo/commit/d996bad715b54f77be1a2b3de74e85dd55fce246))
-* **ses:** permit toHex etc ([#2385](https://github.com/endojs/endo/issues/2385)) ([c7ebcc1](https://github.com/endojs/endo/commit/c7ebcc12a8fed739eddd419fe1cc0b270c913317))
-* **ses:** Remove module map validation ([2f27834](https://github.com/endojs/endo/commit/2f278349c7db822a18d061f59c2e737ae987f764))
-* **types:** assert.equal narrows ([c3a593c](https://github.com/endojs/endo/commit/c3a593c4c09c07578cff9eb949e6486201176c5b))
+  In the unlikely event that existing code names an endowment `__options__`,
+  that code will break and need to be adjusted to adopt this version.
+  Because we rate this unlikely, we have elected not to mark this with
+  a major version bump.
 
+- Adds a `__noNamespaceBox__` option that aligns the behavior of the `import`
+  method on SES `Compartment` with the behavior of XS and the behavior we will
+  champion for compartment standards.
+  All use of `Compartment` should migrate to use this option as the standard
+  behavior will be enabled by default with the next major version of SES.
 
-### Bug Fixes
+- Adds support for module descriptors better aligned with XS.
+  Compartments use module desriptors to load and link modules.
+  The importHook, importNowHook, and moduleMapHook all return module descriptors
+  (sometimes promises for module descriptors).
+  The modules option or argument to the Compatment constructor has module
+  descriptors for all its values.
+  - `{record, specifier, compartment}` should become `{source: record,
+    specifier, compartment}`.
+  - `{specifier, compartment}` should become `{source: specifier,
+    compartment}`.
+  - `{record: compartment.module(specifier)}` should become `{namespace:
+    specifier, compartment}`.
 
-* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
-* **ses-demo:** adapt to disabled `Date.now()` throwing ([#2357](https://github.com/endojs/endo/issues/2357)) ([b007d20](https://github.com/endojs/endo/commit/b007d206bd23a9765b598aaf18b77d4a007c9593)), closes [/github.com/endojs/endo/issues/910#issuecomment-1581855420](https://github.com/endojs//github.com/endojs/endo/issues/910/issues/issuecomment-1581855420)
-* **ses:** Add missing reexports map field on precompiled module source ([78b273d](https://github.com/endojs/endo/commit/78b273df0f7f506fef1f3ce8da4a6dfd7e442110))
-* **ses:** Defer module hook assertions ([8e4396b](https://github.com/endojs/endo/commit/8e4396b6ef059f556d8ce0af083f29d3ed57f6cd))
-* **ses:** work around [#2348](https://github.com/endojs/endo/issues/2348) linenumber bug ([#2355](https://github.com/endojs/endo/issues/2355)) ([00f5eab](https://github.com/endojs/endo/commit/00f5eab1916a93ae3e4440f86e405507d56d8d16))
+- When running transpiled code on Node, the SES error taming
+  gives line-numbers into the generated JavaScript, which often don't match the
+  the original lines. This happens even with the normal development-time
+  lockdown options setting,
 
+  ```js
+  errorTaming: 'unsafe'
+  ```
 
+  or setting the environment variable
+
+  ```sh
+  export LOCKDOWN_ERROR_TAMING=unsafe
+  ```
+
+  To get the original line numbers, this release
+  adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
+  should be used ***during development only*** when you can
+  sacrifice more security for a better debugging experience, as explained at
+  [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
+  With this setting, when running transpiled code on Node (e.g. tests written
+  in TypeScript),
+  the stacktrace line-numbers point back into the original
+  source, as they do on Node without SES.
 
 ## [1.5.0](https://github.com/endojs/endo/compare/ses@1.4.1...ses@1.5.0) (2024-05-07)
 
+- Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
+- To support TypeScript v5.5, a CommonJS-specific type declaration file is now explicitly exported.
 
-### Features
-
-* **ses:** add COMPARTMENT_LOAD_ERRORS env option to print verbose output for module loading errors ([eca5f23](https://github.com/endojs/endo/commit/eca5f235358fcf1fe135afca56a2f0a6056bb1b2))
-* **ses:** add ImportNowHook to CompartmentOptions ([e0300ba](https://github.com/endojs/endo/commit/e0300bad2807b5638dfa425c029724a350360447))
-* **ses:** importNowHook PoC ([e20c135](https://github.com/endojs/endo/commit/e20c1356f7f5da3cbee3294f008417fca0182212))
-* **ses:** redefine SharedSymbol to bypass Hermes prototype bug on obj literal short-hand methods ([#2206](https://github.com/endojs/endo/issues/2206)) ([59bb9ba](https://github.com/endojs/endo/commit/59bb9babef64d647b589b755c399f7027643b6fd))
-
-
-### Bug Fixes
-
-* **ses:** `harden` hacks v8 `stack` own accessor problem ([#2232](https://github.com/endojs/endo/issues/2232)) ([4b529e0](https://github.com/endojs/endo/commit/4b529e0ee07d6997f9f25e469a2c53576b0106ea)), closes [#2198](https://github.com/endojs/endo/issues/2198) [#2230](https://github.com/endojs/endo/issues/2230) [#2200](https://github.com/endojs/endo/issues/2200) [#2229](https://github.com/endojs/endo/issues/2229) [#2231](https://github.com/endojs/endo/issues/2231) [#2229](https://github.com/endojs/endo/issues/2229) [#2229](https://github.com/endojs/endo/issues/2229)
-* **ses:** fix broken types for CJS consumers ([a950b99](https://github.com/endojs/endo/commit/a950b995f207f1a21d547c0ac38f633ecd483c17))
-* **ses:** makeError defaults to making passable errors ([#2200](https://github.com/endojs/endo/issues/2200)) ([3b0f766](https://github.com/endojs/endo/commit/3b0f76675b32bae4a428aada739b62a5dae02192))
-* **ses:** naming consistency, types, defensive iterator ([e3248fa](https://github.com/endojs/endo/commit/e3248fa97bafac4dc6a114e3d5c267af9bd8acb6))
-* **ses:** Remove some trailing whitespace ([ff61dea](https://github.com/endojs/endo/commit/ff61deaaa65150946195491ef8fcb33125c0f01c))
-* **ses:** use generators and trampoline to unify sync and async load implementation ([7bc22f6](https://github.com/endojs/endo/commit/7bc22f64a864f434f136583d19a58d507dcb0200))
-
-
-
-### [1.4.1](https://github.com/endojs/endo/compare/ses@1.4.0...ses@1.4.1) (2024-04-04)
+## [1.4.1](https://github.com/endojs/endo/compare/ses@1.4.0...ses@1.4.1) (2024-04-04)
 
 **Note:** Version bump only for package ses
 
-
-
-
-
 ## [1.4.0](https://github.com/endojs/endo/compare/ses@1.3.0...ses@1.4.0) (2024-03-20)
-
 
 ### Features
 
 * **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 * **ses:** tolerate omitted species ([#2108](https://github.com/endojs/endo/issues/2108)) ([70c85ef](https://github.com/endojs/endo/commit/70c85ef3796acb579af8651e210f172ee200c364))
 
-
-
 ## [1.3.0](https://github.com/endojs/endo/compare/ses@1.2.0...ses@1.3.0) (2024-02-23)
 
-
-### Features
-
-* **ses:** permit Promise.any, AggregateError ([6a8c4d8](https://github.com/endojs/endo/commit/6a8c4d8795c991cdaf542d5dcb691aae4e989d79))
-
-
-### Bug Fixes
-
-* **ses,pass-style,marshal:** tolerate platforms prior to AggregateError ([5762dd4](https://github.com/endojs/endo/commit/5762dd48e814e2e8435f666019e527d982eddbbd))
-
-
+- Now supports `Promise.any`, `AggegateError`, `error.errors`,
+  and `error.cause`.
+  - Assertion functions/methods that were parameterized by an error constructor
+    (`makeError`, `assert`, `assert.fail`, `assert.equal`) now also accept named
+    options `cause` and `errors` in their immediately succeeding
+    `options` argument.
+  - For all those, the error constructor can now be an `AggregateError`.
+    If they do make an error instance, they encapsulate the
+    non-uniformity of the `AggregateError` construction arguments, allowing
+    all the error constructors to be used polymorphically
+    (generic / interchangeable).
+  - Adds a `GenericErrorConstructor` type to be effectively the common supertype
+    of `ErrorConstructor` and `AggregateErrorConstructor`, for typing these
+    error constructor parameters that handle the error constructor
+    polymorphically.
+  - The SES `console` now includes `error.cause` and `error.errors` in
+    its diagnostic output for errors.
 
 ## [1.2.0](https://github.com/endojs/endo/compare/ses@1.1.0...ses@1.2.0) (2024-02-15)
 
-
-### Features
-
-* **ses:** enablements needed by (old?) mobx ([#2030](https://github.com/endojs/endo/issues/2030)) ([553cb52](https://github.com/endojs/endo/commit/553cb52f81f33f202afca58f9230ffed67716eb7))
-* **ses:** expect more properties to censor ([#2070](https://github.com/endojs/endo/issues/2070)) ([4e5a88b](https://github.com/endojs/endo/commit/4e5a88bf5388d0cf6af9bb624b80c3206df9c5f0))
-* **ses:** Export assert-shim.js, lockdown-shim.js, compartment-shim.js ([2eca78d](https://github.com/endojs/endo/commit/2eca78db429575f39168de59398e303e9d9d53a2))
-* **ses:** permit stage 3 float16 proposal API ([#2014](https://github.com/endojs/endo/issues/2014)) ([cdb526a](https://github.com/endojs/endo/commit/cdb526a92ee7c67f1b6b322fcde031462cac9c7e))
-
-
-### Bug Fixes
-
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
-
-
+- Exports `ses/lockdown-shim.js`, `ses/compartment-shim.js`, and
+  `ses/assert-shim.js` for piecemeal usage.
+  This change is motivated by the need to omit `ses/assert-shim.js` in Test262
+  environments.
 
 ## [1.1.0](https://github.com/endojs/endo/compare/ses@1.0.1...ses@1.1.0) (2024-01-18)
 
+- The [iterators-helpers](https://github.com/tc39/proposal-iterator-helpers)
+  proposal includes two accessor properties whose purpose is to emulate
+  a data property, but without the override mistake problem. The ses-shim
+  creates many such properties, but was unprepared for them to already be
+  present in the JS platform it starts with. Chrome Canary and Node 22
+  both implement the iterators-helper proposal, triggering this bug, preventing
+  the ses-shim from initializing. The ses-shim
+  [now copes safely](https://github.com/endojs/endo/pull/1969) with an
+  enumerated set of such properties, starting with these two properties from
+  the iterators-helpers proposal.
+- The ses-shim now permits the new methods from the
+  [set-methods](https://github.com/tc39/proposal-set-methods) proposal,
+  enabling these methods to be used on platforms where they are implemented,
+  which are currently a Chrome Canary and a Node 22.
 
-### Features
-
-* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
-* **ses:** Anticipate set-methods proposal ([#1970](https://github.com/endojs/endo/issues/1970)) ([4a4f9fe](https://github.com/endojs/endo/commit/4a4f9fe8dbb30921765481f37da6bf8a2af3cbfa))
-* **ses:** Fail fast when a required process.exit or process.abort method is missing ([5d637d0](https://github.com/endojs/endo/commit/5d637d046fdc6354cef25514aea4e3aa37fa4792))
-* **ses:** group removal cleanup diagnostics ([173ec8e](https://github.com/endojs/endo/commit/173ec8e458f4181a36274dedfe3ceb93dc6f2d1d))
-* **ses:** harden some Node.js intrinsics ([148f101](https://github.com/endojs/endo/commit/148f101cf593a8b77410ec38fb3c91504846385d))
-
-
-### Bug Fixes
-
-* **ses:** Add `@[@to](https://github.com/to)StringTag` property to `proxiedExports` ([639de2a](https://github.com/endojs/endo/commit/639de2a68f38970a02a80a18cf50b972ec96e5ad))
-* **ses:** handle properties that are already override protected ([#1969](https://github.com/endojs/endo/issues/1969)) ([5792949](https://github.com/endojs/endo/commit/579294902f85fba6b171e2199a44ab7522258f46))
-* **ses:** Remove link to stale Read the Docs ([58864b7](https://github.com/endojs/endo/commit/58864b7c3cffa9521d1e990dd3c86d609adcffde)), closes [#1239](https://github.com/endojs/endo/issues/1239)
-* **ses:** Support an incomplete shimmed globalEnv.process ([6e92951](https://github.com/endojs/endo/commit/6e92951912ffde3603437cc2f0a8c31879467ff7)), closes [#1917](https://github.com/endojs/endo/issues/1917)
-* **ses:** Suppress bug [#1973](https://github.com/endojs/endo/issues/1973) until it is fixed ([#1974](https://github.com/endojs/endo/issues/1974)) ([03074ce](https://github.com/endojs/endo/commit/03074ce5eddfb391e1d690b5b5fa4113ea4b445e))
-
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/ses@1.0.0...ses@1.0.1) (2023-12-20)
+## [1.0.1](https://github.com/endojs/endo/compare/ses@1.0.0...ses@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package ses
 
-
-
-
-
 ## [1.0.0](https://github.com/endojs/endo/compare/ses@0.18.8...ses@1.0.0) (2023-12-12)
-
 
 ### Features
 
 * **ses:** add SES version ([db17743](https://github.com/endojs/endo/commit/db17743885e7a221eaf3f6cf5e811a1a1d97788f))
 * **ses:** Freeze evaluators, Compartment constructor and Symbol ([1016375](https://github.com/endojs/endo/commit/1016375f86082e927e7906f11046bb53d9025d68))
-
 
 ### Bug Fixes
 
@@ -305,39 +308,32 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **ses:** refactor import assert {type: json} to fs ([d5741a4](https://github.com/endojs/endo/commit/d5741a44450bb31150cf90e9a0d12eecc836503a))
 * **ses:** Support absence of console ([fece445](https://github.com/endojs/endo/commit/fece445f0191e41c1324d26d83d830dfa8822400)), closes [#1819](https://github.com/endojs/endo/issues/1819)
 
+## [0.18.8](https://github.com/endojs/endo/compare/ses@0.18.7...ses@0.18.8) (2023-09-12)
 
+- Extracts `repairIntrinsics(options)` and `hardenIntrinsics()` from the
+  behavior of `lockdown(options)` so vetted shims can run between these
+  calls.
+  Any modifications to shared intrinsics survive if applied after
+  `repairIntrinsics()`.
+- In the SES-shim implementation of HardenedJS, all constructed compartments
+  get the same safe `Date` constructor, that does not provide the ability to
+  measure duration.
+  It used to do this by having `Date.now()` return `NaN`, and to have calls on
+  the constructor that would normally have returned an indication of the
+  current date, instead return the corresponding invalid date indication.
+  Now, all of these throw a `TypeError` whose message begins with `'secure
+  mode'`.
+  This aligns with the XS implementation of HardenedJS.
+- Similarly, In the SES-shim implementation of HardenedJS, all constructed
+  compartments get the same safe `Math` namespace object that does not provide
+  a working `random()` function.
+  It used to do that by omitting the `random` property from the safe `Math`
+  namespace object.
+  Now, the safe shared `Math` namespace object has a `Math.random()` function
+  that throws a `TypeError whose message begins with`'secure mode'`.
+  This again aligns with the XS implementation of HardenedJS.
 
-### [0.18.8](https://github.com/endojs/endo/compare/ses@0.18.7...ses@0.18.8) (2023-09-12)
-
-
-### Features
-
-* **ses:** Support vetted shims ([40b59cc](https://github.com/endojs/endo/commit/40b59cce6aa75de0635bcaddba8d6b8dd598a8c2))
-
-
-### Bug Fixes
-
-* **assert:** mistyped assert.fail ([e1ebe75](https://github.com/endojs/endo/commit/e1ebe75845e21470b2b732a6417d35c4106df6b8))
-* only assertions on 'assert' export ([e6a7815](https://github.com/endojs/endo/commit/e6a7815081e5b257181d0039d981ec6f878e93be))
-* **ses:** align with XS property censorship agreement ([0193d99](https://github.com/endojs/endo/commit/0193d99035bf00e047efc4d96a7bdf06518613e8))
-* **ses:** prepare for Array Grouping proposal ([8e0e6bb](https://github.com/endojs/endo/commit/8e0e6bb765c3536303c9b0858f5446f007e39176))
-* **ses:** review suggestions ([e4be709](https://github.com/endojs/endo/commit/e4be709fa76adbf7662383956460a7d9b2ef0375))
-
-
-
-### [0.18.7](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.7) (2023-08-07)
-
-
-### Bug Fixes
-
-* **fix:** Censor spread import ([fc90c64](https://github.com/endojs/endo/commit/fc90c6429604dc79ce8e3355e236ccce2bada041))
-* **ses:** add more missing permits ([222f8f1](https://github.com/endojs/endo/commit/222f8f1ee9f579de9e325a2807663fc3931efa9a))
-* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
-
-
-
-### [0.18.6](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.6) (2023-08-07)
-
+## [0.18.7](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.7) (2023-08-07)
 
 ### Bug Fixes
 
@@ -345,187 +341,117 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **ses:** add more missing permits ([222f8f1](https://github.com/endojs/endo/commit/222f8f1ee9f579de9e325a2807663fc3931efa9a))
 * **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
 
+## [0.18.6](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.6) (2023-08-07)
 
+- Censors the pattern `{...import(specifier)}`.
+  We previously censored `import(specifier)` and expressly allowed
+  `object.import(specifier)`.
+  The relaxation for the latter form in version 0.13.0 inadvertently allowed
+  import with the spread operator.
 
-### [0.18.5](https://github.com/endojs/endo/compare/ses@0.18.4...ses@0.18.5) (2023-07-19)
+## [0.18.5](https://github.com/endojs/endo/compare/ses@0.18.4...ses@0.18.5) (2023-07-19)
 
+- Adds `assert.bare` for embedding unquoted strings in details.
+- Permits new `dispose` symbols, other recent additions to JavaScript, and for
+  the anticipated iterator helpers.
+- Tames `Symbol` so symbols can be preserved in the start compartment and
+  denied to shared compartments.
+- Improves debugging in Safari.
+- Adds missing native function markers.
+  All native functions should have a `toString` that says `[native code]`, even
+  if emulated.
 
-### Features
+## [0.18.4](https://github.com/endojs/endo/compare/ses@0.18.3...ses@0.18.4) (2023-04-20)
 
-* **ses:** Add assert.raw for embedding unquoted strings in details ([652df0c](https://github.com/endojs/endo/commit/652df0ca6a2fbca5db3026d26141da41cdde318e))
-* **ses:** allow new dispose symbols ([3b9fa4a](https://github.com/endojs/endo/commit/3b9fa4a27399732d518217ac31917099f55bde32))
-* **ses:** anticipate interator helpers ([b0b28a2](https://github.com/endojs/endo/commit/b0b28a248a434d310f603101861bd00d8eb903e2))
-* **ses:** review suggestions ([882f8d5](https://github.com/endojs/endo/commit/882f8d54bf66f59efec94918f35d31189545a205))
-* **ses:** tame Symbol so whitelist works ([9fb1242](https://github.com/endojs/endo/commit/9fb1242c3b48cdd363eecccc357f84f4d223ccc1))
-* **ses:** whitelist some recent >= stage 3 additions ([f0c6e50](https://github.com/endojs/endo/commit/f0c6e5024c4ca80ea632c52bf06ccc4414282787))
+- Pass through the start compartment's `globalThis.harden` if defined.
 
+## [0.18.3](https://github.com/endojs/endo/compare/ses@0.18.2...ses@0.18.3) (2023-04-14)
 
-### Bug Fixes
+- New `__hardenTaming__: 'unsafe'` lockdown option to fake harden unsafely,
+  which can be used to improve performance for applications that are known to be
+  safe even with a no-op `harden`.
+- Finite deep stacks, using LRU budgets for depth of stacks an well as the
+  maximum number of weakly-held errors to annotate.
+- Add `%AsyncGenerator%.length` and `%AsyncFunctionPrototype%.length` `number`
+  properties to allowlist.
 
-* revert broken ones ([09cabb3](https://github.com/endojs/endo/commit/09cabb30335fd4dc22623fc102bb1a2711437ad4))
-* **ses:** better safari debugging ([8cca7db](https://github.com/endojs/endo/commit/8cca7db0f66dda9ecafc5976c195004cee55950c))
-* **ses:** Correct AsyncIterator permits ([5009022](https://github.com/endojs/endo/commit/5009022d4b21a59ebd537774d1817015b4af8699))
-* **ses:** Fix expectations of import order in module source test ([a59f2b4](https://github.com/endojs/endo/commit/a59f2b4ab6c784c879391ee829b2763bd81b2a85))
-* **ses:** missing native function markings ([98b9698](https://github.com/endojs/endo/commit/98b96989c85dd488849b76c6b22a188087ef59f3))
-* **ses:** permits for new proposal problems ([de46b14](https://github.com/endojs/endo/commit/de46b14e1f2933338217090ee7bbe013365e24ec))
-* **ses:** review suggestions ([8e9ead0](https://github.com/endojs/endo/commit/8e9ead0b2ff48c6a6f1b5e57b88c96d7196a7d71))
-* **ses:** ses depends on env-options ([ca3ffd1](https://github.com/endojs/endo/commit/ca3ffd1fbf809cdf30562399d094d318ef592b0e))
+## [0.18.2](https://github.com/endojs/endo/compare/ses@0.18.1...ses@0.18.2) (2023-03-07)
 
+- Introduces the `__syncModuleFunctor__` property of static module record
+  to replace evauluation of `__syncModuleProgram__` for environments without eval.
 
+## [0.18.1](https://github.com/endojs/endo/compare/ses@0.18.0...ses@0.18.1) (2022-12-23)
 
-### [0.18.4](https://github.com/endojs/endo/compare/ses@0.18.3...ses@0.18.4) (2023-04-20)
-
-### Features
-
-- **ses:** use `globalThis.harden` as `safeHarden` if available ([5f3de3e](https://github.com/endojs/endo/commit/5f3de3e539ab93c86d152ce7dd82b9e6af56c57d))
-
-### Bug Fixes
-
-- **ses:** correct types ([c38235c](https://github.com/endojs/endo/commit/c38235c78bb038100e52da79ca69944ec516299a))
-
-### [0.18.3](https://github.com/endojs/endo/compare/ses@0.18.2...ses@0.18.3) (2023-04-14)
-
-### Features
-
-- **eslint-plugin:** separate rules into subsets ([688e89c](https://github.com/endojs/endo/commit/688e89c80dccb2ec01183a5a4c3600f72078e67b))
-- **ses:** finite deep stacks, on by default ([#1513](https://github.com/endojs/endo/issues/1513)) ([aae0e57](https://github.com/endojs/endo/commit/aae0e57f7a6bdcc898396c65ec22616a33672d32))
-- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
-
-### Bug Fixes
-
-- limit logged args per error ([88f4662](https://github.com/endojs/endo/commit/88f46620314f34dc964f8c490179b38d39d26bc7))
-- **ses:** Add length (number) prop to whitelist %AsyncGenerator% and %AsyncFunctionPrototype% ([#1511](https://github.com/endojs/endo/issues/1511)) ([c08b15b](https://github.com/endojs/endo/commit/c08b15b09f295775c3f253ca7f03c105ac87bab7))
-- **ses:** avoid holding deep stacks strongly ([996af60](https://github.com/endojs/endo/commit/996af60df50120da971ba962e56fcc333ba70e3e))
-
-### [0.18.2](https://github.com/endojs/endo/compare/ses@0.18.1...ses@0.18.2) (2023-03-07)
-
-### Features
-
-- Comment links error code errors to explanation ([#1431](https://github.com/endojs/endo/issues/1431)) ([91362f1](https://github.com/endojs/endo/commit/91362f1e585928f83496ffbabec7d583ec6b031e))
-- **ses:** export tools ([ba562df](https://github.com/endojs/endo/commit/ba562dfe32601deaee8242c06925d6957156f7e2))
-- **ses:** module execute uses syncModuleFunctor if present ([079098e](https://github.com/endojs/endo/commit/079098ed2944b4da990cf359857b09b0437f714a))
-
-### Bug Fixes
-
-- extend severeEnablements with immer workaround ([#1433](https://github.com/endojs/endo/issues/1433)) ([f072995](https://github.com/endojs/endo/commit/f07299530de8424e133f0359d8902cff5e4fef5b))
-- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
-- Improve typing information ([765d262](https://github.com/endojs/endo/commit/765d2625ee278608494f7e998bcd3a3ee8b845a4))
-- **ses:** Fix guide.md Compartment link ([#1457](https://github.com/endojs/endo/issues/1457)) ([c9b0276](https://github.com/endojs/endo/commit/c9b02769594a7fb7d6cbdb7a9536ba79c23de520))
-- **ses:** Fix SES_NO_SLOPPY.md typo ([#1458](https://github.com/endojs/endo/issues/1458)) ([4cf1845](https://github.com/endojs/endo/commit/4cf184566210ef59e0ef84dcabf8a70aa8b5d841))
-
-### [0.18.1](https://github.com/endojs/endo/compare/ses@0.18.0...ses@0.18.1) (2022-12-23)
-
-### Features
-
-- **ses:** support RedirectStaticModuleInterface with implicit record ([356ed3b](https://github.com/endojs/endo/commit/356ed3b3b40b5b890d0970012f62d08ee7eea1f7))
-
-### Bug Fixes
-
-- **ses:** Do not crash under no-unsafe-eval Content Security Policy ([#1333](https://github.com/endojs/endo/issues/1333)) ([e512174](https://github.com/endojs/endo/commit/e5121747d2ba01ad15304763c6390b721bb0df2a))
-- **ses:** handle named reexports without confusing bindings for matching imported names ([84a62cc](https://github.com/endojs/endo/commit/84a62cc0fca3ca9a98853619a8f6c30145b181d4))
-- **ses:** Link to primer on Hardened JavaScript ([121457d](https://github.com/endojs/endo/commit/121457dd2d82fdf92312a2efd47494007677654c))
-- **ses:** Remove superfluous tick in module loader ([342626a](https://github.com/endojs/endo/commit/342626ad6944d98aaecbe9274fcd60422247bb65)), closes [#1394](https://github.com/endojs/endo/issues/1394)
+- Fixes a bug for SES initialization in a no-unsafe-eval
+  Content-Security-Policy.
+- Fixes a bug where reexport of multiple named exports of the same name was
+  causing them to be overridden by the last value. Now named exports are
+  handled in the same manner as `export *`.
+- Allows Compatment `importHook` implementations to return aliases: module
+  descriptors that refer to a module by its specifier in the same or a
+  specified compartment, without providing a static module record (module
+  source).
 
 ## [0.18.0](https://github.com/endojs/endo/compare/ses@0.17.0...ses@0.18.0) (2022-11-14)
 
-### ⚠ BREAKING CHANGES
-
-- **ses:** Remove support for globalLexicals
-
-### Features
-
-- **ses:** Remove support for globalLexicals ([3b90d5d](https://github.com/endojs/endo/commit/3b90d5d96984ff211efe5e47de1ce57cde7be980)), closes [#904](https://github.com/endojs/endo/issues/904)
-
-### Bug Fixes
-
-- assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
-- fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
+- *BREAKING*: Removes support for `globalLexicals`.
+  To our knowledge, there are no production uses for `globalLexicals`.
+  They currently could leak because `moduleLexicals` and `globalLexicals`
+  used the same scope object, so properties of one would leak to the other
+  with crafted modules.
+  We had an opportunity to plug the leak at the cost of a fifth scope
+  in all evaluators, but elected to remove the unnecessary complexity instead.
 
 ## [0.17.0](https://github.com/endojs/endo/compare/ses@0.16.0...ses@0.17.0) (2022-10-24)
 
-### ⚠ BREAKING CHANGES
-
-- **ses:** Prevent surprising global unscopables behavior
-- **ses:** Divide scope proxy into four layers
-
-### Features
-
-- **ses:** Revocable evalScope ([0187d1e](https://github.com/endojs/endo/commit/0187d1e3532cfc2f052619c46a8a6331a8c15ae8))
-
-### Bug Fixes
-
-- **ses:** Prevent surprising global unscopables behavior ([dcb8f5d](https://github.com/endojs/endo/commit/dcb8f5da2a453ac72b7f2cc3208f591a9c298402))
-- **ses:** Protect necessary eval admission before it has been admitted ([3d022b1](https://github.com/endojs/endo/commit/3d022b1e1b34ff9b86cf6af236c499bfbe291298))
-- **ses:** Typo in compartmentEvaluate ([d66db7a](https://github.com/endojs/endo/commit/d66db7a67fab6bdd36d18a931c6a9163e842c3fe))
-- **ses:** Typo in scope-constants ([a4ee1ea](https://github.com/endojs/endo/commit/a4ee1ea5e54d894ad3a3ce0c5e42507f026199e6))
-
-### Code Refactoring
-
-- **ses:** Divide scope proxy into four layers ([37c4b4a](https://github.com/endojs/endo/commit/37c4b4a22996e33dd4b2a48c67ce649ba88e5528))
+- Previous versions of SES would leak the proxy used to isolate evaluated
+  code to functions added to the global object by guest code.
+  The value of `this` in such functions should be `undefined`, but that is not
+  possible to emulate in this shim.
+  This version changes the value of `this` in such functions to be the same as
+  `globalThis` of the compartment, as would be correct in sloppy mode.
+- Removes experimental support for "known scope proxies".
 
 ## [0.16.0](https://github.com/endojs/endo/compare/ses@0.15.23...ses@0.16.0) (2022-10-19)
 
-### Features
+- When hardening a typed array, detects and locks down properties named as
+  number-coercible strings that are not index properties.
 
-- Add links to resources and community portals ([b0fef82](https://github.com/endojs/endo/commit/b0fef82192d476c43e9e10d5ad696cdad5bcb0b5))
+## [0.15.23](https://github.com/endojs/endo/compare/ses@0.15.22...ses@0.15.23) (2022-09-27)
 
-### Bug Fixes
+- Fixes the unhandled promise rejection logic to report unhandled rejections
+  when the promise is collected. Because of a bug it previously only reported
+  at process exit.
+- Improves the fidelity of emulation for V8 `Error.prepareStackTrace`,
+  allowing more legacy code to work by default in isolation.
 
-- **ses:** Fail safe when getOwnPropertyDescriptor reports absence of a known property ([5fa3b50](https://github.com/endojs/endo/commit/5fa3b506dc3d8826d0d213a9514e554986823a1d))
-- **ses:** Harden all non-integer typed array properties, even if canonical ([88cab0b](https://github.com/endojs/endo/commit/88cab0be4cf816dc578f2ff441fd9bcda0aa5cf5))
-- **ses:** Lock down all typed array expando properties ([dc82f5d](https://github.com/endojs/endo/commit/dc82f5d2908b3507965562c7c1b3bf12d852af8f))
-- minor improvements to some override comments ([#1327](https://github.com/endojs/endo/issues/1327)) ([678285a](https://github.com/endojs/endo/commit/678285a3345adec894f265ba56c2fa6636f846b8))
-- **marshal:** Return a special error message from passStyleOf(typedArray) ([dbd498e](https://github.com/endojs/endo/commit/dbd498e30a5c3b0d2713d863bc7479ceef39cd79)), closes [#1326](https://github.com/endojs/endo/issues/1326)
-- delete broken objectFromEntries ([#1306](https://github.com/endojs/endo/issues/1306)) ([d83be67](https://github.com/endojs/endo/commit/d83be675d23a928f287d6d9118f7258f0abd855a))
-- **ses:** expand the scope this-value test ([3d50c1a](https://github.com/endojs/endo/commit/3d50c1ac073250406a8b38735610ca6d86fdd680))
-- **ses:** Fix incompatible spelling ([c32fdf1](https://github.com/endojs/endo/commit/c32fdf10bdc1a21096ba190c384fa9f08f85f1f3))
-- **ses:** scope tests - expand Symbol.unscopables fidelity test ([bb542f7](https://github.com/endojs/endo/commit/bb542f78a1520a8e54e981d224dee28b171518d6))
-- **ses:** scope tests - expand Symbolunscopables fidelity test ([c603c5a](https://github.com/endojs/endo/commit/c603c5aa4a1ba271cf17d754df789a52aa7debfb))
-- **ses:** scope tests - move teardown into ava teardown call ([e59f682](https://github.com/endojs/endo/commit/e59f6829e3061adcd8fbf78cde84cf3f9abc5bf8))
-- **ses:** scope tests - rename variables to match purpose ([18d64c3](https://github.com/endojs/endo/commit/18d64c31315e47c798443f78a3bcfb77f4698366))
-- **ses:** this-value scope test includes optimizable props ([9c3fea3](https://github.com/endojs/endo/commit/9c3fea3dfd2d72f0fc13455bc1e54de455ead83e))
-- **ses:** this-value scope test includes unscopables fidelity test ([0be95ac](https://github.com/endojs/endo/commit/0be95acdb9a5251d1c37061bb5ae59180e298f65))
-
-### [0.15.23](https://github.com/endojs/endo/compare/ses@0.15.22...ses@0.15.23) (2022-09-27)
-
-### Features
-
-- **ses:** improve performance of uncurryThis ([b1ad60a](https://github.com/endojs/endo/commit/b1ad60ae89545499d6cbcaa3812118ac4229d83c))
-
-### Bug Fixes
-
-- add a do-nothing SharedError.prepareStackTrace ([#1290](https://github.com/endojs/endo/issues/1290)) ([705aef2](https://github.com/endojs/endo/commit/705aef24f34bb9794f0aa807d567b3efbf0c23af))
-- **ses:** report unhandled promise rejection when collected ([dae7235](https://github.com/endojs/endo/commit/dae7235011da907823c27ca5dfb9ed72519a4062))
-- **ses:** uncurryThis type fixes ([feb062c](https://github.com/endojs/endo/commit/feb062c56ee05b12657596defce68107894bafd4))
-
-### [0.15.22](https://github.com/endojs/endo/compare/ses@0.15.21...ses@0.15.22) (2022-09-14)
+## [0.15.22](https://github.com/endojs/endo/compare/ses@0.15.21...ses@0.15.22) (2022-09-14)
 
 ### Bug Fixes
 
 - alt syntax for positive but faster assertions ([#1280](https://github.com/endojs/endo/issues/1280)) ([dc24f2f](https://github.com/endojs/endo/commit/dc24f2f2c3cac7ce239a64c503493c41a2334315))
 
-### [0.15.21](https://github.com/endojs/endo/compare/ses@0.15.20...ses@0.15.21) (2022-08-26)
+## [0.15.21](https://github.com/endojs/endo/compare/ses@0.15.20...ses@0.15.21) (2022-08-26)
 
 **Note:** Version bump only for package ses
 
-### [0.15.20](https://github.com/endojs/endo/compare/ses@0.15.19...ses@0.15.20) (2022-08-26)
+## [0.15.20](https://github.com/endojs/endo/compare/ses@0.15.19...ses@0.15.20) (2022-08-26)
 
 **Note:** Version bump only for package ses
 
-### [0.15.19](https://github.com/endojs/endo/compare/ses@0.15.18...ses@0.15.19) (2022-08-25)
+## [0.15.19](https://github.com/endojs/endo/compare/ses@0.15.18...ses@0.15.19) (2022-08-25)
 
 **Note:** Version bump only for package ses
 
-### [0.15.18](https://github.com/endojs/endo/compare/ses@0.15.17...ses@0.15.18) (2022-08-23)
+## [0.15.18](https://github.com/endojs/endo/compare/ses@0.15.17...ses@0.15.18) (2022-08-23)
 
-### Bug Fixes
+- Removes the `__allowUnsafeMonkeyPatching__` option to lockdown. As the name
+  should indicate, this was always an unsafe temporary kludge. Its only known
+  use was in agoric-sdk, now gone at
+  <https://github.com/Agoric/agoric-sdk/pull/5922> . Without this option, a
+  successful `lockdown` will now always harden the primordials.
 
-- more hardens ([#1241](https://github.com/endojs/endo/issues/1241)) ([b6ff811](https://github.com/endojs/endo/commit/b6ff8118a92fd72c5309b2bb285fac08d0531d92))
-- remove **allowUnsafeMonkeyPatching** ([fe9c784](https://github.com/endojs/endo/commit/fe9c78414eab5d1bce73cdb16e1455c1c4307e98))
-- remove dead environment-options module ([#1243](https://github.com/endojs/endo/issues/1243)) ([c43c939](https://github.com/endojs/endo/commit/c43c9396976ad6b0af5d99caed033b1abf448165))
-- **ses:** avoid leaks through CallSite structures ([69f69fa](https://github.com/endojs/endo/commit/69f69fac84154401a5bea72a533ba07f1ff2c191))
-
-### [0.15.17](https://github.com/endojs/endo/compare/ses@0.15.16...ses@0.15.17) (2022-06-28)
+## [0.15.17](https://github.com/endojs/endo/compare/ses@0.15.16...ses@0.15.17) (2022-06-28)
 
 ### Features
 
@@ -538,7 +464,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - rename meta to importMeta, fix detection to detect import.meta not import.meta.something ([c61a862](https://github.com/endojs/endo/commit/c61a862c9f4354f0e6d86d8c8efaa826840a6efd))
 - tolerate empty func.prototype ([#1221](https://github.com/endojs/endo/issues/1221)) ([4da7742](https://github.com/endojs/endo/commit/4da7742e8017d07094ed9b9336a85b6a4d3ee7b6))
 
-### [0.15.16](https://github.com/endojs/endo/compare/ses@0.15.15...ses@0.15.16) (2022-06-11)
+## [0.15.16](https://github.com/endojs/endo/compare/ses@0.15.15...ses@0.15.16) (2022-06-11)
 
 ### Features
 
@@ -555,22 +481,22 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - make `*Trapping` orthogonal to `consoleTaming` ([8c5e12e](https://github.com/endojs/endo/commit/8c5e12e96f8c71d0c52e2d17786558e88585e04b))
 - repair deviations from local convention ([#1183](https://github.com/endojs/endo/issues/1183)) ([13614f5](https://github.com/endojs/endo/commit/13614f56872ac976e3440f8bcce706200ffe9822))
 
-### [0.15.15](https://github.com/endojs/endo/compare/ses@0.15.14...ses@0.15.15) (2022-04-15)
+## [0.15.15](https://github.com/endojs/endo/compare/ses@0.15.14...ses@0.15.15) (2022-04-15)
 
 **Note:** Version bump only for package ses
 
-### [0.15.14](https://github.com/endojs/endo/compare/ses@0.15.13...ses@0.15.14) (2022-04-14)
+## [0.15.14](https://github.com/endojs/endo/compare/ses@0.15.13...ses@0.15.14) (2022-04-14)
 
 **Note:** Version bump only for package ses
 
-### [0.15.13](https://github.com/endojs/endo/compare/ses@0.15.12...ses@0.15.13) (2022-04-13)
+## [0.15.13](https://github.com/endojs/endo/compare/ses@0.15.12...ses@0.15.13) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 - **ses:** Prevent hypothetical stack bumping to get unsafe eval ([3c64cde](https://github.com/endojs/endo/commit/3c64cdea5b410a053520dc29de04c43350a38e1a)), closes [#956](https://github.com/endojs/endo/issues/956)
 
-### [0.15.12](https://github.com/endojs/endo/compare/ses@0.15.11...ses@0.15.12) (2022-04-12)
+## [0.15.12](https://github.com/endojs/endo/compare/ses@0.15.11...ses@0.15.12) (2022-04-12)
 
 ### Features
 
@@ -588,50 +514,45 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **ses:** Ignore Array unscopable findLast{,Index} ([#1129](https://github.com/endojs/endo/issues/1129)) ([bbf7e7d](https://github.com/endojs/endo/commit/bbf7e7dd0ba19349120d4913016c62b9f8dc4995))
 - **ses:** make import \* and default from cjs wire up correctly ([33cbd27](https://github.com/endojs/endo/commit/33cbd2776f9d47e6e8438650565155e4185d9373))
 
-### [0.15.11](https://github.com/endojs/endo/compare/ses@0.15.10...ses@0.15.11) (2022-03-07)
+## [0.15.11](https://github.com/endojs/endo/compare/ses@0.15.10...ses@0.15.11) (2022-03-07)
 
 **Note:** Version bump only for package ses
 
-### [0.15.10](https://github.com/endojs/endo/compare/ses@0.15.9...ses@0.15.10) (2022-03-02)
+## [0.15.10](https://github.com/endojs/endo/compare/ses@0.15.9...ses@0.15.10) (2022-03-02)
 
 ### Features
 
 - add evalTaming option ([#961](https://github.com/endojs/endo/issues/961)) ([735ff94](https://github.com/endojs/endo/commit/735ff94bf3513613e64aaca03116f289d07aa366))
 
-### [0.15.9](https://github.com/endojs/endo/compare/ses@0.15.8...ses@0.15.9) (2022-02-20)
+## [0.15.9](https://github.com/endojs/endo/compare/ses@0.15.8...ses@0.15.9) (2022-02-20)
 
 **Note:** Version bump only for package ses
 
-### [0.15.8](https://github.com/endojs/endo/compare/ses@0.15.7...ses@0.15.8) (2022-02-18)
+## [0.15.8](https://github.com/endojs/endo/compare/ses@0.15.7...ses@0.15.8) (2022-02-18)
 
-### Features
+- Harden now gives special treatment to typed arrays.
+  Instead of freezing a typed array, harden will seal it and make all of its
+  non-integer properties non-writable.
+  All of their integer properties will remain writable and non-configurable.
+  TypedArrays are exceedingly unusual because their integer properties are
+  writable and neither freeze nor defineProperty can convert them from writable
+  to non-writable.
 
-- **ses:** Harden typed arrays ([#1032](https://github.com/endojs/endo/issues/1032)) ([0dfa7de](https://github.com/endojs/endo/commit/0dfa7de417e9e801e3188596bfe9d10a69d541a6))
-
-### Bug Fixes
-
-- Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
-- **ses:** update index.d.ts with second argument to compartment.evaluate ([716621c](https://github.com/endojs/endo/commit/716621c3259965f699ec12ac1fa5d874884348b5))
-- remove pureCopy, ALLOW_IMPLICIT_REMOTABLES ([#1061](https://github.com/endojs/endo/issues/1061)) ([f08cad9](https://github.com/endojs/endo/commit/f08cad99aa715aa36f78dfd67b9f581cdd22bb3c))
-- Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
-- Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
-- **ses:** Relax hardened typed array test to be insensitive to bugfix between Node.js 14 and 16 ([#1048](https://github.com/endojs/endo/issues/1048)) ([e12508d](https://github.com/endojs/endo/commit/e12508db74e0c5b921db92daf3de684b739f7bc3)), closes [#1045](https://github.com/endojs/endo/issues/1045)
-
-### [0.15.7](https://github.com/endojs/endo/compare/ses@0.15.6...ses@0.15.7) (2022-01-31)
+## [0.15.7](https://github.com/endojs/endo/compare/ses@0.15.6...ses@0.15.7) (2022-01-31)
 
 ### Bug Fixes
 
 - **ses:** Globals have vars, not consts ([#1027](https://github.com/endojs/endo/issues/1027)) ([157669f](https://github.com/endojs/endo/commit/157669f0b669332f703747e36dd867bf6a823e59))
 
-### [0.15.6](https://github.com/endojs/endo/compare/ses@0.15.5...ses@0.15.6) (2022-01-27)
+## [0.15.6](https://github.com/endojs/endo/compare/ses@0.15.5...ses@0.15.6) (2022-01-27)
 
 **Note:** Version bump only for package ses
 
-### [0.15.5](https://github.com/endojs/endo/compare/ses@0.15.4...ses@0.15.5) (2022-01-25)
+## [0.15.5](https://github.com/endojs/endo/compare/ses@0.15.4...ses@0.15.5) (2022-01-25)
 
 **Note:** Version bump only for package ses
 
-### [0.15.4](https://github.com/endojs/endo/compare/ses@0.15.3...ses@0.15.4) (2022-01-23)
+## [0.15.4](https://github.com/endojs/endo/compare/ses@0.15.3...ses@0.15.4) (2022-01-23)
 
 ### Features
 
@@ -646,237 +567,761 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **ses:** Number.prototype.toLocaleString radix confusion ([#975](https://github.com/endojs/endo/issues/975)) ([6a17595](https://github.com/endojs/endo/commit/6a175953e5c78d2575c2e9e4e72e6b893bcdb631)), closes [#852](https://github.com/endojs/endo/issues/852)
 - **ses:** Remove superfluous error cause on prototypes ([#955](https://github.com/endojs/endo/issues/955)) ([6e50c45](https://github.com/endojs/endo/commit/6e50c4526f457b31e00a783406d175b0088907eb))
 
-### [0.15.3](https://github.com/endojs/endo/compare/ses@0.15.2...ses@0.15.3) (2021-12-14)
+## [0.15.3](https://github.com/endojs/endo/compare/ses@0.15.2...ses@0.15.3) (2021-12-14)
 
-**Note:** Version bump only for package ses
+- Fixes the type definition for assert.error so that the final options bag,
+  which may include `errorName`, checks correctly in TypeScript.
+- Lockdown will now throw an error if code running before SES initialization
+  replaced `eval`.
 
-### [0.15.2](https://github.com/endojs/endo/compare/ses@0.15.1...ses@0.15.2) (2021-12-08)
+## [0.15.2](https://github.com/endojs/endo/compare/ses@0.15.1...ses@0.15.2) (2021-12-08)
 
-### Bug Fixes
+- The `Removing...` messages that Lockdown emits when encountering unrecognized
+  properties on shared intrinsics are now logged as "warnings".
+  This has the material benefit of sending these messages to STDERR on Node.js.
+- Updates permits for all current TC39 stage 3 and 4 proposals, notably
+  suppressing the `Removing...` messages for `Object.hasOwn`; `findLast` and
+  `findLastIndex` on both `Array.prototype` and `TypedArray.prototype`; and the
+  properties `transfer`, `resize`, `resizable`, and `maxByteLength` of
+  `ArrayBuffer.prototype`.
 
-- **ses:** Constrain URL types in bundle script ([bdd7996](https://github.com/endojs/endo/commit/bdd79964c56e1716113f2b852f39eb3af3022742))
-- **ses:** Send removal warnings to STDERR ([#949](https://github.com/endojs/endo/issues/949)) ([761774c](https://github.com/endojs/endo/commit/761774c25d318d675c3e665f6112ff946ac7b59c))
-- **ses:** Windows support for bundle build script ([f8c6885](https://github.com/endojs/endo/commit/f8c6885116c52436e2fb675c1544bc765a1dd0f1))
-- **ses:** Windows support for tests ([3bc504b](https://github.com/endojs/endo/commit/3bc504b5356d13e1411d127cefc7ad3bc99fbfa5))
-- Avoid eslint globs for Windows ([4b4f3cc](https://github.com/endojs/endo/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
-- update whitelist with stage 3 and 4 proposals ([#946](https://github.com/endojs/endo/issues/946)) ([8112430](https://github.com/endojs/endo/commit/811243015cc2e3e588080ceef6146b7b5e42f2bb))
+## [0.15.1](https://github.com/endojs/endo/compare/ses@0.15.0...ses@0.15.1) (2021-11-16)
 
-### [0.15.1](https://github.com/endojs/endo/compare/ses@0.15.0...ses@0.15.1) (2021-11-16)
-
-### Bug Fixes
-
-- **ses:** Add errorTrapping none to type definition ([#935](https://github.com/endojs/endo/issues/935)) ([313d47c](https://github.com/endojs/endo/commit/313d47c5a5c02afcd57e933ca876fec22a059972))
-- **ses:** Include error in trapped error log ([#936](https://github.com/endojs/endo/issues/936)) ([22c4644](https://github.com/endojs/endo/commit/22c4644b6ad31c9eb7fdb4d760d91f8667e7a2c7))
+- The TypeScript definition of `lockdown` now allows for the option
+  `"errorTrapping": "none"`.
+- Fixes error trapping on the web, showing both the message (and stack) of any
+  error that throws out of the top of an event.
 
 ## [0.15.0](https://github.com/endojs/endo/compare/ses@0.14.4...ses@0.15.0) (2021-11-02)
 
-### ⚠ BREAKING CHANGES
+- *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by
+  default, which will break any application that depends transtively on the
+  Node.js `domain` module.
+  Notably, [standard-things/esm](https://github.com/standard-things/esm)
+  uses domains and so SES will not support `node -r esm` going forward.
 
-- **ses:** Withdraw support for muli-lockdown (#921)
-- **ses:** Domain taming safe by default (#917)
+  This protects against the unhardened `domain` property appearing on shared
+  objects like callbacks and promises.
+  This overcomes the last *known* obstacle toward object capability containment.
 
-### Features
+- Lockdown will now read options from the environment as defined by the Node.js
+  `process.env` parameter space.
+- *BREAKING CHANGE*: Lockdown may no longer be called more than once.
+  Lockdown no longer returns a boolean to indicate whether it was effective
+  (true) or redundant (false). Instead, Lockdown will return undefined for
+  its first invocation or throw an error otherwise.
 
-- **ses:** Read lockdown options from environment ([#871](https://github.com/endojs/endo/issues/871)) ([789d639](https://github.com/endojs/endo/commit/789d639c25c6882153a8090f4bd74d350bb29721))
+## [0.14.4](https://github.com/endojs/endo/compare/ses@0.14.3...ses@0.14.4) (2021-10-15)
 
-### Bug Fixes
+- Fixes a defect in the per-compartment `Function` and `eval` functions, such
+  that these environments did not have the compartment's `globalLexicals`.
+  There is no known environment depending on this invariant for security
+  reasons, but such a scenario would be a program arranging a translator that
+  introduces run-time security checks, like metering, that depend on the
+  existence of a named global lexical.
+  [#898](https://github.com/endojs/endo/issues/898)
+- The above fix incidentally improved the performance of compartment evaluation
+  for cases that do not require special global lexicals, by sharing a single
+  per-compartment evaluator.
 
-- **ses:** Domain taming safe by default ([#917](https://github.com/endojs/endo/issues/917)) ([7039276](https://github.com/endojs/endo/commit/7039276ef91a2de2b048c91085a7557c8830f677))
-- **ses:** Withdraw support for muli-lockdown ([#921](https://github.com/endojs/endo/issues/921)) ([99752b0](https://github.com/endojs/endo/commit/99752b046c2a3e2d866559bb9d58f625eb94b1a8)), closes [#814](https://github.com/endojs/endo/issues/814)
+## [0.14.3](https://github.com/endojs/endo/compare/ses@0.14.2...ses@0.14.3) (2021-09-18)
 
-### [0.14.4](https://github.com/endojs/endo/compare/ses@0.14.3...ses@0.14.4) (2021-10-15)
+- Due to a peculiar bit of error handling code in Node 14, as explained at
+  [Hardened JavaScript interferes with Node.js 14 Error
+  construction](https://github.com/endojs/endo/issues/868),
+  we have added more overrides to the default `overrideTaming: 'moderate'`
+  setting. At this setting, assigning to the `name` property of a mutable error
+  instance should work. It will continue not to work at the `'min'` setting, so
+  use the default `'moderate'` setting if you need to.
+- Adds a lockdown option `domainTaming` to detect whether Node.js domains have
+  been initialized and prevents them from being initialized afterward.
+  Domains otherwise presented a hazard to the integrity of SES containment on
+  Node.js.
+  The option defaults to `"unsafe"` in this version and will be switched to
+  `"safe"` by default in the next release that allows for breaking-changes, to
+  afford a gradual migration.
+  Thank you to @dominictarr with [Least Authority](https://leastauthority.com/)
+  for devising this feature.
+- Fixes reflexive module imports. Previously, SES would fail to initialize a
+  module graph where a module imported an alias to itself.
 
-### Features
-
-- **ses:** lazily create evaluate ([f1cf92a](https://github.com/endojs/endo/commit/f1cf92a3b8e23aab3894f8431d8b65b4f75daa77))
-
-### Bug Fixes
-
-- **ses:** Add test and warning about the `has` hazard ([9066c97](https://github.com/endojs/endo/commit/9066c97b41b35a4e37fd12256a0802fb656af755))
-- **ses:** more detailed `has` hazard test ([f010a9e](https://github.com/endojs/endo/commit/f010a9ebe09dadc72a8f22bd54caed8aa3787243))
-- **ses:** Refactor Compartment to use shared evaluator ([dc0bad6](https://github.com/endojs/endo/commit/dc0bad6c1f963ff379e45f320852218228203050))
-
-### [0.14.3](https://github.com/endojs/endo/compare/ses@0.14.2...ses@0.14.3) (2021-09-18)
-
-### Features
-
-- **eslint-plugin:** Add no-polymorphic-call rule ([03e8c5f](https://github.com/endojs/endo/commit/03e8c5f566a52d9d6e7fb9d876a67347ecf37324))
-- **ses:** Lockdown option domainTaming ([ee3e4c3](https://github.com/endojs/endo/commit/ee3e4c309ece70249d6c95b806ca8d02549f1837))
-
-### Bug Fixes
-
-- **ses:** Fix reflexive imports ([d259db7](https://github.com/endojs/endo/commit/d259db75022941c4ea1881b4ca4005acc1a37a1c))
-- **ses:** Search engine optimization ([#886](https://github.com/endojs/endo/issues/886)) ([ef03184](https://github.com/endojs/endo/commit/ef031843b445a4a9df7b717fba7a315371eadae0))
-- add "name" to moderate override of all errors ([#867](https://github.com/endojs/endo/issues/867)) ([d608325](https://github.com/endojs/endo/commit/d608325c3edade0c64f9ca9a84379f8d3e3addf0))
-- update NEWS with news of [#867](https://github.com/endojs/endo/issues/867) ([#869](https://github.com/endojs/endo/issues/869)) ([c3139d2](https://github.com/endojs/endo/commit/c3139d2ff7433afce3653639fc71a65dbe3c6313))
-
-### [0.14.2](https://github.com/endojs/endo/compare/ses@0.14.1...ses@0.14.2) (2021-08-14)
+## [0.14.2](https://github.com/endojs/endo/compare/ses@0.14.1...ses@0.14.2) (2021-08-14)
 
 **Note:** Version bump only for package ses
 
-### [0.14.1](https://github.com/endojs/endo/compare/ses@0.14.0...ses@0.14.1) (2021-08-13)
+## [0.14.1](https://github.com/endojs/endo/compare/ses@0.14.0...ses@0.14.1) (2021-08-13)
 
-### Features
-
-- **ses:** Add permits for at methods ([#857](https://github.com/endojs/endo/issues/857)) ([8b9e138](https://github.com/endojs/endo/commit/8b9e13830113fef9c3b5a36ba88436dba5677b4c)), closes [#854](https://github.com/endojs/endo/issues/854)
+- Adds permits for `Array.prototype.at` and `String.prototype.at` which are
+  Stage 3 proposals for ECMA 262.
 
 ## [0.14.0](https://github.com/endojs/endo/compare/ses@0.13.4...ses@0.14.0) (2021-07-22)
 
-### ⚠ BREAKING CHANGES
+- *BREAKING*: Any precompiled static module records from prior versions
+  will not load in this version of SES or beyond. The format of the preamble
+  has been changed to admit the possibility of a variable named `Map` declared
+  in the scope of a module.
+- Fixes the type assertions for `assert` and `assert.string`.
+- Reveals `harden` only after `lockdown`. Harden was never usable before
+  lockdown because it would render the environment irreparable.
+  Calling `harden` before `lockdown` previously threw an exception.
+  Now it is possible to write libraries that are usable both in JS and SES,
+  which can know whether to harden their API by the presence of harden in
+  global scope.
+- Adds `errorTrapping` lockdown option and by default traps uncaught exceptions
+  and logs them back with their original stack traces.
+  These would previously appear as mysterios `{}` lines in Node.js.
 
-- Update preamble for SES StaticModuleRecord
-- **ses:** Adjust preamble for module instances to expect entries instead of a Map
+## [0.13.4](https://github.com/endojs/endo/compare/ses@0.13.3...ses@0.13.4) (2021-06-20)
 
-### Features
+- Adds more TypeScript definitions, importable with `/// <reference types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,
+  and many types importable with `import('ses')` notation.
+- Adds descriptive detail to module system link error messages and fixes the
+  reported exports for one.
 
-- **ses:** Add errorTrapping lockdown option ([2a88adb](https://github.com/endojs/endo/commit/2a88adb2ac65ae401a20c2019fe61bac2d7b4fd2))
-- **ses:** Reveal harden only after lockdown ([424af0f](https://github.com/endojs/endo/commit/424af0f0cabd28d691b3cf7183bf1a0d34f0af70)), closes [#787](https://github.com/endojs/endo/issues/787)
-
-### Bug Fixes
-
-- **ses:** Adjust preamble for module instances to expect entries instead of a Map ([574c518](https://github.com/endojs/endo/commit/574c518de757c34a57096ef3c5be5681249e5294))
-- **ses:** Defend integrity of intrinsics ([14e451c](https://github.com/endojs/endo/commit/14e451ce32f95de68f10d15fe99a260dc638150d))
-- **ses:** Fix assert type assertions ([53d284d](https://github.com/endojs/endo/commit/53d284d04eebed57ccaf19b43a1ff9a71393cc6b))
-- **ses:** Fix packaging for `@web/dev-server` ([8c35e33](https://github.com/endojs/endo/commit/8c35e333818bd9e7f6630ae2be93e5ca98d85e17))
-- **ses:** Fix version number errors in news ([9aff6c3](https://github.com/endojs/endo/commit/9aff6c3ca0c7cd9971879b720ca7e5ac6afff805))
-- **ses:** Improve error messages for invalid module records ([5c07c85](https://github.com/endojs/endo/commit/5c07c850f8b3299aaa2042c4fbe0cf7116304284))
-- **ses:** Scope proxy defense against property descriptor prototype pollution ([cbfbf85](https://github.com/endojs/endo/commit/cbfbf850139712e4ddeb97128e980353b309b4b9))
-- **ses:** Use eslint-disable notation consistently ([#837](https://github.com/endojs/endo/issues/837)) ([6ddb50c](https://github.com/endojs/endo/commit/6ddb50c179e4b9e0645ab23bade6c3e5d3aa485e))
-- typo vs type checker ([#798](https://github.com/endojs/endo/issues/798)) ([fcb433f](https://github.com/endojs/endo/commit/fcb433fa67584ae36b4685232259e35e7fa3b8ec))
-- Update preamble for SES StaticModuleRecord ([790ed01](https://github.com/endojs/endo/commit/790ed01f0aa73ff2d232e69c9323ee0bb448c2b0))
-- **ses:** Trap and report errors ([a79df15](https://github.com/endojs/endo/commit/a79df15f6dcebc8df2ddf389af605313cb1b17b0)), closes [#769](https://github.com/endojs/endo/issues/769)
-
-### [0.13.4](https://github.com/endojs/endo/compare/ses@0.13.3...ses@0.13.4) (2021-06-20)
-
-**Note:** Version bump only for package ses
-
-### [0.13.3](https://github.com/endojs/endo/compare/ses@0.13.2...ses@0.13.3) (2021-06-16)
+## [0.13.3](https://github.com/endojs/endo/compare/ses@0.13.2...ses@0.13.3) (2021-06-16)
 
 ### Features
 
 - **ses:** Improve link errors ([71a509c](https://github.com/endojs/endo/commit/71a509cd67305b5af60d66f0b2b600ed0df8b632))
 
-### [0.13.2](https://github.com/endojs/endo/compare/ses@0.13.1...ses@0.13.2) (2021-06-14)
+## [0.13.2](https://github.com/endojs/endo/compare/ses@0.13.1...ses@0.13.2) (2021-06-14)
 
 **Note:** Version bump only for package ses
 
-### [0.13.1](https://github.com/endojs/endo/compare/ses@0.13.0...ses@0.13.1) (2021-06-06)
+## [0.13.1](https://github.com/endojs/endo/compare/ses@0.13.0...ses@0.13.1) (2021-06-06)
 
-### Bug Fixes
-
-- **ses:** Export hardener types properly ([0d2e8f0](https://github.com/endojs/endo/commit/0d2e8f0570d7de06b54b4faee56f487bbf7aeb8b))
+- Fixes type exports for `harden`.
+- Packaging fixes.
 
 ## 0.13.0 (2021-06-02)
 
-### ⚠ BREAKING CHANGES
+- *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
+  Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
+  is just a 52KB `ses` that has everything except `StaticModuleRecord`.
+  For this release, there remains a `ses/lockdown` alias to `ses`.
+- *BREAKING CHANGE* Third-party static module interface implementations *must*
+  now explicitly list their exported names.
+  For CommonJS, this implies using a heuristic static analysis of `exports`
+  changes.
+  Consequently, third-party modules can now participate in linkage with ESM
+  including support for `export * from './spec.cjs'` and also named imports
+  like `import * from './spec.cjs'`.
+- *BREAKING CHANGE* The `StaticModuleRecord` constructor has been removed in
+  favor of a duck-type for compiled static module records that is intrinsic to
+  the shim and may be emulated by a third-party `StaticModuleRecord`
+  constructor.
+  The constructor must perform the module analysis and transform the source,
+  and present this duck-type to the Compartment `importHook`.
+  This relieves SES of a dependency on Babel and simplifies its API.
+- *BREAKING CHANGE* The UMD distribution of SES must have the UTF-8 charset.
+  The prior versions were accidentally ASCII, so SES would have worked
+  in any web page, regardless of the charset.
+  To remedy this, be sure to include `<head><meta charset="utf-8"></head>` in
+  the containing page (a general best-practice for web pages) or specifically
+  use `<script charset="utf-8" src="ses.umd.min.js">` to address the single
+  file.
+- Relaxes the censorship of `import` and `eval` in programs evaluated
+  under SES to specifically allow the use of `something.import()` or
+  `something.eval()` methods.
+- Fix: `new Compartment(null, null, options)` no longer throws.
+- New lockdown option: `overrideDebug: [...props]` to detect where a property
+  assignment needs to be turned into a `defineProperty` to avoid the override
+  mistake. Most useful as `overrideTaming: 'severe', overrideDebug: ['constructor']`.
+- We reopened Safari bug
+  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17)
+  when we found that it was causing an infinite recursion initializing SES
+  on Safari.
+- We revised an error message to include the error tag of a new error
+  explanation page:
+  [SES_DEFINE_PROPERTY_FAILED_SILENTLY](error-codes/SES_DEFINE_PROPERTY_FAILED_SILENTLY.md).
+  We hope to add such explanations for more errors over time. Please let us
+  know as you encounter errors that strongly needs explaining.
 
-- **ses:** No longer supports direct use from CommonJS
-- **static-module-record:** Emphasize RESM/NESM compatibility over CJS/UMD
-- **ses:** Remove evaluate endowments option (#368)
-- **ses:** Simplify transforms (#325)
-- **ses, transform-module:** Fix StaticModuleRecord name (#323)
-- **ses:** Surface SES on globalThis (#307)
+## 0.12.7 (2021-05-05)
 
-### Features
+- Added to `assert.error` an optional options bag with an option named
+  `errorName`. The `assert.error` function makes error objects with detailed
+  error messages whose unredacted contents appear only in `console` output
+  and are otherwise unobservable. If `errorName` is provided, then
+  it is also used in the console output instead of the normal error name,
+  but is otherwise unobservable. This will rarely be used, but will be
+  used by the `@agoric/marshal` package to name an unserialized error
+  so that it can be traced back to the site that serialized it; and
+  ultimately to its origin.
 
-- **ses:** Add **shimTransforms** Compartment option ([#485](https://github.com/endojs/endo/issues/485)) ([5196521](https://github.com/endojs/endo/commit/5196521a17ac4b28f9aaaef2aa312eebe9edcbb7))
-- **ses:** Add Compartment load function ([#349](https://github.com/endojs/endo/issues/349)) ([8352fa1](https://github.com/endojs/endo/commit/8352fa1b038ec9f6d21a1ae4b6559f687c27fd81))
-- **ses:** add Compartment shim utility method **isKnownScopeProxy** ([#623](https://github.com/endojs/endo/issues/623)) ([22dbe36](https://github.com/endojs/endo/commit/22dbe368d42b983a9f8b8db3d88003b5400c3e23))
-- **ses:** Add minimal Compartment to SES-lite ([#443](https://github.com/endojs/endo/issues/443)) ([3d1dfd2](https://github.com/endojs/endo/commit/3d1dfd285a758b9be5c1de766c82a12e82329224))
-- **ses:** Add moduleMapHook ([#419](https://github.com/endojs/endo/issues/419)) ([f053ba4](https://github.com/endojs/endo/commit/f053ba4a0ebcb9194a8ffb880359862e3748289c))
-- **ses:** Add ModuleStaticRecord ([#279](https://github.com/endojs/endo/issues/279)) ([98c3a8f](https://github.com/endojs/endo/commit/98c3a8f0696ca1fedb865fd885f0affde388fd01))
-- **ses:** Add news for override mistake fix ([#417](https://github.com/endojs/endo/issues/417)) ([01bf4d7](https://github.com/endojs/endo/commit/01bf4d7ef13b32e71f2d36baef573423b21e012d))
-- **ses:** Add support for third-party modules ([#393](https://github.com/endojs/endo/issues/393)) ([0abe442](https://github.com/endojs/endo/commit/0abe442311bb4555bb06be3796f9ea77e6616b38))
-- **ses:** Add TypeScript definitions for Compartment aux types ([07715ce](https://github.com/endojs/endo/commit/07715cea0c053cf623e9e44e03c0c331c709eb64))
-- **ses:** Allow import and eval methods ([#669](https://github.com/endojs/endo/issues/669)) ([505a7d7](https://github.com/endojs/endo/commit/505a7d7149c36825a00c9fe3795d0f1588035dde))
-- **ses:** Carry compartment names in error messages ([#441](https://github.com/endojs/endo/issues/441)) ([765172a](https://github.com/endojs/endo/commit/765172aa68c338947b14ec6292be18519ac14aee))
-- **ses:** Censorship error messages may now contain the source name ([#515](https://github.com/endojs/endo/issues/515)) ([2bcd726](https://github.com/endojs/endo/commit/2bcd726ee96d53da2467eb15304531d04eb683ed))
-- **ses:** Create a thin lockdown layer ([#406](https://github.com/endojs/endo/issues/406)) ([ff693ae](https://github.com/endojs/endo/commit/ff693ae5e012afdd8dbbec105d0da299d36fdbf9))
-- **ses:** Create ses/lockdown alias ([17d416f](https://github.com/endojs/endo/commit/17d416f1652873c75cbd6c8fd34db37e90300ea6))
-- **ses:** Detect invalid sloppy mode execution ([86c4751](https://github.com/endojs/endo/commit/86c4751abb7f8ce3d44b086e50ab2a5f229e12dc)), closes [#740](https://github.com/endojs/endo/issues/740)
-- **ses:** Expand TypeScript coverage for Compartment and lockdown ([#584](https://github.com/endojs/endo/issues/584)) ([e31c86b](https://github.com/endojs/endo/commit/e31c86b407be4804bdaa719da544965ec7cb4480))
-- **ses:** Export SES Transforms ([#608](https://github.com/endojs/endo/issues/608)) ([5ec8858](https://github.com/endojs/endo/commit/5ec8858648254e7cd2a1bf9c054a1d5d2749c31b))
-- **ses:** Prepare to publish with TypeScript definitions ([#384](https://github.com/endojs/endo/issues/384)) ([af48adb](https://github.com/endojs/endo/commit/af48adb5b9e7cf9b5a70f3c429a1219fa99718b6))
-- **ses:** Replace Rollup with Endo bundler ([c826f77](https://github.com/endojs/endo/commit/c826f779660f4e17713b1750c732cc381b7bb89f))
-- **ses:** Retract evaluate name option, use sourceURL ([#521](https://github.com/endojs/endo/issues/521)) ([d1fa7ec](https://github.com/endojs/endo/commit/d1fa7ecd023ca51e4fe75b15780587aabe08c3f9))
-- **ses:** Support global lexicals ([#356](https://github.com/endojs/endo/issues/356)) ([aefefbf](https://github.com/endojs/endo/commit/aefefbfcbe53f5b4520542bfb4da14dd68f13ec6))
-- **ses:** Surface SES on globalThis ([#307](https://github.com/endojs/endo/issues/307)) ([3ddfb95](https://github.com/endojs/endo/commit/3ddfb953098af5c0e127a5e4dbafbed2bea43a07))
-- **ses:** Update packaging for RESM/NESM bridge ([6abbcdc](https://github.com/endojs/endo/commit/6abbcdc847ead40aeedb2004b8317eac06047fc0))
-- create `overrideDebug: [...props]` option ([#728](https://github.com/endojs/endo/issues/728)) ([2573c1a](https://github.com/endojs/endo/commit/2573c1a0e2ebcdad030ae29e75ef4e1bce7e5594))
-- **ses:** Revert "Export SES Transforms ([#608](https://github.com/endojs/endo/issues/608))" ([#618](https://github.com/endojs/endo/issues/618)) ([df5739d](https://github.com/endojs/endo/commit/df5739db9237b5cd037c88001da548a63ecf9071))
-- **ses:** Support explicit exports of third-party modules ([dfa4775](https://github.com/endojs/endo/commit/dfa47754e1c0c12e3717c57eebff020887699678))
-- non-security mode for create-react-scripts compat. (KLUDGE) ([#642](https://github.com/endojs/endo/issues/642)) ([6bd9f03](https://github.com/endojs/endo/commit/6bd9f03ec0c138d79391ee26894e8630cf1a104f))
-- **ses:** Support importHook alias returns ([#432](https://github.com/endojs/endo/issues/432)) ([1c8e706](https://github.com/endojs/endo/commit/1c8e7066c195d212c06a31cd91efb47c2b6a3e76))
+## 0.12.6 (2021-03-27)
 
-### Bug Fixes
+- Added a new temporary `__allowUnsafeMonkeyPatching__` option to `lockdown`.
 
-- Add pre-publish build step ([#263](https://github.com/endojs/endo/issues/263)) ([e22f094](https://github.com/endojs/endo/commit/e22f0945c901296f3f5ca1cbe357172d21f050f9))
-- Regularize format of NEWS.md ([0ec29b3](https://github.com/endojs/endo/commit/0ec29b34a18b17cc6b90e5a46575e634714e978e))
-- **ses:** Address charset error in integration ([17406d6](https://github.com/endojs/endo/commit/17406d6b045eefc082a17a559efdaf29293b8093))
-- **ses:** Address Parcel need for ESM export ([fb3297e](https://github.com/endojs/endo/commit/fb3297e23236313764a0faeabe87629577370f08))
-- **ses:** Fix intentional typo ([da3b8aa](https://github.com/endojs/endo/commit/da3b8aa85caebc70e424dd9deae0287acb25d89e))
-- **ses:** Handle null moduleMap ([b863922](https://github.com/endojs/endo/commit/b863922f50a993201aec72bc34f91a44cc286654))
-- **ses:** Make dist directory before bundles ([51afb2f](https://github.com/endojs/endo/commit/51afb2fdcf1a9e1f21135988da16a4b618752ca4))
-- **ses:** Remove superfluous dev dependency on @agoric/babel-standalone ([3a278b5](https://github.com/endojs/endo/commit/3a278b51c1938774cd83510ef1b37e1f44bbd34d))
-- **ses:** Validate third-party static module record exports ([9ec51b3](https://github.com/endojs/endo/commit/9ec51b3941b6dbdb3c7e2820753d775fc010d4ec))
-- **static-module-record:** Emphasize RESM/NESM compatibility over CJS/UMD ([dcff87e](https://github.com/endojs/endo/commit/dcff87e6f1164d664dd31dfefb323fbbac0a8dd1))
-- adapt whitelist to XS. clean it up too ([#549](https://github.com/endojs/endo/issues/549)) ([bd0952a](https://github.com/endojs/endo/commit/bd0952ac6569985b7a3508b257916e262b837606))
-- add "confirm" a terminating variant of "assert" ([8929475](https://github.com/endojs/endo/commit/89294755245b0c558c8cf6423f66a1a48ec7f905))
-- add missing testcase ([#575](https://github.com/endojs/endo/issues/575)) ([f5e1c25](https://github.com/endojs/endo/commit/f5e1c25667e0410488ed7be7684e2cb4cae9d1a6))
-- Add missing ts-checks. Fix type errors ([#565](https://github.com/endojs/endo/issues/565)) ([52e6830](https://github.com/endojs/endo/commit/52e683091ece4c0fa4c77016c517d257d42ec7e8))
-- assert.typeof(xxx, 'object') should assert record or null ([#603](https://github.com/endojs/endo/issues/603)) ([c84ba97](https://github.com/endojs/endo/commit/c84ba971d5fa54fe970cbf33b044b60eaceca78f))
-- blocklist properties we expect to remove ([#614](https://github.com/endojs/endo/issues/614)) ([992f35f](https://github.com/endojs/endo/commit/992f35fdf4679faa8fb7d1c7e265c6b654156399))
-- comment ([#561](https://github.com/endojs/endo/issues/561)) ([5e55d16](https://github.com/endojs/endo/commit/5e55d168e2cb341c22d89954a957582e813fee69))
-- comment who needs push enabled ([#596](https://github.com/endojs/endo/issues/596)) ([1218bcd](https://github.com/endojs/endo/commit/1218bcd1b22b72f285a2236b08639c5016416afc))
-- comments only ([#598](https://github.com/endojs/endo/issues/598)) ([1230901](https://github.com/endojs/endo/commit/1230901717c7eae50aaa0a61a058fd99c1c61928))
-- consolidate honorary native function printing ([#392](https://github.com/endojs/endo/issues/392)) ([038bb13](https://github.com/endojs/endo/commit/038bb13f8bfb56b247875c965393c804a492c463))
-- Consolidate lint rules ([#262](https://github.com/endojs/endo/issues/262)) ([e5ce12a](https://github.com/endojs/endo/commit/e5ce12ac4343565f2adb0e6eca5d71c6c05903bf))
-- coordinate assert typing with agoric-sdk ([#510](https://github.com/endojs/endo/issues/510)) ([195f988](https://github.com/endojs/endo/commit/195f9887119e1a81ca35dd6f445b73241a5e7338))
-- correct fix for override mistake ([#409](https://github.com/endojs/endo/issues/409)) ([b576211](https://github.com/endojs/endo/commit/b5762114ecd227a1c259321ab97fda3837813199))
-- de-url-ify error codes ([#548](https://github.com/endojs/endo/issues/548)) ([b7e2e2c](https://github.com/endojs/endo/commit/b7e2e2cf51fb3ac687168310af7169a8451999f1))
-- eslint rule to suppress bogus dependency warning ([#483](https://github.com/endojs/endo/issues/483)) ([7e3d9ea](https://github.com/endojs/endo/commit/7e3d9ea816e1626566bc2062b83cf513020f0b8d))
-- evaluate options to evade rejections ([#546](https://github.com/endojs/endo/issues/546)) ([dec75ad](https://github.com/endojs/endo/commit/dec75adedf9b19a7fb1c53e17cbaf6e9b31e7d2b))
-- flatten tameFunctionToString ([#482](https://github.com/endojs/endo/issues/482)) ([3d7570f](https://github.com/endojs/endo/commit/3d7570f4aa5871ed75a99d0985d5881ab9ae3af5))
-- friendlier nested console output for browsers ([#557](https://github.com/endojs/endo/issues/557)) ([2c5c622](https://github.com/endojs/endo/commit/2c5c62285516ca8642e39791666bcc5e98adb0a4))
-- Fully thread **shimTransforms** through Compartment Mapper and SES ([#509](https://github.com/endojs/endo/issues/509)) ([0f199ef](https://github.com/endojs/endo/commit/0f199ef088353ec09b29e37aefcfa26a89a6c582))
-- kill obsolete repair-legacy-accessors ([#552](https://github.com/endojs/endo/issues/552)) ([be202b9](https://github.com/endojs/endo/commit/be202b9861eb770bbae8d16948cede0a1b4f829b))
-- Lint universal package metadata ([#266](https://github.com/endojs/endo/issues/266)) ([24ff867](https://github.com/endojs/endo/commit/24ff867adcbde89bef6b1ec702a0a8b91ad29f70))
-- Massive intrinsic reform. Start vs other compartments. ([#372](https://github.com/endojs/endo/issues/372)) ([5cf2a20](https://github.com/endojs/endo/commit/5cf2a20389601d159b5c0683bb87bffd6bbc7b87))
-- Move NativeErrors list to whitelist.js ([#444](https://github.com/endojs/endo/issues/444)) ([f2b8fcd](https://github.com/endojs/endo/commit/f2b8fcdf5a5f1dcaae1af93d64ebb9785f9b314b))
-- no more detached properties ([#473](https://github.com/endojs/endo/issues/473)) ([efa990c](https://github.com/endojs/endo/commit/efa990cc12ac30aaa69f13df1ee9e1a7f3b12189))
-- partial intrinsic reform ([#358](https://github.com/endojs/endo/issues/358)) ([9b13f73](https://github.com/endojs/endo/commit/9b13f73d282c44c11e93968332f282b5eb4372ff))
-- remove "apply" from enablements whitelist ([#475](https://github.com/endojs/endo/issues/475)) ([b52f8d2](https://github.com/endojs/endo/commit/b52f8d22d380e048e5590ce74028f9a0070cf281))
-- remove "debugger;" statement ([#558](https://github.com/endojs/endo/issues/558)) ([c5988e6](https://github.com/endojs/endo/commit/c5988e6a4cc576634981ba2bc152fe49a0b531f6))
-- remove deprecated noTame options ([#328](https://github.com/endojs/endo/issues/328)) ([5d7b781](https://github.com/endojs/endo/commit/5d7b781d9b0783f7b1243898a36e30014e4662be))
-- remove extra stackframe ([#391](https://github.com/endojs/endo/issues/391)) ([9ba5ecf](https://github.com/endojs/endo/commit/9ba5ecf019694e92ac78d98416e8c88b0e4a2cf4))
-- rename to originalValue ([#476](https://github.com/endojs/endo/issues/476)) ([54e0b0c](https://github.com/endojs/endo/commit/54e0b0c910fd19bec14f9e3ff9e556f17f952fd4))
-- Repair released damage caused when I merged [#552](https://github.com/endojs/endo/issues/552) ([#638](https://github.com/endojs/endo/issues/638)) ([145595c](https://github.com/endojs/endo/commit/145595c5767a6f868c13b9717a03db641e60825b))
-- restore locale methods safely ([#382](https://github.com/endojs/endo/issues/382)) ([0a091a4](https://github.com/endojs/endo/commit/0a091a4fc87ecc9ee6aff227f7245c91d9a88852))
-- suggested fix in [#570](https://github.com/endojs/endo/issues/570) ([#571](https://github.com/endojs/endo/issues/571)) ([3877d72](https://github.com/endojs/endo/commit/3877d72757db120cb3978ddf32a6673868dd06f0))
-- tame Error constructor ([#359](https://github.com/endojs/endo/issues/359)) ([bfe610f](https://github.com/endojs/endo/commit/bfe610fe5fe7afd31659fc8e40ee6e77d622e264))
-- tolerate symbols as property names ([#547](https://github.com/endojs/endo/issues/547)) ([f16bbc3](https://github.com/endojs/endo/commit/f16bbc389303eda73cd6dd1705cd667a3fc6d288))
-- tolerate whitelist absence better ([#408](https://github.com/endojs/endo/issues/408)) ([9ed1ad8](https://github.com/endojs/endo/commit/9ed1ad87ba5380d39c47967fb7e9b52c4a2333e1))
-- towards reconciling with agoric-sdk ([#451](https://github.com/endojs/endo/issues/451)) ([5f71e91](https://github.com/endojs/endo/commit/5f71e91c42e7b6aa2a532372d9bccef53209db46))
-- typo ([#471](https://github.com/endojs/endo/issues/471)) ([d5742c2](https://github.com/endojs/endo/commit/d5742c234c2acf22c10b71f72fdb454fe0c6da8e))
-- typo ([#527](https://github.com/endojs/endo/issues/527)) ([c7a3895](https://github.com/endojs/endo/commit/c7a3895100176e9b6c6e887e45181fd3a1fc2dea))
-- Unsafe errorTaming and consoleTaming needs other adjustments ([#637](https://github.com/endojs/endo/issues/637)) ([70cc86e](https://github.com/endojs/endo/commit/70cc86eb400655e922413b99c38818d7b2e79da0))
-- update to eslint 7.23.0 ([#652](https://github.com/endojs/endo/issues/652)) ([e9199f4](https://github.com/endojs/endo/commit/e9199f41c511b5df10593d931febdd90693b011a))
-- use string instead of symbol for getter property ([e514a6e](https://github.com/endojs/endo/commit/e514a6ed88ccb0739ae1c03a35c1d9d57effe911))
-- workaround remaining validation bug ([#667](https://github.com/endojs/endo/issues/667)) ([cbc3247](https://github.com/endojs/endo/commit/cbc3247bc254e1418a4398d3c1b079e4c69c2750))
-- **326:** accept old and new taming options during transition ([#327](https://github.com/endojs/endo/issues/327)) ([67eb6e8](https://github.com/endojs/endo/commit/67eb6e8704386e022fbb1ff8f01beb40424d6dff))
-- **ses:** Add HandledPromise to the whitelist ([#416](https://github.com/endojs/endo/issues/416)) ([a7330a8](https://github.com/endojs/endo/commit/a7330a8ce1112163982dce35d14ac8ab1ba3749f))
-- **ses:** Aliasing true to t did not improve readability ([#360](https://github.com/endojs/endo/issues/360)) ([90a40c6](https://github.com/endojs/endo/commit/90a40c650214372d070d4c28e2d6e771d0874514))
-- **ses:** comments ([#254](https://github.com/endojs/endo/issues/254)) ([435f1af](https://github.com/endojs/endo/commit/435f1af0b08d8dccf196b385093d629a31316b1c))
-- **ses:** Fix lockdown layer pollution from module layer ([#472](https://github.com/endojs/endo/issues/472)) ([9a7a097](https://github.com/endojs/endo/commit/9a7a0975036d8d938263ba265f747876d7d91599))
-- **ses:** Fix missing change to compartment load method ([42759a8](https://github.com/endojs/endo/commit/42759a8dff3b76c8f06d25904be0a58e72eeed05))
-- **ses:** Generally import "ses/lockdown" ([#410](https://github.com/endojs/endo/issues/410)) ([6ef4a3f](https://github.com/endojs/endo/commit/6ef4a3ffe4ebd0145ca6af0edc8c04c2342e8cac))
-- **ses:** Reform conditional tamings, especially Error ([#250](https://github.com/endojs/endo/issues/250)) ([dfa22b3](https://github.com/endojs/endo/commit/dfa22b3857f08f87f49c6ca4f51aa33fba0b1535))
-- **ses:** regexp taming ([b010f8a](https://github.com/endojs/endo/commit/b010f8a1212aa949be8aa4970eb4ebc25aa83517)), closes [#237](https://github.com/endojs/endo/issues/237)
-- **ses:** remove code that failed to add species ([3cfc8da](https://github.com/endojs/endo/commit/3cfc8da4646aa8306b09189dc0e202db0d633a65)), closes [#239](https://github.com/endojs/endo/issues/239)
-- **ses:** Remove evaluate endowments option ([#368](https://github.com/endojs/endo/issues/368)) ([e7b7b6e](https://github.com/endojs/endo/commit/e7b7b6eb8d2565886f9bbf7021223bcf96dc9173))
-- **ses:** Simplify transforms ([#325](https://github.com/endojs/endo/issues/325)) ([86a373e](https://github.com/endojs/endo/commit/86a373e008e97b2a30c25ee53df86ab120a7804b))
-- **ses:** Spelling errors ([#362](https://github.com/endojs/endo/issues/362)) ([8f606f4](https://github.com/endojs/endo/commit/8f606f424f8b103f9ddb593d210e2e58f37430c4))
-- **ses:** transform is an object with a rewrite method ([#255](https://github.com/endojs/endo/issues/255)) ([979fbc6](https://github.com/endojs/endo/commit/979fbc6fc9529d2b7516c9e99dcd6c1a7f4c1db3)), closes [#248](https://github.com/endojs/endo/issues/248) [#248](https://github.com/endojs/endo/issues/248)
-- **ses:** Unravel compartment/lockdown import cycle ([#405](https://github.com/endojs/endo/issues/405)) ([b931629](https://github.com/endojs/endo/commit/b9316296ac04bd840fb434ee86a819f8717f561d))
-- **ses:** Use CommonJS Rollup plugin ([#354](https://github.com/endojs/endo/issues/354)) ([f626365](https://github.com/endojs/endo/commit/f6263657fe7364df85cfe14e31ba1ac4dd7f03af))
-- **ses, transform-module:** Fix StaticModuleRecord name ([#323](https://github.com/endojs/endo/issues/323)) ([10eb49a](https://github.com/endojs/endo/commit/10eb49ad499984dc44d99e84b5d59a34f1abb73b))
+  Sometimes SES is used where SES's safety is not required. Some libraries
+  are not compatible with SES because they monkey patch the shared primordials
+  is ways SES cannot allow. We temporarily introduce this option to enable
+  some of these libraries to work in, approximately, a SES environment
+  whose safety was sacrificed in order to allow this monkey patching to
+  succeed. More at the
+  [\_\_allowUnsafeMonkeyPatching\_\_ Options](./lockdown-options.md#__allowUnsafeMonkeyPatching__-options)
+  section of [lockdown-options](./lockdown-options.md).
+
+## 0.12.5 (2021-03-25)
+
+- The 0.12.4 release was broken by <https://github.com/endojs/endo/pull/552>
+  since fixed by <https://github.com/endojs/endo/pull/638>
+- These merely remove a repair needed by an old v8 / Node version that
+  no one any longer supports.
+
+## 0.12.4 (2021-03-24)
+
+- Expand TypeScript definitions to include Compartment, StaticModuleRecord,
+  StaticModuleType, RedirectStaticModuleInterface, FinalStaticModuleType,
+  ThirdPartyStaticModuleInterface, Transform, ImportHook, and ModuleMapHook.
+- The previous took `Object.prototype.constructor` off of the default
+  [list of properties](src/enablements.js) we enable to be overridden by
+  assignment. This default is the `{overrideTaming: 'moderate'}` setting.
+  In this release, we stop enabling `'hasOwnProperty'` by default as
+  well. With both of these gone, we now have a reasonable debugging
+  experience.
+- Unfortunately, both rollup and webpack seem to turn exported names
+  into assignments to an `exports` object that inherits from
+  `Object.prototype`, thereby potentially stepping on any name.
+  To deal with this perverse case, the release also provides an
+  `{overrideTaming: 'severe'}` option which enables all properties on
+  at least `Object.prototype`. This is more compatible but makes the
+  vscode debugger's inspector unusable. At
+  [Tracking issue for getting 3rd party packages more SES friendly (#576)](https://github.com/endojs/endo/issues/576)
+  we track the incompatibilities we encounter and progress toward
+  getting them fixed.
+- Add utility function `Compartment.prototype.__isKnownScopeProxy__(value)` to
+  aid working around scopeProxy leakage. Returns true if `value` is one of the
+  scopeProxies created during calls to this Compartment instances's
+  `Compartment.prototype.evaluate`. See `test-compartment-known-scope-proxy.js`
+  for an example of performing a scopeProxy leak workaround.
+- Under the default `{errorTaming: 'safe'}` setting, the SES shim already redacts stack traces from error instances when it can (currently: v8, spiderMonkey, XS). The setting `{errorTaming: 'unsafe'}` suppresses that redaction, instead blabbing these stack traces on error instances via the expected `errorInstance.stack`.
+
+  The purpose of the `details` template literal tag (often spelled `X`) together with the `quote` function (often spelled `q`) is to redact data from the error messages carried by error instances. With this release, the same `{errorTaming: 'unsafe'}` would suppress that redaction as well, so that all substitution values would act like they've been quoted. IOW, with this setting
+
+  ```js
+  assert(false, X`literal part ${secretData} with ${q(publicData)}.`);
+  ```
+
+  acts like
+
+  ```js
+  assert(false, X`literal part ${q(secretData)} with ${q(publicData)}.`);
+  ```
+
+  Note that the information rendered by the SES shim `console` object always includes all the unredacted data independent of the setting of `errorTaming`.
+
+## 0.12.3 (2021-03-01)
+
+- The `assert.js` module in the `ses` package of this repository exports
+  a `makeAssert` function, to make other `assert` functions with a different
+  failure scope. Inadvertantly, this did not enable the `@agoric/assert`
+  package (currently defined in the agoric-sdk repository) to reexport
+  the same `makeAssert` function as originally intended, and now
+  [needed](https://github.com/Agoric/agoric-sdk/pull/2515).
+  As of this release the `assert` object exported by the `assert.js` module
+  now carries this function as a `makeAssert` property.
+- The `assert.quote` function re-exported by `@agoric/assert` as `q`
+  has always done only a best effort stringify, intended only to
+  be interpreted by a human under benign conditions. Within that constraint
+  its best effort is now better, providing informative though ambiguous
+  renderings of values problematic for `JSON.stringify`, still including
+  cycles, but now also functions, promises, `undefined`, `NaN`, `Infinity`,
+  bigints, and symbols. To distinguish this from
+  strings in the input, these synthesized strings always begin and
+  end with square brackets. To distinguish those strings from an
+  input string with square brackets, an input string that starts
+  with an open square bracket `[` is itself placed in square brackets.
+- The `q` function now has an optional second `spaces` parameter which is
+  passed through to the underlying `JSON.stringfiy`. Passing in a space or
+  two spaces makes the output much more readable using indentation and other
+  whitespace, but takes multiple lines.
+- The SES enhanced `console` had previously only produced meaningful stack
+  traces on v8-based browsers such as Brave, Chromium, or Chrome. It now
+  works on Firefox and Safari as well. It should work on all major browsers
+  but have not yet been tested on others.
+- On all platforms `Error.stackTrace` is now an assignable accessor property.
+  On v8-based platforms, for the `Error` constructor in the start compartment,
+  it has the same effect that it does outside SES. Outside the start
+  compartment, or outside v8-based platforms, the assignment succeeds silently
+  with no effect.
+  This accommodates a de facto standard idiom encouraged by Google.
+- The "SES Demo Console" and "SES Challenge" have been fixed to work with
+  modern SES. Both now run in browsers, though these are not yet hosted
+  for visiting as an external web page.
+- We no longer enable overriding `Object.prototype.constructor` by assigning
+  to the `constructor` property of a derived object. We were enabling it
+  due to a bug in acorn 7, since fixed in acorn 8. To enable it, we were
+  making `Object.prototype.constructor` into an accessor property, which
+  confused the Node debugger, causing annoying extra noise in the console
+  output. Now that we've worked around our acorn problem (currently with
+  a patch) we have stopped enabling this assignment, and so stopped
+  confusing the Node debugger.
+
+## 0.12.2 (2021-02-05)
+
+- fix non-standard regex range syntax that throws on XS (3877d72)
+- refine concise stack traces (cbbabeb)
+
+## 0.12.1 (2021-02-02)
+
+- Consolidated documentation of [`lockdown` options](./lockdown-options.md) into its
+  own page.
+- Added a `stackFiltering` option to `lockdown` with
+  two settings, `'concise'` and `'verbose'`. Stack traces are now filtered
+  `'concise'` by default, making them typically much easier to work with.
+  `'verbose'` shows complete stack traces, as sometimes it contains clues
+  needed to find your bug.
+  See [`stackFiltering` options](./lockdown-options.md#stackfiltering-options)
+  for an explanation.
+- Changed the meaning of the default `'moderate'` setting of the
+  `overrideTaming` options of `lockdown`. See
+  [`overrideTaming` options](./lockdown-options.md#overridetaming-options)
+  for an explanation of when to use which.
+
+:warning: This change of meaning of the `'moderate'` setting of the
+`overrideTaming` option of `lockdown` is not strictly compatible with its
+old meaning. The old `'moderate`' setting would enable all properties on a few
+widely used prototype objects, including `Object.prototype`. Resulting in a
+miserable debugging experience when using the VSCode debugger's object
+inspector.
+
+<details>
+  <summary>Expand to see the vscode inspector display if enabling all of Object.prototype</summary>
+
+![vscode inspector display if enabling all of Object.prototype](docs/images/override-taming-star-inspector.png)
+
+</details>
+
+The new `'moderate'` setting only tames those properties we know or expect to
+be problematic. If you run into an override mistake problem not addressed at
+the `'moderate'` setting ***please file an issue.***
+
+<details>
+  <summary>Expand for { overrideTaming: 'moderate' } vscode inspector display</summary>
+
+![overrideTaming: 'moderate' vscode inspector display](docs/images/override-taming-moderate-inspector.png)
+
+</details>
+
+For an even better debugging experience, try the `'min'` setting, which
+makes the debugging experience even less noisy, but may not be compatible with
+all the code you're running under SES.
+
+<details>
+  <summary>Expand for { overrideTaming: 'min' } vscode inspector display</summary>
+
+![overrideTaming: 'min' vscode inspector display](docs/images/override-taming-min-inspector.png)
+
+</details>
+
+## 0.11.1 (2021-01-21)
+
+- Upgrades `harden` such that that it transitively freezes an object's
+  prototype chain, eliminating the notion of a "fringe set" and errors
+  that were previously thrown if an object's prototype was not already
+  in the fringe.
+- Added an `overrideTaming` option to `lockdown` with two settings,
+  `'min'` and `'moderate'`. See
+  [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
+  for an explanation of when to use which. ***(This documentation has moved
+  to [`overrideTaming`
+  options](./lockdown-options.md#overridetaming-options))***
+- Modules and evaluated code that contains the censored substrings
+  for dynamic eval, dynamic import, and HTML comments will now
+  throw errors that contain the `sourceURL` from any `//#sourceURL=` comment
+  toward the end of the source or merely `<unknown>`.
+
+## 0.11.0 (2020-11-03)
+
+- `lockdown()` adds new global `assert` and tames the global `console`. The
+  error taming hides error stacks, accumulating them in side tables. The
+  `assert` system generated other diagnostic information hidden in side
+  tables. The tamed console uses these side tables to output more informative
+  diagnostics. [Logging Errors](./src/error/README.md) explains the design.
+- Adds a non-standardizable `__shimTransforms__` option to the
+  Compartment constructor that allows a single transform to work
+  for both programs passed to `evaluate` and modules that the SES shim
+  compiles to programs.
+
+## 0.10.4 (2020-09-28)
+
+- When converting each of [these data properties](src/enablements.js) to
+  accessor properties, to suppress the
+  [override mistake](https://github.com/tc39/ecma262/pull/1320), we now
+  add to that accessor's getter an `originalValue` property to mark it
+  as alleging that it is emulating a data property whose original value
+  was that value.
+- Fixes an exception thrown when calling `lockdown` after just importing
+  `ses/lockdown` in all environments.
+
+## 0.10.3 (2020-09-08)
+
+- The `ses/lockdown` module and Rollup bundles now include a minimal
+  implementation of `Compartment` that supports `evaluate` but not loading
+  modules.
+  This is sufficient for containment of JavaScript programs, including
+  modules that have been pre-compiled to programs out-of-band, without
+  entraining a full JavaScript parser framework.
+- Allows a compartment's `importHook` to return an "alias" if the returned
+  static module record has a different specifier than requested.
+- Adds the `name` option to the `Compartment` constructor and `name` accessor
+  to the `Compartment` prototype.
+  Errors that propagate through the module loader will be rethrown anew with
+  the name of the module and compartment so they can be traced.
+  At this time, the intermediate stacks of the causal chain are lost.
+  <https://github.com/Agoric/SES-shim/issues/440>
+
+## 0.10.2 (2020-08-20)
+
+- Adds a `moduleMapHook` option to the `Compartment` constructor options.
+  The module map hook can return values for the `moduleMap` for
+  any given module specifier, or return `undefined` to fall back to the
+  `importHook`.
+  This allows for wildcard linkage to other compartments.
+- Fix dependency version for `@agoric/transform-module`.
+
+## 0.10.1 (2020-08-13)
+
+- Updates the whitelist to allow a `HandledPromise` global, which is provided
+  by `@agoric/eventual-send`, an early implementation of
+  <https://github.com/tc39/proposal-eventual-send>.
+- Corrects our fix for the override mistake, so that it correctly emulates
+  how assignment would work in the absence of the override mistake.
+  A property created by assignment will now be a writable, enumerable,
+  configurable data property, as it is for normal assignment.
+
+## 0.10.0 (2020-08-08)
+
+- Creates a `ses/lockdown` module that only introduces `lockdown` and `harden`
+  to global scope, for a much smaller payload than `ses`, which entrains a
+  JavaScript parser to support ECMAScript modules.
+- Adds the `load` method to `Compartment`.
+  Load allows a bundler or archiver to use the `Compartment` API to gather the
+  transitive dependencies of modules without executing them.
+- Adds support for third-party implementations of a `StaticModuleRecord`
+  interface (`{imports, execute}`).
+
+## 0.9.1 (2020-07-16)
+
+- The `*Locale*` methods removed in the previous release are now restored
+  by aliasing them to their non-locale equivalents. `localeCompare` had no builtin
+  non-locale equivalent, so we provide one.
+- Adds a TypeScript definition for `harden`.
+
+## 0.9.0 (2020-07-13)
+
+- BREAKING CHANGE: The compartment `evaluate` method no longer accepts an
+  `endowments` option.
+  Use `compartment.globalThis`, `endowments`, or `globalLexicals`.
+  If per-evaluation `globalLexicals` or `endowments` are necessary,
+  each evaluation will need a fresh `Compartment`.
+- BREAKING CHANGE: The `lockdown` function's deprecated `noTame*` options have
+  been removed in favor of the `*Taming` options introduced in version 0.8.0.
+- BREAKING CHANGE: The `.toLocale*` methods of
+  Object/Number/BigInt/Date/String/Array/%TypedArray% were removed from SES
+  environments. This includes methods named `toLocaleString`,
+  `toLocaleDateString`, `toLocaleTimeString`, `toLocaleLowerCase`,
+  `toLocaleUpperCase`, and `localeCompare`. These may be restored (in a
+  modified form) in a future release.
+- The way `lockdown()` tames the `Error` constructor now cooperates
+  with the V8 stack trace API to a degree that is permissible without
+  breaking the integrity of applications that use it.
+- The Compartment constructor now accepts a `globalLexicals` option.
+  The own enumerable properties of the global lexicals are captured
+  and presented as constants in the scope of all calls to `evaluate` and all
+  modules.
+  The global lexicals overshadow the global object.
+
+## 0.8.0 (2020-05-26)
+
+- Adds support for modules to Compartments.
+- SES no longer exports anything.
+  `Compartment`, `StaticModuleRecord`, `lockdown`, and `harden` are all
+  introduced as properties of `globalThis`.
+- The `Compartment` `global` getter is now named `globalThis`, consistent with
+  the specification proposal.
+- The `Compartment` `transforms` constructor option is now just an array of
+  transform functions that accept and return program strings.
+  Transforms can no longer introduce `endowments`.
+  The compartment constructor's `endowments` argument (first) and assigning
+  properties to `globalThis` are the remaining supported ways to introduce
+  endowments.
+- Repair `Function.apply` and `TypeError.message` (as well as `.message` on
+  all the other Error types), to tolerate what the npm `es-abstract` module
+  does. This allows `tape` (version 4.x) to be loaded in a locked-down SES
+  world, and also allows its `t.throws` assertion to work. `tape` (version
+  5.x) still has problems. [#293]
+
+- Replaces the old `noTame*` options to `lockdown` with new `*Taming` options.
+  The old style had boolean values defaulting to `false`. In the new style,
+  each option supports at least the options `'safe'` and `'unsafe'` defaulting
+  to `'safe'`. As a transitional matter, this release still supports the
+  old style as well, as another way to say the same thing. [#326]
+
+  [#293]: https://github.com/Agoric/SES-shim/issues/293
+  [#326]: https://github.com/Agoric/SES-shim/issues/326
+
+## 0.7.7 (2020-04-27)
+
+- This version decouples lockdown and the Compartment constructor.
+  The Compartment constructor is now exported by `ses` (was previously only
+  available as a property of `globalThis` *after* lockdown).
+  The Compartment constructor will also create "privileged" compartments when
+  constructed before lockdown.
+
+## 0.7.6 (2020-03-31)
+
+Bug fixes.
+This release fixes issues in RegExp and Error taming.
+
+## 0.7.4-5 (2020-03-21)
+
+This release adds Node.js ESM support by upgrading @agoric/make-hardener to a
+hybrid version for most modern module systems.
+
+- Newless calls to the RegExp constructor now work after lockdown.
+
+- upgrade @agoric/make-hardener v0.0.8
+
+## 0.7.2-3 (2020-03-13)
+
+Bug fixes.
+This release addresses an exception observed where locking down fails because
+SES cannot delete the prototype of the harden function.
+This is addressed by upgrading @agoric/make-harden to version 0.0.7.
+This release also restores fulls upport for importing SES as CommonJS, Node.js
+ESM, and Node.js emulated ESM with the `esm` package.
+
+## 0.7.1 (2020-13-10)
+
+SECURITY UPDATE: This complete re-architecture which removes the realm-shim and
+resolve the associatd sandbox escapes related to leaking cross-realm
+intrinsics. All users should update to this version.
+
+See [docs/ses-0.7.md].
+
+## 0.6.4 (2019-10-16)
+
+SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
+escapes. All users should update to this version.
+
+- upgrade to realms-shim v1.2.1
+
+Non-security fixes:
+
+- improve documentation
+
+## 0.6.3 (2019-10-02)
+
+SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
+escapes. All users should update to this version.
+
+- upgrade to realms-shim v1.2.0
+
+Non-security fixes:
+
+- add `SES.harden` to make hardening available from within the Realm. (#161)
+
+## 0.6.2 (2019-09-25)
+
+No user-visible changes.
+
+Use realms-shim as a normal package, not a git-submodule. Update eslint
+dependencies.
+
+## 0.6.1 (2019-19-14)
+
+- SECURITY UPDATE: This release fixes a sandbox escape discovered in the
+  realms-shim by GitHub user "XmiliaH", which works by causing an infinite
+  loop and extracting the real function constructor from the RangeError
+  exception object. See <https://github.com/Agoric/realms-shim/issues/48> for
+  more details.
+
+## 0.6.0 (2019-09-03)
+
+- Breaking change: `options.transforms` may no longer specify `endow()`
+  transforms. Instead, use `rewrite()`, which can now modify endowments.
+  See <https://github.com/Agoric/realms-shim/pull/38> for details.
+- Repair the "override mistake", with optional repair plan in
+  `options.dataPropertiesToRepair`. See src/bundle/dataPropertiesToRepair.js
+  and <https://github.com/Agoric/SES/pull/146> for details.
+- `options.sloppyGlobals` is rejected by `makeSESRootRealm()`, since all SES
+  root realms are frozen. `sloppyGlobals` can only be used in a new
+  "Compartment", made by calling `Realm.makeCompartment(options)`. See
+  <https://github.com/Agoric/SES/issues/142>
+  <https://github.com/Agoric/realms-shim/pull/33>
+  <https://github.com/Agoric/realms-shim/pull/30> for details.
+- Add `options.whitelist` to override the set of properties that are retained
+  in the new realm. The default gives you SES, but it could be overridden to
+  e.g. enforce a Jessie-only environment.
+
+## 0.5.3 (2019-07-24)
+
+- Re-enable indirect eval. (#131)
+
+## 0.5.2 (2019-07-13)
+
+Dependency updates only, no user-visible changes.
+
+## 0.5.1 (2019-07-10)
+
+- The 'realms-shim' module, upon which SES depends, has been split out of the
+  TC39 'proposal-realms' repository, and now lives in
+  <https://github.com/Agoric/realms-shim>. It has not been released to NPM,
+  rather SES incorporates it as a git submodule. (#110)
+- The documentation is now hosted on ReadTheDocs at
+  <https://ses-secure-ecmascript.readthedocs.io/en/latest/> (#111, #117)
+- SES.makeRootRealm() now accepts a 'transforms' option. This is a list of `{ endow, rewrite }` functions which can add/modify endowments and/or rewrite
+  source code each time an `evaluate()` is performed. (#125)
+
+Thanks to Kate Sills, Dan Connolly, Michael Fig, and the ever-dependable
+Dependabot for additional fixes in this release.
+
+## 0.5.0 (2019-04-05)
+
+INCOMPATIBLE API CHANGE: Starting with this release, the SES package exports
+a single default object (named `SES`, from which you can get the
+`SES.makeSESRootRealm()` function). Previously, it exported both a `SES`
+object and the `makeSESRootRealm` function.
+
+Code which uses this package as an ES6 module must change its import from
+`import { SES } from 'ses';` to:
+
+```js
+import SES from 'ses';
+```
+
+Similarly, for code which uses CommonJS-style, it must change from `const { SES } = require('ses')` to:
+
+```js
+const SES = require('ses');
+```
+
+The package now exports bundles in various flavors: CommonJS, ES6 Module, and
+browser-based UMD.
+
+Other changes:
+
+- whitelist Symbol.matchAll, to fix Chrome-v73 (Issue #90)
+- change primary export #88
+- improve documentation #66 #67
+- add integration tests #85
+- packaging: remove ses-shim.js, add other generated bundles
+- update Realms shim to commit 0c00eb, to fix Browserify #79
+- test against node v10/v11, switch from travis to circleci #73
+- fix examples #102
+
+Thanks to Matt Bell, Kate Sills, and Mark Miller for additional fixes in this
+release.
+
+## 0.4.0 (2019-02-20)
+
+Improve usability.
+
+- remove `Nat` and `def` from the global environment #45
+- provide a helper function named `s.makeRequire()` to build a `require`
+  endowment. This can be configured to enable `require('@agoric/nat')` or
+  `require('@agoric/harden')` (among others), so the same code can work
+  either inside or outside of a SES realm. For details of its configuration,
+  see the comments in the commit which landed it. #13
+- harden() comes from `@agoric/make-hardener`, which doesn't climb
+  prototype/inheritance chains, but does complain if the prototype wasn't
+  already known to harden(). This avoids the "Ice-9" freeze-the-world
+  problem, and also serves to signal when an object from one realm is passed
+  into the harden() of a different realm. #15
+- harden() now shares a WeakSet of previously-hardened objects #4
+- use harden() instead of def() #39
+- SES no longer depends upon Nat, but uses it during unit tests. Client code
+  that wants Nat should use `require('@agoric/nat')`. #45
+- Include AsyncIteratorPrototype in the set of anonIntrinsics #58
+- use eslint to format all SES code
+
+## 0.3.0 (2019-02-08)
+
+Improves security and functionality.
+
+This fixes all known confinement leaks:
+
+- We now freeze AsyncGeneratorFunction and AsyncFunction, the last of the
+  "anonymous" intrinsics (which are reachable by syntax but not simple
+  property lookup). In the previous release, attacker code could modify their
+  behavior (which defender code might have been relying upon) or use them as
+  a communication channel. (#3, #41)
+- We now remove all unknown properties from the global object, using a
+  special list of ones that are safe to expose. This protects us from
+  surprising platform-specific objects, or newly-added standard JS objects
+  that have not yet been examined for safety. The 'Intl' object is currently
+  removed by this check (and `intlMode: "allow"` has been removed), but may
+  be brought back in a future release. (#26)
+- RegExp.prototype.compile is removed unconditionally (even if regexpMode:
+  "allow" is set), because it violates the semantics of Object.freeze
+
+It also improves usability:
+
+- Uncaught exceptions in Node.js are now rendered correctly when the
+  `errorStackMode: "allow"` option is enabled. In the previous release, such
+  exceptions were always displayed as "undefined", which was particularly
+  unhelpful. If your program is abruptly exiting with "undefined", try
+  turning this option on while you're debugging. But don't leave it on,
+  because it probably enables a confinement breach.
+- SES is an ES6 module, but should now be importable with `require()` by
+  other code which is unaware of ES6 modules, because it now uses the `esm`
+  module internally. (#32)
+- `console.log` is now available within the confined code, if the
+  `consoleMode: "allow"` option is enabled. If this is disabled,
+  `console.log()` will throw a `TypeError` (since `console` is undefined, it
+  has no `log` property). Many other `console` methods (but not all) are
+  exposed too. (#35)
+
+SES now requires Node.js version 10 or later.
+
+## 0.2.0 (2019-01-18)
+
+Improves confinement, small API changes.
+
+The options passed as `SES.makeSESRootRealm(options)` have changed:
+
+- `options.dateNowMode="allow"` allows `Date.now()` and `new Date()` to
+  work normally, otherwise they return NaN
+- `options.mathRandomMode="allow"` allows `Math.random()` to work
+  normally (nondeterministically), else it will throw an Error
+- `options.intlMode="allow"` lets `Intl.DateTimeFormat()`, `Intl.NumberFormat()`,
+  and `Intl.getCanonicalLocales()` to work normally, else they throw Errors
+- `options.errorStackMode="allow"` exposes `Error.prototype.stack` and
+  `Error.captureStackTrace` (on platforms that support them), otherwise they
+  are suppressed. Note that these could be used to break confinement, not
+  just access nondeterminism.
+
+Previously the only option honored was `options.dateNowTrap = false`
+
+The suppression of `Error.captureStackTrace` is new in this release. This
+release also suppresses `RegExp.prototype.compile` and properties like
+`RegExp.$1` which cause some surprising behavior.
+
+`SES.def` and `SES.Nat` are exported, so they can be used by non-confined
+code (mostly in tests). `def(obj)` makes an object defensive, by freezing
+it's external API surface (anything reachable by property lookup and
+prototype traversal). `Nat(num)` throws an error unless its argument is a
+natural number (a non-negative integer small enough to remain an integer
+inside a Javascript `Number` type). Both are important for defensive
+programming.
+
+## 0.1.3 (2018-08-24)
+
+Adds Nat and SES.confineExpr.
+
+- `Nat(val)` ensures the value is a natural (non-negative) integer
+- `SES.confineExpr(expr)` makes it easy to start with a function object, turn
+  it into a string, then into a new function inside the SES realm.
+
+This also updates the challenge page to fix a demo vulnerability (#8).
+
+## 0.1.2 (2018-07-30)
+
+- npm name is now 'ses'
+- update to current proposal-realms
+
+## 0.0.1 (2018-07-28)
+
+first preliminary release

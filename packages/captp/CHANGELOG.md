@@ -1,232 +1,129 @@
-# Change Log
+# @endo/captp
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [4.4.8](https://github.com/endojs/endo/compare/@endo/captp@4.4.7...@endo/captp@4.4.8) (2025-07-12)
+## [4.4.8](https://github.com/endojs/endo/compare/@endo/captp@4.4.7...@endo/captp@4.4.8) (2025-07-12)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.4.7](https://github.com/endojs/endo/compare/@endo/captp@4.4.6...@endo/captp@4.4.7) (2025-06-17)
+## [4.4.7](https://github.com/endojs/endo/compare/@endo/captp@4.4.6...@endo/captp@4.4.7) (2025-06-17)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.4.6](https://github.com/endojs/endo/compare/@endo/captp@4.4.5...@endo/captp@4.4.6) (2025-06-02)
-
+## [4.4.6](https://github.com/endojs/endo/compare/@endo/captp@4.4.5...@endo/captp@4.4.6) (2025-06-02)
 
 ### Bug Fixes
 
 * **types:** abort reason optional ([a601d86](https://github.com/endojs/endo/commit/a601d8631a0df2ec0459b477bb6d95e45e6f6a46))
 
-
-
-### [4.4.5](https://github.com/endojs/endo/compare/@endo/captp@4.4.4...@endo/captp@4.4.5) (2025-03-24)
+## [4.4.5](https://github.com/endojs/endo/compare/@endo/captp@4.4.4...@endo/captp@4.4.5) (2025-03-24)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.4.4](https://github.com/endojs/endo/compare/@endo/captp@4.4.3...@endo/captp@4.4.4) (2025-01-24)
+## [4.4.4](https://github.com/endojs/endo/compare/@endo/captp@4.4.3...@endo/captp@4.4.4) (2025-01-24)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.4.3](https://github.com/endojs/endo/compare/@endo/captp@4.4.2...@endo/captp@4.4.3) (2024-11-13)
+## [4.4.3](https://github.com/endojs/endo/compare/@endo/captp@4.4.2...@endo/captp@4.4.3) (2024-11-13)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.4.2](https://github.com/endojs/endo/compare/@endo/captp@4.4.1...@endo/captp@4.4.2) (2024-10-22)
+## [4.4.2](https://github.com/endojs/endo/compare/@endo/captp@4.4.1...@endo/captp@4.4.2) (2024-10-22)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.4.1](https://github.com/endojs/endo/compare/@endo/captp@4.4.0...@endo/captp@4.4.1) (2024-10-22)
+## [4.4.1](https://github.com/endojs/endo/compare/@endo/captp@4.4.0...@endo/captp@4.4.1) (2024-10-22)
 
 **Note:** Version bump only for package @endo/captp
-
-
-
-
 
 ## [4.4.0](https://github.com/endojs/endo/compare/@endo/captp@4.3.0...@endo/captp@4.4.0) (2024-10-10)
 
-
-### Features
-
-* **captp:** allow external import/export maps ([7bc41cc](https://github.com/endojs/endo/commit/7bc41cca0f80822bb17667d7cce7d035fcf4a674))
-
-
+- Add optional configuration `makeCapTPImportExportTables` for external management of import/export tables.
 
 ## [4.3.0](https://github.com/endojs/endo/compare/@endo/captp@4.2.2...@endo/captp@4.3.0) (2024-08-27)
 
+- Relax typing of `send` to allow `async` functions, and abort the connection if the `send` function returns a rejected promise.
 
-### Features
-
-* **captp:** handle `send` rejections ([7201ae4](https://github.com/endojs/endo/commit/7201ae48a67aa0526f433ea6e2609b3cc29115dd))
-
-
-
-### [4.2.2](https://github.com/endojs/endo/compare/@endo/captp@4.2.1...@endo/captp@4.2.2) (2024-08-01)
+## [4.2.2](https://github.com/endojs/endo/compare/@endo/captp@4.2.1...@endo/captp@4.2.2) (2024-08-01)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.2.1](https://github.com/endojs/endo/compare/@endo/captp@4.2.0...@endo/captp@4.2.1) (2024-07-30)
+## [4.2.1](https://github.com/endojs/endo/compare/@endo/captp@4.2.0...@endo/captp@4.2.1) (2024-07-30)
 
 **Note:** Version bump only for package @endo/captp
-
-
-
-
 
 ## [4.2.0](https://github.com/endojs/endo/compare/@endo/captp@4.1.1...@endo/captp@4.2.0) (2024-05-07)
-
 
 ### Features
 
 * **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
 
-
-
-### [4.1.1](https://github.com/endojs/endo/compare/@endo/captp@4.1.0...@endo/captp@4.1.1) (2024-04-04)
+## [4.1.1](https://github.com/endojs/endo/compare/@endo/captp@4.1.0...@endo/captp@4.1.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
 ## [4.1.0](https://github.com/endojs/endo/compare/@endo/captp@4.0.4...@endo/captp@4.1.0) (2024-03-20)
-
 
 ### Features
 
 * **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
-
 ### Bug Fixes
 
 * **captp:** Teardown worker test ([63a75f7](https://github.com/endojs/endo/commit/63a75f75dc31328b35b7c63e7cd3628fcc465842))
 
-
-
-### [4.0.4](https://github.com/endojs/endo/compare/@endo/captp@4.0.3...@endo/captp@4.0.4) (2024-02-23)
+## [4.0.4](https://github.com/endojs/endo/compare/@endo/captp@4.0.3...@endo/captp@4.0.4) (2024-02-23)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [4.0.3](https://github.com/endojs/endo/compare/@endo/captp@4.0.2...@endo/captp@4.0.3) (2024-02-15)
-
+## [4.0.3](https://github.com/endojs/endo/compare/@endo/captp@4.0.2...@endo/captp@4.0.3) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 * Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
 
-
-
-### [4.0.2](https://github.com/endojs/endo/compare/@endo/captp@4.0.1...@endo/captp@4.0.2) (2024-01-18)
-
+## [4.0.2](https://github.com/endojs/endo/compare/@endo/captp@4.0.1...@endo/captp@4.0.2) (2024-01-18)
 
 ### Bug Fixes
 
 * Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
 
-
-
-### [4.0.1](https://github.com/endojs/endo/compare/@endo/captp@4.0.0...@endo/captp@4.0.1) (2023-12-20)
-
+## [4.0.1](https://github.com/endojs/endo/compare/@endo/captp@4.0.0...@endo/captp@4.0.1) (2023-12-20)
 
 ### Bug Fixes
 
 * Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
 
-
-
 ## [4.0.0](https://github.com/endojs/endo/compare/@endo/captp@3.1.5...@endo/captp@4.0.0) (2023-12-12)
-
 
 ### Bug Fixes
 
 * Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 * Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
 
-
-
-### [3.1.5](https://github.com/endojs/endo/compare/@endo/captp@3.1.4...@endo/captp@3.1.5) (2023-09-12)
+## [3.1.5](https://github.com/endojs/endo/compare/@endo/captp@3.1.4...@endo/captp@3.1.5) (2023-09-12)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [3.1.4](https://github.com/endojs/endo/compare/@endo/captp@3.1.2...@endo/captp@3.1.4) (2023-08-07)
+## [3.1.4](https://github.com/endojs/endo/compare/@endo/captp@3.1.2...@endo/captp@3.1.4) (2023-08-07)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [3.1.3](https://github.com/endojs/endo/compare/@endo/captp@3.1.2...@endo/captp@3.1.3) (2023-08-07)
+## [3.1.3](https://github.com/endojs/endo/compare/@endo/captp@3.1.2...@endo/captp@3.1.3) (2023-08-07)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [3.1.2](https://github.com/endojs/endo/compare/@endo/captp@3.1.1...@endo/captp@3.1.2) (2023-07-19)
+## [3.1.2](https://github.com/endojs/endo/compare/@endo/captp@3.1.1...@endo/captp@3.1.2) (2023-07-19)
 
 **Note:** Version bump only for package @endo/captp
 
-
-
-
-
-### [3.1.1](https://github.com/endojs/endo/compare/@endo/captp@3.1.0...@endo/captp@3.1.1) (2023-04-20)
+## [3.1.1](https://github.com/endojs/endo/compare/@endo/captp@3.1.0...@endo/captp@3.1.1) (2023-04-20)
 
 **Note:** Version bump only for package @endo/captp
 
 ## [3.1.0](https://github.com/endojs/endo/compare/@endo/captp@3.0.0...@endo/captp@3.1.0) (2023-04-14)
 
-### Features
-
-- **captp:** add `CTP_DROP.decRefs` GC approach ([366764b](https://github.com/endojs/endo/commit/366764ba61e11bb66f5c3c6939431e1cee9f9e29))
-- **captp:** disable GC by default ([49c9222](https://github.com/endojs/endo/commit/49c9222154b3cfdbfcb90d05f31f95c098b99528))
-- **ses:** finite deep stacks, on by default ([#1513](https://github.com/endojs/endo/issues/1513)) ([aae0e57](https://github.com/endojs/endo/commit/aae0e57f7a6bdcc898396c65ec22616a33672d32))
-- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
-
-### Bug Fixes
-
-- sort type confusion between `pass-style` and `marshal` ([db09e13](https://github.com/endojs/endo/commit/db09e13463806b4524951cd694272243958a7182))
+- Disable GC by default to work around known issues with dropping
+  still-referenced objects.
 
 ## [3.0.0](https://github.com/endojs/endo/compare/@endo/captp@2.0.19...@endo/captp@3.0.0) (2023-03-07)
 
@@ -248,93 +145,98 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 - Improve typing information ([7b3fc39](https://github.com/endojs/endo/commit/7b3fc397862ac2c8617454d587f1069be1e15517))
 
-### [2.0.19](https://github.com/endojs/endo/compare/@endo/captp@2.0.18...@endo/captp@2.0.19) (2022-12-23)
+## [2.0.19](https://github.com/endojs/endo/compare/@endo/captp@2.0.18...@endo/captp@2.0.19) (2022-12-23)
 
-### Bug Fixes
+- Remote objects now reflect methods present on their prototype chain.
+- Serialization errors now serialize.
 
-- **captp:** Serialize serialization errors ([98a7720](https://github.com/endojs/endo/commit/98a77205235b456b2859eed4d3d7e5bbb5c03b7a))
-- change unsafe then to E.when ([#1407](https://github.com/endojs/endo/issues/1407)) ([5493e91](https://github.com/endojs/endo/commit/5493e91525be96128a7309a2f94434d50aac9792))
+# v1.2.0 (17-Dec-2019)
 
-### [2.0.18](https://github.com/endojs/endo/compare/@endo/captp@2.0.17...@endo/captp@2.0.18) (2022-11-14)
+* use @agoric/eventual-send HandledPromise interface (#6)
+
+Moved from https://github.com/Agoric/captp into the `packages/captp/`
+directory in the monorepo at https://github.com/Agoric/agoric-sdk .
+
+## [2.0.18](https://github.com/endojs/endo/compare/@endo/captp@2.0.17...@endo/captp@2.0.18) (2022-11-14)
 
 ### Bug Fixes
 
 - assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
 - fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
 
-### [2.0.17](https://github.com/endojs/endo/compare/@endo/captp@2.0.16...@endo/captp@2.0.17) (2022-10-24)
+## [2.0.17](https://github.com/endojs/endo/compare/@endo/captp@2.0.16...@endo/captp@2.0.17) (2022-10-24)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.16](https://github.com/endojs/endo/compare/@endo/captp@2.0.15...@endo/captp@2.0.16) (2022-10-19)
+## [2.0.16](https://github.com/endojs/endo/compare/@endo/captp@2.0.15...@endo/captp@2.0.16) (2022-10-19)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.15](https://github.com/endojs/endo/compare/@endo/captp@2.0.14...@endo/captp@2.0.15) (2022-09-27)
+## [2.0.15](https://github.com/endojs/endo/compare/@endo/captp@2.0.14...@endo/captp@2.0.15) (2022-09-27)
 
 ### Bug Fixes
 
 - Provide smallcaps encoding in addition to capData ([#1282](https://github.com/endojs/endo/issues/1282)) ([233dbe2](https://github.com/endojs/endo/commit/233dbe2e159e454fd3bcdd0e08b15c4439b56ba7))
 
-### [2.0.14](https://github.com/endojs/endo/compare/@endo/captp@2.0.13...@endo/captp@2.0.14) (2022-09-14)
+## [2.0.14](https://github.com/endojs/endo/compare/@endo/captp@2.0.13...@endo/captp@2.0.14) (2022-09-14)
 
 ### Bug Fixes
 
 - alt syntax for positive but faster assertions ([#1280](https://github.com/endojs/endo/issues/1280)) ([dc24f2f](https://github.com/endojs/endo/commit/dc24f2f2c3cac7ce239a64c503493c41a2334315))
 
-### [2.0.13](https://github.com/endojs/endo/compare/@endo/captp@2.0.12...@endo/captp@2.0.13) (2022-08-26)
+## [2.0.13](https://github.com/endojs/endo/compare/@endo/captp@2.0.12...@endo/captp@2.0.13) (2022-08-26)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.12](https://github.com/endojs/endo/compare/@endo/captp@2.0.11...@endo/captp@2.0.12) (2022-08-26)
+## [2.0.12](https://github.com/endojs/endo/compare/@endo/captp@2.0.11...@endo/captp@2.0.12) (2022-08-26)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.11](https://github.com/endojs/endo/compare/@endo/captp@2.0.10...@endo/captp@2.0.11) (2022-08-25)
+## [2.0.11](https://github.com/endojs/endo/compare/@endo/captp@2.0.10...@endo/captp@2.0.11) (2022-08-25)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.10](https://github.com/endojs/endo/compare/@endo/captp@2.0.9...@endo/captp@2.0.10) (2022-08-23)
+## [2.0.10](https://github.com/endojs/endo/compare/@endo/captp@2.0.9...@endo/captp@2.0.10) (2022-08-23)
 
 ### Bug Fixes
 
 - more hardens ([#1241](https://github.com/endojs/endo/issues/1241)) ([b6ff811](https://github.com/endojs/endo/commit/b6ff8118a92fd72c5309b2bb285fac08d0531d92))
 
-### [2.0.9](https://github.com/endojs/endo/compare/@endo/captp@2.0.8...@endo/captp@2.0.9) (2022-06-28)
+## [2.0.9](https://github.com/endojs/endo/compare/@endo/captp@2.0.8...@endo/captp@2.0.9) (2022-06-28)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.8](https://github.com/endojs/endo/compare/@endo/captp@2.0.7...@endo/captp@2.0.8) (2022-06-11)
+## [2.0.8](https://github.com/endojs/endo/compare/@endo/captp@2.0.7...@endo/captp@2.0.8) (2022-06-11)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.7](https://github.com/endojs/endo/compare/@endo/captp@2.0.6...@endo/captp@2.0.7) (2022-04-15)
+## [2.0.7](https://github.com/endojs/endo/compare/@endo/captp@2.0.6...@endo/captp@2.0.7) (2022-04-15)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.6](https://github.com/endojs/endo/compare/@endo/captp@2.0.5...@endo/captp@2.0.6) (2022-04-14)
+## [2.0.6](https://github.com/endojs/endo/compare/@endo/captp@2.0.5...@endo/captp@2.0.6) (2022-04-14)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.5](https://github.com/endojs/endo/compare/@endo/captp@2.0.4...@endo/captp@2.0.5) (2022-04-13)
+## [2.0.5](https://github.com/endojs/endo/compare/@endo/captp@2.0.4...@endo/captp@2.0.5) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [2.0.4](https://github.com/endojs/endo/compare/@endo/captp@2.0.3...@endo/captp@2.0.4) (2022-04-12)
+## [2.0.4](https://github.com/endojs/endo/compare/@endo/captp@2.0.3...@endo/captp@2.0.4) (2022-04-12)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.3](https://github.com/endojs/endo/compare/@endo/captp@2.0.2...@endo/captp@2.0.3) (2022-03-07)
+## [2.0.3](https://github.com/endojs/endo/compare/@endo/captp@2.0.2...@endo/captp@2.0.3) (2022-03-07)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.2](https://github.com/endojs/endo/compare/@endo/captp@2.0.1...@endo/captp@2.0.2) (2022-03-02)
+## [2.0.2](https://github.com/endojs/endo/compare/@endo/captp@2.0.1...@endo/captp@2.0.2) (2022-03-02)
 
 **Note:** Version bump only for package @endo/captp
 
-### [2.0.1](https://github.com/endojs/endo/compare/@endo/captp@2.0.0...@endo/captp@2.0.1) (2022-02-20)
+## [2.0.1](https://github.com/endojs/endo/compare/@endo/captp@2.0.0...@endo/captp@2.0.1) (2022-02-20)
 
 **Note:** Version bump only for package @endo/captp
 
@@ -349,57 +251,57 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
 - **marshal:** Remove ambient types ([2a9cf63](https://github.com/endojs/endo/commit/2a9cf6372042b1fb16e1c96af5f3f9526978570a))
 
-### [1.10.12](https://github.com/endojs/endo/compare/@endo/captp@1.10.11...@endo/captp@1.10.12) (2022-01-31)
+## [1.10.12](https://github.com/endojs/endo/compare/@endo/captp@1.10.11...@endo/captp@1.10.12) (2022-01-31)
 
 **Note:** Version bump only for package @endo/captp
 
-### [1.10.11](https://github.com/endojs/endo/compare/@endo/captp@1.10.10...@endo/captp@1.10.11) (2022-01-27)
+## [1.10.11](https://github.com/endojs/endo/compare/@endo/captp@1.10.10...@endo/captp@1.10.11) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [1.10.10](https://github.com/endojs/endo/compare/@endo/captp@1.10.9...@endo/captp@1.10.10) (2022-01-25)
+## [1.10.10](https://github.com/endojs/endo/compare/@endo/captp@1.10.9...@endo/captp@1.10.10) (2022-01-25)
 
 **Note:** Version bump only for package @endo/captp
 
-### 1.10.9 (2022-01-23)
+## 1.10.9 (2022-01-23)
 
 ### Bug Fixes
 
 - **captp:** Windows test support ([67c8cc1](https://github.com/endojs/endo/commit/67c8cc1ced1c8be8dc8b795e56198b0dc5da1e7b))
 
-### [1.10.8](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.7...@agoric/captp@1.10.8) (2021-12-22)
+## [1.10.8](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.7...@agoric/captp@1.10.8) (2021-12-22)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.10.7](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.6...@agoric/captp@1.10.7) (2021-12-02)
+## [1.10.7](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.6...@agoric/captp@1.10.7) (2021-12-02)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.10.6](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.5...@agoric/captp@1.10.6) (2021-10-13)
+## [1.10.6](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.5...@agoric/captp@1.10.6) (2021-10-13)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.10.5](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.4...@agoric/captp@1.10.5) (2021-09-23)
+## [1.10.5](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.4...@agoric/captp@1.10.5) (2021-09-23)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.10.4](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.3...@agoric/captp@1.10.4) (2021-09-15)
+## [1.10.4](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.3...@agoric/captp@1.10.4) (2021-09-15)
 
 ### Bug Fixes
 
 - more missing Fars. kill "this" ([#3746](https://github.com/Agoric/agoric-sdk/issues/3746)) ([7bd027a](https://github.com/Agoric/agoric-sdk/commit/7bd027a879f98a9a3f30429ee1b54e6057efec42))
 
-### [1.10.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.2...@agoric/captp@1.10.3) (2021-08-18)
+## [1.10.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.2...@agoric/captp@1.10.3) (2021-08-18)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.10.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.1...@agoric/captp@1.10.2) (2021-08-17)
+## [1.10.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.1...@agoric/captp@1.10.2) (2021-08-17)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.10.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.0...@agoric/captp@1.10.1) (2021-08-16)
+## [1.10.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.0...@agoric/captp@1.10.1) (2021-08-16)
 
 ### Bug Fixes
 
@@ -407,102 +309,38 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [1.10.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.20...@agoric/captp@1.10.0) (2021-08-15)
 
-### 0.26.10 (2021-07-28)
-
-### Features
-
-- **captp:** leverage makeSubscriptionKit to drive trapHost ([a350b9d](https://github.com/Agoric/agoric-sdk/commit/a350b9d4688bd156655e519dec9fe291b7353427))
-- **captp:** return Sync replies via arbitrary comm protocol ([c838e91](https://github.com/Agoric/agoric-sdk/commit/c838e918164fc136b0bcbd83029489c6893ea381))
-- **captp:** take suggestion in [#3289](https://github.com/Agoric/agoric-sdk/issues/3289) to prefix questionIDs ([a8e0e96](https://github.com/Agoric/agoric-sdk/commit/a8e0e965f7640dc1a1e75b15d4788916e9cd563e))
-- implement exportAsSyncable, and Sync powers ([714b214](https://github.com/Agoric/agoric-sdk/commit/714b214012e81faf2ac4955475a8504ef0c74a4a))
-- implement Sync for makeLoopback ([3d500a1](https://github.com/Agoric/agoric-sdk/commit/3d500a101d73995d434cbb48b9f5be206a076ed7))
-
-### Bug Fixes
-
-- **captp:** clarify error handling ([21b72cd](https://github.com/Agoric/agoric-sdk/commit/21b72cd54ec95e9fcc86638086c7c0c09a3e71cf))
-- **captp:** don't rely on TextDecoder stream flag ([5a370a8](https://github.com/Agoric/agoric-sdk/commit/5a370a8404124409e5bbdf60c4ccf494fde8b103))
-- **captp:** ensure Sync(x) never returns a thenable ([d642c41](https://github.com/Agoric/agoric-sdk/commit/d642c414bd22036a72ab6db590d26393efd05568))
-- **captp:** ensure trapcap reply iteration is serial ([feda6c8](https://github.com/Agoric/agoric-sdk/commit/feda6c8510f56385c2becec40412223b4acf109d))
-- **captp:** more robust CTP_TRAP_ITERATE error handling ([003c3d1](https://github.com/Agoric/agoric-sdk/commit/003c3d16dc2301ae171d9cc60ab30509fa7ee9ea))
-- **captp:** properly export src/index.js ([592f0b7](https://github.com/Agoric/agoric-sdk/commit/592f0b78b6adcd2956c925b8294ed9452ff4c9bb))
-- **captp:** relax it.throw signature ([6fc842c](https://github.com/Agoric/agoric-sdk/commit/6fc842cc3160f134455a250c8a13418e07301848))
-- **solo:** clean up unnecessary deep captp import ([8b20562](https://github.com/Agoric/agoric-sdk/commit/8b20562b9cc3917818455ab7d85aa74c9efb3f56))
-- break up incoherent GetApply function into SyncImpl record ([1455298](https://github.com/Agoric/agoric-sdk/commit/14552986c6e47fde7eae720e449efce5aab23707))
-- don't create new promise IDs and stall the pipeline ([b90ae08](https://github.com/Agoric/agoric-sdk/commit/b90ae0835aec5484279eddcea4e9ccaa253d2db0))
-
 ## [1.9.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.20...@agoric/captp@1.9.0) (2021-08-14)
-
-### 0.26.10 (2021-07-28)
-
-### Features
-
-- **captp:** leverage makeSubscriptionKit to drive trapHost ([a350b9d](https://github.com/Agoric/agoric-sdk/commit/a350b9d4688bd156655e519dec9fe291b7353427))
-- **captp:** return Sync replies via arbitrary comm protocol ([c838e91](https://github.com/Agoric/agoric-sdk/commit/c838e918164fc136b0bcbd83029489c6893ea381))
-- **captp:** take suggestion in [#3289](https://github.com/Agoric/agoric-sdk/issues/3289) to prefix questionIDs ([a8e0e96](https://github.com/Agoric/agoric-sdk/commit/a8e0e965f7640dc1a1e75b15d4788916e9cd563e))
-- implement exportAsSyncable, and Sync powers ([714b214](https://github.com/Agoric/agoric-sdk/commit/714b214012e81faf2ac4955475a8504ef0c74a4a))
-- implement Sync for makeLoopback ([3d500a1](https://github.com/Agoric/agoric-sdk/commit/3d500a101d73995d434cbb48b9f5be206a076ed7))
-
-### Bug Fixes
-
-- **captp:** clarify error handling ([21b72cd](https://github.com/Agoric/agoric-sdk/commit/21b72cd54ec95e9fcc86638086c7c0c09a3e71cf))
-- **captp:** don't rely on TextDecoder stream flag ([5a370a8](https://github.com/Agoric/agoric-sdk/commit/5a370a8404124409e5bbdf60c4ccf494fde8b103))
-- **captp:** ensure Sync(x) never returns a thenable ([d642c41](https://github.com/Agoric/agoric-sdk/commit/d642c414bd22036a72ab6db590d26393efd05568))
-- **captp:** ensure trapcap reply iteration is serial ([feda6c8](https://github.com/Agoric/agoric-sdk/commit/feda6c8510f56385c2becec40412223b4acf109d))
-- **captp:** more robust CTP_TRAP_ITERATE error handling ([003c3d1](https://github.com/Agoric/agoric-sdk/commit/003c3d16dc2301ae171d9cc60ab30509fa7ee9ea))
-- **captp:** properly export src/index.js ([592f0b7](https://github.com/Agoric/agoric-sdk/commit/592f0b78b6adcd2956c925b8294ed9452ff4c9bb))
-- **captp:** relax it.throw signature ([6fc842c](https://github.com/Agoric/agoric-sdk/commit/6fc842cc3160f134455a250c8a13418e07301848))
-- **solo:** clean up unnecessary deep captp import ([8b20562](https://github.com/Agoric/agoric-sdk/commit/8b20562b9cc3917818455ab7d85aa74c9efb3f56))
-- break up incoherent GetApply function into SyncImpl record ([1455298](https://github.com/Agoric/agoric-sdk/commit/14552986c6e47fde7eae720e449efce5aab23707))
-- don't create new promise IDs and stall the pipeline ([b90ae08](https://github.com/Agoric/agoric-sdk/commit/b90ae0835aec5484279eddcea4e9ccaa253d2db0))
 
 ## [1.8.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.20...@agoric/captp@1.8.0) (2021-07-28)
 
-### Features
+* introduce TrapCaps for synchronous "kernel trap" interfaces (see the
+  README.md).
 
-- **captp:** leverage makeSubscriptionKit to drive trapHost ([a350b9d](https://github.com/Agoric/agoric-sdk/commit/a350b9d4688bd156655e519dec9fe291b7353427))
-- **captp:** return Sync replies via arbitrary comm protocol ([c838e91](https://github.com/Agoric/agoric-sdk/commit/c838e918164fc136b0bcbd83029489c6893ea381))
-- **captp:** take suggestion in [#3289](https://github.com/Agoric/agoric-sdk/issues/3289) to prefix questionIDs ([a8e0e96](https://github.com/Agoric/agoric-sdk/commit/a8e0e965f7640dc1a1e75b15d4788916e9cd563e))
-- implement exportAsSyncable, and Sync powers ([714b214](https://github.com/Agoric/agoric-sdk/commit/714b214012e81faf2ac4955475a8504ef0c74a4a))
-- implement Sync for makeLoopback ([3d500a1](https://github.com/Agoric/agoric-sdk/commit/3d500a101d73995d434cbb48b9f5be206a076ed7))
-
-### Bug Fixes
-
-- **captp:** clarify error handling ([21b72cd](https://github.com/Agoric/agoric-sdk/commit/21b72cd54ec95e9fcc86638086c7c0c09a3e71cf))
-- **captp:** don't rely on TextDecoder stream flag ([5a370a8](https://github.com/Agoric/agoric-sdk/commit/5a370a8404124409e5bbdf60c4ccf494fde8b103))
-- **captp:** ensure Sync(x) never returns a thenable ([d642c41](https://github.com/Agoric/agoric-sdk/commit/d642c414bd22036a72ab6db590d26393efd05568))
-- **captp:** ensure trapcap reply iteration is serial ([feda6c8](https://github.com/Agoric/agoric-sdk/commit/feda6c8510f56385c2becec40412223b4acf109d))
-- **captp:** more robust CTP_TRAP_ITERATE error handling ([003c3d1](https://github.com/Agoric/agoric-sdk/commit/003c3d16dc2301ae171d9cc60ab30509fa7ee9ea))
-- **captp:** properly export src/index.js ([592f0b7](https://github.com/Agoric/agoric-sdk/commit/592f0b78b6adcd2956c925b8294ed9452ff4c9bb))
-- **captp:** relax it.throw signature ([6fc842c](https://github.com/Agoric/agoric-sdk/commit/6fc842cc3160f134455a250c8a13418e07301848))
-- **solo:** clean up unnecessary deep captp import ([8b20562](https://github.com/Agoric/agoric-sdk/commit/8b20562b9cc3917818455ab7d85aa74c9efb3f56))
-- break up incoherent GetApply function into SyncImpl record ([1455298](https://github.com/Agoric/agoric-sdk/commit/14552986c6e47fde7eae720e449efce5aab23707))
-- don't create new promise IDs and stall the pipeline ([b90ae08](https://github.com/Agoric/agoric-sdk/commit/b90ae0835aec5484279eddcea4e9ccaa253d2db0))
-
-### [1.7.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.19...@agoric/captp@1.7.20) (2021-07-01)
+## [1.7.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.19...@agoric/captp@1.7.20) (2021-07-01)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.7.19](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.18...@agoric/captp@1.7.19) (2021-06-28)
+## [1.7.19](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.18...@agoric/captp@1.7.19) (2021-06-28)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.7.18](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.17...@agoric/captp@1.7.18) (2021-06-25)
+## [1.7.18](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.17...@agoric/captp@1.7.18) (2021-06-25)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.7.17](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.16...@agoric/captp@1.7.17) (2021-06-24)
+## [1.7.17](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.16...@agoric/captp@1.7.17) (2021-06-24)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.7.16](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.15...@agoric/captp@1.7.16) (2021-06-23)
+## [1.7.16](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.15...@agoric/captp@1.7.16) (2021-06-23)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.7.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.14...@agoric/captp@1.7.15) (2021-06-16)
+## [1.7.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.14...@agoric/captp@1.7.15) (2021-06-16)
 
 **Note:** Version bump only for package @agoric/captp
 
-### [1.7.14](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.13...@agoric/captp@1.7.14) (2021-06-15)
+## [1.7.14](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.13...@agoric/captp@1.7.14) (2021-06-15)
 
 ### Bug Fixes
 
@@ -565,13 +403,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Correlate sent errors with received errors ([73b9cfd](https://github.com/Agoric/agoric-sdk/commit/73b9cfd33cf7842bdc105a79592028649cb1c92a))
 - wire through the CapTP bootstrap message ([7af41bc](https://github.com/Agoric/agoric-sdk/commit/7af41bc13a778c4872863e2060874910d6c1fefa))
 
-# [1.7.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.6.0...@agoric/captp@1.7.0) (2020-12-10)
+## [1.7.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.6.0...@agoric/captp@1.7.0) (2020-12-10)
 
 ### Features
 
 - **import-bundle:** Preliminary support Endo zip hex bundle format ([#1983](https://github.com/Agoric/agoric-sdk/issues/1983)) ([983681b](https://github.com/Agoric/agoric-sdk/commit/983681bfc4bf512b6bd90806ed9220cd4fefc13c))
 
-# [1.6.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.5.2-dev.0...@agoric/captp@1.6.0) (2020-11-07)
+## [1.6.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.5.2-dev.0...@agoric/captp@1.6.0) (2020-11-07)
 
 ### Bug Fixes
 
@@ -601,7 +439,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 **Note:** Version bump only for package @agoric/captp
 
-# [1.5.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.4.0...@agoric/captp@1.5.0) (2020-09-16)
+## [1.5.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.4.0...@agoric/captp@1.5.0) (2020-09-16)
 
 ### Bug Fixes
 
@@ -617,7 +455,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - bidirectional loopback with `makeNear` ([4e29d20](https://github.com/Agoric/agoric-sdk/commit/4e29d206f6e881f82715c8a569ce291dd7ae82a8))
 - implement makeLoopback and makeFar without a membrane ([b0bccba](https://github.com/Agoric/agoric-sdk/commit/b0bccbabecc2902c9d9f7319ffb0c509bccc2d01))
 
-# [1.4.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.3.3...@agoric/captp@1.4.0) (2020-08-31)
+## [1.4.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.3.3...@agoric/captp@1.4.0) (2020-08-31)
 
 ### Bug Fixes
 
@@ -648,7 +486,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 **Note:** Version bump only for package @agoric/captp
 
-# [1.3.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.2.3...@agoric/captp@1.3.0) (2020-05-04)
+## [1.3.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.2.3...@agoric/captp@1.3.0) (2020-05-04)
 
 ### Bug Fixes
 
@@ -680,3 +518,26 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **captp:** use new @agoric/eventual-send interface ([d1201a1](https://github.com/Agoric/CapTP/commit/d1201a1a1de324ae5e21736057f3bb03f97d2bc7))
 - **eventual-send:** Update the API throughout agoric-sdk ([97fc1e7](https://github.com/Agoric/CapTP/commit/97fc1e748d8e3955b29baf0e04bfa788d56dad9f))
+
+## 0.26.10 (2021-07-28)
+
+### Features
+
+- **captp:** leverage makeSubscriptionKit to drive trapHost ([a350b9d](https://github.com/Agoric/agoric-sdk/commit/a350b9d4688bd156655e519dec9fe291b7353427))
+- **captp:** return Sync replies via arbitrary comm protocol ([c838e91](https://github.com/Agoric/agoric-sdk/commit/c838e918164fc136b0bcbd83029489c6893ea381))
+- **captp:** take suggestion in [#3289](https://github.com/Agoric/agoric-sdk/issues/3289) to prefix questionIDs ([a8e0e96](https://github.com/Agoric/agoric-sdk/commit/a8e0e965f7640dc1a1e75b15d4788916e9cd563e))
+- implement exportAsSyncable, and Sync powers ([714b214](https://github.com/Agoric/agoric-sdk/commit/714b214012e81faf2ac4955475a8504ef0c74a4a))
+- implement Sync for makeLoopback ([3d500a1](https://github.com/Agoric/agoric-sdk/commit/3d500a101d73995d434cbb48b9f5be206a076ed7))
+
+### Bug Fixes
+
+- **captp:** clarify error handling ([21b72cd](https://github.com/Agoric/agoric-sdk/commit/21b72cd54ec95e9fcc86638086c7c0c09a3e71cf))
+- **captp:** don't rely on TextDecoder stream flag ([5a370a8](https://github.com/Agoric/agoric-sdk/commit/5a370a8404124409e5bbdf60c4ccf494fde8b103))
+- **captp:** ensure Sync(x) never returns a thenable ([d642c41](https://github.com/Agoric/agoric-sdk/commit/d642c414bd22036a72ab6db590d26393efd05568))
+- **captp:** ensure trapcap reply iteration is serial ([feda6c8](https://github.com/Agoric/agoric-sdk/commit/feda6c8510f56385c2becec40412223b4acf109d))
+- **captp:** more robust CTP_TRAP_ITERATE error handling ([003c3d1](https://github.com/Agoric/agoric-sdk/commit/003c3d16dc2301ae171d9cc60ab30509fa7ee9ea))
+- **captp:** properly export src/index.js ([592f0b7](https://github.com/Agoric/agoric-sdk/commit/592f0b78b6adcd2956c925b8294ed9452ff4c9bb))
+- **captp:** relax it.throw signature ([6fc842c](https://github.com/Agoric/agoric-sdk/commit/6fc842cc3160f134455a250c8a13418e07301848))
+- **solo:** clean up unnecessary deep captp import ([8b20562](https://github.com/Agoric/agoric-sdk/commit/8b20562b9cc3917818455ab7d85aa74c9efb3f56))
+- break up incoherent GetApply function into SyncImpl record ([1455298](https://github.com/Agoric/agoric-sdk/commit/14552986c6e47fde7eae720e449efce5aab23707))
+- don't create new promise IDs and stall the pipeline ([b90ae08](https://github.com/Agoric/agoric-sdk/commit/b90ae0835aec5484279eddcea4e9ccaa253d2db0))
