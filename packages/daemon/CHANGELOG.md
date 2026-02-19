@@ -1,100 +1,54 @@
-# Change Log
+# @endo/daemon
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [2.5.1](https://github.com/endojs/endo/compare/@endo/daemon@2.5.0...@endo/daemon@2.5.1) (2025-07-12)
+## [2.5.1](https://github.com/endojs/endo/compare/@endo/daemon@2.5.0...@endo/daemon@2.5.1) (2025-07-12)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
 ## [2.5.0](https://github.com/endojs/endo/compare/@endo/daemon@2.4.9...@endo/daemon@2.5.0) (2025-06-17)
-
 
 ### Features
 
 * **daemon:** PINS restored on startup ([3a348ce](https://github.com/endojs/endo/commit/3a348cee67f74c9ce85623ad79060e426e1965db))
 
-
-
-### [2.4.9](https://github.com/endojs/endo/compare/@endo/daemon@2.4.8...@endo/daemon@2.4.9) (2025-06-02)
+## [2.4.9](https://github.com/endojs/endo/compare/@endo/daemon@2.4.8...@endo/daemon@2.4.9) (2025-06-02)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.8](https://github.com/endojs/endo/compare/@endo/daemon@2.4.7...@endo/daemon@2.4.8) (2025-03-24)
-
+## [2.4.8](https://github.com/endojs/endo/compare/@endo/daemon@2.4.7...@endo/daemon@2.4.8) (2025-03-24)
 
 ### Bug Fixes
 
 * **daemon,cli:** fix [#2700](https://github.com/endojs/endo/issues/2700) use endo/init to prepare async hooks ([aacefe4](https://github.com/endojs/endo/commit/aacefe4ab6266d1096db7939abbed95bbda6f4f5))
 
-
-
-### [2.4.7](https://github.com/endojs/endo/compare/@endo/daemon@2.4.6...@endo/daemon@2.4.7) (2025-01-24)
+## [2.4.7](https://github.com/endojs/endo/compare/@endo/daemon@2.4.6...@endo/daemon@2.4.7) (2025-01-24)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.6](https://github.com/endojs/endo/compare/@endo/daemon@2.4.5...@endo/daemon@2.4.6) (2024-11-13)
+## [2.4.6](https://github.com/endojs/endo/compare/@endo/daemon@2.4.5...@endo/daemon@2.4.6) (2024-11-13)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.5](https://github.com/endojs/endo/compare/@endo/daemon@2.4.4...@endo/daemon@2.4.5) (2024-10-22)
+## [2.4.5](https://github.com/endojs/endo/compare/@endo/daemon@2.4.4...@endo/daemon@2.4.5) (2024-10-22)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.4](https://github.com/endojs/endo/compare/@endo/daemon@2.4.3...@endo/daemon@2.4.4) (2024-10-22)
+## [2.4.4](https://github.com/endojs/endo/compare/@endo/daemon@2.4.3...@endo/daemon@2.4.4) (2024-10-22)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.3](https://github.com/endojs/endo/compare/@endo/daemon@2.4.2...@endo/daemon@2.4.3) (2024-10-10)
+## [2.4.3](https://github.com/endojs/endo/compare/@endo/daemon@2.4.2...@endo/daemon@2.4.3) (2024-10-10)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.2](https://github.com/endojs/endo/compare/@endo/daemon@2.4.1...@endo/daemon@2.4.2) (2024-08-27)
+## [2.4.2](https://github.com/endojs/endo/compare/@endo/daemon@2.4.1...@endo/daemon@2.4.2) (2024-08-27)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [2.4.1](https://github.com/endojs/endo/compare/@endo/daemon@2.4.0...@endo/daemon@2.4.1) (2024-08-01)
+## [2.4.1](https://github.com/endojs/endo/compare/@endo/daemon@2.4.0...@endo/daemon@2.4.1) (2024-08-01)
 
 **Note:** Version bump only for package @endo/daemon
-
-
-
-
 
 ## [2.4.0](https://github.com/endojs/endo/compare/@endo/daemon@2.3.0...@endo/daemon@2.4.0) (2024-07-30)
-
 
 ### Features
 
@@ -103,7 +57,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon,cli:** Store at pet name path ([d54402d](https://github.com/endojs/endo/commit/d54402da91b23b4e00bf6fa03550ea7b04ec659c))
 * **daemon:** Accept spread path at makeDirectory() ([61dc434](https://github.com/endojs/endo/commit/61dc4347b3a0b3ad6dea2a52b9cb0466c1cdc161))
 
-
 ### Bug Fixes
 
 * **daemon:** Delete moved "from" names ([182bab5](https://github.com/endojs/endo/commit/182bab53409b3db4c5198a8462cea9724b3bb789))
@@ -111,10 +64,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Preserve 'from' name in case of write failure for 'to' name ([feb3a22](https://github.com/endojs/endo/commit/feb3a22cc7ba006fb11c2a43fa4861a18469a709))
 * endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
 
-
-
 ## [2.3.0](https://github.com/endojs/endo/compare/@endo/daemon@2.2.0...@endo/daemon@2.3.0) (2024-05-07)
-
 
 ### Features
 
@@ -128,16 +78,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Publish incremental pet store id changes ([d664ace](https://github.com/endojs/endo/commit/d664ace1528c4b907e04a5214cf51828422a77f2))
 * **daemon:** Store passable values ([a4a53d0](https://github.com/endojs/endo/commit/a4a53d04b0aab8354b4e959525a3cc952021bf2a))
 
-
 ### Bug Fixes
 
 * **daemon:** Publish removal of name mappings during pet store renames ([0635da2](https://github.com/endojs/endo/commit/0635da2002cfcabbed025e9ea23746b15492c90b))
 * **daemon:** Wait for mail delivery ([493f6bb](https://github.com/endojs/endo/commit/493f6bb97cdf318eb535413577bd518bc8fffbd6))
 
-
-
 ## [2.2.0](https://github.com/endojs/endo/compare/@endo/daemon@2.1.0...@endo/daemon@2.2.0) (2024-04-04)
-
 
 ### Features
 
@@ -146,16 +92,12 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Add directory `locate()` method ([8977958](https://github.com/endojs/endo/commit/89779589db009b3f7919af5759ee659aff933bc1))
 * **daemon:** Add makeMultimap() ([aaef687](https://github.com/endojs/endo/commit/aaef6875ccdf33fb83008f4a0ac9556ecc59ce0b))
 
-
 ### Bug Fixes
 
 * **daemon:** Do not publish changes for redundant pet store writes ([a96b8af](https://github.com/endojs/endo/commit/a96b8afa0327e9e4a160cad5bcb3cfb123b79c47))
 * **daemon:** Enable `locate()` of remote values ([11198d0](https://github.com/endojs/endo/commit/11198d09b8ff2e3e11aae365b83cc402ce98a811))
 
-
-
 ## [2.1.0](https://github.com/endojs/endo/compare/@endo/daemon@2.0.0...@endo/daemon@2.1.0) (2024-03-20)
-
 
 ### Features
 
@@ -178,7 +120,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** separate peer and remote formulas ([a1abc36](https://github.com/endojs/endo/commit/a1abc3610cd3facccaa91223e2c5583965cc4d90))
 * **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
-
 ### Bug Fixes
 
 * **daemon:** Catch up init dev dependency to adjacent workspace ([1fd5182](https://github.com/endojs/endo/commit/1fd518251895445ff87ad7fcc1121c2b66d45f9b))
@@ -196,10 +137,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** rename Gateway and Peer method to "provide" ([9ad0e3c](https://github.com/endojs/endo/commit/9ad0e3cbc5efa3f89cb67703b96fad35062b098d))
 * **daemon:** Specify return type of evaluate ([6026b73](https://github.com/endojs/endo/commit/6026b73b099a4ebcbd6477d3d2fdf2749f738293))
 
-
-
 ## [2.0.0](https://github.com/endojs/endo/compare/@endo/daemon@1.0.3...@endo/daemon@2.0.0) (2024-02-23)
-
 
 ### ⚠ BREAKING CHANGES
 
@@ -271,7 +209,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Undeniable host INFO tool ([3c2d924](https://github.com/endojs/endo/commit/3c2d9247277491f47c83de0fee9511b6e8d9bff3))
 * **daemon:** web-page endowments include all compatible window properties ([0491e07](https://github.com/endojs/endo/commit/0491e07edc2b46cc498a8b8793033639530e4e76))
 
-
 ### Bug Fixes
 
 * Appease lint harder ([3eaba38](https://github.com/endojs/endo/commit/3eaba3818af7d9acdb1fbdb2cb353b18b8661ec4))
@@ -313,7 +250,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * Resolve remaining merge issues ([d07b7df](https://github.com/endojs/endo/commit/d07b7dfa5513391e8716bdcb658ec9aa2a660fd6))
 * Settle the readable types ([6716862](https://github.com/endojs/endo/commit/6716862fca6dee0ad685d163101f157fd66682b0))
 
-
 ### Code Refactoring
 
 * **daemon:** Add recipient name argument to Guest request method, allowing HOST ([975f61e](https://github.com/endojs/endo/commit/975f61e974efa26e3f012be5572bf5fa33034d1f))
@@ -322,80 +258,48 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Remove receive method ([21f5715](https://github.com/endojs/endo/commit/21f5715276743546a51ccee21765e0bbd57bdbf5))
 * **daemon:** Rename lookup to reverseLookup ([264a200](https://github.com/endojs/endo/commit/264a200b6924be705aa39582b2b7c480b979ff25))
 
-
-
-### [1.0.3](https://github.com/endojs/endo/compare/@endo/daemon@1.0.2...@endo/daemon@1.0.3) (2024-02-15)
-
+## [1.0.3](https://github.com/endojs/endo/compare/@endo/daemon@1.0.2...@endo/daemon@1.0.3) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/daemon@1.0.1...@endo/daemon@1.0.2) (2024-01-18)
+## [1.0.2](https://github.com/endojs/endo/compare/@endo/daemon@1.0.1...@endo/daemon@1.0.2) (2024-01-18)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/daemon@1.0.0...@endo/daemon@1.0.1) (2023-12-20)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/daemon@1.0.0...@endo/daemon@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/daemon
-
-
-
-
 
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/daemon@0.2.6...@endo/daemon@1.0.0) (2023-12-12)
-
 
 ### Bug Fixes
 
 * Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 * enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
 
-
-
-### [0.2.6](https://github.com/endojs/endo/compare/@endo/daemon@0.2.5...@endo/daemon@0.2.6) (2023-09-12)
+## [0.2.6](https://github.com/endojs/endo/compare/@endo/daemon@0.2.5...@endo/daemon@0.2.6) (2023-09-12)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [0.2.5](https://github.com/endojs/endo/compare/@endo/daemon@0.2.3...@endo/daemon@0.2.5) (2023-08-07)
+## [0.2.5](https://github.com/endojs/endo/compare/@endo/daemon@0.2.3...@endo/daemon@0.2.5) (2023-08-07)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [0.2.4](https://github.com/endojs/endo/compare/@endo/daemon@0.2.3...@endo/daemon@0.2.4) (2023-08-07)
+## [0.2.4](https://github.com/endojs/endo/compare/@endo/daemon@0.2.3...@endo/daemon@0.2.4) (2023-08-07)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [0.2.3](https://github.com/endojs/endo/compare/@endo/daemon@0.2.2...@endo/daemon@0.2.3) (2023-07-19)
+## [0.2.3](https://github.com/endojs/endo/compare/@endo/daemon@0.2.2...@endo/daemon@0.2.3) (2023-07-19)
 
 **Note:** Version bump only for package @endo/daemon
 
-
-
-
-
-### [0.2.2](https://github.com/endojs/endo/compare/@endo/daemon@0.2.1...@endo/daemon@0.2.2) (2023-04-20)
+## [0.2.2](https://github.com/endojs/endo/compare/@endo/daemon@0.2.1...@endo/daemon@0.2.2) (2023-04-20)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.2.1](https://github.com/endojs/endo/compare/@endo/daemon@0.2.0...@endo/daemon@0.2.1) (2023-04-14)
+## [0.2.1](https://github.com/endojs/endo/compare/@endo/daemon@0.2.0...@endo/daemon@0.2.1) (2023-04-14)
 
 **Note:** Version bump only for package @endo/daemon
 
@@ -411,91 +315,91 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Improve typing information ([765d262](https://github.com/endojs/endo/commit/765d2625ee278608494f7e998bcd3a3ee8b845a4))
 - **where:** Thread OS info ([b7c2441](https://github.com/endojs/endo/commit/b7c24412250b45984964156894efb72ef72ac3f6))
 
-### [0.1.24](https://github.com/endojs/endo/compare/@endo/daemon@0.1.23...@endo/daemon@0.1.24) (2022-12-23)
+## [0.1.24](https://github.com/endojs/endo/compare/@endo/daemon@0.1.23...@endo/daemon@0.1.24) (2022-12-23)
 
 ### Features
 
 - **daemon:** Respond to ping ([83b1d42](https://github.com/endojs/endo/commit/83b1d420ba28a8f70b3fa6bee59aea18db874e62))
 
-### [0.1.23](https://github.com/endojs/endo/compare/@endo/daemon@0.1.22...@endo/daemon@0.1.23) (2022-11-14)
+## [0.1.23](https://github.com/endojs/endo/compare/@endo/daemon@0.1.22...@endo/daemon@0.1.23) (2022-11-14)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.22](https://github.com/endojs/endo/compare/@endo/daemon@0.1.21...@endo/daemon@0.1.22) (2022-10-24)
+## [0.1.22](https://github.com/endojs/endo/compare/@endo/daemon@0.1.21...@endo/daemon@0.1.22) (2022-10-24)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.21](https://github.com/endojs/endo/compare/@endo/daemon@0.1.20...@endo/daemon@0.1.21) (2022-10-19)
+## [0.1.21](https://github.com/endojs/endo/compare/@endo/daemon@0.1.20...@endo/daemon@0.1.21) (2022-10-19)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.20](https://github.com/endojs/endo/compare/@endo/daemon@0.1.19...@endo/daemon@0.1.20) (2022-09-27)
+## [0.1.20](https://github.com/endojs/endo/compare/@endo/daemon@0.1.19...@endo/daemon@0.1.20) (2022-09-27)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.19](https://github.com/endojs/endo/compare/@endo/daemon@0.1.18...@endo/daemon@0.1.19) (2022-09-14)
+## [0.1.19](https://github.com/endojs/endo/compare/@endo/daemon@0.1.18...@endo/daemon@0.1.19) (2022-09-14)
 
 ### Features
 
 - **netstring:** Chunked mode for writer ([355a391](https://github.com/endojs/endo/commit/355a391eefc35a2efcc069eba459c0d8a09a61f8))
 
-### [0.1.18](https://github.com/endojs/endo/compare/@endo/daemon@0.1.17...@endo/daemon@0.1.18) (2022-08-26)
+## [0.1.18](https://github.com/endojs/endo/compare/@endo/daemon@0.1.17...@endo/daemon@0.1.18) (2022-08-26)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.17](https://github.com/endojs/endo/compare/@endo/daemon@0.1.16...@endo/daemon@0.1.17) (2022-08-26)
+## [0.1.17](https://github.com/endojs/endo/compare/@endo/daemon@0.1.16...@endo/daemon@0.1.17) (2022-08-26)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.16](https://github.com/endojs/endo/compare/@endo/daemon@0.1.15...@endo/daemon@0.1.16) (2022-08-25)
+## [0.1.16](https://github.com/endojs/endo/compare/@endo/daemon@0.1.15...@endo/daemon@0.1.16) (2022-08-25)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.15](https://github.com/endojs/endo/compare/@endo/daemon@0.1.14...@endo/daemon@0.1.15) (2022-08-23)
+## [0.1.15](https://github.com/endojs/endo/compare/@endo/daemon@0.1.14...@endo/daemon@0.1.15) (2022-08-23)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.14](https://github.com/endojs/endo/compare/@endo/daemon@0.1.13...@endo/daemon@0.1.14) (2022-06-28)
+## [0.1.14](https://github.com/endojs/endo/compare/@endo/daemon@0.1.13...@endo/daemon@0.1.14) (2022-06-28)
 
 ### Bug Fixes
 
 - **daemon:** avoid leaking in promise race ([219e49d](https://github.com/endojs/endo/commit/219e49dcdb61bddad9bb6ff8662aed38b6d89b8e))
 
-### [0.1.13](https://github.com/endojs/endo/compare/@endo/daemon@0.1.12...@endo/daemon@0.1.13) (2022-06-11)
+## [0.1.13](https://github.com/endojs/endo/compare/@endo/daemon@0.1.12...@endo/daemon@0.1.13) (2022-06-11)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.12](https://github.com/endojs/endo/compare/@endo/daemon@0.1.11...@endo/daemon@0.1.12) (2022-04-15)
+## [0.1.12](https://github.com/endojs/endo/compare/@endo/daemon@0.1.11...@endo/daemon@0.1.12) (2022-04-15)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.11](https://github.com/endojs/endo/compare/@endo/daemon@0.1.10...@endo/daemon@0.1.11) (2022-04-14)
+## [0.1.11](https://github.com/endojs/endo/compare/@endo/daemon@0.1.10...@endo/daemon@0.1.11) (2022-04-14)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.10](https://github.com/endojs/endo/compare/@endo/daemon@0.1.9...@endo/daemon@0.1.10) (2022-04-13)
+## [0.1.10](https://github.com/endojs/endo/compare/@endo/daemon@0.1.9...@endo/daemon@0.1.10) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.1.9](https://github.com/endojs/endo/compare/@endo/daemon@0.1.8...@endo/daemon@0.1.9) (2022-04-12)
+## [0.1.9](https://github.com/endojs/endo/compare/@endo/daemon@0.1.8...@endo/daemon@0.1.9) (2022-04-12)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.8](https://github.com/endojs/endo/compare/@endo/daemon@0.1.7...@endo/daemon@0.1.8) (2022-03-07)
+## [0.1.8](https://github.com/endojs/endo/compare/@endo/daemon@0.1.7...@endo/daemon@0.1.8) (2022-03-07)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.7](https://github.com/endojs/endo/compare/@endo/daemon@0.1.6...@endo/daemon@0.1.7) (2022-03-02)
+## [0.1.7](https://github.com/endojs/endo/compare/@endo/daemon@0.1.6...@endo/daemon@0.1.7) (2022-03-02)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.6](https://github.com/endojs/endo/compare/@endo/daemon@0.1.5...@endo/daemon@0.1.6) (2022-02-20)
+## [0.1.6](https://github.com/endojs/endo/compare/@endo/daemon@0.1.5...@endo/daemon@0.1.6) (2022-02-20)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.5](https://github.com/endojs/endo/compare/@endo/daemon@0.1.4...@endo/daemon@0.1.5) (2022-02-18)
+## [0.1.5](https://github.com/endojs/endo/compare/@endo/daemon@0.1.4...@endo/daemon@0.1.5) (2022-02-18)
 
 ### Features
 
@@ -510,21 +414,21 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
 - **daemon:** Move init from lib to app ([7aaf1a0](https://github.com/endojs/endo/commit/7aaf1a07d2950b16f7202ecc1d281386ba812d67))
 
-### [0.1.4](https://github.com/endojs/endo/compare/@endo/daemon@0.1.3...@endo/daemon@0.1.4) (2022-01-31)
+## [0.1.4](https://github.com/endojs/endo/compare/@endo/daemon@0.1.3...@endo/daemon@0.1.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/daemon
 
-### [0.1.3](https://github.com/endojs/endo/compare/@endo/daemon@0.1.2...@endo/daemon@0.1.3) (2022-01-27)
+## [0.1.3](https://github.com/endojs/endo/compare/@endo/daemon@0.1.2...@endo/daemon@0.1.3) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.1.2](https://github.com/endojs/endo/compare/@endo/daemon@0.1.1...@endo/daemon@0.1.2) (2022-01-25)
+## [0.1.2](https://github.com/endojs/endo/compare/@endo/daemon@0.1.1...@endo/daemon@0.1.2) (2022-01-25)
 
 **Note:** Version bump only for package @endo/daemon
 
-### 0.1.1 (2022-01-23)
+## 0.1.1 (2022-01-23)
 
 ### Features
 

@@ -1,204 +1,118 @@
-# Change Log
+# @endo/promise-kit
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [1.1.13](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.12...@endo/promise-kit@1.1.13) (2025-07-12)
+## [1.1.13](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.12...@endo/promise-kit@1.1.13) (2025-07-12)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.12](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.11...@endo/promise-kit@1.1.12) (2025-06-17)
+## [1.1.12](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.11...@endo/promise-kit@1.1.12) (2025-06-17)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.11](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.10...@endo/promise-kit@1.1.11) (2025-06-02)
+## [1.1.11](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.10...@endo/promise-kit@1.1.11) (2025-06-02)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.10](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.9...@endo/promise-kit@1.1.10) (2025-03-24)
+## [1.1.10](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.9...@endo/promise-kit@1.1.10) (2025-03-24)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.9](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.8...@endo/promise-kit@1.1.9) (2025-01-24)
+## [1.1.9](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.8...@endo/promise-kit@1.1.9) (2025-01-24)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.8](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.7...@endo/promise-kit@1.1.8) (2024-11-13)
+## [1.1.8](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.7...@endo/promise-kit@1.1.8) (2024-11-13)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.7](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.6...@endo/promise-kit@1.1.7) (2024-10-22)
+## [1.1.7](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.6...@endo/promise-kit@1.1.7) (2024-10-22)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.6](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.5...@endo/promise-kit@1.1.6) (2024-10-10)
+## [1.1.6](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.5...@endo/promise-kit@1.1.6) (2024-10-10)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.5](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.4...@endo/promise-kit@1.1.5) (2024-08-27)
+## [1.1.5](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.4...@endo/promise-kit@1.1.5) (2024-08-27)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.4](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.3...@endo/promise-kit@1.1.4) (2024-08-01)
+## [1.1.4](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.3...@endo/promise-kit@1.1.4) (2024-08-01)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.3](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.2...@endo/promise-kit@1.1.3) (2024-07-30)
+## [1.1.3](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.2...@endo/promise-kit@1.1.3) (2024-07-30)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.2](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.1...@endo/promise-kit@1.1.2) (2024-05-07)
+## [1.1.2](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.1...@endo/promise-kit@1.1.2) (2024-05-07)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.1.1](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.0...@endo/promise-kit@1.1.1) (2024-04-04)
+## [1.1.1](https://github.com/endojs/endo/compare/@endo/promise-kit@1.1.0...@endo/promise-kit@1.1.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/promise-kit
-
-
-
-
 
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.4...@endo/promise-kit@1.1.0) (2024-03-20)
-
 
 ### Features
 
 * **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
-
-
-### [1.0.4](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.3...@endo/promise-kit@1.0.4) (2024-02-23)
+## [1.0.4](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.3...@endo/promise-kit@1.0.4) (2024-02-23)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.0.3](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.2...@endo/promise-kit@1.0.3) (2024-02-15)
-
+## [1.0.3](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.2...@endo/promise-kit@1.0.3) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.1...@endo/promise-kit@1.0.2) (2024-01-18)
+## [1.0.2](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.1...@endo/promise-kit@1.0.2) (2024-01-18)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.0...@endo/promise-kit@1.0.1) (2023-12-20)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.0...@endo/promise-kit@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/promise-kit
-
-
-
-
 
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.60...@endo/promise-kit@1.0.0) (2023-12-12)
-
 
 ### Bug Fixes
 
 * Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
+## 0.26.10 (2021-07-28)
 
+### Bug Fixes
 
-### [0.2.60](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.59...@endo/promise-kit@0.2.60) (2023-09-12)
+- **promise-kit:** make strict typing compliant ([#3397](https://github.com/Agoric/agoric-sdk/issues/3397)) ([69e2692](https://github.com/Agoric/agoric-sdk/commit/69e2692188a386b49dbe1a662ac8cde286e7fe7e))
 
-**Note:** Version bump only for package @endo/promise-kit
-
-
-
-
-
-### [0.2.59](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.57...@endo/promise-kit@0.2.59) (2023-08-07)
+## [0.2.60](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.59...@endo/promise-kit@0.2.60) (2023-09-12)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [0.2.58](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.57...@endo/promise-kit@0.2.58) (2023-08-07)
+## [0.2.59](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.57...@endo/promise-kit@0.2.59) (2023-08-07)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [0.2.57](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.56...@endo/promise-kit@0.2.57) (2023-07-19)
+## [0.2.58](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.57...@endo/promise-kit@0.2.58) (2023-08-07)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-
-
-
-
-### [0.2.56](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.55...@endo/promise-kit@0.2.56) (2023-04-20)
+## [0.2.57](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.56...@endo/promise-kit@0.2.57) (2023-07-19)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.55](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.54...@endo/promise-kit@0.2.55) (2023-04-14)
+## [0.2.56](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.55...@endo/promise-kit@0.2.56) (2023-04-20)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.54](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.53...@endo/promise-kit@0.2.54) (2023-03-07)
+## [0.2.55](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.54...@endo/promise-kit@0.2.55) (2023-04-14)
+
+**Note:** Version bump only for package @endo/promise-kit
+
+## [0.2.54](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.53...@endo/promise-kit@0.2.54) (2023-03-07)
 
 ### Features
 
@@ -208,91 +122,88 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 
-### [0.2.53](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.52...@endo/promise-kit@0.2.53) (2022-12-23)
+## [0.2.53](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.52...@endo/promise-kit@0.2.53) (2022-12-23)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.52](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.51...@endo/promise-kit@0.2.52) (2022-11-14)
+## [0.2.52](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.51...@endo/promise-kit@0.2.52) (2022-11-14)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.51](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.50...@endo/promise-kit@0.2.51) (2022-10-24)
+## [0.2.51](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.50...@endo/promise-kit@0.2.51) (2022-10-24)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.50](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.49...@endo/promise-kit@0.2.50) (2022-10-19)
+## [0.2.50](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.49...@endo/promise-kit@0.2.50) (2022-10-19)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.49](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.48...@endo/promise-kit@0.2.49) (2022-09-27)
+## [0.2.49](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.48...@endo/promise-kit@0.2.49) (2022-09-27)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.48](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.47...@endo/promise-kit@0.2.48) (2022-09-14)
+## [0.2.48](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.47...@endo/promise-kit@0.2.48) (2022-09-14)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.47](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.46...@endo/promise-kit@0.2.47) (2022-08-26)
+## [0.2.47](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.46...@endo/promise-kit@0.2.47) (2022-08-26)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.46](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.45...@endo/promise-kit@0.2.46) (2022-08-26)
+## [0.2.46](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.45...@endo/promise-kit@0.2.46) (2022-08-26)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.45](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.44...@endo/promise-kit@0.2.45) (2022-08-25)
+## [0.2.45](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.44...@endo/promise-kit@0.2.45) (2022-08-25)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.44](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.43...@endo/promise-kit@0.2.44) (2022-08-23)
+## [0.2.44](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.43...@endo/promise-kit@0.2.44) (2022-08-23)
 
 ### Bug Fixes
 
 - more hardens ([#1241](https://github.com/endojs/endo/issues/1241)) ([b6ff811](https://github.com/endojs/endo/commit/b6ff8118a92fd72c5309b2bb285fac08d0531d92))
 
-### [0.2.43](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.42...@endo/promise-kit@0.2.43) (2022-06-28)
+## [0.2.43](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.42...@endo/promise-kit@0.2.43) (2022-06-28)
 
-### Features
+Add a `racePromises` export which implements a non-leaky race algorithm.
+Add a `/shim.js` entrypoint which replaces `Promise.race` with the same non-leaky version.
 
-- **promise-kit:** Add non-leaky promise race helper ([505815c](https://github.com/endojs/endo/commit/505815cdb02512d2de6ba0ac73c1130626eebf77))
-- **promise-kit:** detach promise from resolvers after use ([d6e9fba](https://github.com/endojs/endo/commit/d6e9fbae05d9d42bdf7fb79c83893141b0348010))
-- **promise-kit:** Make leak-free race a fully compliant drop-in replacement ([14fbba4](https://github.com/endojs/endo/commit/14fbba496a564add617d4c151726fbfc271e1f4c))
-
-### [0.2.42](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.41...@endo/promise-kit@0.2.42) (2022-06-11)
+## [0.2.42](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.41...@endo/promise-kit@0.2.42) (2022-06-11)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.41](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.40...@endo/promise-kit@0.2.41) (2022-04-15)
+## [0.2.41](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.40...@endo/promise-kit@0.2.41) (2022-04-15)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.40](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.39...@endo/promise-kit@0.2.40) (2022-04-14)
+## [0.2.40](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.39...@endo/promise-kit@0.2.40) (2022-04-14)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.39](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.38...@endo/promise-kit@0.2.39) (2022-04-13)
+## [0.2.39](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.38...@endo/promise-kit@0.2.39) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.2.38](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.37...@endo/promise-kit@0.2.38) (2022-04-12)
+## [0.2.38](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.37...@endo/promise-kit@0.2.38) (2022-04-12)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.37](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.36...@endo/promise-kit@0.2.37) (2022-03-07)
+## [0.2.37](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.36...@endo/promise-kit@0.2.37) (2022-03-07)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.36](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.35...@endo/promise-kit@0.2.36) (2022-03-02)
+## [0.2.36](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.35...@endo/promise-kit@0.2.36) (2022-03-02)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.35](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.34...@endo/promise-kit@0.2.35) (2022-02-20)
+## [0.2.35](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.34...@endo/promise-kit@0.2.35) (2022-02-20)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.34](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.33...@endo/promise-kit@0.2.34) (2022-02-18)
+## [0.2.34](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.33...@endo/promise-kit@0.2.34) (2022-02-18)
 
 ### Bug Fixes
 
@@ -301,100 +212,103 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
 - Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
 
-### [0.2.33](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.32...@endo/promise-kit@0.2.33) (2022-01-31)
+## [0.2.33](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.32...@endo/promise-kit@0.2.33) (2022-01-31)
 
 **Note:** Version bump only for package @endo/promise-kit
 
-### [0.2.32](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.31...@endo/promise-kit@0.2.32) (2022-01-27)
+## [0.2.32](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.31...@endo/promise-kit@0.2.32) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.2.31](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.30...@endo/promise-kit@0.2.31) (2022-01-25)
+## [0.2.31](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.30...@endo/promise-kit@0.2.31) (2022-01-25)
 
-### Bug Fixes
+This change fixes the package such that the code is included in the published
+artifact.
 
-- **promise-kit:** Publish code ([9cd3655](https://github.com/endojs/endo/commit/9cd365532be42059f03b91ccdb03e34149ffd334))
-- remove more extraneous spaced-comment comments ([#1009](https://github.com/endojs/endo/issues/1009)) ([980a798](https://github.com/endojs/endo/commit/980a79898a4643a359d905c308eecf70d8ab2758))
+# v0.2.30 (2022-01-21) *broken*
 
-### 0.2.30 (2022-01-23)
+This is the first release of this package under the name `@endo/promise-kit`.
+Prior releases are named `@agoric/promise-kit` or `@agoric/make-promise`.
+
+# v0.0.4-0.2.30 (unknown)
+
+Created promise-kit to replace produce-promise, renaming `producePromise` to `makePromiseKit`
+
+# v0.0.4 (6-Apr-2020)
+
+Created produce-promise to replace make-promise.
+
+# v0.0.1 (3-Feb-2020)
+
+Moved out of ERTP and created new package `@agoric/make-promise`
+
+## 0.2.30 (2022-01-23)
 
 ### Bug Fixes
 
 - **promise-kit:** SES AVA is a dev dependency ([1579160](https://github.com/endojs/endo/commit/1579160b222cd48308780d008743296ef764f163))
 
-### [0.2.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.28...@agoric/promise-kit@0.2.29) (2021-12-02)
+## [0.2.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.28...@agoric/promise-kit@0.2.29) (2021-12-02)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.27...@agoric/promise-kit@0.2.28) (2021-10-13)
+## [0.2.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.27...@agoric/promise-kit@0.2.28) (2021-10-13)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.27](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.26...@agoric/promise-kit@0.2.27) (2021-09-23)
+## [0.2.27](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.26...@agoric/promise-kit@0.2.27) (2021-09-23)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.26](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.25...@agoric/promise-kit@0.2.26) (2021-09-15)
+## [0.2.26](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.25...@agoric/promise-kit@0.2.26) (2021-09-15)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.25](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.24...@agoric/promise-kit@0.2.25) (2021-08-18)
+## [0.2.25](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.24...@agoric/promise-kit@0.2.25) (2021-08-18)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.24](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.23...@agoric/promise-kit@0.2.24) (2021-08-17)
+## [0.2.24](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.23...@agoric/promise-kit@0.2.24) (2021-08-17)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.23](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.23) (2021-08-15)
+## [0.2.23](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.23) (2021-08-15)
 
-### 0.26.10 (2021-07-28)
+## [0.2.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.22) (2021-08-14)
+
+## [0.2.21](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.21) (2021-07-28)
 
 ### Bug Fixes
 
 - **promise-kit:** make strict typing compliant ([#3397](https://github.com/Agoric/agoric-sdk/issues/3397)) ([69e2692](https://github.com/Agoric/agoric-sdk/commit/69e2692188a386b49dbe1a662ac8cde286e7fe7e))
 
-### [0.2.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.22) (2021-08-14)
-
-### 0.26.10 (2021-07-28)
-
-### Bug Fixes
-
-- **promise-kit:** make strict typing compliant ([#3397](https://github.com/Agoric/agoric-sdk/issues/3397)) ([69e2692](https://github.com/Agoric/agoric-sdk/commit/69e2692188a386b49dbe1a662ac8cde286e7fe7e))
-
-### [0.2.21](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.21) (2021-07-28)
-
-### Bug Fixes
-
-- **promise-kit:** make strict typing compliant ([#3397](https://github.com/Agoric/agoric-sdk/issues/3397)) ([69e2692](https://github.com/Agoric/agoric-sdk/commit/69e2692188a386b49dbe1a662ac8cde286e7fe7e))
-
-### [0.2.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.19...@agoric/promise-kit@0.2.20) (2021-07-01)
+## [0.2.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.19...@agoric/promise-kit@0.2.20) (2021-07-01)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.19](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.18...@agoric/promise-kit@0.2.19) (2021-06-28)
+## [0.2.19](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.18...@agoric/promise-kit@0.2.19) (2021-06-28)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.18](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.17...@agoric/promise-kit@0.2.18) (2021-06-25)
+## [0.2.18](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.17...@agoric/promise-kit@0.2.18) (2021-06-25)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.17](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.16...@agoric/promise-kit@0.2.17) (2021-06-24)
+## [0.2.17](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.16...@agoric/promise-kit@0.2.17) (2021-06-24)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.16](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.15...@agoric/promise-kit@0.2.16) (2021-06-23)
+## [0.2.16](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.15...@agoric/promise-kit@0.2.16) (2021-06-23)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.14...@agoric/promise-kit@0.2.15) (2021-06-16)
+## [0.2.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.14...@agoric/promise-kit@0.2.15) (2021-06-16)
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-### [0.2.14](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.13...@agoric/promise-kit@0.2.14) (2021-06-15)
+## [0.2.14](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.13...@agoric/promise-kit@0.2.14) (2021-06-15)
 
 ### Bug Fixes
 
@@ -454,7 +368,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 **Note:** Version bump only for package @agoric/promise-kit
 
-# [0.2.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.1.7...@agoric/promise-kit@0.2.0) (2020-12-10)
+## [0.2.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.1.7...@agoric/promise-kit@0.2.0) (2020-12-10)
 
 ### Features
 
@@ -513,7 +427,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 **Note:** Version bump only for package @agoric/produce-promise
 
-# [0.1.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/produce-promise@0.0.5...@agoric/produce-promise@0.1.0) (2020-05-04)
+## [0.1.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/produce-promise@0.0.5...@agoric/produce-promise@0.1.0) (2020-05-04)
 
 ### Bug Fixes
 

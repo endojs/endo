@@ -1,242 +1,206 @@
-# Change Log
+# @endo/module-source
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [1.3.3](https://github.com/endojs/endo/compare/@endo/module-source@1.3.2...@endo/module-source@1.3.3) (2025-07-12)
+## [1.3.3](https://github.com/endojs/endo/compare/@endo/module-source@1.3.2...@endo/module-source@1.3.3) (2025-07-12)
 
 **Note:** Version bump only for package @endo/module-source
 
-
-
-
-
-### [1.3.2](https://github.com/endojs/endo/compare/@endo/module-source@1.3.1...@endo/module-source@1.3.2) (2025-06-17)
+## [1.3.2](https://github.com/endojs/endo/compare/@endo/module-source@1.3.1...@endo/module-source@1.3.2) (2025-06-17)
 
 **Note:** Version bump only for package @endo/module-source
 
-
-
-
-
-### [1.3.1](https://github.com/endojs/endo/compare/@endo/module-source@1.3.0...@endo/module-source@1.3.1) (2025-06-02)
-
+## [1.3.1](https://github.com/endojs/endo/compare/@endo/module-source@1.3.0...@endo/module-source@1.3.1) (2025-06-02)
 
 ### Bug Fixes
 
 * **module-source:** allow defaults in destructuring assignments ([3a6abbd](https://github.com/endojs/endo/commit/3a6abbdf9ab44e04b9ff998ffc178cc616e7b1f0)), closes [#2094](https://github.com/endojs/endo/issues/2094)
 
-
-
 ## [1.3.0](https://github.com/endojs/endo/compare/@endo/module-source@1.2.0...@endo/module-source@1.3.0) (2025-03-24)
-
 
 ### Features
 
 * **module-source:** Preserve format with Babel integration ([b97b306](https://github.com/endojs/endo/commit/b97b306a48f5166ef156a965a2ece734c956ecfb))
 
-
-
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/module-source@1.1.2...@endo/module-source@1.2.0) (2025-01-24)
 
+- Supports dynamic `import` within a `ModuleSource` in conjunction with
+  a related change in `ses`.
+  For example, `await import(specifier)` can now call through to the
+  surrounding compartment's `importHook` to load and evaluate further modules.
+- Provides an XS-specific variant of `@endo/module-source` that adapts the
+  native `ModuleSource` instead of entraining Babel.
 
-### Features
-
-* **module-source:** Specialize for XS native ModuleSource ([53e5109](https://github.com/endojs/endo/commit/53e5109efa151e1c5d9ddd242cea8e6f906ceb48))
-* **module-source:** Support for dynamic import ([25414d6](https://github.com/endojs/endo/commit/25414d6fb0dc2570c0013d8f58597498c3d6fb21))
-
-
-
-### [1.1.2](https://github.com/endojs/endo/compare/@endo/module-source@1.1.1...@endo/module-source@1.1.2) (2024-11-13)
-
-**Note:** Version bump only for package @endo/module-source
-
-
-
-
-
-### [1.1.1](https://github.com/endojs/endo/compare/@endo/module-source@1.1.0...@endo/module-source@1.1.1) (2024-10-22)
+## [1.1.2](https://github.com/endojs/endo/compare/@endo/module-source@1.1.1...@endo/module-source@1.1.2) (2024-11-13)
 
 **Note:** Version bump only for package @endo/module-source
 
+## [1.1.1](https://github.com/endojs/endo/compare/@endo/module-source@1.1.0...@endo/module-source@1.1.1) (2024-10-22)
 
-
-
+**Note:** Version bump only for package @endo/module-source
 
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/module-source@1.0.2...@endo/module-source@1.1.0) (2024-10-10)
 
+- Adds `@endo/module-source/shim.js` to shim `globalThis.ModuleSource`.
+  The shim currently replaces the native `globalThis.ModuleSource` if present.
 
-### Features
-
-* **module-source:** Introduce a shim that composes with lockdown ([9a3ecca](https://github.com/endojs/endo/commit/9a3ecca305b4a3b4a2e09d03ea84671969a26586))
-
-
-### Bug Fixes
-
-* **module-source:** Sub non-conforming `ZWJ` prefixes with `CGJ` ([862dfd8](https://github.com/endojs/endo/commit/862dfd8a81dfec893300123745c0c3a579c54162))
-
-
-
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/module-source@1.0.1...@endo/module-source@1.0.2) (2024-08-27)
-
-**Note:** Version bump only for package @endo/module-source
-
-
-
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/module-source@1.0.0...@endo/module-source@1.0.1) (2024-08-01)
-
-**Note:** Version bump only for package @endo/module-source
-
-
-
-
-
-## 1.0.0 (2024-07-30)
-
-**Note:** Version bump only for package @endo/module-source
-
-
-
-
-
-### [1.1.2](https://github.com/endojs/endo/compare/@endo/static-module-record@1.1.1...@endo/static-module-record@1.1.2) (2024-05-07)
+## [1.0.4](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.3...@endo/static-module-record@1.0.4) (2024-02-23)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-
-
-
-
-### [1.1.1](https://github.com/endojs/endo/compare/@endo/static-module-record@1.1.0...@endo/static-module-record@1.1.1) (2024-04-04)
-
-**Note:** Version bump only for package @endo/static-module-record
-
-
-
-
-
-## [1.1.0](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.4...@endo/static-module-record@1.1.0) (2024-03-20)
-
-
-### Features
-
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
-
-
-
-### [1.0.4](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.3...@endo/static-module-record@1.0.4) (2024-02-23)
-
-**Note:** Version bump only for package @endo/static-module-record
-
-
-
-
-
-### [1.0.3](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.2...@endo/static-module-record@1.0.3) (2024-02-15)
-
+## [1.0.3](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.2...@endo/static-module-record@1.0.3) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 * **static-module-record:** Make strict mode explicit in generated bundles, so they are less dependent on environment ([7dac15f](https://github.com/endojs/endo/commit/7dac15faa421d048998326aa781b72a9a5cb188d))
 
+## [1.0.2](https://github.com/endojs/endo/compare/@endo/module-source@1.0.1...@endo/module-source@1.0.2) (2024-08-27)
 
+**Note:** Version bump only for package @endo/module-source
 
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.1...@endo/static-module-record@1.0.2) (2024-01-18)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/module-source@1.0.0...@endo/module-source@1.0.1) (2024-08-01)
 
-**Note:** Version bump only for package @endo/static-module-record
+**Note:** Version bump only for package @endo/module-source
 
+## 1.0.0 (2024-07-30)
 
+- Renamed from `@endo/static-module-record` to `@endo/module-source` exporting
+  `ModuleSource` instead of `StaticModuleRecord`.
 
+# @endo/static-module-record v1.0.0 (2023-12-12)
 
+- Ensures that `this` is bound to `undefined` in module scope and that the
+  vestigial and undeniable `arguments` object in module scope is empty.
 
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/static-module-record@1.0.0...@endo/static-module-record@1.0.1) (2023-12-20)
+# @endo/static-module-record v0.8.0 (2023-08-07)
 
-**Note:** Version bump only for package @endo/static-module-record
+- Introduces `sourceMapHook` as an option for the `StaticModuleRecord` constructor,
+  as documented in `README`.
 
+  Previously, the sole option was a `string` argument for the `sourceUrl`, such
+  that this would be appended to the generated source.
+  This change allows for the old or new usage:
 
+  ```js
+  new StaticModuleRecord(source, sourceUrl);
+  // or
+  new StaticModuleRecord(source, { sourceUrl, sourceMapUrl, sourceMapHook });
+  ```
 
+# @endo/static-module-record v0.7.20 (2023-07-17)
 
+- Fixes the preservation of the order of imported modules.
+  Does not address potential interleaving order problems with modules that
+  use reexports.
 
-## [1.0.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.8.2...@endo/static-module-record@1.0.0) (2023-12-12)
+# @endo/static-module-record v0.7.16 (2022-12-23)
 
+- Introduces `__reexportsMap__` to `StaticModuleRecord` instance to differentiate
+  individual named reexports from local exports to enable correct handling of
+  their names in SES.
 
-### Features
+# @endo/static-module-record v0.6.8 (2021-12-13)
 
-* **static-module-record:** Bind `this` and `arguments` properly ([8747cd8](https://github.com/endojs/endo/commit/8747cd84768f65652ec4f52db9e5e903d0128c9e))
+- Reverts a prior change that would have greatly improved the preservation of
+  line and column numbers, but resulted in a number of programs failing to
+  compile.
 
+# @endo/static-module-record v0.6.7 (2021-12-08)
 
-### Bug Fixes
+- Attempts to address line and column alignment matching between StaticModuleRecord
+  source text and the generated functor, using a tool called `recast`.
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+# @endo/static-module-record v0.6.3 (2021-09-18)
 
+- Silences a Babel code generation warning regarding deoptimized styling by
+  explicitly opting out of the `compact` mode.
 
+# @endo/static-module-record v0.6.1 (2021-08-12)
 
-### [0.8.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.8.1...@endo/static-module-record@0.8.2) (2023-09-12)
+- Fixes a bug that caused comments to be duplicated in the program generated
+  for a module.
 
+# @endo/static-module-record v0.6.0 (2021-07-22)
+
+- *BREAKING*: Precompiled static module records generated by this version of
+  `static-module-record` will not load with SES 0.13.4 or earlier.  The format
+  of the preamble has been changed to admit the possibility of a variable named
+  `Map` declared in the scope of a module.
+
+# @endo/static-module-record v0.5.0 (2021-06-01)
+
+- *BREAKING CHANGE* This package has been renamed `@endo/static-module-record`.
+- *BREAKING CHANGE* This package now only exports a `StaticModuleRecord`
+  constructor, suitable for use with the SES shim `importHook` starting with
+  version 0.13.0.
+- *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+  Supporting both Node.js ESM and the `node -r esm` shim requires the main
+  entry point module to be ESM regardless of environment.
+  UMD and CommonJS facets will likely return after all dependees have migrated
+  away from depending upon the `esm` JavaScript module emulator.
+
+# @endo/transform-module v0.4.1 (2020-08-20)
+
+- Removes extraneous dependencies that blocked installation.
+
+# @endo/transform-module v0.4.0 (2020-08-20)
+
+- This version changes the contract of all functions that receive a Babel
+  dependency from accepting an object implementing { transformSync and
+  transformFromAstSync } to merely { transform and transformFromAst }.
+  The former were exported by `@babel/core`, but we are now using the
+  API that surfaces from `@babel/standalone` and our fork
+  `@agoric/babel-standalone`.
+- Module static records are now frozen.
+
+## [0.8.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.8.1...@endo/static-module-record@0.8.2) (2023-09-12)
 
 ### Bug Fixes
 
 * **types:** babelPlugin ([1240844](https://github.com/endojs/endo/commit/1240844caa76771b732e4bb418b5981d51a741ac))
 * **types:** SourceMapHook ([cf5f226](https://github.com/endojs/endo/commit/cf5f2262db684a972a59e2423595b91cc03d2d30))
 
-
-
-### [0.8.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.20...@endo/static-module-record@0.8.1) (2023-08-07)
-
+## [0.8.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.20...@endo/static-module-record@0.8.1) (2023-08-07)
 
 ### Features
 
 * **static-module-record:** Add sourceMapHook ([67f40e3](https://github.com/endojs/endo/commit/67f40e37b8fd467755bf2b259b8ea4bbe2a68c84))
 
-
 ### Bug Fixes
 
 * **static-module-record:** Export types ([ee5febf](https://github.com/endojs/endo/commit/ee5febfc6d2747dcaea8fe1cd8a5e1aa234ed433))
-
-
 
 ## [0.8.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.20...@endo/static-module-record@0.8.0) (2023-08-07)
 
-
 ### Features
 
 * **static-module-record:** Add sourceMapHook ([67f40e3](https://github.com/endojs/endo/commit/67f40e37b8fd467755bf2b259b8ea4bbe2a68c84))
-
 
 ### Bug Fixes
 
 * **static-module-record:** Export types ([ee5febf](https://github.com/endojs/endo/commit/ee5febfc6d2747dcaea8fe1cd8a5e1aa234ed433))
 
-
-
-### [0.7.20](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.19...@endo/static-module-record@0.7.20) (2023-07-19)
-
+## [0.7.20](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.19...@endo/static-module-record@0.7.20) (2023-07-19)
 
 ### Bug Fixes
 
 * **static-module-record:** Do not sort imports ([a3e4538](https://github.com/endojs/endo/commit/a3e4538d67e36d3b97a1bcc7aee9ae1cb0c60047))
 
-
-
-### [0.7.19](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.18...@endo/static-module-record@0.7.19) (2023-04-20)
+## [0.7.19](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.18...@endo/static-module-record@0.7.19) (2023-04-20)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.18](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.17...@endo/static-module-record@0.7.18) (2023-04-14)
+## [0.7.18](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.17...@endo/static-module-record@0.7.18) (2023-04-14)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.17](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.16...@endo/static-module-record@0.7.17) (2023-03-07)
+## [0.7.17](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.16...@endo/static-module-record@0.7.17) (2023-03-07)
 
 ### Bug Fixes
 
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 - **static-module-record:** ESM compatibility ([#1466](https://github.com/endojs/endo/issues/1466)) ([1d142e5](https://github.com/endojs/endo/commit/1d142e58bc3a7388cf851fc74892707f73e4cfd1))
 
-### [0.7.16](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.15...@endo/static-module-record@0.7.16) (2022-12-23)
+## [0.7.16](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.15...@endo/static-module-record@0.7.16) (2022-12-23)
 
 ### Features
 
@@ -246,7 +210,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **compartment-mapper:** add named reexports logic to bundle.js ([236a4e8](https://github.com/endojs/endo/commit/236a4e89b6931867a6ea532720560a2f448007ac))
 
-### [0.7.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.14...@endo/static-module-record@0.7.15) (2022-11-14)
+## [0.7.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.14...@endo/static-module-record@0.7.15) (2022-11-14)
 
 ### Bug Fixes
 
@@ -254,41 +218,41 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **static-module-record:** error with module url on transform fail ([ee051b0](https://github.com/endojs/endo/commit/ee051b0b5da4c53b4cdebb282aeaf8c6b8c832a0))
 - fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
 
-### [0.7.14](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.13...@endo/static-module-record@0.7.14) (2022-10-24)
+## [0.7.14](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.13...@endo/static-module-record@0.7.14) (2022-10-24)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.13](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.12...@endo/static-module-record@0.7.13) (2022-10-19)
+## [0.7.13](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.12...@endo/static-module-record@0.7.13) (2022-10-19)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.12](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.11...@endo/static-module-record@0.7.12) (2022-09-27)
+## [0.7.12](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.11...@endo/static-module-record@0.7.12) (2022-09-27)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.11](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.10...@endo/static-module-record@0.7.11) (2022-09-14)
+## [0.7.11](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.10...@endo/static-module-record@0.7.11) (2022-09-14)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.10](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.9...@endo/static-module-record@0.7.10) (2022-08-26)
+## [0.7.10](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.9...@endo/static-module-record@0.7.10) (2022-08-26)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.9](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.8...@endo/static-module-record@0.7.9) (2022-08-26)
+## [0.7.9](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.8...@endo/static-module-record@0.7.9) (2022-08-26)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.8](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.7...@endo/static-module-record@0.7.8) (2022-08-25)
+## [0.7.8](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.7...@endo/static-module-record@0.7.8) (2022-08-25)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.6...@endo/static-module-record@0.7.7) (2022-08-23)
+## [0.7.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.6...@endo/static-module-record@0.7.7) (2022-08-23)
 
 ### Bug Fixes
 
 - more hardens ([#1241](https://github.com/endojs/endo/issues/1241)) ([b6ff811](https://github.com/endojs/endo/commit/b6ff8118a92fd72c5309b2bb285fac08d0531d92))
 
-### [0.7.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.5...@endo/static-module-record@0.7.6) (2022-06-28)
+## [0.7.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.5...@endo/static-module-record@0.7.6) (2022-06-28)
 
 ### Features
 
@@ -301,27 +265,27 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **static-module-record:** babelPlugin visitor to not skip declarations in exports + benchmark setup ([#1188](https://github.com/endojs/endo/issues/1188)) ([d3a137c](https://github.com/endojs/endo/commit/d3a137c02fa88486ec009413bb004d0baf2c9d5c))
 - rename meta to importMeta, fix detection to detect import.meta not import.meta.something ([c61a862](https://github.com/endojs/endo/commit/c61a862c9f4354f0e6d86d8c8efaa826840a6efd))
 
-### [0.7.5](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.4...@endo/static-module-record@0.7.5) (2022-06-11)
+## [0.7.5](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.4...@endo/static-module-record@0.7.5) (2022-06-11)
 
 ### Bug Fixes
 
 - **static-module-record:** Make types consistent with implementation ([#1184](https://github.com/endojs/endo/issues/1184)) ([5b7e3a6](https://github.com/endojs/endo/commit/5b7e3a6d006a686520c4ffeedea5428a720f7e7d))
 
-### [0.7.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.3...@endo/static-module-record@0.7.4) (2022-04-15)
+## [0.7.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.3...@endo/static-module-record@0.7.4) (2022-04-15)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.2...@endo/static-module-record@0.7.3) (2022-04-14)
+## [0.7.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.2...@endo/static-module-record@0.7.3) (2022-04-14)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.7.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.1...@endo/static-module-record@0.7.2) (2022-04-13)
+## [0.7.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.1...@endo/static-module-record@0.7.2) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.7.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.0...@endo/static-module-record@0.7.1) (2022-04-12)
+## [0.7.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.0...@endo/static-module-record@0.7.1) (2022-04-12)
 
 ### Bug Fixes
 
@@ -337,17 +301,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **static-module-record:** remove dependencies on `@babel/standalone` ([1a1d1a4](https://github.com/endojs/endo/commit/1a1d1a4f5a7094f32d3e1edfc620e64065771efa))
 
-### [0.6.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.14...@endo/static-module-record@0.6.15) (2022-03-02)
+## [0.6.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.14...@endo/static-module-record@0.6.15) (2022-03-02)
 
 ### Features
 
 - **bundle-source:** use newer babel with Agoric fixes ([e68f794](https://github.com/endojs/endo/commit/e68f794a182182d8e64bce2829dd90b4d9e4d947))
 
-### [0.6.14](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.13...@endo/static-module-record@0.6.14) (2022-02-20)
+## [0.6.14](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.13...@endo/static-module-record@0.6.14) (2022-02-20)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.13](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.12...@endo/static-module-record@0.6.13) (2022-02-18)
+## [0.6.13](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.12...@endo/static-module-record@0.6.13) (2022-02-18)
 
 ### Bug Fixes
 
@@ -359,25 +323,25 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - Revert "Revert "fix(static-module-record): minimise source changes with `recast`"" ([ce53158](https://github.com/endojs/endo/commit/ce5315849ffcb71794f3264871b371eb5ae6d00c))
 
-### [0.6.12](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.11...@endo/static-module-record@0.6.12) (2022-01-31)
+## [0.6.12](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.11...@endo/static-module-record@0.6.12) (2022-01-31)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.11](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.10...@endo/static-module-record@0.6.11) (2022-01-27)
+## [0.6.11](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.10...@endo/static-module-record@0.6.11) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.6.10](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.9...@endo/static-module-record@0.6.10) (2022-01-25)
+## [0.6.10](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.9...@endo/static-module-record@0.6.10) (2022-01-25)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.9](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.8...@endo/static-module-record@0.6.9) (2022-01-23)
+## [0.6.9](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.8...@endo/static-module-record@0.6.9) (2022-01-23)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.8](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.7...@endo/static-module-record@0.6.8) (2021-12-14)
+## [0.6.8](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.7...@endo/static-module-record@0.6.8) (2021-12-14)
 
 ### Bug Fixes
 
@@ -388,7 +352,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Revert "build(deps): add a patched version of `recast`" ([1d800ef](https://github.com/endojs/endo/commit/1d800ef6bba28b575bb38f44c9e8f85de7246997))
 - Revert "fix(static-module-record): minimise source changes with `recast`" ([9c76633](https://github.com/endojs/endo/commit/9c7663388576ab93d9f4a3b7fb55d3e20c4e9b45))
 
-### [0.6.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.6...@endo/static-module-record@0.6.7) (2021-12-08)
+## [0.6.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.6...@endo/static-module-record@0.6.7) (2021-12-08)
 
 ### Bug Fixes
 
@@ -396,29 +360,29 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **static-module-record:** cleaner Babel codegen ([6e22569](https://github.com/endojs/endo/commit/6e22569b0c3f56e9f78d59943235b97ba0429921))
 - **static-module-record:** minimise source changes with `recast` ([ce464ff](https://github.com/endojs/endo/commit/ce464ffddc9fbee27ab167b5cb06e0c788ae31e7))
 
-### [0.6.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.5...@endo/static-module-record@0.6.6) (2021-11-16)
+## [0.6.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.5...@endo/static-module-record@0.6.6) (2021-11-16)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.5](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.4...@endo/static-module-record@0.6.5) (2021-11-02)
+## [0.6.5](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.4...@endo/static-module-record@0.6.5) (2021-11-02)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.3...@endo/static-module-record@0.6.4) (2021-10-15)
+## [0.6.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.3...@endo/static-module-record@0.6.4) (2021-10-15)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.2...@endo/static-module-record@0.6.3) (2021-09-18)
+## [0.6.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.2...@endo/static-module-record@0.6.3) (2021-09-18)
 
 ### Bug Fixes
 
 - **static-module-record:** Opt out of compact codegen ([d113270](https://github.com/endojs/endo/commit/d1132708fb4204b99c4646b3788d6e0b3e81dc9d))
 
-### [0.6.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.1...@endo/static-module-record@0.6.2) (2021-08-14)
+## [0.6.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.1...@endo/static-module-record@0.6.2) (2021-08-14)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.6.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.0...@endo/static-module-record@0.6.1) (2021-08-13)
+## [0.6.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.0...@endo/static-module-record@0.6.1) (2021-08-13)
 
 ### Bug Fixes
 
@@ -436,21 +400,21 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Update preamble for SES StaticModuleRecord ([790ed01](https://github.com/endojs/endo/commit/790ed01f0aa73ff2d232e69c9323ee0bb448c2b0))
 - **static-module-record:** Remove reliance on Map in scope of preamble ([4b4aa65](https://github.com/endojs/endo/commit/4b4aa65a039ea5297970c9d2ac3c0a3827a4f3f8))
 
-### [0.5.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.3...@endo/static-module-record@0.5.4) (2021-06-20)
+## [0.5.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.3...@endo/static-module-record@0.5.4) (2021-06-20)
 
 ### Bug Fixes
 
 - **static-module-record:** Propagate explicit types ([a625ca4](https://github.com/endojs/endo/commit/a625ca4cb3642bc4923becdef62224bde6738aca))
 
-### [0.5.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.2...@endo/static-module-record@0.5.3) (2021-06-16)
+## [0.5.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.2...@endo/static-module-record@0.5.3) (2021-06-16)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.5.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.1...@endo/static-module-record@0.5.2) (2021-06-14)
+## [0.5.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.1...@endo/static-module-record@0.5.2) (2021-06-14)
 
 **Note:** Version bump only for package @endo/static-module-record
 
-### [0.5.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.0...@endo/static-module-record@0.5.1) (2021-06-06)
+## [0.5.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.0...@endo/static-module-record@0.5.1) (2021-06-06)
 
 **Note:** Version bump only for package @endo/static-module-record
 
