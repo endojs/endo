@@ -18,6 +18,49 @@ import { makeBundleProfiler } from './profile.js';
 /** @import {BundleZipBase64Options, BundlingKitIO, SharedPowers} from './types.js' */
 
 const readPowers = makeReadPowers({ fs, url, crypto });
+const DEFAULT_READ_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+const configuredReadCacheMaxBytes = Number.parseInt(
+  process.env.ENDO_BUNDLE_SOURCE_READ_CACHE_MAX_BYTES ||
+    `${DEFAULT_READ_CACHE_MAX_BYTES}`,
+  10,
+);
+const readCacheMaxBytes =
+  Number.isFinite(configuredReadCacheMaxBytes) && configuredReadCacheMaxBytes >= 0
+    ? configuredReadCacheMaxBytes
+    : DEFAULT_READ_CACHE_MAX_BYTES;
+/** @type {Map<string, Uint8Array | undefined>} */
+const cachedReads = new Map();
+/** @type {Map<string, Promise<Uint8Array | undefined>>} */
+const pendingReads = new Map();
+let cachedReadBytes = 0;
+
+/**
+ * @param {string} location
+ * @param {Uint8Array | undefined} bytes
+ */
+const cacheReadValue = (location, bytes) => {
+  const prior = cachedReads.get(location);
+  if (prior !== undefined) {
+    cachedReadBytes -= prior.length;
+  }
+
+  cachedReads.set(location, bytes);
+  if (bytes !== undefined) {
+    cachedReadBytes += bytes.length;
+  }
+
+  while (cachedReadBytes > readCacheMaxBytes && cachedReads.size > 0) {
+    const oldestKey = cachedReads.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    const value = cachedReads.get(oldestKey);
+    cachedReads.delete(oldestKey);
+    if (value !== undefined) {
+      cachedReadBytes -= value.length;
+    }
+  }
+};
 
 /**
  * @param {string} startFilename
@@ -62,6 +105,55 @@ export async function bundleZipBase64(
   let phaseStatus = 'ok';
   let phaseError;
   try {
+    const maybeRead = async location => {
+      if (readCacheMaxBytes === 0) {
+        return powers.maybeRead(location);
+      }
+      const hit = cachedReads.has(location);
+      if (hit) {
+        const endCacheHit = profiler.startSpan('bundleSource.readCache.hit');
+        try {
+          return cachedReads.get(location);
+        } finally {
+          endCacheHit();
+        }
+      }
+
+      let pending = pendingReads.get(location);
+      if (pending !== undefined) {
+        const endPending = profiler.startSpan('bundleSource.readCache.pending');
+        try {
+          return pending;
+        } finally {
+          endPending();
+        }
+      }
+
+      const endCacheMiss = profiler.startSpan('bundleSource.readCache.miss');
+      pending = powers.maybeRead(location).then(bytes => {
+        cacheReadValue(location, bytes);
+        pendingReads.delete(location);
+        return bytes;
+      }, error => {
+        pendingReads.delete(location);
+        throw error;
+      });
+      pendingReads.set(location, pending);
+      try {
+        return await pending;
+      } finally {
+        endCacheMiss({
+          cacheEntries: cachedReads.size,
+          cacheBytes: cachedReadBytes,
+        });
+      }
+    };
+
+    const cachedPowers = /** @type {typeof powers} */ ({
+      ...powers,
+      maybeRead,
+    });
+
     const endMakeBundlingKit = profiler.startSpan('bundleSource.makeBundlingKit');
     const {
       sourceMapHook,
@@ -98,7 +190,7 @@ export async function bundleZipBase64(
     const endMapNodeModules = profiler.startSpan('bundleSource.mapNodeModules');
     let compartmentMap;
     try {
-      compartmentMap = await mapNodeModules(powers, entry.href, {
+      compartmentMap = await mapNodeModules(cachedPowers, entry.href, {
         dev,
         conditions: new Set(conditions),
         commonDependencies,
@@ -116,7 +208,7 @@ export async function bundleZipBase64(
     let sha512;
     try {
       ({ bytes, sha512 } = await makeAndHashArchiveFromMap(
-        powers,
+        cachedPowers,
         compartmentMap,
         {
           parserForLanguage,

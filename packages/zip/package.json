@@ -28,6 +28,7 @@
   },
   "scripts": {
     "build": "exit 0",
+    "bench:writer": "node tools/benchmark-writer.mjs",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "lint": "yarn lint:types && yarn lint:eslint",

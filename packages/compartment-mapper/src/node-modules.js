@@ -26,7 +26,7 @@ import {
 import { dependencyAllowedByPolicy, makePackagePolicy } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
-import { GenericGraph, makeShortestPath } from './generic-graph.js';
+import { GenericGraph, makeShortestPathFromSource } from './generic-graph.js';
 
 /**
  * @import {
@@ -1164,7 +1164,10 @@ const finalizeGraph = (
   entryPackageLocation,
   canonicalNameMap,
 ) => {
-  const shortestPath = makeShortestPath(logicalPathGraph);
+  const shortestPathFromEntry = makeShortestPathFromSource(
+    logicalPathGraph,
+    entryPackageLocation,
+  );
 
   // neither the entry package nor the attenuators compartment have a path; omit
   const {
@@ -1203,7 +1206,7 @@ const finalizeGraph = (
   );
 
   for (const [location, node] of subgraphEntries) {
-    const shortestLogicalPath = shortestPath(entryPackageLocation, location);
+    const shortestLogicalPath = shortestPathFromEntry(location);
 
     // the first element will always be the root package location; this is omitted from the path.
     shortestLogicalPath.shift();

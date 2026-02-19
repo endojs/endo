@@ -181,10 +181,9 @@ export interface BundlingKitOptions {
 }
 
 export interface BundlingKit {
-  sourceMapHook: (
-    sourceMap: string,
-    sourceDescriptor: SourceMapDescriptor,
-  ) => void;
+  sourceMapHook?:
+    | ((sourceMap: string, sourceDescriptor: SourceMapDescriptor) => void)
+    | undefined;
   sourceMapJobs: Set<Promise<void>>;
   moduleTransforms: ModuleTransformsLike;
   parserForLanguage: ParserForLanguageLike;
