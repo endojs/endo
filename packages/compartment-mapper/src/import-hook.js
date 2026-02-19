@@ -361,6 +361,7 @@ function* chooseModuleDescriptor(
     archiveOnly,
     sourceMapHook,
     moduleSourceHook,
+    profileStartSpan = undefined,
     strictlyRequiredForCompartment,
     log = noop,
   },
@@ -420,32 +421,62 @@ function* chooseModuleDescriptor(
 
     // "next" values must have type assertions for narrowing because we have
     // multiple yielded types
-    const moduleBytes = /** @type {Uint8Array|undefined} */ (
-      yield maybeRead(moduleLocation)
+    const endReadModuleBytes = profileStartSpan?.(
+      'compartmentMapper.importHook.readModuleBytes',
+      { moduleLocation },
     );
+    let moduleBytes;
+    try {
+      moduleBytes = /** @type {Uint8Array|undefined} */ (
+        yield maybeRead(moduleLocation)
+      );
+    } finally {
+      endReadModuleBytes?.({ bytes: moduleBytes?.length });
+    }
 
     if (moduleBytes !== undefined) {
       /** @type {string | undefined} */
       let sourceMap;
       // must be narrowed
-      const envelope = /** @type {ParseResult} */ (
-        yield parse(
-          moduleBytes,
+      const endParseModule = profileStartSpan?.(
+        'compartmentMapper.importHook.parseModule',
+        {
           candidateSpecifier,
           moduleLocation,
-          packageLocation,
-          {
-            readPowers,
-            archiveOnly,
-            sourceMapHook:
-              sourceMapHook &&
-              (nextSourceMapObject => {
-                sourceMap = JSON.stringify(nextSourceMapObject);
-              }),
-            compartmentDescriptor,
-          },
-        )
+        },
       );
+      let envelope;
+      try {
+        envelope = /** @type {ParseResult} */ (
+          yield parse(
+            moduleBytes,
+            candidateSpecifier,
+            moduleLocation,
+            packageLocation,
+            {
+              readPowers,
+              archiveOnly,
+              sourceMapHook:
+                sourceMapHook &&
+                (nextSourceMapObject => {
+                  sourceMap = JSON.stringify(nextSourceMapObject);
+                }),
+              compartmentDescriptor,
+              profileStartSpan,
+            },
+          )
+        );
+      } finally {
+        endParseModule?.(
+          envelope
+            ? {
+                parser: envelope.parser,
+                inputBytes: moduleBytes.length,
+                outputBytes: envelope.bytes.length,
+              }
+            : { inputBytes: moduleBytes.length },
+        );
+      }
       const {
         parser,
         bytes: transformedBytes,
@@ -589,6 +620,7 @@ export const makeImportHookMaker = (
     entryModuleSpecifier,
     importHook: exitModuleImportHook = undefined,
     moduleSourceHook,
+    profileStartSpan = undefined,
     log = noop,
   },
 ) => {
@@ -718,13 +750,14 @@ export const makeImportHookMaker = (
             moduleSpecifier,
             packageLocation,
             packageSources,
-            readPowers,
-            archiveOnly,
-            sourceMapHook,
-            moduleSourceHook,
-            strictlyRequiredForCompartment,
-            log,
-          },
+        readPowers,
+        archiveOnly,
+        sourceMapHook,
+        moduleSourceHook,
+        profileStartSpan,
+        strictlyRequiredForCompartment,
+        log,
+      },
           { maybeRead, parse, shouldDeferError },
         );
 

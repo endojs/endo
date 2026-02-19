@@ -20,14 +20,23 @@ export const parseArchiveMjs = (
   _packageLocation,
   options = {},
 ) => {
-  const { sourceMap, sourceMapHook } = options;
+  const { sourceMap, sourceMapHook, profileStartSpan } = options;
   const source = textDecoder.decode(bytes);
+  const endModuleSource = profileStartSpan?.(
+    'compartmentMapper.parseArchiveMjs.moduleSource',
+  );
   const record = new ModuleSource(source, {
     sourceMap,
     sourceMapUrl: sourceUrl,
     sourceMapHook,
+    profileStartSpan,
   });
+  endModuleSource?.();
+  const endStringify = profileStartSpan?.(
+    'compartmentMapper.parseArchiveMjs.stringifyRecord',
+  );
   const pre = textEncoder.encode(JSON.stringify(record));
+  endStringify?.();
   return {
     parser: 'pre-mjs-json',
     bytes: pre,
