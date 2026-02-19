@@ -1,5 +1,14 @@
 # @endo/import-bundle
 
+## 1.5.3
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`81b4c40`](https://github.com/endojs/endo/commit/81b4c4096d96e4624f0623a0c70006a1f1db17b4)]:
+  - ses@1.15.0
+  - @endo/errors@1.3.0
+  - @endo/compartment-mapper@2.0.0
+
 ## [1.5.2](https://github.com/endojs/endo/compare/@endo/import-bundle@1.5.1...@endo/import-bundle@1.5.2) (2025-07-12)
 
 **Note:** Version bump only for package @endo/import-bundle
@@ -67,7 +76,7 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ## [1.0.4](https://github.com/endojs/endo/compare/@endo/import-bundle@1.0.3...@endo/import-bundle@1.0.4) (2024-02-23)
 
@@ -77,7 +86,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/import-bundle@1.0.1...@endo/import-bundle@1.0.2) (2024-01-18)
 
@@ -91,7 +100,7 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ## 0.26.10 (2021-07-28)
 
@@ -107,8 +116,8 @@
 
 ### Features
 
-* **import-bundle:** Add source map demo ([528c12b](https://github.com/endojs/endo/commit/528c12b02ff0b07fb45f2f1af3c3d037f26f35b4))
-* **import-bundle:** Support per-user source map caches ([cb481b4](https://github.com/endojs/endo/commit/cb481b45f174d9d119ace1cbecfcf2ba6e4fd7a8))
+- **import-bundle:** Add source map demo ([528c12b](https://github.com/endojs/endo/commit/528c12b02ff0b07fb45f2f1af3c3d037f26f35b4))
+- **import-bundle:** Support per-user source map caches ([cb481b4](https://github.com/endojs/endo/commit/cb481b45f174d9d119ace1cbecfcf2ba6e4fd7a8))
 
 ## [0.4.0](https://github.com/endojs/endo/compare/@endo/import-bundle@0.3.5...@endo/import-bundle@0.4.0) (2023-08-07)
 

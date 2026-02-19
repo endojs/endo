@@ -1,5 +1,16 @@
 # @endo/common
 
+## 1.3.0
+
+### Minor Changes
+
+- [#3082](https://github.com/endojs/endo/pull/3082) [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7) Thanks [@boneskull](https://github.com/boneskull)! - Deprecates this package's support for the checkFoo/assertCheck pattern (`Checker`, `identChecker`) in favor of the confirm/reject pattern supported by @endo/errors/rejector.js.
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7)]:
+  - @endo/errors@1.3.0
+
 ## [1.2.13](https://github.com/endojs/endo/compare/@endo/common@1.2.12...@endo/common@1.2.13) (2025-07-12)
 
 **Note:** Version bump only for package @endo/common
@@ -44,7 +55,7 @@
 
 ### Bug Fixes
 
-* **types:** fromUniqueEntries ([e465ffb](https://github.com/endojs/endo/commit/e465ffb7a48fbebf0525a86a2423a5b84d8b1feb))
+- **types:** fromUniqueEntries ([e465ffb](https://github.com/endojs/endo/commit/e465ffb7a48fbebf0525a86a2423a5b84d8b1feb))
 
 ## [1.2.2](https://github.com/endojs/endo/compare/@endo/common@1.2.1...@endo/common@1.2.2) (2024-05-07)
 
@@ -58,7 +69,7 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/common@1.0.3...@endo/common@1.1.0) (2024-02-23)
 
@@ -85,4 +96,4 @@
 
 ### Bug Fixes
 
-* **common:** fix @endo/common integration breakage ([#1963](https://github.com/endojs/endo/issues/1963)) ([73b5059](https://github.com/endojs/endo/commit/73b50590b7aef7eaffe2c435286fb291bf9b22bf))
+- **common:** fix @endo/common integration breakage ([#1963](https://github.com/endojs/endo/issues/1963)) ([73b5059](https://github.com/endojs/endo/commit/73b50590b7aef7eaffe2c435286fb291bf9b22bf))
