@@ -19,6 +19,17 @@ import { makeBundleProfiler } from './profile.js';
 /** @import {BundleZipBase64Options, BundlingKitIO, SharedPowers} from './types.js' */
 
 const readPowers = makeReadPowers({ fs, url, crypto });
+const DEFAULT_READ_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+const configuredReadCacheMaxBytes = Number.parseInt(
+  process.env.ENDO_BUNDLE_SOURCE_READ_CACHE_MAX_BYTES ||
+    `${DEFAULT_READ_CACHE_MAX_BYTES}`,
+  10,
+);
+const readCacheMaxBytes =
+  Number.isFinite(configuredReadCacheMaxBytes) &&
+  configuredReadCacheMaxBytes >= 0
+    ? configuredReadCacheMaxBytes
+    : DEFAULT_READ_CACHE_MAX_BYTES;
 
 /**
  * @param {string} startFilename
@@ -63,7 +74,99 @@ export async function bundleZipBase64(
   let phaseStatus = 'ok';
   let phaseError;
   try {
-    const endMakeBundlingKit = profiler.startSpan('bundleSource.makeBundlingKit');
+    /** @type {Map<string, Uint8Array | undefined>} */
+    const cachedReads = new Map();
+    /** @type {Map<string, Promise<Uint8Array | undefined>>} */
+    const pendingReads = new Map();
+    let cachedReadBytes = 0;
+
+    /**
+     * Stores one completed read result in this bundle operation's cache and
+     * evicts oldest byte-bearing entries until the configured byte budget holds.
+     *
+     * @param {string} location
+     * @param {Uint8Array | undefined} bytes
+     */
+    const cacheReadValue = (location, bytes) => {
+      const prior = cachedReads.get(location);
+      if (prior !== undefined) {
+        cachedReadBytes -= prior.length;
+      }
+
+      cachedReads.set(location, bytes);
+      if (bytes !== undefined) {
+        cachedReadBytes += bytes.length;
+      }
+
+      if (cachedReadBytes <= readCacheMaxBytes) {
+        return;
+      }
+
+      for (const [oldestKey, value] of cachedReads) {
+        cachedReads.delete(oldestKey);
+        if (value !== undefined) {
+          cachedReadBytes -= value.length;
+        }
+        if (cachedReadBytes <= readCacheMaxBytes) {
+          return;
+        }
+      }
+    };
+
+    const maybeRead = async location => {
+      const hit = readCacheMaxBytes > 0 && cachedReads.has(location);
+      if (hit) {
+        const endCacheHit = profiler.startSpan('bundleSource.readCache.hit');
+        try {
+          return cachedReads.get(location);
+        } finally {
+          endCacheHit();
+        }
+      }
+
+      let pending = pendingReads.get(location);
+      if (pending !== undefined) {
+        const endPending = profiler.startSpan('bundleSource.readCache.pending');
+        try {
+          return pending;
+        } finally {
+          endPending();
+        }
+      }
+
+      const endCacheMiss = profiler.startSpan('bundleSource.readCache.miss');
+      pending = powers.maybeRead(location).then(
+        bytes => {
+          if (readCacheMaxBytes > 0) {
+            cacheReadValue(location, bytes);
+          }
+          pendingReads.delete(location);
+          return bytes;
+        },
+        error => {
+          pendingReads.delete(location);
+          throw error;
+        },
+      );
+      pendingReads.set(location, pending);
+      try {
+        return await pending;
+      } finally {
+        endCacheMiss({
+          cacheEntries: cachedReads.size,
+          cacheBytes: cachedReadBytes,
+        });
+      }
+    };
+
+    const cachedPowers = /** @type {typeof powers} */ ({
+      ...powers,
+      maybeRead,
+    });
+
+    const endMakeBundlingKit = profiler.startSpan(
+      'bundleSource.makeBundlingKit',
+    );
     const {
       sourceMapHook,
       sourceMapJobs,
@@ -99,10 +202,11 @@ export async function bundleZipBase64(
     const endMapNodeModules = profiler.startSpan('bundleSource.mapNodeModules');
     let compartmentMap;
     try {
-      compartmentMap = await mapNodeModules(powers, entry.href, {
+      compartmentMap = await mapNodeModules(cachedPowers, entry.href, {
         dev,
         conditions: new Set(conditions),
         commonDependencies,
+        profileStartSpan: profiler.startSpan,
         workspaceLanguageForExtension,
         workspaceCommonjsLanguageForExtension,
         workspaceModuleLanguageForExtension,
@@ -111,18 +215,21 @@ export async function bundleZipBase64(
       endMapNodeModules();
     }
 
-    const endMakeArchive = profiler.startSpan('bundleSource.makeAndHashArchiveFromMap');
+    const endMakeArchive = profiler.startSpan(
+      'bundleSource.makeAndHashArchiveFromMap',
+    );
     let bytes;
     let sha512;
     try {
       ({ bytes, sha512 } = await makeAndHashArchiveFromMap(
-        powers,
+        cachedPowers,
         compartmentMap,
         {
           parserForLanguage,
           moduleTransforms,
           sourceMapHook,
           importHook: importHookForArchive,
+          profileStartSpan: profiler.startSpan,
         },
       ));
     } finally {
@@ -138,11 +245,14 @@ export async function bundleZipBase64(
     }
 
     const endEncodeBase64 = profiler.startSpan('bundleSource.encodeBase64');
-    let endoZipBase64;
+    let endoZipBase64 = '';
     try {
       endoZipBase64 = encodeBase64(bytes);
     } finally {
-      endEncodeBase64();
+      endEncodeBase64({
+        inputBytes: bytes.length,
+        outputBytes: endoZipBase64?.length,
+      });
     }
     return harden({
       moduleFormat: /** @type {const} */ ('endoZipBase64'),
