@@ -1,102 +1,57 @@
-# Change Log
+# @endo/cli
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [2.3.11](https://github.com/endojs/endo/compare/@endo/cli@2.3.10...@endo/cli@2.3.11) (2025-07-12)
+## [2.3.11](https://github.com/endojs/endo/compare/@endo/cli@2.3.10...@endo/cli@2.3.11) (2025-07-12)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.10](https://github.com/endojs/endo/compare/@endo/cli@2.3.9...@endo/cli@2.3.10) (2025-06-17)
+## [2.3.10](https://github.com/endojs/endo/compare/@endo/cli@2.3.9...@endo/cli@2.3.10) (2025-06-17)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.9](https://github.com/endojs/endo/compare/@endo/cli@2.3.8...@endo/cli@2.3.9) (2025-06-02)
-
+## [2.3.9](https://github.com/endojs/endo/compare/@endo/cli@2.3.8...@endo/cli@2.3.9) (2025-06-02)
 
 ### Bug Fixes
 
 * **types:** provideEndoClient return ([a789620](https://github.com/endojs/endo/commit/a789620d7e486e9942022498adb0fa60473e8891))
 
-
-
-### [2.3.8](https://github.com/endojs/endo/compare/@endo/cli@2.3.7...@endo/cli@2.3.8) (2025-03-24)
-
+## [2.3.8](https://github.com/endojs/endo/compare/@endo/cli@2.3.7...@endo/cli@2.3.8) (2025-03-24)
 
 ### Bug Fixes
 
 * **cli:** tolerate [#2702](https://github.com/endojs/endo/issues/2702) stderr noise ([#2704](https://github.com/endojs/endo/issues/2704)) ([1bf94a1](https://github.com/endojs/endo/commit/1bf94a146bac85ad1efc1429986368f0dacf2f36))
 * **daemon,cli:** fix [#2700](https://github.com/endojs/endo/issues/2700) use endo/init to prepare async hooks ([aacefe4](https://github.com/endojs/endo/commit/aacefe4ab6266d1096db7939abbed95bbda6f4f5))
 
-
-
-### [2.3.7](https://github.com/endojs/endo/compare/@endo/cli@2.3.6...@endo/cli@2.3.7) (2025-01-24)
+## [2.3.7](https://github.com/endojs/endo/compare/@endo/cli@2.3.6...@endo/cli@2.3.7) (2025-01-24)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.6](https://github.com/endojs/endo/compare/@endo/cli@2.3.5...@endo/cli@2.3.6) (2024-11-13)
+## [2.3.6](https://github.com/endojs/endo/compare/@endo/cli@2.3.5...@endo/cli@2.3.6) (2024-11-13)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.5](https://github.com/endojs/endo/compare/@endo/cli@2.3.4...@endo/cli@2.3.5) (2024-10-22)
+## [2.3.5](https://github.com/endojs/endo/compare/@endo/cli@2.3.4...@endo/cli@2.3.5) (2024-10-22)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.4](https://github.com/endojs/endo/compare/@endo/cli@2.3.3...@endo/cli@2.3.4) (2024-10-22)
+## [2.3.4](https://github.com/endojs/endo/compare/@endo/cli@2.3.3...@endo/cli@2.3.4) (2024-10-22)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.3](https://github.com/endojs/endo/compare/@endo/cli@2.3.2...@endo/cli@2.3.3) (2024-10-10)
-
+## [2.3.3](https://github.com/endojs/endo/compare/@endo/cli@2.3.2...@endo/cli@2.3.3) (2024-10-10)
 
 ### Bug Fixes
 
 * **cli:** Improve number parsing ([aa48722](https://github.com/endojs/endo/commit/aa48722505c19bc77793ecc0f4e4efe51c345db0))
 
-
-
-### [2.3.2](https://github.com/endojs/endo/compare/@endo/cli@2.3.1...@endo/cli@2.3.2) (2024-08-27)
+## [2.3.2](https://github.com/endojs/endo/compare/@endo/cli@2.3.1...@endo/cli@2.3.2) (2024-08-27)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [2.3.1](https://github.com/endojs/endo/compare/@endo/cli@2.3.0...@endo/cli@2.3.1) (2024-08-01)
+## [2.3.1](https://github.com/endojs/endo/compare/@endo/cli@2.3.0...@endo/cli@2.3.1) (2024-08-01)
 
 **Note:** Version bump only for package @endo/cli
-
-
-
-
 
 ## [2.3.0](https://github.com/endojs/endo/compare/@endo/cli@2.2.0...@endo/cli@2.3.0) (2024-07-30)
-
 
 ### Features
 
@@ -111,7 +66,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon,cli:** Make caplets in pet name paths ([ad80978](https://github.com/endojs/endo/commit/ad8097878e7680f2de2019fdd286d94b8b43e38c))
 * **daemon:** Accept spread path at makeDirectory() ([61dc434](https://github.com/endojs/endo/commit/61dc4347b3a0b3ad6dea2a52b9cb0466c1cdc161))
 
-
 ### Bug Fixes
 
 * clean up temp bundle when make() throws ([97c6aed](https://github.com/endojs/endo/commit/97c6aed42fae06c2e323969a00fedbc0b338c85e)), closes [#2290](https://github.com/endojs/endo/issues/2290)
@@ -119,10 +73,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **cli:** Re-enable using eval without specified result name ([26b188f](https://github.com/endojs/endo/commit/26b188f393c5ea23a6d6d6a2f83323a73fc4ee38))
 * endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
 
-
-
 ## [2.2.0](https://github.com/endojs/endo/compare/@endo/cli@2.1.1...@endo/cli@2.2.0) (2024-05-07)
-
 
 ### Features
 
@@ -137,7 +88,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Always stop the daemon on purge ([c6a9b0c](https://github.com/endojs/endo/commit/c6a9b0cf9cae0b64dbf5d45ab98fb270352060d4))
 * **daemon:** Invitations ([0f3a2a3](https://github.com/endojs/endo/commit/0f3a2a33783f4915471af717024b77441d4446c2))
 
-
 ### Bug Fixes
 
 * **cli:** demo: Fix type error when receiving message from self ([d1c58c4](https://github.com/endojs/endo/commit/d1c58c41e5dcb72d36e6b01b923d66483d96d5a7))
@@ -145,32 +95,21 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **cli:** Remove stray endowments element ([4e78372](https://github.com/endojs/endo/commit/4e78372677badfa42b4696d8c95e3d30ac019f19))
 * **cli:** Update cat.js guide ([ddc0825](https://github.com/endojs/endo/commit/ddc08257a2c1999d9d3ce3e8b7b5e8795aed56a4))
 
-
-
-### [2.1.1](https://github.com/endojs/endo/compare/@endo/cli@2.1.0...@endo/cli@2.1.1) (2024-04-04)
+## [2.1.1](https://github.com/endojs/endo/compare/@endo/cli@2.1.0...@endo/cli@2.1.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
 ## [2.1.0](https://github.com/endojs/endo/compare/@endo/cli@2.0.0...@endo/cli@2.1.0) (2024-03-20)
-
 
 ### Features
 
 * **cli:** Follow list changes ([c5eb0f1](https://github.com/endojs/endo/commit/c5eb0f113dbd8cc54d067eab97d836f701cbc927))
 
-
 ### Bug Fixes
 
 * **cli:** Chat demo needs followChanges rename ([3fa3d9b](https://github.com/endojs/endo/commit/3fa3d9b02ec029c3e26ae946dbbe6cf689be4be0))
 
-
-
 ## [2.0.0](https://github.com/endojs/endo/compare/@endo/cli@1.0.3...@endo/cli@2.0.0) (2024-02-23)
-
 
 ### ⚠ BREAKING CHANGES
 
@@ -225,7 +164,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **daemon:** Reify inboxes and outboxes ([11f86a5](https://github.com/endojs/endo/commit/11f86a552d25570596ef20fc0928989abcdb8687))
 * endo bundle command supports specifying commonDeps ([d570060](https://github.com/endojs/endo/commit/d570060fd07bb5f01af478fb9b452671d0479a4d))
 
-
 ### Bug Fixes
 
 * Appease lint harder ([3eaba38](https://github.com/endojs/endo/commit/3eaba3818af7d9acdb1fbdb2cb353b18b8661ec4))
@@ -242,90 +180,56 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * Relax lint for optional chaining and nullish coallescing for daemon ([ff58c06](https://github.com/endojs/endo/commit/ff58c065130b774ccb3c9cddbb7562505f0e43a0))
 * Settle the readable types ([6716862](https://github.com/endojs/endo/commit/6716862fca6dee0ad685d163101f157fd66682b0))
 
-
 ### Miscellaneous Chores
 
 * **cli:** Remove archive commands in favor of bundles ([b24132a](https://github.com/endojs/endo/commit/b24132a48513599e4818977117852af3515f4765))
 * **cli:** Remove hash command (redundant with bundle) ([7ea4074](https://github.com/endojs/endo/commit/7ea4074fa9911929ed0e4fa2de17b927fe1822e6))
 
-
 ### Code Refactoring
 
 * **daemon:** Change unsafe import formula from path to specifier ([a0f141f](https://github.com/endojs/endo/commit/a0f141f20e059e9988d9117c066f23f1bcbff559))
 
-
-
-### [1.0.3](https://github.com/endojs/endo/compare/@endo/cli@1.0.2...@endo/cli@1.0.3) (2024-02-15)
-
+## [1.0.3](https://github.com/endojs/endo/compare/@endo/cli@1.0.2...@endo/cli@1.0.3) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/cli@1.0.1...@endo/cli@1.0.2) (2024-01-18)
+## [1.0.2](https://github.com/endojs/endo/compare/@endo/cli@1.0.1...@endo/cli@1.0.2) (2024-01-18)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/cli@1.0.0...@endo/cli@1.0.1) (2023-12-20)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/cli@1.0.0...@endo/cli@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/cli
-
-
-
-
 
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/cli@0.2.6...@endo/cli@1.0.0) (2023-12-12)
-
 
 ### Bug Fixes
 
 * Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
-
-
-### [0.2.6](https://github.com/endojs/endo/compare/@endo/cli@0.2.5...@endo/cli@0.2.6) (2023-09-12)
+## [0.2.6](https://github.com/endojs/endo/compare/@endo/cli@0.2.5...@endo/cli@0.2.6) (2023-09-12)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [0.2.5](https://github.com/endojs/endo/compare/@endo/cli@0.2.3...@endo/cli@0.2.5) (2023-08-07)
+## [0.2.5](https://github.com/endojs/endo/compare/@endo/cli@0.2.3...@endo/cli@0.2.5) (2023-08-07)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [0.2.4](https://github.com/endojs/endo/compare/@endo/cli@0.2.3...@endo/cli@0.2.4) (2023-08-07)
+## [0.2.4](https://github.com/endojs/endo/compare/@endo/cli@0.2.3...@endo/cli@0.2.4) (2023-08-07)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [0.2.3](https://github.com/endojs/endo/compare/@endo/cli@0.2.2...@endo/cli@0.2.3) (2023-07-19)
+## [0.2.3](https://github.com/endojs/endo/compare/@endo/cli@0.2.2...@endo/cli@0.2.3) (2023-07-19)
 
 **Note:** Version bump only for package @endo/cli
 
-
-
-
-
-### [0.2.2](https://github.com/endojs/endo/compare/@endo/cli@0.2.1...@endo/cli@0.2.2) (2023-04-20)
+## [0.2.2](https://github.com/endojs/endo/compare/@endo/cli@0.2.1...@endo/cli@0.2.2) (2023-04-20)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.2.1](https://github.com/endojs/endo/compare/@endo/cli@0.2.0...@endo/cli@0.2.1) (2023-04-14)
+## [0.2.1](https://github.com/endojs/endo/compare/@endo/cli@0.2.0...@endo/cli@0.2.1) (2023-04-14)
 
 **Note:** Version bump only for package @endo/cli
 
@@ -341,87 +245,87 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 - **where:** Thread OS info ([b7c2441](https://github.com/endojs/endo/commit/b7c24412250b45984964156894efb72ef72ac3f6))
 
-### [0.1.24](https://github.com/endojs/endo/compare/@endo/cli@0.1.23...@endo/cli@0.1.24) (2022-12-23)
+## [0.1.24](https://github.com/endojs/endo/compare/@endo/cli@0.1.23...@endo/cli@0.1.24) (2022-12-23)
 
 ### Features
 
 - **cli:** Add log and ping subcommands ([aa80678](https://github.com/endojs/endo/commit/aa80678ea171bd9b0f0e8e4c1f63547fe7fac0bc))
 
-### [0.1.23](https://github.com/endojs/endo/compare/@endo/cli@0.1.22...@endo/cli@0.1.23) (2022-11-14)
+## [0.1.23](https://github.com/endojs/endo/compare/@endo/cli@0.1.22...@endo/cli@0.1.23) (2022-11-14)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.22](https://github.com/endojs/endo/compare/@endo/cli@0.1.21...@endo/cli@0.1.22) (2022-10-24)
+## [0.1.22](https://github.com/endojs/endo/compare/@endo/cli@0.1.21...@endo/cli@0.1.22) (2022-10-24)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.21](https://github.com/endojs/endo/compare/@endo/cli@0.1.20...@endo/cli@0.1.21) (2022-10-19)
+## [0.1.21](https://github.com/endojs/endo/compare/@endo/cli@0.1.20...@endo/cli@0.1.21) (2022-10-19)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.20](https://github.com/endojs/endo/compare/@endo/cli@0.1.19...@endo/cli@0.1.20) (2022-09-27)
+## [0.1.20](https://github.com/endojs/endo/compare/@endo/cli@0.1.19...@endo/cli@0.1.20) (2022-09-27)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.19](https://github.com/endojs/endo/compare/@endo/cli@0.1.18...@endo/cli@0.1.19) (2022-09-14)
+## [0.1.19](https://github.com/endojs/endo/compare/@endo/cli@0.1.18...@endo/cli@0.1.19) (2022-09-14)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.18](https://github.com/endojs/endo/compare/@endo/cli@0.1.17...@endo/cli@0.1.18) (2022-08-26)
+## [0.1.18](https://github.com/endojs/endo/compare/@endo/cli@0.1.17...@endo/cli@0.1.18) (2022-08-26)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.17](https://github.com/endojs/endo/compare/@endo/cli@0.1.16...@endo/cli@0.1.17) (2022-08-26)
+## [0.1.17](https://github.com/endojs/endo/compare/@endo/cli@0.1.16...@endo/cli@0.1.17) (2022-08-26)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.16](https://github.com/endojs/endo/compare/@endo/cli@0.1.15...@endo/cli@0.1.16) (2022-08-25)
+## [0.1.16](https://github.com/endojs/endo/compare/@endo/cli@0.1.15...@endo/cli@0.1.16) (2022-08-25)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.15](https://github.com/endojs/endo/compare/@endo/cli@0.1.14...@endo/cli@0.1.15) (2022-08-23)
+## [0.1.15](https://github.com/endojs/endo/compare/@endo/cli@0.1.14...@endo/cli@0.1.15) (2022-08-23)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.14](https://github.com/endojs/endo/compare/@endo/cli@0.1.13...@endo/cli@0.1.14) (2022-06-28)
+## [0.1.14](https://github.com/endojs/endo/compare/@endo/cli@0.1.13...@endo/cli@0.1.14) (2022-06-28)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.13](https://github.com/endojs/endo/compare/@endo/cli@0.1.12...@endo/cli@0.1.13) (2022-06-11)
+## [0.1.13](https://github.com/endojs/endo/compare/@endo/cli@0.1.12...@endo/cli@0.1.13) (2022-06-11)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.12](https://github.com/endojs/endo/compare/@endo/cli@0.1.11...@endo/cli@0.1.12) (2022-04-15)
+## [0.1.12](https://github.com/endojs/endo/compare/@endo/cli@0.1.11...@endo/cli@0.1.12) (2022-04-15)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.11](https://github.com/endojs/endo/compare/@endo/cli@0.1.10...@endo/cli@0.1.11) (2022-04-14)
+## [0.1.11](https://github.com/endojs/endo/compare/@endo/cli@0.1.10...@endo/cli@0.1.11) (2022-04-14)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.10](https://github.com/endojs/endo/compare/@endo/cli@0.1.9...@endo/cli@0.1.10) (2022-04-13)
+## [0.1.10](https://github.com/endojs/endo/compare/@endo/cli@0.1.9...@endo/cli@0.1.10) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.1.9](https://github.com/endojs/endo/compare/@endo/cli@0.1.8...@endo/cli@0.1.9) (2022-04-12)
+## [0.1.9](https://github.com/endojs/endo/compare/@endo/cli@0.1.8...@endo/cli@0.1.9) (2022-04-12)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.8](https://github.com/endojs/endo/compare/@endo/cli@0.1.7...@endo/cli@0.1.8) (2022-03-07)
+## [0.1.8](https://github.com/endojs/endo/compare/@endo/cli@0.1.7...@endo/cli@0.1.8) (2022-03-07)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.7](https://github.com/endojs/endo/compare/@endo/cli@0.1.6...@endo/cli@0.1.7) (2022-03-02)
+## [0.1.7](https://github.com/endojs/endo/compare/@endo/cli@0.1.6...@endo/cli@0.1.7) (2022-03-02)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.6](https://github.com/endojs/endo/compare/@endo/cli@0.1.5...@endo/cli@0.1.6) (2022-02-20)
+## [0.1.6](https://github.com/endojs/endo/compare/@endo/cli@0.1.5...@endo/cli@0.1.6) (2022-02-20)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.5](https://github.com/endojs/endo/compare/@endo/cli@0.1.4...@endo/cli@0.1.5) (2022-02-18)
+## [0.1.5](https://github.com/endojs/endo/compare/@endo/cli@0.1.4...@endo/cli@0.1.5) (2022-02-18)
 
 ### Features
 
@@ -435,21 +339,21 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **cli:** Add missing dependencies ([72281f4](https://github.com/endojs/endo/commit/72281f4100c782c79856c8a792b85d8ef9604076))
 - **daemon:** Move init from lib to app ([7aaf1a0](https://github.com/endojs/endo/commit/7aaf1a07d2950b16f7202ecc1d281386ba812d67))
 
-### [0.1.4](https://github.com/endojs/endo/compare/@endo/cli@0.1.3...@endo/cli@0.1.4) (2022-01-31)
+## [0.1.4](https://github.com/endojs/endo/compare/@endo/cli@0.1.3...@endo/cli@0.1.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/cli
 
-### [0.1.3](https://github.com/endojs/endo/compare/@endo/cli@0.1.2...@endo/cli@0.1.3) (2022-01-27)
+## [0.1.3](https://github.com/endojs/endo/compare/@endo/cli@0.1.2...@endo/cli@0.1.3) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.1.2](https://github.com/endojs/endo/compare/@endo/cli@0.1.1...@endo/cli@0.1.2) (2022-01-25)
+## [0.1.2](https://github.com/endojs/endo/compare/@endo/cli@0.1.1...@endo/cli@0.1.2) (2022-01-25)
 
 **Note:** Version bump only for package @endo/cli
 
-### 0.1.1 (2022-01-23)
+## 0.1.1 (2022-01-23)
 
 ### Features
 
