@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 
 import fs from 'fs';
 
@@ -6,10 +6,19 @@ import { evadeCensor } from '@endo/evasive-transform';
 import { whereEndoCache } from '@endo/where';
 import { defaultParserForLanguage as transformingParserForLanguage } from '@endo/compartment-mapper/archive-parsers.js';
 import { defaultParserForLanguage as transparentParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
+import tsBlankSpace from 'ts-blank-space';
+
+/** @import {Language} from '@endo/compartment-mapper/node-powers.js' */
+/** @import {BundlingKit, BundlingKitIO, BundlingKitOptions, ModuleTransformsLike, ParserForLanguageLike, SourceMapDescriptor} from './types.js' */
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+/**
+ * @param {BundlingKitIO} io
+ * @param {BundlingKitOptions} options
+ * @returns {BundlingKit}
+ */
 export const makeBundlingKit = (
   { pathResolve, userInfo, computeSha512, platform, env },
   { cacheSourceMaps, elideComments, noTransforms, commonDependencies },
@@ -20,9 +29,14 @@ export const makeBundlingKit = (
     );
   }
 
+  /** @type {Set<Promise<void>>} */
   const sourceMapJobs = new Set();
-  let writeSourceMap = Function.prototype;
+  /** @type {(sourceMap: string, sourceDescriptor: SourceMapDescriptor) => Promise<void>} */
+  let writeSourceMap = async () => {};
   if (cacheSourceMaps) {
+    if (!computeSha512) {
+      throw new Error('computeSha512 is required when cacheSourceMaps is true');
+    }
     const { homedir: home } = userInfo();
     const cacheDirectory = whereEndoCache(platform, env, { home });
     const sourceMapsCacheDirectory = pathResolve(cacheDirectory, 'source-map');
@@ -95,11 +109,11 @@ export const makeBundlingKit = (
   }
 
   /**
-   * @param {import('@endo/compartment-mapper/src/types.js').Language} parser
+   * @param {Language} parser
    * @param {Uint8Array} sourceBytes
    * @param {string} specifier
    * @param {string} location
-   * @param {string|import('source-map').RawSourceMap} sourceMap
+   * @param {string | import('source-map').RawSourceMap | undefined} sourceMap
    */
   const transformModuleSource = async (
     parser,
@@ -113,19 +127,28 @@ export const makeBundlingKit = (
     }
     const babelSourceType = parser === 'mjs' ? 'module' : 'script';
     const source = textDecoder.decode(sourceBytes);
-    let object;
-    ({ code: object, map: sourceMap } = await evadeCensor(source, {
+    const priorSourceMap =
+      typeof sourceMap === 'string' ? sourceMap : undefined;
+    const { code: object, map } = await evadeCensor(source, {
       sourceType: babelSourceType,
-      sourceMap,
-      sourceMapUrl: new URL(specifier, location).href,
+      sourceMap: priorSourceMap,
+      sourceUrl: new URL(specifier, location).href,
       elideComments,
-    }));
+    });
     const objectBytes = textEncoder.encode(object);
-    return { bytes: objectBytes, parser, sourceMap };
+    return {
+      bytes: objectBytes,
+      parser,
+      sourceMap: map ? JSON.stringify(map) : undefined,
+    };
   };
 
-  let parserForLanguage = transparentParserForLanguage;
+  /** @type {ParserForLanguageLike} */
+  let parserForLanguage = /** @type {ParserForLanguageLike} */ (
+    transparentParserForLanguage
+  );
 
+  /** @type {ModuleTransformsLike} */
   let moduleTransforms = {};
 
   if (!noTransforms) {
@@ -166,24 +189,46 @@ export const makeBundlingKit = (
   }
 
   const mtsParser = {
-    async parse(sourceBytes, ...rest) {
-      const { default: tsBlankSpace } = await import('ts-blank-space');
+    parse(
+      sourceBytes,
+      specifier,
+      moduleLocation,
+      packageLocation,
+      options = undefined,
+    ) {
       const sourceText = textDecoder.decode(sourceBytes);
       const objectText = tsBlankSpace(sourceText);
       const objectBytes = textEncoder.encode(objectText);
-      return parserForLanguage.mjs.parse(objectBytes, ...rest);
+      return parserForLanguage.mjs.parse(
+        objectBytes,
+        specifier,
+        moduleLocation,
+        packageLocation,
+        options,
+      );
     },
     heuristicImports: false,
     synchronous: false,
   };
 
   const ctsParser = {
-    async parse(sourceBytes, ...rest) {
-      const { default: tsBlankSpace } = await import('ts-blank-space');
+    parse(
+      sourceBytes,
+      specifier,
+      moduleLocation,
+      packageLocation,
+      options = undefined,
+    ) {
       const sourceText = textDecoder.decode(sourceBytes);
       const objectText = tsBlankSpace(sourceText);
       const objectBytes = textEncoder.encode(objectText);
-      return parserForLanguage.cjs.parse(objectBytes, ...rest);
+      return parserForLanguage.cjs.parse(
+        objectBytes,
+        specifier,
+        moduleLocation,
+        packageLocation,
+        options,
+      );
     },
     heuristicImports: true,
     synchronous: false,
@@ -191,6 +236,7 @@ export const makeBundlingKit = (
 
   parserForLanguage = { ...parserForLanguage, mts: mtsParser, cts: ctsParser };
 
+  /** @type {BundlingKit['sourceMapHook']} */
   const sourceMapHook = (sourceMap, sourceDescriptor) => {
     sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
   };
