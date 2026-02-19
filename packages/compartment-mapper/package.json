@@ -1,6 +1,6 @@
 {
   "name": "@endo/compartment-mapper",
-  "version": "1.6.3",
+  "version": "2.0.0",
   "description": "The compartment mapper assembles Node applications in a sandbox",
   "keywords": [
     "node",
