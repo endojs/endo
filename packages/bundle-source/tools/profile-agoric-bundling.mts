@@ -235,6 +235,21 @@ const summarizeMarkdown = (rows: SummaryRow[]): string => {
   return `${header.join('\n')}\n${body.join('\n')}\n`;
 };
 
+const summarizeConsoleRows = (rows: SummaryRow[]) =>
+  Object.fromEntries(
+    rows.map(row => [
+      row.name,
+      {
+        count: row.count,
+        totalMs: Number(microsToMsText(row.totalUs)),
+        avgMs: Number(microsToMsText(row.avgUs)),
+        p50Ms: Number(microsToMsText(row.p50Us)),
+        p95Ms: Number(microsToMsText(row.p95Us)),
+        maxMs: Number(microsToMsText(row.maxUs)),
+      },
+    ]),
+  );
+
 const mergeTraceFiles = async (
   traceFiles: string[],
 ): Promise<Array<Record<string, unknown>>> => {
@@ -418,7 +433,7 @@ const main = async () => {
   process.stdout.write(`Summary JSON: ${summaryPath}\n`);
   process.stdout.write(`Summary Markdown: ${summaryMdPath}\n\n`);
   process.stdout.write('Top spans by total duration:\n');
-  process.stdout.write(summarizeMarkdown(topRows));
+  console.table(summarizeConsoleRows(topRows));
 };
 
 main().catch(error => {
