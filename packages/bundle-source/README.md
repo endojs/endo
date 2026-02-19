@@ -165,22 +165,17 @@ This generates:
 - `summary.json` with aggregate span statistics.
 - `summary.md` with a top spans table by total duration.
 
-Bundle all `source-spec-registry.js` entries from `agoric-sdk` using the
-current checkout's `bundle-source`:
+Profile bundling all `source-spec-registry.js` entries from an `agoric-sdk`
+checkout using the current checkout's `bundle-source`:
 
 ```console
-ENDO_BUNDLE_SOURCE_PROFILE=1 \
-ENDO_BUNDLE_SOURCE_PROFILE_DIR=/tmp/agoric-bundle-traces \
-yarn workspace @endo/bundle-source bundle:agoric-source-specs -- \
+yarn workspace @endo/bundle-source profile:agoric-bundling -- \
   --agoric-sdk-root /opt/agoric/agoric-sdk \
-  --out-dir /tmp/agoric-source-spec-bundles
+  --out-dir /tmp/profile-agoric-bundling
 ```
 
-Then summarize profiling data:
-
-```console
-yarn workspace @endo/bundle-source trace:merge -- /tmp/agoric-bundle-traces
-```
+The tool writes bundles, raw traces, merged trace, and summary files to
+`--out-dir`, and prints a top-spans summary table at the end.
 
 ## `moduleFormat` explanations
 
