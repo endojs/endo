@@ -34,4 +34,4 @@ jobs:
       - name: Process Changesets
         # This action will create/update Changesets' Release PR *or* create a
         # GitHub Release and tags if its Release PR was just merged
-        uses: changesets/action@c48e67d110a68bc90ccf1098e9646092baacaa87 # v1
+        uses: changesets/action@935fe876b0054dfc962ac86bcddf028460040d46 # v1
