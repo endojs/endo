@@ -1620,7 +1620,7 @@ export const mapNodeModules = async (
     'compartmentMapper.nodeModules.compartmentMapForNodeModules',
   );
   try {
-    return compartmentMapForNodeModules_(
+    return await compartmentMapForNodeModules_(
       readPowers,
       packageLocation,
       conditions,
