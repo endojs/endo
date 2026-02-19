@@ -143,7 +143,10 @@ export async function bundleZipBase64(
     try {
       endoZipBase64 = encodeBase64(bytes);
     } finally {
-      endEncodeBase64();
+      endEncodeBase64({
+        inputBytes: bytes.length,
+        outputBytes: endoZipBase64?.length,
+      });
     }
     return harden({
       moduleFormat: /** @type {const} */ ('endoZipBase64'),

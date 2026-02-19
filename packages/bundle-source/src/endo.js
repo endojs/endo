@@ -148,6 +148,7 @@ export const makeBundlingKit = (
         sourceMap: priorSourceMap,
         sourceUrl: new URL(specifier, location).href,
         elideComments,
+        profileStartSpan: profiler?.startSpan,
       });
       const objectBytes = textEncoder.encode(object);
       return {

@@ -712,6 +712,10 @@ type ParseArguments = [
     sourceMapUrl: string;
     readPowers: ReadFn | ReadPowers;
     compartmentDescriptor: CompartmentDescriptor;
+    profileStartSpan: (
+      name: string,
+      args?: Record<string, unknown>,
+    ) => (args?: Record<string, unknown>) => void;
   }> &
     ArchiveOnlyOption,
 ];

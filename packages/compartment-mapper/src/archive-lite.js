@@ -245,6 +245,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     entryModuleSpecifier,
     importHook: consolidatedExitModuleImportHook,
     sourceMapHook,
+    profileStartSpan,
   });
   endMakeImportHook?.();
 
@@ -366,7 +367,12 @@ export const makeAndHashArchiveFromMap = async (
     'compartmentMapper.archiveLite.writeZip.snapshot',
   );
   const bytes = await archive.snapshot();
-  endZipSnapshot?.({ bytes: bytes.length });
+  endZipSnapshot?.({
+    bytes: bytes.length,
+    sourceBytes: byteCount,
+    sourceModuleCount: moduleCount,
+    compartmentMapBytes: compartmentMapBytes.length,
+  });
 
   return { bytes, sha512 };
 };

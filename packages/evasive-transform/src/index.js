@@ -21,6 +21,7 @@ import { generate } from './generate.js';
  * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
  * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
  * @property {boolean} [useLocationUnmap] - deprecated, vestigial
+ * @property {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan] - Optional profiling span hook
  * @public
  */
 
@@ -65,20 +66,34 @@ export function evadeCensorSync(source, options) {
     sourceUrl,
     sourceType,
     elideComments = false,
+    profileStartSpan,
   } = options || {};
 
   // Parse the rolled-up chunk with Babel.
   // We are prepared for different module systems.
+  const endParse = profileStartSpan?.('evasiveTransform.babel.parse', {
+    sourceType,
+  });
   const ast = parseAst(source, {
     sourceType,
   });
+  endParse?.();
 
+  const endTraverse = profileStartSpan?.('evasiveTransform.babel.traverse', {
+    elideComments,
+  });
   transformAst(ast, { elideComments });
+  endTraverse?.();
 
+  const endGenerate = profileStartSpan?.('evasiveTransform.babel.generate');
   if (sourceUrl) {
-    return generate(ast, { source, sourceUrl, sourceMap });
+    const generated = generate(ast, { source, sourceUrl, sourceMap });
+    endGenerate?.();
+    return generated;
   }
-  return generate(ast, { source });
+  const generated = generate(ast, { source });
+  endGenerate?.();
+  return generated;
 }
 
 /**

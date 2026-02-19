@@ -53,6 +53,7 @@ const analyzeModule = makeModuleAnalyzer();
  * @property {string} [sourceMap]
  * @property {string} [sourceMapUrl]
  * @property {SourceMapHook} [sourceMapHook]
+ * @property {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan]
  */
 
 // XXX implements import('ses').PrecompiledModuleSource but adding
@@ -75,6 +76,7 @@ export function ModuleSource(source, opts = {}) {
   if (typeof opts === 'string') {
     opts = { sourceUrl: opts };
   }
+  const endAnalyze = opts.profileStartSpan?.('moduleSource.analyzeModule');
   const {
     imports,
     functorSource,
@@ -85,6 +87,7 @@ export function ModuleSource(source, opts = {}) {
     needsImport,
     needsImportMeta,
   } = analyzeModule(source, opts);
+  endAnalyze?.();
   this.imports = freeze([...keys(imports)]);
   this.exports = freeze(
     [
