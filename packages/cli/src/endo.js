@@ -246,6 +246,16 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('reply <message-number> <message-with-embedded-references>')
+    .description('reply to a message with @named-values @for-you:from-me')
+    .option(...commonOptions.as)
+    .action(async (messageNumberText, message, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { reply } = await import('./commands/reply.js');
+      return reply({ messageNumberText, message, agentNames });
+    });
+
+  program
     .command('adopt <message-number> <name-in-message>')
     .option(...commonOptions.name)
     .option(...commonOptions.as)

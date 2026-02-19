@@ -902,6 +902,56 @@ test('guest facet receives a message for host', async t => {
   );
 });
 
+test('reply links to parent message', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = E(host).followMessages();
+  const guestMessages = E(guest).followMessages();
+
+  await E(guest).send('HOST', ['hello'], [], []);
+
+  const [{ value: hostMessage }, { value: sentMessage }] = await Promise.all([
+    E(hostMessages).next(),
+    E(guestMessages).next(),
+  ]);
+
+  t.is(hostMessage.type, 'package');
+  t.is(sentMessage.type, 'package');
+  t.is(hostMessage.messageId, sentMessage.messageId);
+
+  await E(host).reply(hostMessage.number, ['hi'], [], []);
+
+  const { value: replyMessage } = await E(guestMessages).next();
+  t.is(replyMessage.type, 'package');
+  t.is(replyMessage.replyTo, hostMessage.messageId);
+});
+
+test('message hub avoids kebab-case reply metadata names', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = E(host).followMessages();
+
+  await E(guest).send('HOST', ['hello'], [], []);
+  const { value: hostMessage } = await E(hostMessages).next();
+  await E(host).reply(hostMessage.number, ['hi'], [], []);
+  const { value: replyMessage } = await E(hostMessages).next();
+
+  const messageHub = await E(host).lookup(['MAIL', String(hostMessage.number)]);
+  const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
+  const messageNames = await E(messageHub).list();
+  const replyNames = await E(replyHub).list();
+
+  t.true(replyNames.includes('FROM'));
+  t.true(replyNames.includes('TO'));
+  t.true(replyNames.includes('DATE'));
+  t.true(replyNames.includes('TYPE'));
+  t.true(replyNames.includes('MESSAGE'));
+  t.true(replyNames.includes('REPLY'));
+  t.true(replyNames.includes('STRINGS'));
+});
+
 test('mailboxes persist messages across restart', async t => {
   const { cancelled, config, host } = await prepareHost(t);
 
