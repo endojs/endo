@@ -1,4 +1,4 @@
-# Bundle Source
+# `@endo/bundle-source`
 
 This package creates source bundles from ES Modules, compatible with Endo
 applications, Agoric contracts, and SwingSet vats.
@@ -290,3 +290,7 @@ So, to extract the source-similar program for visual inspection:
 ```
 jq -r .__syncModuleProgram__ module.js > module.source.js
 ```
+
+## License
+
+[Apache-2.0](./LICENSE)

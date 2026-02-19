@@ -14,7 +14,7 @@ const NINE = '9'.charCodeAt(0);
  */
 async function* makeNetstringIterator(
   input,
-  { name = '<unknown>', maxMessageLength = 999999999 } = {},
+  { name = '<unknown>', maxMessageLength = 999_999_999 } = {},
 ) {
   // eslint-disable-next-line no-bitwise
   const maxPrefixLength = `${maxMessageLength | 0}:`.length;
