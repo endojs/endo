@@ -20,6 +20,7 @@ import type {
   LogOptions,
   PackageDependenciesHook,
 } from './external.js';
+import type { PatternDescriptor } from './pattern-replacement.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -89,6 +90,11 @@ export interface PackageDescriptor {
    * TODO: Update with proper type when this field is handled.
    */
   exports?: unknown;
+  /**
+   * Package imports field for self-referencing subpath patterns.
+   * Keys must start with '#'.
+   */
+  imports?: unknown;
   type?: 'module' | 'commonjs';
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -126,6 +132,11 @@ export interface Node {
   explicitExports: boolean;
   internalAliases: Record<string, string>;
   externalAliases: Record<string, string>;
+  /**
+   * Wildcard patterns extracted from the `exports` and `imports` fields.
+   * `*` matches exactly one path segment (Node.js semantics).
+   */
+  patterns: PatternDescriptor[];
   /**
    * The name of the original package's parent directory, for reconstructing
    * a sourceURL that is likely to converge with the original location in an IDE.
