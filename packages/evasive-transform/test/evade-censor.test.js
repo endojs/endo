@@ -195,7 +195,7 @@ test('evadeCensor() - templates - template with multiple evasion patterns in sin
   );
   t.is(
     code,
-    'const x =`im${""}port("a") and im${""}port("b") and <!${""}--comment--${""}>`;',
+    'const x = `im${""}port("a") and im${""}port("b") and <!${""}--comment--${""}>`;',
   );
 });
 
@@ -204,7 +204,7 @@ test('evadeCensor() - templates - template with evasion patterns around expressi
     'const x = `import(${a}) then ${b} import(${c})`',
     { sourceType: 'module' },
   );
-  t.is(code, 'const x =`im${""}port(${a}) then ${b} im${""}port(${c})`');
+  t.is(code, 'const x = `im${""}port(${a}) then ${b} im${""}port(${c})`');
 });
 
 test('evadeCensor() - templates - template with evasion pattern split across expression boundary', async t => {
@@ -212,7 +212,7 @@ test('evadeCensor() - templates - template with evasion pattern split across exp
     'const x = `before import(${expr}) after import( more`',
     { sourceType: 'module' },
   );
-  t.is(code, 'const x =`before im${""}port(${expr}) after im${""}port( more`');
+  t.is(code, 'const x = `before im${""}port(${expr}) after im${""}port( more`');
 });
 
 test('evadeCensor() - templates - template with HTML comment patterns', async t => {
@@ -222,7 +222,7 @@ test('evadeCensor() - templates - template with HTML comment patterns', async t 
   );
   t.is(
     code,
-    'const x =`<!${""}-- start --${""}> middle <!${""}-- end --${""}>`',
+    'const x = `<!${""}-- start --${""}> middle <!${""}-- end --${""}>`',
   );
 });
 
@@ -231,7 +231,7 @@ test('evadeCensor() - templates - nested template literals', async t => {
     'const x = `outer import(${`inner import(`})`',
     { sourceType: 'module' },
   );
-  t.is(code, 'const x =`outer im${""}port(${`inner im${""}port(`})`');
+  t.is(code, 'const x = `outer im${""}port(${`inner im${""}port(`})`');
 });
 
 test('evadeCensor() - templates - tagged template is NOT transformed', async t => {
@@ -255,14 +255,14 @@ test('evadeCensor() - templates - template with consecutive evasion patterns', a
   const { code } = evadeCensorSync('const x = `import(import(import(`', {
     sourceType: 'module',
   });
-  t.is(code, 'const x =`im${""}port(im${""}port(im${""}port(`');
+  t.is(code, 'const x = `im${""}port(im${""}port(im${""}port(`');
 });
 
 test('evadeCensor() - templates - template mixing all evasion types', async t => {
   const { code } = evadeCensorSync('const x = `<!--import(-->import(<!--`', {
     sourceType: 'module',
   });
-  t.is(code, 'const x =`<!${""}--im${""}port(--${""}>im${""}port(<!${""}--`');
+  t.is(code, 'const x = `<!${""}--im${""}port(--${""}>im${""}port(<!${""}--`');
 });
 
 test('evadeCensor() - templates - multiple templates in sequence', async t => {
@@ -271,28 +271,28 @@ test('evadeCensor() - templates - multiple templates in sequence', async t => {
     'const a = `import(`; const b = `import(`;',
     { sourceType: 'module' },
   );
-  t.is(code, 'const a =`im${""}port(`;const b=`im${""}port(`;');
+  t.is(code, 'const a = `im${""}port(`;const b=`im${""}port(`;');
 });
 
 test('evadeCensor() - templates - pattern at very end of quasi', async t => {
   const { code } = evadeCensorSync('const x = `text import(`', {
     sourceType: 'module',
   });
-  t.is(code, 'const x =`text im${""}port(`');
+  t.is(code, 'const x = `text im${""}port(`');
 });
 
 test('evadeCensor() - templates - pattern at very start of quasi', async t => {
   const { code } = evadeCensorSync('const x = `import( text`', {
     sourceType: 'module',
   });
-  t.is(code, 'const x =`im${""}port( text`');
+  t.is(code, 'const x = `im${""}port( text`');
 });
 
 test('evadeCensor() - templates - empty quasi between patterns', async t => {
   const { code } = evadeCensorSync('const x = `import(${x}import(`', {
     sourceType: 'module',
   });
-  t.is(code, 'const x =`im${""}port(${x}im${""}port(`');
+  t.is(code, 'const x = `im${""}port(${x}im${""}port(`');
 });
 
 test('evadeCensor() - templates - pattern spans quasi boundary (should not match)', async t => {
@@ -308,16 +308,14 @@ test('evadeCensor() - templates - only first quasi has pattern', async t => {
   const { code } = evadeCensorSync('const x = `import(${a}safe text`', {
     sourceType: 'module',
   });
-  t.is(code, 'const x =`im${""}port(${a}safe text`');
+  t.is(code, 'const x = `im${""}port(${a}safe text`');
 });
 
 test('evadeCensor() - templates - only last quasi has pattern', async t => {
   const { code } = evadeCensorSync('const x = `safe text ${a}import(`', {
     sourceType: 'module',
   });
-  // If the tests fails because updated babel stopped adding a space it's fine.
-  // Looks like a babel glitch      ↓
-  t.is(code, 'const x =`safe text ${ a}im${""}port(`');
+  t.is(code, 'const x = `safe text ${a}im${""}port(`');
 });
 
 test('evadeCensor() - x-->y transform preserves meaning', async t => {

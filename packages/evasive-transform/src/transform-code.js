@@ -5,6 +5,31 @@ const regexpReplacements = {
   '<': '\\x3C',
   '-': '\\x2D',
 };
+
+/**
+ * Copy the location from one AST node to another (round-tripping through JSON
+ * to sever references), updating the target's end position as if it had zero
+ * length.
+ *
+ * @param {import('@babel/types').Node} target
+ * @param {import('@babel/types').Node} src
+ */
+const adoptStartFrom = (target, src) => {
+  try {
+    const srcLoc = src.loc;
+    if (!srcLoc) return;
+    const loc = /** @type {typeof srcLoc} */ (
+      JSON.parse(JSON.stringify(srcLoc))
+    );
+    const start = loc?.start;
+    target.loc = loc;
+    if (!start) return;
+    target.loc.end = /** @type {typeof start} */ ({ ...start });
+  } catch (_err) {
+    // Ignore errors; this is purely opportunistic.
+  }
+};
+
 /**
  * Creates a BinaryExpression adding two expressions
  *
@@ -40,6 +65,7 @@ export const evadeStrings = p => {
     expr = !expr
       ? { type: 'StringLiteral', value: part }
       : addStringToExpressions(expr, part);
+    if (lastIndex === 0) adoptStartFrom(expr, p.node);
     lastIndex = index;
   }
   if (expr) {
@@ -132,11 +158,14 @@ export const evadeTemplates = p => {
     newQuasis[newQuasis.length - 1].tail = true;
   }
 
-  p.replaceWith({
+  /** @type {import('@babel/types').Node} */
+  const replacement = {
     type: 'TemplateLiteral',
     quasis: newQuasis,
     expressions: newExpressions,
-  });
+  };
+  adoptStartFrom(replacement, p.node);
+  p.replaceWith(replacement);
 };
 
 /**
