@@ -32,6 +32,8 @@ jobs:
         run: yarn
 
       - name: Process Changesets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # This action will create/update Changesets' Release PR *or* create a
         # GitHub Release and tags if its Release PR was just merged
         uses: changesets/action@935fe876b0054dfc962ac86bcddf028460040d46 # v1
