@@ -170,10 +170,35 @@ type SummaryRow = {
   name: string;
   count: number;
   totalUs: number;
+  criticalPathUs: number;
+  overlapFactor: number;
   avgUs: number;
   maxUs: number;
   p50Us: number;
   p95Us: number;
+};
+
+const unionDuration = (intervals: Array<[number, number]>): number => {
+  if (intervals.length === 0) {
+    return 0;
+  }
+  intervals.sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let [curStart, curEnd] = intervals[0];
+  for (let i = 1; i < intervals.length; i += 1) {
+    const [start, end] = intervals[i];
+    if (start <= curEnd) {
+      if (end > curEnd) {
+        curEnd = end;
+      }
+    } else {
+      total += curEnd - curStart;
+      curStart = start;
+      curEnd = end;
+    }
+  }
+  total += curEnd - curStart;
+  return total;
 };
 
 const summarizeEvents = (
@@ -181,12 +206,14 @@ const summarizeEvents = (
   top: number,
 ): SummaryRow[] => {
   const durationsByName = new Map<string, number[]>();
+  const intervalsByName = new Map<string, Array<[number, number]>>();
   for (const event of events) {
     if (event.ph !== 'X' || typeof event.name !== 'string') {
       continue;
     }
     const dur = typeof event.dur === 'number' ? event.dur : undefined;
-    if (dur === undefined) {
+    const ts = typeof event.ts === 'number' ? event.ts : undefined;
+    if (dur === undefined || ts === undefined) {
       continue;
     }
     const bucket = durationsByName.get(event.name);
@@ -195,16 +222,26 @@ const summarizeEvents = (
     } else {
       durationsByName.set(event.name, [dur]);
     }
+    const interval: [number, number] = [ts, ts + dur];
+    const intervals = intervalsByName.get(event.name);
+    if (intervals) {
+      intervals.push(interval);
+    } else {
+      intervalsByName.set(event.name, [interval]);
+    }
   }
 
   const rows: SummaryRow[] = [...durationsByName.entries()].map(
     ([name, durations]) => {
       durations.sort((a, b) => a - b);
       const total = durations.reduce((sum, value) => sum + value, 0);
+      const criticalPathUs = unionDuration([...(intervalsByName.get(name) || [])]);
       return {
         name,
         count: durations.length,
         totalUs: total,
+        criticalPathUs,
+        overlapFactor: criticalPathUs > 0 ? total / criticalPathUs : 0,
         avgUs: total / durations.length,
         maxUs: durations[durations.length - 1],
         p50Us: percentile(durations, 50),
@@ -218,14 +255,16 @@ const summarizeEvents = (
 
 const summarizeMarkdown = (rows: SummaryRow[]): string => {
   const header = [
-    '| Span | Count | Total ms | Avg ms | P50 ms | P95 ms | Max ms |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Span | Count | Total ms | Critical ms | Overlap x | Avg ms | P50 ms | P95 ms | Max ms |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
   const body = rows.map(row =>
     [
       `| ${row.name}`,
       `${row.count}`,
       `${microsToMsText(row.totalUs)}`,
+      `${microsToMsText(row.criticalPathUs)}`,
+      `${row.overlapFactor.toFixed(2)}`,
       `${microsToMsText(row.avgUs)}`,
       `${microsToMsText(row.p50Us)}`,
       `${microsToMsText(row.p95Us)}`,
@@ -242,6 +281,8 @@ const summarizeConsoleRows = (rows: SummaryRow[]) =>
       {
         count: row.count,
         totalMs: Number(microsToMsText(row.totalUs)),
+        criticalMs: Number(microsToMsText(row.criticalPathUs)),
+        overlapX: Number(row.overlapFactor.toFixed(2)),
         avgMs: Number(microsToMsText(row.avgUs)),
         p50Ms: Number(microsToMsText(row.p50Us)),
         p95Ms: Number(microsToMsText(row.p95Us)),

@@ -16,7 +16,7 @@ const makeCreateStaticRecord = transformSource =>
    */
   function createStaticRecord(
     moduleSource,
-    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook } = {},
+    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook, profileStartSpan } = {},
   ) {
     // Transform the Module source code.
     const sourceOptions = {
@@ -24,6 +24,7 @@ const makeCreateStaticRecord = transformSource =>
       sourceMap,
       sourceMapUrl,
       sourceMapHook,
+      profileStartSpan,
       sourceType: 'module',
       // exportNames of variables that are only initialized and used, but
       // never assigned to.

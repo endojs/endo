@@ -111,18 +111,48 @@ const percentile = (sorted, p) => {
 const microsToMsText = micros => (micros / 1000).toFixed(3);
 
 /**
+ * @param {Array<[number, number]>} intervals
+ * @returns {number}
+ */
+const unionDuration = intervals => {
+  if (intervals.length === 0) {
+    return 0;
+  }
+  intervals.sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let [curStart, curEnd] = intervals[0];
+  for (let i = 1; i < intervals.length; i += 1) {
+    const [start, end] = intervals[i];
+    if (start <= curEnd) {
+      if (end > curEnd) {
+        curEnd = end;
+      }
+    } else {
+      total += curEnd - curStart;
+      curStart = start;
+      curEnd = end;
+    }
+  }
+  total += curEnd - curStart;
+  return total;
+};
+
+/**
  * @param {Array<Record<string, unknown>>} events
  * @param {number} top
  */
 const summarize = (events, top) => {
   /** @type {Map<string, number[]>} */
   const durationsByName = new Map();
+  /** @type {Map<string, Array<[number, number]>>} */
+  const intervalsByName = new Map();
   for (const event of events) {
     if (event.ph !== 'X' || typeof event.name !== 'string') {
       continue;
     }
     const dur = typeof event.dur === 'number' ? event.dur : undefined;
-    if (dur === undefined) {
+    const ts = typeof event.ts === 'number' ? event.ts : undefined;
+    if (dur === undefined || ts === undefined) {
       continue;
     }
     const bucket = durationsByName.get(event.name);
@@ -131,15 +161,25 @@ const summarize = (events, top) => {
     } else {
       durationsByName.set(event.name, [dur]);
     }
+    const intervals = intervalsByName.get(event.name);
+    const interval = /** @type {[number, number]} */ ([ts, ts + dur]);
+    if (intervals) {
+      intervals.push(interval);
+    } else {
+      intervalsByName.set(event.name, [interval]);
+    }
   }
 
   const rows = [...durationsByName.entries()].map(([name, durations]) => {
     durations.sort((a, b) => a - b);
     const total = durations.reduce((sum, value) => sum + value, 0);
+    const criticalPathUs = unionDuration([...(intervalsByName.get(name) || [])]);
     return {
       name,
       count: durations.length,
       totalUs: total,
+      criticalPathUs,
+      overlapFactor: criticalPathUs > 0 ? total / criticalPathUs : 0,
       avgUs: total / durations.length,
       minUs: durations[0],
       maxUs: durations[durations.length - 1],
@@ -157,14 +197,16 @@ const summarize = (events, top) => {
  */
 const summarizeMarkdown = rows => {
   const header = [
-    '| Span | Count | Total ms | Avg ms | P50 ms | P95 ms | Max ms |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Span | Count | Total ms | Critical ms | Overlap x | Avg ms | P50 ms | P95 ms | Max ms |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
   const body = rows.map(row =>
     [
       `| ${row.name}`,
       `${row.count}`,
       `${microsToMsText(row.totalUs)}`,
+      `${microsToMsText(row.criticalPathUs)}`,
+      `${row.overlapFactor.toFixed(2)}`,
       `${microsToMsText(row.avgUs)}`,
       `${microsToMsText(row.p50Us)}`,
       `${microsToMsText(row.p95Us)}`,
