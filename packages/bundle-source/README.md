@@ -154,6 +154,17 @@ Environment variables:
 - `ENDO_BUNDLE_SOURCE_PROFILE_FILE`: explicit output file for a single run
 - `ENDO_BUNDLE_SOURCE_PROFILE_STDERR`: if truthy, prints each generated trace path to stderr
 
+Merge and summarize many profile traces:
+
+```console
+yarn workspace @endo/bundle-source trace:merge -- /tmp/bs-profiles
+```
+
+This generates:
+- `merged.trace.json` for trace viewers.
+- `summary.json` with aggregate span statistics.
+- `summary.md` with a top spans table by total duration.
+
 ## `moduleFormat` explanations
 
 <a id="getexport-moduleformat"></a>
