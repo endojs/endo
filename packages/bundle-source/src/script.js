@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 /* global process */
 
 import crypto from 'crypto';
@@ -12,23 +12,15 @@ import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import { makeBundlingKit } from './endo.js';
 
+/** @import {BundleScriptModuleFormat, BundleScriptOptions, BundlingKitIO, SharedPowers} from './types.js' */
+
 const readPowers = makeReadPowers({ fs, url, crypto });
 
 /**
  * @param {string} startFilename
- * @param {'endoScript' | 'nestedEvaluate' | 'getExport'} moduleFormat
- * @param {object} [options]
- * @param {boolean} [options.dev]
- * @param {boolean} [options.cacheSourceMaps]
- * @param {boolean} [options.noTransforms]
- * @param {boolean} [options.elideComments]
- * @param {Record<string, string>} [options.commonDependencies]
- * @param {object} [grantedPowers]
- * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]
- * @param {typeof import('path)['resolve']} [grantedPowers.pathResolve]
- * @param {typeof import('os')['userInfo']} [grantedPowers.userInfo]
- * @param {typeof process['env']} [grantedPowers.env]
- * @param {typeof process['platform']} [grantedPowers.platform]
+ * @param {BundleScriptModuleFormat} moduleFormat
+ * @param {BundleScriptOptions} [options]
+ * @param {SharedPowers} [grantedPowers]
  */
 export async function bundleScript(
   startFilename,
@@ -45,7 +37,10 @@ export async function bundleScript(
     commonDependencies,
   } = options;
 
-  const powers = { ...readPowers, ...grantedPowers };
+  const powers = /** @type {typeof readPowers & SharedPowers} */ ({
+    ...readPowers,
+    ...grantedPowers,
+  });
   const {
     computeSha512,
     pathResolve = path.resolve,
@@ -65,13 +60,13 @@ export async function bundleScript(
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
   } = makeBundlingKit(
-    {
+    /** @type {BundlingKitIO} */ ({
       pathResolve,
       userInfo,
       platform,
       env,
       computeSha512,
-    },
+    }),
     {
       cacheSourceMaps,
       noTransforms,
@@ -80,16 +75,17 @@ export async function bundleScript(
       dev,
     },
   );
+  const parserForLanguageForFunctor = parserForLanguage;
 
-  let source = await makeFunctor(powers, entry, {
+  let source = await makeFunctor(powers, entry.href, {
     // For backward-compatibility, the nestedEvaluate and getExport formats
     // may implicitly include devDependencies of the entry module's package,
     // but this courtesy will not be extended to any future bundle formats.
     dev:
       dev || moduleFormat === 'nestedEvaluate' || moduleFormat === 'getExport',
-    conditions,
+    conditions: new Set(conditions),
     commonDependencies,
-    parserForLanguage,
+    parserForLanguage: parserForLanguageForFunctor,
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
