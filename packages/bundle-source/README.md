@@ -119,6 +119,41 @@ map for every physical module.
 It is not yet quite clever enough to collect source maps for sources that do
 not exist.
 
+## Profiling
+
+`bundle-source` can emit Chrome trace files for performance analysis.
+This works for programmatic usage and CLI usage, including builds in larger
+repos like `agoric-sdk`.
+
+Enable with environment variables:
+
+```console
+ENDO_BUNDLE_SOURCE_PROFILE=1 \
+ENDO_BUNDLE_SOURCE_PROFILE_DIR=/tmp/bs-profiles \
+yarn bundle-source app.js > /tmp/app-bundle.json
+```
+
+Each bundle call writes one `*.trace.json` file. Open these in Chrome tracing
+tools or convert for Speedscope.
+
+You can also control profiling in code:
+
+```js
+await bundleSource('program.js', {
+  profile: {
+    enabled: true,
+    traceDir: '/tmp/bs-profiles',
+    // or traceFile: '/tmp/specific.trace.json'
+  },
+});
+```
+
+Environment variables:
+- `ENDO_BUNDLE_SOURCE_PROFILE`: enable profiling when truthy (`1`, `true`, `yes`, `on`)
+- `ENDO_BUNDLE_SOURCE_PROFILE_DIR`: output directory for generated trace files
+- `ENDO_BUNDLE_SOURCE_PROFILE_FILE`: explicit output file for a single run
+- `ENDO_BUNDLE_SOURCE_PROFILE_STDERR`: if truthy, prints each generated trace path to stderr
+
 ## `moduleFormat` explanations
 
 <a id="getexport-moduleformat"></a>

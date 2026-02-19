@@ -13,6 +13,7 @@ import { encodeBase64 } from '@endo/base64';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import { makeBundlingKit } from './endo.js';
+import { makeBundleProfiler } from './profile.js';
 
 /** @import {BundleZipBase64Options, BundlingKitIO, SharedPowers} from './types.js' */
 
@@ -36,6 +37,7 @@ export async function bundleZipBase64(
     conditions = [],
     commonDependencies,
     importHook,
+    profile,
   } = options;
   const powers = /** @type {typeof readPowers & SharedPowers} */ ({
     ...readPowers,
@@ -50,57 +52,112 @@ export async function bundleZipBase64(
   } = powers;
 
   const entry = url.pathToFileURL(pathResolve(startFilename));
-
-  const {
-    sourceMapHook,
-    sourceMapJobs,
-    moduleTransforms,
-    parserForLanguage,
-    workspaceLanguageForExtension,
-    workspaceCommonjsLanguageForExtension,
-    workspaceModuleLanguageForExtension,
-  } = makeBundlingKit(
-    /** @type {BundlingKitIO} */ ({
-      pathResolve,
-      userInfo,
-      platform,
-      env,
-      computeSha512,
-    }),
-    {
-      cacheSourceMaps,
-      noTransforms,
-      elideComments,
-      commonDependencies,
-    },
-  );
-  const importHookForArchive = importHook;
-
-  const compartmentMap = await mapNodeModules(powers, entry.href, {
-    dev,
-    conditions: new Set(conditions),
-    commonDependencies,
-    workspaceLanguageForExtension,
-    workspaceCommonjsLanguageForExtension,
-    workspaceModuleLanguageForExtension,
+  const profiler = makeBundleProfiler({
+    moduleFormat: 'endoZipBase64',
+    startFilename,
+    env,
+    profile,
   });
 
-  const { bytes, sha512 } = await makeAndHashArchiveFromMap(
-    powers,
-    compartmentMap,
-    {
-      parserForLanguage,
-      moduleTransforms,
+  let phaseStatus = 'ok';
+  let phaseError;
+  try {
+    const endMakeBundlingKit = profiler.startSpan('bundleSource.makeBundlingKit');
+    const {
       sourceMapHook,
-      importHook: importHookForArchive,
-    },
-  );
-  assert(sha512);
-  await Promise.all(sourceMapJobs);
-  const endoZipBase64 = encodeBase64(bytes);
-  return harden({
-    moduleFormat: /** @type {const} */ ('endoZipBase64'),
-    endoZipBase64,
-    endoZipBase64Sha512: sha512,
-  });
+      sourceMapJobs,
+      moduleTransforms,
+      parserForLanguage,
+      workspaceLanguageForExtension,
+      workspaceCommonjsLanguageForExtension,
+      workspaceModuleLanguageForExtension,
+    } = (() => {
+      try {
+        return makeBundlingKit(
+          /** @type {BundlingKitIO} */ ({
+            pathResolve,
+            userInfo,
+            platform,
+            env,
+            computeSha512,
+          }),
+          {
+            cacheSourceMaps,
+            noTransforms,
+            elideComments,
+            commonDependencies,
+            profiler,
+          },
+        );
+      } finally {
+        endMakeBundlingKit();
+      }
+    })();
+    const importHookForArchive = importHook;
+
+    const endMapNodeModules = profiler.startSpan('bundleSource.mapNodeModules');
+    let compartmentMap;
+    try {
+      compartmentMap = await mapNodeModules(powers, entry.href, {
+        dev,
+        conditions: new Set(conditions),
+        commonDependencies,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
+      });
+    } finally {
+      endMapNodeModules();
+    }
+
+    const endMakeArchive = profiler.startSpan('bundleSource.makeAndHashArchiveFromMap');
+    let bytes;
+    let sha512;
+    try {
+      ({ bytes, sha512 } = await makeAndHashArchiveFromMap(
+        powers,
+        compartmentMap,
+        {
+          parserForLanguage,
+          moduleTransforms,
+          sourceMapHook,
+          importHook: importHookForArchive,
+        },
+      ));
+    } finally {
+      endMakeArchive();
+    }
+    assert(sha512);
+
+    const endSourceMapJobs = profiler.startSpan('bundleSource.sourceMapJobs');
+    try {
+      await Promise.all(sourceMapJobs);
+    } finally {
+      endSourceMapJobs();
+    }
+
+    const endEncodeBase64 = profiler.startSpan('bundleSource.encodeBase64');
+    let endoZipBase64;
+    try {
+      endoZipBase64 = encodeBase64(bytes);
+    } finally {
+      endEncodeBase64();
+    }
+    return harden({
+      moduleFormat: /** @type {const} */ ('endoZipBase64'),
+      endoZipBase64,
+      endoZipBase64Sha512: sha512,
+    });
+  } catch (error) {
+    phaseStatus = 'error';
+    phaseError =
+      error instanceof Error ? `${error.name}: ${error.message}` : `${error}`;
+    throw error;
+  } finally {
+    await profiler.flush(
+      phaseError
+        ? { status: phaseStatus, error: phaseError }
+        : { status: phaseStatus },
+    );
+  }
 }

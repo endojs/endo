@@ -21,7 +21,7 @@ const textDecoder = new TextDecoder();
  */
 export const makeBundlingKit = (
   { pathResolve, userInfo, computeSha512, platform, env },
-  { cacheSourceMaps, elideComments, noTransforms, commonDependencies },
+  { cacheSourceMaps, elideComments, noTransforms, commonDependencies, profiler },
 ) => {
   if (noTransforms && elideComments) {
     throw new Error(
@@ -48,63 +48,71 @@ export const makeBundlingKit = (
       sourceMap,
       { sha512, compartment: packageLocation, module: moduleSpecifier },
     ) => {
-      const location = new URL(moduleSpecifier, packageLocation).href;
-      const locationSha512 = computeSha512(location);
-      const locationSha512Head = locationSha512.slice(0, 2);
-      const locationSha512Tail = locationSha512.slice(2);
-      const sha512Head = sha512.slice(0, 2);
-      const sha512Tail = sha512.slice(2);
-      const sourceMapTrackerDirectory = pathResolve(
-        sourceMapsTrackerDirectory,
-        locationSha512Head,
+      const endWriteSourceMap = profiler?.startSpan(
+        'bundleSource.writeSourceMap',
+        { moduleSpecifier, packageLocation },
       );
-      const sourceMapTrackerPath = pathResolve(
-        sourceMapTrackerDirectory,
-        locationSha512Tail,
-      );
-      const sourceMapDirectory = pathResolve(
-        sourceMapsCacheDirectory,
-        sha512Head,
-      );
-      const sourceMapPath = pathResolve(
-        sourceMapDirectory,
-        `${sha512Tail}.map.json`,
-      );
+      try {
+        const location = new URL(moduleSpecifier, packageLocation).href;
+        const locationSha512 = computeSha512(location);
+        const locationSha512Head = locationSha512.slice(0, 2);
+        const locationSha512Tail = locationSha512.slice(2);
+        const sha512Head = sha512.slice(0, 2);
+        const sha512Tail = sha512.slice(2);
+        const sourceMapTrackerDirectory = pathResolve(
+          sourceMapsTrackerDirectory,
+          locationSha512Head,
+        );
+        const sourceMapTrackerPath = pathResolve(
+          sourceMapTrackerDirectory,
+          locationSha512Tail,
+        );
+        const sourceMapDirectory = pathResolve(
+          sourceMapsCacheDirectory,
+          sha512Head,
+        );
+        const sourceMapPath = pathResolve(
+          sourceMapDirectory,
+          `${sha512Tail}.map.json`,
+        );
 
-      await fs.promises
-        .readFile(sourceMapTrackerPath, 'utf-8')
-        .then(async oldSha512 => {
-          oldSha512 = oldSha512.trim();
-          if (oldSha512 === sha512) {
-            return;
-          }
-          const oldSha512Head = oldSha512.slice(0, 2);
-          const oldSha512Tail = oldSha512.slice(2);
-          const oldSourceMapDirectory = pathResolve(
-            sourceMapsCacheDirectory,
-            oldSha512Head,
-          );
-          const oldSourceMapPath = pathResolve(
-            oldSourceMapDirectory,
-            `${oldSha512Tail}.map.json`,
-          );
-          await fs.promises.unlink(oldSourceMapPath);
-          const entries = await fs.promises.readdir(oldSourceMapDirectory);
-          if (entries.length === 0) {
-            await fs.promises.rmdir(oldSourceMapDirectory);
-          }
-        })
-        .catch(error => {
-          if (error.code !== 'ENOENT') {
-            throw error;
-          }
-        });
+        await fs.promises
+          .readFile(sourceMapTrackerPath, 'utf-8')
+          .then(async oldSha512 => {
+            oldSha512 = oldSha512.trim();
+            if (oldSha512 === sha512) {
+              return;
+            }
+            const oldSha512Head = oldSha512.slice(0, 2);
+            const oldSha512Tail = oldSha512.slice(2);
+            const oldSourceMapDirectory = pathResolve(
+              sourceMapsCacheDirectory,
+              oldSha512Head,
+            );
+            const oldSourceMapPath = pathResolve(
+              oldSourceMapDirectory,
+              `${oldSha512Tail}.map.json`,
+            );
+            await fs.promises.unlink(oldSourceMapPath);
+            const entries = await fs.promises.readdir(oldSourceMapDirectory);
+            if (entries.length === 0) {
+              await fs.promises.rmdir(oldSourceMapDirectory);
+            }
+          })
+          .catch(error => {
+            if (error.code !== 'ENOENT') {
+              throw error;
+            }
+          });
 
-      await fs.promises.mkdir(sourceMapDirectory, { recursive: true });
-      await fs.promises.writeFile(sourceMapPath, sourceMap);
+        await fs.promises.mkdir(sourceMapDirectory, { recursive: true });
+        await fs.promises.writeFile(sourceMapPath, sourceMap);
 
-      await fs.promises.mkdir(sourceMapTrackerDirectory, { recursive: true });
-      await fs.promises.writeFile(sourceMapTrackerPath, sha512);
+        await fs.promises.mkdir(sourceMapTrackerDirectory, { recursive: true });
+        await fs.promises.writeFile(sourceMapTrackerPath, sha512);
+      } finally {
+        endWriteSourceMap?.();
+      }
     };
   }
 
@@ -122,6 +130,11 @@ export const makeBundlingKit = (
     location,
     sourceMap,
   ) => {
+    const endTransformModule = profiler?.startSpan('bundleSource.transformModule', {
+      parser,
+      specifier,
+      location,
+    });
     if (!['mjs', 'cjs'].includes(parser)) {
       throw Error(`Parser ${parser} not supported in evadeEvalCensor`);
     }
@@ -129,18 +142,22 @@ export const makeBundlingKit = (
     const source = textDecoder.decode(sourceBytes);
     const priorSourceMap =
       typeof sourceMap === 'string' ? sourceMap : undefined;
-    const { code: object, map } = await evadeCensor(source, {
-      sourceType: babelSourceType,
-      sourceMap: priorSourceMap,
-      sourceUrl: new URL(specifier, location).href,
-      elideComments,
-    });
-    const objectBytes = textEncoder.encode(object);
-    return {
-      bytes: objectBytes,
-      parser,
-      sourceMap: map ? JSON.stringify(map) : undefined,
-    };
+    try {
+      const { code: object, map } = await evadeCensor(source, {
+        sourceType: babelSourceType,
+        sourceMap: priorSourceMap,
+        sourceUrl: new URL(specifier, location).href,
+        elideComments,
+      });
+      const objectBytes = textEncoder.encode(object);
+      return {
+        bytes: objectBytes,
+        parser,
+        sourceMap: map ? JSON.stringify(map) : undefined,
+      };
+    } finally {
+      endTransformModule?.();
+    }
   };
 
   /** @type {ParserForLanguageLike} */
@@ -196,16 +213,24 @@ export const makeBundlingKit = (
       packageLocation,
       options = undefined,
     ) {
+      const endTypeErasure = profiler?.startSpan('bundleSource.typeErase', {
+        parser: 'mts',
+        specifier,
+      });
       const sourceText = textDecoder.decode(sourceBytes);
       const objectText = tsBlankSpace(sourceText);
       const objectBytes = textEncoder.encode(objectText);
-      return parserForLanguage.mjs.parse(
-        objectBytes,
-        specifier,
-        moduleLocation,
-        packageLocation,
-        options,
-      );
+      try {
+        return parserForLanguage.mjs.parse(
+          objectBytes,
+          specifier,
+          moduleLocation,
+          packageLocation,
+          options,
+        );
+      } finally {
+        endTypeErasure?.();
+      }
     },
     heuristicImports: false,
     synchronous: false,
@@ -219,16 +244,24 @@ export const makeBundlingKit = (
       packageLocation,
       options = undefined,
     ) {
+      const endTypeErasure = profiler?.startSpan('bundleSource.typeErase', {
+        parser: 'cts',
+        specifier,
+      });
       const sourceText = textDecoder.decode(sourceBytes);
       const objectText = tsBlankSpace(sourceText);
       const objectBytes = textEncoder.encode(objectText);
-      return parserForLanguage.cjs.parse(
-        objectBytes,
-        specifier,
-        moduleLocation,
-        packageLocation,
-        options,
-      );
+      try {
+        return parserForLanguage.cjs.parse(
+          objectBytes,
+          specifier,
+          moduleLocation,
+          packageLocation,
+          options,
+        );
+      } finally {
+        endTypeErasure?.();
+      }
     },
     heuristicImports: true,
     synchronous: false,
