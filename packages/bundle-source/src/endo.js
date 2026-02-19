@@ -39,8 +39,8 @@ export const makeBundlingKit = (
 
   /** @type {Set<Promise<void>>} */
   const sourceMapJobs = new Set();
-  /** @type {(sourceMap: string, sourceDescriptor: SourceMapDescriptor) => Promise<void>} */
-  let writeSourceMap = async () => {};
+  /** @type {((sourceMap: string, sourceDescriptor: SourceMapDescriptor) => Promise<void>) | undefined} */
+  let writeSourceMap;
   if (cacheSourceMaps) {
     if (!computeSha512) {
       throw new Error('computeSha512 is required when cacheSourceMaps is true');
@@ -153,21 +153,28 @@ export const makeBundlingKit = (
     const source = textDecoder.decode(sourceBytes);
     const priorSourceMap =
       typeof sourceMap === 'string' ? sourceMap : undefined;
+    /** @type {number | undefined} */
+    let outputBytes;
     try {
       const { code: object, map } = await evadeCensor(source, {
         sourceType: babelSourceType,
         sourceMap: priorSourceMap,
         sourceUrl: new URL(specifier, location).href,
         elideComments,
+        profileStartSpan: profiler?.startSpan,
       });
       const objectBytes = textEncoder.encode(object);
+      outputBytes = objectBytes.length;
       return {
         bytes: objectBytes,
         parser,
         sourceMap: map ? JSON.stringify(map) : undefined,
       };
     } finally {
-      endTransformModule?.();
+      endTransformModule?.({
+        inputBytes: sourceBytes.length,
+        outputBytes,
+      });
     }
   };
 
@@ -287,9 +294,11 @@ export const makeBundlingKit = (
   parserForLanguage = { ...parserForLanguage, mts: mtsParser, cts: ctsParser };
 
   /** @type {BundlingKit['sourceMapHook']} */
-  const sourceMapHook = (sourceMap, sourceDescriptor) => {
-    sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
-  };
+  const sourceMapHook =
+    writeSourceMap &&
+    ((sourceMap, sourceDescriptor) => {
+      sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
+    });
 
   const workspaceLanguageForExtension = { mts: 'mts', cts: 'cts' };
   const workspaceModuleLanguageForExtension = { ts: 'mts' };

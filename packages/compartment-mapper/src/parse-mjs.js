@@ -14,14 +14,20 @@ export const parseMjs = (
   _packageLocation,
   options = {},
 ) => {
-  const { sourceMap, sourceMapHook, archiveOnly = false } = options;
+  const { sourceMap, sourceMapHook, archiveOnly = false, profileStartSpan } =
+    options;
   const source = textDecoder.decode(bytes);
+  const endModuleSource = profileStartSpan?.(
+    'compartmentMapper.parseMjs.moduleSource',
+  );
   const record = new ModuleSource(source, {
     sourceUrl: archiveOnly ? undefined : sourceUrl,
     sourceMap,
     sourceMapUrl: sourceUrl,
     sourceMapHook,
+    profileStartSpan,
   });
+  endModuleSource?.();
   return {
     parser: 'mjs',
     bytes,

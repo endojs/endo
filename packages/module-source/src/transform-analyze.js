@@ -74,7 +74,14 @@ export const makeModuleSourceAnalyzer = () =>
    */
   function createStaticRecord(
     moduleSource,
-    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook, allowHidden } = {},
+    {
+      sourceUrl,
+      sourceMapUrl,
+      sourceMap,
+      sourceMapHook,
+      allowHidden,
+      profileStartSpan,
+    } = {},
   ) {
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
@@ -85,18 +92,33 @@ export const makeModuleSourceAnalyzer = () =>
 
     let scriptSource;
     try {
-      const ast = parseBabel(moduleSource, {
+      const endParse = profileStartSpan?.('moduleSource.babel.parse', {
         sourceType: 'module',
-        tokens: true,
-        createParenthesizedExpressions: true,
       });
+      let ast;
+      try {
+        ast = parseBabel(moduleSource, {
+          sourceType: 'module',
+          tokens: true,
+          createParenthesizedExpressions: true,
+        });
+      } finally {
+        endParse?.();
+      }
 
+      const endAnalyzeTraverse = profileStartSpan?.(
+        'moduleSource.babel.traverseAnalyze',
+      );
       traverseBabel(
         ast,
         ctx.analyzePass.visitor,
         undefined,
         undefined,
         makeHubParentPath(ast),
+      );
+      endAnalyzeTraverse?.();
+      const endTransformTraverse = profileStartSpan?.(
+        'moduleSource.babel.traverseTransform',
       );
       traverseBabel(
         ast,
@@ -105,7 +127,11 @@ export const makeModuleSourceAnalyzer = () =>
         undefined,
         makeHubParentPath(ast),
       );
+      endTransformTraverse?.();
 
+      const endGenerate = profileStartSpan?.('moduleSource.babel.generate', {
+        sourceMaps: !!sourceMapHook,
+      });
       const { code: transformedSource, map: transformedSourceMap } =
         generateBabel(
           ast,
@@ -121,6 +147,7 @@ export const makeModuleSourceAnalyzer = () =>
           },
           moduleSource,
         );
+      endGenerate?.();
 
       if (sourceMapHook && transformedSourceMap) {
         sourceMapHook(transformedSourceMap, {
