@@ -102,6 +102,7 @@ export async function bundleZipBase64(
         dev,
         conditions: new Set(conditions),
         commonDependencies,
+        profileStartSpan: profiler.startSpan,
         workspaceLanguageForExtension,
         workspaceCommonjsLanguageForExtension,
         workspaceModuleLanguageForExtension,
@@ -122,6 +123,7 @@ export async function bundleZipBase64(
           moduleTransforms,
           sourceMapHook,
           importHook: importHookForArchive,
+          profileStartSpan: profiler.startSpan,
         },
       ));
     } finally {
