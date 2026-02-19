@@ -6,6 +6,183 @@ export type ModuleFormat =
   | 'nestedEvaluate'
   | 'getExport';
 
+export type Logger = (...args: unknown[]) => void;
+export type ComputeSha512 = (bytes: string | Uint8Array) => string;
+
+export interface SharedPowers {
+  computeSha512?: ComputeSha512 | undefined;
+  pathResolve?: (typeof import('path'))['resolve'] | undefined;
+  userInfo?: (typeof import('os'))['userInfo'] | undefined;
+  env?: Record<string, string | undefined> | undefined;
+  platform?: string | undefined;
+}
+
+export interface CacheOpts {
+  encodeBundle: (bundle: unknown) => string;
+  toBundleName: (targetName: string) => string;
+  toBundleMeta: (targetName: string) => string;
+}
+
+export interface BundleCacheOperationOptions {
+  noTransforms?: boolean | undefined;
+  elideComments?: boolean | undefined;
+  format?: ModuleFormat | undefined;
+  conditions?: string[] | undefined;
+}
+
+export interface BundleCacheOptions extends BundleCacheOperationOptions {
+  cacheOpts?: CacheOpts | undefined;
+  log?: Logger | undefined;
+}
+
+export interface BundleMetaModuleSource {
+  relative: string;
+  absolute: string;
+}
+
+export interface BundleMetaContent {
+  relativePath: string;
+  mtime: string;
+  size: number;
+}
+
+export interface BundleMeta {
+  bundleFileName: string;
+  bundleTime: string;
+  bundleSize: number;
+  noTransforms: boolean;
+  elideComments: boolean;
+  format: ModuleFormat;
+  conditions: string[];
+  moduleSource: BundleMetaModuleSource;
+  contents: BundleMetaContent[];
+}
+
+export interface BundleCache {
+  add: (
+    rootPath: string,
+    targetName: string,
+    log?: Logger | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<BundleMeta>;
+  validate: (
+    targetName: string,
+    rootOpt: unknown,
+    log?: Logger | undefined,
+    meta?: BundleMeta | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<BundleMeta>;
+  validateOrAdd: (
+    rootPath: string,
+    targetName: string,
+    log?: Logger | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<BundleMeta>;
+  load: (
+    rootPath: string,
+    targetName?: string | undefined,
+    log?: Logger | undefined,
+    options?: BundleCacheOperationOptions | undefined,
+  ) => Promise<unknown>;
+}
+
+export interface FileReader {
+  toString: () => string;
+  readText: () => Promise<string>;
+  maybeReadText: () => Promise<string | undefined>;
+  neighbor: (ref: string) => FileReader;
+  stat: () => Promise<import('fs').Stats>;
+  absolute: () => string;
+  relative: (there: string) => string;
+  exists: () => Promise<boolean>;
+}
+
+export interface FileWriter {
+  toString: () => string;
+  writeText: (
+    txt: string | Uint8Array,
+    opts?: Parameters<typeof import('fs/promises').writeFile>[2],
+  ) => ReturnType<typeof import('fs/promises').writeFile>;
+  readOnly: () => FileReader;
+  neighbor: (ref: string) => FileWriter;
+  mkdir: (
+    opts?: Parameters<typeof import('fs/promises').mkdir>[1],
+  ) => ReturnType<typeof import('fs/promises').mkdir>;
+  rm: (
+    opts?: Parameters<typeof import('fs/promises').rm>[1],
+  ) => ReturnType<typeof import('fs/promises').rm>;
+  rename: (newName: string) => Promise<void>;
+}
+
+export interface AtomicFileWriter extends Omit<FileWriter, 'neighbor'> {
+  neighbor: (ref: string) => AtomicFileWriter;
+  atomicWriteText: (
+    txt: string | Uint8Array,
+    opts?: Parameters<typeof import('fs/promises').writeFile>[2],
+  ) => Promise<import('fs').Stats>;
+}
+
+export type BundleScriptModuleFormat =
+  | 'endoScript'
+  | 'nestedEvaluate'
+  | 'getExport';
+
+export interface BundleScriptOptions {
+  dev?: boolean | undefined;
+  cacheSourceMaps?: boolean | undefined;
+  noTransforms?: boolean | undefined;
+  elideComments?: boolean | undefined;
+  conditions?: string[] | undefined;
+  commonDependencies?: Record<string, string> | undefined;
+}
+
+export interface BundleZipBase64Options extends BundleScriptOptions {
+  importHook?:
+    | import('@endo/compartment-mapper').ExitModuleImportHook
+    | undefined;
+}
+
+export type ParserForLanguageLike =
+  import('@endo/compartment-mapper/node-powers.js').ParserForLanguage;
+
+export type ModuleTransformsLike =
+  import('@endo/compartment-mapper/node-powers.js').ModuleTransforms;
+
+export interface SourceMapDescriptor {
+  sha512: string;
+  compartment: string;
+  module: string;
+}
+
+export interface BundlingKitIO {
+  pathResolve: (typeof import('path'))['resolve'];
+  userInfo: (typeof import('os'))['userInfo'];
+  computeSha512?: ComputeSha512 | undefined;
+  platform: string;
+  env: Record<string, string | undefined>;
+}
+
+export interface BundlingKitOptions {
+  cacheSourceMaps: boolean;
+  elideComments: boolean;
+  noTransforms: boolean;
+  commonDependencies?: Record<string, string> | undefined;
+  dev?: boolean | undefined;
+}
+
+export interface BundlingKit {
+  sourceMapHook: (
+    sourceMap: string,
+    sourceDescriptor: SourceMapDescriptor,
+  ) => void;
+  sourceMapJobs: Set<Promise<void>>;
+  moduleTransforms: ModuleTransformsLike;
+  parserForLanguage: ParserForLanguageLike;
+  workspaceLanguageForExtension: Record<string, string>;
+  workspaceModuleLanguageForExtension: Record<string, string>;
+  workspaceCommonjsLanguageForExtension: Record<string, string>;
+}
+
 export type BundleSource = BundleSourceSimple &
   BundleSourceWithFormat &
   BundleSourceWithOptions &
