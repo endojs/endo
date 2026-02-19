@@ -109,8 +109,9 @@ export async function bundleScript(
           moduleFormat === 'nestedEvaluate' ||
           moduleFormat === 'getExport',
         conditions: new Set(conditions),
-        commonDependencies,
-        parserForLanguage: parserForLanguageForFunctor,
+      commonDependencies,
+      profileStartSpan: profiler.startSpan,
+      parserForLanguage: parserForLanguageForFunctor,
         workspaceLanguageForExtension,
         workspaceCommonjsLanguageForExtension,
         workspaceModuleLanguageForExtension,
