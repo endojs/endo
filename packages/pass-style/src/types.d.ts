@@ -116,11 +116,11 @@ export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayInterface<PC, E>
   | CopyRecordInterface<PC, E>
   | CopyTaggedInterface<PC, E>;
-interface CopyArrayInterface<PC extends PassableCap, E extends Error>
+export interface CopyArrayInterface<PC extends PassableCap, E extends Error>
   extends CopyArray<Passable<PC, E>> {}
-interface CopyRecordInterface<PC extends PassableCap, E extends Error>
+export interface CopyRecordInterface<PC extends PassableCap, E extends Error>
   extends CopyRecord<Passable<PC, E>> {}
-interface CopyTaggedInterface<PC extends PassableCap, E extends Error>
+export interface CopyTaggedInterface<PC extends PassableCap, E extends Error>
   extends CopyTagged<string, Passable<PC, E>> {}
 
 export type PassStyleOf = {
@@ -134,7 +134,7 @@ export type PassStyleOf = {
   (p: Promise<any>): 'promise';
   (p: Error): 'error';
   (p: CopyTagged): 'tagged';
-  (p: any[]): 'copyArray';
+  (p: readonly any[]): 'copyArray';
   (p: Iterable<any>): 'remotable';
   (p: Iterator<any, any, undefined>): 'remotable';
   <T extends PassStyled<PassStyleMarker, any>>(p: T): ExtractStyle<T>;
@@ -200,9 +200,14 @@ export type PassableCap =
   | RemotableBrand<any, any>;
 
 /**
+ * Types you would get from Awaited<PassableCap>
+ */
+export type AwaitedPassableCap = RemotableObject | RemotableBrand<any, any>;
+
+/**
  * A Passable sequence of Passable values.
  */
-export type CopyArray<T extends Passable = any> = Array<T>;
+export type CopyArray<T extends Passable = any> = ReadonlyArray<T>;
 
 /**
  * A hardened immutable ArrayBuffer.
