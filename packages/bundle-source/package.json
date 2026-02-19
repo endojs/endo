@@ -14,6 +14,7 @@
   "scripts": {
     "build": "exit 0",
     "test": "ava",
+    "bundle:agoric-source-specs": "node tools/bundle-agoric-source-specs.js",
     "trace:merge": "node tools/trace-merge.js",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
