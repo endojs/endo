@@ -2,7 +2,7 @@ import type { Passable } from '@endo/pass-style';
 import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
-import type { PassableBytesReader } from '@endo/exo-stream';
+import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -598,7 +598,9 @@ export type RequestFn = (
 
 export interface EndoReadable {
   sha512(): string;
-  streamBase64(): PassableBytesReader;
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
@@ -801,7 +803,12 @@ export type DaemonicPersistencePowers = {
   provideRootNonce: () => Promise<RootNonceDescriptor>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
-    fetch: (sha512: string) => EndoReadable;
+    fetch: (sha512: string) => {
+      sha512: () => string;
+      makeFileReader: () => Reader<Uint8Array>;
+      text: () => Promise<string>;
+      json: () => Promise<unknown>;
+    };
   };
   readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
   writeFormula: (
