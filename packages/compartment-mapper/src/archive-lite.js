@@ -70,26 +70,53 @@ const { assign, create, freeze, keys } = Object;
 /**
  * @param {ArchiveWriter} archive
  * @param {Sources} sources
+ * @param {(name: string, args?: Record<string, unknown>) => (args?: Record<string, unknown>) => void} [profileStartSpan]
  */
-const addSourcesToArchive = async (archive, sources) => {
-  await null;
+const addSourcesToArchive = async (archive, sources, profileStartSpan = undefined) => {
   let moduleCount = 0;
   let byteCount = 0;
-  for (const compartment of keys(sources).sort()) {
+  const endSortCompartments = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.sources.sortCompartments',
+  );
+  const sortedCompartments = keys(sources).sort();
+  endSortCompartments?.({ compartmentCount: sortedCompartments.length });
+
+  let asyncWriteCount = 0;
+  const endWriteModules = profileStartSpan?.(
+    'compartmentMapper.archiveLite.writeZip.sources.writeModules',
+  );
+  for (const compartment of sortedCompartments) {
     const modules = sources[compartment];
-    for (const specifier of keys(modules).sort()) {
+    const sortedSpecifiers = keys(modules).sort();
+    for (const specifier of sortedSpecifiers) {
       if ('location' in modules[specifier]) {
         const { bytes, location } = modules[specifier];
         const path = `${compartment}/${location}`;
         if (bytes !== undefined) {
-          // eslint-disable-next-line no-await-in-loop
-          await archive.write(path, bytes);
+          const maybeWrite = archive.write(path, bytes);
+          if (
+            maybeWrite &&
+            typeof maybeWrite === 'object' &&
+            'then' in maybeWrite &&
+            typeof maybeWrite.then === 'function'
+          ) {
+            asyncWriteCount += 1;
+            // Preserve deterministic write order for truly async writers.
+            // eslint-disable-next-line no-await-in-loop
+            await maybeWrite;
+          }
           moduleCount += 1;
           byteCount += bytes.length;
         }
       }
     }
   }
+  endWriteModules?.({
+    moduleCount,
+    byteCount,
+    asyncWriteCount,
+    syncWriteCount: moduleCount - asyncWriteCount,
+  });
   return { moduleCount, byteCount };
 };
 
@@ -351,7 +378,7 @@ export const makeAndHashArchiveFromMap = async (
   const endWriteZipCreate = profileStartSpan?.(
     'compartmentMapper.archiveLite.writeZip.create',
   );
-  const archive = writeZip();
+  const archive = writeZip({ profileStartSpan });
   endWriteZipCreate?.();
   const endWriteCompartmentMap = profileStartSpan?.(
     'compartmentMapper.archiveLite.writeZip.compartmentMap',
@@ -361,7 +388,11 @@ export const makeAndHashArchiveFromMap = async (
   const endAddSources = profileStartSpan?.(
     'compartmentMapper.archiveLite.writeZip.sources',
   );
-  const { moduleCount, byteCount } = await addSourcesToArchive(archive, sources);
+  const { moduleCount, byteCount } = await addSourcesToArchive(
+    archive,
+    sources,
+    profileStartSpan,
+  );
   endAddSources?.({ moduleCount, byteCount });
   const endZipSnapshot = profileStartSpan?.(
     'compartmentMapper.archiveLite.writeZip.snapshot',

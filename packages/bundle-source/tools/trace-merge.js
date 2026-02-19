@@ -23,6 +23,36 @@ Examples:
   node tools/trace-merge.js --out-markdown /tmp/summary.md /tmp/bs-profiles /tmp/other.trace.json
 `;
 
+const FOCUS_SPANS = [
+  'evasiveTransform.fastPath.scan',
+  'evasiveTransform.fastPath.hit',
+  'evasiveTransform.fastPath.miss',
+  'bundleSource.readCache.hit',
+  'bundleSource.readCache.miss',
+  'bundleSource.readCache.pending',
+];
+
+/**
+ * @param {Array<Record<string, unknown>>} events
+ * @param {string} spanName
+ * @param {string} argName
+ * @returns {number}
+ */
+const sumNumericArgBySpan = (events, spanName, argName) => {
+  let total = 0;
+  for (const event of events) {
+    if (event.ph !== 'X' || event.name !== spanName) {
+      continue;
+    }
+    const args = /** @type {Record<string, unknown> | undefined} */ (event.args);
+    const value = args && args[argName];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      total += value;
+    }
+  }
+  return total;
+};
+
 /**
  * @param {string} value
  * @returns {number}
@@ -193,9 +223,31 @@ const summarize = (events, top) => {
 
 /**
  * @param {ReturnType<typeof summarize>} rows
+ * @returns {Map<string, ReturnType<typeof summarize>[number]>}
+ */
+const rowsByName = rows => new Map(rows.map(row => [row.name, row]));
+
+/**
+ * @param {string} name
+ */
+const zeroRow = name => ({
+  name,
+  count: 0,
+  totalUs: 0,
+  criticalPathUs: 0,
+  overlapFactor: 0,
+  avgUs: 0,
+  minUs: 0,
+  maxUs: 0,
+  p50Us: 0,
+  p95Us: 0,
+});
+
+/**
+ * @param {ReturnType<typeof summarize>} rows
  * @returns {string}
  */
-const summarizeMarkdown = rows => {
+const summarizeMarkdown = (rows, focusRows = []) => {
   const header = [
     '| Span | Count | Total ms | Critical ms | Overlap x | Avg ms | P50 ms | P95 ms | Max ms |',
     '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
@@ -213,7 +265,99 @@ const summarizeMarkdown = rows => {
       `${microsToMsText(row.maxUs)} |`,
     ].join(' | '),
   );
-  return `${header.join('\n')}\n${body.join('\n')}\n`;
+  const main = `${header.join('\n')}\n${body.join('\n')}\n`;
+  if (focusRows.length === 0) {
+    return main;
+  }
+  const focusBody = focusRows.map(row =>
+    [
+      `| ${row.name}`,
+      `${row.count}`,
+      `${microsToMsText(row.totalUs)}`,
+      `${microsToMsText(row.criticalPathUs)}`,
+      `${row.overlapFactor.toFixed(2)}`,
+      `${microsToMsText(row.avgUs)}`,
+      `${microsToMsText(row.p50Us)}`,
+      `${microsToMsText(row.p95Us)}`,
+      `${microsToMsText(row.maxUs)} |`,
+    ].join(' | '),
+  );
+  return `${main}\nFocus spans:\n\n${header.join('\n')}\n${focusBody.join('\n')}\n`;
+};
+
+/**
+ * @param {ReturnType<typeof summarize>} allRows
+ * @param {ReturnType<typeof summarize>} focusSpans
+ * @param {Array<Record<string, unknown>>} events
+ */
+const makeDerivedMetrics = (allRows, focusSpans, events) => {
+  const allByName = rowsByName(allRows);
+  const focusByName = rowsByName(focusSpans);
+  const bundlesProcessed = allByName.get('bundleSource.total')?.count || 0;
+  const modulesParsed =
+    allByName.get('compartmentMapper.importHook.parseModule')?.count || 0;
+  const modulesTransformed = allByName.get('bundleSource.transformModule')?.count || 0;
+  const fastPathHitCount =
+    focusByName.get('evasiveTransform.fastPath.hit')?.count || 0;
+  const fastPathMissCount =
+    focusByName.get('evasiveTransform.fastPath.miss')?.count || 0;
+  const fastPathTotal = fastPathHitCount + fastPathMissCount;
+  const fastPathHitRate = fastPathTotal > 0 ? fastPathHitCount / fastPathTotal : 0;
+  const readCacheHitCount = focusByName.get('bundleSource.readCache.hit')?.count || 0;
+  const readCacheMissCount =
+    focusByName.get('bundleSource.readCache.miss')?.count || 0;
+  const readCachePendingCount =
+    focusByName.get('bundleSource.readCache.pending')?.count || 0;
+  const readCacheLookups = readCacheHitCount + readCacheMissCount;
+  const readCacheHitRate =
+    readCacheLookups > 0 ? readCacheHitCount / readCacheLookups : 0;
+
+  const bytesRead = sumNumericArgBySpan(
+    events,
+    'compartmentMapper.importHook.readModuleBytes',
+    'bytes',
+  );
+  const bytesTransformed = sumNumericArgBySpan(
+    events,
+    'bundleSource.transformModule',
+    'outputBytes',
+  );
+  const bytesArchived = sumNumericArgBySpan(
+    events,
+    'compartmentMapper.archiveLite.writeZip.snapshot',
+    'bytes',
+  );
+
+  const totalBundleMs = (allByName.get('bundleSource.total')?.totalUs || 0) / 1000;
+  const totalParseMs =
+    (allByName.get('compartmentMapper.importHook.parseModule')?.totalUs || 0) /
+    1000;
+  const totalTransformMs =
+    (allByName.get('bundleSource.transformModule')?.totalUs || 0) / 1000;
+  const totalReadUs =
+    allByName.get('compartmentMapper.importHook.readModuleBytes')?.totalUs || 0;
+  const readKB = bytesRead / 1024;
+
+  return {
+    bundlesProcessed,
+    modulesParsed,
+    modulesTransformed,
+    fastPathHitCount,
+    fastPathMissCount,
+    fastPathHitRate,
+    readCacheHitCount,
+    readCacheMissCount,
+    readCachePendingCount,
+    readCacheHitRate,
+    bytesRead,
+    bytesTransformed,
+    bytesArchived,
+    msPerBundle: bundlesProcessed > 0 ? totalBundleMs / bundlesProcessed : 0,
+    msPerModuleParsed: modulesParsed > 0 ? totalParseMs / modulesParsed : 0,
+    msPerModuleTransformed:
+      modulesTransformed > 0 ? totalTransformMs / modulesTransformed : 0,
+    usPerKBRead: readKB > 0 ? totalReadUs / readKB : 0,
+  };
 };
 
 const main = async () => {
@@ -276,12 +420,20 @@ const main = async () => {
     }
   }
 
-  const summaryTop = summarize(mergedEvents, top);
+  const allRows = summarize(mergedEvents, Number.MAX_SAFE_INTEGER);
+  const summaryTop = allRows.slice(0, top);
+  const focusLookup = rowsByName(allRows);
+  const focusSpans = FOCUS_SPANS.map(
+    name => focusLookup.get(name) || zeroRow(name),
+  );
+  const derivedMetrics = makeDerivedMetrics(allRows, focusSpans, mergedEvents);
   const summary = {
     generatedAt: new Date().toISOString(),
     traceFileCount: traceFiles.length,
     eventCount: mergedEvents.length,
     topSpansByTotalDuration: summaryTop,
+    focusSpans,
+    derivedMetrics,
     traceFiles,
   };
 
@@ -290,7 +442,7 @@ const main = async () => {
     JSON.stringify({ traceEvents: mergedEvents, displayTimeUnit: 'ms' }, null, 2),
   );
   await fs.writeFile(outSummary, JSON.stringify(summary, null, 2));
-  await fs.writeFile(outMarkdown, summarizeMarkdown(summaryTop));
+  await fs.writeFile(outMarkdown, summarizeMarkdown(summaryTop, focusSpans));
 
   process.stdout.write(`Merged ${traceFiles.length} trace files\n`);
   process.stdout.write(`Wrote merged trace: ${outTrace}\n`);
