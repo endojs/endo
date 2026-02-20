@@ -224,6 +224,31 @@ const tools = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'runCommand',
+      description:
+        'Execute a shell command in the working directory. ' +
+        'Returns stdout on success. Use for running npm scripts, git commands, ' +
+        'linters, tests, and other CLI tools. Commands are run with a timeout.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: {
+            type: 'string',
+            description: 'The shell command to execute (e.g., "npm test", "git status").',
+          },
+          timeout: {
+            type: 'number',
+            description:
+              'Maximum execution time in milliseconds. Defaults to 30000 (30 seconds).',
+          },
+        },
+        required: ['command'],
+      },
+    },
+  },
 ];
 harden(tools);
 
@@ -399,6 +424,38 @@ export const executeTool = async (name, args, host, cwd) => {
       }
       await E(host).remove(petName);
       return `Removed "${petName}"`;
+    }
+
+    case 'runCommand': {
+      const { command, timeout = 30_000 } =
+        /** @type {{ command: string, timeout?: number }} */ (args);
+      if (!command) {
+        throw new Error('command is required');
+      }
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      try {
+        const { stdout, stderr } = await execAsync(command, {
+          cwd,
+          timeout,
+          maxBuffer: 1024 * 1024, // 1MB
+        });
+        const output = stdout + (stderr ? `\n[stderr]:\n${stderr}` : '');
+        if (output.length > 50_000) {
+          return `${output.slice(0, 50_000)}\n\n... (truncated, ${output.length} chars total)`;
+        }
+        return output || '(no output)';
+      } catch (err) {
+        const error =
+          /** @type {Error & { stdout?: string, stderr?: string, code?: number }} */ (
+            err
+          );
+        throw new Error(
+          `Command failed (exit ${error.code ?? 'unknown'}):\n${error.stderr || error.message}`,
+        );
+      }
     }
 
     default:
