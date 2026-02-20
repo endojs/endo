@@ -864,16 +864,16 @@ test('guest facet receives a message for host', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
-  const iteratorRef = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
   const numberP = E(guest).request('HOST', 'a number', 'number');
-  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message0 } = await messagesIterator.next();
   t.is(message0.number, 0n);
   await E(host).resolve(message0.number, 'ten1');
   await numberP;
 
   await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
 
-  const { value: message1 } = await E(iteratorRef).next();
+  const { value: message1 } = await messagesIterator.next();
   t.is(message1.number, 1n);
   await E(host).adopt(message1.number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
@@ -911,13 +911,13 @@ test('mailboxes persist messages across restart', async t => {
   const { cancelled, config, host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const iteratorRef = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
 
   E.sendOnly(guest).request('HOST', 'first request', 'response0');
   E.sendOnly(guest).request('HOST', 'second request', 'response1');
 
-  const { value: message0 } = await E(iteratorRef).next();
-  const { value: message1 } = await E(iteratorRef).next();
+  const { value: message0 } = await messagesIterator.next();
+  const { value: message1 } = await messagesIterator.next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
 
@@ -957,11 +957,11 @@ test('rehydrated requests can be resolved after restart', async t => {
   await E(host).storeValue(10, 'ten');
 
   const guest = E(host).provideGuest('guest');
-  const guestMessages = E(guest).followMessages();
+  const guestMessagesIterator = iterateReader(E(guest).followMessages());
 
   E.sendOnly(guest).request('HOST', 'need a number');
 
-  const { value: guestMessage } = await E(guestMessages).next();
+  const { value: guestMessage } = await guestMessagesIterator.next();
   const { promiseId: promiseIdP } = E.get(guestMessage);
   const promiseId = await promiseIdP;
   await E(host).write(['pending'], promiseId);
@@ -1404,7 +1404,7 @@ test('indirect cancellation via worker', async t => {
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 test('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
-  const messages = E(host).followMessages();
+  const messagesIterator = iterateReader(E(host).followMessages());
 
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1417,7 +1417,7 @@ test('indirect cancellation via caplet', async t => {
   const doublerLocation = url.pathToFileURL(doublerPath).href;
   await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
   {
-    const { value: message } = await E(messages).next();
+    const { value: message } = await messagesIterator.next();
     t.is(message.type, 'request');
     t.is(message.description, 'a counter, suitable for doubling');
     await E(host).resolve(message.number, 'counter');
