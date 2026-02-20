@@ -418,7 +418,9 @@ test('persist spawn and evaluation', async t => {
 test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef), {
     message: 'Invalid name path',
   });
@@ -451,7 +453,9 @@ test('store blob in subdirectory', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     await E(host).makeDirectory('subdir');
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, [
       'subdir',
       'hello-text',
@@ -471,7 +475,9 @@ test('store blob in subdirectory', async t => {
 test('store blob requires a name', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef, []), {
     message: 'Invalid name path',
   });
@@ -1452,7 +1458,7 @@ test('cancel because of requested capability', async t => {
   E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
-  const { value: message } = await E(messages).next();
+  const { value: message } = await messagesIterator.next();
   t.is(message.type, 'request');
   await E(host).resolve(message.number, 'zero');
 
@@ -1712,7 +1718,9 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */

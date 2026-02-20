@@ -299,7 +299,8 @@ export const makeDirectoryMaker = ({
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
         readerFromIterator(directory.followLocatorNameChanges(locator)),
-      followNameChanges: () => readerFromIterator(directory.followNameChanges()),
+      followNameChanges: () =>
+        readerFromIterator(directory.followNameChanges()),
     });
   };
 
