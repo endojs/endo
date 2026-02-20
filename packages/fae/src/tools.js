@@ -4,20 +4,6 @@
 
 import { E } from '@endo/eventual-send';
 
-import {
-  makeEvaluateTool,
-  makeReadFileTool,
-  makeWriteFileTool,
-  makeEditFileTool,
-  makeListDirTool,
-  makeRunCommandTool,
-  makeListPetnamesTool,
-  makeLookupTool,
-  makeStoreTool,
-  makeRemoveTool,
-  makeAdoptToolTool,
-} from './tool-makers.js';
-
 /**
  * @typedef {import('./tool-makers.js').ToolSchema} ToolSchema
  * @typedef {import('./tool-makers.js').FaeTool} FaeTool
@@ -28,34 +14,6 @@ import {
  * @property {ToolSchema[]} schemas - OpenAI function-calling schemas for the LLM
  * @property {Map<string, FaeTool | object>} toolMap - name → tool object
  */
-
-/**
- * Create all built-in local tools. Local tools run in the fae process and
- * have access to the filesystem and host far reference.
- *
- * @param {import('@endo/eventual-send').ERef<object>} host
- * @param {string} cwd
- * @returns {Map<string, FaeTool>}
- */
-export const installBuiltinTools = (host, cwd) => {
-  /** @type {Map<string, FaeTool>} */
-  const tools = new Map();
-
-  tools.set('evaluate', makeEvaluateTool(host));
-  tools.set('readFile', makeReadFileTool(cwd));
-  tools.set('writeFile', makeWriteFileTool(cwd));
-  tools.set('editFile', makeEditFileTool(cwd));
-  tools.set('listDir', makeListDirTool(cwd));
-  tools.set('runCommand', makeRunCommandTool(cwd));
-  tools.set('list', makeListPetnamesTool(host));
-  tools.set('lookup', makeLookupTool(host));
-  tools.set('store', makeStoreTool(host));
-  tools.set('remove', makeRemoveTool(host));
-  tools.set('adoptTool', makeAdoptToolTool(host));
-
-  return tools;
-};
-harden(installBuiltinTools);
 
 /**
  * Discover all available tools by merging local built-in tools with any
@@ -81,21 +39,25 @@ export const discoverTools = async (host, localTools) => {
   try {
     const names = /** @type {string[]} */ (await E(host).list('tools'));
     for (const name of names) {
-      if (!toolMap.has(name)) {
-        try {
-          const tool = await E(host).lookup(['tools', name]);
-          const toolSchema = /** @type {ToolSchema} */ (
-            await E(tool).schema()
-          );
+      try {
+        const tool = await E(host).lookup(['tools', name]);
+        const toolSchema = /** @type {ToolSchema} */ (
+          await E(tool).schema()
+        );
+        if (!toolMap.has(name)) {
           toolMap.set(name, /** @type {object} */ (tool));
           schemas.push(toolSchema);
-        } catch {
-          // Entry does not conform to FaeTool interface; skip.
         }
+      } catch (/** @type {any} */ err) {
+        console.warn(
+          `[fae] tools/${name}: not a valid FaeTool: ${err.message || err}`,
+        );
       }
     }
-  } catch {
-    // tools/ directory does not exist yet; no daemon tools to discover.
+  } catch (/** @type {any} */ err) {
+    console.warn(
+      `[fae] Could not list tools/ directory: ${err.message || err}`,
+    );
   }
 
   return harden({ schemas, toolMap });
@@ -116,7 +78,10 @@ harden(discoverTools);
 export const executeTool = async (name, args, toolMap) => {
   const tool = toolMap.get(name);
   if (!tool) {
-    throw new Error(`Unknown tool: ${name}`);
+    const available = [...toolMap.keys()].join(', ');
+    throw new Error(
+      `Unknown tool: "${name}". Available tools: ${available}`,
+    );
   }
   const result = await E(tool).execute(args);
   return /** @type {string} */ (result);

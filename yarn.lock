@@ -760,11 +760,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/fae@workspace:packages/fae"
   dependencies:
+    "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lal": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/where": "workspace:^"
     eslint: "catalog:dev"

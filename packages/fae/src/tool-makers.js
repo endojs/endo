@@ -610,7 +610,166 @@ harden(makeRemoveTool);
 /**
  * Meta-tool for adopting a capability from a mail message as a tool.
  * Adopted capabilities are placed in the tools/ directory and become
- * available to the agent on the next turn.
+ * immediately available.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} host
+ * @returns {FaeTool}
+ */
+/**
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeSendTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'send',
+      description:
+        'Send a message to another agent or the HOST. ' +
+        'Strings are text content, edgeNames attach capabilities from your directory, ' +
+        'petNames are the local names for those capabilities.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recipient: {
+            type: 'string',
+            description:
+              'Who to send to (e.g., "HOST", or a petname for an agent).',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Text parts of the message.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Labels for attached capabilities (as seen by the recipient).',
+          },
+          petNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Your local petnames for the capabilities to attach.',
+          },
+        },
+        required: ['recipient', 'strings'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const {
+        recipient,
+        strings = [],
+        edgeNames = [],
+        petNames = [],
+      } =
+        /** @type {{ recipient: string, strings?: string[], edgeNames?: string[], petNames?: string[] }} */ (
+          args
+        );
+      if (!recipient) {
+        throw new Error('recipient is required');
+      }
+      await E(powers).send(recipient, strings, edgeNames, petNames);
+      return `Sent message to "${recipient}"`;
+    },
+    help() {
+      return 'Send a message to another agent or the HOST.';
+    },
+  });
+};
+harden(makeSendTool);
+
+/**
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeListMessagesTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'listMessages',
+      description:
+        'List messages in your inbox. Returns an array of message summaries ' +
+        'with number, from, and edge names.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(_args) {
+      return E(powers).listMessages();
+    },
+    help() {
+      return 'List messages in your inbox.';
+    },
+  });
+};
+harden(makeListMessagesTool);
+
+/**
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeDismissTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'dismiss',
+      description: 'Dismiss (acknowledge) a message from your inbox by number.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'integer',
+            description: 'The message number to dismiss (integer).',
+          },
+        },
+        required: ['messageNumber'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { messageNumber } =
+        /** @type {{ messageNumber: number }} */ (args);
+      if (messageNumber === undefined) {
+        throw new Error('messageNumber is required');
+      }
+      await E(powers).dismiss(BigInt(messageNumber));
+      return `Dismissed message #${messageNumber}`;
+    },
+    help() {
+      return 'Dismiss a message from your inbox by number.';
+    },
+  });
+};
+harden(makeDismissTool);
+
+/**
+ * Meta-tool for adopting a capability from a mail message as a tool.
+ * Adopted capabilities are placed in the tools/ directory and become
+ * immediately available.
  *
  * @param {import('@endo/eventual-send').ERef<object>} host
  * @returns {FaeTool}
@@ -624,13 +783,14 @@ export const makeAdoptToolTool = host => {
       description:
         'Adopt a capability from a mail message and install it as a tool. ' +
         'The adopted capability must implement the FaeTool interface (schema, execute, help). ' +
-        'Once adopted, the tool becomes available on the next agent turn.',
+        'Once adopted, the tool is immediately available — use it right away.',
       parameters: {
         type: 'object',
         properties: {
           messageNumber: {
-            type: 'number',
-            description: 'The message number containing the tool capability.',
+            type: 'integer',
+            description:
+              'The message number containing the tool capability (integer).',
           },
           edgeName: {
             type: 'string',
@@ -661,8 +821,8 @@ export const makeAdoptToolTool = host => {
           'messageNumber, edgeName, and toolName are required',
         );
       }
-      await E(host).adopt(messageNumber, edgeName, ['tools', toolName]);
-      return `Adopted tool "${toolName}" from message #${messageNumber}. It will be available on the next turn.`;
+      await E(host).adopt(BigInt(messageNumber), edgeName, ['tools', toolName]);
+      return `Adopted tool "${toolName}" from message #${messageNumber}. It is now available — use it immediately.`;
     },
     help() {
       return 'Adopt a capability from a mail message and install it as a tool.';

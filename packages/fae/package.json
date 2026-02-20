@@ -15,15 +15,17 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./index.js",
-  "bin": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": "./agent.js",
+    "./src/fae-tool-interface.js": "./src/fae-tool-interface.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
-    "start": "node index.js",
+    "setup": "endo run --UNCONFINED setup.js --powers AGENT -E LAL_HOST=$LAL_HOST -E LAL_MODEL=$LAL_MODEL -E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN",
+    "setup-tools": "endo run --UNCONFINED setup-tools.js --powers AGENT",
+    "setup-with-tools": "endo run --UNCONFINED setup-with-tools.js --powers AGENT -E LAL_HOST=$LAL_HOST -E LAL_MODEL=$LAL_MODEL -E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN",
+    "setup-fs-tools": "endo run --UNCONFINED setup-fs-tools.js --powers AGENT",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"
@@ -32,12 +34,14 @@
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
-    "@endo/init": "workspace:^",
+    "@endo/exo": "workspace:^",
     "@endo/lal": "workspace:^",
-    "@endo/promise-kit": "workspace:^",
-    "@endo/where": "workspace:^"
+    "@endo/marshal": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
+    "@endo/cli": "workspace:^",
     "eslint": "catalog:dev"
   },
   "eslintConfig": {
