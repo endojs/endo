@@ -5,6 +5,7 @@ import { makeExo } from '@endo/exo';
 import { PassableWriterInterface } from './type-guards.js';
 import { makeWriterPump } from './writer-pump.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { Pattern } from '@endo/patterns' */
 /** @import { SomehowAsyncIterable, MakeWriterOptions, PassableWriter } from './types.js' */
 

@@ -2,11 +2,11 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { M } from '@endo/patterns';
 
+import { makePipe } from '@endo/stream';
 import { bytesReaderFromIterator } from '../bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '../iterate-bytes-reader.js';
 import { readerFromIterator } from '../reader-from-iterator.js';
 import { iterateReader } from '../iterate-reader.js';
-import { makePipe } from '@endo/stream';
 import { writerFromIterator } from '../writer-from-iterator.js';
 import { iterateWriter } from '../iterate-writer.js';
 import { bytesWriterFromIterator } from '../bytes-writer-from-iterator.js';

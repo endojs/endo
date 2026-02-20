@@ -5,6 +5,7 @@ import { makeExo } from '@endo/exo';
 import { PassableReaderInterface } from './type-guards.js';
 import { makeReaderPump } from './reader-pump.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { Pattern } from '@endo/patterns' */
 /** @import { SomehowAsyncIterable, MakeReaderOptions, PassableReader } from './types.js' */
 
@@ -39,23 +40,23 @@ export const readerFromIterator = (iterator, options = {}) => {
 
   return /** @type {PassableReader<TRead, TReadReturn>} */ (
     makeExo('PassableReader', PassableReaderInterface, {
-    stream: pump,
+      stream: pump,
 
-    /**
-     * Returns the pattern for validating TRead (yielded values).
-     * @returns {Pattern | undefined}
-     */
-    readPattern() {
-      return readPattern;
-    },
+      /**
+       * Returns the pattern for validating TRead (yielded values).
+       * @returns {Pattern | undefined}
+       */
+      readPattern() {
+        return readPattern;
+      },
 
-    /**
-     * Returns the pattern for validating TReadReturn (return value).
-     * @returns {Pattern | undefined}
-     */
-    readReturnPattern() {
-      return readReturnPattern;
-    },
-  })
+      /**
+       * Returns the pattern for validating TReadReturn (return value).
+       * @returns {Pattern | undefined}
+       */
+      readReturnPattern() {
+        return readReturnPattern;
+      },
+    })
   );
 };

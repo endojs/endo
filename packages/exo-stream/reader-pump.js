@@ -4,6 +4,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 
 import { asyncIterate } from './async-iterate.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { SomehowAsyncIterable, StreamNode, ReaderPumpOptions } from './types.js' */
 
@@ -69,6 +70,7 @@ export const makeReaderPump = (iterable, options = {}) => {
           if (synNode.promise === null) {
             // Initiator signaled close - call iterator.return() for cleanup
             /** @type {TReadReturn} */
+            // eslint-disable-next-line no-undef-init
             let returnValue = /** @type {TReadReturn} */ (undefined);
             if (iterator.return) {
               // eslint-disable-next-line no-await-in-loop
