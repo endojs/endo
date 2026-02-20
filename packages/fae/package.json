@@ -1,0 +1,48 @@
+{
+  "name": "@endo/fae",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LLM agent loop for Endo with JS evaluation in daemon workers",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/fae"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "bin": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "start": "node index.js",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/lal": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/where": "workspace:^"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

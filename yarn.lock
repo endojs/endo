@@ -756,6 +756,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/fae@workspace:packages/fae":
+  version: 0.0.0-use.local
+  resolution: "@endo/fae@workspace:packages/fae"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lal": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/where": "workspace:^"
+    eslint: "catalog:dev"
+  bin:
+    fae: ./index.js
+  languageName: unknown
+  linkType: soft
+
 "@endo/far@workspace:^, @endo/far@workspace:packages/far":
   version: 0.0.0-use.local
   resolution: "@endo/far@workspace:packages/far"
@@ -818,7 +835,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/lal@workspace:packages/lal":
+"@endo/lal@workspace:^, @endo/lal@workspace:packages/lal":
   version: 0.0.0-use.local
   resolution: "@endo/lal@workspace:packages/lal"
   dependencies:

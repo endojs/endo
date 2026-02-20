@@ -17,6 +17,7 @@
   },
   "type": "module",
   "exports": {
+    "./providers/index.js": "./providers/index.js",
     "./package.json": "./package.json"
   },
   "scripts": {
