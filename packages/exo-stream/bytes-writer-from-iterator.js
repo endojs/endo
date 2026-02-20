@@ -31,9 +31,10 @@ import { asyncIterate } from './async-iterate.js';
  * - Initiator sends synchronizations (base64 strings) via the synchronization chain
  * - Responder sends acknowledgements via the acknowledgement chain to induce production
  *
- * @param {SomehowAsyncIterable<unknown, Uint8Array>} iterator
- * @param {MakeBytesWriterOptions} [options]
- * @returns {PassableBytesWriter}
+ * @template [TWriteReturn=undefined]
+ * @param {SomehowAsyncIterable<unknown, Uint8Array, TWriteReturn>} iterator
+ * @param {MakeBytesWriterOptions<TWriteReturn>} [options]
+ * @returns {PassableBytesWriter<TWriteReturn>}
  */
 export const bytesWriterFromIterator = (iterator, options = {}) => {
   const { buffer = 0, writeReturnPattern } = options;
@@ -44,25 +45,27 @@ export const bytesWriterFromIterator = (iterator, options = {}) => {
   const sinkIterator = asyncIterate(iterator);
   const decodingIterator = {
     /** @param {string} base64Value */
-    next(base64Value) {
+    async next(base64Value) {
       const bytes = decodeBase64(base64Value);
-      return sinkIterator.next(/** @type {any} */ (bytes));
+      return sinkIterator.next(bytes);
     },
-    /** @param {any} [value] */
-    return(value) {
+    /** @param {TWriteReturn} [value] */
+    async return(value) {
       if (sinkIterator.return) {
         return sinkIterator.return(value);
       }
-      return Promise.resolve({ done: true, value: undefined });
+      return { done: true, value: undefined };
     },
     [Symbol.asyncIterator]() {
       return this;
     },
   };
 
+  // @ts-expect-error decodingIterator is a proper AsyncIterator but TS can't
+  // structurally match it against SomehowAsyncIterable's union because
+  // AsyncIterator.next() has an optional param while ours requires a string.
   const pump = makeWriterPump(decodingIterator, { buffer });
 
-  // @ts-expect-error The Exo's Passable types are compatible with the template types
   return makeExo('PassableBytesWriter', PassableBytesWriterInterface, {
     streamBase64: pump,
 
