@@ -58,10 +58,7 @@ export type StreamNode<Y = undefined, R = undefined> =
  * For Reader streams, synchronization values are always undefined (flow control only).
  * Data flows from responder to initiator via the acknowledgement chain.
  */
-export interface MakeReaderOptions<
-  TRead = Passable,
-  TReadReturn = undefined,
-> {
+export interface MakeReaderOptions<TRead = Passable, TReadReturn = undefined> {
   /** Number of values to pre-pull before waiting for synchronizes (default 0) */
   buffer?: number;
   /** Pattern for TRead (yielded values) */
