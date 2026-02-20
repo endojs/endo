@@ -1,6 +1,8 @@
 // @ts-check
 let mutex = Promise.resolve(undefined);
 
+/** @import {AtomicFileWriter, FileReader, FileWriter} from './types.js' */
+
 /**
  * @param {string} fileName
  * @param {{
@@ -9,6 +11,7 @@ let mutex = Promise.resolve(undefined);
  *   },
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
  * }} powers
+ * @returns {FileReader}
  */
 export const makeFileReader = (fileName, { fs, path }) => {
   const make = there => makeFileReader(there, { fs, path });
@@ -74,7 +77,8 @@ export const makeFileReader = (fileName, { fs, path }) => {
  *     },
  *   path: Pick<import('path'), 'dirname' | 'resolve' | 'relative' | 'normalize'>,
  * }} io
- * @param {(there: string) => ReturnType<makeFileWriter>} make
+ * @param {(there: string) => FileWriter} make
+ * @returns {FileWriter}
  */
 export const makeFileWriter = (
   fileName,
@@ -124,7 +128,8 @@ export const makeFileWriter = (
  * }} io
  * @param {number} [pid]
  * @param {number} [nonce]
- * @param {(there: string) => ReturnType<makeAtomicFileWriter>} make
+ * @param {(there: string) => AtomicFileWriter} make
+ * @returns {AtomicFileWriter}
  */
 export const makeAtomicFileWriter = (
   fileName,
@@ -135,12 +140,14 @@ export const makeAtomicFileWriter = (
     makeAtomicFileWriter(there, { fs, path, os }, pid, nonce, make),
 ) => {
   const writer = makeFileWriter(fileName, { fs, path }, make);
+  const neighbor = ref => make(path.resolve(fileName, ref));
 
   // Windows does not support atomic rename so we do the next best albeit racey
   // thing.
   if (os.platform() === 'win32') {
     return harden({
       ...writer,
+      neighbor,
       atomicWriteText: async (txt, opts) => {
         await writer.writeText(txt, opts);
         return writer.readOnly().stat();
@@ -150,6 +157,7 @@ export const makeAtomicFileWriter = (
 
   return harden({
     ...writer,
+    neighbor,
     atomicWriteText: async (txt, opts) => {
       const scratchName = `${fileName}.${nonce || 'no-nonce'}.${
         pid || 'no-pid'

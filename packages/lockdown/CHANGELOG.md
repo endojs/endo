@@ -1,314 +1,236 @@
-# Change Log
+# @endo/lockdown
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [1.0.18](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.17...@endo/lockdown@1.0.18) (2025-07-12)
+## [1.0.18](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.17...@endo/lockdown@1.0.18) (2025-07-12)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.17](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.16...@endo/lockdown@1.0.17) (2025-06-17)
+## [1.0.17](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.16...@endo/lockdown@1.0.17) (2025-06-17)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.16](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.15...@endo/lockdown@1.0.16) (2025-06-02)
-
+## [1.0.16](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.15...@endo/lockdown@1.0.16) (2025-06-02)
 
 ### Bug Fixes
 
 * **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
 
-
-
-### [1.0.15](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.14...@endo/lockdown@1.0.15) (2025-03-24)
+## [1.0.15](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.14...@endo/lockdown@1.0.15) (2025-03-24)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.14](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.13...@endo/lockdown@1.0.14) (2025-01-24)
+## [1.0.14](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.13...@endo/lockdown@1.0.14) (2025-01-24)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.13](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.12...@endo/lockdown@1.0.13) (2024-11-13)
+## [1.0.13](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.12...@endo/lockdown@1.0.13) (2024-11-13)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.12](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.11...@endo/lockdown@1.0.12) (2024-10-22)
+## [1.0.12](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.11...@endo/lockdown@1.0.12) (2024-10-22)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.11](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.10...@endo/lockdown@1.0.11) (2024-10-10)
+## [1.0.11](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.10...@endo/lockdown@1.0.11) (2024-10-10)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.10](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.9...@endo/lockdown@1.0.10) (2024-08-27)
+## [1.0.10](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.9...@endo/lockdown@1.0.10) (2024-08-27)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.9](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.8...@endo/lockdown@1.0.9) (2024-08-01)
+## [1.0.9](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.8...@endo/lockdown@1.0.9) (2024-08-01)
 
 **Note:** Version bump only for package @endo/lockdown
 
+## [1.0.8](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.7...@endo/lockdown@1.0.8) (2024-07-30)
 
+- Changed `@endo/lockdown/commit-debug.js` so that it now sets
+  the `lockdown` option `errorTaming: 'unsafe-debug'` instead of
+  just `errorTaming: 'unsafe'`. This is a further loss of safety in
+  exchange for a better development experience. For testing and debugging
+  purposes during development, this is usually the right tradeoff.
 
+  In particular,
+  `errorTaming: 'unsafe'` endangered only confidentiality, whereas
+  `errorTaming: 'unsafe-debug'` also endangers integrity, essentially by
+  directly exposing the (non-standard and dangerous) v8 `Error`
+  constructor API.
 
+  In exchange, stack traces will more often have accurate line numbers into
+  the sources of transpiled code, such as TypeScript sources. See
+  [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options) for more on these tradeoffs.
 
-### [1.0.8](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.7...@endo/lockdown@1.0.8) (2024-07-30)
-
-
-### Bug Fixes
-
-* **lockdown:** change commit-debug.js to unsafe-debug ([#2359](https://github.com/endojs/endo/issues/2359)) ([c7a80fd](https://github.com/endojs/endo/commit/c7a80fdfb282e71ff867572cfccff0d58a56fdef)), closes [#2355](https://github.com/endojs/endo/issues/2355) [/github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js#L54](https://github.com/endojs//github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js/issues/L54) [/github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/core/src/kernelTemplate.js#L60](https://github.com/endojs//github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/core/src/kernelTemplate.js/issues/L60) [/github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js#L54](https://github.com/endojs//github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js/issues/L54) [/github.com/MetaMask/metamask-extension/blob/7b3450a294a2fe5751726a9c33d6fa0b564f03dd/app/scripts/lockdown-run.js#L6](https://github.com/endojs//github.com/MetaMask/metamask-extension/blob/7b3450a294a2fe5751726a9c33d6fa0b564f03dd/app/scripts/lockdown-run.js/issues/L6) [/github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-utils/src/eval-worker.ts#L14](https://github.com/endojs//github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-utils/src/eval-worker.ts/issues/L14) [/github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-execution-environments/src/common/lockdown/lockdown.ts#L15](https://github.com/endojs//github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-execution-environments/src/common/lockdown/lockdown.ts/issues/L15) [#2355](https://github.com/endojs/endo/issues/2355)
-
-
-
-### [1.0.7](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.6...@endo/lockdown@1.0.7) (2024-05-07)
-
-**Note:** Version bump only for package @endo/lockdown
-
-
-
-
-
-### [1.0.6](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.5...@endo/lockdown@1.0.6) (2024-04-04)
+## [1.0.7](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.6...@endo/lockdown@1.0.7) (2024-05-07)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.5](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.4...@endo/lockdown@1.0.5) (2024-03-20)
+## [1.0.6](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.5...@endo/lockdown@1.0.6) (2024-04-04)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.4](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.3...@endo/lockdown@1.0.4) (2024-02-23)
+## [1.0.5](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.4...@endo/lockdown@1.0.5) (2024-03-20)
 
 **Note:** Version bump only for package @endo/lockdown
 
+## [1.0.4](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.3...@endo/lockdown@1.0.4) (2024-02-23)
 
+**Note:** Version bump only for package @endo/lockdown
 
-
-
-### [1.0.3](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.2...@endo/lockdown@1.0.3) (2024-02-15)
-
+## [1.0.3](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.2...@endo/lockdown@1.0.3) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.1...@endo/lockdown@1.0.2) (2024-01-18)
+## [1.0.2](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.1...@endo/lockdown@1.0.2) (2024-01-18)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.0...@endo/lockdown@1.0.1) (2023-12-20)
-
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.0...@endo/lockdown@1.0.1) (2023-12-20)
 
 ### Bug Fixes
 
 * Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
 
-
-
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.32...@endo/lockdown@1.0.0) (2023-12-12)
-
 
 ### Bug Fixes
 
 * **lockdown:** Support absence of TextEncoder and TextDecoder ([383046e](https://github.com/endojs/endo/commit/383046ed02ce20ca4ac0260340b5eea93bb67719)), closes [#1819](https://github.com/endojs/endo/issues/1819)
 
-
-
-### [0.1.32](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.31...@endo/lockdown@0.1.32) (2023-09-12)
+## [0.1.32](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.31...@endo/lockdown@0.1.32) (2023-09-12)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [0.1.31](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.29...@endo/lockdown@0.1.31) (2023-08-07)
+## [0.1.31](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.29...@endo/lockdown@0.1.31) (2023-08-07)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [0.1.30](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.29...@endo/lockdown@0.1.30) (2023-08-07)
+## [0.1.30](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.29...@endo/lockdown@0.1.30) (2023-08-07)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [0.1.29](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.28...@endo/lockdown@0.1.29) (2023-07-19)
+## [0.1.29](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.28...@endo/lockdown@0.1.29) (2023-07-19)
 
 **Note:** Version bump only for package @endo/lockdown
 
-
-
-
-
-### [0.1.28](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.27...@endo/lockdown@0.1.28) (2023-04-20)
+## [0.1.28](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.27...@endo/lockdown@0.1.28) (2023-04-20)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.27](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.26...@endo/lockdown@0.1.27) (2023-04-14)
+## [0.1.27](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.26...@endo/lockdown@0.1.27) (2023-04-14)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.26](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.25...@endo/lockdown@0.1.26) (2023-03-07)
+## [0.1.26](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.25...@endo/lockdown@0.1.26) (2023-03-07)
 
 ### Bug Fixes
 
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 
-### [0.1.25](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.24...@endo/lockdown@0.1.25) (2022-12-23)
+## [0.1.25](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.24...@endo/lockdown@0.1.25) (2022-12-23)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.24](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.23...@endo/lockdown@0.1.24) (2022-11-14)
+## [0.1.24](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.23...@endo/lockdown@0.1.24) (2022-11-14)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.23](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.22...@endo/lockdown@0.1.23) (2022-10-24)
+## [0.1.23](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.22...@endo/lockdown@0.1.23) (2022-10-24)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.22](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.21...@endo/lockdown@0.1.22) (2022-10-19)
+## [0.1.22](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.21...@endo/lockdown@0.1.22) (2022-10-19)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.21](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.20...@endo/lockdown@0.1.21) (2022-09-27)
+## [0.1.21](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.20...@endo/lockdown@0.1.21) (2022-09-27)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.20](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.19...@endo/lockdown@0.1.20) (2022-09-14)
+## [0.1.20](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.19...@endo/lockdown@0.1.20) (2022-09-14)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.19](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.18...@endo/lockdown@0.1.19) (2022-08-26)
+## [0.1.19](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.18...@endo/lockdown@0.1.19) (2022-08-26)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.18](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.17...@endo/lockdown@0.1.18) (2022-08-26)
+## [0.1.18](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.17...@endo/lockdown@0.1.18) (2022-08-26)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.17](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.16...@endo/lockdown@0.1.17) (2022-08-25)
+## [0.1.17](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.16...@endo/lockdown@0.1.17) (2022-08-25)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.16](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.15...@endo/lockdown@0.1.16) (2022-08-23)
+## [0.1.16](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.15...@endo/lockdown@0.1.16) (2022-08-23)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.15](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.14...@endo/lockdown@0.1.15) (2022-06-28)
+## [0.1.15](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.14...@endo/lockdown@0.1.15) (2022-06-28)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.14](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.13...@endo/lockdown@0.1.14) (2022-06-11)
+## [0.1.14](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.13...@endo/lockdown@0.1.14) (2022-06-11)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.13](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.12...@endo/lockdown@0.1.13) (2022-04-15)
+## [0.1.13](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.12...@endo/lockdown@0.1.13) (2022-04-15)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.12](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.11...@endo/lockdown@0.1.12) (2022-04-14)
+## [0.1.12](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.11...@endo/lockdown@0.1.12) (2022-04-14)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.11](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.10...@endo/lockdown@0.1.11) (2022-04-13)
+## [0.1.11](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.10...@endo/lockdown@0.1.11) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.1.10](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.9...@endo/lockdown@0.1.10) (2022-04-12)
+## [0.1.10](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.9...@endo/lockdown@0.1.10) (2022-04-12)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.9](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.8...@endo/lockdown@0.1.9) (2022-03-07)
+## [0.1.9](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.8...@endo/lockdown@0.1.9) (2022-03-07)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.8](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.7...@endo/lockdown@0.1.8) (2022-03-02)
+## [0.1.8](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.7...@endo/lockdown@0.1.8) (2022-03-02)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.7](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.6...@endo/lockdown@0.1.7) (2022-02-20)
+## [0.1.7](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.6...@endo/lockdown@0.1.7) (2022-02-20)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.6](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.5...@endo/lockdown@0.1.6) (2022-02-18)
+## [0.1.6](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.5...@endo/lockdown@0.1.6) (2022-02-18)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.5](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.4...@endo/lockdown@0.1.5) (2022-01-31)
+## [0.1.5](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.4...@endo/lockdown@0.1.5) (2022-01-31)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### [0.1.4](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.3...@endo/lockdown@0.1.4) (2022-01-27)
+## [0.1.4](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.3...@endo/lockdown@0.1.4) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.1.3](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.2...@endo/lockdown@0.1.3) (2022-01-25)
+## [0.1.3](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.2...@endo/lockdown@0.1.3) (2022-01-25)
 
 **Note:** Version bump only for package @endo/lockdown
 
-### 0.1.2 (2022-01-23)
+## 0.1.2 (2022-01-23)
 
 ### Bug Fixes
 
 - **lockdown:** Log to stderr ([960a9ef](https://github.com/endojs/endo/commit/960a9ef79e8e36dd564d01016441119156f2ad08))
 
-### 0.1.1 (2021-12-02)
+## 0.1.1 (2021-12-02)
 
 ### Features
 

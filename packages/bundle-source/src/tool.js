@@ -15,10 +15,8 @@ const log = (process.env.DEBUG || '').split(',').includes('bundle-source')
   ? console.warn
   : () => {};
 
-// @ts-expect-error xxx args tuple
-main(process.argv.slice(2), { loadModule, pid: process.pid, log }).catch(
-  err => {
-    console.error(err);
-    process.exit(process.exitCode || 1);
-  },
-);
+const args = /** @type {string[]} */ (process.argv.slice(2));
+main(args, { loadModule, pid: process.pid, log }).catch(err => {
+  console.error(err);
+  process.exit(process.exitCode || 1);
+});
