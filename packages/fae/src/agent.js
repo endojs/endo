@@ -2,7 +2,7 @@
 /* global harden */
 /* eslint-disable no-await-in-loop */
 
-import { getToolSchemas, executeTool } from './tools.js';
+import { discoverTools, executeTool } from './tools.js';
 
 /**
  * @typedef {object} ChatMessage
@@ -81,11 +81,14 @@ const extractToolCallsFromContent = content => {
 /**
  * Run the agent loop for a single user turn.
  *
+ * Tool discovery happens at the start of each turn so that tools
+ * adopted between turns (e.g., received via mail) are available.
+ *
  * @param {string} userMessage - The user's message
  * @param {ChatMessage[]} transcript - Conversation transcript (mutated in place)
  * @param {Provider} provider - LLM provider
  * @param {import('@endo/eventual-send').ERef<object>} host - Endo host reference
- * @param {string} cwd - Working directory for filesystem tools
+ * @param {Map<string, import('./tool-makers.js').FaeTool>} localTools - Built-in local tools
  * @param {AgentCallbacks} callbacks - UI callbacks
  * @returns {Promise<string>} The assistant's final text response
  */
@@ -94,12 +97,15 @@ export const runAgentLoop = async (
   transcript,
   provider,
   host,
-  cwd,
+  localTools,
   callbacks,
 ) => {
   transcript.push({ role: 'user', content: userMessage });
 
-  const toolSchemas = getToolSchemas();
+  const { schemas: toolSchemas, toolMap } = await discoverTools(
+    host,
+    localTools,
+  );
   let iteration = 0;
 
   while (iteration < MAX_ITERATIONS) {
@@ -109,7 +115,6 @@ export const runAgentLoop = async (
       break;
     }
 
-    // Handle models that embed tool calls in content text
     if (
       (!responseMessage.tool_calls ||
         responseMessage.tool_calls.length === 0) &&
@@ -147,11 +152,10 @@ export const runAgentLoop = async (
 
       let result;
       try {
-        result = await executeTool(fnName, parsedArgs, host, cwd);
+        result = await executeTool(fnName, parsedArgs, toolMap);
         callbacks.onToolResult(fnName, result);
       } catch (err) {
-        const errMsg =
-          err instanceof Error ? err.message : String(err);
+        const errMsg = err instanceof Error ? err.message : String(err);
         result = `Error: ${errMsg}`;
         callbacks.onToolError(fnName, errMsg);
       }

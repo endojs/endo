@@ -18,6 +18,7 @@ import { createProvider } from '@endo/lal/providers/index.js';
 
 import { buildSystemPrompt } from './src/prompt.js';
 import { runAgentLoop } from './src/agent.js';
+import { installBuiltinTools } from './src/tools.js';
 import { createTUI } from './src/tui.js';
 
 const { username, homedir } = os.userInfo();
@@ -85,6 +86,15 @@ const main = async () => {
   const bootstrap = connection.getBootstrap();
   const host = E(bootstrap).host();
 
+  const localTools = installBuiltinTools(host, cwd);
+
+  // Ensure the tools/ directory exists for daemon-side tool storage.
+  try {
+    await E(host).makeDirectory(['tools']);
+  } catch {
+    // Already exists.
+  }
+
   const systemPrompt = buildSystemPrompt(cwd);
 
   /** @type {import('./src/agent.js').ChatMessage[]} */
@@ -124,7 +134,7 @@ const main = async () => {
         transcript,
         provider,
         host,
-        cwd,
+        localTools,
         callbacks,
       );
       tui.displayResponse(response);
