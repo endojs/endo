@@ -454,9 +454,7 @@ const makeDaemonCore = async (
       BlobInterface,
       {
         sha512: () => sha512,
-        streamBase64: makeReaderPump(
-          mapReader(makeFileReader(), encodeBase64),
-        ),
+        streamBase64: makeReaderPump(mapReader(makeFileReader(), encodeBase64)),
         text,
         json,
       },
