@@ -4,6 +4,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 
 import { asyncIterate } from './async-iterate.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { SomehowAsyncIterable, StreamNode, WriterPumpOptions } from './types.js' */
 
