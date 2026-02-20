@@ -25,7 +25,7 @@ const { freeze } = Object;
  *
  * @template [TWrite=Passable]
  * @template [TWriteReturn=undefined]
- * @param {SomehowAsyncIterable<unknown, TWrite>} iterable
+ * @param {SomehowAsyncIterable<unknown, TWrite, TWriteReturn>} iterable
  * @param {WriterPumpOptions} [options]
  * @returns {(synPromise: ERef<StreamNode<TWrite, Passable>>) => Promise<StreamNode<undefined, TWriteReturn>>}
  */
