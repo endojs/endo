@@ -1,4 +1,4 @@
-// import "./ses-lockdown.js";
+/* global globalThis */
 import 'ses';
 import test from 'ava';
 
@@ -36,14 +36,15 @@ const onError = (t, { error, title }) => {
   // The 'fixtures-error-handling / both' test intermittently captures 1 or 2
   // underlying failures due to timing. esm/csj order is not deterministic.
   if (title.match(/both/i)) {
-    return t.pass();
+    t.pass();
+    return;
   }
   const sanitizedStack = sanitizePaths(error.stack, true);
   if (lockedDown) {
     t.regex(sanitizedStack, /fixtures-error-handling/);
     return;
   }
-  return t.snapshot(sanitizedStack);
+  t.snapshot(sanitizedStack);
 };
 
 scaffold(

@@ -1,5 +1,4 @@
 /* eslint-disable no-shadow */
-import './ses-lockdown.js';
 import test from 'ava';
 import { mapNodeModules } from '../src/node-modules.js';
 import { makeProjectFixtureReadPowers } from './project-fixture.js';

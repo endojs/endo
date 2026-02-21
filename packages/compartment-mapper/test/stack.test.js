@@ -1,4 +1,5 @@
 import 'ses';
+/* global globalThis */
 import test from 'ava';
 import fs from 'fs';
 import crypto from 'crypto';

@@ -1,3 +1,4 @@
+/* global globalThis */
 import 'ses';
 import fs from 'fs';
 import url from 'url';
