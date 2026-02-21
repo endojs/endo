@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { makePairwiseTable, parseSlot } from './pairwise.js';
 
 /**

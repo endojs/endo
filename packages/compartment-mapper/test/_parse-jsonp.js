@@ -4,6 +4,8 @@
  * @import {ParseFn, ParserImplementation} from '../src/types.js'
  */
 
+import harden from '@endo/harden';
+
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */

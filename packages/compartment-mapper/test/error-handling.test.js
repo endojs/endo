@@ -1,8 +1,10 @@
-// import "./ses-lockdown.js";
+/* global globalThis */
 import 'ses';
 import test from 'ava';
 
 import { scaffold, sanitizePaths } from './scaffold.js';
+
+const lockedDown = typeof globalThis.harden === 'function';
 
 const assertFixture = t => {
   t.fail('Expected an error.');
@@ -34,9 +36,15 @@ const onError = (t, { error, title }) => {
   // The 'fixtures-error-handling / both' test intermittently captures 1 or 2
   // underlying failures due to timing. esm/csj order is not deterministic.
   if (title.match(/both/i)) {
-    return t.pass();
+    t.pass();
+    return;
   }
-  return t.snapshot(sanitizePaths(error.stack, true));
+  const sanitizedStack = sanitizePaths(error.stack, true);
+  if (lockedDown) {
+    t.regex(sanitizedStack, /fixtures-error-handling/);
+    return;
+  }
+  t.snapshot(sanitizedStack);
 };
 
 scaffold(
@@ -97,6 +105,13 @@ scaffold(
   1,
   {
     onError: (t, { error }) => {
+      if (lockedDown) {
+        t.true(
+          error === false || error === undefined || error instanceof Error,
+          'lockdown may wrap falsy throws',
+        );
+        return;
+      }
       t.assert(!error);
     },
     shouldFailBeforeArchiveOperations: false,

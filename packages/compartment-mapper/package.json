@@ -57,7 +57,7 @@
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "prettier-fixtures": "prettier --write --with-node-modules './test/fixtures-*/**/*.*js'",
-    "test": "ava"
+    "test": "yarn run -T ses-ava"
   },
   "dependencies": {
     "@endo/cjs-module-analyzer": "workspace:^",
@@ -69,6 +69,8 @@
   },
   "devDependencies": {
     "@endo/env-options": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/init": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
@@ -105,11 +107,10 @@
       }
     ]
   },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "ses": "../../ava-ses-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 86.14

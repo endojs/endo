@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { decodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
 import { E } from '@endo/far';

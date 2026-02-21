@@ -7,6 +7,7 @@
  * @import { Client, Connection, InternalSession, LocationId, Logger, NetLayer, NetlayerHandlers, PendingSession, SelfIdentity, Session, SessionManager, SocketOperations, SwissNum } from './types.js'
  */
 
+import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { writeOcapnHandshakeMessage } from '../codecs/operations.js';
 import { makeOcapnKeyPair, signLocation } from '../cryptography.js';
@@ -351,6 +352,9 @@ export const makeClient = ({
    */
   const handleConnectionClose = (connection, reason) => {
     logger.info(`handleConnectionClose called`, { reason });
+    if (!connection.isDestroyed) {
+      connection.end();
+    }
     const session = sessionManager.getSessionForConnection(connection);
     if (session) {
       const locationId = locationToLocationId(session.peer.location);

@@ -4,12 +4,6 @@ import test from 'ava';
 import { scaffold, sanitizePaths } from './scaffold.js';
 import jsonp from './_parse-jsonp.js';
 
-// The JSONP parser uses harden, as a bit.
-lockdown({
-  errorTaming: 'unsafe',
-  errorTrapping: 'none',
-});
-
 const meaningfulModule = {
   default: {
     meaning: 42,

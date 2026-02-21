@@ -1,6 +1,8 @@
 /* global globalThis */
 import 'ses';
 
+import harden from '@endo/harden';
+
 /**
  * Copied from the ses-shim's console-shim.js file, since the idea is that
  * these communicate not by export import, but rather by convention plus

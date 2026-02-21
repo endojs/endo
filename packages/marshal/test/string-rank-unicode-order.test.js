@@ -1,6 +1,7 @@
 import '../tools/prepare-unicode-code-point-order.js';
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { compareRank } from '../src/rankOrder.js';
 import {
   compareByUtf16CodeUnit,

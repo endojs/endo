@@ -2,6 +2,7 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { Buffer } from 'buffer';
 import { makeTagged } from '@endo/pass-style';
 import { XorShift } from '../_xorshift.js';

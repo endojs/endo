@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /** @import { OcapnLocation } from '../codecs/components.js' */
 /** @import { Slot } from '../captp/types.js' */
 /** @import { SwissNum } from './types.js' */

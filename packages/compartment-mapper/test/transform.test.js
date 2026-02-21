@@ -1,4 +1,3 @@
-// import "./ses-lockdown.js";
 import 'ses';
 import fs from 'fs';
 import test from 'ava';

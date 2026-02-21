@@ -1,5 +1,6 @@
 /* eslint no-underscore-dangle: ["off"] */
 
+import harden from '@endo/harden';
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
 const { keys, values } = Object;
@@ -102,7 +103,7 @@ export function ModuleSource(source, opts = {}) {
   this.__fixedExportMap__ = fixedExportMap;
   this.__needsImport__ = needsImport;
   this.__needsImportMeta__ = needsImportMeta;
-  freeze(this);
+  harden(this);
 }
 
 // AbstractModuleSource
@@ -133,3 +134,5 @@ function AbstractModuleSource() {
 
 Object.setPrototypeOf(ModuleSource, AbstractModuleSource);
 Object.setPrototypeOf(ModuleSource.prototype, AbstractModuleSource.prototype);
+
+harden(ModuleSource);

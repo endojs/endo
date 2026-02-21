@@ -51,11 +51,12 @@
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
-    "@endo/init": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/stream": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
@@ -83,7 +84,8 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 100

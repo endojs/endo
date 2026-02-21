@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { passStyleOf } from '../src/passStyleOf.js';
 
 const { defineProperty } = Object;
@@ -33,8 +34,10 @@ test('safe promise loophole', t => {
       },
       {
         // Override mistake
+        // Without-lockdown: #<Promise>
+        // Post-lockdown: [object Promise]
         message:
-          "Cannot assign to read only property 'Symbol(Symbol.toStringTag)' of object '[object Promise]'",
+          /^Cannot assign to read only property 'Symbol\(Symbol.toStringTag\)' of object '(#<Promise>|\[object Promise\])'$/,
       },
     );
     defineProperty(p3, toStringTag, {

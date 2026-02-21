@@ -1,5 +1,4 @@
 // @ts-nocheck
-// import "./ses-lockdown.js";
 import 'ses';
 import test from 'ava';
 import { moduleify, scaffold, sanitizePaths } from './scaffold.js';
