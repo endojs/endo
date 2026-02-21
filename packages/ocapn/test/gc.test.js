@@ -1,10 +1,9 @@
 // @ts-check
 /* global setTimeout */
 
-import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { makeTestClientPair, getOcapnDebug } from './_util.js';
+import { test, makeTestClientPair, getOcapnDebug } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { makeSlot } from '../src/captp/pairwise.js';
 import { waitForSentinelGc } from './_gc-util.js';

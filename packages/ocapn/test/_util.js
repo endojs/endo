@@ -12,10 +12,14 @@ import harden from '@endo/harden';
  * @import { Ocapn, OcapnDebug } from '../src/client/ocapn.js'
  */
 
-import test from '@endo/ses-ava/test.js';
+import baseTest from '@endo/ses-ava/test.js';
+import { netListenAllowed } from './_net-permission.js';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../src/client/index.js';
 import { locationToLocationId } from '../src/client/util.js';
+
+export const test = netListenAllowed ? baseTest : baseTest.skip;
+const testOnly = netListenAllowed ? baseTest.only : baseTest.skip;
 
 const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
 
@@ -126,7 +130,7 @@ export const testWithErrorUnwrapping = (testName, fn) => {
   });
 };
 testWithErrorUnwrapping.only = (testName, fn) => {
-  return test.only(testName, t => {
+  return testOnly(testName, t => {
     return notThrowsWithErrorUnwrappingAsync(t, fn, testName);
   });
 };

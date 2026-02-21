@@ -352,6 +352,9 @@ export const makeClient = ({
    */
   const handleConnectionClose = (connection, reason) => {
     logger.info(`handleConnectionClose called`, { reason });
+    if (!connection.isDestroyed) {
+      connection.end();
+    }
     const session = sessionManager.getSessionForConnection(connection);
     if (session) {
       const locationId = locationToLocationId(session.peer.location);
