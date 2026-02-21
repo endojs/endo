@@ -15,14 +15,32 @@ export const inbox = async ({ follow, agentNames }) =>
     const messages = follow
       ? makeRefIterator(E(agent).followMessages())
       : await E(agent).listMessages();
+    const messageNumberById = new Map();
+    if (!follow) {
+      for (const message of messages) {
+        messageNumberById.set(message.messageId, message.number);
+      }
+    }
     for await (const message of messages) {
+      messageNumberById.set(message.messageId, message.number);
       const { number, type, from, to, date } = message;
 
       let verb = '';
       if (type === 'request') {
         verb = 'requested';
       } else if (type === 'package') {
-        verb = 'sent';
+        verb = message.replyTo === undefined ? 'sent' : 'replied to';
+      } else if (
+        type === 'eval-proposal-reviewer' ||
+        type === 'eval-proposal-proposer'
+      ) {
+        verb = 'proposed to evaluate';
+      } else if (type === 'eval-request') {
+        verb = 'requested evaluation of';
+      } else if (type === 'definition') {
+        verb = 'proposed definition';
+      } else if (type === 'form-request') {
+        verb = 'sent form';
       } else {
         verb = 'sent an unrecognizable message';
       }
@@ -59,12 +77,57 @@ export const inbox = async ({ follow, agentNames }) =>
           )} at ${JSON.stringify(date)}`,
         );
       } else if (message.type === 'package') {
-        const { strings, names: edgeNames } = message;
+        const { strings, names: edgeNames, replyTo } = message;
+        let replyContext = '';
+        if (replyTo !== undefined) {
+          const replyNumber = messageNumberById.get(replyTo);
+          replyContext =
+            replyNumber === undefined
+              ? ' (in reply to unknown)'
+              : ` (in reply to ${replyNumber})`;
+        }
         console.log(
           `${number}. ${provenance}${formatMessage(
             strings,
             edgeNames,
-          )} at ${JSON.stringify(date)}`,
+          )}${replyContext} at ${JSON.stringify(date)}`,
+        );
+      } else if (message.type === 'eval-request') {
+        const { source, codeNames } = message;
+        const codeNameList = /** @type {string[]} */ (codeNames);
+        const endowments =
+          codeNameList.length > 0
+            ? ` with endowments: ${codeNameList.join(', ')}`
+            : '';
+        console.log(
+          `${number}. ${provenance}${q(source)}${endowments} at ${q(date)}`,
+        );
+      } else if (message.type === 'definition') {
+        const { source, slots } = message;
+        const slotNames = Object.keys(slots || {}).join(', ');
+        const slotInfo = slotNames ? ` (slots: ${slotNames})` : '';
+        console.log(
+          `${number}. ${provenance}${q(source)}${slotInfo} at ${q(date)}`,
+        );
+      } else if (message.type === 'form-request') {
+        const { description, fields } = message;
+        const fieldNames = Object.keys(fields || {}).join(', ');
+        const fieldInfo = fieldNames ? ` (fields: ${fieldNames})` : '';
+        console.log(
+          `${number}. ${provenance}${q(description)}${fieldInfo} at ${q(date)}`,
+        );
+      } else if (
+        message.type === 'eval-proposal-reviewer' ||
+        message.type === 'eval-proposal-proposer'
+      ) {
+        const { source } = message;
+        assert.typeof(source, 'string');
+        // Show first line of source code, truncated
+        const firstLine = source.split('\n')[0];
+        const preview =
+          firstLine.length > 40 ? `${firstLine.slice(0, 40)}...` : firstLine;
+        console.log(
+          `${number}. ${provenance}${q(preview)} at ${JSON.stringify(date)}`,
         );
       } else {
         console.log(`${number}. ${provenance}, consider upgrading.`);

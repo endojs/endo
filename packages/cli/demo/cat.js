@@ -305,7 +305,7 @@ const inboxComponent = async ($parent, $end, powers) => {
     if (type === 'request') {
       verb = 'requested';
     } else if (type === 'package') {
-      verb = 'sent';
+      verb = message.replyTo === undefined ? 'sent' : 'replied to';
     } else {
       verb = 'sent an unrecognizable message';
     }
@@ -434,6 +434,13 @@ const inboxComponent = async ($parent, $end, powers) => {
       const $date = document.createElement('i');
       $date.innerText = dateFormatter.format(Date.parse(date));
       $message.appendChild($date);
+
+      if (message.replyTo !== undefined) {
+        $message.appendChild(document.createTextNode(' '));
+        const $reply = document.createElement('span');
+        $reply.innerText = `(in reply to ${message.replyTo})`;
+        $message.appendChild($reply);
+      }
 
       $message.appendChild(document.createTextNode(' '));
 

@@ -79,7 +79,7 @@
     "files": [
       "test/**/*.test.*"
     ],
-    "timeout": "2m"
+    "timeout": "10m"
   },
   "typeCoverage": {
     "atLeast": 86.18

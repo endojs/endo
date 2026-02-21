@@ -18,6 +18,7 @@ export const withInterrupt = async callback => {
   } catch (error) {
     console.error(error);
     cancel(error);
+    throw error;
   }
 };
 

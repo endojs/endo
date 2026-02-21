@@ -12,7 +12,13 @@ import {
 export const servePrivatePortHttp = (
   requestedWebletPort,
   endoBootstrap,
-  { servePortHttp, connectionNumbers, cancelled, exitWithError },
+  {
+    servePortHttp,
+    connectionNumbers,
+    cancelled,
+    exitWithError,
+    capTpConnectionRegistrar = undefined,
+  },
 ) => {
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();
@@ -79,6 +85,8 @@ export const servePrivatePortHttp = (
           messageReader,
           cancelled,
           undefined, // bootstrap
+          undefined,
+          capTpConnectionRegistrar,
         );
 
         const webBootstrap = getBootstrap();

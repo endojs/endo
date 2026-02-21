@@ -3,10 +3,28 @@
 import { q } from '@endo/errors';
 import { makeNetstringCapTP } from './connection.js';
 
+/** @import { CapTpConnectionRegistrar } from './types.js' */
+
+/**
+ * @param {string} sockPath
+ * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
+ * @param {object} opts
+ * @param {Function} opts.servePath
+ * @param {Iterator<number>} opts.connectionNumbers
+ * @param {Promise<never>} opts.cancelled
+ * @param {(error: Error) => void} opts.exitWithError
+ * @param {CapTpConnectionRegistrar} [opts.capTpConnectionRegistrar]
+ */
 export const servePrivatePath = (
   sockPath,
   endoBootstrap,
-  { servePath, connectionNumbers, cancelled, exitWithError },
+  {
+    servePath,
+    connectionNumbers,
+    cancelled,
+    exitWithError,
+    capTpConnectionRegistrar = undefined,
+  },
 ) => {
   const connectionsP = servePath({ path: sockPath, cancelled });
 
@@ -43,6 +61,8 @@ export const servePrivatePath = (
           reader,
           cancelled,
           endoBootstrap,
+          undefined,
+          capTpConnectionRegistrar,
         );
 
         const closed = Promise.race([connectionClosed, capTpClosed]);

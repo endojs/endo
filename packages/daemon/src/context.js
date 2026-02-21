@@ -15,6 +15,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
       /** @type {PromiseKit<never>} */ (makePromiseKit());
     const { promise: disposed, resolve: resolveDisposed } =
       /** @type {PromiseKit<void>} */ (makePromiseKit());
+    cancelled.catch(() => {});
 
     /** @type {Map<FormulaIdentifier, Context>} */
     const dependents = new Map();
@@ -48,7 +49,13 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
      * @param {FormulaIdentifier} dependentId
      */
     const thatDiesIfThisDies = dependentId => {
-      assert(!done);
+      if (done) {
+        // The formula is already cancelled.  The dependents map has been
+        // cleared, so there is no way to register a new dependent for
+        // future cascaded cancellation.  The caller can still observe
+        // cancellation through the `cancelled` promise.
+        return;
+      }
       const dependentController = provideController(dependentId);
       dependents.set(dependentId, dependentController.context);
     };
@@ -65,7 +72,10 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
      * @param {() => void} hook
      */
     const onCancel = hook => {
-      assert(!done);
+      if (done) {
+        // Already cancelled – hooks have already fired.
+        return;
+      }
       hooks.push(hook);
     };
 

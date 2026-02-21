@@ -10,8 +10,15 @@ import { makeNetstringCapTP } from './connection.js';
  * @param {string} sockPath
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} [bootstrap]
+ * @param {import('@endo/captp').CapTPOptions} [capTpOptions]
  */
-export const makeEndoClient = async (name, sockPath, cancelled, bootstrap) => {
+export const makeEndoClient = async (
+  name,
+  sockPath,
+  cancelled,
+  bootstrap,
+  capTpOptions = undefined,
+) => {
   const conn = net.connect(sockPath);
   await new Promise((resolve, reject) => {
     conn.on('connect', resolve);
@@ -34,5 +41,6 @@ export const makeEndoClient = async (name, sockPath, cancelled, bootstrap) => {
     makeNodeReader(conn),
     cancelled,
     bootstrap,
+    capTpOptions,
   );
 };
