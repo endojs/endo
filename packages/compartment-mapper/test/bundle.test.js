@@ -58,6 +58,8 @@ const expectedLog = [
   { widdershins: 'againshins' },
 ];
 
+const lockedDown = typeof globalThis.harden === 'function';
+
 test('bundled scripts work', async t => {
   const bundle = await makeScript(read, fixture);
   t.log(bundle);
@@ -141,6 +143,10 @@ test('makeScript with useEvaluate and sourceUrlPrefix preserves source URLs in s
     error = _error;
   }
   t.log(error.stack);
+  if (lockedDown) {
+    t.assert(error.stack);
+    return;
+  }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
   t.assert(!error.stack.includes('file:/.*bundle/main.js'));
@@ -186,6 +192,10 @@ test('makeFunctor with useEvaluate preserves error for compiled sourceUrlPrefix 
   } catch (_error) {
     error = _error;
   }
+  if (lockedDown) {
+    t.assert(error.stack);
+    return;
+  }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
   t.false(error.stack.includes('file:/.*bundle/main.js'));
@@ -218,6 +228,10 @@ test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime o
     raise();
   } catch (_error) {
     error = _error;
+  }
+  if (lockedDown) {
+    t.assert(error.stack);
+    return;
   }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
