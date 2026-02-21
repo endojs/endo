@@ -231,10 +231,16 @@ const makeDaemonCore = async (
   });
   const { id: mainWorkerId } = await preformulate('main', { type: 'worker' });
 
+  const endoFormulaId = formatId({
+    number: /** @type {FormulaNumber} */ (rootEntropy),
+    node: localNodeNumber,
+  });
+
   /** @type {Builtins} */
   const builtins = {
     NONE: leastAuthorityId,
     MAIN: mainWorkerId,
+    ENDO: endoFormulaId,
   };
 
   // Prepare platform formulas
