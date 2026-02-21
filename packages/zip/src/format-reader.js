@@ -2,10 +2,7 @@
 /* eslint no-bitwise: ["off"], max-lines: ["off"] */
 
 /**
- * @import {ArchiveHeaders} from './types.js'
- * @import {CompressedFile} from './types.js'
- * @import {UncompressedFile} from './types.js'
- * @import {ArchivedFile} from './types.js'
+ * @import {ArchivedFile, ArchiveHeaders} from './types.js'
  *
  * @typedef {{
  *   name: Uint8Array,
@@ -47,9 +44,7 @@
  */
 
 import './types.js';
-import { crc32 } from './crc32.js';
 import * as signature from './signature.js';
-import * as compression from './compression.js';
 
 // q, as in quote, for quoting strings in errors
 const q = JSON.stringify;
@@ -245,7 +240,7 @@ function readBlockEndOfCentral(reader) {
  * @returns {CentralDirectoryLocator}
  */
 function readEndOfCentralDirectoryRecord(reader) {
-  // Zip files are permitted to have a variable-width comment at the end of the
+  // ZIP files are permitted to have a variable-width comment at the end of the
   // "end of central directory record" and may have subsequent Zip64 headers.
   // The prescribed method of finding the beginning of the "end of central
   // directory record" is to seek the magic number:
@@ -325,7 +320,7 @@ function checkRecords(centralRecord, localRecord, archiveName) {
   // name exactly and only by different slashes.
   if (centralName.replace(/\\/g, '/') !== localName) {
     throw Error(
-      `Zip integrity error: central record file name ${q(
+      `ZIP integrity error: central record file name ${q(
         centralName,
       )} must match local file name ${q(localName)} in archive ${q(
         archiveName,
@@ -340,7 +335,7 @@ function checkRecords(centralRecord, localRecord, archiveName) {
   function check(value, message) {
     if (!value) {
       throw Error(
-        `Zip integrity error: ${message} for file ${q(
+        `ZIP integrity error: ${message} for file ${q(
           localName,
         )} in archive ${q(archiveName)}`,
       );
@@ -373,12 +368,6 @@ function checkRecords(centralRecord, localRecord, archiveName) {
     centralRecord.uncompressedLength === localRecord.uncompressedLength,
     `Central record uncompressed size ${centralRecord.uncompressedLength} must match local ${localRecord.uncompressedLength}`,
   );
-
-  const checksum = crc32(localRecord.content);
-  check(
-    checksum === localRecord.crc32,
-    `CRC-32 checksum mismatch, wanted ${localRecord.crc32} but actual content is ${checksum}`,
-  );
 }
 
 /**
@@ -391,12 +380,16 @@ function modeForExternalAttributes(externalFileAttributes) {
 /**
  * @param {CentralFileRecord} centralRecord
  * @param {LocalFileRecord} localRecord
- * @returns {CompressedFile}
+ * @returns {ArchivedFile}
  */
-function recordToFile(centralRecord, localRecord) {
-  const mode = modeForExternalAttributes(centralRecord.externalFileAttributes);
+const recordToFile = (centralRecord, localRecord) => {
+  const name = textDecoder.decode(centralRecord.name);
+  const mode =
+    modeForExternalAttributes(centralRecord.externalFileAttributes) & 0o777;
+  const comment = textDecoder.decode(centralRecord.comment);
   return {
-    name: centralRecord.name,
+    name,
+    type: /** @type {const} */ ('file'),
     mode,
     date: centralRecord.date,
     crc32: centralRecord.crc32,
@@ -404,47 +397,9 @@ function recordToFile(centralRecord, localRecord) {
     compressedLength: centralRecord.compressedLength,
     uncompressedLength: centralRecord.uncompressedLength,
     content: localRecord.content,
-    comment: centralRecord.comment,
-  };
-}
-
-/**
- * @param {CompressedFile} file
- * @returns {UncompressedFile}
- */
-function decompressFile(file) {
-  if (file.compressionMethod !== compression.STORE) {
-    throw Error(
-      `Cannot find decompressor for compression method ${q(
-        file.compressionMethod,
-      )} for file ${file.name}`,
-    );
-  }
-  return {
-    name: file.name,
-    mode: file.mode,
-    date: file.date,
-    content: file.content,
-    comment: file.comment,
-  };
-}
-
-/**
- * @param {UncompressedFile} file
- * @returns {ArchivedFile}
- */
-function decodeFile(file) {
-  const name = textDecoder.decode(file.name);
-  const comment = textDecoder.decode(file.comment);
-  return {
-    name,
-    type: 'file',
-    mode: file.mode & 0o777,
-    date: file.date,
-    content: file.content,
     comment,
   };
-}
+};
 
 /**
  * @param {BufferReader} reader
@@ -454,6 +409,7 @@ export function readZip(reader, name = '<unknown>') {
   const locator = readEndOfCentralDirectoryRecord(reader);
   const centralRecords = readCentralDirectory(reader, locator);
   const localRecords = readLocalFiles(reader, centralRecords);
+  /** @type {Map<string, ArchivedFile>} */
   const files = new Map();
 
   for (let i = 0; i < centralRecords.length; i += 1) {
@@ -468,10 +424,8 @@ export function readZip(reader, name = '<unknown>') {
 
     const isDir = (centralRecord.externalFileAttributes & 0x0010) !== 0;
     if (!isDir) {
-      const compressedFile = recordToFile(centralRecord, localRecord);
-      const decompressedFile = decompressFile(compressedFile);
-      const decodedFile = decodeFile(decompressedFile);
-      files.set(decodedFile.name, decodedFile);
+      const file = recordToFile(centralRecord, localRecord);
+      files.set(file.name, file);
     }
     // TODO handle explicit directory entries
   }

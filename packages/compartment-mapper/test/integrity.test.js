@@ -64,7 +64,7 @@ test('extracting an archive with a missing file', async t => {
       }),
     {
       message:
-        'Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Cannot find file app-v1.0.0/main.js in Zip file missing.zip',
+        'Failed to load module "./main.js" in package "app-v1.0.0" (1 underlying failures: Cannot find file app-v1.0.0/main.js in ZIP file missing.zip',
     },
   );
 
@@ -88,6 +88,8 @@ test('extracting an archive with an inconsistent hash', async t => {
   const content = new Uint8Array(node.content.byteLength + 1);
   content.set(node.content, 0);
   node.content = content;
+  node.uncompressedLength += 1;
+  node.compressedLength += 1;
 
   const invalidBytes = writer.snapshot();
 
@@ -137,6 +139,8 @@ test('extracting an archive with an inconsistent compartment map hash', async t 
   const content = new Uint8Array(node.content.byteLength + 1);
   content.fill(' '.charCodeAt(0));
   content.set(node.content, 0);
+  node.uncompressedLength += 1;
+  node.compressedLength += 1;
   node.content = content;
 
   const invalidBytes = writer.snapshot();
@@ -177,6 +181,8 @@ test('extracting an archive with an inconsistent compartment map hash with expec
   const content = new Uint8Array(node.content.byteLength + 1);
   content.fill(' '.charCodeAt(0));
   content.set(node.content, 0);
+  node.uncompressedLength += 1;
+  node.compressedLength += 1;
   node.content = content;
 
   const invalidBytes = writer.snapshot();
