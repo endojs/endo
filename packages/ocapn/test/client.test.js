@@ -2,11 +2,11 @@
 /* global setTimeout */
 
 import harden from '@endo/harden';
-import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far, makeTagged } from '@endo/marshal';
 import { isPromise } from '@endo/promise-kit';
 import {
+  test,
   waitUntilTrue,
   testWithErrorUnwrapping,
   makeTestClient,
