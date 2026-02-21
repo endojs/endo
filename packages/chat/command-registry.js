@@ -396,6 +396,33 @@ export const COMMANDS = {
     ],
     submitLabel: 'Accept',
   },
+  network: {
+    name: 'network',
+    label: 'Enable Network',
+    description: 'Enable TCP network for peer connections',
+    category: 'connections',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'modulePath',
+        label: 'Module',
+        type: 'text',
+        required: false,
+        placeholder: 'tcp-netstring.js path (auto-detected)',
+        // @ts-ignore Vite injects this at build time
+        defaultValue: import.meta.env?.TCP_NETSTRING_PATH || '',
+      },
+      {
+        name: 'hostPort',
+        label: 'Listen address',
+        type: 'text',
+        required: false,
+        defaultValue: 'localhost:0',
+        placeholder: 'localhost:0',
+      },
+    ],
+    submitLabel: 'Enable',
+  },
 
   // ============ WORKERS ============
   spawn: {

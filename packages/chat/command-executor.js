@@ -40,6 +40,7 @@ export const createCommandExecutor = ({
    * @returns {Promise<CommandResult>}
    */
   const execute = async (commandName, params) => {
+    console.log(`[Chat] Executing /${commandName}`, params);
     try {
       switch (commandName) {
         // ============ MESSAGING ============
@@ -253,20 +254,100 @@ export const createCommandExecutor = ({
         // ============ CONNECTIONS ============
         case 'invite': {
           const { guestName } = params;
+          console.log(`[Chat] Creating invitation for "${guestName}"...`);
           const invitation = await E(powers).invite(String(guestName));
+          const locator = await E(invitation).locate();
+          console.log(`[Chat] Invitation locator generated`);
+          showMessage(`Invitation locator for "${guestName}":`);
+          showValue(locator, undefined, undefined, undefined);
           return {
             success: true,
-            value: invitation,
+            value: locator,
             message: `Invitation created for "${guestName}"`,
           };
         }
 
         case 'accept': {
           const { locator, guestName } = params;
-          await E(powers).accept(String(locator), String(guestName));
+          console.log(
+            `[Chat] Accepting invitation for "${guestName}" from ${String(locator).slice(0, 40)}...`,
+          );
+          const accepted = E(powers).accept(
+            String(locator),
+            String(guestName),
+          );
+          const timeout = new Promise((_, reject) => {
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `Accept timed out after 30s. Ensure both nodes have TCP networking enabled (/network).`,
+                  ),
+                ),
+              30_000,
+            );
+          });
+          await Promise.race([accepted, timeout]);
+          console.log(`[Chat] Invitation accepted for "${guestName}"`);
           return {
             success: true,
             message: `Invitation accepted, connected as "${guestName}"`,
+          };
+        }
+
+        case 'network': {
+          const effectiveModulePath =
+            String(params.modulePath || '') ||
+            // @ts-ignore Vite injects this at build time
+            (import.meta.env?.TCP_NETSTRING_PATH ?? '');
+          const effectiveHostPort =
+            String(params.hostPort || '') || 'localhost:0';
+
+          if (!effectiveModulePath) {
+            return {
+              success: false,
+              message:
+                'Module path required. Provide the file:// URL to tcp-netstring.js',
+            };
+          }
+
+          console.log(
+            `[Chat] /network: loading module ${effectiveModulePath}`,
+          );
+          const network = E(powers).makeUnconfined(
+            'MAIN',
+            effectiveModulePath,
+            {
+              powersName: 'AGENT',
+              resultName: 'network-service',
+            },
+          );
+          console.log(`[Chat] /network: waiting for port request message...`);
+          const iteratorRef = E(powers).followMessages();
+          const existingMessages = /** @type {unknown[]} */ (
+            await E(powers).listMessages()
+          );
+          for (let i = 0; i < existingMessages.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await E(iteratorRef).next();
+          }
+          const { value: message } = await E(iteratorRef).next();
+          const { number } = E.get(message);
+          console.log(
+            `[Chat] /network: resolving port request with "${effectiveHostPort}"`,
+          );
+          await E(powers).storeValue(effectiveHostPort, 'netport');
+          await E(powers).resolve(await number, 'netport');
+          console.log(
+            `[Chat] /network: waiting for network module to start...`,
+          );
+          await network;
+          console.log(`[Chat] /network: moving to NETS.tcp`);
+          await E(powers).move(['network-service'], ['NETS', 'tcp']);
+          console.log(`[Chat] /network: TCP network ready`);
+          return {
+            success: true,
+            message: `TCP network started on ${effectiveHostPort}`,
           };
         }
 
@@ -314,6 +395,7 @@ export const createCommandExecutor = ({
       }
     } catch (error) {
       const err = /** @type {Error} */ (error);
+      console.error(`[Chat] /${commandName} failed:`, err);
       showError(err);
       return { success: false, error: err };
     }

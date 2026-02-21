@@ -2589,6 +2589,144 @@ test('reverse locate remote value', async t => {
   t.is(reverseLocatedName, 'greetings');
 });
 
+test('bidirectional mail across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  // A sends mail to B
+  await E(hostA).evaluate('MAIN', '"value-from-a"', [], [], ['val-a']);
+  await E(hostA).send('bob', ['Hi from A'], ['val-a'], ['val-a']);
+
+  // B sends mail to A
+  await E(hostB).evaluate('MAIN', '"value-from-b"', [], [], ['val-b']);
+  await E(hostB).send('alice', ['Hi from B'], ['val-b'], ['val-b']);
+
+  const messagesB = await E(hostB).listMessages();
+  const fromA = messagesB.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Hi from A',
+  );
+  t.truthy(fromA, 'B should have received mail from A');
+  t.is(fromA.strings[0], 'Hi from A');
+
+  const messagesA = await E(hostA).listMessages();
+  const fromB = messagesA.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Hi from B',
+  );
+  t.truthy(fromB, 'A should have received mail from B');
+  t.is(fromB.strings[0], 'Hi from B');
+});
+
+test('adopt from remote message', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  await E(hostA).evaluate('MAIN', '"shared-value"', [], [], ['shared']);
+  const expectedId = await E(hostA).identify('shared');
+  await E(hostA).send('bob', ['Take this'], ['shared'], ['shared']);
+
+  const messages = await E(hostB).listMessages();
+  const msg = messages.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Take this',
+  );
+  t.truthy(msg);
+  t.is(msg.ids[0], expectedId);
+
+  await E(hostB).adopt(msg.number, 'shared', ['my-shared']);
+
+  const value = await E(hostB).lookup(['my-shared']);
+  t.is(value, 'shared-value');
+});
+
+test('follow messages across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  const iteratorRef = E(hostB).followMessages();
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(hostB).listMessages()
+  );
+  await drainIterator(iteratorRef, existingMessages.length);
+
+  await E(hostA).evaluate('MAIN', '"streamed"', [], [], ['stream-val']);
+  await E(hostA).send('bob', ['Stream test'], ['stream-val'], ['stream-val']);
+
+  const { value: msg } = await E(iteratorRef).next();
+  t.is(msg.type, 'package');
+  t.is(msg.strings[0], 'Stream test');
+});
+
+test('reply across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  const iteratorA = E(hostA).followMessages();
+  const iteratorB = E(hostB).followMessages();
+  const existingA = /** @type {unknown[]} */ (await E(hostA).listMessages());
+  await drainIterator(iteratorA, existingA.length);
+  const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
+  await drainIterator(iteratorB, existingB.length);
+
+  await E(hostA).send('bob', ['Hello Bob'], [], []);
+
+  // A's outgoing message appears in A's own iterator
+  const { value: sentMsg } = await E(iteratorA).next();
+  t.is(sentMsg.type, 'package');
+
+  // B receives the message
+  const { value: received } = await E(iteratorB).next();
+  t.is(received.type, 'package');
+  t.is(received.strings[0], 'Hello Bob');
+
+  await E(hostB).reply(received.number, ['Hello Alice'], [], []);
+
+  // A receives the reply via its iterator
+  const { value: replyMsg } = await E(iteratorA).next();
+  t.is(replyMsg.type, 'package');
+  t.is(replyMsg.strings[0], 'Hello Alice');
+});
+
+test('request and resolve across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  await E(hostB).evaluate('MAIN', '42', [], [], ['answer']);
+
+  const iteratorB = E(hostB).followMessages();
+  const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
+  await drainIterator(iteratorB, existingB.length);
+
+  const resultP = E(hostA).request('bob', 'need a number', 'result');
+
+  const { value: requestMsg } = await E(iteratorB).next();
+  t.is(requestMsg.type, 'request');
+
+  await E(hostB).resolve(requestMsg.number, 'answer');
+
+  await resultP;
+  const result = await E(hostA).lookup(['result']);
+  t.is(result, 42);
+});
+
 // Tests for pet name path support in methods that previously only accepted single pet names.
 
 test('cancel with pet name path', async t => {

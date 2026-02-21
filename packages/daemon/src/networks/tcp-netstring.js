@@ -163,6 +163,7 @@ export const make = async (powers, context) => {
     connectionClosedPromises.add(closed);
     closed.finally(() => {
       connectionClosedPromises.delete(closed);
+      cancelConnection();
       console.log(
         `Endo daemon closed connection ${connectionNumber} over ${protocol}at ${new Date().toISOString()}`,
       );

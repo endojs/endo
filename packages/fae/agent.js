@@ -17,6 +17,7 @@ import {
   makeRemoveTool,
   makeAdoptToolTool,
   makeSendTool,
+  makeReplyTool,
   makeListMessagesTool,
   makeDismissTool,
 } from './src/tool-makers.js';
@@ -47,7 +48,10 @@ when you adopt a tool capability from an incoming mail message using \`adoptTool
 
 You receive messages from other agents and the HOST. Use these tools to interact:
 
-- **send** — Send a message with optional capability attachments
+- **reply** — Reply to a message by number. The reply is automatically routed \
+to the original sender. **Always prefer reply over send** when responding to \
+an incoming message.
+- **send** — Send a new (unsolicited) message to a named agent (e.g., "HOST")
 - **listMessages** — List your inbox messages
 - **dismiss** — Acknowledge and dismiss a message
 - **adoptTool** — Adopt a capability from a message into your tools/ directory
@@ -73,7 +77,7 @@ try it right away.
 - Use tools to accomplish requests. Do not fabricate results.
 - For multi-step tasks, break them down and execute step by step.
 - If a tool call fails, read the error and try a different approach.
-- When done, send a response message back to the sender with a concise summary.
+- When done, use **reply** (not send) to respond to the sender with a concise summary.
 - Always dismiss messages after handling them.
 `;
 
@@ -126,6 +130,7 @@ export const make = (guestPowers, context, { env }) => {
   localTools.set('remove', makeRemoveTool(powers));
   localTools.set('adoptTool', makeAdoptToolTool(powers));
   localTools.set('send', makeSendTool(powers));
+  localTools.set('reply', makeReplyTool(powers));
   localTools.set('listMessages', makeListMessagesTool(powers));
   localTools.set('dismiss', makeDismissTool(powers));
 
@@ -361,7 +366,7 @@ export const make = (guestPowers, context, { env }) => {
 
       transcript.push({
         role: 'user',
-        content: `Message #${number} from ${fromId}: ${textContent}`,
+        content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
       });
 
       try {

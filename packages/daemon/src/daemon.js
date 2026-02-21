@@ -3066,9 +3066,6 @@ const makeDaemonCore = async (
       async () => {
         // TODO race networks that support protocol for connection
         // TODO retry, exponential back-off, with full jitter
-        // TODO (in connect implementations) allow for the possibility of
-        // connection loss and invalidate the connection formula and its transitive
-        // dependees when this occurs.
         const networks = await getAllNetworks(networksDirectoryId);
         // Connect on first support address.
         for (const address of addresses) {
@@ -3084,6 +3081,7 @@ const makeDaemonCore = async (
       },
       context.cancel,
       context.cancelled,
+      () => dropLiveValue(context.id),
     );
   };
 

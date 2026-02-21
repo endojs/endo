@@ -179,7 +179,15 @@ export const chatBarComponent = (
       } else {
         $error.textContent = message;
       }
-      console.error('Command error:', error);
+      console.error(`[Chat] Command error:`, message);
+      if (error?.errors?.length) {
+        for (const sub of error.errors) {
+          console.error(`[Chat]   caused by:`, sub?.message || sub);
+        }
+      }
+      if (error?.cause) {
+        console.error(`[Chat]   cause:`, error.cause?.message || error.cause);
+      }
     },
   });
 

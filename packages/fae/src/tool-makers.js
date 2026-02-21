@@ -691,6 +691,77 @@ harden(makeSendTool);
  * @param {import('@endo/eventual-send').ERef<object>} powers
  * @returns {FaeTool}
  */
+export const makeReplyTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'reply',
+      description:
+        'Reply to a specific message by number. The reply is automatically ' +
+        'routed to the original sender — no need to know their pet name. ' +
+        'Use this instead of send when responding to an incoming message.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'integer',
+            description: 'The message number to reply to.',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Text parts of the reply.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Labels for attached capabilities (as seen by the recipient).',
+          },
+          petNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Your local petnames for the capabilities to attach.',
+          },
+        },
+        required: ['messageNumber', 'strings'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const {
+        messageNumber,
+        strings = [],
+        edgeNames = [],
+        petNames = [],
+      } =
+        /** @type {{ messageNumber: number, strings?: string[], edgeNames?: string[], petNames?: string[] }} */ (
+          args
+        );
+      if (messageNumber === undefined) {
+        throw new Error('messageNumber is required');
+      }
+      await E(powers).reply(BigInt(messageNumber), strings, edgeNames, petNames);
+      return `Replied to message #${messageNumber}`;
+    },
+    help() {
+      return 'Reply to a message by number, automatically routing to the sender.';
+    },
+  });
+};
+harden(makeReplyTool);
+
+/**
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
 export const makeListMessagesTool = powers => {
   /** @type {ToolSchema} */
   const toolSchema = harden({

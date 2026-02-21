@@ -10,6 +10,9 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 // Path to the monorepo root
 const repoRoot = path.resolve(dirname, '../..');
 
+// Path to the TCP netstring network module (file:// URL for the daemon worker)
+const tcpNetstringUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js')}`;
+
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
 
@@ -169,6 +172,7 @@ export const makeEndoPlugin = (options = {}) => {
           // Placeholders - will be overwritten after gateway starts
           'import.meta.env.ENDO_PORT': JSON.stringify(0),
           'import.meta.env.ENDO_ID': JSON.stringify(''),
+          'import.meta.env.TCP_NETSTRING_PATH': JSON.stringify(tcpNetstringUrl),
         },
       };
     },
