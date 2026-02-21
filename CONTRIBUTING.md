@@ -115,6 +115,24 @@ let value;
 
 The `@import` style keeps type imports consolidated at the top of the file (similar to regular imports) and makes type annotations cleaner and more readable.
 
+## Module Naming
+
+Module specifiers use `kebab-case.js`.
+Name each module after the distinguishing function it exports.
+If the function is a maker like `makeThing`, omit `make` from the module name,
+so the module is `thing.js` rather than `make-thing.js`.
+
+For example, a module exporting `readerFromIterator` is named
+`reader-from-iterator.js`, and a module exporting `iterateReader` is named
+`iterate-reader.js`.
+
+We currently mirror the exported specifier and the implementing file name,
+including the `.js` extension, in the `"exports"` field of `package.json`.
+This avoids inhibiting migration from tools that do not recognize the
+`"exports"` field.
+We may relax this practice soon, and when we do, we will do so
+comprehensively, consistently, and backward-compatibly.
+
 ## Using Changesets
 
 Endo uses [Changesets](https://github.com/changesets/changesets) to manage
