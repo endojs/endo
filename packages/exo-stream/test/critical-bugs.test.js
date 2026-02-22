@@ -7,6 +7,7 @@ import { Far } from '@endo/far';
 
 import { readerFromIterator } from '../reader-from-iterator.js';
 import { iterateReader } from '../iterate-reader.js';
+import { writerFromIterator } from '../writer-from-iterator.js';
 import { iterateWriter } from '../iterate-writer.js';
 
 // Issue 1: When mustMatch() throws in iterateReader (iterate-reader.js:100),
@@ -248,5 +249,50 @@ test.failing(
     t.false(r2.done);
     t.is(r1.value, 1);
     t.is(r2.value, 2);
+  },
+);
+
+// Issue 8: writerFromIterator accepts a writePattern option and exposes it
+// via the writePattern() accessor, but the writer pump (writer-pump.js:80)
+// never validates incoming syn data against it. Invalid values are pushed
+// directly to the sink iterator without any check. This is a trust model
+// inversion: the receiver (responder) should validate, not rely on the
+// sender (initiator) to voluntarily query and enforce the pattern.
+//
+// By contrast, iterateReader validates received ack values against
+// readPattern on the initiator side (iterate-reader.js:99-101).
+
+test.failing(
+  'writerFromIterator validates incoming data against writePattern',
+  async t => {
+    // A sink iterator that collects pushed values
+    const received = [];
+    const sink = harden({
+      async next(value) {
+        if (value !== undefined) {
+          received.push(value);
+        }
+        return harden({ value: undefined, done: false });
+      },
+      async return() {
+        return harden({ value: undefined, done: true });
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    });
+
+    const writePattern = M.number();
+    const writerRef = writerFromIterator(sink, { writePattern });
+
+    // Send a string that violates writePattern (M.number()).
+    // The writer pump should reject the value with a pattern error.
+    await t.throwsAsync(
+      () => iterateWriter(writerRef, [harden('not a number')]),
+      { message: /number/ },
+    );
+
+    // The invalid value should not have reached the sink
+    t.is(received.length, 0);
   },
 );
