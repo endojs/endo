@@ -88,7 +88,9 @@ const createMockContext = () => {
     },
     invite: async guestName => {
       calls.push({ method: 'invite', args: [guestName] });
-      return 'endo://invitation';
+      return Far('MockInvitation', {
+        locate: async () => 'endo://invitation',
+      });
     },
     accept: async (locator, guestName) => {
       calls.push({ method: 'accept', args: [locator, guestName] });
