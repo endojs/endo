@@ -75,7 +75,7 @@ independently useful and could be built incrementally.
 │ Backend   │  Backend    │  Backend          │
 │           │             │                   │
 │ OS files  │ git refs,   │ Ephemeral or      │
-│ sandbox-  │ worktrees   │ content-addressed  │
+│ sandbox-  │ worktrees   │ content-addressed │
 │ compatible│             │ blobs             │
 └───────────┴─────────────┴───────────────────┘
 ```
@@ -209,11 +209,15 @@ sandbox plugin in a powerful way.
 
 A VFS backed entirely by non-physical backends (git trees, memory, CAS)
 cannot be passed directly to an OS sandbox, since sandboxed native
-processes need real filesystem paths.  **Materialization** would bridge
-this gap: the VFS (or a subtree of it) is checked out to temporary
-physical storage, the sandboxed process runs against that checkout, and
-changes
-are read back into the VFS.
+processes need real filesystem paths.
+
+**Materialization** would bridge this gap: the VFS (or a subtree of it) is
+checked out to temporary physical storage, the sandboxed process runs against
+that checkout, and changes are read back into the VFS.
+
+**Josh** or we could use fuse instead of materialization; that said having a
+CopyTree utility probably still makes sense, even if not needed for an OS
+sandbox
 
 ```js
 // Materialize the VFS into a temp directory for sandbox use:
