@@ -89,7 +89,6 @@ export const inventoryComponent = async (
 
     // Event handlers
     $name.onclick = () => {
-      // Pass array directly since lookup accepts string | string[]
       const idP = E(powers).identify(
         .../** @type {[string, ...string[]]} */ (itemPath),
       );
@@ -145,9 +144,14 @@ export const inventoryComponent = async (
           // But we need to wrap operations to use the full path from root powers
           const nestedPowers = /** @type {ERef<EndoHost>} */ (
             /** @type {unknown} */ ({
-              /** @param {string[]} subPath */
-              lookup: (...subPath) =>
-                E(powers).lookup([...itemPath, ...subPath]),
+              /** @param {string | string[]} subPathOrName */
+              lookup: subPathOrName => {
+                const subPath =
+                  typeof subPathOrName === 'string'
+                    ? [subPathOrName]
+                    : subPathOrName;
+                return E(powers).lookup([...itemPath, ...subPath]);
+              },
               /** @param {string[]} subPath */
               remove: (...subPath) => {
                 const fullPath = [...itemPath, ...subPath];

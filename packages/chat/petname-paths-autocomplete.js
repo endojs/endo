@@ -29,12 +29,13 @@
  * @param {ERef<EndoHost>} options.powers - Powers object for listing names
  * @param {() => void} [options.onSubmit] - Called when Enter is pressed
  * @param {() => void} [options.onChange] - Called when value changes
+ * @param {boolean} [options.finalizeOnSelect] - If true, selecting completes the chip without showing more suggestions. Use Shift+Tab to go back.
  * @returns {PetNamePathsAutocompleteAPI}
  */
 export const petNamePathsAutocomplete = (
   $container,
   $menu,
-  { E, powers, onSubmit, onChange },
+  { E, powers, onSubmit, onChange, finalizeOnSelect = false },
 ) => {
   /** @type {string[]} */
   let completedPaths = [];
@@ -151,9 +152,9 @@ export const petNamePathsAutocomplete = (
       /** @type {unknown} */
       let target = powers;
       if (pathPrefix.length > 0) {
-        target = /** @type {{ lookup: (...path: string[]) => unknown }} */ (
+        target = /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
           E(powers)
-        ).lookup(...pathPrefix);
+        ).lookup(pathPrefix);
       }
       const names =
         await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
@@ -181,6 +182,20 @@ export const petNamePathsAutocomplete = (
     selectedIndex = 0;
   };
 
+  /**
+   * Update the selected class on menu items without re-rendering.
+   */
+  const updateMenuSelection = () => {
+    const items = $menu.querySelectorAll('.token-menu-item');
+    items.forEach((item, index) => {
+      if (index === selectedIndex) {
+        item.classList.add('selected');
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+  };
+
   const renderMenu = () => {
     $menu.innerHTML = '';
 
@@ -203,13 +218,14 @@ export const petNamePathsAutocomplete = (
 
         $item.addEventListener('mouseenter', () => {
           selectedIndex = index;
-          renderMenu();
+          updateMenuSelection();
         });
 
-        $item.addEventListener('click', e => {
+        // Use mousedown for immediate response before blur can fire
+        $item.addEventListener('mousedown', e => {
           e.preventDefault();
           e.stopPropagation();
-          selectSuggestion(index, 'complete');
+          selectSuggestion(index, 'space');
         });
 
         $menu.appendChild($item);
@@ -218,8 +234,9 @@ export const petNamePathsAutocomplete = (
 
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
-    $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit · <kbd>Esc</kbd> cancel';
+    $hint.innerHTML = finalizeOnSelect
+      ? '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>⇧Tab</kbd> go back · <kbd>Enter</kbd> submit'
+      : '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
   };
 
@@ -237,24 +254,33 @@ export const petNamePathsAutocomplete = (
     const selected = suggestions[index];
     const { pathPrefix } = parseInput($input.value);
 
-    // Build the full path for this selection
-    const fullPath = [...pathPrefix, selected].join('.');
+    // If input is empty and we have existing chips, extend the last chip's path
+    const extendingLastChip =
+      $input.value.length === 0 && completedPaths.length > 0;
+    let fullPath;
+    if (extendingLastChip) {
+      const lastPath = completedPaths[completedPaths.length - 1];
+      fullPath = `${lastPath}.${selected}`;
+      // Remove the last chip since we're extending it
+      completedPaths.pop();
+    } else {
+      fullPath = [...pathPrefix, selected].join('.');
+    }
 
     if (mode === 'space') {
-      // Create chip and clear input
+      // Create/update chip and clear input
       completedPaths.push(fullPath);
       $input.value = '';
       renderChips();
       notifyChange();
       hideMenu();
-      // Show suggestions for new path
-      setTimeout(() => updateSuggestions(), 0);
+      // Show suggestions for the new/extended path (unless finalizeOnSelect)
+      if (!finalizeOnSelect) {
+        setTimeout(() => updateSuggestions(), 0);
+      }
     } else if (mode === 'drilldown') {
-      // Create chip for current path, start drilling into it
-      completedPaths.push(fullPath);
+      // Put full path in input with trailing dot for continued drilling
       $input.value = `${fullPath}.`;
-      // Remove the chip we just added - we're continuing to edit it
-      completedPaths.pop();
       renderChips();
       notifyChange();
       // Fetch suggestions for the new prefix
@@ -275,8 +301,14 @@ export const petNamePathsAutocomplete = (
     const { pathPrefix, partial } = parseInput(value);
 
     if (value.length === 0) {
-      // Show root suggestions when empty
-      const allNames = await fetchSuggestions([]);
+      // If there are completed paths, show suggestions for drilling into the last one
+      // Otherwise show root suggestions
+      let basePath = /** @type {string[]} */ ([]);
+      if (completedPaths.length > 0) {
+        const lastPath = completedPaths[completedPaths.length - 1];
+        basePath = lastPath.split('.');
+      }
+      const allNames = await fetchSuggestions(basePath);
       suggestions = allNames;
       if (suggestions.length > 0) {
         selectedIndex = 0;
@@ -331,6 +363,24 @@ export const petNamePathsAutocomplete = (
 
   // Handle keyboard
   $input.addEventListener('keydown', e => {
+    // Shift+Tab on empty input: go back to edit/extend the last chip
+    if (
+      e.key === 'Tab' &&
+      e.shiftKey &&
+      $input.value === '' &&
+      completedPaths.length > 0
+    ) {
+      e.preventDefault();
+      const lastPath = completedPaths.pop();
+      // Put the path back in input with trailing dot for drilling
+      $input.value = `${lastPath}.`;
+      renderChips();
+      notifyChange();
+      // Show suggestions for extending
+      updateSuggestions();
+      return;
+    }
+
     // Backspace on empty input removes last chip
     if (
       e.key === 'Backspace' &&
@@ -373,7 +423,7 @@ export const petNamePathsAutocomplete = (
         e.preventDefault();
         if (suggestions.length > 0) {
           selectedIndex = (selectedIndex + 1) % suggestions.length;
-          renderMenu();
+          updateMenuSelection();
         }
         break;
 
@@ -382,7 +432,7 @@ export const petNamePathsAutocomplete = (
         if (suggestions.length > 0) {
           selectedIndex =
             (selectedIndex - 1 + suggestions.length) % suggestions.length;
-          renderMenu();
+          updateMenuSelection();
         }
         break;
 
@@ -390,7 +440,7 @@ export const petNamePathsAutocomplete = (
         e.preventDefault();
         if (suggestions.length > 0) {
           selectedIndex = 0;
-          renderMenu();
+          updateMenuSelection();
         }
         break;
 
@@ -398,7 +448,7 @@ export const petNamePathsAutocomplete = (
         e.preventDefault();
         if (suggestions.length > 0) {
           selectedIndex = suggestions.length - 1;
-          renderMenu();
+          updateMenuSelection();
         }
         break;
 
@@ -418,7 +468,7 @@ export const petNamePathsAutocomplete = (
             selectedIndex + step,
             suggestions.length - 1,
           );
-          renderMenu();
+          updateMenuSelection();
         }
         break;
 
@@ -435,7 +485,7 @@ export const petNamePathsAutocomplete = (
           );
           const step = Math.max(1, pageSize - 1);
           selectedIndex = Math.max(selectedIndex - step, 0);
-          renderMenu();
+          updateMenuSelection();
         }
         break;
 

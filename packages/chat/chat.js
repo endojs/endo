@@ -9,8 +9,11 @@ import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
+import { createSpacesGutter } from './spaces-gutter.js';
 
 const template = `
+<div id="spaces-gutter"></div>
+
 <div id="pets">
   <div class="inventory-header">
     <span class="inventory-title">Inventory</span>
@@ -102,6 +105,7 @@ const template = `
 </div>
 
 <div id="help-modal-container"></div>
+<div id="add-space-modal-container"></div>
 `;
 
 /**
@@ -237,6 +241,12 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
   const $showSpecialToggle = /** @type {HTMLInputElement} */ (
     $parent.querySelector('#show-special-toggle')
   );
+  const $spacesGutter = /** @type {HTMLElement} */ (
+    $parent.querySelector('#spaces-gutter')
+  );
+  const $addSpaceModal = /** @type {HTMLElement} */ (
+    $parent.querySelector('#add-space-modal-container')
+  );
 
   // Set up special names toggle
   $showSpecialToggle.addEventListener('change', () => {
@@ -249,6 +259,17 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
 
   // Set up resizable sidebar
   resizeHandleComponent($parent);
+
+  // Set up spaces gutter for quick navigation
+  createSpacesGutter({
+    $container: $spacesGutter,
+    $modalContainer: $addSpaceModal,
+    powers: rootPowers,
+    currentProfilePath: profilePath,
+    onNavigate: newPath => {
+      onProfileChange(newPath);
+    },
+  });
 
   // Resolve powers for the current profile path
   const resolvePowers = async () => {

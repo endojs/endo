@@ -106,10 +106,21 @@ export const makeMockPowers = ({
 
     /**
      * Look up a value by pet name path.
-     * @param  {...string} path
+     * Accepts either a string, an array, or rest args for compatibility.
+     * @param {string | string[]} pathOrFirst
+     * @param  {...string} rest
      * @returns {unknown}
      */
-    lookup(...path) {
+    lookup(pathOrFirst, ...rest) {
+      /** @type {string[]} */
+      let path;
+      if (Array.isArray(pathOrFirst)) {
+        path = pathOrFirst;
+      } else if (typeof pathOrFirst === 'string') {
+        path = rest.length > 0 ? [pathOrFirst, ...rest] : [pathOrFirst];
+      } else {
+        throw new Error(`Invalid path: ${pathOrFirst}`);
+      }
       const key = path.join('.');
       if (!values.has(key)) {
         throw new Error(`Not found: ${key}`);
