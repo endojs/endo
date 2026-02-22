@@ -3,8 +3,11 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 
+import { Far } from '@endo/far';
+
 import { readerFromIterator } from '../reader-from-iterator.js';
 import { iterateReader } from '../iterate-reader.js';
+import { iterateWriter } from '../iterate-writer.js';
 
 // Issue 1: When mustMatch() throws in iterateReader (iterate-reader.js:100),
 // the `done` flag is never set and `nodePromise` is never advanced to the next
@@ -109,6 +112,53 @@ test.failing(
       // eslint-disable-next-line no-restricted-globals
       new Promise(resolve => setTimeout(() => resolve(false), 200)),
     ]);
+    t.true(returnCalled);
+  },
+);
+
+// Issue 3: When the responder closes the ack chain early (ackNode.promise
+// is null in iterate-writer.js:87), iterateWriter returns immediately without
+// calling localIterator.return(). This leaks any resources held by the source
+// iterator that the initiator was feeding to the writer.
+//
+// The same issue affects iterateBytesWriter (iterate-bytes-writer.js:94).
+
+test.failing(
+  'iterateWriter closes local iterator when responder closes early',
+  async t => {
+    let returnCalled = false;
+
+    // Source iterator with many items that tracks cleanup
+    async function* source() {
+      try {
+        yield 1;
+        yield 2;
+        yield 3;
+        yield 4;
+        yield 5;
+      } finally {
+        returnCalled = true;
+      }
+    }
+
+    // A writer responder that immediately closes the ack chain,
+    // simulating a responder that rejects the stream after zero values.
+    const fakeWriter = Far('FakeWriter', {
+      stream(_synHead) {
+        return harden({ value: undefined, promise: null });
+      },
+      writePattern() {
+        return undefined;
+      },
+      writeReturnPattern() {
+        return undefined;
+      },
+    });
+
+    await iterateWriter(fakeWriter, source());
+
+    // The source iterator's return() should have been called so its
+    // finally block can release resources.
     t.true(returnCalled);
   },
 );
