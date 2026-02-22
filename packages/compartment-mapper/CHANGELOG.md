@@ -1,233 +1,219 @@
-# Change Log
+# @endo/compartment-mapper
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [1.6.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.2...@endo/compartment-mapper@1.6.3) (2025-07-12)
-
+## [1.6.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.2...@endo/compartment-mapper@1.6.3) (2025-07-12)
 
 ### Bug Fixes
 
 * **compartment-mapper:** convert dynamically-required relative paths to absolute ([208f2a8](https://github.com/endojs/endo/commit/208f2a8d8936421c485846909d7cbcb225a80552))
 * **compartment-mapper:** guarantee stable paths ([#2872](https://github.com/endojs/endo/issues/2872)) ([5ff31f9](https://github.com/endojs/endo/commit/5ff31f950beef17bbdfd8e3f1dbc33eb1d60d782))
 
+## [1.6.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.1...@endo/compartment-mapper@1.6.2) (2025-06-17)
 
+- Produces a stub for `require.extensions` in CommonJS modules to increase
+  ecosystem compatibility.
 
-### [1.6.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.1...@endo/compartment-mapper@1.6.2) (2025-06-17)
+## [1.6.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.0...@endo/compartment-mapper@1.6.1) (2025-06-02)
 
-
-### Bug Fixes
-
-* **compartment-mapper:** stub require.extensions ([37d948e](https://github.com/endojs/endo/commit/37d948e333ecc230b055fe760048879a5eb82eb9)), closes [#2825](https://github.com/endojs/endo/issues/2825)
-
-
-
-### [1.6.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.0...@endo/compartment-mapper@1.6.1) (2025-06-02)
-
-
-### Bug Fixes
-
-* **compartment-mapper:** add missing arg to recursive call ([1b3c2f4](https://github.com/endojs/endo/commit/1b3c2f45023cb51f687f70a150e7ebbb86e16aa5))
-* **compartment-mapper:** add some missing fields to PackageDescriptor ([8826b71](https://github.com/endojs/endo/commit/8826b71088f4b635b25e0198d6a39b7367ea51de))
-* **compartment-mapper:** fix crawling ([#2769](https://github.com/endojs/endo/issues/2769)) ([a10afac](https://github.com/endojs/endo/commit/a10afaca25c39e55a7a901bb8d28bc48c90236ec))
-* **compartment-mapper:** handle dynamically-required builtins properly; closes [#2754](https://github.com/endojs/endo/issues/2754) ([384e904](https://github.com/endojs/endo/commit/384e90414fd89cc46b15f9a65adfae2595ce308e))
-* **compartment-mapper:** handle invalid peer dependencies ([2ee95c7](https://github.com/endojs/endo/commit/2ee95c7931a6d4379c607b2c669e768e07a90a33))
-* **compartment-mapper:** handle missing optional packages in dynamically-required modules ([64eeea9](https://github.com/endojs/endo/commit/64eeea9e1fe2c9abd16ba6ef6280816c5c703b3b)), closes [#2819](https://github.com/endojs/endo/issues/2819)
-* **compartment-mapper:** ignore export alias './' ([a267042](https://github.com/endojs/endo/commit/a26704277034e318541871371bb04939b526451f))
-* **compartment-mapper:** specifier of module descriptor returned from findRedirect fixed ([#2765](https://github.com/endojs/endo/issues/2765)) ([475c9eb](https://github.com/endojs/endo/commit/475c9eb5a73c0874dccd42dc23c3d22e7f626c5b))
-* **compartment-mapper:** un-deprecate the dev flag ([db9e48f](https://github.com/endojs/endo/commit/db9e48f24fd3b532c8478e5cfc0cf9720fc13fcb))
-
-
+- The `dev` flag for `mapNodeModules()` is no longer deprecated.  The concept
+  of a "condition" ([conditional
+  exports](https://nodejs.org/api/packages.html#conditional-exports)) is
+  disinct from the flag's original meaning (instructs `mapNodeModules()` to
+  consider `devDependencies` when graphing packages).
+  Users who have switched to using a `development` condition for `dev`'s
+  purpose are encouraged to _switch back_ to using the `dev` flag instead.
+  **In a future release, the presence of a `development` condition will no
+  longer mimic an enabled `dev` flag** and will only be considered when
+  evaluating conditional exports.
 
 ## [1.6.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.5.0...@endo/compartment-mapper@1.6.0) (2025-03-24)
 
+- Accommodates CommonJS modules that use `defineProperty` on `exports`.
 
-### Features
+- Divides the role of `makeBundle` into `makeScript` and `makeFunctor`.
+  The new `makeScript` replaces `makeBundle` without breaking changes,
+  producing a JavaScript string that is suitable as a `<script>` tag in a web
+  page.
+- The new `makeFunctor` produces a JavaScript string that, when evaluated,
+  produces a partially applied function, so the caller can provide runtime
+  options.
+- Both `makeScript` and `makeFunctor` now accept `format`, `useEvaluate` and
+  `sourceUrlPrefix` options.
+- The functor produced by `makeFunctor` now accepts `evaluate`, `require`, and
+  `sourceUrlPrefix` runtime options.
+- Both `makeScript` and `makeFunctor` now accept a `format` option.
+  Specifiying the `"cjs"` format allows the bundle to exit to the host's
+  CommonJS `require` for host modules.
+- Adds `sourceDirname` to compartment descriptors in the compartment maps
+  generated by `mapNodeModules` and uses these to provide better source URL
+  comments for bundles generated by `makeScript` and `makeFunctor`, by default.
 
-* **compartment-mapper:** a simple version of allowing exports override via define semantics with little new consequences ([8e33f8c](https://github.com/endojs/endo/commit/8e33f8c8c1520e726be36b281ae686e7a95d8870))
-* **compartment-mapper:** add option for custom logger to various functions ([493b4c2](https://github.com/endojs/endo/commit/493b4c24714189c884cb5b648f876cb3ee5ad21c))
-* **compartment-mapper:** cjs - allow overwriting exports field with define semantics ([7b1785c](https://github.com/endojs/endo/commit/7b1785c8a0c93a497f22c3f2a963d2c1acc33cc7))
-* **compartment-mapper:** makeFunctor to go with makeScript from makeBundle ([ee87476](https://github.com/endojs/endo/commit/ee87476e0efcf8f6e412eec93eba5f3853ead6f3))
+These changes collectively allow us to replace the implementation of
+`nestedEvaluate` and `getExports` formats in `@endo/bundle-source`, including
+the preservation of useful line numbers and file names in stack traces.
 
-
-### Bug Fixes
-
-* **compartment-mapper:** Make bundled code more robust against primordial replacement/manipulation ([#2725](https://github.com/endojs/endo/issues/2725)) ([9aac805](https://github.com/endojs/endo/commit/9aac8051275d031d8d6e84c34d20aa9c3c9b64a8)), closes [/github.com/endojs/endo/pull/2707#discussion_r1953346697](https://github.com/endojs//github.com/endojs/endo/pull/2707/issues/discussion_r1953346697)
-* **compartment-mapper:** make the cjs support for `defineProperty(module, 'exports'` work ([433bfbb](https://github.com/endojs/endo/commit/433bfbb1c44f88baf852228bb012972ba2c0cbc0))
-* **compartment-mapper:** sync module transforms in bundle.js ([1d29043](https://github.com/endojs/endo/commit/1d29043e8de08091b1b59059e91eba3be29983b7))
-
-
+- `mapNodeModules`, `importLocation` and `loadLocation` now accept a `log`
+  option for users to define a custom logging function. As of this writing,
+  _only `mapNodeModules`_ will potentially call this function if provided.
+  Expansion of log messaging and support for the `log` option in more APIs is
+  expected _in the future_.
 
 ## [1.5.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.4.0...@endo/compartment-mapper@1.5.0) (2025-01-24)
 
+- `mapNodeModules` and all functions that use it now tolerate the absence of
+  expected packages.
+  These packages are now omitted from the generated package skeleton map.
+  So, loading a physically missing module now occurs during the load phase
+  instead of the mapping phase.
+- Adds a `strict` option to all functions that `mapNodeModules` to restore old
+  behavior, which produces an error early if, for example, a non-optional
+  peer dependency is missing.
+  Peer dependencies are strictly required unless `peerDependenciesMeta` has an
+  object with a truthy `optional` entry.
+  Correct interpretation of `peerDependencies` is not distributed evenly, so
+  this behavior is no longer the default.
 
-### Features
+Experimental:
 
-* **compartment-mapper:** Export all parsers ([c5f5d43](https://github.com/endojs/endo/commit/c5f5d433b1df60ef0f74b1a5458675a4e37806e0))
-* **compartment-mapper:** more renames returned from captureFromMap / makeArchiveCompartmentMap ([630592d](https://github.com/endojs/endo/commit/630592d38824316479255453cf49a646a9ff0e75))
-* **compartment-mapper:** Relax package discovery ([ab885a2](https://github.com/endojs/endo/commit/ab885a226eb05eb715df9da05c63c11731abf494))
-* **compartment-mapper:** Thread native flag to opt-in for native XS runtime modules ([aa1e77f](https://github.com/endojs/endo/commit/aa1e77f9af62dca40a357e92fd869ecdb8a35379))
-
-
-### Bug Fixes
-
-* **compartment-mapper:** Development condition only implies devDependencies for entry package ([b7d7b23](https://github.com/endojs/endo/commit/b7d7b2388308e23217dc7d126ba081c465cf4b1f))
-* **compartment-mapper:** Fix path for language for extension test ([99a1cb5](https://github.com/endojs/endo/commit/99a1cb5e960fa62c2dab49ff0724162710730330))
-* **compartment-mapper:** Qualify dynamic import test failure cases ([f470696](https://github.com/endojs/endo/commit/f4706960afef22b98780ca4cbffe6ccf82ed9b1b))
-
-
+- The module `@endo/compartment-mapper/import-archive-parsers.js` does not
+  support modules in archives in their original ESM (`mjs`) or CommonJS (`cjs`)
+  formats because they entrain Babel and a full JavaScript lexer that are
+  not suitable for use in all environments, specifically XS.
+  This version introduces an elective
+  `@endo/compartment-mapper/import-archive-all-parsers.js` that has all of the
+  precompiled module parsers (`pre-cjs-json` and `pre-mjs-json`) that Endo's
+  bundler currently produces by default and additionally parsers for original
+  sources (`mjs`, `cjs`).
+  Also, provided the `xs` package condition,
+  `@endo/compartment-mapper/import-archive-parsers.js` now falls through to the
+  native `ModuleSource` and safely includes `mjs` and `cjs` without entraining
+  Babel, but is only supported in conjunction with the `__native__` option
+  for `Compartment`, `importArchive`, `parseArchive`, and `importBundle`.
+  With the `node` package condition (present by default when running ESM on
+  `node`), `@endo/compartment-mapper/import-archive-parsers.js` also now
+  includes `mjs` and `cjs` by entraining Babel, which performs adequately on
+  that platform.
+- Adds a `__native__: true` option to all paths to import, that indicates that
+  the application will fall through to the native implementation of
+  Compartment, currently only available on XS, which lacks support for
+  precompiled module sources (as exist in many archived applications,
+  particularly Agoric smart contract bundles) and instead supports loading
+  modules from original sources (which is not possible at runtime on XS).
 
 ## [1.4.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.3.1...@endo/compartment-mapper@1.4.0) (2024-11-13)
 
+- Adds options `languageForExtension`, `moduleLanguageForExtension`,
+  `commonjsLanguageForExtension`, and `languages` to `mapNodeModules` and
+  `compartmentMapForNodeModules` allowing for certain mappings from extension
+  (e.g., `ts`) to language (e.g., `mts` or `cts`) to depend on the each
+  package’s `type` in the way we already vary `js` between `cjs` and `mjs`.
+  These options enter through the high level functions including `makeArchive`
+  and `importLocation`.
+- The new options `workspaceLanguageForExtension`,
+  `workspaceModuleLanguageForExtension`, and
+  `workspaceCommonjsLanguageForExtension` apply like the above except more
+  specifically and for packages that are not physically located under a
+  `node_modules` directory, indicating that JavaScript has not yet been
+  generated from any non-JavaScript source files.
+- Omits unused module descriptors from `compartment-map.json` in archived
+  applications, potentially reducing file sizes.
+- Fixes an issue where errors thrown from exit module hooks (`importHook`) would
+  be thrown at parse-time when the parser uses heuristic import analysis
+  _instead of_ at runtime. Such errors will now be thrown at runtime, as
+  originally intended. To those who expected the previous behavior: if you
+  exist, please exercise caution when upgrading.
 
-### Features
-
-* **compartment-mapper:** add Compartment option to captureFromMap ([1ac2156](https://github.com/endojs/endo/commit/1ac2156ae46f9b94ac39cd8b241d0f1ac16f5cce))
-* **compartment-mapper:** Collect unretained module descriptors ([e3b310d](https://github.com/endojs/endo/commit/e3b310d4bd4ddd859d4606a87b6bb2c063831d75))
-* **compartment-mapper:** languageForExtensions options but parameterized on package type ([c31c31f](https://github.com/endojs/endo/commit/c31c31fc258f8b733b677216d492b7655af45c0d))
-* **compartment-mapper:** Workspace language-for-extension options ([389de7b](https://github.com/endojs/endo/commit/389de7b6f9ff4b191f17c442199c289f12c5b855))
-
-
-### Bug Fixes
-
-* **compartment-mapper:** Defer all importHook errors when importing a… ([#2610](https://github.com/endojs/endo/issues/2610)) ([28999e8](https://github.com/endojs/endo/commit/28999e8a2da209c28b217f096dc2fb8080898e9a))
-* **compartment-mapper:** Relax ERef to Promise ([169b9fa](https://github.com/endojs/endo/commit/169b9fa17864618b89963aba40dff717946c9ca6))
-* **compartment-mapper:** Thread compartment name to all exit import hooks ([abd1ddd](https://github.com/endojs/endo/commit/abd1ddd48ae1dc3a3ad134a5fa2bedb0600ce412))
-* **compartment-mapper:** top-level "this" is "module.exports" ([#2620](https://github.com/endojs/endo/issues/2620)) ([a923f4e](https://github.com/endojs/endo/commit/a923f4e864b2975b46f7c20bcc7c702ac0d5287d))
-
-
-
-### [1.3.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.3.0...@endo/compartment-mapper@1.3.1) (2024-10-22)
+## [1.3.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.3.0...@endo/compartment-mapper@1.3.1) (2024-10-22)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-
-
-
-
 ## [1.3.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.2...@endo/compartment-mapper@1.3.0) (2024-10-10)
 
+- Adds support for dynamic requires in CommonJS modules. This requires specific
+  configuration to be passed in (including new read powers), and is _not_
+  enabled by default. See the signature of `loadFromMap()` in `import-lite.js`
+  for details.
 
-### Features
-
-* **compartment-mapper:** support for dynamic requires ([572589c](https://github.com/endojs/endo/commit/572589cbce247b322925cd3c1274ba56d72d3741))
-
-
-### Bug Fixes
-
-* **compartment-mapper:** bad type in assertCompartmentMap ([81d7464](https://github.com/endojs/endo/commit/81d74646756b187306ba0511386aea6365979e78))
-
-
-
-### [1.2.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.1...@endo/compartment-mapper@1.2.2) (2024-08-27)
-
+## [1.2.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.1...@endo/compartment-mapper@1.2.2) (2024-08-27)
 
 ### Bug Fixes
 
 * **compartment-mapper:** fix [#2407](https://github.com/endojs/endo/issues/2407) include symbol-named properties ([#2408](https://github.com/endojs/endo/issues/2408)) ([2b799f8](https://github.com/endojs/endo/commit/2b799f8b1f0a1beb6f6841652ff2fa92e8458d23)), closes [#2377](https://github.com/endojs/endo/issues/2377)
 
-
-
-### [1.2.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.0...@endo/compartment-mapper@1.2.1) (2024-08-01)
+## [1.2.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.0...@endo/compartment-mapper@1.2.1) (2024-08-01)
 
 **Note:** Version bump only for package @endo/compartment-mapper
-
-
-
-
 
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.5...@endo/compartment-mapper@1.2.0) (2024-07-30)
 
+- Fixes incompatible behavior with Node.js package conditional exports #2276.
+  Previously, the last matching tag would override all prior matches, often
+  causing a bundle to adopt the `default` instead of a more specific condition.
+- Adds `parserForLanguage` and `languageForExtension` options to all modes of
+  operation such that the compartment mapper can analyze and bundle languages
+  apart from the built-in languages, which include `esm` and `cjs`.
+  The `languageForExtension` option provides defaults for the entire
+  application and the `"parsers"` property in individual `package.json`
+  descriptors may extend or override using any of the configured or built-in
+  language parser names.
+- Exports `import-lite.js`, `archive-lite.js`, `import-archive-lite.js`,
+  `import-parsers.js`, `archive-parsers.js`, `import-archive-parsers.js`, and
+  `node-modules.js`, allowing these to be mixed and matched.
+  The existing `import.js`, `archive.js`, and `import-archive.js` all entrain
+  by import their corresponding default behaviors, where the new modules do
+  not.
+  For example, `import-parsers.js` does not entrain Babel.
+  The new `import-lite.js` does not entrain `node-modules.js` and composes
+  with potential alternative package discovery, storage, and locks.
+- Adds JSON module support to `makeBundle`.
+- Aliases and deprecates `tags` in favor of `conditions` to align with Node.js
+  terminology.
+- `mapNodeModules` now infers that it should include `devDependencies` from
+  the entry package from the presence of `"development"` in `conditions`,
+  if the `dev` option is abseent.
 
-### Features
-
-* **compartment-mapper:** Custom parser support ([#2304](https://github.com/endojs/endo/issues/2304)) ([43d867e](https://github.com/endojs/endo/commit/43d867ec4a5627900e2bac858c6e13a5cb92a562)), closes [#2303](https://github.com/endojs/endo/issues/2303) [#2303](https://github.com/endojs/endo/issues/2303) [#2303](https://github.com/endojs/endo/issues/2303) [#2303](https://github.com/endojs/endo/issues/2303)
-* **compartment-mapper:** Export lite and parser modules ([7b5432f](https://github.com/endojs/endo/commit/7b5432f247ac60d6ec0fef7b7e619124689c8495))
-* **compartment-mapper:** Infer dev mode from development condition ([51d8601](https://github.com/endojs/endo/commit/51d8601f23f761f408fcffab4979e8fd10fd601d))
-* **compartment-mapper:** JSON module support for makeBundle ([779595c](https://github.com/endojs/endo/commit/779595c048663d4e3fcba3bac00d9ca063bbed15))
-
-
-### Bug Fixes
-
-* **compartment-mapper:** Support ESM imports defined property from CJS from set property of CJS ([bfd51ee](https://github.com/endojs/endo/commit/bfd51eee657fd65751c832898b7091b7ad3ecc7c))
-* **compartment-mapper:** Take only first matching tag of package exports ([7e7654d](https://github.com/endojs/endo/commit/7e7654de10b552a3486289f2e9e677546aafe464))
-* **compartment-mapper:** Thread maybeRead through initial package.json search ([592a485](https://github.com/endojs/endo/commit/592a485e22c78b17d7d0270b22ea9772e2da80f1))
-* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
-
-
-
-### [1.1.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.4...@endo/compartment-mapper@1.1.5) (2024-05-07)
-
-**Note:** Version bump only for package @endo/compartment-mapper
-
-
-
-
-
-### [1.1.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.3...@endo/compartment-mapper@1.1.4) (2024-04-04)
-
-**Note:** Version bump only for package @endo/compartment-mapper
-
-
-
-
-
-### [1.1.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.2...@endo/compartment-mapper@1.1.3) (2024-03-20)
+## [1.1.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.4...@endo/compartment-mapper@1.1.5) (2024-05-07)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-
-
-
-
-### [1.1.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.1...@endo/compartment-mapper@1.1.2) (2024-02-23)
+## [1.1.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.3...@endo/compartment-mapper@1.1.4) (2024-04-04)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
+## [1.1.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.2...@endo/compartment-mapper@1.1.3) (2024-03-20)
 
+**Note:** Version bump only for package @endo/compartment-mapper
 
+## [1.1.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.1...@endo/compartment-mapper@1.1.2) (2024-02-23)
 
+**Note:** Version bump only for package @endo/compartment-mapper
 
-### [1.1.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.0...@endo/compartment-mapper@1.1.1) (2024-02-15)
-
+## [1.1.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.0...@endo/compartment-mapper@1.1.1) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.0.1...@endo/compartment-mapper@1.1.0) (2024-01-18)
-
 
 ### Features
 
 * **compartment-mapper:** add policy-related types ([d3b49e8](https://github.com/endojs/endo/commit/d3b49e828bd0ea2344079d2b0d205e4633624bee))
-
 
 ### Bug Fixes
 
 * **compartment-mapper:** handle implicit policy/packagePolicy ([ed6f23e](https://github.com/endojs/endo/commit/ed6f23e5957dd89b9732aa087d99c10a58f56c26))
 * **compartment-mapper:** throw if policy/packagePolicy mismatch ([ece09e2](https://github.com/endojs/endo/commit/ece09e253f48416e465a948c0e85ee6d866d7358))
 
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.0.0...@endo/compartment-mapper@1.0.1) (2023-12-20)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.0.0...@endo/compartment-mapper@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-
-
-
-
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.9.2...@endo/compartment-mapper@1.0.0) (2023-12-12)
-
 
 ### Features
 
 * **compartment-mapper:** allow skipping powerless packages in policy resources WIP ([b03efc2](https://github.com/endojs/endo/commit/b03efc27dbd0a3f9fb3182f89f27895c87de4e56))
 * **compartment-mapper:** improve unresolved module error message ([323ca32](https://github.com/endojs/endo/commit/323ca3215cc62bcdce78c70f0c1869c2faec85ac))
-
 
 ### Bug Fixes
 
@@ -240,10 +226,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **compartment-mapper:** Turn empty policy into a null-prototype object ([db2545b](https://github.com/endojs/endo/commit/db2545b1d9b436baad597eea79154d9052e391f7))
 * enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
 
-
-
-### [0.9.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.9.1...@endo/compartment-mapper@0.9.2) (2023-09-12)
-
+## [0.9.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.9.1...@endo/compartment-mapper@0.9.2) (2023-09-12)
 
 ### Bug Fixes
 
@@ -251,10 +234,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **compartment-mapper:** Update stack trace sensitive snapshots ([7addc5c](https://github.com/endojs/endo/commit/7addc5c69c723d0d274cc6bc6842f507459543f3))
 * **types:** SourceMapHook ([cf5f226](https://github.com/endojs/endo/commit/cf5f2262db684a972a59e2423595b91cc03d2d30))
 
-
-
-### [0.9.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.5...@endo/compartment-mapper@0.9.1) (2023-08-07)
-
+## [0.9.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.5...@endo/compartment-mapper@0.9.1) (2023-08-07)
 
 ### Features
 
@@ -263,51 +243,30 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **compartment-mapper:** Revert read more carefully ([cf668e2](https://github.com/endojs/endo/commit/cf668e2d692a55612f9849f745606a89eeff13c5))
 * **compartment-mapper:** Support source map generation ([7f2dc59](https://github.com/endojs/endo/commit/7f2dc59db89a8a520622f5603e9138b1f67f2ef8))
 * **compartment-mapper:** Use maybeRead to better classify read errors ([9bea95a](https://github.com/endojs/endo/commit/9bea95a45f258d07ea1ed91e512dc288b3c0b738))
-
-
 
 ## [0.9.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.5...@endo/compartment-mapper@0.9.0) (2023-08-07)
 
+- Introduces support for source map generation.
+  Look for `computeSourceMapLocation` and `sourceMapHook` in
+  [`README.md`](README.md).
 
-### Features
+## [0.8.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.4...@endo/compartment-mapper@0.8.5) (2023-07-19)
 
-* **compartment-mapper:** One concurrent read ([29048a2](https://github.com/endojs/endo/commit/29048a2bbaaf16c8fc99a8e97c5d1ae49c8e74f2))
-* **compartment-mapper:** Read more carefully ([edf058a](https://github.com/endojs/endo/commit/edf058ae423c403b7cee8f66a26ab95b53bb3258))
-* **compartment-mapper:** Revert read more carefully ([cf668e2](https://github.com/endojs/endo/commit/cf668e2d692a55612f9849f745606a89eeff13c5))
-* **compartment-mapper:** Support source map generation ([7f2dc59](https://github.com/endojs/endo/commit/7f2dc59db89a8a520622f5603e9138b1f67f2ef8))
-* **compartment-mapper:** Use maybeRead to better classify read errors ([9bea95a](https://github.com/endojs/endo/commit/9bea95a45f258d07ea1ed91e512dc288b3c0b738))
+- Adds `importHook` option to all applicable options bags.
+- Bundler now supports aliases, so is now able to bundle most applications that
+  consist entirely of CJS and ESM sources.
+- Fixes archive generation, such that it throws if the entry module does not exist.
+- Fixes preservation of order for imported shims.
 
-
-
-### [0.8.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.4...@endo/compartment-mapper@0.8.5) (2023-07-19)
-
-
-### Features
-
-* **compartment-mapper:** add exitModuleImportHook for dynamic exit modules ([d6fb8ff](https://github.com/endojs/endo/commit/d6fb8ff8c0d3d7c6fec4119e66485ebb1ac1726c))
-* **compartment-mapper:** attenuate modules coming from exitModuleImportHook ([15bd512](https://github.com/endojs/endo/commit/15bd512c3ae5f7d40e649227045d204c1da08444))
-* **compartment-mapper:** Bundler support for aliases ([ab02c2c](https://github.com/endojs/endo/commit/ab02c2c9c392ee28956d1835f641d2f23ee30066))
-* **compartment-mapper:** throw contextual error when moduleTransform fails ([df9d146](https://github.com/endojs/endo/commit/df9d146c4a6189208e4a9e62f130fbceba5e3b35))
-
-
-### Bug Fixes
-
-* **compartment-mapper:** avoid getting into exitModule logic when none provided ([0c05d4c](https://github.com/endojs/endo/commit/0c05d4cff733be58b29a70b0e89c51cb441a7956))
-* **compartment-mapper:** Divide and resolve strictly-required sets between compartments ([b304a88](https://github.com/endojs/endo/commit/b304a8836c446293d8a5e54e8179ea7da1711b19))
-* revert broken ones ([09cabb3](https://github.com/endojs/endo/commit/09cabb30335fd4dc22623fc102bb1a2711437ad4))
-* **static-module-record:** Do not sort imports ([a3e4538](https://github.com/endojs/endo/commit/a3e4538d67e36d3b97a1bcc7aee9ae1cb0c60047))
-
-
-
-### [0.8.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.3...@endo/compartment-mapper@0.8.4) (2023-04-20)
+## [0.8.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.3...@endo/compartment-mapper@0.8.4) (2023-04-20)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.8.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.2...@endo/compartment-mapper@0.8.3) (2023-04-14)
+## [0.8.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.2...@endo/compartment-mapper@0.8.3) (2023-04-14)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.8.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.1...@endo/compartment-mapper@0.8.2) (2023-03-07)
+## [0.8.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.1...@endo/compartment-mapper@0.8.2) (2023-03-07)
 
 ### Features
 
@@ -328,182 +287,133 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
 - Improve typing information ([7b3fc39](https://github.com/endojs/endo/commit/7b3fc397862ac2c8617454d587f1069be1e15517))
 
-### [0.8.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.0...@endo/compartment-mapper@0.8.1) (2022-12-23)
+## [0.8.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.0...@endo/compartment-mapper@0.8.1) (2022-12-23)
 
-### Features
-
-- **compartment-mapper:** add bundle support for commonjs ([aa5e164](https://github.com/endojs/endo/commit/aa5e164d955f72c9ade532886d81e2237c167814))
-- **compartment-mapper:** add tags to ArchiveOptions ([078b221](https://github.com/endojs/endo/commit/078b2211d0a654d4d7fc03a4fdfe1ac2bf78c9dc))
-- **compartment-mapper:** allow alternate searchSuffixes ([5f58cf6](https://github.com/endojs/endo/commit/5f58cf6e27cd954aad33ccf1144fecbc59b8dd34))
-- **compartment-mapper:** allow transforms to process unknown languages ([f577dc7](https://github.com/endojs/endo/commit/f577dc7e10e918dd613962593aa9d83e84cca6bc))
-- **compartment-mapper:** bundle should support tags ([26e9ff9](https://github.com/endojs/endo/commit/26e9ff9bc7548efc7cad0c49cf3a6373bf400889))
-- **compartment-mapper:** bundle should throw on encountering deferredError ([ad8df6a](https://github.com/endojs/endo/commit/ad8df6a05c0216a04ff15b7460a5cc10a59030f9))
-- **compartment-mapper:** for commonjs alias package root to default module ([2fd471d](https://github.com/endojs/endo/commit/2fd471d2dcb2b4ea366e5d0e37d0a2292184e0cc))
-- **compartment-mapper:** fully support node resolution candidates ([cdb0d8f](https://github.com/endojs/endo/commit/cdb0d8fadbc2085ed68907177f378971585930bb))
-- **compartment-mapper:** handle browser field in construction of compartmentMap ([ffe0719](https://github.com/endojs/endo/commit/ffe0719fece19315f39eaf97fd7c3dc068996989))
-- **compartment-mapper:** handle internalAliases including internal package aliases ([979f9c1](https://github.com/endojs/endo/commit/979f9c17b53b0fafa080b1b5ac5abdee0506446b))
-- **compartment-mapper:** importHook redirects + updates compartment map when candidate is present in moduleDescriptors ([c10b443](https://github.com/endojs/endo/commit/c10b443eb2fe11d7f458ee32f2a363cfc16377e0))
-- **compartment-mapper:** replace graph node exports with internal and external aliases ([1d52a8b](https://github.com/endojs/endo/commit/1d52a8bcaad35ddec9db824170c0a319927fd302))
-- **compartment-mapper:** support commonDependencies for injecting dependencies ([dff6908](https://github.com/endojs/endo/commit/dff6908e79146beee93c361dc46a2b178982c6f7))
-
-### Bug Fixes
-
-- **compartment-mapper:** add named reexports logic to bundle.js ([236a4e8](https://github.com/endojs/endo/commit/236a4e89b6931867a6ea532720560a2f448007ac))
-- **compartment-mapper:** allow specifier to include period and omit extension ([3768a3e](https://github.com/endojs/endo/commit/3768a3eaa9ec49589ceb1142dfc9b6dfe74cff68))
-- **compartment-mapper:** error unmatched locations with package self name ([b251988](https://github.com/endojs/endo/commit/b25198885cb5ec3558280af8018c7eae9d8fc207))
-- **compartment-mapper:** fix reflexive packageLocation in node-modules/translateGraph ([7f6638d](https://github.com/endojs/endo/commit/7f6638d43773c2aa847e5e1f08e2e6338001dca8))
-- **compartment-mapper:** handle package default module via externalAliases ([128eb40](https://github.com/endojs/endo/commit/128eb406afd09e9c6c806a97796a0cebd74d5fd0))
-- **compartment-mapper:** Harden bundles ([20c1d46](https://github.com/endojs/endo/commit/20c1d46c5c98e9c135417adfddecb0e168a52620))
-- **compartment-mapper:** importArchive - add explicit error for missing module ([369ca03](https://github.com/endojs/endo/commit/369ca034ab225b4939245a7fcc9608edf3435375))
-- **compartment-mapper:** inferred exports are relative ([fdacf1b](https://github.com/endojs/endo/commit/fdacf1b92e9b0e05119e1186edfd8018d44f68fb))
-- **compartment-mapper:** node-modules - name packageLocations differently ([d396fed](https://github.com/endojs/endo/commit/d396fedee14eabe17bf51865f6ac806b959aeb7c))
-- **compartment-mapper:** remove unused log in test ([82bf889](https://github.com/endojs/endo/commit/82bf889275879e57a4d445cae3982a1a0d199217))
-- **compartment-mapper:** rename some variables for improved readability ([0861b0c](https://github.com/endojs/endo/commit/0861b0cfd6fa521bfdb25d896180521fe68a9c98))
-- **compartment-mapper:** rename some variables for improved readability ([3abdfa9](https://github.com/endojs/endo/commit/3abdfa9cdaaa35afe4b8dc5081861f93dc4a2ce7))
-- **compartment-mapper:** rename transforms to moduleTransforms in link ([bbdae51](https://github.com/endojs/endo/commit/bbdae513cc71fcb2c56cc17207f2f27042cf79bd))
-- **compartment-mapper:** Thread dev option thru bundler ([c71561e](https://github.com/endojs/endo/commit/c71561e30bd95193a8be728295eec47e26a04251))
+- Increases ecosystem compatibility for reflective imports, the `browser` field
+  specified ad hoc by Browserify, and a fix for differentiating module language
+  from its extension.
+- Adds CommonJS support to the unsafe bootstrapping bundle format.
+- Introduces usage of `__reexportsMap__` from static module record
+  to handle named reexports in the bundler.
 
 ## [0.8.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.15...@endo/compartment-mapper@0.8.0) (2022-11-14)
 
-### ⚠ BREAKING CHANGES
+- Bundles now evaluate to their entrypoint module's namespace object.
+- Removes support for `globalLexicals`.
 
-- **compartment-mapper:** Remove support for globalLexicals
-
-### Features
-
-- **compartment-mapper:** Bundles evaluate to entrypoint namespace ([85a69aa](https://github.com/endojs/endo/commit/85a69aaf8133fa84ec3548e8004777097cf7c326))
-- **compartment-mapper:** Remove support for globalLexicals ([7d9603d](https://github.com/endojs/endo/commit/7d9603d0c838e02c1b052cf6e8f725ebf195aaf2))
-- **compartment-mapper:** support peerDependencies and bundleDependencies ([3afd7c5](https://github.com/endojs/endo/commit/3afd7c5680813063a1ab7ff93af1a116e6af2f02))
-- **compartment-mapper:** support various types of optional deps ([72fa6e7](https://github.com/endojs/endo/commit/72fa6e7a3089be31be97caee2616090ac842bb3e))
-
-### Bug Fixes
-
-- assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
-
-### [0.7.15](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.14...@endo/compartment-mapper@0.7.15) (2022-10-24)
+## [0.7.15](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.14...@endo/compartment-mapper@0.7.15) (2022-10-24)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.14](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.13...@endo/compartment-mapper@0.7.14) (2022-10-19)
+## [0.7.14](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.13...@endo/compartment-mapper@0.7.14) (2022-10-19)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.13](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.12...@endo/compartment-mapper@0.7.13) (2022-09-27)
+## [0.7.13](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.12...@endo/compartment-mapper@0.7.13) (2022-09-27)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.12](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.11...@endo/compartment-mapper@0.7.12) (2022-09-14)
+## [0.7.12](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.11...@endo/compartment-mapper@0.7.12) (2022-09-14)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.11](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.10...@endo/compartment-mapper@0.7.11) (2022-08-26)
+## [0.7.11](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.10...@endo/compartment-mapper@0.7.11) (2022-08-26)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.10](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.9...@endo/compartment-mapper@0.7.10) (2022-08-26)
+## [0.7.10](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.9...@endo/compartment-mapper@0.7.10) (2022-08-26)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.9](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.8...@endo/compartment-mapper@0.7.9) (2022-08-25)
+## [0.7.9](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.8...@endo/compartment-mapper@0.7.9) (2022-08-25)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.8](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.7...@endo/compartment-mapper@0.7.8) (2022-08-23)
+## [0.7.8](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.7...@endo/compartment-mapper@0.7.8) (2022-08-23)
 
 ### Bug Fixes
 
 - **compartment-mapper:** avoid mislabeling cjs files as esm based on type field ([5a6a501](https://github.com/endojs/endo/commit/5a6a501f14f53170d047f847fee7d08674e72f23))
 
-### [0.7.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.6...@endo/compartment-mapper@0.7.7) (2022-06-28)
+## [0.7.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.6...@endo/compartment-mapper@0.7.7) (2022-06-28)
 
-### Features
+- Adds `require.resolve` support and provides its implementation from
+  `readPowers.requireResolve` if available.
 
-- **compartment-mapper:** dancing skeleton require.resolve implementation ([ba1de8e](https://github.com/endojs/endo/commit/ba1de8e6f6225a9e16bd19fb2a4ec77badf457f5))
-- **compartment-mapper:** implement passing values in import.meta.url ([d6294f6](https://github.com/endojs/endo/commit/d6294f6832f978eaa7af94fee4496d76bd35a927))
-- **compartment-mapper:** implement require.resolve as an external configuration item ([45054de](https://github.com/endojs/endo/commit/45054dec37971da253773dbb91debddd0f56d0d6))
-- **compartment-mapper:** move require.resolve implementation to readPowers ([e841f74](https://github.com/endojs/endo/commit/e841f74ad508061c2661963ae2876669be966f32))
-- add the foundations for support of import.meta ([36f6449](https://github.com/endojs/endo/commit/36f644998c21f6333268707555b97938ff0fff08))
-- call importMetaHook on instantiation if import.meta uttered by module ([23e8c40](https://github.com/endojs/endo/commit/23e8c405e0be823c728f8af1a6db9607e21f2f74))
+## [0.7.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.5...@endo/compartment-mapper@0.7.6) (2022-06-11)
 
-### Bug Fixes
+- Adds support by default for "text" and "bytes" as file types with eponymous
+  parser behavior, interpreting text as exporting a UTF-8 string named default,
+  and bytes as exporting a default ArrayBuffer.
+  The `"parsers"` directive in `package.json` can map additional extensions to
+  either of these types, in the scope of the declaring package.
+- Compartment maps in archives now only retain compartment descriptors for
+  compartments that are necessary for the modules retained by the entry module.
+- Compartment maps in archives now only include a sequence number to
+  disambiguate compartments for which there are multiple original Node.js
+  packages in the solution with the same version and name.
+  We still allow for the possibility that these duplicates exist and in fact
+  may contain different sources, since they may be retained as dependencies
+  beyond the purview of npm.
+- A package.json file with the "type" field nested within a package's folder
+  structure a is now taken into account when determining if a .js file is an
+  ES module.
+- Adds means to make `__dirname` and `__filename` work in CommonJS modules when
+  loaded via importLocation or loadLocation. Pass `readPowers` with
+  `fileURLToPath` method present.
 
-- **compartment-mapper:** adapt require.resolve assertion to Windows also ([58e1064](https://github.com/endojs/endo/commit/58e10642f4f099d7b8132f20ff59a85ed6a9443c))
-- **compartment-mapper:** importMeta always an empty object in bundler ([e9f809a](https://github.com/endojs/endo/commit/e9f809a0e3242421d9c32388f2bc885eb8d9510e))
-- rename meta to importMeta, fix detection to detect import.meta not import.meta.something ([c61a862](https://github.com/endojs/endo/commit/c61a862c9f4354f0e6d86d8c8efaa826840a6efd))
-
-### [0.7.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.5...@endo/compartment-mapper@0.7.6) (2022-06-11)
-
-### Features
-
-- **compartment-mapper:** Archives retain compartments only for retained modules ([ee2e6e1](https://github.com/endojs/endo/commit/ee2e6e1d415d6cd5795030a978650f71fcc80cbb))
-- **compartment-mapper:** Support text and bytes asset module types ([acc828c](https://github.com/endojs/endo/commit/acc828cf74308b7cdcf000f7492a53e3135bdfd3))
-- **compartment-mapper:** Thread diagnostic name more thorougly ([d546823](https://github.com/endojs/endo/commit/d54682363790dcd9123b135d8784ffc75508fec0))
-- **compartment-mapper:** Use package.json files in nested folders of a package when determining module type ([4b1c6f4](https://github.com/endojs/endo/commit/4b1c6f4575f2b3ad24a0b4bb3a68a59a4d0dc6d9))
-
-### Bug Fixes
-
-- **compartment-mapper:** Package exports may be absolute ([5a8a893](https://github.com/endojs/endo/commit/5a8a893b9f9d4375661fae597c158a0bbf258785))
-- **compartment-mapper:** provide correct values for **dirname **filename for cjs compatibility ([#1155](https://github.com/endojs/endo/issues/1155)) ([43fdf69](https://github.com/endojs/endo/commit/43fdf69f0de91fbb4e48c66199067a2fbc6738aa))
-- **compartment-mapper:** relativize all exports from package.json - undo the change allowing reexports of dependencies by just stating them in package.json "exports" field ([ceb1790](https://github.com/endojs/endo/commit/ceb17903e1926fb38ee72cdd26a332efde9d12b8))
-- **compartment-mapper:** Stabilize hashes in face of layout changes ([75a5db4](https://github.com/endojs/endo/commit/75a5db489f495d286bbd8c5932e4db2b57c136b5)), closes [#919](https://github.com/endojs/endo/issues/919)
-
-### [0.7.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.4...@endo/compartment-mapper@0.7.5) (2022-04-15)
+## [0.7.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.4...@endo/compartment-mapper@0.7.5) (2022-04-15)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.3...@endo/compartment-mapper@0.7.4) (2022-04-14)
+## [0.7.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.3...@endo/compartment-mapper@0.7.4) (2022-04-14)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.7.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.2...@endo/compartment-mapper@0.7.3) (2022-04-13)
+## [0.7.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.2...@endo/compartment-mapper@0.7.3) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.7.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.1...@endo/compartment-mapper@0.7.2) (2022-04-12)
+## [0.7.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.1...@endo/compartment-mapper@0.7.2) (2022-04-12)
 
-### Features
+- Fixes treatment of packages with a `"module"` property in their
+  `package.json`: When the compartment mapper encounters such a package, every
+  module in that package with `.js` extension including the referenced module
+  will be treated an ESM, as if it had the `.mjs` extension.
+- Ensures that the `"endo"`, `"import"`, and `"default"` tags (Node.js
+  conditions) are respected in `package.json` `"exports"` conditions.
 
-- **compartment-mapper:** defer import errors based on parser support declaration ([cf074aa](https://github.com/endojs/endo/commit/cf074aab007a3af16ad7ac25b6dc1bd119d6d1b7))
-- **compartment-mapper:** proper default export implementation for cjs with import and require compatibility ([30cbaa8](https://github.com/endojs/endo/commit/30cbaa8cb79b906742a9f5c1854b22fe506b0575))
-- **compartment-mapper:** support for defineProperty on exports with getters ([4764487](https://github.com/endojs/endo/commit/4764487f149a9af225128cec75d557e35d20bf60))
-
-### Bug Fixes
-
-- **compartment-mapper:** add support for alternatives in exports defnitions ([#1134](https://github.com/endojs/endo/issues/1134)) ([6663f25](https://github.com/endojs/endo/commit/6663f255de7a514aac0f0081eaa99de880298f73))
-- **compartment-mapper:** Avoid some property override pitfalls ([b4efabe](https://github.com/endojs/endo/commit/b4efabee1d13b13af782ae4442daac4691c721b4))
-- **compartment-mapper:** Fix "module" property in package.json ([68395a2](https://github.com/endojs/endo/commit/68395a2b071856dd0dfdf0a1c7c3d57082d7803e))
-- **compartment-mapper:** handle passing and reading exports reference ([#1142](https://github.com/endojs/endo/issues/1142)) ([3b7584a](https://github.com/endojs/endo/commit/3b7584a9bf6b3ba5b4e3f839c230cd07f022d33e))
-- **compartment-mapper:** propagate parse-cjs changes to parse-pre-cjs, remove async from execute in parse-pre-cjs ([8ac94b8](https://github.com/endojs/endo/commit/8ac94b85a11539155929569a86882a05fc146ad3))
-- **compartment-mapper:** Remove stale note ([85a4eb8](https://github.com/endojs/endo/commit/85a4eb81f65dbe4ba746014fad41ab86d1f70167))
-- **compartment-mapper:** there's more benefit to keeping \_\_esModule flag than not ([#1145](https://github.com/endojs/endo/issues/1145)) ([c769447](https://github.com/endojs/endo/commit/c76944794ebbe9e0ec0c8896e5ae9cce2fb17cb3))
-- **endo:** Ensure conditions include default, import, and endo ([1361abd](https://github.com/endojs/endo/commit/1361abd8c732596d192ecef6a039eda98b4ee563))
-- **ses:** avoid cache corruption when execute() throws ([1d9c17b](https://github.com/endojs/endo/commit/1d9c17b4c4a5ed1450cddd996bd948dd59c80bf6))
-
-### [0.7.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.0...@endo/compartment-mapper@0.7.1) (2022-03-07)
+## [0.7.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.0...@endo/compartment-mapper@0.7.1) (2022-03-07)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
 ## [0.7.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.7...@endo/compartment-mapper@0.7.0) (2022-03-02)
 
-### ⚠ BREAKING CHANGES
+- _BREAKING:_ Archive integrity checks now occur when the archive is loaded
+  instead of waiting for the archive to be instantiated or executed.
+  This will cause corrupt archives to produce errors earlier.
+- Adds a `makeAndHashArchive` function that returns both the generated bytes
+  and the SHA-512 of an archive as its created.
+  `makeArchive` just returns the bytes.
 
-- **compartment-mapper:** \* Previously, `loadArchive` and `parseArchive`, when given a `computeSha512`, would accept just about any archive. Hash integrity checks for any used module occurred only after a request to import them. With this new version, all archives must use every file they contain and must pass hash integrity checks during the load or parse phase. Consequently, if an archive requires any built-in modules ("exits"), these must be mentioned with the `modules` option to `loadArchive` or `parseArchive`, as an object whose keys are the names of the expected modules.
+## [0.6.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.6...@endo/compartment-mapper@0.6.7) (2022-02-20)
 
-### Features
+- _BREAKING:_ The `loadArchive` and `parseArchive` functions, when given a
+  `computeSha512`, now check the integrity of every module in the archive, and
+  forbid the presence of any unused files in the archive.
+  So, these functions now require a `modules` option if the archive will expect
+  any built-in modules. The `modules` option is an object with a key for every
+  built-in module the archive expects.
+  The load and parse functions ignore corresponding values (even if they are
+  falsey!) but will accept the same type of object as the import function.
+- The `parseArchive` function returns a promise for an archive.  If provided a
+  `computeSha512`, regardless of whether provided `expectedSha512`, the archive
+  will have a `sha512` property computed from the parsed archive, for
+  the purpose of verifying integrity.
 
-- **compartment-mapper:** Add makeAndHashArchive ([ffbe0d5](https://github.com/endojs/endo/commit/ffbe0d5b7ddb4c4e8de08ecc0735f2140b62e3a4))
-- **compartment-mapper:** Pre-load for archive integrity checks ([3c28ddc](https://github.com/endojs/endo/commit/3c28ddc336d2acac4dde5cdf32a27c33c713bc00)), closes [#3859](https://github.com/endojs/endo/issues/3859)
-
-### [0.6.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.6...@endo/compartment-mapper@0.6.7) (2022-02-20)
-
-### Features
-
-- **compartment-mapper:** parseArchive return hash ([1306c7d](https://github.com/endojs/endo/commit/1306c7d95b2a90b18217829dac368e1089793366))
-- **compartment-mapper:** Validate compartment maps ([4204058](https://github.com/endojs/endo/commit/4204058428a6fcb04b68fd0151fd5955c94ae80a))
-
-### [0.6.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.5...@endo/compartment-mapper@0.6.6) (2022-02-18)
+## [0.6.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.5...@endo/compartment-mapper@0.6.6) (2022-02-18)
 
 ### Bug Fixes
 
@@ -513,27 +423,27 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
 - **compartment-mapper:** change how parse-cjs.js treats exports to align with behavior of cjs in Node.js; make execute synchronous ([d1eb363](https://github.com/endojs/endo/commit/d1eb36326d487c61d111dc1edea446b1a5e0cfce))
 
-### [0.6.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.4...@endo/compartment-mapper@0.6.5) (2022-01-31)
+## [0.6.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.4...@endo/compartment-mapper@0.6.5) (2022-01-31)
 
 ### Bug Fixes
 
 - **compartment-mapper:** Needless genericity considered harmful ([#1026](https://github.com/endojs/endo/issues/1026)) ([77e3d91](https://github.com/endojs/endo/commit/77e3d91364782dbd293c5dbc64f6ef29942369f0))
 
-### [0.6.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.3...@endo/compartment-mapper@0.6.4) (2022-01-27)
+## [0.6.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.3...@endo/compartment-mapper@0.6.4) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.6.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.2...@endo/compartment-mapper@0.6.3) (2022-01-25)
+## [0.6.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.2...@endo/compartment-mapper@0.6.3) (2022-01-25)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.6.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.1...@endo/compartment-mapper@0.6.2) (2022-01-23)
+## [0.6.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.1...@endo/compartment-mapper@0.6.2) (2022-01-23)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.6.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.0...@endo/compartment-mapper@0.6.1) (2021-12-14)
+## [0.6.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.0...@endo/compartment-mapper@0.6.1) (2021-12-14)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
@@ -549,142 +459,175 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **compartment-mapper:** prettier bundle code, with some reduction ([dc9ccaa](https://github.com/endojs/endo/commit/dc9ccaae184d6346d11d90df46a2ed46c3ad3480))
 - **static-module-record:** cleaner Babel codegen ([6e22569](https://github.com/endojs/endo/commit/6e22569b0c3f56e9f78d59943235b97ba0429921))
 
-### [0.5.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.5...@endo/compartment-mapper@0.5.6) (2021-11-16)
+## [0.5.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.5...@endo/compartment-mapper@0.5.6) (2021-11-16)
 
 ### Features
 
 - **compartment-mapper:** Add hooks for sourceURL ([#932](https://github.com/endojs/endo/issues/932)) ([a7b42ae](https://github.com/endojs/endo/commit/a7b42ae2388b232f7daa099495ba11f385010fd1))
 - **compartment-mapper:** Archive source URL suffixes ([#930](https://github.com/endojs/endo/issues/930)) ([0dfb83e](https://github.com/endojs/endo/commit/0dfb83ebc9221d15475aabe430645f5ac5d17e71))
 
-### [0.5.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.4...@endo/compartment-mapper@0.5.5) (2021-11-02)
+## [0.5.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.4...@endo/compartment-mapper@0.5.5) (2021-11-02)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.5.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.3...@endo/compartment-mapper@0.5.4) (2021-10-15)
+## [0.5.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.3...@endo/compartment-mapper@0.5.4) (2021-10-15)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
-### [0.5.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.2...@endo/compartment-mapper@0.5.3) (2021-09-18)
+## [0.5.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.2...@endo/compartment-mapper@0.5.3) (2021-09-18)
 
-### Bug Fixes
+- The `node-powers.js` module now exports `makeReadPowers` and
+  `makeWritePowers` which replace the deprecated functions `makeNodeReadPowers`
+  and `makeNodeWritePowers`.
+  The rename is necessary to facilitate a change to the signature of these
+  methods so that `url` may be accepted as another dependency, to facilitate
+  Windows support.
+  Both accept a bag of Node.js modules that must include `fs` and `url`.
+  The read powers may optionally take the `crypto` module.
 
-- **compartment-mapper:** Reduce pre-cjs dependence on URL ([#894](https://github.com/endojs/endo/issues/894)) ([b9f6dc0](https://github.com/endojs/endo/commit/b9f6dc07f249cb47866f623728faf0b74d509fd2))
+## [0.5.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.1...@endo/compartment-mapper@0.5.2) (2021-08-14)
 
-### [0.5.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.1...@endo/compartment-mapper@0.5.2) (2021-08-14)
+- Adds source URL suffixes to archives, such that the archive hash remains
+  orthogonal to the local directory but has sufficient information that editors
+  like VS Code can match the suffix to a file in the IDE workspace.
+- Adds hooks to archive production and consumption for reading and writing
+  source locations, such that other tools yet to be written can use these hooks
+  to provide fully qualified local debug source URLs.
+  Archive creation functions now accept a
+  `captureSourceLocation(compartmentName, moduleSpecifier, sourceLocation)`
+  hook and archive parsing functions accept
+  `computeSourceLocation(compartmentName, moduleSpecifier)`.
 
-**Note:** Version bump only for package @endo/compartment-mapper
+## [0.5.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.0...@endo/compartment-mapper@0.5.1) (2021-08-13)
 
-### [0.5.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.0...@endo/compartment-mapper@0.5.1) (2021-08-13)
-
-### Features
-
-- **compartment-mapper:** Support reflexive imports ([#861](https://github.com/endojs/endo/issues/861)) ([09e5485](https://github.com/endojs/endo/commit/09e548558d14d6a7bff17c3b2df686122218d345))
+- Adds support for reflexive import specifiers, so modules in package named
+  `@example/example` may import `@example/example` from their own modules.
+  This is necessary for parity with Node.js.
 
 ## [0.5.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.4.1...@endo/compartment-mapper@0.5.0) (2021-07-22)
 
-### ⚠ BREAKING CHANGES
+- The calling convention between SES and StaticModuleRecords has changed and
+  this impacts the code generated by the bundler.
+- Adds a support for consistent hashing (SHA-512) of applications:
+  - `nodeReadPowers(fs, crypto)` produces the necessary capabilities for
+    hashing, when passed the Node.js `crypto` module.
+  - `writeArchive` and `makeArchive` accept a `computeSha512` capability and
+    use it to populate the `compartment-map.json` included within the archive
+    with the SHA-512 of every module in the archive.  This ensures that the
+    hash of `compartment-map.json` in a pair of archives is consistent only if
+    every file is consistent.
+  - `importArchive`, `loadArchive`, and `parseArchive` all optionally accept a
+    `computeSha512` capability, use it to verify the integrity of the archive
+    and verify the `expectedSha512` of the contained `compartment-map.json`
+    `importArchive` and `loadArchive` receive the hash function as a read
+    power.  `parseArchive` receives the hash function as an option since it
+    doesn't receive read powers.
+  - `hashLocation` produces the hash of an application off the filesystem,
+    suitable for validating that an archive with the same hash was generated
+    from identical files.
+- Also adds `mapLocation`, which produces the compartment map that _would_ be
+  in the corresponding archive for a package.
+- Ensures that IO errors on Node.js include a meaningful stack trace.
 
-- Update preamble for SES StaticModuleRecord
+## [0.4.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.4.0...@endo/compartment-mapper@0.4.1) (2021-06-20)
 
-### Features
-
-- **compartment-mapper:** Consistent hashing ([fba461f](https://github.com/endojs/endo/commit/fba461f2786e1f9569c1bfb839e03d45cee7d2a6))
-
-### Bug Fixes
-
-- Update preamble for SES StaticModuleRecord ([790ed01](https://github.com/endojs/endo/commit/790ed01f0aa73ff2d232e69c9323ee0bb448c2b0))
-- **compartment-map:** Restore test fixture maker and support for exit modules from archives ([0ccc277](https://github.com/endojs/endo/commit/0ccc277e2083d89aaf97f70a0900fe6692a4ee45))
-- **compartment-mapper:** Adjust bundle calling convention for preamble ([5a43a8e](https://github.com/endojs/endo/commit/5a43a8ea8759a223f2dedf88a1ea7b1e276b81e3))
-
-### [0.4.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.4.0...@endo/compartment-mapper@0.4.1) (2021-06-20)
-
-### Bug Fixes
-
-- **compartment-mapper:** Export types properly ([54be905](https://github.com/endojs/endo/commit/54be905895e9ebdae69b7542f6c4d7ff3660c2ea))
-- **compartment-mapper:** Propagate explicit types ([289c906](https://github.com/endojs/endo/commit/289c906173a450d608f816ab83e702435ad80057))
+- Fixes internal type references.
 
 ## [0.4.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.2...@endo/compartment-mapper@0.4.0) (2021-06-16)
 
-### ⚠ BREAKING CHANGES
+- _BREAKING_: When constructing an archive, the creator must provide a record
+  of exit modules. Unlike import functions, the values of the exit module
+  record are ignored.
+  Any omitted exit module will cause an exception during archive creation.
+- Adds a `dev` option to archive and import workflows to include the
+  `devDependencies` of the entry package (but not other packages).
+- Fixes a missing file in the published assets for
+  `@endo/compartment-mapper/node-powers.js`.
 
-- **compartment-mapper:** Required exits on archives
+## [0.3.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.1...@endo/compartment-mapper@0.3.2) (2021-06-14)
 
-### Features
+- Follows Node.js packages through symbolic links, but requires an additional
+  read power to do this. Some functions now accept `{ read, canonical }` powers
+  in places only `read` was accepted previously, specifically
+  `compartmentMapFromNodeModules`, `makeArchive`, `writeArchive`, and
+  `loadLocation`.
+- Adds an `"@endo/compartment-mapper/node-powers.js"` entry point utility
+  module that exports `makeNodeReadPowers` and `makeNodeWritePowers` that adapt
+  the Node.js `fs` module to the promise and URL oriented interfaces expected
+  by compartment mapper functions.
 
-- **compartment-mapper:** Developer dependencies ([44f86cd](https://github.com/endojs/endo/commit/44f86cd6788b8f6bdc5492619866995ede73488b))
-- **compartment-mapper:** Required exits on archives ([f5e6378](https://github.com/endojs/endo/commit/f5e6378f4c4dc2c017d3c94544a3e22d762ade27))
-
-### Bug Fixes
-
-- **compartment-mapper:** Missing node-powers from published files ([277fd47](https://github.com/endojs/endo/commit/277fd47e359ee90d31a521fadbac90a4853649f4))
-
-### [0.3.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.1...@endo/compartment-mapper@0.3.2) (2021-06-14)
-
-### Features
-
-- **compartment-mapper:** Add actionable hint to linker error ([4dbe87b](https://github.com/endojs/endo/commit/4dbe87b40007d5ce9a084b4cf94ac254d9bd9e7a))
-- **compartment-mapper:** Add Node.js power adapter ([fd16355](https://github.com/endojs/endo/commit/fd1635517ce8260d3dc2766c2c39a599f58f9a0c))
-- **compartment-mapper:** Follow symbolic links ([ae553a4](https://github.com/endojs/endo/commit/ae553a469800f548975b0e1ba5bb2c63455a87f4))
-
-### [0.3.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.0...@endo/compartment-mapper@0.3.1) (2021-06-06)
+## [0.3.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.0...@endo/compartment-mapper@0.3.1) (2021-06-06)
 
 **Note:** Version bump only for package @endo/compartment-mapper
 
 ## 0.3.0 (2021-06-02)
 
-### ⚠ BREAKING CHANGES
+- Reenables CommonJS support with a fast lexer and without a dependency on
+  Babel.
+- The Compartment Mapper now produces archives containing SES-shim
+  pre-compiled StaticModuleRecords for ESM instead of the source.
+- The Compartment Mapper can now produce bundles of concatenated modules but
+  without Compartments and only supporting ESM but not supporting live
+  bindings.
+- Adds entrypoint modules `import.js`, `archive.js`, and `import-archive.js`
+  to capture narrower dependency subgraphs.
+- _BREAKING_: Removes CommonJS and UMD downgrade compatibility.
+  Supporting both Node.js ESM and the `node -r esm` shim requires the main
+  entry point module to be ESM regardless of environment.
+  UMD and CommonJS facets will likely return after all dependees have migrated
+  away from depending upon the `esm` JavaScript module emulator.
+- _BREAKING_: Archives created for the previous version will no longer work.
+  The `importArchive` feature only supports pre-compiled ESM and CJS.
+- _BREAKING_: This release parallels a breaking upgrade for SES to version
+  0.13. This entails the removal of `StaticModuleRecord` from SES, and the
+  removal of the `ses/lockdown` light layering (there is no heavy layer to
+  distinguish as the weight has shifted to the `@endo/static-module-record`
+  package).
+- Archives are now deterministic.
 
-- **compartment-mapper:** No longer supports direct use from CommonJS
-- **static-module-record:** Emphasize RESM/NESM compatibility over CJS/UMD
-- **compartment-mapper:** Lean on RESM/NESM interoperability
-- **compartment-mapper:** Rearrange entry point modules
-- **compartment-mapper:** Cleanly separate StaticModuleRecord dependency (#698)
-- **compartment-mapper:** Refresh zip fixture
-- **compartment-mapper:** Temporarily disable CommonJS
-- **compartment-mapper:** Rename endowments to globals
-- **compartment-mapper:** Import options bags and thread transforms
+## 0.2.4 (2021-03-30)
 
-### Features
+- Applications may now have asynchronous module transforms, per language.
+  When applied to archive creation, the transformed sources appear in the
+  archive.
+- Every compartment's `globalThis` is frozen.
 
-- **compartment-mapper:** Add module transforms ([#625](https://github.com/endojs/endo/issues/625)) ([0a0fc02](https://github.com/endojs/endo/commit/0a0fc02c400ebf68dfdf942354c548db6a6058f7))
-- **compartment-mapper:** Blanket in TypeScript definitions ([f850ed8](https://github.com/endojs/endo/commit/f850ed87fcdf943a1e347ffbe218144bee4151e8))
-- **compartment-mapper:** Improve archive parser errors ([c5887d8](https://github.com/endojs/endo/commit/c5887d8c13406b9da64c5537e87b3cf29ca8893e))
-- **compartment-mapper:** Introduce rudimentary bundler ([2bcddb1](https://github.com/endojs/endo/commit/2bcddb10845183074dbf5c709d9a70dadbce6dcb))
-- **compartment-mapper:** Pivot to CommonJS lexical analyzer ([e68a991](https://github.com/endojs/endo/commit/e68a991a54843a447cdd2c31a390e87192a36d04))
-- **compartment-mapper:** Precompiled ESM ([eb2fcc4](https://github.com/endojs/endo/commit/eb2fcc40fb5a51a433488ac111bd62bbed3655b0)), closes [#673](https://github.com/endojs/endo/issues/673)
-- **compartment-mapper:** Reenable CommonJS ([e76d95e](https://github.com/endojs/endo/commit/e76d95efd7aaa367c64d4e63e0983bb47f754832))
-- **compartment-mapper:** Thread compartment constructor ([f3248f2](https://github.com/endojs/endo/commit/f3248f27dc61f568f7f1a5ea61e35e04fa6887ea))
-- **compartment-mapper:** Thread global lexicals ([f92379a](https://github.com/endojs/endo/commit/f92379a4bb45ff4ef5b64eea998d5d5323a3434e))
-- **compartment-mapper:** Update packaging for RESM/NESM bridge and reorg under [@endo](https://github.com/endo) ([5b7c24e](https://github.com/endojs/endo/commit/5b7c24e1a473b5aa9e1397f6ca338bea8ed82984))
-- **endo:** Freeze all global objects ([#631](https://github.com/endojs/endo/issues/631)) ([83b5db4](https://github.com/endojs/endo/commit/83b5db4a2b64fcf1cb8927698e0d5942439eec27))
-- **ses:** Allow import and eval methods ([#669](https://github.com/endojs/endo/issues/669)) ([505a7d7](https://github.com/endojs/endo/commit/505a7d7149c36825a00c9fe3795d0f1588035dde))
+## 0.2.3 (2020-11-05)
 
-### Bug Fixes
+- Embellishes all calls to methods named `import` to work around SES-shim
+  `Compartment` censoring for dynamic import, using properties instead
+  of parentheses, since the syntax transformation tools at hand do not
+  currently simplify these.
 
-- Regularize format of NEWS.md ([0ec29b3](https://github.com/endojs/endo/commit/0ec29b34a18b17cc6b90e5a46575e634714e978e))
-- **compartment-mapper:** Deterministic archives ([577cdd8](https://github.com/endojs/endo/commit/577cdd81daa56ccffe4dbed4470f76077eeb3d71))
-- **compartment-mapper:** Different tack to evade SES import censor ([#513](https://github.com/endojs/endo/issues/513)) ([5df2c0e](https://github.com/endojs/endo/commit/5df2c0e2c185ee71d1ebfd3b2e01e84ebfcf6c56))
-- **compartment-mapper:** Dodge named reexport as bug in tests ([ad8c661](https://github.com/endojs/endo/commit/ad8c6618887ecf1d96522b1370094bde1c87f5f0))
-- **compartment-mapper:** Elide source URL from archived MJS ([ecc65b5](https://github.com/endojs/endo/commit/ecc65b51243f942771a11e253e1192004c2301f7))
-- **compartment-mapper:** Generate strict bundle ([c1e3a90](https://github.com/endojs/endo/commit/c1e3a908f4a220edc179104b88f2ea8ad375bdfb))
-- **compartment-mapper:** Remove extraneous internal exports ([d8eb6ac](https://github.com/endojs/endo/commit/d8eb6ac09936d03772e1ccd3ed9f7dd23e460d6a))
-- **compartment-mapper:** Restore named reexport as bug in tests ([2de06f3](https://github.com/endojs/endo/commit/2de06f38946c25c72152980bd055a9e9759bfb43))
-- **compartment-mapper:** Switch from Syrup to JSON ([0d80376](https://github.com/endojs/endo/commit/0d80376fcf4dfc804a406d9d3e6e65dc900cbf08))
-- **compartment-mapper:** Withdraw UMD Rollup ([#469](https://github.com/endojs/endo/issues/469)) ([9118807](https://github.com/endojs/endo/commit/911880719822f35362844ce32e56f93a26cd5c02))
-- **static-module-record:** Emphasize RESM/NESM compatibility over CJS/UMD ([dcff87e](https://github.com/endojs/endo/commit/dcff87e6f1164d664dd31dfefb323fbbac0a8dd1))
-- Realign TS, JS, and package names ([#686](https://github.com/endojs/endo/issues/686)) ([439e0ff](https://github.com/endojs/endo/commit/439e0fff1fd214eec91486ded8b3d36a5eb4b801))
-- **compartment-mapper:** Work around dynamic import censoring ([#512](https://github.com/endojs/endo/issues/512)) ([b82398b](https://github.com/endojs/endo/commit/b82398b55eb714b8fe59c06aaec74ddf9b78dda7))
-- Fully thread **shimTransforms** through Compartment Mapper and SES ([#509](https://github.com/endojs/endo/issues/509)) ([0f199ef](https://github.com/endojs/endo/commit/0f199ef088353ec09b29e37aefcfa26a89a6c582))
-- **compartment-mapper:** Temporarily disable CommonJS ([8d7fb04](https://github.com/endojs/endo/commit/8d7fb04f18acf49e22850576dded8bf7b7045548))
+## 0.2.2 (2020-11-05)
 
-### Tests
+- Embellishes all calls to methods named `import` to work around SES-shim
+  `Compartment` censoring for dynamic import.
 
-- **compartment-mapper:** Refresh zip fixture ([691ca31](https://github.com/endojs/endo/commit/691ca3126d7fbc2122c1575c3d564643df569b4c))
+## 0.2.1 (2020-11-04)
 
-### Code Refactoring
+- Changes all private fields to internal weak maps to Compartment Mapper
+  can be read by parsers that do not yet support private fields.
 
-- **compartment-mapper:** Cleanly separate StaticModuleRecord dependency ([#698](https://github.com/endojs/endo/issues/698)) ([0b28902](https://github.com/endojs/endo/commit/0b289021eee1256c05ceb4d83318165cb6288844))
-- **compartment-mapper:** Import options bags and thread transforms ([3aa9ed9](https://github.com/endojs/endo/commit/3aa9ed9dcf259ffba853c9fd53564e874113ab4a))
-- **compartment-mapper:** Lean on RESM/NESM interoperability ([eb1753e](https://github.com/endojs/endo/commit/eb1753e1d28df423be6de9c70bceb6e8a1e171a1))
-- **compartment-mapper:** Rearrange entry point modules ([f87dc14](https://github.com/endojs/endo/commit/f87dc14e030ed9e8d47be92ff2faa5b5bec46914))
-- **compartment-mapper:** Rename endowments to globals ([a7e8a2e](https://github.com/endojs/endo/commit/a7e8a2ea734651100a4d3dfd703932b354f5d386))
+## 0.2.0 (2020-11-03)
+
+- _BREAKING_: All `import` methods now take an options bag that may contain
+  `globals` and `modules` options if present, instead of these as positional
+  arguments.
+- _BREAKING_: Support for CommonJS is temporarily withdrawn to relieve a
+  dependency on Node.js built-ins entrained by Babel that in turn make
+  Compartment Mapper unusable with a combination of `-r esm` and Rollup.
+  CommonJS support should be restored with an alternate implementation in
+  a future version.
+- The `import` options bag now also accepts `globalLexicals`, `transforms`, and
+  `__shimTransforms__`, passing these without alteration to each `Compartment`.
+- The `import` options bag now also accepts a `Compartment` constructor, to use
+  instead of the one assumed to be present globally.
+
+## 0.1.0 (2020-09-21)
+
+- This initial relase supports importing, archiving, and importing archives
+  with the same authorities delegated to every compartment in an application.
+  Future releases will support the attenuation of authority per-compartment,
+  broaden support for Node.js module conventions, address the issue
+  of shimming, and orchestrate SES lockdown.

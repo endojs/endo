@@ -341,6 +341,7 @@ export type Formula =
 export type Builtins = {
   NONE: FormulaIdentifier;
   MAIN: FormulaIdentifier;
+  ENDO: FormulaIdentifier;
 };
 
 export type Specials = {

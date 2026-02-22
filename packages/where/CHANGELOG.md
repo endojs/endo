@@ -1,142 +1,79 @@
-# Change Log
+# @endo/where
 
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-### [1.0.11](https://github.com/endojs/endo/compare/@endo/where@1.0.10...@endo/where@1.0.11) (2025-06-17)
+## [1.0.11](https://github.com/endojs/endo/compare/@endo/where@1.0.10...@endo/where@1.0.11) (2025-06-17)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.10](https://github.com/endojs/endo/compare/@endo/where@1.0.9...@endo/where@1.0.10) (2025-06-02)
+## [1.0.10](https://github.com/endojs/endo/compare/@endo/where@1.0.9...@endo/where@1.0.10) (2025-06-02)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.9](https://github.com/endojs/endo/compare/@endo/where@1.0.8...@endo/where@1.0.9) (2024-11-13)
+## [1.0.9](https://github.com/endojs/endo/compare/@endo/where@1.0.8...@endo/where@1.0.9) (2024-11-13)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.8](https://github.com/endojs/endo/compare/@endo/where@1.0.7...@endo/where@1.0.8) (2024-10-10)
+## [1.0.8](https://github.com/endojs/endo/compare/@endo/where@1.0.7...@endo/where@1.0.8) (2024-10-10)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.7](https://github.com/endojs/endo/compare/@endo/where@1.0.6...@endo/where@1.0.7) (2024-08-27)
+## [1.0.7](https://github.com/endojs/endo/compare/@endo/where@1.0.6...@endo/where@1.0.7) (2024-08-27)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.6](https://github.com/endojs/endo/compare/@endo/where@1.0.5...@endo/where@1.0.6) (2024-07-30)
+## [1.0.6](https://github.com/endojs/endo/compare/@endo/where@1.0.5...@endo/where@1.0.6) (2024-07-30)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.5](https://github.com/endojs/endo/compare/@endo/where@1.0.4...@endo/where@1.0.5) (2024-05-07)
+## [1.0.5](https://github.com/endojs/endo/compare/@endo/where@1.0.4...@endo/where@1.0.5) (2024-05-07)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.4](https://github.com/endojs/endo/compare/@endo/where@1.0.3...@endo/where@1.0.4) (2024-04-04)
+## [1.0.4](https://github.com/endojs/endo/compare/@endo/where@1.0.3...@endo/where@1.0.4) (2024-04-04)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.3](https://github.com/endojs/endo/compare/@endo/where@1.0.2...@endo/where@1.0.3) (2024-03-20)
+## [1.0.3](https://github.com/endojs/endo/compare/@endo/where@1.0.2...@endo/where@1.0.3) (2024-03-20)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [1.0.2](https://github.com/endojs/endo/compare/@endo/where@1.0.1...@endo/where@1.0.2) (2024-02-15)
-
+## [1.0.2](https://github.com/endojs/endo/compare/@endo/where@1.0.1...@endo/where@1.0.2) (2024-02-15)
 
 ### Bug Fixes
 
 * Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
-
-
-### [1.0.1](https://github.com/endojs/endo/compare/@endo/where@1.0.0...@endo/where@1.0.1) (2024-01-18)
+## [1.0.1](https://github.com/endojs/endo/compare/@endo/where@1.0.0...@endo/where@1.0.1) (2024-01-18)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/where@0.3.5...@endo/where@1.0.0) (2023-12-12)
-
 
 ### Bug Fixes
 
 * Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 * enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
 
-
-
-### [0.3.5](https://github.com/endojs/endo/compare/@endo/where@0.3.4...@endo/where@0.3.5) (2023-09-12)
+## [0.3.5](https://github.com/endojs/endo/compare/@endo/where@0.3.4...@endo/where@0.3.5) (2023-09-12)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [0.3.4](https://github.com/endojs/endo/compare/@endo/where@0.3.2...@endo/where@0.3.4) (2023-08-07)
-
+## [0.3.4](https://github.com/endojs/endo/compare/@endo/where@0.3.2...@endo/where@0.3.4) (2023-08-07)
 
 ### Bug Fixes
 
 * **where:** Reduce host info types to fewest needed properties ([e2b7837](https://github.com/endojs/endo/commit/e2b783712758f5976e504ecd6f8cb9fb20e95e7a))
 
-
-
-### [0.3.3](https://github.com/endojs/endo/compare/@endo/where@0.3.2...@endo/where@0.3.3) (2023-08-07)
-
+## [0.3.3](https://github.com/endojs/endo/compare/@endo/where@0.3.2...@endo/where@0.3.3) (2023-08-07)
 
 ### Bug Fixes
 
 * **where:** Reduce host info types to fewest needed properties ([e2b7837](https://github.com/endojs/endo/commit/e2b783712758f5976e504ecd6f8cb9fb20e95e7a))
 
-
-
-### [0.3.2](https://github.com/endojs/endo/compare/@endo/where@0.3.1...@endo/where@0.3.2) (2023-07-19)
+## [0.3.2](https://github.com/endojs/endo/compare/@endo/where@0.3.1...@endo/where@0.3.2) (2023-07-19)
 
 **Note:** Version bump only for package @endo/where
 
-
-
-
-
-### [0.3.1](https://github.com/endojs/endo/compare/@endo/where@0.3.0...@endo/where@0.3.1) (2023-04-14)
+## [0.3.1](https://github.com/endojs/endo/compare/@endo/where@0.3.0...@endo/where@0.3.1) (2023-04-14)
 
 **Note:** Version bump only for package @endo/where
 
@@ -157,49 +94,49 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **where:** Fix XDG conventions ([f1dec29](https://github.com/endojs/endo/commit/f1dec29ebce27c962181a7f027396f416f782983))
 - **where:** Thread OS info ([b7c2441](https://github.com/endojs/endo/commit/b7c24412250b45984964156894efb72ef72ac3f6))
 
-### [0.2.11](https://github.com/endojs/endo/compare/@endo/where@0.2.10...@endo/where@0.2.11) (2022-12-23)
+## [0.2.11](https://github.com/endojs/endo/compare/@endo/where@0.2.10...@endo/where@0.2.11) (2022-12-23)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.10](https://github.com/endojs/endo/compare/@endo/where@0.2.9...@endo/where@0.2.10) (2022-11-14)
+## [0.2.10](https://github.com/endojs/endo/compare/@endo/where@0.2.9...@endo/where@0.2.10) (2022-11-14)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.9](https://github.com/endojs/endo/compare/@endo/where@0.2.8...@endo/where@0.2.9) (2022-06-28)
+## [0.2.9](https://github.com/endojs/endo/compare/@endo/where@0.2.8...@endo/where@0.2.9) (2022-06-28)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.8](https://github.com/endojs/endo/compare/@endo/where@0.2.7...@endo/where@0.2.8) (2022-06-11)
+## [0.2.8](https://github.com/endojs/endo/compare/@endo/where@0.2.7...@endo/where@0.2.8) (2022-06-11)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.7](https://github.com/endojs/endo/compare/@endo/where@0.2.6...@endo/where@0.2.7) (2022-04-15)
+## [0.2.7](https://github.com/endojs/endo/compare/@endo/where@0.2.6...@endo/where@0.2.7) (2022-04-15)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.6](https://github.com/endojs/endo/compare/@endo/where@0.2.5...@endo/where@0.2.6) (2022-04-14)
+## [0.2.6](https://github.com/endojs/endo/compare/@endo/where@0.2.5...@endo/where@0.2.6) (2022-04-14)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.5](https://github.com/endojs/endo/compare/@endo/where@0.2.4...@endo/where@0.2.5) (2022-04-13)
+## [0.2.5](https://github.com/endojs/endo/compare/@endo/where@0.2.4...@endo/where@0.2.5) (2022-04-13)
 
 ### Bug Fixes
 
 - Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
-### [0.2.4](https://github.com/endojs/endo/compare/@endo/where@0.2.3...@endo/where@0.2.4) (2022-04-12)
+## [0.2.4](https://github.com/endojs/endo/compare/@endo/where@0.2.3...@endo/where@0.2.4) (2022-04-12)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.3](https://github.com/endojs/endo/compare/@endo/where@0.2.2...@endo/where@0.2.3) (2022-03-07)
+## [0.2.3](https://github.com/endojs/endo/compare/@endo/where@0.2.2...@endo/where@0.2.3) (2022-03-07)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.2](https://github.com/endojs/endo/compare/@endo/where@0.2.1...@endo/where@0.2.2) (2022-03-02)
+## [0.2.2](https://github.com/endojs/endo/compare/@endo/where@0.2.1...@endo/where@0.2.2) (2022-03-02)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.2.1](https://github.com/endojs/endo/compare/@endo/where@0.2.0...@endo/where@0.2.1) (2022-02-20)
+## [0.2.1](https://github.com/endojs/endo/compare/@endo/where@0.2.0...@endo/where@0.2.1) (2022-02-20)
 
 **Note:** Version bump only for package @endo/where
 
@@ -219,21 +156,21 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **where:** Renames to state, cache, sock ([a742765](https://github.com/endojs/endo/commit/a742765eb9ef6e7bfd178ce7ded7fa96300fe7f8))
 
-### [0.1.4](https://github.com/endojs/endo/compare/@endo/where@0.1.3...@endo/where@0.1.4) (2022-01-31)
+## [0.1.4](https://github.com/endojs/endo/compare/@endo/where@0.1.3...@endo/where@0.1.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/where
 
-### [0.1.3](https://github.com/endojs/endo/compare/@endo/where@0.1.2...@endo/where@0.1.3) (2022-01-27)
+## [0.1.3](https://github.com/endojs/endo/compare/@endo/where@0.1.2...@endo/where@0.1.3) (2022-01-27)
 
 ### Bug Fixes
 
 - Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
 
-### [0.1.2](https://github.com/endojs/endo/compare/@endo/where@0.1.1...@endo/where@0.1.2) (2022-01-25)
+## [0.1.2](https://github.com/endojs/endo/compare/@endo/where@0.1.1...@endo/where@0.1.2) (2022-01-25)
 
 **Note:** Version bump only for package @endo/where
 
-### 0.1.1 (2022-01-23)
+## 0.1.1 (2022-01-23)
 
 ### Features
 

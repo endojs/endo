@@ -5,12 +5,12 @@ import { parseArgs } from 'util';
 import bundleSource, { SUPPORTED_FORMATS } from './bundle-source.js';
 import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 
-/** @import {ModuleFormat} from './types.js' */
+/** @import {Logger, ModuleFormat} from './types.js' */
 
 const USAGE = `\
 bundle-source [-Tft] <entry.js>
 bundle-source [-Tft] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)*
-  -f,--format endoZipBase64*|nestedEvaluate|getExport
+  -f,--format endoZipBase64*|nestedEvaluate|getExport|endoScript
   -C,--condition <condition> (browser, node, development, &c)
   -C development (to access devDependencies)
   -T,--no-transforms
@@ -53,11 +53,11 @@ const options = /** @type {const} */ ({
 });
 
 /**
- * @param {[to: string, dest: string, ...rest: string[]]} args
+ * @param {string[]} args
  * @param {object} powers
  * @param {(spec: string) => any} powers.loadModule
  * @param {number} powers.pid
- * @param {import('../cache.js').Logger} [powers.log]
+ * @param {Logger} [powers.log]
  * @returns {Promise<void>}
  */
 export const main = async (args, { loadModule, pid, log }) => {

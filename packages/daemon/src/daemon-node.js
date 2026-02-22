@@ -98,13 +98,16 @@ const main = async () => {
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled, {
       /** @param {Builtins} builtins */
-      APPS: ({ MAIN, NONE }) => ({
+      APPS: ({ MAIN, ENDO }) => ({
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,
-        powers: NONE,
+        powers: ENDO,
         specifier:
           process.env.ENDO_WORKER_PATH ||
           new URL('web-server-node.js', import.meta.url).href,
+        env: {
+          ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
+        },
       }),
     });
 
