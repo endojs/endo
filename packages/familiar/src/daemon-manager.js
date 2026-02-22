@@ -71,9 +71,7 @@ const runEndoCommand = args => {
         return;
       }
       reject(
-        new Error(
-          `endo ${args.join(' ')} failed (code ${code}): ${stderr}`,
-        ),
+        new Error(`endo ${args.join(' ')} failed (code ${code}): ${stderr}`),
       );
     });
 
@@ -133,7 +131,13 @@ const startDaemon = async () => {
 
   const child = spawn(
     resourcePaths.nodePath,
-    [resourcePaths.endoDaemonPath, sockPath, statePath, ephemeralStatePath, cachePath],
+    [
+      resourcePaths.endoDaemonPath,
+      sockPath,
+      statePath,
+      ephemeralStatePath,
+      cachePath,
+    ],
     {
       detached: true,
       env: { ...process.env, ENDO_WORKER_PATH: workerUrl },
@@ -169,12 +173,10 @@ const startDaemon = async () => {
         } else if (
           /** @type {{type: string}} */ (message).type === 'error' &&
           'message' in message &&
-          typeof /** @type {{message: unknown}} */ (message).message ===
+          typeof (/** @type {{message: unknown}} */ (message).message) ===
             'string'
         ) {
-          reject(
-            new Error(/** @type {{message: string}} */ (message).message),
-          );
+          reject(new Error(/** @type {{message: string}} */ (message).message));
         }
       }
     });

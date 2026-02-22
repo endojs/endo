@@ -90,7 +90,6 @@ const startGateway = (options = {}) => {
   });
 };
 
-
 /**
  * Stop the gateway server process.
  *
@@ -100,6 +99,5 @@ const stopGateway = gatewayProcess => {
   console.log('[🐈‍⬛ Familiar] Stopping gateway server...');
   gatewayProcess.kill('SIGTERM');
 };
-
 
 export { startGateway, stopGateway };

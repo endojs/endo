@@ -59,25 +59,19 @@ await build({
 
 await build({
   ...shared,
-  entryPoints: [
-    path.join(repoRoot, 'packages/chat/scripts/gateway-server.js'),
-  ],
+  entryPoints: [path.join(repoRoot, 'packages/chat/scripts/gateway-server.js')],
   outfile: path.join(familiarRoot, 'bundles/gateway-server.cjs'),
 });
 
 await build({
   ...shared,
-  entryPoints: [
-    path.join(repoRoot, 'packages/daemon/src/daemon-node.js'),
-  ],
+  entryPoints: [path.join(repoRoot, 'packages/daemon/src/daemon-node.js')],
   outfile: path.join(familiarRoot, 'bundles/endo-daemon.cjs'),
 });
 
 await build({
   ...shared,
-  entryPoints: [
-    path.join(repoRoot, 'packages/daemon/src/web-server-node.js'),
-  ],
+  entryPoints: [path.join(repoRoot, 'packages/daemon/src/web-server-node.js')],
   outfile: path.join(familiarRoot, 'bundles/endo-worker.cjs'),
 });
 
