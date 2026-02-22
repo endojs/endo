@@ -114,12 +114,10 @@ export const make = (guestPowers, context, { env }) => {
    * @param {object[]} toolSchemas
    * @returns {Promise<{message: object}>}
    */
-  const chat = (messages, toolSchemas) =>
-    provider.chat(messages, toolSchemas);
+  const chat = (messages, toolSchemas) => provider.chat(messages, toolSchemas);
 
   /** @type {object[]} */
   const transcript = [{ role: 'system', content: guestSystemPrompt }];
-
 
   // Built-in tools: petname ops + mail (no filesystem tools for guest)
   /** @type {Map<string, object>} */
@@ -208,10 +206,7 @@ export const make = (guestPowers, context, { env }) => {
       }
 
       const rm = /** @type {any} */ (responseMessage);
-      if (
-        (!rm.tool_calls || rm.tool_calls.length === 0) &&
-        rm.content
-      ) {
+      if ((!rm.tool_calls || rm.tool_calls.length === 0) && rm.content) {
         const extracted = extractToolCallsFromContent(rm.content);
         if (extracted.toolCalls) {
           rm.tool_calls = extracted.toolCalls;
@@ -332,8 +327,13 @@ export const make = (guestPowers, context, { env }) => {
       if (done) {
         break;
       }
-      const { from: fromId, number, type, strings, names } =
-        /** @type {any} */ (message);
+      const {
+        from: fromId,
+        number,
+        type,
+        strings,
+        names,
+      } = /** @type {any} */ (message);
 
       if (fromId === selfId) {
         continue;

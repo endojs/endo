@@ -17,7 +17,11 @@ import { fileURLToPath } from 'url';
 // @ts-expect-error Electron is not typed in this project
 import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
 
-import { ensureDaemonRunning, restartDaemon, purgeDaemon } from './src/daemon-manager.js';
+import {
+  ensureDaemonRunning,
+  restartDaemon,
+  purgeDaemon,
+} from './src/daemon-manager.js';
 import { startGateway, stopGateway } from './src/gateway-manager.js';
 import { resourcePaths } from './src/resource-paths.js';
 
@@ -86,11 +90,7 @@ const buildMenu = (onRestart, onPurge) => {
     },
     {
       label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        { role: 'close' },
-      ],
+      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
     },
   ]);
 
@@ -131,10 +131,13 @@ const createWindow = () => {
   }
 
   // Pipe renderer console output to main process stdout for diagnostics
-  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    const levelName = ['verbose', 'info', 'warning', 'error'][level] || 'log';
-    console.log(`[renderer:${levelName}] ${message} (${sourceId}:${line})`);
-  });
+  win.webContents.on(
+    'console-message',
+    (_event, level, message, line, sourceId) => {
+      const levelName = ['verbose', 'info', 'warning', 'error'][level] || 'log';
+      console.log(`[renderer:${levelName}] ${message} (${sourceId}:${line})`);
+    },
+  );
 
   return win;
 };
@@ -234,9 +237,7 @@ const main = async () => {
   ipcMain.handle('familiar:restart-daemon', () =>
     handleRestartDaemon(mainWindow),
   );
-  ipcMain.handle('familiar:purge-daemon', () =>
-    handlePurgeDaemon(mainWindow),
-  );
+  ipcMain.handle('familiar:purge-daemon', () => handlePurgeDaemon(mainWindow));
   ipcMain.handle('familiar:get-version', () => app.getVersion());
 
   // macOS: recreate window when dock icon is clicked

@@ -51,6 +51,8 @@ export const main = async agent => {
   });
   console.log('[setup-fs-tools] Created run-command');
 
-  console.log('[setup-fs-tools] All filesystem tools created in host inventory.');
+  console.log(
+    '[setup-fs-tools] All filesystem tools created in host inventory.',
+  );
 };
 harden(main);

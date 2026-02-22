@@ -101,10 +101,9 @@ export const makeEvaluateTool = host => {
         endowments = {},
         resultName,
         workerName = 'MAIN',
-      } =
-        /** @type {{ source: string, endowments?: Record<string, string>, resultName?: string, workerName?: string }} */ (
-          args
-        );
+      } = /** @type {{ source: string, endowments?: Record<string, string>, resultName?: string, workerName?: string }} */ (
+        args
+      );
       if (!source) {
         throw new Error('source is required');
       }
@@ -406,8 +405,7 @@ export const makeRunCommandTool = cwd => {
           timeout,
           maxBuffer: 1024 * 1024,
         });
-        const output =
-          stdout + (stderr ? `\n[stderr]:\n${stderr}` : '');
+        const output = stdout + (stderr ? `\n[stderr]:\n${stderr}` : '');
         if (output.length > 50_000) {
           return `${output.slice(0, 50_000)}\n\n... (truncated, ${output.length} chars total)`;
         }
@@ -651,8 +649,7 @@ export const makeSendTool = powers => {
           petNames: {
             type: 'array',
             items: { type: 'string' },
-            description:
-              'Your local petnames for the capabilities to attach.',
+            description: 'Your local petnames for the capabilities to attach.',
           },
         },
         required: ['recipient', 'strings'],
@@ -670,10 +667,9 @@ export const makeSendTool = powers => {
         strings = [],
         edgeNames = [],
         petNames = [],
-      } =
-        /** @type {{ recipient: string, strings?: string[], edgeNames?: string[], petNames?: string[] }} */ (
-          args
-        );
+      } = /** @type {{ recipient: string, strings?: string[], edgeNames?: string[], petNames?: string[] }} */ (
+        args
+      );
       if (!recipient) {
         throw new Error('recipient is required');
       }
@@ -722,8 +718,7 @@ export const makeReplyTool = powers => {
           petNames: {
             type: 'array',
             items: { type: 'string' },
-            description:
-              'Your local petnames for the capabilities to attach.',
+            description: 'Your local petnames for the capabilities to attach.',
           },
         },
         required: ['messageNumber', 'strings'],
@@ -741,14 +736,18 @@ export const makeReplyTool = powers => {
         strings = [],
         edgeNames = [],
         petNames = [],
-      } =
-        /** @type {{ messageNumber: number, strings?: string[], edgeNames?: string[], petNames?: string[] }} */ (
-          args
-        );
+      } = /** @type {{ messageNumber: number, strings?: string[], edgeNames?: string[], petNames?: string[] }} */ (
+        args
+      );
       if (messageNumber === undefined) {
         throw new Error('messageNumber is required');
       }
-      await E(powers).reply(BigInt(messageNumber), strings, edgeNames, petNames);
+      await E(powers).reply(
+        BigInt(messageNumber),
+        strings,
+        edgeNames,
+        petNames,
+      );
       return `Replied to message #${messageNumber}`;
     },
     help() {
@@ -822,8 +821,7 @@ export const makeDismissTool = powers => {
       return toolSchema;
     },
     async execute(args) {
-      const { messageNumber } =
-        /** @type {{ messageNumber: number }} */ (args);
+      const { messageNumber } = /** @type {{ messageNumber: number }} */ (args);
       if (messageNumber === undefined) {
         throw new Error('messageNumber is required');
       }
@@ -888,9 +886,7 @@ export const makeAdoptToolTool = host => {
           args
         );
       if (messageNumber === undefined || !edgeName || !toolName) {
-        throw new Error(
-          'messageNumber, edgeName, and toolName are required',
-        );
+        throw new Error('messageNumber, edgeName, and toolName are required');
       }
       await E(host).adopt(BigInt(messageNumber), edgeName, ['tools', toolName]);
       return `Adopted tool "${toolName}" from message #${messageNumber}. It is now available — use it immediately.`;

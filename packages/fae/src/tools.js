@@ -41,9 +41,7 @@ export const discoverTools = async (host, localTools) => {
     for (const name of names) {
       try {
         const tool = await E(host).lookup(['tools', name]);
-        const toolSchema = /** @type {ToolSchema} */ (
-          await E(tool).schema()
-        );
+        const toolSchema = /** @type {ToolSchema} */ (await E(tool).schema());
         if (!toolMap.has(name)) {
           toolMap.set(name, /** @type {object} */ (tool));
           schemas.push(toolSchema);
@@ -79,9 +77,7 @@ export const executeTool = async (name, args, toolMap) => {
   const tool = toolMap.get(name);
   if (!tool) {
     const available = [...toolMap.keys()].join(', ');
-    throw new Error(
-      `Unknown tool: "${name}". Available tools: ${available}`,
-    );
+    throw new Error(`Unknown tool: "${name}". Available tools: ${available}`);
   }
   const result = await E(tool).execute(args);
   return /** @type {string} */ (result);

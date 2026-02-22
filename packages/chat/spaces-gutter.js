@@ -465,9 +465,8 @@ export const createSpacesGutter = ({
       const changes = makeRefIterator(changesRef);
 
       for await (const change of changes) {
-        const { add, remove } = /** @type {{ add?: string, remove?: string }} */ (
-          change
-        );
+        const { add, remove } =
+          /** @type {{ add?: string, remove?: string }} */ (change);
         if (add) {
           handleSpaceAdded(add).catch(window.reportError);
         }

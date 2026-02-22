@@ -272,10 +272,7 @@ export const createCommandExecutor = ({
           console.log(
             `[Chat] Accepting invitation for "${guestName}" from ${String(locator).slice(0, 40)}...`,
           );
-          const accepted = E(powers).accept(
-            String(locator),
-            String(guestName),
-          );
+          const accepted = E(powers).accept(String(locator), String(guestName));
           const timeout = new Promise((_, reject) => {
             setTimeout(
               () =>
@@ -311,9 +308,7 @@ export const createCommandExecutor = ({
             };
           }
 
-          console.log(
-            `[Chat] /network: loading module ${effectiveModulePath}`,
-          );
+          console.log(`[Chat] /network: loading module ${effectiveModulePath}`);
           const network = E(powers).makeUnconfined(
             'MAIN',
             effectiveModulePath,

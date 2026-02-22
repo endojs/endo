@@ -17,7 +17,13 @@ const fs = require('fs'); // eslint-disable-line @typescript-eslint/no-require-i
  * @param {string} _arch
  * @param {Function} callback
  */
-const copyEndoWhere = (buildPath, _electronVersion, _platform, _arch, callback) => {
+const copyEndoWhere = (
+  buildPath,
+  _electronVersion,
+  _platform,
+  _arch,
+  callback,
+) => {
   const src = path.resolve(__dirname, '../../node_modules/@endo/where');
   const dest = path.join(buildPath, 'node_modules', '@endo', 'where');
   fs.cpSync(src, dest, { recursive: true });

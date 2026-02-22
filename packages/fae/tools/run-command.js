@@ -11,7 +11,9 @@ import { makeRunCommandTool } from '../src/tool-makers.js';
  * Root is set at creation time via env.FAE_CWD (default: process.cwd()).
  */
 export const make = (_powers, _context, { env = {} } = {}) => {
-  const cwd = /** @type {Record<string, string | undefined>} */ (env).FAE_CWD || process.cwd();
+  const cwd =
+    /** @type {Record<string, string | undefined>} */ (env).FAE_CWD ||
+    process.cwd();
   const impl = makeRunCommandTool(cwd);
   return makeExo('RunCommandTool', FaeToolInterface, {
     schema: () => impl.schema(),

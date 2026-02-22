@@ -343,9 +343,10 @@ export const createAddSpaceModal = ({
       /** @type {HTMLElement} */ ($menu),
       {
         E,
-        powers: /** @type {import('@endo/far').ERef<import('@endo/daemon').EndoHost>} */ (
-          powers
-        ),
+        powers:
+          /** @type {import('@endo/far').ERef<import('@endo/daemon').EndoHost>} */ (
+            powers
+          ),
         onSubmit: () => {
           // Trigger form submission
           const $form = $container.querySelector('.add-space-form');
@@ -540,7 +541,8 @@ export const createAddSpaceModal = ({
 
     // Validate name (no spaces, dots, or special characters)
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
-      error = 'Handle must start with a letter and contain only letters, numbers, hyphens, and underscores';
+      error =
+        'Handle must start with a letter and contain only letters, numbers, hyphens, and underscores';
       render();
       return;
     }

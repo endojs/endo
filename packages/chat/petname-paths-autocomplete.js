@@ -152,9 +152,10 @@ export const petNamePathsAutocomplete = (
       /** @type {unknown} */
       let target = powers;
       if (pathPrefix.length > 0) {
-        target = /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
-          E(powers)
-        ).lookup(pathPrefix);
+        target =
+          /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
+            E(powers)
+          ).lookup(pathPrefix);
       }
       const names =
         await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (

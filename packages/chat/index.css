@@ -98,7 +98,9 @@ body {
 
 .space-item.active {
   background: var(--bg-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .space-item.home {
@@ -3008,7 +3010,7 @@ button:active {
   color: var(--text-secondary);
 }
 
-.add-space-field input[type="text"] {
+.add-space-field input[type='text'] {
   padding: 10px 12px;
   font-size: 14px;
   border: 1px solid var(--border-color);
@@ -3018,7 +3020,7 @@ button:active {
   outline: none;
 }
 
-.add-space-field input[type="text"]:focus {
+.add-space-field input[type='text']:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-light);
 }
