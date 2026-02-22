@@ -1,5 +1,5 @@
 // @ts-check
-/* global document, setTimeout */
+/* global document, window, setTimeout */
 
 // Initialize SES and make `harden` available globally
 // Using debug.js for better stack traces during development
@@ -11,11 +11,12 @@ import { make } from './chat.js';
 
 const RECONNECT_INTERVAL_MS = 5000;
 
-// Get configuration from Vite plugin injection
+// Runtime config: prefer URL query params (Electron/Familiar), fall back to Vite env
+const urlParams = new URLSearchParams(window.location.search);
 // @ts-expect-error Vite injects env at build time
-const endoPort = import.meta.env.ENDO_PORT;
+const endoPort = urlParams.get('endoPort') || import.meta.env.ENDO_PORT;
 // @ts-expect-error Vite injects env at build time
-const endoId = import.meta.env.ENDO_ID;
+const endoId = urlParams.get('endoId') || import.meta.env.ENDO_ID;
 
 console.log('[Chat] Starting application...');
 console.log(`[Chat] ENDO_PORT: ${endoPort}`);
@@ -26,19 +27,19 @@ console.log(
 if (!endoPort) {
   document.body.innerHTML = `
     <h1>❌ ENDO_PORT not configured</h1>
-    <p>The Vite Endo plugin should inject this automatically.</p>
-    <p>Make sure you're running with <code>yarn dev</code>.</p>
+    <p>Configuration should be injected by the Vite Endo plugin or the Familiar.</p>
+    <p>Make sure you're running with <code>yarn dev</code> or via the Familiar.</p>
   `;
-  throw new Error('ENDO_PORT not configured - is the Vite Endo plugin loaded?');
+  throw new Error('ENDO_PORT not configured - running via Vite or Familiar?');
 }
 
 if (!endoId) {
   document.body.innerHTML = `
     <h1>❌ ENDO_ID not configured</h1>
-    <p>The Vite Endo plugin should inject this automatically.</p>
-    <p>Make sure you're running with <code>yarn dev</code>.</p>
+    <p>Configuration should be injected by the Vite Endo plugin or the Familiar.</p>
+    <p>Make sure you're running with <code>yarn dev</code> or via the Familiar.</p>
   `;
-  throw new Error('ENDO_ID not configured - is the Vite Endo plugin loaded?');
+  throw new Error('ENDO_ID not configured - running via Vite or Familiar?');
 }
 
 /**

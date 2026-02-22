@@ -102,7 +102,9 @@ const main = async () => {
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,
         powers: NONE,
-        specifier: new URL('web-server-node.js', import.meta.url).href,
+        specifier:
+          process.env.ENDO_WORKER_PATH ||
+          new URL('web-server-node.js', import.meta.url).href,
       }),
     });
 

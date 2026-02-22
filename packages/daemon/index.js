@@ -52,9 +52,9 @@ const defaultConfig = {
   cachePath: whereEndoCache(process.platform, process.env, info),
 };
 
-const endoDaemonPath = url.fileURLToPath(
-  new URL('src/daemon-node.js', import.meta.url),
-);
+const endoDaemonPath =
+  process.env.ENDO_DAEMON_PATH ||
+  url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
 
 export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();

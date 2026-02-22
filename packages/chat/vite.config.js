@@ -9,6 +9,7 @@ export default defineConfig({
       port: 0, // Host-assigned port
     }),
   ],
+  base: './',
   build: {
     outDir: 'dist',
     sourcemap: true,
