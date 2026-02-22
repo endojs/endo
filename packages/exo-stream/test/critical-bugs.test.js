@@ -221,3 +221,32 @@ test.failing(
     t.true(streamResolved);
   },
 );
+
+// Issue 7: iterateReader's next() method has no guard against concurrent
+// calls. If next() is called twice without awaiting the first, both calls
+// send a syn node (advancing synResolve), then both await the same
+// nodePromise. When it resolves, both read the same ack node and return
+// the same value. The second syn is consumed by the pump which produces
+// a value that nobody reads, desynchronizing the chains.
+
+test.failing(
+  'concurrent next() calls on iterateReader return distinct values',
+  async t => {
+    const values = [1, 2, 3, 4, 5];
+
+    const readerRef = readerFromIterator(values);
+    const reader = iterateReader(readerRef);
+
+    // Call next() twice without awaiting the first
+    const p1 = reader.next();
+    const p2 = reader.next();
+
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    // Each call should return a distinct, sequential value
+    t.false(r1.done);
+    t.false(r2.done);
+    t.is(r1.value, 1);
+    t.is(r2.value, 2);
+  },
+);
