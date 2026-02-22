@@ -162,3 +162,62 @@ test.failing(
     t.true(returnCalled);
   },
 );
+
+// Issue 4: When the local iterator exhausts during the pre-buffering phase
+// of iterateWriter (iterate-writer.js:48-53), E(writerRef).stream(synHead) is
+// called without await and the function returns immediately. If the responder
+// encounters an error processing the data, the rejected promise is never
+// observed, producing an unhandled rejection and silently losing the error.
+//
+// The same issue affects iterateBytesWriter (iterate-bytes-writer.js:53-58).
+
+test.failing(
+  'iterateWriter awaits responder during pre-buffer exhaustion',
+  async t => {
+    // Source that exhausts within the buffer window
+    async function* source() {
+      yield 1;
+    }
+
+    let streamResolved = false;
+    const { promise: gate, resolve: openGate } = makePromiseKit();
+
+    // A writer whose stream() blocks on a gate, letting us observe
+    // whether iterateWriter waits for the responder to finish.
+    const fakeWriter = Far('FakeWriter', {
+      async stream(_synHead) {
+        await gate;
+        streamResolved = true;
+        return harden({ value: undefined, promise: null });
+      },
+      writePattern() {
+        return undefined;
+      },
+      writeReturnPattern() {
+        return undefined;
+      },
+    });
+
+    t.teardown(() => openGate(undefined));
+
+    // With buffer=5 and a source yielding 1 item, the source exhausts
+    // during pre-buffering. iterateWriter should await the responder's
+    // stream() result before returning.
+    const writerDone = iterateWriter(fakeWriter, source(), { buffer: 5 });
+
+    // Let the E() call dispatch
+    await null;
+    await null;
+
+    // Open the gate so stream() can complete
+    openGate(undefined);
+
+    await writerDone;
+
+    // Bug: iterateWriter returns before stream() completes because
+    // E(writerRef).stream(synHead) is called without await during
+    // pre-buffer exhaustion. streamResolved is false when writerDone
+    // resolves.
+    t.true(streamResolved);
+  },
+);
