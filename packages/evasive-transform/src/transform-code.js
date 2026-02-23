@@ -23,8 +23,12 @@ const adoptStartFrom = (target, src) => {
     );
     const start = loc?.start;
     target.loc = loc;
-    if (!start) return;
-    target.loc.end = /** @type {typeof start} */ ({ ...start });
+    // Text of the new node is likely shorter than text of the old (e.g.,
+    // "import(<url>)" -> "im"), and in such cases we don't ever want rendering
+    // of the new node to claim too much real estate so we future-proof by
+    // making it appear to be zero-width and trusting in recovery of the actual
+    // location immediately afterwards.
+    if (start) target.loc.end = /** @type {typeof start} */ ({ ...start });
   } catch (_err) {
     // Ignore errors; this is purely opportunistic.
   }
@@ -47,15 +51,18 @@ const addStringToExpressions = (left, rightString) => ({
   },
 });
 
+/**
+ * Break up problematic substrings into concatenation expressions, e.g.
+ * `"import("` -> `"im"+"port("`.
+ *
+ * @param {import('@babel/traverse').NodePath} p
+ */
 export const evadeStrings = p => {
-  /** @type {import('@babel/types').Node} */
-  const { type } = p.node;
-  if (type !== 'StringLiteral') {
+  const { node } = p;
+  if (node.type !== 'StringLiteral') {
     return;
   }
-  /** @type {import('@babel/types').StringLiteral} */
-  const { value } = p.node;
-  // Break up problematic substrings, e.g. `"import("` -> `"im"+"port("`.
+  const { value } = node;
   /** @type {import('@babel/types').Expression | undefined} */
   let expr;
   let lastIndex = 0;
@@ -74,27 +81,31 @@ export const evadeStrings = p => {
   }
 };
 
+/**
+ * Break up problematic substrings in template literals with empty-string
+ * expressions, e.g. `import(` -> `im${''}port(`.
+ *
+ * @param {import('@babel/traverse').NodePath} p
+ */
 export const evadeTemplates = p => {
-  /** @type {import('@babel/types').Node} */
-  const { type } = p.node;
+  const { node } = p;
 
-  // Handle template literals (multiline strings)
-  // `import(` -> `im${}port(`
-  // The transform is only meaning-preserving if not part of a TaggedTemplateExpression, so these need to be excluded until a motivating case shows up. It should be possible to wrap the tag with a function that omits expressions we insert, but that's a lot of work to do preemptively.
+  // The transform is only meaning-preserving if not part of a
+  // TaggedTemplateExpression, so these need to be excluded until a motivating
+  // case shows up. It should be possible to wrap the tag with a function that
+  // omits expressions we insert, but that's a lot of work to do preemptively.
   // https://github.com/endojs/endo/pull/3026#discussion_r2632507228
   if (
-    type !== 'TemplateLiteral' ||
+    node.type !== 'TemplateLiteral' ||
     p.parent.type === 'TaggedTemplateExpression'
   ) {
     return;
   }
-  /** @type {import('@babel/types').TemplateLiteral} */
-  const node = p.node;
 
   const { quasis } = node;
 
   // Check if any quasi needs transformation
-  if (!quasis.some(quasi => quasi.value.raw.match(evadeRegexp))) return;
+  if (!quasis.some(quasi => quasi.value.raw.search(evadeRegexp) !== -1)) return;
 
   /** @type {import('@babel/types').TemplateElement[]} */
   const newQuasis = [];
@@ -178,14 +189,13 @@ export const evadeTemplates = p => {
  * @returns {void}
  */
 export const evadeRegexpLiteral = p => {
-  if (p.node.type !== 'RegExpLiteral') {
+  const { node } = p;
+  if (node.type !== 'RegExpLiteral') {
     return;
   }
-  /** @type {import('@babel/types').RegExpLiteral} */
-  const node = p.node;
   const { pattern } = node;
 
-  if (pattern.match(evadeRegexp)) {
+  if (pattern.search(evadeRegexp) !== -1) {
     node.pattern = pattern.replace(
       evadeRegexp,
       s => regexpReplacements[s[0]] + s.substring(1),
@@ -201,16 +211,18 @@ export const evadeRegexpLiteral = p => {
  * @returns {void}
  */
 export const evadeDecrementGreater = p => {
+  const { node } = p;
   if (
-    p.node.type === 'BinaryExpression' &&
-    p.node.operator === '>' &&
-    p.node.left.type === 'UpdateExpression' &&
-    p.node.left.operator === '--'
+    node.type === 'BinaryExpression' &&
+    node.operator === '>' &&
+    node.left.type === 'UpdateExpression' &&
+    node.left.operator === '--' &&
+    !node.left.prefix
   ) {
     // Wrap the UpdateExpression in a SequenceExpression: (0, x--)
-    p.node.left = {
+    node.left = {
       type: 'SequenceExpression',
-      expressions: [{ type: 'NumericLiteral', value: 0 }, p.node.left],
+      expressions: [{ type: 'NumericLiteral', value: 0 }, node.left],
     };
   }
 };
