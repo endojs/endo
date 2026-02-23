@@ -128,11 +128,15 @@ If you created tools independently (step 5), send one to fae via chat:
 
 Fae will adopt the tool and can use it on subsequent turns.
 
+> Josh: "adopt"? how do I see what the tools are between turns?
+
 **Ask fae to use a tool:**
 
 `@fae What time is it?`
 
 Fae will discover the timestamp tool and call it to answer.
+
+> Josh: "discover"? does that mean something more than just normal llm-agent-loop tool dictionary injection?
 
 ### Verifying State
 
@@ -177,6 +181,17 @@ Filesystem tools (read-file, write-file, edit-file, list-dir, run-command) can
 be created with `yarn setup-fs-tools`; each tool's root directory is set at
 creation time via `FAE_CWD` (default: `process.cwd()`).
 
+> Josh: so many questions...
+> - you say "root", so does that imply some kinda `chroot` or filesystem
+>   namespace isolation? or is it just some colloquial or endo-specific notion
+>   of "root"?
+> - if it's actually a `execve`-impacting per-se "root", how even is
+>   `run-command` useful alongside the rest...
+> - laterally: `run-command` is not like the others, file tools and command
+>   running are better to have slightly separated, like user might want "files,
+>   but no commands" in one message, and then the next be like "ahh okay yes, I
+>   see, here you can run (that, or a) command" in a subsequent reply
+
 ### Tool caplets (`tools/*.js`)
 
 Unsandboxed modules that produce FaeTool exo objects conforming to the
@@ -207,3 +222,8 @@ packages/fae/
     ├── list-dir.js           # FaeTool: list directory under root
     └── run-command.js        # FaeTool: run shell commands in root
 ```
+
+> Josh: there's that "in root" again... what even does that mean?
+> - is it just "we chdir to root first?"
+> - or is it a boundary like chroot, namespace, etc
+

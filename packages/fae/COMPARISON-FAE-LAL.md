@@ -81,6 +81,13 @@ This is the most fundamental difference between the two agents.
 - Can be hot-reloaded after `adoptTool`
 - Tool results serialized as Justin strings
 
+> Josh: oi, what's a "Turn" ... is that each message in a session, or is each session a turn?
+> - **localgpt** for comparison a "Turn" is a process holding the workspace
+>   lock running arbitrarily deep number of
+>   "prompt/tool/think/tool/think/tool/think/done?" steps: by heartbeat
+>   interval, to process a telegram user request, or being held by an
+>   interactive CLI session
+
 ### Lal — Switch Dispatch
 
 ```
