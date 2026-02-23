@@ -16,6 +16,8 @@
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "test": "ava",
+    "profile:agoric-bundling": "tools/profile-agoric-bundling.mts",
+    "trace:merge": "node tools/trace-merge.js",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "yarn lint:types && yarn lint:eslint",

@@ -138,31 +138,43 @@ const makeExtensionParser = (
     packageLocation,
     options,
   ) {
+    const { profileStartSpan = undefined } = options || {};
     /** @type {string} */
     let language;
     const extension = parseExtension(location);
-
-    if (
-      !extensionImpliesLanguage(extension) &&
-      has(languageForModuleSpecifier, specifier)
-    ) {
-      language = languageForModuleSpecifier[specifier];
-    } else {
-      // We should revisit this design decision:
-      // Defaulting the language to the extension conflates those namespaces.
-      // So, a transform keyed by extension can be used to coerce a language
-      // (e.g., .mts to mjs) as a shorthand for configuring a parser for that
-      // extension that pre-processes the file before handing off to the
-      // parser.
-      // But, this forces us to support the case of using weird language
-      // names like pre-mjs-json as valid, unconfigured extensions.
-      language = languageForExtension[extension] || extension;
+    const endLanguageSelect = profileStartSpan?.(
+      'compartmentMapper.parseModule.selectLanguage',
+      { specifier, location, extension },
+    );
+    try {
+      if (
+        !extensionImpliesLanguage(extension) &&
+        has(languageForModuleSpecifier, specifier)
+      ) {
+        language = languageForModuleSpecifier[specifier];
+      } else {
+        // We should revisit this design decision:
+        // Defaulting the language to the extension conflates those namespaces.
+        // So, a transform keyed by extension can be used to coerce a language
+        // (e.g., .mts to mjs) as a shorthand for configuring a parser for that
+        // extension that pre-processes the file before handing off to the
+        // parser.
+        // But, this forces us to support the case of using weird language
+        // names like pre-mjs-json as valid, unconfigured extensions.
+        language = languageForExtension[extension] || extension;
+      }
+    } finally {
+      endLanguageSelect?.({ selectedLanguage: language });
     }
 
     /** @type {string|undefined} */
     let sourceMap;
 
     if (has(transforms, language)) {
+      const endTransform = profileStartSpan?.(
+        'compartmentMapper.parseModule.transform',
+        { specifier, location, language },
+      );
       try {
         ({
           bytes,
@@ -180,23 +192,49 @@ const makeExtensionParser = (
             sourceMap,
           },
         ));
+        endTransform?.({
+          parser: language,
+          outputBytes: bytes.length,
+          hasSourceMap: sourceMap !== undefined,
+        });
       } catch (err) {
+        endTransform?.();
         throw Error(
           `Error transforming ${q(language)} source in ${q(location)}: ${err.message}`,
           { cause: err },
         );
       }
     }
+    const endParserLookup = profileStartSpan?.(
+      'compartmentMapper.parseModule.lookupParser',
+      { specifier, location, language },
+    );
     if (!has(parserForLanguage, language)) {
+      endParserLookup?.();
       throw Error(
         `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
       );
     }
     const { parse } = parserForLanguage[language];
-    return parse(bytes, specifier, location, packageLocation, {
-      sourceMap,
-      ...options,
-    });
+    endParserLookup?.();
+
+    const endParserExecute = profileStartSpan?.(
+      'compartmentMapper.parseModule.executeParser',
+      {
+        specifier,
+        location,
+        language,
+        inputBytes: bytes.length,
+      },
+    );
+    try {
+      return parse(bytes, specifier, location, packageLocation, {
+        sourceMap,
+        ...options,
+      });
+    } finally {
+      endParserExecute?.({ parser: language });
+    }
   }
 
   /**

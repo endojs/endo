@@ -336,6 +336,55 @@ const dijkstra = (graph, source, target) => {
 };
 
 /**
+ * Dijkstra's algorithm from a single source.
+ * Computes predecessor paths to all reachable targets.
+ *
+ * @template [T=string]
+ * @param {GenericGraph<T>} graph
+ * @param {T} source
+ * @returns {TraversalContext<T>}
+ */
+const dijkstraFromSource = (graph, source) => {
+  const { nodes } = graph;
+  /** @type {TraversalContext<T>} */
+  const context = {
+    distances: new Map(),
+    predecessors: new Map(),
+    queue: new Set(),
+  };
+  const { queue, distances } = context;
+
+  for (const node of nodes) {
+    distances.set(node, Infinity);
+  }
+
+  assert(
+    distances.get(source) === Infinity,
+    `Source ${q(source)} is not in the graph`,
+  );
+
+  distances.set(source, 0);
+
+  for (const node of nodes) {
+    queue.add(node);
+  }
+
+  while (queue.size !== 0) {
+    const node = extractMin(context);
+    if (node === undefined) {
+      return context;
+    }
+    const adjacent = graph.adjacent(node);
+    if (adjacent) {
+      for (const edge of adjacent) {
+        relax(graph, context, node, edge);
+      }
+    }
+  }
+  return context;
+};
+
+/**
  * Returns a function which uses Dijkstra's shortest path algorithm to compute
  * the shortest path from `source` to `destination` in the given `graph`.
  *
@@ -352,5 +401,23 @@ export const makeShortestPath = graph => {
     const context = dijkstra(graph, source, target);
     return getPath(context, source, target);
   };
+  return shortestPath;
+};
+
+/**
+ * Returns a function for shortest-path lookups from one fixed source.
+ * Computes Dijkstra traversal context once and reuses it for all targets.
+ *
+ * @template [T=string]
+ * @param {GenericGraph<T>} graph Graph to use
+ * @param {NoInfer<T>} source Source node for all path lookups
+ */
+export const makeShortestPathFromSource = (graph, source) => {
+  const context = dijkstraFromSource(graph, source);
+  /**
+   * @param {NoInfer<T>} target Target node
+   * @returns {[T, T, ...T[]]}
+   */
+  const shortestPath = target => getPath(context, source, target);
   return shortestPath;
 };

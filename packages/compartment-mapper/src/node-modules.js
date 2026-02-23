@@ -26,7 +26,7 @@ import {
 import { dependencyAllowedByPolicy, makePackagePolicy } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
-import { GenericGraph, makeShortestPath } from './generic-graph.js';
+import { GenericGraph, makeShortestPathFromSource } from './generic-graph.js';
 
 /**
  * @import {
@@ -1164,7 +1164,10 @@ const finalizeGraph = (
   entryPackageLocation,
   canonicalNameMap,
 ) => {
-  const shortestPath = makeShortestPath(logicalPathGraph);
+  const shortestPathFromEntry = makeShortestPathFromSource(
+    logicalPathGraph,
+    entryPackageLocation,
+  );
 
   // neither the entry package nor the attenuators compartment have a path; omit
   const {
@@ -1203,7 +1206,7 @@ const finalizeGraph = (
   );
 
   for (const [location, node] of subgraphEntries) {
-    const shortestLogicalPath = shortestPath(entryPackageLocation, location);
+    const shortestLogicalPath = shortestPathFromEntry(location);
 
     // the first element will always be the root package location; this is omitted from the path.
     shortestLogicalPath.shift();
@@ -1319,6 +1322,7 @@ export const compartmentMapForNodeModules_ = async (
     policy,
     strict = false,
     log = noop,
+    profileStartSpan = undefined,
     unknownCanonicalNameHook,
     packageDataHook,
     packageDependenciesHook,
@@ -1341,19 +1345,27 @@ export const compartmentMapForNodeModules_ = async (
   // dev is only set for the entry package, and implied by the development
   // condition.
 
-  const graph = await graphPackages(
-    maybeRead,
-    canonical,
-    entryPackageLocation,
-    conditions,
-    packageDescriptor,
-    dev || (conditions && conditions.has('development')),
-    commonDependencies,
-    languageOptions,
-    strict,
-    logicalPathGraph,
-    { log, policy, packageDependenciesHook },
+  const endGraphPackages = profileStartSpan?.(
+    'compartmentMapper.nodeModules.graphPackages',
   );
+  let graph;
+  try {
+    graph = await graphPackages(
+      maybeRead,
+      canonical,
+      entryPackageLocation,
+      conditions,
+      packageDescriptor,
+      dev || (conditions && conditions.has('development')),
+      commonDependencies,
+      languageOptions,
+      strict,
+      logicalPathGraph,
+      { log, policy, packageDependenciesHook },
+    );
+  } finally {
+    endGraphPackages?.();
+  }
 
   makeAttenuatorsNode(graph, graph[entryPackageLocation], policy);
 
@@ -1362,40 +1374,54 @@ export const compartmentMapForNodeModules_ = async (
    */
   const canonicalNameMap = new Map();
 
+  const endFinalizeGraph = profileStartSpan?.(
+    'compartmentMapper.nodeModules.finalizeGraph',
+  );
   const finalGraph = finalizeGraph(
     graph,
     logicalPathGraph,
     entryPackageLocation,
     canonicalNameMap,
   );
+  endFinalizeGraph?.();
 
   // if policy exists, cross-reference the policy "resources" against the list
   // of known canonical names and fire the `unknownCanonicalName` hook for each
   // unknown resource, if found
   if (policy) {
-    const canonicalNames = new Set(canonicalNameMap.keys());
-    const issues = validatePolicyResources(canonicalNames, policy) ?? [];
-    // Call default handler first if policy exists
-    for (const { message, canonicalName, path, suggestion } of issues) {
-      const hookInput = {
-        canonicalName,
-        message,
-        path,
-        log,
-      };
-      if (suggestion) {
-        hookInput.suggestion = suggestion;
+    const endValidatePolicy = profileStartSpan?.(
+      'compartmentMapper.nodeModules.validatePolicyResources',
+    );
+    try {
+      const canonicalNames = new Set(canonicalNameMap.keys());
+      const issues = validatePolicyResources(canonicalNames, policy) ?? [];
+      // Call default handler first if policy exists
+      for (const { message, canonicalName, path, suggestion } of issues) {
+        const hookInput = {
+          canonicalName,
+          message,
+          path,
+          log,
+        };
+        if (suggestion) {
+          hookInput.suggestion = suggestion;
+        }
+        defaultUnknownCanonicalNameHandler(hookInput);
+        // Then call user-provided hook if it exists
+        if (unknownCanonicalNameHook) {
+          unknownCanonicalNameHook(hookInput);
+        }
       }
-      defaultUnknownCanonicalNameHandler(hookInput);
-      // Then call user-provided hook if it exists
-      if (unknownCanonicalNameHook) {
-        unknownCanonicalNameHook(hookInput);
-      }
+    } finally {
+      endValidatePolicy?.();
     }
   }
 
   // Fire packageData hook with all package data before translateGraph
   if (packageDataHook) {
+    const endPackageDataHook = profileStartSpan?.(
+      'compartmentMapper.nodeModules.packageDataHook',
+    );
     const packageData =
       /** @type {Map<PackageCompartmentDescriptorName, PackageData>} */ (
         new Map(
@@ -1414,8 +1440,12 @@ export const compartmentMapForNodeModules_ = async (
       packageData,
       log,
     });
+    endPackageDataHook?.({ packages: packageData.size });
   }
 
+  const endTranslateGraph = profileStartSpan?.(
+    'compartmentMapper.nodeModules.translateGraph',
+  );
   const compartmentMap = translateGraph(
     entryPackageLocation,
     entryModuleSpecifier,
@@ -1423,6 +1453,9 @@ export const compartmentMapForNodeModules_ = async (
     conditions,
     { policy, log, packageDependenciesHook },
   );
+  endTranslateGraph?.({
+    compartmentCount: keys(compartmentMap.compartments).length,
+  });
 
   return compartmentMap;
 };
@@ -1445,6 +1478,7 @@ export const mapNodeModules = async (
     tags = new Set(),
     conditions = tags,
     log = noop,
+    profileStartSpan = undefined,
     unknownCanonicalNameHook,
     packageDataHook,
     packageDependenciesHook,
@@ -1452,35 +1486,62 @@ export const mapNodeModules = async (
     ...otherOptions
   } = {},
 ) => {
-  const {
-    packageLocation,
-    packageDescriptorText,
-    packageDescriptorLocation,
-    moduleSpecifier,
-  } = await search(readPowers, moduleLocation, { log });
+  const endSearch = profileStartSpan?.('compartmentMapper.nodeModules.search');
+  let packageLocation;
+  let packageDescriptorText;
+  let packageDescriptorLocation;
+  let moduleSpecifier;
+  let searchSpanArgs;
+  try {
+    ({
+      packageLocation,
+      packageDescriptorText,
+      packageDescriptorLocation,
+      moduleSpecifier,
+    } = await search(readPowers, moduleLocation, { log }));
+    searchSpanArgs = { packageLocation, moduleSpecifier };
+  } finally {
+    endSearch?.(searchSpanArgs);
+  }
 
-  const packageDescriptor = /** @type {typeof parseLocatedJson<unknown>} */ (
-    parseLocatedJson
-  )(packageDescriptorText, packageDescriptorLocation);
+  const endParseDescriptor = profileStartSpan?.(
+    'compartmentMapper.nodeModules.parsePackageDescriptor',
+  );
+  let packageDescriptor;
+  try {
+    packageDescriptor = /** @type {typeof parseLocatedJson<unknown>} */ (
+      parseLocatedJson
+    )(packageDescriptorText, packageDescriptorLocation);
+  } finally {
+    endParseDescriptor?.();
+  }
 
   assertPackageDescriptor(packageDescriptor);
   assertFileUrlString(packageLocation);
 
-  return compartmentMapForNodeModules_(
-    readPowers,
-    packageLocation,
-    conditions,
-    packageDescriptor,
-    moduleSpecifier,
-    {
-      log,
-      policy,
-      unknownCanonicalNameHook,
-      packageDependenciesHook,
-      packageDataHook,
-      ...otherOptions,
-    },
+  const endCompartmentMapForNodeModules = profileStartSpan?.(
+    'compartmentMapper.nodeModules.compartmentMapForNodeModules',
   );
+  try {
+    return await compartmentMapForNodeModules_(
+      readPowers,
+      packageLocation,
+      conditions,
+      packageDescriptor,
+      moduleSpecifier,
+      {
+        log,
+        policy,
+        profileStartSpan,
+        unknownCanonicalNameHook,
+        packageDependenciesHook,
+        packageDataHook,
+        ...otherOptions,
+      },
+    );
+  } finally {
+    endCompartmentMapForNodeModules?.();
+  }
 };
 
 /**

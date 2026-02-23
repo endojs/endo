@@ -135,14 +135,17 @@ export type WritePowers = {
   write: WriteFn;
 };
 
-export type WriteFn = (location: string, bytes: Uint8Array) => Promise<void>;
+export type WriteFn = (
+  location: string,
+  bytes: Uint8Array,
+) => void | Promise<void>;
 
 export type ArchiveWriter = {
   write: WriteFn;
   snapshot: SnapshotFn;
 };
 
-export type SnapshotFn = () => Promise<Uint8Array>;
+export type SnapshotFn = () => Uint8Array | Promise<Uint8Array>;
 // #endregion
 
 // #region execute

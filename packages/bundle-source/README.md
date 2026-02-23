@@ -119,6 +119,64 @@ map for every physical module.
 It is not yet quite clever enough to collect source maps for sources that do
 not exist.
 
+## Profiling
+
+`bundle-source` can emit Chrome trace files for performance analysis.
+This works for programmatic usage and CLI usage, including builds in larger
+repos like `agoric-sdk`.
+
+Enable with environment variables:
+
+```console
+ENDO_BUNDLE_SOURCE_PROFILE=1 \
+ENDO_BUNDLE_SOURCE_PROFILE_DIR=/tmp/bs-profiles \
+yarn bundle-source app.js > /tmp/app-bundle.json
+```
+
+Each bundle call writes one `*.trace.json` file. Open these in Chrome tracing
+tools or convert for Speedscope.
+
+You can also control profiling in code:
+
+```js
+await bundleSource('program.js', {
+  profile: {
+    enabled: true,
+    traceDir: '/tmp/bs-profiles',
+    // or traceFile: '/tmp/specific.trace.json'
+  },
+});
+```
+
+Environment variables:
+- `ENDO_BUNDLE_SOURCE_PROFILE`: enable profiling when truthy (`1`, `true`, `yes`, `on`)
+- `ENDO_BUNDLE_SOURCE_PROFILE_DIR`: output directory for generated trace files
+- `ENDO_BUNDLE_SOURCE_PROFILE_FILE`: explicit output file for a single run
+- `ENDO_BUNDLE_SOURCE_PROFILE_STDERR`: if truthy, prints each generated trace path to stderr
+
+Merge and summarize many profile traces:
+
+```console
+yarn workspace @endo/bundle-source trace:merge -- /tmp/bs-profiles
+```
+
+This generates:
+- `merged.trace.json` for trace viewers.
+- `summary.json` with aggregate span statistics.
+- `summary.md` with a top spans table by total duration.
+
+Profile bundling all `source-spec-registry.js` entries from an `agoric-sdk`
+checkout using the current checkout's `bundle-source`:
+
+```console
+yarn workspace @endo/bundle-source profile:agoric-bundling -- \
+  --agoric-sdk-root /opt/agoric/agoric-sdk \
+  --out-dir /tmp/profile-agoric-bundling
+```
+
+The tool writes bundles, raw traces, merged trace, and summary files to
+`--out-dir`, and prints a top-spans summary table at the end.
+
 ## `moduleFormat` explanations
 
 <a id="getexport-moduleformat"></a>

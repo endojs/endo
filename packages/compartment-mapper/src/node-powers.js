@@ -69,6 +69,7 @@ const fakeIsAbsolute = () => false;
  * @param {UrlInterface} [args.url]
  * @param {CryptoInterface} [args.crypto]
  * @param {PathInterface} [args.path]
+ * @param {number} [args.maxConcurrentReads]
  * @returns {MaybeReadPowers<FileUrlString>}
  */
 const makeReadPowersSloppy = ({
@@ -76,6 +77,7 @@ const makeReadPowersSloppy = ({
   url = undefined,
   crypto = undefined,
   path = undefined,
+  maxConcurrentReads = 32,
 }) => {
   const fileURLToPath =
     url === undefined ? fakeFileURLToPath : url.fileURLToPath;
@@ -83,26 +85,45 @@ const makeReadPowersSloppy = ({
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
   const isAbsolute = path === undefined ? fakeIsAbsolute : path.isAbsolute;
 
-  let readMutex = Promise.resolve(undefined);
+  const readConcurrencyLimit =
+    Number.isInteger(maxConcurrentReads) && maxConcurrentReads > 0
+      ? maxConcurrentReads
+      : 1;
+  let activeReadCount = 0;
+  /** @type {Array<(value: undefined) => void>} */
+  const pendingReadQueue = [];
+  /** @type {Map<string, Promise<FileUrlString>>} */
+  const canonicalMemo = new Map();
+
+  const acquireReadSlot = async () => {
+    if (activeReadCount < readConcurrencyLimit) {
+      activeReadCount += 1;
+      return;
+    }
+    await new Promise(resolve => {
+      pendingReadQueue.push(resolve);
+    });
+    activeReadCount += 1;
+  };
+
+  const releaseReadSlot = () => {
+    activeReadCount -= 1;
+    const next = pendingReadQueue.shift();
+    if (next) {
+      next(undefined);
+    }
+  };
 
   /**
    * @type {ReadFn}
    */
   const read = async location => {
-    const promise = readMutex;
-    let release = Function.prototype;
-    readMutex = new Promise(resolve => {
-      release = resolve;
-    });
-    await promise;
-
+    await acquireReadSlot();
     const filepath = fileURLToPath(location);
     try {
-      // We await here to ensure that we release the mutex only after
-      // completing the read.
       return await fs.promises.readFile(filepath);
     } finally {
-      release(undefined);
+      releaseReadSlot();
     }
   };
 
@@ -139,23 +160,31 @@ const makeReadPowersSloppy = ({
    *
    * @type {CanonicalFn<FileUrlString>}
    */
-  const canonical = async location => {
-    await null;
-    try {
-      if (location.endsWith('/')) {
-        const realPath = await fs.promises.realpath(
-          fileURLToPath(location).replace(/\/$/, ''),
-        );
-        return /** @type {FileUrlString} */ (
-          `${pathToFileURL(realPath).href}/`
-        );
-      } else {
-        const realPath = await fs.promises.realpath(fileURLToPath(location));
-        return /** @type {FileUrlString} */ (pathToFileURL(realPath).href);
-      }
-    } catch {
-      return location;
+  const canonical = location => {
+    const pending = canonicalMemo.get(location);
+    if (pending !== undefined) {
+      return pending;
     }
+    const promise = (async () => {
+      await null;
+      try {
+        if (location.endsWith('/')) {
+          const realPath = await fs.promises.realpath(
+            fileURLToPath(location).replace(/\/$/, ''),
+          );
+          return /** @type {FileUrlString} */ (
+            `${pathToFileURL(realPath).href}/`
+          );
+        } else {
+          const realPath = await fs.promises.realpath(fileURLToPath(location));
+          return /** @type {FileUrlString} */ (pathToFileURL(realPath).href);
+        }
+      } catch {
+        return location;
+      }
+    })();
+    canonicalMemo.set(location, promise);
+    return promise;
   };
 
   /** @type {HashFn | undefined} */
@@ -187,6 +216,7 @@ const makeReadPowersSloppy = ({
  * @param {UrlInterface} [args.url]
  * @param {CryptoInterface} [args.crypto]
  * @param {PathInterface} [args.path]
+ * @param {number} [args.maxConcurrentReads]
  * @returns {ReadNowPowers<FileUrlString>}
  */
 export const makeReadNowPowers = ({
@@ -194,8 +224,15 @@ export const makeReadNowPowers = ({
   url = undefined,
   crypto = undefined,
   path = undefined,
+  maxConcurrentReads = 32,
 }) => {
-  const powers = makeReadPowersSloppy({ fs, url, crypto, path });
+  const powers = makeReadPowersSloppy({
+    fs,
+    url,
+    crypto,
+    path,
+    maxConcurrentReads,
+  });
   const fileURLToPath = powers.fileURLToPath || fakeFileURLToPath;
   const isAbsolute = powers.isAbsolute || fakeIsAbsolute;
 
@@ -259,6 +296,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
  * @param {FsInterface} args.fs
  * @param {UrlInterface} args.url
  * @param {CryptoInterface} [args.crypto]
+ * @param {number} [args.maxConcurrentReads]
  */
 export const makeReadPowers = makeReadPowersSloppy;
 

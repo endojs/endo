@@ -25,18 +25,34 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
 
     const { sourceUrl, sourceMapUrl, sourceType, sourceMap, sourceMapHook } =
       sourceOptions;
+    const { profileStartSpan } = sourceOptions;
 
+    const endParse = profileStartSpan?.('moduleSource.babel.parse', {
+      sourceType,
+    });
     const ast = parseBabel(source, {
       sourceType,
       tokens: true,
       createParenthesizedExpressions: true,
     });
+    endParse?.();
 
+    const endAnalyzeTraverse = profileStartSpan?.(
+      'moduleSource.babel.traverseAnalyze',
+    );
     traverseBabel(ast, visitorFromPlugin(analyzePlugin));
+    endAnalyzeTraverse?.();
+    const endTransformTraverse = profileStartSpan?.(
+      'moduleSource.babel.traverseTransform',
+    );
     traverseBabel(ast, visitorFromPlugin(transformPlugin));
+    endTransformTraverse?.();
 
     const sourceMaps = sourceOptions.sourceMapHook !== undefined;
 
+    const endGenerate = profileStartSpan?.('moduleSource.babel.generate', {
+      sourceMaps,
+    });
     const { code: transformedSource, map: transformedSourceMap } =
       generateBabel(
         ast,
@@ -51,6 +67,7 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
         },
         source,
       );
+    endGenerate?.();
 
     if (sourceMaps) {
       sourceMapHook(transformedSourceMap, {
