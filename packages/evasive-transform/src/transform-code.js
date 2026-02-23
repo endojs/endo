@@ -88,8 +88,8 @@ export const evadeStrings = p => {
  * @param {import('@babel/traverse').NodePath} p
  */
 export const evadeTemplates = p => {
-  const { node } = p;
-
+  /** @type {import('@babel/types').TemplateLiteral} */
+  const node = p.node;
   // The transform is only meaning-preserving if not part of a
   // TaggedTemplateExpression, so these need to be excluded until a motivating
   // case shows up. It should be possible to wrap the tag with a function that
