@@ -63,13 +63,15 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
  * @param {object} exports - the `exports` field from a package.json.
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
+ * @param {LanguageForExtension} types - an object to populate
+ * with any recognized module's type, if implied by a tag.
  * @yields {[string, string]}
  * @returns {Generator<[string, string]>}
  */
-function* interpretExports(name, exports, conditions) {
+function* interpretExports(name, exports, conditions, types) {
   if (isArray(exports)) {
     for (const section of exports) {
-      const results = [...interpretExports(name, section, conditions)];
+      const results = [...interpretExports(name, section, conditions, types)];
       if (results.length > 0) {
         yield* results;
         break;
@@ -93,12 +95,20 @@ function* interpretExports(name, exports, conditions) {
       continue; // or no-op
     } else if (key.startsWith('./') || key === '.') {
       if (name === '.') {
-        yield* interpretExports(key, value, conditions);
+        yield* interpretExports(key, value, conditions, types);
       } else {
-        yield* interpretExports(join(name, key), value, conditions);
+        yield* interpretExports(join(name, key), value, conditions, types);
       }
     } else if (conditions.has(key)) {
-      yield* interpretExports(name, value, conditions);
+      if (types && key === 'import' && typeof value === 'string') {
+        // In this one case, the key "import" has carried a hint that the
+        // referenced module is an ECMASCript module, and that hint may be
+        // necessary to override whatever type might be inferred from the module
+        // specifier extension.
+        const spec = relativize(value);
+        types[spec] = 'mjs';
+      }
+      yield* interpretExports(name, value, conditions, types);
       // Take only the first matching tag.
       break;
     }
@@ -141,7 +151,7 @@ export const inferExportsEntries = function* inferExportsEntries(
     yield ['.', relativize(main)];
   }
   if (exports !== undefined) {
-    yield* interpretExports('.', exports, conditions);
+    yield* interpretExports('.', exports, conditions, types);
   }
   // TODO Otherwise, glob 'files' for all '.js', '.cjs', and '.mjs' entry
   // modules, taking care to exclude node_modules.
