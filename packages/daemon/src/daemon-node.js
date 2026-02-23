@@ -11,7 +11,7 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import { makeDaemon } from './daemon.js';
 import {
   makeFilePowers,
@@ -20,7 +20,6 @@ import {
   makeCryptoPowers,
 } from './daemon-node-powers.js';
 
-/** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config, Builtins } from './types.js' */
 
 if (process.argv.length < 5) {
@@ -69,8 +68,7 @@ const reportErrorToParent = message => {
   }
 };
 
-const { promise: cancelled, reject: cancel } =
-  /** @type {PromiseKit<never>} */ (makePromiseKit());
+const { cancelled, cancel } = makeCancelKit();
 
 const updateRecordedPid = async () => {
   const pidPath = filePowers.joinPath(ephemeralStatePath, 'endo.pid');

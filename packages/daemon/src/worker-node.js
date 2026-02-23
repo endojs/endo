@@ -7,16 +7,13 @@ import '@endo/init';
 import fs from 'fs';
 import url from 'url';
 
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import { main } from './worker.js';
 import { makePowers } from './worker-node-powers.js';
 
-/** @import { PromiseKit } from '@endo/promise-kit' */
-
 const powers = makePowers({ fs, url });
 
-const { promise: cancelled, reject: cancel } =
-  /** @type {PromiseKit<never>} */ (makePromiseKit());
+const { cancelled, cancel } = makeCancelKit();
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 

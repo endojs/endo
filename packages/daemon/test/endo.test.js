@@ -11,7 +11,7 @@ import crypto from 'crypto';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import bundleSource from '@endo/bundle-source';
 import {
   start,
@@ -210,7 +210,7 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
 
 /** @param {import('ava').ExecutionContext<any>} t */
 const prepareConfig = async t => {
-  const { reject: cancel, promise: cancelled } = makePromiseKit();
+  const { cancelled, cancel } = makeCancelKit();
   const config = makeConfig(
     'tmp',
     getConfigDirectoryName(t.title, t.context.length),
@@ -729,9 +729,7 @@ test('persist unconfined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   const responderFinished = (async () => {
-    const { promise: followerCancelled, reject: cancelFollower } =
-      makePromiseKit();
-    cancelled.catch(cancelFollower);
+    const { cancelled: followerCancelled } = makeCancelKit(cancelled);
     const { host } = await makeHost(config, followerCancelled);
     await E(host).provideWorker(['user-worker']);
 
@@ -793,9 +791,7 @@ test('persist confined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   const responderFinished = (async () => {
-    const { promise: followerCancelled, reject: cancelFollower } =
-      makePromiseKit();
-    cancelled.catch(cancelFollower);
+    const { cancelled: followerCancelled } = makeCancelKit(cancelled);
     const { host } = await makeHost(config, followerCancelled);
     await E(host).provideWorker(['user-worker']);
 
