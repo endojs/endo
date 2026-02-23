@@ -164,14 +164,18 @@ Then re-run the setup steps above.
 
 ### Caplet mode (`agent.js`)
 
-Autonomous guest agent running inside the daemon. No filesystem access.
-Tools are limited to petname operations (`list`, `lookup`, `store`,
-`remove`), mail operations (`send`, `listMessages`, `dismiss`), and
-`adoptTool` for runtime tool adoption. Additional capabilities come from tool caplets sent via messages.
-Filesystem tools (read-file, write-file, edit-file, list-dir,
-run-command) can be created with `yarn setup-fs-tools`; each tool's
-root directory is set at creation time via `FAE_CWD` (default:
-`process.cwd()`).
+Autonomous guest agent running inside the daemon.
+No filesystem access.
+Tools are limited to petname operations:
+- petname operations: `list`, `lookup`, `store`, `remove`
+- mail operations (`send`, `listMessages`, `dismiss`)
+- `adoptTool` for runtime tool adoption.
+
+Additional capabilities come from tool caplets sent via messages.
+
+Filesystem tools (read-file, write-file, edit-file, list-dir, run-command) can
+be created with `yarn setup-fs-tools`; each tool's root directory is set at
+creation time via `FAE_CWD` (default: `process.cwd()`).
 
 ### Tool caplets (`tools/*.js`)
 

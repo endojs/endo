@@ -7,19 +7,19 @@ and `nanobot` (a standalone multi-channel AI assistant framework).
 
 ## At a Glance
 
-| Dimension | Fae | nanobot |
-|-----------|-----|---------|
-| Language | JavaScript (Hardened JS / SES) | Python 3.11+ |
-| Runtime | Endo daemon (caplet) | Standalone process |
-| Security model | Object-capability (ocap) | Filesystem sandboxing (optional) |
-| Communication | Endo mail (capability passing) | Multi-channel message bus |
-| LLM providers | 3 (Ollama, llama.cpp, Anthropic) | 15+ via LiteLLM |
-| Tool system | Dynamic discovery + capability adoption | Static registry at startup + MCP bridge |
-| Memory | None (in-memory transcript only) | Two-layer (MEMORY.md + HISTORY.md) with LLM consolidation |
-| Session persistence | None | JSONL files per session |
-| Subagents | None | Background subagent system |
-| Scheduling | None | Cron service |
-| User channels | Endo chat UI only | Telegram, WhatsApp, Discord, Slack, Feishu, CLI, … |
+| Dimension           | Fae                                     | nanobot                                                   |
+|---------------------|-----------------------------------------|-----------------------------------------------------------|
+| Language            | JavaScript (Hardened JS / SES)          | Python 3.11+                                              |
+| Runtime             | Endo daemon (caplet)                    | Standalone process                                        |
+| Security model      | Object-capability (ocap)                | Filesystem sandboxing (optional)                          |
+| Communication       | Endo mail (capability passing)          | Multi-channel message bus                                 |
+| LLM providers       | 3 (Ollama, llama.cpp, Anthropic)        | 15+ via LiteLLM                                           |
+| Tool system         | Dynamic discovery + capability adoption | Static registry at startup + MCP bridge                   |
+| Memory              | None (in-memory transcript only)        | Two-layer (MEMORY.md + HISTORY.md) with LLM consolidation |
+| Session persistence | None                                    | JSONL files per session                                   |
+| Subagents           | None                                    | Background subagent system                                |
+| Scheduling          | None                                    | Cron service                                              |
+| User channels       | Endo chat UI only                       | Telegram, WhatsApp, Discord, Slack, Feishu, CLI, …        |
 
 ---
 
@@ -27,26 +27,32 @@ and `nanobot` (a standalone multi-channel AI assistant framework).
 
 ### Fae — Capability-First
 
-Fae is designed around the object-capability model. It runs inside a security
-sandbox where it can only interact with things it has explicit references to.
-New capabilities arrive via messages and must be explicitly adopted. The agent
-has no ambient authority — no filesystem access, no network access, no shell
-unless those are granted as tool caplets.
+Fae is designed around the object-capability model.
+It runs inside a security sandbox where it can only interact with things it has
+explicit references to.
+New capabilities arrive via messages and must be explicitly adopted.
+The agent has no ambient authority — no filesystem access, no network access,
+no shell unless those are granted as tool caplets.
 
-The architecture is minimal by design: a single `agent.js` file, a transcript
-array, and a set of tools. There is no configuration system, no persistence
-layer, no channel abstraction. The Endo daemon handles all of that.
+The architecture is minimal by design:
+- a single `agent.js` file
+- a transcript array
+- a set of tools
+
+There is no configuration system, no persistence layer, no channel abstraction.
+The Endo daemon handles all of that.
 
 ### nanobot — Platform-First
 
-nanobot is designed as a complete assistant platform. It manages its own
-configuration, persistence, channels, scheduling, and memory. The agent loop
-is one component in a larger system that includes a message bus, session
-manager, channel adapters, cron service, and heartbeat service.
+nanobot is designed as a complete assistant platform.
+It manages its own configuration, persistence, channels, scheduling, and memory.
+The agent loop is one component in a larger system that includes a message bus,
+session manager, channel adapters, cron service, and heartbeat service.
 
-The architecture prioritizes operational completeness: you can deploy nanobot
-as a gateway server that listens on multiple chat platforms simultaneously,
-remembers conversations across restarts, and runs scheduled tasks.
+The architecture prioritizes operational completeness:
+- you can deploy nanobot as a gateway server that listens on multiple chat
+  platforms simultaneously, remembers conversations across restarts, and runs
+  scheduled tasks.
 
 ---
 
@@ -57,15 +63,15 @@ the surrounding infrastructure differs significantly.
 
 ### Loop Structure
 
-| Aspect | Fae | nanobot |
-|--------|-----|---------|
-| Trigger | Mail arrives via `followMessages()` iterator | Message dequeued from `asyncio.Queue` |
-| Pre-processing | Discover tools (local + daemon) | Build context (system prompt + memory + skills + history) |
-| LLM call | `provider.chat(transcript, schemas)` | `provider.chat(messages, tools, model, temp, max_tokens)` |
-| Tool dispatch | `E(tool).execute(args)` via eventual send | `tools.execute(name, params)` via registry |
-| Post-processing | Re-discover tools if `adoptTool` called | Save session, check memory window |
-| Termination | LLM stops calling tools | LLM stops calling tools or max_iterations (20) reached |
-| Progress feedback | None (no user-facing channel) | `on_progress` callback streams intermediate output |
+| Aspect            | Fae                                          | nanobot                                                   |
+|-------------------|----------------------------------------------|-----------------------------------------------------------|
+| Trigger           | Mail arrives via `followMessages()` iterator | Message dequeued from `asyncio.Queue`                     |
+| Pre-processing    | Discover tools (local + daemon)              | Build context (system prompt + memory + skills + history) |
+| LLM call          | `provider.chat(transcript, schemas)`         | `provider.chat(messages, tools, model, temp, max_tokens)` |
+| Tool dispatch     | `E(tool).execute(args)` via eventual send    | `tools.execute(name, params)` via registry                |
+| Post-processing   | Re-discover tools if `adoptTool` called      | Save session, check memory window                         |
+| Termination       | LLM stops calling tools                      | LLM stops calling tools or max_iterations (20) reached    |
+| Progress feedback | None (no user-facing channel)                | `on_progress` callback streams intermediate output        |
 
 ### Transcript vs Context Building
 
@@ -95,36 +101,36 @@ prompt for routing context.
 
 ### Tool Interface
 
-| Aspect | Fae | nanobot |
-|--------|-----|---------|
-| Interface | `FaeTool` exo: `schema()`, `execute(args)`, `help()` | `Tool` ABC: `name`, `description`, `parameters`, `execute(**kwargs)` |
-| Schema format | OpenAI function-calling JSON | OpenAI function-calling JSON |
-| Registration | `localTools` Map + daemon `tools/` directory | `ToolRegistry` dict |
-| Discovery | Dynamic per-turn (`discoverTools()`) | Static at startup (+ MCP at first use) |
-| Invocation | `E(tool).execute(args)` (eventual send) | `await tool.execute(**params)` (direct call) |
-| Validation | None (FaeTool exo guard validates interface shape) | JSON Schema validation before execution |
-| Result format | Justin string (Endo serialization) | Plain string |
+| Aspect        | Fae                                                  | nanobot                                                              |
+|---------------|------------------------------------------------------|----------------------------------------------------------------------|
+| Interface     | `FaeTool` exo: `schema()`, `execute(args)`, `help()` | `Tool` ABC: `name`, `description`, `parameters`, `execute(**kwargs)` |
+| Schema format | OpenAI function-calling JSON                         | OpenAI function-calling JSON                                         |
+| Registration  | `localTools` Map + daemon `tools/` directory         | `ToolRegistry` dict                                                  |
+| Discovery     | Dynamic per-turn (`discoverTools()`)                 | Static at startup (+ MCP at first use)                               |
+| Invocation    | `E(tool).execute(args)` (eventual send)              | `await tool.execute(**params)` (direct call)                         |
+| Validation    | None (FaeTool exo guard validates interface shape)   | JSON Schema validation before execution                              |
+| Result format | Justin string (Endo serialization)                   | Plain string                                                         |
 
 ### Tool Capabilities
 
-| Tool | Fae | nanobot |
-|------|-----|---------|
-| Read file | Via tool caplet (optional) | Built-in |
-| Write file | Via tool caplet (optional) | Built-in |
-| Edit file | Via tool caplet (optional) | Built-in |
-| List directory | Via tool caplet (optional) | Built-in |
-| Shell execution | Via tool caplet (optional) | Built-in |
-| Web search | Not available | Built-in (Brave API) |
-| Web fetch | Not available | Built-in |
-| Send message | Built-in (`send`) | Built-in (`message`) |
-| List messages | Built-in (`listMessages`) | Not applicable (channels push) |
-| Dismiss message | Built-in (`dismiss`) | Not applicable |
-| Petname directory | Built-in (`list`, `lookup`, `store`, `remove`) | Not applicable |
-| Adopt capability | Built-in (`adoptTool`) | Not applicable |
-| Spawn subagent | Not available | Built-in (`spawn`) |
-| Scheduling | Not available | Built-in (`cron`) |
-| Code evaluation | Not available (Lal has this) | Not available |
-| MCP tools | Not available | Dynamic bridge |
+| Tool              | Fae                                            | nanobot                        |
+|-------------------|------------------------------------------------|--------------------------------|
+| Read file         | Via tool caplet (optional)                     | Built-in                       |
+| Write file        | Via tool caplet (optional)                     | Built-in                       |
+| Edit file         | Via tool caplet (optional)                     | Built-in                       |
+| List directory    | Via tool caplet (optional)                     | Built-in                       |
+| Shell execution   | Via tool caplet (optional)                     | Built-in                       |
+| Web search        | Not available                                  | Built-in (Brave API)           |
+| Web fetch         | Not available                                  | Built-in                       |
+| Send message      | Built-in (`send`)                              | Built-in (`message`)           |
+| List messages     | Built-in (`listMessages`)                      | Not applicable (channels push) |
+| Dismiss message   | Built-in (`dismiss`)                           | Not applicable                 |
+| Petname directory | Built-in (`list`, `lookup`, `store`, `remove`) | Not applicable                 |
+| Adopt capability  | Built-in (`adoptTool`)                         | Not applicable                 |
+| Spawn subagent    | Not available                                  | Built-in (`spawn`)             |
+| Scheduling        | Not available                                  | Built-in (`cron`)              |
+| Code evaluation   | Not available (Lal has this)                   | Not available                  |
+| MCP tools         | Not available                                  | Dynamic bridge                 |
 
 ### Dynamic Tools
 
@@ -177,13 +183,13 @@ Channel ──InboundMessage──▶ Bus ──▶ AgentLoop ──OutboundMess
 
 ## Memory and Persistence
 
-| Aspect | Fae | nanobot |
-|--------|-----|---------|
-| Conversation history | In-memory transcript (lost on restart) | JSONL files per session (survives restarts) |
-| Long-term memory | None | `MEMORY.md` — LLM-maintained facts |
-| Event log | None | `HISTORY.md` — grep-searchable timestamped log |
-| Consolidation | None | Automatic when session exceeds memory_window |
-| Context window management | None (transcript grows unbounded) | Windowed history + memory summarization |
+| Aspect                    | Fae                                    | nanobot                                        |
+|---------------------------|----------------------------------------|------------------------------------------------|
+| Conversation history      | In-memory transcript (lost on restart) | JSONL files per session (survives restarts)    |
+| Long-term memory          | None                                   | `MEMORY.md` — LLM-maintained facts             |
+| Event log                 | None                                   | `HISTORY.md` — grep-searchable timestamped log |
+| Consolidation             | None                                   | Automatic when session exceeds memory_window   |
+| Context window management | None (transcript grows unbounded)      | Windowed history + memory summarization        |
 
 ---
 
@@ -191,23 +197,23 @@ Channel ──InboundMessage──▶ Bus ──▶ AgentLoop ──OutboundMess
 
 **Fae** reuses `@endo/lal`'s provider system with 3 implementations:
 
-| Provider | SDK |
-|----------|-----|
-| Ollama | `ollama` npm package |
+| Provider  | SDK                                      |
+|-----------|------------------------------------------|
+| Ollama    | `ollama` npm package                     |
 | llama.cpp | `openai` npm package (OpenAI-compatible) |
-| Anthropic | `@anthropic-ai/sdk` |
+| Anthropic | `@anthropic-ai/sdk`                      |
 
 Selection is based on URL pattern matching in `LAL_HOST`.
 
 **nanobot** uses LiteLLM with a provider registry of 15+ backends:
 
-| Category | Providers |
-|----------|-----------|
-| Gateways | OpenRouter, AiHubMix, SiliconFlow |
-| Standard | Anthropic, OpenAI, DeepSeek, Gemini, Zhipu, DashScope, Moonshot, MiniMax |
-| Local | vLLM, Ollama (via LiteLLM) |
-| OAuth | OpenAI Codex, GitHub Copilot |
-| Auxiliary | Groq |
+| Category  | Providers                                                                |
+|-----------|--------------------------------------------------------------------------|
+| Gateways  | OpenRouter, AiHubMix, SiliconFlow                                        |
+| Standard  | Anthropic, OpenAI, DeepSeek, Gemini, Zhipu, DashScope, Moonshot, MiniMax |
+| Local     | vLLM, Ollama (via LiteLLM)                                               |
+| OAuth     | OpenAI Codex, GitHub Copilot                                             |
+| Auxiliary | Groq                                                                     |
 
 Selection uses a multi-step resolution: model name keywords → API key prefix
 → base URL matching → gateway fallback.
@@ -227,12 +233,12 @@ Environment variable overrides with `NANOBOT_` prefix.
 
 ## Error Handling
 
-| Scenario | Fae | nanobot |
-|----------|-----|---------|
-| Tool failure | Returns `{ error: message }` to LLM | Returns `"Error: message"` string to LLM |
-| LLM failure | Sends error to sender if valid name | Publishes error `OutboundMessage` to bus |
-| Unknown tool | Throws with available tool list | Returns `"Error: Tool not found"` |
-| Fatal error | `console.error`, process continues | `logger.error`, error message sent to user |
+| Scenario     | Fae                                 | nanobot                                    |
+|--------------|-------------------------------------|--------------------------------------------|
+| Tool failure | Returns `{ error: message }` to LLM | Returns `"Error: message"` string to LLM   |
+| LLM failure  | Sends error to sender if valid name | Publishes error `OutboundMessage` to bus   |
+| Unknown tool | Throws with available tool list     | Returns `"Error: Tool not found"`          |
+| Fatal error  | `console.error`, process continues  | `logger.error`, error message sent to user |
 
 ---
 

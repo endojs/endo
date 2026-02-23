@@ -1,27 +1,27 @@
 # Fae vs Lal — Architecture Comparison
 
 A side-by-side comparison of `@endo/fae` and `@endo/lal`, both LLM agent
-caplets for the Endo daemon. They share the same runtime environment and
-provider system but differ significantly in their tool architecture, security
-model, and extensibility.
+caplets for the Endo daemon.
+They share the same runtime environment and provider system but differ
+significantly in their tool architecture, security model, and extensibility.
 
 ---
 
 ## At a Glance
 
-| Dimension | Fae | Lal |
-|-----------|-----|-----|
-| Package | `@endo/fae` | `@endo/lal` |
-| Role | Dynamic-tool agent with capability adoption | Static-tool agent with eval-proposal mediation |
-| Tool definition | `FaeTool` exo objects (schema/execute/help) | Hardcoded OpenAI schemas + switch dispatch |
-| Tool discovery | Dynamic per-turn (`discoverTools()`) | None (fixed at load time) |
-| Tool count | 8 built-in + unlimited adopted tools | 16 fixed tools |
-| Code execution | Direct (via adopted tool caplets) | Mediated (eval-proposal → HOST approval) |
-| Filesystem access | Via optional tool caplets | None |
-| Provider system | Imports from `@endo/lal` | Defines providers (Ollama, llama.cpp, Anthropic) |
-| TypeScript types | JSDoc only | Full `.d.ts` type definitions |
-| Test suite | None | Ava tests + simulator |
-| Agent communication | Tool-based (send/dismiss) | Tool-based (send/dismiss/request/resolve/reject) |
+| Dimension           | Fae                                         | Lal                                              |
+|---------------------|---------------------------------------------|--------------------------------------------------|
+| Package             | `@endo/fae`                                 | `@endo/lal`                                      |
+| Role                | Dynamic-tool agent with capability adoption | Static-tool agent with eval-proposal mediation   |
+| Tool definition     | `FaeTool` exo objects (schema/execute/help) | Hardcoded OpenAI schemas + switch dispatch       |
+| Tool discovery      | Dynamic per-turn (`discoverTools()`)        | None (fixed at load time)                        |
+| Tool count          | 8 built-in + unlimited adopted tools        | 16 fixed tools                                   |
+| Code execution      | Direct (via adopted tool caplets)           | Mediated (eval-proposal → HOST approval)         |
+| Filesystem access   | Via optional tool caplets                   | None                                             |
+| Provider system     | Imports from `@endo/lal`                    | Defines providers (Ollama, llama.cpp, Anthropic) |
+| TypeScript types    | JSDoc only                                  | Full `.d.ts` type definitions                    |
+| Test suite          | None                                        | Ava tests + simulator                            |
+| Agent communication | Tool-based (send/dismiss)                   | Tool-based (send/dismiss/request/resolve/reject) |
 
 ---
 
@@ -41,13 +41,15 @@ itself — you only give Fae the tools you trust it with.
 ### Lal — Mediated Evaluation
 
 Lal is built around the idea that an agent should be able to propose actions
-that a human reviews before execution. The eval-proposal system means Lal can
-write arbitrary code, but that code only runs when the HOST explicitly grants
-it. This creates a human-in-the-loop workflow for code execution.
+that a human reviews before execution.
+The eval-proposal system means Lal can write arbitrary code, but that code only
+runs when the HOST explicitly grants it.
+This creates a human-in-the-loop workflow for code execution.
 
-The trade-off: Lal has no dynamic tool discovery. Its capabilities are fixed
-at compile time (the 16 tools in `agent.js`). New capabilities can only be
-gained through the eval-proposal mechanism, which requires HOST approval.
+The trade-off: Lal has no dynamic tool discovery.
+Its capabilities are fixed at compile time (the 16 tools in `agent.js`).
+New capabilities can only be gained through the eval-proposal mechanism, which
+requires HOST approval.
 
 ---
 
@@ -108,30 +110,30 @@ This is the most fundamental difference between the two agents.
 
 ### Tool Comparison Table
 
-| Tool | Fae | Lal |
-|------|-----|-----|
-| `help` | — | Self-documentation for guest capabilities |
-| `has` | — | Check if petname exists |
-| `list` | List petnames | List petnames (with subdirectory support) |
-| `lookup` | Resolve petname to value | Resolve petname to value (string or path) |
-| `store` | Store JSON value | — |
-| `remove` | Remove petname | Remove petname |
-| `move` | — | Move/rename reference |
-| `copy` | — | Copy reference |
-| `makeDirectory` | — | Create subdirectory |
-| `send` | Send with capabilities | Send with capabilities |
-| `listMessages` | List inbox | List inbox |
-| `dismiss` | Dismiss message | Dismiss message |
-| `adoptTool` | Adopt capability as tool | — |
-| `adopt` | — | Adopt value from message (general) |
-| `request` | — | Request capability from agent |
-| `resolve` | — | Respond to request with value |
-| `reject` | — | Decline a request |
-| `identify` | — | Get formula ID for petname |
-| `inspectCapability` | — | Call help() on any capability |
-| `evaluate` | — | Propose code for HOST approval |
-| Filesystem tools | Via adopted caplets | — |
-| Shell execution | Via adopted caplets | — |
+| Tool                | Fae                      | Lal                                       |
+|---------------------|--------------------------|-------------------------------------------|
+| `help`              | —                        | Self-documentation for guest capabilities |
+| `has`               | —                        | Check if petname exists                   |
+| `list`              | List petnames            | List petnames (with subdirectory support) |
+| `lookup`            | Resolve petname to value | Resolve petname to value (string or path) |
+| `store`             | Store JSON value         | —                                         |
+| `remove`            | Remove petname           | Remove petname                            |
+| `move`              | —                        | Move/rename reference                     |
+| `copy`              | —                        | Copy reference                            |
+| `makeDirectory`     | —                        | Create subdirectory                       |
+| `send`              | Send with capabilities   | Send with capabilities                    |
+| `listMessages`      | List inbox               | List inbox                                |
+| `dismiss`           | Dismiss message          | Dismiss message                           |
+| `adoptTool`         | Adopt capability as tool | —                                         |
+| `adopt`             | —                        | Adopt value from message (general)        |
+| `request`           | —                        | Request capability from agent             |
+| `resolve`           | —                        | Respond to request with value             |
+| `reject`            | —                        | Decline a request                         |
+| `identify`          | —                        | Get formula ID for petname                |
+| `inspectCapability` | —                        | Call help() on any capability             |
+| `evaluate`          | —                        | Propose code for HOST approval            |
+| Filesystem tools    | Via adopted caplets      | —                                         |
+| Shell execution     | Via adopted caplets      | —                                         |
 
 Key differences:
 - Fae has `store` (persist JSON) and `adoptTool` (meta-tool for installing tools)
@@ -184,23 +186,23 @@ interruption.
 
 ### Iteration Loop
 
-| Aspect | Fae | Lal |
-|--------|-----|-----|
-| Tool schemas | Passed to each `chat()` call | Passed to each `chat()` call |
-| Tool re-discovery | After every `adoptTool` call | Never |
-| Proposal tracking | None | `pendingProposals` Map + `notificationQueue` |
-| Waiting behavior | Never waits (tools complete immediately) | Blocks on `Promise.race()` for pending proposals |
-| Notification injection | None | Proposal results pushed as user messages |
-| Termination | LLM stops calling tools | LLM stops AND no pending proposals AND no notifications |
+| Aspect                 | Fae                                      | Lal                                                     |
+|------------------------|------------------------------------------|---------------------------------------------------------|
+| Tool schemas           | Passed to each `chat()` call             | Passed to each `chat()` call                            |
+| Tool re-discovery      | After every `adoptTool` call             | Never                                                   |
+| Proposal tracking      | None                                     | `pendingProposals` Map + `notificationQueue`            |
+| Waiting behavior       | Never waits (tools complete immediately) | Blocks on `Promise.race()` for pending proposals        |
+| Notification injection | None                                     | Proposal results pushed as user messages                |
+| Termination            | LLM stops calling tools                  | LLM stops AND no pending proposals AND no notifications |
 
 ### Message Processing
 
-| Aspect | Fae | Lal |
-|--------|-----|-----|
-| Message parsing | Extract text from `strings[]` + `@names[]` | Push generic "You have new mail" prompt |
-| Counter-proposals | Not applicable | Detected by message type, formatted with code |
-| Self-message filtering | `fromId === selfId` → skip | `fromId === selfId` → skip |
-| User message format | `"Message #N from <id>: <text>"` | `"You have new mail. Check your messages..."` |
+| Aspect                 | Fae                                        | Lal                                           |
+|------------------------|--------------------------------------------|-----------------------------------------------|
+| Message parsing        | Extract text from `strings[]` + `@names[]` | Push generic "You have new mail" prompt       |
+| Counter-proposals      | Not applicable                             | Detected by message type, formatted with code |
+| Self-message filtering | `fromId === selfId` → skip                 | `fromId === selfId` → skip                    |
+| User message format    | `"Message #N from <id>: <text>"`           | `"You have new mail. Check your messages..."` |
 
 Fae gives the LLM the actual message content inline. Lal tells the LLM
 it has mail and expects it to call `listMessages()` to read it. This means
@@ -241,11 +243,11 @@ encoding, the eval-proposal lifecycle, and the stricter response protocol
 
 ### Response Style
 
-| Aspect | Fae | Lal |
-|--------|-----|-----|
-| Text responses | Allowed | Forbidden (tool-calls only) |
-| Communication | Can use text + `send()` | Must use `send()` for all communication |
-| Dismiss protocol | "Always dismiss after handling" | "Always dismiss after handling" |
+| Aspect           | Fae                             | Lal                                     |
+|------------------|---------------------------------|-----------------------------------------|
+| Text responses   | Allowed                         | Forbidden (tool-calls only)             |
+| Communication    | Can use text + `send()`         | Must use `send()` for all communication |
+| Dismiss protocol | "Always dismiss after handling" | "Always dismiss after handling"         |
 
 ---
 
@@ -264,11 +266,11 @@ Fae imports this as a dependency: `import { createProvider } from '@endo/lal/pro
 
 Provider selection logic is identical in both:
 
-| `LAL_HOST` pattern | Provider | Default model |
-|-------|----------|---------------|
+| `LAL_HOST` pattern       | Provider  | Default model              |
+|--------------------------|-----------|----------------------------|
 | Contains `anthropic.com` | Anthropic | `claude-opus-4-5-20251101` |
-| Contains `/v1` | llama.cpp | `qwen3` |
-| Other | Ollama | `qwen3` |
+| Contains `/v1`           | llama.cpp | `qwen3`                    |
+| Other                    | Ollama    | `qwen3`                    |
 
 ---
 
@@ -305,12 +307,12 @@ Single setup script. Also persists config into the guest's petname store.
 
 Both follow the same pattern:
 
-| Scenario | Fae | Lal |
-|----------|-----|-----|
-| Tool failure | `{ error: message }` → LLM | `{ error: message }` → LLM |
-| LLM failure | Send error to sender if valid name | Send error to sender if valid name |
-| SmallCaps decode | Fallback to `{}` | Fallback to `{}` |
-| Tool call extraction | `extractToolCallsFromContent()` | Inline `extractToolCallsFromContent()` |
+| Scenario             | Fae                                | Lal                                    |
+|----------------------|------------------------------------|----------------------------------------|
+| Tool failure         | `{ error: message }` → LLM         | `{ error: message }` → LLM             |
+| LLM failure          | Send error to sender if valid name | Send error to sender if valid name     |
+| SmallCaps decode     | Fallback to `{}`                   | Fallback to `{}`                       |
+| Tool call extraction | `extractToolCallsFromContent()`    | Inline `extractToolCallsFromContent()` |
 
 Note: Fae imports `extractToolCallsFromContent` from `src/extract-tool-calls.js`.
 Lal has the same function defined inline in `agent.js` (code duplication).
@@ -319,17 +321,17 @@ Lal has the same function defined inline in `agent.js` (code duplication).
 
 ## Code Organization
 
-| Aspect | Fae | Lal |
-|--------|-----|-----|
-| Entry point | `agent.js` (410 lines) | `agent.js` (1507 lines) |
-| Tool definitions | `src/tool-makers.js` (833 lines) | Inline in `agent.js` (~525 lines of schemas) |
-| Tool discovery | `src/tools.js` (90 lines) | None |
-| Tool call parser | `src/extract-tool-calls.js` (66 lines) | Inline in `agent.js` (~45 lines) |
-| Interface guard | `src/fae-tool-interface.js` (15 lines) | None (no tool interface) |
-| Providers | Imported from `@endo/lal` | `providers/` directory (4 files) |
-| Type definitions | JSDoc annotations | `agent.types.d.ts` (117 lines) |
-| Tests | None | `test/` directory with Ava tests + simulator |
-| Setup scripts | 4 scripts | 1 script |
+| Aspect           | Fae                                    | Lal                                          |
+|------------------|----------------------------------------|----------------------------------------------|
+| Entry point      | `agent.js` (410 lines)                 | `agent.js` (1507 lines)                      |
+| Tool definitions | `src/tool-makers.js` (833 lines)       | Inline in `agent.js` (~525 lines of schemas) |
+| Tool discovery   | `src/tools.js` (90 lines)              | None                                         |
+| Tool call parser | `src/extract-tool-calls.js` (66 lines) | Inline in `agent.js` (~45 lines)             |
+| Interface guard  | `src/fae-tool-interface.js` (15 lines) | None (no tool interface)                     |
+| Providers        | Imported from `@endo/lal`              | `providers/` directory (4 files)             |
+| Type definitions | JSDoc annotations                      | `agent.types.d.ts` (117 lines)               |
+| Tests            | None                                   | `test/` directory with Ava tests + simulator |
+| Setup scripts    | 4 scripts                              | 1 script                                     |
 
 Fae is more modular — tool definitions, discovery, and parsing are in separate
 files. Lal is monolithic — everything lives in `agent.js`.
