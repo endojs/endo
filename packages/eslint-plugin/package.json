@@ -17,7 +17,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
+    "postpack": "git clean -fX -e node_modules/"
   },
   "dependencies": {
     "@eslint-community/eslint-utils": "^4.7.0",

@@ -2,7 +2,7 @@
     "extends": [
         "../../typedoc.base.json"
     ],
-    "entryPoints": [
-        "index.js"
-    ]
+  "entryPoints": [
+    "index.d.ts"
+  ]
 }
