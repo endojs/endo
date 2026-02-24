@@ -71,6 +71,8 @@ const config = {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin', 'linux'],
     },
+    // DMG maker requires native modules (macos-alias, fs-xattr).
+    // Run `yarn allow-scripts` after install to build them.
     {
       name: '@electron-forge/maker-dmg',
       platforms: ['darwin'],
