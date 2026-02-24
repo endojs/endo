@@ -11,35 +11,37 @@ import { make } from './chat.js';
 
 const RECONNECT_INTERVAL_MS = 5000;
 
-// Runtime config: prefer URL query params (Electron/Familiar), fall back to Vite env
-const urlParams = new URLSearchParams(window.location.search);
+// Runtime config: prefer URL fragment params (Electron/Familiar passes config
+// as a fragment so the agent ID is never sent on the wire in an HTTP request),
+// fall back to Vite env.
+const urlParams = new URLSearchParams(window.location.hash.slice(1));
 // @ts-expect-error Vite injects env at build time
-const endoPort = urlParams.get('endoPort') || import.meta.env.ENDO_PORT;
+const gateway = urlParams.get('gateway') || import.meta.env.ENDO_GATEWAY;
 // @ts-expect-error Vite injects env at build time
-const endoId = urlParams.get('endoId') || import.meta.env.ENDO_ID;
+const agent = urlParams.get('agent') || import.meta.env.ENDO_AGENT;
 
 console.log('[Chat] Starting application...');
-console.log(`[Chat] ENDO_PORT: ${endoPort}`);
+console.log(`[Chat] Gateway: ${gateway}`);
 console.log(
-  `[Chat] ENDO_ID: ${endoId ? `${String(endoId).slice(0, 16)}...` : '(not set)'}`,
+  `[Chat] Agent: ${agent ? `${String(agent).slice(0, 16)}...` : '(not set)'}`,
 );
 
-if (!endoPort) {
+if (!gateway) {
   document.body.innerHTML = `
-    <h1>❌ ENDO_PORT not configured</h1>
+    <h1>❌ Gateway not configured</h1>
     <p>Configuration should be injected by the Vite Endo plugin or the Familiar.</p>
     <p>Make sure you're running with <code>yarn dev</code> or via the Familiar.</p>
   `;
-  throw new Error('ENDO_PORT not configured - running via Vite or Familiar?');
+  throw new Error('Gateway not configured - running via Vite or Familiar?');
 }
 
-if (!endoId) {
+if (!agent) {
   document.body.innerHTML = `
-    <h1>❌ ENDO_ID not configured</h1>
+    <h1>❌ Agent not configured</h1>
     <p>Configuration should be injected by the Vite Endo plugin or the Familiar.</p>
     <p>Make sure you're running with <code>yarn dev</code> or via the Familiar.</p>
   `;
-  throw new Error('ENDO_ID not configured - running via Vite or Familiar?');
+  throw new Error('Agent not configured - running via Vite or Familiar?');
 }
 
 /**
@@ -108,7 +110,7 @@ function scheduleReconnect(reconnect) {
 async function connectAndRun() {
   document.body.innerHTML = `
     <h1>🔌 Connecting to Endo Gateway...</h1>
-    <p>Port: <code>${endoPort}</code></p>
+    <p>Gateway: <code>${gateway}</code></p>
     <p><em>Check browser console for detailed connection logs</em></p>
   `;
 
@@ -119,8 +121,8 @@ async function connectAndRun() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     connection = connectToGateway({
-      endoPort: Number(endoPort),
-      endoId: String(endoId),
+      gateway: String(gateway),
+      agent: String(agent),
     });
 
     try {

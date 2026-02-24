@@ -110,7 +110,7 @@ const isDaemonRunning = () => {
  * creates the state directory, opens the log file, and spawns the daemon
  * process with IPC to wait for the ready signal.
  *
- * @returns {Promise<void>}
+ * @returns {Promise<string | undefined>} The AGENT formula identifier, if provided via IPC.
  */
 const startDaemon = async () => {
   const sockPath = getSockPath();
@@ -140,7 +140,14 @@ const startDaemon = async () => {
     ],
     {
       detached: true,
-      env: { ...process.env, ENDO_WORKER_PATH: workerUrl },
+      env: {
+        ...process.env,
+        ENDO_WORKER_PATH: workerUrl,
+        ENDO_WORKER_SUBPROCESS_PATH: resourcePaths.workerSubprocessPath,
+        ...(resourcePaths.webPageBundlePath
+          ? { ENDO_WEB_PAGE_BUNDLE_PATH: resourcePaths.webPageBundlePath }
+          : {}),
+      },
       stdio: ['ignore', output, output, 'ipc'],
     },
   );
@@ -168,15 +175,11 @@ const startDaemon = async () => {
         message !== null &&
         'type' in message
       ) {
-        if (/** @type {{type: string}} */ (message).type === 'ready') {
-          resolve(undefined);
-        } else if (
-          /** @type {{type: string}} */ (message).type === 'error' &&
-          'message' in message &&
-          typeof (/** @type {{message: unknown}} */ (message).message) ===
-            'string'
-        ) {
-          reject(new Error(/** @type {{message: string}} */ (message).message));
+        const msg = /** @type {Record<string, unknown>} */ (message);
+        if (msg.type === 'ready') {
+          resolve(typeof msg.agentId === 'string' ? msg.agentId : undefined);
+        } else if (msg.type === 'error' && typeof msg.message === 'string') {
+          reject(new Error(msg.message));
         }
       }
     });
@@ -186,16 +189,18 @@ const startDaemon = async () => {
 /**
  * Ensure the Endo daemon is running, starting it if necessary.
  *
- * @returns {Promise<void>}
+ * @returns {Promise<string | undefined>} The AGENT formula identifier if received via IPC (fresh start only).
  */
 const ensureDaemonRunning = async () => {
   const running = await isDaemonRunning();
   if (!running) {
     console.log('[Familiar] Starting Endo daemon...');
-    await startDaemon();
+    const agentId = await startDaemon();
     console.log('[Familiar] Endo daemon started');
+    return agentId;
   } else {
     console.log('[Familiar] Endo daemon is already running');
+    return undefined;
   }
 };
 
@@ -224,10 +229,37 @@ const purgeDaemon = async () => {
   console.log('[Familiar] Endo daemon purged and restarted');
 };
 
+/**
+ * Read the AGENT formula identifier from the state directory.
+ *
+ * The daemon writes this file during startup after looking up the
+ * AGENT special name on the default host.
+ *
+ * @returns {Promise<string>}
+ */
+const getAgentId = async () => {
+  await null;
+  const statePath = whereEndoState(process.platform, process.env, info);
+  const agentIdPath = path.join(statePath, 'root');
+  const contents = await fs.promises.readFile(agentIdPath, 'utf-8');
+  return contents.trim();
+};
+
+/**
+ * Get the gateway address (host:port) from ENDO_ADDR (default 127.0.0.1:8920).
+ *
+ * @returns {string}
+ */
+const getGatewayAddress = () => {
+  return process.env.ENDO_ADDR || '127.0.0.1:8920';
+};
+
 export {
   getSockPath,
   isDaemonRunning,
   ensureDaemonRunning,
   restartDaemon,
   purgeDaemon,
+  getAgentId,
+  getGatewayAddress,
 };

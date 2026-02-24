@@ -3,9 +3,12 @@
  * using esbuild for inclusion in the packaged Electron app.
  */
 
+import '@endo/init';
+import fs from 'fs';
 import { build } from 'esbuild';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { pathToFileURL, fileURLToPath } from 'url';
+import { makeBundle as makeCompartmentBundle } from '@endo/compartment-mapper/bundle.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const familiarRoot = path.resolve(dirname, '..');
@@ -73,6 +76,27 @@ await build({
   ...shared,
   entryPoints: [path.join(repoRoot, 'packages/daemon/src/web-server-node.js')],
   outfile: path.join(familiarRoot, 'bundles/endo-worker.cjs'),
+  plugins: [importMetaPlugin],
 });
+
+await build({
+  ...shared,
+  entryPoints: [path.join(repoRoot, 'packages/daemon/src/worker-node.js')],
+  outfile: path.join(familiarRoot, 'bundles/worker-node.cjs'),
+});
+
+// Pre-bundle web-page.js using the compartment mapper.
+// The gateway normally does this at runtime, but in the packaged app the
+// source files and @endo/* dependencies aren't available on disk.
+const webPagePath = path.join(repoRoot, 'packages/daemon/src/web-page.js');
+const webPageRead = async location =>
+  fs.promises.readFile(fileURLToPath(location));
+const webPageBundle = await makeCompartmentBundle(
+  webPageRead,
+  pathToFileURL(webPagePath).href,
+);
+const webPageBundlePath = path.join(familiarRoot, 'bundles/web-page-bundle.js');
+await fs.promises.writeFile(webPageBundlePath, webPageBundle);
+console.log(`  bundles/web-page-bundle.js`);
 
 console.log('Bundles created in packages/familiar/bundles/');

@@ -5,37 +5,35 @@
  * Electron main process entry point for the Endo Familiar.
  *
  * Startup sequence:
- * 1. Ensure the Endo daemon is running
- * 2. Start the gateway server
+ * 1. Ensure the Endo daemon is running (daemon hosts the gateway)
+ * 2. Read gateway connection info (port from ENDO_ADDR, agent ID from state)
  * 3. Create a BrowserWindow loading Chat with config via URL query params
  *
- * The daemon outlives the Familiar; the gateway does not.
+ * The daemon outlives the Familiar.
  */
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-// @ts-expect-error Electron is not typed in this project
+// @ts-ignore Electron is not typed in this project
 import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
 
 import {
   ensureDaemonRunning,
   restartDaemon,
   purgeDaemon,
+  getAgentId,
+  getGatewayAddress,
 } from './src/daemon-manager.js';
-import { startGateway, stopGateway } from './src/gateway-manager.js';
 import { resourcePaths } from './src/resource-paths.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDevMode = process.argv.includes('--dev');
 
-/** @type {import('child_process').ChildProcess | undefined} */
-let gatewayProcess;
-
-/** @type {number | undefined} */
-let httpPort;
+/** @type {string | undefined} */
+let gatewayAddress;
 
 /** @type {string | undefined} */
-let endoId;
+let agentId;
 
 /**
  * Build the application menu.
@@ -115,17 +113,21 @@ const createWindow = () => {
     },
   });
 
-  const query = `endoPort=${httpPort}&endoId=${endoId}`;
+  // Pass config as a URL fragment (anchor) rather than a query string so
+  // the agent ID is never sent on the wire in an HTTP request.
+  const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
 
   if (isDevMode) {
-    // In dev mode, load from Vite dev server
-    const devUrl = `http://localhost:5173?${query}`;
+    // In dev mode, load from Vite dev server.
+    // Use 127.0.0.1 instead of localhost to avoid DNS resolution, which
+    // is vulnerable to integrity attacks.
+    const devUrl = `http://127.0.0.1:5173#${fragment}`;
     console.log(`[🐈‍⬛ Familiar] Loading dev URL: ${devUrl}`);
     win.loadURL(devUrl);
     win.webContents.openDevTools();
   } else {
     // In production mode, load the built Chat dist
-    const fileUrl = `file://${resourcePaths.chatDistPath}?${query}`;
+    const fileUrl = `file://${resourcePaths.chatDistPath}#${fragment}`;
     console.log(`[🐈‍⬛ Familiar] Loading file URL: ${fileUrl}`);
     win.loadURL(fileUrl);
   }
@@ -143,64 +145,54 @@ const createWindow = () => {
 };
 
 /**
- * Handle daemon restart: restart daemon, restart gateway, reload window.
+ * Handle daemon restart: restart daemon, reload window.
  *
  * @param {Electron.BrowserWindow | null} win
  */
 const handleRestartDaemon = async win => {
+  await null;
   try {
     await restartDaemon();
-    // Restart gateway to get fresh connection
-    if (gatewayProcess) {
-      stopGateway(gatewayProcess);
-    }
-    const gateway = await startGateway();
-    gatewayProcess = gateway.process;
-    httpPort = gateway.httpPort;
-    endoId = gateway.endoId;
-    // Reload the window with new config
+    gatewayAddress = getGatewayAddress();
+    agentId = await getAgentId();
     if (win && !win.isDestroyed()) {
-      const query = `endoPort=${httpPort}&endoId=${endoId}`;
+      // Pass config as a URL fragment (anchor) rather than a query string so
+  // the agent ID is never sent on the wire in an HTTP request.
+  const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
       if (isDevMode) {
-        win.loadURL(`http://localhost:5173?${query}`);
+        win.loadURL(`http://127.0.0.1:5173#${fragment}`);
       } else {
-        win.loadURL(`file://${resourcePaths.chatDistPath}?${query}`);
+        win.loadURL(`file://${resourcePaths.chatDistPath}#${fragment}`);
       }
     }
   } catch (error) {
-    console.error('[🐈‍⬛ Familiar] Failed to restart daemon:', error);
+    console.error('[Familiar] Failed to restart daemon:', error);
   }
 };
 
 /**
- * Handle daemon purge: purge daemon, restart it, restart gateway, reload.
+ * Handle daemon purge: purge daemon, restart it, reload window.
  *
  * @param {Electron.BrowserWindow | null} win
  */
 const handlePurgeDaemon = async win => {
+  await null;
   try {
     await purgeDaemon();
-    // Start a fresh daemon after purge
-    await ensureDaemonRunning();
-    // Restart gateway to get fresh connection
-    if (gatewayProcess) {
-      stopGateway(gatewayProcess);
-    }
-    const gateway = await startGateway();
-    gatewayProcess = gateway.process;
-    httpPort = gateway.httpPort;
-    endoId = gateway.endoId;
-    // Reload the window with new config
+    gatewayAddress = getGatewayAddress();
+    agentId = await getAgentId();
     if (win && !win.isDestroyed()) {
-      const query = `endoPort=${httpPort}&endoId=${endoId}`;
+      // Pass config as a URL fragment (anchor) rather than a query string so
+  // the agent ID is never sent on the wire in an HTTP request.
+  const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
       if (isDevMode) {
-        win.loadURL(`http://localhost:5173?${query}`);
+        win.loadURL(`http://127.0.0.1:5173#${fragment}`);
       } else {
-        win.loadURL(`file://${resourcePaths.chatDistPath}?${query}`);
+        win.loadURL(`file://${resourcePaths.chatDistPath}#${fragment}`);
       }
     }
   } catch (error) {
-    console.error('[🐈‍⬛ Familiar] Failed to purge daemon:', error);
+    console.error('[Familiar] Failed to purge daemon:', error);
   }
 };
 
@@ -208,17 +200,15 @@ const main = async () => {
   console.log('[🐈‍⬛ Familiar] Starting...');
   console.log(`[🐈‍⬛ Familiar] Dev mode: ${isDevMode}`);
 
-  // Step 1: Ensure daemon is running
+  // Step 1: Ensure daemon is running (daemon hosts the gateway)
   await ensureDaemonRunning();
 
-  // Step 2: Start gateway
-  const gateway = await startGateway();
-  gatewayProcess = gateway.process;
-  httpPort = gateway.httpPort;
-  endoId = gateway.endoId;
+  // Step 2: Read gateway connection info
+  gatewayAddress = getGatewayAddress();
+  agentId = await getAgentId();
 
-  console.log(`[🐈‍⬛ Familiar] Gateway port: ${httpPort}`);
-  console.log(`[🐈‍⬛ Familiar] Endo ID: ${String(endoId).slice(0, 16)}...`);
+  console.log(`[Familiar] Gateway: ${gatewayAddress}`);
+  console.log(`[Familiar] Agent ID: ${String(agentId).slice(0, 16)}...`);
 
   // Wait for Electron to be ready
   await app.whenReady();
@@ -254,14 +244,7 @@ const main = async () => {
     }
   });
 
-  // Clean up gateway on quit (daemon continues running)
-  app.on('before-quit', () => {
-    if (gatewayProcess) {
-      console.log('[🐈‍⬛ Familiar] Shutting down gateway...');
-      stopGateway(gatewayProcess);
-      gatewayProcess = undefined;
-    }
-  });
+  // Daemon continues running after quit; nothing to clean up.
 };
 
 main().catch(error => {

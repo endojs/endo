@@ -147,7 +147,7 @@ const startGatewayServer = async port => {
  * The plugin:
  * 1. Ensures the system Endo daemon is running (using this repo's CLI)
  * 2. Starts a gateway server for WebSocket access
- * 3. Injects ENDO_PORT and ENDO_ID as environment variables
+ * 3. Injects ENDO_GATEWAY and ENDO_AGENT as environment variables
  *
  * @param {EndoPluginOptions} [options]
  * @returns {import('vite').Plugin}
@@ -155,10 +155,10 @@ const startGatewayServer = async port => {
 export const makeEndoPlugin = (options = {}) => {
   const { port = 0 } = options;
 
-  /** @type {number | undefined} */
-  let assignedPort;
   /** @type {string | undefined} */
-  let endoId;
+  let gatewayAddress;
+  /** @type {string | undefined} */
+  let agentId;
   /** @type {import('child_process').ChildProcess | undefined} */
   let gatewayProcess;
 
@@ -170,8 +170,8 @@ export const makeEndoPlugin = (options = {}) => {
       return {
         define: {
           // Placeholders - will be overwritten after gateway starts
-          'import.meta.env.ENDO_PORT': JSON.stringify(0),
-          'import.meta.env.ENDO_ID': JSON.stringify(''),
+          'import.meta.env.ENDO_GATEWAY': JSON.stringify(''),
+          'import.meta.env.ENDO_AGENT': JSON.stringify(''),
           'import.meta.env.TCP_NETSTRING_PATH': JSON.stringify(tcpNetstringUrl),
         },
       };
@@ -184,17 +184,17 @@ export const makeEndoPlugin = (options = {}) => {
 
         // Start gateway server
         const result = await startGatewayServer(port);
-        assignedPort = result.httpPort;
-        endoId = result.endoId;
+        gatewayAddress = `127.0.0.1:${result.httpPort}`;
+        agentId = result.endoId;
         gatewayProcess = result.process;
 
-        console.log(`[Endo Plugin] Gateway ready on port ${assignedPort}`);
-        console.log(`[Endo Plugin] ENDO_ID: ${endoId.slice(0, 16)}...`);
+        console.log(`[Endo Plugin] Gateway ready at ${gatewayAddress}`);
+        console.log(`[Endo Plugin] Agent: ${agentId.slice(0, 16)}...`);
 
         // Update the define values (mutate because we can't reassign readonly)
         Object.assign(server.config.define || {}, {
-          'import.meta.env.ENDO_PORT': JSON.stringify(assignedPort),
-          'import.meta.env.ENDO_ID': JSON.stringify(endoId),
+          'import.meta.env.ENDO_GATEWAY': JSON.stringify(gatewayAddress),
+          'import.meta.env.ENDO_AGENT': JSON.stringify(agentId),
         });
       } catch (error) {
         console.error(`[Endo Plugin] Failed to start:`, error);
@@ -212,8 +212,8 @@ export const makeEndoPlugin = (options = {}) => {
 
     // Provide a way to get info for debugging
     api: {
-      getPort: () => assignedPort,
-      getEndoId: () => endoId,
+      getGatewayAddress: () => gatewayAddress,
+      getAgentId: () => agentId,
     },
   };
 };

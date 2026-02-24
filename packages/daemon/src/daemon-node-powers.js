@@ -504,9 +504,9 @@ export const makeDaemonicControlPowers = (
   fs,
   popen,
 ) => {
-  const endoWorkerPath = fileURLToPath(
-    new URL('worker-node.js', import.meta.url),
-  );
+  const endoWorkerPath =
+    process.env.ENDO_WORKER_SUBPROCESS_PATH ||
+    fileURLToPath(new URL('worker-node.js', import.meta.url));
 
   /**
    * @param {string} workerId

@@ -34,6 +34,12 @@ let endoDaemonPath;
 /** @type {string} */
 let endoWorkerPath;
 
+/** @type {string} */
+let workerSubprocessPath;
+
+/** @type {string} */
+let webPageBundlePath;
+
 if (isPackaged) {
   const appRoot = path.join(
     /** @type {string} */ (process.resourcesPath),
@@ -45,6 +51,8 @@ if (isPackaged) {
   chatDistPath = path.join(appRoot, 'dist', 'chat', 'index.html');
   endoDaemonPath = path.join(appRoot, 'bundles', 'endo-daemon.cjs');
   endoWorkerPath = path.join(appRoot, 'bundles', 'endo-worker.cjs');
+  workerSubprocessPath = path.join(appRoot, 'bundles', 'worker-node.cjs');
+  webPageBundlePath = path.join(appRoot, 'bundles', 'web-page-bundle.js');
 } else {
   const repoRoot = path.resolve(dirname, '../../..');
   nodePath = 'node';
@@ -59,6 +67,12 @@ if (isPackaged) {
     repoRoot,
     'packages/daemon/src/web-server-node.js',
   );
+  workerSubprocessPath = path.join(
+    repoRoot,
+    'packages/daemon/src/worker-node.js',
+  );
+  // In dev mode, web-page.js is bundled at runtime by the compartment mapper.
+  webPageBundlePath = '';
 }
 
 const resourcePaths = {
@@ -68,6 +82,8 @@ const resourcePaths = {
   chatDistPath,
   endoDaemonPath,
   endoWorkerPath,
+  workerSubprocessPath,
+  webPageBundlePath,
 };
 if (typeof globalThis.harden === 'function') {
   globalThis.harden(resourcePaths);

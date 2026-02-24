@@ -274,6 +274,7 @@ const makeDaemonCore = async (
   const builtins = {
     NONE: leastAuthorityId,
     MAIN: mainWorkerId,
+    ENDO: endoFormulaId,
   };
 
   // Prepare platform formulas

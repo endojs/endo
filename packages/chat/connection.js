@@ -9,8 +9,8 @@ import { makePromiseKit } from '@endo/promise-kit';
 
 /**
  * @typedef {object} ConnectionOptions
- * @property {number} endoPort - Gateway HTTP port
- * @property {string} endoId - AGENT capability identifier
+ * @property {string} gateway - Gateway address (host:port)
+ * @property {string} agent - AGENT formula identifier
  */
 
 /**
@@ -33,8 +33,8 @@ const ClientBootstrapInterface = M.interface('ClientBootstrap', {
  * @param {ConnectionOptions} options
  * @returns {Connection}
  */
-export const connectToGateway = ({ endoPort, endoId }) => {
-  const gatewayUrl = `ws://127.0.0.1:${endoPort}/`;
+export const connectToGateway = ({ gateway, agent }) => {
+  const gatewayUrl = `ws://${gateway}/`;
   console.log(`[Gateway] Connecting to ${gatewayUrl}...`);
 
   const powersKit = makePromiseKit();
@@ -95,7 +95,7 @@ export const connectToGateway = ({ endoPort, endoId }) => {
     // Get the gateway bootstrap and fetch the AGENT capability directly
     const gatewayBootstrap = captp.getBootstrap();
     E(gatewayBootstrap)
-      .fetch(endoId)
+      .fetch(agent)
       .then(
         host => {
           console.log('[Gateway] AGENT (host) powers received successfully');
