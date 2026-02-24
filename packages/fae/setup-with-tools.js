@@ -1,4 +1,4 @@
-/* global process, harden */
+/* global process */
 // @ts-check
 // endo run --UNCONFINED setup-with-tools.js \
 //   --powers AGENT \

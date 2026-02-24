@@ -1,5 +1,4 @@
 // @ts-check
-/* global harden */
 
 import fs from 'fs';
 import path from 'path';

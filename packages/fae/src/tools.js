@@ -1,5 +1,5 @@
 // @ts-check
-/* global harden */
+
 /* eslint-disable no-await-in-loop */
 
 import { E } from '@endo/eventual-send';

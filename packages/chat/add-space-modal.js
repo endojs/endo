@@ -338,15 +338,16 @@ export const createAddSpaceModal = ({
       pathAutocomplete.dispose();
     }
 
+    const typedPowers =
+      /** @type {import('@endo/far').ERef<import('@endo/daemon').EndoHost>} */ (
+        powers
+      );
     pathAutocomplete = petNamePathsAutocomplete(
       /** @type {HTMLElement} */ ($inputContainer),
       /** @type {HTMLElement} */ ($menu),
       {
         E,
-        powers:
-          /** @type {import('@endo/far').ERef<import('@endo/daemon').EndoHost>} */ (
-            powers
-          ),
+        powers: typedPowers,
         onSubmit: () => {
           // Trigger form submission
           const $form = $container.querySelector('.add-space-form');
@@ -582,12 +583,14 @@ export const createAddSpaceModal = ({
       onClose();
     } catch (err) {
       console.error('[AddSpaceModal] Failed to create host:', err);
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === 'string'
-            ? err
-            : JSON.stringify(err);
+      let message;
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === 'string') {
+        message = err;
+      } else {
+        message = JSON.stringify(err);
+      }
       error = `Failed to create host: ${message || 'Unknown error'}`;
       isSubmitting = false;
       render();

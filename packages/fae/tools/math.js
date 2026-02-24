@@ -1,5 +1,4 @@
 // @ts-check
-/* global harden */
 
 import { makeExo } from '@endo/exo';
 

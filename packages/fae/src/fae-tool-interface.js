@@ -1,5 +1,4 @@
 // @ts-check
-/* global harden */
 
 import { M } from '@endo/patterns';
 

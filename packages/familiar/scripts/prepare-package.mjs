@@ -1,3 +1,4 @@
+/* global process */
 /**
  * Prepares the familiar package directory for electron-forge packaging.
  * Copies the correct Node binary and chat dist into the package.

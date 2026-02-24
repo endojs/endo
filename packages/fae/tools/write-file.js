@@ -1,5 +1,5 @@
 // @ts-check
-/* global harden, process */
+/* global process */
 
 import { makeExo } from '@endo/exo';
 

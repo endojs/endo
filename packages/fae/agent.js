@@ -23,8 +23,6 @@ import {
 } from './src/tool-makers.js';
 import { extractToolCallsFromContent } from './src/extract-tool-calls.js';
 
-const MAX_ITERATIONS = 30;
-
 const m = makeMarshal(undefined, undefined, {
   errorTagging: 'off',
   serializeBodyFormat: 'smallcaps',
@@ -353,10 +351,11 @@ export const make = (guestPowers, context, { env }) => {
       let textContent;
       if (type === 'package' && Array.isArray(strings)) {
         const parts = [];
+        const namesArray = Array.isArray(names) ? names : [];
         for (let i = 0; i < strings.length; i += 1) {
           parts.push(strings[i]);
-          if (names && i < names.length) {
-            parts.push(`@${names[i]}`);
+          if (i < namesArray.length) {
+            parts.push(`@${namesArray[i]}`);
           }
         }
         textContent = parts.join('').trim();

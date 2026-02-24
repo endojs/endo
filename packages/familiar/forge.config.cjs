@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-env node */
 
 // CommonJS because the package uses "type": "module" but Forge requires CJS config.
 

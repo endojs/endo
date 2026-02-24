@@ -1,5 +1,4 @@
 // @ts-check
-/* global harden */
 
 /**
  * @typedef {object} ChatMessage

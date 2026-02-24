@@ -1,4 +1,3 @@
-/* global harden */
 // @ts-check
 // endo run --UNCONFINED setup-tools.js --powers AGENT
 //

@@ -44,6 +44,8 @@
     "@electron-forge/cli": "^7.0.0",
     "@electron-forge/maker-dmg": "^7.0.0",
     "@electron-forge/maker-zip": "^7.0.0",
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/init": "workspace:^",
     "@lavamoat/allow-scripts": "^3.4.1",
     "electron": "^33.0.0",
     "esbuild": "^0.24.0",

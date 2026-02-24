@@ -1,3 +1,4 @@
+/* global process, fetch */
 /**
  * Downloads a Node.js binary for the target platform into
  * packages/familiar/binaries/.

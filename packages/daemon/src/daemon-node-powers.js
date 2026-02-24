@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 /* eslint-disable no-void */
 
 import { makePromiseKit } from '@endo/promise-kit';
