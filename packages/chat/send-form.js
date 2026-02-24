@@ -37,6 +37,8 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
+ * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
+ * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -50,6 +52,8 @@ export const sendFormComponent = ({
   showValue,
   shouldHandleEnter = () => true,
   onStateChange,
+  getConversationPetName,
+  navigateToConversation,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -99,6 +103,33 @@ export const sendFormComponent = ({
       return;
     }
 
+    const conversationPetName = getConversationPetName
+      ? getConversationPetName()
+      : null;
+
+    if (conversationPetName) {
+      // In conversation mode: all tokens are embedded values, recipient is implicit
+      const messageStrings = strings.map((s, i) => {
+        if (i === 0) return s.trimStart();
+        if (i === strings.length - 1) return s.trimEnd();
+        return s;
+      });
+
+      E(powers)
+        .send(conversationPetName, messageStrings, edgeNames, petNames)
+        .then(
+          () => {
+            lastRecipient = conversationPetName;
+            tokenComponent.clear();
+            clearError();
+          },
+          (/** @type {Error} */ error) => {
+            $error.textContent = error.message;
+          },
+        );
+      return;
+    }
+
     // Single token with no message opens the value modal
     const onlyToken =
       petNames.length === 1 && strings.every(part => !part.trim());
@@ -125,23 +156,45 @@ export const sendFormComponent = ({
       return;
     }
 
-    // First token is the recipient if the message starts with a token
+    // Determine recipient and message content
     const firstStringEmpty = !strings[0] || !strings[0].trim();
-    if (!firstStringEmpty || petNames.length === 0) {
-      $error.textContent = 'Start with @recipient';
+    /** @type {string} */
+    let to;
+    /** @type {string[]} */
+    let messageStrings;
+    /** @type {string[]} */
+    let messagePetNames;
+    /** @type {string[]} */
+    let messageEdgeNames;
+
+    if (firstStringEmpty && petNames.length > 0) {
+      // First token is the recipient, rest is the message
+      to = petNames[0];
+      const rawMessageStrings = [strings[0] + strings[1], ...strings.slice(2)];
+      messageStrings = rawMessageStrings.map((s, i) => {
+        if (i === 0) return s.trimStart();
+        if (i === rawMessageStrings.length - 1) return s.trimEnd();
+        return s;
+      });
+      messagePetNames = petNames.slice(1);
+      messageEdgeNames = edgeNames.slice(1);
+    } else if (lastRecipient) {
+      // No leading @-mention: send to last recipient, all tokens are embedded values
+      to = lastRecipient;
+      messageStrings = strings.map((s, i) => {
+        if (i === 0) return s.trimStart();
+        if (i === strings.length - 1) return s.trimEnd();
+        return s;
+      });
+      messagePetNames = petNames;
+      messageEdgeNames = edgeNames;
+    } else {
+      $error.textContent =
+        'No recipient — start with @name or select a conversation';
       return;
     }
 
-    // Extract recipient from first token, rest is the message
-    const to = petNames[0];
-    const rawMessageStrings = [strings[0] + strings[1], ...strings.slice(2)];
-    const messageStrings = rawMessageStrings.map((s, i) => {
-      if (i === 0) return s.trimStart();
-      if (i === rawMessageStrings.length - 1) return s.trimEnd();
-      return s;
-    });
-    const messagePetNames = petNames.slice(1);
-    const messageEdgeNames = edgeNames.slice(1);
+    const navigateAfterSend = firstStringEmpty && petNames.length > 0;
 
     E(powers)
       .send(to, messageStrings, messageEdgeNames, messagePetNames)
@@ -150,6 +203,9 @@ export const sendFormComponent = ({
           lastRecipient = to;
           tokenComponent.clear();
           clearError();
+          if (navigateAfterSend && navigateToConversation) {
+            navigateToConversation(to);
+          }
         },
         (/** @type {Error} */ error) => {
           $error.textContent = error.message;

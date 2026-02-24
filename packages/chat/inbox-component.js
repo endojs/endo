@@ -21,9 +21,14 @@ import {
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} $end
  * @param {ERef<EndoHost>} powers
- * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void> }} options
+ * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>, conversationId?: string | null, conversationPetName?: string | null }} options
  */
-export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
+export const inboxComponent = async (
+  $parent,
+  $end,
+  powers,
+  { showValue, conversationId, conversationPetName },
+) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
   const selfId = await E(powers).identify('SELF');
@@ -43,6 +48,25 @@ export const inboxComponent = async ($parent, $end, powers, { showValue }) => {
     const { number, from: fromId, to: toId, date, dismissed } = message;
 
     const isSent = fromId === selfId;
+
+    if (conversationId) {
+      const otherPartyId = isSent ? toId : fromId;
+      if (otherPartyId !== conversationId) {
+        // ID didn't match directly — try matching by pet name
+        // (handles peer/remote/guest formula indirection)
+        if (conversationPetName) {
+          // eslint-disable-next-line no-await-in-loop
+          const names = await E(powers).reverseIdentify(otherPartyId);
+          if (!Array.isArray(names) || !names.includes(conversationPetName)) {
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+        } else {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+      }
+    }
 
     const $message = document.createElement('div');
     $message.className = isSent ? 'message sent' : 'message';

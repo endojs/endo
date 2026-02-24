@@ -3301,3 +3301,41 @@ test('counterEvaluate sends proposer/reviewer messages', async t => {
   t.is(typeof guestCounter.resultId?.then, 'function');
   t.is(typeof guestCounter.result?.then, 'function');
 });
+
+// Tests for trusted shims
+
+test('trusted shim executes before lockdown and persists across restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  const shimPath = path.join(dirname, 'test', 'test-shim.js');
+  const shimLocation = url.pathToFileURL(shimPath).href;
+  const checkerPath = path.join(dirname, 'test', 'shim-checker.js');
+  const checkerLocation = url.pathToFileURL(checkerPath).href;
+
+  {
+    const { host } = await makeHost(config, cancelled);
+
+    const checker = await E(host).makeUnconfined(undefined, checkerLocation, {
+      powersName: 'NONE',
+      resultName: 'shim-checker',
+      workerTrustedShims: [shimLocation],
+    });
+
+    t.true(
+      await E(checker).wasShimmed(),
+      'shim should have added Reflect.testShimExecuted before lockdown',
+    );
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+
+    const checker = await E(host).lookup('shim-checker');
+    t.true(
+      await E(checker).wasShimmed(),
+      'shim should persist and re-execute after daemon restart',
+    );
+  }
+});

@@ -917,8 +917,13 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    * @param {Context} context
+   * @param {string[]} [trustedShims]
    */
-  const makeIdentifiedWorker = async (workerId512, context) => {
+  const makeIdentifiedWorker = async (
+    workerId512,
+    context,
+    trustedShims = undefined,
+  ) => {
     const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
@@ -930,6 +935,7 @@ const makeDaemonCore = async (
         daemonWorkerFacet,
         Promise.race([forceCancelled, gracePeriodElapsed]),
         capTpConnectionRegistrar,
+        trustedShims,
       );
 
     const terminateWorker = async (_reason = undefined) => {
@@ -1795,8 +1801,8 @@ const makeDaemonCore = async (
         /** @type {import('./types.js').NamePath} */ (path),
         context,
       ),
-    worker: (_formula, context, _id, formulaNumber) =>
-      makeIdentifiedWorker(formulaNumber, context),
+    worker: (formula, context, _id, formulaNumber) =>
+      makeIdentifiedWorker(formulaNumber, context, formula.trustedShims),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier, env = {} },
       context,
@@ -1923,10 +1929,35 @@ const makeDaemonCore = async (
           const { node: nodeNumber, addresses } = peerInfo;
           assertNodeNumber(nodeNumber);
           if (knownPeers.has(nodeNumber)) {
-            // We already have this peer.
-            // TODO: merge connection info
+            const existingPeerId = knownPeers.identifyLocal(nodeNumber);
+            if (existingPeerId !== undefined) {
+              const existingFormula = await getFormulaForId(existingPeerId);
+              if (
+                existingFormula.type === 'peer' &&
+                JSON.stringify(existingFormula.addresses) !==
+                  JSON.stringify(addresses)
+              ) {
+                console.log(
+                  `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
+                );
+                // eslint-disable-next-line no-use-before-define
+                await cancelValue(
+                  existingPeerId,
+                  new Error('Peer addresses updated'),
+                );
+                await knownPeers.remove(nodeNumber);
+                const { id: peerId } =
+                  // eslint-disable-next-line no-use-before-define
+                  await formulatePeer(networksId, nodeNumber, addresses);
+                await knownPeers.write(nodeNumber, peerId);
+                return;
+              }
+            }
             return;
           }
+          console.log(
+            `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
+          );
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(networksId, nodeNumber, addresses);
@@ -2380,12 +2411,16 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {FormulaNumber} formulaNumber - The worker formula number.
+   * @param {string[]} [trustedShims] - Module specifiers imported before lockdown.
    * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
-  const formulateNumberedWorker = formulaNumber => {
+  const formulateNumberedWorker = (formulaNumber, trustedShims = undefined) => {
     /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
+      ...(trustedShims && trustedShims.length > 0
+        ? { trustedShims }
+        : undefined),
     };
 
     return /** @type {FormulateResult<EndoWorker>} */ (
@@ -2396,7 +2431,7 @@ const makeDaemonCore = async (
   /**
    * @type {DaemonCore['formulateWorker']}
    */
-  const formulateWorker = async deferredTasks => {
+  const formulateWorker = async (deferredTasks, trustedShims = undefined) => {
     return withFormulaGraphLock(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
 
@@ -2407,7 +2442,7 @@ const makeDaemonCore = async (
         }),
       });
 
-      return formulateNumberedWorker(formulaNumber);
+      return formulateNumberedWorker(formulaNumber, trustedShims);
     });
   };
 
@@ -2602,8 +2637,12 @@ const makeDaemonCore = async (
 
   /**
    * @param {FormulaIdentifier} [specifiedWorkerId]
+   * @param {string[]} [trustedShims]
    */
-  const provideWorkerId = async specifiedWorkerId => {
+  const provideWorkerId = async (
+    specifiedWorkerId,
+    trustedShims = undefined,
+  ) => {
     await null;
     if (typeof specifiedWorkerId === 'string') {
       return specifiedWorkerId;
@@ -2612,8 +2651,10 @@ const makeDaemonCore = async (
     const workerFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex512()
     );
-    const workerFormulation =
-      await formulateNumberedWorker(workerFormulaNumber);
+    const workerFormulation = await formulateNumberedWorker(
+      workerFormulaNumber,
+      trustedShims,
+    );
     return workerFormulation.id;
   };
 
@@ -2837,6 +2878,7 @@ const makeDaemonCore = async (
    * @param {DeferredTasks<MakeCapletDeferredTaskParams>} deferredTasks
    * @param {FormulaIdentifier} [specifiedWorkerId]
    * @param {FormulaIdentifier} [specifiedPowersId]
+   * @param {string[]} [trustedShims]
    */
   const formulateCapletDependencies = async (
     hostAgentId,
@@ -2844,6 +2886,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     specifiedPowersId,
+    trustedShims = undefined,
   ) => {
     const ownFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex512()
@@ -2859,7 +2902,7 @@ const makeDaemonCore = async (
         node: localNodeNumber,
       }),
       capletFormulaNumber: ownFormulaNumber,
-      workerId: await provideWorkerId(specifiedWorkerId),
+      workerId: await provideWorkerId(specifiedWorkerId, trustedShims),
     });
     await deferredTasks.execute(identifiers);
     return identifiers;
@@ -2874,6 +2917,7 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
     env = {},
+    trustedShims = undefined,
   ) => {
     return withFormulaGraphLock(async () => {
       const { powersId, capletFormulaNumber, workerId } =
@@ -2883,6 +2927,7 @@ const makeDaemonCore = async (
           deferredTasks,
           specifiedWorkerId,
           specifiedPowersId,
+          trustedShims,
         );
 
       /** @type {MakeUnconfinedFormula} */
@@ -2906,6 +2951,7 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
     env = {},
+    trustedShims = undefined,
   ) => {
     return withFormulaGraphLock(async () => {
       const { powersId, capletFormulaNumber, workerId } =
@@ -2915,6 +2961,7 @@ const makeDaemonCore = async (
           deferredTasks,
           specifiedWorkerId,
           specifiedPowersId,
+          trustedShims,
         );
 
       /** @type {MakeBundleFormula} */
@@ -3062,19 +3109,36 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
+    console.log(
+      `makePeer: connecting to node ${nodeId.slice(0, 16)}... with ${addresses.length} address(es)`,
+    );
     const remoteControl = provideRemoteControl(nodeId);
     return remoteControl.connect(
       async () => {
         // TODO race networks that support protocol for connection
         // TODO retry, exponential back-off, with full jitter
         const networks = await getAllNetworks(networksDirectoryId);
+        console.log(
+          `makePeer: found ${networks.length} network(s), trying ${addresses.length} address(es)`,
+        );
         // Connect on first support address.
         for (const address of addresses) {
           const { protocol } = new URL(address);
           for (const network of networks) {
             // eslint-disable-next-line no-await-in-loop
             if (await E(network).supports(protocol)) {
-              return E(network).connect(address, makeFarContext(context));
+              console.log(`makePeer: dialing ${address.slice(0, 80)}...`);
+              try {
+                return await E(network).connect(
+                  address,
+                  makeFarContext(context),
+                );
+              } catch (connectError) {
+                console.log(
+                  `makePeer: connect failed: ${/** @type {Error} */ (connectError).message}`,
+                );
+                throw connectError;
+              }
             }
           }
         }

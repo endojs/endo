@@ -111,6 +111,7 @@ type LoopbackNetworkFormula = {
 
 type WorkerFormula = {
   type: 'worker';
+  trustedShims?: string[];
 };
 
 export type WorkerDeferredTaskParams = {
@@ -761,6 +762,13 @@ export type MakeHostOrGuestOptions = {
   introducedNames?: Record<string, string>;
 };
 
+export type MakeCapletOptions = {
+  powersName?: string;
+  resultName?: string | string[];
+  env?: Record<string, string>;
+  workerTrustedShims?: string[];
+};
+
 export interface EndoPeer {
   provide: (id: string) => Promise<unknown>;
 }
@@ -1062,6 +1070,7 @@ export type DaemonicControlPowers = {
     daemonWorkerFacet: DaemonWorkerFacet,
     cancelled: Promise<never>,
     capTpConnectionRegistrar?: CapTpConnectionRegistrar,
+    trustedShims?: string[],
   ) => Promise<{
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
@@ -1173,6 +1182,8 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
     specifiedPowersId?: FormulaIdentifier,
+    env?: Record<string, string>,
+    trustedShims?: string[],
   ) => FormulateResult<unknown>;
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
@@ -1284,10 +1295,13 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
     specifiedPowersId?: FormulaIdentifier,
+    env?: Record<string, string>,
+    trustedShims?: string[],
   ) => FormulateResult<unknown>;
 
   formulateWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
+    trustedShims?: string[],
   ) => FormulateResult<EndoWorker>;
 
   getAllNetworkAddresses: (

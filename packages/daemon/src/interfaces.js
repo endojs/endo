@@ -31,7 +31,12 @@ const EnvShape = M.recordOf(M.string(), M.string());
 // Options for makeUnconfined and makeBundle
 const MakeCapletOptionsShape = M.splitRecord(
   {},
-  { powersName: NameShape, resultName: NameOrPathShape, env: EnvShape },
+  {
+    powersName: NameShape,
+    resultName: NameOrPathShape,
+    env: EnvShape,
+    workerTrustedShims: M.arrayOf(M.string()),
+  },
 );
 
 // Shared method guard for evaluate (used by both Host and Guest)

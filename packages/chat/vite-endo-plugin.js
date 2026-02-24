@@ -10,8 +10,9 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 // Path to the monorepo root
 const repoRoot = path.resolve(dirname, '../..');
 
-// Path to the TCP netstring network module (file:// URL for the daemon worker)
+// Paths to network modules (file:// URLs for the daemon worker)
 const tcpNetstringUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js')}`;
+const libp2pUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/libp2p.js')}`;
 
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
@@ -25,15 +26,15 @@ const gatewayServerPath = path.join(dirname, 'scripts/gateway-server.js');
  */
 
 /**
- * Ensure the system Endo daemon is running using this repo's CLI.
+ * Run a short-lived CLI command and resolve/reject based on exit code.
  *
- * @returns {Promise<void>}
+ * @param {string[]} args
+ * @param {number} timeoutMs
+ * @returns {Promise<{ code: number | null, stderr: string }>}
  */
-const ensureEndoRunning = async () => {
-  return new Promise((resolve, reject) => {
-    console.log('[Endo Plugin] Ensuring Endo daemon is running...');
-
-    const child = spawn('node', [endoCliPath, 'start'], {
+const runEndoCli = (args, timeoutMs = 15000) =>
+  new Promise((resolve, reject) => {
+    const child = spawn('node', [endoCliPath, ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: repoRoot,
     });
@@ -43,34 +44,45 @@ const ensureEndoRunning = async () => {
       stderr += data.toString();
     });
 
-    child.on('close', code => {
-      if (code === 0) {
-        console.log('[Endo Plugin] Endo daemon is running');
-        resolve();
-        return;
-      }
-
-      // Code 1 might just mean it's already running, which is fine
-      // Check stderr for actual errors
-      const shouldResolve =
-        stderr.includes('already running') || !stderr.includes('ECONNREFUSED');
-      if (shouldResolve) {
-        console.log('[Endo Plugin] Endo daemon is running');
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Failed to start Endo daemon: ${stderr}`));
-    });
-
+    child.on('close', code => resolve({ code, stderr }));
     child.on('error', reject);
 
-    // Timeout after 30 seconds
     setTimeout(() => {
       child.kill();
-      reject(new Error('Timeout waiting for Endo daemon to start'));
-    }, 30000);
+      reject(new Error(`Timeout running endo ${args.join(' ')}`));
+    }, timeoutMs);
   });
+
+/**
+ * Ensure the system Endo daemon is running using this repo's CLI.
+ * Pings first to avoid needlessly restarting an already-running daemon.
+ *
+ * @returns {Promise<void>}
+ */
+const ensureEndoRunning = async () => {
+  console.log('[Endo Plugin] Ensuring Endo daemon is running...');
+
+  try {
+    const { code } = await runEndoCli(['ping'], 10000);
+    if (code === 0) {
+      console.log('[Endo Plugin] Endo daemon is already running');
+      return;
+    }
+  } catch {
+    // ping failed or timed out — fall through to start
+  }
+
+  console.log('[Endo Plugin] Starting Endo daemon...');
+  try {
+    // The daemon may need to reincarnate network modules (libp2p DHT
+    // bootstrapping can take ~30s), so allow up to 90s.
+    await runEndoCli(['start'], 90000);
+    console.log('[Endo Plugin] Endo daemon started');
+  } catch (err) {
+    throw new Error(
+      `Failed to start Endo daemon: ${/** @type {Error} */ (err).message}`,
+    );
+  }
 };
 
 /**
@@ -173,6 +185,7 @@ export const makeEndoPlugin = (options = {}) => {
           'import.meta.env.ENDO_GATEWAY': JSON.stringify(''),
           'import.meta.env.ENDO_AGENT': JSON.stringify(''),
           'import.meta.env.TCP_NETSTRING_PATH': JSON.stringify(tcpNetstringUrl),
+          'import.meta.env.LIBP2P_PATH': JSON.stringify(libp2pUrl),
         },
       };
     },

@@ -323,7 +323,12 @@ export const makeHostMaker = ({
      * @param {MakeCapletOptions} [options]
      */
     const prepareMakeCaplet = (workerName, options = {}) => {
-      const { powersName = 'NONE', resultName, env = {} } = options;
+      const {
+        powersName = 'NONE',
+        resultName,
+        env = {},
+        workerTrustedShims,
+      } = options;
       if (workerName !== undefined) {
         assertName(workerName);
       }
@@ -349,15 +354,13 @@ export const makeHostMaker = ({
         );
       }
 
-      return { tasks, workerId, powersId, env };
+      return { tasks, workerId, powersId, env, workerTrustedShims };
     };
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, powersId, env } = prepareMakeCaplet(
-        workerName,
-        options,
-      );
+      const { tasks, workerId, powersId, env, workerTrustedShims } =
+        prepareMakeCaplet(workerName, options);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -369,6 +372,7 @@ export const makeHostMaker = ({
         workerId,
         powersId,
         env,
+        workerTrustedShims,
       );
       return value;
     };
@@ -380,10 +384,8 @@ export const makeHostMaker = ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, powersId, env } = prepareMakeCaplet(
-        workerName,
-        options,
-      );
+      const { tasks, workerId, powersId, env, workerTrustedShims } =
+        prepareMakeCaplet(workerName, options);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -395,6 +397,7 @@ export const makeHostMaker = ({
         workerId,
         powersId,
         env,
+        workerTrustedShims,
       );
       return value;
     };

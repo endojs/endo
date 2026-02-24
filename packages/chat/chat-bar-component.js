@@ -29,11 +29,22 @@ import { kbd, modKey } from './platform-keys.js';
  * @param {(hostName: string) => Promise<void>} options.enterProfile
  * @param {() => void} options.exitProfile
  * @param {boolean} options.canExitProfile
+ * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
+ * @param {() => void} [options.exitConversation] - Exit the current conversation view
+ * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
  */
 export const chatBarComponent = (
   $parent,
   powers,
-  { showValue, enterProfile, exitProfile, canExitProfile },
+  {
+    showValue,
+    enterProfile,
+    exitProfile,
+    canExitProfile,
+    getConversationPetName,
+    exitConversation,
+    navigateToConversation,
+  },
 ) => {
   const $chatBar = /** @type {HTMLElement} */ (
     $parent.querySelector('#chat-bar')
@@ -161,6 +172,8 @@ export const chatBarComponent = (
         updateSendModeline(state); // eslint-disable-line no-use-before-define
       }
     },
+    getConversationPetName,
+    navigateToConversation,
   });
 
   // Initialize command executor
@@ -235,12 +248,40 @@ export const chatBarComponent = (
    */
   const updateSendModeline = state => {
     const { menuVisible, hasToken, hasText, isEmpty } = state;
+    const inConversation = getConversationPetName
+      ? getConversationPetName()
+      : null;
 
     // Update has-content class for send button visibility
     if (hasToken || hasText) {
       $chatBar.classList.add('has-content');
     } else {
       $chatBar.classList.remove('has-content');
+    }
+
+    if (inConversation) {
+      if (menuVisible) {
+        $modeline.innerHTML = `
+          <span class="modeline-hint">select reference</span>
+          <span class="modeline-hint"><kbd>Space</kbd> embed</span>
+          <span class="modeline-hint"><kbd>↑↓</kbd> navigate</span>
+          <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
+        `;
+      } else if (hasToken || hasText) {
+        $modeline.innerHTML = `
+          <span class="modeline-hint"><kbd>Enter</kbd> send</span>
+          <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
+          <span class="modeline-hint"><kbd>/</kbd> commands</span>
+        `;
+      } else {
+        $modeline.innerHTML = `
+          <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
+          <span class="modeline-hint"><kbd>/</kbd> commands</span>
+          <span class="modeline-hint"><kbd>Esc</kbd> back to inbox</span>
+        `;
+      }
+      $chatBar.classList.add('has-modeline');
+      return;
     }
 
     // Determine modeline content based on state
@@ -271,7 +312,7 @@ export const chatBarComponent = (
       const lastRecipient = sendForm.getLastRecipient();
       if (lastRecipient) {
         $modeline.innerHTML = `
-          <span class="modeline-hint"><kbd>Space</kbd> continue with @${lastRecipient}</span>
+          <span class="modeline-hint">sending to @${lastRecipient}</span>
           <span class="modeline-hint"><kbd>@</kbd> inspect or message</span>
           <span class="modeline-hint"><kbd>/</kbd> commands</span>
         `;
@@ -282,10 +323,18 @@ export const chatBarComponent = (
         `;
       }
     } else {
-      // Text only without token - need to add recipient
-      $modeline.innerHTML = `
-        <span class="modeline-hint"><kbd>@</kbd> add recipient to send</span>
-      `;
+      // Text only without token
+      const lastRecipient = sendForm.getLastRecipient();
+      if (lastRecipient) {
+        $modeline.innerHTML = `
+          <span class="modeline-hint"><kbd>Enter</kbd> send to @${lastRecipient}</span>
+          <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
+        `;
+      } else {
+        $modeline.innerHTML = `
+          <span class="modeline-hint"><kbd>@</kbd> add recipient to send</span>
+        `;
+      }
     }
     $chatBar.classList.add('has-modeline');
   };
@@ -911,11 +960,15 @@ export const chatBarComponent = (
         event.preventDefault();
         exitCommandMode();
       } else if (mode === 'send') {
-        // Clear send input and modeline
         event.preventDefault();
-        sendForm.clear();
-        $error.textContent = '';
-        updateHasContent();
+        const state = sendForm.getState();
+        if (state.isEmpty && exitConversation && getConversationPetName?.()) {
+          exitConversation();
+        } else {
+          sendForm.clear();
+          $error.textContent = '';
+          updateHasContent();
+        }
       }
     }
   });
