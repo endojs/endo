@@ -3,7 +3,7 @@
 
 // Use a package self-reference to go through the "exports" resolution
 // Use the debug-async-hooks entrypoint which includes the async_hooks patch
-// eslint-disable-next-line import/no-extraneous-dependencies
+// eslint-disable-next-line import/no-extraneous-dependencies,import/no-unresolved
 import '@endo/init/debug-async-hooks.js';
 import harden from '@endo/harden';
 import test from 'ava';

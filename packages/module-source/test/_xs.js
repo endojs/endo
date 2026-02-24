@@ -6,7 +6,7 @@ import { NativeModuleSource, NativeCompartment } from './_native.js';
 // Eslint does not know about package reflexive imports (importing your own
 // package), which in this case is necessary to go through the conditional
 // export in package.json.
-// eslint-disable-next-line import/no-extraneous-dependencies
+// eslint-disable-next-line import/no-extraneous-dependencies,import/no-unresolved
 import '@endo/module-source/shim.js';
 import 'ses';
 
