@@ -10413,7 +10413,6 @@ __metadata:
     prettier: "npm:^3.5.3"
     type-coverage: "npm:^2.29.1"
     typedoc: "npm:^0.28.17"
-    typedoc-plugin-markdown: "npm:^4.2.5"
     typedoc-plugin-mermaid: "npm:^1.12.0"
     typescript: "npm:~5.9.2"
     typescript-eslint: "npm:^8.39.1"
@@ -11793,15 +11792,6 @@ __metadata:
   version: 0.0.6
   resolution: "typedarray@npm:0.0.6"
   checksum: 10c0/6005cb31df50eef8b1f3c780eb71a17925f3038a100d82f9406ac2ad1de5eb59f8e6decbdc145b3a1f8e5836e17b0c0002fb698b9fe2516b8f9f9ff602d36412
-  languageName: node
-  linkType: hard
-
-"typedoc-plugin-markdown@npm:^4.2.5":
-  version: 4.7.1
-  resolution: "typedoc-plugin-markdown@npm:4.7.1"
-  peerDependencies:
-    typedoc: 0.28.x
-  checksum: 10c0/0cd430634e4e58776fe581be4d748191b873aba1b911c054403e0971703384a79d71d2568babe926e70f8d9716c8eee1a22627a147b1b5fee3771e8e6ecb841f
   languageName: node
   linkType: hard
 

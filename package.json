@@ -28,7 +28,6 @@
     "prettier": "^3.5.3",
     "type-coverage": "^2.29.1",
     "typedoc": "^0.28.17",
-    "typedoc-plugin-markdown": "^4.2.5",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.39.1",
@@ -38,7 +37,6 @@
   "scripts": {
     "clean": "lerna clean",
     "docs": "rm -rf api-docs packages/ses/dist && typedoc && ./scripts/posttypedoc.sh",
-    "docs:markdown-for-agoric-documentation-repo": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "echo 'DEPRECATED: use \"yarn upgrade-interactive\" or \"yarn dedupe\"'",
     "format": "prettier --write .github packages",
     "lint": "yarn lint:prettier && yarn lint:eslint",
