@@ -25,21 +25,25 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "build": "node scripts/build.mjs",
     "bundle": "node scripts/bundle.mjs",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
     "lint:types": "tsc",
-    "download-node": "./scripts/download-node.sh",
+    "download-node": "node scripts/download-node.mjs",
     "generate-icons": "./scripts/generate-icons.sh"
+  },
+  "dependencies": {
+    "@endo/where": "workspace:^",
+    "electron": "^33.0.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.0.0",
     "@electron-forge/maker-dmg": "^7.0.0",
     "@electron-forge/maker-zip": "^7.0.0",
-    "@endo/where": "workspace:^",
     "@lavamoat/allow-scripts": "^3.4.1",
     "electron": "^33.0.0",
     "esbuild": "^0.24.0",
@@ -68,7 +72,7 @@
       },
       {
         "files": [
-          "scripts/bundle.mjs"
+          "scripts/*.mjs"
         ],
         "rules": {
           "@endo/harden-exports": "off"

@@ -7,6 +7,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import url from 'url';
 import path from 'path';
+import fs from 'fs';
 import http from 'http';
 
 import { E } from '@endo/far';
@@ -324,3 +325,26 @@ test.serial('weblet on dedicated port', async t => {
   t.is(jsStatus, 200);
   t.true(jsBody.length > 0);
 });
+
+test.serial(
+  'daemon writes root file matching AGENT identifier',
+  async t => {
+    const { config, host } = await prepareHost(t);
+
+    // The daemon writes root before signaling ready, so the file
+    // should already exist by the time prepareHost completes.
+    const agentIdPath = path.join(config.statePath, 'root');
+    const agentIdFromFile = fs.readFileSync(agentIdPath, 'utf-8').trim();
+
+    // The identifier from the file should match what E(host).identify('AGENT')
+    // returns over CapTP.
+    const agentIdFromCapTP = await E(host).identify('AGENT');
+
+    t.is(typeof agentIdFromFile, 'string');
+    t.truthy(agentIdFromFile.length > 0);
+    t.is(agentIdFromFile, agentIdFromCapTP);
+
+    // The root should be a valid formula identifier (number:node format).
+    t.regex(agentIdFromFile, /^[0-9a-f]{128}:[0-9a-f]{128}$/);
+  },
+);

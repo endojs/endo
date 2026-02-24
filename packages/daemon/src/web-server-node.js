@@ -1,4 +1,3 @@
-import 'ses';
 import fs from 'node:fs';
 import http from 'node:http';
 import { fileURLToPath } from 'url';
@@ -40,11 +39,16 @@ const read = async location => fs.promises.readFile(fileURLToPath(location));
 export const make = async (powers, context, { env = {} } = {}) => {
   const addrUrl = new URL(`http://${env.ENDO_ADDR || '127.0.0.1:8920'}`);
   const gatewayHost = addrUrl.hostname;
-  const gatewayPort = Number(addrUrl.port) || 8920;
-  const script = await makeBundle(
-    read,
-    new URL('web-page.js', import.meta.url).href,
-  );
+  const gatewayPort = addrUrl.port !== '' ? Number(addrUrl.port) : 8920;
+  let script;
+  if (env.ENDO_WEB_PAGE_BUNDLE_PATH) {
+    script = await fs.promises.readFile(env.ENDO_WEB_PAGE_BUNDLE_PATH, 'utf-8');
+  } else {
+    script = await makeBundle(
+      read,
+      new URL('web-page.js', import.meta.url).href,
+    );
+  }
 
   const gateway = await E(powers).gateway();
 
