@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@endo/zip": "workspace:^",

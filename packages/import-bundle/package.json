@@ -48,6 +48,8 @@
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
+    "@endo/evasive-transform": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",

@@ -32,6 +32,7 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",

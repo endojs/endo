@@ -38,6 +38,7 @@
     "test:c8": "c8 ${C8_OPTIONS:-} yarn run -T ses-ava"
   },
   "devDependencies": {
+    "@endo/eventual-send": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
