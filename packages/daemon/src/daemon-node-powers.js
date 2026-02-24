@@ -508,17 +508,23 @@ export const makeDaemonicControlPowers = (
     process.env.ENDO_WORKER_SUBPROCESS_PATH ||
     fileURLToPath(new URL('worker-node.js', import.meta.url));
 
+  const endoWorkerWithShimsPath = fileURLToPath(
+    new URL('worker-node-with-shims.js', import.meta.url),
+  );
+
   /**
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
+   * @param {string[]} [trustedShims]
    */
   const makeWorker = async (
     workerId,
     daemonWorkerFacet,
     cancelled,
     capTpConnectionRegistrar = undefined,
+    trustedShims = undefined,
   ) => {
     const { statePath, ephemeralStatePath } = config;
 
@@ -537,8 +543,12 @@ export const makeDaemonicControlPowers = (
     const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
     const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
 
+    const useShims = trustedShims && trustedShims.length > 0;
+    const workerPath = useShims ? endoWorkerWithShimsPath : endoWorkerPath;
+    const workerArgs = useShims ? [JSON.stringify(trustedShims)] : [];
+
     const log = fs.openSync(logPath, 'a');
-    const child = popen.fork(endoWorkerPath, [], {
+    const child = popen.fork(workerPath, workerArgs, {
       stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
       // @ts-ignore Stale Node.js type definition.
       windowsHide: true,
