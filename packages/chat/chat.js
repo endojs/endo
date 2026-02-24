@@ -28,6 +28,12 @@ const template = `
 
 <div id="resize-handle"></div>
 
+<div id="conversation-header">
+  <button id="conversation-back" title="Back to inbox (Esc)">←</button>
+  <span id="conversation-label">Chatting with</span>
+  <span id="conversation-name"></span>
+</div>
+
 <div id="messages">
   <div id="anchor"></div>
 </div>
@@ -39,7 +45,7 @@ const template = `
       <button class="command-cancel" id="command-cancel" title="Cancel (Esc)">&times;</button>
     </div>
     <div id="chat-input-wrapper">
-      <div id="chat-message" contenteditable="true" data-placeholder="Type / for commands, or @recipient message..."></div>
+      <div id="chat-message" contenteditable="true"></div>
       <div id="token-menu" class="token-menu"></div>
       <div id="command-menu" class="token-menu"></div>
       <div id="chat-error"></div>
@@ -219,12 +225,27 @@ const renderProfileBar = ($profileBar, profilePath, onNavigate) => {
 };
 
 /**
+ * @typedef {object} ConversationState
+ * @property {string} petName
+ * @property {string} id - FormulaIdentifier of the conversation partner
+ */
+
+/**
  * @param {HTMLElement} $parent
  * @param {unknown} rootPowers
  * @param {string[]} profilePath
+ * @param {ConversationState | null} activeConversation
  * @param {(newPath: string[]) => void} onProfileChange
+ * @param {(conversation: ConversationState | null) => void} onConversationChange
  */
-const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
+const bodyComponent = (
+  $parent,
+  rootPowers,
+  profilePath,
+  activeConversation,
+  onProfileChange,
+  onConversationChange,
+) => {
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -247,6 +268,29 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
   const $addSpaceModal = /** @type {HTMLElement} */ (
     $parent.querySelector('#add-space-modal-container')
   );
+  const $conversationHeader = /** @type {HTMLElement} */ (
+    $parent.querySelector('#conversation-header')
+  );
+  const $conversationBack = /** @type {HTMLButtonElement} */ (
+    $parent.querySelector('#conversation-back')
+  );
+  const $conversationName = /** @type {HTMLElement} */ (
+    $parent.querySelector('#conversation-name')
+  );
+  const $chatMessage = /** @type {HTMLElement} */ (
+    $parent.querySelector('#chat-message')
+  );
+
+  // Set up conversation header
+  if (activeConversation) {
+    $conversationHeader.classList.add('visible');
+    $conversationName.textContent = `@${activeConversation.petName}`;
+    $conversationBack.onclick = () => onConversationChange(null);
+    $chatMessage.dataset.placeholder = 'Type a message...';
+  } else {
+    $chatMessage.dataset.placeholder =
+      'Type / for commands, or @recipient message...';
+  }
 
   // Set up special names toggle
   $showSpecialToggle.addEventListener('change', () => {
@@ -335,17 +379,49 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
         blurValue: () => blurValue(),
       });
 
+      const getConversationPetName = () =>
+        activeConversation ? activeConversation.petName : null;
+
+      /** @param {string} petName */
+      const navigateToConversation = petName => {
+        E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
+          .locate(petName)
+          .then(locator => {
+            if (!locator) return;
+            const url = new URL(/** @type {string} */ (locator));
+            const formulaNumber = url.searchParams.get('id');
+            const nodeNumber = url.hostname;
+            const formulaId = `${formulaNumber}:${nodeNumber}`;
+            onConversationChange({ petName, id: formulaId });
+          })
+          .catch(window.reportError);
+      };
+
       inboxComponent(
         $messages,
         $anchor,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        { showValue },
+        {
+          showValue,
+          conversationId: activeConversation ? activeConversation.id : null,
+          conversationPetName: activeConversation
+            ? activeConversation.petName
+            : null,
+        },
       ).catch(window.reportError);
       inventoryComponent(
         $pets,
         $profileBar,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        { showValue },
+        {
+          showValue,
+          onSelectConversation: (petName, formulaId) => {
+            onConversationChange({ petName, id: formulaId });
+          },
+          activeConversationPetName: activeConversation
+            ? activeConversation.petName
+            : null,
+        },
       ).catch(window.reportError);
       chatBarComponent(
         $parent,
@@ -355,6 +431,9 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
           enterProfile: enterHost,
           exitProfile,
           canExitProfile: profilePath.length > 0,
+          getConversationPetName,
+          exitConversation: () => onConversationChange(null),
+          navigateToConversation,
         },
       );
       const { focusValue, blurValue } = valueComponent(
@@ -378,13 +457,33 @@ const bodyComponent = ($parent, rootPowers, profilePath, onProfileChange) => {
 export const make = async powers => {
   /** @type {string[]} */
   let currentProfilePath = [];
+  /** @type {ConversationState | null} */
+  let activeConversation = null;
 
   const rebuild = () => {
     document.body.innerHTML = '';
-    bodyComponent(document.body, powers, currentProfilePath, newPath => {
-      currentProfilePath = newPath;
-      rebuild();
-    });
+    bodyComponent(
+      document.body,
+      powers,
+      currentProfilePath,
+      activeConversation,
+      newPath => {
+        currentProfilePath = newPath;
+        activeConversation = null;
+        rebuild();
+      },
+      conversation => {
+        if (
+          conversation &&
+          activeConversation &&
+          conversation.id === activeConversation.id
+        ) {
+          return;
+        }
+        activeConversation = conversation;
+        rebuild();
+      },
+    );
   };
 
   rebuild();

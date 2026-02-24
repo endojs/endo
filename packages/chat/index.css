@@ -404,13 +404,18 @@ body.resizing * {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
   border-radius: var(--radius-sm);
   padding: 2px 4px;
   margin: -2px -4px;
 }
 
-.pet-name:hover {
+.pet-item-wrapper.conversable > .pet-item-row .pet-name {
+  cursor: pointer;
+}
+
+/* Only conversable items get a hover highlight on the name */
+.pet-item-wrapper.conversable > .pet-item-row .pet-name:hover {
   background: var(--bg-active);
 }
 
@@ -3349,4 +3354,112 @@ button:active {
 
 .add-space-submit:hover {
   background: var(--accent-hover);
+}
+
+/* Conversation header — sits above #messages, pushes it down */
+#conversation-header {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: calc(var(--gutter-width) + var(--sidebar-width));
+  right: 0;
+  z-index: 10;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  box-sizing: border-box;
+}
+
+#conversation-header.visible {
+  display: flex;
+}
+
+#conversation-header.visible ~ #messages {
+  top: 46px;
+}
+
+#conversation-back {
+  padding: 6px 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-active);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1;
+}
+
+#conversation-back:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+#conversation-label {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+#conversation-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+/* Inventory info button */
+.pet-item-row button.info-button {
+  opacity: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  transition: opacity var(--transition-fast);
+}
+
+.pet-item-row:hover button.info-button {
+  opacity: 1;
+}
+
+/* Conversable inventory items */
+.pet-item-wrapper.conversable > .pet-item-row .pet-name {
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.pet-item-wrapper.conversable > .pet-item-row .pet-name::before {
+  content: '💬 ';
+  font-size: 12px;
+}
+
+/* Active conversation highlight */
+.pet-item-wrapper.active-conversation > .pet-item-row {
+  background: var(--accent-primary);
+}
+
+.pet-item-wrapper.active-conversation > .pet-item-row:hover {
+  background: var(--accent-hover);
+}
+
+.pet-item-wrapper.active-conversation > .pet-item-row .pet-name {
+  color: white;
+  font-weight: 600;
+}
+
+.pet-item-wrapper.active-conversation > .pet-item-row .pet-name::before {
+  content: '💬 ';
+}
+
+.pet-item-wrapper.active-conversation > .pet-item-row button.info-button,
+.pet-item-wrapper.active-conversation
+  > .pet-item-row
+  button.remove-button:not(:disabled) {
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pet-item-wrapper.active-conversation
+  > .pet-item-row
+  button:not(.pet-disclosure):hover {
+  background: rgba(255, 255, 255, 0.35);
+  color: white;
 }

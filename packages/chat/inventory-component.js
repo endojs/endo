@@ -8,17 +8,32 @@ import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 
 /**
+ * @typedef {object} InventoryOptions
+ * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} showValue
+ * @property {((petName: string, formulaId: string) => void)} [onSelectConversation]
+ * @property {string | null} [activeConversationPetName]
+ */
+
+/**
+ * Formula types that can be selected as chat conversations.
+ * Only handles (identities) and remote/peer references (which resolve to
+ * handles on the other side) are valid conversation targets.
+ * Excludes 'host' and 'guest' which are powers/profile objects, not contacts.
+ */
+const CONVERSABLE_TYPES = harden(['handle', 'peer', 'remote']);
+
+/**
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} _end
  * @param {ERef<EndoHost>} powers
- * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void> }} options
+ * @param {InventoryOptions} options
  * @param {string[]} [path] - Current path for nested inventories
  */
 export const inventoryComponent = async (
   $parent,
   _end,
   powers,
-  { showValue },
+  { showValue, onSelectConversation, activeConversationPetName },
   path = [],
 ) => {
   const $list = $parent.querySelector('.pet-list') || $parent;
@@ -65,6 +80,12 @@ export const inventoryComponent = async (
     const $buttons = document.createElement('span');
     $buttons.className = 'pet-buttons';
 
+    const $info = document.createElement('button');
+    $info.className = 'info-button';
+    $info.textContent = 'ℹ';
+    $info.title = 'Inspect';
+    $buttons.appendChild($info);
+
     // Remove button (disabled for special names)
     const $remove = document.createElement('button');
     $remove.className = 'remove-button';
@@ -87,8 +108,7 @@ export const inventoryComponent = async (
 
     $list.appendChild($wrapper);
 
-    // Event handlers
-    $name.onclick = () => {
+    const inspectItem = () => {
       const idP = E(powers).identify(
         .../** @type {[string, ...string[]]} */ (itemPath),
       );
@@ -98,10 +118,43 @@ export const inventoryComponent = async (
         window.reportError,
       );
     };
+
+    $info.onclick = inspectItem;
     $remove.onclick = () =>
       E(powers)
         .remove(.../** @type {[string, ...string[]]} */ (itemPath))
         .catch(window.reportError);
+
+    // Probe the formula type to detect conversable items
+    if (onSelectConversation) {
+      E(powers)
+        .locate(.../** @type {[string, ...string[]]} */ (itemPath))
+        .then(locator => {
+          if (!locator) return;
+          const url = new URL(/** @type {string} */ (locator));
+          const type = url.searchParams.get('type');
+          if (type && CONVERSABLE_TYPES.includes(type)) {
+            $wrapper.classList.add('conversable');
+            $name.title = 'Open conversation';
+            const formulaNumber = url.searchParams.get('id');
+            const nodeNumber = url.hostname;
+            const formulaId = `${formulaNumber}:${nodeNumber}`;
+            $name.onclick = () => {
+              onSelectConversation(name, formulaId);
+            };
+            if (
+              activeConversationPetName &&
+              path.length === 0 &&
+              name === activeConversationPetName
+            ) {
+              $wrapper.classList.add('active-conversation');
+            }
+          }
+        })
+        .catch(() => {
+          // Item may have been removed
+        });
+    }
 
     // Track expansion state and cleanup
     let isExpanded = false;
@@ -166,6 +219,13 @@ export const inventoryComponent = async (
                   .../** @type {[string, ...string[]]} */ (fullPath),
                 );
               },
+              /** @param {string[]} subPath */
+              locate: (...subPath) => {
+                const fullPath = [...itemPath, ...subPath];
+                return E(powers).locate(
+                  .../** @type {[string, ...string[]]} */ (fullPath),
+                );
+              },
               followNameChanges: () => changesIterator,
             })
           );
@@ -174,7 +234,7 @@ export const inventoryComponent = async (
             $children,
             null,
             nestedPowers,
-            { showValue },
+            { showValue, onSelectConversation, activeConversationPetName },
             [], // Reset path since nestedPowers handles the prefix
           ).catch(() => {
             // Silently handle errors (e.g., if the item is removed)
