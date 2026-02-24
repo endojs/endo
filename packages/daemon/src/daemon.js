@@ -3126,10 +3126,15 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['getAllNetworkAddresses']} */
   const getAllNetworkAddresses = async networksDirectoryId => {
-    const networks = await getAllNetworks(networksDirectoryId);
+    const networksDirectory = await provide(networksDirectoryId, 'directory');
+    const networkIds = await networksDirectory.listIdentifiers();
+    const readyNetworks = networkIds
+      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .filter(id => refForId.has(id))
+      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
     const addresses = (
       await Promise.all(
-        networks.map(async network => {
+        readyNetworks.map(async network => {
           return E(network).addresses();
         }),
       )
