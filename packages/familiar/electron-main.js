@@ -157,8 +157,8 @@ const handleRestartDaemon = async win => {
     agentId = await getAgentId();
     if (win && !win.isDestroyed()) {
       // Pass config as a URL fragment (anchor) rather than a query string so
-  // the agent ID is never sent on the wire in an HTTP request.
-  const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
+      // the agent ID is never sent on the wire in an HTTP request.
+      const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
       if (isDevMode) {
         win.loadURL(`http://127.0.0.1:5173#${fragment}`);
       } else {
@@ -183,8 +183,8 @@ const handlePurgeDaemon = async win => {
     agentId = await getAgentId();
     if (win && !win.isDestroyed()) {
       // Pass config as a URL fragment (anchor) rather than a query string so
-  // the agent ID is never sent on the wire in an HTTP request.
-  const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
+      // the agent ID is never sent on the wire in an HTTP request.
+      const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
       if (isDevMode) {
         win.loadURL(`http://127.0.0.1:5173#${fragment}`);
       } else {

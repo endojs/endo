@@ -36,7 +36,10 @@ const targetArch = process.argv[4] || hostArch;
 
 const isWindows = targetOS === 'win';
 const binaryName = `node-${targetOS}-${targetArch}`;
-const dest = path.join(binariesDir, isWindows ? `${binaryName}.exe` : binaryName);
+const dest = path.join(
+  binariesDir,
+  isWindows ? `${binaryName}.exe` : binaryName,
+);
 
 if (fs.existsSync(dest)) {
   console.log(`Already exists: ${dest}`);

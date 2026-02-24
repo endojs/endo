@@ -326,25 +326,22 @@ test.serial('weblet on dedicated port', async t => {
   t.true(jsBody.length > 0);
 });
 
-test.serial(
-  'daemon writes root file matching AGENT identifier',
-  async t => {
-    const { config, host } = await prepareHost(t);
+test.serial('daemon writes root file matching AGENT identifier', async t => {
+  const { config, host } = await prepareHost(t);
 
-    // The daemon writes root before signaling ready, so the file
-    // should already exist by the time prepareHost completes.
-    const agentIdPath = path.join(config.statePath, 'root');
-    const agentIdFromFile = fs.readFileSync(agentIdPath, 'utf-8').trim();
+  // The daemon writes root before signaling ready, so the file
+  // should already exist by the time prepareHost completes.
+  const agentIdPath = path.join(config.statePath, 'root');
+  const agentIdFromFile = fs.readFileSync(agentIdPath, 'utf-8').trim();
 
-    // The identifier from the file should match what E(host).identify('AGENT')
-    // returns over CapTP.
-    const agentIdFromCapTP = await E(host).identify('AGENT');
+  // The identifier from the file should match what E(host).identify('AGENT')
+  // returns over CapTP.
+  const agentIdFromCapTP = await E(host).identify('AGENT');
 
-    t.is(typeof agentIdFromFile, 'string');
-    t.truthy(agentIdFromFile.length > 0);
-    t.is(agentIdFromFile, agentIdFromCapTP);
+  t.is(typeof agentIdFromFile, 'string');
+  t.truthy(agentIdFromFile.length > 0);
+  t.is(agentIdFromFile, agentIdFromCapTP);
 
-    // The root should be a valid formula identifier (number:node format).
-    t.regex(agentIdFromFile, /^[0-9a-f]{128}:[0-9a-f]{128}$/);
-  },
-);
+  // The root should be a valid formula identifier (number:node format).
+  t.regex(agentIdFromFile, /^[0-9a-f]{128}:[0-9a-f]{128}$/);
+});
