@@ -1929,10 +1929,35 @@ const makeDaemonCore = async (
           const { node: nodeNumber, addresses } = peerInfo;
           assertNodeNumber(nodeNumber);
           if (knownPeers.has(nodeNumber)) {
-            // We already have this peer.
-            // TODO: merge connection info
+            const existingPeerId = knownPeers.identifyLocal(nodeNumber);
+            if (existingPeerId !== undefined) {
+              const existingFormula = await getFormulaForId(existingPeerId);
+              if (
+                existingFormula.type === 'peer' &&
+                JSON.stringify(existingFormula.addresses) !==
+                  JSON.stringify(addresses)
+              ) {
+                console.log(
+                  `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
+                );
+                // eslint-disable-next-line no-use-before-define
+                await cancelValue(
+                  existingPeerId,
+                  new Error('Peer addresses updated'),
+                );
+                await knownPeers.remove(nodeNumber);
+                const { id: peerId } =
+                  // eslint-disable-next-line no-use-before-define
+                  await formulatePeer(networksId, nodeNumber, addresses);
+                await knownPeers.write(nodeNumber, peerId);
+                return;
+              }
+            }
             return;
           }
+          console.log(
+            `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
+          );
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(networksId, nodeNumber, addresses);
@@ -3084,19 +3109,36 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
+    console.log(
+      `makePeer: connecting to node ${nodeId.slice(0, 16)}... with ${addresses.length} address(es)`,
+    );
     const remoteControl = provideRemoteControl(nodeId);
     return remoteControl.connect(
       async () => {
         // TODO race networks that support protocol for connection
         // TODO retry, exponential back-off, with full jitter
         const networks = await getAllNetworks(networksDirectoryId);
+        console.log(
+          `makePeer: found ${networks.length} network(s), trying ${addresses.length} address(es)`,
+        );
         // Connect on first support address.
         for (const address of addresses) {
           const { protocol } = new URL(address);
           for (const network of networks) {
             // eslint-disable-next-line no-await-in-loop
             if (await E(network).supports(protocol)) {
-              return E(network).connect(address, makeFarContext(context));
+              console.log(`makePeer: dialing ${address.slice(0, 80)}...`);
+              try {
+                return await E(network).connect(
+                  address,
+                  makeFarContext(context),
+                );
+              } catch (connectError) {
+                console.log(
+                  `makePeer: connect failed: ${/** @type {Error} */ (connectError).message}`,
+                );
+                throw connectError;
+              }
             }
           }
         }

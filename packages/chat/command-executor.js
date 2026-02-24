@@ -278,10 +278,10 @@ export const createCommandExecutor = ({
               () =>
                 reject(
                   new Error(
-                    `Accept timed out after 30s. Ensure both nodes have TCP networking enabled (/network).`,
+                    `Accept timed out after 60s. Ensure both nodes have networking enabled (/network or /network-libp2p).`,
                   ),
                 ),
-              30_000,
+              60_000,
             );
           });
           await Promise.race([accepted, timeout]);
@@ -343,6 +343,44 @@ export const createCommandExecutor = ({
           return {
             success: true,
             message: `TCP network started on ${effectiveHostPort}`,
+          };
+        }
+
+        case 'network-libp2p': {
+          const effectiveModulePath =
+            String(params.modulePath || '') ||
+            // @ts-ignore Vite injects this at build time
+            (import.meta.env?.LIBP2P_PATH ?? '');
+
+          if (!effectiveModulePath) {
+            return {
+              success: false,
+              message:
+                'Module path required. Provide the file:// URL to libp2p.js',
+            };
+          }
+
+          console.log(
+            `[Chat] /network-libp2p: loading module ${effectiveModulePath}`,
+          );
+          // The libp2p module self-configures (bootstraps into the public
+          // IPFS DHT and discovers relays automatically) so there is no
+          // request/resolve step like the TCP network.
+          await E(powers).makeUnconfined(undefined, effectiveModulePath, {
+            powersName: 'AGENT',
+            resultName: 'network-service-libp2p',
+            workerTrustedShims: [
+              '@libp2p/webrtc',
+              './shims/async-generator-return.js',
+            ],
+          });
+          console.log(`[Chat] /network-libp2p: moving to NETS.libp2p`);
+          await E(powers).move(['network-service-libp2p'], ['NETS', 'libp2p']);
+          console.log(`[Chat] /network-libp2p: libp2p network ready`);
+          return {
+            success: true,
+            message:
+              'libp2p network started (relay discovery may still be in progress)',
           };
         }
 

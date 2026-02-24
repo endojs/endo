@@ -6,21 +6,28 @@ messages and capabilities between them using the chat UI.
 ## Overview
 
 Each Endo daemon runs on a separate machine (or in a separate directory on
-the same machine). After enabling TCP networking on both daemons, one side
+the same machine). After enabling networking on both daemons, one side
 creates an invitation and the other accepts it. From that point on, both
 sides can send messages, share values, and make requests across the
 network.
 
-The connection uses CapTP (Capability Transfer Protocol) over TCP with
-netstring framing. Object identity is preserved across the wire —
-capabilities sent in a message can be adopted by the recipient and used as
-if they were local.
+Two network transports are available:
+
+- **TCP** (`/network`): Direct TCP connections with netstring framing.
+  Requires an open port. Best for same-network or same-machine setups.
+- **libp2p** (`/network-libp2p`): Peer-to-peer via the IPFS network.
+  No open ports needed — uses WebRTC with auto-discovered relays for NAT
+  traversal. Best for cross-network connections.
+
+Both use CapTP (Capability Transfer Protocol) for capability transport.
+Object identity is preserved across the wire — capabilities sent in a
+message can be adopted by the recipient and used as if they were local.
 
 ## Prerequisites
 
 - Two running Endo daemons (see below for single-machine setup)
 - The chat UI running against each daemon (`yarn dev` in `packages/chat`)
-- The TCP network module path on disk
+- The network module path on disk (TCP or libp2p)
 
 ### Single-Machine Setup
 
@@ -39,6 +46,7 @@ alias bob='XDG_STATE_HOME=/tmp/endo-bob/state \
   XDG_RUNTIME_DIR=/tmp/endo-bob/run \
   XDG_CACHE_HOME=/tmp/endo-bob/cache \
   ENDO_SOCK=/tmp/endo-bob/endo.sock \
+  ENDO_ADDR=127.0.0.1:8921 \
   yarn exec endo --'
 ```
 
@@ -97,22 +105,64 @@ it as an active transport.
 ### Using the CLI
 
 ```bash
-# Find the module path
-NETWORK_MODULE="file://$(realpath packages/daemon/src/networks/tcp-netstring.js)"
-
-# Install the network (interactive — daemon will request a host:port)
-yarn exec endo -- mkguest network-installer --powers AGENT
-yarn exec endo -- run $NETWORK_MODULE --powers AGENT --name network-service
+# Install the network as an unconfined module (needs Node.js access for `net`)
+yarn exec endo make --UNCONFINED packages/daemon/src/networks/tcp-netstring.js --powers AGENT --name network-service
 
 # When the daemon requests a port, resolve it:
-yarn exec endo -- resolve 0 127.0.0.1:0
+yarn exec endo resolve 0 127.0.0.1:0
 
 # Move to the networks directory
-yarn exec endo -- mv network-service NETS.tcp
+yarn exec endo mv network-service NETS.tcp
 ```
 
 After this step, each daemon listens on an ephemeral TCP port and includes
 its address in `getPeerInfo()`.
+
+## Step 1b: Enable libp2p Networking (Alternative)
+
+Instead of TCP, you can use libp2p for peer connections. libp2p requires
+**no open ports and no self-hosted infrastructure** — it bootstraps into
+the public IPFS network and discovers relay peers automatically via
+Circuit Relay v2.
+
+This is the recommended transport for connecting daemons across different
+networks or behind NATs.
+
+### Using the Chat UI
+
+In each chat window, run:
+
+```
+/network-libp2p
+```
+
+Fill in the fields:
+
+- **Module**: The `file://` URL to the libp2p network module.
+  Typically `file:///path/to/endo/packages/daemon/src/networks/libp2p.js`
+
+The module bootstraps into the IPFS Amino DHT, discovers relay peers, and
+registers itself in the daemon's `NETS/libp2p` directory. No listen
+address or relay configuration is needed.
+
+### Using the CLI
+
+```bash
+# Install the libp2p network (self-configures via public DHT, registers at NETS/libp2p)
+yarn exec endo run --UNCONFINED ../daemon/src/networks/setup-libp2p.js --powers HOST
+```
+
+After this step, each daemon has a libp2p peer ID and is reachable via
+circuit relay addresses on the public IPFS network. The `endo://`
+invitation locator will include these addresses alongside any TCP
+addresses.
+
+### Using Both TCP and libp2p
+
+You can enable both transports on the same daemon. Invitation locators
+will include addresses for all active networks. When the accepting daemon
+connects, it tries each address in order and uses the first one that
+succeeds.
 
 ## Step 2: Create and Accept an Invitation
 
@@ -319,9 +369,11 @@ up.
 
 ### Invitation locator doesn't work
 
-- Verify both daemons have TCP networking enabled
-- Check that the address in the locator is reachable from the accepting
-  machine (use `127.0.0.1` only for same-machine setups)
+- Verify both daemons have networking enabled (TCP or libp2p)
+- For TCP: check that the address in the locator is reachable from the
+  accepting machine (use `127.0.0.1` only for same-machine setups)
+- For libp2p: ensure both daemons have internet access (needed for DHT
+  bootstrap and relay discovery)
 - Ensure the inviting daemon is still running
 
 ### Adopted value hangs on lookup
@@ -329,8 +381,10 @@ up.
 The remote daemon may be unreachable. Check that:
 
 - The remote daemon is running
-- The TCP port is accessible
-- No firewall is blocking the connection
+- For TCP: the TCP port is accessible and no firewall is blocking it
+- For libp2p: both daemons have internet access; relay addresses may
+  change if the relay peer disconnects (re-run `/invite` to get a fresh
+  locator)
 
 ### Messages not appearing
 
@@ -343,6 +397,7 @@ The remote daemon may be unreachable. Check that:
 | Command | Description |
 |---------|-------------|
 | `/network` | Enable TCP networking (module path + listen address) |
+| `/network-libp2p` | Enable libp2p networking (no open ports needed) |
 | `/invite` | Create an invitation for a peer (prints `endo://` locator) |
 | `/accept` | Accept an invitation locator and name the peer |
 | `/adopt` | Adopt a value from a received message |

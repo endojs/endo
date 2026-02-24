@@ -423,6 +423,25 @@ export const COMMANDS = {
     ],
     submitLabel: 'Enable',
   },
+  'network-libp2p': {
+    name: 'network-libp2p',
+    label: 'Enable libp2p Network',
+    description: 'Enable libp2p peer-to-peer network (no open ports needed)',
+    category: 'connections',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'modulePath',
+        label: 'Module',
+        type: 'text',
+        required: false,
+        placeholder: 'file:// URL to libp2p.js',
+        // @ts-ignore Vite injects this at build time
+        defaultValue: import.meta.env?.LIBP2P_PATH || '',
+      },
+    ],
+    submitLabel: 'Enable',
+  },
 
   // ============ WORKERS ============
   spawn: {
