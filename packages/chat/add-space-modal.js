@@ -581,7 +581,14 @@ export const createAddSpaceModal = ({
       hide();
       onClose();
     } catch (err) {
-      error = `Failed to create host: ${/** @type {Error} */ (err).message}`;
+      console.error('[AddSpaceModal] Failed to create host:', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'string'
+            ? err
+            : JSON.stringify(err);
+      error = `Failed to create host: ${message || 'Unknown error'}`;
       isSubmitting = false;
       render();
     }
