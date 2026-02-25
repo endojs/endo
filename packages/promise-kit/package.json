@@ -37,6 +37,7 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
@@ -66,7 +67,8 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "ses": "../../ava-ses-shims-only.config.mjs"
   },
   "engines": {
     "node": ">=11.0"

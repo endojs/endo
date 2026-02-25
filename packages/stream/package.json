@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "ses": "workspace:^"
   },
@@ -77,7 +78,8 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 95.22

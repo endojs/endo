@@ -20,9 +20,10 @@ const textDecoder = new TextDecoder();
  * @returns {BundlingKit}
  */
 export const makeBundlingKit = (
-  { pathResolve, userInfo, computeSha512, platform, env },
+  io,
   { cacheSourceMaps, elideComments, noTransforms, commonDependencies },
 ) => {
+  const { pathResolve, userInfo, computeSha512, platform, env } = io;
   if (noTransforms && elideComments) {
     throw new Error(
       'bundleSource endoZipBase64 cannot elideComments with noTransforms',

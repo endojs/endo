@@ -2,6 +2,7 @@
 // DataView does not default to host byte order like TypedArrays, so we must
 // pass an explicit endianness argument.
 
+import harden from '@endo/harden';
 import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
 

@@ -36,9 +36,9 @@ test('globalObject', t => {
     markVirtualizedNativeFunction,
   );
 
-  t.truthy(globalObject instanceof Object);
+  t.true(globalObject instanceof Object);
   t.is(Object.getPrototypeOf(globalObject), Object.prototype);
-  t.truthy(!Object.isFrozen(globalObject) || harden.isFake);
+  t.true(!Object.isFrozen(globalObject) || harden.isFake);
   t.not(globalObject, globalThis);
   t.is(globalObject.globalThis, globalObject);
 
@@ -48,10 +48,10 @@ test('globalObject', t => {
   for (const [name, desc] of Object.entries(descs)) {
     if (name === 'Infinity') {
       // eslint-disable-next-line no-restricted-globals
-      t.truthy(!isFinite(desc.value), `${name} should be Infinity`);
+      t.true(!isFinite(desc.value), `${name} should be Infinity`);
     } else if (name === 'NaN') {
       // eslint-disable-next-line no-restricted-globals
-      t.truthy(isNaN(desc.value), `${name} should be NaN`);
+      t.true(isNaN(desc.value), `${name} should be NaN`);
     } else if (name === 'undefined') {
       t.is(desc.value, undefined, `${name} should be undefined`);
     } else if (['eval', 'Function', 'globalThis'].includes(name)) {
@@ -68,13 +68,13 @@ test('globalObject', t => {
     }
 
     if (['Infinity', 'NaN', 'undefined'].includes(name)) {
-      t.falsy(desc.configurable, `${name} should not be configurable`);
-      t.falsy(desc.writable, `${name} should not be writable`);
-      t.falsy(desc.enumerable, `${name} should not be enumerable`);
+      t.false(desc.configurable, `${name} should not be configurable`);
+      t.false(desc.writable, `${name} should not be writable`);
+      t.false(desc.enumerable, `${name} should not be enumerable`);
     } else {
-      t.truthy(desc.configurable, `${name} should be configurable`);
-      t.truthy(desc.writable, `${name} should be writable`);
-      t.falsy(desc.enumerable, `${name} should not be enumerable`);
+      t.true(desc.configurable, `${name} should be configurable`);
+      t.true(desc.writable, `${name} should be writable`);
+      t.false(desc.enumerable, `${name} should not be enumerable`);
     }
   }
 });

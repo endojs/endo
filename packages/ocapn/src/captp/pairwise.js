@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { makeFinalizingMap } from './finalize.js';
 import { makeRefCounter } from './refcount.js';
 

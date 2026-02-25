@@ -507,6 +507,11 @@ export const permitted = {
     seal: fn,
     setPrototypeOf: fn,
     values: fn,
+    'RegisteredSymbol(harden)': {
+      ...fn,
+      // Installed with hardenTaming: 'unsafe'
+      isFake: 'boolean',
+    },
     // https://github.com/tc39/proposal-accessible-object-hasownproperty
     hasOwn: fn,
     // https://github.com/tc39/proposal-array-grouping

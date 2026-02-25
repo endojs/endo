@@ -1,6 +1,7 @@
 /* global globalThis */
 /// <reference types="ses"/>
 
+import harden from '@endo/harden';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import { decodeBase64 } from '@endo/base64';
 import { Fail } from '@endo/errors';

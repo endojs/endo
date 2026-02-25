@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { Fail } from '@endo/errors';
 import { PASS_STYLE } from './passStyle-helpers.js';
 import { assertPassable } from './passStyleOf.js';

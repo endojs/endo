@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 // This module is based on the `encodePassable.js` in `@agoric/store`,
 // which may migrate here. The main external difference is that
@@ -7,6 +6,7 @@
 // encodes to Smallcaps, a JSON-representable data structure, and leaves it to
 // the caller (`marshal.js`) to stringify it.
 
+import harden from '@endo/harden';
 import { X, Fail, q } from '@endo/errors';
 import { ZERO_N } from '@endo/nat';
 import {

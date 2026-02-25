@@ -1,11 +1,10 @@
-/// <reference types="ses"/>
-
 // This module is based on the `encodePassable.js` in `@agoric/store`,
 // which may migrate here. The main external difference is that
 // `encodePassable` goes directly to string, whereas `encodeToCapData`
 // encodes to CapData, a JSON-representable data structure, and leaves it to
 // the caller (`marshal.js`) to stringify it.
 
+import harden from '@endo/harden';
 import {
   passStyleOf,
   isErrorLike,

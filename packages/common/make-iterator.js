@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * Makes a one-shot iterable iterator from a provided `next` function.
  *
