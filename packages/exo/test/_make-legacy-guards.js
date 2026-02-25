@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * @param {import('@endo/patterns').AwaitArgGuardPayload} payload
  */

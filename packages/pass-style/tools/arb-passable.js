@@ -1,4 +1,5 @@
 // @ts-check
+import harden from '@endo/harden';
 import '../src/types.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';

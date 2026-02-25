@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { getRemotableMethodNames, toThrowable, Far } from '@endo/pass-style';
 import {

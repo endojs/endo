@@ -42,7 +42,8 @@
   "dependencies": {
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
-    "@endo/errors": "workspace:^"
+    "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^"
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
@@ -77,7 +78,7 @@
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
-    "shims": "../../ava-endo-shims-only.config.mjs"
+    "endo": "../../ava-endo-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 86.95

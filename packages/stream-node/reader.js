@@ -1,13 +1,12 @@
 // @ts-check
-/// <reference types="ses"/>
 
 // This module provided for sake of fewer head scratches.
 // Node.js readable streams satisfy the signature of an async iterable iterator.
 // They however iterate Node.js Buffer values and are not hardened, so this
 // implementation compensates for both.
 
+import harden from '@endo/harden';
 import { mapReader } from '@endo/stream';
-
 import { Fail, q } from '@endo/errors';
 
 /**

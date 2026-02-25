@@ -1,4 +1,5 @@
 // @ts-check
+import harden from '@endo/harden';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { checkBundle as powerlessCheckBundle } from './lite.js';

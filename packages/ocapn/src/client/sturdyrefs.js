@@ -5,6 +5,7 @@
  * @import { InternalSession, SwissNum } from './types.js'
  */
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { makeTagged } from '@endo/pass-style';
 import { decodeSwissnum } from './util.js';

@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * @typedef {<O extends Record<string, unknown>>(
  *   obj: O,

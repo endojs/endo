@@ -2,6 +2,7 @@
 /* global globalThis, window, document */
 
 import '@endo/init/debug.js';
+import harden from '@endo/harden';
 import { makeCapTP } from '@endo/captp';
 import { E, Far } from '@endo/far';
 import { M } from '@endo/patterns';

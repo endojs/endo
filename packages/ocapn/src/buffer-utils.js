@@ -1,5 +1,7 @@
 // @ts-check
 
+import harden from '@endo/harden';
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 

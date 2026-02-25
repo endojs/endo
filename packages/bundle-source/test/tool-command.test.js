@@ -1,10 +1,15 @@
-/* global Buffer */
+/* global Buffer, process */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { spawn } from 'child_process';
 import url from 'url';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 const cwd = url.fileURLToPath(new URL('..', import.meta.url));
+const cacheHome = fs.mkdtempSync(path.join(os.tmpdir(), 'endo-cache-'));
+const env = { ...process.env, XDG_CACHE_HOME: cacheHome };
 
 const shellOut = () =>
   new Promise((resolve, reject) => {
@@ -22,6 +27,7 @@ const shellOut = () =>
       ],
       {
         cwd,
+        env,
         stdio: ['inherit', 'inherit', 'pipe'],
       },
     );
@@ -51,6 +57,7 @@ const shellOutInvalidFormat = () =>
       ['bin/bundle-source', '--format', 'unsupported', 'demo/meaning.js'],
       {
         cwd,
+        env,
         stdio: ['inherit', 'inherit', 'pipe'],
       },
     );

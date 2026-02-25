@@ -7,12 +7,10 @@
   "exports": {
     ".": "./index.js",
     "./debug.js": "./debug.js",
+    "./debug-async-hooks.js": "./debug-async-hooks.js",
     "./legacy.js": "./legacy.js",
     "./unsafe-fast.js": "./unsafe-fast.js",
-    "./pre.js": {
-      "node": "./src/pre-node.js",
-      "default": "./pre.js"
-    },
+    "./pre.js": "./pre.js",
     "./pre-remoting.js": "./pre-remoting.js",
     "./pre-bundle-source.js": "./pre-bundle-source.js",
     "./package.json": "./package.json"
@@ -28,7 +26,6 @@
     "lint:types": "tsc"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "~5.9.2"
@@ -36,6 +33,7 @@
   "dependencies": {
     "@endo/base64": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },

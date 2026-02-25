@@ -1,6 +1,7 @@
 // @ts-check
 import { randomBytes } from 'node:crypto';
 
+import harden from '@endo/harden';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 

@@ -1,5 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
+
 import { fc } from '@fast-check/ava';
 import { makeTagged, getTag, passStyleOf, PASS_STYLE } from '@endo/pass-style';
 import { makeArbitraries } from '@endo/pass-style/tools.js';

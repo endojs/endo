@@ -1,5 +1,4 @@
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { isPromise } from '@endo/promise-kit';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 

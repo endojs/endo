@@ -11,6 +11,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 

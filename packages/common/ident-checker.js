@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * @deprecated Use `Rejector` in the confirm/reject pattern instead
  * @callback Checker

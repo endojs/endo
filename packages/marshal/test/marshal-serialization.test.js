@@ -1,5 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
+
 import { makeMarshal } from '../src/marshal.js';
 
 test('toCapData', t => {
