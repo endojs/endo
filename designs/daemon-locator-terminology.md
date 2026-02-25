@@ -1,3 +1,10 @@
+# Daemon Locator Terminology
+
+| | |
+|---|---|
+| **Date** | 2026-02-24 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
 
 ## Current State
 

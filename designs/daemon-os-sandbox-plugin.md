@@ -1,5 +1,11 @@
 # Daemon OS Sandbox Plugin
 
+| | |
+|---|---|
+| **Date** | 2026-02-15 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 ## What is the Problem Being Solved?
 
 Endo provides strong confinement for JavaScript code through hardened

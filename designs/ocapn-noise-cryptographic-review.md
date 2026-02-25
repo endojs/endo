@@ -1,3 +1,11 @@
+# OCapN-Noise Cryptographic Review
+
+| | |
+|---|---|
+| **Date** | 2026-02-14 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 ## What is the Problem Being Solved?
 
 The OCapN-Noise implementation makes two cryptographic design choices that

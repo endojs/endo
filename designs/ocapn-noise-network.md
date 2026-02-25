@@ -1,3 +1,10 @@
+# OCapN-Noise Network
+
+| | |
+|---|---|
+| **Date** | 2026-02-14 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
 
 ## What is the Problem Being Solved?
 

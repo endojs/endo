@@ -1,5 +1,11 @@
 # Chat Reply Chain Visualization
 
+| | |
+|---|---|
+| **Date** | 2026-02-23 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 ## Motivation
 
 Messages in the chat inbox can be replies to other messages, forming tree-like conversation structures. Currently, all messages are displayed in a flat chronological list, making it difficult to follow branching conversations or understand the context of a reply without manually scrolling to find the parent message.

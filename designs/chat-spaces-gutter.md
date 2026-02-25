@@ -1,5 +1,11 @@
 # Chat Spaces Gutter
 
+| | |
+|---|---|
+| **Date** | 2026-02-21 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Complete |
+
 ## Motivation
 
 The Chat UI currently operates in a single-profile hierarchical drill-down mode: start at `endo.Host`, expand the navigation pane, select a guest or capability to navigate deeper. This works for exploring the pet-name graph but breaks down when the user is actively managing multiple AI agent project loops simultaneously.

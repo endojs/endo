@@ -1,3 +1,10 @@
+# Familiar Gateway Migration
+
+| | |
+|---|---|
+| **Date** | 2026-02-14 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Complete |
 
 ## What is the Problem Being Solved?
 

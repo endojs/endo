@@ -1,5 +1,11 @@
 # Chat Spaces Inbox Mode
 
+| | |
+|---|---|
+| **Date** | 2026-02-21 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Complete |
+
 ## Overview
 
 This document describes the "inbox" mode for spaces - the primary interaction mode where users view and interact with an agent's message inbox.

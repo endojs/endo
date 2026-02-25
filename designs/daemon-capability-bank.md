@@ -1,5 +1,11 @@
 # Daemon Capability Bank
 
+| | |
+|---|---|
+| **Date** | 2026-02-15 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 ## What is the Problem Being Solved?
 
 AI coding agents (Claude Code, Cursor, Devin, etc.) are granted dangerous

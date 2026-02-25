@@ -1,3 +1,11 @@
+# Workers Panel
+
+| | |
+|---|---|
+| **Date** | 2026-02-14 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 ## What is the Problem Being Solved?
 
 Workers are opaque. There is no way to see which worker processes are running,

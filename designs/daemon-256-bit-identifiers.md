@@ -1,3 +1,10 @@
+# Daemon 256-bit Identifiers
+
+| | |
+|---|---|
+| **Date** | 2026-02-24 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
 
 ## What is the Problem Being Solved?
 

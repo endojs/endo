@@ -1,3 +1,11 @@
+# Inventory Grouping by Type
+
+| | |
+|---|---|
+| **Date** | 2026-02-14 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 ## What is the Problem Being Solved?
 
 The inventory is a flat, ungrouped list of pet names. As the number of

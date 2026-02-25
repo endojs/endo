@@ -1,5 +1,11 @@
 # Delegates and Epithets: Ideas and Directions
 
+| | |
+|---|---|
+| **Date** | 2026-02-16 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | Not Started |
+
 This document explores how an agent in Endo can create subordinate
 agents — **delegates** — that carry obligatory, verifiable, deniable
 claims about their relationships.  We call these claims **epithets**.

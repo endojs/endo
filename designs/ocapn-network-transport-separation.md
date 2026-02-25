@@ -1,3 +1,10 @@
+# OCapN Network/Transport Separation
+
+| | |
+|---|---|
+| **Date** | 2026-02-14 |
+| **Author** | Kris Kowal (prompted) |
+| **Status** | In Progress |
 
 ## What is the Problem Being Solved?
 
