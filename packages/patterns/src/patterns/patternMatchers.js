@@ -1416,9 +1416,11 @@ const makePatternKit = () => {
    * Confirms that `specimen` contains at least `bound` instances of an element
    * matched by `elementPatt`, optionally returning those bounded matches and/or
    * their complement as specified by `needInResults` and `needOutResults`
-   * (ensuring for CopyBags that at most one Key is split across both, but
-   * otherwise making no guarantee regarding the order in which elements are
-   * considered beyond a best-effort attempt to align with intuition).
+   * (considering CopyArray elements by ascending index and CopySet/CopyBag
+   * elements in lexicographic order).
+   * Note that CopyBag elements can be split; when only some of the count
+   * associated with a single Key is necessary to bring cumulative matches up to
+   * `bound`, the rest of that count is not considered to be matching.
    * If the specimen does not contain enough matching instances, this function
    * terminates as directed by `reject` (i.e., either returning `false` or
    * throwing an error).
