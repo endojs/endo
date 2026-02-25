@@ -1,6 +1,6 @@
 {
   "name": "@endo/init",
-  "version": "1.1.12",
+  "version": "1.1.13",
   "description": "Prepare Endo environment on import",
   "type": "module",
   "main": "index.js",

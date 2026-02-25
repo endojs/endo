@@ -1,5 +1,23 @@
 # @endo/ses-ava
 
+## 1.4.0
+
+### Minor Changes
+
+- [#3082](https://github.com/endojs/endo/pull/3082) [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7) Thanks [@boneskull](https://github.com/boneskull)! - - Introduces a `ses-ava` command for running tests with multiple AVA configurations.
+  - Adds an `@endo/ses-ava/test.js` module for getting a `test` function
+    appropriate for your configuration.
+  - Adds an `@endo/ses-ava/prepare-endo-config.js` module suitable for use in the
+    `require` clause of an AVA configuration, such that `@endo/ses-ava/test.js`
+    exports a wrapped SES-AVA `test` function.
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`a29ecd4`](https://github.com/endojs/endo/commit/a29ecd44c788440faf016f1f8e658a5a364d6181), [`b8b52ce`](https://github.com/endojs/endo/commit/b8b52cef026a340b37ea91953476713e4258df0b)]:
+  - ses@1.15.0
+  - @endo/harden@1.1.0
+  - @endo/init@1.1.13
+
 ## [1.3.2](https://github.com/endojs/endo/compare/@endo/ses-ava@1.3.1...@endo/ses-ava@1.3.2) (2025-07-12)
 
 **Note:** Version bump only for package @endo/ses-ava
@@ -12,11 +30,11 @@
 
 ### Features
 
-* **panic:** ponyfill `panic` from "Don't Remember Panicking" proposal ([#2815](https://github.com/endojs/endo/issues/2815)) ([42bf127](https://github.com/endojs/endo/commit/42bf1274db89ac5df400e8f30167377622882d22))
+- **panic:** ponyfill `panic` from "Don't Remember Panicking" proposal ([#2815](https://github.com/endojs/endo/issues/2815)) ([42bf127](https://github.com/endojs/endo/commit/42bf1274db89ac5df400e8f30167377622882d22))
 
 ### Bug Fixes
 
-* **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
+- **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
 
 ## [1.2.10](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.9...@endo/ses-ava@1.2.10) (2025-03-24)
 
@@ -34,7 +52,7 @@
 
 ### Bug Fixes
 
-* **ses-ava:** wrap test deeply ([#2589](https://github.com/endojs/endo/issues/2589)) ([7a991aa](https://github.com/endojs/endo/commit/7a991aa75b06fc418459b5e5d2d08f9fb73ab113))
+- **ses-ava:** wrap test deeply ([#2589](https://github.com/endojs/endo/issues/2589)) ([7a991aa](https://github.com/endojs/endo/commit/7a991aa75b06fc418459b5e5d2d08f9fb73ab113))
 
 ## [1.2.6](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.5...@endo/ses-ava@1.2.6) (2024-10-10)
 
@@ -60,17 +78,17 @@
 
 ### Bug Fixes
 
-* **ses-ava:** Fix peer dependency on ava semver range syntax ([da3cdfc](https://github.com/endojs/endo/commit/da3cdfc40c16d2066c1b5b8e113c2313f403d2a8))
+- **ses-ava:** Fix peer dependency on ava semver range syntax ([da3cdfc](https://github.com/endojs/endo/commit/da3cdfc40c16d2066c1b5b8e113c2313f403d2a8))
 
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.1.2...@endo/ses-ava@1.2.0) (2024-03-20)
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ### Bug Fixes
 
-* **ses-ava:** Move ava dep to peer dependencies ([a1a3c3a](https://github.com/endojs/endo/commit/a1a3c3aad63772c26004060ad0e076f9ab302e80))
+- **ses-ava:** Move ava dep to peer dependencies ([a1a3c3a](https://github.com/endojs/endo/commit/a1a3c3aad63772c26004060ad0e076f9ab302e80))
 
 ## [1.1.2](https://github.com/endojs/endo/compare/@endo/ses-ava@1.1.1...@endo/ses-ava@1.1.2) (2024-02-23)
 
@@ -80,14 +98,14 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
-* Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
 
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.0.1...@endo/ses-ava@1.1.0) (2024-01-18)
 
 ### Testing
 
-* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+- **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
 
 ## [1.0.1](https://github.com/endojs/endo/compare/@endo/ses-ava@1.0.0...@endo/ses-ava@1.0.1) (2023-12-20)
 
@@ -97,7 +115,7 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ## [0.2.44](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.43...@endo/ses-ava@0.2.44) (2023-09-12)
 
@@ -125,7 +143,7 @@
 
 ## [0.2.38](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.37...@endo/ses-ava@0.2.38) (2023-03-07)
 
-* Support the full ava API ([#1235](https://github.com/endojs/endo/issues/1235))
+- Support the full ava API ([#1235](https://github.com/endojs/endo/issues/1235))
 
 ## [0.2.37](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.36...@endo/ses-ava@0.2.37) (2022-12-23)
 
@@ -295,12 +313,12 @@
 
 ## 0.2.0 (2021-06-02)
 
-* *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+- _BREAKING_: Removes CommonJS and UMD downgrade compatibility.
   Supporting both Node.js ESM and the `node -r esm` shim requires the main
   entry point module to be ESM regardless of environment.
   UMD and CommonJS facets will likely return after all dependees have migrated
   away from depending upon the `esm` JavaScript module emulator.
-* Expose internal `package.json` through Node.js ESM `exports` for the benefit
+- Expose internal `package.json` through Node.js ESM `exports` for the benefit
   of `svelte` tooling.
 
 ## 0.1.1 (2021-05-05)

@@ -1,5 +1,24 @@
 # @endo/eventual-send
 
+## 1.4.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+### Patch Changes
+
+- Updated dependencies [[`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139)]:
+  - @endo/harden@1.1.0
+
 ## [1.3.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.3.3...@endo/eventual-send@1.3.4) (2025-07-12)
 
 **Note:** Version bump only for package @endo/eventual-send
@@ -20,7 +39,7 @@
 
 ### Features
 
-* EReturn type ([5aefe10](https://github.com/endojs/endo/commit/5aefe1032be33c70c097663a86f240c857dcd2a1))
+- EReturn type ([5aefe10](https://github.com/endojs/endo/commit/5aefe1032be33c70c097663a86f240c857dcd2a1))
 
 ## [1.2.8](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.7...@endo/eventual-send@1.2.8) (2024-11-13)
 
@@ -38,7 +57,7 @@
 
 ### Bug Fixes
 
-* **types:** EProxy / Callable ([ea7e8cc](https://github.com/endojs/endo/commit/ea7e8cc7c0c61c68a8b93aebd51548c898f0ae1e))
+- **types:** EProxy / Callable ([ea7e8cc](https://github.com/endojs/endo/commit/ea7e8cc7c0c61c68a8b93aebd51548c898f0ae1e))
 
 ## [1.2.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.3...@endo/eventual-send@1.2.4) (2024-08-01)
 
@@ -48,7 +67,7 @@
 
 ### Bug Fixes
 
-* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
+- endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
 
 ## [1.2.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.1...@endo/eventual-send@1.2.2) (2024-05-07)
 
@@ -62,7 +81,7 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ## [1.1.2](https://github.com/endojs/endo/compare/@endo/eventual-send@1.1.1...@endo/eventual-send@1.1.2) (2024-02-23)
 
@@ -72,18 +91,18 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.1...@endo/eventual-send@1.1.0) (2024-01-18)
 
 ### Features
 
-* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
-* **eventual-send:** breakpoint on delivery by env-options ([#1860](https://github.com/endojs/endo/issues/1860)) ([b191aaf](https://github.com/endojs/endo/commit/b191aaf3d8b9015801d3f6793f0dd21995aba48e))
+- **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+- **eventual-send:** breakpoint on delivery by env-options ([#1860](https://github.com/endojs/endo/issues/1860)) ([b191aaf](https://github.com/endojs/endo/commit/b191aaf3d8b9015801d3f6793f0dd21995aba48e))
 
 ### Bug Fixes
 
-* **eventual-send:** switch DEBUG option to be comma separated ([#1922](https://github.com/endojs/endo/issues/1922)) ([3fae760](https://github.com/endojs/endo/commit/3fae760785379c726695e3e94fed839eb8f0141c))
+- **eventual-send:** switch DEBUG option to be comma separated ([#1922](https://github.com/endojs/endo/issues/1922)) ([3fae760](https://github.com/endojs/endo/commit/3fae760785379c726695e3e94fed839eb8f0141c))
 
 ## [1.0.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.0...@endo/eventual-send@1.0.1) (2023-12-20)
 
@@ -93,19 +112,19 @@
 
 ### ⚠ BREAKING CHANGES
 
-* **eventual-send:** restrict exports
+- **eventual-send:** restrict exports
 
 ### Features
 
-* **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
+- **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ### Miscellaneous Chores
 
-* **eventual-send:** restrict exports ([1f29d4a](https://github.com/endojs/endo/commit/1f29d4ae95013881d0ec113c202d0fdf00647b4d))
+- **eventual-send:** restrict exports ([1f29d4a](https://github.com/endojs/endo/commit/1f29d4ae95013881d0ec113c202d0fdf00647b4d))
 
 ## 0.26.10 (2021-07-28)
 
@@ -119,26 +138,26 @@
 
 ### Bug Fixes
 
-* **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
+- **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
 
 ## [0.17.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.4) (2023-08-07)
 
 ### Bug Fixes
 
-* **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
+- **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
 
 ## [0.17.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.2...@endo/eventual-send@0.17.3) (2023-07-19)
 
 ### Features
 
-* **env-options:** env-options as separate importable package ([ba266c9](https://github.com/endojs/endo/commit/ba266c95d46a7330aeb73def7a1a0a18242d75cd))
+- **env-options:** env-options as separate importable package ([ba266c9](https://github.com/endojs/endo/commit/ba266c95d46a7330aeb73def7a1a0a18242d75cd))
 
 ### Bug Fixes
 
-* **eventual-send:** propagate `ERef<EOnly<R>>` to `EOnly` returns ([ef3b553](https://github.com/endojs/endo/commit/ef3b553ef075b77a123bb4eee1b5dbbe8eb32e6c))
-* **eventual-send:** reinstate `RemotableBrand` as a class to hide `constructor` property ([5358648](https://github.com/endojs/endo/commit/53586485e1c6be6bb21493325fcc75c7128970da))
-* **eventual-send:** unwrap PromiseLikes before EOnly surrounds them with ERef ([3d29f4a](https://github.com/endojs/endo/commit/3d29f4ace723624b0aa35b0112108bec3c67cb43))
-* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+- **eventual-send:** propagate `ERef<EOnly<R>>` to `EOnly` returns ([ef3b553](https://github.com/endojs/endo/commit/ef3b553ef075b77a123bb4eee1b5dbbe8eb32e6c))
+- **eventual-send:** reinstate `RemotableBrand` as a class to hide `constructor` property ([5358648](https://github.com/endojs/endo/commit/53586485e1c6be6bb21493325fcc75c7128970da))
+- **eventual-send:** unwrap PromiseLikes before EOnly surrounds them with ERef ([3d29f4a](https://github.com/endojs/endo/commit/3d29f4ace723624b0aa35b0112108bec3c67cb43))
+- warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
 
 ## [0.17.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.1...@endo/eventual-send@0.17.2) (2023-04-20)
 
@@ -213,7 +232,7 @@
 
 ## [0.16.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.5...@endo/eventual-send@0.16.0) (2022-08-23)
 
-- *BREAKING*: Disallow using E proxy methods as functions.
+- _BREAKING_: Disallow using E proxy methods as functions.
   Enforces the `E(x).foo()` calling convention and disallows using as bound
   methods. Constructs like `const foo = E(x).foo; foo()` now cause a rejection.
 

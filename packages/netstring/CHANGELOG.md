@@ -1,5 +1,28 @@
 # @endo/netstring
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`a29ecd4`](https://github.com/endojs/endo/commit/a29ecd44c788440faf016f1f8e658a5a364d6181), [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea), [`b8b52ce`](https://github.com/endojs/endo/commit/b8b52cef026a340b37ea91953476713e4258df0b)]:
+  - ses@1.15.0
+  - @endo/harden@1.1.0
+  - @endo/promise-kit@1.2.0
+  - @endo/stream@1.3.0
+  - @endo/init@1.1.13
+
 ## [1.0.18](https://github.com/endojs/endo/compare/@endo/netstring@1.0.17...@endo/netstring@1.0.18) (2025-07-12)
 
 **Note:** Version bump only for package @endo/netstring
@@ -64,14 +87,14 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
-* Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/netstring@1.0.1...@endo/netstring@1.0.2) (2024-01-18)
 
 ### Bug Fixes
 
-* Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+- Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
 
 ## [1.0.1](https://github.com/endojs/endo/compare/@endo/netstring@1.0.0...@endo/netstring@1.0.1) (2023-12-20)
 
@@ -81,8 +104,8 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
-* **netstring:** Fix writer early return during chunked write ([ae1d93b](https://github.com/endojs/endo/commit/ae1d93b37f7416853805abb276282ab876fdd04d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- **netstring:** Fix writer early return during chunked write ([ae1d93b](https://github.com/endojs/endo/commit/ae1d93b37f7416853805abb276282ab876fdd04d))
 
 ## [0.3.30](https://github.com/endojs/endo/compare/@endo/netstring@0.3.29...@endo/netstring@0.3.30) (2023-09-12)
 
@@ -222,7 +245,7 @@
 
 ## [0.3.0](https://github.com/endojs/endo/compare/@endo/netstring@0.2.13...@endo/netstring@0.3.0) (2022-01-23)
 
-- *BREAKING*: This package is now hardened and depends on Hardened JavaScript
+- _BREAKING_: This package is now hardened and depends on Hardened JavaScript
   and remotable promises (eventual send).
   Use `@endo/init` before initializing this module.
 
@@ -286,7 +309,7 @@
 
 ## 0.2.0 (2021-06-02)
 
-- *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+- _BREAKING_: Removes CommonJS and UMD downgrade compatibility.
   Supporting both Node.js ESM and the `node -r esm` shim requires the main
   entry point module to be ESM regardless of environment.
   UMD and CommonJS facets will likely return after all dependees have migrated

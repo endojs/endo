@@ -1,5 +1,22 @@
 # @endo/init
 
+## 1.1.13
+
+### Patch Changes
+
+- [#3085](https://github.com/endojs/endo/pull/3085) [`b8b52ce`](https://github.com/endojs/endo/commit/b8b52cef026a340b37ea91953476713e4258df0b) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - Move async_hooks patch to dedicated entrypoint for Node.js 24 compatibility
+
+  The async_hooks patch was originally added in #1115 to address debugger issues (#1105) for local debugging of Node.js processes in lockdown mode. However, the patch is breaking in Node.js 24, and it's unclear whether it's still necessary in Node.js 20+.
+
+  To maintain backward compatibility while fixing the Node.js 24 breakage, the patch has been moved from the default import path to a new dedicated entrypoint `@endo/init/debug-async-hooks.js`. This allows users who need the async_hooks patch for debugging in older Node.js versions to opt-in explicitly, while preventing breakage for users on Node.js 24+.
+
+  If you were relying on the async_hooks patch, import `@endo/init/debug-async-hooks.js` instead of `@endo/init/debug.js`. Note that this entrypoint may not work correctly in Node.js 24+.
+
+- Updated dependencies [[`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea)]:
+  - @endo/harden@1.1.0
+  - @endo/eventual-send@1.4.0
+  - @endo/promise-kit@1.2.0
+
 ## [1.1.12](https://github.com/endojs/endo/compare/@endo/init@1.1.11...@endo/init@1.1.12) (2025-07-12)
 
 **Note:** Version bump only for package @endo/init
@@ -52,7 +69,7 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ## [1.0.4](https://github.com/endojs/endo/compare/@endo/init@1.0.3...@endo/init@1.0.4) (2024-02-23)
 
@@ -62,7 +79,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/init@1.0.1...@endo/init@1.0.2) (2024-01-18)
 
@@ -76,7 +93,7 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ## 0.26.10 (2021-07-28)
 
@@ -98,11 +115,11 @@
 
 ### Features
 
-* **init:** Patch AsyncLocalStorage to avoid promise expandos ([4214389](https://github.com/endojs/endo/commit/421438953674ae69b04fbc0d3140b6ed943865b6))
+- **init:** Patch AsyncLocalStorage to avoid promise expandos ([4214389](https://github.com/endojs/endo/commit/421438953674ae69b04fbc0d3140b6ed943865b6))
 
 ### Bug Fixes
 
-* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+- warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
 
 ## [0.5.56](https://github.com/endojs/endo/compare/@endo/init@0.5.55...@endo/init@0.5.56) (2023-04-20)
 
@@ -229,9 +246,11 @@ Patch `Promise.race` to use a non-leaky implementation.
 
 The `@endo/init` package exists so the "main" of production code can
 start with the following import or its equivalent.
+
 ```js
 import '@endo/init';
 ```
+
 But production code must also be tested. Normal ocap discipline of passing
 explicit arguments into the `lockdown`
 call would require an awkward structuring of start modules, since

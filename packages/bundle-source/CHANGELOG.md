@@ -1,5 +1,30 @@
 # @endo/bundle-source
 
+## 4.2.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+### Patch Changes
+
+- [#3083](https://github.com/endojs/endo/pull/3083) [`644ab15`](https://github.com/endojs/endo/commit/644ab1541b8775841d3c79cd464da9d5e7f61f7a) Thanks [@turadg](https://github.com/turadg)! - Fix bundle cache corner cases, improve cache-root validation, and clarify CLI docs for `endoScript` bundle format.
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea), [`b8b52ce`](https://github.com/endojs/endo/commit/b8b52cef026a340b37ea91953476713e4258df0b), [`a2c32ec`](https://github.com/endojs/endo/commit/a2c32ec9c16e150d459e2cb01ab3a41c6ea1b847), [`81b4c40`](https://github.com/endojs/endo/commit/81b4c4096d96e4624f0623a0c70006a1f1db17b4)]:
+  - @endo/compartment-mapper@2.0.0
+  - @endo/harden@1.1.0
+  - @endo/promise-kit@1.2.0
+  - @endo/init@1.1.13
+  - @endo/evasive-transform@2.1.0
+
 ## [4.1.2](https://github.com/endojs/endo/compare/@endo/bundle-source@4.1.1...@endo/bundle-source@4.1.2) (2025-07-12)
 
 **Note:** Version bump only for package @endo/bundle-source
@@ -40,7 +65,7 @@
   [`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/) applied to
   TypeScript modules with `.ts`, `.mts`, and `.cts` extensions, for any package
   that is not under a `node_modules` directory, immitating `node
-  --experimental-strip-types`.
+--experimental-strip-types`.
   As with `.js` extensions, the behavior of `.ts` is either consistent with
   `.mts` or `.cts` depending on the `type` in `package.json`.
 

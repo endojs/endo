@@ -1,5 +1,19 @@
 # @endo/nat
 
+## 5.2.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
 ## [5.1.3](https://github.com/endojs/endo/compare/@endo/nat@5.1.2...@endo/nat@5.1.3) (2025-07-12)
 
 **Note:** Version bump only for package @endo/nat
@@ -16,7 +30,7 @@
 
 ### Features
 
-* **patterns:** M.containerHas(el,n) to support want patterns ([#2710](https://github.com/endojs/endo/issues/2710)) ([01529a5](https://github.com/endojs/endo/commit/01529a53fae5c4259901fdf85335013939aa09d2)), closes [#2002](https://github.com/endojs/endo/issues/2002) [#2008](https://github.com/endojs/endo/issues/2008) [#2113](https://github.com/endojs/endo/issues/2113) [#1739](https://github.com/endojs/endo/issues/1739) [#2008](https://github.com/endojs/endo/issues/2008) [#2008](https://github.com/endojs/endo/issues/2008) [#2002](https://github.com/endojs/endo/issues/2002) [#2008](https://github.com/endojs/endo/issues/2008)
+- **patterns:** M.containerHas(el,n) to support want patterns ([#2710](https://github.com/endojs/endo/issues/2710)) ([01529a5](https://github.com/endojs/endo/commit/01529a53fae5c4259901fdf85335013939aa09d2)), closes [#2002](https://github.com/endojs/endo/issues/2002) [#2008](https://github.com/endojs/endo/issues/2008) [#2113](https://github.com/endojs/endo/issues/2113) [#1739](https://github.com/endojs/endo/issues/1739) [#2008](https://github.com/endojs/endo/issues/2008) [#2008](https://github.com/endojs/endo/issues/2008) [#2002](https://github.com/endojs/endo/issues/2002) [#2008](https://github.com/endojs/endo/issues/2008)
 
 ## [5.0.14](https://github.com/endojs/endo/compare/@endo/nat@5.0.13...@endo/nat@5.0.14) (2025-01-24)
 
@@ -66,7 +80,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [5.0.2](https://github.com/endojs/endo/compare/@endo/nat@5.0.1...@endo/nat@5.0.2) (2024-01-18)
 

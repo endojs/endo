@@ -1,5 +1,19 @@
 # @endo/zip
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
 ## [1.0.11](https://github.com/endojs/endo/compare/@endo/zip@1.0.10...@endo/zip@1.0.11) (2025-06-17)
 
 **Note:** Version bump only for package @endo/zip
@@ -40,7 +54,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.1](https://github.com/endojs/endo/compare/@endo/zip@1.0.0...@endo/zip@1.0.1) (2024-01-18)
 
@@ -50,13 +64,13 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ## [0.2.35](https://github.com/endojs/endo/compare/@endo/zip@0.2.34...@endo/zip@0.2.35) (2023-09-12)
 
 ### Bug Fixes
 
-* **ses:** review suggestions ([e4be709](https://github.com/endojs/endo/commit/e4be709fa76adbf7662383956460a7d9b2ef0375))
+- **ses:** review suggestions ([e4be709](https://github.com/endojs/endo/commit/e4be709fa76adbf7662383956460a7d9b2ef0375))
 
 ## [0.2.34](https://github.com/endojs/endo/compare/@endo/zip@0.2.32...@endo/zip@0.2.34) (2023-08-07)
 
