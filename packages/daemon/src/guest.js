@@ -19,6 +19,8 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {() => Promise<void>} [args.collectIfDirty]
+ * @param {DaemonCore['pinTransient']} [args.pinTransient]
+ * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  */
 export const makeGuestMaker = ({
   provide,
@@ -26,6 +28,8 @@ export const makeGuestMaker = ({
   makeMailbox,
   makeDirectoryNode,
   collectIfDirty = async () => {},
+  pinTransient = /** @param {any} _id */ _id => {},
+  unpinTransient = /** @param {any} _id */ _id => {},
 }) => {
   /**
    * @param {FormulaIdentifier} guestId
@@ -212,7 +216,8 @@ export const makeGuestMaker = ({
       tasks.push(identifiers =>
         E(directory).write(namePath, identifiers.marshalId),
       );
-      await formulateMarshalValue(value, tasks);
+      const { id } = await formulateMarshalValue(value, tasks, pinTransient);
+      unpinTransient(id);
     };
 
     /** @type {EndoGuest} */

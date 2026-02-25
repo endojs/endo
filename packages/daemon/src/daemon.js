@@ -2397,17 +2397,23 @@ const makeDaemonCore = async (
    * @type {DaemonCore['formulateDirectory']}
    */
   const formulateDirectory = async () => {
-    const { id: petStoreId } = await formulateNumberedPetStore(
-      /** @type {FormulaNumber} */ (await randomHex256()),
-    );
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
-    /** @type {DirectoryFormula} */
-    const formula = {
-      type: 'directory',
-      petStore: petStoreId,
-    };
     return /** @type {FormulateResult<EndoDirectory>} */ (
-      formulate(formulaNumber, formula)
+      withFormulaGraphLock(async () => {
+        const { id: petStoreId } = await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        );
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        /** @type {DirectoryFormula} */
+        const formula = {
+          type: 'directory',
+          petStore: petStoreId,
+        };
+        const result = await formulate(formulaNumber, formula);
+        pinTransient(result.id);
+        return result;
+      })
     );
   };
 
@@ -3269,6 +3275,8 @@ const makeDaemonCore = async (
     getIdForRef,
     getTypeForId,
     formulateDirectory,
+    pinTransient,
+    unpinTransient,
   });
 
   const makeMailbox = makeMailboxMaker({
@@ -3289,6 +3297,8 @@ const makeDaemonCore = async (
     makeMailbox,
     makeDirectoryNode,
     collectIfDirty,
+    pinTransient,
+    unpinTransient,
   });
 
   /**

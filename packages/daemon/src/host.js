@@ -190,7 +190,8 @@ export const makeHostMaker = ({
         E(directory).write(namePath, identifiers.marshalId),
       );
 
-      await formulateMarshalValue(value, tasks);
+      const { id } = await formulateMarshalValue(value, tasks, pinTransient);
+      unpinTransient(id);
     };
 
     /**
