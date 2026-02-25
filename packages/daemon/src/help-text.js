@@ -456,9 +456,9 @@ or streamBase64() for streaming access.`,
 help(methodName?) -> string
 Get documentation for this interface or a specific method.`,
 
-  sha512: `\
-sha512() -> string
-Get the SHA-512 hash of the blob content.
+  sha256: `\
+sha256() -> string
+Get the SHA-256 hash of the blob content.
 This is the content address used for storage.`,
 
   streamBase64: `\

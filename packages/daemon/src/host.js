@@ -95,6 +95,7 @@ export const makeHostMaker = ({
    * @param {string} hostId
    * @param {string} handleId
    * @param {string | undefined} hostHandleId
+   * @param {string} keypairId
    * @param {string} storeId
    * @param {string} mailboxStoreId
    * @param {string} mailHubId
@@ -112,6 +113,7 @@ export const makeHostMaker = ({
     hostId,
     handleId,
     hostHandleId,
+    keypairId,
     storeId,
     mailboxStoreId,
     mailHubId,
@@ -136,6 +138,7 @@ export const makeHostMaker = ({
       AGENT: hostId,
       SELF: handleId,
       HOST: hostHandleId ?? handleId,
+      KEYPAIR: keypairId,
       MAIN: mainWorkerId,
       ENDO: endoId,
       NETS: networksDirectoryId,

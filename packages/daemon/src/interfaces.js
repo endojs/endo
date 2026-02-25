@@ -354,7 +354,7 @@ export const InspectorInterface = M.interface('EndoInspector', {
 
 export const BlobInterface = M.interface('EndoBlob', {
   help: M.call().optional(M.string()).returns(M.string()),
-  sha512: M.call().returns(M.string()),
+  sha256: M.call().returns(M.string()),
   streamBase64: M.call().returns(M.remotable()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),

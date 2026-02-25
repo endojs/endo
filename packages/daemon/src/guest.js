@@ -30,6 +30,7 @@ export const makeGuestMaker = ({
   /**
    * @param {FormulaIdentifier} guestId
    * @param {FormulaIdentifier} handleId
+   * @param {FormulaIdentifier} keypairId
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
    * @param {FormulaIdentifier} petStoreId
@@ -42,6 +43,7 @@ export const makeGuestMaker = ({
   const makeGuest = async (
     guestId,
     handleId,
+    keypairId,
     hostAgentId,
     hostHandleId,
     petStoreId,
@@ -63,6 +65,7 @@ export const makeGuestMaker = ({
       AGENT: guestId,
       SELF: handleId,
       HOST: hostHandleId,
+      KEYPAIR: keypairId,
     };
     if (mailHubId !== undefined) {
       specialNames.MAIL = mailHubId;

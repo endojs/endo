@@ -4,16 +4,16 @@
 |---|---|
 | **Date** | 2026-02-24 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | Core migration and per-agent keypairs complete; network registration and null-node locators are future work |
 
 ## What is the Problem Being Solved?
 
-The Endo daemon currently uses 512-bit (128-character hex) identifiers for
-formula numbers, node identifiers, and content addresses. This design is larger
-than necessary and misaligned with the OCapN-Noise network protocol, which uses
+The Endo daemon originally used 512-bit (128-character hex) identifiers for
+formula numbers, node identifiers, and content addresses. This was larger than
+necessary and misaligned with the OCapN-Noise network protocol, which uses
 Ed25519 public keys (256-bit / 64-character hex) for peer identification.
 
-Current state:
+Original state:
 
 | Component          | Size     | Encoding       | Source                      |
 |--------------------|----------|----------------|------------------------------|
@@ -22,75 +22,53 @@ Current state:
 | Formula Identifier | 257 chars| `{number}:{node}` | Composite                |
 | Content Address    | 512 bits | 128-char hex   | SHA-512(content)            |
 
-Problems with the current approach:
+Problems with the original approach:
 
-1. **Excessive identifier size**: 512-bit random identifiers provide far more
+1. **Excessive identifier size**: 512-bit random identifiers provided far more
    collision resistance than necessary (2^256 is already astronomical).
 2. **Misalignment with OCapN-Noise**: The network protocol uses Ed25519 keys
-   (256-bit) for peer identity. The daemon's 512-bit node identifier is
+   (256-bit) for peer identity. The daemon's 512-bit node identifier was
    redundant — it should be the Ed25519 public key directly.
 3. **Storage inefficiency**: Every formula path, pet store entry, and message
-   reference carries 128-character hex strings where 64 would suffice.
+   reference carried 128-character hex strings where 64 would suffice.
 4. **SHA-256 is sufficient**: For content addressing, SHA-256 provides adequate
    collision resistance and is more widely deployed.
 
-## Description of the Design
+## Current State
 
-### Target State
+All core identifier migration work and per-agent keypairs are complete.
 
-| Component          | New Size | Encoding     | Source                  |
+| Component          | Size     | Encoding     | Source                  |
 |--------------------|----------|--------------|--------------------------|
 | Node/Peer ID       | 256 bits | 64-char hex  | Ed25519 public key      |
 | Formula Number     | 256 bits | 64-char hex  | Random or SHA-256       |
 | Formula Identifier | 129 chars| `{number}:{node}` | Composite          |
 | Content Address    | 256 bits | 64-char hex  | SHA-256(content)        |
 
-### Peer Identification
+### What Was Done
 
-Replace the derived SHA-512 node identifier with the Ed25519 public key
-directly. The daemon already needs an Ed25519 keypair for OCapN-Noise
-authentication; using the public key as the node identifier eliminates
-redundancy.
+#### Peer Identification
+
+The SHA-512 derived node identifier was replaced with an Ed25519 public key.
+The daemon generates a **root keypair** at first start, stored at
+`{statePath}/keypair` alongside the `nonce` file. The public key hex serves as
+`localNodeNumber`.
 
 ```js
-// Current: derive node ID from root nonce
-const nodeNumber = deriveId('node', rootEntropy, cryptoPowers.makeSha512());
-// 128-char hex, e.g.: "a1b2c3d4...{124 more chars}"
-
-// Proposed: use Ed25519 public key
-const { publicKey } = await cryptoPowers.generateEd25519Keypair();
-const nodeNumber = bufferToHex(publicKey);
-// 64-char hex, e.g.: "a1b2c3d4...{60 more chars}"
+// daemon.js — daemon initialization
+const { keypair: rootKeypair } =
+  await persistencePowers.provideRootKeypair();
+const localNodeNumber = Array.from(rootKeypair.publicKey, byte =>
+  byte.toString(16).padStart(2, '0'),
+).join('');
 ```
 
-At daemon initialization (`packages/daemon/src/daemon.js:238`), the root
-entropy derivation changes from:
+#### Formula Number Generation
+
+512-bit random was replaced with 256-bit random for all formula numbers:
 
 ```js
-deriveId('node', rootEntropy, cryptoPowers.makeSha512())
-```
-
-to generating an Ed25519 keypair and storing both keys (the private key is
-needed for OCapN-Noise handshakes).
-
-### Formula Number Generation
-
-Replace 512-bit random with 256-bit random for capability formulas:
-
-```js
-// Current (daemon-node-powers.js:281-290)
-const randomHex512 = () =>
-  new Promise((resolve, reject) =>
-    crypto.randomBytes(64, (err, bytes) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(bytes.toString('hex'));
-      }
-    }),
-  );
-
-// Proposed
+// daemon-node-powers.js
 const randomHex256 = () =>
   new Promise((resolve, reject) =>
     crypto.randomBytes(32, (err, bytes) => {
@@ -103,42 +81,15 @@ const randomHex256 = () =>
   );
 ```
 
-### Content Addressing
+#### Content Addressing
 
-Replace SHA-512 with SHA-256 for content-addressed formulas:
+SHA-512 was replaced with SHA-256 for content-addressed formulas
+(`makeContentSha256Store`).
 
-```js
-// Current (daemon-node-powers.js:272-279)
-const makeSha512 = () => {
-  const digester = crypto.createHash('sha512');
-  return harden({
-    update: chunk => digester.update(chunk),
-    updateText: chunk => digester.update(textEncoder.encode(chunk)),
-    digestHex: () => digester.digest('hex'),
-  });
-};
-
-// Proposed
-const makeSha256 = () => {
-  const digester = crypto.createHash('sha256');
-  return harden({
-    update: chunk => digester.update(chunk),
-    updateText: chunk => digester.update(textEncoder.encode(chunk)),
-    digestHex: () => digester.digest('hex'),
-  });
-};
-```
-
-### CryptoPowers Interface Change
+#### CryptoPowers Interface
 
 ```typescript
-// Current (types.d.ts:953-958)
-export type CryptoPowers = {
-  makeSha512: () => Sha512;
-  randomHex512: () => Promise<string>;
-};
-
-// Proposed
+// types.d.ts
 export type Sha256 = {
   update: (chunk: Uint8Array) => void;
   updateText: (chunk: string) => void;
@@ -147,7 +98,7 @@ export type Sha256 = {
 
 export type Ed25519Keypair = {
   publicKey: Uint8Array;  // 32 bytes
-  privateKey: Uint8Array; // 64 bytes (seed + public key, per NaCl convention)
+  privateKey: Uint8Array; // 32 bytes (seed)
 };
 
 export type CryptoPowers = {
@@ -157,57 +108,36 @@ export type CryptoPowers = {
 };
 ```
 
-### Validation Pattern Change
+Key *persistence* is not a crypto concern — it belongs in
+`DaemonicPersistencePowers`. `CryptoPowers` only generates keypairs; the
+caller is responsible for storing them via the persistence layer.
+
+#### Validation Patterns
 
 ```js
-// Current (formula-identifier.js:8-9)
-const numberPattern = /^[0-9a-f]{128}$/;
-const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
-
-// Proposed
+// formula-identifier.js
 const numberPattern = /^[0-9a-f]{64}$/;
 const idPattern = /^(?<number>[0-9a-f]{64}):(?<node>[0-9a-f]{64})$/;
 ```
 
-### Locator Format
+#### Locator Format
 
-The locator format remains the same but with shorter identifiers:
+The locator format is unchanged but uses shorter identifiers:
 
 ```
-// Current (257 + URL overhead characters)
-endo://{128-char node}/?id={128-char number}&type={type}
-
-// Proposed (129 + URL overhead characters)
 endo://{64-char node}/?id={64-char number}&type={type}
 ```
 
-### Storage Path Format
+#### Storage Path Format
 
-Formula storage paths change to accommodate shorter identifiers:
-
-```js
-// Current (daemon-node-powers.js:396-406)
-// Path: {statePath}/formulas/{head(2)}/{tail(126)}.json
-// Example: ~/.local/state/endo/formulas/a1/b2c3d4...{122 chars}.json
-
-// Proposed
-// Path: {statePath}/formulas/{head(2)}/{tail(62)}.json
-// Example: ~/.local/state/endo/formulas/a1/b2c3d4...{58 chars}.json
+```
+{statePath}/formulas/{head(2)}/{tail(62)}.json
 ```
 
-### Branded Types Documentation
-
-Update the type documentation in `types.d.ts`:
+#### Branded Types
 
 ```typescript
-// Current (types.d.ts:20-27)
-/** A 128-character hex string identifying a formula within a node */
-export type FormulaNumber = string & { [FormulaNumberBrand]: true };
-
-/** A 128-character hex string identifying a node */
-export type NodeNumber = string & { [NodeNumberBrand]: true };
-
-// Proposed
+// types.d.ts
 /** A 64-character hex string identifying a formula within a node */
 export type FormulaNumber = string & { [FormulaNumberBrand]: true };
 
@@ -215,62 +145,267 @@ export type FormulaNumber = string & { [FormulaNumberBrand]: true };
 export type NodeNumber = string & { [NodeNumberBrand]: true };
 ```
 
-## Files to Modify
+### Per-Agent Keypairs
 
-### Daemon Core
+Each host and guest agent now has its own Ed25519 keypair, stored as a
+`keypair` formula in the formula graph. The keypair is generated when the
+agent is formulated, and the agent can look up its own keypair via the
+`KEYPAIR` special name.
 
-**`packages/daemon/src/formula-identifier.js`** (lines 8-9)
-- Change `numberPattern` regex from `{128}` to `{64}`
-- Change `idPattern` regex from `{128}` to `{64}`
+#### KeypairFormula
 
-**`packages/daemon/src/daemon-node-powers.js`**
-- Lines 272-279: Replace `makeSha512` with `makeSha256`
-- Lines 281-290: Replace `randomHex512` with `randomHex256`
-- Lines 292-296: Update returned object
-- Lines 333-390: Update `makeContentSha512Store` to `makeContentSha256Store`
-  - Line 335: Change directory from `store-sha512` to `store-sha256`
-  - Line 343: Use `makeSha256` instead of `makeSha512`
-- Add `generateEd25519Keypair` function
+```typescript
+type KeypairFormula = {
+  type: 'keypair';
+  publicKey: string;   // 64-char hex Ed25519 public key
+  privateKey: string;  // 64-char hex Ed25519 private key (seed)
+};
+```
 
-**`packages/daemon/src/daemon.js`**
-- Line 202: Destructure `randomHex256` instead of `randomHex512`
-- Line 238: Replace SHA-512 derivation with Ed25519 keypair generation
-- Lines 2243-3045: Replace all `randomHex512()` calls with `randomHex256()`
-  (approximately 30 call sites)
+The keypair formula contains the key material directly. This keeps the formula
+graph as the single source of truth — keypair lifecycle follows formula
+lifecycle (deleting the formula deletes the keys), and no new persistence
+powers are needed. The private key in a formula JSON file has the same security
+posture as the existing `nonce` file: plaintext on disk, protected by
+filesystem permissions.
 
-**`packages/daemon/src/types.d.ts`**
-- Lines 20-27: Update type documentation for `FormulaNumber` and `NodeNumber`
-- Lines 53-57: Rename `Sha512` to `Sha256`
-- Lines 953-958: Update `CryptoPowers` type
+Keypair formulas have no dependencies (empty `extractDeps` return) and their
+maker simply exposes the public key:
 
-**`packages/daemon/src/locator.js`**
-- Update format documentation comment (lines 9-15)
-- No code changes needed (uses `isValidNumber` from formula-identifier.js)
+```js
+// daemon.js makers table
+keypair: ({ publicKey }) => harden({ publicKey }),
+```
 
-**`packages/daemon/src/mail.js`**
-- Lines 130, 143: Update type annotation for `randomHex512` parameter
-- Replace all `randomHex512` calls with `randomHex256` (approximately 9 sites)
+#### Agent Formulas
 
-### Tests
+Both `HostFormula` and `GuestFormula` now include a required `keypair` field:
 
-**`packages/daemon/test/endo.test.js`**
-- Lines 2372-2373: Update test fixtures to use 64-char identifiers
-- Any hardcoded 128-char hex patterns
+```typescript
+type HostFormula = {
+  type: 'host';
+  handle: FormulaIdentifier;
+  hostHandle: FormulaIdentifier;
+  keypair: FormulaIdentifier;
+  worker: FormulaIdentifier;
+  inspector: FormulaIdentifier;
+  petStore: FormulaIdentifier;
+  mailboxStore: FormulaIdentifier;
+  mailHub: FormulaIdentifier;
+  endo: FormulaIdentifier;
+  networks: FormulaIdentifier;
+  pins: FormulaIdentifier;
+};
 
-**`packages/daemon/test/formula-identifier.test.js`** (if exists)
-- Update test patterns
+type GuestFormula = {
+  type: 'guest';
+  handle: FormulaIdentifier;
+  keypair: FormulaIdentifier;
+  hostHandle: FormulaIdentifier;
+  hostAgent: FormulaIdentifier;
+  petStore: FormulaIdentifier;
+  mailboxStore: FormulaIdentifier;
+  mailHub: FormulaIdentifier;
+  worker: FormulaIdentifier;
+};
+```
 
-### CLI
+#### Formulation Flow
 
-**`packages/cli/`**
-- Search for any identifier validation or display code
-- Update any hardcoded length assumptions
+When a host or guest is formulated, `formulateKeypair()` generates a fresh
+Ed25519 keypair, hex-encodes the keys using `Array.from().join('')` (SES-safe,
+no `Buffer`), and writes it as a keypair formula:
 
-### Chat
+```js
+const formulateKeypair = async () => {
+  const keypair = await generateEd25519Keypair();
+  const publicKeyHex = Array.from(keypair.publicKey, byte =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+  const privateKeyHex = Array.from(keypair.privateKey, byte =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+  const keypairFormulaNumber = await randomHex256();
+  const formula = { type: 'keypair', publicKey: publicKeyHex, privateKey: privateKeyHex };
+  const { id: keypairId } = await formulate(keypairFormulaNumber, formula);
+  return { keypairId };
+};
+```
 
-**`packages/chat/`**
-- Search for any identifier validation or display code
-- Update any hardcoded length assumptions
+The returned `keypairId` is included in `formulateHostDependencies` and
+`formulateGuestDependencies`, then stored in the host/guest formula.
+
+#### Special Names
+
+Both `makeHost` and `makeGuest` accept a `keypairId` parameter and register it
+as the `KEYPAIR` special name, allowing agents to look up their own keypair:
+
+```js
+// host.js
+const specialNames = {
+  ...platformNames,
+  AGENT: hostId,
+  SELF: handleId,
+  HOST: hostHandleId ?? handleId,
+  KEYPAIR: keypairId,
+  MAIN: mainWorkerId,
+  ENDO: endoId,
+  // ...
+};
+
+// guest.js
+const specialNames = {
+  AGENT: guestId,
+  SELF: handleId,
+  HOST: hostHandleId,
+  KEYPAIR: keypairId,
+};
+```
+
+#### Formula Types
+
+The complete set of 26 formula types (`formula-type.js`):
+
+`directory`, `endo`, `eval`, `guest`, `handle`, `host`, `invitation`,
+`keypair`, `known-peers-store`, `least-authority`, `lookup`,
+`loopback-network`, `mail-hub`, `mailbox-store`, `make-bundle`,
+`make-unconfined`, `marshal`, `message`, `peer`, `pet-inspector`,
+`pet-store`, `promise`, `readable-blob`, `resolver`, `worker`.
+
+## Future Work
+
+### Network Registration
+
+Each installed network (accessible through the NETS formula) will need to know
+the public keys of all active agents so the network layer can accept and
+negotiate connections on behalf of any persona.
+
+**Registration flow:**
+
+1. When a new agent with a keypair is created, the daemon registers that
+   agent's public key with every installed network.
+2. Each agent tracks its own set of retained agents (via its pet store) and
+   maintains the list of known keys for each installed network incrementally.
+3. When a network receives an inbound connection, it can identify which local
+   agent the remote peer is trying to reach by matching the target public key.
+
+**Interface sketch:**
+
+```typescript
+// On the network object (Far reference)
+interface EndoNetwork {
+  // ... existing methods ...
+  registerAgentKey(publicKey: string, agentId: FormulaIdentifier): Promise<void>;
+  unregisterAgentKey(publicKey: string): Promise<void>;
+}
+```
+
+This is additive — networks that do not support multi-key registration simply
+ignore the calls. The daemon root keypair is always registered as the default.
+
+### Per-Agent Connection Hints
+
+Each agent/persona can independently manage connection hints that control how
+peers reach them on the network.
+
+**Examples of per-agent connection policies:**
+
+- **Require anonymizing relay**: A pseudonymous persona may require all inbound
+  connections to arrive through a relay, never revealing the daemon's network
+  address.
+- **Allow direct connections**: A named persona may accept direct TCP
+  connections for lower latency.
+- **Prefer specific transports**: A persona may prefer WebSocket over raw TCP,
+  or vice versa.
+
+**Storage:** Connection hints are stored per-agent alongside the keypair:
+
+```typescript
+type AgentConnectionHints = {
+  publicKey: string;                // 64-char hex Ed25519 public key
+  requireRelay?: boolean;           // force connections through relay
+  allowDirectConnect?: boolean;     // accept direct inbound connections
+  preferredTransports?: string[];   // ordered list of transport preferences
+  relayAddresses?: string[];        // specific relay nodes to use
+};
+```
+
+Connection hints are advisory — the network layer uses them to configure
+listener behavior and to advertise appropriate addresses to peers, but the
+agent's keypair is the ultimate identity.
+
+### Locator Construction with Agent Keys
+
+When an agent constructs a locator for external consumption, it should use
+*its own* public key as the peer/node component, not `localNodeNumber`. This
+means the same local formula can appear under different locators depending on
+which agent is sharing it.
+
+### Null Local Node in Formula Keys
+
+With multiple agent public keys, there is no single canonical
+`localNodeNumber` to embed in formula keys for locally-stored formulas. Using
+any specific agent's public key would create an artificial dependency between
+formula storage and agent identity.
+
+**Proposal: Sentinel Null Node**
+
+Use 64 characters of `'0'` (`'0'.repeat(64)`) as a sentinel "null node" value
+in locally-stored formula keys. This is analogous to how `0.0.0.0` works in
+networking — a "this host" placeholder that is never a valid Ed25519 public key
+(since the all-zeros point is not on the curve).
+
+```js
+const NULL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
+```
+
+**Formula key construction:**
+
+```js
+// Local formula key (stored on disk)
+const localId = formatId({ number: formulaNumber, node: NULL_NODE });
+
+// Locator for external consumption (agent-specific)
+const locator = formatId({ number: formulaNumber, node: agentPublicKey });
+```
+
+**`isLocalId` change:**
+
+```js
+// Current
+const isLocalId = id => parseId(id).node === localNodeNumber;
+
+// Proposed
+const isLocalId = id => parseId(id).node === NULL_NODE;
+```
+
+**Inbound locator normalization:** When receiving a locator from the network
+and converting it to a formula key for local storage, the daemon replaces the
+agent's public key with `NULL_NODE`:
+
+```js
+const normalizeInboundId = id => {
+  const { number, node } = parseId(id);
+  if (isKnownLocalKey(node)) {
+    return formatId({ number, node: NULL_NODE });
+  }
+  return id; // remote formula, keep as-is
+};
+```
+
+**Outbound locator construction:** When constructing a locator for external
+consumption, the daemon replaces `NULL_NODE` with the sharing agent's public
+key:
+
+```js
+const externalizeId = (id, agentPublicKey) => {
+  const { number, node } = parseId(id);
+  if (node === NULL_NODE) {
+    return formatId({ number, node: agentPublicKey });
+  }
+  return id; // remote formula, keep as-is
+};
+```
 
 ## Security Considerations
 
@@ -297,17 +432,16 @@ export type NodeNumber = string & { [NodeNumberBrand]: true };
 ## Migration Notes
 
 - **No backward compatibility**: This migration does not maintain compatibility
-  with existing 512-bit identifiers. All test users must purge their daemon
+  with the original 512-bit identifiers. All test users must purge their daemon
   state (`rm -rf ~/.local/state/endo/`).
 
 - **Clean slate**: The migration assumes fresh daemon state. Future work may
   introduce versioned formula identifiers if backward compatibility becomes
   necessary.
 
-- **OCapN-Noise alignment**: After this migration, the daemon's node identifier
-  will be the Ed25519 public key, which is already used by OCapN-Noise for peer
-  authentication. This eliminates the need to maintain two separate peer
-  identification schemes.
+- **OCapN-Noise alignment**: The daemon's node identifier is now the Ed25519
+  public key, which is already used by OCapN-Noise for peer authentication.
+  This eliminates the need to maintain two separate peer identification schemes.
 
 ## Test Plan
 
@@ -326,6 +460,8 @@ export type NodeNumber = string & { [NodeNumberBrand]: true };
    - Formula storage uses new path format
    - Content addressing uses SHA-256
    - Locators parse correctly
+   - Keypair formula JSON files appear in test state directories
+   - Agents have KEYPAIR in their special names
 
 4. **Cross-package tests**:
    - CLI commands handle new identifier format

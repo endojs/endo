@@ -11,6 +11,7 @@ const formulaTypes = new Set([
   'handle',
   'host',
   'invitation',
+  'keypair',
   'known-peers-store',
   'least-authority',
   'lookup',

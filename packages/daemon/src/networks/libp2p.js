@@ -12,6 +12,7 @@ import { webSockets } from '@libp2p/websockets';
 import * as wsFilters from '@libp2p/websockets/filters';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2p } from 'libp2p';
+import { fromHex } from '../hex.js';
 
 import { E, Far } from '@endo/far';
 
@@ -36,10 +37,7 @@ const AMINO_DHT_BOOTSTRAP_NODES = harden([
  * @param {string} nodeIdHex
  */
 const derivePrivateKey = async nodeIdHex => {
-  const seed = new Uint8Array(32);
-  for (let i = 0; i < 32; i += 1) {
-    seed[i] = parseInt(nodeIdHex.slice(i * 2, i * 2 + 2), 16);
-  }
+  const seed = fromHex(nodeIdHex);
   return generateKeyPairFromSeed('Ed25519', seed);
 };
 

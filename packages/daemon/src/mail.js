@@ -127,7 +127,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
  * @param {DaemonCore['formulatePromise']} args.formulatePromise
  * @param {DaemonCore['formulateMessage']} args.formulateMessage
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
- * @param {() => Promise<string>} args.randomHex512
+ * @param {() => Promise<string>} args.randomHex256
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param args.getTypeForId
@@ -140,7 +140,7 @@ export const makeMailboxMaker = ({
   formulateMessage,
   getFormulaForId,
   getTypeForId,
-  randomHex512,
+  randomHex256,
   pinTransient = () => {},
   unpinTransient = () => {},
 }) => {
@@ -215,7 +215,7 @@ export const makeMailboxMaker = ({
       toId,
     ) => {
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
@@ -246,7 +246,7 @@ export const makeMailboxMaker = ({
      */
     const makeDefineRequest = async (source, slots, fromId, toId) => {
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
@@ -276,7 +276,7 @@ export const makeMailboxMaker = ({
      */
     const makeFormRequest = async (description, fields, fromId, toId) => {
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const { promiseId, resolverId } = await formulatePromise(pinTransient);
       const resolutionIdP = provide(promiseId);
@@ -934,7 +934,7 @@ export const makeMailboxMaker = ({
         throw new Error(`Unknown recipient ${q(toNameOrPath)}`);
       }
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
@@ -996,7 +996,7 @@ export const makeMailboxMaker = ({
       }
       const otherId = parent.from === selfId ? parent.to : parent.from;
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const to = await provideHandle(
         /** @type {FormulaIdentifier} */ (otherId),
@@ -1114,7 +1114,7 @@ export const makeMailboxMaker = ({
       assertValidId(toId);
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
 
       const { request: req, response: resolutionIdP } = await makeRequest(
@@ -1409,7 +1409,7 @@ export const makeMailboxMaker = ({
       const to = /** @type {Handle} */ (await provide(toId));
 
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
 
       // Create a responder to receive the evaluation result
@@ -1547,7 +1547,7 @@ export const makeMailboxMaker = ({
 
       const counterMessageId =
         /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
 
       // Create a responder for the counter-proposal

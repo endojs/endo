@@ -7,8 +7,8 @@ import {
   parseId,
 } from '../src/formula-identifier.js';
 
-const validNumber = 'a'.repeat(128);
-const validNode = 'b'.repeat(128);
+const validNumber = 'a'.repeat(64);
+const validNode = 'b'.repeat(64);
 const validId = `${validNumber}:${validNode}`;
 
 test('parseId extracts number and node', t => {
@@ -40,16 +40,22 @@ test('assertValidId rejects empty string', t => {
   t.throws(() => assertValidId(''));
 });
 
-test('assertValidId rejects wrong length', t => {
-  t.throws(() => assertValidId(`${'a'.repeat(64)}:${'b'.repeat(64)}`));
+test('assertValidId rejects old 128-char format', t => {
+  t.throws(() =>
+    assertValidId(`${'a'.repeat(128)}:${'b'.repeat(128)}`),
+  );
 });
 
-test('assertValidNumber accepts 128-char hex', t => {
+test('assertValidNumber accepts 64-char hex', t => {
   t.notThrows(() => assertValidNumber(validNumber));
 });
 
+test('assertValidNumber rejects 128-char hex', t => {
+  t.throws(() => assertValidNumber('a'.repeat(128)));
+});
+
 test('assertValidNumber rejects non-hex', t => {
-  t.throws(() => assertValidNumber('g'.repeat(128)));
+  t.throws(() => assertValidNumber('g'.repeat(64)));
 });
 
 test('parseId rejects bare number', t => {

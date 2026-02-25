@@ -11,6 +11,7 @@ import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
+import { toHex, fromHex } from './hex.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
@@ -269,8 +270,8 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
  * @returns {CryptoPowers}
  */
 export const makeCryptoPowers = crypto => {
-  const makeSha512 = () => {
-    const digester = crypto.createHash('sha512');
+  const makeSha256 = () => {
+    const digester = crypto.createHash('sha256');
     return harden({
       update: chunk => digester.update(chunk),
       updateText: chunk => digester.update(textEncoder.encode(chunk)),
@@ -278,9 +279,9 @@ export const makeCryptoPowers = crypto => {
     });
   };
 
-  const randomHex512 = () =>
+  const randomHex256 = () =>
     new Promise((resolve, reject) =>
-      crypto.randomBytes(64, (err, bytes) => {
+      crypto.randomBytes(32, (err, bytes) => {
         if (err) {
           reject(err);
         } else {
@@ -289,9 +290,45 @@ export const makeCryptoPowers = crypto => {
       }),
     );
 
+  const generateEd25519Keypair = () =>
+    new Promise((resolve, reject) =>
+      crypto.generateKeyPair(
+        'ed25519',
+        /** @type {import('crypto').ED25519KeyPairKeyObjectOptions} */ ({}),
+        (err, publicKeyObject, privateKeyObject) => {
+          if (err) {
+            reject(err);
+          } else {
+            const publicDer = publicKeyObject.export({
+              type: 'spki',
+              format: 'der',
+            });
+            const privateDer = privateKeyObject.export({
+              type: 'pkcs8',
+              format: 'der',
+            });
+            // Extract raw 32-byte keys from DER encoding.
+            // Ed25519 SPKI DER has a 12-byte prefix before the 32-byte key.
+            // Ed25519 PKCS8 DER has a 16-byte prefix before the 32-byte seed.
+            const rawPublicKey = publicDer.subarray(publicDer.length - 32);
+            const rawPrivateKey = privateDer.subarray(
+              privateDer.length - 32,
+            );
+            resolve(
+              harden({
+                publicKey: new Uint8Array(rawPublicKey),
+                privateKey: new Uint8Array(rawPrivateKey),
+              }),
+            );
+          }
+        },
+      ),
+    );
+
   return harden({
-    makeSha512,
-    randomHex512,
+    makeSha256,
+    randomHex256,
+    generateEd25519Keypair,
   });
 };
 
@@ -320,7 +357,7 @@ export const makeDaemonicPersistencePowers = (
     const existingNonce = await filePowers.maybeReadFileText(noncePath);
     if (existingNonce === undefined) {
       const rootNonce = /** @type {FormulaNumber} */ (
-        await cryptoPowers.randomHex512()
+        await cryptoPowers.randomHex256()
       );
       await filePowers.writeFileText(noncePath, `${rootNonce}\n`);
       return { rootNonce, isNewlyCreated: true };
@@ -330,9 +367,30 @@ export const makeDaemonicPersistencePowers = (
     }
   };
 
-  const makeContentSha512Store = () => {
+  /** @type {DaemonicPersistencePowers['provideRootKeypair']} */
+  const provideRootKeypair = async () => {
+    const keypairPath = filePowers.joinPath(config.statePath, 'keypair');
+    const existingKeypair = await filePowers.maybeReadFileText(keypairPath);
+    if (existingKeypair === undefined) {
+      const keypair = await cryptoPowers.generateEd25519Keypair();
+      const publicHex = toHex(keypair.publicKey);
+      const privateHex = toHex(keypair.privateKey);
+      await filePowers.writeFileText(
+        keypairPath,
+        `${publicHex}\n${privateHex}\n`,
+      );
+      return { keypair, isNewlyCreated: true };
+    } else {
+      const lines = existingKeypair.trim().split('\n');
+      const publicKey = fromHex(lines[0]);
+      const privateKey = fromHex(lines[1]);
+      return { keypair: { publicKey, privateKey }, isNewlyCreated: false };
+    }
+  };
+
+  const makeContentSha256Store = () => {
     const { statePath } = config;
-    const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha512');
+    const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
 
     return harden({
       /**
@@ -340,11 +398,11 @@ export const makeDaemonicPersistencePowers = (
        * @returns {Promise<string>}
        */
       async store(readable) {
-        const digester = cryptoPowers.makeSha512();
-        const storageId512 = await cryptoPowers.randomHex512();
+        const digester = cryptoPowers.makeSha256();
+        const storageId256 = await cryptoPowers.randomHex256();
         const temporaryStoragePath = filePowers.joinPath(
           storageDirectoryPath,
-          storageId512,
+          storageId256,
         );
 
         // Stream to temporary file and calculate hash.
@@ -357,18 +415,18 @@ export const makeDaemonicPersistencePowers = (
         await fileWriter.return(undefined);
 
         // Calculate hash.
-        const sha512 = digester.digestHex();
+        const sha256 = digester.digestHex();
         // Finish with an atomic rename.
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
         await filePowers.renamePath(temporaryStoragePath, storagePath);
-        return sha512;
+        return sha256;
       },
       /**
-       * @param {string} sha512
+       * @param {string} sha256
        * @returns {EndoReadable}
        */
-      fetch(sha512) {
-        const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
+      fetch(sha256) {
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
         const streamBase64 = () => {
           const reader = filePowers.makeFileReader(storagePath);
           return makeReaderRef(reader);
@@ -381,7 +439,7 @@ export const makeDaemonicPersistencePowers = (
           return JSON.parse(jsonSrc);
         };
         return harden({
-          sha512: () => sha512,
+          sha256: () => sha256,
           streamBase64,
           text,
           json,
@@ -483,7 +541,8 @@ export const makeDaemonicPersistencePowers = (
   return harden({
     initializePersistence,
     provideRootNonce,
-    makeContentSha512Store,
+    provideRootKeypair,
+    makeContentSha256Store,
     readFormula,
     writeFormula,
     deleteFormula,

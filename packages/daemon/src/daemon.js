@@ -32,6 +32,7 @@ import {
 } from './formula-identifier.js';
 import { makeFormulaGraph } from './graph.js';
 import { makeResidenceTracker } from './residence.js';
+import { toHex } from './hex.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -61,7 +62,7 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
+/** @import { Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -126,7 +127,7 @@ const makeFarContext = context =>
  *
  * @param {string} path
  * @param {string} rootNonce
- * @param {Sha512} digester
+ * @param {Sha256} digester
  * @returns {string}
  */
 const deriveId = (path, rootNonce, digester) => {
@@ -187,11 +188,12 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  * @param {number} args.gracePeriodMs
  * @param {Specials} args.specials
  * @param {Promise<never>} args.gracePeriodElapsed
+ * @param {NodeNumber} args.localNodeNumber
  */
 const makeDaemonCore = async (
   powers,
   rootEntropy,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials },
+  { cancel, gracePeriodMs, gracePeriodElapsed, specials, localNodeNumber },
 ) => {
   const {
     crypto: cryptoPowers,
@@ -199,8 +201,8 @@ const makeDaemonCore = async (
     persistence: persistencePowers,
     control: controlPowers,
   } = powers;
-  const { randomHex512 } = cryptoPowers;
-  const contentStore = persistencePowers.makeContentSha512Store();
+  const { randomHex256, generateEd25519Keypair } = cryptoPowers;
+  const contentStore = persistencePowers.makeContentSha256Store();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
   /** @type {Map<string, (reason?: Error) => Promise<void>>} */
@@ -232,11 +234,6 @@ const makeDaemonCore = async (
       formulaGraphLockDepth -= 1;
     }
   };
-  // This is the id of the node that is hosting the values.
-  // This will likely get replaced with a public key in the future.
-  const localNodeNumber = /** @type {NodeNumber} */ (
-    deriveId('node', rootEntropy, cryptoPowers.makeSha512())
-  );
   console.log('Node', localNodeNumber);
   const endoFormulaId = formatId({
     number: /** @type {FormulaNumber} */ (rootEntropy),
@@ -252,7 +249,7 @@ const makeDaemonCore = async (
    */
   const preformulate = async (derivation, formula) => {
     const formulaNumber = /** @type {FormulaNumber} */ (
-      deriveId(derivation, rootEntropy, cryptoPowers.makeSha512())
+      deriveId(derivation, rootEntropy, cryptoPowers.makeSha256())
     );
     const id = formatId({
       number: formulaNumber,
@@ -327,6 +324,8 @@ const makeDaemonCore = async (
       case 'host':
         return [
           formula.handle,
+          formula.hostHandle,
+          formula.keypair,
           formula.worker,
           formula.inspector,
           formula.petStore,
@@ -339,6 +338,7 @@ const makeDaemonCore = async (
       case 'guest':
         return [
           formula.handle,
+          formula.keypair,
           formula.hostHandle,
           formula.hostAgent,
           formula.petStore,
@@ -980,18 +980,18 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} sha512
+   * @param {string} sha256
    */
-  const makeReadableBlob = sha512 => {
-    const { text, json, streamBase64 } = contentStore.fetch(sha512);
+  const makeReadableBlob = sha256 => {
+    const { text, json, streamBase64 } = contentStore.fetch(sha256);
     const help = makeHelp(blobHelp);
     /** @type {FarRef<EndoReadable>} */
     return makeExo(
-      `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
+      `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
       {
         help,
-        sha512: () => sha512,
+        sha256: () => sha256,
         streamBase64,
         text,
         json,
@@ -1794,6 +1794,7 @@ const makeDaemonCore = async (
     },
     eval: ({ worker, source, names, values }, context) =>
       makeEval(worker, source, names, values, context),
+    keypair: ({ publicKey }) => harden({ publicKey }),
     'readable-blob': ({ content }) => makeReadableBlob(content),
     lookup: ({ hub, path }, context) =>
       makeLookup(
@@ -1815,6 +1816,7 @@ const makeDaemonCore = async (
       const {
         hostHandle: hostHandleId,
         handle: handleId,
+        keypair: keypairId,
         petStore: petStoreId,
         mailboxStore: mailboxStoreId,
         mailHub: mailHubId,
@@ -1834,6 +1836,7 @@ const makeDaemonCore = async (
         id,
         handleId,
         hostHandleId,
+        keypairId,
         petStoreId,
         mailboxStoreId,
         mailHubId,
@@ -1853,6 +1856,7 @@ const makeDaemonCore = async (
     guest: async (formula, context, id) => {
       const {
         handle: handleId,
+        keypair: keypairId,
         hostAgent: hostAgentId,
         hostHandle: hostHandleId,
         petStore: petStoreId,
@@ -1869,6 +1873,7 @@ const makeDaemonCore = async (
       const agent = await makeGuest(
         id,
         handleId,
+        keypairId,
         hostAgentId,
         hostHandleId,
         petStoreId,
@@ -2240,9 +2245,9 @@ const makeDaemonCore = async (
       withFormulaGraphLock(async () => {
         await null;
         const formulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
-        const contentSha512 = await contentStore.store(
+        const contentSha256 = await contentStore.store(
           makeRefReader(readerRef),
         );
 
@@ -2256,7 +2261,7 @@ const makeDaemonCore = async (
         /** @type {ReadableBlobFormula} */
         const formula = {
           type: 'readable-blob',
-          content: contentSha512,
+          content: contentSha256,
         };
 
         return formulate(formulaNumber, formula);
@@ -2279,7 +2284,7 @@ const makeDaemonCore = async (
     return /** @type {FormulateResult<Invitation>} */ (
       withFormulaGraphLock(async () => {
         const invitationNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
         const invitationId = formatId({
           number: invitationNumber,
@@ -2393,9 +2398,9 @@ const makeDaemonCore = async (
    */
   const formulateDirectory = async () => {
     const { id: petStoreId } = await formulateNumberedPetStore(
-      /** @type {FormulaNumber} */ (await randomHex512()),
+      /** @type {FormulaNumber} */ (await randomHex256()),
     );
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
     /** @type {DirectoryFormula} */
     const formula = {
       type: 'directory',
@@ -2433,7 +2438,7 @@ const makeDaemonCore = async (
    */
   const formulateWorker = async (deferredTasks, trustedShims = undefined) => {
     return withFormulaGraphLock(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
 
       await deferredTasks.execute({
         workerId: formatId({
@@ -2447,6 +2452,29 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Generates an Ed25519 keypair, hex-encodes the keys, and formulates
+   * a keypair formula.
+   *
+   * @returns {Promise<{ keypairId: FormulaIdentifier }>}
+   */
+  const formulateKeypair = async () => {
+    const keypair = await generateEd25519Keypair();
+    const publicKeyHex = toHex(keypair.publicKey);
+    const privateKeyHex = toHex(keypair.privateKey);
+    const keypairFormulaNumber = /** @type {FormulaNumber} */ (
+      await randomHex256()
+    );
+    /** @type {import('./types.js').KeypairFormula} */
+    const formula = {
+      type: 'keypair',
+      publicKey: publicKeyHex,
+      privateKey: privateKeyHex,
+    };
+    const { id: keypairId } = await formulate(keypairFormulaNumber, formula);
+    return { keypairId };
+  };
+
+  /**
    * @type {DaemonCore['formulateHostDependencies']}
    */
   const formulateHostDependencies = async specifiedIdentifiers => {
@@ -2456,23 +2484,23 @@ const makeDaemonCore = async (
     await null;
     const storeId = (
       await formulateNumberedPetStore(
-        /** @type {FormulaNumber} */ (await randomHex512()),
+        /** @type {FormulaNumber} */ (await randomHex256()),
       )
     ).id;
     const mailboxStoreId = (
       await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex512()),
+        /** @type {FormulaNumber} */ (await randomHex256()),
       )
     ).id;
     const mailHubId = (
       await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex512()),
+        /** @type {FormulaNumber} */ (await randomHex256()),
         mailboxStoreId,
       )
     ).id;
 
     const hostFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
     );
     const hostId = formatId({
       number: hostFormulaNumber,
@@ -2480,15 +2508,18 @@ const makeDaemonCore = async (
     });
 
     const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex512()),
+      /** @type {FormulaNumber} */ (await randomHex256()),
       hostId,
     );
+
+    const { keypairId } = await formulateKeypair();
 
     return harden({
       ...remainingSpecifiedIdentifiers,
       hostFormulaNumber,
       hostId,
       handleId,
+      keypairId,
       hostHandleId: remainingSpecifiedIdentifiers.hostHandleId ?? handleId,
       storeId,
       mailboxStoreId,
@@ -2496,7 +2527,7 @@ const makeDaemonCore = async (
       /* eslint-disable no-use-before-define */
       inspectorId: (
         await formulateNumberedPetInspector(
-          /** @type {FormulaNumber} */ (await randomHex512()),
+          /** @type {FormulaNumber} */ (await randomHex256()),
           storeId,
         )
       ).id,
@@ -2512,6 +2543,7 @@ const makeDaemonCore = async (
       type: 'host',
       hostHandle: identifiers.hostHandleId,
       handle: identifiers.handleId,
+      keypair: identifiers.keypairId,
       petStore: identifiers.storeId,
       mailboxStore: identifiers.mailboxStoreId,
       mailHub: identifiers.mailHubId,
@@ -2557,43 +2589,45 @@ const makeDaemonCore = async (
   /** @type {DaemonCore['formulateGuestDependencies']} */
   const formulateGuestDependencies = async (hostAgentId, hostHandleId) => {
     const guestFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
     );
     const guestId = formatId({
       number: guestFormulaNumber,
       node: localNodeNumber,
     });
     const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex512()),
+      /** @type {FormulaNumber} */ (await randomHex256()),
       guestId,
     );
     const mailboxStoreId = (
       await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex512()),
+        /** @type {FormulaNumber} */ (await randomHex256()),
       )
     ).id;
     const mailHubId = (
       await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex512()),
+        /** @type {FormulaNumber} */ (await randomHex256()),
         mailboxStoreId,
       )
     ).id;
+    const { keypairId } = await formulateKeypair();
     return harden({
       guestFormulaNumber,
       guestId,
       handleId,
+      keypairId,
       hostAgentId,
       hostHandleId,
       storeId: (
         await formulateNumberedPetStore(
-          /** @type {FormulaNumber} */ (await randomHex512()),
+          /** @type {FormulaNumber} */ (await randomHex256()),
         )
       ).id,
       mailboxStoreId,
       mailHubId,
       workerId: (
         await formulateNumberedWorker(
-          /** @type {FormulaNumber} */ (await randomHex512()),
+          /** @type {FormulaNumber} */ (await randomHex256()),
         )
       ).id,
     });
@@ -2605,6 +2639,7 @@ const makeDaemonCore = async (
     const formula = {
       type: 'guest',
       handle: identifiers.handleId,
+      keypair: identifiers.keypairId,
       hostHandle: identifiers.hostHandleId,
       hostAgent: identifiers.hostAgentId,
       petStore: identifiers.storeId,
@@ -2649,7 +2684,7 @@ const makeDaemonCore = async (
     }
 
     const workerFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
     );
     const workerFormulation = await formulateNumberedWorker(
       workerFormulaNumber,
@@ -2663,7 +2698,7 @@ const makeDaemonCore = async (
     return /** @type {FormulateResult<void>} */ (
       withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
         const ownId = formatId({
           number: ownFormulaNumber,
@@ -2699,13 +2734,13 @@ const makeDaemonCore = async (
   const formulatePromise = async pin => {
     return withFormulaGraphLock(async () => {
       const storeFormulaNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const promiseFormulaNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
       const resolverFormulaNumber = /** @type {FormulaNumber} */ (
-        await randomHex512()
+        await randomHex256()
       );
 
       const { id: storeId } =
@@ -2745,7 +2780,7 @@ const makeDaemonCore = async (
   /** @type {DaemonCore['formulateMessage']} */
   const formulateMessage = async (messageFormula, pin) => {
     return withFormulaGraphLock(async () => {
-      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+      const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
       // Pin before formulate so the formula is protected from
       // collection even if the lock is bypassed via re-entrancy.
       if (pin) {
@@ -2774,7 +2809,7 @@ const makeDaemonCore = async (
     return /** @type {FormulateResult<unknown>} */ (
       withFormulaGraphLock(async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
-          await randomHex512()
+          await randomHex256()
         );
         const ownId = formatId({
           number: ownFormulaNumber,
@@ -2798,7 +2833,7 @@ const makeDaemonCore = async (
                 /* eslint-disable no-use-before-define */
                 (
                   await formulateNumberedLookup(
-                    /** @type {FormulaNumber} */ (await randomHex512()),
+                    /** @type {FormulaNumber} */ (await randomHex256()),
                     nameHubId,
                     /** @type {NamePath} */ (formulaIdOrPath),
                   )
@@ -2889,7 +2924,7 @@ const makeDaemonCore = async (
     trustedShims = undefined,
   ) => {
     const ownFormulaNumber = /** @type {FormulaNumber} */ (
-      await randomHex512()
+      await randomHex256()
     );
     const identifiers = harden({
       powersId: await providePowersId(
@@ -2993,7 +3028,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulatePeer']} */
   const formulatePeer = async (networksDirectoryId, nodeNumber, addresses) => {
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
     // TODO: validate addresses
     // TODO: mutable state like addresses should not be stored in formula
     /** @type {PeerFormula} */
@@ -3010,7 +3045,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateLoopbackNetwork']} */
   const formulateLoopbackNetwork = async () => {
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
+    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
     /** @type {LoopbackNetworkFormula} */
     const formula = {
       type: 'loopback-network',
@@ -3034,7 +3069,7 @@ const makeDaemonCore = async (
     return /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
       withFormulaGraphLock(async () => {
         const formulaNumber = /** @type {FormulaNumber} */ (
-          await (specifiedFormulaNumber ?? randomHex512())
+          await (specifiedFormulaNumber ?? randomHex256())
         );
         const endoId = formatId({
           number: formulaNumber,
@@ -3042,7 +3077,7 @@ const makeDaemonCore = async (
         });
 
         const { id: defaultHostWorkerId } = await formulateNumberedWorker(
-          /** @type {FormulaNumber} */ (await randomHex512()),
+          /** @type {FormulaNumber} */ (await randomHex256()),
         );
         const { id: networksDirectoryId } = await formulateNetworksDirectory();
         const { id: pinsDirectoryId } = await formulateDirectory();
@@ -3238,7 +3273,7 @@ const makeDaemonCore = async (
     formulateMessage,
     getFormulaForId,
     getTypeForId,
-    randomHex512,
+    randomHex256,
     pinTransient,
     unpinTransient,
   });
@@ -3435,11 +3470,17 @@ const provideEndoBootstrap = async (
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
     await persistencePowers.provideRootNonce();
+  const { keypair: rootKeypair } =
+    await persistencePowers.provideRootKeypair();
+  const localNodeNumber = /** @type {NodeNumber} */ (
+    toHex(rootKeypair.publicKey)
+  );
   const daemonCore = await makeDaemonCore(powers, endoFormulaNumber, {
     cancel,
     gracePeriodMs,
     gracePeriodElapsed,
     specials,
+    localNodeNumber,
   });
   const { capTpConnectionRegistrar } = daemonCore;
   const isInitialized = !isNewlyCreated;
