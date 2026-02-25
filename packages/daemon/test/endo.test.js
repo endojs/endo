@@ -2369,8 +2369,8 @@ test('read unknown node id', async t => {
   const { host } = await prepareHost(t);
 
   // write a bogus value for a bogus nodeId
-  const node = await cryptoPowers.randomHex512();
-  const number = await cryptoPowers.randomHex512();
+  const node = await cryptoPowers.randomHex256();
+  const number = await cryptoPowers.randomHex256();
   const nodeId = /** @type {NodeNumber} */ (node);
   const numberId = /** @type {FormulaNumber} */ (number);
   const id = formatId({ node: nodeId, number: numberId });

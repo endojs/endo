@@ -5,8 +5,8 @@
 
 import { makeError, q } from '@endo/errors';
 
-const numberPattern = /^[0-9a-f]{128}$/;
-const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
+const numberPattern = /^[0-9a-f]{64}$/;
+const idPattern = /^(?<number>[0-9a-f]{64}):(?<node>[0-9a-f]{64})$/;
 
 /**
  * @param {string} allegedNumber - The formula number or node identifier to test.

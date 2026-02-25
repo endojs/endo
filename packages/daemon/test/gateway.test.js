@@ -343,5 +343,5 @@ test.serial('daemon writes root file matching AGENT identifier', async t => {
   t.is(agentIdFromFile, agentIdFromCapTP);
 
   // The root should be a valid formula identifier (number:node format).
-  t.regex(agentIdFromFile, /^[0-9a-f]{128}:[0-9a-f]{128}$/);
+  t.regex(agentIdFromFile, /^[0-9a-f]{64}:[0-9a-f]{64}$/);
 });

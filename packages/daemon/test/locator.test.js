@@ -9,9 +9,9 @@ import {
 import { formatId } from '../src/formula-identifier.js';
 
 const validNode =
-  'd5c98890be3d17ad375517464ec494068267de60bd4b3143ef0214cc895746f2892baca4fec19b6d4dfc1f683b7cf3d2a884dfcae568555dd89665c33dfdc4b3';
+  'd5c98890be3d17ad375517464ec494068267de60bd4b3143ef0214cc895746f2';
 const validId =
-  '5cf3d8b4d6e03fb51d71fbbb6fa6982edbff673cd193707c902b70a26b7b468017fbcfc5c2895f4379459badbe507a4ef00e1d3638f4a67e8a8c14fd1d85d9aa';
+  '5cf3d8b4d6e03fb51d71fbbb6fa6982edbff673cd193707c902b70a26b7b4680';
 const validType = 'eval';
 
 const makeLocator = (components = {}) => {

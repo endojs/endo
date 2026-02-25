@@ -17,10 +17,10 @@ export type PetName = string & { [PetNameBrand]: true };
 /** A validated special name (uppercase, e.g., 'SELF', 'HOST', 'ENDO') */
 export type SpecialName = string & { [SpecialNameBrand]: true };
 
-/** A 128-character hex string identifying a formula within a node */
+/** A 64-character hex string identifying a formula within a node */
 export type FormulaNumber = string & { [FormulaNumberBrand]: true };
 
-/** A 128-character hex string identifying a node */
+/** A 64-character hex string (Ed25519 public key) identifying a node */
 export type NodeNumber = string & { [NodeNumberBrand]: true };
 
 /** A full formula identifier in the format {FormulaNumber}:{NodeNumber} */
@@ -50,10 +50,15 @@ export type Config = {
   sockPath: string;
 };
 
-export type Sha512 = {
+export type Sha256 = {
   update: (chunk: Uint8Array) => void;
   updateText: (chunk: string) => void;
   digestHex: () => string;
+};
+
+export type Ed25519Keypair = {
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
 };
 
 export type Connection = {
@@ -547,7 +552,7 @@ export interface Handle {
   open(envelope: Envelope): EnvelopedMessage;
 }
 
-export type MakeSha512 = () => Sha512;
+export type MakeSha256 = () => Sha256;
 
 export type PetStoreNameChange =
   | { add: Name; value: IdRecord }
@@ -750,7 +755,7 @@ export type RequestFn = (
 ) => Promise<unknown>;
 
 export interface EndoReadable {
-  sha512(): string;
+  sha256(): string;
   streamBase64(): FarRef<Reader<string>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
@@ -953,8 +958,9 @@ export type EndoBootstrap = {
 };
 
 export type CryptoPowers = {
-  makeSha512: () => Sha512;
-  randomHex512: () => Promise<string>;
+  makeSha256: () => Sha256;
+  randomHex256: () => Promise<string>;
+  generateEd25519Keypair: () => Promise<Ed25519Keypair>;
 };
 
 export type FilePowers = {
@@ -1025,12 +1031,18 @@ export type RootNonceDescriptor = {
   isNewlyCreated: boolean;
 };
 
+export type RootKeypairDescriptor = {
+  keypair: Ed25519Keypair;
+  isNewlyCreated: boolean;
+};
+
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
   provideRootNonce: () => Promise<RootNonceDescriptor>;
-  makeContentSha512Store: () => {
+  provideRootKeypair: () => Promise<RootKeypairDescriptor>;
+  makeContentSha256Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
-    fetch: (sha512: string) => EndoReadable;
+    fetch: (sha256: string) => EndoReadable;
   };
   readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
   writeFormula: (
