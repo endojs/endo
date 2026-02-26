@@ -8,14 +8,21 @@ const { apply: ReflectApply } = Reflect;
 /** @type {WeakMap<AsyncLocalStorageInternal, WeakMap>} */
 const resourceStoreMaps = new WeakMap();
 
-/** @type {(key: AsyncLocalStorageInternal) => WeakMap} */
-const getStoreMap = resourceStoreMaps.get.bind(resourceStoreMaps);
+/** @param {AsyncLocalStorageInternal} self @returns {WeakMap} */
+const getStoreMap = self => {
+  let storeMap = resourceStoreMaps.get(self);
+  if (storeMap === undefined) {
+    storeMap = new WeakMap();
+    resourceStoreMaps.set(self, storeMap);
+  }
+  return storeMap;
+};
 
 /**
  * @typedef {object} AsyncLocalStorageInternal
  * @property {boolean} enabled
  * @property {typeof _propagate} _propagate
- * @property {(this: AsyncLocalStorage) => void} _enable
+ * @property {(this: AsyncLocalStorage) => void} [_enable]
  */
 
 Object.defineProperty(AsyncLocalStorage.prototype, 'kResourceStore', {
@@ -49,7 +56,9 @@ AsyncLocalStorage.prototype._propagate = _propagate;
  * @param {any} store
  */
 AsyncLocalStorage.prototype.enterWith = function enterWith(store) {
-  this._enable();
+  if (typeof this._enable === 'function') {
+    this._enable();
+  }
   const resource = executionAsyncResource();
   getStoreMap(this).set(resource, store);
 };
@@ -69,7 +78,19 @@ AsyncLocalStorage.prototype.run = function run(store, callback, ...args) {
     return ReflectApply(callback, null, args);
   }
 
-  this._enable();
+  if (typeof this._enable === 'function') {
+    this._enable();
+  } else {
+    console.error(
+      'WAT',
+      this,
+      this.__proto__,
+      this.constructor,
+      this.constructor.toString(),
+    );
+    throw new Error('inconceivable ALS internal');
+  }
+
   const storeMap = getStoreMap(this);
 
   const resource = executionAsyncResource();
