@@ -1,4 +1,24 @@
 
+## Status
+
+**Not yet implemented.** The Familiar-side infrastructure is ready
+(see `familiar-localhttp-protocol`):
+
+- `localhttp://` protocol handler serves weblet content with CSP confinement.
+- Navigation guard and exfiltration defenses are in place.
+- `preload.js` exposes `onSecurityWarnings` for the security warning banner.
+
+**Remaining work (all in `packages/chat/`):**
+
+- Weblet hosting panel UI (iframe creation with `sandbox` and `allow`
+  attributes).
+- MessagePort bridge: create `MessageChannel`, transfer port to weblet
+  iframe, open WebSocket to gateway with `Host: <weblet-id>`, pump messages
+  bidirectionally.
+- Install flow UI (bundle selection, naming, power level configuration).
+- Security warning banner (listening on `window.familiar.onSecurityWarnings`).
+- Chat commands (`/install`, `/open`, `/close`).
+
 ## What is the Problem Being Solved?
 
 Chat currently provides inbox, inventory, chat, and eval functionality, but

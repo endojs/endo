@@ -1,4 +1,40 @@
 
+## Status
+
+**Partially implemented.** The Familiar-side infrastructure is in place:
+
+- `packages/familiar/src/protocol-handler.js` — `localhttp://` scheme
+  registration and request handler with CSP injection. (Layers 1)
+- `packages/familiar/src/navigation-guard.js` — `will-navigate` and
+  `setWindowOpenHandler` interception with confirmation dialog. (Layer 4)
+- `packages/familiar/src/exfiltration-defense.js` — command-line flags,
+  DNS poisoning, request interception, permission handler, and runtime
+  verification. (Layers 2, 3, 5)
+- `packages/familiar/electron-main.js` — integrates all modules: registers
+  scheme before app ready, installs handler and defenses after app ready,
+  sends security warnings to renderer via IPC.
+- `packages/familiar/preload.js` — exposes `onSecurityWarnings` callback.
+
+**Not yet implemented:**
+
+- Layer 6 (iframe sandbox attributes) — applied by Chat when creating weblet
+  iframes (see `familiar-chat-weblet-hosting`).
+- MessagePort bridge — Chat-side WebSocket-to-MessagePort bridging for weblet
+  CapTP connections.
+- Chat security warning banner — renderer-side display of warnings from the
+  `familiar:security-warnings` IPC channel.
+
+**Design deviations from implementation:**
+
+- The implementation splits the exfiltration defense code into a dedicated
+  `src/exfiltration-defense.js` module rather than inlining it in
+  `electron-main.js`. The design's `src/navigation-guard.js` is also a
+  separate module as described.
+- The Host header sent to the gateway uses the bare weblet ID (access token),
+  not `<weblet-id>.localhost`. This matches the daemon's unified server
+  implementation which registers handlers keyed by the bare access token
+  (`webletHandlers.set(accessToken, ...)`).
+
 ## What is the Problem Being Solved?
 
 The Familiar Electron shell must serve weblet content to iframe guests without
@@ -500,13 +536,18 @@ if (warnings.length > 0) {
 ### Affected packages
 
 - `packages/familiar/electron-main.js` — protocol registration, navigation
-  delegate, DNS configuration
-- `packages/familiar/src/protocol-handler.js` — new module for the
-  `localhttp://` handler and CSP injection
-- `packages/familiar/src/navigation-guard.js` — new module for navigation
-  interception and external link confirmation
+  delegate, DNS configuration **(implemented)**
+- `packages/familiar/src/protocol-handler.js` — `localhttp://` handler and
+  CSP injection **(implemented)**
+- `packages/familiar/src/navigation-guard.js` — navigation interception and
+  external link confirmation **(implemented)**
+- `packages/familiar/src/exfiltration-defense.js` — command-line flags, DNS
+  poisoning, request interception, permission handler, runtime verification
+  **(implemented)**
+- `packages/familiar/preload.js` — `onSecurityWarnings` IPC bridge
+  **(implemented)**
 - `packages/chat/` — weblet iframe hosting: MessagePort creation, WebSocket
-  bridging, port transfer to iframes
+  bridging, port transfer to iframes **(not yet implemented)**
 
 ### Dependencies
 
