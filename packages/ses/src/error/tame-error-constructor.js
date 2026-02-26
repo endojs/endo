@@ -3,10 +3,13 @@ import {
   apply,
   construct,
   defineProperties,
+  getPrototypeOf,
+  uncurryThis,
   setPrototypeOf,
   getOwnPropertyDescriptor,
   defineProperty,
   getOwnPropertyDescriptors,
+  isArray,
 } from '../commons.js';
 import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
@@ -37,9 +40,66 @@ export default function tameErrorConstructor(
 ) {
   const ErrorPrototype = FERAL_ERROR.prototype;
 
-  const { captureStackTrace: originalCaptureStackTrace } = FERAL_ERROR;
-  const platform =
-    typeof originalCaptureStackTrace === 'function' ? 'v8' : 'unknown';
+  const {
+    captureStackTrace: originalCaptureStackTrace,
+    prepareStackTrace: originalPrepareStackTrace,
+  } = FERAL_ERROR;
+  let platform = 'unknown';
+  let callSiteToStringFallback;
+  if (typeof originalCaptureStackTrace === 'function') {
+    // we might be on v8
+    if (typeof originalPrepareStackTrace === 'function') {
+      // This case should not occur on v8 or any other platform.
+      // But if it does, we assume we're on v8, or a platform whose
+      // error stack logic is close enough that we can treat it
+      // like v8.
+      platform = 'v8';
+    } else {
+      try {
+        FERAL_ERROR.prepareStackTrace = (error, sst) => {
+          // eslint-disable-next-line no-use-before-define
+          if (error === sacrificialError && isArray(sst)) {
+            // v8 implements `prepareStackTrace`. But on v8 the initial state
+            // of the original error constructor, `FERAL_ERROR`, has no
+            // `prepareStackTrace` property. To test whether the current
+            // platform implements it,
+            // we must set our own and then see if `error.stack` triggers it.
+            // If so, then we assume we're on v8, or a platform whose
+            // error stack logic is close enough that we can treat it
+            // like v8.
+            platform = 'v8';
+
+            if (`${sst[0]}` === '[object CallSite]') {
+              const csProto = getPrototypeOf(sst[0]);
+
+              const [
+                getFunctionName,
+                getMethodName,
+                getFileName,
+                getLineNumber,
+                getColumnNumber,
+              ] = [
+                uncurryThis(csProto.getFunctionName),
+                uncurryThis(csProto.getMethodName),
+                uncurryThis(csProto.getFileName),
+                uncurryThis(csProto.getLineNumber),
+                uncurryThis(csProto.getColumnNumber),
+              ];
+
+              callSiteToStringFallback = callSite =>
+                `${getFunctionName(callSite) || getMethodName(callSite)} (${getFileName(callSite)}:${getLineNumber(callSite)}:${getColumnNumber(callSite)})`;
+            }
+          }
+        };
+        const sacrificialError = new FERAL_ERROR('just for testing');
+        // Intentionally accesses `sacrificialError.stack` only to trigger
+        // the test `prepareStackTrace` for platform detection.
+        sacrificialError.stack;
+      } finally {
+        delete FERAL_ERROR.prepareStackTrace;
+      }
+    }
+  }
 
   const makeErrorConstructor = (_ = {}) => {
     // eslint-disable-next-line no-shadow
@@ -211,6 +271,7 @@ export default function tameErrorConstructor(
       InitialError,
       errorTaming,
       stackFiltering,
+      callSiteToStringFallback,
     );
   } else if (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') {
     // v8 has too much magic around their 'stack' own property for it to
