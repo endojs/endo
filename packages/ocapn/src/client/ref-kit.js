@@ -1,5 +1,7 @@
 // @ts-check
 
+import harden from '@endo/harden';
+
 /**
  * @import { EHandler, Settler } from '@endo/eventual-send'
  * @import { Slot } from '../captp/types.js'

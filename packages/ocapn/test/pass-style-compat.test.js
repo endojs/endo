@@ -2,6 +2,7 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { makeTagged, passStyleOf, Far, ToFarFunction } from '@endo/pass-style';
 import { makeSelector } from '../src/selector.js';
 

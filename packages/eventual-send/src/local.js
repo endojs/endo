@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
 const { details: X, quote: q, Fail } = assert;

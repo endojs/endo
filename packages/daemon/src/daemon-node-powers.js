@@ -2,6 +2,7 @@
 /* global process */
 /* eslint-disable no-void */
 
+import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';

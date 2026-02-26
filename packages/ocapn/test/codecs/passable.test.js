@@ -6,6 +6,7 @@
 
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { makeTagged } from '@endo/pass-style';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 import { makeSyrupWriter } from '../../src/syrup/encode.js';

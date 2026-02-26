@@ -1,13 +1,9 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getInterfaceOf, passStyleOf, Far } from '@endo/pass-style';
 
 const { freeze, setPrototypeOf } = Object;
-
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
 
 test('Far functions', t => {
   t.notThrows(() => Far('arrow', a => a + 1), 'Far function');
@@ -25,7 +21,8 @@ test('Acceptable far functions', t => {
 });
 
 test('Unacceptable far functions', t => {
-  if (!harden.isFake) {
+  // Lockdown with unsafe hardenTaming invalidates this the freeze test in Far.
+  if (!Object.isFrozen({})) {
     t.throws(
       () =>
         Far(

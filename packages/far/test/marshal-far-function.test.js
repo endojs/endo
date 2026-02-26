@@ -1,6 +1,7 @@
 // @ts-check
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import test from '@endo/ses-ava/test.js';
+import harden from '@endo/harden';
 
 import { Far, getInterfaceOf, passStyleOf } from '../src/index.js';
 
@@ -22,8 +23,7 @@ test('Acceptable far functions', t => {
 });
 
 test('Unacceptable far functions', t => {
-  // @ts-ignore `isFake` purposely omitted from type
-  if (!harden.isFake) {
+  if (!Object.isFrozen({})) {
     t.throws(
       () =>
         Far(

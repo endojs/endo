@@ -1,9 +1,14 @@
 // @ts-check
 
-import test from '@endo/ses-ava/test.js';
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { makeTestClientPair, makeTestClient, getOcapnDebug } from './_util.js';
+import {
+  test,
+  makeTestClientPair,
+  makeTestClient,
+  getOcapnDebug,
+} from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 
 /**

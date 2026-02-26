@@ -11,6 +11,8 @@
 // The assertions re-exported here are defined in
 // https://github.com/endojs/endo/blob/HEAD/packages/ses/src/error/assert.js
 
+import harden from '@endo/harden';
+
 const { defineProperty } = Object;
 
 const globalAssert = globalThis.assert;

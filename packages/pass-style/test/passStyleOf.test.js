@@ -1,6 +1,8 @@
 /* eslint-disable max-classes-per-file */
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
+import hardenIsNoop from '@endo/harden/is-noop.js';
 import { q } from '@endo/errors';
 
 import {
@@ -12,12 +14,8 @@ import { Far, ToFarFunction } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
-const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
-  // eslint-disable-next-line no-undef
-  global.harden
-);
-
 const { getPrototypeOf, defineProperty, freeze } = Object;
+
 /**
  * Local alias of `harden` to eventually be switched to whatever applies
  * the suppress-trapping integrity trait. For the shim at
@@ -87,7 +85,7 @@ test('some passStyleOf rejections', t => {
     message:
       /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
   });
-  if (harden.isFake) {
+  if (hardenIsNoop(harden)) {
     t.is(passStyleOf({}), 'copyRecord');
   } else {
     t.throws(() => passStyleOf({}), {
@@ -246,7 +244,7 @@ test('passStyleOf testing remotables', t => {
    * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
    */
   const farObj2 = freezeToBeSuppressTrapping({ __proto__: tagRecord2 });
-  if (harden.isFake) {
+  if (Object.isFrozen({})) {
     // @ts-expect-error XXX PassStyleOf
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
@@ -348,9 +346,20 @@ test('passStyleOf testing remotables', t => {
     'null-proto-tagRecord grandproto is rejected',
   );
 
-  t.throws(() => passStyleOf(Object.prototype), {
-    message: 'cannot serialize Remotables with accessors like "toString" in {}',
-  });
+  const lockedDown = !Object.getOwnPropertyDescriptor(
+    Object.prototype,
+    'constructor',
+  )?.writable;
+  if (lockedDown || hardenIsNoop(harden)) {
+    t.throws(() => passStyleOf(Object.prototype), {
+      message:
+        /^cannot serialize Remotables with accessors like "(toString|__proto__)" in {}$/,
+    });
+  } else {
+    t.throws(() => passStyleOf(Object.prototype), {
+      message: 'Cannot pass non-frozen objects like {}. Use harden()',
+    });
+  }
 
   const fauxTagRecordB = harden(
     makeTagishRecord('Alleged: manually constructed', harden({})),
@@ -439,7 +448,7 @@ test('remotables - safety from the gibson042 attack', t => {
   const input1 = makeInput();
   const input2 = makeInput();
 
-  if (harden.isFake) {
+  if (hardenIsNoop(harden)) {
     t.throws(() => passStyleOf(input1), {
       message: /^Expected "remotable", not "error"/,
     });

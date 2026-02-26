@@ -1,5 +1,7 @@
 // @ts-check
 
+import harden from '@endo/harden';
+
 /**
  * @import { CodecTestEntry } from './_codecs_util.js'
  */

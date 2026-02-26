@@ -42,6 +42,7 @@
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/where": "workspace:^",
     "ses": "workspace:^"
   },
@@ -84,7 +85,8 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 65.38

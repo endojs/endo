@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { getEnvironmentOption as getenv } from '@endo/env-options';
 import { Fail, q } from '@endo/errors';
 import { getTag, passStyleOf, nameForPassableSymbol } from '@endo/pass-style';

@@ -1,5 +1,6 @@
 /// <reference types="ses" />
 
+import harden from '@endo/harden';
 import { trackTurns } from './track-turns.js';
 import {
   localApplyFunction,

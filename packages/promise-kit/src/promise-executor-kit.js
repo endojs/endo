@@ -1,4 +1,5 @@
 /// <reference types="ses"/>
+import harden from '@endo/harden';
 
 /**
  * @template T
