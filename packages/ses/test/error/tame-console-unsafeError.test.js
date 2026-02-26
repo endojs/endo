@@ -83,7 +83,7 @@ test('tameConsole - unlogged safe', t => {
   t.pass();
 });
 
-test.failing('tameConsole - argument method invocation', t => {
+test('tameConsole - argument method invocation', t => {
   // https://nodejs.org/docs/latest/api/util.html#utilinspectobject-options
   // https://nodejs.org/docs/latest/api/util.html#custom-inspection-functions-on-objects
   // https://nodejs.org/docs/latest/api/util.html#utilinspectcustom

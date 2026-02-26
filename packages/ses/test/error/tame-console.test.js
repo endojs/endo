@@ -104,7 +104,7 @@ test('tameConsole - unlogged safe', t => {
 });
 
 // A tame console must not invoke argument methods with unhardened arguments.
-test.failing('tameConsole - argument method invocation', t => {
+test('tameConsole - argument method invocation', t => {
   // https://nodejs.org/docs/latest/api/util.html#utilinspectobject-options
   // https://nodejs.org/docs/latest/api/util.html#custom-inspection-functions-on-objects
   // https://nodejs.org/docs/latest/api/util.html#utilinspectcustom

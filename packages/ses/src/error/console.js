@@ -15,6 +15,7 @@ import {
   defineProperty,
   freeze,
   fromEntries,
+  globalThis,
   isError,
   stringEndsWith,
   stringIncludes,
@@ -224,10 +225,31 @@ const ErrorInfo = {
 freeze(ErrorInfo);
 
 /** @type {MakeCausalConsole} */
-export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
-  if (!baseConsole) {
+export const makeCausalConsole = (feralConsole, loggedErrorHandler) => {
+  if (!feralConsole) {
     return undefined;
   }
+
+  // In Node.js, the global console does a deep scan of its inputs for methods
+  // keyed by Symbol.for('nodejs.util.inspect.custom'), and invokes any that are
+  // found with unhardened arguments as described at
+  // https://nodejs.org/docs/latest/api/util.html#custom-inspection-functions-on-objects
+  // To circumvent that problematic behavior, we use its
+  // https://nodejs.org/docs/latest/api/console.html#class-console Console
+  // constructor to build a replacement that explicitly opts out by setting the
+  // `customInspect` option to false.
+  // https://nodejs.org/docs/latest/api/util.html#utilinspectobject-options
+  /** @type {new (options: any) => typeof console} */
+  const Console = /** @type {any} */ (feralConsole).Console;
+  const { stdout, stderr } = globalThis.process || { __proto__: null };
+  const baseConsole =
+    typeof Console === 'function' && (stdout || stderr)
+      ? new Console({
+          stdout,
+          stderr,
+          inspectOptions: { colors: undefined, customInspect: false },
+        })
+      : feralConsole;
 
   const { getStackString, tagError, takeMessageLogArgs, takeNoteLogArgsArray } =
     loggedErrorHandler;
