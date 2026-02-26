@@ -1282,6 +1282,8 @@ __metadata:
     "@electron-forge/cli": "npm:^7.0.0"
     "@electron-forge/maker-dmg": "npm:^7.0.0"
     "@electron-forge/maker-zip": "npm:^7.0.0"
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/init": "workspace:^"
     "@endo/where": "workspace:^"
     "@lavamoat/allow-scripts": "npm:^3.4.1"
     electron: "npm:^33.0.0"
