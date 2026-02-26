@@ -1,0 +1,32 @@
+name: trigger e2e
+
+on:
+  push:
+    branches: [master, naugtur-e2e-trigger]
+  pull_request:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      # - name: Repository Dispatch
+      #   uses: peter-evans/repository-dispatch@v2
+      #   with:
+      #     token: ${{ secrets.PAT }}
+      #     repository: endojs/endo-e2e-tests
+      #     event-type: e2e
+      #     client-payload: '{"ref": "${{ github.ref }}" }'
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.PAT }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'endojs',
+              repo: 'endo-e2e-tests',
+              workflow_id: 'e2e.yml',
+              ref: '${{ github.ref }}'
+            })
+
+# sources:
+# https://github.com/orgs/community/discussions/26323
+# https://github.com/marketplace/actions/repository-dispatch
