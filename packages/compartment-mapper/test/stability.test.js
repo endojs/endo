@@ -10,7 +10,8 @@ test('order of duplicate name/version packages', async t => {
   const bytes = await makeArchive(readPowers, fixture);
 
   const reader = new ZipReader(bytes);
-  const compartmentMapBytes = reader.files.get('compartment-map.json').content;
+  const compartmentMapBytes = reader.files.get('compartment-map.json')?.content;
+  t.assert(compartmentMapBytes);
   const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
   const compartmentMap = JSON.parse(compartmentMapText);
 

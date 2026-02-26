@@ -1,1 +1,1 @@
-export { ZipWriter } from './src/writer.js';
+export { ZipWriter, writeZip } from './src/writer.js';
