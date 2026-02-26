@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /**
  * Tests using CapTP with async generators wrapped in readerFromIterator,
  * similar to how the daemon uses followNameChanges.
@@ -93,7 +94,6 @@ test('generator-captp: follow name changes pattern', async t => {
   const values = [];
   const nameCount = /** @type {string[]} */ (existingNames).length;
   for (let i = 0; i < nameCount; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
     const result = await changesIterator.next();
     if (result.done) break;
     values.push(result.value);
@@ -127,7 +127,6 @@ test('generator-captp: follow name changes with takeCount helper', async t => {
   const values = [];
   let remaining = /** @type {string[]} */ (existingNames).length;
   while (remaining > 0) {
-    // eslint-disable-next-line no-await-in-loop
     const result = await changesIterator.next();
     if (result.done) break;
     values.push(result.value);

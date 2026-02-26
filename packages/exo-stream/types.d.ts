@@ -10,8 +10,8 @@ import type { Pattern } from '@endo/patterns';
 export type SomehowAsyncIterable<
   TRead,
   TWrite = undefined,
-  TReadReturn = unknown,
-  TWriteReturn = unknown,
+  TReadReturn extends Passable = Passable,
+  TWriteReturn extends Passable = Passable,
 > =
   | AsyncIterable<TRead, TReadReturn, TWrite>
   | Iterable<TRead, TReadReturn, TWrite>
@@ -21,7 +21,7 @@ export type SomehowAsyncIterable<
 /**
  * A yielding node in a bidirectional promise chain.
  */
-export interface StreamYieldNode<Y, R = undefined> {
+export interface StreamYieldNode<Y extends Passable, R extends Passable = undefined> {
   /** The yielded value */
   value: Y;
   /** Next node */
@@ -31,7 +31,7 @@ export interface StreamYieldNode<Y, R = undefined> {
 /**
  * A return node in a bidirectional promise chain (final node).
  */
-export interface StreamReturnNode<R = undefined> {
+export interface StreamReturnNode<R extends Passable = undefined> {
   /** The return value */
   value: R;
   /** null signals end of chain */
@@ -48,17 +48,24 @@ export interface StreamReturnNode<R = undefined> {
  * - Synchronize chain: initiator → responder (next() values, close signals)
  * - Acknowledge chain: responder → initiator (yields/returns)
  */
-export type StreamNode<Y = undefined, R = undefined> =
+export type StreamNode<Y extends Passable = undefined, R extends Passable = undefined> =
   | StreamYieldNode<Y, R>
   | StreamReturnNode<R>;
 
 /**
  * Options for makeReader (Reader stream responder).
  *
- * For Reader streams, synchronization values are always undefined (flow control only).
+ * For Reader streams, synchronization values are undefined for flow control,
+ * except the final synchronization node which carries the argument value
+ * passed to the initiator's return(value) call when closing early. If the
+ * responder is backed by a JavaScript iterator with a return(value) method,
+ * it may replace that argument with its own return value.
  * Data flows from responder to initiator via the acknowledgement chain.
  */
-export interface MakeReaderOptions<TRead = Passable, TReadReturn = undefined> {
+export interface MakeReaderOptions<
+  TRead extends Passable = Passable,
+  TReadReturn extends Passable = undefined,
+> {
   /** Number of values to pre-pull before waiting for synchronizes (default 0) */
   buffer?: number;
   /** Pattern for TRead (yielded values) */
@@ -71,12 +78,16 @@ export interface MakeReaderOptions<TRead = Passable, TReadReturn = undefined> {
  * A passable Reader reference.
  *
  * For Reader streams:
- * - Synchronization values are `undefined` (flow control only)
+ * - Synchronization values are `undefined` (flow control only), except the
+ *   final node which carries `TReadReturn` when closing early
  * - Acknowledgement values are `TRead` (actual data)
  */
-export interface PassableReader<TRead = Passable, TReadReturn = Passable> {
+export interface PassableReader<
+  TRead extends Passable = Passable,
+  TReadReturn extends Passable = Passable,
+> {
   stream(
-    synPromise: ERef<StreamNode<undefined, Passable>>,
+    synPromise: ERef<StreamNode<undefined, TReadReturn>>,
   ): Promise<StreamNode<TRead, TReadReturn>>;
   /** Pattern for TRead */
   readPattern(): Pattern | undefined;
@@ -88,12 +99,20 @@ export interface PassableReader<TRead = Passable, TReadReturn = Passable> {
  * A passable Writer reference.
  *
  * For Writer streams:
- * - Synchronization values are `TWrite` (actual data from initiator)
+ * - Synchronization values are `TWrite` (actual data from initiator). When the
+ *   initiator calls `return(value)` to close early, the final syn node carries
+ *   that argument value. If the responder is backed by a JavaScript iterator
+ *   with a `return(value)` method, it forwards the argument and uses the
+ *   iterator’s returned value as the terminal ack; otherwise it terminates with
+ *   the original argument value.
  * - Acknowledgement values are `undefined` (flow control only)
  */
-export interface PassableWriter<TWrite = Passable, TWriteReturn = Passable> {
+export interface PassableWriter<
+  TWrite extends Passable = Passable,
+  TWriteReturn extends Passable = Passable,
+> {
   stream(
-    synPromise: ERef<StreamNode<TWrite, Passable>>,
+    synPromise: ERef<StreamNode<TWrite, TWriteReturn>>,
   ): Promise<StreamNode<undefined, TWriteReturn>>;
   /** Pattern for TWrite */
   writePattern(): Pattern | undefined;
@@ -102,13 +121,42 @@ export interface PassableWriter<TWrite = Passable, TWriteReturn = Passable> {
 }
 
 /**
+ * Local writer iterator returned by iterateWriter.
+ * Ensures return() and throw() are present.
+ */
+export interface WriterIterator<
+  TWrite = Passable,
+  TWriteReturn extends Passable = undefined,
+> extends AsyncIterableIterator<undefined, TWriteReturn, TWrite> {
+  return(value?: TWriteReturn): Promise<IteratorResult<undefined, TWriteReturn>>;
+  throw(error: any): Promise<IteratorResult<undefined, TWriteReturn>>;
+}
+
+/**
+ * Local reader iterator returned by iterateReader.
+ * Ensures return() and throw() are present.
+ */
+export interface ReaderIterator<
+  TRead = Passable,
+  TReadReturn extends Passable = undefined,
+> extends AsyncIterableIterator<TRead, TReadReturn, undefined> {
+  return(value?: TReadReturn): Promise<IteratorResult<TRead, TReadReturn>>;
+  throw(error: any): Promise<IteratorResult<TRead, TReadReturn>>;
+}
+
+/**
  * A passable bytes reader reference.
  * Uses streamBase64() to allow future migration to direct bytes transport.
+ * The final synchronization node carries the argument value passed to the
+ * initiator's return(value) call when closing early; if the responder is backed
+ * by a JavaScript iterator with a return(value) method, it may replace that
+ * argument with its own return value. All other synchronization values are flow
+ * control (`undefined`).
  * Yields base64-encoded strings (decoded to Uint8Array by initiator).
  */
-export interface PassableBytesReader<TReadReturn = undefined> {
+export interface PassableBytesReader<TReadReturn extends Passable = undefined> {
   streamBase64(
-    synPromise: ERef<StreamNode<Passable, Passable>>,
+    synPromise: ERef<StreamNode<Passable, TReadReturn>>,
   ): Promise<StreamNode<string, TReadReturn>>;
   /** Pattern for TReadReturn */
   readReturnPattern(): Pattern | undefined;
@@ -118,14 +166,33 @@ export interface PassableBytesReader<TReadReturn = undefined> {
  * A passable bytes writer reference.
  * Uses streamBase64() to allow future migration to direct bytes transport.
  * Receives base64-encoded strings (encoded from Uint8Array by initiator).
+ * When the initiator calls `return(value)` to close early, the final syn node
+ * carries that argument value. If the responder is backed by a JavaScript
+ * iterator with a `return(value)` method, it forwards the argument and uses the
+ * iterator’s returned value as the terminal ack; otherwise it terminates with
+ * the original argument value.
  */
-export interface PassableBytesWriter<TWriteReturn = undefined> {
+export interface PassableBytesWriter<TWriteReturn extends Passable = undefined> {
   streamBase64(
-    synPromise: ERef<StreamNode<string, Passable>>,
+    synPromise: ERef<StreamNode<string, TWriteReturn>>,
   ): Promise<StreamNode<undefined, TWriteReturn>>;
   /** Pattern for TWriteReturn */
   writeReturnPattern(): Pattern | undefined;
 }
+
+/**
+ * Local bytes writer iterator returned by iterateBytesWriter.
+ * Ensures return() and throw() are present.
+ */
+export interface BytesWriterIterator<TWriteReturn extends Passable = undefined>
+  extends WriterIterator<Uint8Array, TWriteReturn> {}
+
+/**
+ * Local bytes reader iterator returned by iterateBytesReader.
+ * Ensures return() and throw() are present.
+ */
+export interface BytesReaderIterator<TReadReturn extends Passable = undefined>
+  extends ReaderIterator<Uint8Array, TReadReturn> {}
 
 /**
  * Options for makeReader pump.
@@ -133,6 +200,10 @@ export interface PassableBytesWriter<TWriteReturn = undefined> {
 export interface ReaderPumpOptions {
   /** Number of values to pre-pull before waiting for synchronizes (default 0) */
   buffer?: number;
+  /** Pattern for TRead (yielded values) */
+  readPattern?: Pattern;
+  /** Pattern for TReadReturn (return value) */
+  readReturnPattern?: Pattern;
 }
 
 /**
@@ -141,13 +212,17 @@ export interface ReaderPumpOptions {
 export interface WriterPumpOptions {
   /** Number of flow-control acks to pre-send before waiting for data (default 0) */
   buffer?: number;
+  /** Pattern for TWrite (yielded values) */
+  writePattern?: Pattern;
+  /** Pattern for TWriteReturn (return value) */
+  writeReturnPattern?: Pattern;
 }
 
 /**
  * Options for bytesReaderFromIterator.
  * TRead is fixed to Uint8Array (transmitted as base64 string).
  */
-export interface MakeBytesReaderOptions<TReadReturn = undefined> {
+export interface MakeBytesReaderOptions<TReadReturn extends Passable = undefined> {
   /** Number of values to pre-pull before waiting for synchronizes (default 0) */
   buffer?: number;
   /** Pattern for TReadReturn (return value) */
@@ -161,8 +236,8 @@ export interface MakeBytesReaderOptions<TReadReturn = undefined> {
  * Data flows from initiator to responder via the synchronization chain.
  */
 export interface MakeWriterOptions<
-  TWrite = Passable,
-  TWriteReturn = undefined,
+  TWrite extends Passable = Passable,
+  TWriteReturn extends Passable = undefined,
 > {
   /** Number of flow-control acks to pre-send before waiting for data (default 0) */
   buffer?: number;
@@ -175,11 +250,12 @@ export interface MakeWriterOptions<
 /**
  * Options for iterateReader (Reader stream initiator).
  *
- * For Reader streams, synchronization values are always undefined (flow control only).
+ * For Reader streams, synchronization values are undefined for flow control,
+ * except the final node which carries the initiator's return value when closing early.
  */
 export interface IterateReaderOptions<
-  TRead = Passable,
-  TReadReturn = undefined,
+  TRead extends Passable = Passable,
+  TReadReturn extends Passable = undefined,
 > {
   /** Number of values to pre-synchronize (default 0) */
   buffer?: number;
@@ -195,18 +271,22 @@ export interface IterateReaderOptions<
  * For Writer streams, acknowledgement values are always undefined (flow control only).
  */
 export interface IterateWriterOptions<
-  TWrite = Passable,
-  TWriteReturn = undefined,
+  TWrite extends Passable = Passable,
+  TWriteReturn extends Passable = undefined,
 > {
   /** Number of data values to pre-send before waiting for acks (default 0) */
   buffer?: number;
+  /** Pattern to validate TWrite (yielded values) */
+  writePattern?: Pattern;
+  /** Pattern to validate TWriteReturn (return value) */
+  writeReturnPattern?: Pattern;
 }
 
 /**
  * Options for iterateBytesReader.
  * TRead is fixed to Uint8Array.
  */
-export interface IterateBytesReaderOptions<TReadReturn = undefined> {
+export interface IterateBytesReaderOptions<TReadReturn extends Passable = undefined> {
   /** Number of values to pre-synchronize (default 0) */
   buffer?: number;
   /** Pattern for TReadReturn (return value) */
@@ -225,7 +305,7 @@ export interface IterateBytesReaderOptions<TReadReturn = undefined> {
  * Options for bytesWriterFromIterator.
  * TWrite is fixed to Uint8Array (transmitted as base64 string).
  */
-export interface MakeBytesWriterOptions<TWriteReturn = undefined> {
+export interface MakeBytesWriterOptions<TWriteReturn extends Passable = undefined> {
   /** Number of flow-control acks to pre-send before waiting for data (default 0) */
   buffer?: number;
   /** Pattern for TWriteReturn (return value) */
@@ -236,7 +316,7 @@ export interface MakeBytesWriterOptions<TWriteReturn = undefined> {
  * Options for iterateBytesWriter.
  * TWrite is fixed to Uint8Array.
  */
-export interface IterateBytesWriterOptions<TWriteReturn = undefined> {
+export interface IterateBytesWriterOptions<TWriteReturn extends Passable = undefined> {
   /** Number of data values to pre-send before waiting for acks (default 0) */
   buffer?: number;
 }

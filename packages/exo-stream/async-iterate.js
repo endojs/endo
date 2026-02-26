@@ -1,5 +1,6 @@
 // @ts-check
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { SomehowAsyncIterable } from './types.js' */
 
 /**
@@ -8,8 +9,8 @@
  *
  * @template TRead
  * @template [TWrite=undefined]
- * @template [TReadReturn=undefined]
- * @template [TWriteReturn=undefined]
+ * @template {Passable} [TReadReturn=undefined]
+ * @template {Passable} [TWriteReturn=undefined]
  * @param {SomehowAsyncIterable<TRead, TWrite, TReadReturn, TWriteReturn>} iterable
  * @returns {AsyncIterator<TRead, TReadReturn, TWrite> | Iterator<TRead, TReadReturn, TWrite>}
  */

@@ -6,7 +6,12 @@ import { M } from '@endo/patterns';
  * Interface for passable Reader references.
  *
  * For Reader streams:
- * - Synchronization values are `undefined` (flow control only)
+ * - Synchronization values are `undefined` (flow control only). When the
+ *   initiator calls `return(value)` to close early, the final syn node carries
+ *   that argument value. If the responder is backed by a JavaScript iterator
+ *   with a `return(value)` method, it forwards the argument and uses the
+ *   iterator’s returned value as the terminal ack; otherwise it terminates with
+ *   the original argument value.
  * - Acknowledgement values are `TRead` (actual data)
  *
  * The stream() method accepts the head of a synchronize promise chain and returns
@@ -22,7 +27,7 @@ import { M } from '@endo/patterns';
  * @see iterateReader - initiator side for passable readers
  */
 export const PassableReaderInterface = M.interface('PassableReader', {
-  // stream(synPromise: ERef<StreamNode<undefined, Passable>>): Promise<StreamNode<TRead, TReadReturn>>
+  // stream(synPromise: ERef<StreamNode<undefined, TReadReturn>>): Promise<StreamNode<TRead, TReadReturn>>
   stream: M.call(M.any()).returns(M.promise()),
   // readPattern(): Pattern | undefined - pattern for TRead
   readPattern: M.call().returns(M.opt(M.pattern())),
@@ -34,7 +39,12 @@ export const PassableReaderInterface = M.interface('PassableReader', {
  * Interface for passable Writer references.
  *
  * For Writer streams:
- * - Synchronization values are `TWrite` (actual data from initiator)
+ * - Synchronization values are `TWrite` (actual data from initiator). When the
+ *   initiator calls `return(value)` to close early, the final syn node carries
+ *   that argument value. If the responder is backed by a JavaScript iterator
+ *   with a `return(value)` method, it forwards the argument and uses the
+ *   iterator’s returned value as the terminal ack; otherwise it terminates with
+ *   the original argument value.
  * - Acknowledgement values are `undefined` (flow control only)
  *
  * The stream() method accepts the head of a synchronize data chain and returns
@@ -44,7 +54,7 @@ export const PassableReaderInterface = M.interface('PassableReader', {
  * @see iterateWriter - initiator side for passable writers
  */
 export const PassableWriterInterface = M.interface('PassableWriter', {
-  // stream(synPromise: ERef<StreamNode<TWrite, Passable>>): Promise<StreamNode<undefined, TWriteReturn>>
+  // stream(synPromise: ERef<StreamNode<TWrite, TWriteReturn>>): Promise<StreamNode<undefined, TWriteReturn>>
   stream: M.call(M.any()).returns(M.promise()),
   // writePattern(): Pattern | undefined - pattern for TWrite
   writePattern: M.call().returns(M.opt(M.pattern())),
@@ -64,7 +74,7 @@ export const PassableWriterInterface = M.interface('PassableWriter', {
  * @see iterateBytesReader - initiator side for bytes readers
  */
 export const PassableBytesReaderInterface = M.interface('PassableBytesReader', {
-  // streamBase64(synPromise: ERef<StreamNode<Passable, Passable>>): Promise<StreamNode<string, TReadReturn>>
+  // streamBase64(synPromise: ERef<StreamNode<Passable, TReadReturn>>): Promise<StreamNode<string, TReadReturn>>
   streamBase64: M.call(M.any()).returns(M.promise()),
   // readReturnPattern(): Pattern | undefined - pattern for TReadReturn
   readReturnPattern: M.call().returns(M.opt(M.pattern())),
@@ -75,14 +85,19 @@ export const PassableBytesReaderInterface = M.interface('PassableBytesReader', {
  * Uses streamBase64() method instead of stream() to allow future migration
  * to a direct bytes stream() method when CapTP supports binary transport.
  *
- * No writePattern() method - the interface implies Uint8Array writes
+ * No writePattern() method - the interface implies Uint8Array writes. When the
+ * initiator calls `return(value)` to close early, the final syn node carries
+ * that argument value. If the responder is backed by a JavaScript iterator with
+ * a `return(value)` method, it forwards the argument and uses the iterator’s
+ * returned value as the terminal ack; otherwise it terminates with the original
+ * argument value.
  * (transmitted as base64 strings over the wire).
  *
  * @see bytesWriterFromIterator - responder side for bytes writers
  * @see iterateBytesWriter - initiator side for bytes writers
  */
 export const PassableBytesWriterInterface = M.interface('PassableBytesWriter', {
-  // streamBase64(synPromise: ERef<StreamNode<string, Passable>>): Promise<StreamNode<undefined, TWriteReturn>>
+  // streamBase64(synPromise: ERef<StreamNode<string, TWriteReturn>>): Promise<StreamNode<undefined, TWriteReturn>>
   streamBase64: M.call(M.any()).returns(M.promise()),
   // writeReturnPattern(): Pattern | undefined - pattern for TWriteReturn
   writeReturnPattern: M.call().returns(M.opt(M.pattern())),

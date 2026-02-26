@@ -11,6 +11,13 @@ import { iterateWriter } from '../iterate-writer.js';
 import { bytesWriterFromIterator } from '../bytes-writer-from-iterator.js';
 import { iterateBytesWriter } from '../iterate-bytes-writer.js';
 
+const writeAll = async (writer, iterable) => {
+  for await (const value of iterable) {
+    await writer.next(value);
+  }
+  return writer.return();
+};
+
 // Test passable reader over CapTP membrane
 test('captp: single-item passable reader', async t => {
   const { makeFar } = makeLoopback('test');
@@ -179,7 +186,8 @@ test('captp: writer round-trip', async t => {
   const localWriter = writerFromIterator(pipeWriter);
   const remoteWriter = await makeFar(localWriter);
 
-  const sendDone = iterateWriter(remoteWriter, source());
+  const writer = iterateWriter(remoteWriter);
+  const sendDone = writeAll(writer, source());
 
   const results = [];
   for await (const value of pipeReader) {
@@ -207,7 +215,8 @@ test('captp: writer with buffer', async t => {
   const localWriter = writerFromIterator(pipeWriter, { buffer: 2 });
   const remoteWriter = await makeFar(localWriter);
 
-  const sendDone = iterateWriter(remoteWriter, source(), { buffer: 2 });
+  const writer = iterateWriter(remoteWriter, { buffer: 2 });
+  const sendDone = writeAll(writer, source());
 
   const results = [];
   for await (const value of pipeReader) {
@@ -231,7 +240,8 @@ test('captp: empty writer', async t => {
   const localWriter = writerFromIterator(pipeWriter);
   const remoteWriter = await makeFar(localWriter);
 
-  const sendDone = iterateWriter(remoteWriter, emptySource());
+  const writer = iterateWriter(remoteWriter);
+  const sendDone = writeAll(writer, emptySource());
 
   const results = [];
   for await (const value of pipeReader) {
@@ -253,7 +263,8 @@ test('captp: bytes writer round-trip', async t => {
   const localWriter = bytesWriterFromIterator(pipeWriter);
   const remoteWriter = await makeFar(localWriter);
 
-  const sendDone = iterateBytesWriter(remoteWriter, chunks);
+  const writer = iterateBytesWriter(remoteWriter);
+  const sendDone = writeAll(writer, chunks);
 
   const results = [];
   for await (const value of pipeReader) {
@@ -281,7 +292,8 @@ test('captp: bytes writer with buffer', async t => {
   const localWriter = bytesWriterFromIterator(pipeWriter, { buffer: 2 });
   const remoteWriter = await makeFar(localWriter);
 
-  const sendDone = iterateBytesWriter(remoteWriter, chunks, { buffer: 2 });
+  const writer = iterateBytesWriter(remoteWriter, { buffer: 2 });
+  const sendDone = writeAll(writer, chunks);
 
   const results = [];
   for await (const value of pipeReader) {

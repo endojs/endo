@@ -13,7 +13,12 @@ import { makeWriterPump } from './writer-pump.js';
  * Create a PassableWriter Exo from a local iterator (Responder/Consumer side).
  *
  * This creates a Writer stream where:
- * - Synchronization values are `TWrite` (actual data from the initiator)
+ * - Synchronization values are `TWrite` (actual data from the initiator). When
+ *   the initiator calls `return(value)` to close early, the final syn node carries
+ *   that argument value. If the responder is backed by a JavaScript iterator
+ *   with a `return(value)` method, it forwards the argument and uses the
+ *   iterator’s returned value as the terminal ack; otherwise it terminates with
+ *   the original argument value.
  * - Acknowledgement values are `undefined` (flow control only - "send me more")
  *
  * The Responder wraps a local iterator and receives data from the remote
@@ -26,8 +31,8 @@ import { makeWriterPump } from './writer-pump.js';
  * With buffer > 0, the responder pre-sends flow-control acks, allowing the
  * initiator to send data without additional round-trips.
  *
- * @template [TWrite=Passable]
- * @template [TWriteReturn=undefined]
+ * @template {Passable} [TWrite=Passable]
+ * @template {Passable} [TWriteReturn=undefined]
  * @param {SomehowAsyncIterable<unknown, TWrite>} iterator
  * @param {MakeWriterOptions} [options]
  * @returns {PassableWriter<TWrite, TWriteReturn>}
@@ -35,7 +40,11 @@ import { makeWriterPump } from './writer-pump.js';
 export const writerFromIterator = (iterator, options = {}) => {
   const { buffer = 0, writePattern, writeReturnPattern } = options;
 
-  const pump = makeWriterPump(iterator, { buffer });
+  const pump = makeWriterPump(iterator, {
+    buffer,
+    writePattern,
+    writeReturnPattern,
+  });
 
   return /** @type {PassableWriter<TWrite, TWriteReturn>} */ (
     /** @type {unknown} */ (

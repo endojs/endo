@@ -34,11 +34,21 @@ in usage, because the protocol is symmetric.
 - For a **Reader**, the **Initiator** is the **Consumer** and the **Responder**
   is the **Producer**.
   Data flows from responder to initiator on the acknowledgement chain.
-  The synchronization chain carries `undefined` (flow control only).
+  The synchronization chain carries `undefined` for flow control.
+  When the initiator calls `return(value)` to close early, the final
+  synchronization node carries that argument value to the responder. If the
+  responder is backed by a JavaScript iterator with a `return(value)` method,
+  it forwards the argument and uses the iterator’s returned value as the final
+  acknowledgement. Otherwise, it terminates with the original argument value.
 - For a **Writer**, the **Initiator** is the **Producer** and the **Responder**
   is the **Consumer**.
   Data flows from initiator to responder on the synchronization chain.
-  The acknowledgement chain carries `undefined` (flow control only).
+  The acknowledgement chain carries `undefined` (flow control only). When the
+  initiator calls `return(value)` to close early, the final syn node carries that
+  argument value. If the responder is backed by a JavaScript iterator with a
+  `return(value)` method, it forwards the argument and uses the iterator’s
+  returned value as the terminal ack; otherwise it terminates with the original
+  argument value.
 - We leave a void in the terminology for configurations where neither or both
   parties send data.
   **Duplex** passable streams are best modeled with a pair of unentangled
@@ -64,7 +74,7 @@ mirrored in data flow direction.
 |--------|----------|------|
 | `writer-pump.js` | `makeWriterPump(iterator, options?)` | Core responder pump. Pushes received data to local sink iterator, produces ack flow-control chain. |
 | `writer-from-iterator.js` | `writerFromIterator(iterator, options?)` | Responder: wraps local sink iterator as `PassableWriter` Exo. |
-| `iterate-writer.js` | `iterateWriter(writerRef, iterator, options?)` | Initiator: sends local iterator data to remote `PassableWriter`. |
+| `iterate-writer.js` | `iterateWriter(writerRef, options?)` | Initiator: returns a local writer iterator that sends values via `next(value)`. |
 
 ### Bytes Reader Modules
 
@@ -78,7 +88,7 @@ mirrored in data flow direction.
 | Module | Function | Role |
 |--------|----------|------|
 | `bytes-writer-from-iterator.js` | `bytesWriterFromIterator(iterator, options?)` | Responder: wraps local sink iterator as `PassableBytesWriter` Exo (base64 decoding on receive). |
-| `iterate-bytes-writer.js` | `iterateBytesWriter(bytesWriterRef, bytesIterator, options?)` | Initiator: sends `Uint8Array` data to remote `PassableBytesWriter` (base64 encoding on send). |
+| `iterate-bytes-writer.js` | `iterateBytesWriter(bytesWriterRef, options?)` | Initiator: returns a local bytes writer iterator that sends `Uint8Array` via `next(value)`. |
 
 ## Protocol Flow
 
@@ -139,8 +149,13 @@ sequenceDiagram
 
 ### Reader Flow
 
-For a Reader, the synchronization chain carries `undefined` (flow control)
-and the acknowledgement chain carries `TRead` (data):
+For a Reader, the synchronization chain carries `undefined` for flow control,
+except that when the initiator calls `return(value)` to close early, the final
+synchronization node carries that argument value to the responder. If the
+responder is backed by a JavaScript iterator with a `return(value)` method, it
+forwards the argument and uses the iterator’s returned value as the final
+acknowledgement. Otherwise, it terminates with the original argument value. The
+acknowledgement chain carries `TRead` (data):
 
 - **Responder** (`readerFromIterator`): wraps a local `AsyncIterator<TRead>`,
   pulls values and sends them on the ack chain.
@@ -149,13 +164,18 @@ and the acknowledgement chain carries `TRead` (data):
 
 ### Writer Flow
 
-For a Writer, the synchronization chain carries `TWrite` (data)
-and the acknowledgement chain carries `undefined` (flow control):
+For a Writer, the synchronization chain carries `TWrite` (data). When the
+initiator calls `return(value)` to close early, the final syn node carries that
+argument value. If the responder is backed by a JavaScript iterator with a
+`return(value)` method, it forwards the argument and uses the iterator’s
+returned value as the terminal ack; otherwise it terminates with the original
+argument value. The acknowledgement chain carries `undefined` (flow control):
 
 - **Responder** (`writerFromIterator`): wraps a local sink iterator,
   receives data on the syn chain and pushes to the iterator via `iterator.next(value)`.
-- **Initiator** (`iterateWriter`): sends data from a local iterator on the syn chain,
-  receives `undefined` ack nodes as flow control.
+- **Initiator** (`iterateWriter`): returns a local writer iterator; each
+  `next(value)` sends data on the syn chain and uses `undefined` ack nodes for
+  flow control.
 
 ### Bytes Reader Flow
 
@@ -178,9 +198,9 @@ and the acknowledgement chain carries `undefined` (flow control):
 ### Bytes Writer Flow
 
 1. **Initiator** (`iterateBytesWriter`):
-   - Takes local `AsyncIterator<Uint8Array>`
+   - Returns a local bytes writer iterator
    - Encodes each chunk to base64
-   - Sends base64 strings on the synchronize chain
+   - Sends base64 strings on the synchronize chain via `next(value)`
 
 2. **Responder** (`bytesWriterFromIterator`):
    - Creates Exo with `streamBase64()` method
