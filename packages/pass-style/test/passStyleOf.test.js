@@ -133,9 +133,9 @@ test('some passStyleOf rejections', t => {
     message: /Cannot pass non-promise thenables/,
   });
 
-  const thenable2 = Far('remote thenable', { then: () => 'thenable' });
-  t.throws(() => passStyleOf(thenable2), {
-    message: /Cannot pass non-promise thenables/,
+  t.throws(() => Far('remote thenable', { then: () => 'thenable' }), {
+    message:
+      'Remotables can only have string-named methods other than "then" and "constuctor": "then"',
   });
 });
 

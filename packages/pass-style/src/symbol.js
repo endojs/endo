@@ -54,8 +54,8 @@ hideAndHardenFunction(assertPassableSymbol);
  * encoding. We identify a well known symbol such as `Symbol.iterator`
  * by prefixing the property name with `"@@"`, such as `"@@iterator"`.
  * For registered symbols whose name happens to begin with `"@@"`, such
- * as `Symbol.for('@@iterator')` or `Symbol.for('@@foo')`, we identify
- * them by prefixing them with an extra `"@@"`, such as
+ * as `passableSymbolForName('@@iterator')` or `passableSymbolForName('@@foo')`,
+ * we identify them by prefixing them with an extra `"@@"`, such as
  * `"@@@@iterator"` or `"@@@@foo"`. (This is the Hilbert Hotel encoding
  * technique.)
  *

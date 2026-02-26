@@ -319,10 +319,6 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
           assert.typeof(digits, 'string');
           return out.next(`${BigInt(digits)}n`);
         }
-        case '@@asyncIterator': {
-          // TODO deprecated. Eventually remove.
-          return out.next('Symbol.asyncIterator');
-        }
         case 'symbol': {
           const { name } = rawTree;
           assert.typeof(name, 'string');

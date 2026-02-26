@@ -15,6 +15,16 @@ import {
  * @import {InterfaceSpec, PassStyled, RemotableObject, RemotableMethodName} from './types.js';
  */
 
+const { ownKeys } = Reflect;
+const { isArray } = Array;
+const {
+  getPrototypeOf,
+  isFrozen,
+  prototype: objectPrototype,
+  getOwnPropertyDescriptors,
+  hasOwn,
+} = Object;
+
 /**
  * For a function to be a valid method, it must not be passable.
  * Otherwise, we risk confusing pass-by-copy data carrying
@@ -36,37 +46,47 @@ harden(canBeMethod);
 // Abstract out canBeMethodName so later PRs agree on method name restrictions.
 
 /**
+ * Is `key` a possible method name of a remotable? To qualify, `key` must be
+ * a string other than `then` or `constructor`.
+ *
+ * TODO How we bind an OCapN symbol "then" or "constructor" to JS remotables
+ * is still TBD. Probably some form of Hilbert hotel.
+ *
  * @param {any} key
  * @returns {key is RemotableMethodName}
  */
 const canBeMethodName = key =>
-  typeof key === 'string' || typeof key === 'symbol';
+  typeof key === 'string' && key !== 'then' && key !== 'constructor';
 harden(canBeMethodName);
 
 /**
  * Uses the `getMethodNames` from the eventual-send level of abstraction that
  * does not know anything about remotables.
  *
- * Currently, just alias `getMethodNames` but this abstraction exists so
- * a future PR can enforce restrictions on method names of remotables.
+ * For remotables, we require method names
+ * - to be strings, not symbols - fail otherwise
+ * - not to be the string `'then'` - fail otherwise
+ * - not to be the string `'constructor'` - filter out `'constructor'`
+ *
+ * By ignoring any method that seems to be a constructor, we can use a
+ * class.prototype as a `behaviorMethods`.
  *
  * @template {Record<string, CallableFunction>} T
  * @param {T} behaviorMethods
  * @returns {RemotableMethodName[]}
  */
-export const getRemotableMethodNames = behaviorMethods =>
-  getMethodNames(behaviorMethods);
+export const getRemotableMethodNames = behaviorMethods => {
+  const result = getMethodNames(behaviorMethods).filter(
+    name => name !== 'constructor',
+  );
+  for (const name of result) {
+    typeof name === 'string' ||
+      Fail`${q(name)} must be a string, not ${q(typeof name)}`;
+    name !== 'then' || Fail`${q(name)} may not be a method name`;
+  }
+  return /** @type {RemotableMethodName[]} */ (result);
+};
 harden(getRemotableMethodNames);
-
-const { ownKeys } = Reflect;
-const { isArray } = Array;
-const {
-  getPrototypeOf,
-  isFrozen,
-  prototype: objectPrototype,
-  getOwnPropertyDescriptors,
-  hasOwn,
-} = Object;
 
 /**
  * @param {InterfaceSpec} iface
@@ -262,9 +282,10 @@ export const RemotableHelper = harden({
                 reject`cannot serialize Remotables with non-methods like ${q(
                   String(key),
                 )} in ${candidate}`)) &&
-              (key !== PASS_STYLE ||
+              (canBeMethodName(key) ||
+                key === 'constructor' ||
                 (reject &&
-                  reject`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`))))
+                  reject`Remotables can only have string-named methods other than "then" and "constuctor": ${String(key)}`))))
         );
       });
     } else if (typeof candidate === 'function') {

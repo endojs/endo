@@ -124,8 +124,7 @@ test('getCopyMapEntries', t => {
     ['x', 8],
     ['y', 7],
   ]);
-  const entries = getCopyMapEntries(m);
-  t.deepEqual(entries, [
+  t.deepEqual(getCopyMapEntries(m), [
     // the representation is backwards sorted.
     ['y', 7],
     ['x', 8],
