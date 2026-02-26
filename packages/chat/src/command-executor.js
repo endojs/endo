@@ -165,6 +165,18 @@ export const createCommandExecutor = ({
           return { success: true, value };
         }
 
+        case 'locate': {
+          const { petName } = params;
+          const pathParts = String(petName).split('.');
+          const locator = await E(powers).locate(...pathParts);
+          if (locator === undefined) {
+            showMessage(`${petName}: not found`);
+            return { success: false };
+          }
+          showValue(locator);
+          return { success: true, value: locator };
+        }
+
         case 'rm':
         case 'remove': {
           const { petName } = params;

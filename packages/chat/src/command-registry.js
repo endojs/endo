@@ -242,6 +242,23 @@ export const COMMANDS = {
     ],
     submitLabel: 'Show',
   },
+  locate: {
+    name: 'locate',
+    label: 'Locate',
+    description: 'Show the locator for a value',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'pet-name',
+      },
+    ],
+    submitLabel: 'Locate',
+  },
   remove: {
     name: 'remove',
     label: 'Remove',
