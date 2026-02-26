@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-02-24*
+*Last updated: 2026-02-25*
 
 ## Summary
 
@@ -11,6 +11,7 @@
 | [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | **Complete** |
 | [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | Not Started |
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | Not Started |
+| [daemon-engo-supervisor](daemon-engo-supervisor.md) | 2026-02-25 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | Not Started |
@@ -31,7 +32,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | Not Started |
 
-**Totals:** 4 Complete, 3 In Progress, 16 Not Started
+**Totals:** 4 Complete, 3 In Progress, 17 Not Started
 
 ## Roadmap
 
