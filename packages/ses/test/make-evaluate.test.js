@@ -18,6 +18,27 @@ const makeObservingProxy = target => {
   return [proxy, ops];
 };
 
+
+test('makeEvaluate - evaluates something', t => {
+  t.plan(1);
+
+  const globalObject = Object.create(null);
+  const moduleLexicals = Object.create(null);
+
+  globalObject.pass = t.pass;
+
+  const scopeTerminator = strictScopeTerminator;
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
+
+  const evaluate = makeEvaluate(
+    freeze({ scopeTerminator, globalObject, moduleLexicals, evalScope }),
+  );
+
+  evalScopeKit.allowNextEvalToBeUnsafe();
+  evaluate('pass()');
+});
+
 test('makeEvaluate - optimizer', t => {
   t.plan(5);
 
