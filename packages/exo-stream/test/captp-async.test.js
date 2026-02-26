@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /**
  * Tests using CapTP with async message dispatch to simulate real network conditions.
  * This is closer to how the daemon uses CapTP over Unix sockets.
@@ -32,11 +33,9 @@ const makeAsyncCapTPBridge = (name, bootstrap) => {
    */
   const processQueue = async (queue, dispatch) => {
     await null;
-    // eslint-disable-next-line no-await-in-loop
     while (queue.length > 0) {
       const msg = queue.shift();
       dispatch(msg);
-      // eslint-disable-next-line no-await-in-loop
       await Promise.resolve();
     }
   };

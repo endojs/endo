@@ -11,8 +11,16 @@ initiator and responder.
 
 A **reader** is a stream where data flows from responder to initiator.
 A **writer** is a stream where data flows from initiator to responder.
-In both cases, one chain carries data and the other carries flow control
-(`undefined` values).
+In both cases, one chain carries data and the other carries flow control.
+For Readers, when the initiator calls `return(value)` to close early, the final
+synchronization node carries that argument value to the responder. If the
+responder is backed by a JavaScript iterator with a `return(value)` method, the
+responder forwards that argument and uses the iterator’s returned value as the
+terminal acknowledgement. Otherwise, the responder terminates with the original
+argument value. All other synchronization values are `undefined`.
+For Writers, when the initiator closes early, the final synchronization node
+likewise carries the argument value (which the responder may replace with its
+own `return(value)` result if it implements `return`).
 
 Additionally, because round-trip-time is a concern, the producer and consumer
 can pre-ack a number of messages, allowing the producer to prepare and transmit
@@ -85,12 +93,26 @@ const writerRef = writerFromIterator(pipeWriter);
   }
 })();
 
-// Initiator: send data from a local iterator to remote PassableWriter
+// Initiator: push data to remote PassableWriter
+const writer = iterateWriter(writerRef);
 async function* localData() {
   yield { type: 'message', text: 'hello' };
   yield { type: 'data', value: 42 };
 }
-await iterateWriter(writerRef, localData());
+try {
+  for await (const value of localData()) {
+    await writer.next(value);
+  }
+} catch (err) {
+  if (writer.throw) {
+    await writer.throw(err);
+  } else {
+    await writer.return();
+  }
+  throw err;
+} finally {
+  await writer.return();
+}
 ```
 
 ### Options
@@ -160,12 +182,26 @@ const bytesWriterRef = bytesWriterFromIterator(pipeWriter);
   }
 })();
 
-// Initiator: send bytes from a local iterator to remote PassableBytesWriter
+// Initiator: push bytes to remote PassableBytesWriter
+const bytesWriter = iterateBytesWriter(bytesWriterRef);
 async function* localBytes() {
   yield new Uint8Array([1, 2, 3]);
   yield new Uint8Array([4, 5, 6]);
 }
-await iterateBytesWriter(bytesWriterRef, localBytes());
+try {
+  for await (const chunk of localBytes()) {
+    await bytesWriter.next(chunk);
+  }
+} catch (err) {
+  if (bytesWriter.throw) {
+    await bytesWriter.throw(err);
+  } else {
+    await bytesWriter.return();
+  }
+  throw err;
+} finally {
+  await bytesWriter.return();
+}
 ```
 
 ## API
@@ -218,14 +254,16 @@ Each value received from the initiator is pushed to the iterator via
 - `writePattern` (Pattern): Pattern describing TWrite (yielded values)
 - `writeReturnPattern` (Pattern): Pattern describing TWriteReturn (return value)
 
-#### `iterateWriter(writerRef, iterator, options?)`
+#### `iterateWriter(writerRef, options?)`
 
-Send data from a local `AsyncIterator<TWrite>` to a remote `PassableWriter`
-(initiator side).
-Returns `Promise<void>` that resolves when the iterator is exhausted.
+Create a local writer iterator that sends values to a remote `PassableWriter`
+(initiator side). Use `writer.next(value)` to push values and `writer.return()`
+to close the stream.
 
 **Options:**
-- `buffer` (number, default 0): Number of data values to pre-send
+- `buffer` (number, default 0): Number of data values to pre-send before waiting for acks
+- `writePattern` (Pattern): Pattern to validate each TWrite value
+- `writeReturnPattern` (Pattern): Pattern to validate TWriteReturn
 
 #### `makeWriterPump(iterator, options?)`
 
@@ -276,15 +314,15 @@ to direct bytes transport when CapTP supports it.
 - `buffer` (number, default 0): Number of flow-control acks to pre-send
 - `writeReturnPattern` (Pattern): Pattern describing TWriteReturn (return value)
 
-#### `iterateBytesWriter(bytesWriterRef, bytesIterator, options?)`
+#### `iterateBytesWriter(bytesWriterRef, options?)`
 
-Send bytes from a local `AsyncIterator<Uint8Array>` to a remote
-`PassableBytesWriter` (initiator side).
-Bytes are automatically base64-encoded for transmission over CapTP.
-Returns `Promise<void>` that resolves when the iterator is exhausted.
+Create a local bytes writer iterator that sends `Uint8Array` values to a remote
+`PassableBytesWriter` (initiator side). Use `writer.next(chunk)` to push values
+and `writer.return()` to close the stream. Bytes are automatically base64-encoded
+for transmission over CapTP.
 
 **Options:**
-- `buffer` (number, default 0): Number of data values to pre-send
+- `buffer` (number, default 0): Number of data values to pre-send before waiting for acks
 
 ### Migration Path for Bytes Streams
 

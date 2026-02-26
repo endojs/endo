@@ -36,7 +36,7 @@ From `@endo/daemon/ref-reader.js` (REMOVED):
 | New Function | Module | Notes |
 |---|---|---|
 | `writerFromIterator(iterator)` | `writer-from-iterator.js` | Returns `PassableWriter` Exo with `stream()` method |
-| `iterateWriter(writerRef, iterator)` | `iterate-writer.js` | Sends local iterator data to remote writer; returns `Promise<void>` |
+| `iterateWriter(writerRef, options?)` | `iterate-writer.js` | Returns a local writer iterator; use `next(value)` to send and `return()` to close |
 
 #### Bytes Readers (base64 encoding over CapTP)
 
@@ -50,7 +50,7 @@ From `@endo/daemon/ref-reader.js` (REMOVED):
 | New Function | Module | Notes |
 |---|---|---|
 | `bytesWriterFromIterator(iterator)` | `bytes-writer-from-iterator.js` | Returns `PassableBytesWriter` Exo with `streamBase64()` method |
-| `iterateBytesWriter(writerRef, bytesIterator)` | `iterate-bytes-writer.js` | Sends local `Uint8Array` data to remote writer; returns `Promise<void>` |
+| `iterateBytesWriter(writerRef, options?)` | `iterate-bytes-writer.js` | Returns a local bytes writer iterator; use `next(chunk)` to send and `return()` to close |
 
 ### Key Differences
 
@@ -162,8 +162,12 @@ import { makePipe } from '@endo/stream';
 const [pipeReader, pipeWriter] = makePipe();
 const writerRef = writerFromIterator(pipeWriter);
 
-// Initiator: send data from a local iterator to remote PassableWriter
-await iterateWriter(writerRef, localDataIterator);
+// Initiator: push data to remote PassableWriter
+const writer = iterateWriter(writerRef);
+for await (const value of localDataIterator) {
+  await writer.next(value);
+}
+await writer.return();
 ```
 
 ## Files Migrated

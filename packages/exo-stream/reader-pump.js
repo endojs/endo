@@ -1,6 +1,8 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import { makePromiseKit } from '@endo/promise-kit';
+import { mustMatch } from '@endo/patterns';
 
 import { asyncIterate } from './async-iterate.js';
 
@@ -14,7 +16,12 @@ const { freeze } = Object;
  * Creates a Reader responder pump (Producer side).
  *
  * For a Reader stream:
- * - Syn values are `undefined` (flow control only - "give me more")
+ * - Syn values are `undefined` (flow control only - "give me more"). When the
+ *   initiator calls `return(value)` to close early, the final syn node carries
+ *   that argument value. If the responder is backed by a JavaScript iterator
+ *   with a `return(value)` method, it forwards the argument and uses the
+ *   iterator’s returned value as the terminal ack; otherwise it terminates with
+ *   the original argument value.
  * - Ack values are `TRead` (actual data from the iterator)
  *
  * This is the core machinery for the Responder/Producer side of a Reader.
@@ -40,18 +47,18 @@ const { freeze } = Object;
  * };
  * ```
  *
- * @template [TRead=Passable]
- * @template [TReadReturn=undefined]
+ * @template {Passable} [TRead=Passable]
+ * @template {Passable} [TReadReturn=undefined]
  * @param {SomehowAsyncIterable<TRead, undefined, TReadReturn>} iterable
  * @param {ReaderPumpOptions} [options]
- * @returns {(synPromise: ERef<StreamNode<undefined, Passable>>) => Promise<StreamNode<TRead, TReadReturn>>}
+ * @returns {(synPromise: ERef<StreamNode<undefined, TReadReturn>>) => Promise<StreamNode<TRead, TReadReturn>>}
  */
 export const makeReaderPump = (iterable, options = {}) => {
-  const { buffer = 0 } = options;
+  const { buffer = 0, readPattern, readReturnPattern } = options;
   const iterator = asyncIterate(iterable);
 
   /**
-   * @param {ERef<StreamNode<undefined, Passable>>} synPromise
+   * @param {ERef<StreamNode<undefined, TReadReturn>>} synPromise
    * @returns {Promise<StreamNode<TRead, TReadReturn>>}
    */
   const pump = synPromise => {
@@ -62,43 +69,53 @@ export const makeReaderPump = (iterable, options = {}) => {
 
     (async () => {
       await null;
-      for (let i = 0; ; i += 1) {
-        // After buffer values, wait for sync before each pull
-        if (i >= buffer) {
-          // eslint-disable-next-line no-await-in-loop
-          const synNode = await synPromise;
-          if (synNode.promise === null) {
-            // Initiator signaled close - call iterator.return() for cleanup
-            /** @type {TReadReturn} */
-            // eslint-disable-next-line no-undef-init
-            let returnValue = /** @type {TReadReturn} */ (undefined);
-            if (iterator.return) {
-              // eslint-disable-next-line no-await-in-loop
-              const returned = await iterator.return();
-              returnValue = /** @type {TReadReturn} */ (returned.value);
+      try {
+        for (let i = 0; ; i += 1) {
+          // After buffer values, wait for sync before each pull
+          if (i >= buffer) {
+            const synNode = await synPromise;
+            if (synNode.promise === null) {
+              // Initiator signaled close - call iterator.return() for cleanup
+              let returnValue = synNode.value;
+              if (iterator.return) {
+                returnValue = /** @type {TReadReturn} */ (
+                  (await iterator.return(returnValue)).value
+                );
+              }
+              if (readReturnPattern !== undefined) {
+                mustMatch(returnValue, readReturnPattern);
+              }
+              ackResolve(freeze({ value: returnValue, promise: null }));
+              break;
             }
-            ackResolve(freeze({ value: returnValue, promise: null }));
+            synPromise = synNode.promise;
+          }
+
+          // Pull next value from iterator (no sync value for Reader - it's undefined)
+          const result = await iterator.next();
+
+          if (result.done) {
+            if (readReturnPattern !== undefined) {
+              mustMatch(result.value, readReturnPattern);
+            }
+            ackResolve(freeze({ value: result.value, promise: null }));
             break;
           }
-          synPromise = synNode.promise;
+          if (readPattern !== undefined) {
+            mustMatch(result.value, readPattern);
+          }
+          const { promise, resolve } = makePromiseKit();
+          ackResolve(freeze({ value: result.value, promise }));
+          ackResolve = resolve;
         }
-
-        // Pull next value from iterator (no sync value for Reader - it's undefined)
-        // eslint-disable-next-line no-await-in-loop
-        const result = await iterator.next();
-
-        if (result.done) {
-          ackResolve(freeze({ value: result.value, promise: null }));
-          break;
+      } catch (err) {
+        if (iterator.return) {
+          await iterator.return();
         }
-        const { promise, resolve } = makePromiseKit();
-        ackResolve(freeze({ value: result.value, promise }));
-        ackResolve = resolve;
+        // Abort: resolve tail with rejection
+        ackResolve(Promise.reject(err));
       }
-    })().catch(err => {
-      // Abort: resolve tail with rejection
-      ackResolve(Promise.reject(err));
-    });
+    })();
 
     return ackHead;
   };

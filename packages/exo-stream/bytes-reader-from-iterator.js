@@ -27,7 +27,12 @@ import { makeReaderPump } from './reader-pump.js';
  * Only readReturnPattern can be customized.
  *
  * The reader uses bidirectional promise chains for flow control:
- * - Initiator sends synchronizations via the synchronization chain to induce production
+ * - Initiator sends synchronizations via the synchronization chain to induce
+ *   production. When the initiator calls `return(value)` to close early, the
+ *   final syn node carries that argument value. If the responder is backed by a
+ *   JavaScript iterator with a `return(value)` method, it forwards the argument
+ *   and uses the iterator’s returned value as the terminal ack; otherwise it
+ *   terminates with the original argument value.
  * - Responder sends acknowledgements (base64 strings) via the acknowledgement chain
  *
  * @param {SomehowAsyncIterable<Uint8Array>} bytesIterator
@@ -46,7 +51,7 @@ export const bytesReaderFromIterator = (bytesIterator, options = {}) => {
 
   const pump = makeReaderPump(base64Iterator, { buffer });
 
-  // @ts-expect-error The Exo's Passable types are compatible with the template types
+  // @ts-expect-error Exo pump types use Passable where template expects specific subtype
   return makeExo('PassableBytesReader', PassableBytesReaderInterface, {
     streamBase64: pump,
 

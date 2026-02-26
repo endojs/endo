@@ -7,6 +7,7 @@ import { PassableBytesWriterInterface } from './type-guards.js';
 import { makeWriterPump } from './writer-pump.js';
 import { asyncIterate } from './async-iterate.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { Pattern } from '@endo/patterns' */
 /** @import { SomehowAsyncIterable, PassableBytesWriter, MakeBytesWriterOptions } from './types.js' */
 
@@ -28,10 +29,15 @@ import { asyncIterate } from './async-iterate.js';
  * Only writeReturnPattern can be customized.
  *
  * The writer uses bidirectional promise chains for flow control:
- * - Initiator sends synchronizations (base64 strings) via the synchronization chain
+ * - Initiator sends synchronizations (base64 strings) via the synchronization chain.
+ *   When the initiator calls `return(value)` to close early, the final syn node
+ *   carries that argument value. If the responder is backed by a JavaScript
+ *   iterator with a `return(value)` method, it forwards the argument and uses the
+ *   iterator’s returned value as the terminal ack; otherwise it terminates with
+ *   the original argument value.
  * - Responder sends acknowledgements via the acknowledgement chain to induce production
  *
- * @template [TWriteReturn=undefined]
+ * @template {Passable} [TWriteReturn=undefined]
  * @param {SomehowAsyncIterable<unknown, Uint8Array, TWriteReturn>} iterator
  * @param {MakeBytesWriterOptions<TWriteReturn>} [options]
  * @returns {PassableBytesWriter<TWriteReturn>}
@@ -61,20 +67,22 @@ export const bytesWriterFromIterator = (iterator, options = {}) => {
     },
   };
 
-  // @ts-expect-error decodingIterator is a proper AsyncIterator but TS can't
-  // structurally match it against SomehowAsyncIterable's union because
-  // AsyncIterator.next() has an optional param while ours requires a string.
   const pump = makeWriterPump(decodingIterator, { buffer });
 
-  return makeExo('PassableBytesWriter', PassableBytesWriterInterface, {
-    streamBase64: pump,
+  return /** @type {PassableBytesWriter<TWriteReturn>} */ (
+    /** @type {unknown} */ (
+      // @ts-expect-error Exo guard types are not fully compatible with template params
+      makeExo('PassableBytesWriter', PassableBytesWriterInterface, {
+        streamBase64: pump,
 
-    /**
-     * Returns the pattern for validating TWriteReturn (return value).
-     * @returns {Pattern | undefined}
-     */
-    writeReturnPattern() {
-      return writeReturnPattern;
-    },
-  });
+        /**
+         * Returns the pattern for validating TWriteReturn (return value).
+         * @returns {Pattern | undefined}
+         */
+        writeReturnPattern() {
+          return writeReturnPattern;
+        },
+      })
+    )
+  );
 };
