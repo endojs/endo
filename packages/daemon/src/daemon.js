@@ -847,20 +847,11 @@ const makeDaemonCore = async (
 
   /**
    * @param {NodeNumber} remoteNodeNumber
-   * @param {(error: Error) => void} cancelPeer
-   * @param {Promise<never>} peerCancelled
    */
-  const providePeer = async (remoteNodeNumber, cancelPeer, peerCancelled) => {
-    const remoteControl = provideRemoteControl(remoteNodeNumber);
-    return remoteControl.connect(
-      async () => {
-        // eslint-disable-next-line no-use-before-define
-        const peerId = await getPeerIdForNodeIdentifier(remoteNodeNumber);
-        return provide(peerId, 'peer');
-      },
-      cancelPeer,
-      peerCancelled,
-    );
+  const providePeer = async remoteNodeNumber => {
+    // eslint-disable-next-line no-use-before-define
+    const peerId = await getPeerIdForNodeIdentifier(remoteNodeNumber);
+    return provide(peerId, 'peer');
   };
 
   // Gateway is equivalent to E's "nonce locator".
@@ -2128,7 +2119,7 @@ const makeDaemonCore = async (
     const { number: formulaNumber, node: formulaNode } = parseId(id);
     const isRemote = formulaNode !== localNodeNumber;
     if (isRemote) {
-      const peer = providePeer(formulaNode, context.cancel, context.cancelled);
+      const peer = providePeer(formulaNode);
       return E(peer).provide(id);
     }
 
@@ -3123,12 +3114,11 @@ const makeDaemonCore = async (
   const getAllNetworks = async networksDirectoryId => {
     const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
-    const networks = await Promise.all(
-      networkIds.map(id =>
-        provide(/** @type {FormulaIdentifier} */ (id), 'network'),
-      ),
-    );
-    return networks;
+    const readyNetworks = networkIds
+      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .filter(id => refForId.has(id))
+      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
+    return readyNetworks;
   };
 
   /** @type {DaemonCore['getAllNetworkAddresses']} */
@@ -3156,36 +3146,19 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
-    console.log(
-      `makePeer: connecting to node ${nodeId.slice(0, 16)}... with ${addresses.length} address(es)`,
-    );
     const remoteControl = provideRemoteControl(nodeId);
     return remoteControl.connect(
       async () => {
         // TODO race networks that support protocol for connection
         // TODO retry, exponential back-off, with full jitter
         const networks = await getAllNetworks(networksDirectoryId);
-        console.log(
-          `makePeer: found ${networks.length} network(s), trying ${addresses.length} address(es)`,
-        );
-        // Connect on first support address.
+        // Connect on first supported address.
         for (const address of addresses) {
           const { protocol } = new URL(address);
           for (const network of networks) {
             // eslint-disable-next-line no-await-in-loop
             if (await E(network).supports(protocol)) {
-              console.log(`makePeer: dialing ${address.slice(0, 80)}...`);
-              try {
-                return await E(network).connect(
-                  address,
-                  makeFarContext(context),
-                );
-              } catch (connectError) {
-                console.log(
-                  `makePeer: connect failed: ${/** @type {Error} */ (connectError).message}`,
-                );
-                throw connectError;
-              }
+              return E(network).connect(address, makeFarContext(context));
             }
           }
         }
