@@ -5,6 +5,18 @@ test('windows', t => {
   t.is(
     // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('win32', {
+      ENDO_STATE: 'C:\\Users\\Alice\\AppData\\Local\\Endo',
+      LOCALAPPDATA: 'IGNOREME',
+      APPDATA: 'IGNOREME',
+      USERPROFILE: 'IGNOREME',
+      HOMEDRIVE: 'IGNOREME',
+      HOMEPATH: 'IGNOREME',
+    }),
+    'C:\\Users\\Alice\\AppData\\Local\\Endo',
+    'Favor Endo env var state home if provided by the user',
+  );
+  t.is(
+    whereEndoState('win32', {
       LOCALAPPDATA: 'C:\\Users\\Alice\\AppData\\Local',
       APPDATA: 'IGNOREME',
       USERPROFILE: 'IGNOREME',
@@ -61,6 +73,16 @@ test('darwin', t => {
   t.is(
     // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('darwin', {
+      ENDO_STATE: '/Users/alice/.local/state/endo',
+      XDG_STATE_HOME: 'IGNOREME',
+      XDG_CONFIG_HOME: 'IGNOREME',
+      HOME: 'IGNOREME',
+    }),
+    '/Users/alice/.local/state/endo',
+    'Favor Endo env var state home if provided by the user',
+  );
+  t.is(
+    whereEndoState('darwin', {
       XDG_STATE_HOME: '/Users/alice/.local/state',
       XDG_CONFIG_HOME: 'IGNOREME',
       HOME: 'IGNOREME',
@@ -92,6 +114,16 @@ test('darwin', t => {
 test('linux', t => {
   t.is(
     // @ts-expect-error Expected 3 arguments, but got 2.
+    whereEndoState('linux', {
+      ENDO_STATE: '/Users/alice/.local/state/endo',
+      XDG_STATE_HOME: 'IGNOREME',
+      XDG_CONFIG_HOME: 'IGNOREME',
+      HOME: 'IGNOREME',
+    }),
+    '/Users/alice/.local/state/endo',
+    'Favor Endo env var state home if provided by the user',
+  );
+  t.is(
     whereEndoState('linux', {
       XDG_STATE_HOME: '/Users/alice/.local/state',
       XDG_CONFIG_HOME: 'IGNOREME',
