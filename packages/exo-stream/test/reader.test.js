@@ -472,10 +472,9 @@ test('iterateReader concurrent return() calls share terminal result', async t =>
     yield 2;
   }
 
-  const reader =
-    /** @type {ReaderIterator<Passable, string>} */ (
-      iterateReader(readerFromIterator(source()))
-    );
+  const reader = /** @type {ReaderIterator<Passable, string>} */ (
+    iterateReader(readerFromIterator(source()))
+  );
 
   assert(reader.return, 'reader should have return method');
   const p1 = reader.return('first');

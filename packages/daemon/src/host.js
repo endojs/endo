@@ -2,6 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
 /** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
@@ -755,7 +756,10 @@ export const makeHostMaker = ({
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
         readerFromIterator(host.followLocatorNameChanges(locator)),
-      followMessages: () => readerFromIterator(host.followMessages()),
+      followMessages: () =>
+        readerFromIterator(
+          /** @type {AsyncIterable<Passable>} */ (host.followMessages()),
+        ),
       followNameChanges: () => readerFromIterator(host.followNameChanges()),
     });
 
