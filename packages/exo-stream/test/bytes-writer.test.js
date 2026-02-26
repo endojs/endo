@@ -176,10 +176,9 @@ test('bytes writer fallback return when sink lacks return', async t => {
     },
   };
 
-  const writerRef =
-    /** @type {PassableBytesWriter<string | undefined>} */ (
-      bytesWriterFromIterator(sink)
-    );
+  const writerRef = /** @type {PassableBytesWriter<string | undefined>} */ (
+    bytesWriterFromIterator(sink)
+  );
 
   /** @type {Promise<StreamNode<string, string | undefined>>} */
   const synHead = Promise.resolve(harden({ value: 'done', promise: null }));
@@ -254,8 +253,9 @@ test('iterateBytesWriter returns done when responder closes early', async t => {
     },
   });
 
-  const writer =
-    /** @type {BytesWriterIterator<string>} */ (iterateBytesWriter(fakeWriter));
+  const writer = /** @type {BytesWriterIterator<string>} */ (
+    iterateBytesWriter(fakeWriter)
+  );
   const result = await writer.next(new Uint8Array([1]));
 
   t.true(result.done);
@@ -274,8 +274,9 @@ test('iterateBytesWriter return() is idempotent', async t => {
     },
   });
 
-  const writer =
-    /** @type {BytesWriterIterator<string>} */ (iterateBytesWriter(fakeWriter));
+  const writer = /** @type {BytesWriterIterator<string>} */ (
+    iterateBytesWriter(fakeWriter)
+  );
 
   const p1 = writer.return('first');
   const p2 = writer.return('second');
@@ -299,8 +300,9 @@ test('iterateBytesWriter next() replays terminal result after return()', async t
     },
   });
 
-  const writer =
-    /** @type {BytesWriterIterator<string>} */ (iterateBytesWriter(fakeWriter));
+  const writer = /** @type {BytesWriterIterator<string>} */ (
+    iterateBytesWriter(fakeWriter)
+  );
 
   const returnPromise = writer.return('done');
   resolveAck(harden({ value: 'terminal', promise: null }));
@@ -323,10 +325,9 @@ test('iterateBytesWriter rejects ack errors and repeats the error', async t => {
     },
   });
 
-  const writer =
-    /** @type {BytesWriterIterator<undefined>} */ (
-      iterateBytesWriter(fakeWriter)
-    );
+  const writer = /** @type {BytesWriterIterator<undefined>} */ (
+    iterateBytesWriter(fakeWriter)
+  );
 
   const nextPromise = writer.next(new Uint8Array([1]));
   rejectAck(new Error('ack failed'));
@@ -350,20 +351,13 @@ test('iterateBytesWriter throw() is idempotent', async t => {
     },
   });
 
-  const writer =
-    /** @type {BytesWriterIterator<undefined>} */ (
-      iterateBytesWriter(fakeWriter)
-    );
+  const writer = /** @type {BytesWriterIterator<undefined>} */ (
+    iterateBytesWriter(fakeWriter)
+  );
   const error = new Error('boom');
 
-  await t.throwsAsync(
-    () => writer.throw(error),
-    { message: 'boom' },
-  );
-  await t.throwsAsync(
-    () => writer.throw(error),
-    { message: 'boom' },
-  );
+  await t.throwsAsync(() => writer.throw(error), { message: 'boom' });
+  await t.throwsAsync(() => writer.throw(error), { message: 'boom' });
 });
 
 test('iterateBytesWriter is async iterable', async t => {

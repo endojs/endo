@@ -155,8 +155,9 @@ test('iterateWriter returns done when responder closes', async t => {
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, string>} */ (iterateWriter(fakeWriter));
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    iterateWriter(fakeWriter)
+  );
   const result = await writer.next(1);
 
   t.true(result.done);
@@ -176,7 +177,11 @@ test('iterateWriter validates writeReturnPattern on terminal ack', async t => {
     },
   });
 
-  const writer = iterateWriter(fakeWriter, { writeReturnPattern: M.string() });
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    /** @type {unknown} */ (
+      iterateWriter(fakeWriter, { writeReturnPattern: M.string() })
+    )
+  );
   const result = await writer.next(1);
 
   t.true(result.done);
@@ -198,8 +203,9 @@ test('iterateWriter concurrent return() calls share terminal result', async t =>
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, string>} */ (iterateWriter(fakeWriter));
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    iterateWriter(fakeWriter)
+  );
 
   const p1 = writer.return('first');
   const p2 = writer.return('second');
@@ -226,8 +232,9 @@ test('iterateWriter return() is idempotent', async t => {
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, string>} */ (iterateWriter(fakeWriter));
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    iterateWriter(fakeWriter)
+  );
 
   const p1 = writer.return('first');
   const p2 = writer.return('second');
@@ -254,8 +261,9 @@ test('iterateWriter next() replays terminal result after return()', async t => {
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, string>} */ (iterateWriter(fakeWriter));
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    iterateWriter(fakeWriter)
+  );
 
   const returnPromise = writer.return('done');
   resolveAck(harden({ value: 'terminal', promise: null }));
@@ -279,20 +287,13 @@ test('iterateWriter throw() is idempotent', async t => {
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, undefined>} */ (
-      iterateWriter(fakeWriter)
-    );
+  const writer = /** @type {WriterIterator<Passable, undefined>} */ (
+    iterateWriter(fakeWriter)
+  );
   const error = new Error('boom');
 
-  await t.throwsAsync(
-    () => writer.throw(error),
-    { message: 'boom' },
-  );
-  await t.throwsAsync(
-    () => writer.throw(error),
-    { message: 'boom' },
-  );
+  await t.throwsAsync(() => writer.throw(error), { message: 'boom' });
+  await t.throwsAsync(() => writer.throw(error), { message: 'boom' });
 });
 test('iterateWriter return waits for terminal ack', async t => {
   const { promise: gate, resolve: openGate } = makePromiseKit();
@@ -309,8 +310,9 @@ test('iterateWriter return waits for terminal ack', async t => {
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, string>} */ (iterateWriter(fakeWriter));
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    iterateWriter(fakeWriter)
+  );
   const returnPromise = writer.return('done');
 
   let settled = false;
@@ -518,13 +520,12 @@ test('iterateWriter validates writeReturnPattern with buffered sends', async t =
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, string>} */ (
-      iterateWriter(fakeWriter, {
-        buffer: 1,
-        writeReturnPattern: M.string(),
-      })
-    );
+  const writer = /** @type {WriterIterator<Passable, string>} */ (
+    iterateWriter(fakeWriter, {
+      buffer: 1,
+      writeReturnPattern: M.string(),
+    })
+  );
 
   const nextPromise = writer.next(1);
   const settledEarly = await Promise.race([
@@ -589,18 +590,14 @@ test('iterateWriter throw() closes the stream', async t => {
     },
   });
 
-  const writer =
-    /** @type {WriterIterator<Passable, undefined>} */ (
-      iterateWriter(fakeWriter)
-    );
+  const writer = /** @type {WriterIterator<Passable, undefined>} */ (
+    iterateWriter(fakeWriter)
+  );
   await streamCalled;
 
-  await t.throwsAsync(
-    () => writer.throw(new Error('boom')),
-    {
-      message: 'boom',
-    },
-  );
+  await t.throwsAsync(() => writer.throw(new Error('boom')), {
+    message: 'boom',
+  });
 
   const synNode = await capturedSynHead;
   t.is(synNode.promise, null);
@@ -640,12 +637,11 @@ test('writerFromIterator enforces writeReturnPattern on early close', async t =>
     },
   });
 
-  const writerRef =
-    /** @type {PassableWriter<Passable, number>} */ (
-      writerFromIterator(sink, {
-        writeReturnPattern: M.number(),
-      })
-    );
+  const writerRef = /** @type {PassableWriter<Passable, number>} */ (
+    writerFromIterator(sink, {
+      writeReturnPattern: M.number(),
+    })
+  );
 
   /** @type {Promise<StreamNode<Passable, number>>} */
   const synHead = Promise.resolve(harden({ value: 123, promise: null }));
