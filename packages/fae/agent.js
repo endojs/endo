@@ -374,13 +374,7 @@ export const make = (guestPowers, context, { env }) => {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         console.error('[fae] LLM error, notifying sender:', errorMessage);
-        const isValidName =
-          typeof fromId === 'string' &&
-          (/^[a-z][a-z0-9-]{0,127}$/.test(fromId) ||
-            /^[A-Z][A-Z0-9-]{0,127}$/.test(fromId));
-        if (isValidName) {
-          await E(powers).send(fromId, [errorMessage], [], []);
-        }
+        await E(powers).reply(number, [errorMessage], [], []);
       }
       console.log(
         `[fae] Transcript has ${transcript.length} messages after processing`,

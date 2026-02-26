@@ -2398,17 +2398,23 @@ const makeDaemonCore = async (
    * @type {DaemonCore['formulateDirectory']}
    */
   const formulateDirectory = async () => {
-    const { id: petStoreId } = await formulateNumberedPetStore(
-      /** @type {FormulaNumber} */ (await randomHex256()),
-    );
-    const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
-    /** @type {DirectoryFormula} */
-    const formula = {
-      type: 'directory',
-      petStore: petStoreId,
-    };
     return /** @type {FormulateResult<EndoDirectory>} */ (
-      formulate(formulaNumber, formula)
+      withFormulaGraphLock(async () => {
+        const { id: petStoreId } = await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        );
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        /** @type {DirectoryFormula} */
+        const formula = {
+          type: 'directory',
+          petStore: petStoreId,
+        };
+        const result = await formulate(formulaNumber, formula);
+        pinTransient(result.id);
+        return result;
+      })
     );
   };
 
@@ -3127,10 +3133,15 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['getAllNetworkAddresses']} */
   const getAllNetworkAddresses = async networksDirectoryId => {
-    const networks = await getAllNetworks(networksDirectoryId);
+    const networksDirectory = await provide(networksDirectoryId, 'directory');
+    const networkIds = await networksDirectory.listIdentifiers();
+    const readyNetworks = networkIds
+      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .filter(id => refForId.has(id))
+      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
     const addresses = (
       await Promise.all(
-        networks.map(async network => {
+        readyNetworks.map(async network => {
           return E(network).addresses();
         }),
       )
@@ -3265,6 +3276,8 @@ const makeDaemonCore = async (
     getIdForRef,
     getTypeForId,
     formulateDirectory,
+    pinTransient,
+    unpinTransient,
   });
 
   const makeMailbox = makeMailboxMaker({
@@ -3285,6 +3298,8 @@ const makeDaemonCore = async (
     makeMailbox,
     makeDirectoryNode,
     collectIfDirty,
+    pinTransient,
+    unpinTransient,
   });
 
   /**
