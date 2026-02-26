@@ -14,6 +14,7 @@
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | Not Started |
+| [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | Not Started |
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | Not Started |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | Not Started |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | In Progress |
@@ -30,7 +31,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | Not Started |
 
-**Totals:** 4 Complete, 3 In Progress, 15 Not Started
+**Totals:** 4 Complete, 3 In Progress, 16 Not Started
 
 ## Roadmap
 
@@ -48,7 +49,10 @@ flowchart TD
         fbund[familiar-daemon-bundling<br/><i>IN PROGRESS</i>]
         fweb[familiar-unified-weblet-server<br/><i>IN PROGRESS</i>]
         fchat[familiar-chat-weblet-hosting]
+        dapp[daemon-weblet-application]
         fbund --> fweb --> fchat
+        fweb --> dapp
+        fchat --> dapp
     end
 
     subgraph OCapN
@@ -100,6 +104,7 @@ Enable new capabilities once infrastructure is ready.
 |--------|---------|------------|-----------|
 | ocapn-tcp-for-test-extraction | Medium | ocapn-network-transport-separation | Clean separation before adding Noise |
 | familiar-chat-weblet-hosting | Medium | familiar-unified-weblet-server | Core Familiar feature |
+| daemon-weblet-application | Medium | familiar-unified-weblet-server, familiar-chat-weblet-hosting | Readable trees and weblets from zip archives |
 | ocapn-noise-cryptographic-review | Medium | — | Should complete before stabilizing Noise |
 
 #### Tier 4 — User Experience (Medium-Low Urgency)
@@ -208,6 +213,7 @@ These estimates were derived on 2026-02-24 using the following approach:
 | **Tier 3** |
 | ocapn-tcp-for-test-extraction | M | 3-5 days | Code relocation, interface cleanup |
 | familiar-chat-weblet-hosting | M | 5-7 days | Iframe hosting, panel UI, guest profiles |
+| daemon-weblet-application | M | 5-7 days | Two formula types, gateway serving, CLI/chat verbs, MessagePort CapTP |
 | ocapn-noise-cryptographic-review | S | 1-2 days | Coordination work + external review wait time |
 | **Tier 4** |
 | chat-reply-chain-visualization | M | 5-7 days | Layout algorithm, SVG/CSS connector lines |
