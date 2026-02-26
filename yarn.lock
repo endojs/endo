@@ -593,6 +593,7 @@ __metadata:
   dependencies:
     "@endo/cjs-module-analyzer": "workspace:^"
     "@endo/env-options": "workspace:^"
+    "@endo/evasive-transform": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/module-source": "workspace:^"

@@ -69,6 +69,7 @@
   },
   "devDependencies": {
     "@endo/env-options": "workspace:^",
+    "@endo/evasive-transform": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
     "ava": "catalog:dev",
