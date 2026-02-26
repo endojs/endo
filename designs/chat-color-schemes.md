@@ -375,10 +375,11 @@ initialization.
 5. Verify modal backdrops and tooltips in both modes
 6. Verify Monaco editor theme switches with system preference
 
-## Future Enhancements
+## Follow-up Designs
 
-1. **Manual toggle** — A button in the UI to override the system preference,
-   stored in the host's pet-store alongside spaces configuration
-2. **Per-space themes** — Allow each space to define its own accent color
-3. **High contrast mode** — An accessibility-oriented scheme with stronger
-   borders and larger contrast ratios
+1. [chat-per-space-color-scheme](chat-per-space-color-scheme.md) — Per-space
+   scheme selector (auto/light/dark) in the create/edit space flow, allowing
+   users to override the system preference for individual spaces
+2. [chat-high-contrast-mode](chat-high-contrast-mode.md) — High contrast
+   variants of both schemes for accessibility, responding to
+   `prefers-contrast: more` and available as explicit per-space choices
