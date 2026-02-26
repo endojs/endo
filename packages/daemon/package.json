@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "private": true,
   "description": "Endo daemon",
   "keywords": [

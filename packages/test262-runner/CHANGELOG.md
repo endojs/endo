@@ -1,5 +1,13 @@
 # @endo/test262-runner
 
+## 0.1.49
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`a29ecd4`](https://github.com/endojs/endo/commit/a29ecd44c788440faf016f1f8e658a5a364d6181), [`81b4c40`](https://github.com/endojs/endo/commit/81b4c4096d96e4624f0623a0c70006a1f1db17b4)]:
+  - ses@1.15.0
+  - @endo/compartment-mapper@2.0.0
+
 ## [0.1.48](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.47...@endo/test262-runner@0.1.48) (2025-07-12)
 
 **Note:** Version bump only for package @endo/test262-runner
@@ -64,8 +72,8 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
-* **test262-runner:** Remove extra repository entry in package.json ([8bc474e](https://github.com/endojs/endo/commit/8bc474ec18f2971656f5025491190f571bd15588))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- **test262-runner:** Remove extra repository entry in package.json ([8bc474e](https://github.com/endojs/endo/commit/8bc474ec18f2971656f5025491190f571bd15588))
 
 ## [0.1.32](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.31...@endo/test262-runner@0.1.32) (2023-07-19)
 

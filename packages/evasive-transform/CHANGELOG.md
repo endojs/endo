@@ -1,5 +1,11 @@
 # @endo/evasive-transform
 
+## 2.1.0
+
+### Minor Changes
+
+- [#3026](https://github.com/endojs/endo/pull/3026) [`a2c32ec`](https://github.com/endojs/endo/commit/a2c32ec9c16e150d459e2cb01ab3a41c6ea1b847) Thanks [@naugtur](https://github.com/naugtur)! - - Add meaning-preserving transformation of expressions and literals containing content that would otherwise be rejected by SES for looking like dynamic import or HTML-like comments. Previously only comments were transformed. Use `onlyComments` option to opt-out of the new behavior.
+
 ## [2.0.2](https://github.com/endojs/endo/compare/@endo/evasive-transform@2.0.1...@endo/evasive-transform@2.0.2) (2025-07-12)
 
 **Note:** Version bump only for package @endo/evasive-transform
@@ -50,7 +56,7 @@
 
 ### Features
 
-* **evasive-transform:** expose evadeCensorSync ([2f141cd](https://github.com/endojs/endo/commit/2f141cdb3469f06739f53354b5872cd727ae9ebf))
+- **evasive-transform:** expose evadeCensorSync ([2f141cd](https://github.com/endojs/endo/commit/2f141cdb3469f06739f53354b5872cd727ae9ebf))
 
 ## [1.1.2](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.1.1...@endo/evasive-transform@1.1.2) (2024-05-07)
 
@@ -64,7 +70,7 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ## [1.0.4](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.0.3...@endo/evasive-transform@1.0.4) (2024-02-23)
 
@@ -74,7 +80,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.0.1...@endo/evasive-transform@1.0.2) (2024-01-18)
 
@@ -84,20 +90,20 @@
 
 ### Bug Fixes
 
-* **evasive-transform:** Do not use ?? nor ?. operators ([9c2445e](https://github.com/endojs/endo/commit/9c2445eba86b0f6d2dee00d1f66e94df420924cb))
-* **evasive-transform:** RESM treatment ([db660ce](https://github.com/endojs/endo/commit/db660ceaf1b0dbc8af32af001373386d7806d6de))
+- **evasive-transform:** Do not use ?? nor ?. operators ([9c2445e](https://github.com/endojs/endo/commit/9c2445eba86b0f6d2dee00d1f66e94df420924cb))
+- **evasive-transform:** RESM treatment ([db660ce](https://github.com/endojs/endo/commit/db660ceaf1b0dbc8af32af001373386d7806d6de))
 
 ## 1.0.0 (2023-12-12)
 
 ### Features
 
-* **evasive-transform:** isolate source transform system into its own package ([55e0b88](https://github.com/endojs/endo/commit/55e0b88d322af978a9ef7af0fe4585ad1469ab1d))
+- **evasive-transform:** isolate source transform system into its own package ([55e0b88](https://github.com/endojs/endo/commit/55e0b88d322af978a9ef7af0fe4585ad1469ab1d))
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
-* **evasive-transform:** replace homoglyphs with boring ascii ([dc00caa](https://github.com/endojs/endo/commit/dc00caa88de5b162cb8bf6aa26071f17c6457de7))
-* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- **evasive-transform:** replace homoglyphs with boring ascii ([dc00caa](https://github.com/endojs/endo/commit/dc00caa88de5b162cb8bf6aa26071f17c6457de7))
+- Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
 
 ## [0.1.3](https://github.com/endojs/endo/compare/@endo/transforms@0.1.2...@endo/transforms@0.1.3) (2023-09-12)
 
@@ -107,10 +113,10 @@
 
 ### Bug Fixes
 
-* Fix scaffold and transforms yarn pack ([42439e7](https://github.com/endojs/endo/commit/42439e7d452e839b9856eac0e852766c237219d0))
+- Fix scaffold and transforms yarn pack ([42439e7](https://github.com/endojs/endo/commit/42439e7d452e839b9856eac0e852766c237219d0))
 
 ## 0.1.1 (2023-08-07)
 
 ### Bug Fixes
 
-* Fix scaffold and transforms yarn pack ([42439e7](https://github.com/endojs/endo/commit/42439e7d452e839b9856eac0e852766c237219d0))
+- Fix scaffold and transforms yarn pack ([42439e7](https://github.com/endojs/endo/commit/42439e7d452e839b9856eac0e852766c237219d0))
