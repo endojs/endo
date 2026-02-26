@@ -99,11 +99,7 @@ const template = `
     </div>
     <div id="value-value"></div>
     <div class="value-actions">
-      <div class="value-save-form">
-        <label>Save as:</label>
-        <input type="text" id="value-save-name" placeholder="pet.name.path" />
-        <button id="value-save-button">Save</button>
-      </div>
+      <div id="value-actions-container"></div>
       <button id="value-enter-profile" style="display: none;">Enter Profile</button>
       <button id="value-close">Close</button>
     </div>

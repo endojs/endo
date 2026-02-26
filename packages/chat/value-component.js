@@ -1,11 +1,99 @@
 // @ts-check
-/* global window, document, setTimeout */
+/* global window, document, navigator, setTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
-import { render, inferType } from './value-render.js';
+import { passStyleOf } from '@endo/pass-style';
+import { render, inferType, toClipboardText } from './value-render.js';
+
+/**
+ * @param {HTMLElement} $container
+ * @param {string} label
+ * @param {string} defaultValue
+ * @param {string} buttonText
+ * @param {(name: string) => Promise<void>} handler
+ */
+const buildNameAction = (
+  $container,
+  label,
+  defaultValue,
+  buttonText,
+  handler,
+) => {
+  const $form = document.createElement('div');
+  $form.className = 'value-name-form';
+
+  const $label = document.createElement('label');
+  $label.textContent = label;
+  $form.appendChild($label);
+
+  const $input = document.createElement('input');
+  $input.type = 'text';
+  $input.className = 'value-name-input';
+  $input.placeholder = 'pet.name.path';
+  $input.value = defaultValue;
+  $form.appendChild($input);
+
+  const $button = document.createElement('button');
+  $button.textContent = buttonText;
+  $form.appendChild($button);
+
+  const submit = async () => {
+    const name = $input.value.trim();
+    if (!name) return;
+    try {
+      await handler(name);
+    } catch (error) {
+      $input.style.borderColor = '#e53e3e';
+      setTimeout(() => {
+        $input.style.borderColor = '';
+      }, 2000);
+      console.error(`Failed to ${buttonText.toLowerCase()} value:`, error);
+    }
+  };
+
+  $button.addEventListener('click', submit);
+  $input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submit();
+    }
+  });
+
+  $container.appendChild($form);
+  return $input;
+};
+
+/**
+ * @param {HTMLElement} $container
+ * @param {unknown} value
+ */
+const buildCopyButton = ($container, value) => {
+  const text = toClipboardText(value);
+  if (text === undefined) return;
+
+  const $button = document.createElement('button');
+  $button.className = 'value-copy-button';
+  $button.textContent = 'Copy';
+
+  $button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      $button.textContent = 'Copied!';
+      $button.classList.add('value-copy-feedback');
+      setTimeout(() => {
+        $button.textContent = 'Copy';
+        $button.classList.remove('value-copy-feedback');
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  });
+
+  $container.appendChild($button);
+};
 
 /**
  * @param {HTMLElement} $parent
@@ -34,11 +122,8 @@ export const valueComponent = (
   const $close = /** @type {HTMLElement} */ (
     $parent.querySelector('#value-close')
   );
-  const $saveName = /** @type {HTMLInputElement} */ (
-    $parent.querySelector('#value-save-name')
-  );
-  const $saveButton = /** @type {HTMLButtonElement} */ (
-    $parent.querySelector('#value-save-button')
+  const $actionsContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#value-actions-container')
   );
   const $enterProfile = /** @type {HTMLButtonElement} */ (
     $parent.querySelector('#value-enter-profile')
@@ -49,9 +134,6 @@ export const valueComponent = (
   /** @type {string[] | undefined} */
   let currentPetNamePath;
 
-  /**
-   * Update Enter Profile button visibility based on type.
-   */
   const updateEnterProfileVisibility = () => {
     const selectedType = $type.value;
     if (
@@ -67,7 +149,7 @@ export const valueComponent = (
 
   const clearValue = () => {
     $value.innerHTML = '';
-    $saveName.value = '';
+    $actionsContainer.innerHTML = '';
     $title.textContent = 'Value';
     $type.value = 'unknown';
     currentValue = undefined;
@@ -80,7 +162,6 @@ export const valueComponent = (
     clearValue();
   });
 
-  // Dismiss when clicking on the backdrop (but not the modal window)
   $frame.addEventListener('click', event => {
     if (event.target === $frame) {
       clearValue();
@@ -96,38 +177,6 @@ export const valueComponent = (
     const hostName = currentPetNamePath.join('.');
     clearValue();
     await enterProfile(hostName);
-  });
-
-  const handleSave = async () => {
-    const name = $saveName.value.trim();
-    if (!name || currentValue === undefined) return;
-
-    try {
-      // Store the value with the given pet name path
-      const petNamePath = name.split('.');
-      await E(powers).storeValue(
-        /** @type {import('@endo/pass-style').Passable} */ (currentValue),
-        petNamePath,
-      );
-      $saveName.value = '';
-      clearValue();
-    } catch (error) {
-      // Show error feedback
-      $saveName.style.borderColor = '#e53e3e';
-      setTimeout(() => {
-        $saveName.style.borderColor = '';
-      }, 2000);
-      console.error('Failed to save value:', error);
-    }
-  };
-
-  $saveButton.addEventListener('click', handleSave);
-
-  $saveName.addEventListener('keydown', event => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSave();
-    }
   });
 
   /** @param {KeyboardEvent} event */
@@ -151,24 +200,19 @@ export const valueComponent = (
     currentPetNamePath = petNamePath;
     window.addEventListener('keyup', handleKey);
 
-    // Render the value
     $value.innerHTML = '';
     $value.appendChild(render(value));
 
-    // Infer and set the type
     const inferredType = inferType(value);
     $type.value = inferredType;
 
-    // Update Enter Profile visibility based on inferred type
     updateEnterProfileVisibility();
 
-    // Clear title and build it from components
     $title.innerHTML = '';
 
     /** @type {string[]} */
     let uniquePetNames = [];
 
-    // 1. Add message context chip if present
     if (messageContext) {
       const $msgChip = document.createElement('span');
       $msgChip.className = 'token message-token';
@@ -177,7 +221,6 @@ export const valueComponent = (
       $title.appendChild(document.createTextNode(' '));
     }
 
-    // 2. Add pet name chips if we have an id
     if (id) {
       try {
         const petNames = await E(powers).reverseIdentify(id);
@@ -192,7 +235,6 @@ export const valueComponent = (
           $title.appendChild(document.createTextNode(' '));
         }
         if (uniquePetNames.length === 0 && !messageContext) {
-          // Has id but no names and no message context
           $title.textContent = '(unnamed)';
         }
       } catch {
@@ -201,17 +243,87 @@ export const valueComponent = (
         }
       }
     } else if (!messageContext) {
-      // No id and no message context = ephemeral
       $title.textContent = 'Ephemeral Value';
     }
 
-    // 3. Set currentPetNamePath from reverse lookup if not provided
     if (!currentPetNamePath && uniquePetNames.length > 0) {
       currentPetNamePath = uniquePetNames[0].split('.');
     }
 
     updateEnterProfileVisibility();
-    $saveName.focus();
+
+    // Build context-aware actions
+    $actionsContainer.innerHTML = '';
+
+    let passStyle;
+    try {
+      passStyle = passStyleOf(value);
+    } catch {
+      passStyle = undefined;
+    }
+    const isPlainPassable =
+      passStyle !== undefined &&
+      passStyle !== 'remotable' &&
+      passStyle !== 'promise';
+    const isAdopted = uniquePetNames.length > 0;
+
+    /** @type {HTMLInputElement | undefined} */
+    let $focusTarget;
+
+    if (messageContext && !isAdopted) {
+      $focusTarget = buildNameAction(
+        $actionsContainer,
+        'Adopt as:',
+        messageContext.edgeName,
+        'Adopt',
+        async name => {
+          const targetPath = name.split('.');
+          await E(powers).adopt(
+            messageContext.number,
+            messageContext.edgeName,
+            targetPath,
+          );
+          clearValue();
+        },
+      );
+    } else if (petNamePath) {
+      $focusTarget = buildNameAction(
+        $actionsContainer,
+        'Rename to:',
+        petNamePath.join('.'),
+        'Rename',
+        async newName => {
+          const fromPath = /** @type {string[]} */ (currentPetNamePath);
+          const toPath = newName.split('.');
+          await E(powers).move(fromPath, toPath);
+          clearValue();
+        },
+      );
+    } else if (!id && isPlainPassable) {
+      $focusTarget = buildNameAction(
+        $actionsContainer,
+        'Save as:',
+        '',
+        'Save',
+        async name => {
+          const targetPath = name.split('.');
+          await E(powers).storeValue(
+            /** @type {import('@endo/pass-style').Passable} */ (currentValue),
+            targetPath,
+          );
+          clearValue();
+        },
+      );
+    }
+
+    if (isPlainPassable) {
+      buildCopyButton($actionsContainer, value);
+    }
+
+    if ($focusTarget) {
+      $focusTarget.focus();
+      $focusTarget.select();
+    }
   };
 
   const blurValue = () => {

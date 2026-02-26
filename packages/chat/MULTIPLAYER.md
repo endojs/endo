@@ -39,7 +39,7 @@ Define a helper for each persona to avoid repeating the env vars:
 
 ```bash
 # Alice uses the system default (no env vars needed)
-alias alice='yarn exec endo --'
+alias alice='yarn exec endo'
 
 # Bob uses a separate state tree
 alias bob='XDG_STATE_HOME=/tmp/endo-bob/state \
@@ -47,7 +47,7 @@ alias bob='XDG_STATE_HOME=/tmp/endo-bob/state \
   XDG_CACHE_HOME=/tmp/endo-bob/cache \
   ENDO_SOCK=/tmp/endo-bob/endo.sock \
   ENDO_ADDR=127.0.0.1:8921 \
-  yarn exec endo --'
+  yarn exec endo'
 ```
 
 Create Bob's directories and start both daemons. Use `restart` rather

@@ -83,7 +83,6 @@ export const makeRemoteControlProvider = localNodeId => {
         ? (remoteGateway, cancelCurrent, currentCancelled) => {
             // We are biased toward preserving our own outbound connection.
             return {
-              name: 'connected',
               accept(
                 _proposedRemoteGateway,
                 proposedCancel,
