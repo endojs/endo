@@ -15,7 +15,13 @@ import { render, inferType, toClipboardText } from './value-render.js';
  * @param {string} buttonText
  * @param {(name: string) => Promise<void>} handler
  */
-const buildNameAction = ($container, label, defaultValue, buttonText, handler) => {
+const buildNameAction = (
+  $container,
+  label,
+  defaultValue,
+  buttonText,
+  handler,
+) => {
   const $form = document.createElement('div');
   $form.className = 'value-name-form';
 
