@@ -6,6 +6,36 @@
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Complete |
 
+## Status
+
+**Mostly implemented.** The core Electron shell is functional:
+
+- `packages/familiar/electron-main.js` — daemon lifecycle, window creation,
+  menu, IPC handlers, `localhttp://` protocol, navigation guard, exfiltration
+  defenses.
+- `packages/familiar/src/daemon-manager.js` — daemon start/restart/purge.
+- `packages/familiar/src/gateway-manager.js` — gateway process management.
+- `packages/familiar/src/resource-paths.js` — dev/packaged path resolution.
+- `packages/familiar/src/protocol-handler.js` — `localhttp://` scheme and
+  CSP injection (see `familiar-localhttp-protocol`).
+- `packages/familiar/src/navigation-guard.js` — navigation interception.
+- `packages/familiar/src/exfiltration-defense.js` — DNS poisoning, request
+  interception, WebRTC, permission handler, runtime verification.
+- `packages/familiar/preload.js` — IPC bridge with security warnings.
+- `packages/familiar/forge.config.cjs` — Electron Forge packaging.
+- `packages/familiar/scripts/` — build, bundle, download-node, packaging.
+
+**Design deviations:**
+
+- The package structure diverges from the original design: source modules
+  live in `src/` (not `resources/`), bundled artifacts go in `bundles/`,
+  and Electron Forge (not electron-builder) handles packaging.
+- The `proxy.js` module described below was replaced by
+  `src/protocol-handler.js` (for HTTP) and the MessagePort bridge design
+  (for WebSocket, not yet implemented in Chat).
+- Config is passed via URL fragment (`#gateway=...&agent=...`), not query
+  params or `window.ENDO_PORT`.
+
 ## What is the Problem Being Solved?
 
 Endo currently requires users to install Node.js, clone the monorepo, and use
