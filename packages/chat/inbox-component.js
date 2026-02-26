@@ -16,6 +16,7 @@ import {
   timeFormatter,
   relativeTime,
 } from './time-formatters.js';
+import { computeLayout } from './moi-layout.js';
 
 /**
  * @param {HTMLElement} $parent
@@ -30,6 +31,35 @@ export const inboxComponent = async (
   { showValue, conversationId, conversationPetName },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
+
+  /** @type {string | undefined} */
+  let moiId;
+
+  /**
+   * @typedef {object} TrackedMessage
+   * @property {string} id
+   * @property {string} [replyTo]
+   * @property {HTMLElement} element
+   */
+
+  /** @type {TrackedMessage[]} */
+  const trackedMessages = [];
+
+  /**
+   * Recompute layout and apply data attributes to all tracked message elements.
+   */
+  const applyLayout = () => {
+    if (moiId === undefined || trackedMessages.length === 0) return;
+    const msgs = trackedMessages.map(m => ({ id: m.id, replyTo: m.replyTo }));
+    const layout = computeLayout(msgs, moiId);
+    for (const tracked of trackedMessages) {
+      const entry = layout.get(tracked.id);
+      if (entry) {
+        tracked.element.dataset.indent = String(entry.indent);
+        tracked.element.dataset.line = entry.lineType;
+      }
+    }
+  };
 
   const selfId = await E(powers).identify('SELF');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
@@ -70,6 +100,11 @@ export const inboxComponent = async (
 
     const $message = document.createElement('div');
     $message.className = isSent ? 'message sent' : 'message';
+
+    // Gutter element for reply chain lines
+    const $gutter = document.createElement('div');
+    $gutter.className = 'message-gutter';
+    $message.appendChild($gutter);
 
     const $error = document.createElement('span');
     $error.style.color = 'red';
@@ -601,6 +636,38 @@ export const inboxComponent = async (
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
     }
+
+    // Track message for reply chain visualization.
+    const messageId = String(number);
+    const replyTo = /** @type {string | undefined} */ (
+      'replyTo' in message ? message.replyTo : undefined
+    );
+    trackedMessages.push({ id: messageId, replyTo, element: $message });
+
+    // Update MOI: when scroll-pinned, the latest message is the MOI.
+    if (wasAtEnd || moiId === undefined) {
+      moiId = messageId;
+    }
+
+    // Click to set MOI.
+    $message.addEventListener('click', () => {
+      moiId = messageId;
+      applyLayout();
+    });
+
+    // Remove from tracked array when dismissed.
+    dismissed.then(() => {
+      const idx = trackedMessages.findIndex(m => m.id === messageId);
+      if (idx !== -1) {
+        trackedMessages.splice(idx, 1);
+      }
+      if (moiId === messageId && trackedMessages.length > 0) {
+        moiId = trackedMessages[trackedMessages.length - 1].id;
+      }
+      applyLayout();
+    });
+
+    applyLayout();
 
     $parent.insertBefore($message, $end);
 

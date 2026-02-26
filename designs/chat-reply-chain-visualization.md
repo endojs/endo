@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-02-23 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
 
 ## Motivation
 
@@ -416,27 +416,27 @@ The MOI algorithm keeps visual design minimal:
 
 ## Implementation Phases
 
-### Phase 1: MOI State Management
+### Phase 1: MOI State Management ✅
 - Track current message-of-interest ID
 - Detect scroll pinning
 - Update MOI on new message arrival (when pinned)
 - Reset MOI on page load
 
-### Phase 2: Layout Computation
+### Phase 2: Layout Computation ✅
 - Implement `computeLayout()` algorithm
 - Identify parent, replies, intermediate messages
 - Assign indent levels
 
-### Phase 3: Indentation Rendering
+### Phase 3: Indentation Rendering ✅
 - Apply CSS margin/padding based on computed indent
-- Style the MOI distinctly
 
-### Phase 4: Line Drawing
-- SVG overlay (or CSS) for parent line and reply lines
+### Phase 4: Line Drawing ✅
+- CSS pseudo-elements for gutter lines (chose CSS over SVG)
+- Vertical through-line (`continue`), terminus (`end`), branch fork (`branch`)
 - Primary line to last reply
 - Branch lines to earlier replies
 
-### Phase 5: Click Interaction
+### Phase 5: Click Interaction ✅
 - Click handler to change MOI
 - Recompute layout and redraw
 
@@ -444,6 +444,10 @@ The MOI algorithm keeps visual design minimal:
 - Smooth animations on MOI change
 - Line updates on scroll/resize
 - Accessibility (ARIA, keyboard nav)
+
+### Blocked: Daemon `replyTo` support
+- The daemon does not yet produce `replyTo` on messages
+- The client-side feature is fully implemented and will activate once `replyTo` is available
 
 ## Alternatives Considered
 
@@ -469,13 +473,14 @@ Replies open in a side panel.
 
 ## Files
 
-### To Create
-- `packages/chat/moi-layout.js` - MOI state management, `computeLayout()` algorithm
-- `packages/chat/reply-lines.js` - SVG (or CSS) line rendering
+### Created
+- `packages/chat/moi-layout.js` - Pure `computeLayout(messages, moiId)` algorithm, returns `Map<id, { indent, lineType }>`
+- `packages/chat/reply-lines.css` - CSS gutter lines via pseudo-elements (replaced planned `reply-lines.js` SVG approach)
+- `packages/chat/test/unit/moi-layout.test.js` - 13 unit tests for layout algorithm
 
-### To Modify
-- `packages/chat/inbox-component.js` - Integrate MOI tracking and layout into message rendering
-- `packages/chat/index.css` - MOI highlight, indent styles, line styling
+### Modified
+- `packages/chat/inbox-component.js` - MOI state tracking, `applyLayout()`, gutter elements, click handler, dismiss cleanup
+- `packages/chat/index.html` - Added `<link>` for `reply-lines.css`
 
 ## Decisions Made
 
@@ -489,15 +494,11 @@ Replies open in a side panel.
 | Line color | Muted grey, light/dark mode aware |
 | Nodule styling | Simple junction, no ornament |
 | Off-screen parents | Render lines regardless |
-
-## Tentative Decisions (may adjust during implementation)
-
-| Aspect | Tentative Decision |
-|--------|-------------------|
 | Grey color (light mode) | `#9ca3af` (Tailwind gray-400) |
 | Grey color (dark mode) | `#6b7280` (Tailwind gray-500) |
 | Gutter width | 2ex (same as indent unit; line centered within) |
 | Animation on MOI change | Instant (no transition) |
+| Line rendering | CSS pseudo-elements (not SVG) |
 
 ## Out of Scope
 
