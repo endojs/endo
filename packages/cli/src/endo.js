@@ -498,6 +498,16 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('locate <name>')
+    .description('prints the locator for a named value')
+    .option(...commonOptions.as)
+    .action(async (name, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { locate } = await import('./commands/locate.js');
+      return locate({ name, agentNames });
+    });
+
+  program
     .command('follow <name>')
     .option(...commonOptions.as)
     .description('subscribe to a stream of values')
