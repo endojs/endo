@@ -78,13 +78,10 @@ export const makeSocketPowers = ({ net }) => {
     );
 
   /** @type {SocketPowers['connectPort']} */
-  const connectPort = ({ port, host }) =>
+  const connectPort = ({ port, host, cancelled }) =>
     new Promise((resolve, reject) => {
-      const conn = net.connect(port, host, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
+      const conn = net.connect(port, host);
+      conn.on('connect', () => {
         const reader = makeNodeReader(conn);
         const writer = makeNodeWriter(conn);
         const closed = new Promise(close => conn.on('close', close));
@@ -93,6 +90,11 @@ export const makeSocketPowers = ({ net }) => {
           writer,
           closed,
         });
+      });
+      conn.on('error', reject);
+      cancelled.catch(error => {
+        conn.destroy();
+        reject(error);
       });
     });
 

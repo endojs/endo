@@ -845,15 +845,6 @@ const makeDaemonCore = async (
 
   const provideRemoteControl = makeRemoteControlProvider(localNodeNumber);
 
-  /**
-   * @param {NodeNumber} remoteNodeNumber
-   */
-  const providePeer = async remoteNodeNumber => {
-    // eslint-disable-next-line no-use-before-define
-    const peerId = await getPeerIdForNodeIdentifier(remoteNodeNumber);
-    return provide(peerId, 'peer');
-  };
-
   // Gateway is equivalent to E's "nonce locator".
   // It provides a value for a formula identifier to a remote client.
   const localGateway = Far('Gateway', {
@@ -887,6 +878,7 @@ const makeDaemonCore = async (
       connectionCancelled,
     ) => {
       assertNodeNumber(remoteNodeId);
+      console.log(`Endo daemon received inbound peer connection from node ${remoteNodeId.slice(0, 8)}`);
       const remoteControl = provideRemoteControl(remoteNodeId);
       /** @param {Error} error */
       const wrappedCancel = error => E(cancelConnection)(error);
@@ -2120,7 +2112,10 @@ const makeDaemonCore = async (
     const { number: formulaNumber, node: formulaNode } = parseId(id);
     const isRemote = formulaNode !== localNodeNumber;
     if (isRemote) {
-      const peer = providePeer(formulaNode);
+      // eslint-disable-next-line no-use-before-define
+      const peerId = await getPeerIdForNodeIdentifier(formulaNode);
+      context.thisDiesIfThatDies(peerId);
+      const peer = provide(peerId, 'peer');
       return E(peer).provide(id);
     }
 
@@ -3147,6 +3142,7 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
+    console.log(`Endo daemon dialing peer node ${nodeId.slice(0, 8)} at ${JSON.stringify(addresses)}`);
     const remoteControl = provideRemoteControl(nodeId);
     return remoteControl.connect(
       async () => {
@@ -3167,7 +3163,10 @@ const makeDaemonCore = async (
       },
       context.cancel,
       context.cancelled,
-      () => dropLiveValue(context.id),
+      () => {
+        console.log(`Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`);
+        dropLiveValue(context.id);
+      },
     );
   };
 
