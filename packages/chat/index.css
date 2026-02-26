@@ -2422,21 +2422,28 @@ button:active {
   border-top: 1px solid var(--border-light);
 }
 
-.value-save-form {
+#value-actions-container {
   display: flex;
   gap: 8px;
   align-items: center;
   flex: 1;
 }
 
-.value-save-form label {
+.value-name-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+.value-name-form label {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.value-save-form input {
+.value-name-form .value-name-input {
   flex: 1;
   min-width: 120px;
   padding: 8px 12px;
@@ -2448,15 +2455,35 @@ button:active {
   outline: none;
 }
 
-.value-save-form input:focus {
+.value-name-form .value-name-input:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-light);
 }
 
-.value-save-form button {
+.value-name-form button {
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
+}
+
+.value-copy-button {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.value-copy-button:hover {
+  background: var(--bg-hover);
+}
+
+.value-copy-feedback {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
 }
 
 .value-actions > button {
