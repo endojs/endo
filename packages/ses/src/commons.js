@@ -130,7 +130,7 @@ export const {
   set: reflectSet,
 } = Reflect;
 
-export const { isArray, prototype: arrayPrototype } = Array;
+export const { isArray, prototype: arrayPrototype, from: ArrayFrom } = Array;
 export const { prototype: arrayBufferPrototype } = ArrayBuffer;
 export const { prototype: mapPrototype } = Map;
 export const { revocable: proxyRevocable } = Proxy;
