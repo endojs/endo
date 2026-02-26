@@ -1366,7 +1366,7 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {CopyArray<[Key, bigint]>} pairs
+   * @param {CopyArray<[Key, bigint]>} pairs in descending lexicographic order
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
@@ -1383,13 +1383,9 @@ const makePatternKit = () => {
     outResults = undefined,
   ) => {
     let inCount = 0n;
-    // Since this feature is motivated by ERTP's use on
-    // semi-fungible (`copyBag`) amounts,
-    // their arrays store their elements in decending lexicographic order.
-    // But this function has to make some choice amoung equally good minimal
-    // results. It is more intuitive for the choice to be the first `bound`
-    // matching elements in ascending lexicigraphic order, rather than
-    // decending. Thus we iterate `pairs` in reverse order.
+    // To produce intuitive results with CopyBag payloads (which are ordered by
+    // descending lexicographic Key order), we iterate by reverse array index
+    // and therefore consider elements in *ascending* lexicographic Key order.
     for (let i = pairs.length - 1; i >= 0; i -= 1) {
       const [element, num] = pairs[i];
       const stillNeeds = bound - inCount;
