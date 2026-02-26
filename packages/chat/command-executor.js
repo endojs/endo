@@ -194,8 +194,7 @@ export const createCommandExecutor = ({
         case 'show': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
-          // @ts-expect-error lookup signature expects tuple
-          const value = await E(powers).lookup(...pathParts);
+          const value = await E(powers).lookup(pathParts);
           const id = await E(powers).identify(...pathParts);
           showValue(value, id, pathParts, undefined);
           return { success: true, value };
@@ -247,8 +246,7 @@ export const createCommandExecutor = ({
         case 'mkdir': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
-          // @ts-expect-error spread argument requires tuple type
-          await E(powers).makeDirectory(...pathParts);
+          await E(powers).makeDirectory(pathParts);
           return { success: true, message: `Directory "${petName}" created` };
         }
 
@@ -328,7 +326,9 @@ export const createCommandExecutor = ({
             await E(iteratorRef).next();
           }
           const { value: message } = await E(iteratorRef).next();
-          const { number } = E.get(message);
+          const { number } = E.get(
+            /** @type {import('@endo/daemon').StampedMessage} */ (message),
+          );
           console.log(
             `[Chat] /network: resolving port request with "${effectiveHostPort}"`,
           );
@@ -419,7 +419,6 @@ export const createCommandExecutor = ({
           const error = reason
             ? new Error(String(reason))
             : new Error('Cancelled');
-          // @ts-expect-error cancel expects string, not string[]
           await E(powers).cancel(pathParts, error);
           return { success: true, message: `"${petName}" cancelled` };
         }

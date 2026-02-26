@@ -308,7 +308,7 @@ const bodyComponent = (
   createSpacesGutter({
     $container: $spacesGutter,
     $modalContainer: $addSpaceModal,
-    powers: rootPowers,
+    powers: /** @type {ERef<EndoHost>} */ (rootPowers),
     currentProfilePath: profilePath,
     onNavigate: newPath => {
       onProfileChange(newPath);
@@ -320,8 +320,7 @@ const bodyComponent = (
     /** @type {unknown} */
     let powers = rootPowers;
     for (const name of profilePath) {
-      // @ts-expect-error powers type is unknown
-      powers = E(powers).lookup(name);
+      powers = E(/** @type {ERef<EndoHost>} */ (powers)).lookup(name);
     }
     return powers;
   };
@@ -332,12 +331,15 @@ const bodyComponent = (
     try {
       // Resolve current powers and look up the target
       const currentPowers = await resolvePowers();
-      // @ts-expect-error currentPowers type is unknown
-      const targetPowers = await E(currentPowers).lookup(hostName);
+      const targetPowers = await E(
+        /** @type {ERef<EndoHost>} */ (currentPowers),
+      ).lookup(hostName);
 
       // Verify the target has the minimum required interface for a profile
       // by checking if it responds to identify() - a lightweight check
-      const selfId = await E(targetPowers).identify('SELF');
+      const selfId = await E(
+        /** @type {ERef<EndoHost>} */ (targetPowers),
+      ).identify('SELF');
       if (selfId === undefined) {
         throw new Error(`"${hostName}" does not appear to be a valid host`);
       }

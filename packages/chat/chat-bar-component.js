@@ -193,13 +193,17 @@ export const chatBarComponent = (
         $error.textContent = message;
       }
       console.error(`[Chat] Command error:`, message);
-      if (error?.errors?.length) {
-        for (const sub of error.errors) {
+      const { errors } = /** @type {{ errors?: Error[] }} */ (error);
+      if (errors?.length) {
+        for (const sub of errors) {
           console.error(`[Chat]   caused by:`, sub?.message || sub);
         }
       }
       if (error?.cause) {
-        console.error(`[Chat]   cause:`, error.cause?.message || error.cause);
+        console.error(
+          `[Chat]   cause:`,
+          /** @type {Error} */ (error.cause)?.message || error.cause,
+        );
       }
     },
   });

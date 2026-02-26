@@ -41,9 +41,7 @@ test('assertValidId rejects empty string', t => {
 });
 
 test('assertValidId rejects old 128-char format', t => {
-  t.throws(() =>
-    assertValidId(`${'a'.repeat(128)}:${'b'.repeat(128)}`),
-  );
+  t.throws(() => assertValidId(`${'a'.repeat(128)}:${'b'.repeat(128)}`));
 });
 
 test('assertValidNumber accepts 64-char hex', t => {

@@ -468,6 +468,7 @@ export type StampedMessage = EnvelopedMessage & {
 
 export interface Invitation {
   accept(guestHandleLocator: string): Promise<void>;
+  locate(): Promise<string>;
 }
 
 export interface Topic<
@@ -899,16 +900,14 @@ export interface EndoHost extends EndoAgent {
   makeUnconfined(
     workerName: string | undefined,
     specifier: string,
-    powersName: string,
-    resultName?: string | string[],
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeBundle(
     workerPetName: string | undefined,
     bundleName: string,
-    powersName: string,
-    resultName?: string | string[],
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
-  cancel(petName: string, reason: Error): Promise<void>;
+  cancel(petNameOrPath: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;

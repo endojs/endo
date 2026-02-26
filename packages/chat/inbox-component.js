@@ -57,7 +57,12 @@ export const inboxComponent = async (
         if (conversationPetName) {
           // eslint-disable-next-line no-await-in-loop
           const names = await E(powers).reverseIdentify(otherPartyId);
-          if (!Array.isArray(names) || !names.includes(conversationPetName)) {
+          if (
+            !Array.isArray(names) ||
+            !names.includes(
+              /** @type {import('@endo/daemon').Name} */ (conversationPetName),
+            )
+          ) {
             // eslint-disable-next-line no-continue
             continue;
           }

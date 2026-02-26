@@ -3471,8 +3471,7 @@ const provideEndoBootstrap = async (
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
     await persistencePowers.provideRootNonce();
-  const { keypair: rootKeypair } =
-    await persistencePowers.provideRootKeypair();
+  const { keypair: rootKeypair } = await persistencePowers.provideRootKeypair();
   const localNodeNumber = /** @type {NodeNumber} */ (
     toHex(rootKeypair.publicKey)
   );

@@ -2,6 +2,9 @@
 /* global document, window */
 /* eslint-disable no-use-before-define */
 
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { createAddSpaceModal } from './add-space-modal.js';
 import { makeRefIterator } from './ref-iterator.js';
@@ -54,7 +57,7 @@ harden(pathsEqual);
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element for the gutter
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
- * @param {unknown} options.powers - Endo host powers
+ * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
  * @param {(profilePath: string[]) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
@@ -326,7 +329,8 @@ export const createSpacesGutter = ({
         const spaceId = $item.getAttribute('data-space-id');
         // Home space cannot be removed
         if (spaceId && spaceId !== 'home') {
-          showContextMenu(spaceId, e.clientX, e.clientY);
+          const mouseEvent = /** @type {MouseEvent} */ (e);
+          showContextMenu(spaceId, mouseEvent.clientX, mouseEvent.clientY);
         }
       });
     }
@@ -461,7 +465,9 @@ export const createSpacesGutter = ({
 
       // Get the spaces directory and watch for changes
       const spacesDir = await E(powers).lookup('spaces');
-      const changesRef = E(spacesDir).followNameChanges();
+      const changesRef = E(
+        /** @type {ERef<EndoHost>} */ (spacesDir),
+      ).followNameChanges();
       const changes = makeRefIterator(changesRef);
 
       for await (const change of changes) {

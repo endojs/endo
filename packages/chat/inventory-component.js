@@ -179,12 +179,12 @@ export const inventoryComponent = async (
         // Expand - try to load children
         $disclosure.classList.add('loading');
         try {
-          // @ts-expect-error spread argument requires tuple type
-          const target = await E(powers).lookup(...itemPath);
+          const target = await E(powers).lookup(itemPath);
           // Check if it has followNameChanges (is a name hub)
           // We probe by trying to get the async iterator
-          // @ts-expect-error followNameChanges is on nested targets
-          const changesIterator = E(target).followNameChanges();
+          const changesIterator = E(
+            /** @type {import('@endo/far').ERef<EndoHost>} */ (target),
+          ).followNameChanges();
           // If we get here without error, it's expandable
           isExpanded = true;
           $disclosure.classList.remove('loading');
