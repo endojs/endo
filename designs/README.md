@@ -1,11 +1,12 @@
 # Endo Design Documents
 
-*Last updated: 2026-02-24*
+*Last updated: 2026-02-26*
 
 ## Summary
 
 | Design | Date | Status |
 |--------|------|--------|
+| [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | Not Started |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | **Complete** |
 | [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | **Complete** |
@@ -31,7 +32,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | Not Started |
 
-**Totals:** 4 Complete, 3 In Progress, 16 Not Started
+**Totals:** 4 Complete, 3 In Progress, 17 Not Started
 
 ## Roadmap
 
