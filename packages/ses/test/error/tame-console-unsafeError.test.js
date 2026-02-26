@@ -82,3 +82,29 @@ test('tameConsole - unlogged safe', t => {
   annotateError(ubarErr, X`caused by ${ufooErr},${obj}`);
   t.pass();
 });
+
+test.failing('tameConsole - argument method invocation', t => {
+  // https://nodejs.org/docs/latest/api/util.html#utilinspectobject-options
+  // https://nodejs.org/docs/latest/api/util.html#custom-inspection-functions-on-objects
+  // https://nodejs.org/docs/latest/api/util.html#utilinspectcustom
+  const nodejsCustomInspectSymbol = Symbol.for('nodejs.util.inspect.custom');
+  const makeSpyKit = id => {
+    const log = [];
+    const spy = {
+      id,
+      [nodejsCustomInspectSymbol]: (...args) => {
+        log.push([nodejsCustomInspectSymbol, args]);
+        return `<custom output for ${id}>`;
+      },
+    };
+    return [spy, log];
+  };
+
+  const [argSpy, argSpyCalls] = makeSpyKit('argSpy');
+  console.log(argSpy);
+  t.deepEqual(argSpyCalls, [], 'must not invoke object methods');
+
+  const [deepArgSpy, deepArgSpyCalls] = makeSpyKit('deepArgSpy');
+  console.log({ deepArgSpy });
+  t.deepEqual(deepArgSpyCalls, [], 'must not invoke methods on a deep object');
+});
