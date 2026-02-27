@@ -39,6 +39,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
+ * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -54,6 +55,7 @@ export const sendFormComponent = ({
   onStateChange,
   getConversationPetName,
   navigateToConversation,
+  getMoiMessageNumber,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -115,8 +117,17 @@ export const sendFormComponent = ({
         return s;
       });
 
+      const replyToNumber = getMoiMessageNumber
+        ? getMoiMessageNumber()
+        : undefined;
       E(powers)
-        .send(conversationPetName, messageStrings, edgeNames, petNames)
+        .send(
+          conversationPetName,
+          messageStrings,
+          edgeNames,
+          petNames,
+          replyToNumber,
+        )
         .then(
           () => {
             lastRecipient = conversationPetName;
@@ -196,8 +207,11 @@ export const sendFormComponent = ({
 
     const navigateAfterSend = firstStringEmpty && petNames.length > 0;
 
+    const replyToNum = getMoiMessageNumber
+      ? getMoiMessageNumber()
+      : undefined;
     E(powers)
-      .send(to, messageStrings, messageEdgeNames, messagePetNames)
+      .send(to, messageStrings, messageEdgeNames, messagePetNames, replyToNum)
       .then(
         () => {
           lastRecipient = to;

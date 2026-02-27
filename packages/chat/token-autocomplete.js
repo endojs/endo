@@ -271,7 +271,12 @@ export const tokenAutocompleteComponent = (
     sel.removeAllRanges();
     sel.addRange(newRange);
 
+    // Save trigger state before hideMenu() clears it.
+    const savedTriggerNode = triggerNode;
+    const savedTriggerOffset = triggerOffset;
     hideMenu();
+    triggerNode = savedTriggerNode;
+    triggerOffset = savedTriggerOffset;
     enteringEdgeName = true;
     pendingToken = { petName, edgeName: '' };
   };

@@ -678,6 +678,7 @@ export interface Mail {
     strings: Array<string>,
     edgeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
+    replyToMessageNumber?: bigint,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): Promise<void>;
   requestEvaluation(

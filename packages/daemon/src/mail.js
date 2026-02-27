@@ -421,9 +421,6 @@ export const makeMailboxMaker = ({
         assertFormulaNumber(envelope.replyTo);
       }
       if (envelope.type === 'request') {
-        if (envelope.replyTo !== undefined) {
-          throw new Error('Request messages cannot have replyTo');
-        }
         if (typeof envelope.description !== 'string') {
           throw new Error('Invalid request description');
         }
@@ -925,7 +922,13 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['send']} */
-    const send = async (toNameOrPath, strings, edgeNames, petNamesOrPaths) => {
+    const send = async (
+      toNameOrPath,
+      strings,
+      edgeNames,
+      petNamesOrPaths,
+      replyToMessageNumber,
+    ) => {
       const toPath = namePathFrom(toNameOrPath);
       assertNames(edgeNames);
       assertUniqueEdgeNames(edgeNames);
@@ -963,12 +966,26 @@ export const makeMailboxMaker = ({
         }),
       );
 
+      /** @type {import('./types.js').FormulaNumber | undefined} */
+      let replyTo;
+      if (replyToMessageNumber !== undefined) {
+        const normalizedNumber = mustParseBigint(
+          replyToMessageNumber,
+          'message',
+        );
+        const parent = messages.get(normalizedNumber);
+        if (parent !== undefined && typeof parent.messageId === 'string') {
+          replyTo = parent.messageId;
+        }
+      }
+
       const message = harden({
         type: /** @type {const} */ ('package'),
         strings,
         names: edgeNames,
         ids,
         messageId,
+        ...(replyTo !== undefined ? { replyTo } : {}),
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });

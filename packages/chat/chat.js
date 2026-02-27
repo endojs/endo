@@ -397,6 +397,9 @@ const bodyComponent = (
           .catch(window.reportError);
       };
 
+      /** @type {bigint | undefined} */
+      let currentMoiMessageNumber;
+
       inboxComponent(
         $messages,
         $anchor,
@@ -407,6 +410,9 @@ const bodyComponent = (
           conversationPetName: activeConversation
             ? activeConversation.petName
             : null,
+          onMoiChange: messageNumber => {
+            currentMoiMessageNumber = messageNumber;
+          },
         },
       ).catch(window.reportError);
       inventoryComponent(
@@ -434,6 +440,7 @@ const bodyComponent = (
           getConversationPetName,
           exitConversation: () => onConversationChange(null),
           navigateToConversation,
+          getMoiMessageNumber: () => currentMoiMessageNumber,
         },
       );
       const { focusValue, blurValue } = valueComponent(

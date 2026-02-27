@@ -182,7 +182,9 @@ export const GuestInterface = M.interface('EndoGuest', {
     M.arrayOf(M.string()),
     EdgeNamesShape,
     NamesOrPathsShape,
-  ).returns(M.promise()),
+  )
+    .optional(MessageNumberShape)
+    .returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
@@ -259,7 +261,9 @@ export const HostInterface = M.interface('EndoHost', {
     M.arrayOf(M.string()),
     EdgeNamesShape,
     NamesOrPathsShape,
-  ).returns(M.promise()),
+  )
+    .optional(MessageNumberShape)
+    .returns(M.promise()),
   deliver: M.call(M.record()).returns(),
   // Host
   // Store a blob
