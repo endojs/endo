@@ -43,15 +43,10 @@ export const make = async (powers, context) => {
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();
 
+  const LISTEN_ADDR_NAME = 'tcp-listen-addr';
+
   const started = (async () => {
-    // TODO make responding to this less of a pain.
-    // defaults, type hints, anything and everything.
-    // TODO more validation
-    const hostPort = await E(powers).request(
-      'SELF',
-      'Please select a host:port like 127.0.0.1:8920',
-      'tcp-netstring-json-captp0-host-port',
-    );
+    const hostPort = /** @type {string} */ (await E(powers).lookup(LISTEN_ADDR_NAME));
     const { hostname: host, port: portname } = new URL(
       `protocol://${hostPort}`,
     );
@@ -62,7 +57,11 @@ export const make = async (powers, context) => {
       cancelled,
     });
 
-    // TODO log assigned port
+    const assignedHostPort = `${host}:${assignedPort}`;
+    if (assignedHostPort !== hostPort) {
+      await E(powers).storeValue(assignedHostPort, LISTEN_ADDR_NAME);
+    }
+
     console.log(`Endo daemon started local ${protocol} network device`);
     addresses.push(`${protocol}://${host}:${assignedPort}`);
 
@@ -93,12 +92,17 @@ export const make = async (powers, context) => {
           bytesToMessage,
         );
 
-        const { closed: capTpClosed } = makeMessageCapTP(
+        const { closed: capTpClosed, close: closeCapTp } = makeMessageCapTP(
           'Endo',
           messageWriter,
           messageReader,
           cancelled,
           localGreeter,
+        );
+
+        connectionClosed.then(
+          () => closeCapTp(new Error('TCP connection closed')),
+          () => {},
         );
 
         const closed = Promise.race([connectionClosed, capTpClosed]);
@@ -152,12 +156,12 @@ export const make = async (powers, context) => {
       bytesToMessage,
     );
 
-    const { closed: capTpClosed, getBootstrap } = makeMessageCapTP(
-      'Endo',
-      messageWriter,
-      messageReader,
-      cancelled,
-      localGateway,
+    const { closed: capTpClosed, getBootstrap, close: closeCapTp } =
+      makeMessageCapTP('Endo', messageWriter, messageReader, cancelled, localGateway);
+
+    connectionClosed.then(
+      () => closeCapTp(new Error('TCP connection closed')),
+      () => {},
     );
 
     const closed = Promise.race([connectionClosed, capTpClosed]);
@@ -166,7 +170,7 @@ export const make = async (powers, context) => {
       connectionClosedPromises.delete(closed);
       cancelConnection();
       console.log(
-        `Endo daemon closed connection ${connectionNumber} over ${protocol}at ${new Date().toISOString()}`,
+        `Endo daemon closed outbound connection ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
       );
     });
 
