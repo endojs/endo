@@ -164,7 +164,9 @@ export const createEditSpaceModal = ({ $container, onSubmit, onClose }) => {
       $container.querySelector('#scheme-picker-slot')
     );
     if ($slot) {
-      const previousValue = schemePicker ? schemePicker.getValue() : (editingSpace && editingSpace.scheme) || 'auto';
+      const previousValue = schemePicker
+        ? schemePicker.getValue()
+        : (editingSpace && editingSpace.scheme) || 'auto';
       schemePicker = createSchemePicker({
         $container: $slot,
         initialValue: previousValue,

@@ -48,7 +48,9 @@ export const makeRemoteControlProvider = localNodeId => {
           // disruptive.
           // TODO: For the case where we leave a peer wedged half-open, we
           // will need health checks.
-          console.log(`Endo remote-control ${tag}: accepted→accepted (replacing connection)`);
+          console.log(
+            `Endo remote-control ${tag}: accepted→accepted (replacing connection)`,
+          );
           cancelCurrent(
             new Error('Connection replaced by new inbound connection.'),
           );
@@ -83,7 +85,9 @@ export const makeRemoteControlProvider = localNodeId => {
 
       currentCancelled.catch(() => {
         if (state === acceptedState) {
-          console.log(`Endo remote-control ${tag}: accepted→start (connection lost)`);
+          console.log(
+            `Endo remote-control ${tag}: accepted→start (connection lost)`,
+          );
           stateName = 'start';
           state = start();
         }
@@ -115,7 +119,9 @@ export const makeRemoteControlProvider = localNodeId => {
                 // We receive an inbound connection.
                 // We favor our outbound connection,
                 // so cancel the inbound.
-                console.log(`Endo remote-control ${tag}: connected, rejecting inbound (connect bias)`);
+                console.log(
+                  `Endo remote-control ${tag}: connected, rejecting inbound (connect bias)`,
+                );
                 Promise.resolve(
                   proposedCancel(
                     new Error(
@@ -166,7 +172,9 @@ export const makeRemoteControlProvider = localNodeId => {
               ) {
                 // We receive an inbound connection.
                 // Ditch our outbound connection.
-                console.log(`Endo remote-control ${tag}: connected→accepted (accept bias, replacing outbound)`);
+                console.log(
+                  `Endo remote-control ${tag}: connected→accepted (accept bias, replacing outbound)`,
+                );
                 cancelCurrent(
                   new Error(
                     'Connection abandoned: accepted new connection (crossed hellos, accept bias)',
@@ -177,7 +185,9 @@ export const makeRemoteControlProvider = localNodeId => {
                 proposedCancelled
                   .catch(() => {
                     if (state === connectedState) {
-                      console.log(`Endo remote-control ${tag}: connected→start (connection lost, accept bias)`);
+                      console.log(
+                        `Endo remote-control ${tag}: connected→start (connection lost, accept bias)`,
+                      );
                       stateName = 'start';
                       // I would gladly declare you Tuesday for a call today.
                       // eslint-disable-next-line no-use-before-define
@@ -259,7 +269,9 @@ export const makeRemoteControlProvider = localNodeId => {
               () => {},
               () => {
                 if (state === connectedState) {
-                  console.log(`Endo remote-control ${tag}: connected→start (connection lost)`);
+                  console.log(
+                    `Endo remote-control ${tag}: connected→start (connection lost)`,
+                  );
                   stateName = 'start';
                   state = start();
                 }

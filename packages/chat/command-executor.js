@@ -310,14 +310,10 @@ export const createCommandExecutor = ({
 
           await E(powers).storeValue(effectiveHostPort, 'tcp-listen-addr');
           console.log(`[Chat] /network: loading module ${effectiveModulePath}`);
-          await E(powers).makeUnconfined(
-            'MAIN',
-            effectiveModulePath,
-            {
-              powersName: 'AGENT',
-              resultName: 'network-service',
-            },
-          );
+          await E(powers).makeUnconfined('MAIN', effectiveModulePath, {
+            powersName: 'AGENT',
+            resultName: 'network-service',
+          });
           console.log(`[Chat] /network: moving to NETS.tcp`);
           await E(powers).move(['network-service'], ['NETS', 'tcp']);
           console.log(`[Chat] /network: TCP network ready`);

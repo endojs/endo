@@ -3072,18 +3072,19 @@ test('makeBundle passes env to caplet make function', async t => {
   await E(host).provideWorker(['worker']);
 
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
-  const envEcho = /** @type {{ getEnv(): Promise<Record<string, string>>, getEnvVar(key: string): Promise<string> }} */ (
-    await doMakeBundle(host, envEchoPath, bundleName =>
-      E(host).makeBundle('worker', bundleName, {
-        powersName: 'NONE',
-        resultName: 'env-echo',
-        env: {
-          CONFIG_PATH: '/etc/app/config.json',
-          LOG_LEVEL: 'verbose',
-        },
-      }),
-    )
-  );
+  const envEcho =
+    /** @type {{ getEnv(): Promise<Record<string, string>>, getEnvVar(key: string): Promise<string> }} */ (
+      await doMakeBundle(host, envEchoPath, bundleName =>
+        E(host).makeBundle('worker', bundleName, {
+          powersName: 'NONE',
+          resultName: 'env-echo',
+          env: {
+            CONFIG_PATH: '/etc/app/config.json',
+            LOG_LEVEL: 'verbose',
+          },
+        }),
+      )
+    );
 
   // Verify the caplet received the environment variables
   const allEnv = await E(envEcho).getEnv();

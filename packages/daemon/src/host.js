@@ -42,7 +42,9 @@ const assertPowersName = name => {
  * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
  */
 const normalizeHostOrGuestOptions = opts => ({
-  introducedNames: /** @type {Record<Name, PetName>} */ (opts?.introducedNames ?? Object.create(null)),
+  introducedNames: /** @type {Record<Name, PetName>} */ (
+    opts?.introducedNames ?? Object.create(null)
+  ),
   agentName: /** @type {PetName | undefined} */ (opts?.agentName),
 });
 
@@ -360,13 +362,22 @@ export const makeHostMaker = ({
         );
       }
 
-      return { tasks, workerId, powersId: /** @type {FormulaIdentifier | undefined} */ (powersId), env, workerTrustedShims };
+      return {
+        tasks,
+        workerId,
+        powersId: /** @type {FormulaIdentifier | undefined} */ (powersId),
+        env,
+        workerTrustedShims,
+      };
     };
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
       const { tasks, workerId, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(/** @type {Name | undefined} */ (workerName), options);
+        prepareMakeCaplet(
+          /** @type {Name | undefined} */ (workerName),
+          options,
+        );
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -391,7 +402,10 @@ export const makeHostMaker = ({
       }
 
       const { tasks, workerId, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(/** @type {Name | undefined} */ (workerName), options);
+        prepareMakeCaplet(
+          /** @type {Name | undefined} */ (workerName),
+          options,
+        );
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -502,7 +516,12 @@ export const makeHostMaker = ({
         host = { value: Promise.resolve(value), id };
       }
 
-      await introduceNamesToAgent(host.id, /** @type {Record<import('./types.js').Name, import('./types.js').PetName>} */ (introducedNames));
+      await introduceNamesToAgent(
+        host.id,
+        /** @type {Record<import('./types.js').Name, import('./types.js').PetName>} */ (
+          introducedNames
+        ),
+      );
 
       /** @type {{ id: FormulaIdentifier, value: Promise<EndoHost> }} */
       return host;
@@ -514,7 +533,10 @@ export const makeHostMaker = ({
         assertName(petName);
       }
       const normalizedOpts = normalizeHostOrGuestOptions(opts);
-      const { value } = await makeChildHost(/** @type {PetName | undefined} */ (petName), normalizedOpts);
+      const { value } = await makeChildHost(
+        /** @type {PetName | undefined} */ (petName),
+        normalizedOpts,
+      );
       return value;
     };
 
@@ -543,7 +565,12 @@ export const makeHostMaker = ({
         guest = { value: Promise.resolve(value), id };
       }
 
-      await introduceNamesToAgent(guest.id, /** @type {Record<import('./types.js').Name, import('./types.js').PetName>} */ (introducedNames));
+      await introduceNamesToAgent(
+        guest.id,
+        /** @type {Record<import('./types.js').Name, import('./types.js').PetName>} */ (
+          introducedNames
+        ),
+      );
 
       /** @type {{ id: FormulaIdentifier, value: Promise<EndoGuest> }} */
       return guest;
@@ -555,7 +582,10 @@ export const makeHostMaker = ({
         assertName(petName);
       }
       const normalizedOpts = normalizeHostOrGuestOptions(opts);
-      const { value } = await makeGuest(/** @type {PetName | undefined} */ (petName), normalizedOpts);
+      const { value } = await makeGuest(
+        /** @type {PetName | undefined} */ (petName),
+        normalizedOpts,
+      );
       return value;
     };
 

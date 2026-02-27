@@ -366,10 +366,7 @@ export const createAddSpaceModal = ({
       pathAutocomplete.dispose();
     }
 
-    const typedPowers =
-      /** @type {ERef<EndoHost>} */ (
-        powers
-      );
+    const typedPowers = /** @type {ERef<EndoHost>} */ (powers);
     pathAutocomplete = petNamePathsAutocomplete(
       /** @type {HTMLElement} */ ($inputContainer),
       /** @type {HTMLElement} */ ($menu),

@@ -385,21 +385,25 @@ export const makeMailboxMaker = ({
         envelope.type === 'eval-proposal-reviewer' ||
         envelope.type === 'eval-proposal-proposer'
       ) {
-        return /** @type {MessageFormula} */ (/** @type {unknown} */ (harden({
-          type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
-          source: envelope.source,
-          codeNames: envelope.codeNames,
-          petNamePaths: envelope.petNamePaths,
-          edgeNames: envelope.edgeNames,
-          ids: envelope.ids,
-          workerName: envelope.workerName,
-        })));
+        return /** @type {MessageFormula} */ (
+          /** @type {unknown} */ (
+            harden({
+              type: 'message',
+              messageType: envelope.type,
+              messageId,
+              ...replyToRecord,
+              from: /** @type {FormulaIdentifier} */ (envelope.from),
+              to: /** @type {FormulaIdentifier} */ (envelope.to),
+              date,
+              source: envelope.source,
+              codeNames: envelope.codeNames,
+              petNamePaths: envelope.petNamePaths,
+              edgeNames: envelope.edgeNames,
+              ids: envelope.ids,
+              workerName: envelope.workerName,
+            })
+          )
+        );
       }
       throw new Error('Unknown message type');
     };
@@ -863,7 +867,10 @@ export const makeMailboxMaker = ({
       const type = await getTypeForId(id);
       if (type === 'host' || type === 'guest') {
         const formula = await getFormulaForId(id);
-        const hostOrGuestFormula = /** @type {import('./types.js').HostFormula | import('./types.js').GuestFormula} */ (formula);
+        const hostOrGuestFormula =
+          /** @type {import('./types.js').HostFormula | import('./types.js').GuestFormula} */ (
+            formula
+          );
         return provide(
           /** @type {FormulaIdentifier} */ (hostOrGuestFormula.handle),
           'handle',
@@ -1408,7 +1415,9 @@ export const makeMailboxMaker = ({
       workerName,
       resultName,
     ) => {
-      const to = /** @type {Handle} */ (await provide(/** @type {FormulaIdentifier} */ (toId)));
+      const to = /** @type {Handle} */ (
+        await provide(/** @type {FormulaIdentifier} */ (toId))
+      );
 
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()
@@ -1425,7 +1434,11 @@ export const makeMailboxMaker = ({
 
       const resultId = responseIdP.catch(() => undefined);
       const result = responseIdP
-        .then(id => (typeof id === 'string' ? provide(/** @type {FormulaIdentifier} */ (id)) : id))
+        .then(id =>
+          typeof id === 'string'
+            ? provide(/** @type {FormulaIdentifier} */ (id))
+            : id,
+        )
         .catch(() => undefined);
 
       /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
@@ -1545,7 +1558,9 @@ export const makeMailboxMaker = ({
       const originalSenderId = originalProposal.from;
 
       // Send counter-proposal back to original sender
-      const to = /** @type {Handle} */ (await provide(/** @type {FormulaIdentifier} */ (originalSenderId)));
+      const to = /** @type {Handle} */ (
+        await provide(/** @type {FormulaIdentifier} */ (originalSenderId))
+      );
 
       const counterMessageId =
         /** @type {import('./types.js').FormulaNumber} */ (

@@ -878,7 +878,9 @@ const makeDaemonCore = async (
       connectionCancelled,
     ) => {
       assertNodeNumber(remoteNodeId);
-      console.log(`Endo daemon received inbound peer connection from node ${remoteNodeId.slice(0, 8)}`);
+      console.log(
+        `Endo daemon received inbound peer connection from node ${remoteNodeId.slice(0, 8)}`,
+      );
       const remoteControl = provideRemoteControl(remoteNodeId);
       /** @param {Error} error */
       const wrappedCancel = error => E(cancelConnection)(error);
@@ -1074,10 +1076,16 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
-    const worker = await provide(/** @type {FormulaIdentifier} */ (workerId), 'worker');
+    const worker = await provide(
+      /** @type {FormulaIdentifier} */ (workerId),
+      'worker',
+    );
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
-    const readableBundleP = provide(/** @type {FormulaIdentifier} */ (bundleId), 'readable-blob');
+    const readableBundleP = provide(
+      /** @type {FormulaIdentifier} */ (bundleId),
+      'readable-blob',
+    );
     const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
     return E(/** @type {any} */ (workerDaemonFacet)).makeBundle(
       readableBundleP,
@@ -1920,7 +1928,9 @@ const makeDaemonCore = async (
           if (knownPeers.has(nodeNumber)) {
             const existingPeerId = knownPeers.identifyLocal(nodeNumber);
             if (existingPeerId !== undefined) {
-              const existingFormulaId = /** @type {FormulaIdentifier} */ (existingPeerId);
+              const existingFormulaId = /** @type {FormulaIdentifier} */ (
+                existingPeerId
+              );
               const existingFormula = await getFormulaForId(existingFormulaId);
               if (
                 existingFormula.type === 'peer' &&
@@ -1935,7 +1945,9 @@ const makeDaemonCore = async (
                   existingFormulaId,
                   new Error('Peer addresses updated'),
                 );
-                await knownPeers.remove(/** @type {PetName} */ (/** @type {unknown} */ (nodeNumber)));
+                await knownPeers.remove(
+                  /** @type {PetName} */ (/** @type {unknown} */ (nodeNumber)),
+                );
                 const { id: peerId } =
                   // eslint-disable-next-line no-use-before-define
                   await formulatePeer(networksId, nodeNumber, addresses);
@@ -3142,7 +3154,9 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
-    console.log(`Endo daemon dialing peer node ${nodeId.slice(0, 8)} at ${JSON.stringify(addresses)}`);
+    console.log(
+      `Endo daemon dialing peer node ${nodeId.slice(0, 8)} at ${JSON.stringify(addresses)}`,
+    );
     const remoteControl = provideRemoteControl(nodeId);
     return remoteControl.connect(
       async () => {
@@ -3164,7 +3178,9 @@ const makeDaemonCore = async (
       context.cancel,
       context.cancelled,
       () => {
-        console.log(`Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`);
+        console.log(
+          `Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`,
+        );
         dropLiveValue(context.id);
       },
     );
@@ -3344,7 +3360,9 @@ const makeDaemonCore = async (
         petName = petNameOrPath;
       }
       assertName(petName);
-      const id = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(petName));
+      const id = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(petName)
+      );
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }

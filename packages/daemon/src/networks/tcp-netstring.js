@@ -46,7 +46,9 @@ export const make = async (powers, context) => {
   const LISTEN_ADDR_NAME = 'tcp-listen-addr';
 
   const started = (async () => {
-    const hostPort = /** @type {string} */ (await E(powers).lookup(LISTEN_ADDR_NAME));
+    const hostPort = /** @type {string} */ (
+      await E(powers).lookup(LISTEN_ADDR_NAME)
+    );
     const { hostname: host, port: portname } = new URL(
       `protocol://${hostPort}`,
     );
@@ -156,8 +158,17 @@ export const make = async (powers, context) => {
       bytesToMessage,
     );
 
-    const { closed: capTpClosed, getBootstrap, close: closeCapTp } =
-      makeMessageCapTP('Endo', messageWriter, messageReader, cancelled, localGateway);
+    const {
+      closed: capTpClosed,
+      getBootstrap,
+      close: closeCapTp,
+    } = makeMessageCapTP(
+      'Endo',
+      messageWriter,
+      messageReader,
+      cancelled,
+      localGateway,
+    );
 
     connectionClosed.then(
       () => closeCapTp(new Error('TCP connection closed')),

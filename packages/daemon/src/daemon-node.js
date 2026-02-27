@@ -141,7 +141,9 @@ const main = async () => {
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
     if (await E(host).has('APPS')) {
-      const apps = /** @type {{ getAddress(): Promise<string> }} */ (await E(host).lookup('APPS'));
+      const apps = /** @type {{ getAddress(): Promise<string> }} */ (
+        await E(host).lookup('APPS')
+      );
       const address = await E(apps).getAddress();
       console.log(`Endo gateway listening on ${address}`);
     }

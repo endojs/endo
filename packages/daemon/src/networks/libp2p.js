@@ -144,10 +144,12 @@ export const make = async (powers, context) => {
     peerDiscovery: [bootstrap({ list: [...AMINO_DHT_BOOTSTRAP_NODES] })],
     services: {
       identify: identify(),
-      aminoDHT: /** @type {any} */ (kadDHT({
-        protocol: '/ipfs/kad/1.0.0',
-        peerInfoMapper: removePrivateAddressesMapper,
-      })),
+      aminoDHT: /** @type {any} */ (
+        kadDHT({
+          protocol: '/ipfs/kad/1.0.0',
+          peerInfoMapper: removePrivateAddressesMapper,
+        })
+      ),
       ping: ping(),
     },
   });
@@ -357,8 +359,11 @@ export const make = async (powers, context) => {
       closed: streamClosed,
     } = adaptLibp2pStream(rawStream);
 
-    const { closed: capTpClosed, getBootstrap, close: closeCapTp } =
-      makeNetstringCapTP('Endo', writer, reader, cancelled, localGateway);
+    const {
+      closed: capTpClosed,
+      getBootstrap,
+      close: closeCapTp,
+    } = makeNetstringCapTP('Endo', writer, reader, cancelled, localGateway);
 
     streamClosed.then(
       () => closeCapTp(new Error('libp2p stream closed')),

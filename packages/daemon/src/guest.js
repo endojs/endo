@@ -111,7 +111,8 @@ export const makeGuestMaker = ({
      * @param {string} id - The formula identifier.
      * @returns {Promise<unknown>} The value for the given formula identifier.
      */
-    const lookupById = async id => provide(/** @type {FormulaIdentifier} */ (id));
+    const lookupById = async id =>
+      provide(/** @type {FormulaIdentifier} */ (id));
     const {
       listMessages,
       followMessages,
