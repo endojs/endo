@@ -7,7 +7,12 @@
 
 import { E } from '@endo/far';
 import { createAddSpaceModal } from './add-space-modal.js';
+import { createEditSpaceModal } from './edit-space-modal.js';
 import { makeRefIterator } from './ref-iterator.js';
+
+/**
+ * @typedef {'auto' | 'light' | 'dark' | 'high-contrast-light' | 'high-contrast-dark'} ColorScheme
+ */
 
 /**
  * @typedef {object} SpaceConfig
@@ -16,6 +21,7 @@ import { makeRefIterator } from './ref-iterator.js';
  * @property {string} icon - emoji character
  * @property {string[]} profilePath - pet-name path to the agent
  * @property {'inbox'} mode - interaction mode (future: 'conversations', 'channels')
+ * @property {ColorScheme} [scheme] - color scheme preference (default: 'auto')
  */
 
 /**
@@ -24,6 +30,7 @@ import { makeRefIterator } from './ref-iterator.js';
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
  * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
  * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
@@ -177,6 +184,58 @@ export const createSpacesGutter = ({
   };
 
   /**
+   * Update an existing space's configuration.
+   *
+   * @param {string} id
+   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>} updates
+   * @returns {Promise<void>}
+   */
+  const updateSpace = async (id, updates) => {
+    const existing = spacesMap.get(id);
+    if (!existing) return;
+
+    const updated = harden({
+      ...existing,
+      ...updates,
+    });
+
+    await null; // safe-await-separator
+    await E(powers).storeValue(updated, ['spaces', id]);
+
+    spacesMap.set(id, updated);
+
+    // If this is the active space, apply the new scheme
+    if (id === activeSpaceId) {
+      applyScheme(updated.scheme);
+    }
+    render();
+  };
+
+  /**
+   * Apply a color scheme to the document.
+   *
+   * @param {ColorScheme} [scheme]
+   */
+  const applyScheme = scheme => {
+    if (!scheme || scheme === 'auto') {
+      document.documentElement.removeAttribute('data-scheme');
+    } else {
+      document.documentElement.setAttribute('data-scheme', scheme);
+    }
+    // Notify any Monaco iframes to update their theme
+    const iframes = document.querySelectorAll('iframe');
+    for (const iframe of iframes) {
+      try {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: 'set-theme' }, '*');
+        }
+      } catch {
+        // Cross-origin iframe, ignore
+      }
+    }
+  };
+
+  /**
    * Select and activate a space.
    *
    * @param {string} id
@@ -185,6 +244,7 @@ export const createSpacesGutter = ({
     // Handle home space specially
     if (id === 'home') {
       activeSpaceId = 'home';
+      applyScheme('auto');
       render();
       onNavigate(HOME_SPACE.profilePath);
       return;
@@ -194,6 +254,7 @@ export const createSpacesGutter = ({
     if (!space) return;
 
     activeSpaceId = id;
+    applyScheme(space.scheme);
     render();
     onNavigate(space.profilePath);
   };
@@ -284,6 +345,10 @@ export const createSpacesGutter = ({
       </div>
       <div class="space-context-menu">
         <div class="context-menu-title"></div>
+        <button class="context-menu-item" data-action="edit">
+          <span class="context-menu-icon">✏️</span>
+          <span>Edit Space</span>
+        </button>
         <button class="context-menu-item context-menu-delete" data-action="delete">
           <span class="context-menu-icon">🗑</span>
           <span>Delete Space</span>
@@ -296,6 +361,19 @@ export const createSpacesGutter = ({
     // Attach context menu handlers
     const $contextMenu = $container.querySelector('.space-context-menu');
     if ($contextMenu) {
+      const $editBtn = $contextMenu.querySelector('[data-action="edit"]');
+      if ($editBtn) {
+        $editBtn.addEventListener('click', () => {
+          if (contextMenuSpaceId) {
+            const space = spacesMap.get(contextMenuSpaceId);
+            if (space) {
+              editSpaceModal.show(space);
+            }
+          }
+          hideContextMenu();
+        });
+      }
+
       const $deleteBtn = $contextMenu.querySelector('[data-action="delete"]');
       if ($deleteBtn) {
         $deleteBtn.addEventListener('click', () => {
@@ -363,6 +441,22 @@ export const createSpacesGutter = ({
         icon: data.icon,
         profilePath: data.profilePath,
         mode: 'inbox',
+        scheme: data.scheme || 'auto',
+      });
+    },
+    onClose: () => {
+      // Modal closed
+    },
+  });
+
+  // Initialize the edit space modal
+  const editSpaceModal = createEditSpaceModal({
+    $container: $modalContainer,
+    onSubmit: async (id, data) => {
+      await updateSpace(id, {
+        name: data.name,
+        icon: data.icon,
+        scheme: data.scheme || 'auto',
       });
     },
     onClose: () => {
@@ -396,6 +490,18 @@ export const createSpacesGutter = ({
     if (!obj.profilePath.every(p => typeof p === 'string')) return null;
     // Mode is optional, default to 'inbox'
     const mode = obj.mode === 'inbox' ? 'inbox' : 'inbox';
+    // Scheme is optional, default to 'auto'
+    const validSchemes = harden([
+      'auto',
+      'light',
+      'dark',
+      'high-contrast-light',
+      'high-contrast-dark',
+    ]);
+    const scheme =
+      typeof obj.scheme === 'string' && validSchemes.includes(obj.scheme)
+        ? /** @type {ColorScheme} */ (obj.scheme)
+        : 'auto';
     return /** @type {SpaceConfig} */ (
       harden({
         id,
@@ -403,6 +509,7 @@ export const createSpacesGutter = ({
         icon: obj.icon,
         profilePath: obj.profilePath,
         mode,
+        scheme,
       })
     );
   };
@@ -600,6 +707,7 @@ export const createSpacesGutter = ({
     selectSpace,
     getSpaces,
     addSpace,
+    updateSpace,
     removeSpace,
     getActiveSpaceId,
   });

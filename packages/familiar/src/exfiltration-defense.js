@@ -48,7 +48,6 @@ const configureCommandLineFlags = () => {
   );
 };
 
-
 /**
  * Configure DNS poisoning via invalid DoH endpoint. Must be called after
  * `app.whenReady()`.

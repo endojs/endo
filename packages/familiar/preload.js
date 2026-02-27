@@ -14,7 +14,9 @@ contextBridge.exposeInMainWorld(
     restartDaemon: () => ipcRenderer.invoke('familiar:restart-daemon'),
     purgeDaemon: () => ipcRenderer.invoke('familiar:purge-daemon'),
     getVersion: () => ipcRenderer.invoke('familiar:get-version'),
-    onSecurityWarnings: (/** @type {(warnings: string[]) => void} */ callback) =>
+    onSecurityWarnings: (
+      /** @type {(warnings: string[]) => void} */ callback,
+    ) =>
       ipcRenderer.on('familiar:security-warnings', (_event, warnings) =>
         callback(warnings),
       ),
