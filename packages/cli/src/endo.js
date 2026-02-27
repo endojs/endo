@@ -38,6 +38,18 @@ const parseOptionAsMapping = (optionValueString, obj) => {
   return obj;
 };
 
+const parseEnvOption = (optionValueString, obj) => {
+  // arguments are provided as "KEY=VALUE"
+  const eqIndex = optionValueString.indexOf('=');
+  if (eqIndex === -1) {
+    throw `Environment variable must be in KEY=VALUE format, got: ${optionValueString}`;
+  }
+  const key = optionValueString.slice(0, eqIndex);
+  const value = optionValueString.slice(eqIndex + 1);
+  obj[key] = value;
+  return obj;
+};
+
 export const main = async rawArgs => {
   const program = new Command();
 
@@ -125,12 +137,19 @@ export const main = async rawArgs => {
       '-p,--powers <endowment>',
       'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
     )
+    .option(
+      '-E,--env <key=value>',
+      'Environment variable to inject (can be used multiple times)',
+      parseEnvOption,
+      {},
+    )
     .action(async (filePath, args, cmd) => {
       const {
         as: agentNames,
         bundle: bundleName,
         UNCONFINED: importPath,
         powers: powersName = 'NONE',
+        env = {},
       } = cmd.opts();
       const { run } = await import('./commands/run.js');
       return run({
@@ -140,6 +159,7 @@ export const main = async rawArgs => {
         importPath,
         powersName,
         agentNames,
+        env,
       });
     });
 
@@ -156,6 +176,12 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
+    .option(
+      '-E,--env <key=value>',
+      'Environment variable to inject (can be used multiple times)',
+      parseEnvOption,
+      {},
+    )
     .action(async (filePath, cmd) => {
       const {
         UNCONFINED: importPath,
@@ -164,6 +190,7 @@ export const main = async rawArgs => {
         worker: workerName = undefined,
         as: agentNames,
         powers: powersName = 'NONE',
+        env = {},
       } = cmd.opts();
       const { makeCommand } = await import('./commands/make.js');
       return makeCommand({
@@ -174,6 +201,7 @@ export const main = async rawArgs => {
         workerName,
         agentNames,
         powersName,
+        env,
       });
     });
 
@@ -236,6 +264,123 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('approve-eval <message-number>')
+    .description('approve a sandboxed evaluation request')
+    .option(...commonOptions.as)
+    .option('-w,--worker <name>', 'Worker to use for evaluation')
+    .action(async (messageNumberText, cmd) => {
+      const { as: agentNames, worker: workerName } = cmd.opts();
+      const { approveEvalCommand } = await import('./commands/approve-eval.js');
+      return approveEvalCommand({
+        messageNumberText,
+        workerName,
+        agentNames,
+      });
+    });
+
+  program
+    .command('define <source>')
+    .description(
+      'propose code with named capability slots for the host to endow',
+    )
+    .option(...commonOptions.as)
+    .option(
+      '-s,--slot <slot>',
+      'Slot definition as codeName:label (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (source, cmd) => {
+      const { as: agentNames, slot: slotArgs } = cmd.opts();
+      const { defineCommand } = await import('./commands/define.js');
+      return defineCommand({ source, slotArgs, agentNames });
+    });
+
+  program
+    .command('endow <message-number>')
+    .description('bind capabilities to a definition and evaluate')
+    .option(...commonOptions.as)
+    .option(
+      '-b,--bind <binding>',
+      'Binding as codeName:petName (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .option('-w,--worker <name>', 'Worker to use for evaluation')
+    .option(...commonOptions.name)
+    .action(async (messageNumberText, cmd) => {
+      const {
+        as: agentNames,
+        bind: bindArgs,
+        worker: workerName,
+        name: resultName,
+      } = cmd.opts();
+      const { endowCommand } = await import('./commands/endow.js');
+      return endowCommand({
+        messageNumberText,
+        bindArgs,
+        workerName,
+        resultName,
+        agentNames,
+      });
+    });
+
+  program
+    .command('form <recipient> <description>')
+    .description('send a structured form request')
+    .option(...commonOptions.as)
+    .option(...commonOptions.name)
+    .option(
+      '-f,--field <field>',
+      'Field definition as fieldName:label (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (toName, description, cmd) => {
+      const { as: agentNames, field: fieldArgs, name: resultName } = cmd.opts();
+      const { formCommand } = await import('./commands/form.js');
+      return formCommand({
+        toName,
+        description,
+        fieldArgs,
+        resultName,
+        agentNames,
+      });
+    });
+
+  program
+    .command('respond-form <message-number>')
+    .description('respond to a form request with values')
+    .option(...commonOptions.as)
+    .option(
+      '-v,--value <value>',
+      'Value as fieldName:value (repeatable)',
+      (val, acc) => {
+        acc.push(val);
+        return acc;
+      },
+      [],
+    )
+    .action(async (messageNumberText, cmd) => {
+      const { as: agentNames, value: valueArgs } = cmd.opts();
+      const { respondFormCommand } = await import('./commands/respond-form.js');
+      return respondFormCommand({
+        messageNumberText,
+        valueArgs,
+        agentNames,
+      });
+    });
+
+  program
     .command('send <agent> <message-with-embedded-references>')
     .description('send a message with @named-values @for-you:from-me')
     .option(...commonOptions.as)
@@ -243,6 +388,16 @@ export const main = async rawArgs => {
       const { as: agentNames } = cmd.opts();
       const { send } = await import('./commands/send.js');
       return send({ message, agentName, agentNames });
+    });
+
+  program
+    .command('reply <message-number> <message-with-embedded-references>')
+    .description('reply to a message with @named-values @for-you:from-me')
+    .option(...commonOptions.as)
+    .action(async (messageNumberText, message, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { reply } = await import('./commands/reply.js');
+      return reply({ messageNumberText, message, agentNames });
     });
 
   program
@@ -270,6 +425,18 @@ export const main = async rawArgs => {
       const { dismissCommand } = await import('./commands/dismiss.js');
       return dismissCommand({
         messageNumberText,
+        agentNames,
+      });
+    });
+
+  program
+    .command('dismiss-all')
+    .description('delete all messages')
+    .option(...commonOptions.as)
+    .action(async cmd => {
+      const { as: agentNames } = cmd.opts();
+      const { dismissAllCommand } = await import('./commands/dismiss-all.js');
+      return dismissAllCommand({
         agentNames,
       });
     });
@@ -328,6 +495,16 @@ export const main = async rawArgs => {
       const { as: agentNames } = cmd.opts();
       const { show } = await import('./commands/show.js');
       return show({ name, agentNames });
+    });
+
+  program
+    .command('locate <name>')
+    .description('prints the locator for a named value')
+    .option(...commonOptions.as)
+    .action(async (name, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { locate } = await import('./commands/locate.js');
+      return locate({ name, agentNames });
     });
 
   program
@@ -620,15 +797,16 @@ export const main = async rawArgs => {
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
+    .option('-a, --all', 'include all logs (daemon and workers)')
     .option(
       '-p,--ping <interval>',
       'milliseconds between daemon restart checks',
     )
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
-      const { follow, ping } = cmd.opts();
+      const { follow, ping, all } = cmd.opts();
       const { log: logCommand } = await import('./commands/log.js');
-      await logCommand({ follow, ping });
+      await logCommand({ follow, ping, all });
     });
 
   program

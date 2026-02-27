@@ -5,8 +5,8 @@
 
 import { makeError, q } from '@endo/errors';
 
-const numberPattern = /^[0-9a-f]{128}$/;
-const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
+const numberPattern = /^[0-9a-f]{64}$/;
+const idPattern = /^(?<number>[0-9a-f]{64}):(?<node>[0-9a-f]{64})$/;
 
 /**
  * @param {string} allegedNumber - The formula number or node identifier to test.
@@ -77,10 +77,13 @@ export const parseId = id => {
   }
 
   const { number, node } = groups;
-  const formulaId = /** @type {FormulaIdentifier} */ (id);
   const formulaNumber = /** @type {FormulaNumber} */ (number);
   const nodeNumber = /** @type {NodeNumber} */ (node);
-  return { id: formulaId, number: formulaNumber, node: nodeNumber };
+  return {
+    number: formulaNumber,
+    node: nodeNumber,
+    id: /** @type {FormulaIdentifier} */ (id),
+  };
 };
 
 /**

@@ -1,5 +1,5 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
 
 // Establish a perimeter:
 import '@endo/init/debug.js';
@@ -8,6 +8,7 @@ import baseTest from 'ava';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -24,7 +25,7 @@ import {
   makeRefIterator,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
-import { formatId } from '../src/formula-identifier.js';
+import { formatId, parseId } from '../src/formula-identifier.js';
 import { idFromLocator, parseLocator } from '../src/locator.js';
 
 /**
@@ -41,7 +42,7 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 const test = netListenAllowed ? baseTest : baseTest.skip;
 
 /**
- * @param {AsyncIterator} asyncIterator - The iterator to take from.
+ * @param {AsyncIterator<unknown>} asyncIterator - The iterator to take from.
  * @param {number} count - The number of values to retrieve.
  */
 const takeCount = async (asyncIterator, count) => {
@@ -57,6 +58,105 @@ const takeCount = async (asyncIterator, count) => {
   return values;
 };
 
+/**
+ * Drain `count` values from an async iterator (sequential by necessity).
+ * @param {import('@endo/eventual-send').ERef<AsyncIterator<unknown>>} iteratorRef
+ * @param {number} count
+ */
+const drainIterator = async (iteratorRef, count) => {
+  let remaining = count;
+  while (remaining > 0) {
+    // eslint-disable-next-line no-await-in-loop
+    await E(iteratorRef).next();
+    remaining -= 1;
+  }
+};
+
+/**
+ * @param {string} targetPath
+ */
+const pathExists = async targetPath => {
+  await null;
+  try {
+    await fs.promises.stat(targetPath);
+    return true;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'ENOENT') {
+        return false;
+      }
+    }
+    throw error;
+  }
+};
+
+/**
+ * @param {string} statePath
+ * @param {string} id
+ */
+const formulaPathForId = (statePath, id) => {
+  const { number } = parseId(id);
+  const head = number.slice(0, 2);
+  const tail = number.slice(2);
+  return path.join(statePath, 'formulas', head, `${tail}.json`);
+};
+
+/**
+ * @param {string} filePath
+ * @param {RegExp | string} matcher
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
+ */
+const waitForText = async (filePath, matcher, opts = {}) => {
+  await null;
+  const { timeoutMs = 2000, intervalMs = 50 } = opts;
+  const startTime = Date.now();
+  const matches = text =>
+    matcher instanceof RegExp ? matcher.test(text) : text.includes(matcher);
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const text = await fs.promises.readFile(filePath, 'utf-8').catch(() => '');
+    if (matches(text)) {
+      return text;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error(
+        `Timed out waiting for ${String(matcher)} in ${filePath}`,
+      );
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * @param {() => Promise<boolean>} predicate
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [opts]
+ */
+const waitForCondition = async (predicate, opts = {}) => {
+  await null;
+  const { timeoutMs = 2000, intervalMs = 50 } = opts;
+  const startTime = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await predicate()) {
+      return;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error('Timed out waiting for condition');
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * @param {import('ava').ExecutionContext<any>} t
+ * @param {Promise<unknown>} promise
+ * @param {string} [message]
+ */
 /**
  * Calls `host.followNameChanges()`, takes all already-existing names from the iterator,
  * and returns the iterator.
@@ -135,22 +235,11 @@ const prepareHostWithTestNetwork = async t => {
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
-  const network = E(host).makeUnconfined(
-    'MAIN',
-    serviceLocation,
-    'AGENT',
-    'test-network',
-  );
-
-  // set address via request
-  const iteratorRef = E(host).followMessages();
-  const { value: message } = await E(iteratorRef).next();
-  const { number } = E.get(message);
-  await E(host).storeValue('127.0.0.1:0', 'netport');
-  await E(host).resolve(await number, 'netport');
-
-  // move test network to network dir
-  await network;
+  await E(host).storeValue('127.0.0.1:0', 'tcp-listen-addr');
+  await E(host).makeUnconfined('MAIN', serviceLocation, {
+    powersName: 'AGENT',
+    resultName: 'test-network',
+  });
   await E(host).move(['test-network'], ['NETS', 'tcp']);
 
   return host;
@@ -187,6 +276,13 @@ const doMakeBundle = async (host, filePath, callback) => {
 };
 
 let configPathId = 0;
+const MAX_UNIX_SOCKET_PATH = 90;
+const SOCKET_PATH_OVERHEAD =
+  path.join(dirname, 'tmp').length + 1 + 'endo.sock'.length + 8;
+const MAX_CONFIG_DIR_LENGTH = Math.max(
+  8,
+  MAX_UNIX_SOCKET_PATH - SOCKET_PATH_OVERHEAD,
+);
 
 /**
  * @param {string} testTitle - The title of the current test.
@@ -196,12 +292,14 @@ let configPathId = 0;
 const getConfigDirectoryName = (testTitle, configNumber) => {
   const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
 
-  // We truncate the subdirectory name to 30 characters in an attempt to respect
-  // the maximum Unix domain socket path length.
+  // We truncate the subdirectory name in an attempt to respect the maximum
+  // Unix domain socket path length.
   // With our apologies to John Jacob Jingleheimerschmidt, for whom this may
   // not be enough.
   const basePath =
-    defaultPath.length <= 22 ? defaultPath : defaultPath.slice(0, 22);
+    defaultPath.length <= MAX_CONFIG_DIR_LENGTH
+      ? defaultPath
+      : defaultPath.slice(0, MAX_CONFIG_DIR_LENGTH);
   const testId = String(configPathId).padStart(4, '0');
   const configId = String(configNumber).padStart(2, '0');
   const configSubDirectory = `${basePath}#${testId}-${configId}`;
@@ -574,12 +672,10 @@ test('move renames value, for a single caplet name hub', async t => {
   const { host } = await prepareHost(t);
 
   const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
-  const nameHub = await E(host).makeUnconfined(
-    'MAIN',
-    nameHubPath,
-    'NONE',
-    'name-hub',
-  );
+  const nameHub = await E(host).makeUnconfined('MAIN', nameHubPath, {
+    powersName: 'NONE',
+    resultName: 'name-hub',
+  });
 
   await E(host).storeValue(10, 'ten');
   const tenId = await E(host).identify('ten');
@@ -597,18 +693,14 @@ test('move moves value, between different caplet name hubs', async t => {
   const { host } = await prepareHost(t);
 
   const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
-  const nameHub1 = await E(host).makeUnconfined(
-    'MAIN',
-    nameHubPath,
-    'NONE',
-    'name-hub1',
-  );
-  const nameHub2 = await E(host).makeUnconfined(
-    'MAIN',
-    nameHubPath,
-    'NONE',
-    'name-hub2',
-  );
+  const nameHub1 = await E(host).makeUnconfined('MAIN', nameHubPath, {
+    powersName: 'NONE',
+    resultName: 'name-hub1',
+  });
+  const nameHub2 = await E(host).makeUnconfined('MAIN', nameHubPath, {
+    powersName: 'NONE',
+    resultName: 'name-hub2',
+  });
 
   await E(host).storeValue(10, 'ten');
   const tenId = await E(host).identify('ten');
@@ -630,7 +722,10 @@ test('move preserves original name if writing to new name hub fails', async t =>
   t.true(await E(host).has('ten'));
 
   const failedHubPath = path.join(dirname, 'test', 'failed-hub.js');
-  await E(host).makeUnconfined('MAIN', failedHubPath, 'NONE', 'failed-hub');
+  await E(host).makeUnconfined('MAIN', failedHubPath, {
+    powersName: 'NONE',
+    resultName: 'failed-hub',
+  });
 
   await t.throwsAsync(E(host).move(['ten'], ['failed-hub', 'ten']), {
     message: 'I had one job.',
@@ -766,7 +861,10 @@ test('persist unconfined services and their requests', async t => {
 
     const servicePath = path.join(dirname, 'test', 'service.js');
     const serviceLocation = url.pathToFileURL(servicePath).href;
-    await E(host).makeUnconfined('w1', serviceLocation, 'a1', 's1');
+    await E(host).makeUnconfined('w1', serviceLocation, {
+      powersName: 'a1',
+      resultName: 's1',
+    });
 
     await E(host).provideWorker(['w2']);
     const answer = await E(host).evaluate(
@@ -828,7 +926,10 @@ test('persist confined services and their requests', async t => {
 
     const servicePath = path.join(dirname, 'test', 'service.js');
     await doMakeBundle(host, servicePath, bundleName =>
-      E(host).makeBundle('w1', bundleName, 'a1', 's1'),
+      E(host).makeBundle('w1', bundleName, {
+        powersName: 'a1',
+        resultName: 's1',
+      }),
     );
 
     await E(host).provideWorker(['w2']);
@@ -905,16 +1006,65 @@ test('guest facet receives a message for host', async t => {
   );
 });
 
+test('reply links to parent message', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = E(host).followMessages();
+  const guestMessages = E(guest).followMessages();
+
+  await E(guest).send('HOST', ['hello'], [], []);
+
+  const [{ value: hostMessage }, { value: sentMessage }] = await Promise.all([
+    E(hostMessages).next(),
+    E(guestMessages).next(),
+  ]);
+
+  t.is(hostMessage.type, 'package');
+  t.is(sentMessage.type, 'package');
+  t.is(hostMessage.messageId, sentMessage.messageId);
+
+  await E(host).reply(hostMessage.number, ['hi'], [], []);
+
+  const { value: replyMessage } = await E(guestMessages).next();
+  t.is(replyMessage.type, 'package');
+  t.is(replyMessage.replyTo, hostMessage.messageId);
+});
+
+test('message hub avoids kebab-case reply metadata names', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = E(host).followMessages();
+
+  await E(guest).send('HOST', ['hello'], [], []);
+  const { value: hostMessage } = await E(hostMessages).next();
+  await E(host).reply(hostMessage.number, ['hi'], [], []);
+  const { value: replyMessage } = await E(hostMessages).next();
+
+  const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
+  const replyNames = await E(replyHub).list();
+
+  t.true(replyNames.includes('FROM'));
+  t.true(replyNames.includes('TO'));
+  t.true(replyNames.includes('DATE'));
+  t.true(replyNames.includes('TYPE'));
+  t.true(replyNames.includes('MESSAGE'));
+  t.true(replyNames.includes('REPLY'));
+  t.true(replyNames.includes('STRINGS'));
+});
+
 test('mailboxes persist messages across restart', async t => {
   const { cancelled, config, host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
   const iteratorRef = E(host).followMessages();
 
+  // Await delivery of the first message before sending the second to
+  // guarantee deterministic message numbering.
   E.sendOnly(guest).request('HOST', 'first request', 'response0');
-  E.sendOnly(guest).request('HOST', 'second request', 'response1');
-
   const { value: message0 } = await E(iteratorRef).next();
+  E.sendOnly(guest).request('HOST', 'second request', 'response1');
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
@@ -1265,6 +1415,424 @@ test('pins restored on restart', async t => {
   }
 });
 
+test('collects formulas after pet name removal', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).storeValue({ ok: true }, 'temp-value');
+  const locator = await E(host).locate('temp-value');
+  const id = idFromLocator(locator);
+  const { number: formulaNumber } = parseId(id);
+  const head = formulaNumber.slice(0, 2);
+  const tail = formulaNumber.slice(2);
+  const formulaPath = path.join(
+    config.statePath,
+    'formulas',
+    head,
+    `${tail}.json`,
+  );
+
+  t.true(await pathExists(formulaPath));
+  await E(host).remove('temp-value');
+  t.false(await pathExists(formulaPath));
+});
+
+test('terminates worker retaining collected values', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).provideWorker('worker');
+  const workerId = await E(host).identify('worker');
+  const { number: workerNumber } = parseId(workerId);
+  const workerStoppedPattern = new RegExp(
+    `Endo worker (?:connection closed|exited).*unique identifier ${workerNumber}`,
+  );
+  const endoLogPath = path.join(config.statePath, 'endo.log');
+  await E(host).evaluate(
+    'worker',
+    `
+      E(host).provideHost('retained-host').then(retained => {
+        globalThis.retained = retained;
+        return 'ok';
+      })
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+
+  await E(host).remove('retained-host');
+
+  await t.throwsAsync(E(host).evaluate('worker', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+  await waitForText(endoLogPath, workerStoppedPattern);
+  await waitForText(
+    endoLogPath,
+    /became unreachable by any pet name path and was collected/u,
+  );
+});
+
+test('terminates worker retaining derived value after dependency collection', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  const counterLocationLiteral = JSON.stringify(counterLocation);
+
+  await E(host).provideWorker('worker-a');
+  await E(host).provideWorker('worker-b');
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'powers', resultName: 'caplet' })
+        .then(caplet => {
+          globalThis.caplet = caplet;
+          return 'ok';
+        })
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  const powersId = await E(host).identify('powers');
+  const capletId = await E(host).identify('caplet');
+  const workerBId = await E(host).identify('worker-b');
+  const { number: workerBNumber } = parseId(workerBId);
+  const workerBStoppedPattern = new RegExp(
+    `Endo worker (?:connection closed|exited).*unique identifier ${workerBNumber}`,
+  );
+  const endoLogPath = path.join(config.statePath, 'endo.log');
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      globalThis.caplet = caplet;
+      'ok';
+    `,
+    ['caplet'],
+    ['caplet'],
+  );
+
+  await E(host).remove('powers');
+  t.true(await pathExists(formulaPathForId(config.statePath, powersId)));
+
+  await E(host).remove('caplet');
+  await waitForCondition(async () => {
+    const capletExists = await pathExists(
+      formulaPathForId(config.statePath, capletId),
+    );
+    const powersExists = await pathExists(
+      formulaPathForId(config.statePath, powersId),
+    );
+    return !capletExists && !powersExists;
+  });
+
+  await t.throwsAsync(E(host).evaluate('worker-b', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+  await waitForText(endoLogPath, workerBStoppedPattern);
+});
+
+test('recreates counter after collection resets state', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).provideWorker('worker-a');
+  await E(host).provideWorker('worker-b');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  const counterLocationLiteral = JSON.stringify(counterLocation);
+  const retainerPath = path.join(dirname, 'test', '_retainer.js');
+  const retainerLocation = url.pathToFileURL(retainerPath).href;
+  const retainerLocationLiteral = JSON.stringify(retainerLocation);
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'NONE', resultName: 'counter' })
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker-b',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker-b',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      E(host)
+        .makeUnconfined('worker-b', ${retainerLocationLiteral}, { powersName: 'NONE', resultName: 'retainer' })
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+
+  await E(host).evaluate(
+    'worker-b',
+    `
+      E(retainer).retain(counter);
+      'ok';
+    `,
+    ['retainer', 'counter'],
+    ['retainer', 'counter'],
+  );
+
+  await E(host).remove('counter');
+  await t.throwsAsync(E(host).evaluate('worker-b', '1', [], []), {
+    message: /became unreachable by any pet name path and was collected/,
+  });
+
+  await E(host).evaluate(
+    'worker-a',
+    `
+      E(host)
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'NONE', resultName: 'counter' })
+        .then(() => 'ok')
+    `,
+    ['host'],
+    ['AGENT'],
+  );
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker-c',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+});
+
+test('PINS values survive collection', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a counter via eval in MAIN
+  await E(host).evaluate(
+    'MAIN',
+    `
+      (() => {
+        let value = 0;
+        return makeExo(
+          'Counter',
+          M.interface('Counter', {}, { defaultGuards: 'passable' }),
+          {
+            incr: () => value += 1,
+            get: () => value,
+          }
+        );
+      })();
+    `,
+    [],
+    [],
+    ['counter'],
+  );
+
+  // Increment counter (value = 1)
+  const counter = await E(host).lookup(['counter']);
+  t.is(await E(counter).incr(), 1);
+
+  // Get the formula ID before move
+  const counterId = await E(host).identify('counter');
+
+  // Move counter to PINS — counter now only lives in PINS
+  await E(host).move(['counter'], ['PINS', 'my-counter']);
+
+  // Verify formula file still exists after the move (collection ran in move's finally block)
+  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+
+  // Look up counter through PINS
+  const pinnedCounter = await E(host).lookup(['PINS', 'my-counter']);
+
+  // Verify counter state preserved
+  t.is(await E(pinnedCounter).get(), 1);
+
+  // Increment again, verify value = 2 (formula is live, not a stale reincarnation)
+  t.is(await E(pinnedCounter).incr(), 2);
+});
+
+test('PINS values reincarnate after cancellation', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a counter caplet
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).makeUnconfined('MAIN', counterLocation, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
+
+  // Increment counter to build up state
+  t.is(
+    1,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'MAIN',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  // Get counter ID and pin to PINS while keeping the host pet name for cancel
+  const counterId = await E(host).identify('counter');
+  await E(host).write(['counter-pin'], counterId);
+  await E(host).move(['counter-pin'], ['PINS', 'my-counter']);
+
+  // Cancel the counter — forces deincarnation even though retained by PINS
+  await E(host).cancel('counter');
+
+  // Remove the host pet name — now only PINS references the formula
+  await E(host).remove('counter');
+
+  // Formula file should still exist (PINS protected it from collection)
+  t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
+
+  // Look up through PINS — reincarnated with reset state
+  const reincarnated = await E(host).lookup(['PINS', 'my-counter']);
+  t.is(await E(reincarnated).incr(), 1);
+  t.is(await E(reincarnated).incr(), 2);
+});
+
+test('facet group (agent + handle) collects atomically', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a guest with both handle and agent names
+  await E(host).provideGuest('guest-handle', { agentName: 'guest-agent' });
+
+  // Get IDs for guest and handle
+  const guestId = await E(host).identify('guest-agent');
+  const handleId = await E(host).identify('guest-handle');
+
+  // Read the guest formula JSON from disk to extract dependency IDs
+  const guestFormulaPath = formulaPathForId(config.statePath, guestId);
+  const guestFormula = JSON.parse(
+    await fs.promises.readFile(guestFormulaPath, 'utf-8'),
+  );
+
+  const dependencyIds = [
+    guestFormula.petStore,
+    guestFormula.mailboxStore,
+    guestFormula.mailHub,
+    guestFormula.worker,
+  ];
+
+  // Verify all formula files exist on disk
+  const allIds = [guestId, handleId, ...dependencyIds];
+  const beforeResults = await Promise.all(
+    allIds.map(async id => {
+      await null;
+      return {
+        id,
+        exists: await pathExists(formulaPathForId(config.statePath, id)),
+      };
+    }),
+  );
+  for (const { id, exists } of beforeResults) {
+    t.true(exists, `Formula file for ${id} should exist before removal`);
+  }
+
+  // Remove both pet name references
+  await E(host).remove('guest-handle');
+  await E(host).remove('guest-agent');
+
+  // Wait for all formula files to be deleted
+  await waitForCondition(async () => {
+    const results = await Promise.all(
+      allIds.map(id => pathExists(formulaPathForId(config.statePath, id))),
+    );
+    return results.every(e => !e);
+  });
+
+  // Assert all formula files no longer exist
+  const afterResults = await Promise.all(
+    allIds.map(async id => {
+      await null;
+      return {
+        id,
+        exists: await pathExists(formulaPathForId(config.statePath, id)),
+      };
+    }),
+  );
+  for (const { id, exists } of afterResults) {
+    t.false(exists, `Formula file for ${id} should be collected`);
+  }
+});
+
+test('unnamed eval results are collected', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  // Create a named eval to establish a baseline (ensures MAIN worker exists)
+  await E(host).evaluate('MAIN', '10', [], [], ['named']);
+  const namedId = await E(host).identify('named');
+  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+
+  // Count all formula files on disk
+  const formulasDir = path.join(config.statePath, 'formulas');
+  const countFormulas = async () => {
+    const entries = await fs.promises.readdir(formulasDir, {
+      recursive: true,
+    });
+    return entries.filter(f => f.endsWith('.json')).length;
+  };
+  const countBefore = await countFormulas();
+
+  // Run an unnamed eval — returns 42 but has no pet name
+  const result = await E(host).evaluate('MAIN', '42', [], []);
+  t.is(result, 42);
+
+  // Count formula files again
+  const countAfter = await countFormulas();
+
+  // Assert the count is the same (unnamed eval formula was created then collected)
+  t.is(countAfter, countBefore);
+
+  // Verify the named eval formula still exists (it was not collected)
+  t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
+});
+
 test('direct cancellation', async t => {
   const { host } = await prepareHost(t);
 
@@ -1272,7 +1840,10 @@ test('direct cancellation', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('worker', counterLocation, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
   t.is(
     1,
     await E(host).evaluate(
@@ -1339,7 +1910,10 @@ test('indirect cancellation via worker', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('worker', counterLocation, 'AGENT', 'counter');
+  await E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'AGENT',
+    resultName: 'counter',
+  });
   t.is(
     1,
     await E(host).evaluate(
@@ -1407,13 +1981,19 @@ test('indirect cancellation via caplet', async t => {
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('w1', counterLocation, 'AGENT', 'counter');
+  await E(host).makeUnconfined('w1', counterLocation, {
+    powersName: 'AGENT',
+    resultName: 'counter',
+  });
 
   await E(host).provideWorker(['w2']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
   const doublerPath = path.join(dirname, 'test', 'doubler.js');
   const doublerLocation = url.pathToFileURL(doublerPath).href;
-  await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
+  await E(host).makeUnconfined('w2', doublerLocation, {
+    powersName: 'guest-agent',
+    resultName: 'doubler',
+  });
   {
     const { value: message } = await E(messages).next();
     t.is(message.type, 'request');
@@ -1456,7 +2036,10 @@ test('cancel because of requested capability', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
+  E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'guest-agent',
+    resultName: 'counter',
+  });
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
   const { value: message } = await E(messages).next();
@@ -1529,12 +2112,10 @@ test('unconfined service can respond to cancellation', async t => {
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   const capletLocation = url.pathToFileURL(capletPath).href;
-  await E(host).makeUnconfined(
-    'worker',
-    capletLocation,
-    'NONE',
-    'context-consumer',
-  );
+  await E(host).makeUnconfined('worker', capletLocation, {
+    powersName: 'NONE',
+    resultName: 'context-consumer',
+  });
 
   const result = E(host).evaluate(
     'worker',
@@ -1553,7 +2134,10 @@ test('confined service can respond to cancellation', async t => {
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   await doMakeBundle(host, capletPath, bundleName =>
-    E(host).makeBundle('worker', bundleName, 'NONE', 'context-consumer'),
+    E(host).makeBundle('worker', bundleName, {
+      powersName: 'NONE',
+      resultName: 'context-consumer',
+    }),
   );
 
   const result = E(host).evaluate(
@@ -1581,7 +2165,10 @@ test('name and reuse inspector', async t => {
   await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterPath, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
 
   const inspector = await E(host).evaluate(
     'worker',
@@ -1608,7 +2195,10 @@ test('eval-mediated worker name', async t => {
   await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterPath, {
+    powersName: 'NONE',
+    resultName: 'counter',
+  });
 
   t.is(
     await E(host).evaluate(
@@ -1676,7 +2266,10 @@ test('lookup with petname path (caplet with lookup method)', async t => {
   const { host } = await prepareHost(t);
 
   const lookupPath = path.join(dirname, 'test', 'lookup.js');
-  await E(host).makeUnconfined('MAIN', lookupPath, 'NONE', 'lookup');
+  await E(host).makeUnconfined('MAIN', lookupPath, {
+    powersName: 'NONE',
+    resultName: 'lookup',
+  });
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
@@ -1735,6 +2328,25 @@ test('list special names', async t => {
   );
 });
 
+test('host exposes HOST special name', async t => {
+  const { host } = await prepareHost(t);
+
+  const selfId = await E(host).identify('SELF');
+  const hostId = await E(host).identify('HOST');
+  t.is(hostId, selfId);
+});
+
+test('child host HOST points at parent handle', async t => {
+  const { host } = await prepareHost(t);
+
+  const parentHandleId = await E(host).identify('SELF');
+  const childHost = await E(host).provideHost('child-host');
+  const childHostId = await E(childHost).identify('HOST');
+
+  t.is(childHostId, parentHandleId);
+  t.not(childHostId, await E(childHost).identify('SELF'));
+});
+
 test('guest cannot access host methods', async t => {
   const { host } = await prepareHost(t);
 
@@ -1751,8 +2363,8 @@ test('read unknown node id', async t => {
   const { host } = await prepareHost(t);
 
   // write a bogus value for a bogus nodeId
-  const node = await cryptoPowers.randomHex512();
-  const number = await cryptoPowers.randomHex512();
+  const node = await cryptoPowers.randomHex256();
+  const number = await cryptoPowers.randomHex256();
   const nodeId = /** @type {NodeNumber} */ (node);
   const numberId = /** @type {FormulaNumber} */ (number);
   const id = formatId({ node: nodeId, number: numberId });
@@ -1969,4 +2581,762 @@ test('reverse locate remote value', async t => {
   const greetingsLocator = await E(hostA).locate('greetings');
   const [reverseLocatedName] = await E(hostA).reverseLocate(greetingsLocator);
   t.is(reverseLocatedName, 'greetings');
+});
+
+test('bidirectional mail across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  // A sends mail to B
+  await E(hostA).evaluate('MAIN', '"value-from-a"', [], [], ['val-a']);
+  await E(hostA).send('bob', ['Hi from A'], ['val-a'], ['val-a']);
+
+  // B sends mail to A
+  await E(hostB).evaluate('MAIN', '"value-from-b"', [], [], ['val-b']);
+  await E(hostB).send('alice', ['Hi from B'], ['val-b'], ['val-b']);
+
+  const messagesB = await E(hostB).listMessages();
+  const fromA = messagesB.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Hi from A',
+  );
+  t.truthy(fromA, 'B should have received mail from A');
+  t.is(fromA.strings[0], 'Hi from A');
+
+  const messagesA = await E(hostA).listMessages();
+  const fromB = messagesA.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Hi from B',
+  );
+  t.truthy(fromB, 'A should have received mail from B');
+  t.is(fromB.strings[0], 'Hi from B');
+});
+
+test('adopt from remote message', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  await E(hostA).evaluate('MAIN', '"shared-value"', [], [], ['shared']);
+  const expectedId = await E(hostA).identify('shared');
+  await E(hostA).send('bob', ['Take this'], ['shared'], ['shared']);
+
+  const messages = await E(hostB).listMessages();
+  const msg = messages.find(
+    m => m.type === 'package' && m.strings && m.strings[0] === 'Take this',
+  );
+  t.truthy(msg);
+  t.is(msg.ids[0], expectedId);
+
+  await E(hostB).adopt(msg.number, 'shared', ['my-shared']);
+
+  const value = await E(hostB).lookup(['my-shared']);
+  t.is(value, 'shared-value');
+});
+
+test('follow messages across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  const iteratorRef = E(hostB).followMessages();
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(hostB).listMessages()
+  );
+  await drainIterator(iteratorRef, existingMessages.length);
+
+  await E(hostA).evaluate('MAIN', '"streamed"', [], [], ['stream-val']);
+  await E(hostA).send('bob', ['Stream test'], ['stream-val'], ['stream-val']);
+
+  const { value: msg } = await E(iteratorRef).next();
+  t.is(msg.type, 'package');
+  t.is(msg.strings[0], 'Stream test');
+});
+
+test('reply across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  const iteratorA = E(hostA).followMessages();
+  const iteratorB = E(hostB).followMessages();
+  const existingA = /** @type {unknown[]} */ (await E(hostA).listMessages());
+  await drainIterator(iteratorA, existingA.length);
+  const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
+  await drainIterator(iteratorB, existingB.length);
+
+  await E(hostA).send('bob', ['Hello Bob'], [], []);
+
+  // A's outgoing message appears in A's own iterator
+  const { value: sentMsg } = await E(iteratorA).next();
+  t.is(sentMsg.type, 'package');
+
+  // B receives the message
+  const { value: received } = await E(iteratorB).next();
+  t.is(received.type, 'package');
+  t.is(received.strings[0], 'Hello Bob');
+
+  await E(hostB).reply(received.number, ['Hello Alice'], [], []);
+
+  // A receives the reply via its iterator
+  const { value: replyMsg } = await E(iteratorA).next();
+  t.is(replyMsg.type, 'package');
+  t.is(replyMsg.strings[0], 'Hello Alice');
+});
+
+test('request and resolve across nodes', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  await E(hostB).evaluate('MAIN', '42', [], [], ['answer']);
+
+  const iteratorB = E(hostB).followMessages();
+  const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
+  await drainIterator(iteratorB, existingB.length);
+
+  const resultP = E(hostA).request('bob', 'need a number', 'result');
+
+  const { value: requestMsg } = await E(iteratorB).next();
+  t.is(requestMsg.type, 'request');
+
+  await E(hostB).resolve(requestMsg.number, 'answer');
+
+  await resultP;
+  const result = await E(hostA).lookup(['result']);
+  t.is(result, 42);
+});
+
+// Tests for pet name path support in methods that previously only accepted single pet names.
+
+test('cancel with pet name path', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory and put a counter in it
+  await E(host).makeDirectory(['subdir']);
+  await E(host).provideWorker(['worker']);
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).makeUnconfined('worker', counterLocation, {
+    powersName: 'NONE',
+    resultName: ['subdir', 'counter'],
+  });
+
+  // Increment the counter
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      [['subdir', 'counter']],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      [['subdir', 'counter']],
+    ),
+  );
+
+  // Cancel using a pet name path
+  await E(host).cancel(['subdir', 'counter']);
+
+  // Counter should be reset after cancellation
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      [['subdir', 'counter']],
+    ),
+  );
+});
+
+test('send with pet name path for recipient and values', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory structure in the host
+  await E(host).makeDirectory(['values']);
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '42', [], [], ['values', 'the-answer']);
+
+  // Create a guest and set up its directory with a values subdirectory
+  const guest = await E(host).provideGuest('guest');
+
+  // Create a directory in the guest's namespace and put a value in it
+  await E(guest).makeDirectory(['my-values']);
+  // Copy the answer to the guest's directory
+  const answerId = await E(host).identify(...['values', 'the-answer']);
+  await E(guest).write(['my-values', 'answer'], answerId);
+
+  // Guest sends to HOST using a path for the value
+  await E(guest).send(
+    'HOST',
+    ['Here is the answer: '],
+    ['gift'],
+    [['my-values', 'answer']],
+  );
+
+  // Check that the message was delivered to host
+  const messages = await E(host).listMessages();
+  const packageMessages = messages.filter(
+    (/** @type {{ type: string }} */ m) => m.type === 'package',
+  );
+  t.is(packageMessages.length, 1);
+  t.deepEqual(packageMessages[0].names, ['gift']);
+});
+
+test('resolve with pet name path', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory and put a value in it
+  await E(host).makeDirectory(['responses']);
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate(
+    'worker',
+    '"the response"',
+    [],
+    [],
+    ['responses', 'resp'],
+  );
+
+  // Create a guest and have it make a request
+  const guest = E(host).provideGuest('guest');
+
+  const iteratorRef = E(host).followMessages();
+  E.sendOnly(guest).request('HOST', 'a response');
+  const { value: message } = await E(iteratorRef).next();
+  t.is(message.number, 0n);
+
+  // Resolve using a pet name path
+  await E(host).resolve(message.number, ['responses', 'resp']);
+
+  // Verify the resolution worked by checking we can dismiss the message
+  await E(host).dismiss(message.number);
+  const messagesAfter = await E(host).listMessages();
+  t.is(messagesAfter.length, 0);
+});
+
+test('request with pet name path for response storage', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a directory for responses in the guest's namespace
+  const guest = await E(host).provideGuest('guest');
+  await E(guest).makeDirectory(['responses']);
+
+  // Have the guest make a request, storing response in a path within guest's directory
+  const iteratorRef = E(host).followMessages();
+  const requestP = E(guest).request('HOST', 'give me something', [
+    'responses',
+    'result',
+  ]);
+
+  // Host receives and resolves the request
+  const { value: message } = await E(iteratorRef).next();
+  t.is(message.type, 'request');
+
+  // Create something to respond with
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '"here you go"', [], [], ['gift']);
+  await E(host).resolve(message.number, 'gift');
+
+  // Wait for the request to complete (including directory write)
+  await requestP;
+
+  // Verify the response was stored at the path in guest's directory
+  const result = await E(guest).lookup(['responses', 'result']);
+  t.is(result, 'here you go');
+});
+
+// ============ EVAL REQUEST TESTS ============
+
+test('eval request happy path: guest requests, host approves', async t => {
+  const { host } = await prepareHost(t);
+
+  // Create a guest and give it a value to work with
+  const guest = await E(host).provideGuest('guest');
+
+  // Store a value in the host's namespace and send it to the guest
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten']);
+
+  // Grant the value to the guest via send/adopt
+  await E(host).send('guest', ['Here is ten'], ['ten-val'], ['ten']);
+  const guestMessages = await E(guest).listMessages();
+  const packageMsg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(packageMsg.number, 'ten-val', 'my-ten');
+
+  // Now the guest requests evaluation
+  const hostIteratorRef = E(host).followMessages();
+  // Drain existing messages from the iterator
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
+
+  // Guest requests evaluation using its pet name
+  const resultP = E(guest).requestEvaluation(
+    'x + 1',
+    ['x'],
+    ['my-ten'],
+    'result',
+  );
+
+  // Host receives the eval-request
+  const { value: evalMsg } = await E(hostIteratorRef).next();
+  t.is(evalMsg.type, 'eval-request');
+  t.is(evalMsg.source, 'x + 1');
+  t.deepEqual(evalMsg.codeNames, ['x']);
+
+  // Host approves the evaluation
+  await E(host).approveEvaluation(evalMsg.number);
+
+  // Guest gets the result
+  const result = await resultP;
+  t.is(result, 11);
+
+  // Verify the result was stored in the guest's namespace
+  const storedResult = await E(guest).lookup('result');
+  t.is(storedResult, 11);
+});
+
+test('eval request rejection: guest requests, host rejects', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Set up host message iterator
+  const hostIteratorRef = E(host).followMessages();
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
+
+  // Guest requests evaluation (no endowments needed for this test)
+  const resultP = E(guest).requestEvaluation('dangerous()', [], []);
+
+  // Host receives and rejects
+  const { value: evalMsg } = await E(hostIteratorRef).next();
+  t.is(evalMsg.type, 'eval-request');
+  await E(host).reject(evalMsg.number, 'Code looks dangerous');
+
+  // Guest gets rejection error
+  await t.throwsAsync(resultP, { message: /Code looks dangerous/ });
+});
+
+test('eval request uses guest namespace, not host namespace', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Store different values under the same name in host and guest namespaces
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '100', [], [], ['shared-name']);
+
+  // Give guest a different value under the same name
+  await E(host).evaluate('worker', '42', [], [], ['guest-value']);
+  await E(host).send('guest', ['A value'], ['val'], ['guest-value']);
+  const guestMessages = await E(guest).listMessages();
+  const packageMsg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(packageMsg.number, 'val', 'shared-name');
+
+  // Verify different values
+  const hostValue = await E(host).lookup('shared-name');
+  t.is(hostValue, 100);
+  const guestValue = await E(guest).lookup('shared-name');
+  t.is(guestValue, 42);
+
+  // Set up host message iterator
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
+  // Guest requests evaluation using its pet name 'shared-name' (value = 42)
+  const resultP = E(guest).requestEvaluation(
+    'x + 1',
+    ['x'],
+    ['shared-name'],
+    'eval-result',
+  );
+
+  // Host approves
+  const { value: evalMsg } = await E(hostIteratorRef).next();
+  t.is(evalMsg.type, 'eval-request');
+  await E(host).approveEvaluation(evalMsg.number);
+
+  // Result should be 43 (42 + 1), not 101 (100 + 1)
+  const result = await resultP;
+  t.is(result, 43);
+});
+
+// Tests for environment variable injection
+
+test('makeUnconfined passes env to caplet make function', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEchoLocation = url.pathToFileURL(envEchoPath).href;
+
+  const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
+    powersName: 'NONE',
+    resultName: 'env-echo',
+    env: {
+      API_KEY: 'secret123',
+      DEBUG: 'true',
+      EMPTY_VAR: '',
+    },
+  });
+
+  // Verify the caplet received the environment variables
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {
+    API_KEY: 'secret123',
+    DEBUG: 'true',
+    EMPTY_VAR: '',
+  });
+
+  // Test getEnvVar
+  t.is(await E(envEcho).getEnvVar('API_KEY'), 'secret123');
+  t.is(await E(envEcho).getEnvVar('DEBUG'), 'true');
+  t.is(await E(envEcho).getEnvVar('EMPTY_VAR'), '');
+  t.is(await E(envEcho).getEnvVar('NONEXISTENT'), undefined);
+
+  // Test hasEnvVar
+  t.true(await E(envEcho).hasEnvVar('API_KEY'));
+  t.true(await E(envEcho).hasEnvVar('EMPTY_VAR'));
+  t.false(await E(envEcho).hasEnvVar('NONEXISTENT'));
+});
+
+test('makeUnconfined with empty env object', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEchoLocation = url.pathToFileURL(envEchoPath).href;
+
+  const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
+    powersName: 'NONE',
+    resultName: 'env-echo',
+    env: {},
+  });
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+test('makeUnconfined without env option defaults to empty env', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEchoLocation = url.pathToFileURL(envEchoPath).href;
+
+  const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
+    powersName: 'NONE',
+    resultName: 'env-echo',
+  });
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+test('makeBundle passes env to caplet make function', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEcho =
+    /** @type {{ getEnv(): Promise<Record<string, string>>, getEnvVar(key: string): Promise<string> }} */ (
+      await doMakeBundle(host, envEchoPath, bundleName =>
+        E(host).makeBundle('worker', bundleName, {
+          powersName: 'NONE',
+          resultName: 'env-echo',
+          env: {
+            CONFIG_PATH: '/etc/app/config.json',
+            LOG_LEVEL: 'verbose',
+          },
+        }),
+      )
+    );
+
+  // Verify the caplet received the environment variables
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {
+    CONFIG_PATH: '/etc/app/config.json',
+    LOG_LEVEL: 'verbose',
+  });
+
+  t.is(await E(envEcho).getEnvVar('CONFIG_PATH'), '/etc/app/config.json');
+  t.is(await E(envEcho).getEnvVar('LOG_LEVEL'), 'verbose');
+});
+
+test('makeBundle with empty env object', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEcho = /** @type {{ getEnv(): Promise<Record<string, string>> }} */ (
+    await doMakeBundle(host, envEchoPath, bundleName =>
+      E(host).makeBundle('worker', bundleName, {
+        powersName: 'NONE',
+        resultName: 'env-echo',
+        env: {},
+      }),
+    )
+  );
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+test('makeBundle without env option defaults to empty env', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).provideWorker(['worker']);
+
+  const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
+  const envEcho = /** @type {{ getEnv(): Promise<Record<string, string>> }} */ (
+    await doMakeBundle(host, envEchoPath, bundleName =>
+      E(host).makeBundle('worker', bundleName, {
+        powersName: 'NONE',
+        resultName: 'env-echo',
+      }),
+    )
+  );
+
+  const allEnv = await E(envEcho).getEnv();
+  t.deepEqual(allEnv, {});
+});
+
+// Eval-proposal tests
+
+test('guest evaluate sends eval-proposal to host', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten']);
+
+  // Share 'ten' with the guest via a message
+  await E(host).send('guest', ['Here is a value:'], ['x'], ['ten']);
+
+  // Guest adopts the value
+  const guestMessages = await E(guest).listMessages();
+  const pkg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'x', ['ten']);
+
+  // Set up host message iterator BEFORE the evaluate call
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
+  // Guest initiates evaluation proposal
+  const evaluatePromise = E(guest).evaluate(
+    'worker',
+    'x + 1',
+    ['x'],
+    ['ten'],
+    ['result'],
+  );
+
+  // Wait for the proposal message via iterator
+  const { value: message } = await E(hostIteratorRef).next();
+
+  t.truthy(message, 'Host should have received eval-proposal');
+  t.is(message.type, 'eval-proposal-reviewer');
+  t.is(message.source, 'x + 1');
+  t.deepEqual(message.codeNames, ['x']);
+  t.is(message.workerName, 'worker');
+  t.false('resultName' in message);
+  t.is(typeof message.resultId?.then, 'function');
+  t.is(typeof message.result?.then, 'function');
+
+  // Sender should see their resultName on the proposer echo
+  const guestMessagesAfter = await E(guest).listMessages();
+  const proposerMessage = guestMessagesAfter.find(
+    m => m.type === 'eval-proposal-proposer',
+  );
+  t.truthy(proposerMessage, 'Guest should have proposer echo');
+  t.is(proposerMessage.resultName, 'result');
+
+  // Grant the proposal
+  const result = await E(host).grantEvaluate(message.number);
+  t.is(result, 11);
+
+  // Guest's evaluate promise should resolve with the result
+  const guestResult = await evaluatePromise;
+  t.is(guestResult, 11);
+  t.is(await E(guest).lookup(['result']), 11);
+  t.is(await E(host).identify('result'), undefined);
+});
+
+test('host grantEvaluate executes proposed code', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).storeValue(5, 'five');
+
+  // Share 'five' with the guest
+  await E(host).send('guest', ['Here is a value:'], ['n'], ['five']);
+  const guestMessages = await E(guest).listMessages();
+  const pkg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'n', ['five']);
+
+  // Set up host message iterator BEFORE the evaluate call
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
+  // Guest proposes evaluation
+  const evaluatePromise = E(guest).evaluate(
+    'worker',
+    'n * 2',
+    ['n'],
+    ['five'],
+    ['doubled'],
+  );
+
+  // Wait for proposal message via iterator
+  const { value: message } = await E(hostIteratorRef).next();
+  const result = await E(host).grantEvaluate(message.number);
+
+  t.is(result, 10);
+  t.is(await evaluatePromise, 10);
+
+  // Result should be stored under guest's namespace
+  const storedResult = await E(guest).lookup(['doubled']);
+  t.is(storedResult, 10);
+  t.is(await E(host).identify('doubled'), undefined);
+});
+
+test('counterEvaluate sends proposer/reviewer messages', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  await E(host).provideWorker(['worker']);
+  await E(host).storeValue(5, 'five');
+
+  // Share 'five' with the guest
+  await E(host).send('guest', ['Here is a value:'], ['n'], ['five']);
+  const guestMessages = await E(guest).listMessages();
+  const pkg = guestMessages.find(m => m.type === 'package');
+  await E(guest).adopt(pkg.number, 'n', ['five']);
+
+  // Set up host message iterator BEFORE the evaluate call
+  const hostIteratorRef = E(host).followMessages();
+  const existingHostMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingHostMessages.length);
+
+  // Guest proposes evaluation
+  E.sendOnly(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
+
+  // Wait for proposal to arrive via iterator
+  const { value: proposal } = await E(hostIteratorRef).next();
+  t.truthy(proposal, 'Host should have received eval-proposal');
+
+  // Set up guest message iterator for counter-proposal
+  const guestIteratorRef = E(guest).followMessages();
+  const existingGuestMessages = /** @type {unknown[]} */ (
+    await E(guest).listMessages()
+  );
+  await drainIterator(guestIteratorRef, existingGuestMessages.length);
+
+  // Host sends counter-proposal
+  await E(host).counterEvaluate(
+    proposal.number,
+    'n * 3',
+    ['n'],
+    ['five'],
+    'worker',
+    ['tripled'],
+  );
+
+  // Wait for counter-proposal to arrive at guest
+  const { value: guestCounter } = await E(guestIteratorRef).next();
+
+  // Host should have the proposer echo (delivered synchronously during counterEvaluate)
+  const hostMessagesAfter = await E(host).listMessages();
+  const hostCounter = hostMessagesAfter.find(
+    m => m.type === 'eval-proposal-proposer' && m.source === 'n * 3',
+  );
+
+  t.truthy(hostCounter, 'Host should have proposer echo for counter');
+  t.truthy(guestCounter, 'Guest should receive counter-proposal');
+  t.is(hostCounter.resultName, 'tripled');
+  t.false('resultName' in guestCounter);
+  t.is(typeof guestCounter.resultId?.then, 'function');
+  t.is(typeof guestCounter.result?.then, 'function');
+});
+
+// Tests for trusted shims
+
+test('trusted shim executes before lockdown and persists across restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  const shimPath = path.join(dirname, 'test', 'test-shim.js');
+  const shimLocation = url.pathToFileURL(shimPath).href;
+  const checkerPath = path.join(dirname, 'test', 'shim-checker.js');
+  const checkerLocation = url.pathToFileURL(checkerPath).href;
+
+  {
+    const { host } = await makeHost(config, cancelled);
+
+    const checker = await E(host).makeUnconfined(undefined, checkerLocation, {
+      powersName: 'NONE',
+      resultName: 'shim-checker',
+      workerTrustedShims: [shimLocation],
+    });
+
+    t.true(
+      await E(checker).wasShimmed(),
+      'shim should have added Reflect.testShimExecuted before lockdown',
+    );
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+
+    const checker = await E(host).lookup('shim-checker');
+    t.true(
+      await E(checker).wasShimmed(),
+      'shim should persist and re-execute after daemon restart',
+    );
+  }
 });

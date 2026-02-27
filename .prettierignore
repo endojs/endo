@@ -2,6 +2,7 @@
 bundles
 dist
 fixtures
+out
 /packages/ses-integration-test/transform-tests/output
 /packages/test262-runner/prelude
 test262

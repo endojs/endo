@@ -30,6 +30,7 @@ export const run = async ({
   importPath,
   powersName,
   agentNames,
+  env = {},
 }) => {
   if (
     filePath === undefined &&
@@ -46,6 +47,12 @@ export const run = async ({
     { os, process },
     async ({ bootstrap, agent }) => {
       await null;
+
+      // Inject environment variables into process.env for ephemeral runs
+      for (const [key, value] of Object.entries(env)) {
+        process.env[key] = value;
+      }
+
       let powersP;
       if (powersName === 'NONE') {
         powersP = E(bootstrap).leastAuthority();

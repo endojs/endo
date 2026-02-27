@@ -1,9 +1,33 @@
-import type { Config, EndoBootstrap } from './src/types.js';
+import type { CapTPOptions } from '@endo/captp';
+import type {
+  Config,
+  EndoBootstrap,
+  EndoAgent,
+  EndoGuest,
+  EndoHost,
+  Name,
+  PetName,
+  SpecialName,
+  NamePath,
+  NameOrPath,
+  StampedMessage,
+} from './src/types.js';
 
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
 export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
 
-export type { Config };
+export type {
+  Config,
+  EndoAgent,
+  EndoGuest,
+  EndoHost,
+  Name,
+  PetName,
+  SpecialName,
+  NamePath,
+  NameOrPath,
+  StampedMessage,
+};
 export function start(config?: Config): Promise<void>;
 export function stop(config?: Config): Promise<void>;
 export function restart(config?: Config): Promise<void>;
@@ -15,6 +39,7 @@ export function makeEndoClient<TBootstrap>(
   sockPath: string,
   cancelled: Promise<void>,
   bootstrap?: TBootstrap,
+  capTpOptions?: CapTPOptions,
 ): Promise<{
   getBootstrap: () => Promise<EndoBootstrap>;
   closed: Promise<void>;

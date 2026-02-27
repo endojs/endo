@@ -1,0 +1,93 @@
+{
+  "name": "@endo/familiar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "🐈‍⬛ Endo Familiar - Electron desktop shell for Endo Chat",
+  "keywords": [
+    "endo",
+    "familiar",
+    "electron",
+    "desktop"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/familiar#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/familiar"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "node scripts/build.mjs",
+    "bundle": "node scripts/bundle.mjs",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
+    "lint:types": "tsc",
+    "download-node": "node scripts/download-node.mjs",
+    "generate-icons": "./scripts/generate-icons.sh"
+  },
+  "dependencies": {
+    "@endo/where": "workspace:^",
+    "electron": "^33.0.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.0.0",
+    "@electron-forge/maker-dmg": "^7.0.0",
+    "@electron-forge/maker-zip": "^7.0.0",
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@lavamoat/allow-scripts": "^3.4.1",
+    "electron": "^33.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "catalog:dev",
+    "typescript": "~5.9.2"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "rules": {
+      "no-restricted-globals": "off"
+    },
+    "overrides": [
+      {
+        "files": [
+          "preload.js",
+          "forge.config.cjs"
+        ],
+        "parserOptions": {
+          "sourceType": "script"
+        },
+        "env": {
+          "commonjs": true
+        }
+      },
+      {
+        "files": [
+          "scripts/*.mjs"
+        ],
+        "rules": {
+          "@endo/harden-exports": "off"
+        }
+      }
+    ]
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "electron": true,
+      "esbuild": true,
+      "@electron-forge/maker-dmg>electron-installer-dmg>appdmg>ds-store>macos-alias": true,
+      "@electron-forge/maker-dmg>electron-installer-dmg>appdmg>fs-xattr": true
+    }
+  }
+}

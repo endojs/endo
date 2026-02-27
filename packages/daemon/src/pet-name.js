@@ -2,12 +2,14 @@
 
 /// <reference types="./types.d.ts" />
 
-/** @import { Name, NamePath, PetName, SpecialName } from './types.js' */
+/** @import { EdgeName, Name, NamePath, PetName, SpecialName } from './types.js' */
 
 import { q } from '@endo/errors';
 
 const validPetNamePattern = /^[a-z0-9][a-z0-9-]{0,127}$/;
 const validSpecialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
+/** Non-negative integer string, used for MAIL.0, MAIL.1, ... */
+const validMailSlotPattern = /^\d+$/;
 
 /**
  * @param {string} petName
@@ -23,9 +25,17 @@ export const isSpecialName = name => validSpecialNamePattern.test(name);
 
 /**
  * @param {string} name
+ * @returns {name is string} true if valid mail slot (e.g. "0", "1")
+ */
+export const isMailSlotName = name =>
+  typeof name === 'string' && validMailSlotPattern.test(name);
+
+/**
+ * @param {string} name
  * @returns {name is Name}
  */
-export const isName = name => isPetName(name) || isSpecialName(name);
+export const isName = name =>
+  isPetName(name) || isSpecialName(name) || isMailSlotName(name);
 
 /**
  * @param {string} petName
@@ -54,6 +64,17 @@ export const assertSpecialName = name => {
 export const assertName = name => {
   if (typeof name !== 'string' || !isName(name)) {
     throw new Error(`Invalid name ${q(name)}`);
+  }
+};
+
+/**
+ * Edge names can be either regular pet names or special names.
+ * @param {string} edgeName
+ * @returns {asserts edgeName is EdgeName}
+ */
+export const assertEdgeName = edgeName => {
+  if (typeof edgeName !== 'string' || !isName(edgeName)) {
+    throw new Error(`Invalid edge name ${q(edgeName)}`);
   }
 };
 

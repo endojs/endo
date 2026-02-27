@@ -73,10 +73,16 @@
   "eslintConfig": {
     "root": true
   },
+  "dependenciesMeta": {
+    "@ipshipyard/node-datachannel": {
+      "built": true
+    }
+  },
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "lerna>nx": false
+      "lerna>nx": false,
+      "@ipshipyard/node-datachannel": true
     }
   }
 }

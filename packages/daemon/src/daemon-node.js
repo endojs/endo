@@ -11,6 +11,7 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 
+import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
 import {
@@ -95,21 +96,23 @@ const main = async () => {
 
   await daemonicPersistencePowers.initializePersistence();
 
-  const { endoBootstrap, cancelGracePeriod } = await makeDaemon(
-    powers,
-    daemonLabel,
-    cancel,
-    cancelled,
-    {
+  const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
+    await makeDaemon(powers, daemonLabel, cancel, cancelled, {
       /** @param {Builtins} builtins */
-      APPS: ({ MAIN, NONE }) => ({
+      APPS: ({ MAIN, ENDO }) => ({
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,
-        powers: NONE,
-        specifier: new URL('web-server-node.js', import.meta.url).href,
+        powers: ENDO,
+        specifier:
+          process.env.ENDO_WORKER_PATH ||
+          new URL('web-server-node.js', import.meta.url).href,
+        env: {
+          ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
+          ENDO_WEB_PAGE_BUNDLE_PATH:
+            process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
+        },
       }),
-    },
-  );
+    });
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -123,17 +126,34 @@ const main = async () => {
     sockPath,
     cancelled,
     exitWithError,
+    capTpConnectionRegistrar,
   );
   const services = [privatePathService];
-  await Promise.all(services.map(({ started }) => started)).then(
-    () => {
-      informParentWhenReady();
-    },
-    error => {
-      reportErrorToParent(error.message);
-      throw error;
-    },
-  );
+
+  // Start all services, persist the root formula identifier, and start the gateway.
+  // Block the ready signal until everything is available.
+  try {
+    await Promise.all(services.map(({ started }) => started));
+
+    const host = await E(endoBootstrap).host();
+    const agentId = /** @type {string} */ (await E(host).identify('AGENT'));
+    const agentIdPath = filePowers.joinPath(statePath, 'root');
+    await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
+
+    if (await E(host).has('APPS')) {
+      const apps = /** @type {{ getAddress(): Promise<string> }} */ (
+        await E(host).lookup('APPS')
+      );
+      const address = await E(apps).getAddress();
+      console.log(`Endo gateway listening on ${address}`);
+    }
+
+    informParentWhenReady();
+  } catch (error) {
+    reportErrorToParent(/** @type {Error} */ (error).message);
+    throw error;
+  }
+
   const servicesStopped = Promise.all(services.map(({ stopped }) => stopped));
 
   // Record self as official daemon process

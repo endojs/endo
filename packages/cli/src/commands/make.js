@@ -21,6 +21,7 @@ export const makeCommand = async ({
   workerName,
   agentNames,
   powersName,
+  env,
 }) => {
   await null;
   if (filePath !== undefined && importPath !== undefined) {
@@ -72,10 +73,13 @@ export const makeCommand = async ({
         ? E(agent).makeUnconfined(
             workerName,
             url.pathToFileURL(path.resolve(importPath)).href,
-            powersName,
-            resultPath,
+            { powersName, resultName: resultPath, env },
           )
-        : E(agent).makeBundle(workerName, bundleName, powersName, resultPath);
+        : E(agent).makeBundle(workerName, bundleName, {
+            powersName,
+            resultName: resultPath,
+            env,
+          });
     let result;
     try {
       result = await resultP;
