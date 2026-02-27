@@ -55,6 +55,7 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "ses": "workspace:^",
     "tsd": "catalog:dev",
     "typescript": "~5.9.2"
   },

@@ -48,6 +48,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/eventual-send": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",

@@ -51,6 +51,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",

@@ -769,6 +769,7 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -849,6 +850,7 @@ __metadata:
   resolution: "@endo/lp32@workspace:packages/lp32"
   dependencies:
     "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -915,6 +917,7 @@ __metadata:
     "@babel/traverse": "npm:~7.28.3"
     "@babel/types": "npm:~7.28.2"
     "@endo/harden": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     babel-eslint: "npm:^10.1.0"
     benchmark: "npm:^2.1.4"
@@ -992,6 +995,7 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    ses: "workspace:^"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -1129,6 +1133,7 @@ __metadata:
   resolution: "@endo/stream-node@workspace:packages/stream-node"
   dependencies:
     "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -1210,6 +1215,7 @@ __metadata:
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
     "@endo/eventual-send": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
