@@ -407,6 +407,60 @@ For multi-line content, include literal newlines in the string.`,
     },
   },
 
+  {
+    type: 'function',
+    function: {
+      name: 'reply',
+      description: `\
+Reply to a message in your inbox, threading the response to the original message.
+Use this instead of send() when responding to a received message.
+
+The reply is automatically sent to the other party in the original conversation
+and is threaded as a reply (the daemon sets replyTo on the outgoing message).
+
+The message is constructed the same way as send():
+- strings: Array of text fragments
+- edgeNames: Array of labels for the values being sent
+- petNames: Array of pet names providing the values
+
+IMPORTANT: Always use reply() instead of send() when responding to a message.
+Use send() only for initiating brand new conversations.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt) to reply to. Use SmallCaps format: "+5" for message 5.',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Text fragments. Length should be edgeNames.length + 1.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels for the values being sent.',
+          },
+          petNames: {
+            type: 'array',
+            items: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+            },
+            description:
+              'Pet names of values to include (same length as edgeNames).',
+          },
+        },
+        required: ['messageNumber', 'strings', 'edgeNames', 'petNames'],
+      },
+    },
+  },
+
   // --- Identity ---
   {
     type: 'function',
@@ -596,13 +650,16 @@ will appear in future listMessages() calls.
 - makeDirectory(petNamePath) - Create a subdirectory
 
 ### Mail Operations
-- listMessages() - List inbox messages (includes BOTH sent and received messages)
+- listMessages() - List inbox messages (includes BOTH sent and received messages).
+  Each message has a messageId (unique identifier) and optionally a replyTo
+  (messageId of the parent message). Use these to understand conversation threading.
 - adopt(messageNumber, edgeName, petName) - Adopt a value from a message
 - dismiss(messageNumber) - Remove a message from inbox
 - request(recipientName, description, responseName?) - Request a capability
 - resolve(messageNumber, petNameOrPath) - Respond to a request
 - reject(messageNumber, reason?) - Decline a request
-- send(recipientName, strings, edgeNames, petNames) - Send a message
+- reply(messageNumber, strings, edgeNames, petNames) - Reply to a message (PREFERRED for responses)
+- send(recipientName, strings, edgeNames, petNames) - Send a NEW message (only for initiating conversations)
 
 ### Identity
 - identify(petNamePath) - Get the formula ID for a pet name (e.g., identify(["SELF"]) returns your ID)
@@ -709,17 +766,21 @@ Never ignore a proposal status notification. The sender is waiting for your resp
 5. If REJECTED: send() an apology/question to the requester
 6. If COUNTER-PROPOSAL: review, then accept or negotiate
 
-## Message Format for send()
+## Message Format for reply() and send()
 
-The send() tool constructs messages from alternating text and value references.
+Both reply() and send() construct messages from alternating text and value references.
+Use reply() when responding to a received message. Use send() only for new conversations.
 
-For plain text messages:
-  send("HOST", ["Hello, I received your message."], [], [])
+For replying to a received message (message #5):
+  reply("+5", ["Hello, I received your message."], [], [])
 
-For messages with capability references:
-  send("HOST", ["Here is ", " as requested."], ["result"], ["my-result"])
+For replying with capability references:
+  reply("+5", ["Here is ", " as requested."], ["result"], ["my-result"])
   // Recipient sees: "Here is @result as requested."
   // They can adopt @result to get the value named "my-result"
+
+For initiating a NEW conversation (not a reply):
+  send("HOST", ["Hello, I have a question."], [], [])
 
 ## Quasi-Markdown Formatting
 
@@ -766,7 +827,8 @@ Workflow for processing messages:
    - If "from" does NOT match your SELF ID: this is a message FROM someone else that you should process
 4. For received messages:
    - Take appropriate action (adopt values, resolve/reject requests, etc.)
-   - ALWAYS send a reply to the sender using the "from" field as recipient
+   - ALWAYS use reply(messageNumber, ...) to respond — this threads the response to the original message
+   - Do NOT use send() for responses — send() is only for initiating brand new conversations
    - Call dismiss(messageNumber) after handling
 5. Proceed to the next message
 
@@ -774,6 +836,7 @@ IMPORTANT: The message list contains your own sent messages too! Always check if
 sender before trying to "reply" to a message - you don't want to reply to yourself.
 
 You MUST reply to every message you RECEIVE (where "from" is not yourself).
+Always use reply() (not send()) to respond to received messages.
 Always dismiss messages after handling them - this is essential for proper operation.
 
 ## Error Handling
@@ -833,13 +896,103 @@ export const make = (guestPowers, context, { env }) => {
    */
   const chat = messages => provider.chat(messages, tools);
 
-  /** @type {ChatMessage[]} */
-  const transcript = [
-    {
-      role: 'system',
-      content: systemPrompt,
-    },
-  ];
+  // ---- Transcript Node Store ----
+  // Each transcript is a linked chain of nodes. Each node stores only the
+  // messages appended at that step, plus a pointer to the parent node.
+  // The full transcript is assembled by walking the chain when calling the LLM.
+
+  /** @import { TranscriptNode } from './agent.types' */
+
+  /** @type {Map<string, TranscriptNode>} */
+  const nodeCache = new Map();
+
+  /**
+   * Look up a transcript node, loading from durable storage if needed.
+   * @param {string} messageId
+   * @returns {Promise<TranscriptNode | undefined>}
+   */
+  const getNode = async messageId => {
+    const cached = nodeCache.get(messageId);
+    if (cached !== undefined) return cached;
+
+    const petName = `transcript-${messageId}`;
+    try {
+      if (await E(powers).has(petName)) {
+        const stored = /** @type {TranscriptNode} */ (
+          await E(powers).lookup(petName)
+        );
+        nodeCache.set(messageId, stored);
+        return stored;
+      }
+    } catch {
+      // Storage lookup failed; treat as missing.
+    }
+    return undefined;
+  };
+
+  /**
+   * Store a transcript node both in cache and durable storage.
+   * @param {TranscriptNode} node
+   */
+  const putNode = async node => {
+    nodeCache.set(node.messageId, node);
+    const petName = `transcript-${node.messageId}`;
+    try {
+      await E(powers).storeValue(harden(node), petName);
+    } catch (error) {
+      console.error(
+        `[transcript] Failed to persist node ${node.messageId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  };
+
+  /**
+   * Assemble the full LLM transcript by walking the chain from leaf to root.
+   * @param {string} leafMessageId
+   * @returns {Promise<ChatMessage[]>}
+   */
+  const assembleTranscript = async leafMessageId => {
+    /** @type {ChatMessage[][]} */
+    const chain = [];
+    /** @type {string | null} */
+    let current = leafMessageId;
+    while (current !== null) {
+      const node = await getNode(current);
+      if (node === undefined) break;
+      chain.push(node.messages);
+      current = node.parentMessageId;
+    }
+    chain.reverse();
+    return chain.flat();
+  };
+
+  /**
+   * Compute the conversational depth of a transcript (user + assistant turns).
+   * @param {ChatMessage[]} messages
+   * @returns {number}
+   */
+  const computeDepth = messages => {
+    let count = 0;
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        count += 1;
+      }
+    }
+    return count;
+  };
+
+  let nextRootId = 0;
+  /**
+   * Generate a unique string for use as a root node messageId.
+   * These are only used as internal transcript-store keys, not as
+   * cryptographic identifiers.
+   * @returns {string}
+   */
+  const makeRootNodeId = () => {
+    nextRootId += 1;
+    return `root-${Date.now()}-${nextRootId}`;
+  };
 
   // ---- Eval Proposal Tracking ----
 
@@ -924,6 +1077,14 @@ export const make = (guestPowers, context, { env }) => {
   };
 
   /**
+   * The transcript node for the currently active agentic loop.
+   * Set by runAgenticLoop before processing tool calls so that
+   * the reply tool can compute and prepend transcript depth.
+   * @type {TranscriptNode | null}
+   */
+  let activeLeafNode = null;
+
+  /**
    * Execute a tool call and return the result.
    *
    * @param {string} name - Tool name
@@ -988,7 +1149,21 @@ export const make = (guestPowers, context, { env }) => {
 
       // Mail operations
       case 'listMessages': {
-        return E(powers).listMessages();
+        const rawMessages = await E(powers).listMessages();
+        return rawMessages.map(
+          (/** @type {InboxMessage & {messageId?: string, replyTo?: string}} */ msg) =>
+            harden({
+              number: msg.number,
+              date: msg.date,
+              from: msg.from,
+              to: msg.to,
+              type: msg.type,
+              strings: msg.strings,
+              names: msg.names,
+              messageId: msg.messageId,
+              replyTo: msg.replyTo,
+            }),
+        );
       }
       case 'resolve': {
         const { messageNumber, petNameOrPath } = args;
@@ -1042,6 +1217,39 @@ export const make = (guestPowers, context, { env }) => {
           );
         }
         return E(powers).send(recipientName, strings, edgeNames, petNames);
+      }
+      case 'reply': {
+        const { messageNumber, strings, edgeNames, petNames } = args;
+        if (
+          messageNumber === undefined ||
+          !strings ||
+          !edgeNames ||
+          !petNames
+        ) {
+          throw new Error(
+            'messageNumber, strings, edgeNames, and petNames are required',
+          );
+        }
+        // Prepend transcript depth to the first string fragment
+        let depthStrings = strings;
+        if (activeLeafNode !== null) {
+          const transcript = await assembleTranscript(activeLeafNode.messageId);
+          const depth = computeDepth(transcript);
+          if (depthStrings.length > 0) {
+            depthStrings = [
+              `[depth:${depth}] ${depthStrings[0]}`,
+              ...depthStrings.slice(1),
+            ];
+          } else {
+            depthStrings = [`[depth:${depth}]`];
+          }
+        }
+        return E(powers).reply(
+          messageNumber,
+          depthStrings,
+          edgeNames,
+          petNames,
+        );
       }
 
       // Identity
@@ -1238,10 +1446,11 @@ The HOST declined to execute your proposed code. You should:
   };
 
   /**
-   * Process any pending notifications and add them to the transcript.
+   * Process any pending notifications and add them to a transcript node.
+   * @param {TranscriptNode} node - The current leaf node to append notifications to
    * @returns {boolean} True if notifications were processed
    */
-  const processNotifications = () => {
+  const processNotifications = node => {
     if (notificationQueue.length === 0) {
       return false;
     }
@@ -1253,7 +1462,7 @@ The HOST declined to execute your proposed code. You should:
         console.log(
           `[notification] Proposal #${notification.proposalId} ${notification.status}`,
         );
-        transcript.push({
+        node.messages.push({
           role: 'user',
           content: message,
         });
@@ -1263,14 +1472,19 @@ The HOST declined to execute your proposed code. You should:
   };
 
   /**
-   * Run the agentic loop until no more tool calls.
+   * Run the agentic loop for a specific transcript node.
+   * @param {TranscriptNode} leafNode - The leaf node of the transcript chain
    * @returns {Promise<void>}
    */
-  const runAgenticLoop = async () => {
+  const runAgenticLoop = async leafNode => {
+    activeLeafNode = leafNode;
     let continueLoop = true;
     while (continueLoop) {
       // Check for pending notifications before each LLM call
-      processNotifications();
+      processNotifications(leafNode);
+
+      // Assemble the full transcript from the chain
+      const transcript = await assembleTranscript(leafNode.messageId);
 
       console.log(
         `[lal] ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
@@ -1294,10 +1508,10 @@ The HOST declined to execute your proposed code. You should:
         }
       }
 
-      // Add the assistant's response to the transcript
-      transcript.push(/** @type {ChatMessage} */ (responseMessage));
+      // Add the assistant's response to the leaf node
+      leafNode.messages.push(/** @type {ChatMessage} */ (responseMessage));
       console.log(
-        `[lal] sent: ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
+        `[lal] sent: ${JSON.stringify(leafNode.messages[leafNode.messages.length - 1], null, 2)}`,
       );
 
       // Check if there are tool calls to process
@@ -1311,7 +1525,8 @@ The HOST declined to execute your proposed code. You should:
         console.log(
           `[lal] tool results: ${JSON.stringify(toolResults, null, 2)}`,
         );
-        transcript.push(...toolResults);
+        leafNode.messages.push(...toolResults);
+        await putNode(leafNode);
 
         // After processing tools, check if we have new notifications
         // This allows the loop to continue if proposals settled
@@ -1343,6 +1558,8 @@ The HOST declined to execute your proposed code. You should:
 
         // Really done
         continueLoop = false;
+        await putNode(leafNode);
+        activeLeafNode = null;
 
         // If the LLM produced text content (which it shouldn't), log it
         if (responseMessage.content) {
@@ -1353,7 +1570,84 @@ The HOST declined to execute your proposed code. You should:
   };
 
   /**
+   * Build the user-role message content for an inbound message.
+   * @param {InboxMessage & {type?: string}} message
+   * @returns {string}
+   */
+  const formatInboundMessage = message => {
+    const { number, type } = message;
+
+    if (
+      type === 'eval-proposal-reviewer' ||
+      type === 'eval-proposal-proposer'
+    ) {
+      const { source, codeNames, edgeNames, workerName, resultName } =
+        /** @type {any} */ (message);
+      assert.typeof(source, 'string');
+      const sourcePreview =
+        source.length > 200 ? `${source.slice(0, 200)}...` : source;
+
+      const endowmentsDesc =
+        Array.isArray(codeNames) && codeNames.length > 0
+          ? `\nEndowments: ${codeNames.map((/** @type {string} */ cn, /** @type {number} */ i) => `${cn} <- ${edgeNames?.[i] || '?'}`).join(', ')}`
+          : '\nNo endowments';
+
+      return `You received a COUNTER-PROPOSAL from your HOST (message #${number}).
+
+The HOST has modified your proposed code and is suggesting this alternative:
+
+\`\`\`javascript
+${sourcePreview}
+\`\`\`
+${endowmentsDesc}
+${workerName ? `Worker: ${workerName}` : ''}
+${resultName ? `Result will be stored as: ${resultName}` : ''}
+
+You should:
+1. Review the counter-proposal carefully
+2. If it meets your needs, you can submit a new eval-proposal with the suggested code
+3. If you disagree, you can reject this counter-proposal and explain why, or propose different code
+4. After deciding, dismiss message #${number}`;
+    }
+
+    // Regular message (package or request)
+    return 'You have new mail. Check your messages and respond appropriately.';
+  };
+
+  /**
+   * Handle an own outbound message: create an alias so future replies
+   * to this outbound messageId find the correct transcript chain.
+   * @param {InboxMessage & {messageId?: string, replyTo?: string}} message
+   */
+  const handleOwnMessage = async message => {
+    const { messageId, replyTo } = message;
+    if (
+      typeof messageId !== 'string' ||
+      typeof replyTo !== 'string'
+    ) {
+      return;
+    }
+
+    // replyTo points to the inbound message that triggered this response.
+    // Create an alias: outboundMessageId → same node as replyTo.
+    const node = await getNode(replyTo);
+    if (node !== undefined) {
+      nodeCache.set(messageId, node);
+      const petName = `transcript-${messageId}`;
+      try {
+        await E(powers).storeValue(harden(node), petName);
+      } catch (error) {
+        console.error(
+          `[transcript] Failed to alias ${messageId}:`,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+  };
+
+  /**
    * Run the agent loop, processing incoming messages.
+   * Each reply chain is routed to an independent transcript.
    *
    * @returns {Promise<void>}
    */
@@ -1371,7 +1665,7 @@ The HOST declined to execute your proposed code. You should:
         )
       : null;
 
-    // Follow messages and notify the LLM
+    // Follow messages and route each to the correct transcript chain
     const messageIterator = makeRefIterator(E(powers).followMessages());
     while (true) {
       const nextMessage = messageIterator.next();
@@ -1393,76 +1687,69 @@ The HOST declined to execute your proposed code. You should:
       if (done) {
         break;
       }
-      const {
-        from: fromId,
-        number,
-        type,
-      } = /** @type {InboxMessage & {type?: string}} */ (message);
+      const inboxMessage =
+        /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string}} */ (
+          message
+        );
+      const { from: fromId, number, type, messageId, replyTo } = inboxMessage;
 
-      // Skip our own messages
+      // Own outbound messages: index them for future reply lookups
       if (fromId === selfId) {
+        await handleOwnMessage(inboxMessage);
         continue;
       }
 
       console.log(`[mail] New message #${number} (type: ${type || 'package'})`);
-      console.log(
-        `[lal] Transcript has ${transcript.length} messages before processing`,
-      );
 
-      // Check if this is a counter-proposal (eval-proposal from someone else)
-      if (
-        type === 'eval-proposal-reviewer' ||
-        type === 'eval-proposal-proposer'
-      ) {
-        // This is a counter-proposal from the HOST
-        const { source, codeNames, edgeNames, workerName, resultName } =
-          /** @type {any} */ (message);
-        assert.typeof(source, 'string');
-        const sourcePreview =
-          source.length > 200 ? `${source.slice(0, 200)}...` : source;
+      // Resolve or create the transcript chain for this message.
+      /** @type {TranscriptNode | undefined} */
+      let parentNode;
+      /** @type {string} */
+      let parentId;
 
-        const endowmentsDesc =
-          Array.isArray(codeNames) && codeNames.length > 0
-            ? `\nEndowments: ${codeNames.map((/** @type {string} */ cn, /** @type {number} */ i) => `${cn} <- ${edgeNames?.[i] || '?'}`).join(', ')}`
-            : '\nNo endowments';
-
-        transcript.push({
-          role: 'user',
-          content: `You received a COUNTER-PROPOSAL from your HOST (message #${number}).
-
-The HOST has modified your proposed code and is suggesting this alternative:
-
-\`\`\`javascript
-${sourcePreview}
-\`\`\`
-${endowmentsDesc}
-${workerName ? `Worker: ${workerName}` : ''}
-${resultName ? `Result will be stored as: ${resultName}` : ''}
-
-You should:
-1. Review the counter-proposal carefully
-2. If it meets your needs, you can submit a new eval-proposal with the suggested code
-3. If you disagree, you can reject this counter-proposal and explain why, or propose different code
-4. After deciding, dismiss message #${number}`,
-        });
-      } else {
-        // Regular message (package or request)
-        transcript.push({
-          role: 'user',
-          content:
-            'You have new mail. Check your messages and respond appropriately.',
-        });
+      if (typeof replyTo === 'string') {
+        parentNode = await getNode(replyTo);
       }
 
-      // Run the agentic loop
+      if (parentNode !== undefined) {
+        // Continue existing conversation.
+        parentId = /** @type {string} */ (replyTo);
+        console.log(
+          `[transcript] Continuing chain from ${parentId.slice(0, 12)}...`,
+        );
+      } else {
+        // New conversation — create a root node with the system prompt.
+        const rootId = makeRootNodeId();
+        /** @type {TranscriptNode} */
+        const rootNode = {
+          messageId: rootId,
+          parentMessageId: null,
+          messages: [{ role: 'system', content: systemPrompt }],
+        };
+        await putNode(rootNode);
+        parentId = rootId;
+        console.log('[transcript] Starting new conversation chain');
+      }
+
+      // Create a new node for this turn, chained to the parent.
+      const userContent = formatInboundMessage(inboxMessage);
+
+      /** @type {TranscriptNode} */
+      const turnNode = {
+        messageId: typeof messageId === 'string' ? messageId : makeRootNodeId(),
+        parentMessageId: parentId,
+        messages: [{ role: 'user', content: userContent }],
+        lastInboxNumber: number,
+      };
+      await putNode(turnNode);
+
+      // Run the agentic loop for this transcript chain
       try {
-        await runAgenticLoop();
+        await runAgenticLoop(turnNode);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         console.error('[agent] LLM error, notifying sender:', errorMessage);
-        // send() expects a pet name or path; inbox message "from" is a handle ID (e.g. hex).
-        // Only send back when the sender is known by a valid name (e.g. HOST).
         const isValidName =
           typeof fromId === 'string' &&
           (/^[a-z][a-z0-9-]{0,127}$/.test(fromId) ||
@@ -1471,8 +1758,10 @@ You should:
           await E(powers).send(fromId, [errorMessage], [], []);
         }
       }
+
+      const transcriptLength = (await assembleTranscript(turnNode.messageId)).length;
       console.log(
-        `[lal] Transcript has ${transcript.length} messages after processing`,
+        `[lal] Transcript chain has ${transcriptLength} messages after processing`,
       );
     }
   };

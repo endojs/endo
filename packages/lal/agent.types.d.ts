@@ -114,3 +114,20 @@ export type LalContext = {
 export type LalOptions = {
   env: LalEnv;
 };
+
+/**
+ * A single node in a linked-chain transcript.
+ * Each node stores only the messages appended at that step,
+ * plus a pointer to the parent node. The full transcript is
+ * assembled by walking the chain from root to leaf.
+ */
+export type TranscriptNode = {
+  /** The messageId this node corresponds to. */
+  messageId: string;
+  /** The messageId of the parent node, or null for root nodes. */
+  parentMessageId: string | null;
+  /** LLM messages appended at this step only (not the full chain). */
+  messages: ChatMessage[];
+  /** Inbox message number of the most recent inbound message at this node. */
+  lastInboxNumber?: bigint;
+};

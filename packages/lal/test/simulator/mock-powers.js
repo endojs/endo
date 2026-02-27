@@ -24,7 +24,7 @@ export function makeMockPowers(options = {}) {
   directory.set('SELF', SELF_ID);
   directory.set('HOST', 'host-id');
 
-  /** @type {Array<{ number: number, from: string, to: string, type?: string, strings?: string[], names?: string[], ids?: string[] }>} */
+  /** @type {Array<{ number: number, from: string, to: string, type?: string, strings?: string[], names?: string[], ids?: string[], messageId?: string, replyTo?: string }>} */
   const messages = [];
   /** @type {Map<number, { promise: Promise<void>, resolve: () => void }>} */
   const dismissWaiters = new Map();
@@ -52,6 +52,17 @@ export function makeMockPowers(options = {}) {
     return nextSendPromise;
   }
 
+  let nextMessageId = 1;
+  /**
+   * Generate a mock messageId.
+   * @returns {string}
+   */
+  function makeMessageId() {
+    const id = `mock-msg-${nextMessageId}`;
+    nextMessageId += 1;
+    return id;
+  }
+
   /** Inbox message to deliver first (then followMessages ends). */
   const firstMessage =
     initialMessage ||
@@ -59,6 +70,7 @@ export function makeMockPowers(options = {}) {
       number: 1,
       from: 'HOST',
       to: SELF_ID,
+      messageId: makeMessageId(),
       strings: [
         'Hello from the simulator. Please reply with a short greeting and then dismiss this message (dismiss message 1).',
       ],
@@ -155,6 +167,8 @@ export function makeMockPowers(options = {}) {
           strings: m.strings || [],
           names: m.names || [],
           ids: m.ids || [],
+          messageId: m.messageId,
+          replyTo: m.replyTo,
         })),
       );
     },
@@ -206,6 +220,32 @@ export function makeMockPowers(options = {}) {
       };
       sent.push(record);
       resolveNextSend(record);
+      return Promise.resolve();
+    },
+
+    reply(messageNumber, strings, edgeNames, petNames) {
+      // Find the parent message to determine the other party
+      const parent = messages.find(m => m.number === messageNumber);
+      const recipientName = parent
+        ? parent.from === SELF_ID
+          ? parent.to
+          : parent.from
+        : 'unknown';
+      const record = {
+        recipient: recipientName,
+        strings,
+        edgeNames,
+        petNames: petNames.map(p => (Array.isArray(p) ? p.join('.') : p)),
+        replyTo: parent ? parent.messageId : undefined,
+      };
+      sent.push(record);
+      resolveNextSend(record);
+      return Promise.resolve();
+    },
+
+    storeValue(value, petName) {
+      const key = Array.isArray(petName) ? petName.join('.') : petName;
+      directory.set(key, value);
       return Promise.resolve();
     },
 
