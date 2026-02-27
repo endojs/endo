@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-02-26 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | Complete |
 
 ## Motivation
 
@@ -331,55 +331,60 @@ maintaining the light-on-saturated pattern for readability.
 
 ## Implementation
 
-### Step 1: Add New Custom Properties to Light Theme
+### Step 1: Add New Custom Properties to Light Theme ✅
 
-Add the new semantic variables to `:root` with light-mode values.
-Replace all hardcoded color references with the corresponding variable.
+Added semantic variables to `:root` with light-mode values.
+Replaced hardcoded color references with `var(--*)`.
 
-This step is purely mechanical and should produce no visual change.
+### Step 2: Add Dark Theme Media Query ✅
 
-### Step 2: Add Dark Theme Media Query
+Added `@media (prefers-color-scheme: dark)` block with full dark values
+and a duplicate `[data-scheme='dark']` block for explicit per-space
+override (see [chat-per-space-color-scheme](chat-per-space-color-scheme.md)).
 
-Add the `@media (prefers-color-scheme: dark)` block at the end of
-`index.css` with the dark values listed above.
+### Step 3: Override Sent Bubble Colors ✅
 
-### Step 3: Override Sent Bubble Colors
+Dark-mode sent-message overrides use brand burgundy (`--msg-sent-bg: #bb2d40`).
 
-Add the dark-mode sent-message overrides within the media query.
+### Step 4: Handle Monaco Editor Theme ✅
 
-### Step 4: Handle Monaco Editor Theme
-
-The eval form embeds Monaco in an iframe.
-The iframe must detect the color scheme and load a dark editor theme.
-This requires passing a `theme` query parameter or using
-`matchMedia('(prefers-color-scheme: dark)')` inside the iframe's
-initialization.
+`monaco-iframe-main.js` detects `data-scheme` on the parent document
+element and listens for `set-theme` messages to switch between
+`endo-light` and `endo-dark` themes.
 
 ## Files
 
 ### Modified
 
 - `packages/chat/index.css`:
-  - Add new custom properties to `:root`
-  - Replace ~94 hardcoded color values with `var(--*)` references
-  - Add `@media (prefers-color-scheme: dark)` block
+  - Added new custom properties to `:root`
+  - Replaced hardcoded color values with `var(--*)` references
+  - Added `@media (prefers-color-scheme: dark)` block
+  - Added `[data-scheme='dark']` explicit override block
+  - Added scrollbar color overrides for dark schemes
 - `packages/chat/monaco-iframe-main.js`:
-  - Detect color scheme and set Monaco theme to `'vs-dark'`
+  - `detectTheme()` checks parent `data-scheme` attribute
+  - Listens for `set-theme` messages to update Monaco theme
 
 ## Testing
 
-1. Verify light mode is visually unchanged after Step 1
-2. Toggle macOS Appearance to Dark and verify dark mode renders
-3. Verify error states (red badges, error tooltips) are legible in both modes
-4. Verify code syntax highlighting contrast in both modes
-5. Verify modal backdrops and tooltips in both modes
-6. Verify Monaco editor theme switches with system preference
+1. ~~Verify light mode is visually unchanged after Step 1~~
+2. ~~Toggle macOS Appearance to Dark and verify dark mode renders~~
+3. ~~Verify error states (red badges, error tooltips) are legible in both modes~~
+4. ~~Verify code syntax highlighting contrast in both modes~~
+5. ~~Verify modal backdrops and tooltips in both modes~~
+6. ~~Verify Monaco editor theme switches with system preference~~
 
 ## Follow-up Designs
 
-1. [chat-per-space-color-scheme](chat-per-space-color-scheme.md) — Per-space
-   scheme selector (auto/light/dark) in the create/edit space flow, allowing
-   users to override the system preference for individual spaces
-2. [chat-high-contrast-mode](chat-high-contrast-mode.md) — High contrast
-   variants of both schemes for accessibility, responding to
-   `prefers-contrast: more` and available as explicit per-space choices
+1. [chat-per-space-color-scheme](chat-per-space-color-scheme.md) ✅ — Complete
+2. [chat-high-contrast-mode](chat-high-contrast-mode.md) ✅ — Complete
+
+## Follow-up Work
+
+- **Contrast audit:** Verify all text and interactive elements meet WCAG AA
+  (4.5:1) contrast ratios in both light and dark modes. Some hardcoded
+  colors in inline styles or third-party content may not have been
+  parameterized.
+- **Print styles:** Dark mode variables are not suppressed in print media;
+  a `@media print` block could force light values.

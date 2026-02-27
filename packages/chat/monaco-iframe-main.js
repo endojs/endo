@@ -18,7 +18,7 @@ monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
   noSyntaxValidation: true,
 });
 
-// Define custom theme
+// Define custom themes
 monaco.editor.defineTheme('endo-light', {
   base: 'vs',
   inherit: true,
@@ -32,13 +32,57 @@ monaco.editor.defineTheme('endo-light', {
   },
 });
 
+monaco.editor.defineTheme('endo-dark', {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [
+    { token: 'keyword', foreground: 'f87171' },
+    { token: 'string', foreground: 'fb923c' },
+    { token: 'comment', foreground: '6b7078' },
+    { token: 'number', foreground: '60a5fa' },
+  ],
+  colors: {
+    'editorLineNumber.foreground': '#6b7078',
+    'editorLineNumber.activeForeground': '#e1e3e6',
+    'editorGutter.background': '#18191c',
+    'editor.background': '#141517',
+    'editor.lineHighlightBackground': '#1a1b1e',
+  },
+});
+
+/**
+ * Detect the active color scheme from the parent document.
+ *
+ * @returns {'endo-light' | 'endo-dark'}
+ */
+const detectTheme = () => {
+  // Check for explicit data-scheme on parent document
+  try {
+    const parentScheme =
+      window.parent.document.documentElement.getAttribute('data-scheme');
+    if (parentScheme && parentScheme.includes('dark')) {
+      return 'endo-dark';
+    }
+    if (parentScheme === 'light' || parentScheme === 'high-contrast-light') {
+      return 'endo-light';
+    }
+  } catch {
+    // Cross-origin; fall through to media query
+  }
+  // Fall back to system preference
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'endo-dark';
+  }
+  return 'endo-light';
+};
+
 // Create editor
 const editor = monaco.editor.create(
   /** @type {HTMLElement} */ (document.getElementById('editor')),
   {
     value: '',
     language: 'javascript',
-    theme: 'endo-light',
+    theme: detectTheme(),
     minimap: { enabled: false },
     lineNumbers: 'on',
     scrollBeyondLastLine: false,
@@ -118,6 +162,21 @@ window.addEventListener('message', event => {
       break;
     default:
       break;
+  }
+});
+
+// Respond to system color scheme changes
+window
+  .matchMedia('(prefers-color-scheme: dark)')
+  .addEventListener('change', () => {
+    monaco.editor.setTheme(detectTheme());
+  });
+
+// Handle messages from parent
+// (extended: respond to scheme-change messages)
+window.addEventListener('message', schemeEvent => {
+  if (schemeEvent.data && schemeEvent.data.type === 'set-theme') {
+    monaco.editor.setTheme(detectTheme());
   }
 });
 

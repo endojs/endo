@@ -6,9 +6,9 @@
 
 | Design | Date | Status |
 |--------|------|--------|
-| [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | Not Started |
-| [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | Not Started |
-| [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | Not Started |
+| [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | **Complete** |
+| [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | **Complete** |
+| [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | **Complete** |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | Not Started |
 | [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-25 | Not Started |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | **Complete** |
@@ -36,7 +36,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | Not Started |
 
-**Totals:** 4 Complete, 4 In Progress, 21 Not Started
+**Totals:** 7 Complete, 4 In Progress, 18 Not Started
 
 ## Roadmap
 
@@ -70,9 +70,9 @@ flowchart TD
     end
 
     subgraph Chat Theming
-        cscheme[chat-color-schemes]
-        cspace[chat-per-space-color-scheme]
-        chc[chat-high-contrast-mode]
+        cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
+        cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
+        chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
         cscheme --> cspace --> chc
         cscheme --> chc
     end
@@ -126,9 +126,9 @@ Improve Chat UI; independent of core infrastructure.
 
 | Design | Urgency | Depends On | Rationale |
 |--------|---------|------------|-----------|
-| chat-color-schemes | Low | — | Dark mode; system preference support |
-| chat-per-space-color-scheme | Low | chat-color-schemes | Per-space scheme override (auto/light/dark) |
-| chat-high-contrast-mode | Low | chat-color-schemes, chat-per-space-color-scheme | WCAG AAA accessibility |
+| ~~chat-color-schemes~~ | — | — | ✅ Complete |
+| ~~chat-per-space-color-scheme~~ | — | — | ✅ Complete |
+| ~~chat-high-contrast-mode~~ | — | — | ✅ Complete |
 | chat-reply-chain-visualization | Low | — | Visual improvement; no blockers |
 | inventory-grouping-by-type | Low | — | UX polish |
 | inventory-drag-and-drop | Low | — | UX polish |

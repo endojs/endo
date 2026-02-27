@@ -2,8 +2,14 @@
 /* global document */
 /* eslint-disable no-use-before-define */
 
+/** @import { ColorScheme } from './spaces-gutter.js' */
+/** @import { PetNamePathsAutocompleteAPI } from './petname-paths-autocomplete.js' */
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '@endo/daemon' */
+
 import { E } from '@endo/far';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
+import { createSchemePicker } from './scheme-picker.js';
 
 /**
  * @typedef {object} AddSpaceModalAPI
@@ -18,6 +24,7 @@ import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
  * @property {'mailbox'} layout - Layout type (reserved for future use)
+ * @property {ColorScheme} scheme - Color scheme preference
  */
 
 /** Favored emoji icons grouped by category */
@@ -102,8 +109,11 @@ export const createAddSpaceModal = ({
   /** @type {boolean} */
   let isSubmitting = false;
 
-  /** @type {import('./petname-paths-autocomplete.js').PetNamePathsAutocompleteAPI | null} */
+  /** @type {PetNamePathsAutocompleteAPI | null} */
   let pathAutocomplete = null;
+
+  /** @type {import('./scheme-picker.js').SchemePickerAPI | null} */
+  let schemePicker = null;
 
   /**
    * Render the icon selector HTML.
@@ -226,6 +236,8 @@ export const createAddSpaceModal = ({
           <div class="field-hint">More layouts coming soon</div>
         </div>
 
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
         ${error ? `<div class="add-space-error">${error}</div>` : ''}
 
         <div class="add-space-actions">
@@ -274,6 +286,8 @@ export const createAddSpaceModal = ({
           <div class="field-hint">More layouts coming soon</div>
         </div>
 
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
         ${error ? `<div class="add-space-error">${error}</div>` : ''}
 
         <div class="add-space-actions">
@@ -304,6 +318,20 @@ export const createAddSpaceModal = ({
 
     $container.innerHTML = html;
     attachEventListeners();
+
+    // Mount scheme picker into slot if in a form mode
+    if (mode === 'new-agent' || mode === 'existing') {
+      const $slot = /** @type {HTMLElement | null} */ (
+        $container.querySelector('#scheme-picker-slot')
+      );
+      if ($slot) {
+        const previousValue = schemePicker ? schemePicker.getValue() : 'auto';
+        schemePicker = createSchemePicker({
+          $container: $slot,
+          initialValue: previousValue,
+        });
+      }
+    }
 
     if (mode === 'existing') {
       initPathAutocomplete();
@@ -339,7 +367,7 @@ export const createAddSpaceModal = ({
     }
 
     const typedPowers =
-      /** @type {import('@endo/far').ERef<import('@endo/daemon').EndoHost>} */ (
+      /** @type {ERef<EndoHost>} */ (
         powers
       );
     pathAutocomplete = petNamePathsAutocomplete(
@@ -577,9 +605,10 @@ export const createAddSpaceModal = ({
         icon: selectedIcon,
         profilePath: [finalAgentName],
         layout: 'mailbox',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
       });
 
-      hide();
+      hide({ restoreScheme: false });
       onClose();
     } catch (err) {
       console.error('[AddSpaceModal] Failed to create host:', err);
@@ -633,8 +662,9 @@ export const createAddSpaceModal = ({
         icon: selectedIcon,
         profilePath,
         layout: 'mailbox',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
       });
-      hide();
+      hide({ restoreScheme: false });
       onClose();
     } catch (err) {
       error = `Failed to add space: ${/** @type {Error} */ (err).message}`;
@@ -671,17 +701,25 @@ export const createAddSpaceModal = ({
     agentNameManuallyEdited = false;
     error = null;
     isSubmitting = false;
+    schemePicker = null;
 
     render();
     $container.style.display = 'flex';
   };
 
   /**
-   * Hide the modal.
+   * Hide the modal, optionally restoring the previous color scheme.
+   *
+   * @param {object} [options]
+   * @param {boolean} [options.restoreScheme] - Whether to restore the
+   *   color scheme that was active before the picker was opened.
    */
-  const hide = () => {
+  const hide = ({ restoreScheme = true } = {}) => {
     visible = false;
     $container.style.display = 'none';
+    if (restoreScheme && schemePicker) {
+      schemePicker.restoreScheme();
+    }
     if (pathAutocomplete) {
       pathAutocomplete.dispose();
       pathAutocomplete = null;

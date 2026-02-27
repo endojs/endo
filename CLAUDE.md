@@ -13,6 +13,7 @@
 - Every `.js` source file must start with `// @ts-check`.
 - Use `@param`, `@returns`, `@typedef`, and `@type` annotations throughout.
 - Import types with the `@import` JSDoc tag: `/** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */`
+- Prefer `@import` over dynamic `import()` in type positions. Use `/** @import { Foo } from './bar.js' */` at the top of the file instead of inline `/** @type {import('./bar.js').Foo} */`.
 - Cast `catch` error variables: `/** @type {Error} */ (e).message`
 - Cast untyped inputs from external APIs with inline `/** @type {T} */` assertions.
 

@@ -115,19 +115,28 @@ document.addEventListener('keydown', e => {
  * @property {() => Promise<void>} refresh - Reload spaces from pet-store
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
- * @property {(config: Omit<SpaceConfig, 'id' | 'order'>) => Promise<string>} addSpace - Add a new space
+ * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
- * @property {() => string | null} getActiveSpaceId - Get currently active space ID
+ * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
 
 /**
  * @param {object} options
  * @param {HTMLElement} options.$container - Container for the gutter
- * @param {unknown} options.powers - Endo host powers
+ * @param {HTMLElement} options.$modalContainer - Container for add/edit modals
+ * @param {ERef<EndoHost>} options.powers - Endo host powers
+ * @param {string[]} options.currentProfilePath - Current profile path for initial selection
  * @param {(profilePath: string[]) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
-export const createSpacesGutter = ({ $container, powers, onNavigate }) => {
+export const createSpacesGutter = ({
+  $container,
+  $modalContainer,
+  powers,
+  currentProfilePath,
+  onNavigate,
+}) => {
   // ...
 };
 ```
@@ -135,22 +144,27 @@ export const createSpacesGutter = ({ $container, powers, onNavigate }) => {
 ## Files
 
 ### Created
-- `packages/chat/src/spaces-gutter.js` - Gutter component factory
+- `packages/chat/spaces-gutter.js` - Gutter component factory
+- `packages/chat/add-space-modal.js` - Add space modal (new-agent and existing-profile flows)
+- `packages/chat/edit-space-modal.js` - Edit space modal (name, icon, scheme)
+- `packages/chat/scheme-picker.js` - Standalone color scheme picker component
 
 ### Modified
-- `packages/chat/src/chat.js`:
+- `packages/chat/chat.js`:
   - Import `createSpacesGutter`
   - Add `--gutter-width` CSS variable
   - Add `#spaces-gutter` styles
   - Shift `#pets`, `#messages`, `#chat-bar` right by `--gutter-width`
-  - Add `<div id="spaces-gutter"></div>` to template
+  - Add `<div id="spaces-gutter"></div>` and `<div id="add-space-modal-container"></div>` to template
   - Initialize gutter in `bodyComponent`
+- `packages/chat/index.css`:
+  - Scheme picker grid and cell styles
 
 ## User Interactions
 
 1. **Click space icon** - Navigate to that space's profile path
-2. **Right-click space icon** - Context menu with "Remove space" option
-3. **Click "+" button** - Dialog to add new space (name, path)
+2. **Right-click space icon** - Context menu with "Edit Space" and "Delete Space" options
+3. **Click "+" button** - Dialog to add new space (name, icon, profile path, scheme)
 4. **Cmd+1..9** - Quick switch to space by position
 5. **Hover over icon** - Tooltip shows space name and shortcut
 
@@ -166,6 +180,6 @@ export const createSpacesGutter = ({ $container, powers, onNavigate }) => {
 
 1. **Drag-and-drop reordering** - Change space order
 2. **Unread badges** - Poll/subscribe to inbox counts
-3. **Space editing** - Rename, change icon
+3. ~~**Space editing** - Rename, change icon~~ ✅ Implemented via context menu → Edit Space modal
 4. **Space modes** - Beyond inbox (conversations, channels)
-5. **Home space** - Cmd+0 to return to Host root
+5. ~~**Home space** - Cmd+0 to return to Host root~~ ✅ Home space is always first (Cmd+1)
