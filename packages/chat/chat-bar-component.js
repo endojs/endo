@@ -440,6 +440,7 @@ export const chatBarComponent = (
     $container: $inlineFormContainer,
     E,
     powers,
+    makeRefIterator,
     onSubmit: async (commandName, data) => {
       messagePicker.disable();
       $commandError.textContent = '';

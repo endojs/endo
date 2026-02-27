@@ -2,7 +2,7 @@
 
 /**
  * Field types for command parameters.
- * @typedef {'petNamePath' | 'messageNumber' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
+ * @typedef {'petNamePath' | 'messageNumber' | 'message' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
  */
 
 /**
@@ -159,6 +159,30 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Reject',
+  },
+  reply: {
+    name: 'reply',
+    label: 'Reply',
+    description: 'Reply to a message',
+    category: 'messaging',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'messageNumber',
+        label: 'Message #',
+        type: 'messageNumber',
+        required: true,
+        placeholder: '#',
+      },
+      {
+        name: 'message',
+        label: 'Message',
+        type: 'message',
+        required: true,
+        placeholder: 'Type a reply...',
+      },
+    ],
+    submitLabel: 'Reply',
   },
 
   'approve-eval': {

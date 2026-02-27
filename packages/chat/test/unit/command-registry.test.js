@@ -151,6 +151,7 @@ test('command fields have required properties', t => {
         'petNamePath',
         'petNamePaths',
         'messageNumber',
+        'message',
         'text',
         'edgeName',
         'locator',

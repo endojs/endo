@@ -9,6 +9,7 @@ import { getCommand } from './command-registry.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createInlineEval } from './inline-eval.js';
+import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /**
  * @typedef {object} InlineCommandFormAPI
@@ -34,6 +35,7 @@ import { createInlineEval } from './inline-eval.js';
  * @param {(messageNumber: number) => void} [options.onMessageNumberClick] - Called when message number clicked
  * @param {(data: import('./inline-eval.js').ParsedEval) => void} [options.onExpandEval] - Called to expand eval to modal
  * @param {(messageNumber: number) => Promise<string[]>} [options.getMessageEdgeNames] - Get edge names for a message
+ * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
  * @returns {InlineCommandFormAPI}
  */
 export const createInlineCommandForm = ({
@@ -46,6 +48,7 @@ export const createInlineCommandForm = ({
   onMessageNumberClick,
   onExpandEval,
   getMessageEdgeNames,
+  makeRefIterator,
 }) => {
   /** @type {string | null} */
   let currentCommand = null;
@@ -59,6 +62,8 @@ export const createInlineCommandForm = ({
   let fieldInputsByName = {};
   /** @type {import('./inline-eval.js').InlineEvalAPI | null} */
   let inlineEvalInstance = null;
+  /** @type {import('./token-autocomplete.js').TokenAutocompleteAPI | null} */
+  let tokenComponentInstance = null;
 
   /**
    * Render a single field based on its type.
@@ -415,6 +420,48 @@ export const createInlineCommandForm = ({
         break;
       }
 
+      case 'message': {
+        const $inputWrapper = document.createElement('div');
+        $inputWrapper.className = 'inline-field-input-wrapper message-field-wrapper';
+
+        const $msgInput = document.createElement('div');
+        $msgInput.className = 'inline-field-input message-field-input';
+        $msgInput.contentEditable = 'true';
+        $msgInput.dataset.placeholder = field.placeholder || 'Type a message...';
+        $msgInput.dataset.fieldName = field.name;
+
+        const $msgMenu = document.createElement('div');
+        $msgMenu.className = 'inline-token-menu';
+
+        $inputWrapper.appendChild($msgInput);
+        $inputWrapper.appendChild($msgMenu);
+        $wrapper.appendChild($inputWrapper);
+
+        // Initialize token autocomplete for the message field
+        const tokenComp = tokenAutocompleteComponent($msgInput, $msgMenu, {
+          E,
+          makeRefIterator,
+          powers,
+        });
+        tokenComponentInstance = tokenComp;
+
+        $msgInput.addEventListener('input', () => {
+          const msg = tokenComp.getMessage();
+          formData[field.name] = msg;
+          updateValidity();
+        });
+
+        // Track disposal
+        autocompleteInstances.push({
+          dispose: () => {
+            tokenComponentInstance = null;
+          },
+        });
+
+        fieldElements.push(/** @type {HTMLElement & HTMLInputElement} */ ($msgInput));
+        break;
+      }
+
       case 'text':
       case 'locator': {
         const $input = document.createElement('input');
@@ -470,6 +517,12 @@ export const createInlineCommandForm = ({
         // Check array fields (like petNamePaths)
         if (Array.isArray(value) && value.length === 0) {
           return false;
+        }
+        // Check message fields (ChatMessage objects)
+        if (field.type === 'message') {
+          const msg = /** @type {{ strings: string[], petNames: string[], edgeNames: string[] }} */ (value);
+          const hasContent = msg.strings.some(s => s.trim().length > 0) || msg.petNames.length > 0;
+          if (!hasContent) return false;
         }
       }
     }
@@ -647,6 +700,7 @@ export const createInlineCommandForm = ({
       inlineEvalInstance.dispose();
       inlineEvalInstance = null;
     }
+    tokenComponentInstance = null;
   };
 
   return {
