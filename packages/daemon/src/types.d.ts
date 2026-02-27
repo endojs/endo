@@ -97,9 +97,13 @@ type IdRecord = {
   node: NodeNumber;
 };
 
-type ParseIdRecord = IdRecord & {
+export type ParseIdRecord = IdRecord & {
   id: FormulaIdentifier;
 };
+
+export type EdgeName = string;
+
+export type EnvRecord = Record<string, string>;
 
 type EndoFormula = {
   type: 'endo';
@@ -131,7 +135,7 @@ export type AgentDeferredTaskParams = {
   handleId: FormulaIdentifier;
 };
 
-type HostFormula = {
+export type HostFormula = {
   type: 'host';
   handle: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
@@ -146,7 +150,7 @@ type HostFormula = {
   pins: FormulaIdentifier;
 };
 
-type GuestFormula = {
+export type GuestFormula = {
   type: 'guest';
   handle: FormulaIdentifier;
   keypair: FormulaIdentifier;
@@ -217,6 +221,7 @@ type MakeUnconfinedFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   specifier: string;
+  env?: Record<string, string>;
   // TODO formula slots
 };
 
@@ -225,6 +230,7 @@ type MakeBundleFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   bundle: FormulaIdentifier;
+  env?: Record<string, string>;
   // TODO formula slots
 };
 
@@ -276,7 +282,9 @@ type MessageFormula = {
     | 'package'
     | 'eval-request'
     | 'definition'
-    | 'form-request';
+    | 'form-request'
+    | 'eval-proposal-reviewer'
+    | 'eval-proposal-proposer';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -420,6 +428,8 @@ export type FormRequest = MessageBase & {
 };
 
 export type EvalProposalBase = {
+  messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
   source: string;
   codeNames: Array<string>;
   petNamePaths?: Array<NamePath>;
@@ -427,7 +437,7 @@ export type EvalProposalBase = {
   ids: Array<string>;
   workerName?: string;
   settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<string>;
+  resultId: Promise<string | undefined>;
   result: Promise<unknown>;
 };
 
@@ -747,7 +757,7 @@ export interface Mail {
     ids: Array<string>,
     workerName?: string,
     resultName?: string,
-  ): Promise<unknown>;
+  ): Promise<void>;
 }
 
 export type MakeMailbox = (args: {
@@ -1141,6 +1151,7 @@ type FormulateHostDependenciesParams = {
   networksDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
   specifiedWorkerId?: FormulaIdentifier;
+  hostHandleId?: FormulaIdentifier;
 };
 
 type FormulateNumberedHostParams = {
@@ -1269,6 +1280,7 @@ export interface DaemonCore {
     pinsDirectoryId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier | undefined,
+    hostHandleId?: FormulaIdentifier,
   ) => FormulateResult<EndoHost>;
 
   /**

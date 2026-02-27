@@ -1062,7 +1062,7 @@ const makeDaemonCore = async (
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make unconfined plugin with non-worker');
     const powersP = provide(powersId);
-    return E(workerDaemonFacet).makeUnconfined(
+    return E(/** @type {any} */ (workerDaemonFacet)).makeUnconfined(
       specifier,
       // TODO fix type
       /** @type {any} */ (powersP),
@@ -1075,19 +1075,19 @@ const makeDaemonCore = async (
    * @param {string} workerId
    * @param {string} powersId
    * @param {string} bundleId
-   * @param {Record<string, string>} [env]
+   * @param {Record<string, string> | undefined} env
    * @param {Context} context
    */
   const makeBundle = async (workerId, powersId, bundleId, env, context) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
-    const worker = await provide(workerId, 'worker');
+    const worker = await provide(/** @type {FormulaIdentifier} */ (workerId), 'worker');
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
-    const readableBundleP = provide(bundleId, 'readable-blob');
-    const powersP = provide(powersId);
-    return E(workerDaemonFacet).makeBundle(
+    const readableBundleP = provide(/** @type {FormulaIdentifier} */ (bundleId), 'readable-blob');
+    const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
+    return E(/** @type {any} */ (workerDaemonFacet)).makeBundle(
       readableBundleP,
       // TODO fix type
       /** @type {any} */ (powersP),
@@ -1928,7 +1928,8 @@ const makeDaemonCore = async (
           if (knownPeers.has(nodeNumber)) {
             const existingPeerId = knownPeers.identifyLocal(nodeNumber);
             if (existingPeerId !== undefined) {
-              const existingFormula = await getFormulaForId(existingPeerId);
+              const existingFormulaId = /** @type {FormulaIdentifier} */ (existingPeerId);
+              const existingFormula = await getFormulaForId(existingFormulaId);
               if (
                 existingFormula.type === 'peer' &&
                 JSON.stringify(existingFormula.addresses) !==
@@ -1939,10 +1940,10 @@ const makeDaemonCore = async (
                 );
                 // eslint-disable-next-line no-use-before-define
                 await cancelValue(
-                  existingPeerId,
+                  existingFormulaId,
                   new Error('Peer addresses updated'),
                 );
-                await knownPeers.remove(nodeNumber);
+                await knownPeers.remove(/** @type {PetName} */ (/** @type {unknown} */ (nodeNumber)));
                 const { id: peerId } =
                   // eslint-disable-next-line no-use-before-define
                   await formulatePeer(networksId, nodeNumber, addresses);
@@ -2218,7 +2219,7 @@ const makeDaemonCore = async (
       throw new Error(`No peer found for node identifier ${q(nodeNumber)}.`);
     }
     parseId(peerId);
-    return peerId;
+    return /** @type {FormulaIdentifier} */ (peerId);
   };
 
   /** @type {DaemonCore['cancelValue']} */
@@ -3171,9 +3172,9 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} id
-   * @param {string} hostAgentId
-   * @param {string} hostHandleId
+   * @param {FormulaIdentifier} id
+   * @param {FormulaIdentifier} hostAgentId
+   * @param {FormulaIdentifier} hostHandleId
    * @param {import('./types.js').PetName} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
@@ -3344,7 +3345,7 @@ const makeDaemonCore = async (
         petName = petNameOrPath;
       }
       assertName(petName);
-      const id = petStore.identifyLocal(petName);
+      const id = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(petName));
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }

@@ -42,7 +42,7 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 const test = netListenAllowed ? baseTest : baseTest.skip;
 
 /**
- * @param {AsyncIterator} asyncIterator - The iterator to take from.
+ * @param {AsyncIterator<unknown>} asyncIterator - The iterator to take from.
  * @param {number} count - The number of values to retrieve.
  */
 const takeCount = async (asyncIterator, count) => {
@@ -60,7 +60,7 @@ const takeCount = async (asyncIterator, count) => {
 
 /**
  * Drain `count` values from an async iterator (sequential by necessity).
- * @param {EReturn<AsyncIterator<unknown>>} iteratorRef
+ * @param {import('@endo/eventual-send').ERef<AsyncIterator<unknown>>} iteratorRef
  * @param {number} count
  */
 const drainIterator = async (iteratorRef, count) => {
@@ -3081,15 +3081,17 @@ test('makeBundle passes env to caplet make function', async t => {
   await E(host).provideWorker(['worker']);
 
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
-  const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
-    E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
-      resultName: 'env-echo',
-      env: {
-        CONFIG_PATH: '/etc/app/config.json',
-        LOG_LEVEL: 'verbose',
-      },
-    }),
+  const envEcho = /** @type {{ getEnv(): Promise<Record<string, string>>, getEnvVar(key: string): Promise<string> }} */ (
+    await doMakeBundle(host, envEchoPath, bundleName =>
+      E(host).makeBundle('worker', bundleName, {
+        powersName: 'NONE',
+        resultName: 'env-echo',
+        env: {
+          CONFIG_PATH: '/etc/app/config.json',
+          LOG_LEVEL: 'verbose',
+        },
+      }),
+    )
   );
 
   // Verify the caplet received the environment variables
@@ -3109,12 +3111,14 @@ test('makeBundle with empty env object', async t => {
   await E(host).provideWorker(['worker']);
 
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
-  const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
-    E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
-      resultName: 'env-echo',
-      env: {},
-    }),
+  const envEcho = /** @type {{ getEnv(): Promise<Record<string, string>> }} */ (
+    await doMakeBundle(host, envEchoPath, bundleName =>
+      E(host).makeBundle('worker', bundleName, {
+        powersName: 'NONE',
+        resultName: 'env-echo',
+        env: {},
+      }),
+    )
   );
 
   const allEnv = await E(envEcho).getEnv();
@@ -3127,11 +3131,13 @@ test('makeBundle without env option defaults to empty env', async t => {
   await E(host).provideWorker(['worker']);
 
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
-  const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
-    E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
-      resultName: 'env-echo',
-    }),
+  const envEcho = /** @type {{ getEnv(): Promise<Record<string, string>> }} */ (
+    await doMakeBundle(host, envEchoPath, bundleName =>
+      E(host).makeBundle('worker', bundleName, {
+        powersName: 'NONE',
+        resultName: 'env-echo',
+      }),
+    )
   );
 
   const allEnv = await E(envEcho).getEnv();

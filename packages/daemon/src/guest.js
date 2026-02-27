@@ -39,10 +39,9 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier} hostHandleId
    * @param {FormulaIdentifier} petStoreId
    * @param {FormulaIdentifier} mailboxStoreId
-   * @param {FormulaIdentifier} mailHubId
+   * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
-   * @param {string} [mailHubId] - Formula id for MAIL hub view (when provided, MAIL is added to special names)
    */
   const makeGuest = async (
     guestId,
@@ -60,7 +59,9 @@ export const makeGuestMaker = ({
     context.thisDiesIfThatDies(hostAgentId);
     context.thisDiesIfThatDies(petStoreId);
     context.thisDiesIfThatDies(mailboxStoreId);
-    context.thisDiesIfThatDies(mailHubId);
+    if (mailHubId !== undefined) {
+      context.thisDiesIfThatDies(mailHubId);
+    }
     context.thisDiesIfThatDies(mainWorkerId);
 
     const basePetStore = await provide(petStoreId, 'pet-store');
@@ -110,7 +111,7 @@ export const makeGuestMaker = ({
      * @param {string} id - The formula identifier.
      * @returns {Promise<unknown>} The value for the given formula identifier.
      */
-    const lookupById = async id => provide(id);
+    const lookupById = async id => provide(/** @type {FormulaIdentifier} */ (id));
     const {
       listMessages,
       followMessages,

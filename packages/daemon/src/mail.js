@@ -38,8 +38,8 @@ const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
 const mapSettled = responseIdP =>
   responseIdP.then(
     id =>
-      id && typeof id.then === 'function'
-        ? id.then(
+      id && typeof id === 'object'
+        ? /** @type {Promise<string>} */ (id).then(
             () => /** @type {const} */ ('fulfilled'),
             () => /** @type {const} */ ('rejected'),
           )
@@ -385,7 +385,7 @@ export const makeMailboxMaker = ({
         envelope.type === 'eval-proposal-reviewer' ||
         envelope.type === 'eval-proposal-proposer'
       ) {
-        return harden({
+        return /** @type {MessageFormula} */ (/** @type {unknown} */ (harden({
           type: 'message',
           messageType: envelope.type,
           messageId,
@@ -399,7 +399,7 @@ export const makeMailboxMaker = ({
           edgeNames: envelope.edgeNames,
           ids: envelope.ids,
           workerName: envelope.workerName,
-        });
+        })));
       }
       throw new Error('Unknown message type');
     };
@@ -863,8 +863,9 @@ export const makeMailboxMaker = ({
       const type = await getTypeForId(id);
       if (type === 'host' || type === 'guest') {
         const formula = await getFormulaForId(id);
+        const hostOrGuestFormula = /** @type {import('./types.js').HostFormula | import('./types.js').GuestFormula} */ (formula);
         return provide(
-          /** @type {FormulaIdentifier} */ (formula.handle),
+          /** @type {FormulaIdentifier} */ (hostOrGuestFormula.handle),
           'handle',
         );
       }
@@ -1407,7 +1408,7 @@ export const makeMailboxMaker = ({
       workerName,
       resultName,
     ) => {
-      const to = /** @type {Handle} */ (await provide(toId));
+      const to = /** @type {Handle} */ (await provide(/** @type {FormulaIdentifier} */ (toId)));
 
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()
@@ -1424,10 +1425,10 @@ export const makeMailboxMaker = ({
 
       const resultId = responseIdP.catch(() => undefined);
       const result = responseIdP
-        .then(id => (typeof id === 'string' ? provide(id) : id))
+        .then(id => (typeof id === 'string' ? provide(/** @type {FormulaIdentifier} */ (id)) : id))
         .catch(() => undefined);
 
-      /** @type {EvalProposalReviewer & { from: string, to: string }} */
+      /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const reviewerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-reviewer'),
         messageId,
@@ -1441,11 +1442,11 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: toId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (toId),
       });
 
-      /** @type {EvalProposalProposer & { from: string, to: string }} */
+      /** @type {EvalProposalProposer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const proposerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-proposer'),
         messageId,
@@ -1459,8 +1460,8 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: toId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (toId),
       });
 
       // Deliver the proposer view to our own inbox first,
@@ -1480,7 +1481,7 @@ export const makeMailboxMaker = ({
         const resultNamePath = namePathFrom(resultName.split('.'));
         await E(directory).write(resultNamePath, responseId);
       }
-      return provide(responseId);
+      return provide(/** @type {FormulaIdentifier} */ (responseId));
     };
 
     /**
@@ -1544,7 +1545,7 @@ export const makeMailboxMaker = ({
       const originalSenderId = originalProposal.from;
 
       // Send counter-proposal back to original sender
-      const to = /** @type {Handle} */ (await provide(originalSenderId));
+      const to = /** @type {Handle} */ (await provide(/** @type {FormulaIdentifier} */ (originalSenderId)));
 
       const counterMessageId =
         /** @type {import('./types.js').FormulaNumber} */ (
@@ -1563,7 +1564,7 @@ export const makeMailboxMaker = ({
       const resultId = Promise.resolve(undefined);
       const result = Promise.resolve(undefined);
 
-      /** @type {EvalProposalReviewer & { from: string, to: string }} */
+      /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const counterReviewerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-reviewer'),
         messageId: counterMessageId,
@@ -1577,11 +1578,11 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: originalSenderId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (originalSenderId),
       });
 
-      /** @type {EvalProposalProposer & { from: string, to: string }} */
+      /** @type {EvalProposalProposer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const counterProposerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-proposer'),
         messageId: counterMessageId,
@@ -1595,8 +1596,8 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: originalSenderId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (originalSenderId),
       });
 
       // Deliver the counter-proposal proposer view to our own inbox first.

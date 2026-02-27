@@ -12,8 +12,9 @@
  * @returns {string}
  */
 export const toHex =
+  // @ts-expect-error ES2024 Uint8Array.prototype.toHex
   typeof Uint8Array.prototype.toHex === 'function'
-    ? bytes => bytes.toHex()
+    ? bytes => /** @type {any} */ (bytes).toHex()
     : bytes =>
         Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 harden(toHex);
@@ -25,8 +26,9 @@ harden(toHex);
  * @returns {Uint8Array}
  */
 export const fromHex =
+  // @ts-expect-error ES2024 Uint8Array.fromHex
   typeof Uint8Array.fromHex === 'function'
-    ? hex => Uint8Array.fromHex(hex)
+    ? hex => /** @type {any} */ (Uint8Array).fromHex(hex)
     : hex => {
         const bytes = new Uint8Array(hex.length / 2);
         for (let i = 0; i < bytes.length; i += 1) {
