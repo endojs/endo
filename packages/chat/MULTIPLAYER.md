@@ -96,20 +96,22 @@ Fill in the fields:
 
 - **Module**: The `file://` URL to the TCP network module.
   Typically `file:///path/to/endo/packages/daemon/src/networks/tcp-netstring.js`
-- **Listen address**: `127.0.0.1:0` (port 0 assigns an ephemeral port)
+  (auto-detected when running via `yarn dev`)
+- **Host**: `127.0.0.1` (default)
+- **Port**: `8940` (default; use `0` for an OS-assigned ephemeral port)
 
-The command installs the network module, resolves the host:port request it
-sends, and moves it to the `NETS/tcp` directory where the daemon discovers
-it as an active transport.
+The command stores the listen address, installs the network module as an
+unconfined caplet, and moves it to the `NETS/tcp` directory where the
+daemon discovers it as an active transport.
 
 ### Using the CLI
 
 ```bash
+# Store the listen address so the network module can find it
+yarn exec endo store --text "127.0.0.1:8940" --name tcp-listen-addr
+
 # Install the network as an unconfined module (needs Node.js access for `net`)
 yarn exec endo make --UNCONFINED packages/daemon/src/networks/tcp-netstring.js --powers AGENT --name network-service
-
-# When the daemon requests a port, resolve it:
-yarn exec endo resolve 0 127.0.0.1:0
 
 # Move to the networks directory
 yarn exec endo mv network-service NETS.tcp
@@ -149,7 +151,7 @@ address or relay configuration is needed.
 
 ```bash
 # Install the libp2p network (self-configures via public DHT, registers at NETS/libp2p)
-yarn exec endo run --UNCONFINED ../daemon/src/networks/setup-libp2p.js --powers HOST
+yarn exec endo run --UNCONFINED packages/daemon/src/networks/setup-libp2p.js --powers HOST
 ```
 
 After this step, each daemon has a libp2p peer ID and is reachable via
