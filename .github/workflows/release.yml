@@ -22,10 +22,9 @@ jobs:
         # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
-          node-version: 22.x
           cache: yarn
 
       - name: Install Dependencies

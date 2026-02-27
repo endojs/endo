@@ -33,8 +33,6 @@ jobs:
         run: mv /opt/google/chrome /opt/google/chrome-unstable
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
-        with:
-          node-version: 18
       - name: Provide yarn # yarn is missing in the Selenium image
         run: corepack enable
       - name: Install dependencies
