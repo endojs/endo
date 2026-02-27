@@ -37,16 +37,22 @@ export const adaptLibp2pStream = stream => {
   /** @type {Reader<Uint8Array>} */
   const reader = harden({
     async next() {
-      const result = await sourceIterator.next();
-      if (result.done) {
-        return harden({ value: undefined, done: true });
+      try {
+        const result = await sourceIterator.next();
+        if (result.done) {
+          resolveClosed(undefined);
+          return harden({ value: undefined, done: true });
+        }
+        const chunk = result.value;
+        // Uint8ArrayList (from libp2p) has subarray() returning a contiguous
+        // Uint8Array. Plain Uint8Array also has subarray() which returns a view.
+        // Both are safe to pass downstream as Uint8Array.
+        const bytes = chunk instanceof Uint8Array ? chunk : chunk.subarray();
+        return harden({ value: bytes, done: false });
+      } catch (err) {
+        resolveClosed(undefined);
+        throw err;
       }
-      const chunk = result.value;
-      // Uint8ArrayList (from libp2p) has subarray() returning a contiguous
-      // Uint8Array. Plain Uint8Array also has subarray() which returns a view.
-      // Both are safe to pass downstream as Uint8Array.
-      const bytes = chunk instanceof Uint8Array ? chunk : chunk.subarray();
-      return harden({ value: bytes, done: false });
     },
     async return() {
       if (sourceIterator.return) {

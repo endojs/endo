@@ -6,6 +6,7 @@ import { bootstrap } from '@libp2p/bootstrap';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { generateKeyPairFromSeed } from '@libp2p/crypto/keys';
 import { identify } from '@libp2p/identify';
+import { kadDHT, removePrivateAddressesMapper } from '@libp2p/kad-dht';
 import { ping } from '@libp2p/ping';
 import { webRTC } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
@@ -42,31 +43,25 @@ const derivePrivateKey = async nodeIdHex => {
 };
 
 /**
- * Build a URL-safe address string for this peer. Each multiaddr gets its
- * own address entry so the daemon can try them independently.
+ * Build a URL-safe address string for this peer.
  *
- * Format: libp2p+captp0:///<peerId>?ma=<url-encoded-multiaddr>
+ * Format: libp2p+captp0:///<peerId>
  *
- * The peer ID is in the pathname (not hostname) to preserve case —
- * URL hostnames are lowercased, but libp2p peer IDs are case-sensitive.
+ * Only the bare peer ID is advertised. The dialing side discovers
+ * reachable multiaddrs via the DHT. This avoids advertising
+ * localhost/private IPs and stale relay addresses that break after
+ * restart. The peer ID is in the pathname (not hostname) to preserve
+ * case — URL hostnames are lowercased, but libp2p peer IDs are
+ * case-sensitive.
  *
  * @param {string} peerId
- * @param {Array<{ toString(): string }>} multiaddrs
+ * @param {Array<{ toString(): string }>} _multiaddrs
  * @returns {string[]}
  */
-const buildAddresses = (peerId, multiaddrs) => {
+const buildAddresses = (peerId, _multiaddrs) => {
   const baseUrl = new URL(`${URL_PROTOCOL}:///`);
   baseUrl.pathname = `/${peerId}`;
-  if (multiaddrs.length === 0) {
-    // Always include the bare peer ID address so the other node can
-    // attempt DHT-based discovery even without relay multiaddrs.
-    return [baseUrl.href];
-  }
-  return multiaddrs.map(ma => {
-    const url = new URL(baseUrl.href);
-    url.searchParams.set('ma', ma.toString());
-    return url.href;
-  });
+  return [baseUrl.href];
 };
 
 /**
@@ -107,14 +102,11 @@ export const make = async (powers, context) => {
   /** @type {import('@libp2p/interface').ComponentLogger} */
   const libp2pLogger = {
     forComponent: name => {
-      const log = /** @type {any} */ (
-        (...args) => {
-          console.log(`[${name}]`, ...args);
-        }
-      );
+      const noop = () => {};
+      const log = /** @type {any} */ (noop);
       log.error = (...args) => console.log(`[${name}:ERROR]`, ...args);
-      log.trace = (...args) => console.log(`[${name}:trace]`, ...args);
-      log.enabled = true;
+      log.trace = noop;
+      log.enabled = false;
       log.newScope = (/** @type {string} */ sub) =>
         libp2pLogger.forComponent(`${name}:${sub}`);
       return log;
@@ -152,6 +144,10 @@ export const make = async (powers, context) => {
     peerDiscovery: [bootstrap({ list: [...AMINO_DHT_BOOTSTRAP_NODES] })],
     services: {
       identify: identify(),
+      aminoDHT: /** @type {any} */ (kadDHT({
+        protocol: '/ipfs/kad/1.0.0',
+        peerInfoMapper: removePrivateAddressesMapper,
+      })),
       ping: ping(),
     },
   });
@@ -201,12 +197,17 @@ export const make = async (powers, context) => {
         closed: streamClosed,
       } = adaptLibp2pStream(rawStream);
 
-      const { closed: capTpClosed } = makeNetstringCapTP(
+      const { closed: capTpClosed, close: closeCapTp } = makeNetstringCapTP(
         'Endo',
         writer,
         reader,
         cancelled,
         localGreeter,
+      );
+
+      streamClosed.then(
+        () => closeCapTp(new Error('libp2p stream closed')),
+        () => {},
       );
 
       const closed = Promise.race([streamClosed, capTpClosed]);
@@ -263,8 +264,8 @@ export const make = async (powers, context) => {
 
     /**
      * Dial a multiaddr, retrying on transient muxer/connection errors.
-     * Separates the connection establishment from the protocol stream
-     * to handle races with background peer discovery connections.
+     * Races each dial and retry delay against `connectionCancelled` so
+     * externally-cancelled connections don't hang.
      *
      * @param {ReturnType<typeof multiaddr>} ma
      * @returns {Promise<any>}
@@ -277,12 +278,18 @@ export const make = async (powers, context) => {
             `Endo libp2p: dial attempt ${attempt}/${MAX_DIAL_ATTEMPTS} to ${ma.toString()}`,
           );
           // eslint-disable-next-line no-await-in-loop
-          const conn = await libp2pNode.dial(ma);
+          const conn = await Promise.race([
+            libp2pNode.dial(ma),
+            connectionCancelled,
+          ]);
           console.log(
             `Endo libp2p: connection established, opening protocol stream`,
           );
           // eslint-disable-next-line no-await-in-loop
-          const stream = await conn.newStream(PROTOCOL);
+          const stream = await Promise.race([
+            conn.newStream(PROTOCOL),
+            connectionCancelled,
+          ]);
           return stream;
         } catch (err) {
           lastErr = err;
@@ -291,9 +298,12 @@ export const make = async (powers, context) => {
           );
           if (attempt < MAX_DIAL_ATTEMPTS) {
             // eslint-disable-next-line no-await-in-loop
-            await new Promise(resolve => {
-              setTimeout(resolve, RETRY_DELAY_MS);
-            });
+            await Promise.race([
+              new Promise(resolve => {
+                setTimeout(resolve, RETRY_DELAY_MS);
+              }),
+              connectionCancelled,
+            ]);
           }
         }
       }
@@ -316,12 +326,19 @@ export const make = async (powers, context) => {
         }
       }
       if (!rawStream) {
-        throw (
-          lastError ||
-          new Error(
-            `Failed to connect to libp2p peer ${remotePeerId}: no multiaddr succeeded`,
-          )
+        console.log(
+          `Endo libp2p: all multiaddr hints failed, falling back to DHT discovery for ${remotePeerId.slice(0, 16)}...`,
         );
+        try {
+          rawStream = await dialWithRetry(multiaddr(`/p2p/${remotePeerId}`));
+        } catch (err) {
+          throw (
+            lastError ||
+            new Error(
+              `Failed to connect to libp2p peer ${remotePeerId}: no multiaddr succeeded and DHT fallback failed`,
+            )
+          );
+        }
       }
     } else {
       console.log(
@@ -340,12 +357,12 @@ export const make = async (powers, context) => {
       closed: streamClosed,
     } = adaptLibp2pStream(rawStream);
 
-    const { closed: capTpClosed, getBootstrap } = makeNetstringCapTP(
-      'Endo',
-      writer,
-      reader,
-      cancelled,
-      localGateway,
+    const { closed: capTpClosed, getBootstrap, close: closeCapTp } =
+      makeNetstringCapTP('Endo', writer, reader, cancelled, localGateway);
+
+    streamClosed.then(
+      () => closeCapTp(new Error('libp2p stream closed')),
+      () => {},
     );
 
     const closed = Promise.race([streamClosed, capTpClosed]);

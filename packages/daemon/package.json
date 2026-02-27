@@ -68,6 +68,7 @@
     "@libp2p/circuit-relay-v2": "^3.2.24",
     "@libp2p/crypto": "^5.1.8",
     "@libp2p/identify": "^3.0.39",
+    "@libp2p/kad-dht": "14.2.15",
     "@libp2p/ping": "^2.0.37",
     "@libp2p/webrtc": "^5.2.24",
     "@libp2p/websockets": "^9.2.19",
