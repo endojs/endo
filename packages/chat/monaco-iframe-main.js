@@ -157,6 +157,9 @@ window.addEventListener('message', event => {
       editor.setPosition({ lineNumber: line, column });
       editor.revealPositionInCenter({ lineNumber: line, column });
       break;
+    case 'set-readonly':
+      editor.updateOptions({ readOnly: !!value });
+      break;
     case 'focus':
       editor.focus();
       break;

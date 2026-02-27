@@ -161,6 +161,7 @@ export const chatBarComponent = (
     $menu: $tokenMenu,
     $error,
     $sendButton,
+    $chatBar,
     E,
     makeRefIterator,
     powers,
@@ -439,30 +440,49 @@ export const chatBarComponent = (
     }
   });
 
-  // Initialize inline command form
-  const inlineForm = createInlineCommandForm({
-    $container: $inlineFormContainer,
-    E,
-    powers,
-    onSubmit: async (commandName, data) => {
-      messagePicker.disable();
-      $commandError.textContent = '';
+  let commandSubmitting = false;
 
-      // Special handling for enter command - uses profile navigation
-      if (commandName === 'enter') {
-        const { hostName } = /** @type {{ hostName: string }} */ (data);
-        exitCommandMode(); // eslint-disable-line no-use-before-define
-        await enterProfile(hostName);
-        return;
-      }
+  const setCommandSubmitting = (/** @type {boolean} */ value) => {
+    commandSubmitting = value;
+    if (value) {
+      $chatBar.classList.add('submitting');
+      $commandSubmitButton.classList.add('btn-spinner');
+      $commandSubmitButton.disabled = true;
+      inlineForm.setDisabled(true); // eslint-disable-line no-use-before-define
+    } else {
+      $chatBar.classList.remove('submitting');
+      $commandSubmitButton.classList.remove('btn-spinner');
+      inlineForm.setDisabled(false); // eslint-disable-line no-use-before-define
+      $commandSubmitButton.disabled = !inlineForm.isValid(); // eslint-disable-line no-use-before-define
+    }
+  };
 
-      // For js/eval: reset command line immediately so guest proposals don't block the UI.
-      // (Guest evaluate() resolves only when the host grants; we show the result when it does.)
-      const isEval = commandName === 'js' || commandName === 'eval';
-      if (isEval) {
-        exitCommandMode(); // eslint-disable-line no-use-before-define
-      }
+  /**
+   * Run a command with spinner/disabled state management.
+   *
+   * @param {string} commandName
+   * @param {Record<string, unknown>} data
+   */
+  const executeWithSpinner = async (commandName, data) => {
+    messagePicker.disable();
+    $commandError.textContent = '';
 
+    if (commandName === 'enter') {
+      const { hostName } = /** @type {{ hostName: string }} */ (data);
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+      await enterProfile(hostName);
+      return;
+    }
+
+    // For js/eval: reset command line immediately so guest proposals don't block the UI.
+    const isEval = commandName === 'js' || commandName === 'eval';
+    if (isEval) {
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+    } else {
+      setCommandSubmitting(true);
+    }
+
+    try {
       const result = await executor.execute(commandName, data);
       if (result.success) {
         if (!isEval) {
@@ -473,7 +493,6 @@ export const chatBarComponent = (
             ? String(data.resultName)
             : undefined;
         const resultPath = resultName ? resultName.split('.') : undefined;
-        // Always show js results (even undefined), skip show/list which handle their own display
         if (commandName === 'js') {
           showValue(result.value, undefined, resultPath, undefined);
         } else if (
@@ -484,14 +503,30 @@ export const chatBarComponent = (
           showValue(result.value, undefined, resultPath, undefined);
         }
       }
-      // Error case: showError callback already set $commandError or $error.textContent
+    } finally {
+      if (!isEval) {
+        setCommandSubmitting(false);
+      }
+    }
+  };
+
+  // Initialize inline command form
+  const inlineForm = createInlineCommandForm({
+    $container: $inlineFormContainer,
+    E,
+    powers,
+    onSubmit: async (commandName, data) => {
+      if (commandSubmitting) return;
+      await executeWithSpinner(commandName, data);
     },
     onCancel: () => {
       messagePicker.disable();
       exitCommandMode(); // eslint-disable-line no-use-before-define
     },
     onValidityChange: isValid => {
-      $commandSubmitButton.disabled = !isValid;
+      if (!commandSubmitting) {
+        $commandSubmitButton.disabled = !isValid;
+      }
     },
     onMessageNumberClick: () => {
       // Enable picker and track the input
@@ -750,46 +785,10 @@ export const chatBarComponent = (
 
   // Command submit button
   $commandSubmitButton.addEventListener('click', async () => {
+    if (commandSubmitting) return;
     if (currentCommand && inlineForm.isValid()) {
-      $commandError.textContent = '';
       const data = inlineForm.getData();
-
-      // Special handling for enter command - uses profile navigation
-      if (currentCommand === 'enter') {
-        const { hostName } = /** @type {{ hostName: string }} */ (data);
-        exitCommandMode();
-        await enterProfile(hostName);
-        return;
-      }
-
-      // For js/eval: reset command line immediately so guest proposals don't block the UI
-      const isEval = currentCommand === 'js' || currentCommand === 'eval';
-      if (isEval) {
-        exitCommandMode();
-      }
-
-      const result = await executor.execute(currentCommand, data);
-      if (result.success) {
-        if (!isEval) {
-          exitCommandMode();
-        }
-        const resultName =
-          'resultName' in data && data.resultName
-            ? String(data.resultName)
-            : undefined;
-        const resultPath = resultName ? resultName.split('.') : undefined;
-        // Always show js results (even undefined), skip show/list which handle their own display
-        if (currentCommand === 'js') {
-          showValue(result.value, undefined, resultPath, undefined);
-        } else if (
-          result.value !== undefined &&
-          currentCommand !== 'show' &&
-          currentCommand !== 'list'
-        ) {
-          showValue(result.value, undefined, resultPath, undefined);
-        }
-      }
-      // Error case: showError callback already set $commandError or $error.textContent
+      await executeWithSpinner(currentCommand, data);
     }
   });
 

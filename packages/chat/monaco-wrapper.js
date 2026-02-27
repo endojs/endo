@@ -6,6 +6,7 @@
  * @property {() => string} getValue - Get the editor content
  * @property {(value: string) => void} setValue - Set the editor content
  * @property {(line: number, column: number) => void} setCursorPosition - Set cursor position (1-indexed)
+ * @property {(readOnly: boolean) => void} setReadOnly - Set the editor read-only state
  * @property {() => void} focus - Focus the editor
  * @property {() => void} dispose - Dispose the editor
  * @property {(callback: () => void) => void} onAddEndowment - Register callback for Cmd+E
@@ -100,6 +101,12 @@ export const createMonacoEditor = async (
     setCursorPosition: (line, column) => {
       $iframe.contentWindow?.postMessage(
         { type: 'set-cursor', line, column },
+        '*',
+      );
+    },
+    setReadOnly: readOnly => {
+      $iframe.contentWindow?.postMessage(
+        { type: 'set-readonly', value: readOnly },
         '*',
       );
     },

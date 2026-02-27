@@ -272,6 +272,26 @@ export const createEvalForm = async ({
     $codeNameInput.focus();
   };
 
+  /**
+   * @param {boolean} disabled
+   */
+  const setFormDisabled = disabled => {
+    $resultNameInput.disabled = disabled;
+    $workerNameInput.disabled = disabled;
+    $addEndowmentBtn.disabled = disabled;
+    const $inputs = $endowmentsList.querySelectorAll('input');
+    for (const $el of $inputs) {
+      /** @type {HTMLInputElement} */ ($el).disabled = disabled;
+    }
+    const $removeBtns = $endowmentsList.querySelectorAll(
+      '.eval-remove-endowment',
+    );
+    for (const $el of $removeBtns) {
+      /** @type {HTMLButtonElement} */ ($el).disabled = disabled;
+    }
+    editor.setReadOnly(disabled);
+  };
+
   const handleSubmit = async () => {
     clearError();
 
@@ -295,8 +315,9 @@ export const createEvalForm = async ({
     // Filter out empty endowments
     const validEndowments = endowments.filter(e => e.codeName && e.petName);
 
+    $submitBtn.classList.add('btn-spinner');
     $submitBtn.disabled = true;
-    $submitBtn.textContent = 'Evaluating...';
+    setFormDisabled(true);
 
     try {
       await onSubmit({
@@ -313,8 +334,10 @@ export const createEvalForm = async ({
     } catch (err) {
       showError(/** @type {Error} */ (err).message);
     } finally {
+      $submitBtn.classList.remove('btn-spinner');
       $submitBtn.disabled = false;
       $submitBtn.textContent = 'Evaluate';
+      setFormDisabled(false);
       updateSubmitButton();
     }
   };

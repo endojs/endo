@@ -21,6 +21,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @property {() => boolean} isMenuVisible - Check if autocomplete menu is visible
  * @property {() => string | null} getLastRecipient - Get the last recipient for continuation
  * @property {() => SendFormState} getState - Get current input state for modeline
+ * @property {() => boolean} isSubmitting - Check if a send is in progress
  */
 
 /**
@@ -31,6 +32,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {HTMLElement} options.$menu - The autocomplete menu container
  * @param {HTMLElement} options.$error - Error display element
  * @param {HTMLElement} options.$sendButton - Send button element
+ * @param {HTMLElement} options.$chatBar - Chat bar element (for submitting class)
  * @param {typeof import('@endo/far').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object
@@ -46,6 +48,7 @@ export const sendFormComponent = ({
   $menu,
   $error,
   $sendButton,
+  $chatBar,
   E,
   makeRefIterator,
   powers,
@@ -61,6 +64,7 @@ export const sendFormComponent = ({
 
   /** @type {string | null} */
   let lastRecipient = null;
+  let submitting = false;
 
   // Initialize token autocomplete
   const tokenComponent = tokenAutocompleteComponent($input, $menu, {
@@ -84,10 +88,27 @@ export const sendFormComponent = ({
     return range.startOffset === 0;
   };
 
+  const setSubmitting = (/** @type {boolean} */ value) => {
+    submitting = value;
+    if (value) {
+      $chatBar.classList.add('submitting');
+      $sendButton.classList.add('btn-spinner');
+      /** @type {HTMLButtonElement} */ ($sendButton).disabled = true;
+      $input.contentEditable = 'false';
+    } else {
+      $chatBar.classList.remove('submitting');
+      $sendButton.classList.remove('btn-spinner');
+      /** @type {HTMLButtonElement} */ ($sendButton).disabled = false;
+      $input.contentEditable = 'true';
+    }
+  };
+
   /** @param {Event} event */
   const handleSend = event => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (submitting) return;
 
     // Don't send if token menu is visible (Enter selects token)
     if (tokenComponent.isMenuVisible()) {
@@ -115,6 +136,7 @@ export const sendFormComponent = ({
         return s;
       });
 
+      setSubmitting(true);
       E(powers)
         .send(conversationPetName, messageStrings, edgeNames, petNames)
         .then(
@@ -126,7 +148,8 @@ export const sendFormComponent = ({
           (/** @type {Error} */ error) => {
             $error.textContent = error.message;
           },
-        );
+        )
+        .finally(() => setSubmitting(false));
       return;
     }
 
@@ -136,23 +159,26 @@ export const sendFormComponent = ({
     if (onlyToken) {
       const [petName] = petNames;
       const petNamePath = petName.split('.');
+      setSubmitting(true);
       Promise.all([
         E(powers).identify(
           .../** @type {[string, ...string[]]} */ (petNamePath),
         ),
         E(powers).lookup(petNamePath),
-      ]).then(
-        ([id, value]) => {
-          if (showValue) {
-            showValue(value, id, petNamePath, undefined);
-          }
-          tokenComponent.clear();
-          clearError();
-        },
-        (/** @type {Error} */ error) => {
-          $error.textContent = error.message;
-        },
-      );
+      ])
+        .then(
+          ([id, value]) => {
+            if (showValue) {
+              showValue(value, id, petNamePath, undefined);
+            }
+            tokenComponent.clear();
+            clearError();
+          },
+          (/** @type {Error} */ error) => {
+            $error.textContent = error.message;
+          },
+        )
+        .finally(() => setSubmitting(false));
       return;
     }
 
@@ -196,6 +222,7 @@ export const sendFormComponent = ({
 
     const navigateAfterSend = firstStringEmpty && petNames.length > 0;
 
+    setSubmitting(true);
     E(powers)
       .send(to, messageStrings, messageEdgeNames, messagePetNames)
       .then(
@@ -210,7 +237,8 @@ export const sendFormComponent = ({
         (/** @type {Error} */ error) => {
           $error.textContent = error.message;
         },
-      );
+      )
+      .finally(() => setSubmitting(false));
   };
 
   $sendButton.addEventListener('click', handleSend);
@@ -273,5 +301,6 @@ export const sendFormComponent = ({
     isMenuVisible: () => tokenComponent.isMenuVisible(),
     getLastRecipient: () => lastRecipient,
     getState,
+    isSubmitting: () => submitting,
   };
 };
