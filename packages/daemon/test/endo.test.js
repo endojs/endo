@@ -867,15 +867,15 @@ test('guest facet receives a message for host', async t => {
   const messagesIterator = iterateReader(E(host).followMessages());
   const numberP = E(guest).request('HOST', 'a number', 'number');
   const { value: message0 } = await messagesIterator.next();
-  t.is(message0.number, 0n);
-  await E(host).resolve(message0.number, 'ten1');
+  t.is(/** @type {any} */ (message0).number, 0n);
+  await E(host).resolve(/** @type {any} */ (message0).number, 'ten1');
   await numberP;
 
   await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
 
   const { value: message1 } = await messagesIterator.next();
-  t.is(message1.number, 1n);
-  await E(host).adopt(message1.number, 'gift', ['ten2']);
+  t.is(/** @type {any} */ (message1).number, 1n);
+  await E(host).adopt(/** @type {any} */ (message1).number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
 
@@ -918,10 +918,10 @@ test('mailboxes persist messages across restart', async t => {
 
   const { value: message0 } = await messagesIterator.next();
   const { value: message1 } = await messagesIterator.next();
-  t.is(message0.number, 0n);
-  t.is(message1.number, 1n);
+  t.is(/** @type {any} */ (message0).number, 0n);
+  t.is(/** @type {any} */ (message1).number, 1n);
 
-  await E(host).dismiss(message0.number);
+  await E(host).dismiss(/** @type {any} */ (message0).number);
 
   const inboxBefore = await E(host).listMessages();
   t.deepEqual(
@@ -997,7 +997,7 @@ test('followNameChanges publishes new names', async t => {
   await E(host).storeValue(10, 'ten');
 
   const { value } = await changesIterator.next();
-  t.is(value.add, 'ten');
+  t.is(/** @type {any} */ (value).add, 'ten');
 });
 
 test('followNameChanges publishes removed names', async t => {
@@ -1010,7 +1010,7 @@ test('followNameChanges publishes removed names', async t => {
 
   await E(host).remove('ten');
   const { value } = await changesIterator.next();
-  t.is(value.remove, 'ten');
+  t.is(/** @type {any} */ (value).remove, 'ten');
 });
 
 test('followNameChanges publishes renamed names', async t => {
@@ -1024,9 +1024,9 @@ test('followNameChanges publishes renamed names', async t => {
   await E(host).move(['ten'], ['zehn']);
 
   let { value } = await changesIterator.next();
-  t.is(value.remove, 'ten');
+  t.is(/** @type {any} */ (value).remove, 'ten');
   value = (await changesIterator.next()).value;
-  t.is(value.add, 'zehn');
+  t.is(/** @type {any} */ (value).add, 'zehn');
 });
 
 test('followNameChanges publishes renamed names (existing mappings for both names)', async t => {
@@ -1042,11 +1042,11 @@ test('followNameChanges publishes renamed names (existing mappings for both name
   await E(host).move(['ten'], ['decimus']);
 
   let { value } = await changesIterator.next();
-  t.is(value.remove, 'decimus');
+  t.is(/** @type {any} */ (value).remove, 'decimus');
   value = (await changesIterator.next()).value;
-  t.is(value.remove, 'ten');
+  t.is(/** @type {any} */ (value).remove, 'ten');
   value = (await changesIterator.next()).value;
-  t.is(value.add, 'decimus');
+  t.is(/** @type {any} */ (value).add, 'decimus');
 });
 
 test('followNameChanges does not notify of redundant pet store writes', async t => {
@@ -1064,7 +1064,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
   // published as as result of the redundant write.
   await E(host).storeValue(11, 'eleven');
   const { value } = await changesIterator.next();
-  t.is(value.add, 'eleven');
+  t.is(/** @type {any} */ (value).add, 'eleven');
 });
 
 test('followLocatorNameChanges first publishes existing pet name', async t => {
@@ -1418,9 +1418,12 @@ test('indirect cancellation via caplet', async t => {
   await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
   {
     const { value: message } = await messagesIterator.next();
-    t.is(message.type, 'request');
-    t.is(message.description, 'a counter, suitable for doubling');
-    await E(host).resolve(message.number, 'counter');
+    t.is(/** @type {any} */ (message).type, 'request');
+    t.is(
+      /** @type {any} */ (message).description,
+      'a counter, suitable for doubling',
+    );
+    await E(host).resolve(/** @type {any} */ (message).number, 'counter');
   }
 
   t.is(
@@ -1462,8 +1465,8 @@ test('cancel because of requested capability', async t => {
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
   const { value: message } = await messagesIterator.next();
-  t.is(message.type, 'request');
-  await E(host).resolve(message.number, 'zero');
+  t.is(/** @type {any} */ (message).type, 'request');
+  await E(host).resolve(/** @type {any} */ (message).number, 'zero');
 
   t.is(
     1,

@@ -337,11 +337,6 @@ gracefully transition to using `iterateReader()` instead of
 
 See [DESIGN.md](./DESIGN.md) for design documentation.
 
-## Protocol Specification
-
-See [PROTOCOL.md](./PROTOCOL.md) for the formal protocol specification,
-suitable for implementation in other languages or proposal to OCapN.
-
 ## Future Work
 
 - Support direct binary transport when CapTP supports it.
