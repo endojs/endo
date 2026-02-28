@@ -3,7 +3,7 @@ import {
   iteratorPrototype,
   iteratorSymbol,
   hasOwn,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export const tameRegeneratorRuntime = () => {
   const iter = iteratorPrototype[iteratorSymbol];

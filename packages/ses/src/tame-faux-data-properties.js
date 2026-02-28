@@ -3,7 +3,7 @@ import {
   apply,
   defineProperty,
   toStringTagSymbol,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 const throws = thunk => {
   try {

@@ -3,8 +3,8 @@
 /* global globalThis */
 
 import test from 'ava';
+import { getOwnPropertyNames } from '@endo/error-console-internal/commons.js';
 import { repairIntrinsics } from '../src/lockdown.js';
-import { getOwnPropertyNames } from '../src/commons.js';
 import { initialGlobalPropertyNames } from '../src/permits.js';
 
 // eslint-disable-next-line no-eval

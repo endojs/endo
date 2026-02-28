@@ -1,7 +1,5 @@
 /** @import {ModuleExportsNamespace} from '../types.js' */
 
-import { assert } from './error/assert.js';
-import { getDeferredExports } from './module-proxy.js';
 import {
   ReferenceError,
   SyntaxError,
@@ -21,7 +19,9 @@ import {
   weakmapGet,
   reflectHas,
   assign,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
+import { getDeferredExports } from './module-proxy.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 
 const { quote: q } = assert;
