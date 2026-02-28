@@ -1,4 +1,3 @@
-import { cauterizeProperty } from './cauterize-property.js';
 import {
   TypeError,
   WeakSet,
@@ -15,7 +14,8 @@ import {
   hasOwn,
   values,
   weaksetHas,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
+import { cauterizeProperty } from './cauterize-property.js';
 
 import {
   constantProperties,

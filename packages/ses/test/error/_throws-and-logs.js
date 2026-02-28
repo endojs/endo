@@ -1,12 +1,15 @@
 // @ts-nocheck
 /* global globalThis */
 
-import { freeze, getPrototypeOf } from '../../src/commons.js';
-import { loggedErrorHandler } from '../../src/error/assert.js';
 import {
+  freeze,
+  getPrototypeOf,
+} from '@endo/error-console-internal/commons.js';
+import {
+  loggedErrorHandler,
   makeLoggingConsoleKit,
   makeCausalConsole,
-} from '../../src/error/console.js';
+} from '@endo/error-console-internal';
 
 // For our internal debugging purposes
 // const internalDebugConsole = console;

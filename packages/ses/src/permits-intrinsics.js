@@ -43,7 +43,6 @@
 // name to the console as a useful diagnostic, possibly provoking an expansion
 // of the permits.
 
-import { permitted, FunctionInstance, isAccessorPermit } from './permits.js';
 import {
   Map,
   String,
@@ -60,7 +59,8 @@ import {
   hasOwn,
   ownKeys,
   symbolKeyFor,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
+import { permitted, FunctionInstance, isAccessorPermit } from './permits.js';
 import { cauterizeProperty } from './cauterize-property.js';
 
 /**

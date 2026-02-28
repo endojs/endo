@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-import { freeze } from './commons.js';
+import { freeze } from '@endo/error-console-internal/commons.js';
 
 /** @import {Harden} from '../types.js'; */
 

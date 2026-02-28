@@ -7,7 +7,7 @@ import {
   stringEndsWith,
   weaksetAdd,
   weaksetHas,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 const nativeSuffix = ') { [native code] }';
 

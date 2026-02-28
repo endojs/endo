@@ -1,4 +1,8 @@
-import { FERAL_REG_EXP, regexpExec, stringSlice } from './commons.js';
+import {
+  FERAL_REG_EXP,
+  regexpExec,
+  stringSlice,
+} from '@endo/error-console-internal/commons.js';
 
 // Captures a key and value of the form #key=value or @key=value
 const sourceMetaEntryRegExp =

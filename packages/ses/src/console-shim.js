@@ -1,6 +1,8 @@
-import { symbolFor, globalThis } from './commons.js';
-import { defineCausalConsoleFromLogger } from './error/console.js';
-import { loggedErrorHandler } from './error/assert.js';
+import { symbolFor, globalThis } from '@endo/error-console-internal/commons.js';
+import {
+  defineCausalConsoleFromLogger,
+  loggedErrorHandler,
+} from '@endo/error-console-internal';
 
 // TODO possible additional exports. Some are privileged.
 // export { loggedErrorHandler };

@@ -1,4 +1,4 @@
-import { hasOwn } from './commons.js';
+import { hasOwn } from '@endo/error-console-internal/commons.js';
 
 /**
  * @import {Reporter} from './reporting-types.js'

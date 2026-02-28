@@ -6,7 +6,7 @@ import {
   defineProperties,
   arrayMap,
   functionBind,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 /**
  * This taming provides a tamed alternative to the original `Symbol` constructor

@@ -17,7 +17,7 @@ import {
   assign,
   AsyncGeneratorFunctionInstance,
   ArrayBuffer,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 import { InertCompartment } from './compartment.js';
 
 /**

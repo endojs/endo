@@ -4,7 +4,7 @@ import {
   create,
   getOwnPropertyDescriptors,
   objectPrototype,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export default function tameMathObject() {
   const originalMath = Math;

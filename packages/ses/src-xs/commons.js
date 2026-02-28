@@ -10,7 +10,7 @@ import {
   getOwnPropertyDescriptor,
   globalThis,
   uncurryThis,
-} from '../src/commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 /** @type {typeof Compartment} */
 export const NativeStartCompartment = /** @type {any} */ (globalThis)

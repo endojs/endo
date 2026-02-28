@@ -5,7 +5,7 @@ import {
   defineProperties,
   getOwnPropertyDescriptor,
   speciesSymbol,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export default function tameRegExpConstructor(regExpTaming = 'safe') {
   const RegExpPrototype = FERAL_REG_EXP.prototype;

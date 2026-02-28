@@ -6,7 +6,7 @@ import {
   getOwnPropertyDescriptor as gopd,
   isExtensible,
   isFrozen,
-} from '../src/commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 defineProperty(Symbol, 'dummy', {
   value: Symbol.for('faux well known symbol'),

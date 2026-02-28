@@ -15,7 +15,7 @@ import {
   hasOwn,
   ownKeys,
   setHas,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 import {
   minEnablements,

@@ -658,10 +658,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/error-console-internal@workspace:^, @endo/error-console-internal@workspace:packages/error-console-internal":
+  version: 0.0.0-use.local
+  resolution: "@endo/error-console-internal@workspace:packages/error-console-internal"
+  dependencies:
+    "@endo/cache-map": "workspace:^"
+    "@endo/harden": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
+    "@endo/error-console-internal": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/lockdown": "workspace:^"
@@ -669,7 +684,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     ses0.18.3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
@@ -10372,6 +10386,7 @@ __metadata:
     "@endo/cache-map": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/env-options": "workspace:^"
+    "@endo/error-console-internal": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/module-source": "workspace:^"
     "@endo/test262-runner": "workspace:^"

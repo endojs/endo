@@ -1,6 +1,6 @@
 import test from 'ava';
 import '../index.js';
-import { getOwnPropertyDescriptor } from '../src/commons.js';
+import { getOwnPropertyDescriptor } from '@endo/error-console-internal/commons.js';
 
 test.before(() => {
   lockdown();
