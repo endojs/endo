@@ -32,3 +32,7 @@ import '@endo/non-trapping-shim/shim.js';
 ```
 
 When not opted into, importing the shim has no effect.
+
+---
+
+TODO: explain non-trapping-shim-adapter.js export
