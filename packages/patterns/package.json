@@ -1,6 +1,6 @@
 {
   "name": "@endo/patterns",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Pattern matching for Passable objects, expressed as Passable data",
   "keywords": [],
   "author": "Endo contributors",
