@@ -126,22 +126,19 @@ testAcrossFormats(
       `precondition: CopyArray static coverage ${q(coverAnyCopyArray)} is a valid range`,
     );
 
-    let foundNotCovered = false;
+    const makeNonKey = x => Promise.resolve(x);
     await fc.assert(
       fc.property(
         arbKey,
         fc.array(arbPassable, { minLength: 1, maxLength }),
-        fc.array(arbPassable, { maxLength }),
-        fc.constantFrom(
-          x => new Error(String(x)),
-          x => Promise.resolve(x),
-        ),
-        (key, rest, other, makeNonKey) => {
-          if (rest.every(x => isKey(x))) {
+        (key, rest) => {
+          let nonKeyIndex = rest.findIndex(x => !isKey(x));
+          if (nonKeyIndex === -1) {
             // We need a non-Key, so to avoid wasting the work with fast-check
             // `.filter` (which can lead to https://crbug.com/1201626 crashes),
-            // we just transform the first element as directed.
-            rest[0] = makeNonKey(rest[0]);
+            // we just transform the last element.
+            nonKeyIndex = rest.length - 1;
+            rest[nonKeyIndex] = makeNonKey(rest[nonKeyIndex]);
           }
           const cover = getRankCover(harden([key, ...rest]), encodePassable);
           t.true(
@@ -153,18 +150,17 @@ testAcrossFormats(
             `leading-Key CopyArray coverage is tighter than any-CopyArray coverage: ${q(cover)} ⊊ ${q(coverAnyCopyArray)}`,
           );
 
-          if (!foundNotCovered) {
-            const encodedOther = encodePassable(harden(other));
-            foundNotCovered =
-              compareRank(encodedOther, cover[0]) < 0 ||
-              compareRank(cover[1], encodedOther) < 0;
-          }
+          // An analogous specimen with a non-Key in place of the last prefix
+          // Key must fall outside of the above coverage.
+          const nonMatch = [key, ...rest];
+          nonMatch[nonKeyIndex] = makeNonKey(nonMatch[nonKeyIndex]);
+          const encodedNonMatch = encodePassable(harden(nonMatch));
+          t.false(
+            isInteriorRange([encodedNonMatch, encodedNonMatch], cover),
+            'at least one CopyArray must be outside of leading-Key coverage',
+          );
         },
       ),
-    );
-    t.true(
-      foundNotCovered,
-      'at least one CopyArray must be outside of leading-Key coverage',
     );
   },
 );
