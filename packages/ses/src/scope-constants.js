@@ -7,7 +7,7 @@ import {
   regexpExec,
   Set,
   setHas,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 /**
  * reservedNames

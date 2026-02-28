@@ -2,7 +2,7 @@
   "name": "@endo/error-console-internal",
   "version": "0.1.0",
   "private": true,
-  "description": null,
+  "description": "assert, console only for use by ses, @endo/errors",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -20,6 +20,7 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./commons.js": "./commons.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -34,10 +35,11 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@endo/cache-map": "workspace:^",
+    "@endo/harden": "workspace:^"
+  },
   "devDependencies": {
-    "@endo/lockdown": "workspace:^",
-    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",

@@ -1,6 +1,10 @@
 // @ts-check
 
-import { FERAL_FUNCTION, arrayJoin, apply } from './commons.js';
+import {
+  FERAL_FUNCTION,
+  arrayJoin,
+  apply,
+} from '@endo/error-console-internal/commons.js';
 import { getScopeConstants } from './scope-constants.js';
 
 /**

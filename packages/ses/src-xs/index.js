@@ -9,7 +9,7 @@
 // @ts-nocheck
 /// <refs types="../types.js"/>
 
-import { Object, freeze } from '../src/commons.js';
+import { Object, freeze } from '@endo/error-console-internal/commons.js';
 
 // These are the constituent shims in an arbitrary order, but matched
 // to ../index.js to remove doubt.

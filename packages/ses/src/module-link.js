@@ -1,10 +1,5 @@
 /* eslint-disable no-underscore-dangle */
 
-import { assert } from './error/assert.js';
-import {
-  makeModuleInstance,
-  makeVirtualModuleInstance,
-} from './module-instance.js';
 import {
   Map,
   ReferenceError,
@@ -16,7 +11,12 @@ import {
   mapHas,
   mapSet,
   weakmapGet,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
+import {
+  makeModuleInstance,
+  makeVirtualModuleInstance,
+} from './module-instance.js';
 
 const { Fail, quote: q } = assert;
 

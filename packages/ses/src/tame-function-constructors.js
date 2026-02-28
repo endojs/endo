@@ -7,7 +7,7 @@ import {
   setPrototypeOf,
   freeze,
   AsyncGeneratorFunctionInstance,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 // This module replaces the original `Function` constructor, and the original
 // `%GeneratorFunction%`, `%AsyncFunction%` and `%AsyncGeneratorFunction%`,
