@@ -28,7 +28,7 @@
 | [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
-| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-02-26 | Not Started |
+| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-02-28 | In Progress |
 | [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
@@ -36,7 +36,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 7 Complete, 4 In Progress, 18 Not Started
+**Totals:** 7 Complete, 5 In Progress, 17 Not Started
 
 ## Roadmap
 

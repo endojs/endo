@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-02-26 |
-| **Updated** | 2026-02-26 |
+| **Updated** | 2026-02-28 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
 
 ## Motivation
 
@@ -425,32 +425,35 @@ outbound `messageId`. No daemon API changes required.
 
 ## Implementation Phases
 
-### Phase 1: Reply Tool and Threading
+### Phase 1: Reply Tool and Threading — **Complete**
 
-- Add the `reply` tool definition and `case 'reply'` to `executeTool()`.
-- Update `listMessages` formatting to include `messageId` and `replyTo`.
-- Update system prompt to prefer `reply()` over `send()`.
-- Agent still uses a single transcript (no branching yet).
+- Added `reply` tool definition and `case 'reply'` to `executeTool()`.
+- Updated `listMessages` to include `messageId` and `replyTo` fields.
+- Updated system prompt to prefer `reply()` over `send()`.
 
-### Phase 2: Node-Based Transcript Store
+### Phase 2: Node-Based Transcript Store — **Complete**
 
-- Define `TranscriptNode` type.
-- Replace module-level `transcript` with node creation/lookup.
+- Defined `TranscriptNode` type in `agent.types.d.ts`.
+- Replaced module-level `transcript` array with linked-chain node store.
 - Route inbound messages to the correct chain based on `replyTo`.
-- Create new root nodes for stand-alone messages.
-- Assemble full transcript from chain on each LLM call.
-- Handle own-messages to create aliases.
+- Create new root nodes (with system prompt) for stand-alone messages.
+- Assemble full transcript from chain on each LLM call via `assembleTranscript()`.
+- Handle own-messages via `handleOwnMessage()` to create alias entries.
+- Extracted `formatInboundMessage()` for building user-role content from
+  both regular messages and counter-proposals.
+- `processNotifications()` now takes a node parameter and appends to the
+  active node rather than the old global transcript.
 
-### Phase 3: Durable Storage
+### Phase 3: Durable Storage — **Complete**
 
 - Persist nodes via `E(powers).storeValue()` under `transcript-<messageId>`.
-- Lazy-load nodes from pet store on cache miss.
-- Add bounded cache eviction for in-memory nodes.
+- Lazy-load nodes from pet store on cache miss in `getNode()`.
+- Bounded cache eviction not yet implemented (deferred to Phase 5).
 
-### Phase 4: Depth Indicator
+### Phase 4: Depth Indicator — **Complete**
 
-- Compute depth from assembled transcript.
-- Prepend `[depth:N]` to outgoing reply strings.
+- `computeDepth()` counts user + assistant turns in the assembled transcript.
+- `reply` tool prepends `[depth:N] ` to the first string fragment.
 
 ### Phase 5: Memory Management (Future)
 
