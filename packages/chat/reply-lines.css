@@ -1,0 +1,65 @@
+/* Reply Chain Gutter Lines */
+
+:root {
+  --reply-line-color: #9ca3af;
+  --reply-line-width: 2px;
+  --reply-indent-width: 2ex;
+}
+
+[data-theme='dark'] {
+  --reply-line-color: #6b7280;
+}
+
+.message-gutter {
+  width: var(--reply-indent-width);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Vertical line — continues through message */
+.message[data-line='continue'] .message-gutter::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--reply-indent-width) / 2 - var(--reply-line-width) / 2);
+  top: 0;
+  bottom: 0;
+  width: var(--reply-line-width);
+  background: var(--reply-line-color);
+}
+
+/* Vertical line — terminates at message center */
+.message[data-line='end'] .message-gutter::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--reply-indent-width) / 2 - var(--reply-line-width) / 2);
+  top: 0;
+  bottom: 50%;
+  width: var(--reply-line-width);
+  background: var(--reply-line-color);
+}
+
+/* Branch — vertical through-line plus horizontal fork */
+.message[data-line='branch'] .message-gutter::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--reply-indent-width) / 2 - var(--reply-line-width) / 2);
+  top: 0;
+  bottom: 0;
+  width: var(--reply-line-width);
+  background: var(--reply-line-color);
+}
+
+.message[data-line='branch'] .message-gutter::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--reply-indent-width) / 2);
+  top: 50%;
+  right: 0;
+  height: var(--reply-line-width);
+  background: var(--reply-line-color);
+}
+
+/* Indented messages */
+.message[data-indent='1'] {
+  margin-left: var(--reply-indent-width);
+}

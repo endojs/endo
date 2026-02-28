@@ -116,6 +116,27 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'reply': {
+          const { messageNumber, message } = params;
+          const {
+            strings,
+            edgeNames,
+            petNames,
+          } = /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
+            message
+          );
+          await E(powers).reply(
+            BigInt(/** @type {number} */ (messageNumber)),
+            strings,
+            edgeNames,
+            petNames,
+          );
+          return {
+            success: true,
+            message: `Reply sent to message #${messageNumber}`,
+          };
+        }
+
         case 'grant':
         case 'allow': {
           const { messageNumber } = params;
