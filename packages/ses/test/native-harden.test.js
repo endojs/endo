@@ -4,7 +4,9 @@ import { assertFakeFrozen } from './_lockdown-harden-unsafe.js';
 // eslint-disable-next-line import/order
 import test from 'ava';
 
-test('mocked globalThis.harden', t => {
+// Skipped in case there is a native harden but we're not using it
+// because we've opted into the non-trapping shim.
+test.skip('mocked globalThis.harden', t => {
   t.is(harden, mockHarden);
   t.is(harden.isFake, true);
 

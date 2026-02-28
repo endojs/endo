@@ -1,5 +1,6 @@
 import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
+import { isFrozenOrIsNonTrapping } from '@endo/non-trapping-shim/non-trapping-shim-adapter.js';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import {
   PASS_STYLE,
@@ -63,7 +64,6 @@ const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
   getPrototypeOf,
-  isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
   hasOwn,
@@ -189,7 +189,7 @@ const confirmRemotable = (val, reject) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isFrozen(val)) {
+  if (!isFrozenOrIsNonTrapping(val)) {
     return reject && reject`cannot serialize non-frozen objects like ${val}`;
   }
   // eslint-disable-next-line no-use-before-define

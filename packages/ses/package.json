@@ -73,6 +73,7 @@
       "default": "./compartment-shim.js"
     },
     "./console-shim.js": "./console-shim.js",
+    "./nonTrappingShimAdapter.js": "./nonTrappingShimAdapter.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -96,7 +97,8 @@
   "dependencies": {
     "@endo/cache-map": "workspace:^",
     "@endo/env-options": "workspace:^",
-    "@endo/immutable-arraybuffer": "workspace:^"
+    "@endo/immutable-arraybuffer": "workspace:^",
+    "@endo/non-trapping-shim": "workspace:^"
   },
   "devDependencies": {
     "@babel/generator": "^7.28.3",

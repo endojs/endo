@@ -1,6 +1,6 @@
 /* global globalThis */
-
 import harden from '@endo/harden';
+import { isFrozenOrIsNonTrapping } from '@endo/non-trapping-shim/non-trapping-shim-adapter.js';
 import { isPromise } from '@endo/promise-kit';
 import {
   X,
@@ -164,14 +164,17 @@ const makePassStyleOf = passStyleHelpers => {
           if (inner === null) {
             return 'null';
           }
-          if (!isFrozen(inner)) {
-            assert.fail(
-              // TypedArrays get special treatment in harden()
-              // and a corresponding special error message here.
-              isTypedArray(inner)
-                ? X`Cannot pass mutable typed arrays like ${inner}.`
-                : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
-            );
+          if (!isFrozenOrIsNonTrapping(inner)) {
+            if (!isFrozen(inner)) {
+              throw assert.fail(
+                // TypedArrays get special treatment in harden()
+                // and a corresponding special error message here.
+                isTypedArray(inner)
+                  ? X`Cannot pass mutable typed arrays like ${inner}.`
+                  : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
+              );
+            }
+            throw Fail`Cannot pass trapping objects like ${inner}`;
           }
           if (isPromise(inner)) {
             assertSafePromise(inner);
@@ -198,8 +201,12 @@ const makePassStyleOf = passStyleHelpers => {
           return 'remotable';
         }
         case 'function': {
-          isFrozen(inner) ||
-            Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+          if (!isFrozenOrIsNonTrapping(inner)) {
+            if (!isFrozen(inner)) {
+              throw Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+            }
+            throw Fail`Cannot pass trapping objects like ${inner}. Use harden()`;
+          }
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
           assertValid(remotableHelper, inner, passStyleOfRecur);

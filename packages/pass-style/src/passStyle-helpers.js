@@ -1,6 +1,6 @@
 import harden from '@endo/harden';
 import { q, hideAndHardenFunction } from '@endo/errors';
-
+import { isFrozenOrIsNonTrapping } from '@endo/non-trapping-shim/non-trapping-shim-adapter.js';
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
  * @import {Checker, PassStyle, JSPrimitive} from './types.js';
@@ -157,6 +157,8 @@ const makeConfirmTagRecord = confirmProto => {
         (reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
         (reject && reject`A tagRecord must be frozen: ${tagRecord}`)) &&
+      (isFrozenOrIsNonTrapping(tagRecord) ||
+        (reject && reject`A tagRecord must be non-trapping: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&
       confirmPassStyle(

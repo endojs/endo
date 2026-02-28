@@ -49,7 +49,7 @@ const reverseSlot = slot => {
 };
 
 /**
- * @typedef {object} CapTPImportExportTables 
+ * @typedef {object} CapTPImportExportTables
  * @property {(value: any) => CapTPSlot} makeSlotForValue
  * @property {(slot: CapTPSlot, iface: string | undefined) => any} makeValueForSlot
  * @property {(slot: CapTPSlot) => boolean} hasImport
@@ -60,12 +60,12 @@ const reverseSlot = slot => {
  * @property {(slot: CapTPSlot, value: any) => void} markAsExported
  * @property {(slot: CapTPSlot) => void} deleteExport
  * @property {() => void} didDisconnect
- 
+ *
  * @typedef {object} MakeCapTPImportExportTablesOptions
  * @property {boolean} gcImports
  * @property {(slot: CapTPSlot) => void} releaseSlot
  * @property {(slot: CapTPSlot) => RemoteKit} makeRemoteKit
- 
+ *
  * @param {MakeCapTPImportExportTablesOptions} options
  * @returns {CapTPImportExportTables}
  */
