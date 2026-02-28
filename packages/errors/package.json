@@ -36,8 +36,8 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "@endo/harden": "workspace:^",
-    "ses": "workspace:^"
+    "@endo/error-console-internal": "workspace:^",
+    "@endo/harden": "workspace:^"
   },
   "devDependencies": {
     "@endo/eventual-send": "workspace:^",

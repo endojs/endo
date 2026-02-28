@@ -676,6 +676,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
+    "@endo/error-console-internal": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/lockdown": "workspace:^"
@@ -683,7 +684,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     ses0.18.3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"

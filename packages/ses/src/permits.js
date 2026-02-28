@@ -1,12 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import {
-  arrayPush,
-  arrayForEach,
-} from '@endo/error-console-internal/commons.js';
-
-/** @import {GenericErrorConstructor} from '../types.js' */
+import { arrayForEach } from '@endo/error-console-internal/commons.js';
 
 /**
  * Exports {@code permits}, a recursively defined
