@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 const {
   isFrozen,
   freeze,
@@ -5,8 +7,6 @@ const {
   isNonTrapping: optIsNonTrapping = undefined,
   // @ts-expect-error TS doesn't yet know about these proposed extensions
   suppressTrapping: optSuppressTrapping = undefined,
-  // @ts-expect-error TS doesn't yet know about this harden rendezvous
-  [Symbol.for('harden')]: optHarden = undefined,
 } = Object;
 
 /**
@@ -15,10 +15,9 @@ const {
 export const isFrozenOrIsNonTrapping = optIsNonTrapping || isFrozen;
 
 /**
- * If the shim is enabled, this is `suppressTrapping`. Otherwise it is `harden`
- * if available, or `undefined` otherwise.
+ * If the shim is enabled, this is `suppressTrapping`. Otherwise it is `harden`.
  */
-export const hardenOrSuppressTrapping = optSuppressTrapping || optHarden;
+export const hardenOrSuppressTrapping = optSuppressTrapping || harden;
 
 /**
  * If the shim is enabled, this is `suppressTrapping`. Otherwise it is `freeze`.

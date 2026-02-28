@@ -916,6 +916,7 @@ __metadata:
   resolution: "@endo/non-trapping-shim@workspace:packages/non-trapping-shim"
   dependencies:
     "@endo/env-options": "workspace:^"
+    "@endo/harden": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
