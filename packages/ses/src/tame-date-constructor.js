@@ -6,7 +6,7 @@ import {
   apply,
   construct,
   defineProperties,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export default function tameDateConstructor() {
   const OriginalDate = Date;

@@ -1,13 +1,18 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import { apply, arrayFlatMap, freeze, identity } from './commons.js';
+import {
+  apply,
+  arrayFlatMap,
+  freeze,
+  identity,
+} from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
 import { makeEvalScopeKit } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluate } from './make-evaluate.js';
-import { assert } from './error/assert.js';
 
 const { Fail } = assert;
 

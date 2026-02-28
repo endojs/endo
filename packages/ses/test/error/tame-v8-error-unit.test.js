@@ -1,6 +1,6 @@
 // @ts-nocheck
 import test from 'ava';
-import tameErrorConstructor from '../../src/error/tame-error-constructor.js';
+import { tameErrorConstructor } from '@endo/error-console-internal';
 
 const { '%InitialError%': InitialError } = tameErrorConstructor();
 
