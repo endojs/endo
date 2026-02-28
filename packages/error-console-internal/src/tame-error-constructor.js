@@ -37,6 +37,7 @@ if (typeof AggregateError !== 'undefined') {
   arrayPush(NativeErrors, AggregateError);
 }
 freeze(NativeErrors);
+
 // Present on at least FF and XS. Proposed by Error-proposal. The original
 // is dangerous, so tameErrorConstructor replaces it with a safe one.
 // We grab the original here before it gets replaced.
