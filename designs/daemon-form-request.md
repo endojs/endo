@@ -335,6 +335,12 @@ provide basic functionality.
    that calls `respondForm()`. Settled forms display the submitted values
    read-only.
 
+6. **Modal form builder for `/form` command.** Sending a form uses a modal
+   dialog (like the `/js` eval form) with a recipient picker, description
+   field, dynamic "Add field" button for name+label rows, and an optional
+   response name. The modal pattern handles the variable number of fields
+   naturally, following the established eval-form endowments UI pattern.
+
 ## Related Designs
 
 - [daemon-capability-persona](daemon-capability-persona.md) — persona/epithet

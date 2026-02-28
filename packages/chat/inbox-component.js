@@ -605,6 +605,114 @@ export const inboxComponent = async (
 
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
+    } else if (message.type === 'form-request') {
+      const { description, fields, settled } = message;
+
+      const $form = document.createElement('div');
+      $form.className = 'form-request-message';
+
+      // Sender chip + description
+      const $desc = document.createElement('div');
+      $desc.className = 'form-request-description';
+      if ($senderChip) {
+        $desc.appendChild($senderChip);
+        $desc.appendChild(document.createTextNode(' '));
+      }
+      $desc.appendChild(
+        document.createTextNode(
+          `requests form: ${JSON.stringify(description)}`,
+        ),
+      );
+      $form.appendChild($desc);
+
+      // Build input fields
+      const $fieldsContainer = document.createElement('div');
+      $fieldsContainer.className = 'form-request-fields';
+
+      /** @type {Record<string, HTMLInputElement>} */
+      const fieldInputs = {};
+      const fieldKeys = Object.keys(
+        /** @type {Record<string, {label: string}>} */ (fields),
+      );
+      for (const key of fieldKeys) {
+        const fieldDef = /** @type {{label: string}} */ (
+          /** @type {Record<string, {label: string}>} */ (fields)[key]
+        );
+        const $row = document.createElement('div');
+        $row.className = 'form-request-field-row';
+
+        const $label = document.createElement('label');
+        $label.className = 'form-request-field-label';
+        $label.textContent = fieldDef.label || key;
+
+        const $input = document.createElement('input');
+        $input.type = 'text';
+        $input.className = 'form-request-field-input';
+        $input.placeholder = key;
+        $input.autocomplete = 'off';
+        $input.dataset.formType = 'other';
+        $input.dataset.lpignore = 'true';
+
+        fieldInputs[key] = $input;
+        $row.appendChild($label);
+        $row.appendChild($input);
+        $fieldsContainer.appendChild($row);
+      }
+      $form.appendChild($fieldsContainer);
+
+      // Actions
+      const $actions = document.createElement('div');
+      $actions.className = 'form-request-actions';
+
+      const $submit = document.createElement('button');
+      $submit.className = 'form-request-submit';
+      $submit.textContent = 'Submit';
+      $submit.onclick = () => {
+        /** @type {Record<string, string>} */
+        const values = {};
+        for (const key of fieldKeys) {
+          values[key] = fieldInputs[key].value;
+        }
+        E(powers)
+          .respondForm(number, values)
+          .catch(err => {
+            $error.innerText = ` ${/** @type {Error} */ (err).message}`;
+          });
+      };
+      $actions.appendChild($submit);
+
+      const $reject = document.createElement('button');
+      $reject.className = 'form-request-reject';
+      $reject.textContent = 'Reject';
+      $reject.onclick = () => {
+        E(powers)
+          .reject(number)
+          .catch(err => {
+            $error.innerText = ` ${/** @type {Error} */ (err).message}`;
+          });
+      };
+      $actions.appendChild($reject);
+      $form.appendChild($actions);
+
+      // Replace with status when settled
+      settled.then(status => {
+        $fieldsContainer.querySelectorAll('input').forEach(input => {
+          /** @type {HTMLInputElement} */ (input).disabled = true;
+        });
+        $actions.innerHTML = '';
+        const $status = document.createElement('span');
+        $status.className = 'form-request-status';
+        if (status === 'fulfilled') {
+          $status.textContent = 'Submitted';
+          $status.classList.add('status-granted');
+        } else {
+          $status.textContent = 'Rejected';
+          $status.classList.add('status-rejected');
+        }
+        $actions.appendChild($status);
+      });
+
+      $body.appendChild($form);
     }
 
     $parent.insertBefore($message, $end);

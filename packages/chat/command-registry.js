@@ -187,6 +187,16 @@ export const COMMANDS = {
     aliases: ['allow'],
   },
 
+  form: {
+    name: 'form',
+    label: 'Send Form',
+    description: 'Send a structured form request to a recipient',
+    category: 'messaging',
+    mode: 'modal',
+    fields: [],
+    submitLabel: 'Send Form',
+  },
+
   'approve-eval': {
     name: 'approve-eval',
     label: 'Approve Eval',

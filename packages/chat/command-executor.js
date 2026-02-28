@@ -128,6 +128,33 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'form': {
+          const {
+            recipient,
+            description,
+            fields: fieldDefs,
+            resultName,
+          } = params;
+          const recipientPath = String(recipient).split('.');
+          /** @type {Record<string, {label: string}>} */
+          const fieldsRecord = {};
+          for (const f of /** @type {Array<{name: string, label: string}>} */ (
+            fieldDefs
+          )) {
+            fieldsRecord[f.name] = { label: f.label };
+          }
+          const resultPath = resultName
+            ? String(resultName).split('.')
+            : undefined;
+          await E(powers).form(
+            recipientPath,
+            String(description),
+            fieldsRecord,
+            resultPath,
+          );
+          return { success: true, message: 'Form sent' };
+        }
+
         case 'approve-eval': {
           const { messageNumber, workerName } = params;
           await E(powers).approveEvaluation(

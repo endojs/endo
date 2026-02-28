@@ -71,6 +71,9 @@ const template = `
 <div id="counter-proposal-backdrop"></div>
 <div id="counter-proposal-container"></div>
 
+<div id="form-builder-backdrop"></div>
+<div id="form-builder-container"></div>
+
 <div id="value-frame" class="frame">
   <div id="value-window" class="window">
     <div class="value-header">

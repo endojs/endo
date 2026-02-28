@@ -430,6 +430,18 @@ The code proposed by the guest runs with these host-chosen bindings.
 
 Example: endow(0, { counter: "my-counter" })`,
 
+  form: `\
+form(recipientName, description, fields, responseName?) -> Promise<Record>
+Send a structured form request to another agent.
+The recipient fills out the form fields and the result is returned as a record.
+
+- recipientName: Pet name or path of the recipient
+- description: Human-readable description of what the form is for
+- fields: Record of field definitions { fieldName: { label: "Display label" } }
+- responseName: (optional) Pet name to store the response under
+
+Example: form("HOST", "Configure settings", { name: { label: "Name" }, email: { label: "Email" } })`,
+
   respondForm: `\
 respondForm(messageNumber, values) -> Promise<void>
 Respond to a structured form request with values.

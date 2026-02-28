@@ -10,6 +10,7 @@ import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
 import { createCounterProposalForm } from './counter-proposal-form.js';
+import { createFormBuilder } from './form-builder.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
 import {
@@ -79,6 +80,12 @@ export const chatBarComponent = (
   const $counterProposalBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#counter-proposal-backdrop')
   );
+  const $formBuilderContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#form-builder-container')
+  );
+  const $formBuilderBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#form-builder-backdrop')
+  );
   const $inlineFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#inline-form-container')
   );
@@ -143,7 +150,7 @@ export const chatBarComponent = (
     $chatBar.classList.add('has-modeline');
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'js'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -154,6 +161,9 @@ export const chatBarComponent = (
 
   /** @type {import('./counter-proposal-form.js').CounterProposalFormAPI | null} */
   let counterProposalForm = null;
+
+  /** @type {import('./form-builder.js').FormBuilderAPI | null} */
+  let formBuilder = null;
 
   // Initialize the send form component
   const sendForm = sendFormComponent({
@@ -732,6 +742,50 @@ export const chatBarComponent = (
     hideCounterProposalForm();
   });
 
+  /**
+   * Show the form builder modal.
+   */
+  const showFormBuilder = () => {
+    if (!formBuilder) {
+      formBuilder = createFormBuilder({
+        $container: $formBuilderContainer,
+        E,
+        powers,
+        onSubmit: async data => {
+          await executor.execute('form', {
+            recipient: data.recipient,
+            description: data.description,
+            fields: data.fields,
+            resultName: data.resultName,
+          });
+        },
+        onClose: () => {
+          hideFormBuilder(); // eslint-disable-line no-use-before-define
+        },
+      });
+    }
+
+    mode = 'form';
+    $formBuilderBackdrop.style.display = 'block';
+    $formBuilderContainer.style.display = 'block';
+    formBuilder.show();
+  };
+
+  const hideFormBuilder = () => {
+    mode = 'send';
+    $formBuilderBackdrop.style.display = 'none';
+    $formBuilderContainer.style.display = 'none';
+    if (formBuilder) {
+      formBuilder.hide();
+    }
+    sendForm.focus();
+  };
+
+  // Click on backdrop closes form builder
+  $formBuilderBackdrop.addEventListener('click', () => {
+    hideFormBuilder();
+  });
+
   // Listen for counter-proposal events from message buttons
   $parent.addEventListener('open-counter-proposal', event => {
     const { detail } = /** @type {CustomEvent} */ (event);
@@ -812,9 +866,10 @@ export const chatBarComponent = (
       case 'modal':
         // Reset mode since we're leaving selecting state
         mode = 'send';
-        // For now only js uses modal
         if (commandName === 'js') {
           showEvalForm();
+        } else if (commandName === 'form') {
+          showFormBuilder();
         }
         break;
 
@@ -960,6 +1015,9 @@ export const chatBarComponent = (
         event.preventDefault();
         helpModal.hide();
         sendForm.focus();
+      } else if (mode === 'form') {
+        event.preventDefault();
+        hideFormBuilder();
       } else if (mode === 'inline') {
         event.preventDefault();
         exitCommandMode();

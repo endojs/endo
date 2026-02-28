@@ -2930,6 +2930,335 @@ button:active {
   overflow: hidden;
 }
 
+/* Form Builder Modal */
+#form-builder-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+#form-builder-container {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 520px;
+  max-height: 90vh;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.form-builder {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.form-builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-builder-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-builder-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.form-builder-close:hover {
+  color: var(--text-primary);
+}
+
+.form-builder-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.form-builder-option {
+  margin-bottom: 12px;
+}
+
+.form-builder-option label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.form-builder-option input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.form-builder-option input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.form-builder-recipient-wrapper {
+  position: relative;
+}
+
+.form-builder-recipient-menu.token-menu {
+  position: absolute;
+  top: 100%;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  margin-bottom: 0;
+  z-index: 10;
+}
+
+.form-builder-fields-section {
+  margin-bottom: 12px;
+}
+
+.form-builder-fields-header {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.form-builder-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.form-builder-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-builder-field-name {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.form-builder-arrow {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.form-builder-field-label {
+  flex: 1.5;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.form-builder-field-name:focus,
+.form-builder-field-label:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.form-builder-remove-field {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.form-builder-remove-field:hover {
+  color: #e03131;
+}
+
+.form-builder-add-field {
+  background: none;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 100%;
+}
+
+.form-builder-add-field:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.form-builder-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.form-builder-error {
+  color: #e03131;
+  font-size: 12px;
+}
+
+.form-builder-submit {
+  padding: 6px 16px;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.form-builder-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.form-builder-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Form Request Messages (inbox) */
+.form-request-message {
+  padding: 4px 0;
+}
+
+.form-request-description {
+  margin-bottom: 8px;
+}
+
+.form-request-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.form-request-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-request-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.form-request-field-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.form-request-field-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.form-request-field-input:disabled {
+  opacity: 0.6;
+  background: var(--bg-secondary);
+}
+
+.form-request-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.form-request-submit {
+  padding: 4px 12px;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.form-request-submit:hover {
+  background: var(--accent-hover);
+}
+
+.form-request-reject {
+  padding: 4px 12px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.form-request-reject:hover {
+  border-color: #e03131;
+  color: #e03131;
+}
+
+.form-request-status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.form-request-status.status-granted {
+  color: #2b8a3e;
+}
+
+.form-request-status.status-rejected {
+  color: #e03131;
+}
+
 /* Add Space Modal */
 #add-space-modal-container {
   display: none;

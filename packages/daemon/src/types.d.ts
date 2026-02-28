@@ -882,6 +882,12 @@ export interface EndoGuest extends EndoAgent {
 export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoAgent {
+  form(
+    recipientNameOrPath: string | string[],
+    description: string,
+    fields: Record<string, { label: string; pattern?: unknown }>,
+    responseName?: string | string[],
+  ): Promise<unknown>;
   storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string | string[],

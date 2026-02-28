@@ -261,6 +261,14 @@ export const HostInterface = M.interface('EndoHost', {
     NamesOrPathsShape,
   ).returns(M.promise()),
   deliver: M.call(M.record()).returns(),
+  // Send a form request
+  form: M.call(
+    NameOrPathShape, // recipientName
+    M.string(), // description
+    M.record(), // fields
+  )
+    .optional(NameOrPathShape) // responseName
+    .returns(M.promise()),
   // Host
   // Store a blob
   storeBlob: M.call(M.remotable())
