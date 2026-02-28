@@ -961,6 +961,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/non-trapping-shim@workspace:packages/non-trapping-shim":
+  version: 0.0.0-use.local
+  resolution: "@endo/non-trapping-shim@workspace:packages/non-trapping-shim"
+  dependencies:
+    "@endo/env-options": "workspace:^"
+    "@endo/harden": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/ocapn-noise@workspace:packages/ocapn-noise":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn-noise@workspace:packages/ocapn-noise"
