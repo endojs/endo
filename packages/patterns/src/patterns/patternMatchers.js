@@ -55,8 +55,19 @@ import { generateCollectionPairEntries } from '../keys/keycollection-operators.j
  * @import {KeyToDBKey} from '../types.js';
  */
 
-const { entries, values, hasOwn } = Object;
+const { entries, freeze, values, hasOwn } = Object;
 const { ownKeys } = Reflect;
+
+/**
+ * @template O
+ * @template {PropertyKey} K
+ * @param {O} obj
+ * @param {K} key
+ * @returns {K extends keyof O ? O[K] : undefined}
+ */
+const getOwn = (obj, key) =>
+  // @ts-expect-error TS doesn't let `hasOwn(obj, key)` support `obj[key]`.
+  hasOwn(obj, key) ? obj[key] : undefined;
 
 const provideEncodePassableMetadata = memoize(
   /** @param {KeyToDBKey} encodePassable */
@@ -1636,6 +1647,35 @@ const makePatternKit = () => {
       getPassStyleCover('tagged', encodePassable),
   });
 
+  /** @type {MatchHelper} */
+  const matchChooseHelper = Far('match:choose helper', {
+    confirmMatches: (specimen, [keyName, patts], reject) => {
+      if (!confirmKind(specimen, 'copyRecord', reject)) return false;
+      const keyValue = getOwn(specimen, keyName);
+      if (typeof keyValue !== 'string' || !hasOwn(patts, keyValue)) {
+        return (
+          reject &&
+          reject`${specimen} - Must have discriminator key ${q(keyName)} with value in ${q(ownKeys(patts))}`
+        );
+      }
+      const label = `{${q(keyName)}: ${q(keyValue)}}`;
+      const { [keyName]: _, ...rest } = specimen;
+      const subPatt = patts[keyValue];
+      return confirmNestedMatches(freeze(rest), subPatt, label, reject);
+    },
+
+    confirmIsWellFormed: (payload, reject) =>
+      confirmMatches(
+        payload,
+        harden([MM.string(), MM.recordOf(MM.string(), MM.pattern())]),
+        false,
+      ) ||
+      (reject &&
+        reject`match:choose payload: ${payload} - Must be [string, Record<string, Pattern>]`),
+
+    getRankCover: (patts, encodePassable) => getPassStyleCover('copyRecord'),
+  });
+
   /**
    * @param {Passable[]} specimen
    * @param {Pattern[]} requiredPatt
@@ -1869,6 +1909,7 @@ const makePatternKit = () => {
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
     'match:or': matchOrHelper,
+    'match:choose': matchChooseHelper,
     'match:not': matchNotHelper,
 
     'match:scalar': matchScalarHelper,
@@ -2054,6 +2095,8 @@ const makePatternKit = () => {
       makeLimitsMatcher('match:containerHas', [elementPatt, countPatt, limits]),
     mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
       makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
+    choose: (keyName, pattsRecord) =>
+      makeMatcher('match:choose', harden([keyName, pattsRecord])),
     splitArray: (base, optional = undefined, rest = undefined) =>
       makeMatcher(
         'match:splitArray',
