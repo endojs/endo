@@ -37,8 +37,7 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "@endo/harden": "workspace:^",
-    "ses": "workspace:^"
+    "@endo/harden": "workspace:^"
   },
   "devDependencies": {
     "ava": "catalog:dev",
