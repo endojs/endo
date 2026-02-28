@@ -63,3 +63,7 @@ the guest unblocks.
 The Loopback implementation provides partial support for TrapCaps, except it
 cannot unwrap promises.  Loopback TrapHandlers must return synchronously, or an
 exception will be thrown.
+
+## License
+
+[Apache-2.0](./LICENSE)

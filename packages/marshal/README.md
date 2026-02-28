@@ -1,4 +1,4 @@
-# @endo/marshal
+# `@endo/marshal`
 
 "Marshalling" refers to the conversion of structured data (a tree or graph of
 objects) into a string, and back again.
@@ -186,3 +186,7 @@ Any encoding into JSON of data that cannot be represented directly, such as
 `NaN`, relies on some kind of escape for the decoding side to detect and use.
 For `stringify` and `parse`, this is signaled by an object with a property named
 `@qclass` per the original encoding described [above](#beyond-json).
+
+## License
+
+[Apache-2.0](./LICENSE)

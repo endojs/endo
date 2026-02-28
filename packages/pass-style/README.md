@@ -214,3 +214,7 @@ For implementation details:
 - [Enumerating properties](./doc/enumerating-properties.md) - Property
   enumeration semantics
 - [Type definitions](./src/types.js) - Complete TypeScript type definitions
+
+## License
+
+[Apache-2.0](./LICENSE)

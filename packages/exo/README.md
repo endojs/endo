@@ -362,3 +362,7 @@ eventual-send to enable safe distributed computing.
 
 - [Exo Taxonomy](./docs/exo-taxonomy.md) - Complete API reference and
   make/define/prepare patterns
+
+## License
+
+[Apache-2.0](./LICENSE)
