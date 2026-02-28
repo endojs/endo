@@ -3,7 +3,13 @@
     "import/no-extraneous-dependencies": ["error", { "devDependencies": true }],
     "import/no-unresolved": [
       "error",
-      { "ignore": ["ava", "^@endo/init(?:/.*)?$"] }
+      {
+        "ignore": [
+          "ava",
+          "^@endo/ses-ava(?:/.*)?$",
+          "^@endo/module-source(?:/.*)?$"
+        ]
+      }
     ]
   }
 }

@@ -77,6 +77,16 @@
     "extends": [
       "plugin:@endo/internal"
     ],
+    "rules": {
+      "import/no-unresolved": [
+        "error",
+        {
+          "ignore": [
+            "^@endo/module-source(?:/.*)?$"
+          ]
+        }
+      ]
+    },
     "ignorePatterns": [
       "test/fixtures/"
     ]

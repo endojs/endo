@@ -3,10 +3,7 @@
 // This must be bundled with the -C xs condition to produce an artifact
 // (tmp/test-xs.js) suitable for running with xst.
 import { NativeModuleSource, NativeCompartment } from './_native.js';
-// Eslint does not know about package reflexive imports (importing your own
-// package), which in this case is necessary to go through the conditional
-// export in package.json.
-// eslint-disable-next-line import/no-extraneous-dependencies,import/no-unresolved
+// Reflexive import to go through the package "exports" condition.
 import '@endo/module-source/shim.js';
 import 'ses';
 
