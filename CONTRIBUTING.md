@@ -78,9 +78,22 @@ uses a different Markdown flavor for those contexts.
 
 ### Mermaid Diagrams
 
-Use 2-space indentation for Mermaid diagrams:
+Use 2-space indentation for Mermaid diagrams, within ` ```mermaid ` fenced
+code blocks:
 
+````markdown
+```mermaid
+sequenceDiagram
+  participant A as Alice
+  participant B as Bob
+
+  A->>B: send(Carol)
 ```
+````
+
+Which renders as:
+
+```mermaid
 sequenceDiagram
   participant A as Alice
   participant B as Bob

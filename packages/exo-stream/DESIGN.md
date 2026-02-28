@@ -6,10 +6,11 @@ The exo-stream protocol provides non-lossy streams of passable data, with contro
 such that the producer does not overwhelm the consumer.
 
 The exo-stream protocol uses bidirectional promise chains for streaming over CapTP.
-By default, the protocol is fully synchronized (buffer=0) and just as chatty as naive
-protocols, suitable for deliberate synchronization. With a buffer value in excess of 0,
-promise chain nodes propagate via CapTP before the event loop yields to I/O, keeping the
-responder busy while the initiator consumes values:
+By default, the protocol is fully synchronized (buffer=0), requiring a full round-trip
+for each value — no better than a naive request-response protocol, but suitable for
+deliberate synchronization. With a buffer value in excess of 0, promise chain nodes
+propagate via CapTP before the event loop yields to I/O, keeping the responder busy
+while the initiator consumes values:
 
 1. **Initiator** creates a "synchronization" promise chain and holds its resolver
 2. **Initiator** calls `stream(synHead)` passing the synchronization chain head
@@ -215,10 +216,9 @@ argument value. The acknowledgement chain carries `undefined` (flow control):
 
 ## Why E.get() Pipelining Works
 
-When an Exo method returns a Promise, `E()` normally "flattens" it—waiting for
-the Promise to resolve.
-However, we avoid this issue by using `E.get()` to pipeline property access on
-the promise:
+When an Exo method returns a plain copy-data Promise (not a remotable),
+`E()` waits for the Promise to resolve before sending.
+We use `E.get()` to pipeline property access on the promise, avoiding this:
 
 ```javascript
 // We pipeline through the promise:
