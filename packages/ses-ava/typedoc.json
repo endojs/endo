@@ -1,9 +1,4 @@
 {
-    "extends": [
-        "../../typedoc.base.json"
-    ],
-    "entryPoints": [
-        "index.js",
-        "prepare-endo.js"
-    ]
+  "extends": ["../../typedoc.base.json"],
+  "entryPoints": ["index.js", "prepare-endo.js"]
 }

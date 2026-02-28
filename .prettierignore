@@ -2,10 +2,12 @@
 bundles
 dist
 fixtures
+tmp
 /packages/ses-integration-test/transform-tests/output
 /packages/test262-runner/prelude
 test262
 
 *.html
 *.json
+!typedoc.json
 *.md

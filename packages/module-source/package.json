@@ -31,8 +31,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "postpack": "git clean -fX -e node_modules/",
     "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
@@ -51,6 +51,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",
@@ -76,6 +77,16 @@
     "extends": [
       "plugin:@endo/internal"
     ],
+    "rules": {
+      "import/no-unresolved": [
+        "error",
+        {
+          "ignore": [
+            "^@endo/module-source(?:/.*)?$"
+          ]
+        }
+      ]
+    },
     "ignorePatterns": [
       "test/fixtures/"
     ]
