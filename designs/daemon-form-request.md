@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-02-25 |
-| **Updated** | 2026-02-25 |
+| **Updated** | 2026-02-28 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -35,8 +35,7 @@ responds with values.
 
 ## Current Implementation
 
-The feature is partially implemented across the daemon, CLI, and type system.
-The Chat UI has no support.
+The feature is implemented across the daemon, CLI, type system, and Chat UI.
 
 ### Type Definitions
 
@@ -236,31 +235,26 @@ whether a form has been answered.
 
 ## Gaps
 
-### No Chat UI support
+### ~~No Chat UI support~~ — Resolved
 
-The `packages/chat/` directory contains no references to `form-request`,
-`respondForm`, or any form-related rendering. Users of the Familiar Electron
-app cannot see form requests in their inbox or respond to them.
+Chat UI now supports form requests:
 
-This is the most significant gap. Chat UI needs:
+- `packages/chat/form-builder.js` / `packages/chat/src/form-builder.js` —
+  modal form builder for composing `/form` commands with recipient picker,
+  description, and dynamic field rows.
+- `packages/chat/inbox-component.js` — renders form-request messages inline
+  with labeled input fields and a submit button that calls `respondForm()`.
+  Settled forms display submitted values read-only.
+- `packages/chat/command-registry.js` / `packages/chat/src/command-registry.js` —
+  registers the `/form` command.
+- `packages/chat/command-executor.js` / `packages/chat/src/command-executor.js` —
+  executes form submission via `E(host).form()`.
+- `packages/chat/index.css` — styles for form rendering and the form builder
+  modal.
 
-- Rendering form-request messages with field labels and a response form.
-- A submission mechanism that calls `E(host).respondForm()`.
-- Visual indication of whether the form has been answered (`settled`).
+### ~~No tests~~ — Resolved
 
-### No tests
-
-Neither `packages/daemon/test/` nor `packages/cli/test/` contain any
-form-request test coverage. The feature has no regression protection.
-
-Tests should cover:
-
-- Guest sends form, host responds, guest receives values.
-- Validation: host response missing a field is rejected.
-- Idempotent retry: calling `form()` with an existing `responseName` returns
-  the stored value.
-- Message persistence across daemon restart.
-- CLI argument parsing edge cases (colons in labels/values).
+`packages/daemon/test/endo.test.js` now includes form-request test coverage.
 
 ### Single-response only
 
@@ -302,11 +296,10 @@ Each `form()` call constructs the fields inline. There is no way to define a
 form template once and reuse it across multiple requests, or to share form
 definitions between agents.
 
-### No chat command syntax
+### ~~No chat command syntax~~ — Resolved
 
-There is no `/form` or `/respond-form` command in the Chat UI command
-vocabulary. Even before full UI rendering, a command-based interface could
-provide basic functionality.
+The `/form` command is registered in Chat UI and opens a modal form builder.
+Form responses are submitted inline from the inbox message rendering.
 
 ## Design Decisions
 
