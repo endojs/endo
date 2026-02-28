@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Date** | 2026-02-24 |
+| **Created** | 2026-02-24 |
+| **Updated** | 2026-02-24 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Core migration and per-agent keypairs complete; network registration and null-node locators are future work |
 

@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Date** | 2026-02-26 |
+| **Created** | 2026-02-26 |
+| **Updated** | 2026-02-26 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Complete |
 | **Depends on** | [chat-color-schemes](chat-color-schemes.md) |

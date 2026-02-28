@@ -1,40 +1,40 @@
 # Endo Design Documents
 
-*Last updated: 2026-02-26*
+*Last updated: 2026-02-28*
 
 ## Summary
 
-| Design | Date | Status |
-|--------|------|--------|
-| [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | **Complete** |
-| [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | **Complete** |
-| [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | **Complete** |
-| [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | Not Started |
-| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-25 | Not Started |
-| [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | **Complete** |
-| [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | **Complete** |
-| [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | Not Started |
-| [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | Not Started |
-| [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | Not Started |
-| [daemon-form-request](daemon-form-request.md) | 2026-02-25 | In Progress |
-| [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | Not Started |
-| [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | Not Started |
-| [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | Not Started |
-| [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | Not Started |
-| [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | Not Started |
-| [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | In Progress |
-| [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | **Complete** |
-| [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | **Complete** |
-| [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | In Progress |
-| [formula-inspector](formula-inspector.md) | 2026-02-14 | Not Started |
-| [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | Not Started |
-| [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | Not Started |
-| [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | Not Started |
-| [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | In Progress |
-| [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | Not Started |
-| [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | Not Started |
-| [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | Not Started |
-| [workers-panel](workers-panel.md) | 2026-02-14 | Not Started |
+| Design | Created | Updated | Status |
+|--------|---------|---------|--------|
+| [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | 2026-02-26 | **Complete** |
+| [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | 2026-02-26 | **Complete** |
+| [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | 2026-02-26 | **Complete** |
+| [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-24 | Not Started |
+| [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
+| [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | 2026-02-24 | **Complete** |
+| [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | 2026-02-24 | Not Started |
+| [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
+| [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
+| [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
+| [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-02-25 | In Progress |
+| [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
+| [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
+| [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
+| [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
+| [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-02-24 | In Progress |
+| [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | 2026-02-26 | **Complete** |
+| [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
+| [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-02-26 | In Progress |
+| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-02-26 | Not Started |
+| [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | 2026-02-24 | In Progress |
+| [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
 **Totals:** 7 Complete, 4 In Progress, 18 Not Started
 
