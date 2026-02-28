@@ -29,7 +29,13 @@ import {
   noEvalEvaluate,
   getOwnPropertyNames,
   getPrototypeOf,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
+import {
+  tameConsole,
+  tameErrorConstructor,
+  assert,
+  makeAssert,
+} from '@endo/error-console-internal';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import removeUnpermittedIntrinsics from './permits-intrinsics.js';
@@ -50,9 +56,6 @@ import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameDomains } from './tame-domains.js';
 import { tameModuleSource } from './tame-module-source.js';
 
-import { tameConsole } from './error/tame-console.js';
-import tameErrorConstructor from './error/tame-error-constructor.js';
-import { assert, makeAssert } from './error/assert.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';

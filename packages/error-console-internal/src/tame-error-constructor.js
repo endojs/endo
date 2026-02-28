@@ -7,10 +7,36 @@ import {
   getOwnPropertyDescriptor,
   defineProperty,
   getOwnPropertyDescriptors,
+  arrayPush,
+  freeze,
 } from '../commons.js';
-import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
 
+/**
+ * @import {GenericErrorConstructor} from '../types.js';
+ */
+
+// All the "subclasses" of Error. These are collectively represented in the
+// ECMAScript spec by the meta variable NativeError.
+/** @type {GenericErrorConstructor[]} */
+export const NativeErrors = [
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+  // https://github.com/endojs/endo/issues/550
+  // Commented out to accommodate platforms prior to AggregateError.
+  // Instead, conditional push below.
+  // AggregateError,
+];
+
+if (typeof AggregateError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to AggregateError
+  arrayPush(NativeErrors, AggregateError);
+}
+freeze(NativeErrors);
 // Present on at least FF and XS. Proposed by Error-proposal. The original
 // is dangerous, so tameErrorConstructor replaces it with a safe one.
 // We grab the original here before it gets replaced.

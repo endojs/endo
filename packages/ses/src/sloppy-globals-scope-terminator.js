@@ -4,7 +4,7 @@ import {
   freeze,
   getOwnPropertyDescriptors,
   reflectSet,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 import {
   strictScopeTerminatorHandler,
   alwaysThrowHandler,

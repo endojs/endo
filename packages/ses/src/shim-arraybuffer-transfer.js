@@ -8,7 +8,7 @@ import {
   globalThis,
   TypeError,
   defineProperty,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export const shimArrayBufferTransfer = () => {
   if (typeof arrayBufferPrototype.transfer === 'function') {

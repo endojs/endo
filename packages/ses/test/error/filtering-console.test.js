@@ -1,6 +1,6 @@
 import test from 'ava';
+import { filterConsole } from '@endo/error-console-internal';
 import '../../index.js';
-import { filterConsole } from '../../src/error/console.js';
 import { assertLogs } from './_throws-and-logs.js';
 
 lockdown();

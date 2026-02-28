@@ -4,7 +4,7 @@
 // transformed or embedded in a way that causes it to run in sloppy mode.
 // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_SLOPPY.md
 import './assert-sloppy-mode.js';
-import { globalThis } from './commons.js';
+import { globalThis } from '@endo/error-console-internal/commons.js';
 import { repairIntrinsics } from './lockdown.js';
 
 /** @import {LockdownOptions} from '../types.js' */

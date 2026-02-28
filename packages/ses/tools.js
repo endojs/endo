@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { freeze } from './src/commons.js';
+import { freeze } from '@endo/error-console-internal/commons.js';
 import { transforms } from './src/transforms.js';
 import { strictScopeTerminator } from './src/strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './src/sloppy-globals-scope-terminator.js';

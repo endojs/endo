@@ -1,7 +1,7 @@
 // @ts-check
 import test from 'ava';
 
-import { makeNoteLogArgsArrayKit } from '../../src/error/note-log-args.js';
+import { makeNoteLogArgsArrayKit } from '@endo/error-console-internal';
 
 test('note log args array kit basic', t => {
   const { addLogArgs, takeLogArgsArray } = makeNoteLogArgsArrayKit(3, 2);

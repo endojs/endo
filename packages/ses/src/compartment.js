@@ -52,14 +52,14 @@ import {
   toStringTagSymbol,
   weakmapGet,
   weakmapSet,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
+import { assert, assertEqual, q } from '@endo/error-console-internal';
 import {
   setGlobalObjectSymbolUnscopables,
   setGlobalObjectConstantProperties,
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
-import { assert, assertEqual, q } from './error/assert.js';
 import { sharedGlobalPropertyNames } from './permits.js';
 import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';

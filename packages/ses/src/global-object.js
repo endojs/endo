@@ -7,7 +7,7 @@ import {
   freeze,
   hasOwn,
   unscopablesSymbol,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
 import { constantProperties, universalPropertyNames } from './permits.js';

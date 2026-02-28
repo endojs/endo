@@ -5,7 +5,7 @@
  * the SES Compartment, depending on the __native__ Compartment constructor
  * option.
  */
-import { globalThis } from '../src/commons.js';
+import { globalThis } from '@endo/error-console-internal/commons.js';
 import { NativeStartCompartment } from './commons.js';
 import { repairIntrinsics } from '../src/lockdown.js';
 import {

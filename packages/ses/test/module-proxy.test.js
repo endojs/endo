@@ -1,6 +1,10 @@
 // @ts-nocheck
 import test from 'ava';
-import { keys, seal, isExtensible } from '../src/commons.js';
+import {
+  keys,
+  seal,
+  isExtensible,
+} from '@endo/error-console-internal/commons.js';
 import { deferExports } from '../src/module-proxy.js';
 
 test('proxied exports keys are readable', t => {

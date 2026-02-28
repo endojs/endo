@@ -5,7 +5,7 @@ import {
   isSealed,
   isExtensible,
   reflectIsExtensible,
-} from '../src/commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export const assertFakeFrozen = (t, specimen) => {
   // Built-in function replacements must report frozenness.

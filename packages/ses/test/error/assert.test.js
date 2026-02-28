@@ -1,7 +1,7 @@
 // This is just a token standalone test of the `assert` module. The real test
 // is in test-assert-log.js which also uses the logging console.
 import test from 'ava';
-import { an } from '../../src/error/stringify-utils.js';
+import { an } from '@endo/error-console-internal';
 
 test('an', t => {
   t.is(an('object'), 'an object');

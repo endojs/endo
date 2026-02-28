@@ -4,8 +4,8 @@ import {
   arrayPop,
   defineProperties,
   getPrototypeOf,
-} from './commons.js';
-import { assert } from './error/assert.js';
+} from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
 
 const { Fail } = assert;
 

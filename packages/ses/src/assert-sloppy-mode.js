@@ -1,4 +1,4 @@
-import { TypeError } from './commons.js';
+import { TypeError } from '@endo/error-console-internal/commons.js';
 
 /** getThis returns globalThis in sloppy mode or undefined in strict mode. */
 function getThis() {

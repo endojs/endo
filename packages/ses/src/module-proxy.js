@@ -10,7 +10,6 @@
 // This provides the mechanism for modeling the public exports proxy
 // and eventually connecting it to to the proxied exports.
 
-import { makeAlias } from './module-load.js';
 import {
   Proxy,
   TypeError,
@@ -27,8 +26,9 @@ import {
   reflectPreventExtensions,
   toStringTagSymbol,
   weakmapSet,
-} from './commons.js';
-import { assert } from './error/assert.js';
+} from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
+import { makeAlias } from './module-load.js';
 
 const { quote: q } = assert;
 

@@ -4,7 +4,7 @@ import {
   arrayPush,
   create,
   getOwnPropertyDescriptors,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 import {
   evadeHtmlCommentTest,
   evadeImportExpressionTest,
