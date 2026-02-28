@@ -8,6 +8,7 @@ import { makeRefIterator } from './ref-iterator.js';
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
+import { createFormBuilder } from './form-builder.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
 import {
@@ -530,6 +531,207 @@ const template = `
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
+  }
+
+  #form-builder-container {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 560px;
+    max-height: 90vh;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: visible;
+  }
+
+  #form-builder-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+
+  .form-builder {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+  }
+
+  .form-builder-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .form-builder-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  .form-builder-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+
+  .form-builder-close:hover {
+    color: var(--text-primary);
+  }
+
+  .form-builder-body {
+    padding: 12px 16px;
+    overflow-y: auto;
+  }
+
+  .form-builder-option {
+    margin-bottom: 12px;
+  }
+
+  .form-builder-option label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .form-builder-option input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+  }
+
+  .form-builder-recipient-wrapper {
+    position: relative;
+  }
+
+  .form-builder-recipient-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+
+  .form-builder-fields-section {
+    margin-bottom: 12px;
+  }
+
+  .form-builder-fields-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .form-builder-field-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .form-builder-field-name {
+    width: 120px;
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  }
+
+  .form-builder-arrow {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .form-builder-field-label {
+    flex: 1;
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+  }
+
+  .form-builder-remove-field {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+  }
+
+  .form-builder-remove-field:hover {
+    color: var(--danger);
+  }
+
+  .form-builder-add-field {
+    font-size: 12px;
+    color: var(--accent-primary);
+    background: none;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+
+  .form-builder-add-field:hover {
+    background: var(--bg-hover);
+  }
+
+  .form-builder-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .form-builder-error {
+    color: red;
+    font-size: 12px;
+    flex: 1;
+  }
+
+  .form-builder-submit {
+    font-size: 13px;
+    padding: 6px 16px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+
+  .form-builder-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .eval-form {
@@ -1636,6 +1838,38 @@ const template = `
     padding: 6px 28px 6px 10px;
   }
 
+  .form-fields {
+    margin: 8px 0;
+  }
+
+  .form-field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+
+  .form-field-row label {
+    font-weight: 600;
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .form-field-input {
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    width: 200px;
+    font-family: inherit;
+  }
+
+  .form-description {
+    font-style: italic;
+    color: var(--text-secondary);
+  }
+
   .definition-slots {
     margin: 8px 0;
   }
@@ -2235,6 +2469,8 @@ const template = `
 
 <div id="eval-form-backdrop"></div>
 <div id="eval-form-container"></div>
+<div id="form-builder-backdrop"></div>
+<div id="form-builder-container"></div>
 
 
 <div id="value-frame" class="frame">
@@ -2785,6 +3021,90 @@ const inboxComponent = async ($parent, $end, powers) => {
           $defnControls.innerText = ` ${status} `;
         });
       }
+    } else if (message.type === 'form-request') {
+      const { description, fields, settled } = message;
+
+      // Show sender chip and description
+      const $desc = document.createElement('p');
+      if ($senderChip) {
+        $desc.appendChild($senderChip);
+        $desc.appendChild(document.createTextNode(' '));
+      }
+      const $descText = document.createElement('span');
+      $descText.className = 'form-description';
+      $descText.textContent = description;
+      $desc.appendChild($descText);
+      $body.appendChild($desc);
+
+      // Show fields
+      const fieldEntries = Object.entries(fields || {});
+      if (fieldEntries.length > 0) {
+        const $fieldList = document.createElement('div');
+        $fieldList.className = 'form-fields';
+
+        /** @type {Record<string, HTMLInputElement>} */
+        const fieldInputs = {};
+
+        for (const [fieldName, fieldInfo] of fieldEntries) {
+          const $row = document.createElement('div');
+          $row.className = 'form-field-row';
+
+          const $label = document.createElement('label');
+          $label.textContent = `${/** @type {{ label: string }} */ (fieldInfo).label || fieldName}:`;
+          $row.appendChild($label);
+
+          const $input = document.createElement('input');
+          $input.type = 'text';
+          $input.placeholder = fieldName;
+          $input.className = 'form-field-input';
+          $input.autocomplete = 'off';
+          $input.dataset.formType = 'other';
+          $input.dataset.lpignore = 'true';
+          $row.appendChild($input);
+          fieldInputs[fieldName] = $input;
+
+          $fieldList.appendChild($row);
+        }
+        $body.appendChild($fieldList);
+
+        // Submit/Reject controls
+        const $formControls = document.createElement('span');
+        $body.appendChild($formControls);
+
+        const $submit = document.createElement('button');
+        $submit.innerText = 'Submit';
+        $submit.onclick = () => {
+          /** @type {Record<string, string>} */
+          const values = {};
+          for (const [fieldName, $input] of Object.entries(fieldInputs)) {
+            values[fieldName] = $input.value;
+          }
+          E(powers)
+            .respondForm(number, values)
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $formControls.appendChild($submit);
+
+        const $rejectBtn = document.createElement('button');
+        $rejectBtn.innerText = 'Reject';
+        $rejectBtn.onclick = () => {
+          E(powers)
+            .reject(number, 'Form rejected')
+            .then(() => {
+              $formControls.innerText = ' Rejected ';
+            })
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $formControls.appendChild($rejectBtn);
+
+        settled.then(status => {
+          $formControls.innerText = ` ${status} `;
+        });
+      }
     }
 
     $parent.insertBefore($message, $end);
@@ -2923,6 +3243,12 @@ const chatBarComponent = (
   const $evalFormBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#eval-form-backdrop')
   );
+  const $formBuilderContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#form-builder-container')
+  );
+  const $formBuilderBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#form-builder-backdrop')
+  );
   const $inlineFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#inline-form-container')
   );
@@ -2985,7 +3311,7 @@ const chatBarComponent = (
     $chatBar.classList.add('has-modeline');
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'js'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -2993,6 +3319,9 @@ const chatBarComponent = (
 
   /** @type {import('./eval-form.js').EvalFormAPI | null} */
   let evalForm = null;
+
+  /** @type {import('./form-builder.js').FormBuilderAPI | null} */
+  let formBuilder = null;
 
   // Initialize the send form component
   const sendForm = sendFormComponent({
@@ -3353,6 +3682,58 @@ const chatBarComponent = (
     hideEvalForm();
   });
 
+  const showFormBuilder = () => {
+    if (!formBuilder) {
+      formBuilder = createFormBuilder({
+        $container: $formBuilderContainer,
+        E,
+        powers,
+        onSubmit: async data => {
+          /** @type {Record<string, {label: string}>} */
+          const fieldsRecord = {};
+          for (const f of data.fields) {
+            fieldsRecord[f.name] = { label: f.label };
+          }
+          const resultPath = data.resultName
+            ? data.resultName.split('.')
+            : undefined;
+          await E(powers).form(
+            data.recipient.split('.'),
+            data.description,
+            fieldsRecord,
+            resultPath,
+          );
+        },
+        onClose: () => {
+          hideFormBuilder(); // eslint-disable-line no-use-before-define
+        },
+      });
+    }
+
+    mode = 'form';
+    $formBuilderBackdrop.style.display = 'block';
+    $formBuilderContainer.style.display = 'block';
+    formBuilder.show();
+  };
+
+  const hideFormBuilder = () => {
+    mode = 'send';
+    $formBuilderBackdrop.style.display = 'none';
+    $formBuilderContainer.style.display = 'none';
+    if (formBuilder) {
+      formBuilder.hide();
+    }
+    sendForm.focus();
+  };
+
+  // Click on backdrop closes form builder
+  $formBuilderBackdrop.addEventListener('click', () => {
+    if (formBuilder && formBuilder.isDirty()) {
+      // Could add confirmation here
+    }
+    hideFormBuilder();
+  });
+
   // Command cancel button (header)
   $commandCancel.addEventListener('click', () => {
     exitCommandMode();
@@ -3414,9 +3795,10 @@ const chatBarComponent = (
       case 'modal':
         // Reset mode since we're leaving selecting state
         mode = 'send';
-        // For now only js uses modal
         if (commandName === 'js') {
           showEvalForm();
+        } else if (commandName === 'form') {
+          showFormBuilder();
         }
         break;
 

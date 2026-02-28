@@ -3339,3 +3339,139 @@ test('trusted shim executes before lockdown and persists across restart', async 
     );
   }
 });
+
+// ============ FORM REQUEST TESTS ============
+
+test('form request happy path: guest sends form, host responds', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Follow host messages to catch the form request
+  const hostIteratorRef = E(host).followMessages();
+
+  // Guest sends a form request to the host
+  const responseP = E(guest).form(
+    'HOST',
+    'Please configure',
+    harden({
+      name: { label: 'Your name' },
+      color: { label: 'Favorite color' },
+    }),
+  );
+
+  // Host receives the form-request message
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.description, 'Please configure');
+
+  // Host responds with values
+  await E(host).respondForm(
+    formMsg.number,
+    harden({ name: 'Alice', color: 'blue' }),
+  );
+
+  // Guest receives the response
+  const result = await responseP;
+  t.deepEqual(result, { name: 'Alice', color: 'blue' });
+});
+
+test('form request rejects when a field is missing', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  // Suppress the unhandled rejection from the guest's form promise
+  const formP = E(guest).form(
+    'HOST',
+    'Need info',
+    harden({
+      name: { label: 'Name' },
+      email: { label: 'Email' },
+    }),
+  );
+  formP.catch(() => {});
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form-request');
+
+  // Respond with only one field — should throw
+  await t.throwsAsync(
+    () => E(host).respondForm(formMsg.number, harden({ name: 'Alice' })),
+    { message: /Missing value for field "email"/ },
+  );
+});
+
+test('form request with pattern validation', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  // Suppress the unhandled rejection from the guest's form promise
+  const formP = E(guest).form(
+    'HOST',
+    'Typed form',
+    harden({
+      count: { label: 'Count', pattern: M.number() },
+    }),
+  );
+  formP.catch(() => {});
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form-request');
+
+  // Respond with wrong type — should throw
+  await t.throwsAsync(
+    () =>
+      E(host).respondForm(formMsg.number, harden({ count: 'not-a-number' })),
+    { message: /field "count"/ },
+  );
+});
+
+test('form request with pattern validation accepts matching value', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  const responseP = E(guest).form(
+    'HOST',
+    'Typed form',
+    harden({
+      count: { label: 'Count', pattern: M.number() },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form-request');
+
+  await E(host).respondForm(formMsg.number, harden({ count: 42 }));
+
+  const result = await responseP;
+  t.deepEqual(result, { count: 42 });
+});
+
+test('form request stores response under responseName', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  const responseP = E(guest).form(
+    'HOST',
+    'Config',
+    harden({ key: { label: 'API key' } }),
+    'my-config',
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  await E(host).respondForm(formMsg.number, harden({ key: 'sk-1234' }));
+
+  await responseP;
+
+  // Verify the response was stored under the pet name
+  const stored = await E(guest).lookup('my-config');
+  t.deepEqual(stored, { key: 'sk-1234' });
+});

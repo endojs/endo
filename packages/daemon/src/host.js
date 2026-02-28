@@ -23,6 +23,7 @@ import {
   formatId,
 } from './formula-identifier.js';
 import { makePetSitter } from './pet-sitter.js';
+import { mustMatch } from '@endo/patterns';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 import { HostInterface } from './interfaces.js';
@@ -716,6 +717,7 @@ export const makeHostMaker = ({
       // whereas mailbox.evaluate sends an eval-proposal (used by Guest).
       grantEvaluate: mailboxGrantEvaluate,
       counterEvaluate: mailboxCounterEvaluate,
+      form,
     } = mailbox;
 
     /**
@@ -835,11 +837,15 @@ export const makeHostMaker = ({
     const respondForm = async (messageNumber, values) => {
       const { fields, resolverId } = mailbox.getFormRequest(messageNumber);
 
-      // Validate that values cover every field
+      // Validate that values cover every field and match patterns
       const fieldKeys = Object.keys(fields);
       for (const key of fieldKeys) {
         if (!(key in values)) {
           throw new Error(`Missing value for field ${q(key)}`);
+        }
+        const { pattern } = fields[key];
+        if (pattern !== undefined) {
+          mustMatch(values[key], pattern, `field ${q(key)}`);
         }
       }
 
@@ -1010,6 +1016,7 @@ export const makeHostMaker = ({
       reply,
       request,
       send,
+      form,
       // Host
       storeBlob,
       storeValue,
