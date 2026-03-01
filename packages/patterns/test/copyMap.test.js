@@ -9,7 +9,6 @@ import {
   assertCopyMap,
   makeCopyMap,
   getCopyMapEntries,
-  getCopyMapEntryArray,
 } from '../src/keys/checkKey.js';
 import { matches } from '../src/patterns/patternMatchers.js';
 
@@ -41,7 +40,7 @@ test('makeCopyMap', t => {
   ]);
   assertIsCopyMap(t, m);
   t.deepEqual(
-    [...getCopyMapEntries(m)],
+    getCopyMapEntries(m),
     [
       ['z', undefined],
       ['g', 'baz'],
@@ -125,13 +124,12 @@ test('getCopyMapEntries', t => {
     ['x', 8],
     ['y', 7],
   ]);
-  t.deepEqual([...getCopyMapEntries(m)], getCopyMapEntryArray(m));
-  const entriesIterable = getCopyMapEntries(m);
-  t.is(passStyleOf(entriesIterable), 'remotable');
-  const entriesIterator = entriesIterable[Symbol.iterator]();
-  t.is(passStyleOf(entriesIterator), 'remotable');
-  const iterResult = entriesIterator.next();
-  t.is(passStyleOf(iterResult), 'copyRecord');
+  const entries = getCopyMapEntries(m);
+  t.deepEqual(entries, [
+    // the representation is backwards sorted.
+    ['y', 7],
+    ['x', 8],
+  ]);
 });
 
 test('matching', t => {
@@ -190,18 +188,17 @@ test('matching', t => {
     });
   t.true(matches(copyMap, copyMap), 'matches itself');
   t.true(
-    matches(copyMap, tagEntries([...getCopyMapEntries(copyMap)])),
+    matches(copyMap, tagEntries(getCopyMapEntries(copyMap))),
     'matches a manually-cloned pattern',
   );
 
   t.throws(
-    () =>
-      matches(copyMap, tagEntries([...getCopyMapEntries(copyMap)].reverse())),
+    () => matches(copyMap, tagEntries(getCopyMapEntries(copyMap).reverse())),
     { message: /pattern expected/ },
     'key-reversed pattern is rejected',
   );
   t.is(
-    matches(tagEntries([...getCopyMapEntries(copyMap)].reverse()), copyMap),
+    matches(tagEntries(getCopyMapEntries(copyMap).reverse()), copyMap),
     false,
     "key-reversed specimen doesn't match",
   );

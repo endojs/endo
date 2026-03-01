@@ -1,6 +1,6 @@
 import harden from '@endo/harden';
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
-import { Far, getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
+import { getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
 import {
   compareAntiRank,
   makeFullOrderComparatorKit,
@@ -380,48 +380,14 @@ harden(getCopyMapValues);
  * @template {Key} K
  * @template {Passable} V
  * @param {CopyMap<K,V>} m
- * @returns {Array<[K,V]>}
- */
-export const getCopyMapEntryArray = m => {
-  assertCopyMap(m);
-  const {
-    payload: { keys, values },
-  } = m;
-  return harden(keys.map((key, i) => [key, values[i]]));
-};
-harden(getCopyMapEntryArray);
-
-/**
- * @template {Key} K
- * @template {Passable} V
- * @param {CopyMap<K,V>} m
- * @returns {Iterable<[K,V]>}
+ * @returns {[K,V][]}
  */
 export const getCopyMapEntries = m => {
   assertCopyMap(m);
   const {
     payload: { keys, values },
   } = m;
-  const { length } = /** @type {Array} */ (keys);
-  return Far('CopyMap entries iterable', {
-    [Symbol.iterator]: () => {
-      let i = 0;
-      return Far('CopyMap entries iterator', {
-        next: () => {
-          /** @type {IteratorResult<[K,V],void>} */
-          let result;
-          if (i < length) {
-            result = harden({ done: false, value: [keys[i], values[i]] });
-            i += 1;
-            return result;
-          } else {
-            result = harden({ done: true, value: undefined });
-          }
-          return result;
-        },
-      });
-    },
-  });
+  return harden(keys.map((key, i) => [key, values[i]]));
 };
 harden(getCopyMapEntries);
 
