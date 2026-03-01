@@ -427,19 +427,22 @@ export const makeFunctorFromMap = async (
     } else {
       module.indexedImports = Object.fromEntries(
         Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
-          // UNTIL https://github.com/endojs/endo/issues/1514
-          // Prefer: key = aliases.get(key) ?? key;
           const alias = aliases.get(key);
-          if (alias != null) {
-            key = alias;
-          }
-          const module = modulesByKey[key];
+          const module = modulesByKey[alias ?? key];
           if (module === undefined) {
-            throw new Error(
-              `Unable to locate module for key ${q(key)} import specifier ${q(
-                importSpecifier,
-              )}`,
-            );
+            if (alias === undefined) {
+              throw new Error(
+                `Unable to locate module for key ${q(key)} import specifier ${q(
+                  importSpecifier,
+                )}`,
+              );
+            } else {
+              throw new Error(
+                `Unable to locate module for key ${q(alias)} (via alias ${q(key)}) import specifier ${q(
+                  importSpecifier,
+                )}`,
+              );
+            }
           }
           const { index } = module;
           return [importSpecifier, index];
