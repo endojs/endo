@@ -11,6 +11,7 @@ import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
+import { makeChannelMaker } from './channel.js';
 import { makeHostMaker } from './host.js';
 import { makeRemoteControlProvider } from './remote-control.js';
 import {
@@ -320,6 +321,13 @@ const makeDaemonCore = async (
           formula.peers,
           formula.host,
           formula.leastAuthority,
+        ];
+      case 'channel':
+        return [
+          formula.handle,
+          formula.creatorAgent,
+          formula.messageStore,
+          formula.memberStore,
         ];
       case 'host':
         return [
@@ -2092,6 +2100,26 @@ const makeDaemonCore = async (
         hostHandleId,
         /** @type {import('./types.js').PetName} */ (guestName),
       ),
+    channel: async (formula, context, id) => {
+      const {
+        handle: handleId,
+        creatorAgent: creatorAgentId,
+        messageStore: messageStoreId,
+        memberStore: memberStoreId,
+        proposedName: channelProposedName,
+      } = formula;
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      return makeChannelInstance(
+        id,
+        handleId,
+        creatorAgentId,
+        messageStoreId,
+        memberStoreId,
+        channelProposedName,
+        context,
+      );
+    },
   };
 
   /**
@@ -2303,6 +2331,66 @@ const makeDaemonCore = async (
         };
 
         return formulate(invitationNumber, formula);
+      })
+    );
+  };
+
+  /**
+   * @param {FormulaIdentifier} creatorAgentId
+   * @param {FormulaIdentifier} handleId
+   * @param {string} channelProposedName
+   * @param {DeferredTasks<import('./types.js').ChannelDeferredTaskParams>} deferredTasks
+   */
+  const formulateChannel = async (
+    creatorAgentId,
+    handleId,
+    channelProposedName,
+    deferredTasks,
+  ) => {
+    return /** @type {FormulateResult<import('./types.js').EndoChannel>} */ (
+      withFormulaGraphLock(async () => {
+        const channelNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const messageStoreNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const memberStoreNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        // Formulate subsidiary stores
+        await formulateNumberedPetStore(messageStoreNumber);
+        await formulateNumberedPetStore(memberStoreNumber);
+
+        const messageStoreId = formatId({
+          number: messageStoreNumber,
+          node: localNodeNumber,
+        });
+        const memberStoreId = formatId({
+          number: memberStoreNumber,
+          node: localNodeNumber,
+        });
+        const channelId = formatId({
+          number: channelNumber,
+          node: localNodeNumber,
+        });
+
+        await deferredTasks.execute({
+          channelId,
+        });
+
+        /** @type {import('./types.js').ChannelFormula} */
+        const formula = {
+          type: 'channel',
+          handle: handleId,
+          creatorAgent: creatorAgentId,
+          messageStore: messageStoreId,
+          memberStore: memberStoreId,
+          proposedName: channelProposedName,
+        };
+
+        return formulate(channelNumber, formula);
       })
     );
   };
@@ -3278,6 +3366,10 @@ const makeDaemonCore = async (
     unpinTransient,
   });
 
+  const makeChannelInstance = makeChannelMaker({
+    provide,
+  });
+
   const makeGuest = makeGuestMaker({
     provide,
     formulateMarshalValue,
@@ -3314,6 +3406,7 @@ const makeDaemonCore = async (
     formulateBundle,
     formulateReadableBlob,
     formulateInvitation,
+    formulateChannel,
     makeMailbox,
     makeDirectoryNode,
     getAllNetworkAddresses,

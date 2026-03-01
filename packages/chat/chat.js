@@ -5,6 +5,8 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import { channelComponent } from './channel-component.js';
+import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
 import { chatBarComponent } from './chat-bar-component.js';
@@ -238,6 +240,15 @@ const renderProfileBar = ($profileBar, profilePath, onNavigate) => {
  * @param {(newPath: string[]) => void} onProfileChange
  * @param {(conversation: ConversationState | null) => void} onConversationChange
  */
+/**
+ * @param {HTMLElement} $parent
+ * @param {unknown} rootPowers
+ * @param {string[]} profilePath
+ * @param {ConversationState | null} activeConversation
+ * @param {(newPath: string[], spaceInfo?: ActiveSpaceInfo) => void} onProfileChange
+ * @param {(conversation: ConversationState | null) => void} onConversationChange
+ * @param {ActiveSpaceInfo} [activeSpaceInfo]
+ */
 const bodyComponent = (
   $parent,
   rootPowers,
@@ -245,6 +256,7 @@ const bodyComponent = (
   activeConversation,
   onProfileChange,
   onConversationChange,
+  activeSpaceInfo,
 ) => {
   $parent.innerHTML = template;
 
@@ -310,8 +322,8 @@ const bodyComponent = (
     $modalContainer: $addSpaceModal,
     powers: rootPowers,
     currentProfilePath: profilePath,
-    onNavigate: newPath => {
-      onProfileChange(newPath);
+    onNavigate: (newPath, spaceInfo) => {
+      onProfileChange(newPath, spaceInfo);
     },
   });
 
@@ -399,33 +411,172 @@ const bodyComponent = (
 
       /** @type {bigint | undefined} */
       let currentMoiMessageNumber;
+      /** @type {unknown} */
+      let currentChannelRef = null;
 
-      inboxComponent(
-        $messages,
-        $anchor,
-        /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        {
-          showValue,
-          conversationId: activeConversation ? activeConversation.id : null,
-          conversationPetName: activeConversation
-            ? activeConversation.petName
-            : null,
-          onMoiChange: messageNumber => {
-            currentMoiMessageNumber = messageNumber;
+      if (
+        activeSpaceInfo &&
+        activeSpaceInfo.mode === 'channel' &&
+        activeSpaceInfo.channelPetName
+      ) {
+        // Channel mode: look up the channel object and render channel component
+        $conversationHeader.classList.add('visible');
+        $conversationName.textContent = `#${activeSpaceInfo.channelPetName}`;
+        $chatMessage.dataset.placeholder = 'Type a message...';
+
+        E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
+          .lookup(activeSpaceInfo.channelPetName)
+          .then(async channelRef => {
+            // Determine if we're the channel admin or a joiner.
+            // If the channel's proposed name matches our space's proposed name,
+            // we're the admin and can use the channel directly.
+            // Otherwise, we join as a member so our posts carry our own identity.
+            const channelCreatorName = await E(channelRef).getProposedName();
+            const ourProposedName = activeSpaceInfo.proposedName;
+
+            if (
+              ourProposedName &&
+              ourProposedName !== channelCreatorName
+            ) {
+              // We're not the admin — join to get our own member ref for posting
+              const memberRef = await E(channelRef).join(ourProposedName);
+              currentChannelRef = memberRef;
+            } else {
+              // We're the admin — use the channel directly
+              currentChannelRef = channelRef;
+            }
+
+            // Set up channel header with invite/members menu
+            createChannelHeader({
+              $container: $conversationHeader,
+              channel: channelRef,
+              powers: resolvedPowers,
+              channelPetName: activeSpaceInfo.channelPetName,
+            });
+
+            // Always follow messages from the channel ref (both admin and
+            // member see the same stream).
+            // Pass personaId (derived from profile path) so the address book
+            // localStorage key is scoped per-persona, preventing nickname
+            // leakage between spaces viewing the same channel.
+            channelComponent($messages, $anchor, channelRef, {
+              showValue,
+              onMessageChange: messageNumber => {
+                currentMoiMessageNumber = messageNumber;
+              },
+              personaId: profilePath.join('.'),
+            }).catch(window.reportError);
+          })
+          .catch(window.reportError);
+      } else {
+        // Default inbox mode
+        inboxComponent(
+          $messages,
+          $anchor,
+          /** @type {ERef<EndoHost>} */ (resolvedPowers),
+          {
+            showValue,
+            conversationId: activeConversation ? activeConversation.id : null,
+            conversationPetName: activeConversation
+              ? activeConversation.petName
+              : null,
+            onMoiChange: messageNumber => {
+              currentMoiMessageNumber = messageNumber;
+            },
           },
-        },
-      ).catch(window.reportError);
+        ).catch(window.reportError);
+      }
+      /**
+       * Switch the active channel within the current space (channel mode only).
+       * Clears current messages and starts a new channel connection without
+       * rebuilding the entire page.
+       * @param {string} channelPetName
+       */
+      const switchChannel = channelPetName => {
+        if (
+          !activeSpaceInfo ||
+          activeSpaceInfo.mode !== 'channel'
+        ) {
+          return;
+        }
+
+        // Clear messages (keep anchor)
+        while ($messages.firstChild !== $anchor) {
+          /** @type {ChildNode} */ ($messages.firstChild).remove();
+        }
+
+        // Update activeSpaceInfo
+        activeSpaceInfo.channelPetName = channelPetName;
+
+        // Update header
+        $conversationName.textContent = `#${channelPetName}`;
+
+        // Look up and connect to new channel
+        E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
+          .lookup(channelPetName)
+          .then(async channelRef => {
+            const channelCreatorName =
+              await E(channelRef).getProposedName();
+            const ourProposedName = activeSpaceInfo.proposedName;
+
+            if (
+              ourProposedName &&
+              ourProposedName !== channelCreatorName
+            ) {
+              currentChannelRef = await E(channelRef).join(
+                ourProposedName,
+              );
+            } else {
+              currentChannelRef = channelRef;
+            }
+
+            // Update channel header
+            createChannelHeader({
+              $container: $conversationHeader,
+              channel: channelRef,
+              powers: resolvedPowers,
+              channelPetName,
+            });
+
+            // Start message stream
+            channelComponent($messages, $anchor, channelRef, {
+              showValue,
+              onMessageChange: messageNumber => {
+                currentMoiMessageNumber = messageNumber;
+              },
+              personaId: profilePath.join('.'),
+            }).catch(window.reportError);
+          })
+          .catch(window.reportError);
+
+        // Update active highlight in inventory
+        const $activeItems = $pets.querySelectorAll('.active-channel');
+        for (const $item of $activeItems) {
+          $item.classList.remove('active-channel');
+        }
+      };
+
+      const isChannelMode =
+        activeSpaceInfo && activeSpaceInfo.mode === 'channel';
+
       inventoryComponent(
         $pets,
         $profileBar,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
         {
           showValue,
-          onSelectConversation: (petName, formulaId) => {
-            onConversationChange({ petName, id: formulaId });
-          },
+          onSelectConversation: isChannelMode
+            ? undefined
+            : (petName, formulaId) => {
+                onConversationChange({ petName, id: formulaId });
+              },
           activeConversationPetName: activeConversation
             ? activeConversation.petName
+            : null,
+          channelMode: isChannelMode || false,
+          onSelectChannel: isChannelMode ? switchChannel : undefined,
+          activeChannelPetName: isChannelMode
+            ? activeSpaceInfo.channelPetName || null
             : null,
         },
       ).catch(window.reportError);
@@ -441,6 +592,7 @@ const bodyComponent = (
           exitConversation: () => onConversationChange(null),
           navigateToConversation,
           getMoiMessageNumber: () => currentMoiMessageNumber,
+          getChannelRef: () => currentChannelRef,
         },
       );
       const { focusValue, blurValue } = valueComponent(
@@ -457,6 +609,13 @@ const bodyComponent = (
 };
 
 /**
+ * @typedef {object} ActiveSpaceInfo
+ * @property {'inbox' | 'channel'} mode
+ * @property {string} [channelPetName]
+ * @property {string} [proposedName]
+ */
+
+/**
  * Initialize the chat application with the given powers object.
  *
  * @param {unknown} powers - The powers object from HubCap
@@ -466,6 +625,8 @@ export const make = async powers => {
   let currentProfilePath = [];
   /** @type {ConversationState | null} */
   let activeConversation = null;
+  /** @type {ActiveSpaceInfo} */
+  let activeSpaceInfo = { mode: 'inbox' };
 
   const rebuild = () => {
     document.body.innerHTML = '';
@@ -474,23 +635,38 @@ export const make = async powers => {
       powers,
       currentProfilePath,
       activeConversation,
-      newPath => {
-        currentProfilePath = newPath;
-        activeConversation = null;
-        rebuild();
-      },
-      conversation => {
-        if (
-          conversation &&
-          activeConversation &&
-          conversation.id === activeConversation.id
-        ) {
-          return;
-        }
-        activeConversation = conversation;
-        rebuild();
-      },
+      onProfileChange,
+      onConversationChange,
+      activeSpaceInfo,
     );
+  };
+
+  /**
+   * @param {string[]} newPath
+   * @param {ActiveSpaceInfo} [spaceInfo]
+   */
+  const onProfileChange = (newPath, spaceInfo) => {
+    currentProfilePath = newPath;
+    activeConversation = null;
+    if (spaceInfo) {
+      activeSpaceInfo = spaceInfo;
+    } else {
+      activeSpaceInfo = { mode: 'inbox' };
+    }
+    rebuild();
+  };
+
+  /** @param {ConversationState | null} conversation */
+  const onConversationChange = conversation => {
+    if (
+      conversation &&
+      activeConversation &&
+      conversation.id === activeConversation.id
+    ) {
+      return;
+    }
+    activeConversation = conversation;
+    rebuild();
   };
 
   rebuild();

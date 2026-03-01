@@ -316,6 +316,30 @@ type DirectoryFormula = {
   petStore: FormulaIdentifier;
 };
 
+type ChannelFormula = {
+  type: 'channel';
+  handle: FormulaIdentifier;
+  creatorAgent: FormulaIdentifier;
+  messageStore: FormulaIdentifier;
+  memberStore: FormulaIdentifier;
+  proposedName: string;
+};
+
+export type ChannelDeferredTaskParams = {
+  channelId: FormulaIdentifier;
+};
+
+export type ChannelMessage = {
+  number: bigint;
+  date: string;
+  author: string;
+  pedigree: string[];
+  strings: string[];
+  edgeNames: string[];
+  ids: FormulaIdentifier[];
+  replyTo?: string;
+};
+
 type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
@@ -328,6 +352,7 @@ export type InvitationDeferredTaskParams = {
 };
 
 export type Formula =
+  | ChannelFormula
   | EndoFormula
   | LoopbackNetworkFormula
   | WorkerFormula
@@ -914,6 +939,7 @@ export interface EndoHost extends EndoAgent {
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
+  makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
@@ -941,6 +967,42 @@ export interface EndoHost extends EndoAgent {
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
+
+export interface EndoChannel {
+  help(topic?: string): string;
+  post(
+    strings: string[],
+    edgeNames: string[],
+    petNamesOrPaths: (string | string[])[],
+    replyTo?: string,
+  ): Promise<void>;
+  followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
+  listMessages(): Promise<ChannelMessage[]>;
+  invite(proposedName: string): Promise<object>;
+  revoke(member: object): Promise<void>;
+  revokeByName(memberName: string): Promise<void>;
+  getMembers(): Promise<
+    Array<{ proposedName: string; pedigree: string[]; active: boolean }>
+  >;
+  getProposedName(): string;
+}
+
+export interface EndoChannelMember {
+  help(topic?: string): string;
+  post(
+    strings: string[],
+    edgeNames: string[],
+    petNamesOrPaths: (string | string[])[],
+    replyTo?: string,
+  ): Promise<void>;
+  followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
+  listMessages(): Promise<ChannelMessage[]>;
+  invite(proposedName: string): Promise<object>;
+  getMembers(): Promise<
+    Array<{ proposedName: string; pedigree: string[]; active: boolean }>
+  >;
+  getProposedName(): string;
+}
 
 export type EndoInspector<Record = string> = {
   lookup: (petNameOrPath: Record | NameOrPath) => Promise<unknown>;
@@ -1264,6 +1326,13 @@ export interface DaemonCore {
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
+
+  formulateChannel: (
+    creatorAgentId: FormulaIdentifier,
+    handleId: FormulaIdentifier,
+    proposedName: string,
+    deferredTasks: DeferredTasks<ChannelDeferredTaskParams>,
+  ) => FormulateResult<EndoChannel>;
 
   formulateHost: (
     endoId: FormulaIdentifier,

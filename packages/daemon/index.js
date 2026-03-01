@@ -33,6 +33,13 @@ const removePath = async removalPath => {
     });
 };
 
+const enoentOk = error => {
+  if (error.code === 'ENOENT') {
+    return;
+  }
+  throw error;
+};
+
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
 const info = {
@@ -75,6 +82,11 @@ export const terminate = async (config = defaultConfig) => {
 };
 
 export const start = async (config = defaultConfig) => {
+  // Remove any stale socket left behind by a previous daemon that exited
+  // without cleaning up.  This prevents EADDRINUSE on restart.
+  if (process.platform !== 'win32') {
+    await removePath(config.sockPath).catch(enoentOk);
+  }
   await fs.promises.mkdir(config.statePath, {
     recursive: true,
   });
@@ -136,13 +148,6 @@ export const start = async (config = defaultConfig) => {
       }
     });
   });
-};
-
-const enoentOk = error => {
-  if (error.code === 'ENOENT') {
-    return;
-  }
-  throw error;
 };
 
 export const clean = async (config = defaultConfig) => {

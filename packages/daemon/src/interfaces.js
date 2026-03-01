@@ -288,6 +288,8 @@ export const HostInterface = M.interface('EndoHost', {
   makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
+  // Create a channel
+  makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
   // Get the greeter
@@ -339,6 +341,34 @@ export const HostInterface = M.interface('EndoHost', {
     MessageNumberShape, // messageNumber
     M.record(), // values
   ).returns(M.promise()),
+});
+
+export const ChannelInterface = M.interface('EndoChannel', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
+    .optional(M.string())
+    .returns(M.promise()),
+  followMessages: M.call().returns(M.promise()),
+  listMessages: M.call().returns(M.promise()),
+  invite: M.call(M.string()).returns(M.promise()),
+  join: M.call(M.string()).returns(M.promise()),
+  revoke: M.call(M.remotable()).returns(M.promise()),
+  revokeByName: M.call(M.string()).returns(M.promise()),
+  getMembers: M.call().returns(M.promise()),
+  getProposedName: M.call().returns(M.string()),
+});
+
+export const ChannelMemberInterface = M.interface('EndoChannelMember', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
+    .optional(M.string())
+    .returns(M.promise()),
+  setProposedName: M.call(M.string()).returns(M.promise()),
+  followMessages: M.call().returns(M.promise()),
+  listMessages: M.call().returns(M.promise()),
+  invite: M.call(M.string()).returns(M.promise()),
+  getMembers: M.call().returns(M.promise()),
+  getProposedName: M.call().returns(M.string()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {

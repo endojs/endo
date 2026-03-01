@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -60,6 +60,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
+ * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
@@ -82,6 +83,7 @@ export const makeHostMaker = ({
   formulateBundle,
   formulateReadableBlob,
   formulateInvitation,
+  formulateChannel,
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
@@ -557,6 +559,27 @@ export const makeHostMaker = ({
     };
 
     /**
+     * Create a new channel and store it under the given pet name.
+     * @param {PetName} petName - Pet name to store the channel under.
+     * @param {string} channelProposedName - Display name for the channel creator.
+     */
+    const makeChannelCmd = async (petName, channelProposedName) => {
+      assertPetName(petName);
+      /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        petStore.write(petName, identifiers.channelId),
+      );
+      const { value } = await formulateChannel(
+        hostId,
+        handleId,
+        channelProposedName,
+        tasks,
+      );
+      return value;
+    };
+
+    /**
      * @param {PetName} guestName
      */
     const invite = async guestName => {
@@ -1025,6 +1048,7 @@ export const makeHostMaker = ({
       getPeerInfo,
       addPeerInfo,
       deliver,
+      makeChannel: makeChannelCmd,
       invite,
       accept,
       approveEvaluation,

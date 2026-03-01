@@ -40,6 +40,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
  * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
+ * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -56,6 +57,7 @@ export const sendFormComponent = ({
   getConversationPetName,
   navigateToConversation,
   getMoiMessageNumber,
+  getChannelRef,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -102,6 +104,33 @@ export const sendFormComponent = ({
     // Check if message is empty
     const hasContent = strings.some(s => s.trim()) || petNames.length > 0;
     if (!hasContent) {
+      return;
+    }
+
+    // Channel mode: post directly to the channel (no recipient needed)
+    const channelRef = getChannelRef ? getChannelRef() : null;
+    if (channelRef) {
+      const messageStrings = strings.map((s, i) => {
+        if (i === 0) return s.trimStart();
+        if (i === strings.length - 1) return s.trimEnd();
+        return s;
+      });
+
+      const replyTo = getMoiMessageNumber ? getMoiMessageNumber() : undefined;
+      const replyToStr =
+        replyTo !== undefined ? String(replyTo) : undefined;
+
+      E(channelRef)
+        .post(messageStrings, edgeNames, petNames, replyToStr)
+        .then(
+          () => {
+            tokenComponent.clear();
+            clearError();
+          },
+          (/** @type {Error} */ err) => {
+            $error.textContent = err.message;
+          },
+        );
       return;
     }
 
@@ -230,12 +259,13 @@ export const sendFormComponent = ({
   $sendButton.addEventListener('click', handleSend);
 
   $input.addEventListener('keydown', (/** @type {KeyboardEvent} */ event) => {
-    // Space at empty start inserts last recipient
+    // Space at empty start inserts last recipient (not in channel mode)
     if (
       event.key === ' ' &&
       !tokenComponent.isMenuVisible() &&
       lastRecipient &&
-      isAtEmptyStart()
+      isAtEmptyStart() &&
+      !(getChannelRef && getChannelRef())
     ) {
       event.preventDefault();
       tokenComponent.insertTokenAtCursor(lastRecipient);
