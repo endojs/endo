@@ -921,10 +921,14 @@ const makeDaemonCore = async (
     const { promise: forceCancelled, reject: forceCancel } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
 
+    const { promise: workerCancelled, reject: cancelWorker } =
+      /** @type {PromiseKit<never>} */ (makePromiseKit());
+
     const { workerTerminated, workerDaemonFacet } =
       await controlPowers.makeWorker(
         workerId512,
         daemonWorkerFacet,
+        workerCancelled,
         Promise.race([forceCancelled, gracePeriodElapsed]),
         capTpConnectionRegistrar,
         trustedShims,
@@ -944,6 +948,7 @@ const makeDaemonCore = async (
     });
 
     const gracefulCancel = async () => {
+      cancelWorker(new Error('Worker cancelled'));
       E.sendOnly(workerDaemonFacet).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
@@ -3507,7 +3512,7 @@ export const makeDaemon = async (
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
   // TODO thread through command arguments.
-  const gracePeriodMs = 100;
+  const gracePeriodMs = 2000;
 
   /** @type {Promise<never>} */
   const gracePeriodElapsed = cancelled.catch(async error => {

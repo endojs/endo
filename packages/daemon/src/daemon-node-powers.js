@@ -574,7 +574,8 @@ export const makeDaemonicControlPowers = (
   /**
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
-   * @param {Promise<never>} cancelled
+   * @param {Promise<never>} cancelled - rejects to initiate shutdown (SIGTERM)
+   * @param {Promise<never>} forceCancelled - rejects to force shutdown (SIGKILL)
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [trustedShims]
    */
@@ -582,6 +583,7 @@ export const makeDaemonicControlPowers = (
     workerId,
     daemonWorkerFacet,
     cancelled,
+    forceCancelled,
     capTpConnectionRegistrar = undefined,
     trustedShims = undefined,
   ) => {
@@ -635,8 +637,14 @@ export const makeDaemonicControlPowers = (
 
     await filePowers.writeFileText(pidPath, `${child.pid}\n`);
 
-    cancelled.catch(async () => {
+    workerClosed.then(() => filePowers.removePath(pidPath).catch(() => {}));
+
+    cancelled.catch(() => {
       child.kill();
+    });
+
+    forceCancelled.catch(() => {
+      child.kill('SIGKILL');
     });
 
     console.log(

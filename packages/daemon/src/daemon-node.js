@@ -87,6 +87,36 @@ const updateRecordedPid = async () => {
   await filePowers.writeFileText(pidPath, `${pid}\n`);
 };
 
+const killStaleWorkers = async () => {
+  const workerDir = filePowers.joinPath(ephemeralStatePath, 'worker');
+  /** @type {string[]} */
+  let workerIds;
+  try {
+    workerIds = await filePowers.readDirectory(workerDir);
+  } catch {
+    return;
+  }
+  await Promise.all(
+    workerIds.map(async workerId => {
+      const pidPath = filePowers.joinPath(workerDir, workerId, 'worker.pid');
+      try {
+        const pidText = await filePowers.readFileText(pidPath);
+        const workerPid = Number(pidText);
+        if (Number.isFinite(workerPid) && workerPid > 0) {
+          try {
+            kill(workerPid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }
+        await fs.promises.rm(pidPath, { force: true });
+      } catch {
+        /* no pid file */
+      }
+    }),
+  );
+};
+
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
@@ -95,6 +125,7 @@ const main = async () => {
   });
 
   await daemonicPersistencePowers.initializePersistence();
+  await killStaleWorkers();
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled, {
