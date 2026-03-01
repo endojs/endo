@@ -1,4 +1,4 @@
-const pattern = /@([a-z][a-z0-9-]{0,127})(?::([a-z][a-z0-9-]{0,127}))?/g;
+const pattern = /@([a-z0-9][a-z0-9-]{0,127})(?::([a-z0-9][a-z0-9-]{0,127}))?/g;
 
 export const parseMessage = message => {
   const strings = [];

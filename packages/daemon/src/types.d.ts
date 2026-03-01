@@ -256,6 +256,8 @@ type MailHubFormula = {
 type MessageFormula = {
   type: 'message';
   messageType: 'request' | 'package';
+  messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
@@ -338,7 +340,11 @@ export interface Responder {
   resolveWithId(id: string | Promise<string>): void;
 }
 
-export type Request = {
+export type MessageBase = {
+  messageId: FormulaNumber;
+};
+
+export type Request = MessageBase & {
   type: 'request';
   description: string;
   promiseId: FormulaIdentifier;
@@ -346,8 +352,9 @@ export type Request = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type Package = {
+export type Package = MessageBase & {
   type: 'package';
+  replyTo?: FormulaNumber;
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<Name>; // edge names
   ids: Array<FormulaIdentifier>; // formula identifiers
@@ -566,6 +573,12 @@ export interface Mail {
     petName: string[],
   ): Promise<void>;
   dismiss(messageNumber: bigint): Promise<void>;
+  reply(
+    messageNumber: bigint,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNames: Array<string>,
+  ): Promise<void>;
   request(
     recipientName: string,
     what: string,
@@ -644,6 +657,7 @@ export interface EndoAgent extends EndoDirectory {
   reject: Mail['reject'];
   adopt: Mail['adopt'];
   dismiss: Mail['dismiss'];
+  reply: Mail['reply'];
   request: Mail['request'];
   send: Mail['send'];
   deliver: Mail['deliver'];
