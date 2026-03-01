@@ -2,12 +2,14 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
+/** @import { Passable } from '@endo/pass-style' */
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 /** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeError, q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import {
   assertPetName,
   assertPetNamePath,
@@ -159,7 +161,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {ERef<AsyncIterableIterator<string>>} readerRef
+     * @param {ERef<PassableBytesReader>} readerRef
      * @param {string | string[]} petName
      */
     const storeBlob = async (readerRef, petName) => {
@@ -753,9 +755,12 @@ export const makeHostMaker = ({
       ...host,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
-        makeIteratorRef(host.followLocatorNameChanges(locator)),
-      followMessages: () => makeIteratorRef(host.followMessages()),
-      followNameChanges: () => makeIteratorRef(host.followNameChanges()),
+        readerFromIterator(host.followLocatorNameChanges(locator)),
+      followMessages: () =>
+        readerFromIterator(
+          /** @type {AsyncIterable<Passable>} */ (host.followMessages()),
+        ),
+      followNameChanges: () => readerFromIterator(host.followNameChanges()),
     });
 
     await provide(mainWorkerId, 'worker');

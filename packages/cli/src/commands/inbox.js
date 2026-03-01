@@ -3,7 +3,7 @@
 
 import os from 'os';
 import { E } from '@endo/far';
-import { makeRefIterator } from '@endo/daemon';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { withEndoAgent } from '../context.js';
 import { formatMessage } from '../message-format.js';
 
@@ -13,7 +13,7 @@ export const inbox = async ({ follow, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const selfId = await E(agent).identify('SELF');
     const messages = follow
-      ? makeRefIterator(E(agent).followMessages())
+      ? iterateReader(E(agent).followMessages())
       : await E(agent).listMessages();
     for await (const message of messages) {
       const { number, type, from, to, date } = message;

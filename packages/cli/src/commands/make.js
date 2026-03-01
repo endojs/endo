@@ -5,11 +5,13 @@ import path from 'path';
 import url from 'url';
 
 import bundleSource from '@endo/bundle-source';
-import { makeReaderRef } from '@endo/daemon';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
 import { parseOptionalPetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
+
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 
 const textEncoder = new TextEncoder();
 
@@ -42,7 +44,7 @@ export const makeCommand = async ({
 
   const resultPath = parseOptionalPetNamePath(resultName);
 
-  /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
+  /** @type {PassableBytesReader | undefined} */
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;
@@ -57,7 +59,7 @@ export const makeCommand = async ({
     const bundle = await bundleSource(filePath);
     const bundleText = JSON.stringify(bundle);
     const bundleBytes = textEncoder.encode(bundleText);
-    bundleReaderRef = makeReaderRef([bundleBytes]);
+    bundleReaderRef = bytesReaderFromIterator([bundleBytes]);
   }
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {

@@ -4,7 +4,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { formatLocator, idFromLocator } from './locator.js';
 import {
   assertNamePath,
@@ -299,8 +299,9 @@ export const makeDirectoryMaker = ({
       ...directory,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
-        makeIteratorRef(directory.followLocatorNameChanges(locator)),
-      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+        readerFromIterator(directory.followLocatorNameChanges(locator)),
+      followNameChanges: () =>
+        readerFromIterator(directory.followNameChanges()),
     });
   };
 
