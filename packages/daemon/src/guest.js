@@ -17,6 +17,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {object} args
  * @param {Provide} args.provide
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
+ * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {() => Promise<void>} [args.collectIfDirty]
@@ -26,6 +27,7 @@ import { guestHelp, makeHelp } from './help-text.js';
 export const makeGuestMaker = ({
   provide,
   formulateMarshalValue,
+  getFormulaForId,
   makeMailbox,
   makeDirectoryNode,
   collectIfDirty = async () => {},
@@ -239,13 +241,26 @@ export const makeGuestMaker = ({
         }
       }
 
-      // Marshal the values record
+      // Marshal the values record.
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const marshalTasks = makeDeferredTasks();
       const { id: marshalledId } = await formulateMarshalValue(
         /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
         marshalTasks,
       );
+
+      // Write the marshal formula ID directly to the shared pet store so
+      // the formula graph makes it reachable immediately. The resolver's
+      // fire-and-forget resolveWithId would write this asynchronously, but
+      // collection could run before that completes and delete the formula.
+      const resolverFormula =
+        /** @type {{ store: FormulaIdentifier }} */ (await getFormulaForId(resolverId));
+      const petStore =
+        /** @type {{ write: (name: string, id: string) => Promise<void> }} */ (
+          await provide(resolverFormula.store)
+        );
+      await petStore.write('value', marshalledId);
+
       const resolver = await provide(resolverId, 'resolver');
       E.sendOnly(resolver).resolveWithId(marshalledId);
     };
@@ -305,7 +320,7 @@ export const makeGuestMaker = ({
         }
       };
 
-    const unwrappedMethods = new Set(['handle', 'reverseIdentify']);
+    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'respondForm']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,

@@ -346,9 +346,14 @@ export const createFormBuilder = ({
     }
   });
 
-  // Handle Cmd+Enter to submit
+  // Handle Enter to submit when focused on an input field.
+  // Buttons (e.g. "Add field") should handle their own Enter/click.
   $container.addEventListener('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    if (
+      e.key === 'Enter' &&
+      !e.shiftKey &&
+      e.target instanceof HTMLInputElement
+    ) {
       e.preventDefault();
       handleSubmit();
     }

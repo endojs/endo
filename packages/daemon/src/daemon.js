@@ -1272,7 +1272,9 @@ const makeDaemonCore = async (
     };
 
     return makeExo('EndoResolver', ResponderInterface, {
-      resolveWithId: idOrPromise =>
+      resolveWithId: idOrPromise => {
+        // Enqueue but do not return the promise — the ResponderInterface
+        // guard expects resolveWithId to return undefined.
         resolverJobs.enqueue(async () => {
           await null;
           if (petStore.identifyLocal(PROMISE_STATUS_NAME) !== undefined) {
@@ -1297,7 +1299,8 @@ const makeDaemonCore = async (
             const reason = formatRejectionReason(error);
             await writeStatus({ status: 'rejected', reason });
           }
-        }),
+        });
+      },
     });
   };
 
@@ -3309,6 +3312,7 @@ const makeDaemonCore = async (
   const makeGuest = makeGuestMaker({
     provide,
     formulateMarshalValue,
+    getFormulaForId,
     makeMailbox,
     makeDirectoryNode,
     collectIfDirty,
@@ -3344,9 +3348,10 @@ const makeDaemonCore = async (
     formulateBundle,
     formulateReadableBlob,
     formulateInvitation,
+    getAllNetworkAddresses,
+    getFormulaForId,
     makeMailbox,
     makeDirectoryNode,
-    getAllNetworkAddresses,
     localNodeNumber,
     getAgentIdForHandleId,
     collectIfDirty,

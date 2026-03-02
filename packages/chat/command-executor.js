@@ -166,12 +166,13 @@ export const createCommandExecutor = ({
           const resultPath = resultName
             ? String(resultName).split('.')
             : undefined;
-          await E(powers).form(
-            recipientPath,
-            String(description),
-            fieldsRecord,
-            resultPath,
-          );
+          // Fire without awaiting — form() blocks until the recipient responds,
+          // but we only need to know the form was dispatched.
+          E(powers)
+            .form(recipientPath, String(description), fieldsRecord, resultPath)
+            .catch(error => {
+              console.error('Form dispatch error:', error);
+            });
           return { success: true, message: 'Form sent' };
         }
 

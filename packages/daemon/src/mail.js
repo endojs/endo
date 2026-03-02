@@ -286,14 +286,26 @@ export const makeMailboxMaker = ({
         () => /** @type {const} */ ('fulfilled'),
         () => /** @type {const} */ ('rejected'),
       );
-      const resultId = resolutionIdP.catch(() => undefined);
+      const resultId = resolutionIdP.catch(error => {
+        console.error(
+          `[Mail] form-request resultId rejected (makeFormRequest):`,
+          error,
+        );
+        return undefined;
+      });
       const result = resolutionIdP
         .then(id =>
           typeof id === 'string'
             ? provide(/** @type {FormulaIdentifier} */ (id))
             : id,
         )
-        .catch(() => undefined);
+        .catch(error => {
+          console.error(
+            `[Mail] form-request result rejected (makeFormRequest):`,
+            error,
+          );
+          return undefined;
+        });
       const request = harden({
         type: /** @type {const} */ ('form-request'),
         from: fromId,
@@ -693,14 +705,26 @@ export const makeMailboxMaker = ({
           () => /** @type {const} */ ('fulfilled'),
           () => /** @type {const} */ ('rejected'),
         );
-        const resultId = resolutionIdP.catch(() => undefined);
+        const resultId = resolutionIdP.catch(error => {
+          console.error(
+            `[Mail] form-request resultId rejected (makeStampedMessage):`,
+            error,
+          );
+          return undefined;
+        });
         const result = resolutionIdP
           .then(id =>
             typeof id === 'string'
               ? provide(/** @type {FormulaIdentifier} */ (id))
               : id,
           )
-          .catch(() => undefined);
+          .catch(error => {
+            console.error(
+              `[Mail] form-request result rejected (makeStampedMessage):`,
+              error,
+            );
+            return undefined;
+          });
         return harden({
           type: formula.messageType,
           from: formula.from,

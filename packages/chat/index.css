@@ -3323,6 +3323,14 @@ button:active {
   color: #e03131;
 }
 
+.message.sent .form-request-status.status-granted {
+  color: #b2f2bb;
+}
+
+.message.sent .form-request-status.status-rejected {
+  color: #ffc9c9;
+}
+
 /* Add Space Modal */
 #add-space-modal-container {
   display: none;

@@ -3683,3 +3683,83 @@ test('form request rejected settled promise resolves to rejected', async t => {
   const resolvedValue = await formMsg.result;
   t.is(resolvedValue, undefined);
 });
+
+test('form request reverse: host sends form to guest, guest responds', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('alice');
+
+  // Follow guest messages to catch the form request
+  const guestIteratorRef = E(guest).followMessages();
+
+  // Host sends a form to the guest via the guest's pet name path
+  const responseP = E(host).form(
+    ['alice'],
+    'Survey',
+    harden({
+      favoriteColor: { label: 'Favorite color' },
+      city: { label: 'City' },
+    }),
+  );
+
+  // Guest receives the form-request message
+  const { value: formMsg } = await E(guestIteratorRef).next();
+  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.description, 'Survey');
+
+  // Guest responds with values
+  await E(guest).respondForm(
+    formMsg.number,
+    harden({ favoriteColor: 'green', city: 'Portland' }),
+  );
+
+  // Host's form() promise resolves with the submitted values
+  const result = await responseP;
+  t.deepEqual(result, { favoriteColor: 'green', city: 'Portland' });
+});
+
+test('form request reverse: host sends form to guest, result is accessible', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('alice');
+
+  // Follow messages on both sides
+  const hostIteratorRef = E(host).followMessages();
+  const guestIteratorRef = E(guest).followMessages();
+
+  // Host sends a form to the guest
+  E.sendOnly(host).form(
+    ['alice'],
+    'Preferences',
+    harden({
+      theme: { label: 'Theme' },
+    }),
+  );
+
+  // Host should see the outgoing form-request in its own messages
+  const { value: hostFormMsg } = await E(hostIteratorRef).next();
+  t.is(hostFormMsg.type, 'form-request');
+
+  // Guest receives the form-request
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form-request');
+  t.is(guestFormMsg.description, 'Preferences');
+
+  // Guest responds
+  await E(guest).respondForm(
+    guestFormMsg.number,
+    harden({ theme: 'dark' }),
+  );
+
+  // The host's message settled promise should resolve
+  const status = await hostFormMsg.settled;
+  t.is(status, 'fulfilled');
+
+  // The host's result promise should resolve to the submitted values
+  const resultValue = await hostFormMsg.result;
+  t.deepEqual(resultValue, { theme: 'dark' });
+
+  // The result should also be accessible via resultId
+  const resultId = await hostFormMsg.resultId;
+  t.is(typeof resultId, 'string');
+});

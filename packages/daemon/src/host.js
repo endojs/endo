@@ -86,6 +86,7 @@ export const makeHostMaker = ({
   formulateReadableBlob,
   formulateInvitation,
   getAllNetworkAddresses,
+  getFormulaForId,
   makeMailbox,
   makeDirectoryNode,
   localNodeNumber,
@@ -882,13 +883,26 @@ export const makeHostMaker = ({
         }
       }
 
-      // Marshal the values record
+      // Marshal the values record.
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const marshalTasks = makeDeferredTasks();
       const { id: marshalledId } = await formulateMarshalValue(
         /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
         marshalTasks,
       );
+
+      // Write the marshal formula ID directly to the shared pet store so
+      // the formula graph makes it reachable immediately. The resolver's
+      // fire-and-forget resolveWithId would write this asynchronously, but
+      // collection could run before that completes and delete the formula.
+      const resolverFormula =
+        /** @type {{ store: FormulaIdentifier }} */ (await getFormulaForId(resolverId));
+      const petStore =
+        /** @type {{ write: (name: string, id: string) => Promise<void> }} */ (
+          await provide(resolverFormula.store)
+        );
+      await petStore.write('value', marshalledId);
+
       const resolver = await provide(resolverId, 'resolver');
       E.sendOnly(resolver).resolveWithId(marshalledId);
     };
