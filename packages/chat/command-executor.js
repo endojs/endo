@@ -344,8 +344,9 @@ export const createCommandExecutor = ({
             String(params.modulePath || '') ||
             // @ts-ignore Vite injects this at build time
             (import.meta.env?.TCP_NETSTRING_PATH ?? '');
-          const effectiveHostPort =
-            String(params.hostPort || '') || 'localhost:0';
+          const effectiveHost = String(params.host || '') || '127.0.0.1';
+          const effectivePort = String(params.port || '') || '8940';
+          const effectiveHostPort = `${effectiveHost}:${effectivePort}`;
 
           if (!effectiveModulePath) {
             return {
@@ -355,37 +356,12 @@ export const createCommandExecutor = ({
             };
           }
 
+          await E(powers).storeValue(effectiveHostPort, 'tcp-listen-addr');
           console.log(`[Chat] /network: loading module ${effectiveModulePath}`);
-          const network = E(powers).makeUnconfined(
-            'MAIN',
-            effectiveModulePath,
-            {
-              powersName: 'AGENT',
-              resultName: 'network-service',
-            },
-          );
-          console.log(`[Chat] /network: waiting for port request message...`);
-          const iteratorRef = E(powers).followMessages();
-          const existingMessages = /** @type {unknown[]} */ (
-            await E(powers).listMessages()
-          );
-          for (let i = 0; i < existingMessages.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await E(iteratorRef).next();
-          }
-          const { value: message } = await E(iteratorRef).next();
-          const { number } = E.get(
-            /** @type {import('@endo/daemon').StampedMessage} */ (message),
-          );
-          console.log(
-            `[Chat] /network: resolving port request with "${effectiveHostPort}"`,
-          );
-          await E(powers).storeValue(effectiveHostPort, 'netport');
-          await E(powers).resolve(await number, 'netport');
-          console.log(
-            `[Chat] /network: waiting for network module to start...`,
-          );
-          await network;
+          await E(powers).makeUnconfined('MAIN', effectiveModulePath, {
+            powersName: 'AGENT',
+            resultName: 'network-service',
+          });
           console.log(`[Chat] /network: moving to NETS.tcp`);
           await E(powers).move(['network-service'], ['NETS', 'tcp']);
           console.log(`[Chat] /network: TCP network ready`);

@@ -18,6 +18,7 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @typedef {object} InlineEvalAPI
  * @property {() => ParsedEval} getData - Get parsed eval data
  * @property {() => boolean} isValid - Check if eval is valid
+ * @property {(disabled: boolean) => void} setDisabled - Disable or enable all fields
  * @property {() => void} clear - Clear the input
  * @property {() => void} focus - Focus the input
  * @property {(data: ParsedEval) => void} setData - Set data (for expansion from modal)
@@ -434,6 +435,18 @@ export const createInlineEval = ({
   };
 
   /**
+   * Disable or enable all fields.
+   * @param {boolean} disabled
+   */
+  const setDisabled = disabled => {
+    $source.disabled = disabled;
+    for (const field of endowmentFields) {
+      field.$petName.disabled = disabled;
+      field.$codeName.disabled = disabled;
+    }
+  };
+
+  /**
    * Clean up.
    */
   const dispose = () => {
@@ -450,6 +463,7 @@ export const createInlineEval = ({
   return {
     getData,
     isValid,
+    setDisabled,
     clear,
     focus,
     setData,

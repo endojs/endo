@@ -235,20 +235,11 @@ const prepareHostWithTestNetwork = async t => {
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
-  const network = E(host).makeUnconfined('MAIN', serviceLocation, {
+  await E(host).storeValue('127.0.0.1:0', 'tcp-listen-addr');
+  await E(host).makeUnconfined('MAIN', serviceLocation, {
     powersName: 'AGENT',
     resultName: 'test-network',
   });
-
-  // set address via request
-  const iteratorRef = E(host).followMessages();
-  const { value: message } = await E(iteratorRef).next();
-  const { number } = E.get(message);
-  await E(host).storeValue('127.0.0.1:0', 'netport');
-  await E(host).resolve(await number, 'netport');
-
-  // move test network to network dir
-  await network;
   await E(host).move(['test-network'], ['NETS', 'tcp']);
 
   return host;

@@ -17,6 +17,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @property {() => string | null} getCommand - Get current command name
  * @property {() => Record<string, unknown>} getData - Get form data
  * @property {() => boolean} isValid - Check if form is valid
+ * @property {(disabled: boolean) => void} setDisabled - Disable or enable all fields
  * @property {() => void} clear - Clear the form
  * @property {() => void} focus - Focus the first field
  * @property {() => void} dispose - Clean up
@@ -695,6 +696,19 @@ export const createInlineCommandForm = ({
   };
 
   /**
+   * Disable or enable all form fields.
+   * @param {boolean} disabled
+   */
+  const setDisabled = disabled => {
+    for (const $el of fieldElements) {
+      /** @type {HTMLInputElement} */ ($el).disabled = disabled;
+    }
+    if (inlineEvalInstance && inlineEvalInstance.setDisabled) {
+      inlineEvalInstance.setDisabled(disabled);
+    }
+  };
+
+  /**
    * Clean up autocomplete instances and inline eval.
    */
   const dispose = () => {
@@ -717,6 +731,7 @@ export const createInlineCommandForm = ({
     getCommand: () => currentCommand,
     getData,
     isValid,
+    setDisabled,
     clear,
     focus,
     dispose,
