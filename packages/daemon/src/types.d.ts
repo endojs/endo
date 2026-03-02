@@ -425,6 +425,8 @@ export type FormRequest = MessageBase & {
   promiseId: FormulaIdentifier;
   resolverId: FormulaIdentifier;
   settled: Promise<'fulfilled' | 'rejected'>;
+  resultId: Promise<FormulaIdentifier | undefined>;
+  result: Promise<unknown>;
 };
 
 export type EvalProposalBase = {
@@ -876,6 +878,10 @@ export interface EndoGuest extends EndoAgent {
   storeValue<T extends Passable>(
     value: T,
     petName: string | string[],
+  ): Promise<void>;
+  respondForm(
+    messageNumber: bigint,
+    values: Record<string, unknown>,
   ): Promise<void>;
 }
 

@@ -281,6 +281,17 @@ Store a passable value (number, string, array, record, etc.) in your directory.
 - storeValue(["a", "b"], ["subdir", "items"]) stores in a subdirectory
 Values must be passable (no functions or non-transferable objects).`,
 
+  respondForm: `\
+respondForm(messageNumber, values) -> Promise<void>
+Respond to a structured form request with values.
+
+- messageNumber: The inbox message number of the form-request
+- values: A record with keys matching the form's field definitions
+
+The guest that sent the form request receives the values record.
+
+Example: respondForm(0, { name: "Alice", age: 30 })`,
+
   // Directory operations inherit from directoryHelp
   // Mail operations inherit from mailHelp
 };

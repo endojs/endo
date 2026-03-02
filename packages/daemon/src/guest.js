@@ -3,6 +3,7 @@
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
+import { mustMatch } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
@@ -221,6 +222,33 @@ export const makeGuestMaker = ({
       unpinTransient(id);
     };
 
+    /** @type {EndoGuest['respondForm']} */
+    const respondForm = async (messageNumber, values) => {
+      const { fields, resolverId } = mailbox.getFormRequest(messageNumber);
+
+      // Validate that values cover every field and match patterns
+      const fieldKeys = Object.keys(fields);
+      for (const key of fieldKeys) {
+        if (!(key in values)) {
+          throw new Error(`Missing value for field ${q(key)}`);
+        }
+        const { pattern } = fields[key];
+        if (pattern !== undefined) {
+          mustMatch(values[key], pattern, `field ${q(key)}`);
+        }
+      }
+
+      // Marshal the values record
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const marshalTasks = makeDeferredTasks();
+      const { id: marshalledId } = await formulateMarshalValue(
+        /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
+        marshalTasks,
+      );
+      const resolver = await provide(resolverId, 'resolver');
+      E.sendOnly(resolver).resolveWithId(marshalledId);
+    };
+
     /** @type {EndoGuest} */
     const guest = {
       // Directory
@@ -261,6 +289,7 @@ export const makeGuestMaker = ({
       define,
       form,
       storeValue,
+      respondForm,
     };
 
     /** @param {Function} fn */

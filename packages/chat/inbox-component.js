@@ -641,7 +641,7 @@ export const inboxComponent = async (
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
     } else if (message.type === 'form-request') {
-      const { description, fields, settled } = message;
+      const { description, fields, settled, resultId, result } = message;
 
       const $form = document.createElement('div');
       $form.className = 'form-request-message';
@@ -702,7 +702,7 @@ export const inboxComponent = async (
       const $submit = document.createElement('button');
       $submit.className = 'form-request-submit';
       $submit.textContent = 'Submit';
-      $submit.onclick = () => {
+      const submitForm = () => {
         /** @type {Record<string, string>} */
         const values = {};
         for (const key of fieldKeys) {
@@ -714,7 +714,18 @@ export const inboxComponent = async (
             $error.innerText = ` ${/** @type {Error} */ (err).message}`;
           });
       };
+      $submit.onclick = submitForm;
       $actions.appendChild($submit);
+
+      $fieldsContainer.addEventListener(
+        'keydown',
+        /** @param {KeyboardEvent} e */ e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submitForm();
+          }
+        },
+      );
 
       const $reject = document.createElement('button');
       $reject.className = 'form-request-reject';
@@ -731,15 +742,36 @@ export const inboxComponent = async (
 
       // Replace with status when settled
       settled.then(status => {
-        $fieldsContainer.querySelectorAll('input').forEach(input => {
-          /** @type {HTMLInputElement} */ (input).disabled = true;
-        });
+        $fieldsContainer.style.display = 'none';
         $actions.innerHTML = '';
         const $status = document.createElement('span');
         $status.className = 'form-request-status';
         if (status === 'fulfilled') {
           $status.textContent = 'Submitted';
           $status.classList.add('status-granted');
+
+          const $showResult = document.createElement('button');
+          $showResult.className = 'form-request-show-result';
+          $showResult.textContent = 'Show Result';
+          $showResult.title = 'Show the form result';
+          $showResult.addEventListener('click', () => {
+            Promise.all([resultId, result]).then(
+              ([id, value]) => {
+                if (!id) {
+                  $error.innerText = ' Result is not available.';
+                  return;
+                }
+                showValue(value, id, undefined, {
+                  number,
+                  edgeName: 'RESULT',
+                });
+              },
+              (/** @type {Error} */ err) => {
+                $error.innerText = ` ${err.message}`;
+              },
+            );
+          });
+          $actions.appendChild($showResult);
         } else {
           $status.textContent = 'Rejected';
           $status.classList.add('status-rejected');

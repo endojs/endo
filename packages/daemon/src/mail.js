@@ -101,6 +101,7 @@ const MESSAGE_SPECIAL_NAMES = new Set([
   'STRINGS',
   'PROMISE',
   'RESOLVER',
+  'RESULT',
 ]);
 
 /**
@@ -285,6 +286,14 @@ export const makeMailboxMaker = ({
         () => /** @type {const} */ ('fulfilled'),
         () => /** @type {const} */ ('rejected'),
       );
+      const resultId = resolutionIdP.catch(() => undefined);
+      const result = resolutionIdP
+        .then(id =>
+          typeof id === 'string'
+            ? provide(/** @type {FormulaIdentifier} */ (id))
+            : id,
+        )
+        .catch(() => undefined);
       const request = harden({
         type: /** @type {const} */ ('form-request'),
         from: fromId,
@@ -295,6 +304,8 @@ export const makeMailboxMaker = ({
         promiseId,
         resolverId,
         settled,
+        resultId,
+        result,
       });
       return harden({ request, response: resolutionIdP });
     };
@@ -678,6 +689,14 @@ export const makeMailboxMaker = ({
           () => /** @type {const} */ ('fulfilled'),
           () => /** @type {const} */ ('rejected'),
         );
+        const resultId = resolutionIdP.catch(() => undefined);
+        const result = resolutionIdP
+          .then(id =>
+            typeof id === 'string'
+              ? provide(/** @type {FormulaIdentifier} */ (id))
+              : id,
+          )
+          .catch(() => undefined);
         return harden({
           type: formula.messageType,
           from: formula.from,
@@ -687,6 +706,8 @@ export const makeMailboxMaker = ({
           promiseId: formula.promiseId,
           resolverId: formula.resolverId,
           settled,
+          resultId,
+          result,
           messageId: formula.messageId,
           replyTo: formula.replyTo,
           number: messageNumber,

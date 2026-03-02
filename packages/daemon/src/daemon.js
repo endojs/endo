@@ -1593,6 +1593,18 @@ const makeDaemonCore = async (
       names.forEach((name, index) => {
         registerName(name, ids[index], undefined);
       });
+    } else if (messageType === 'form-request') {
+      if (
+        typeof description !== 'string' ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Form-request message formula is incomplete');
+      }
+      registerName(MESSAGE_DESCRIPTION_NAME, undefined, description);
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+      registerName('RESULT', promiseId, undefined);
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -1611,6 +1623,19 @@ const makeDaemonCore = async (
           }
           if (headName === MESSAGE_PROMISE_NAME) {
             return provide(id, 'promise');
+          }
+          if (headName === 'RESULT') {
+            // Follow the promise resolution to provide the underlying value.
+            return Promise.resolve(provide(id, 'promise')).then(
+              resolutionId => {
+                if (typeof resolutionId === 'string') {
+                  return provide(
+                    /** @type {FormulaIdentifier} */ (resolutionId),
+                  );
+                }
+                return resolutionId;
+              },
+            );
           }
           if (headName === MESSAGE_RESOLVER_NAME) {
             return provide(id, 'resolver');

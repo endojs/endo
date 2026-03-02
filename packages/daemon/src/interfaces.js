@@ -213,6 +213,11 @@ export const GuestInterface = M.interface('EndoGuest', {
     .returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
+  // Respond to a form request with values
+  respondForm: M.call(
+    MessageNumberShape, // messageNumber
+    M.record(), // values
+  ).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
   // Propose code evaluation to host (same signature as Host.evaluate)
