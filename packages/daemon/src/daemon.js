@@ -3366,8 +3366,17 @@ const makeDaemonCore = async (
     unpinTransient,
   });
 
+  /** @param {import('@endo/pass-style').Passable} value */
+  const persistValue = async value => {
+    /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+    const tasks = makeDeferredTasks();
+    const { id } = await formulateMarshalValue(value, tasks, pinTransient);
+    return id;
+  };
+
   const makeChannelInstance = makeChannelMaker({
     provide,
+    persistValue,
   });
 
   const makeGuest = makeGuestMaker({

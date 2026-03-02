@@ -228,9 +228,12 @@ test.serial('channel - admin can invite a member', async t => {
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
 
-  // Invite a member
-  const bobMember = await E(channel).invite('Bob');
-  t.truthy(bobMember, 'invite should return a member reference');
+  // Invite a member — returns [attenuator, proxyMember]
+  const inviteResult = await E(channel).invite('Bob');
+  t.is(inviteResult.length, 2, 'invite should return a [attenuator, proxy] pair');
+  const [bobAttenuator, bobMember] = inviteResult;
+  t.truthy(bobAttenuator, 'first element is an attenuator remotable');
+  t.truthy(bobMember, 'second element is the proxy member');
 
   // Check proposed name
   const bobName = await E(bobMember).getProposedName();
@@ -253,7 +256,7 @@ test.serial('channel - member posts appear with correct author and pedigree', as
   await E(channel).post(['Admin message'], [], []);
 
   // Invite Bob and have Bob post
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
   await E(bobMember).post(['HELLO!'], [], []);
 
   // List all messages
@@ -281,7 +284,7 @@ test.serial('channel - member sees same messages as admin via followMessages', a
   await E(channel).post(['First message'], [], []);
 
   // Invite Bob
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
   // Bob follows messages — should see existing messages
   const bobIteratorRef = await E(bobMember).followMessages();
@@ -312,7 +315,7 @@ test.serial('channel - admin sees member messages via followMessages', async t =
   const adminIterator = makeRefIterator(adminIteratorRef);
 
   // Invite Bob and have Bob post
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
   await E(bobMember).post(['HELLO!'], [], []);
 
   // Admin should see Bob's message
@@ -331,9 +334,9 @@ test.serial('channel - sub-invitations carry full pedigree chain', async t => {
   const channel = await E(host).lookup('my-channel');
 
   // Alice invites Bob
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
   // Bob invites Carol
-  const carolMember = await E(bobMember).invite('Carol');
+  const [, carolMember] = await E(bobMember).invite('Carol');
 
   // Carol posts
   await E(carolMember).post(['Hi from Carol!'], [], []);
@@ -370,61 +373,61 @@ test.serial('channel - implicit threading with replyTo', async t => {
   t.is(messages2[1].replyTo, firstNumber, 'second message replies to first');
 });
 
-// ---------- Revocation ----------
+// ---------- Attenuator ----------
 
-test.serial('channel - revoked member cannot post', async t => {
+test.serial('channel - disabled member cannot post', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
 
-  const bobMember = await E(channel).invite('Bob');
+  const [bobAttenuator, bobMember] = await E(channel).invite('Bob');
 
   // Bob posts successfully
-  await E(bobMember).post(['Before revoke'], [], []);
+  await E(bobMember).post(['Before disable'], [], []);
 
-  // Revoke Bob
-  await E(channel).revoke(bobMember);
+  // Disable Bob via the attenuator
+  await E(bobAttenuator).setInvitationValidity(false);
 
   // Bob tries to post — should fail
   await t.throwsAsync(
-    () => E(bobMember).post(['After revoke'], [], []),
-    { message: /revoked/ },
-    'revoked member should not be able to post',
+    () => E(bobMember).post(['After disable'], [], []),
+    { message: /disabled/ },
+    'disabled member should not be able to post',
   );
 });
 
-test.serial('channel - revoked member cannot follow messages', async t => {
+test.serial('channel - disabled member cannot follow messages', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
 
-  const bobMember = await E(channel).invite('Bob');
-  await E(channel).revoke(bobMember);
+  const [bobAttenuator, bobMember] = await E(channel).invite('Bob');
+  await E(bobAttenuator).setInvitationValidity(false);
 
   await t.throwsAsync(
     () => E(bobMember).followMessages(),
-    { message: /revoked/ },
-    'revoked member should not be able to follow messages',
+    { message: /disabled/ },
+    'disabled member should not be able to follow messages',
   );
 });
 
-test.serial('channel - revokeByName revokes the correct member', async t => {
+test.serial('channel - attenuator disables the correct member', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
 
-  const bobMember = await E(channel).invite('Bob');
+  const [bobAttenuator, bobMember] = await E(channel).invite('Bob');
   await E(channel).invite('Carol');
 
-  await E(channel).revokeByName('Bob');
+  await E(bobAttenuator).setInvitationValidity(false);
 
-  // Bob should be revoked
+  // Bob should be disabled
   await t.throwsAsync(
     () => E(bobMember).post(['test'], [], []),
-    { message: /revoked/ },
+    { message: /disabled/ },
   );
 
   // Members list should show Bob as inactive
@@ -433,6 +436,284 @@ test.serial('channel - revokeByName revokes the correct member', async t => {
   t.is(bob?.active, false, 'Bob should be inactive');
   const carol = members.find(m => m.proposedName === 'Carol');
   t.is(carol?.active, true, 'Carol should still be active');
+});
+
+// ---------- Attenuated proxy pattern ----------
+
+test.serial('channel - invite returns [attenuator, proxy] pair', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const result = await E(channel).invite('Bob');
+  t.is(result.length, 2, 'invite returns a pair');
+  const [attenuator, proxy] = result;
+  t.truthy(attenuator, 'first element is an attenuator remotable');
+
+  // Proxy should have channel member methods
+  const name = await E(proxy).getProposedName();
+  t.is(name, 'Bob');
+  const id = await E(proxy).getMemberId();
+  t.truthy(id);
+});
+
+test.serial('channel - disabled proxy throws on all operations', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [attenuator, proxy] = await E(channel).invite('Bob');
+
+  // Works before disabling
+  await E(proxy).post(['Before disable'], [], []);
+
+  // Disable via attenuator
+  await E(attenuator).setInvitationValidity(false);
+
+  // All operations should fail
+  await t.throwsAsync(
+    () => E(proxy).post(['After disable'], [], []),
+    { message: /disabled/ },
+    'error message indicates disabled',
+  );
+
+  await t.throwsAsync(
+    () => E(proxy).getProposedName(),
+    { message: /disabled/ },
+  );
+
+  await t.throwsAsync(
+    () => E(proxy).getMemberId(),
+    { message: /disabled/ },
+  );
+});
+
+test.serial('channel - delegation chain cascades disabling', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  // Alice invites Bob
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Bob invites Carol
+  const [, carolProxy] = await E(bobProxy).invite('Carol');
+
+  // Both can post
+  await E(bobProxy).post(['Bob here'], [], []);
+  await E(carolProxy).post(['Carol here'], [], []);
+
+  // Disable Bob — Carol should also be unable to operate
+  await E(bobAttenuator).setInvitationValidity(false);
+
+  await t.throwsAsync(
+    () => E(bobProxy).post(['should fail'], [], []),
+    { message: /disabled/ },
+    'Bob is directly disabled',
+  );
+
+  await t.throwsAsync(
+    () => E(carolProxy).post(['should also fail'], [], []),
+    { message: /disabled/ },
+    'Carol is cascadingly disabled because Bob (her ancestor) was disabled',
+  );
+});
+
+// ---------- Disabling fully blocks view AND post ----------
+
+test.serial('channel - disabled proxy: existing follow stream stops yielding', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Bob starts following messages BEFORE disabling
+  const bobIteratorRef = await E(bobProxy).followMessages();
+  const bobIterator = makeRefIterator(bobIteratorRef);
+
+  // Admin posts a message — Bob should see it
+  await E(channel).post(['Before disable'], [], []);
+  const msg1 = await bobIterator.next();
+  t.is(msg1.value.strings[0], 'Before disable');
+
+  // Disable Bob
+  await E(bobAttenuator).setInvitationValidity(false);
+
+  // Admin posts another message — Bob should NOT see it
+  await E(channel).post(['After disable'], [], []);
+
+  // Bob's existing iterator should throw on next()
+  await t.throwsAsync(
+    () => bobIterator.next(),
+    { message: /disabled/ },
+    'existing follow stream should stop after disabling',
+  );
+});
+
+test.serial('channel - disabled proxy: listMessages throws', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Bob can list messages before disabling
+  await E(channel).post(['Hello'], [], []);
+  const messagesBefore = await E(bobProxy).listMessages();
+  t.is(messagesBefore.length, 1);
+
+  // Disable Bob
+  await E(bobAttenuator).setInvitationValidity(false);
+
+  // Bob can no longer list messages
+  await t.throwsAsync(
+    () => E(bobProxy).listMessages(),
+    { message: /disabled/ },
+    'listMessages should throw after disabling',
+  );
+});
+
+test.serial('channel - disabled proxy: post throws', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Bob can post before disabling
+  await E(bobProxy).post(['Hello from Bob'], [], []);
+
+  // Disable Bob
+  await E(bobAttenuator).setInvitationValidity(false);
+
+  // Bob can no longer post
+  await t.throwsAsync(
+    () => E(bobProxy).post(['Should fail'], [], []),
+    { message: /disabled/ },
+    'post should throw after disabling',
+  );
+});
+
+test.serial('channel - disabled proxy: cascading disabling blocks existing follow stream', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  // Alice invites Bob, Bob invites Carol
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+  const [, carolProxy] = await E(bobProxy).invite('Carol');
+
+  // Carol starts following BEFORE Bob is disabled
+  const carolIteratorRef = await E(carolProxy).followMessages();
+  const carolIterator = makeRefIterator(carolIteratorRef);
+
+  // Admin posts — Carol sees it
+  await E(channel).post(['Before disable'], [], []);
+  const msg1 = await carolIterator.next();
+  t.is(msg1.value.strings[0], 'Before disable');
+
+  // Disable Bob — Carol should also lose access (cascading)
+  await E(bobAttenuator).setInvitationValidity(false);
+
+  await E(channel).post(['After disable'], [], []);
+
+  // Carol's existing iterator should throw
+  await t.throwsAsync(
+    () => carolIterator.next(),
+    { message: /disabled/ },
+    'cascading disabling should stop existing follow stream',
+  );
+});
+
+// ---------- UI flow: joined member creates invitation ----------
+// This mimics the exact flow in channel-header.js handleInvite()
+// when the user is NOT the channel admin.
+
+test.serial('channel - UI flow: joined member invite returns [attenuator, proxy]', async t => {
+  const { host } = await prepareHost(t);
+
+  // 1. Admin creates a channel (like creating a channel space in the UI)
+  const adminAgentName = 'persona-admin-ui';
+  await E(host).provideHost('admin-space', { agentName: adminAgentName });
+  const adminPowers = await E(host).lookup(adminAgentName);
+  await E(adminPowers).makeChannel('general', 'AdminAlice');
+  const adminChannel = await E(adminPowers).lookup('general');
+
+  // 2. Non-admin persona connects to the channel (like the UI's channel switch flow)
+  const bobAgentName = 'persona-bob-ui';
+  await E(host).provideHost('bob-space', { agentName: bobAgentName });
+  const bobPowers = await E(host).lookup(bobAgentName);
+  const channelId = await E(host).identify(adminAgentName, 'general');
+  await E(bobPowers).write('channel', channelId);
+  const bobChannelRef = await E(bobPowers).lookup('channel');
+
+  // 3. Bob joins the channel (this is what chat.js does for non-admin users)
+  const bobMember = await E(bobChannelRef).join('Bob');
+  t.truthy(bobMember, 'join returns a member ref');
+
+  // 4. Bob creates an invitation via the member ref (this is the channel-header.js flow)
+  const inviteResult = await E(bobMember).invite('Carol');
+
+  // 5. Verify the result is a proper array [attenuator, proxy]
+  t.true(Array.isArray(inviteResult), 'invite result should be an Array');
+  t.is(inviteResult.length, 2, 'invite result should have 2 elements');
+
+  const [carolAttenuator, carolProxy] = inviteResult;
+  t.truthy(carolAttenuator, 'first element is the attenuator');
+  t.truthy(carolProxy, 'second element is the proxy member');
+
+  // 6. Verify the proxy works
+  const carolName = await E(carolProxy).getProposedName();
+  t.is(carolName, 'Carol');
+  await E(carolProxy).post(['Hello from Carol via Bob'], [], []);
+
+  // 7. Verify the attenuator works
+  await E(carolAttenuator).setInvitationValidity(false);
+  await t.throwsAsync(
+    () => E(carolProxy).post(['Should fail'], [], []),
+    { message: /disabled/ },
+  );
+});
+
+test.serial('channel - UI flow: admin invite returns [attenuator, proxy]', async t => {
+  const { host } = await prepareHost(t);
+
+  // Admin flow: channel ref used directly (not via join)
+  const agentName = 'persona-admin-direct';
+  await E(host).provideHost('admin-space', { agentName });
+  const powers = await E(host).lookup(agentName);
+  await E(powers).makeChannel('general', 'Alice');
+  const channel = await E(powers).lookup('general');
+
+  // This is the channel-header.js flow for admin users
+  const inviteResult = await E(channel).invite('Bob');
+
+  t.true(Array.isArray(inviteResult), 'invite result should be an Array');
+  t.is(inviteResult.length, 2, 'invite result should have 2 elements');
+
+  const [bobAttenuator, bobProxy] = inviteResult;
+  t.truthy(bobAttenuator, 'first element is the attenuator');
+  t.truthy(bobProxy, 'second element is the proxy member');
+
+  // Verify the proxy works
+  const bobName = await E(bobProxy).getProposedName();
+  t.is(bobName, 'Bob');
+  await E(bobProxy).post(['Hello from Bob'], [], []);
+
+  // Verify attenuator works
+  await E(bobAttenuator).setInvitationValidity(false);
+  await t.throwsAsync(
+    () => E(bobProxy).post(['Should fail'], [], []),
+    { message: /disabled/ },
+  );
 });
 
 // ---------- Multi-persona scenario ----------
@@ -452,11 +733,11 @@ test.serial('channel - persona creates channel, member posts with own identity',
   // Admin posts a greeting
   await E(adminChannel).post(['Welcome to the channel!'], [], []);
 
-  // --- Admin invites Bob (returns a member Exo) ---
-  const bobMember = await E(adminChannel).invite('BobJoiner');
+  // --- Admin invites Bob (returns [attenuator, proxyMember]) ---
+  const [, bobMember] = await E(adminChannel).invite('BobJoiner');
 
-  // --- Bob posts "HELLO!" using the member ref ---
-  // In the real app, this member ref is what Bob receives via CapTP
+  // --- Bob posts "HELLO!" using the proxy member ref ---
+  // In the real app, this proxy ref is what Bob receives via CapTP
   // after the invitation locator is resolved.
   await E(bobMember).post(['HELLO!'], [], []);
 
@@ -642,7 +923,7 @@ test.serial('channel - multiple followers receive the same new message', async t
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
 
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
   // Both admin and Bob start following
   const adminIteratorRef = await E(channel).followMessages();
@@ -673,9 +954,9 @@ test.serial('channel - Alice invites Bob who renames himself Robert', async t =>
   const channel = await E(host).lookup('friends');
 
   // Alice invites her friend, naming the invitation "Bob"
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
-  // Bob receives the member ref, calls himself "Robert"
+  // Bob receives the proxy member ref, calls himself "Robert"
   await E(bobMember).setProposedName('Robert');
 
   // Verify Bob's proposed name was updated
@@ -712,7 +993,7 @@ test.serial('channel - per-viewer name resolution with memberId', async t => {
   const channel = await E(host).lookup('friends');
 
   // Alice invites "Bob"
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
   // Bob calls himself "Robert"
   await E(bobMember).setProposedName('Robert');
@@ -782,7 +1063,7 @@ test.serial('channel - setProposedName affects future posts but not past ones', 
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
 
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
   // Bob posts as "Bob" initially
   await E(bobMember).post(['first post'], [], []);
@@ -814,7 +1095,7 @@ test.serial('channel - admin memberId is 0, members get incrementing ids', async
 
   await E(channel).post(['admin msg'], [], []);
 
-  const bob = await E(channel).invite('Bob');
+  const [, bob] = await E(channel).invite('Bob');
   await E(bob).post(['bob msg'], [], []);
 
   const carol = await E(channel).join('Carol');
@@ -961,7 +1242,7 @@ test.serial('channel - admin getMembers returns only members admin directly invi
   const channel = await E(host).lookup('room');
 
   // Admin invites Bob and Carol
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
   await E(channel).invite('Carol');
 
   // Bob sub-invites Dave
@@ -998,7 +1279,7 @@ test.serial('channel - member getMembers returns only members they directly invi
   const channel = await E(host).lookup('room');
 
   // Admin invites Bob
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
   // Admin invites Carol
   await E(channel).invite('Carol');
@@ -1043,7 +1324,7 @@ test.serial('channel - member with no invitations sees empty getMembers', async 
   const channel = await E(host).lookup('room');
 
   // Admin invites Bob and Carol
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
   await E(channel).invite('Carol');
 
   // Bob has not invited anyone
@@ -1094,8 +1375,8 @@ test.serial('channel - getMembers provides data for auto-assigning invitation na
   const channel = await E(host).lookup('room');
 
   // Alice invites "Bob" and "Carol"
-  const bobMember = await E(channel).invite('Bob');
-  const carolMember = await E(channel).invite('Carol');
+  const [, bobMember] = await E(channel).invite('Bob');
+  const [, carolMember] = await E(channel).invite('Carol');
 
   // Bob renames himself to "Robert" — his invitedAs should stay "Bob"
   await E(bobMember).setProposedName('Robert');
@@ -1159,10 +1440,10 @@ test.serial('channel - sub-invitations auto-assign correctly', async t => {
   const channel = await E(host).lookup('room');
 
   // Alice invites Bob
-  const bobMember = await E(channel).invite('Bob');
+  const [, bobMember] = await E(channel).invite('Bob');
 
   // Bob invites Carol (sub-invitation)
-  const carolMember = await E(bobMember).invite('Carol');
+  const [, carolMember] = await E(bobMember).invite('Carol');
 
   // Carol posts
   await E(carolMember).post(['hi from carol'], [], []);
@@ -1456,7 +1737,7 @@ test.serial('fresh agent after delete-recreate has no address book state from ol
   const channel1 = await E(powers1).lookup('general');
 
   // Alice invites Bob
-  const bobMember = await E(channel1).invite('Bob');
+  const [, bobMember] = await E(channel1).invite('Bob');
   await E(bobMember).post(['hello from bob'], [], []);
 
   // Alice sees Bob in getMembers (only directly invited members)
@@ -1591,24 +1872,6 @@ test.serial('join() with different names creates different members', async t => 
   t.not(aliceId, bobId, 'different members have different memberIds');
 });
 
-test.serial('join() after revocation creates a new member', async t => {
-  const { host } = await prepareHost(t);
-  await E(host).makeChannel('revoke-join-chan', 'Admin');
-  const channel = await E(host).lookup('revoke-join-chan');
-
-  const member1 = await E(channel).join('Charlie');
-  const id1 = await E(member1).getMemberId();
-
-  // Admin revokes Charlie
-  await E(channel).revokeByName('Charlie');
-
-  // Joining again with the same name should create a new member
-  const member2 = await E(channel).join('Charlie');
-  const id2 = await E(member2).getMemberId();
-
-  t.not(id1, id2, 'revoked member gets a new memberId on re-join');
-});
-
 // ===== getMemberId() =====
 
 test.serial('getMemberId() returns admin ID for channel', async t => {
@@ -1701,4 +1964,339 @@ test.serial('join-only member does not appear in admin getMembers', async t => {
   // Admin should see no invitations
   const members = await E(channel).getMembers();
   t.is(members.length, 0, 'join-only member not listed in invitations');
+});
+
+// ---------- Attenuator updates getMembers() ----------
+
+test.serial('channel - attenuator causes getMembers() to show active: false', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+  await E(bobProxy).post(['Hello before disabling'], [], []);
+
+  // Before disabling, Bob should be active
+  let members = await E(channel).getMembers();
+  let bob = members.find(m => m.proposedName === 'Bob');
+  t.is(bob?.active, true, 'Bob should be active before disabling');
+
+  // Disable via the attenuator object
+  await E(bobAttenuator).setInvitationValidity(false);
+
+  // After disabling, Bob should be inactive in getMembers()
+  members = await E(channel).getMembers();
+  bob = members.find(m => m.proposedName === 'Bob');
+  t.is(bob?.active, false, 'Bob should be inactive after setInvitationValidity(false)');
+});
+
+// ---------- Re-enabling via attenuator ----------
+
+test.serial('channel - re-enabling via setInvitationValidity(true)', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Disable then re-enable
+  await E(bobAttenuator).setInvitationValidity(false);
+  await t.throwsAsync(
+    () => E(bobProxy).post(['Should fail'], [], []),
+    { message: /disabled/ },
+  );
+
+  await E(bobAttenuator).setInvitationValidity(true);
+  // Should work again
+  await E(bobProxy).post(['Back online'], [], []);
+  const messages = await E(channel).listMessages();
+  t.is(messages.length, 1);
+  t.deepEqual(messages[0].strings, ['Back online']);
+});
+
+// ---------- Rate limiting ----------
+
+test.serial('channel - rate limiting blocks rapid posts', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Set a very low rate limit: 1 msg per second
+  await E(bobAttenuator).setRateLimit(1);
+
+  // First post should succeed
+  await E(bobProxy).post(['First post'], [], []);
+
+  // Immediate second post should be rate limited
+  await t.throwsAsync(
+    () => E(bobProxy).post(['Too fast'], [], []),
+    { message: /Rate limit/ },
+    'rapid posts should be rate limited',
+  );
+});
+
+// ---------- Temporary ban ----------
+
+test.serial('channel - temporary ban blocks access', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Ban for a long time (won't expire during test)
+  await E(bobAttenuator).temporaryBan(3600);
+
+  await t.throwsAsync(
+    () => E(bobProxy).post(['Should fail'], [], []),
+    { message: /temporarily banned/ },
+    'temporarily banned member should not be able to post',
+  );
+});
+
+// ---------- getAttenuator reconstruction ----------
+
+test.serial('channel - getAttenuator returns a working attenuator', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [, bobProxy] = await E(channel).invite('Bob');
+
+  // Get attenuator by name
+  const attenuator = await E(channel).getAttenuator('Bob');
+  t.truthy(attenuator, 'getAttenuator should return an attenuator');
+
+  // Use it to disable Bob
+  await E(attenuator).setInvitationValidity(false);
+
+  await t.throwsAsync(
+    () => E(bobProxy).post(['Should fail'], [], []),
+    { message: /disabled/ },
+    'attenuator from getAttenuator should work',
+  );
+});
+
+// ---------- Unique invitation name enforcement ----------
+
+test.serial('channel - duplicate invitation names are rejected', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).invite('Bob');
+
+  // Second invite with same name should fail
+  await t.throwsAsync(
+    () => E(channel).invite('Bob'),
+    { message: /already exists/ },
+    'duplicate invitation names should be rejected',
+  );
+});
+
+// ---------- Cascading rate limit ----------
+
+test.serial('channel - cascading rate limit from parent', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobAttenuator, bobProxy] = await E(channel).invite('Bob');
+
+  // Bob invites Carol
+  const [, carolProxy] = await E(bobProxy).invite('Carol');
+
+  // Set rate limit on Bob — should cascade to Carol
+  await E(bobAttenuator).setRateLimit(1);
+
+  // Carol's first post should succeed
+  await E(carolProxy).post(['First'], [], []);
+
+  // Carol's immediate second post should be rate limited (cascading from Bob)
+  await t.throwsAsync(
+    () => E(carolProxy).post(['Too fast'], [], []),
+    { message: /Rate limit/ },
+    'rate limit should cascade from parent',
+  );
+});
+
+// ---------- Attenuator affects join-created members ----------
+
+test.serial('channel - disabling invite blocks join-created member', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  // Alice invites Bob (creates the invite entry + attenuator)
+  await E(channel).invite('Bob');
+
+  // Bob connects to the channel and joins (creates a separate join entry)
+  const bobMember = await E(channel).join('Bob');
+  await E(bobMember).post(['Hello from joined Bob'], [], []);
+
+  // Alice disables Bob via the attenuator (targets the invite entry)
+  const attenuator = await E(channel).getAttenuator('Bob');
+  await E(attenuator).setInvitationValidity(false);
+
+  // Bob's join-created member should also be blocked
+  await t.throwsAsync(
+    () => E(bobMember).post(['Should fail'], [], []),
+    { message: /disabled/ },
+    'disabling invite should block join-created member with same name',
+  );
+
+  // Bob should also not be able to follow messages
+  await t.throwsAsync(
+    () => E(bobMember).followMessages(),
+    { message: /disabled/ },
+    'disabling invite should block join-created member followMessages',
+  );
+});
+
+test.serial('channel - re-enabling invite unblocks join-created member', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).invite('Bob');
+  const bobMember = await E(channel).join('Bob');
+
+  const attenuator = await E(channel).getAttenuator('Bob');
+
+  // Disable then re-enable
+  await E(attenuator).setInvitationValidity(false);
+  await t.throwsAsync(
+    () => E(bobMember).post(['Should fail'], [], []),
+    { message: /disabled/ },
+  );
+
+  await E(attenuator).setInvitationValidity(true);
+  await E(bobMember).post(['Back online'], [], []);
+  const messages = await E(channel).listMessages();
+  t.is(messages.length, 1);
+  t.deepEqual(messages[0].strings, ['Back online']);
+});
+
+test.serial('channel - disabling invite stops existing follow stream for join-created member', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).invite('Bob');
+  const bobMember = await E(channel).join('Bob');
+
+  // Bob starts following BEFORE being disabled
+  const bobIteratorRef = await E(bobMember).followMessages();
+  const bobIterator = makeRefIterator(bobIteratorRef);
+
+  // Alice posts — Bob sees it
+  await E(channel).post(['Before disable'], [], []);
+  const msg1 = await bobIterator.next();
+  t.is(msg1.value.strings[0], 'Before disable');
+
+  // Alice disables Bob's invite
+  const attenuator = await E(channel).getAttenuator('Bob');
+  await E(attenuator).setInvitationValidity(false);
+
+  // Alice posts again
+  await E(channel).post(['After disable'], [], []);
+
+  // Bob's existing iterator should throw on next()
+  await t.throwsAsync(
+    () => bobIterator.next(),
+    { message: /disabled/ },
+    'existing follow stream should stop after invite is disabled',
+  );
+});
+
+test.serial('channel - disabled invite: message posted AFTER disable not seen by waiting join iterator', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  // Alice invites Bob, Bob joins
+  await E(channel).invite('Bob');
+  const bobMember = await E(channel).join('Bob');
+
+  // Bob starts following and reads the existing (empty) backlog
+  const bobIteratorRef = await E(bobMember).followMessages();
+  const bobIterator = makeRefIterator(bobIteratorRef);
+
+  // Alice posts — Bob sees it
+  await E(channel).post(['Visible'], [], []);
+  const msg1 = await bobIterator.next();
+  t.is(msg1.value.strings[0], 'Visible');
+
+  // Bob calls next() — it will BLOCK waiting for the next message.
+  // While it's blocking, Alice disables Bob, then posts.
+  const nextPromise = bobIterator.next();
+
+  // Alice disables Bob's invitation
+  const attenuator = await E(channel).getAttenuator('Bob');
+  await E(attenuator).setInvitationValidity(false);
+
+  // Alice posts a new message — Bob should NOT receive this
+  await E(channel).post(['Should NOT be visible'], [], []);
+
+  // Bob's waiting next() should reject, not resolve with the message
+  await t.throwsAsync(
+    () => nextPromise,
+    { message: /disabled/ },
+    'message posted after disable must not be delivered to a waiting iterator',
+  );
+});
+
+test.serial('channel - disabled invite: message posted AFTER disable not seen by waiting proxy iterator', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  // Alice invites Bob — Bob uses the proxy directly
+  const [, bobProxy] = await E(channel).invite('Bob');
+
+  // Bob starts following via the proxy
+  const bobIteratorRef = await E(bobProxy).followMessages();
+  const bobIterator = makeRefIterator(bobIteratorRef);
+
+  // Alice posts — Bob sees it
+  await E(channel).post(['Visible'], [], []);
+  const msg1 = await bobIterator.next();
+  t.is(msg1.value.strings[0], 'Visible');
+
+  // Bob calls next() — blocks waiting for next message
+  const nextPromise = bobIterator.next();
+
+  // Alice disables Bob via getAttenuator
+  const attenuator = await E(channel).getAttenuator('Bob');
+  await E(attenuator).setInvitationValidity(false);
+
+  // Alice posts — Bob should NOT receive this
+  await E(channel).post(['Should NOT be visible'], [], []);
+
+  // Bob's waiting next() should reject
+  await t.throwsAsync(
+    () => nextPromise,
+    { message: /disabled/ },
+    'message posted after disable must not be delivered to a waiting proxy iterator',
+  );
+});
+
+test.serial('channel - temporary ban on invite blocks join-created member', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).invite('Bob');
+  const bobMember = await E(channel).join('Bob');
+
+  const attenuator = await E(channel).getAttenuator('Bob');
+  await E(attenuator).temporaryBan(3600);
+
+  await t.throwsAsync(
+    () => E(bobMember).post(['Should fail'], [], []),
+    { message: /temporarily banned/ },
+    'temporary ban on invite should block join-created member',
+  );
 });

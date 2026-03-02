@@ -472,12 +472,13 @@ const bodyComponent = (
               // getMemberId not available on this channel/member ref
             }
 
-            // Always follow messages from the channel ref (both admin and
-            // member see the same stream).
+            // Follow messages from the current channel ref (member ref for
+            // joiners, raw channel for admin) so that access controls
+            // (disable, rate limit, ban) are enforced on the iterator.
             // Pass personaId (derived from profile path) so the address book
             // localStorage key is scoped per-persona, preventing nickname
             // leakage between spaces viewing the same channel.
-            channelComponent($messages, $anchor, channelRef, {
+            channelComponent($messages, $anchor, currentChannelRef, {
               showValue,
               onMessageChange: messageNumber => {
                 currentMoiMessageNumber = messageNumber;
@@ -569,8 +570,9 @@ const bodyComponent = (
               // getMemberId not available on this channel/member ref
             }
 
-            // Start message stream
-            channelComponent($messages, $anchor, channelRef, {
+            // Start message stream from the current channel ref so access
+            // controls are enforced on the iterator.
+            channelComponent($messages, $anchor, currentChannelRef, {
               showValue,
               onMessageChange: messageNumber => {
                 currentMoiMessageNumber = messageNumber;

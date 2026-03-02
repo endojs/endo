@@ -13,6 +13,8 @@ import { E } from '@endo/far';
 /**
  * @typedef {object} MemberInfo
  * @property {string} proposedName
+ * @property {string} invitedAs
+ * @property {string} memberId
  * @property {string[]} pedigree
  * @property {boolean} active
  */
@@ -37,6 +39,8 @@ export const createChannelHeader = ({
 }) => {
   let menuVisible = false;
   let manageMembersVisible = false;
+  /** @type {string | null} */
+  let attenuatorModalMember = null;
 
   const render = () => {
     $container.innerHTML = `
@@ -105,14 +109,7 @@ export const createChannelHeader = ({
     if (!inviteeName) return;
 
     try {
-      const memberExo = await E(channel).invite(inviteeName);
-
-      // Store the member in the host's pet store
-      const memberPetName = window.prompt(
-        'Enter a pet name to store this invitation under:',
-        `member-${inviteeName.toLowerCase().replace(/\s+/g, '-')}`,
-      );
-      if (!memberPetName) return;
+      await E(channel).invite(inviteeName);
 
       // Generate a locator for sharing
       if (powers && channelPetName) {
@@ -129,7 +126,7 @@ export const createChannelHeader = ({
         } catch {
           // Locator generation optional
           window.alert(
-            `Invitation created for "${inviteeName}" and stored as "${memberPetName}". Share the member capability directly.`,
+            `Invitation created for "${inviteeName}". Share the channel locator directly.`,
           );
         }
       }
@@ -154,24 +151,137 @@ export const createChannelHeader = ({
   };
 
   /**
+   * Show attenuator modal for a given invitation name.
+   * @param {string} invitedAs
+   */
+  const showAttenuatorModal = async invitedAs => {
+    attenuatorModalMember = invitedAs;
+    try {
+      const attenuator = await E(channel).getAttenuator(invitedAs);
+      renderAttenuatorModal(invitedAs, attenuator);
+    } catch (err) {
+      window.alert(
+        `Failed to get attenuator: ${/** @type {Error} */ (err).message}`,
+      );
+    }
+  };
+
+  /**
+   * @param {string} invitedAs
+   * @param {object} attenuator
+   */
+  const renderAttenuatorModal = (invitedAs, attenuator) => {
+    $container.innerHTML = `
+      <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
+      <div class="channel-attenuator-modal">
+        <div class="channel-attenuator-header">
+          <h3>Manage: "${invitedAs}"</h3>
+          <button type="button" class="channel-attenuator-close" title="Close">&times;</button>
+        </div>
+        <div class="channel-attenuator-body">
+          <label class="attenuator-field">
+            <span>Enabled</span>
+            <input type="checkbox" class="attenuator-valid" checked />
+          </label>
+          <label class="attenuator-field">
+            <span>Rate limit (msg/sec, 0=unlimited)</span>
+            <input type="number" class="attenuator-rate" value="0" min="0" step="0.1" />
+          </label>
+          <div class="attenuator-field">
+            <span>Temporary ban (seconds)</span>
+            <div class="attenuator-ban-row">
+              <input type="number" class="attenuator-ban-duration" value="60" min="1" />
+              <button type="button" class="attenuator-ban-btn">Apply Ban</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Re-attach menu button listener
+    const $menuBtn = $container.querySelector('.channel-menu-btn');
+    if ($menuBtn) {
+      $menuBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        attenuatorModalMember = null;
+        manageMembersVisible = false;
+        menuVisible = !menuVisible;
+        render();
+      });
+    }
+
+    const $close = $container.querySelector('.channel-attenuator-close');
+    if ($close) {
+      $close.addEventListener('click', async () => {
+        attenuatorModalMember = null;
+        manageMembersVisible = true;
+        await showMembers();
+      });
+    }
+
+    const $validCheckbox = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.attenuator-valid')
+    );
+    if ($validCheckbox) {
+      $validCheckbox.addEventListener('change', async () => {
+        try {
+          await E(attenuator).setInvitationValidity($validCheckbox.checked);
+        } catch (err) {
+          window.alert(
+            `Failed to set validity: ${/** @type {Error} */ (err).message}`,
+          );
+        }
+      });
+    }
+
+    const $rateInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.attenuator-rate')
+    );
+    if ($rateInput) {
+      $rateInput.addEventListener('change', async () => {
+        try {
+          await E(attenuator).setRateLimit(Number($rateInput.value));
+        } catch (err) {
+          window.alert(
+            `Failed to set rate limit: ${/** @type {Error} */ (err).message}`,
+          );
+        }
+      });
+    }
+
+    const $banBtn = $container.querySelector('.attenuator-ban-btn');
+    const $banDuration = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.attenuator-ban-duration')
+    );
+    if ($banBtn && $banDuration) {
+      $banBtn.addEventListener('click', async () => {
+        try {
+          await E(attenuator).temporaryBan(Number($banDuration.value));
+          window.alert(`Temporary ban applied for ${$banDuration.value} seconds.`);
+        } catch (err) {
+          window.alert(
+            `Failed to apply ban: ${/** @type {Error} */ (err).message}`,
+          );
+        }
+      });
+    }
+  };
+
+  /**
    * @param {MemberInfo[]} members
    */
   const renderMemberList = members => {
     const memberHtml = members
       .map(
         m => `
-      <div class="channel-member-entry ${m.active ? '' : 'revoked'}">
+      <div class="channel-member-entry ${m.active ? '' : 'disabled'}">
         <span class="member-name">${m.active ? '' : '<s>'}\u201C${m.proposedName}\u201D${m.active ? '' : '</s>'}</span>
         <span class="member-pedigree">${
           m.pedigree.length > 0
             ? m.pedigree.join(' \u2192 ')
             : 'Creator'
         }</span>
-        ${
-          m.active
-            ? `<button type="button" class="member-revoke-btn" data-name="${m.proposedName}">Revoke</button>`
-            : ''
-        }
+        <button type="button" class="member-manage-btn" data-invited-as="${m.invitedAs}">Manage</button>
       </div>
     `,
       )
@@ -207,23 +317,18 @@ export const createChannelHeader = ({
       });
     }
 
-    const $revokeButtons = $container.querySelectorAll('.member-revoke-btn');
-    for (const $btn of $revokeButtons) {
+    const $manageButtons = $container.querySelectorAll('.member-manage-btn');
+    for (const $btn of $manageButtons) {
       $btn.addEventListener('click', async () => {
-        const memberName = /** @type {HTMLElement} */ ($btn).dataset.name;
-        if (!memberName) return;
-        try {
-          await E(channel).revokeByName(memberName);
-          // Refresh member list
-          await showMembers();
-        } catch (err) {
-          window.alert(
-            `Failed to revoke: ${/** @type {Error} */ (err).message}`,
-          );
-        }
+        const invitedAs = /** @type {HTMLElement} */ ($btn).dataset.invitedAs;
+        if (!invitedAs) return;
+        await showAttenuatorModal(invitedAs);
       });
     }
   };
+
+  // Suppress unused variable warning
+  void attenuatorModalMember;
 
   render();
 

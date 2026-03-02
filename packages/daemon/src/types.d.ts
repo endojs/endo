@@ -978,14 +978,22 @@ export interface EndoChannel {
   ): Promise<void>;
   followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
   listMessages(): Promise<ChannelMessage[]>;
-  invite(proposedName: string): Promise<object>;
-  revoke(member: object): Promise<void>;
-  revokeByName(memberName: string): Promise<void>;
+  invite(
+    proposedName: string,
+  ): Promise<[EndoChannelAttenuator, EndoChannelMember]>;
+
   getMembers(): Promise<
     Array<{ proposedName: string; pedigree: string[]; active: boolean }>
   >;
   getProposedName(): string;
   getMemberId(): string;
+  getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+}
+
+export interface EndoChannelAttenuator {
+  setInvitationValidity(valid: boolean): Promise<void>;
+  setRateLimit(messagesPerSecond: number): Promise<void>;
+  temporaryBan(seconds: number): Promise<void>;
 }
 
 export interface EndoChannelMember {
@@ -998,12 +1006,15 @@ export interface EndoChannelMember {
   ): Promise<void>;
   followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
   listMessages(): Promise<ChannelMessage[]>;
-  invite(proposedName: string): Promise<object>;
+  invite(
+    proposedName: string,
+  ): Promise<[EndoChannelAttenuator, EndoChannelMember]>;
   getMembers(): Promise<
     Array<{ proposedName: string; pedigree: string[]; active: boolean }>
   >;
   getProposedName(): string;
   getMemberId(): string;
+  getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
 }
 
 export type EndoInspector<Record = string> = {
