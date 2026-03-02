@@ -23,6 +23,7 @@
 | [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-02-28 | In Progress |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
+| [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-02-24 | In Progress |
@@ -42,7 +43,7 @@
 
 | [chat-test-coverage](chat-test-coverage.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 
-**Totals:** 12 Complete, 6 In Progress, 16 Not Started
+**Totals:** 12 Complete, 6 In Progress, 17 Not Started
 
 ## Roadmap
 

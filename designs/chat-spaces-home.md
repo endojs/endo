@@ -125,3 +125,16 @@ The spaces directory watcher handles space `'0'` specially:
 | Edit home modal omits Name field | `showName: false` behavior |
 | Change home icon/scheme stores correctly | Store at `['spaces', '0']` with enforced name/path |
 | Home loads stored icon/scheme on refresh | Merge from stored config |
+
+## Future: Renumber Space Configs
+
+The current numbering scheme stores the home space at `['spaces', '0']` and
+user spaces starting at `['spaces', '1']`. This means Space 0 (Home) is
+reached by Cmd+1, Space 1 is Cmd+2, etc. — the storage key and the keyboard
+shortcut number are always off by one.
+
+A future change should renumber space configs so that the storage key matches
+the keyboard shortcut: home at `['spaces', '1']` (Cmd+1), first user space at
+`['spaces', '2']` (Cmd+2), and so on. This requires migrating any existing
+`['spaces', '0']` home config to `['spaces', '1']` and re-keying all user
+spaces.
