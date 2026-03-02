@@ -18,10 +18,12 @@ import { E } from '@endo/far';
  */
 
 /**
- * Create the channel header component with invite and member management.
+ * Create the channel header actions component (menu button + dropdown).
+ * Renders into a sub-container within the conversation header bar,
+ * without replacing the header's title or back button.
  *
  * @param {object} options
- * @param {HTMLElement} options.$container - Container element for the header
+ * @param {HTMLElement} options.$container - Container element for the actions
  * @param {unknown} options.channel - Channel or ChannelMember reference
  * @param {unknown} options.powers - Host powers for locator generation
  * @param {string} [options.channelPetName] - Pet name of the channel
@@ -38,13 +40,8 @@ export const createChannelHeader = ({
 
   const render = () => {
     $container.innerHTML = `
-      <div class="channel-header">
-        <span class="channel-header-title">#${channelPetName || 'channel'}</span>
-        <div class="channel-header-actions">
-          <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
-          ${menuVisible ? renderMenu() : ''}
-        </div>
-      </div>
+      <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
+      ${menuVisible ? renderMenu() : ''}
     `;
     attachListeners();
   };
@@ -66,6 +63,7 @@ export const createChannelHeader = ({
       $menuBtn.addEventListener('click', e => {
         e.stopPropagation();
         menuVisible = !menuVisible;
+        manageMembersVisible = false;
         render();
       });
     }
@@ -91,13 +89,15 @@ export const createChannelHeader = ({
     }
 
     // Close menu on outside click
-    const closeMenu = () => {
-      if (menuVisible) {
-        menuVisible = false;
-        render();
-      }
-    };
-    document.addEventListener('click', closeMenu, { once: true });
+    if (menuVisible) {
+      const closeMenu = () => {
+        if (menuVisible) {
+          menuVisible = false;
+          render();
+        }
+      };
+      document.addEventListener('click', closeMenu, { once: true });
+    }
   };
 
   const handleInvite = async () => {
@@ -159,7 +159,7 @@ export const createChannelHeader = ({
   const renderMemberList = members => {
     const memberHtml = members
       .map(
-        (m, i) => `
+        m => `
       <div class="channel-member-entry ${m.active ? '' : 'revoked'}">
         <span class="member-name">${m.active ? '' : '<s>'}\u201C${m.proposedName}\u201D${m.active ? '' : '</s>'}</span>
         <span class="member-pedigree">${
@@ -178,15 +178,26 @@ export const createChannelHeader = ({
       .join('');
 
     $container.innerHTML = `
-      <div class="channel-header">
-        <span class="channel-header-title">#${channelPetName || 'channel'}</span>
-        <button type="button" class="channel-members-close" title="Close">&times;</button>
-      </div>
+      <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
       <div class="channel-members-panel">
-        <h3>Your Invitations</h3>
-        ${memberHtml}
+        <div class="channel-members-panel-header">
+          <h3>Your Invitations</h3>
+          <button type="button" class="channel-members-close" title="Close">&times;</button>
+        </div>
+        ${memberHtml || '<p class="channel-members-empty">No invitations yet.</p>'}
       </div>
     `;
+
+    // Re-attach menu button listener
+    const $menuBtn = $container.querySelector('.channel-menu-btn');
+    if ($menuBtn) {
+      $menuBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        manageMembersVisible = false;
+        menuVisible = !menuVisible;
+        render();
+      });
+    }
 
     const $close = $container.querySelector('.channel-members-close');
     if ($close) {

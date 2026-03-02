@@ -1051,19 +1051,19 @@ test.serial('channel - member with no invitations sees empty getMembers', async 
   t.is(bobMembers.length, 0, 'Bob sees no members since he invited nobody');
 });
 
-test.serial('channel - join creates one entry, not two', async t => {
+test.serial('channel - join does not appear in admin getMembers (only invites do)', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).makeChannel('room', 'Alice');
   const channel = await E(host).lookup('room');
 
   // Someone joins the channel (e.g. via shared locator)
-  await E(channel).join('Bob');
+  const bob = await E(channel).join('Bob');
+  t.truthy(bob, 'join returns a member ref');
 
-  // Admin's getMembers should show exactly one entry for Bob
+  // Admin's getMembers only shows explicitly invited members, not join-created ones
   const members = await E(channel).getMembers();
-  t.is(members.length, 1, 'exactly one entry per join');
-  t.is(members[0].proposedName, 'Bob');
+  t.is(members.length, 0, 'join-created member does not appear in invitations list');
 });
 
 test.serial('channel - each invitation creates exactly one entry in getMembers', async t => {
@@ -1646,4 +1646,59 @@ test.serial('getMemberId() is consistent across multiple calls', async t => {
   const id1 = await E(member).getMemberId();
   const id2 = await E(member).getMemberId();
   t.is(id1, id2, 'getMemberId() returns consistent results');
+});
+
+// ===== getMembers excludes join-created members =====
+
+test.serial('getMembers excludes join-created members from invitations list', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('dup-chan', 'Alice');
+  const channel = await E(host).lookup('dup-chan');
+
+  // Admin invites Bob explicitly
+  await E(channel).invite('Bob');
+
+  // Bob also joins (as would happen when Bob connects via the UI)
+  await E(channel).join('Bob');
+
+  // Admin's getMembers should show only the invite-created entry, not the join-created one
+  const members = await E(channel).getMembers();
+  t.is(members.length, 1, 'only one entry for Bob (the invitation, not the join)');
+  t.is(members[0].proposedName, 'Bob');
+});
+
+test.serial('getMembers shows only invite-created members even with multiple joiners', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('multi-join-chan', 'Alice');
+  const channel = await E(host).lookup('multi-join-chan');
+
+  // Admin invites Bob and Carol
+  await E(channel).invite('Bob');
+  await E(channel).invite('Carol');
+
+  // Bob and Carol both join (UI connect flow)
+  await E(channel).join('Bob');
+  await E(channel).join('Carol');
+
+  // A third person "Dave" joins without being invited
+  await E(channel).join('Dave');
+
+  // Admin should see only the 2 explicit invitations, not the 3 join-created entries
+  const members = await E(channel).getMembers();
+  t.is(members.length, 2, 'only Bob and Carol from invite(), not Dave from join()');
+  const names = members.map(m => m.proposedName).sort();
+  t.deepEqual(names, ['Bob', 'Carol']);
+});
+
+test.serial('join-only member does not appear in admin getMembers', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('join-only-chan', 'Alice');
+  const channel = await E(host).lookup('join-only-chan');
+
+  // Someone joins without being invited
+  await E(channel).join('Eve');
+
+  // Admin should see no invitations
+  const members = await E(channel).getMembers();
+  t.is(members.length, 0, 'join-only member not listed in invitations');
 });

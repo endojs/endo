@@ -121,6 +121,7 @@ export const makeChannelMaker = ({ provide }) => {
      * @property {string} inviterMemberId - memberId of the member who created this invitation
      * @property {string[]} pedigree - Invitation chain
      * @property {boolean} revoked
+     * @property {boolean} viaJoin - True if created via join() rather than invite()
      */
 
     /**
@@ -260,6 +261,7 @@ export const makeChannelMaker = ({ provide }) => {
               inviterMemberId: entry.memberId,
               pedigree: subPedigree,
               revoked: false,
+              viaJoin: false,
             });
             return subMember;
           },
@@ -271,7 +273,7 @@ export const makeChannelMaker = ({ provide }) => {
             const callerId = callerEntry.memberId;
             const result = [];
             for (const [, entry] of memberRegistry) {
-              if (entry.inviterMemberId === callerId) {
+              if (entry.inviterMemberId === callerId && !entry.viaJoin) {
                 result.push(
                   harden({
                     proposedName: entry.proposedName,
@@ -332,6 +334,7 @@ export const makeChannelMaker = ({ provide }) => {
           inviterMemberId: adminMemberId,
           pedigree,
           revoked: false,
+          viaJoin: false,
         });
         return member;
       },
@@ -356,6 +359,7 @@ export const makeChannelMaker = ({ provide }) => {
           inviterMemberId: adminMemberId,
           pedigree,
           revoked: false,
+          viaJoin: true,
         });
         joinedExosByName.set(memberProposedName, member);
         return member;
@@ -379,7 +383,7 @@ export const makeChannelMaker = ({ provide }) => {
       getMembers: async () => {
         const result = [];
         for (const [, entry] of memberRegistry) {
-          if (entry.inviterMemberId === adminMemberId) {
+          if (entry.inviterMemberId === adminMemberId && !entry.viaJoin) {
             result.push(
               harden({
                 proposedName: entry.proposedName,

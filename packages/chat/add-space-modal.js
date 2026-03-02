@@ -333,8 +333,9 @@ export const createAddSpaceModal = ({
         <div class="add-space-field">
           <label for="channel-pet-name">Space Name</label>
           <input type="text" id="channel-pet-name" placeholder="e.g., general, dev-chat"
+                 pattern="[a-z][a-z0-9-]*"
                  value="${channelPetName}" autocomplete="off" />
-          <div class="field-hint">Private name for this persona and its channel</div>
+          <div class="field-hint">Lowercase letters, numbers, and hyphens only (e.g., my-team)</div>
         </div>
 
         <div class="add-space-field">
@@ -420,8 +421,9 @@ export const createAddSpaceModal = ({
           <div class="add-space-field">
             <label for="connect-space-name">Space Name</label>
             <input type="text" id="connect-space-name" placeholder="e.g., team-chat"
+                   pattern="[a-z][a-z0-9-]*"
                    value="${connectSpaceName}" autocomplete="off" />
-            <div class="field-hint">Private name for this persona</div>
+            <div class="field-hint">Lowercase letters, numbers, and hyphens only (e.g., my-team)</div>
           </div>
           <div class="add-space-field">
             <label for="connect-proposed-name">Your Display Name</label>
@@ -880,9 +882,9 @@ export const createAddSpaceModal = ({
       return;
     }
 
-    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(spaceName)) {
+    if (!/^[a-z][a-z0-9-]*$/.test(spaceName)) {
       error =
-        'Space name must start with a letter and contain only letters, numbers, hyphens, and underscores';
+        'Space name must be lowercase, start with a letter, and contain only letters, numbers, and hyphens';
       render();
       return;
     }

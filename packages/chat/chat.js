@@ -34,6 +34,7 @@ const template = `
   <button id="conversation-back" title="Back to inbox (Esc)">←</button>
   <span id="conversation-label">Chatting with</span>
   <span id="conversation-name"></span>
+  <div id="channel-header-actions"></div>
 </div>
 
 <div id="messages">
@@ -289,6 +290,9 @@ const bodyComponent = (
   const $conversationName = /** @type {HTMLElement} */ (
     $parent.querySelector('#conversation-name')
   );
+  const $channelHeaderActions = /** @type {HTMLElement} */ (
+    $parent.querySelector('#channel-header-actions')
+  );
   const $chatMessage = /** @type {HTMLElement} */ (
     $parent.querySelector('#chat-message')
   );
@@ -446,10 +450,12 @@ const bodyComponent = (
               currentChannelRef = channelRef;
             }
 
-            // Set up channel header with invite/members menu
+            // Set up channel header with invite/members menu.
+            // Use currentChannelRef (member ref for joiners, raw channel for admin)
+            // so getMembers()/invite() are scoped to the current user's view.
             createChannelHeader({
-              $container: $conversationHeader,
-              channel: channelRef,
+              $container: $channelHeaderActions,
+              channel: currentChannelRef,
               powers: resolvedPowers,
               channelPetName: activeSpaceInfo.channelPetName,
             });
@@ -545,8 +551,8 @@ const bodyComponent = (
 
             // Update channel header
             createChannelHeader({
-              $container: $conversationHeader,
-              channel: channelRef,
+              $container: $channelHeaderActions,
+              channel: currentChannelRef,
               powers: resolvedPowers,
               channelPetName,
             });
