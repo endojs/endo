@@ -184,3 +184,4 @@ export const createSpacesGutter = ({
 3. ~~**Space editing** - Rename, change icon~~ ✅ Implemented via context menu → Edit Space modal
 4. **Space modes** - Beyond inbox (conversations, channels)
 5. ~~**Home space** - Cmd+0 to return to Host root~~ ✅ Home space is always first (Cmd+1)
+6. ~~**Configurable home space** - Custom icon and color scheme for space 0~~ ✅ See [chat-spaces-home](chat-spaces-home.md)
