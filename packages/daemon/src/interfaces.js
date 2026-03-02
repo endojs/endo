@@ -357,6 +357,7 @@ export const ChannelInterface = M.interface('EndoChannel', {
   getProposedName: M.call().returns(M.string()),
   getMemberId: M.call().returns(M.string()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
+  getHeatConfig: M.call().returns(M.promise()),
 });
 
 export const ChannelMemberInterface = M.interface('EndoChannelMember', {
@@ -372,6 +373,7 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   getProposedName: M.call().returns(M.string()),
   getMemberId: M.call().returns(M.string()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
+  getHeatConfig: M.call().returns(M.promise()),
 });
 
 export const ChannelInvitationInterface = M.interface(
@@ -385,7 +387,8 @@ harden(ChannelInvitationInterface);
 
 export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {
   setInvitationValidity: M.call(M.boolean()).returns(M.promise()),
-  setRateLimit: M.call(M.number()).returns(M.promise()),
+  setHeatConfig: M.call(M.record()).returns(M.promise()),
+  getHeatConfig: M.call().returns(M.promise()),
   temporaryBan: M.call(M.number()).returns(M.promise()),
 });
 harden(AttenuatorInterface);

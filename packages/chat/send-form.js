@@ -5,6 +5,8 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
+import { makeLiveHeatEngine } from './heat-engine.js';
+import { createHeatBar } from './heat-bar.js';
 
 /**
  * @typedef {object} SendFormState
@@ -66,6 +68,43 @@ export const sendFormComponent = ({
   /** @type {string | null} */
   let lastRecipient = null;
 
+  // --- Heat engine integration ---
+  /** @type {ReturnType<typeof makeLiveHeatEngine> | null} */
+  let heatEngine = null;
+  /** @type {ReturnType<typeof createHeatBar> | null} */
+  let heatBar = null;
+
+  /**
+   * Initialize the heat engine for a channel with a heat config.
+   * @param {unknown} channelRef
+   */
+  const initHeatEngine = async channelRef => {
+    try {
+      const config = await E(channelRef).getHeatConfig();
+      if (config && typeof config === 'object') {
+        const heatConfig = /** @type {import('./heat-engine.js').HeatConfig} */ (config);
+        heatBar = createHeatBar(
+          /** @type {HTMLElement} */ ($input.parentElement),
+          $sendButton,
+        );
+        heatEngine = makeLiveHeatEngine(heatConfig, state => {
+          if (heatBar) heatBar.update(state);
+        });
+        heatEngine.start();
+      }
+    } catch {
+      // Heat config not available — no rate limiting UI
+    }
+  };
+
+  // If in channel mode, try to init heat engine
+  if (getChannelRef) {
+    const channelRef = getChannelRef();
+    if (channelRef) {
+      void initHeatEngine(channelRef);
+    }
+  }
+
   // Initialize token autocomplete
   const tokenComponent = tokenAutocompleteComponent($input, $menu, {
     E,
@@ -110,6 +149,19 @@ export const sendFormComponent = ({
     // Channel mode: post directly to the channel (no recipient needed)
     const channelRef = getChannelRef ? getChannelRef() : null;
     if (channelRef) {
+      // Client-side heat check
+      if (heatEngine) {
+        const result = heatEngine.attemptSend();
+        if (!result.allowed) {
+          $sendButton.classList.add('heat-shake');
+          setTimeout(() => $sendButton.classList.remove('heat-shake'), 500);
+          $error.textContent = result.lockRemainingMs > 0
+            ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
+            : 'Sending too fast — slow down';
+          return;
+        }
+      }
+
       const messageStrings = strings.map((s, i) => {
         if (i === 0) return s.trimStart();
         if (i === strings.length - 1) return s.trimEnd();
@@ -129,6 +181,14 @@ export const sendFormComponent = ({
           },
           (/** @type {Error} */ err) => {
             $error.textContent = err.message;
+            // On server rejection, sync heat to threshold
+            if (heatEngine && /rate limit/i.test(err.message)) {
+              const state = heatEngine.getState();
+              if (!state.locked) {
+                // Force a send to push heat over threshold
+                heatEngine.attemptSend();
+              }
+            }
           },
         );
       return;

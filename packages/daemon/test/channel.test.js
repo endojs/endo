@@ -2071,9 +2071,9 @@ test.serial('channel - re-enabling via setInvitationValidity(true)', async t => 
   t.deepEqual(messages[0].strings, ['Back online']);
 });
 
-// ---------- Rate limiting ----------
+// ---------- Heat-based rate limiting ----------
 
-test.serial('channel - rate limiting blocks rapid posts', async t => {
+test.serial('channel - heat config: burst limit blocks rapid posts', async t => {
   const { host } = await prepareHost(t);
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
@@ -2081,17 +2081,27 @@ test.serial('channel - rate limiting blocks rapid posts', async t => {
   const [bobInvite, bobAttenuator] = await E(channel).createInvitation('Bob');
   const bobProxy = await E(bobInvite).join('Bob');
 
-  // Set a very low rate limit: 1 msg per second
-  await E(bobAttenuator).setRateLimit(1);
+  // Burst of 3 with minimal cooling. heatPerMessage = 90/3 = 30.
+  // coolRate = 30 * (1/60) = 0.5/s. CapTP round-trips take ~200-500ms
+  // so cooling between messages is negligible. We send 4 messages to
+  // ensure the threshold is exceeded even with some cooling.
+  await E(bobAttenuator).setHeatConfig({
+    burstLimit: 3,
+    sustainedRate: 1,
+    lockoutDurationMs: 60000,
+    postLockoutPct: 0,
+  });
 
-  // First post should succeed
-  await E(bobProxy).post(['First post'], [], []);
+  // First 3 posts should succeed (heat accumulates to ~90 minus small cooling)
+  await E(bobProxy).post(['Post 1'], [], []);
+  await E(bobProxy).post(['Post 2'], [], []);
+  await E(bobProxy).post(['Post 3'], [], []);
 
-  // Immediate second post should be rate limited
+  // Fourth post must trigger lockout (heat well over 90)
   await t.throwsAsync(
-    () => E(bobProxy).post(['Too fast'], [], []),
-    { message: /Rate limit/ },
-    'rapid posts should be rate limited',
+    () => E(bobProxy).post(['Post 4'], [], []),
+    { message: /Rate limit lockout/ },
+    'exceeding burst limit should trigger heat lockout',
   );
 });
 
@@ -2156,9 +2166,9 @@ test.serial('channel - duplicate invitation names are rejected', async t => {
   );
 });
 
-// ---------- Cascading rate limit ----------
+// ---------- Cascading heat config ----------
 
-test.serial('channel - cascading rate limit from parent', async t => {
+test.serial('channel - cascading heat config from parent', async t => {
   const { host } = await prepareHost(t);
   await E(host).makeChannel('my-channel', 'Alice');
   const channel = await E(host).lookup('my-channel');
@@ -2170,17 +2180,25 @@ test.serial('channel - cascading rate limit from parent', async t => {
   const [carolInvite] = await E(bobProxy).createInvitation('Carol');
   const carolProxy = await E(carolInvite).join('Carol');
 
-  // Set rate limit on Bob — should cascade to Carol
-  await E(bobAttenuator).setRateLimit(1);
+  // Set heat config on Bob — should cascade to Carol.
+  // Send 4 messages to guarantee exceeding threshold despite CapTP latency cooling.
+  await E(bobAttenuator).setHeatConfig({
+    burstLimit: 3,
+    sustainedRate: 1,
+    lockoutDurationMs: 60000,
+    postLockoutPct: 0,
+  });
 
-  // Carol's first post should succeed
+  // Carol's first 3 posts should succeed
   await E(carolProxy).post(['First'], [], []);
+  await E(carolProxy).post(['Second'], [], []);
+  await E(carolProxy).post(['Third'], [], []);
 
-  // Carol's immediate second post should be rate limited (cascading from Bob)
+  // Carol's fourth post triggers lockout (cascading from Bob's heat config)
   await t.throwsAsync(
-    () => E(carolProxy).post(['Too fast'], [], []),
-    { message: /Rate limit/ },
-    'rate limit should cascade from parent',
+    () => E(carolProxy).post(['Fourth'], [], []),
+    { message: /Rate limit lockout/ },
+    'heat config should cascade from parent',
   );
 });
 
@@ -2445,4 +2463,74 @@ test.serial('channel - re-enabling Bob re-enables Carol (cascading)', async t =>
   await E(bobAttenuator).setInvitationValidity(true);
   await E(carolProxy).post(['Carol is back'], [], []);
   t.pass('Carol can post after Bob is re-enabled');
+});
+
+// ---------- Heat config: getHeatConfig ----------
+
+test.serial('channel - getHeatConfig returns null when no config set', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  // Admin always returns null
+  const adminConfig = await E(channel).getHeatConfig();
+  t.is(adminConfig, null, 'admin getHeatConfig returns null');
+
+  const [bobInvite] = await E(channel).createInvitation('Bob');
+  const bobProxy = await E(bobInvite).join('Bob');
+
+  // Member with no config returns null
+  const bobConfig = await E(bobProxy).getHeatConfig();
+  t.is(bobConfig, null, 'member getHeatConfig returns null before config is set');
+});
+
+test.serial('channel - getHeatConfig returns set config', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobInvite, bobAttenuator] = await E(channel).createInvitation('Bob');
+  const bobProxy = await E(bobInvite).join('Bob');
+
+  const config = {
+    burstLimit: 10,
+    sustainedRate: 30,
+    lockoutDurationMs: 10000,
+    postLockoutPct: 40,
+  };
+  await E(bobAttenuator).setHeatConfig(config);
+
+  // Attenuator getHeatConfig
+  const attConfig = await E(bobAttenuator).getHeatConfig();
+  t.deepEqual(attConfig, config, 'attenuator getHeatConfig returns set config');
+
+  // Member getHeatConfig
+  const memberConfig = await E(bobProxy).getHeatConfig();
+  t.deepEqual(memberConfig, config, 'member getHeatConfig returns set config');
+});
+
+test.serial('channel - heat config: posts within sustained rate succeed', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobInvite, bobAttenuator] = await E(channel).createInvitation('Bob');
+  const bobProxy = await E(bobInvite).join('Bob');
+
+  // Generous burst limit — no lockout expected
+  await E(bobAttenuator).setHeatConfig({
+    burstLimit: 30,
+    sustainedRate: 60,
+    lockoutDurationMs: 5000,
+    postLockoutPct: 40,
+  });
+
+  // Send several messages — all should succeed with burst of 30
+  for (let i = 0; i < 5; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await E(bobProxy).post([`Post ${i}`], [], []);
+  }
+
+  const messages = await E(channel).listMessages();
+  t.is(messages.length, 5, 'all 5 posts succeeded within generous burst limit');
 });

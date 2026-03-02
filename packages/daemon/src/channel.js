@@ -130,6 +130,14 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     let nextMemberIdNum = 1;
 
     /**
+     * @typedef {object} HeatConfig
+     * @property {number} burstLimit - Max messages in a burst (3–30)
+     * @property {number} sustainedRate - Messages per minute sustained (1–60)
+     * @property {number} lockoutDurationMs - Lockout duration in ms
+     * @property {number} postLockoutPct - Heat percentage after lockout ends (0–100)
+     */
+
+    /**
      * @typedef {object} MemberEntry
      * @property {string} proposedName - Current display name (may be changed by the member)
      * @property {string} invitedAs - Original name given by the inviter
@@ -137,9 +145,11 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
      * @property {string} inviterMemberId - memberId of the member who created this invitation
      * @property {string[]} pedigree - Invitation chain
      * @property {boolean} valid - true = active, false = disabled
-     * @property {number} rateLimitPerSecond - 0 = unrestricted
+     * @property {HeatConfig | null} heatConfig - Heat-based rate limiting config, null = unrestricted
      * @property {number} temporaryBanUntil - epoch ms, 0 = no ban
      */
+
+    const HEAT_LOCKOUT_THRESHOLD = 90;
 
     /**
      * Invitation registry: maps `${inviterMemberId}:${invitedAs}` to
@@ -161,7 +171,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         inviterMemberId: entry.inviterMemberId,
         pedigree: [...entry.pedigree],
         valid: entry.valid,
-        rateLimitPerSecond: entry.rateLimitPerSecond,
+        heatConfig: entry.heatConfig,
         temporaryBanUntil: entry.temporaryBanUntil,
       });
       const formulaId = await persistValue(persistable);
@@ -274,9 +284,19 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
           entry.valid = valid;
           await persistMemberEntry(entry);
         },
-        setRateLimit: async messagesPerSecond => {
-          entry.rateLimitPerSecond = messagesPerSecond;
+        setHeatConfig: async config => {
+          entry.heatConfig = config
+            ? harden({
+                burstLimit: config.burstLimit,
+                sustainedRate: config.sustainedRate,
+                lockoutDurationMs: config.lockoutDurationMs,
+                postLockoutPct: config.postLockoutPct,
+              })
+            : null;
           await persistMemberEntry(entry);
+        },
+        getHeatConfig: async () => {
+          return entry.heatConfig;
         },
         temporaryBan: async seconds => {
           entry.temporaryBanUntil = Date.now() + seconds * 1000;
@@ -286,12 +306,69 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     };
 
     /**
+     * Create a heat-based checkPostRate closure for a member entry.
+     * Tracks heat, lockEndTime internally. Parent rate check is called first.
+     *
+     * @param {MemberEntry} entry
+     * @param {(now: number) => void} parentCheckPostRate
+     * @returns {(now: number) => void}
+     */
+    const makeHeatCheckPostRate = (entry, parentCheckPostRate) => {
+      let heat = 0;
+      let lastHeatUpdateTime = 0;
+      let lockEndTime = 0;
+
+      return now => {
+        parentCheckPostRate(now);
+
+        const config = entry.heatConfig;
+        if (!config) return;
+
+        const heatPerMessage = HEAT_LOCKOUT_THRESHOLD / config.burstLimit;
+        const coolRate = heatPerMessage * (config.sustainedRate / 60);
+
+        // Check if locked
+        if (lockEndTime > 0) {
+          if (now < lockEndTime) {
+            const remaining = Math.ceil((lockEndTime - now) / 1000);
+            throw new Error(
+              `Rate limit lockout for ${q(entry.invitedAs)} (${remaining}s remaining)`,
+            );
+          }
+          // Lockout expired — reset heat
+          heat = config.postLockoutPct;
+          lockEndTime = 0;
+          lastHeatUpdateTime = now;
+        }
+
+        // Apply cooling (skip on first call when lastHeatUpdateTime is 0)
+        if (lastHeatUpdateTime > 0) {
+          const dt = (now - lastHeatUpdateTime) / 1000;
+          heat = Math.max(0, heat - coolRate * dt);
+        }
+
+        // Add heat for this message
+        heat += heatPerMessage;
+        lastHeatUpdateTime = now;
+
+        // Check threshold
+        if (heat >= HEAT_LOCKOUT_THRESHOLD) {
+          lockEndTime = now + config.lockoutDurationMs;
+          const remaining = Math.ceil(config.lockoutDurationMs / 1000);
+          throw new Error(
+            `Rate limit lockout for ${q(entry.invitedAs)} (${remaining}s remaining)`,
+          );
+        }
+      };
+    };
+
+    /**
      * Create a channel invitation exo. The invitation's join() method creates
      * an attenuated channel handle with properly chained access closures.
      *
      * @param {MemberEntry} entry - The entry for the invited member
      * @param {() => void} parentCheckAccess - The inviter's checkAccess closure
-     * @param {(now: number, lastPostTime: number) => void} parentCheckPostRate - The inviter's rate check
+     * @param {(now: number) => void} parentCheckPostRate - The inviter's rate check
      * @returns {object} invitation exo
      */
     const makeInvitation = (entry, parentCheckAccess, parentCheckPostRate) => {
@@ -315,21 +392,10 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
               checkEntryValidity(entry);
             };
 
-            /**
-             * @param {number} now
-             * @param {number} childLastPostTime
-             */
-            const checkPostRate = (now, childLastPostTime) => {
-              parentCheckPostRate(now, childLastPostTime);
-              if (entry.rateLimitPerSecond > 0) {
-                const minInterval = 1000 / entry.rateLimitPerSecond;
-                if (now - childLastPostTime < minInterval) {
-                  throw new Error(
-                    `Rate limit exceeded for ${q(entry.invitedAs)}`,
-                  );
-                }
-              }
-            };
+            const checkPostRate = makeHeatCheckPostRate(
+              entry,
+              parentCheckPostRate,
+            );
 
             joinedHandle = makeChannelMemberHandle(
               entry,
@@ -350,12 +416,10 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
      *
      * @param {MemberEntry} entry - The member entry for this handle
      * @param {() => void} checkAccess - Chained access check closure
-     * @param {(now: number, lastPostTime: number) => void} checkPostRate - Chained rate check closure
+     * @param {(now: number) => void} checkPostRate - Chained rate check closure
      * @returns {object} member handle exo
      */
     const makeChannelMemberHandle = (entry, checkAccess, checkPostRate) => {
-      let lastPostTime = 0;
-
       /**
        * Local invitations created by this handle.
        * @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>}
@@ -367,7 +431,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         post: async (strings, edgeNames, petNamesOrPaths, replyTo) => {
           checkAccess();
           const now = Date.now();
-          checkPostRate(now, lastPostTime);
+          checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ ([]);
           await postInternal(
             entry.proposedName,
@@ -378,7 +442,6 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
             ids,
             replyTo,
           );
-          lastPostTime = now;
         },
         setProposedName: async newName => {
           checkAccess();
@@ -408,7 +471,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
             inviterMemberId: entry.memberId,
             pedigree: subPedigree,
             valid: true,
-            rateLimitPerSecond: 0,
+            heatConfig: /** @type {HeatConfig | null} */ (null),
             temporaryBanUntil: 0,
           };
           const attenuator = makeAttenuator(subEntry);
@@ -466,6 +529,10 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
           }
           return rec.attenuator;
         },
+        getHeatConfig: async () => {
+          checkAccess();
+          return entry.heatConfig;
+        },
       });
     };
 
@@ -477,7 +544,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
       inviterMemberId: '',
       pedigree: /** @type {string[]} */ ([]),
       valid: true,
-      rateLimitPerSecond: 0,
+      heatConfig: /** @type {HeatConfig | null} */ (null),
       temporaryBanUntil: 0,
     };
 
@@ -485,9 +552,8 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     const adminCheckAccess = () => {};
     /**
      * @param {number} _now
-     * @param {number} _lastPostTime
      */
-    const adminCheckPostRate = (_now, _lastPostTime) => {};
+    const adminCheckPostRate = _now => {};
 
     /**
      * Admin-level local invitations map, shared with the channel exo.
@@ -506,7 +572,21 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         if (id !== undefined) {
           const value = await provide(id);
           if (value && typeof value === 'object') {
-            const data = /** @type {MemberEntry} */ (value);
+            const data = /** @type {any} */ (value);
+            // Migration: convert old rateLimitPerSecond to heatConfig
+            let heatConfig = data.heatConfig || null;
+            if (
+              !heatConfig &&
+              data.rateLimitPerSecond &&
+              data.rateLimitPerSecond > 0
+            ) {
+              heatConfig = harden({
+                burstLimit: 5,
+                sustainedRate: Math.round(data.rateLimitPerSecond * 60),
+                lockoutDurationMs: 10000,
+                postLockoutPct: 40,
+              });
+            }
             rehydratedEntries.push({
               proposedName: data.proposedName,
               invitedAs: data.invitedAs,
@@ -514,7 +594,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
               inviterMemberId: data.inviterMemberId,
               pedigree: [...data.pedigree],
               valid: data.valid,
-              rateLimitPerSecond: data.rateLimitPerSecond,
+              heatConfig,
               temporaryBanUntil: data.temporaryBanUntil,
             });
             const num = Number(data.memberId);
@@ -532,7 +612,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     /**
      * Map from memberId to { checkAccess, checkPostRate, invitations }
      * for reconstructing the closure chain during rehydration.
-     * @type {Map<string, { checkAccess: () => void, checkPostRate: (now: number, lastPostTime: number) => void, invitations: Map<string, { invitation: object, attenuator: object, entry: MemberEntry }> }>}
+     * @type {Map<string, { checkAccess: () => void, checkPostRate: (now: number) => void, invitations: Map<string, { invitation: object, attenuator: object, entry: MemberEntry }> }>}
      */
     const memberHandleInfo = new Map();
     memberHandleInfo.set(adminMemberId, {
@@ -556,21 +636,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         checkEntryValidity(entry);
       };
 
-      /**
-       * @param {number} now
-       * @param {number} childLastPostTime
-       */
-      const checkPostRate = (now, childLastPostTime) => {
-        parentCheckPostRate(now, childLastPostTime);
-        if (entry.rateLimitPerSecond > 0) {
-          const minInterval = 1000 / entry.rateLimitPerSecond;
-          if (now - childLastPostTime < minInterval) {
-            throw new Error(
-              `Rate limit exceeded for ${q(entry.invitedAs)}`,
-            );
-          }
-        }
-      };
+      const checkPostRate = makeHeatCheckPostRate(entry, parentCheckPostRate);
 
       const attenuator = makeAttenuator(entry);
       const invitation = makeInvitation(entry, parentCheckAccess, parentCheckPostRate);
@@ -630,7 +696,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
           inviterMemberId: adminMemberId,
           pedigree,
           valid: true,
-          rateLimitPerSecond: 0,
+          heatConfig: /** @type {HeatConfig | null} */ (null),
           temporaryBanUntil: 0,
         };
         const attenuator = makeAttenuator(newEntry);
@@ -651,20 +717,10 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         const checkAccess = () => {
           checkEntryValidity(newEntry);
         };
-        /**
-         * @param {number} now
-         * @param {number} childLastPostTime
-         */
-        const checkPostRate = (now, childLastPostTime) => {
-          if (newEntry.rateLimitPerSecond > 0) {
-            const minInterval = 1000 / newEntry.rateLimitPerSecond;
-            if (now - childLastPostTime < minInterval) {
-              throw new Error(
-                `Rate limit exceeded for ${q(newEntry.invitedAs)}`,
-              );
-            }
-          }
-        };
+        const checkPostRate = makeHeatCheckPostRate(
+          newEntry,
+          adminCheckPostRate,
+        );
         memberHandleInfo.set(memberId, {
           checkAccess,
           checkPostRate,
@@ -716,6 +772,10 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
           );
         }
         return rec.attenuator;
+      },
+      getHeatConfig: async () => {
+        // Admin has no heat config (unrestricted)
+        return null;
       },
     });
 

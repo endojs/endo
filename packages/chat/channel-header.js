@@ -5,6 +5,9 @@
 
 import { E } from '@endo/far';
 
+import { createHeatSimulation } from './heat-simulation.js';
+import { deriveConstants, formatDuration } from './heat-engine.js';
+
 /**
  * @typedef {object} ChannelHeaderAPI
  * @property {() => void} dispose - Dispose the header component
@@ -163,7 +166,7 @@ export const createChannelHeader = ({
       ]);
       const memberInfo = members.find(m => m.invitedAs === invitedAs);
       const isActive = memberInfo ? memberInfo.active : true;
-      renderAttenuatorModal(invitedAs, attenuator, isActive);
+      await renderAttenuatorModal(invitedAs, attenuator, isActive);
     } catch (err) {
       window.alert(
         `Failed to get attenuator: ${/** @type {Error} */ (err).message}`,
@@ -171,17 +174,56 @@ export const createChannelHeader = ({
     }
   };
 
+  /** @type {ReturnType<typeof createHeatSimulation> | null} */
+  let simInstance = null;
+
+  /**
+   * Log-scale conversion for lockout duration slider.
+   * Maps 0–100 slider → 2000ms–259200000ms (2s–72h).
+   * @param {number} sliderVal - 0 to 100
+   * @returns {number} ms
+   */
+  const sliderToLockoutMs = sliderVal => {
+    const minLog = Math.log(2000);
+    const maxLog = Math.log(259200000);
+    return Math.round(Math.exp(minLog + (sliderVal / 100) * (maxLog - minLog)));
+  };
+
+  /**
+   * @param {number} ms
+   * @returns {number} slider 0–100
+   */
+  const lockoutMsToSlider = ms => {
+    const minLog = Math.log(2000);
+    const maxLog = Math.log(259200000);
+    return Math.round(((Math.log(ms) - minLog) / (maxLog - minLog)) * 100);
+  };
+
   /**
    * @param {string} invitedAs
    * @param {object} attenuator
    * @param {boolean} isActive
    */
-  const renderAttenuatorModal = (invitedAs, attenuator, isActive) => {
+  const renderAttenuatorModal = async (invitedAs, attenuator, isActive) => {
+    // Fetch existing heat config
+    let existingConfig = null;
+    try {
+      existingConfig = await E(attenuator).getHeatConfig();
+    } catch {
+      // No config yet
+    }
+
+    const burstLimit = existingConfig ? existingConfig.burstLimit : 10;
+    const sustainedRate = existingConfig ? existingConfig.sustainedRate : 30;
+    const lockoutDurationMs = existingConfig ? existingConfig.lockoutDurationMs : 10000;
+    const postLockoutPct = existingConfig ? existingConfig.postLockoutPct : 40;
+    const lockoutSlider = lockoutMsToSlider(lockoutDurationMs);
+
     $container.innerHTML = `
       <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
       <div class="channel-attenuator-modal">
         <div class="channel-attenuator-header">
-          <h3>Manage: "${invitedAs}"</h3>
+          <h3>Manage: \u201C${invitedAs}\u201D</h3>
           <button type="button" class="channel-attenuator-close" title="Close">&times;</button>
         </div>
         <div class="channel-attenuator-body">
@@ -189,12 +231,37 @@ export const createChannelHeader = ({
             <span>Enabled</span>
             <input type="checkbox" class="attenuator-valid" ${isActive ? 'checked' : ''} />
           </label>
-          <label class="attenuator-field">
-            <span>Rate limit (msg/sec, 0=unlimited)</span>
-            <input type="number" class="attenuator-rate" value="0" min="0" step="0.1" />
-          </label>
+
+          <div class="heat-slider-field">
+            <label>Burst limit: <span class="heat-burst-val">${burstLimit}</span></label>
+            <input type="range" class="heat-burst-slider" min="3" max="30" value="${burstLimit}" />
+          </div>
+
+          <div class="heat-slider-field">
+            <label>Sustained rate: <span class="heat-sustained-val">${sustainedRate}</span> msg/min</label>
+            <input type="range" class="heat-sustained-slider" min="1" max="60" value="${sustainedRate}" />
+          </div>
+
+          <div class="heat-slider-field">
+            <label>Cooldown: <span class="heat-lockout-val">${formatDuration(lockoutDurationMs)}</span></label>
+            <input type="range" class="heat-lockout-slider" min="0" max="100" value="${lockoutSlider}" />
+          </div>
+
+          <details class="heat-advanced">
+            <summary>Advanced</summary>
+            <div class="heat-slider-field">
+              <label>Post-lockout heat: <span class="heat-postlockout-val">${postLockoutPct}%</span></label>
+              <input type="range" class="heat-postlockout-slider" min="0" max="100" value="${postLockoutPct}" />
+            </div>
+            <div class="heat-derived-params">
+              <!-- Filled by updateDerived -->
+            </div>
+          </details>
+
+          <div class="heat-sim-container"></div>
+
           <div class="attenuator-field">
-            <span>Temporary ban (seconds)</span>
+            <span>Emergency ban</span>
             <div class="attenuator-ban-row">
               <input type="number" class="attenuator-ban-duration" value="60" min="1" />
               <button type="button" class="attenuator-ban-btn">Apply Ban</button>
@@ -204,6 +271,104 @@ export const createChannelHeader = ({
       </div>
     `;
 
+    // Current config state
+    const config = {
+      burstLimit,
+      sustainedRate,
+      lockoutDurationMs,
+      postLockoutPct,
+    };
+
+    // Initialize simulation chart
+    const $simContainer = $container.querySelector('.heat-sim-container');
+    if ($simContainer) {
+      simInstance = createHeatSimulation(
+        /** @type {HTMLElement} */ ($simContainer),
+        config,
+      );
+    }
+
+    const updateDerived = () => {
+      const { heatPerMessage, coolRate } = deriveConstants(config);
+      const $derived = $container.querySelector('.heat-derived-params');
+      if ($derived) {
+        $derived.textContent =
+          `Heat/msg: ${heatPerMessage.toFixed(1)} | Cool rate: ${coolRate.toFixed(2)}/s`;
+      }
+    };
+    updateDerived();
+
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    let debounceTimer = null;
+
+    const debouncedSave = () => {
+      if (debounceTimer !== null) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          await E(attenuator).setHeatConfig({ ...config });
+        } catch (err) {
+          console.error('[ChannelHeader] Failed to set heat config:', err);
+        }
+      }, 300);
+    };
+
+    // Slider listeners
+    const $burstSlider = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.heat-burst-slider')
+    );
+    const $burstVal = $container.querySelector('.heat-burst-val');
+    if ($burstSlider) {
+      $burstSlider.addEventListener('input', () => {
+        config.burstLimit = Number($burstSlider.value);
+        if ($burstVal) $burstVal.textContent = $burstSlider.value;
+        updateDerived();
+        if (simInstance) simInstance.updateParams(config);
+        debouncedSave();
+      });
+    }
+
+    const $sustainedSlider = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.heat-sustained-slider')
+    );
+    const $sustainedVal = $container.querySelector('.heat-sustained-val');
+    if ($sustainedSlider) {
+      $sustainedSlider.addEventListener('input', () => {
+        config.sustainedRate = Number($sustainedSlider.value);
+        if ($sustainedVal) $sustainedVal.textContent = $sustainedSlider.value;
+        updateDerived();
+        if (simInstance) simInstance.updateParams(config);
+        debouncedSave();
+      });
+    }
+
+    const $lockoutSlider = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.heat-lockout-slider')
+    );
+    const $lockoutVal = $container.querySelector('.heat-lockout-val');
+    if ($lockoutSlider) {
+      $lockoutSlider.addEventListener('input', () => {
+        config.lockoutDurationMs = sliderToLockoutMs(Number($lockoutSlider.value));
+        if ($lockoutVal) $lockoutVal.textContent = formatDuration(config.lockoutDurationMs);
+        updateDerived();
+        if (simInstance) simInstance.updateParams(config);
+        debouncedSave();
+      });
+    }
+
+    const $postLockoutSlider = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('.heat-postlockout-slider')
+    );
+    const $postLockoutVal = $container.querySelector('.heat-postlockout-val');
+    if ($postLockoutSlider) {
+      $postLockoutSlider.addEventListener('input', () => {
+        config.postLockoutPct = Number($postLockoutSlider.value);
+        if ($postLockoutVal) $postLockoutVal.textContent = `${$postLockoutSlider.value}%`;
+        updateDerived();
+        if (simInstance) simInstance.updateParams(config);
+        debouncedSave();
+      });
+    }
+
     // Re-attach menu button listener
     const $menuBtn = $container.querySelector('.channel-menu-btn');
     if ($menuBtn) {
@@ -211,6 +376,7 @@ export const createChannelHeader = ({
         e.stopPropagation();
         attenuatorModalMember = null;
         manageMembersVisible = false;
+        if (simInstance) { simInstance.dispose(); simInstance = null; }
         menuVisible = !menuVisible;
         render();
       });
@@ -221,6 +387,7 @@ export const createChannelHeader = ({
       $close.addEventListener('click', async () => {
         attenuatorModalMember = null;
         manageMembersVisible = true;
+        if (simInstance) { simInstance.dispose(); simInstance = null; }
         await showMembers();
       });
     }
@@ -235,21 +402,6 @@ export const createChannelHeader = ({
         } catch (err) {
           window.alert(
             `Failed to set validity: ${/** @type {Error} */ (err).message}`,
-          );
-        }
-      });
-    }
-
-    const $rateInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('.attenuator-rate')
-    );
-    if ($rateInput) {
-      $rateInput.addEventListener('change', async () => {
-        try {
-          await E(attenuator).setRateLimit(Number($rateInput.value));
-        } catch (err) {
-          window.alert(
-            `Failed to set rate limit: ${/** @type {Error} */ (err).message}`,
           );
         }
       });
@@ -340,6 +492,7 @@ export const createChannelHeader = ({
 
   return harden({
     dispose: () => {
+      if (simInstance) { simInstance.dispose(); simInstance = null; }
       $container.innerHTML = '';
     },
   });

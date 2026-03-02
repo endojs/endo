@@ -989,6 +989,7 @@ export interface EndoChannel {
   getProposedName(): string;
   getMemberId(): string;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+  getHeatConfig(): Promise<HeatConfig | null>;
 }
 
 export interface EndoChannelInvitation {
@@ -996,9 +997,17 @@ export interface EndoChannelInvitation {
   join(proposedName: string): Promise<EndoChannelMember>;
 }
 
+export interface HeatConfig {
+  burstLimit: number;
+  sustainedRate: number;
+  lockoutDurationMs: number;
+  postLockoutPct: number;
+}
+
 export interface EndoChannelAttenuator {
   setInvitationValidity(valid: boolean): Promise<void>;
-  setRateLimit(messagesPerSecond: number): Promise<void>;
+  setHeatConfig(config: HeatConfig): Promise<void>;
+  getHeatConfig(): Promise<HeatConfig | null>;
   temporaryBan(seconds: number): Promise<void>;
 }
 
@@ -1022,6 +1031,7 @@ export interface EndoChannelMember {
   getMemberId(): string;
   setProposedName(newName: string): Promise<void>;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+  getHeatConfig(): Promise<HeatConfig | null>;
 }
 
 export type EndoInspector<Record = string> = {

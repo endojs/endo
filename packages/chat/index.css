@@ -3906,6 +3906,173 @@ button:active {
   color: white;
 }
 
+/* --- Heat bar (above input) --- */
+.heat-bar {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  background: transparent;
+  border-radius: 2px;
+  overflow: hidden;
+  transition: opacity 200ms ease;
+  flex-shrink: 0;
+}
+
+.heat-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  transition: width 100ms linear, background-color 100ms linear;
+}
+
+.heat-bar-status {
+  position: absolute;
+  right: 4px;
+  top: -16px;
+  font-size: 10px;
+  color: #e03131;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Send button heat states */
+.heat-glow {
+  box-shadow: 0 0 6px rgba(245, 166, 35, 0.5);
+}
+
+.heat-jitter {
+  animation: heat-jitter 0.15s infinite;
+}
+
+.heat-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.heat-shake {
+  animation: heat-shake 0.4s ease-out;
+}
+
+@keyframes heat-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-4px); }
+  30% { transform: translateX(3px); }
+  45% { transform: translateX(-2px); }
+  60% { transform: translateX(1px); }
+}
+
+@keyframes heat-jitter {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heat-jitter,
+  .heat-shake {
+    animation: none;
+  }
+  .heat-glow {
+    box-shadow: none;
+    outline: 2px solid rgba(245, 166, 35, 0.5);
+  }
+}
+
+/* --- Heat slider fields (attenuator modal) --- */
+.heat-slider-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.heat-slider-field label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.heat-slider-field input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+/* Advanced collapsible section */
+.heat-advanced {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.heat-advanced summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-muted);
+}
+
+.heat-derived-params {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+/* Summary readout below simulation */
+.heat-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* Simulation wrapper */
+.heat-sim-wrapper {
+  margin-top: 8px;
+}
+
+.heat-sim-canvas {
+  width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+/* Scenario picker */
+.heat-scenario-picker {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.heat-scenario-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.heat-scenario-btn:hover {
+  background: var(--bg-hover);
+}
+
+.heat-scenario-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* Simulation container in modal */
+.heat-sim-container {
+  margin-top: 8px;
+}
+
 /* Inventory info button */
 .pet-item-row button.info-button {
   opacity: 0;
