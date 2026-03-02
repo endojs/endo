@@ -4,10 +4,7 @@ import { makeEndoPlugin } from './vite-endo-plugin.js';
 
 export default defineConfig({
   plugins: [
-    // Start a temporary Endo daemon for development
-    makeEndoPlugin({
-      port: 0, // Host-assigned port
-    }),
+    makeEndoPlugin(),
   ],
   base: './',
   build: {

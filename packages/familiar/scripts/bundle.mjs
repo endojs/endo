@@ -1,5 +1,5 @@
 /**
- * Bundles the Endo CLI and gateway server into self-contained CJS files
+ * Bundles the Endo CLI and daemon into self-contained CJS files
  * using esbuild for inclusion in the packaged Electron app.
  */
 
@@ -62,12 +62,6 @@ await build({
 
 await build({
   ...shared,
-  entryPoints: [path.join(repoRoot, 'packages/chat/scripts/gateway-server.js')],
-  outfile: path.join(familiarRoot, 'bundles/gateway-server.cjs'),
-});
-
-await build({
-  ...shared,
   entryPoints: [path.join(repoRoot, 'packages/daemon/src/daemon-node.js')],
   outfile: path.join(familiarRoot, 'bundles/endo-daemon.cjs'),
 });
@@ -86,7 +80,7 @@ await build({
 });
 
 // Pre-bundle web-page.js using the compartment mapper.
-// The gateway normally does this at runtime, but in the packaged app the
+// The daemon's web server normally does this at runtime, but in the packaged app the
 // source files and @endo/* dependencies aren't available on disk.
 const webPagePath = path.join(repoRoot, 'packages/daemon/src/web-page.js');
 const webPageRead = async location =>
