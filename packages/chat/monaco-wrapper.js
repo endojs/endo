@@ -2,6 +2,7 @@
 /* global document, window, globalThis */
 /* eslint-disable no-bitwise, import/no-unresolved */
 
+import harden from '@endo/harden';
 import * as monaco from 'monaco-editor';
 
 // Configure Monaco environment - disable workers to avoid complexity

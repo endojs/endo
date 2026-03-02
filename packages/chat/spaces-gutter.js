@@ -2,6 +2,8 @@
 /* global document, window */
 /* eslint-disable no-use-before-define */
 
+import harden from '@endo/harden';
+
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 

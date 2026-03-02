@@ -2,6 +2,8 @@
 /* global document */
 /* eslint-disable no-use-before-define */
 
+import harden from '@endo/harden';
+
 /** @import { ColorScheme } from './spaces-gutter.js' */
 /** @import { PetNamePathsAutocompleteAPI } from './petname-paths-autocomplete.js' */
 /** @import { ERef } from '@endo/far' */

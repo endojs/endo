@@ -1,6 +1,8 @@
 // @ts-check
 /* global document */
 
+import harden from '@endo/harden';
+
 /** @import { ColorScheme } from './spaces-gutter.js' */
 
 /**

@@ -2,6 +2,8 @@
 /* global document */
 /* eslint-disable no-use-before-define */
 
+import harden from '@endo/harden';
+
 /** @import { ColorScheme, SpaceConfig } from './spaces-gutter.js' */
 /** @import { SchemePickerAPI } from './scheme-picker.js' */
 

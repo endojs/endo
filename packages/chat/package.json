@@ -46,6 +46,7 @@
     "@endo/captp": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",

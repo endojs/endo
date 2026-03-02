@@ -1,5 +1,7 @@
 // @ts-check
 
+import harden from '@endo/harden';
+
 /**
  * @typedef {object} Message
  * @property {string} id
