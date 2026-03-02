@@ -364,11 +364,13 @@ export const createSpacesGutter = ({
         <div class="spaces-list">
     `;
 
-    allSpaces.forEach((space, i) => {
+    allSpaces.forEach(space => {
       const isActive = space.id === activeSpaceId;
-      const shortcutNum = i + 1;
-      const shortcutHint = shortcutNum <= 9 ? `⌘${shortcutNum}` : '';
       const isHome = space.id === 'home';
+      // Config id is the shortcut number: home=0, user spaces=1..9
+      const shortcutNum = isHome ? 0 : parseInt(space.id, 10);
+      const hasShortcut = shortcutNum >= 0 && shortcutNum <= 9;
+      const shortcutHint = hasShortcut ? `⌘${shortcutNum}` : '';
 
       html += `
         <div class="space-item ${isActive ? 'active' : ''}${isHome ? ' home' : ''}"
@@ -376,7 +378,7 @@ export const createSpacesGutter = ({
              title="${space.name}${shortcutHint ? ` (${shortcutHint})` : ''}">
           <span class="space-icon">${space.icon}</span>
           <span class="space-badge" style="display: none;">0</span>
-          ${shortcutNum <= 9 ? `<span class="space-shortcut-badge">${shortcutNum}</span>` : ''}
+          ${hasShortcut ? `<span class="space-shortcut-badge">${shortcutNum}</span>` : ''}
         </div>
       `;
     });
@@ -735,21 +737,24 @@ export const createSpacesGutter = ({
    * @param {KeyboardEvent} e
    */
   const handleKeydown = e => {
-    // Check for Cmd+1 through Cmd+9 (or Ctrl on non-Mac)
+    // Check for Cmd+0 through Cmd+9 (or Ctrl on non-Mac)
     if (!e.metaKey && !e.ctrlKey) return;
     if (e.shiftKey || e.altKey) return;
 
     const key = e.key;
     const num = parseInt(key, 10);
-    if (Number.isNaN(num) || num < 1 || num > 9) return;
+    if (Number.isNaN(num) || num < 0 || num > 9) return;
 
-    // Include home space in the list
-    const sortedUserSpaces = getSpacesArray();
-    const allSpaces = [homeSpaceConfig, ...sortedUserSpaces];
-    const index = num - 1;
-    if (index < allSpaces.length) {
+    // Cmd+0 selects home; Cmd+N selects user space N
+    if (num === 0) {
       e.preventDefault();
-      selectSpace(allSpaces[index].id);
+      selectSpace('home');
+    } else {
+      const id = String(num);
+      if (spacesMap.has(id)) {
+        e.preventDefault();
+        selectSpace(id);
+      }
     }
   };
 

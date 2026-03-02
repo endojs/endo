@@ -315,7 +315,7 @@ test.serial('changing home icon/scheme stores at spaces.0 with enforced name/pat
   $form.dispatchEvent(new Event('submit', { bubbles: true }));
   await tick(50);
 
-  // Check that storeValue was called with ['spaces', '0']
+  // Check that storeValue was called with ['spaces', '1']
   const storeCalls = calls.filter(c => c.method === 'storeValue');
   const homeStoreCall = storeCalls.find(
     c => c.args[1][0] === 'spaces' && c.args[1][1] === '0',

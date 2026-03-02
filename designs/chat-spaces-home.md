@@ -33,8 +33,9 @@ Users can customize:
 ## Config Storage
 
 Home space configuration is stored at pet-name path `['spaces', '0']` as a
-passable object (same format as regular space configs). When no stored config
-exists, `HOME_SPACE_DEFAULTS` provides fallback values:
+passable object (same format as regular space configs). User spaces start at
+`['spaces', '1']` and increment from there. When no stored config exists,
+`HOME_SPACE_DEFAULTS` provides fallback values:
 
 ```js
 const HOME_SPACE_DEFAULTS = harden({
@@ -126,15 +127,14 @@ The spaces directory watcher handles space `'0'` specially:
 | Change home icon/scheme stores correctly | Store at `['spaces', '0']` with enforced name/path |
 | Home loads stored icon/scheme on refresh | Merge from stored config |
 
-## Future: Renumber Space Configs
+## Numbering Scheme
 
-The current numbering scheme stores the home space at `['spaces', '0']` and
-user spaces starting at `['spaces', '1']`. This means Space 0 (Home) is
-reached by Cmd+1, Space 1 is Cmd+2, etc. — the storage key and the keyboard
-shortcut number are always off by one.
+Config keys, keyboard shortcuts, and shortcut badges are all aligned:
 
-A future change should renumber space configs so that the storage key matches
-the keyboard shortcut: home at `['spaces', '1']` (Cmd+1), first user space at
-`['spaces', '2']` (Cmd+2), and so on. This requires migrating any existing
-`['spaces', '0']` home config to `['spaces', '1']` and re-keying all user
-spaces.
+| Config key | Badge | Shortcut | Role |
+|------------|-------|----------|------|
+| `spaces/0` | `0` | Cmd+0 | Home — indelible |
+| `spaces/1` | `1` | Cmd+1 | First user space |
+| `spaces/2` | `2` | Cmd+2 | Second user space |
+| ... | ... | ... | ... |
+| `spaces/9` | `9` | Cmd+9 | Ninth user space |
