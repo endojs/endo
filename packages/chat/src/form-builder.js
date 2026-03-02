@@ -38,7 +38,13 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @param {() => void} options.onClose - Called when form is closed
  * @returns {FormBuilderAPI}
  */
-export const createFormBuilder = ({ $container, E, powers, onSubmit, onClose }) => {
+export const createFormBuilder = ({
+  $container,
+  E,
+  powers,
+  onSubmit,
+  onClose,
+}) => {
   let isVisible = false;
   let isDirty = false;
   /** @type {FormField[]} */

@@ -112,11 +112,7 @@ test('messages outside MOI chain get no lines', t => {
 });
 
 test('MOI is first message', t => {
-  const messages = [
-    { id: 'moi' },
-    { id: 'b' },
-    { id: 'c', replyTo: 'moi' },
-  ];
+  const messages = [{ id: 'moi' }, { id: 'b' }, { id: 'c', replyTo: 'moi' }];
   const layout = computeLayout(messages, 'moi');
 
   t.deepEqual(layout.get('moi'), { indent: 0, lineType: 'continue' });

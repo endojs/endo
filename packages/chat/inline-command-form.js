@@ -422,12 +422,14 @@ export const createInlineCommandForm = ({
 
       case 'message': {
         const $inputWrapper = document.createElement('div');
-        $inputWrapper.className = 'inline-field-input-wrapper message-field-wrapper';
+        $inputWrapper.className =
+          'inline-field-input-wrapper message-field-wrapper';
 
         const $msgInput = document.createElement('div');
         $msgInput.className = 'inline-field-input message-field-input';
         $msgInput.contentEditable = 'true';
-        $msgInput.dataset.placeholder = field.placeholder || 'Type a message...';
+        $msgInput.dataset.placeholder =
+          field.placeholder || 'Type a message...';
         $msgInput.dataset.fieldName = field.name;
 
         const $msgMenu = document.createElement('div');
@@ -458,7 +460,9 @@ export const createInlineCommandForm = ({
           },
         });
 
-        fieldElements.push(/** @type {HTMLElement & HTMLInputElement} */ ($msgInput));
+        fieldElements.push(
+          /** @type {HTMLElement & HTMLInputElement} */ ($msgInput),
+        );
         break;
       }
 
@@ -520,8 +524,13 @@ export const createInlineCommandForm = ({
         }
         // Check message fields (ChatMessage objects)
         if (field.type === 'message') {
-          const msg = /** @type {{ strings: string[], petNames: string[], edgeNames: string[] }} */ (value);
-          const hasContent = msg.strings.some(s => s.trim().length > 0) || msg.petNames.length > 0;
+          const msg =
+            /** @type {{ strings: string[], petNames: string[], edgeNames: string[] }} */ (
+              value
+            );
+          const hasContent =
+            msg.strings.some(s => s.trim().length > 0) ||
+            msg.petNames.length > 0;
           if (!hasContent) return false;
         }
       }

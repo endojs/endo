@@ -1151,7 +1151,9 @@ export const make = (guestPowers, context, { env }) => {
       case 'listMessages': {
         const rawMessages = await E(powers).listMessages();
         return rawMessages.map(
-          (/** @type {InboxMessage & {messageId?: string, replyTo?: string}} */ msg) =>
+          (
+            /** @type {InboxMessage & {messageId?: string, replyTo?: string}} */ msg,
+          ) =>
             harden({
               number: msg.number,
               date: msg.date,
@@ -1621,10 +1623,7 @@ You should:
    */
   const handleOwnMessage = async message => {
     const { messageId, replyTo } = message;
-    if (
-      typeof messageId !== 'string' ||
-      typeof replyTo !== 'string'
-    ) {
+    if (typeof messageId !== 'string' || typeof replyTo !== 'string') {
       return;
     }
 
@@ -1759,7 +1758,8 @@ You should:
         }
       }
 
-      const transcriptLength = (await assembleTranscript(turnNode.messageId)).length;
+      const transcriptLength = (await assembleTranscript(turnNode.messageId))
+        .length;
       console.log(
         `[lal] Transcript chain has ${transcriptLength} messages after processing`,
       );

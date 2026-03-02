@@ -120,13 +120,10 @@ export const createCommandExecutor = ({
 
         case 'reply': {
           const { messageNumber, message } = params;
-          const {
-            strings,
-            edgeNames,
-            petNames,
-          } = /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
-            message
-          );
+          const { strings, edgeNames, petNames } =
+            /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
+              message
+            );
           await E(powers).reply(
             BigInt(/** @type {number} */ (messageNumber)),
             strings,

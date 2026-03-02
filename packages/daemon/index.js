@@ -78,7 +78,10 @@ export const terminate = async (config = defaultConfig) => {
  * @param {typeof defaultConfig} [config]
  * @param {{ env?: Record<string, string> }} [options]
  */
-export const start = async (config = defaultConfig, { env: envOverrides } = {}) => {
+export const start = async (
+  config = defaultConfig,
+  { env: envOverrides } = {},
+) => {
   await clean(config);
   await fs.promises.mkdir(config.statePath, {
     recursive: true,

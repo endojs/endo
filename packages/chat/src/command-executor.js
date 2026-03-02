@@ -98,13 +98,10 @@ export const createCommandExecutor = ({
 
         case 'reply': {
           const { messageNumber, message } = params;
-          const {
-            strings,
-            edgeNames,
-            petNames,
-          } = /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
-            message
-          );
+          const { strings, edgeNames, petNames } =
+            /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
+              message
+            );
           await E(powers).reply(
             BigInt(Number(messageNumber)),
             strings,
@@ -130,11 +127,18 @@ export const createCommandExecutor = ({
         }
 
         case 'form': {
-          const { recipient, description, fields: fieldDefs, resultName } = params;
+          const {
+            recipient,
+            description,
+            fields: fieldDefs,
+            resultName,
+          } = params;
           const recipientPath = String(recipient).split('.');
           /** @type {Record<string, {label: string}>} */
           const fieldsRecord = {};
-          for (const f of /** @type {Array<{name: string, label: string}>} */ (fieldDefs)) {
+          for (const f of /** @type {Array<{name: string, label: string}>} */ (
+            fieldDefs
+          )) {
             fieldsRecord[f.name] = { label: f.label };
           }
           const resultPath = resultName
