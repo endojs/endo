@@ -350,7 +350,7 @@ export const ChannelInterface = M.interface('EndoChannel', {
     .returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
-  invite: M.call(M.string()).returns(M.promise()),
+  createInvitation: M.call(M.string()).returns(M.promise()),
   join: M.call(M.string()).returns(M.promise()),
 
   getMembers: M.call().returns(M.promise()),
@@ -367,12 +367,21 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   setProposedName: M.call(M.string()).returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
-  invite: M.call(M.string()).returns(M.promise()),
+  createInvitation: M.call(M.string()).returns(M.promise()),
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
   getMemberId: M.call().returns(M.string()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
 });
+
+export const ChannelInvitationInterface = M.interface(
+  'EndoChannelInvitation',
+  {
+    help: M.call().optional(M.string()).returns(M.string()),
+    join: M.call(M.string()).returns(M.promise()),
+  },
+);
+harden(ChannelInvitationInterface);
 
 export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {
   setInvitationValidity: M.call(M.boolean()).returns(M.promise()),

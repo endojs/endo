@@ -321,23 +321,24 @@ test.serial('gateway: channel invite returns iterable [attenuator, proxy] via We
   );
   t.truthy(channel, 'channel should be fetchable through gateway');
 
-  // 4. Call invite() — this is the exact path that triggers the UI error
+  // 4. Call createInvitation() — this is the exact path that triggers the UI error
   //    The result crosses TWO CapTP boundaries: daemon→gateway→test
-  const inviteResult = await E(channel).invite('Bob');
+  const inviteResult = await E(channel).createInvitation('Bob');
 
   // 5. Verify the result is an iterable array
   t.true(
     Array.isArray(inviteResult),
-    'invite result should be an Array (not a non-iterable object)',
+    'createInvitation result should be an Array (not a non-iterable object)',
   );
-  t.is(inviteResult.length, 2, 'invite result should be [attenuator, proxy]');
+  t.is(inviteResult.length, 2, 'createInvitation result should be [invitation, attenuator]');
 
   // 6. Destructure and verify (this is what channel-header.js does)
-  const [attenuator, proxy] = inviteResult;
+  const [invitation, attenuator] = inviteResult;
+  t.truthy(invitation, 'invitation should exist');
   t.truthy(attenuator, 'attenuator should exist');
-  t.truthy(proxy, 'proxy member should exist');
 
-  // 7. Use the proxy
+  // 7. Join via the invitation and use the handle
+  const proxy = await E(invitation).join('Bob');
   const bobName = await E(proxy).getProposedName();
   t.is(bobName, 'Bob');
 

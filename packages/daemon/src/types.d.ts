@@ -978,9 +978,10 @@ export interface EndoChannel {
   ): Promise<void>;
   followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
   listMessages(): Promise<ChannelMessage[]>;
-  invite(
+  createInvitation(
     proposedName: string,
-  ): Promise<[EndoChannelAttenuator, EndoChannelMember]>;
+  ): Promise<[EndoChannelInvitation, EndoChannelAttenuator]>;
+  join(proposedName: string): Promise<EndoChannelMember>;
 
   getMembers(): Promise<
     Array<{ proposedName: string; pedigree: string[]; active: boolean }>
@@ -988,6 +989,11 @@ export interface EndoChannel {
   getProposedName(): string;
   getMemberId(): string;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+}
+
+export interface EndoChannelInvitation {
+  help(topic?: string): string;
+  join(proposedName: string): Promise<EndoChannelMember>;
 }
 
 export interface EndoChannelAttenuator {
@@ -1006,14 +1012,15 @@ export interface EndoChannelMember {
   ): Promise<void>;
   followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
   listMessages(): Promise<ChannelMessage[]>;
-  invite(
+  createInvitation(
     proposedName: string,
-  ): Promise<[EndoChannelAttenuator, EndoChannelMember]>;
+  ): Promise<[EndoChannelInvitation, EndoChannelAttenuator]>;
   getMembers(): Promise<
     Array<{ proposedName: string; pedigree: string[]; active: boolean }>
   >;
   getProposedName(): string;
   getMemberId(): string;
+  setProposedName(newName: string): Promise<void>;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
 }
 

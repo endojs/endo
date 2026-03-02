@@ -109,7 +109,7 @@ export const createChannelHeader = ({
     if (!inviteeName) return;
 
     try {
-      await E(channel).invite(inviteeName);
+      await E(channel).createInvitation(inviteeName);
 
       // Generate a locator for sharing
       if (powers && channelPetName) {
