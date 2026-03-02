@@ -13,16 +13,11 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: './index.html',
-        'monaco-iframe': './monaco-iframe.html',
       },
     },
   },
   server: {
     port: 5173,
     strictPort: false,
-  },
-  optimizeDeps: {
-    // Don't pre-bundle monaco - it's loaded in a separate iframe entry
-    exclude: ['monaco-editor'],
   },
 });

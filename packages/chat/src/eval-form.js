@@ -2,7 +2,7 @@
 /* global document */
 /* eslint-disable no-use-before-define */
 
-import { createMonacoEditor } from './monaco-wrapper.js';
+import { createMonacoEditor } from '../monaco-wrapper.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 
 /**

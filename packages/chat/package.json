@@ -46,7 +46,6 @@
     "@endo/captp": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
-    "@endo/init": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
@@ -57,6 +56,7 @@
   "devDependencies": {
     "@endo/cli": "workspace:^",
     "@endo/daemon": "workspace:^",
+    "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@playwright/test": "^1.40.0",

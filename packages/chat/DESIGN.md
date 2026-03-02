@@ -376,8 +376,7 @@ packages/chat/
   inline-eval.js                   # Inline eval form
   eval-form.js                     # Modal eval editor
   counter-proposal-form.js         # Counter-proposal editor
-  monaco-wrapper.js                # Monaco editor integration
-  monaco-iframe-main.js            # Monaco editor bootstrap
+  monaco-wrapper.js                # Monaco editor integration (inline)
 
   # Message Components
   send-form.js                     # Message sending with tokens
