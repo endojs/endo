@@ -25,8 +25,8 @@ That's it! The application will be available at `http://localhost:5173`.
 
 The Vite Endo plugin:
 1. Ensures the system Endo daemon is running (using this repo's CLI)
-2. Starts a gateway server for WebSocket access
-3. Injects connection parameters (`ENDO_PORT`, `ENDO_ID`) into the app
+2. Reads the daemon's gateway address and agent ID
+3. Injects connection parameters (`ENDO_GATEWAY`, `ENDO_AGENT`) into the app
 
 ### Using the System Daemon
 
@@ -52,12 +52,11 @@ For production deployment, you'll need to:
 
 The chat application connects to the Endo daemon through the following flow:
 
-1. **Vite Plugin**: Ensures daemon is running, starts gateway server
-2. **Gateway Server**: Connects to daemon via Unix socket, exposes WebSocket
-3. **WebSocket Connection**: Browser opens WebSocket to gateway
-4. **CapTP Handshake**: Establishes a CapTP session
-5. **AGENT Fetch**: Uses the provided identifier to fetch AGENT powers
-6. **UI Initialization**: Renders the chat interface with access to host capabilities
+1. **Vite Plugin**: Ensures daemon is running, reads gateway address and agent ID
+2. **WebSocket Connection**: Browser opens WebSocket to daemon's built-in gateway
+3. **CapTP Handshake**: Establishes a CapTP session
+4. **AGENT Fetch**: Uses the provided identifier to fetch AGENT powers
+5. **UI Initialization**: Renders the chat interface with access to host capabilities
 
 ## Keyboard Shortcuts
 
@@ -70,16 +69,11 @@ The chat application connects to the Endo daemon through the following flow:
 ```
 packages/chat/
 ├── index.html              # Vite entry point
+├── main.js                 # Application entry point
+├── connection.js           # Gateway WebSocket + CapTP connection
+├── chat.js                 # Main chat UI components
 ├── vite.config.js          # Vite configuration
-├── vite-endo-plugin.js     # Vite plugin that manages daemon and gateway
-├── scripts/
-│   └── gateway-server.js   # Gateway WebSocket server
-├── src/
-│   ├── main.js             # Application entry point
-│   ├── chat.js             # Main chat UI components
-│   ├── connection.js       # Gateway WebSocket + CapTP connection
-│   ├── message-parse.js    # Message parsing for pet name references
-│   └── ref-iterator.js     # Remote async iterator adapter
+├── vite-endo-plugin.js     # Vite plugin that ensures daemon is running
 └── package.json
 ```
 
@@ -98,5 +92,5 @@ Example: `Hello! Here is @my-file for you.`
 - `@endo/far` - Eventual send (E) for remote method calls
 - `@endo/exo` - Exo objects for defining remotely-callable interfaces
 - `@endo/pass-style` - Value rendering based on pass style
-- `@endo/daemon` - Endo daemon (dev dependency for gateway server)
+- `@endo/daemon` - Endo daemon (dev dependency)
 - `ses` - Secure ECMAScript (HardenedJS)

@@ -1010,7 +1010,6 @@ __metadata:
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
-    "@endo/stream": "workspace:^"
     "@endo/where": "workspace:^"
     "@playwright/test": "npm:^1.40.0"
     ava: "catalog:dev"
@@ -1022,7 +1021,6 @@ __metadata:
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
     vite: "npm:^6.0.0"
-    ws: "npm:^8.13.0"
   languageName: unknown
   linkType: soft
 

@@ -222,17 +222,8 @@ export const createSpacesGutter = ({
     } else {
       document.documentElement.setAttribute('data-scheme', scheme);
     }
-    // Notify any Monaco iframes to update their theme
-    const iframes = document.querySelectorAll('iframe');
-    for (const iframe of iframes) {
-      try {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.postMessage({ type: 'set-theme' }, '*');
-        }
-      } catch {
-        // Cross-origin iframe, ignore
-      }
-    }
+    // Notify Monaco editors to update their theme
+    document.dispatchEvent(new CustomEvent('endo-theme-change'));
   };
 
   /**
