@@ -74,7 +74,11 @@ export const terminate = async (config = defaultConfig) => {
   await closed.catch(() => {});
 };
 
-export const start = async (config = defaultConfig) => {
+/**
+ * @param {typeof defaultConfig} [config]
+ * @param {{ env?: Record<string, string> }} [options]
+ */
+export const start = async (config = defaultConfig, { env: envOverrides } = {}) => {
   await clean(config);
   await fs.promises.mkdir(config.statePath, {
     recursive: true,
@@ -82,7 +86,7 @@ export const start = async (config = defaultConfig) => {
   const logPath = path.join(config.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
-  const env = { ...process.env };
+  const env = { ...process.env, ...envOverrides };
 
   const child = popen.fork(
     endoDaemonPath,
@@ -195,9 +199,13 @@ export const stop = async (config = defaultConfig) => {
   await clean(config);
 };
 
-export const restart = async (config = defaultConfig) => {
+/**
+ * @param {typeof defaultConfig} [config]
+ * @param {{ env?: Record<string, string> }} [options]
+ */
+export const restart = async (config = defaultConfig, options = {}) => {
   await stop(config);
-  return start(config);
+  return start(config, options);
 };
 
 export const purge = async (config = defaultConfig) => {

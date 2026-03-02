@@ -161,8 +161,11 @@ const main = async () => {
   );
   const services = [privatePathService];
 
-  // Start all services, persist the root formula identifier, and start the gateway.
-  // Block the ready signal until everything is available.
+  // INVARIANT: The ready signal must not be sent until all services are fully
+  // operational — including the CapTP socket, the host, and the APPS gateway.
+  // Callers of start() depend on this: a resolved start() means the daemon is
+  // completely ready to serve. If any service fails to start, the error must
+  // propagate to the parent via reportErrorToParent so start() rejects.
   try {
     await Promise.all(services.map(({ started }) => started));
 
@@ -172,7 +175,9 @@ const main = async () => {
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
     if (await E(host).has('APPS')) {
-      const apps = /** @type {{ getAddress(): Promise<string> }} */ (await E(host).lookup('APPS'));
+      const apps = /** @type {{ getAddress(): Promise<string> }} */ (
+        await E(host).lookup('APPS')
+      );
       const address = await E(apps).getAddress();
       console.log(`Endo gateway listening on ${address}`);
     }

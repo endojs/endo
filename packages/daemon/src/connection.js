@@ -78,6 +78,11 @@ export const makeMessageCapTP = (
     }
   })();
 
+  drained.then(
+    () => close(new Error('Connection stream ended')),
+    error => close(error),
+  );
+
   let isClosed = false;
   close = reason => {
     if (isClosed) {

@@ -327,7 +327,7 @@ const prepareConfig = async t => {
   );
 
   await purge(config);
-  await start(config);
+  await start(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   const contextObj = { cancel, cancelled, config };
   t.context.push(contextObj);
@@ -353,7 +353,7 @@ test('lifecycle', async t => {
   const { cancel, cancelled, config } = await prepareConfig(t);
 
   await stop(config);
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   const { getBootstrap, closed } = await makeEndoClient(
     'client',
@@ -387,7 +387,7 @@ test('store pass-copy values', async t => {
     await E(host).storeValue(storedValue, 'value');
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -425,7 +425,7 @@ test('store formula values', async t => {
     await E(host).remove('temporary-retainer');
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -434,7 +434,7 @@ test('store formula values', async t => {
     t.is(2, await E(counter).incr());
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -521,7 +521,7 @@ test('persist spawn and evaluation', async t => {
     t.is(20, twenty);
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -803,7 +803,7 @@ test('closure state lost by restart', async t => {
     t.is(three, 3);
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -889,7 +889,7 @@ test('persist unconfined services and their requests', async t => {
 
   await Promise.all([responderFinished, requesterFinished]);
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -955,7 +955,7 @@ test('persist confined services and their requests', async t => {
 
   await Promise.all([responderFinished, requesterFinished]);
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -1086,7 +1086,7 @@ test('mailboxes persist messages across restart', async t => {
     [{ number: 1n, description: 'second request' }],
   );
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   const { host: hostAfter } = await makeHost(config, cancelled);
   const inboxAfter = await E(hostAfter).listMessages();
@@ -1123,7 +1123,7 @@ test('rehydrated requests can be resolved after restart', async t => {
   const promiseId = await promiseIdP;
   await E(host).write(['pending'], promiseId);
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   const { host: hostAfter } = await makeHost(config, cancelled);
   const inboxAfter = await E(hostAfter).listMessages();
@@ -1402,7 +1402,7 @@ test('pins restored on restart', async t => {
     const counter = E(host).lookup('counter');
     t.is(await E(counter).get(), 1);
 
-    await restart(config);
+    await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
   }
 
   {
@@ -1413,7 +1413,7 @@ test('pins restored on restart', async t => {
     await E(host).move(['incr'], ['PINS', 'incr']);
     t.deepEqual(await E(host).list('PINS'), ['incr']);
 
-    await restart(config);
+    await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
   }
 
   {
@@ -2490,7 +2490,7 @@ test('locate local persisted value', async t => {
     await E(host).storeValue(10, 'ten');
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -2562,7 +2562,7 @@ test('reverse locate local persisted value', async t => {
     await E(host).storeValue(10, 'ten');
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
@@ -3336,7 +3336,7 @@ test('trusted shim executes before lockdown and persists across restart', async 
     );
   }
 
-  await restart(config);
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
   {
     const { host } = await makeHost(config, cancelled);
