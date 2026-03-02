@@ -7,6 +7,7 @@ import harden from '@endo/harden';
 /** @import { ColorScheme, SpaceConfig } from './spaces-gutter.js' */
 /** @import { SchemePickerAPI } from './scheme-picker.js' */
 
+import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
 import { createSchemePicker } from './scheme-picker.js';
 
 /**
@@ -23,39 +24,6 @@ import { createSchemePicker } from './scheme-picker.js';
  * @property {ColorScheme} scheme - Color scheme preference
  */
 
-/** Favored emoji icons grouped by category */
-const ICON_CATEGORIES = harden({
-  characters: ['🧙', '🧝', '🧌', '🦸', '🥷', '🧑‍💼'],
-  masks: ['👺', '👹', '🎭', '🤿'],
-  fae: ['🧚'],
-  djinn: ['🧞'],
-  bots: ['🤖', '🦾'],
-  cats: ['🐈‍⬛', '🐈'],
-  etc: ['💬', '🎮', '📡'],
-});
-harden(ICON_CATEGORIES);
-
-const ALL_ICONS = harden([
-  ...ICON_CATEGORIES.characters,
-  ...ICON_CATEGORIES.masks,
-  ...ICON_CATEGORIES.fae,
-  ...ICON_CATEGORIES.djinn,
-  ...ICON_CATEGORIES.bots,
-  ...ICON_CATEGORIES.cats,
-  ...ICON_CATEGORIES.etc,
-]);
-harden(ALL_ICONS);
-
-/**
- * Generate a letter-based icon (circled letter).
- *
- * @param {string} letters - One or two letters
- * @returns {string}
- */
-const letterIcon = letters => {
-  return letters.slice(0, 2).toUpperCase();
-};
-
 /**
  * Create the edit space modal component.
  *
@@ -63,9 +31,15 @@ const letterIcon = letters => {
  * @param {HTMLElement} options.$container - Container element for the modal
  * @param {(id: string, data: EditSpaceFormData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when modal is closed
+ * @param {boolean} [options.showName] - Whether to show the name field (default: true)
  * @returns {EditSpaceModalAPI}
  */
-export const createEditSpaceModal = ({ $container, onSubmit, onClose }) => {
+export const createEditSpaceModal = ({
+  $container,
+  onSubmit,
+  onClose,
+  showName = true,
+}) => {
   let visible = false;
   /** @type {SpaceConfig | null} */
   let editingSpace = null;
@@ -82,45 +56,6 @@ export const createEditSpaceModal = ({ $container, onSubmit, onClose }) => {
   let schemePicker = null;
 
   /**
-   * Render the icon selector HTML.
-   * @returns {string}
-   */
-  const renderIconSelector = () => {
-    const iconGrid = ALL_ICONS.map(
-      icon => `
-      <button type="button" class="icon-option ${icon === selectedIcon && !useLetterIcon ? 'selected' : ''}"
-              data-icon="${icon}">${icon}</button>
-    `,
-    ).join('');
-
-    return `
-      <div class="add-space-field">
-        <label>Icon</label>
-        <div class="icon-selector">
-          <div class="icon-tabs">
-            <button type="button" class="icon-tab ${!useLetterIcon ? 'active' : ''}" data-tab="emoji">Emoji</button>
-            <button type="button" class="icon-tab ${useLetterIcon ? 'active' : ''}" data-tab="letter">Letter</button>
-          </div>
-          <div class="icon-content">
-            ${
-              useLetterIcon
-                ? `
-              <div class="letter-icon-input">
-                <input type="text" id="letter-icon" maxlength="2" placeholder="AB" value="${selectedIcon.length <= 2 ? selectedIcon : ''}" />
-                <div class="letter-icon-preview">${selectedIcon.length <= 2 ? selectedIcon : 'AB'}</div>
-              </div>
-            `
-                : `
-              <div class="icon-grid">${iconGrid}</div>
-            `
-            }
-          </div>
-        </div>
-      </div>
-    `;
-  };
-
-  /**
    * Render the edit form.
    * @returns {string}
    */
@@ -132,13 +67,13 @@ export const createEditSpaceModal = ({ $container, onSubmit, onClose }) => {
         <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
       </div>
       <form class="add-space-form">
-        <div class="add-space-field">
+        ${showName ? `<div class="add-space-field">
           <label for="edit-space-name">Name</label>
           <input type="text" id="edit-space-name" placeholder="e.g., clark, bruce, diana"
                  value="${spaceName}" autocomplete="off" />
-        </div>
+        </div>` : ''}
 
-        ${renderIconSelector()}
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
         <div id="scheme-picker-slot" class="add-space-field"></div>
 
@@ -175,16 +110,18 @@ export const createEditSpaceModal = ({ $container, onSubmit, onClose }) => {
       });
     }
 
-    // Focus name input
-    const $nameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#edit-space-name')
-    );
-    if ($nameInput) {
-      $nameInput.focus();
-      $nameInput.setSelectionRange(
-        $nameInput.value.length,
-        $nameInput.value.length,
+    // Focus name input when shown
+    if (showName) {
+      const $nameInput = /** @type {HTMLInputElement | null} */ (
+        $container.querySelector('#edit-space-name')
       );
+      if ($nameInput) {
+        $nameInput.focus();
+        $nameInput.setSelectionRange(
+          $nameInput.value.length,
+          $nameInput.value.length,
+        );
+      }
     }
   };
 
@@ -291,8 +228,10 @@ export const createEditSpaceModal = ({ $container, onSubmit, onClose }) => {
   const handleSubmit = async () => {
     if (!editingSpace) return;
 
-    const name = spaceName.trim();
-    if (!name) {
+    const name = showName
+      ? spaceName.trim()
+      : editingSpace.name;
+    if (showName && !name) {
       error = 'Please enter a name';
       render();
       return;

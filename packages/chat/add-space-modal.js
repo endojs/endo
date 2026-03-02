@@ -10,6 +10,7 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
 
@@ -28,39 +29,6 @@ import { createSchemePicker } from './scheme-picker.js';
  * @property {'mailbox'} layout - Layout type (reserved for future use)
  * @property {ColorScheme} scheme - Color scheme preference
  */
-
-/** Favored emoji icons grouped by category */
-const ICON_CATEGORIES = harden({
-  characters: ['🧙', '🧝', '🧌', '🦸', '🥷', '🧑‍💼'],
-  masks: ['👺', '👹', '🎭', '🤿'],
-  fae: ['🧚'],
-  djinn: ['🧞'],
-  bots: ['🤖', '🦾'],
-  cats: ['🐈‍⬛', '🐈'],
-  etc: ['💬', '🎮', '📡'],
-});
-harden(ICON_CATEGORIES);
-
-const ALL_ICONS = harden([
-  ...ICON_CATEGORIES.characters,
-  ...ICON_CATEGORIES.masks,
-  ...ICON_CATEGORIES.fae,
-  ...ICON_CATEGORIES.djinn,
-  ...ICON_CATEGORIES.bots,
-  ...ICON_CATEGORIES.cats,
-  ...ICON_CATEGORIES.etc,
-]);
-harden(ALL_ICONS);
-
-/**
- * Generate a letter-based icon (circled letter).
- *
- * @param {string} letters - One or two letters
- * @returns {string}
- */
-const letterIcon = letters => {
-  return letters.slice(0, 2).toUpperCase();
-};
 
 /**
  * Create the add space modal component.
@@ -116,45 +84,6 @@ export const createAddSpaceModal = ({
 
   /** @type {import('./scheme-picker.js').SchemePickerAPI | null} */
   let schemePicker = null;
-
-  /**
-   * Render the icon selector HTML.
-   * @returns {string}
-   */
-  const renderIconSelector = () => {
-    const iconGrid = ALL_ICONS.map(
-      icon => `
-      <button type="button" class="icon-option ${icon === selectedIcon && !useLetterIcon ? 'selected' : ''}"
-              data-icon="${icon}">${icon}</button>
-    `,
-    ).join('');
-
-    return `
-      <div class="add-space-field">
-        <label>Icon</label>
-        <div class="icon-selector">
-          <div class="icon-tabs">
-            <button type="button" class="icon-tab ${!useLetterIcon ? 'active' : ''}" data-tab="emoji">Emoji</button>
-            <button type="button" class="icon-tab ${useLetterIcon ? 'active' : ''}" data-tab="letter">Letter</button>
-          </div>
-          <div class="icon-content">
-            ${
-              useLetterIcon
-                ? `
-              <div class="letter-icon-input">
-                <input type="text" id="letter-icon" maxlength="2" placeholder="AB" value="${selectedIcon.length <= 2 ? selectedIcon : ''}" />
-                <div class="letter-icon-preview">${selectedIcon.length <= 2 ? selectedIcon : 'AB'}</div>
-              </div>
-            `
-                : `
-              <div class="icon-grid">${iconGrid}</div>
-            `
-            }
-          </div>
-        </div>
-      </div>
-    `;
-  };
 
   /**
    * Render the choose mode screen.
@@ -225,7 +154,7 @@ export const createAddSpaceModal = ({
           <div class="field-hint">Internal identifier for the agent</div>
         </div>
 
-        ${renderIconSelector()}
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
         <div class="add-space-field">
           <label>Layout</label>
@@ -266,7 +195,7 @@ export const createAddSpaceModal = ({
         <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
       </div>
       <form class="add-space-form">
-        ${renderIconSelector()}
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
         <div class="add-space-field">
           <label>Profile Path</label>

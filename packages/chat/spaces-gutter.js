@@ -38,14 +38,24 @@ import { makeRefIterator } from './ref-iterator.js';
  */
 
 /** @type {SpaceConfig} */
-const HOME_SPACE = harden({
+const HOME_SPACE_DEFAULTS = harden({
   id: 'home',
   name: 'Home',
   icon: '🐈‍⬛',
   profilePath: [],
   mode: 'inbox',
+  scheme: 'auto',
 });
-harden(HOME_SPACE);
+harden(HOME_SPACE_DEFAULTS);
+
+const validSchemes = harden([
+  'auto',
+  'light',
+  'dark',
+  'high-contrast-light',
+  'high-contrast-dark',
+]);
+harden(validSchemes);
 
 /**
  * Check if two profile paths are equal.
@@ -80,6 +90,8 @@ export const createSpacesGutter = ({
 }) => {
   /** @type {Map<string, SpaceConfig>} */
   const spacesMap = new Map();
+  /** @type {SpaceConfig} */
+  let homeSpaceConfig = HOME_SPACE_DEFAULTS;
   /** @type {string} */
   let activeSpaceId = 'home'; // Will be updated after loading spaces
 
@@ -128,7 +140,7 @@ export const createSpacesGutter = ({
   const handleActiveSpaceRemoved = () => {
     if (activeSpaceId !== 'home' && !spacesMap.has(activeSpaceId)) {
       activeSpaceId = 'home';
-      onNavigate(HOME_SPACE.profilePath);
+      onNavigate(homeSpaceConfig.profilePath);
     }
   };
 
@@ -193,6 +205,36 @@ export const createSpacesGutter = ({
    * @returns {Promise<void>}
    */
   const updateSpace = async (id, updates) => {
+    if (id === 'home') {
+      // Home space: enforce indelible name and profilePath
+      const updated = harden({
+        ...homeSpaceConfig,
+        ...updates,
+        name: 'Home',
+        profilePath: [],
+        id: 'home',
+        mode: 'inbox',
+      });
+
+      await null; // safe-await-separator
+      // Ensure 'spaces' directory exists
+      try {
+        await E(powers).lookup('spaces');
+      } catch {
+        await E(powers).makeDirectory('spaces');
+      }
+      await E(powers).storeValue(updated, ['spaces', '0']);
+
+      homeSpaceConfig = updated;
+
+      // If home is active, apply the new scheme
+      if (activeSpaceId === 'home') {
+        applyScheme(updated.scheme);
+      }
+      render();
+      return;
+    }
+
     const existing = spacesMap.get(id);
     if (!existing) return;
 
@@ -237,9 +279,9 @@ export const createSpacesGutter = ({
     // Handle home space specially
     if (id === 'home') {
       activeSpaceId = 'home';
-      applyScheme('auto');
+      applyScheme(homeSpaceConfig.scheme);
       render();
-      onNavigate(HOME_SPACE.profilePath);
+      onNavigate(homeSpaceConfig.profilePath);
       return;
     }
 
@@ -279,10 +321,19 @@ export const createSpacesGutter = ({
     if (!$menu) return;
 
     contextMenuSpaceId = spaceId;
-    const space = spacesMap.get(spaceId);
+    const space =
+      spaceId === 'home' ? homeSpaceConfig : spacesMap.get(spaceId);
     const $title = $menu.querySelector('.context-menu-title');
     if ($title && space) {
       $title.textContent = space.name;
+    }
+
+    // Toggle menu item visibility based on scope
+    const isIndelible = spaceId === 'home';
+    for (const $item of $menu.querySelectorAll('[data-menu-scope]')) {
+      const scope = $item.getAttribute('data-menu-scope');
+      /** @type {HTMLElement} */ ($item).style.display =
+        scope === 'all' || (!isIndelible && scope === 'delible') ? '' : 'none';
     }
 
     // Position the menu
@@ -306,7 +357,7 @@ export const createSpacesGutter = ({
   const render = () => {
     // Sort user spaces by id (numeric), home space is always first
     const sortedUserSpaces = getSpacesArray();
-    const allSpaces = [HOME_SPACE, ...sortedUserSpaces];
+    const allSpaces = [homeSpaceConfig, ...sortedUserSpaces];
 
     let html = `
       <div class="spaces-gutter-inner">
@@ -338,11 +389,11 @@ export const createSpacesGutter = ({
       </div>
       <div class="space-context-menu">
         <div class="context-menu-title"></div>
-        <button class="context-menu-item" data-action="edit">
+        <button class="context-menu-item" data-action="edit" data-menu-scope="all">
           <span class="context-menu-icon">✏️</span>
           <span>Edit Space</span>
         </button>
-        <button class="context-menu-item context-menu-delete" data-action="delete">
+        <button class="context-menu-item context-menu-delete" data-action="delete" data-menu-scope="delible">
           <span class="context-menu-icon">🗑</span>
           <span>Delete Space</span>
         </button>
@@ -358,9 +409,13 @@ export const createSpacesGutter = ({
       if ($editBtn) {
         $editBtn.addEventListener('click', () => {
           if (contextMenuSpaceId) {
-            const space = spacesMap.get(contextMenuSpaceId);
-            if (space) {
-              editSpaceModal.show(space);
+            if (contextMenuSpaceId === 'home') {
+              homeEditModal.show(homeSpaceConfig);
+            } else {
+              const space = spacesMap.get(contextMenuSpaceId);
+              if (space) {
+                editSpaceModal.show(space);
+              }
             }
           }
           hideContextMenu();
@@ -393,13 +448,12 @@ export const createSpacesGutter = ({
         }
       });
 
-      // Right-click context menu for removal (not for home space)
+      // Right-click context menu
       $item.addEventListener('contextmenu', e => {
         e.preventDefault();
         e.stopPropagation();
         const spaceId = $item.getAttribute('data-space-id');
-        // Home space cannot be removed
-        if (spaceId && spaceId !== 'home') {
+        if (spaceId) {
           const mouseEvent = /** @type {MouseEvent} */ (e);
           showContextMenu(spaceId, mouseEvent.clientX, mouseEvent.clientY);
         }
@@ -422,7 +476,7 @@ export const createSpacesGutter = ({
     getUsedIcons: () => {
       const icons = new Set();
       // Home space icon is always considered used
-      icons.add(HOME_SPACE.icon);
+      icons.add(homeSpaceConfig.icon);
       for (const space of spacesMap.values()) {
         icons.add(space.icon);
       }
@@ -442,12 +496,27 @@ export const createSpacesGutter = ({
     },
   });
 
-  // Initialize the edit space modal
+  // Initialize the edit space modal (for regular spaces)
   const editSpaceModal = createEditSpaceModal({
     $container: $modalContainer,
     onSubmit: async (id, data) => {
       await updateSpace(id, {
         name: data.name,
+        icon: data.icon,
+        scheme: data.scheme || 'auto',
+      });
+    },
+    onClose: () => {
+      // Modal closed
+    },
+  });
+
+  // Initialize the home edit modal (no name field)
+  const homeEditModal = createEditSpaceModal({
+    $container: $modalContainer,
+    showName: false,
+    onSubmit: async (_id, data) => {
+      await updateSpace('home', {
         icon: data.icon,
         scheme: data.scheme || 'auto',
       });
@@ -484,13 +553,6 @@ export const createSpacesGutter = ({
     // Mode is optional, default to 'inbox'
     const mode = obj.mode === 'inbox' ? 'inbox' : 'inbox';
     // Scheme is optional, default to 'auto'
-    const validSchemes = harden([
-      'auto',
-      'light',
-      'dark',
-      'high-contrast-light',
-      'high-contrast-dark',
-    ]);
     const scheme =
       typeof obj.scheme === 'string' && validSchemes.includes(obj.scheme)
         ? /** @type {ColorScheme} */ (obj.scheme)
@@ -529,6 +591,22 @@ export const createSpacesGutter = ({
    * @param {string} id
    */
   const handleSpaceAdded = async id => {
+    if (id === '0') {
+      // Reload home config
+      const config = await loadSpaceConfig('0');
+      if (config) {
+        homeSpaceConfig = harden({
+          ...HOME_SPACE_DEFAULTS,
+          icon: config.icon,
+          scheme: config.scheme,
+        });
+        if (activeSpaceId === 'home') {
+          applyScheme(homeSpaceConfig.scheme);
+        }
+      }
+      render();
+      return;
+    }
     const config = await loadSpaceConfig(id);
     if (config) {
       spacesMap.set(id, config);
@@ -542,6 +620,14 @@ export const createSpacesGutter = ({
    * @param {string} id
    */
   const handleSpaceRemoved = id => {
+    if (id === '0') {
+      homeSpaceConfig = HOME_SPACE_DEFAULTS;
+      if (activeSpaceId === 'home') {
+        applyScheme(homeSpaceConfig.scheme);
+      }
+      render();
+      return;
+    }
     spacesMap.delete(id);
     handleActiveSpaceRemoved();
     render();
@@ -592,6 +678,7 @@ export const createSpacesGutter = ({
    */
   const refresh = async () => {
     spacesMap.clear();
+    homeSpaceConfig = HOME_SPACE_DEFAULTS;
 
     await null; // safe-await-separator
     try {
@@ -604,7 +691,16 @@ export const createSpacesGutter = ({
         loadPromises.push(
           loadSpaceConfig(id).then(config => {
             if (config) {
-              spacesMap.set(id, config);
+              if (id === '0') {
+                // Space 0 is the home config — merge icon/scheme only
+                homeSpaceConfig = harden({
+                  ...HOME_SPACE_DEFAULTS,
+                  icon: config.icon,
+                  scheme: config.scheme,
+                });
+              } else {
+                spacesMap.set(id, config);
+              }
             }
           }),
         );
@@ -649,7 +745,7 @@ export const createSpacesGutter = ({
 
     // Include home space in the list
     const sortedUserSpaces = getSpacesArray();
-    const allSpaces = [HOME_SPACE, ...sortedUserSpaces];
+    const allSpaces = [homeSpaceConfig, ...sortedUserSpaces];
     const index = num - 1;
     if (index < allSpaces.length) {
       e.preventDefault();
