@@ -35,12 +35,13 @@ import { createProfilePopup } from './profile-popup.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {(messageNumber: bigint) => void} [options.onMessageChange] - Called with each new message number for implicit threading
  * @param {string} [options.personaId] - Unique identifier for the current persona/space, used to scope the address book in localStorage
+ * @param {string} [options.ownMemberId] - The current user's memberId, used to highlight own messages
  */
 export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, onMessageChange, personaId },
+  { showValue, onMessageChange, personaId, ownMemberId },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -109,23 +110,18 @@ export const channelComponent = async (
   };
 
   // Auto-assign invitation names for members we directly invited.
-  // For each member whose pedigree shows we invited them, pre-populate
-  // the address book with their invitedAs name (unless already overridden).
+  // getMembers() now returns only members the caller invited, so every
+  // entry is a direct invitee whose invitedAs name should be pre-populated
+  // in the address book (unless the viewer has already overridden it).
   try {
-    const ourName = await E(channel).getProposedName();
     const members =
-      /** @type {{ memberId: string, invitedAs?: string, pedigree: string[] }[]} */ (
+      /** @type {{ memberId: string, invitedAs?: string }[]} */ (
         await E(channel).getMembers()
       );
     let didAutoAssign = false;
     for (const member of members) {
-      // Skip self (admin has empty pedigree)
-      if (member.pedigree.length === 0) continue;
-      // Skip if we already have a name for this member
       if (nameMap.has(member.memberId)) continue;
-      // The last entry in pedigree is the direct inviter's name
-      const directInviter = member.pedigree[member.pedigree.length - 1];
-      if (directInviter === ourName && member.invitedAs) {
+      if (member.invitedAs) {
         nameMap.set(member.memberId, member.invitedAs);
         didAutoAssign = true;
       }
@@ -177,7 +173,8 @@ export const channelComponent = async (
    */
   const createMessageElement = message => {
     const $msg = document.createElement('div');
-    $msg.className = 'message received';
+    const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
+    $msg.className = isOwn ? 'message received own-message' : 'message received';
     $msg.dataset.messageId = String(message.number);
 
     // Timestamp

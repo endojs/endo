@@ -168,7 +168,7 @@ export const createChannelHeader = ({
             : 'Creator'
         }</span>
         ${
-          m.active && i > 0
+          m.active
             ? `<button type="button" class="member-revoke-btn" data-name="${m.proposedName}">Revoke</button>`
             : ''
         }
@@ -183,7 +183,7 @@ export const createChannelHeader = ({
         <button type="button" class="channel-members-close" title="Close">&times;</button>
       </div>
       <div class="channel-members-panel">
-        <h3>Members</h3>
+        <h3>Your Invitations</h3>
         ${memberHtml}
       </div>
     `;

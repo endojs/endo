@@ -454,6 +454,18 @@ const bodyComponent = (
               channelPetName: activeSpaceInfo.channelPetName,
             });
 
+            // Get our own memberId for highlighting own messages.
+            // Gracefully degrade if getMemberId is not available (older daemon).
+            /** @type {string | undefined} */
+            let ownMemberId;
+            try {
+              ownMemberId = await E(
+                /** @type {{ getMemberId: () => string }} */ (currentChannelRef),
+              ).getMemberId();
+            } catch {
+              // getMemberId not available on this channel/member ref
+            }
+
             // Always follow messages from the channel ref (both admin and
             // member see the same stream).
             // Pass personaId (derived from profile path) so the address book
@@ -465,6 +477,7 @@ const bodyComponent = (
                 currentMoiMessageNumber = messageNumber;
               },
               personaId: profilePath.join('.'),
+              ownMemberId,
             }).catch(window.reportError);
           })
           .catch(window.reportError);
@@ -538,6 +551,18 @@ const bodyComponent = (
               channelPetName,
             });
 
+            // Get our own memberId for highlighting own messages.
+            // Gracefully degrade if getMemberId is not available.
+            /** @type {string | undefined} */
+            let switchOwnMemberId;
+            try {
+              switchOwnMemberId = await E(
+                /** @type {{ getMemberId: () => string }} */ (currentChannelRef),
+              ).getMemberId();
+            } catch {
+              // getMemberId not available on this channel/member ref
+            }
+
             // Start message stream
             channelComponent($messages, $anchor, channelRef, {
               showValue,
@@ -545,6 +570,7 @@ const bodyComponent = (
                 currentMoiMessageNumber = messageNumber;
               },
               personaId: profilePath.join('.'),
+              ownMemberId: switchOwnMemberId,
             }).catch(window.reportError);
           })
           .catch(window.reportError);

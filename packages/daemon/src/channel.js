@@ -29,6 +29,7 @@ Each member has a proposed name and a pedigree chain showing their invitation pa
   revoke: 'Revoke a member (admin only).',
   getMembers: 'List all members with their proposed names and pedigree chains.',
   getProposedName: 'Get the proposed display name for this channel or member.',
+  getMemberId: 'Get the stable member ID for this channel admin.',
 };
 harden(channelHelp);
 
@@ -44,6 +45,7 @@ Use this to post messages, follow the stream, and invite others.`,
   invite: 'Create a new sub-member with the given proposed name.',
   getMembers: 'List all members with their proposed names and pedigree chains.',
   getProposedName: 'Get your proposed display name.',
+  getMemberId: 'Get your stable member ID in the channel.',
 };
 harden(channelMemberHelp);
 
@@ -116,6 +118,7 @@ export const makeChannelMaker = ({ provide }) => {
      * @property {string} proposedName - Current display name (may be changed by the member)
      * @property {string} invitedAs - Original name given by the inviter
      * @property {string} memberId - Stable identifier for this member
+     * @property {string} inviterMemberId - memberId of the member who created this invitation
      * @property {string[]} pedigree - Invitation chain
      * @property {boolean} revoked
      */
@@ -125,6 +128,14 @@ export const makeChannelMaker = ({ provide }) => {
      * @type {Map<object, MemberEntry>}
      */
     const memberRegistry = new Map();
+
+    /**
+     * Joined members by proposed name: ensures join() is idempotent.
+     * When a user calls join() with the same name multiple times (e.g. on
+     * each space visit), they get the same member exo with the same memberId.
+     * @type {Map<string, object>}
+     */
+    const joinedExosByName = new Map();
 
     /**
      * Internal: post a message from an identified author.
@@ -246,32 +257,31 @@ export const makeChannelMaker = ({ provide }) => {
               proposedName: subMemberName,
               invitedAs: subMemberName,
               memberId: subMemberId,
+              inviterMemberId: entry.memberId,
               pedigree: subPedigree,
               revoked: false,
             });
             return subMember;
           },
           getMembers: async () => {
+            const callerEntry = memberRegistry.get(memberExo);
+            if (!callerEntry) {
+              return harden([]);
+            }
+            const callerId = callerEntry.memberId;
             const result = [];
-            // Include the admin
-            result.unshift(
-              harden({
-                proposedName,
-                memberId: adminMemberId,
-                pedigree: [],
-                active: true,
-              }),
-            );
             for (const [, entry] of memberRegistry) {
-              result.push(
-                harden({
-                  proposedName: entry.proposedName,
-                  invitedAs: entry.invitedAs,
-                  memberId: entry.memberId,
-                  pedigree: [...entry.pedigree],
-                  active: !entry.revoked,
-                }),
-              );
+              if (entry.inviterMemberId === callerId) {
+                result.push(
+                  harden({
+                    proposedName: entry.proposedName,
+                    invitedAs: entry.invitedAs,
+                    memberId: entry.memberId,
+                    pedigree: [...entry.pedigree],
+                    active: !entry.revoked,
+                  }),
+                );
+              }
             }
             return harden(result);
           },
@@ -279,6 +289,7 @@ export const makeChannelMaker = ({ provide }) => {
             const entry = memberRegistry.get(memberExo);
             return entry ? entry.proposedName : initialProposedName;
           },
+          getMemberId: () => memberId,
         },
       );
 
@@ -318,12 +329,21 @@ export const makeChannelMaker = ({ provide }) => {
           proposedName: memberProposedName,
           invitedAs: memberProposedName,
           memberId,
+          inviterMemberId: adminMemberId,
           pedigree,
           revoked: false,
         });
         return member;
       },
       join: async memberProposedName => {
+        // Idempotent: return existing member if already joined with this name
+        const existing = joinedExosByName.get(memberProposedName);
+        if (existing) {
+          const entry = memberRegistry.get(existing);
+          if (entry && !entry.revoked) {
+            return existing;
+          }
+        }
         const pedigree = [proposedName];
         const { memberExo: member, memberId } = makeMemberExo(
           memberProposedName,
@@ -333,9 +353,11 @@ export const makeChannelMaker = ({ provide }) => {
           proposedName: memberProposedName,
           invitedAs: memberProposedName,
           memberId,
+          inviterMemberId: adminMemberId,
           pedigree,
           revoked: false,
         });
+        joinedExosByName.set(memberProposedName, member);
         return member;
       },
       revoke: async member => {
@@ -356,29 +378,23 @@ export const makeChannelMaker = ({ provide }) => {
       },
       getMembers: async () => {
         const result = [];
-        // Include the admin (creator)
-        result.push(
-          harden({
-            proposedName,
-            memberId: adminMemberId,
-            pedigree: [],
-            active: true,
-          }),
-        );
         for (const [, entry] of memberRegistry) {
-          result.push(
-            harden({
-              proposedName: entry.proposedName,
-              invitedAs: entry.invitedAs,
-              memberId: entry.memberId,
-              pedigree: [...entry.pedigree],
-              active: !entry.revoked,
-            }),
-          );
+          if (entry.inviterMemberId === adminMemberId) {
+            result.push(
+              harden({
+                proposedName: entry.proposedName,
+                invitedAs: entry.invitedAs,
+                memberId: entry.memberId,
+                pedigree: [...entry.pedigree],
+                active: !entry.revoked,
+              }),
+            );
+          }
         }
         return harden(result);
       },
       getProposedName: () => proposedName,
+      getMemberId: () => adminMemberId,
     });
 
     return channelExo;

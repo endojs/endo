@@ -356,6 +356,7 @@ export const ChannelInterface = M.interface('EndoChannel', {
   revokeByName: M.call(M.string()).returns(M.promise()),
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
+  getMemberId: M.call().returns(M.string()),
 });
 
 export const ChannelMemberInterface = M.interface('EndoChannelMember', {
@@ -369,6 +370,7 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   invite: M.call(M.string()).returns(M.promise()),
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
+  getMemberId: M.call().returns(M.string()),
 });
 
 export const InvitationInterface = M.interface('EndoInvitation', {

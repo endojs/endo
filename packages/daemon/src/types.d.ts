@@ -985,6 +985,7 @@ export interface EndoChannel {
     Array<{ proposedName: string; pedigree: string[]; active: boolean }>
   >;
   getProposedName(): string;
+  getMemberId(): string;
 }
 
 export interface EndoChannelMember {
@@ -1002,6 +1003,7 @@ export interface EndoChannelMember {
     Array<{ proposedName: string; pedigree: string[]; active: boolean }>
   >;
   getProposedName(): string;
+  getMemberId(): string;
 }
 
 export type EndoInspector<Record = string> = {

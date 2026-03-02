@@ -131,6 +131,74 @@ test.afterEach.always(async t => {
   );
 });
 
+// ---------- Smoke test: full end-to-end channel lifecycle ----------
+// This test exercises the complete flow that the UI uses:
+// create persona → create channel → join → post → follow → verify messages.
+// If this test breaks, basic messaging is broken.
+
+test.serial('smoke: full channel lifecycle - create, join, post, follow, getMemberId', async t => {
+  const { host } = await prepareHost(t);
+
+  // 1. Create a persona (like the UI does when creating a channel space)
+  const spaceName = 'smoke-space';
+  const agentName = `persona-for-${spaceName}`;
+  await E(host).provideHost(spaceName, { agentName });
+  const personaPowers = await E(host).lookup(agentName);
+
+  // 2. Create a channel within the persona
+  await E(personaPowers).makeChannel('general', 'Alice');
+  const channel = await E(personaPowers).lookup('general');
+  t.truthy(channel, 'channel exists');
+
+  // 3. Admin can post and see the message
+  await E(channel).post(['Hello from admin'], [], []);
+  const adminMessages = await E(channel).listMessages();
+  t.is(adminMessages.length, 1);
+  t.deepEqual(adminMessages[0].strings, ['Hello from admin']);
+  t.is(adminMessages[0].author, 'Alice');
+
+  // 4. Admin can get their memberId
+  const adminMemberId = await E(channel).getMemberId();
+  t.is(adminMemberId, '0', 'admin memberId is "0"');
+  t.is(adminMessages[0].memberId, adminMemberId,
+    'message memberId matches admin getMemberId');
+
+  // 5. Join as a member (simulating a non-admin user)
+  const member = await E(channel).join('Bob');
+  t.truthy(member, 'join returns a member ref');
+
+  // 6. Member can get their memberId
+  const bobMemberId = await E(member).getMemberId();
+  t.is(typeof bobMemberId, 'string');
+  t.not(bobMemberId, adminMemberId, 'member has different ID than admin');
+
+  // 7. Member can post
+  await E(member).post(['Hello from Bob'], [], []);
+
+  // 8. Follow messages and verify both messages appear
+  const messagesRef = await E(channel).followMessages();
+  const iter = makeRefIterator(messagesRef);
+  const msg1 = await iter.next();
+  const msg2 = await iter.next();
+  t.is(msg1.value.strings[0], 'Hello from admin');
+  t.is(msg1.value.memberId, adminMemberId);
+  t.is(msg2.value.strings[0], 'Hello from Bob');
+  t.is(msg2.value.memberId, bobMemberId);
+
+  // 9. Join again (idempotent) — same member, same memberId
+  const member2 = await E(channel).join('Bob');
+  t.is(member2, member, 'join is idempotent');
+  const bobMemberId2 = await E(member2).getMemberId();
+  t.is(bobMemberId2, bobMemberId, 'stable memberId across joins');
+
+  // 10. Post after re-join uses same memberId
+  await E(member2).post(['Hello again from Bob'], [], []);
+  const allMessages = await E(channel).listMessages();
+  t.is(allMessages.length, 3);
+  t.is(allMessages[2].memberId, bobMemberId,
+    'post after re-join uses same memberId');
+});
+
 // ---------- Channel basics ----------
 
 test.serial('channel - create and post message as admin', async t => {
@@ -168,13 +236,11 @@ test.serial('channel - admin can invite a member', async t => {
   const bobName = await E(bobMember).getProposedName();
   t.is(bobName, 'Bob');
 
-  // Check members list
+  // Check members list — getMembers returns only directly invited members
   const members = await E(channel).getMembers();
-  t.is(members.length, 2, 'should have admin + Bob');
-  t.is(members[0].proposedName, 'Alice');
-  t.deepEqual(members[0].pedigree, []);
-  t.is(members[1].proposedName, 'Bob');
-  t.deepEqual(members[1].pedigree, ['Alice'], 'Bob was invited by Alice');
+  t.is(members.length, 1, 'should have only Bob (admin self-entry is not included)');
+  t.is(members[0].proposedName, 'Bob');
+  t.deepEqual(members[0].pedigree, ['Alice'], 'Bob was invited by Alice');
 });
 
 test.serial('channel - member posts appear with correct author and pedigree', async t => {
@@ -886,6 +952,138 @@ test.serial('channel - channel enumeration within a persona', async t => {
   t.true(channelNames.includes('help'), 'help is a channel type');
 });
 
+// ---------- getMembers scoping ----------
+
+test.serial('channel - admin getMembers returns only members admin directly invited', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('room', 'Alice');
+  const channel = await E(host).lookup('room');
+
+  // Admin invites Bob and Carol
+  const bobMember = await E(channel).invite('Bob');
+  await E(channel).invite('Carol');
+
+  // Bob sub-invites Dave
+  await E(bobMember).invite('Dave');
+
+  // Admin's getMembers should return ONLY Bob and Carol (directly invited),
+  // not Dave (invited by Bob) and not Alice herself.
+  const adminMembers = await E(channel).getMembers();
+  const adminMemberNames = adminMembers.map(m => m.proposedName);
+
+  t.deepEqual(
+    adminMemberNames.sort(),
+    ['Bob', 'Carol'],
+    'admin sees only directly invited members',
+  );
+
+  // Admin entry should NOT appear in the list
+  t.false(
+    adminMemberNames.includes('Alice'),
+    'admin self-entry is not included',
+  );
+
+  // Dave should NOT appear (sub-invited by Bob, not admin)
+  t.false(
+    adminMemberNames.includes('Dave'),
+    'sub-invitee Dave is not visible to admin',
+  );
+});
+
+test.serial('channel - member getMembers returns only members they directly invited', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('room', 'Alice');
+  const channel = await E(host).lookup('room');
+
+  // Admin invites Bob
+  const bobMember = await E(channel).invite('Bob');
+
+  // Admin invites Carol
+  await E(channel).invite('Carol');
+
+  // Bob sub-invites Dave and Eve
+  await E(bobMember).invite('Dave');
+  await E(bobMember).invite('Eve');
+
+  // Bob's getMembers should return ONLY Dave and Eve (his invitees)
+  const bobMembers = await E(bobMember).getMembers();
+  const bobMemberNames = bobMembers.map(m => m.proposedName);
+
+  t.deepEqual(
+    bobMemberNames.sort(),
+    ['Dave', 'Eve'],
+    'Bob sees only his own invitees',
+  );
+
+  // Bob should NOT see Carol (invited by admin, not Bob)
+  t.false(
+    bobMemberNames.includes('Carol'),
+    'Carol is not visible to Bob',
+  );
+
+  // Bob should NOT see Alice (admin)
+  t.false(
+    bobMemberNames.includes('Alice'),
+    'admin is not visible to Bob',
+  );
+
+  // Bob should NOT see himself
+  t.false(
+    bobMemberNames.includes('Bob'),
+    'Bob does not see himself',
+  );
+});
+
+test.serial('channel - member with no invitations sees empty getMembers', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('room', 'Alice');
+  const channel = await E(host).lookup('room');
+
+  // Admin invites Bob and Carol
+  const bobMember = await E(channel).invite('Bob');
+  await E(channel).invite('Carol');
+
+  // Bob has not invited anyone
+  const bobMembers = await E(bobMember).getMembers();
+  t.is(bobMembers.length, 0, 'Bob sees no members since he invited nobody');
+});
+
+test.serial('channel - join creates one entry, not two', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('room', 'Alice');
+  const channel = await E(host).lookup('room');
+
+  // Someone joins the channel (e.g. via shared locator)
+  await E(channel).join('Bob');
+
+  // Admin's getMembers should show exactly one entry for Bob
+  const members = await E(channel).getMembers();
+  t.is(members.length, 1, 'exactly one entry per join');
+  t.is(members[0].proposedName, 'Bob');
+});
+
+test.serial('channel - each invitation creates exactly one entry in getMembers', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('room', 'Alice');
+  const channel = await E(host).lookup('room');
+
+  // Admin creates 3 invitations
+  await E(channel).invite('Bob');
+  await E(channel).invite('Carol');
+  await E(channel).invite('Dave');
+
+  const members = await E(channel).getMembers();
+  t.is(members.length, 3, 'exactly 3 entries for 3 invitations');
+
+  const names = members.map(m => m.proposedName);
+  t.deepEqual(names.sort(), ['Bob', 'Carol', 'Dave']);
+});
+
 // ---------- Auto-assignment of invitation names ----------
 
 test.serial('channel - getMembers provides data for auto-assigning invitation names', async t => {
@@ -1261,9 +1459,9 @@ test.serial('fresh agent after delete-recreate has no address book state from ol
   const bobMember = await E(channel1).invite('Bob');
   await E(bobMember).post(['hello from bob'], [], []);
 
-  // Alice sees Bob in getMembers
+  // Alice sees Bob in getMembers (only directly invited members)
   const members1 = await E(channel1).getMembers();
-  t.is(members1.length, 2, 'original channel has admin + Bob');
+  t.is(members1.length, 1, 'original channel has one invitee (Bob)');
 
   const petStore1Id = await E(host).identify(agentName);
 
@@ -1287,10 +1485,9 @@ test.serial('fresh agent after delete-recreate has no address book state from ol
   await E(powers2).makeChannel('general', 'Alice');
   const channel2 = await E(powers2).lookup('general');
 
-  // The new channel should have NO members except admin
+  // The new channel should have no invitations
   const members2 = await E(channel2).getMembers();
-  t.is(members2.length, 1, 'fresh channel has only admin, no old members');
-  t.is(members2[0].proposedName, 'Alice');
+  t.is(members2.length, 0, 'fresh channel has no invitations');
 
   // No messages in the new channel
   const messages2 = await E(channel2).listMessages();
@@ -1337,4 +1534,116 @@ test.serial('deleting ONLY the space config (without handle/agent) causes stale 
   const messages = await E(oldChannel).listMessages();
   t.is(messages.length, 1, 'BUG: old messages are still there');
   t.deepEqual(messages[0].strings, ['Old message']);
+});
+
+// ===== join() idempotency =====
+
+test.serial('join() is idempotent - returns same member on repeated calls', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('idem-chan', 'Admin');
+  const channel = await E(host).lookup('idem-chan');
+
+  // Join twice with the same name
+  const member1 = await E(channel).join('Alice');
+  const member2 = await E(channel).join('Alice');
+
+  // Should be the exact same object
+  t.is(member1, member2, 'join() returns the same member on repeated calls');
+
+  // Both should have the same memberId
+  const id1 = await E(member1).getMemberId();
+  const id2 = await E(member2).getMemberId();
+  t.is(id1, id2, 'same memberId from both references');
+});
+
+test.serial('join() idempotency - messages use stable memberId across visits', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('stable-chan', 'Admin');
+  const channel = await E(host).lookup('stable-chan');
+
+  // Simulate first visit: join and post
+  const member1 = await E(channel).join('Bob');
+  await E(member1).post(['Hello from visit 1'], [], []);
+
+  // Simulate second visit: join again and post
+  const member2 = await E(channel).join('Bob');
+  await E(member2).post(['Hello from visit 2'], [], []);
+
+  // Both messages should have the same memberId
+  const messages = await E(channel).listMessages();
+  t.is(messages.length, 2);
+  t.is(messages[0].memberId, messages[1].memberId,
+    'messages from repeated join() calls have the same memberId');
+});
+
+test.serial('join() with different names creates different members', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('diff-chan', 'Admin');
+  const channel = await E(host).lookup('diff-chan');
+
+  const alice = await E(channel).join('Alice');
+  const bob = await E(channel).join('Bob');
+
+  t.not(alice, bob, 'different names create different members');
+
+  const aliceId = await E(alice).getMemberId();
+  const bobId = await E(bob).getMemberId();
+  t.not(aliceId, bobId, 'different members have different memberIds');
+});
+
+test.serial('join() after revocation creates a new member', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('revoke-join-chan', 'Admin');
+  const channel = await E(host).lookup('revoke-join-chan');
+
+  const member1 = await E(channel).join('Charlie');
+  const id1 = await E(member1).getMemberId();
+
+  // Admin revokes Charlie
+  await E(channel).revokeByName('Charlie');
+
+  // Joining again with the same name should create a new member
+  const member2 = await E(channel).join('Charlie');
+  const id2 = await E(member2).getMemberId();
+
+  t.not(id1, id2, 'revoked member gets a new memberId on re-join');
+});
+
+// ===== getMemberId() =====
+
+test.serial('getMemberId() returns admin ID for channel', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('mid-chan', 'Admin');
+  const channel = await E(host).lookup('mid-chan');
+
+  const adminId = await E(channel).getMemberId();
+  t.is(adminId, '0', 'channel admin memberId is "0"');
+});
+
+test.serial('getMemberId() returns stable ID for member', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('mid2-chan', 'Admin');
+  const channel = await E(host).lookup('mid2-chan');
+
+  const member = await E(channel).join('Alice');
+  const memberId = await E(member).getMemberId();
+  t.is(typeof memberId, 'string', 'memberId is a string');
+  t.not(memberId, '0', 'member ID is different from admin ID');
+
+  // Post a message and verify the memberId matches
+  await E(member).post(['Test message'], [], []);
+  const messages = await E(channel).listMessages();
+  t.is(messages[0].memberId, memberId,
+    'message memberId matches getMemberId() result');
+});
+
+test.serial('getMemberId() is consistent across multiple calls', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('mid3-chan', 'Admin');
+  const channel = await E(host).lookup('mid3-chan');
+
+  const member = await E(channel).join('Alice');
+  const id1 = await E(member).getMemberId();
+  const id2 = await E(member).getMemberId();
+  t.is(id1, id2, 'getMemberId() returns consistent results');
 });

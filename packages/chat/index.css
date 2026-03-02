@@ -1828,6 +1828,12 @@ body.resizing * {
   --bubble-code-inline-bg: rgba(255, 255, 255, 0.2);
 }
 
+.message.own-message {
+  /* Light blue highlight for the user's own messages */
+  --bubble-bg: #e7f5ff;
+  --bubble-border: #a5d8ff;
+}
+
 .message strong {
   color: var(--bubble-fg);
   font-weight: 600;
