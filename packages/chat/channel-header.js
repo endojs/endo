@@ -157,8 +157,13 @@ export const createChannelHeader = ({
   const showAttenuatorModal = async invitedAs => {
     attenuatorModalMember = invitedAs;
     try {
-      const attenuator = await E(channel).getAttenuator(invitedAs);
-      renderAttenuatorModal(invitedAs, attenuator);
+      const [attenuator, members] = await Promise.all([
+        E(channel).getAttenuator(invitedAs),
+        /** @type {Promise<MemberInfo[]>} */ (E(channel).getMembers()),
+      ]);
+      const memberInfo = members.find(m => m.invitedAs === invitedAs);
+      const isActive = memberInfo ? memberInfo.active : true;
+      renderAttenuatorModal(invitedAs, attenuator, isActive);
     } catch (err) {
       window.alert(
         `Failed to get attenuator: ${/** @type {Error} */ (err).message}`,
@@ -169,8 +174,9 @@ export const createChannelHeader = ({
   /**
    * @param {string} invitedAs
    * @param {object} attenuator
+   * @param {boolean} isActive
    */
-  const renderAttenuatorModal = (invitedAs, attenuator) => {
+  const renderAttenuatorModal = (invitedAs, attenuator, isActive) => {
     $container.innerHTML = `
       <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
       <div class="channel-attenuator-modal">
@@ -181,7 +187,7 @@ export const createChannelHeader = ({
         <div class="channel-attenuator-body">
           <label class="attenuator-field">
             <span>Enabled</span>
-            <input type="checkbox" class="attenuator-valid" checked />
+            <input type="checkbox" class="attenuator-valid" ${isActive ? 'checked' : ''} />
           </label>
           <label class="attenuator-field">
             <span>Rate limit (msg/sec, 0=unlimited)</span>
