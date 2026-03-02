@@ -281,7 +281,7 @@ export const createChannelHeader = ({
       .map(
         m => `
       <div class="channel-member-entry ${m.active ? '' : 'disabled'}">
-        <span class="member-name">${m.active ? '' : '<s>'}\u201C${m.proposedName}\u201D${m.active ? '' : '</s>'}</span>
+        <span class="member-name">\u201C${m.proposedName}\u201D</span>
         <span class="member-pedigree">${
           m.pedigree.length > 0
             ? m.pedigree.join(' \u2192 ')
