@@ -1,26 +1,29 @@
 /// <reference types="ses"/>
 
 /**
- * @import { Cancelled, Cancel, CancelKit } from './types.js'
+ * @import { Cancelled, Cancel, IsCancelled, CancelKit } from './types.js'
  */
 
 /**
- * Creates a cancellation kit containing a cancellation token and a cancel function.
+ * Creates a cancellation kit containing a cancellation token, a cancel
+ * function, and a synchronous observation function.
  *
  * The cancellation token is a `Promise<never>` that will never resolve but may
- * be rejected when cancellation is requested. It also has a synchronous
- * `cancelled` getter that returns `true` if cancellation has been requested,
- * or `undefined` otherwise.
+ * be rejected when cancellation is requested. The `isCancelled` function
+ * provides synchronous local observation of cancellation state.
  *
  * If a parent cancellation token is provided, cancellation will automatically
- * propagate from the parent to this kit.
+ * propagate from the parent to this kit. If a parent `isCancelled` function
+ * is provided and returns true, the child is synchronously cancelled at
+ * creation time.
  *
  * This design anticipates a future `Promise.withCanceller` API.
  *
  * @param {Cancelled} [parentCancelled] - Optional parent cancellation token
+ * @param {IsCancelled} [parentIsCancelled] - Optional parent synchronous cancellation check
  * @returns {CancelKit}
  */
-export const makeCancelKit = parentCancelled => {
+export const makeCancelKit = (parentCancelled, parentIsCancelled) => {
   /** @type {undefined | true} */
   let cancelledState;
 
@@ -33,15 +36,6 @@ export const makeCancelKit = parentCancelled => {
 
   // Prevent unhandled rejection warnings when the promise is not awaited
   promise.catch(() => {});
-
-  // Define the cancelled getter on the promise
-  Object.defineProperty(promise, 'cancelled', {
-    get() {
-      return cancelledState;
-    },
-    enumerable: false,
-    configurable: false,
-  });
 
   /** @type {Cancelled} */
   const cancelled = /** @type {Cancelled} */ (promise);
@@ -58,6 +52,9 @@ export const makeCancelKit = parentCancelled => {
     }
   };
 
+  /** @type {IsCancelled} */
+  const isCancelled = () => cancelledState === true;
+
   // Propagate cancellation from parent if provided
   if (parentCancelled) {
     parentCancelled.then(
@@ -66,6 +63,11 @@ export const makeCancelKit = parentCancelled => {
     );
   }
 
-  return harden({ cancelled, cancel });
+  // If parent is already cancelled synchronously, cancel child immediately
+  if (parentIsCancelled && parentIsCancelled()) {
+    cancel(Error('Cancelled'));
+  }
+
+  return harden({ cancelled, cancel, isCancelled });
 };
 harden(makeCancelKit);

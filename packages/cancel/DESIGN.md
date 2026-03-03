@@ -12,7 +12,8 @@ However, promises do not provide any mechanism for synchronously observing
 their state locally. There are some conditions where synchronous observation
 of cancellation can help a utility avoid unnecessary work.
 
-To that end, we extend the `Promise<never>` to have a `cancelled` getter.
+To that end, `makeCancelKit` returns an `isCancelled` function alongside the
+promise, providing a separate synchronous observation channel.
 
 ## Core API: `makeCancelKit`
 
@@ -20,8 +21,8 @@ The `Promise.withResolvers` API produces a `promise`, `resolve`, and `reject`.
 We envision the eventual addition of `Promise.withCanceller` that returns
 instead `cancelled` and `cancel`.
 
-The `cancelled` is a promise with a `cancelled` own getter that returns:
-- `undefined` - cancellation has not been requested
+The `isCancelled` function returns:
+- `false` - cancellation has not been requested
 - `true` - cancellation has been requested
 
 This package anticipates this eventual evolution of the language and exports
@@ -30,10 +31,10 @@ This package anticipates this eventual evolution of the language and exports
 ```js
 import { makeCancelKit } from '@endo/cancel';
 
-const { cancelled, cancel } = makeCancelKit();
+const { cancelled, cancel, isCancelled } = makeCancelKit();
 
 // Synchronous check
-if (cancelled.cancelled) {
+if (isCancelled()) {
   return; // Skip unnecessary work
 }
 
@@ -48,13 +49,15 @@ cancel(Error('User requested abort'));
 
 ### Hierarchical Cancellation
 
-`makeCancelKit` accepts an optional `parentCancelled` token, enabling
-hierarchical cancellation patterns. When a parent token is cancelled,
-all child tokens automatically cancel with the same reason:
+`makeCancelKit` accepts an optional `parentCancelled` token and an optional
+`parentIsCancelled` function, enabling hierarchical cancellation patterns.
+When a parent token is cancelled, all child tokens automatically cancel with
+the same reason. If `parentIsCancelled` is provided and returns true at
+creation time, the child is synchronously cancelled:
 
 ```js
-const { cancelled: parentCancelled, cancel: cancelParent } = makeCancelKit();
-const { cancelled: childCancelled } = makeCancelKit(parentCancelled);
+const { cancelled: parentCancelled, cancel: cancelParent, isCancelled: parentIsCancelled } = makeCancelKit();
+const { cancelled: childCancelled, isCancelled: childIsCancelled } = makeCancelKit(parentCancelled, parentIsCancelled);
 
 cancelParent(Error('Operation aborted'));
 // childCancelled is now also cancelled
@@ -65,13 +68,16 @@ This pattern is used internally by operators like `allMap`, `anyMap`, and
 It enables composable cancellation where a single cancellation at the root
 propagates through an entire tree of operations.
 
-## TypeScript Interface
+## Synchronous Observation
 
-This package provides a TypeScript interface `Cancelled` that is a
-`Promise<never>` but with the `undefined | true` `cancelled` own property.
+Rather than attaching a getter to the promise itself (which would be a local
+side channel visible to anyone sharing the promise), the `isCancelled` function
+is a separate value returned from `makeCancelKit`. This keeps the promise
+clean and passable, while providing synchronous observation to the code that
+creates or receives the cancel kit.
 
 ```ts
-type Cancelled = Promise<never> & { readonly cancelled: undefined | true };
+type IsCancelled = () => boolean;
 ```
 
 ## Operators
@@ -88,8 +94,8 @@ all of the operations are cancelled.
 ```js
 import { allMap } from '@endo/cancel/all-map';
 
-return allMap(values, (value, index, cancelled) => {
-  // Transform value, checking cancelled as needed
+return allMap(values, (value, index, cancelled, isCancelled) => {
+  // Transform value, checking isCancelled() as needed
 }, externalCancelled);
 ```
 
@@ -102,7 +108,7 @@ jobs reject.
 ```js
 import { anyMap } from '@endo/cancel/any-map';
 
-return anyMap(values, (value, index, cancelled) => {
+return anyMap(values, (value, index, cancelled, isCancelled) => {
   // Race to produce a result
 }, externalCancelled);
 ```
@@ -145,14 +151,25 @@ which could mask bugs in cancellation logic.
 
 ## Integration with pass-style and CapTP
 
-We adjust `pass-style` to gracefully allow promises to have the `cancelled`
-property, and for CapTP implementations to simply leave this synchronous
-observation capability behind: it is not passable in any case.
+The `cancelled` token is a plain `Promise<never>` with no additional own
+properties, so it passes through pass-style and CapTP without any special
+accommodation. The `isCancelled` function is a separate local-only value
+that does not cross CapTP boundaries.
 
-The synchronous getter is intentionally local-only. When a `Cancelled` token
-crosses a CapTP boundary, only the promise behavior is preserved—the remote
-side observes rejection when cancellation occurs, but cannot synchronously
-poll the `cancelled` getter.
+When a `Cancelled` token crosses a CapTP boundary, only the promise behavior
+is preserved—the remote side observes rejection when cancellation occurs.
+The synchronous `isCancelled` function stays with the code that created it.
+
+A recipient of a remote `cancelled` promise can recover a local synchronous
+`isCancelled` cache by using it as the parent of a new cancel kit:
+
+```js
+const { cancelled: localCancelled, isCancelled } = makeCancelKit(remoteCancelled);
+```
+
+The child kit's `isCancelled` will begin returning `true` once the remote
+promise rejects (after one turn), providing the same synchronous observation
+pattern used throughout the local cancel tree.
 
 ## Implementation Notes
 
@@ -164,7 +181,7 @@ This is safe because:
 
 1. Cancellation is an expected outcome, not an exceptional error
 2. Consumers can still attach their own `.catch()` handlers
-3. The synchronous `cancelled` getter provides the primary observation mechanism
+3. The `isCancelled` function provides the primary synchronous observation mechanism
 
 ### Idempotent Cancellation
 
@@ -174,11 +191,11 @@ This simplifies cleanup logic and prevents double-rejection errors.
 
 ### Parent Cancellation Propagation
 
-The `makeCancelKit(parentCancelled)` API handles propagation of cancellation
-from parent to child tokens. Operators like `allMap`, `anyMap`, and `delay`
-use this internally by passing their `parentCancelled` argument directly to
-`makeCancelKit`. This centralizes the propagation logic and ensures consistent
-behavior across all cancellation-aware utilities.
+The `makeCancelKit(parentCancelled, parentIsCancelled)` API handles propagation
+of cancellation from parent to child tokens. Operators like `allMap`, `anyMap`,
+and `delay` use this internally by passing their `parentCancelled` argument
+directly to `makeCancelKit`. This centralizes the propagation logic and ensures
+consistent behavior across all cancellation-aware utilities.
 
 ## Integration with Web APIs
 
@@ -195,29 +212,29 @@ like `fetch`, `EventTarget.addEventListener`, and other abort-aware APIs.
 import { makeCancelKit } from '@endo/cancel';
 import { toAbortSignal } from '@endo/cancel/to-abort';
 
-const { cancelled, cancel } = makeCancelKit();
+const { cancelled, cancel, isCancelled } = makeCancelKit();
 
 const response = await fetch(url, {
-  signal: toAbortSignal(cancelled),
+  signal: toAbortSignal(cancelled, isCancelled),
 });
 ```
 
 When the `Cancelled` token is triggered, the `AbortSignal` aborts with
-the same reason. If the token is already cancelled at conversion time,
-the signal is immediately aborted.
+the same reason. If `isCancelled` is provided and returns true at conversion
+time, the signal is immediately aborted.
 
 ### `fromAbortSignal`
 
-Converts an `AbortSignal` to a `Cancelled` token for use with Endo's
+Converts an `AbortSignal` to a cancellation kit for use with Endo's
 cancellation APIs.
 
 ```js
 import { fromAbortSignal } from '@endo/cancel/from-abort';
 
 const controller = new AbortController();
-const cancelled = fromAbortSignal(controller.signal);
+const { cancelled, isCancelled } = fromAbortSignal(controller.signal);
 
-// Now use `cancelled` with Endo APIs
+// Now use `cancelled` and `isCancelled` with Endo APIs
 ```
 
 This enables integration with user-initiated cancellation (e.g., a cancel
@@ -231,7 +248,7 @@ have different characteristics:
 
 | Feature | AbortSignal | Cancelled |
 |---------|-------------|-----------|
-| Sync observation | `.aborted` | `.cancelled` |
+| Sync observation | `.aborted` | `isCancelled()` |
 | Async observation | `abort` event | Promise rejection |
 | Reason access | `.reason` | Via rejection |
 | Hardened | No | Yes |

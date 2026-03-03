@@ -7,18 +7,18 @@
 import { makeCancelKit } from './cancel-kit.js';
 
 /**
- * Converts an AbortSignal to a Cancelled token for use with Endo cancellation.
+ * Converts an AbortSignal to a cancellation kit for use with Endo cancellation.
  *
  * @param {AbortSignal} signal - The AbortSignal to convert
- * @returns {Cancelled} A Cancelled token that triggers when signal aborts
+ * @returns {{ cancelled: Cancelled, isCancelled: import('./types.js').IsCancelled }} A cancellation token and synchronous check
  */
 export const fromAbortSignal = signal => {
-  const { cancelled, cancel } = makeCancelKit();
+  const { cancelled, cancel, isCancelled } = makeCancelKit();
 
   // If already aborted, cancel immediately
   if (signal.aborted) {
     cancel(signal.reason);
-    return cancelled;
+    return { cancelled, isCancelled };
   }
 
   signal.addEventListener(
@@ -29,6 +29,6 @@ export const fromAbortSignal = signal => {
     { once: true },
   );
 
-  return cancelled;
+  return { cancelled, isCancelled };
 };
 harden(fromAbortSignal);

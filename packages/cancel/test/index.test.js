@@ -12,24 +12,26 @@ import { makeDelay } from '../delay-lite.js';
 
 // ==================== makeCancelKit tests ====================
 
-test('makeCancelKit returns cancelled and cancel', t => {
+test('makeCancelKit returns cancelled, cancel, and isCancelled', t => {
   const kit = makeCancelKit();
   t.true('cancelled' in kit, 'kit has cancelled');
   t.true('cancel' in kit, 'kit has cancel');
+  t.true('isCancelled' in kit, 'kit has isCancelled');
   t.true(kit.cancelled instanceof Promise, 'cancelled is a Promise');
   t.is(typeof kit.cancel, 'function', 'cancel is a function');
+  t.is(typeof kit.isCancelled, 'function', 'isCancelled is a function');
 });
 
-test('cancelled starts as undefined', t => {
-  const { cancelled } = makeCancelKit();
-  t.is(cancelled.cancelled, undefined);
+test('isCancelled starts as false', t => {
+  const { isCancelled } = makeCancelKit();
+  t.is(isCancelled(), false);
 });
 
-test('cancelled becomes true after cancel is called', t => {
-  const { cancelled, cancel } = makeCancelKit();
-  t.is(cancelled.cancelled, undefined);
+test('isCancelled becomes true after cancel is called', t => {
+  const { isCancelled, cancel } = makeCancelKit();
+  t.is(isCancelled(), false);
   cancel();
-  t.is(cancelled.cancelled, true);
+  t.is(isCancelled(), true);
 });
 
 test('cancelled promise rejects after cancel', async t => {
@@ -46,37 +48,53 @@ test('cancelled promise rejects with default error if no reason', async t => {
 });
 
 test('cancel is idempotent', t => {
-  const { cancelled, cancel } = makeCancelKit();
+  const { isCancelled, cancel } = makeCancelKit();
   cancel();
-  t.is(cancelled.cancelled, true);
+  t.is(isCancelled(), true);
   cancel(); // Should not throw
-  t.is(cancelled.cancelled, true);
+  t.is(isCancelled(), true);
 });
 
 test('makeCancelKit propagates cancellation from parent', async t => {
   const { cancelled: parentCancelled, cancel: cancelParent } = makeCancelKit();
-  const { cancelled: childCancelled } = makeCancelKit(parentCancelled);
+  const { cancelled: childCancelled, isCancelled: childIsCancelled } =
+    makeCancelKit(parentCancelled);
 
-  t.is(childCancelled.cancelled, undefined);
+  t.is(childIsCancelled(), false);
 
   cancelParent(Error('parent cancelled'));
 
   // Give time for propagation
   await Promise.resolve();
 
-  t.is(childCancelled.cancelled, true);
+  t.is(childIsCancelled(), true);
   await t.throwsAsync(childCancelled, { message: 'parent cancelled' });
 });
 
 test('makeCancelKit child can cancel independently of parent', t => {
-  const { cancelled: parentCancelled } = makeCancelKit();
-  const { cancelled: childCancelled, cancel: cancelChild } =
-    makeCancelKit(parentCancelled);
+  const { isCancelled: parentIsCancelled } = makeCancelKit();
+  const { isCancelled: childIsCancelled, cancel: cancelChild } =
+    makeCancelKit();
 
   cancelChild(Error('child cancelled'));
 
-  t.is(childCancelled.cancelled, true);
-  t.is(parentCancelled.cancelled, undefined); // Parent not affected
+  t.is(childIsCancelled(), true);
+  t.is(parentIsCancelled(), false); // Parent not affected
+});
+
+test('makeCancelKit synchronously cancels child if parentIsCancelled returns true', t => {
+  const {
+    cancel: cancelParent,
+    cancelled: parentCancelled,
+    isCancelled: parentIsCancelled,
+  } = makeCancelKit();
+  cancelParent(Error('parent already cancelled'));
+
+  const { isCancelled: childIsCancelled } = makeCancelKit(
+    parentCancelled,
+    parentIsCancelled,
+  );
+  t.is(childIsCancelled(), true);
 });
 
 // ==================== allMap tests ====================
@@ -111,9 +129,9 @@ test('allMap provides cancellation token to callback', async t => {
   const values = [1];
   await allMap(
     values,
-    (_value, _index, cancelled) => {
+    (_value, _index, cancelled, isCancelled) => {
       t.true(cancelled instanceof Promise);
-      t.is(cancelled.cancelled, undefined);
+      t.is(isCancelled(), false);
     },
     parentCancelled,
   );
@@ -122,14 +140,14 @@ test('allMap provides cancellation token to callback', async t => {
 test('allMap cancels on first rejection', async t => {
   const { cancelled: parentCancelled } = makeCancelKit();
   const values = [1, 2, 3];
-  /** @type {import('../src/types.js').Cancelled | undefined} */
-  let capturedCancelled;
+  /** @type {import('../src/types.js').IsCancelled | undefined} */
+  let capturedIsCancelled;
 
   await t.throwsAsync(
     allMap(
       values,
-      async (value, _index, cancelled) => {
-        capturedCancelled = cancelled;
+      async (value, _index, _cancelled, isCancelled) => {
+        capturedIsCancelled = isCancelled;
         if (value === 2) {
           throw Error('fail on 2');
         }
@@ -141,7 +159,7 @@ test('allMap cancels on first rejection', async t => {
   );
 
   // After allMap rejects, the cancellation token should be triggered
-  t.is(capturedCancelled?.cancelled, true, 'cancellation was triggered');
+  t.is(capturedIsCancelled?.(), true, 'cancellation was triggered');
 });
 
 test('allMap respects external cancellation', async t => {
@@ -154,9 +172,9 @@ test('allMap respects external cancellation', async t => {
   let observedCancellation = false;
   const result = allMap(
     values,
-    async (_value, _index, cancelled) => {
+    async (_value, _index, _cancelled, isCancelled) => {
       await Promise.resolve();
-      if (cancelled.cancelled) {
+      if (isCancelled()) {
         observedCancellation = true;
       }
       return 1;
@@ -185,20 +203,23 @@ test('anyMap returns first successful result', async t => {
 
 test('anyMap cancels remaining after first success', async t => {
   const values = [1, 2, 3];
-  /** @type {import('../src/types.js').Cancelled | undefined} */
-  let capturedCancelled;
+  /** @type {import('../src/types.js').IsCancelled | undefined} */
+  let capturedIsCancelled;
 
-  const result = await anyMap(values, async (value, _index, cancelled) => {
-    capturedCancelled = cancelled;
-    if (value === 1) {
-      return 'first';
-    }
-    return `value-${value}`;
-  });
+  const result = await anyMap(
+    values,
+    async (value, _index, _cancelled, isCancelled) => {
+      capturedIsCancelled = isCancelled;
+      if (value === 1) {
+        return 'first';
+      }
+      return `value-${value}`;
+    },
+  );
 
   t.is(result, 'first');
   // After anyMap succeeds, the cancellation token should be triggered
-  t.is(capturedCancelled?.cancelled, true, 'cancellation was triggered');
+  t.is(capturedIsCancelled?.(), true, 'cancellation was triggered');
 });
 
 test('anyMap rejects with AggregateError if all fail', async t => {
@@ -231,9 +252,9 @@ test('anyMap throws for empty array', async t => {
 
 test('anyMap provides cancellation token to callback', async t => {
   const values = [1];
-  await anyMap(values, (_value, _index, cancelled) => {
+  await anyMap(values, (_value, _index, cancelled, isCancelled) => {
     t.true(cancelled instanceof Promise);
-    t.is(cancelled.cancelled, undefined);
+    t.is(isCancelled(), false);
     return 'done';
   });
 });
@@ -248,9 +269,9 @@ test('anyMap respects external cancellation', async t => {
   let observedCancellation = false;
   const result = await anyMap(
     values,
-    async (_value, _index, cancelled) => {
+    async (_value, _index, _cancelled, isCancelled) => {
       await Promise.resolve();
-      if (cancelled.cancelled) {
+      if (isCancelled()) {
         observedCancellation = true;
       }
       return 'done';
@@ -285,46 +306,46 @@ test('toAbortSignal aborts when cancelled', async t => {
 });
 
 test('toAbortSignal handles already cancelled token', t => {
-  const { cancelled, cancel } = makeCancelKit();
+  const { cancelled, cancel, isCancelled } = makeCancelKit();
   cancel(Error('already cancelled'));
 
-  const signal = toAbortSignal(cancelled);
+  const signal = toAbortSignal(cancelled, isCancelled);
   t.true(signal.aborted);
 });
 
 // ==================== fromAbortSignal tests ====================
 
-test('fromAbortSignal returns a Cancelled token', t => {
+test('fromAbortSignal returns a cancelled token and isCancelled', t => {
   const controller = new AbortController();
-  const cancelled = fromAbortSignal(controller.signal);
+  const { cancelled, isCancelled } = fromAbortSignal(controller.signal);
 
   t.true(cancelled instanceof Promise);
-  t.is(cancelled.cancelled, undefined);
+  t.is(isCancelled(), false);
 });
 
 test('fromAbortSignal triggers when signal aborts', async t => {
   const controller = new AbortController();
-  const cancelled = fromAbortSignal(controller.signal);
+  const { isCancelled } = fromAbortSignal(controller.signal);
 
-  t.is(cancelled.cancelled, undefined);
+  t.is(isCancelled(), false);
   controller.abort(Error('test abort'));
 
   // Give time for the abort to propagate
   await Promise.resolve();
-  t.is(cancelled.cancelled, true);
+  t.is(isCancelled(), true);
 });
 
 test('fromAbortSignal handles already aborted signal', t => {
   const controller = new AbortController();
   controller.abort(Error('already aborted'));
 
-  const cancelled = fromAbortSignal(controller.signal);
-  t.is(cancelled.cancelled, true);
+  const { isCancelled } = fromAbortSignal(controller.signal);
+  t.is(isCancelled(), true);
 });
 
 test('fromAbortSignal promise rejects with abort reason', async t => {
   const controller = new AbortController();
-  const cancelled = fromAbortSignal(controller.signal);
+  const { cancelled } = fromAbortSignal(controller.signal);
 
   controller.abort(Error('abort reason'));
   await t.throwsAsync(cancelled, { message: 'abort reason' });
@@ -370,8 +391,6 @@ test('delay rejects immediately if already cancelled', async t => {
 test('delay treats parentCancelled fulfillment as error', async t => {
   // Create a promise that fulfills instead of rejects
   const fulfillingPromise = Promise.resolve();
-  // @ts-expect-error - intentionally testing invalid usage
-  fulfillingPromise.cancelled = undefined;
 
   await t.throwsAsync(
     // @ts-expect-error - intentionally testing invalid usage

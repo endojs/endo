@@ -1,8 +1,7 @@
 /**
- * A cancellation token that is a Promise<never> with a synchronous
- * `cancelled` getter for local observation.
+ * A cancellation token that is a Promise<never>.
  *
- * @typedef {Promise<never> & { readonly cancelled: undefined | true }} Cancelled
+ * @typedef {Promise<never>} Cancelled
  */
 
 /**
@@ -14,12 +13,20 @@
  */
 
 /**
- * The result of makeCancelKit(), containing the cancellation token
- * and the cancel function.
+ * A function that synchronously checks if cancellation has been requested.
+ *
+ * @callback IsCancelled
+ * @returns {boolean}
+ */
+
+/**
+ * The result of makeCancelKit(), containing the cancellation token,
+ * the cancel function, and a synchronous observation function.
  *
  * @typedef {object} CancelKit
  * @property {Cancelled} cancelled - The cancellation token
  * @property {Cancel} cancel - Function to trigger cancellation
+ * @property {IsCancelled} isCancelled - Function to synchronously check cancellation state
  */
 
 /**
@@ -31,6 +38,7 @@
  * @param {T} value - The current value
  * @param {number} index - The current index
  * @param {Cancelled} cancelled - Cancellation token for this operation
+ * @param {IsCancelled} isCancelled - Synchronous cancellation check
  * @returns {R | Promise<R>}
  */
 

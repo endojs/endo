@@ -19,13 +19,13 @@ import { makeCancelKit } from './cancel-kit.js';
  * @returns {Promise<R[]>}
  */
 export const allMap = async (values, fn, parentCancelled) => {
-  const { cancelled, cancel } = makeCancelKit(parentCancelled);
+  const { cancelled, cancel, isCancelled } = makeCancelKit(parentCancelled);
 
   const valuesArray = [...values];
 
   /** @type {Promise<R>[]} */
   const promises = valuesArray.map((value, index) =>
-    Promise.resolve().then(() => fn(value, index, cancelled)),
+    Promise.resolve().then(() => fn(value, index, cancelled, isCancelled)),
   );
 
   await null; // safe-await-separator
