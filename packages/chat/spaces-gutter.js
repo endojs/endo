@@ -421,12 +421,12 @@ export const createSpacesGutter = ({
         <div class="spaces-list">
     `;
 
-    allSpaces.forEach(space => {
+    allSpaces.forEach((space, index) => {
       const isActive = space.id === activeSpaceId;
       const isHome = space.id === 'home';
-      // Config id is the shortcut number: home=0, user spaces=1..9
-      const shortcutNum = isHome ? 0 : parseInt(space.id, 10);
-      const hasShortcut = shortcutNum >= 0 && shortcutNum <= 9;
+      // 1-indexed shortcuts: ⌘1=home, ⌘2=first user space, etc.
+      const shortcutNum = index + 1;
+      const hasShortcut = shortcutNum >= 1 && shortcutNum <= 9;
       const shortcutHint = hasShortcut ? `⌘${shortcutNum}` : '';
 
       html += `
@@ -820,24 +820,20 @@ export const createSpacesGutter = ({
    * @param {KeyboardEvent} e
    */
   const handleKeydown = e => {
-    // Check for Cmd+0 through Cmd+9 (or Ctrl on non-Mac)
+    // Check for Cmd+1 through Cmd+9 (or Ctrl on non-Mac)
     if (!e.metaKey && !e.ctrlKey) return;
     if (e.shiftKey || e.altKey) return;
 
     const key = e.key;
     const num = parseInt(key, 10);
-    if (Number.isNaN(num) || num < 0 || num > 9) return;
+    if (Number.isNaN(num) || num < 1 || num > 9) return;
 
-    // Cmd+0 selects home; Cmd+N selects user space N
-    if (num === 0) {
+    // 1-indexed: Cmd+1=home, Cmd+2=first user space, etc.
+    const allSpaces = [homeSpaceConfig, ...getSpacesArray()];
+    const index = num - 1;
+    if (index < allSpaces.length) {
       e.preventDefault();
-      selectSpace('home');
-    } else {
-      const id = String(num);
-      if (spacesMap.has(id)) {
-        e.preventDefault();
-        selectSpace(id);
-      }
+      selectSpace(allSpaces[index].id);
     }
   };
 
