@@ -308,7 +308,7 @@ Endo does not have a centralized skill registry.
 
 **Gap:** No skill registry or marketplace. Community plugins would need
 to be distributed as npm packages or git URLs and installed via
-`endo install`. A future "EndoHub" could index available plugins.
+`endo install`. A skills directory could index available plugins.
 
 ## Summary: Coverage and Gaps
 
