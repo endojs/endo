@@ -4,7 +4,7 @@
 // Establish a perimeter:
 import '@endo/init/debug.js';
 
-import test from 'ava';
+import baseTest from 'ava';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
@@ -14,6 +14,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import bundleSource from '@endo/bundle-source';
+import { netListenAllowed } from './_net-permission.js';
 import {
   start,
   stop,
@@ -37,6 +38,8 @@ const cryptoPowers = makeCryptoPowers(crypto);
 const { raw } = String;
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
+
+const test = netListenAllowed ? baseTest : baseTest.skip;
 
 /**
  * @param {AsyncIterator} asyncIterator - The iterator to take from.
@@ -331,11 +334,11 @@ const prepareConfig = async t => {
   return { ...contextObj };
 };
 
-test.beforeEach(t => {
+baseTest.beforeEach(t => {
   t.context = [];
 });
 
-test.afterEach.always(async t => {
+baseTest.afterEach.always(async t => {
   await Promise.allSettled(
     /** @type {EReturn<typeof prepareConfig>[]} */ (t.context).flatMap(
       ({ cancel, cancelled, config }) => {

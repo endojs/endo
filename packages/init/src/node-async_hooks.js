@@ -173,15 +173,15 @@ const getAsyncHookSymbolPromiseProtoDesc = (
   { disallowGet = false } = {},
 ) => ({
   set(value) {
-    if (Object.isExtensible(this)) {
-      Object.defineProperty(this, symbol, {
+    if (
+      !Reflect.defineProperty(this, symbol, {
         value,
         // Workaround a Node bug setting the destroyed sentinel multiple times
         writable: disallowGet,
         configurable: false,
         enumerable: false,
-      });
-    } else {
+      })
+    ) {
       // process._rawDebug('fallback set of async id', symbol, value, Error().stack);
       setAsyncIdFallback(this, symbol, value);
     }

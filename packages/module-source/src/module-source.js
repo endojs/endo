@@ -97,9 +97,21 @@ export function ModuleSource(source, opts = {}) {
   );
   this.reexports = freeze([...exportAlls].sort());
   this.__syncModuleProgram__ = functorSource;
-  this.__liveExportMap__ = liveExportMap;
-  this.__reexportMap__ = reexportMap;
-  this.__fixedExportMap__ = fixedExportMap;
+  for (const entry of values(liveExportMap)) {
+    freeze(entry);
+  }
+  for (const entry of values(fixedExportMap)) {
+    freeze(entry);
+  }
+  for (const reexports of values(reexportMap)) {
+    for (const pair of reexports) {
+      freeze(pair);
+    }
+    freeze(reexports);
+  }
+  this.__liveExportMap__ = freeze(liveExportMap);
+  this.__reexportMap__ = freeze(reexportMap);
+  this.__fixedExportMap__ = freeze(fixedExportMap);
   this.__needsImport__ = needsImport;
   this.__needsImportMeta__ = needsImportMeta;
   freeze(this);
@@ -133,3 +145,8 @@ function AbstractModuleSource() {
 
 Object.setPrototypeOf(ModuleSource, AbstractModuleSource);
 Object.setPrototypeOf(ModuleSource.prototype, AbstractModuleSource.prototype);
+
+freeze(AbstractModuleSource);
+freeze(AbstractModuleSource.prototype);
+freeze(ModuleSource.prototype);
+freeze(ModuleSource);

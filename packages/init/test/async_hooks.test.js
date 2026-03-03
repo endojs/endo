@@ -5,6 +5,7 @@
 // Use the debug-async-hooks entrypoint which includes the async_hooks patch
 // eslint-disable-next-line import/no-extraneous-dependencies
 import '@endo/init/debug-async-hooks.js';
+import harden from '@endo/harden';
 import test from 'ava';
 import { createHook, AsyncLocalStorage } from 'async_hooks';
 import { setTimeout } from 'timers';
@@ -61,9 +62,7 @@ test('async_hooks Promise patch', async t => {
 
     // Create a promise with symbols attached
     const p3 = Promise.resolve();
-    if (!harden.isFake) {
-      t.is(Reflect.ownKeys(p3).length > 0, hasAsyncSymbols);
-    }
+    t.is(Reflect.ownKeys(p3).length > 0, hasAsyncSymbols);
 
     return Promise.resolve().then(() => {
       resolve(8);
@@ -75,9 +74,7 @@ test('async_hooks Promise patch', async t => {
       // node versions will fail and generate a new one because of an own check
       p1.then(() => {});
 
-      if (!harden.isFake) {
-        t.is(Reflect.ownKeys(ret).length > 0, hasAsyncSymbols);
-      }
+      t.is(Reflect.ownKeys(ret).length > 0, hasAsyncSymbols);
 
       // testHooks.disable();
 

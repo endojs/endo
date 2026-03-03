@@ -109,8 +109,12 @@ const createMockContext = () => {
     },
   });
 
+  const typedPowers = /** @type {ERef<EndoHost>} */ (
+    /** @type {unknown} */ (powers)
+  );
+
   return {
-    powers,
+    powers: typedPowers,
     calls,
     showValueCalls,
     showMessageCalls,
@@ -371,7 +375,7 @@ test('execute show command', async t => {
 
   t.true(result.success);
   t.deepEqual(result.value, { looked: 'up' });
-  t.deepEqual(ctx.calls[0].args, ['my', 'value']);
+  t.deepEqual(ctx.calls[0].args, [['my', 'value']]);
   t.is(ctx.showValueCalls.length, 1);
 });
 
@@ -644,5 +648,5 @@ test('execute handles dot-path splitting', async t => {
 
   await executor.execute('show', { petName: 'a.b.c.d' });
 
-  t.deepEqual(ctx.calls[0].args, ['a', 'b', 'c', 'd']);
+  t.deepEqual(ctx.calls[0].args, [['a', 'b', 'c', 'd']]);
 });

@@ -1,17 +1,22 @@
 # Endo Design Documents
 
-*Last updated: 2026-02-24*
+*Last updated: 2026-02-26*
 
 ## Summary
 
 | Design | Date | Status |
 |--------|------|--------|
+| [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | Not Started |
+| [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | Not Started |
+| [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | Not Started |
+| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-25 | Not Started |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | **Complete** |
 | [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | **Complete** |
 | [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | Not Started |
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | Not Started |
+| [daemon-form-request](daemon-form-request.md) | 2026-02-25 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | Not Started |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | Not Started |
@@ -31,7 +36,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | Not Started |
 
-**Totals:** 4 Complete, 3 In Progress, 16 Not Started
+**Totals:** 4 Complete, 4 In Progress, 21 Not Started
 
 ## Roadmap
 
@@ -62,6 +67,14 @@ flowchart TD
         onoise[ocapn-noise-network]
         onet --> otcp --> onoise
         orev --> onoise
+    end
+
+    subgraph Chat Theming
+        cscheme[chat-color-schemes]
+        cspace[chat-per-space-color-scheme]
+        chc[chat-high-contrast-mode]
+        cscheme --> cspace --> chc
+        cscheme --> chc
     end
 
     subgraph Capability System
@@ -113,6 +126,9 @@ Improve Chat UI; independent of core infrastructure.
 
 | Design | Urgency | Depends On | Rationale |
 |--------|---------|------------|-----------|
+| chat-color-schemes | Low | — | Dark mode; system preference support |
+| chat-per-space-color-scheme | Low | chat-color-schemes | Per-space scheme override (auto/light/dark) |
+| chat-high-contrast-mode | Low | chat-color-schemes, chat-per-space-color-scheme | WCAG AAA accessibility |
 | chat-reply-chain-visualization | Low | — | Visual improvement; no blockers |
 | inventory-grouping-by-type | Low | — | UX polish |
 | inventory-drag-and-drop | Low | — | UX polish |

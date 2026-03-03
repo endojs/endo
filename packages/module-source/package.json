@@ -47,6 +47,7 @@
     "@babel/parser": "~7.28.3",
     "@babel/traverse": "~7.28.3",
     "@babel/types": "~7.28.2",
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
@@ -82,7 +83,7 @@
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
-    "ses-shim": "../../ava-ses-shims-only.config.mjs"
+    "ses": "../../ava-ses-shims-only.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 40.33

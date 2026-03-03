@@ -2,6 +2,7 @@
 /* global process */
 /* eslint-disable no-void */
 
+import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
@@ -311,9 +312,7 @@ export const makeCryptoPowers = crypto => {
             // Ed25519 SPKI DER has a 12-byte prefix before the 32-byte key.
             // Ed25519 PKCS8 DER has a 16-byte prefix before the 32-byte seed.
             const rawPublicKey = publicDer.subarray(publicDer.length - 32);
-            const rawPrivateKey = privateDer.subarray(
-              privateDer.length - 32,
-            );
+            const rawPrivateKey = privateDer.subarray(privateDer.length - 32);
             resolve(
               harden({
                 publicKey: new Uint8Array(rawPublicKey),

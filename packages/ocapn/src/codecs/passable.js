@@ -5,6 +5,7 @@
  * @import { DescCodecs } from './descriptors.js'
  */
 
+import harden from '@endo/harden';
 import { makeTagged } from '@endo/pass-style';
 import { makeSelector, getSelectorName } from '../selector.js';
 import {

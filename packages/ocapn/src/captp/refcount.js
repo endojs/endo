@@ -1,3 +1,5 @@
+import harden from '@endo/harden';
+
 /**
  * @typedef {import('./types.js').Slot} Slot
  *

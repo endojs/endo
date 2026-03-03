@@ -5,9 +5,13 @@
  * Electron main process entry point for the Endo Familiar.
  *
  * Startup sequence:
- * 1. Ensure the Endo daemon is running (daemon hosts the gateway)
- * 2. Read gateway connection info (port from ENDO_ADDR, agent ID from state)
- * 3. Create a BrowserWindow loading Chat with config via URL query params
+ * 1. Register localhttp:// scheme and configure command-line flags (before app
+ *    ready)
+ * 2. Ensure the Endo daemon is running (daemon hosts the gateway)
+ * 3. Read gateway connection info (port from ENDO_ADDR, agent ID from state)
+ * 4. Install localhttp:// handler, exfiltration defenses, and navigation guard
+ * 5. Create a BrowserWindow loading Chat with config via URL query params
+ * 6. Verify exfiltration defenses and send warnings to renderer
  *
  * The daemon outlives the Familiar.
  */
@@ -25,9 +29,24 @@ import {
   getGatewayAddress,
 } from './src/daemon-manager.js';
 import { resourcePaths } from './src/resource-paths.js';
+import {
+  registerLocalhttpScheme,
+  installLocalhttpHandler,
+} from './src/protocol-handler.js';
+import { installNavigationGuard } from './src/navigation-guard.js';
+import {
+  configureCommandLineFlags,
+  installExfiltrationDefenses,
+  verifyExfiltrationDefenses,
+} from './src/exfiltration-defense.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDevMode = process.argv.includes('--dev');
+
+// --- Pre-ready setup ---
+// These must be called before app.whenReady().
+registerLocalhttpScheme();
+configureCommandLineFlags();
 
 /** @type {string | undefined} */
 let gatewayAddress;
@@ -141,6 +160,9 @@ const createWindow = () => {
     },
   );
 
+  // Install navigation guard
+  installNavigationGuard(win, { isDevMode });
+
   return win;
 };
 
@@ -196,6 +218,17 @@ const handlePurgeDaemon = async win => {
   }
 };
 
+/**
+ * Extract the gateway port from the gateway address string.
+ *
+ * @param {string} address - Gateway address in "host:port" format.
+ * @returns {number}
+ */
+const parseGatewayPort = address => {
+  const { port } = new URL(`http://${address}`);
+  return port !== '' ? Number(port) : 8920;
+};
+
 const main = async () => {
   console.log('[🐈‍⬛ Familiar] Starting...');
   console.log(`[🐈‍⬛ Familiar] Dev mode: ${isDevMode}`);
@@ -213,22 +246,36 @@ const main = async () => {
   // Wait for Electron to be ready
   await app.whenReady();
 
-  // Step 3: Create the window
+  // Step 3: Install localhttp:// handler and exfiltration defenses
+  const gatewayPort = parseGatewayPort(gatewayAddress);
+  installLocalhttpHandler(gatewayPort);
+  installExfiltrationDefenses();
+
+  // Step 4: Create the window
   /** @type {Electron.BrowserWindow | null} */
   let mainWindow = createWindow();
 
-  // Step 4: Build menu
+  // Step 5: Build menu
   buildMenu(
     () => handleRestartDaemon(mainWindow),
     () => handlePurgeDaemon(mainWindow),
   );
 
-  // Step 5: Register IPC handlers
+  // Step 6: Register IPC handlers
   ipcMain.handle('familiar:restart-daemon', () =>
     handleRestartDaemon(mainWindow),
   );
   ipcMain.handle('familiar:purge-daemon', () => handlePurgeDaemon(mainWindow));
   ipcMain.handle('familiar:get-version', () => app.getVersion());
+
+  // Step 7: Verify exfiltration defenses and notify renderer
+  const warnings = await verifyExfiltrationDefenses();
+  if (warnings.length > 0) {
+    console.warn('[Familiar] Security warnings:', warnings);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('familiar:security-warnings', warnings);
+    }
+  }
 
   // macOS: recreate window when dock icon is clicked
   app.on('activate', () => {

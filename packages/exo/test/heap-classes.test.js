@@ -1,6 +1,7 @@
 // @ts-check
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
   GET_INTERFACE_GUARD,
@@ -8,9 +9,6 @@ import {
   defineExoClassKit,
   makeExo,
 } from '../index.js';
-
-// @ts-expect-error isFake is not advertised by the type of harden.
-const hardenIsFake = !!harden.isFake;
 
 const NoExtraI = M.interface('NoExtra', {
   foo: M.call().returns(),
@@ -284,8 +282,8 @@ test('raw guards', t => {
     },
     rawIn(obj) {
       // Object is never actually frozen, but isFrozen will always say true
-      // when hardenIsFake.
-      t.is(hardenIsFake, Object.isFrozen(obj));
+      // when lockdown hardenTaming is unsafe.
+      t.is(Object.isFrozen({}), Object.isFrozen(obj));
       return obj;
     },
     rawOut(obj) {
@@ -297,14 +295,14 @@ test('raw guards', t => {
     passthrough(obj) {
       // The object is not frozen, but isFrozen lies when hardenTaming is
       // unsafe.
-      t.is(hardenIsFake, Object.isFrozen(obj));
+      t.is(Object.isFrozen({}), Object.isFrozen(obj));
       return obj;
     },
     tortuous(hardA, softB, hardC, optHardD, optSoftE = {}) {
       // Recall that isFrozen lies with hardenTaming: unsafe
       // Test that `M.raw()` does not freeze the arguments, unlike `M.any()`.
       t.true(Object.isFrozen(hardA));
-      t.is(hardenIsFake, Object.isFrozen(softB));
+      t.is(Object.isFrozen({}), Object.isFrozen(softB));
       softB.b = 2;
       t.true(Object.isFrozen(hardC));
       t.true(Object.isFrozen(optHardD));
@@ -312,7 +310,7 @@ test('raw guards', t => {
       // defaults in the argument to an unfrozen object.
       // But, in unsafe harden taming, isFrozen misreports that soft objects
       // are frozen.
-      t.is(hardenIsFake, Object.isFrozen(optSoftE));
+      t.is(Object.isFrozen({}), Object.isFrozen(optSoftE));
       return {};
     },
   });
@@ -322,8 +320,8 @@ test('raw guards', t => {
   t.true(Object.isFrozen(greeter2.rawIn({})));
   // These both return actually unfrozen objects because of the M.raw return
   // guard, but isFrozen says true anyway if hardenTaming is unsafe.
-  t.is(hardenIsFake, Object.isFrozen(greeter2.rawOut({})));
-  t.is(hardenIsFake, Object.isFrozen(greeter2.passthrough({})));
+  t.is(Object.isFrozen({}), Object.isFrozen(greeter2.rawOut({})));
+  t.is(Object.isFrozen({}), Object.isFrozen(greeter2.passthrough({})));
 
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
