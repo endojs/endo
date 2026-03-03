@@ -2534,3 +2534,268 @@ test.serial('channel - heat config: posts within sustained rate succeed', async 
   const messages = await E(channel).listMessages();
   t.is(messages.length, 5, 'all 5 posts succeeded within generous burst limit');
 });
+
+// ---------- Composite heat: getHopInfo and followHeatEvents ----------
+
+test.serial('channel - getHopInfo returns chain of policies and states', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('hop-chan', 'Admin');
+  const channel = await E(host).lookup('hop-chan');
+
+  // Create admin → A → B chain
+  const [inviteA, attA] = await E(channel).createInvitation('A');
+  await E(attA).setHeatConfig({
+    burstLimit: 10,
+    sustainedRate: 20,
+    lockoutDurationMs: 5000,
+    postLockoutPct: 30,
+  });
+  const memberA = await E(inviteA).join('A');
+
+  const [inviteB, attB] = await E(memberA).createInvitation('B');
+  await E(attB).setHeatConfig({
+    burstLimit: 5,
+    sustainedRate: 10,
+    lockoutDurationMs: 3000,
+    postLockoutPct: 20,
+  });
+  const memberB = await E(inviteB).join('B');
+
+  // B's getHopInfo should return 2 hops (A and B, both with heat configs)
+  const hopInfo = await E(memberB).getHopInfo();
+  t.is(hopInfo.policies.length, 2, 'B sees 2 hops (A and B)');
+  t.is(hopInfo.states.length, 2, 'B has 2 state entries');
+
+  // First hop is A (root-first order)
+  t.is(hopInfo.policies[0].label, 'A');
+  t.is(hopInfo.policies[0].burstLimit, 10);
+  t.is(hopInfo.policies[0].hopIndex, 0);
+
+  // Second hop is B
+  t.is(hopInfo.policies[1].label, 'B');
+  t.is(hopInfo.policies[1].burstLimit, 5);
+  t.is(hopInfo.policies[1].hopIndex, 1);
+
+  // States should both show 0 heat initially
+  t.is(hopInfo.states[0].heat, 0);
+  t.is(hopInfo.states[1].heat, 0);
+  t.is(hopInfo.states[0].locked, false);
+  t.is(hopInfo.states[1].locked, false);
+});
+
+test.serial('channel - getHopInfo omits hops without heatConfig', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('hop-no-cfg', 'Admin');
+  const channel = await E(host).lookup('hop-no-cfg');
+
+  // admin → A (no config) → B (has config)
+  const [inviteA] = await E(channel).createInvitation('A');
+  const memberA = await E(inviteA).join('A');
+
+  const [inviteB, attB] = await E(memberA).createInvitation('B');
+  await E(attB).setHeatConfig({
+    burstLimit: 5,
+    sustainedRate: 10,
+    lockoutDurationMs: 3000,
+    postLockoutPct: 20,
+  });
+  const memberB = await E(inviteB).join('B');
+
+  const hopInfo = await E(memberB).getHopInfo();
+  t.is(hopInfo.policies.length, 1, 'only hop with config is included');
+  t.is(hopInfo.policies[0].label, 'B');
+});
+
+test.serial('channel - admin getHopInfo returns empty', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('hop-admin', 'Admin');
+  const channel = await E(host).lookup('hop-admin');
+
+  const hopInfo = await E(channel).getHopInfo();
+  t.is(hopInfo.policies.length, 0, 'admin has no hops');
+  t.is(hopInfo.states.length, 0, 'admin has no state');
+});
+
+test.serial('channel - followHeatEvents delivers events for ancestor hops', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('heat-evt', 'Admin');
+  const channel = await E(host).lookup('heat-evt');
+
+  // Create admin → A with heat config
+  const [inviteA, attA] = await E(channel).createInvitation('A');
+  await E(attA).setHeatConfig({
+    burstLimit: 10,
+    sustainedRate: 20,
+    lockoutDurationMs: 5000,
+    postLockoutPct: 30,
+  });
+  const memberA = await E(inviteA).join('A');
+
+  // Create A → B with heat config
+  const [inviteB, attB] = await E(memberA).createInvitation('B');
+  await E(attB).setHeatConfig({
+    burstLimit: 5,
+    sustainedRate: 10,
+    lockoutDurationMs: 3000,
+    postLockoutPct: 20,
+  });
+  const memberB = await E(inviteB).join('B');
+
+  // Subscribe B to heat events
+  const eventsRef = await E(memberB).followHeatEvents();
+  const eventIter = makeRefIterator(eventsRef);
+
+  // B posts — this should generate heat events for both A's and B's pools
+  await E(memberB).post(['hello'], [], []);
+
+  // We should get heat events for both hops (A and B)
+  const event1 = await eventIter.next();
+  t.truthy(event1.value, 'first heat event received');
+  t.is(event1.value.type, 'heat');
+
+  const event2 = await eventIter.next();
+  t.truthy(event2.value, 'second heat event received');
+  t.is(event2.value.type, 'heat');
+
+  // The two events should be for different hops
+  t.not(event1.value.hopMemberId, event2.value.hopMemberId,
+    'events are for different hops');
+});
+
+// ---------- Downstream policy isolation ----------
+
+test.serial('channel - downstream tight limit does not inflate parent heat', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('iso-chan', 'Alice');
+  const channel = await E(host).lookup('iso-chan');
+
+  // Alice → Bob with generous burst limit (10 messages)
+  const [bobInvite, bobAtt] = await E(channel).createInvitation('Bob');
+  await E(bobAtt).setHeatConfig({
+    burstLimit: 10,
+    sustainedRate: 1,
+    lockoutDurationMs: 60000,
+    postLockoutPct: 0,
+  });
+  const bobMember = await E(bobInvite).join('Bob');
+
+  // Bob → Carol with tight burst limit (3 messages)
+  const [carolInvite, carolAtt] = await E(bobMember).createInvitation('Carol');
+  await E(carolAtt).setHeatConfig({
+    burstLimit: 3,
+    sustainedRate: 1,
+    lockoutDurationMs: 60000,
+    postLockoutPct: 0,
+  });
+  const carolMember = await E(carolInvite).join('Carol');
+
+  // Carol posts 3 messages — hits Carol's own limit
+  await E(carolMember).post(['C1'], [], []);
+  await E(carolMember).post(['C2'], [], []);
+  await E(carolMember).post(['C3'], [], []);
+
+  // Carol's 4th post should fail (Carol's burstLimit=3 is exhausted)
+  await t.throwsAsync(
+    () => E(carolMember).post(['C4'], [], []),
+    { message: /Rate limit lockout/ },
+    'Carol hits her own tight limit after 3 posts',
+  );
+
+  // Bob's hop should have gained heat at Bob's rate (9 per msg = 27 total),
+  // NOT at Carol's rate (30 per msg = 90 total). So Bob should still be
+  // able to post comfortably.
+  await E(bobMember).post(['B1'], [], []);
+  await E(bobMember).post(['B2'], [], []);
+  await E(bobMember).post(['B3'], [], []);
+  await E(bobMember).post(['B4'], [], []);
+  // Bob has now posted 4 messages = 36 heat on his own, plus Carol's 3
+  // added 27 = 63 total. Still below 90 threshold.
+  t.pass('Bob can still post after Carol exhausted her own limit');
+});
+
+test.serial('channel - getHopInfo returns each hop policy independently', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('iso-hop', 'Alice');
+  const channel = await E(host).lookup('iso-hop');
+
+  // Alice → Bob (generous)
+  const [bobInvite, bobAtt] = await E(channel).createInvitation('Bob');
+  await E(bobAtt).setHeatConfig({
+    burstLimit: 10,
+    sustainedRate: 20,
+    lockoutDurationMs: 5000,
+    postLockoutPct: 30,
+  });
+  const bobMember = await E(bobInvite).join('Bob');
+
+  // Bob → Carol (tight)
+  const [carolInvite, carolAtt] = await E(bobMember).createInvitation('Carol');
+  await E(carolAtt).setHeatConfig({
+    burstLimit: 3,
+    sustainedRate: 5,
+    lockoutDurationMs: 10000,
+    postLockoutPct: 10,
+  });
+  const carolMember = await E(carolInvite).join('Carol');
+
+  const hopInfo = await E(carolMember).getHopInfo();
+  t.is(hopInfo.policies.length, 2, 'Carol sees 2 hops');
+
+  // First hop = Bob's policy (generous)
+  t.is(hopInfo.policies[0].burstLimit, 10, 'Bob hop has burstLimit 10');
+  t.is(hopInfo.policies[0].sustainedRate, 20, 'Bob hop has sustainedRate 20');
+
+  // Second hop = Carol's policy (tight)
+  t.is(hopInfo.policies[1].burstLimit, 3, 'Carol hop has burstLimit 3');
+  t.is(hopInfo.policies[1].sustainedRate, 5, 'Carol hop has sustainedRate 5');
+
+  // The policies must be independent — Carol's tight limit should not
+  // appear on Bob's hop entry
+  t.not(hopInfo.policies[0].burstLimit, hopInfo.policies[1].burstLimit,
+    'hop policies are distinct, not contaminated');
+});
+
+test.serial('channel - parent heat accumulates at parent rate from child posts', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('rate-chan', 'Alice');
+  const channel = await E(host).lookup('rate-chan');
+
+  // Alice → Bob with burstLimit 10 (heatPerMessage = 9)
+  const [bobInvite, bobAtt] = await E(channel).createInvitation('Bob');
+  await E(bobAtt).setHeatConfig({
+    burstLimit: 10,
+    sustainedRate: 1,
+    lockoutDurationMs: 60000,
+    postLockoutPct: 0,
+  });
+  const bobMember = await E(bobInvite).join('Bob');
+
+  // Bob → Carol with burstLimit 3 (heatPerMessage = 30)
+  const [carolInvite, carolAtt] = await E(bobMember).createInvitation('Carol');
+  await E(carolAtt).setHeatConfig({
+    burstLimit: 3,
+    sustainedRate: 1,
+    lockoutDurationMs: 60000,
+    postLockoutPct: 0,
+  });
+  const carolMember = await E(carolInvite).join('Carol');
+
+  // Carol posts 2 messages
+  await E(carolMember).post(['C1'], [], []);
+  await E(carolMember).post(['C2'], [], []);
+
+  // Check Bob's hop heat via getHopInfo.
+  // Bob's rate: heatPerMessage = 90/10 = 9, so 2 posts = ~18 heat.
+  // If bug exists (using Carol's rate): 90/3 = 30, so 2 posts = ~60 heat.
+  const hopInfo = await E(carolMember).getHopInfo();
+  const bobState = hopInfo.states[0]; // Bob is first (root-first)
+
+  // Allow some tolerance for cooling during CapTP roundtrips
+  t.true(bobState.heat < 30,
+    `Bob hop heat should be ~18 (at Bob's rate), got ${bobState.heat}`);
+  t.false(bobState.locked, 'Bob hop should not be locked after only 2 child posts');
+});

@@ -358,6 +358,8 @@ export const ChannelInterface = M.interface('EndoChannel', {
   getMemberId: M.call().returns(M.string()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
   getHeatConfig: M.call().returns(M.promise()),
+  getHopInfo: M.call().returns(M.promise()),
+  followHeatEvents: M.call().returns(M.promise()),
 });
 
 export const ChannelMemberInterface = M.interface('EndoChannelMember', {
@@ -374,6 +376,8 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   getMemberId: M.call().returns(M.string()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
   getHeatConfig: M.call().returns(M.promise()),
+  getHopInfo: M.call().returns(M.promise()),
+  followHeatEvents: M.call().returns(M.promise()),
 });
 
 export const ChannelInvitationInterface = M.interface(

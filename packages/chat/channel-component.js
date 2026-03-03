@@ -269,6 +269,15 @@ export const channelComponent = async (
   const messagesRef = await E(channel).followMessages();
   const messageIterator = makeRefIterator(messagesRef);
 
+  // Schedule a hard scroll-to-bottom shortly after messages start arriving.
+  // The existing message backlog arrives rapidly via the iterator; this
+  // timer fires once the initial batch has been rendered, ensuring the
+  // user lands at the latest message when switching to a channel.
+  let initialScrollTimer = setTimeout(() => {
+    $parent.scrollTo(0, $parent.scrollHeight);
+    initialScrollTimer = 0;
+  }, 150);
+
   for await (const message of messageIterator) {
     const typedMessage = /** @type {ChannelMessage} */ (message);
     const $msg = createMessageElement(typedMessage);
@@ -277,7 +286,19 @@ export const channelComponent = async (
     } else {
       $parent.appendChild($msg);
     }
-    scrollToBottom();
+
+    // During the initial batch, reschedule the hard scroll so it fires
+    // after the last message in the backlog rather than mid-batch.
+    if (initialScrollTimer) {
+      clearTimeout(initialScrollTimer);
+      initialScrollTimer = setTimeout(() => {
+        $parent.scrollTo(0, $parent.scrollHeight);
+        initialScrollTimer = 0;
+      }, 50);
+    } else {
+      scrollToBottom();
+    }
+
     if (onMessageChange) {
       onMessageChange(typedMessage.number);
     }

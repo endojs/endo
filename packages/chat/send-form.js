@@ -6,6 +6,7 @@
 
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 import { makeLiveHeatEngine } from './heat-engine.js';
+import { makeCompositeHeatEngine } from './composite-heat-engine.js';
 import { createHeatBar } from './heat-bar.js';
 
 /**
@@ -71,14 +72,62 @@ export const sendFormComponent = ({
   // --- Heat engine integration ---
   /** @type {ReturnType<typeof makeLiveHeatEngine> | null} */
   let heatEngine = null;
+  /** @type {ReturnType<typeof makeCompositeHeatEngine> | null} */
+  let compositeEngine = null;
   /** @type {ReturnType<typeof createHeatBar> | null} */
   let heatBar = null;
+  /** Guard against double-init (polling + async race) */
+  let heatEngineInitialized = false;
+  /** Polling cancellation flag */
+  let heatPollingStopped = false;
 
   /**
-   * Initialize the heat engine for a channel with a heat config.
+   * Initialize the composite heat engine for multi-hop heat tracking.
+   * Falls back to single-hop engine if getHopInfo is not available.
    * @param {unknown} channelRef
    */
   const initHeatEngine = async channelRef => {
+    if (heatEngineInitialized) return;
+    heatEngineInitialized = true;
+
+    try {
+      // Try composite (multi-hop) engine first
+      const hopInfo = await E(channelRef).getHopInfo();
+      if (hopInfo && hopInfo.policies && hopInfo.policies.length > 0) {
+        heatBar = createHeatBar(
+          /** @type {HTMLElement} */ ($input.parentElement),
+          $sendButton,
+        );
+        compositeEngine = makeCompositeHeatEngine(
+          hopInfo.policies,
+          hopInfo.states,
+          state => {
+            if (heatBar) heatBar.update(state);
+          },
+        );
+        compositeEngine.start();
+
+        // Subscribe to heat events for real-time updates
+        try {
+          const eventsRef = await E(channelRef).followHeatEvents();
+          const eventIter = makeRefIterator(eventsRef);
+          (async () => {
+            for await (const event of eventIter) {
+              if (compositeEngine) {
+                compositeEngine.applyEvent(/** @type {any} */ (event));
+              }
+            }
+          })();
+        } catch {
+          // Heat events not available — composite engine still works locally
+        }
+        return;
+      }
+    } catch {
+      // getHopInfo not available — try legacy single-hop
+    }
+
+    // Fallback: single-hop heat engine
     try {
       const config = await E(channelRef).getHeatConfig();
       if (config && typeof config === 'object') {
@@ -97,11 +146,24 @@ export const sendFormComponent = ({
     }
   };
 
-  // If in channel mode, try to init heat engine
+  // If in channel mode, try to init heat engine.
+  // The channel ref may not be available yet (it's set asynchronously),
+  // so poll until it appears.
   if (getChannelRef) {
     const channelRef = getChannelRef();
     if (channelRef) {
       void initHeatEngine(channelRef);
+    } else {
+      const pollForChannelRef = () => {
+        if (heatPollingStopped || heatEngineInitialized) return;
+        const ref = getChannelRef();
+        if (ref) {
+          void initHeatEngine(ref);
+        } else {
+          setTimeout(pollForChannelRef, 500);
+        }
+      };
+      setTimeout(pollForChannelRef, 500);
     }
   }
 
@@ -149,8 +211,18 @@ export const sendFormComponent = ({
     // Channel mode: post directly to the channel (no recipient needed)
     const channelRef = getChannelRef ? getChannelRef() : null;
     if (channelRef) {
-      // Client-side heat check
-      if (heatEngine) {
+      // Client-side heat check (composite engine takes priority)
+      if (compositeEngine) {
+        const result = compositeEngine.recordSend();
+        if (!result.allowed) {
+          $sendButton.classList.add('heat-shake');
+          setTimeout(() => $sendButton.classList.remove('heat-shake'), 500);
+          $error.textContent = result.lockRemainingMs > 0
+            ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
+            : 'Sending too fast — slow down';
+          return;
+        }
+      } else if (heatEngine) {
         const result = heatEngine.attemptSend();
         if (!result.allowed) {
           $sendButton.classList.add('heat-shake');
@@ -182,11 +254,14 @@ export const sendFormComponent = ({
           (/** @type {Error} */ err) => {
             $error.textContent = err.message;
             // On server rejection, sync heat to threshold
-            if (heatEngine && /rate limit/i.test(err.message)) {
-              const state = heatEngine.getState();
-              if (!state.locked) {
-                // Force a send to push heat over threshold
-                heatEngine.attemptSend();
+            if (/rate limit/i.test(err.message)) {
+              if (compositeEngine) {
+                compositeEngine.recordSend();
+              } else if (heatEngine) {
+                const state = heatEngine.getState();
+                if (!state.locked) {
+                  heatEngine.attemptSend();
+                }
               }
             }
           },

@@ -990,6 +990,8 @@ export interface EndoChannel {
   getMemberId(): string;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
+  getHopInfo(): Promise<HopInfo>;
+  followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
 }
 
 export interface EndoChannelInvitation {
@@ -1002,6 +1004,37 @@ export interface HeatConfig {
   sustainedRate: number;
   lockoutDurationMs: number;
   postLockoutPct: number;
+}
+
+export interface HopPolicy {
+  hopIndex: number;
+  label: string;
+  memberId: string;
+  burstLimit: number;
+  sustainedRate: number;
+  lockoutDurationMs: number;
+  postLockoutPct: number;
+}
+
+export interface HopState {
+  hopIndex: number;
+  heat: number;
+  locked: boolean;
+  lockRemaining: number;
+}
+
+export interface HeatEvent {
+  type: 'heat' | 'snapshot';
+  hopMemberId: string;
+  heat: number;
+  locked: boolean;
+  lockEndTime: number;
+  timestamp: number;
+}
+
+export interface HopInfo {
+  policies: HopPolicy[];
+  states: HopState[];
 }
 
 export interface EndoChannelAttenuator {
@@ -1032,6 +1065,8 @@ export interface EndoChannelMember {
   setProposedName(newName: string): Promise<void>;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
+  getHopInfo(): Promise<HopInfo>;
+  followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
 }
 
 export type EndoInspector<Record = string> = {

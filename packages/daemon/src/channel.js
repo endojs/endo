@@ -152,6 +152,22 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     const HEAT_LOCKOUT_THRESHOLD = 90;
 
     /**
+     * Shared heat state per member. Maps memberId to live heat state,
+     * enabling getHopInfo() to read any member's heat externally.
+     * @type {Map<string, { heat: number, locked: boolean, lockEndTime: number, lastHeatUpdateTime: number }>}
+     */
+    const heatStates = new Map();
+
+    /**
+     * All member entries by memberId, for ancestor chain traversal.
+     * @type {Map<string, MemberEntry>}
+     */
+    const memberEntries = new Map();
+
+    /** @type {Topic<{ type: string, hopMemberId: string, heat: number, locked: boolean, lockEndTime: number, timestamp: number }>} */
+    const heatEventsTopic = makeChangeTopic();
+
+    /**
      * Invitation registry: maps `${inviterMemberId}:${invitedAs}` to
      * the invitation record, enabling channel.join() to find the right
      * invitation and delegate.
@@ -307,16 +323,23 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
 
     /**
      * Create a heat-based checkPostRate closure for a member entry.
-     * Tracks heat, lockEndTime internally. Parent rate check is called first.
+     * Uses the shared heatStates map and publishes events to heatEventsTopic.
+     * Parent rate check is called first.
      *
      * @param {MemberEntry} entry
      * @param {(now: number) => void} parentCheckPostRate
      * @returns {(now: number) => void}
      */
     const makeHeatCheckPostRate = (entry, parentCheckPostRate) => {
-      let heat = 0;
-      let lastHeatUpdateTime = 0;
-      let lockEndTime = 0;
+      // Initialize shared state for this member
+      if (!heatStates.has(entry.memberId)) {
+        heatStates.set(entry.memberId, {
+          heat: 0,
+          locked: false,
+          lockEndTime: 0,
+          lastHeatUpdateTime: 0,
+        });
+      }
 
       return now => {
         parentCheckPostRate(now);
@@ -324,42 +347,255 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         const config = entry.heatConfig;
         if (!config) return;
 
+        const stateObj = /** @type {{ heat: number, locked: boolean, lockEndTime: number, lastHeatUpdateTime: number }} */ (
+          heatStates.get(entry.memberId)
+        );
+
         const heatPerMessage = HEAT_LOCKOUT_THRESHOLD / config.burstLimit;
         const coolRate = heatPerMessage * (config.sustainedRate / 60);
 
         // Check if locked
-        if (lockEndTime > 0) {
-          if (now < lockEndTime) {
-            const remaining = Math.ceil((lockEndTime - now) / 1000);
+        if (stateObj.lockEndTime > 0) {
+          if (now < stateObj.lockEndTime) {
+            const remaining = Math.ceil(
+              (stateObj.lockEndTime - now) / 1000,
+            );
             throw new Error(
               `Rate limit lockout for ${q(entry.invitedAs)} (${remaining}s remaining)`,
             );
           }
           // Lockout expired — reset heat
-          heat = config.postLockoutPct;
-          lockEndTime = 0;
-          lastHeatUpdateTime = now;
+          stateObj.heat = config.postLockoutPct;
+          stateObj.locked = false;
+          stateObj.lockEndTime = 0;
+          stateObj.lastHeatUpdateTime = now;
         }
 
         // Apply cooling (skip on first call when lastHeatUpdateTime is 0)
-        if (lastHeatUpdateTime > 0) {
-          const dt = (now - lastHeatUpdateTime) / 1000;
-          heat = Math.max(0, heat - coolRate * dt);
+        if (stateObj.lastHeatUpdateTime > 0) {
+          const dt = (now - stateObj.lastHeatUpdateTime) / 1000;
+          stateObj.heat = Math.max(0, stateObj.heat - coolRate * dt);
         }
 
         // Add heat for this message
-        heat += heatPerMessage;
-        lastHeatUpdateTime = now;
+        stateObj.heat += heatPerMessage;
+        stateObj.lastHeatUpdateTime = now;
+
+        // Publish heat event
+        heatEventsTopic.publisher.next(
+          harden({
+            type: 'heat',
+            hopMemberId: entry.memberId,
+            heat: stateObj.heat,
+            locked: false,
+            lockEndTime: 0,
+            timestamp: now,
+          }),
+        );
 
         // Check threshold
-        if (heat >= HEAT_LOCKOUT_THRESHOLD) {
-          lockEndTime = now + config.lockoutDurationMs;
+        if (stateObj.heat >= HEAT_LOCKOUT_THRESHOLD) {
+          stateObj.lockEndTime = now + config.lockoutDurationMs;
+          stateObj.locked = true;
           const remaining = Math.ceil(config.lockoutDurationMs / 1000);
+
+          // Publish lockout event
+          heatEventsTopic.publisher.next(
+            harden({
+              type: 'heat',
+              hopMemberId: entry.memberId,
+              heat: stateObj.heat,
+              locked: true,
+              lockEndTime: stateObj.lockEndTime,
+              timestamp: now,
+            }),
+          );
+
           throw new Error(
             `Rate limit lockout for ${q(entry.invitedAs)} (${remaining}s remaining)`,
           );
         }
       };
+    };
+
+    /**
+     * Walk the ancestor chain from a member entry up to the admin,
+     * returning entries in root-first order.
+     * @param {MemberEntry} entry
+     * @returns {MemberEntry[]}
+     */
+    const getAncestorChain = entry => {
+      /** @type {MemberEntry[]} */
+      const chain = [];
+      let current = entry;
+      while (current) {
+        chain.push(current);
+        if (current.inviterMemberId === '' || current.inviterMemberId === current.memberId) {
+          break;
+        }
+        const parent = memberEntries.get(current.inviterMemberId);
+        if (!parent) break;
+        current = parent;
+      }
+      chain.reverse(); // root-first order
+      return chain;
+    };
+
+    /**
+     * Build hop info (policies and states) for a member's ancestor chain.
+     * Only includes hops that have a non-null heatConfig.
+     * @param {MemberEntry} entry
+     * @returns {{ policies: Array<{ hopIndex: number, label: string, memberId: string, burstLimit: number, sustainedRate: number, lockoutDurationMs: number, postLockoutPct: number }>, states: Array<{ hopIndex: number, heat: number, locked: boolean, lockRemaining: number }> }}
+     */
+    const buildHopInfo = entry => {
+      const chain = getAncestorChain(entry);
+      /** @type {Array<{ hopIndex: number, label: string, memberId: string, burstLimit: number, sustainedRate: number, lockoutDurationMs: number, postLockoutPct: number }>} */
+      const policies = [];
+      /** @type {Array<{ hopIndex: number, heat: number, locked: boolean, lockRemaining: number }>} */
+      const states = [];
+      let hopIndex = 0;
+      const now = Date.now();
+      for (const hop of chain) {
+        if (hop.heatConfig) {
+          const stateObj = heatStates.get(hop.memberId);
+          let heat = 0;
+          let locked = false;
+          let lockEndTime = 0;
+
+          if (stateObj) {
+            // Apply cooling to get an accurate snapshot — the server only
+            // cools heat during checkPostRate calls, so stateObj.heat may
+            // be stale if no posts have occurred recently.
+            const config = hop.heatConfig;
+            const heatPerMessage =
+              HEAT_LOCKOUT_THRESHOLD / config.burstLimit;
+            const coolRate =
+              heatPerMessage * (config.sustainedRate / 60);
+
+            if (stateObj.lockEndTime > 0 && now >= stateObj.lockEndTime) {
+              // Lockout has expired
+              heat = config.postLockoutPct;
+              locked = false;
+              lockEndTime = 0;
+            } else if (stateObj.lockEndTime > 0 && now < stateObj.lockEndTime) {
+              // Still locked
+              heat = stateObj.heat;
+              locked = true;
+              lockEndTime = stateObj.lockEndTime;
+            } else if (stateObj.lastHeatUpdateTime > 0) {
+              // Not locked — apply passive cooling since last update
+              const dt =
+                (now - stateObj.lastHeatUpdateTime) / 1000;
+              heat = Math.max(0, stateObj.heat - coolRate * dt);
+              locked = false;
+              lockEndTime = 0;
+            }
+          }
+
+          const lockRemaining = locked
+            ? Math.max(0, lockEndTime - now)
+            : 0;
+          policies.push(harden({
+            hopIndex,
+            label: hop.proposedName,
+            memberId: hop.memberId,
+            burstLimit: hop.heatConfig.burstLimit,
+            sustainedRate: hop.heatConfig.sustainedRate,
+            lockoutDurationMs: hop.heatConfig.lockoutDurationMs,
+            postLockoutPct: hop.heatConfig.postLockoutPct,
+          }));
+          states.push(harden({
+            hopIndex,
+            heat,
+            locked,
+            lockRemaining,
+          }));
+          hopIndex += 1;
+        }
+      }
+      return { policies, states };
+    };
+
+    /**
+     * Get the set of ancestor member IDs for a member entry.
+     * @param {MemberEntry} entry
+     * @returns {Set<string>}
+     */
+    const getAncestorMemberIds = entry => {
+      const chain = getAncestorChain(entry);
+      const ids = new Set();
+      for (const hop of chain) {
+        if (hop.heatConfig) {
+          ids.add(hop.memberId);
+        }
+      }
+      return ids;
+    };
+
+    /**
+     * Create a gated async iterator for heat events filtered to a member's
+     * ancestor chain. Periodically injects snapshot events for drift correction.
+     * @param {MemberEntry} entry
+     * @param {() => void} checkAccess
+     * @returns {object}
+     */
+    const makeGatedFollowHeatEvents = (entry, checkAccess) => {
+      checkAccess();
+      const ancestorIds = getAncestorMemberIds(entry);
+      const subscription = heatEventsTopic.subscribe();
+
+      const iterator = (async function* heatEvents() {
+        let lastSnapshotTime = Date.now();
+        for await (const event of subscription) {
+          // Filter to only ancestor hops
+          if (!ancestorIds.has(event.hopMemberId)) {
+            continue;
+          }
+          yield event;
+
+          // Inject periodic snapshots every ~5s
+          const now = Date.now();
+          if (now - lastSnapshotTime > 5000) {
+            lastSnapshotTime = now;
+            // Use buildHopInfo which applies passive cooling
+            const snapInfo = buildHopInfo(entry);
+            const snapChain = getAncestorChain(entry);
+            const configuredHops = snapChain.filter(h => h.heatConfig);
+            for (let si = 0; si < snapInfo.states.length; si += 1) {
+              const snapState = snapInfo.states[si];
+              const hop = configuredHops[si];
+              if (hop) {
+                yield harden({
+                  type: 'snapshot',
+                  hopMemberId: hop.memberId,
+                  heat: snapState.heat,
+                  locked: snapState.locked,
+                  lockEndTime: snapState.locked
+                    ? now + snapState.lockRemaining
+                    : 0,
+                  timestamp: now,
+                });
+              }
+            }
+          }
+        }
+      })();
+
+      const rawIterRef = makeIteratorRef(iterator);
+      return makeExo('GatedHeatEventIterator', AsyncIteratorInterface, {
+        async next() {
+          checkAccess();
+          const result = await rawIterRef.next();
+          checkAccess();
+          return result;
+        },
+        async return(value) {
+          return rawIterRef.return(value);
+        },
+        async throw(error) {
+          return rawIterRef.throw(error);
+        },
+      });
     };
 
     /**
@@ -474,6 +710,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
             heatConfig: /** @type {HeatConfig | null} */ (null),
             temporaryBanUntil: 0,
           };
+          memberEntries.set(subMemberId, subEntry);
           const attenuator = makeAttenuator(subEntry);
           const invitation = makeInvitation(
             subEntry,
@@ -533,6 +770,14 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
           checkAccess();
           return entry.heatConfig;
         },
+        getHopInfo: async () => {
+          checkAccess();
+          const info = buildHopInfo(entry);
+          return harden({ policies: harden(info.policies), states: harden(info.states) });
+        },
+        followHeatEvents: async () => {
+          return makeGatedFollowHeatEvents(entry, checkAccess);
+        },
       });
     };
 
@@ -547,6 +792,9 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
       heatConfig: /** @type {HeatConfig | null} */ (null),
       temporaryBanUntil: 0,
     };
+
+    // Register admin in memberEntries
+    memberEntries.set(adminMemberId, adminEntry);
 
     // Admin's access closures — always pass (admin is never gated)
     const adminCheckAccess = () => {};
@@ -622,6 +870,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     });
 
     for (const entry of rehydratedEntries) {
+      memberEntries.set(entry.memberId, entry);
       const parentInfo = memberHandleInfo.get(entry.inviterMemberId);
       if (!parentInfo) {
         // Parent not found — skip (orphaned entry)
@@ -699,6 +948,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
           heatConfig: /** @type {HeatConfig | null} */ (null),
           temporaryBanUntil: 0,
         };
+        memberEntries.set(memberId, newEntry);
         const attenuator = makeAttenuator(newEntry);
         const invitation = makeInvitation(
           newEntry,
@@ -776,6 +1026,15 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
       getHeatConfig: async () => {
         // Admin has no heat config (unrestricted)
         return null;
+      },
+      getHopInfo: async () => {
+        // Admin has no ancestor chain — return empty
+        return harden({ policies: harden([]), states: harden([]) });
+      },
+      followHeatEvents: async () => {
+        // Admin gets an empty iterator (no hops to monitor)
+        const iterator = (async function* emptyHeatEvents() {})();
+        return makeIteratorRef(iterator);
       },
     });
 
