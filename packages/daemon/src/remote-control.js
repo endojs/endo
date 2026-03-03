@@ -260,11 +260,16 @@ export const makeRemoteControlProvider = localNodeId => {
       connectionCancelled,
       connectionDispose,
     ) => {
+      const prevStateName = state.name || 'start';
       state = state.accept(
         proposedRemoteGateway,
         cancelConnection,
         connectionCancelled,
         connectionDispose || (() => {}),
+      );
+      const nextStateName = state.name || 'accepted';
+      console.log(
+        `[remote-control] accept: remote=${remoteNodeId.slice(0, 16)}... state=${prevStateName}->${nextStateName}`,
       );
     };
     /**
@@ -279,6 +284,10 @@ export const makeRemoteControlProvider = localNodeId => {
       incarnationCancelled,
       disposeIncarnation,
     ) => {
+      const prevStateName = state.name || 'start';
+      console.log(
+        `[remote-control] connect: remote=${remoteNodeId.slice(0, 16)}... currentState=${prevStateName}`,
+      );
       const { state: nextState, remoteGateway } = state.connect(
         getRemoteGateway,
         cancelIncarnation,
@@ -286,6 +295,10 @@ export const makeRemoteControlProvider = localNodeId => {
         disposeIncarnation,
       );
       state = nextState;
+      const nextStateName = state.name || 'connected';
+      console.log(
+        `[remote-control] connect: remote=${remoteNodeId.slice(0, 16)}... newState=${nextStateName}`,
+      );
       return remoteGateway;
     };
 

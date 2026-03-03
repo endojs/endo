@@ -44,6 +44,8 @@
     "test:clean": "rm -rf tmp && yarn test"
   },
   "dependencies": {
+    "@chainsafe/libp2p-noise": "^17.0.0",
+    "@chainsafe/libp2p-yamux": "^8.0.1",
     "@endo/base64": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
@@ -62,6 +64,17 @@
     "@endo/stream": "workspace:^",
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
+    "@libp2p/autonat": "^3.0.12",
+    "@libp2p/bootstrap": "^12.0.13",
+    "@libp2p/circuit-relay-v2": "^4.1.5",
+    "@libp2p/dcutr": "^3.0.12",
+    "@libp2p/identify": "^4.0.12",
+    "@libp2p/kad-dht": "^16.1.5",
+    "@libp2p/tcp": "^11.0.12",
+    "@libp2p/webrtc": "^6.0.13",
+    "@libp2p/websockets": "^10.1.5",
+    "@multiformats/multiaddr": "^13.0.1",
+    "libp2p": "^3.1.5",
     "ses": "workspace:^",
     "ws": "^8.13.0"
   },

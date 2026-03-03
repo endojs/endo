@@ -375,11 +375,17 @@ const makeDaemonCore = async (
       cancelConnection,
       connectionCancelled,
     ) => {
+      console.log(
+        `[endo-greeter] hello received from remote node ${remoteNodeId.slice(0, 16)}... at ${new Date().toISOString()}`,
+      );
       assertNodeNumber(remoteNodeId);
       const remoteControl = provideRemoteControl(remoteNodeId);
       /** @param {Error} error */
       const wrappedCancel = error => E(cancelConnection)(error);
       remoteControl.accept(remoteGateway, wrappedCancel, connectionCancelled);
+      console.log(
+        `[endo-greeter] accepted connection from remote node ${remoteNodeId.slice(0, 16)}...`,
+      );
       return localGateway;
     },
   });
@@ -1320,11 +1326,27 @@ const makeDaemonCore = async (
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
-          await Promise.allSettled(
+          console.log(
+            `[endo-networks] reviving ${networkIds.length} network(s)`,
+          );
+          const results = await Promise.allSettled(
             networkIds.map(id =>
               provide(/** @type {FormulaIdentifier} */ (id)),
             ),
           );
+          for (let i = 0; i < results.length; i += 1) {
+            const result = results[i];
+            if (result.status === 'rejected') {
+              console.error(
+                `[endo-networks] failed to revive network ${networkIds[i]}:`,
+                result.reason,
+              );
+            } else {
+              console.log(
+                `[endo-networks] revived network ${networkIds[i]}`,
+              );
+            }
+          }
         },
         revivePins: async () => {
           const pinsDirectory = await provide(pinsId, 'directory');
@@ -1338,16 +1360,23 @@ const makeDaemonCore = async (
             /** @type {unknown} */ (await provide(peersId, 'pet-store'))
           );
           const { node: nodeNumber, addresses } = peerInfo;
+          console.log(
+            `[endo-peers] addPeerInfo: node=${nodeNumber.slice(0, 16)}... addresses=[${addresses.join(', ')}]`,
+          );
           assertNodeNumber(nodeNumber);
           if (knownPeers.has(nodeNumber)) {
-            // We already have this peer.
-            // TODO: merge connection info
+            console.log(
+              `[endo-peers] peer already known: node=${nodeNumber.slice(0, 16)}...`,
+            );
             return;
           }
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(networksId, nodeNumber, addresses);
           await knownPeers.write(nodeNumber, peerId);
+          console.log(
+            `[endo-peers] peer registered: node=${nodeNumber.slice(0, 16)}... peerId=${peerId}`,
+          );
         },
       });
       return endoBootstrap;
@@ -2306,6 +2335,9 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulatePeer']} */
   const formulatePeer = async (networksDirectoryId, nodeNumber, addresses) => {
+    console.log(
+      `[endo-peer] formulatePeer: node=${nodeNumber.slice(0, 16)}... addresses=[${addresses.join(', ')}]`,
+    );
     const formulaNumber = /** @type {FormulaNumber} */ (await randomHex512());
     // TODO: validate addresses
     // TODO: mutable state like addresses should not be stored in formula
@@ -2399,6 +2431,9 @@ const makeDaemonCore = async (
   const getAllNetworks = async networksDirectoryId => {
     const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
+    console.log(
+      `[endo-networks] getAllNetworks: ${networkIds.length} network(s) registered`,
+    );
     const networks = await Promise.all(
       networkIds.map(id =>
         provide(/** @type {FormulaIdentifier} */ (id), 'network'),
@@ -2417,6 +2452,9 @@ const makeDaemonCore = async (
         }),
       )
     ).flat();
+    console.log(
+      `[endo-networks] getAllNetworkAddresses: ${addresses.length} address(es): [${addresses.join(', ')}]`,
+    );
     return addresses;
   };
 
@@ -2427,6 +2465,9 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
+    console.log(
+      `[endo-peer] makePeer: node=${nodeId.slice(0, 16)}... addresses=[${addresses.join(', ')}]`,
+    );
     const remoteControl = provideRemoteControl(nodeId);
     return remoteControl.connect(
       async () => {
@@ -2436,17 +2477,52 @@ const makeDaemonCore = async (
         // connection loss and invalidate the connection formula and its transitive
         // dependees when this occurs.
         const networks = await getAllNetworks(networksDirectoryId);
+        console.log(
+          `[endo-peer] connecting to node=${nodeId.slice(0, 16)}..., ${networks.length} network(s) available, ${addresses.length} address(es) to try`,
+        );
         // Connect on first support address.
         for (const address of addresses) {
           const { protocol } = new URL(address);
+          console.log(
+            `[endo-peer] trying address=${address} protocol=${protocol}`,
+          );
+          let supported = false;
           for (const network of networks) {
             // eslint-disable-next-line no-await-in-loop
             if (await E(network).supports(protocol)) {
-              return E(network).connect(address, makeFarContext(context));
+              supported = true;
+              console.log(
+                `[endo-peer] found supporting network for protocol=${protocol}, dialing address=${address}`,
+              );
+              try {
+                const result = await E(network).connect(
+                  address,
+                  makeFarContext(context),
+                );
+                console.log(
+                  `[endo-peer] connected to node=${nodeId.slice(0, 16)}... via address=${address}`,
+                );
+                return result;
+              } catch (dialErr) {
+                console.error(
+                  `[endo-peer] dial failed: address=${address} error=${dialErr.message}`,
+                );
+                throw dialErr;
+              }
             }
           }
+          if (!supported) {
+            console.warn(
+              `[endo-peer] no network supports protocol=${protocol} for address=${address}`,
+            );
+          }
         }
-        throw new Error('Cannot connect to peer: no supported addresses');
+        const err = new Error('Cannot connect to peer: no supported addresses');
+        console.error(
+          `[endo-peer] all addresses exhausted for node=${nodeId.slice(0, 16)}...:`,
+          err.message,
+        );
+        throw err;
       },
       context.cancel,
       context.cancelled,
@@ -2464,6 +2540,9 @@ const makeDaemonCore = async (
 
     const locate = async () => {
       const { node, addresses } = await hostAgent.getPeerInfo();
+      console.log(
+        `[endo-invitation] locate: node=${node.slice(0, 16)}... addresses=[${addresses.join(', ')}]`,
+      );
       const { number: hostHandleNumber } = parseId(hostHandleId);
       const { number } = parseId(id);
       const url = new URL('endo://');
@@ -2473,6 +2552,9 @@ const makeDaemonCore = async (
       for (const address of addresses) {
         url.searchParams.append('at', address);
       }
+      console.log(
+        `[endo-invitation] locator=${url.href}`,
+      );
       return url.href;
     };
 
@@ -2480,10 +2562,17 @@ const makeDaemonCore = async (
      * @param {string} guestHandleLocator
      */
     const accept = async guestHandleLocator => {
+      console.log(
+        `[endo-invitation] accept: locator=${guestHandleLocator}`,
+      );
       const url = new URL(guestHandleLocator);
       const guestHandleNumber = url.searchParams.get('id');
       const addresses = url.searchParams.getAll('at');
       const guestNodeNumber = url.hostname;
+
+      console.log(
+        `[endo-invitation] accept: guestNode=${(guestNodeNumber || '').slice(0, 16)}... addresses=[${addresses.join(', ')}]`,
+      );
 
       if (!guestHandleNumber) {
         throw makeError('Handle locator must have an "id" parameter');

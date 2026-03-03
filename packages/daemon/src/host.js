@@ -664,6 +664,9 @@ export const makeHostMaker = ({
     /** @type {EndoHost['getPeerInfo']} */
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
+      console.log(
+        `[endo-host] getPeerInfo: node=${localNodeNumber.slice(0, 16)}... addresses=[${addresses.join(', ')}]`,
+      );
       const peerInfo = {
         node: localNodeNumber,
         addresses,

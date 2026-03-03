@@ -62,8 +62,9 @@ export const make = async (powers, context) => {
       cancelled,
     });
 
-    // TODO log assigned port
-    console.log(`Endo daemon started local ${protocol} network device`);
+    console.log(
+      `[tcp-net] started ${protocol} network device on ${host}:${assignedPort}`,
+    );
     addresses.push(`${protocol}://${host}:${assignedPort}`);
 
     return connections;
@@ -79,9 +80,8 @@ export const make = async (powers, context) => {
       (async () => {
         const { value: connectionNumber } = connectionNumbers.next();
 
-        // TODO listen and connect addresses should be logged
         console.log(
-          `Endo daemon accepted connection ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
+          `[tcp-net] accepted inbound connection #${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
         );
 
         const messageWriter = mapWriter(
@@ -138,9 +138,8 @@ export const make = async (powers, context) => {
       cancelled: connectionCancelled,
     });
 
-    // TODO listen and connect addresses should be logged
     console.log(
-      `Endo daemon connected ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
+      `[tcp-net] outbound connection #${connectionNumber} to ${host}:${port} over ${protocol} at ${new Date().toISOString()}`,
     );
 
     const messageWriter = mapWriter(
