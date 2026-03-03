@@ -1,9 +1,9 @@
-# Daemon Form Request
+# Daemon Form
 
 | | |
 |---|---|
 | **Created** | 2026-02-25 |
-| **Updated** | 2026-02-28 |
+| **Updated** | 2026-03-02 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -22,16 +22,17 @@ This matters for three scenarios:
    responses or rely on the host to pre-configure values.
 2. **Capability requests with parameters.** A guest requesting access to a
    resource may need to specify parameters (port number, file path, scope).
-   A form request lets the host see exactly what is being asked and fill in
-   values with validation.
+   A form lets the host see exactly what is being asked and fill in values
+   with validation.
 3. **Multi-field input.** Some interactions require several related values at
    once (e.g., name + email + role for an invitation). Collecting these one
    at a time through separate messages is fragile and hard to correlate.
 
-The form-request message type solves this by letting any agent send a
-structured form to any other agent. The form carries a description, a set of
-named fields with labels, and a promise that resolves when the recipient
-responds with values.
+The form message type solves this by letting any agent send a structured form
+to any other agent. The form carries a description and a set of named fields
+with labels. Recipients respond by submitting values, which arrive as `value`
+messages replying to the original form. A form can be submitted any number of
+times.
 
 ## Current Implementation
 
@@ -41,82 +42,89 @@ The feature is implemented across the daemon, CLI, type system, and Chat UI.
 
 `packages/daemon/src/types.d.ts`
 
-The `FormRequest` message type (line 412):
+The `Form` message type (line 412):
 
 ```ts
-export type FormRequest = MessageBase & {
-  type: 'form-request';
+export type FormField = { label: string; pattern?: unknown };
+
+export type Form = MessageBase & {
+  type: 'form';
   replyTo?: FormulaNumber;
   description: string;
-  fields: Record<string, { label: string; pattern?: unknown }>;
-  promiseId: FormulaIdentifier;
-  resolverId: FormulaIdentifier;
-  settled: Promise<'fulfilled' | 'rejected'>;
+  fields: Record<string, FormField>;
 };
 ```
 
-`FormRequest` is included in the `Message` union type (line 449) and in the
-`MessageFormula` persistence type (line 272), which means form-request
-messages survive daemon restarts.
+Each field has a `label` (display text) and an optional `pattern` (a
+Passable pattern as defined by `@endo/patterns`). When `pattern` is omitted,
+the daemon treats it as `M.string()` — the field accepts any string value.
+
+`Form` is included in the `Message` union type (line 449) and in the
+`MessageFormula` persistence type (line 272), which means form messages
+survive daemon restarts.
 
 The `Mail` interface exposes two methods:
 
-- `form(recipientNameOrPath, description, fields, responseName?)` — send a
-  form request (line 701).
-- `getFormRequest(messageNumber)` — retrieve a received form request's
-  description, fields, resolverId, and guestHandleId (line 713).
+- `form(recipientNameOrPath, description, fields)` — send a form (line 701).
+- `getForm(messageNumber)` — retrieve a received form's description, fields,
+  and guestHandleId (line 713).
 
 The `EndoGuest` interface exposes `form()` (line 859) and the `EndoHost`
-interface exposes `respondForm()` (line 936).
+interface exposes `submit()` (line 936).
 
 ### Sending a Form — `mail.js`
 
 `packages/daemon/src/mail.js`
 
-**`makeFormRequest`** (line 277) creates the message envelope:
+**`makeForm`** (line 277) creates the message envelope:
 
 1. Generates a random `messageId` via `randomHex256()`.
-2. Allocates a promise/resolver pair via `formulatePromise(pinTransient)`.
-3. Starts a `settled` promise that resolves to `'fulfilled'` or `'rejected'`.
-4. Returns `{ request, response }` where `response` is a promise that
-   resolves with the formula identifier of the marshalled response values.
+2. Returns the form message object with `type: 'form'`, `description`, and
+   `fields`.
+
+No promise or resolver is allocated. The form is fire-and-forget from the
+sender's perspective.
 
 **`form`** (line 1299) is the guest-facing method:
 
 1. Resolves the recipient name to a handle.
-2. If `responseName` is provided and already exists, returns the existing
-   value (idempotent retry).
-3. Calls `makeFormRequest` to create the envelope and response promise.
-4. Posts the request to the recipient via `post(to, req)`.
-5. Unpins the transient promise and resolver after posting.
-6. Awaits the response promise, which resolves when the recipient calls
-   `respondForm`.
-7. Optionally writes the response to the sender's pet store under
-   `responseName`.
+2. Calls `makeForm` to create the envelope.
+3. Posts the form to the recipient via `post(to, req)`.
+4. Returns. Does not block or print output.
 
-### Responding to a Form — `host.js`
+The caller discovers responses by watching for `value` messages whose
+`replyTo` matches the form's `messageId`.
+
+### Submitting a Form — `host.js`
 
 `packages/daemon/src/host.js`
 
-**`respondForm`** (line 835):
+**`submit`** (line 835):
 
-1. Calls `mailbox.getFormRequest(messageNumber)` to retrieve the form's
-   `fields` and `resolverId`.
+1. Calls `mailbox.getForm(messageNumber)` to retrieve the form's `fields`.
 2. Validates that every field key in `fields` has a corresponding entry in
    `values`. Throws if any field is missing.
-3. Marshals the `values` record via `formulateMarshalValue` so it can be
+3. Validates each value against the field's `pattern` using `mustMatch()`.
+   Fields with no explicit `pattern` default to `M.string()`. Throws if any
+   value does not match.
+4. Marshals the `values` record via `formulateMarshalValue` so it can be
    stored as a formula.
-4. Resolves the form's promise: `E.sendOnly(resolver).resolveWithId(marshalledId)`.
+5. Sends a `value` message with `replyTo` pointing to the form's `messageId`,
+   carrying the marshalled values as the `valueId`.
+
+Because `submit` sends a `value` message reply rather than resolving a
+promise, it can be called any number of times on the same form. Each
+submission produces a new `value` message in the reply chain.
 
 ### Retrieving a Form — `mail.js`
 
 `packages/daemon/src/mail.js`
 
-**`getFormRequest`** (line 1372):
+**`getForm`** (line 1372):
 
 1. Looks up the message by number.
-2. Asserts the message type is `'form-request'`.
-3. Returns `{ description, fields, resolverId, guestHandleId }`.
+2. Asserts the message type is `'form'`.
+3. Returns `{ description, fields, guestHandleId }`.
 
 ### Interface Guards
 
@@ -130,14 +138,13 @@ form: M.call(
   M.string(),       // description
   M.record(),       // fields
 )
-  .optional(NameOrPathShape)  // responseName
   .returns(M.promise()),
 ```
 
-Host `respondForm()` guard (line 334):
+Host `submit()` guard (line 334):
 
 ```js
-respondForm: M.call(
+submit: M.call(
   MessageNumberShape,  // messageNumber
   M.record(),          // values
 ).returns(M.promise()),
@@ -150,16 +157,17 @@ respondForm: M.call(
 Guest `form` help (line 264):
 
 ```
-form(recipientName, description, fields, responseName?) -> Promise<Record>
-Send a structured form request to another agent.
-The recipient fills out the form fields and the result is returned as a record.
+form(recipientName, description, fields) -> void
+Send a structured form to another agent.
+The recipient submits values by responding, which arrive as value messages.
 ```
 
-Host `respondForm` help (line 434):
+Host `submit` help (line 434):
 
 ```
-respondForm(messageNumber, values) -> Promise<void>
-Respond to a structured form request with values.
+submit(messageNumber, values) -> Promise<void>
+Submit values for a form. Sends a value message reply to the form.
+Can be called multiple times on the same form.
 ```
 
 ### CLI Commands
@@ -171,32 +179,37 @@ Respond to a structured form request with values.
 ```
 endo form <recipient> <description> \
   --as <agent-name> \
-  --name <result-name> \
   --field <field>  (repeatable, format "fieldName:label")
 ```
 
-**`endo respond-form`** (line 361):
+The command sends the form and returns. It does not print output or block
+waiting for a response.
+
+**`endo submit`** (line 361):
 
 ```
-endo respond-form <message-number> \
+endo submit <message-number> \
   --as <agent-name> \
-  --value <value>  (repeatable, format "fieldName:value")
+  -f, --field <field>  (repeatable, format "fieldName:value")
 ```
+
+Sends a `value` message reply to the form. Can be called multiple times.
 
 ### CLI Command Implementations
 
 **`packages/cli/src/commands/form.js`** — parses `--field` arguments as
 `fieldName:label` pairs using the first colon as delimiter, calls
-`E(agent).form()`, and prints the result.
+`E(agent).form()`.
 
-**`packages/cli/src/commands/respond-form.js`** — parses `--value` arguments
-as `fieldName:value` pairs, calls `E(agent).respondForm()`.
+**`packages/cli/src/commands/submit.js`** — parses `--field` (`-f`) arguments
+as `fieldName:value` pairs, calls `E(agent).submit()`, which sends a
+`value` message reply.
 
 ### CLI Inbox Display
 
 `packages/cli/src/commands/inbox.js`
 
-Form-request messages are displayed in the inbox (line 112):
+Form messages are displayed in the inbox (line 112):
 
 ```
 3. "HOST" sent form "Configure settings" (fields: name, email) at "2026-02-25T..."
@@ -212,7 +225,6 @@ The end-to-end flow is functional via CLI:
 # Guest "fae" asks Host for configuration
 endo form HOST "Configure project settings" \
   --as fae \
-  --name project-config \
   --field "projectName:Project name" \
   --field "apiKey:API key"
 
@@ -220,52 +232,34 @@ endo form HOST "Configure project settings" \
 endo inbox
 # => 0. "fae" sent form "Configure project settings" (fields: projectName, apiKey) at "..."
 
-# Host responds with values
-endo respond-form 0 \
-  --value "projectName:my-app" \
-  --value "apiKey:sk-1234"
+# Host submits values
+endo submit 0 \
+  -f "projectName:my-app" \
+  -f "apiKey:sk-1234"
+# Sends a value message replying to form #0
 
-# The guest's form() promise resolves with { projectName: "my-app", apiKey: "sk-1234" }
-# If --name was provided, the result is stored under that pet name
+# The value message appears in the guest's inbox
+endo inbox --as fae
+# => 1. "HOST" sent value in reply to #0 at "..."
+
+# Host can submit again with corrected values
+endo submit 0 \
+  -f "projectName:my-app" \
+  -f "apiKey:sk-5678"
+# Sends another value message replying to form #0
 ```
 
-The promise/resolver lifecycle ensures the guest blocks until the host
-responds. The `settled` promise on the message lets the inbox UI track
-whether a form has been answered.
+Forms can be submitted any number of times. Each submission produces a
+`value` message (see [daemon-value-message](daemon-value-message.md)) in the
+reply chain. The caller discovers responses by watching for `value` messages
+whose `replyTo` matches the form's `messageId`.
 
 ## Gaps
 
-### ~~No Chat UI support~~ — Resolved
-
-Chat UI now supports form requests:
-
-- `packages/chat/form-builder.js` / `packages/chat/src/form-builder.js` —
-  modal form builder for composing `/form` commands with recipient picker,
-  description, and dynamic field rows.
-- `packages/chat/inbox-component.js` — renders form-request messages inline
-  with labeled input fields and a submit button that calls `respondForm()`.
-  Settled forms display submitted values read-only.
-- `packages/chat/command-registry.js` / `packages/chat/src/command-registry.js` —
-  registers the `/form` command.
-- `packages/chat/command-executor.js` / `packages/chat/src/command-executor.js` —
-  executes form submission via `E(host).form()`.
-- `packages/chat/index.css` — styles for form rendering and the form builder
-  modal.
-
-### ~~No tests~~ — Resolved
-
-`packages/daemon/test/endo.test.js` now includes form-request test coverage.
-
-### Single-response only
-
-The promise/resolver pattern means each form can only be answered once. If
-the host makes a mistake, there is no way to amend the response. The
-`settled` promise transitions to `'fulfilled'` permanently.
-
 ### No forwarding or sharing
 
-A host cannot forward a form-request to another agent for them to answer.
-The `resolverId` is bound to the original recipient's mailbox.
+A host cannot forward a form to another agent for them to answer. The form
+is delivered to the original recipient's mailbox only.
 
 ### `replyTo` and `messageId` should use `FormulaIdentifier`
 
@@ -273,22 +267,24 @@ The `replyTo` and `messageId` fields on `MessageBase` are typed as
 `FormulaNumber` (node-local), not `FormulaIdentifier` (node-qualified). This
 is safe in the current single-node implementation but will not generalize to
 multi-node messaging where a reply may reference a message on a different
-node. All message types that inherit from `MessageBase` — including
-`FormRequest` — should migrate `replyTo` and `messageId` to
-`FormulaIdentifier` for forward safety.
+node. All message types that inherit from `MessageBase` — including `Form` —
+should migrate `replyTo` and `messageId` to `FormulaIdentifier` for forward
+safety.
 
-### Field type richness is unused
+### Limited pattern vocabulary
 
-The `pattern` property on field definitions exists in the type system but is
-never validated. `respondForm` checks only that every field key is present,
-not that the value matches any pattern. The CLI has no way to specify
-patterns.
+The daemon validates field values against patterns, but only a small set of
+patterns (`M.string()`, `M.number()`, `M.boolean()`, `M.scalar()`) have
+corresponding Chat UI widgets. Richer patterns (e.g., `M.or()`,
+`M.arrayOf()`, record shapes) are validated server-side but have no
+specialized input rendering — they fall back to a text input. The CLI has
+no way to specify patterns; all fields default to `M.string()`.
 
 ### CLI values are strings only
 
-The CLI `--value` parser produces `Record<string, string>`. The daemon's
-`respondForm` accepts `Record<string, unknown>` and marshals arbitrary
-passables, but the CLI cannot express numbers, booleans, or references.
+The CLI `--field` parser produces `Record<string, string>`. The daemon's
+`submit` accepts `Record<string, unknown>` and marshals arbitrary passables,
+but the CLI cannot express numbers, booleans, or references.
 
 ### No reusable form templates
 
@@ -296,46 +292,89 @@ Each `form()` call constructs the fields inline. There is no way to define a
 form template once and reuse it across multiple requests, or to share form
 definitions between agents.
 
-### ~~No chat command syntax~~ — Resolved
-
-The `/form` command is registered in Chat UI and opens a modal form builder.
-Form responses are submitted inline from the inbox message rendering.
-
 ## Design Decisions
 
-1. **Single-response only.** Keep the current promise/resolver pattern. One
-   response per form. If the host makes a mistake, the guest must send a new
-   form. This matches the existing request/resolve model and avoids the
-   complexity of mutable stores.
+1. **Multi-submission via value replies.** Instead of the single-response
+   promise/resolver pattern, form submissions produce `value` messages
+   replying to the original form. This allows any number of responses: the
+   host can correct mistakes, multiple agents can respond if the form is
+   forwarded, and the reply chain provides a natural history of submissions.
+   See [daemon-value-message](daemon-value-message.md).
 
-2. **Daemon-enforced field patterns.** The daemon should validate each value
-   against its field's `pattern` before resolving the form promise. If a
-   value does not match, `respondForm` rejects with an error. This makes
-   patterns a contract, not just a hint.
+2. **Fire-and-forget sending.** `form()` sends the form and returns
+   immediately. It does not allocate a promise or block waiting for a
+   response. Callers discover responses by watching for `value` messages
+   with matching `replyTo`. This simplifies the internal machinery — no
+   `formulatePromise`, no `PROMISE`/`RESOLVER`/`RESULT` edges in the message
+   hub.
 
-3. **Values support capability references.** Form values are full passables,
+3. **Daemon-enforced field patterns.** The daemon validates each submitted
+   value against its field's `pattern` using `mustMatch()`. Fields with no
+   explicit `pattern` default to `M.string()`. If a value does not match,
+   `submit` throws — patterns are a contract, not a hint. The Chat UI uses
+   the same patterns to select appropriate input widgets (text, number,
+   checkbox), providing client-side guidance that complements server-side
+   enforcement.
+
+4. **Values support capability references.** Form values are full passables,
    including capability references resolved from pet names. This enables use
    cases like "which worker should I use?" where the answer is a live
    reference. The CLI's string-only limitation is a CLI concern, not a
    daemon design constraint.
 
-4. **No form templates.** Forms are always constructed inline in each
+5. **No form templates.** Forms are always constructed inline in each
    `form()` call. Agents can build their own abstractions for reuse. No new
    formula type needed.
 
-5. **Inline form widget in Chat UI.** Form-request messages render as
-   labeled input fields directly in the message stream, with a submit button
-   that calls `respondForm()`. Settled forms display the submitted values
-   read-only.
+6. **`/submit` command in Chat UI.** The `/submit` command takes a message
+   number, opens a modal pre-populated with the form's field labels and
+   input fields, and calls `E(host).submit()` on confirmation. This
+   parallels `/form` for sending and `/submit` for responding. The same
+   form can be submitted multiple times — each `/submit` opens a fresh
+   instance of the form. The form view generator selects the input widget
+   for each field based on its `pattern`:
 
-6. **Modal form builder for `/form` command.** Sending a form uses a modal
+   | Pattern | Widget |
+   |---------|--------|
+   | `M.string()` (or omitted) | Text input |
+   | `M.number()` | Number input |
+   | `M.boolean()` | Checkbox |
+   | `M.remotable()` | Pet name path selector |
+   | `M.promise()` | Pet name path selector |
+   | `M.scalar()` | Text input (passable scalar) |
+
+   The pet name path selector lets the user browse and pick from their pet
+   store, resolving the selected name to a capability reference on
+   submission. The number input may infer additional constraints from the
+   pattern — for example, `M.gte(0)` or `M.lte(100)` guards composed with
+   `M.number()` can set `min` and `max` attributes on the HTML input.
+   Unrecognized patterns fall back to a text input. This mapping is
+   extensible as new patterns are introduced.
+
+7. **Modal form builder for `/form` command.** Sending a form uses a modal
    dialog (like the `/js` eval form) with a recipient picker, description
-   field, dynamic "Add field" button for name+label rows, and an optional
-   response name. The modal pattern handles the variable number of fields
+   field, dynamic "Add field" button for name+label rows. The `--name` option
+   for response naming is removed since form responses are no longer
+   promise-based. The modal pattern handles the variable number of fields
    naturally, following the established eval-form endowments UI pattern.
+
+8. **Inline form rendering in inbox.** Form messages render in the message
+   stream showing the description and field labels. The inline display is
+   read-only — submission is done via the `/submit` command. Previous
+   submissions appear as `value` messages in the reply chain below the form.
+
+9. **Simplified internals.** `makeForm` generates a `messageId` and envelope
+   without allocating any promise/resolver pair. `makeStampedMessage` does
+   not reconstruct promises for form messages. `makeMessageFormula` does not
+   store `promiseId` or `resolverId`. The message hub registers only
+   `DESCRIPTION` and standard edges (`FROM`, `TO`, `DATE`, `TYPE`,
+   `MESSAGE`) — no `PROMISE`, `RESOLVER`, or `RESULT` edges.
 
 ## Related Designs
 
+- [daemon-value-message](daemon-value-message.md) — value messages are the
+  reply mechanism for form submissions. Each `submit` call produces a value
+  message with `replyTo` pointing to the form.
 - [daemon-capability-persona](daemon-capability-persona.md) — persona/epithet
   system; forms could carry sender identity information.
 - [daemon-capability-bank](daemon-capability-bank.md) — capability

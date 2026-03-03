@@ -69,7 +69,7 @@ type MessageFormula = {
     | 'package'
     | 'eval-request'
     | 'definition'
-    | 'form-request'
+    | 'form'
     | 'eval-proposal-reviewer'
     | 'eval-proposal-proposer'
     | 'value';  // new
@@ -321,9 +321,9 @@ In the inbox component, a `value` message renders as:
 
 ## Related Designs
 
-- [daemon-form-request](daemon-form-request.md) — closest precedent for a new
-  message type; uses promise/resolver pattern that value messages deliberately
-  omit.
+- [daemon-form-request](daemon-form-request.md) — form messages use value
+  messages as their reply mechanism; each form submission produces a value
+  message with `replyTo` pointing to the form.
 - [chat-reply-chain-visualization](chat-reply-chain-visualization.md) — value
   messages will participate in reply chains and should render with the
   connector lines once that design is implemented.
