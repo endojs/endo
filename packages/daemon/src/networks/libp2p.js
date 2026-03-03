@@ -15,26 +15,52 @@ import { webSockets } from '@libp2p/websockets';
 import * as wsFilters from '@libp2p/websockets/filters';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2p } from 'libp2p';
-import { fromHex } from '../hex.js';
 
 import { E, Far } from '@endo/far';
 
+import { fromHex } from '../hex.js';
 import { makeNetstringCapTP } from '../connection.js';
 import { adaptLibp2pStream } from './libp2p-stream-adapter.js';
 
 const PROTOCOL = '/endo-captp/1.0.0';
 const URL_PROTOCOL = 'libp2p+captp0';
 
-const VERBOSE_COMPONENTS = harden([
-  'libp2p:circuit-relay',
-  'libp2p:dcutr',
-  'libp2p:kad-dht',
-  'libp2p:autonat',
-  'libp2p:webrtc',
-  'libp2p:connection-manager',
-  'libp2p:dialer',
+const DEFAULT_VERBOSE_COMPONENTS = harden([
+  // Keep this focused - these are the high-signal components for
+  // internet connectivity and hole-punch diagnostics.
+  'libp2p:connection-manager:dial-queue',
   'libp2p:transport-manager',
+  'libp2p:kad-dht:network',
+  'libp2p:kad-dht:peer-routing',
+  'libp2p:autonat',
+  'libp2p:dcutr',
+  'libp2p:webrtc',
 ]);
+
+/**
+ * Parse a comma-separated list of libp2p logger component prefixes.
+ *
+ * @param {string | undefined} value
+ * @returns {string[] | undefined}
+ */
+const parseVerboseComponents = value => {
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  const prefixes = value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean);
+  return prefixes.length > 0 ? prefixes : undefined;
+};
+
+const processEnv = /** @type {any} */ (globalThis).process?.env;
+const configuredVerboseComponents =
+  parseVerboseComponents(processEnv?.ENDO_LIBP2P_VERBOSE_COMPONENTS) ?? [
+    ...DEFAULT_VERBOSE_COMPONENTS,
+  ];
+
+const VERBOSE_COMPONENTS = harden(configuredVerboseComponents);
 
 const AMINO_DHT_BOOTSTRAP_NODES = harden([
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
@@ -42,6 +68,212 @@ const AMINO_DHT_BOOTSTRAP_NODES = harden([
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb',
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt',
 ]);
+
+const PRIVATE_172_IPV4 = /\/ip4\/172\.(1[6-9]|2[0-9]|3[01])\./;
+const MAX_LOGGED_MULTIADDRS = 6;
+
+/**
+ * @param {string} addrStr
+ * @returns {{ include: boolean, reason: string }}
+ */
+const classifyAddressHint = addrStr => {
+  if (addrStr.includes('/127.0.0.1/')) {
+    return { include: false, reason: 'loopback IPv4' };
+  }
+  if (addrStr.includes('/0.0.0.0/')) {
+    return { include: false, reason: 'unspecified IPv4' };
+  }
+  if (addrStr.includes('/10.')) {
+    return { include: false, reason: 'private IPv4 (10/8)' };
+  }
+  if (addrStr.includes('/192.168.')) {
+    return { include: false, reason: 'private IPv4 (192.168/16)' };
+  }
+  if (PRIVATE_172_IPV4.test(addrStr)) {
+    return { include: false, reason: 'private IPv4 (172.16/12)' };
+  }
+  if (addrStr.includes('/ip6/::1/')) {
+    return { include: false, reason: 'loopback IPv6' };
+  }
+  if (addrStr.includes('/ip6/fc') || addrStr.includes('/ip6/fd')) {
+    return { include: false, reason: 'unique-local IPv6' };
+  }
+  if (addrStr.includes('/ip6/fe80')) {
+    return { include: false, reason: 'link-local IPv6' };
+  }
+  return { include: true, reason: 'public or relay candidate' };
+};
+
+/**
+ * @param {string[]} addrs
+ * @returns {string}
+ */
+const summarizeAddressStrings = addrs => {
+  if (addrs.length === 0) {
+    return 'none';
+  }
+  const shown = addrs.slice(0, MAX_LOGGED_MULTIADDRS);
+  const suffix =
+    addrs.length > shown.length ? ` (+${addrs.length - shown.length} more)` : '';
+  return `${shown.join(', ')}${suffix}`;
+};
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+const toPeerString = value => {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    'toString' in value &&
+    typeof value.toString === 'function'
+  ) {
+    return value.toString();
+  }
+  return String(value);
+};
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+const shortPeer = value => {
+  const full = toPeerString(value);
+  return full.length > 16 ? `${full.slice(0, 16)}...` : full;
+};
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+const formatErrorChain = error => {
+  if (error === undefined || error === null) {
+    return 'unknown error';
+  }
+  /** @type {string[]} */
+  const parts = [];
+  /** @type {Set<object>} */
+  const seen = new Set();
+  /** @type {any} */
+  let cursor = error;
+  while (cursor !== undefined && cursor !== null) {
+    if (typeof cursor === 'object') {
+      if (seen.has(cursor)) {
+        break;
+      }
+      seen.add(cursor);
+    }
+    if (cursor instanceof Error) {
+      parts.push(`${cursor.name}: ${cursor.message}`);
+      cursor = cursor.cause;
+      continue;
+    }
+    parts.push(String(cursor));
+    break;
+  }
+  return parts.join(' <- ');
+};
+
+/**
+ * @param {unknown} path
+ * @returns {string}
+ */
+const formatDhtPath = path => {
+  if (path === null || typeof path !== 'object') {
+    return 'path=unknown';
+  }
+  const detail = /** @type {any} */ (path);
+  return `path[index=${detail.index ?? '?'} queued=${detail.queued ?? '?'} running=${detail.running ?? '?'} total=${detail.total ?? '?'}]`;
+};
+
+/**
+ * @param {unknown} detail
+ * @returns {string}
+ */
+const formatDialQueueAddresses = detail => {
+  if (!Array.isArray(detail)) {
+    return 'addresses=unknown';
+  }
+  const addrs = detail.map(entry => {
+    const candidate = /** @type {any} */ (entry);
+    const ma =
+      candidate?.multiaddr && typeof candidate.multiaddr.toString === 'function'
+        ? candidate.multiaddr.toString()
+        : String(candidate?.multiaddr ?? candidate);
+    return `${ma}${candidate?.isCertified ? ' (certified)' : ''}`;
+  });
+  return `addresses=${addrs.length} [${summarizeAddressStrings(addrs)}]`;
+};
+
+/**
+ * @param {string} type
+ * @param {unknown} detail
+ * @returns {string}
+ */
+const formatDhtProgressDetail = (type, detail) => {
+  const data = /** @type {any} */ (detail);
+  if (type === 'kad-dht:query:add-peer') {
+    return `peer=${shortPeer(data?.peer)} ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:dial-peer') {
+    return `peer=${shortPeer(data?.peer)} ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:send-query') {
+    return `to=${shortPeer(data?.to)} message=${data?.messageName ?? data?.messageType ?? 'unknown'} ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:peer-response') {
+    const closer = Array.isArray(data?.closer) ? data.closer.length : 0;
+    const providers = Array.isArray(data?.providers) ? data.providers.length : 0;
+    const hasRecord = data?.record !== undefined;
+    return `from=${shortPeer(data?.from)} closer=${closer} providers=${providers} record=${hasRecord} ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:final-peer') {
+    const addrs = Array.isArray(data?.peer?.multiaddrs)
+      ? data.peer.multiaddrs.map(ma => toPeerString(ma))
+      : [];
+    return `peer=${shortPeer(data?.peer?.id ?? data?.peer)} addrs=${addrs.length} [${summarizeAddressStrings(addrs)}] ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:query-error') {
+    return `from=${shortPeer(data?.from)} error=${formatErrorChain(data?.error)} ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:path-ended') {
+    return formatDhtPath(data?.path);
+  }
+  if (type === 'kad-dht:query:provider') {
+    const providers = Array.isArray(data?.providers) ? data.providers : [];
+    return `from=${shortPeer(data?.from)} providers=${providers.length} ${formatDhtPath(data?.path)}`;
+  }
+  if (type === 'kad-dht:query:value') {
+    const valueSize =
+      data?.value instanceof Uint8Array ? data.value.byteLength : 'unknown';
+    return `from=${shortPeer(data?.from)} valueBytes=${valueSize} ${formatDhtPath(data?.path)}`;
+  }
+  return `detail=${String(detail)}`;
+};
+
+/**
+ * @param {unknown} event
+ * @returns {string}
+ */
+const formatProgressEvent = event => {
+  const progress = /** @type {any} */ (event);
+  const type = typeof progress?.type === 'string' ? progress.type : 'unknown';
+  const detail = progress?.detail;
+  if (type === 'transport-manager:selected-transport') {
+    return `${type} transport=${String(detail)}`;
+  }
+  if (type === 'dial-queue:calculated-addresses') {
+    return `${type} ${formatDialQueueAddresses(detail)}`;
+  }
+  if (type.startsWith('kad-dht:query:')) {
+    return `${type} ${formatDhtProgressDetail(type, detail)}`;
+  }
+  return detail === undefined ? type : `${type} detail=${String(detail)}`;
+};
 
 /**
  * Derive a deterministic Ed25519 private key from the daemon's node ID hash.
@@ -76,32 +308,32 @@ const buildAddresses = (peerId, multiaddrs) => {
   const baseUrl = new URL(`${URL_PROTOCOL}:///`);
   baseUrl.pathname = `/${peerId}`;
 
-  const publicAddrs = multiaddrs.filter(ma => {
-    const s = ma.toString();
-    return (
-      !s.includes('/127.0.0.1/') &&
-      !s.includes('/0.0.0.0/') &&
-      !s.includes('/10.') &&
-      !s.includes('/192.168.') &&
-      !s.includes('/172.16.') &&
-      !s.includes('/172.17.') &&
-      !s.includes('/172.18.') &&
-      !s.includes('/172.19.') &&
-      !s.includes('/172.2') &&
-      !s.includes('/172.3') &&
-      !s.includes('/ip6/::1/') &&
-      !s.includes('/ip6/fd') &&
-      !s.includes('/ip6/fe80')
-    );
+  const analyzedAddrs = multiaddrs.map(ma => {
+    const value = ma.toString();
+    const { include, reason } = classifyAddressHint(value);
+    return harden({ value, include, reason });
   });
+  const publicAddrs = analyzedAddrs.filter(item => item.include);
 
-  for (const ma of publicAddrs) {
-    baseUrl.searchParams.append('ma', ma.toString());
+  for (const item of publicAddrs) {
+    baseUrl.searchParams.append('ma', item.value);
   }
 
   console.log(
     `Endo libp2p buildAddresses: ${publicAddrs.length} public multiaddr(s) of ${multiaddrs.length} total attached to address`,
   );
+  if (publicAddrs.length > 0) {
+    const published = publicAddrs.map(item => item.value);
+    console.log(
+      `Endo libp2p buildAddresses: published hints [${summarizeAddressStrings(published)}]`,
+    );
+  } else if (analyzedAddrs.length > 0) {
+    for (const item of analyzedAddrs) {
+      console.log(
+        `Endo libp2p buildAddresses: excluded hint ${item.value} (${item.reason})`,
+      );
+    }
+  }
 
   return [baseUrl.href];
 };
@@ -138,6 +370,8 @@ export const make = async (powers, context) => {
 
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();
+  /** @type {Set<string>} */
+  const tracedRemotePeers = new Set();
 
   const privateKey = await derivePrivateKey(localNodeId);
 
@@ -224,6 +458,9 @@ export const make = async (powers, context) => {
 
   const peerId = libp2pNode.peerId.toString();
   console.log(`Endo libp2p network started with peer ID: ${peerId}`);
+  console.log(
+    `Endo libp2p: verbose component prefixes [${VERBOSE_COMPONENTS.join(', ')}]`,
+  );
 
   const startupAddrs = libp2pNode.getMultiaddrs();
   console.log(
@@ -232,6 +469,62 @@ export const make = async (powers, context) => {
   for (const addr of startupAddrs) {
     console.log(`  ${addr.toString()}`);
   }
+  const aminoDHT = /** @type {any} */ (libp2pNode.services.aminoDHT);
+
+  const getDhtMode = () => {
+    if (aminoDHT && typeof aminoDHT.getMode === 'function') {
+      try {
+        return aminoDHT.getMode();
+      } catch {
+        return 'unknown';
+      }
+    }
+    return 'unavailable';
+  };
+
+  const getDhtRoutingTableSize = () => {
+    const size = aminoDHT?.routingTable?.size;
+    return typeof size === 'number' ? size : undefined;
+  };
+
+  /**
+   * @param {string} label
+   */
+  const logDialQueueSnapshot = label => {
+    const pending = libp2pNode.getDialQueue();
+    console.log(`Endo libp2p: dial queue ${label}: ${pending.length} pending`);
+    for (const dial of pending) {
+      const dialPeer = dial.peerId ? shortPeer(dial.peerId) : 'unknown';
+      const dialAddrs = dial.multiaddrs.map(ma => ma.toString());
+      console.log(
+        `Endo libp2p:   pending dial id=${dial.id} status=${dial.status} peer=${dialPeer} addrs=[${summarizeAddressStrings(dialAddrs)}]`,
+      );
+    }
+  };
+
+  /**
+   * @param {string} remotePeerId
+   * @param {string} label
+   */
+  const logPeerStoreEntry = async (remotePeerId, label) => {
+    const peers = await libp2pNode.peerStore.all();
+    const target = peers.find(peer => peer.id.toString() === remotePeerId);
+    if (target === undefined) {
+      console.log(
+        `Endo libp2p: peerStore ${label}: peer ${shortPeer(remotePeerId)} not present`,
+      );
+      return;
+    }
+    const addrs = target.addresses.map(entry => entry.multiaddr.toString());
+    const protocols = target.protocols || [];
+    console.log(
+      `Endo libp2p: peerStore ${label}: peer=${shortPeer(remotePeerId)} addrs=${addrs.length} [${summarizeAddressStrings(addrs)}] protocols=[${protocols.join(', ')}]`,
+    );
+  };
+
+  console.log(
+    `Endo libp2p: DHT mode=${getDhtMode()} routingTableSize=${getDhtRoutingTableSize() ?? 'n/a'}`,
+  );
 
   /**
    * Extract a human-readable transport label from a multiaddr string.
@@ -316,6 +609,30 @@ export const make = async (powers, context) => {
     );
   });
 
+  libp2pNode.addEventListener('peer:update', evt => {
+    const peerUpdate = evt.detail;
+    const peerValue = peerUpdate.peer;
+    const remotePeerId = peerValue.id.toString();
+    if (!tracedRemotePeers.has(remotePeerId)) {
+      return;
+    }
+
+    const previousAddrs = (peerUpdate.previous?.addresses || []).map(
+      entry => entry.multiaddr.toString(),
+    );
+    const nextAddrs = (peerValue.addresses || []).map(entry =>
+      entry.multiaddr.toString(),
+    );
+    const previousSet = new Set(previousAddrs);
+    const nextSet = new Set(nextAddrs);
+    const added = nextAddrs.filter(addr => !previousSet.has(addr));
+    const removed = previousAddrs.filter(addr => !nextSet.has(addr));
+    const protocols = peerValue.protocols || [];
+    console.log(
+      `Endo libp2p: traced peer:update peer=${shortPeer(remotePeerId)} addrs=${nextAddrs.length} added=[${summarizeAddressStrings(added)}] removed=[${summarizeAddressStrings(removed)}] protocols=[${protocols.join(', ')}]`,
+    );
+  });
+
   // --- Inbound connection handler ---
   await libp2pNode.handle(PROTOCOL, ({ stream: rawStream, connection }) => {
     (async () => {
@@ -375,8 +692,11 @@ export const make = async (powers, context) => {
         !a.toString().includes('/p2p-circuit') &&
         !a.toString().includes('/webrtc'),
     );
+    const publishableHintCount = addrs.filter(a =>
+      classifyAddressHint(a.toString()).include,
+    ).length;
     console.log(
-      `Endo libp2p: self:peer:update — ${addrs.length} total address(es): ${relayAddrs.length} relay, ${webrtcAddrs.length} webrtc, ${otherAddrs.length} other`,
+      `Endo libp2p: self:peer:update — ${addrs.length} total address(es): ${relayAddrs.length} relay, ${webrtcAddrs.length} webrtc, ${otherAddrs.length} other, ${publishableHintCount} publishable hint(s), DHT mode=${getDhtMode()} routingTableSize=${getDhtRoutingTableSize() ?? 'n/a'}`,
     );
     for (const a of addrs) {
       console.log(`  ${a.toString()}`);
@@ -389,9 +709,10 @@ export const make = async (powers, context) => {
   const logNetworkStatus = async () => {
     const addrs = libp2pNode.getMultiaddrs();
     const connections = libp2pNode.getConnections();
+    const dialQueue = libp2pNode.getDialQueue();
     const peers = await libp2pNode.peerStore.all();
     console.log(
-      `Endo libp2p status: peerId=${peerId.slice(0, 16)}... multiaddrs=${addrs.length} connections=${connections.length} knownPeers=${peers.length}`,
+      `Endo libp2p status: peerId=${peerId.slice(0, 16)}... multiaddrs=${addrs.length} connections=${connections.length} pendingDials=${dialQueue.length} knownPeers=${peers.length} dhtMode=${getDhtMode()} dhtRoutingTable=${getDhtRoutingTableSize() ?? 'n/a'}`,
     );
     for (const a of addrs) {
       console.log(
@@ -434,9 +755,29 @@ export const make = async (powers, context) => {
     const url = new URL(address);
     const remotePeerId = decodeURIComponent(url.pathname.slice(1));
     const maHints = url.searchParams.getAll('ma');
+    tracedRemotePeers.add(remotePeerId);
     console.log(
       `Endo libp2p connect ${connectionNumber}: peer=${remotePeerId.slice(0, 16)}..., ${maHints.length} multiaddr hint(s)`,
     );
+    console.log(
+      `Endo libp2p connect ${connectionNumber}: DHT mode=${getDhtMode()} routingTableSize=${getDhtRoutingTableSize() ?? 'n/a'}`,
+    );
+    logDialQueueSnapshot(`before connect ${connectionNumber}`);
+
+    /**
+     * @param {string} label
+     */
+    const maybeLogPeerStoreEntry = async label => {
+      try {
+        await logPeerStoreEntry(remotePeerId, label);
+      } catch (err) {
+        console.log(
+          `Endo libp2p connect ${connectionNumber}: failed to inspect peer store for ${shortPeer(remotePeerId)}: ${formatErrorChain(err)}`,
+        );
+      }
+    };
+
+    await maybeLogPeerStoreEntry(`before connect ${connectionNumber}`);
 
     /** @type {any} */
     let rawStream;
@@ -450,9 +791,10 @@ export const make = async (powers, context) => {
      * externally-cancelled connections don't hang.
      *
      * @param {ReturnType<typeof multiaddr>} ma
+     * @param {string} dialLabel
      * @returns {Promise<any>}
      */
-    const dialWithRetry = async ma => {
+    const dialWithRetry = async (ma, dialLabel) => {
       let lastErr;
       const maStr = ma.toString();
       const transport = identifyTransport(maStr);
@@ -464,7 +806,13 @@ export const make = async (powers, context) => {
           );
           // eslint-disable-next-line no-await-in-loop
           const conn = await Promise.race([
-            libp2pNode.dial(ma),
+            libp2pNode.dial(ma, {
+              onProgress: progressEvent => {
+                console.log(
+                  `Endo libp2p connect ${connectionNumber}: dial progress (${dialLabel}) attempt ${attempt}/${MAX_DIAL_ATTEMPTS}: ${formatProgressEvent(progressEvent)}`,
+                );
+              },
+            }),
             connectionCancelled,
           ]);
           const dialMs = Date.now() - t0;
@@ -492,15 +840,12 @@ export const make = async (powers, context) => {
           return stream;
         } catch (err) {
           lastErr = err;
-          const errObj = /** @type {Error} */ (err);
           console.log(
-            `Endo libp2p connect ${connectionNumber}: attempt ${attempt} failed for ${maStr}: ${errObj.message}`,
+            `Endo libp2p connect ${connectionNumber}: attempt ${attempt} failed for ${maStr}: ${formatErrorChain(err)}`,
           );
-          if (errObj.cause) {
-            console.log(
-              `Endo libp2p connect ${connectionNumber}:   cause: ${/** @type {Error} */ (errObj.cause).message || errObj.cause}`,
-            );
-          }
+          logDialQueueSnapshot(
+            `after failure attempt ${attempt} (${dialLabel}) for connect ${connectionNumber}`,
+          );
           if (attempt < MAX_DIAL_ATTEMPTS) {
             console.log(
               `Endo libp2p connect ${connectionNumber}: retrying in ${RETRY_DELAY_MS}ms...`,
@@ -532,7 +877,7 @@ export const make = async (powers, context) => {
         try {
           const ma = multiaddr(maStr);
           // eslint-disable-next-line no-await-in-loop
-          rawStream = await dialWithRetry(ma);
+          rawStream = await dialWithRetry(ma, `hint ${maStr}`);
           console.log(
             `Endo libp2p connect ${connectionNumber}: succeeded via hint ${maStr}`,
           );
@@ -540,13 +885,16 @@ export const make = async (powers, context) => {
         } catch (err) {
           lastError = err;
           console.log(
-            `Endo libp2p connect ${connectionNumber}: all attempts failed for hint ${maStr}: ${/** @type {Error} */ (err).message}`,
+            `Endo libp2p connect ${connectionNumber}: all attempts failed for hint ${maStr}: ${formatErrorChain(err)}`,
           );
         }
       }
       if (!rawStream) {
         console.log(
           `Endo libp2p connect ${connectionNumber}: all multiaddr hints exhausted, falling back to DHT discovery for ${remotePeerId.slice(0, 16)}...`,
+        );
+        await maybeLogPeerStoreEntry(
+          `before DHT fallback for connect ${connectionNumber}`,
         );
         const knownPeers = await libp2pNode.peerStore.all();
         const targetPeer = knownPeers.find(
@@ -562,17 +910,27 @@ export const make = async (powers, context) => {
           for (const sa of storedAddrs) {
             console.log(`  stored: ${sa}`);
           }
+          if (storedAddrs.length > 0) {
+            console.log(
+              `Endo libp2p connect ${connectionNumber}: note: peer ID dial may reuse these cached peerStore addresses before issuing a network DHT lookup`,
+            );
+          }
         } else {
           console.log(
             `Endo libp2p connect ${connectionNumber}: target peer NOT in local peer store — DHT lookup required`,
           );
         }
         try {
-          rawStream = await dialWithRetry(multiaddr(`/p2p/${remotePeerId}`));
+          rawStream = await dialWithRetry(
+            multiaddr(`/p2p/${remotePeerId}`),
+            `peer-id fallback /p2p/${remotePeerId}`,
+          );
         } catch (err) {
-          const dhtErr = /** @type {Error} */ (err);
           console.log(
-            `Endo libp2p connect ${connectionNumber}: DHT fallback failed: ${dhtErr.message}`,
+            `Endo libp2p connect ${connectionNumber}: DHT fallback failed: ${formatErrorChain(err)}`,
+          );
+          await maybeLogPeerStoreEntry(
+            `after DHT fallback failure for connect ${connectionNumber}`,
           );
           throw (
             lastError ||
@@ -604,14 +962,23 @@ export const make = async (powers, context) => {
         for (const sa of storedAddrs) {
           console.log(`  stored: ${sa}`);
         }
+        if (storedAddrs.length > 0) {
+          console.log(
+            `Endo libp2p connect ${connectionNumber}: note: peer ID dial may reuse these cached peerStore addresses before issuing a network DHT lookup`,
+          );
+        }
       } else {
         console.log(
           `Endo libp2p connect ${connectionNumber}: target peer NOT in peer store — DHT lookup required`,
         );
       }
-      rawStream = await dialWithRetry(multiaddr(`/p2p/${remotePeerId}`));
+      rawStream = await dialWithRetry(
+        multiaddr(`/p2p/${remotePeerId}`),
+        `peer-id only /p2p/${remotePeerId}`,
+      );
     }
 
+    await maybeLogPeerStoreEntry(`after successful connect ${connectionNumber}`);
     console.log(
       `Endo daemon connected ${connectionNumber} over libp2p at ${new Date().toISOString()}`,
     );
@@ -637,7 +1004,9 @@ export const make = async (powers, context) => {
     connectionClosedPromises.add(closed);
     closed.finally(() => {
       connectionClosedPromises.delete(closed);
+      tracedRemotePeers.delete(remotePeerId);
       cancelConnection();
+      logDialQueueSnapshot(`after close of connect ${connectionNumber}`);
       console.log(
         `Endo daemon closed libp2p connection ${connectionNumber} at ${new Date().toISOString()}`,
       );

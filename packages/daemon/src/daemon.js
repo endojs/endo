@@ -1982,6 +1982,9 @@ const makeDaemonCore = async (
                 console.log(
                   `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
                 );
+                console.log(
+                  `addPeerInfo:   old addresses=${JSON.stringify(existingFormula.addresses)} new addresses=${JSON.stringify(addresses)}`,
+                );
                 // eslint-disable-next-line no-use-before-define
                 await cancelValue(
                   existingFormulaId,
@@ -2001,6 +2004,9 @@ const makeDaemonCore = async (
           }
           console.log(
             `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
+          );
+          console.log(
+            `addPeerInfo:   addresses=${JSON.stringify(addresses)}`,
           );
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
@@ -3285,13 +3291,46 @@ const makeDaemonCore = async (
         // TODO race networks that support protocol for connection
         // TODO retry, exponential back-off, with full jitter
         const networks = await getAllNetworks(networksDirectoryId);
+        console.log(
+          `Endo daemon makePeer ${nodeId.slice(0, 8)}: evaluating ${addresses.length} address(es) across ${networks.length} network service(s)`,
+        );
         // Connect on first supported address.
+        let addressIndex = 0;
         for (const address of addresses) {
+          addressIndex += 1;
           const { protocol } = new URL(address);
+          console.log(
+            `Endo daemon makePeer ${nodeId.slice(0, 8)}: address ${addressIndex}/${addresses.length} protocol=${protocol} value=${address}`,
+          );
+          let networkIndex = 0;
           for (const network of networks) {
+            networkIndex += 1;
             // eslint-disable-next-line no-await-in-loop
-            if (await E(network).supports(protocol)) {
-              return E(network).connect(address, makeFarContext(context));
+            const supported = await E(network).supports(protocol);
+            console.log(
+              `Endo daemon makePeer ${nodeId.slice(0, 8)}: network ${networkIndex}/${networks.length} supports(${protocol}) -> ${supported}`,
+            );
+            if (supported) {
+              const attemptStartedAt = Date.now();
+              console.log(
+                `Endo daemon makePeer ${nodeId.slice(0, 8)}: dialing with network ${networkIndex}/${networks.length}`,
+              );
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                const remoteGateway = await E(network).connect(
+                  address,
+                  makeFarContext(context),
+                );
+                console.log(
+                  `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial succeeded in ${Date.now() - attemptStartedAt}ms`,
+                );
+                return remoteGateway;
+              } catch (error) {
+                console.log(
+                  `Endo daemon makePeer ${nodeId.slice(0, 8)}: dial failed in ${Date.now() - attemptStartedAt}ms: ${/** @type {Error} */ (error).message}`,
+                );
+                throw error;
+              }
             }
           }
         }
