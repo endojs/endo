@@ -16,11 +16,13 @@
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
 | [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | 2026-02-24 | **Complete** |
-| [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | 2026-02-24 | Not Started |
+| [chat-test-coverage](chat-test-coverage.md) | 2026-03-02 | 2026-03-02 | **Complete** |
+| [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | 2026-03-02 | **Complete** |
+| [daemon-agent-network-identity](daemon-agent-network-identity.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
-| [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-02-28 | In Progress |
+| [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-03-02 | In Progress (form send/submit implemented) |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-02 | Not Started |
@@ -29,11 +31,13 @@
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
+| [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | — | — | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-02-26 | In Progress |
 | [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
-| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-02-28 | In Progress |
+| [lal-fae-form-provisioning](lal-fae-form-provisioning.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-02-28 | In Progress (phases 1-4 complete) |
 | [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
@@ -41,9 +45,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-| [chat-test-coverage](chat-test-coverage.md) | 2026-03-02 | 2026-03-02 | **Complete** |
-
-**Totals:** 12 Complete, 6 In Progress, 17 Not Started
+**Totals:** 13 Complete, 7 In Progress, 18 Not Started
 
 ## Roadmap
 
@@ -52,19 +54,37 @@
 ```mermaid
 flowchart TD
     subgraph Daemon Core
-        d256[daemon-256-bit-identifiers]
+        d256[daemon-256-bit-identifiers<br/><i>COMPLETE</i>]
         dloc[daemon-locator-terminology]
+        dnet[daemon-agent-network-identity]
         d256 --> dloc
+        d256 --> dnet
+    end
+
+    subgraph Daemon Messaging
+        dform[daemon-form-request<br/><i>IN PROGRESS</i>]
+        dval[daemon-value-message]
+        dform --> dval
+    end
+
+    subgraph LLM Agents
+        laltx[lal-reply-chain-transcripts<br/><i>IN PROGRESS</i>]
+        lalfp[lal-fae-form-provisioning]
+        dform --> lalfp
+        dval --> lalfp
+        laltx --> lalfp
     end
 
     subgraph Familiar
         fbund[familiar-daemon-bundling<br/><i>IN PROGRESS</i>]
         fweb[familiar-unified-weblet-server<br/><i>IN PROGRESS</i>]
+        flhttp[familiar-localhttp-protocol<br/><i>IN PROGRESS</i>]
         fchat[familiar-chat-weblet-hosting]
         dapp[daemon-weblet-application]
         fbund --> fweb --> fchat
         fweb --> dapp
         fchat --> dapp
+        flhttp --> fchat
     end
 
     subgraph OCapN
@@ -74,6 +94,7 @@ flowchart TD
         onoise[ocapn-noise-network]
         onet --> otcp --> onoise
         orev --> onoise
+        dnet --> onoise
     end
 
     subgraph Chat Theming
@@ -103,7 +124,7 @@ These block distribution or foundational work.
 
 | Design | Urgency | Rationale |
 |--------|---------|-----------|
-| daemon-256-bit-identifiers | High | Foundation for locator terminology; aligns with OCapN-Noise |
+| ~~daemon-256-bit-identifiers~~ | — | ✅ Complete |
 | familiar-daemon-bundling | High | Blocks Familiar distribution; in progress |
 
 #### Tier 2 — Enabling Infrastructure (High-Medium Urgency)
@@ -112,7 +133,8 @@ Unblock downstream features and networking.
 
 | Design | Urgency | Depends On | Rationale |
 |--------|---------|------------|-----------|
-| daemon-locator-terminology | High | daemon-256-bit-identifiers | Clean API for locators; late materialization |
+| daemon-locator-terminology | High | ~~daemon-256-bit-identifiers~~ | Clean API for locators; unblocked |
+| daemon-value-message | High | — | Reply mechanism for forms; blocks agent provisioning |
 | familiar-unified-weblet-server | High | familiar-daemon-bundling | Required for weblet hosting in Familiar |
 | ocapn-network-transport-separation | Medium | — | Foundation for OCapN-Noise; in progress |
 
@@ -122,8 +144,9 @@ Enable new capabilities once infrastructure is ready.
 
 | Design | Urgency | Depends On | Rationale |
 |--------|---------|------------|-----------|
+| lal-fae-form-provisioning | Medium | daemon-form-request, daemon-value-message, lal-reply-chain-transcripts | Form-based multi-agent provisioning for Lal and Fae |
 | ocapn-tcp-for-test-extraction | Medium | ocapn-network-transport-separation | Clean separation before adding Noise |
-| familiar-chat-weblet-hosting | Medium | familiar-unified-weblet-server | Core Familiar feature |
+| familiar-chat-weblet-hosting | Medium | familiar-unified-weblet-server, familiar-localhttp-protocol | Core Familiar feature |
 | daemon-weblet-application | Medium | familiar-unified-weblet-server, familiar-chat-weblet-hosting | Readable trees and weblets from zip archives |
 | ocapn-noise-cryptographic-review | Medium | — | Should complete before stabilizing Noise |
 
@@ -147,7 +170,8 @@ Improve Chat UI; independent of core infrastructure.
 
 | Design | Urgency | Depends On | Rationale |
 |--------|---------|------------|-----------|
-| ocapn-noise-network | Medium | ocapn-tcp-for-test-extraction, ocapn-noise-cryptographic-review | Secure peer networking |
+| daemon-agent-network-identity | Medium | ~~daemon-256-bit-identifiers~~, ocapn-network-transport-separation | Per-agent keypairs used for network identity |
+| ocapn-noise-network | Medium | ocapn-tcp-for-test-extraction, ocapn-noise-cryptographic-review, daemon-agent-network-identity | Secure peer networking |
 
 #### Tier 6 — Long-term / Research (Low Urgency)
 
@@ -162,8 +186,8 @@ Security and capability research; no immediate blockers.
 
 ### Suggested Execution Order
 
-1. **Now:** Complete `familiar-daemon-bundling`, continue `ocapn-network-transport-separation`
-2. **Next:** `daemon-256-bit-identifiers` → `daemon-locator-terminology`
+1. **Now:** Complete `familiar-daemon-bundling`, continue `ocapn-network-transport-separation`, implement `daemon-value-message`
+2. **Next:** `daemon-locator-terminology` (unblocked), `lal-fae-form-provisioning`
 3. **Then:** `familiar-unified-weblet-server` → `familiar-chat-weblet-hosting`
 4. **Parallel:** `ocapn-tcp-for-test-extraction`, `ocapn-noise-cryptographic-review`
 5. **After review:** `ocapn-noise-network`
@@ -227,13 +251,15 @@ These estimates were derived on 2026-02-24 using the following approach:
 | Design | Size | Estimate | Notes |
 |--------|------|----------|-------|
 | **Tier 1** |
-| daemon-256-bit-identifiers | M | 3-5 days | formula-identifier.js, locator.js, daemon.js patterns, tests |
+| ~~daemon-256-bit-identifiers~~ | — | — | ✅ Complete |
 | familiar-daemon-bundling | M | 3-5 days | Remaining: esbuild config, worker bundling |
 | **Tier 2** |
-| daemon-locator-terminology | S-M | 2-3 days | After 256-bit; locator.js + host.js changes |
+| daemon-locator-terminology | S-M | 2-3 days | Unblocked; locator.js + host.js changes |
+| daemon-value-message | M | 3-5 days | New message type, mail.js, host.js, guest.js, CLI, Chat UI |
 | familiar-unified-weblet-server | M | 3-5 days | web-server restructuring, routing |
 | ocapn-network-transport-separation | L | 1-2 weeks | Architectural refactor across ocapn packages |
 | **Tier 3** |
+| lal-fae-form-provisioning | M | 5-7 days | Manager/worker refactor for lal + fae, setup.js changes |
 | ocapn-tcp-for-test-extraction | M | 3-5 days | Code relocation, interface cleanup |
 | familiar-chat-weblet-hosting | M | 5-7 days | Iframe hosting, panel UI, guest profiles |
 | daemon-weblet-application | M | 5-7 days | Two formula types, gateway serving, CLI/chat verbs, MessagePort CapTP |
@@ -246,6 +272,7 @@ These estimates were derived on 2026-02-24 using the following approach:
 | workers-panel | M-L | 1-2 weeks | New panel, daemon metrics API, sparklines |
 | live-reference-indicator | M | 5-7 days | Daemon incarnation status API + UI indicators |
 | **Tier 5** |
+| daemon-agent-network-identity | M | 5-7 days | Network registration, null-node, locator construction |
 | ocapn-noise-network | L | 2-3 weeks | Full network + transport implementations |
 | **Tier 6** |
 | daemon-os-sandbox-plugin | XL | 3-4 weeks | Platform-specific (macOS sandbox-exec, Linux namespaces) |
@@ -257,13 +284,13 @@ These estimates were derived on 2026-02-24 using the following approach:
 
 | Category | Items | Total Estimate |
 |----------|-------|----------------|
-| Tier 1 (Critical) | 2 | 1-2 weeks |
-| Tier 2 (Infrastructure) | 3 | 2-4 weeks |
-| Tier 3 (Near-term) | 3 | 2-3 weeks |
+| Tier 1 (Critical) | 1 | 3-5 days |
+| Tier 2 (Infrastructure) | 4 | 2-5 weeks |
+| Tier 3 (Near-term) | 5 | 3-5 weeks |
 | Tier 4 (UX) | 6 | 4-7 weeks |
-| Tier 5 (Networking) | 1 | 2-3 weeks |
+| Tier 5 (Networking) | 2 | 3-4 weeks |
 | Tier 6 (Research) | 4 | 10-14 weeks |
-| **Total remaining** | **19** | **~21-33 weeks** |
+| **Total remaining** | **22** | **~23-36 weeks** |
 
 *Note: Estimates assume serial execution. Parallelization across contributors would reduce calendar time.*
 
@@ -283,26 +310,27 @@ With 2 engineers, combine A+C or B+C based on skill fit.
 
 | Engineer | Projects | Duration |
 |----------|----------|----------|
-| A | daemon-256-bit-identifiers → daemon-locator-terminology | 1.5 weeks |
+| A | daemon-locator-terminology, daemon-value-message | 1.5 weeks |
 | B | familiar-daemon-bundling → familiar-unified-weblet-server | 1.5 weeks |
 | C | ocapn-network-transport-separation | 2 weeks |
 
 **Deliverables:**
-- 256-bit identifiers and new locator format landed
+- ~~256-bit identifiers~~ ✅ Complete
+- New locator format and value message type landed
 - Familiar app distributable with bundled daemon
 - OCapN transport abstraction complete
 
-**Exit criteria:** Familiar can be packaged and distributed; locator APIs stable
+**Exit criteria:** Familiar can be packaged and distributed; locator APIs stable; form submission replies work end-to-end
 
 ---
 
 #### Milestone 2: Core Features
-**Duration:** 3 weeks | **Goal:** Enable weblet hosting and prepare for secure networking
+**Duration:** 3 weeks | **Goal:** Enable weblet hosting, form-based agent provisioning, and prepare for secure networking
 
 | Engineer | Projects | Duration |
 |----------|----------|----------|
+| A | lal-fae-form-provisioning | 1.5 weeks |
 | A | formula-inspector | 1 week |
-| A | live-reference-indicator (daemon API) | 1 week |
 | B | familiar-chat-weblet-hosting | 1.5 weeks |
 | B | inventory-grouping-by-type | 0.5 weeks |
 | C | ocapn-tcp-for-test-extraction | 1 week |
@@ -310,6 +338,7 @@ With 2 engineers, combine A+C or B+C based on skill fit.
 | C | Begin ocapn-noise-network | 1.5 weeks |
 
 **Deliverables:**
+- LLM agents provisioned via form submission (no environment variables)
 - Weblets hosted inside Familiar Chat UI
 - Formula inspector panel available
 - TCP-for-test extracted; crypto review initiated
