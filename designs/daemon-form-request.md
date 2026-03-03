@@ -5,7 +5,7 @@
 | **Created** | 2026-02-25 |
 | **Updated** | 2026-03-02 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | In Progress |
+| **Status** | Implemented |
 
 ## What is the Problem Being Solved?
 
@@ -42,50 +42,63 @@ The feature is implemented across the daemon, CLI, type system, and Chat UI.
 
 `packages/daemon/src/types.d.ts`
 
-The `Form` message type (line 412):
+The `FormField` type and `Form` message type:
 
 ```ts
-export type FormField = { label: string; pattern?: unknown };
+export type FormField = {
+  name: string;
+  label: string;
+  example?: string;
+  pattern?: unknown;
+};
 
 export type Form = MessageBase & {
   type: 'form';
   replyTo?: FormulaNumber;
   description: string;
-  fields: Record<string, FormField>;
+  fields: FormField[];
 };
 ```
 
-Each field has a `label` (display text) and an optional `pattern` (a
-Passable pattern as defined by `@endo/patterns`). When `pattern` is omitted,
-the daemon treats it as `M.string()` — the field accepts any string value.
+Fields are an ordered array. Each field has:
 
-`Form` is included in the `Message` union type (line 449) and in the
-`MessageFormula` persistence type (line 272), which means form messages
-survive daemon restarts.
+- `name` — the key used when submitting values (`values[field.name]`).
+- `label` — the display label shown to the user.
+- `example` — optional example value used as placeholder text in input fields.
+- `pattern` — optional Passable pattern (as defined by `@endo/patterns`).
+  When omitted, the daemon treats it as `M.string()` — the field accepts any
+  string value.
+
+The array representation guarantees field ordering and separates the
+semantic field name from the display label, which were previously conflated
+when the key served double duty as both identifier and display text.
+
+`Form` is included in the `Message` union type and in the `MessageFormula`
+persistence type, which means form messages survive daemon restarts.
 
 The `Mail` interface exposes two methods:
 
-- `form(recipientNameOrPath, description, fields)` — send a form (line 701).
+- `form(recipientNameOrPath, description, fields)` — send a form.
 - `getForm(messageNumber)` — retrieve a received form's description, fields,
-  and guestHandleId (line 713).
+  and guestHandleId.
 
-The `EndoGuest` interface exposes `form()` (line 859) and the `EndoHost`
-interface exposes `submit()` (line 936).
+The `EndoGuest` and `EndoHost` interfaces both expose `form()` and
+`submit()`.
 
 ### Sending a Form — `mail.js`
 
 `packages/daemon/src/mail.js`
 
-**`makeForm`** (line 277) creates the message envelope:
+**`makeForm`** creates the message envelope:
 
 1. Generates a random `messageId` via `randomHex256()`.
 2. Returns the form message object with `type: 'form'`, `description`, and
-   `fields`.
+   `fields` (the array of `FormField` objects).
 
 No promise or resolver is allocated. The form is fire-and-forget from the
 sender's perspective.
 
-**`form`** (line 1299) is the guest-facing method:
+**`form`** is the guest-facing method:
 
 1. Resolves the recipient name to a handle.
 2. Calls `makeForm` to create the envelope.
@@ -95,21 +108,23 @@ sender's perspective.
 The caller discovers responses by watching for `value` messages whose
 `replyTo` matches the form's `messageId`.
 
-### Submitting a Form — `host.js`
+**`validateEnvelope`** checks that the `fields` property is an array
+(`Array.isArray(envelope.fields)`).
 
-`packages/daemon/src/host.js`
+### Submitting a Form — `mail.js`
 
-**`submit`** (line 835):
+`packages/daemon/src/mail.js`
 
-1. Calls `mailbox.getForm(messageNumber)` to retrieve the form's `fields`.
-2. Validates that every field key in `fields` has a corresponding entry in
-   `values`. Throws if any field is missing.
-3. Validates each value against the field's `pattern` using `mustMatch()`.
-   Fields with no explicit `pattern` default to `M.string()`. Throws if any
-   value does not match.
-4. Marshals the `values` record via `formulateMarshalValue` so it can be
+**`submit`**:
+
+1. Calls `getForm(messageNumber)` to retrieve the form's `fields` array.
+2. Iterates each `{ name, pattern }` in the fields array. For each field:
+   - Throws if `values` does not contain a key matching `name`.
+   - Validates the value against `pattern` using `mustMatch()`. Fields with
+     no explicit `pattern` default to `M.string()`.
+3. Marshals the `values` record via `formulateMarshalValue` so it can be
    stored as a formula.
-5. Sends a `value` message with `replyTo` pointing to the form's `messageId`,
+4. Sends a `value` message with `replyTo` pointing to the form's `messageId`,
    carrying the marshalled values as the `valueId`.
 
 Because `submit` sends a `value` message reply rather than resolving a
@@ -120,28 +135,29 @@ submission produces a new `value` message in the reply chain.
 
 `packages/daemon/src/mail.js`
 
-**`getForm`** (line 1372):
+**`getForm`**:
 
 1. Looks up the message by number.
 2. Asserts the message type is `'form'`.
-3. Returns `{ description, fields, guestHandleId }`.
+3. Returns `{ description, fields, messageId, guestHandleId }` where `fields`
+   is the `FormField[]` array.
 
 ### Interface Guards
 
 `packages/daemon/src/interfaces.js`
 
-Guest `form()` guard (line 207):
+Guest and Host `form()` guard:
 
 ```js
 form: M.call(
-  NameOrPathShape,  // recipientName
-  M.string(),       // description
-  M.record(),       // fields
+  NameOrPathShape,       // recipientName
+  M.string(),            // description
+  M.arrayOf(M.record()), // fields
 )
   .returns(M.promise()),
 ```
 
-Host `submit()` guard (line 334):
+Guest and Host `submit()` guard:
 
 ```js
 submit: M.call(
@@ -154,15 +170,23 @@ submit: M.call(
 
 `packages/daemon/src/help-text.js`
 
-Guest `form` help (line 264):
+Guest `form` help:
 
 ```
-form(recipientName, description, fields) -> void
+form(recipientName, description, fields) -> Promise<void>
 Send a structured form to another agent.
-The recipient submits values by responding, which arrive as value messages.
+- fields: Array of field definitions, e.g. [{ name: "email", label: "Your email" }]
 ```
 
-Host `submit` help (line 434):
+Host `form` help:
+
+```
+form(recipientName, description, fields) -> Promise<void>
+Send a structured form to another agent.
+- fields: Array of field definitions, e.g. [{ name: "email", label: "Your email" }]
+```
+
+Guest and Host `submit` help:
 
 ```
 submit(messageNumber, values) -> Promise<void>
@@ -198,8 +222,8 @@ Sends a `value` message reply to the form. Can be called multiple times.
 ### CLI Command Implementations
 
 **`packages/cli/src/commands/form.js`** — parses `--field` arguments as
-`fieldName:label` pairs using the first colon as delimiter, calls
-`E(agent).form()`.
+`fieldName:label` pairs using the first colon as delimiter, returns an
+array of `{ name, label }` objects, and calls `E(agent).form()`.
 
 **`packages/cli/src/commands/submit.js`** — parses `--field` (`-f`) arguments
 as `fieldName:value` pairs, calls `E(agent).submit()`, which sends a
@@ -209,17 +233,19 @@ as `fieldName:value` pairs, calls `E(agent).submit()`, which sends a
 
 `packages/cli/src/commands/inbox.js`
 
-Form messages are displayed in the inbox (line 112):
+Form messages are displayed in the inbox:
 
 ```
 3. "HOST" sent form "Configure settings" (fields: name, email) at "2026-02-25T..."
 ```
 
-The verb `'sent form'` is assigned at line 42.
+Field names are extracted from the array with `fields.map(f => f.name)`.
 
 ## What Works Today
 
-The end-to-end flow is functional via CLI:
+The end-to-end flow is functional via CLI and Chat UI.
+
+### CLI
 
 ```bash
 # Guest "fae" asks Host for configuration
@@ -227,6 +253,8 @@ endo form HOST "Configure project settings" \
   --as fae \
   --field "projectName:Project name" \
   --field "apiKey:API key"
+# Sends: fields = [{ name: "projectName", label: "Project name" },
+#                   { name: "apiKey", label: "API key" }]
 
 # Host sees the form in their inbox
 endo inbox
@@ -248,6 +276,19 @@ endo submit 0 \
   -f "apiKey:sk-5678"
 # Sends another value message replying to form #0
 ```
+
+### Chat UI
+
+The Chat UI supports both sending and receiving forms:
+
+- **Sending:** The `/form` command opens a modal form builder with a
+  recipient picker, description field, and dynamic "Add field" rows for
+  name+label pairs. The form builder produces an array of `{ name, label }`
+  objects.
+- **Receiving:** Form messages render inline in the inbox with labeled
+  input fields. Each field uses `field.label` as the display label and
+  `field.example || field.name` as the placeholder. A Submit button calls
+  `E(powers).submit()` with the collected values keyed by field name.
 
 Forms can be submitted any number of times. Each submission produces a
 `value` message (see [daemon-value-message](daemon-value-message.md)) in the
@@ -294,21 +335,31 @@ definitions between agents.
 
 ## Design Decisions
 
-1. **Multi-submission via value replies.** Instead of the single-response
+1. **Fields as an ordered array, not a record.** Fields are represented as
+   `FormField[]` rather than `Record<string, { label }>`. The array
+   guarantees field ordering and separates the semantic key (`name`) from
+   the display text (`label`). With the record representation, the object
+   key served as both the field identifier and the placeholder/display text,
+   which conflated two distinct concerns. The array also allows an optional
+   `example` property for placeholder text, independent of both name and
+   label. Submitted values remain a `Record<string, unknown>` keyed by
+   `field.name` — the array representation is only for the form definition.
+
+2. **Multi-submission via value replies.** Instead of the single-response
    promise/resolver pattern, form submissions produce `value` messages
    replying to the original form. This allows any number of responses: the
    host can correct mistakes, multiple agents can respond if the form is
    forwarded, and the reply chain provides a natural history of submissions.
    See [daemon-value-message](daemon-value-message.md).
 
-2. **Fire-and-forget sending.** `form()` sends the form and returns
+3. **Fire-and-forget sending.** `form()` sends the form and returns
    immediately. It does not allocate a promise or block waiting for a
    response. Callers discover responses by watching for `value` messages
    with matching `replyTo`. This simplifies the internal machinery — no
    `formulatePromise`, no `PROMISE`/`RESOLVER`/`RESULT` edges in the message
    hub.
 
-3. **Daemon-enforced field patterns.** The daemon validates each submitted
+4. **Daemon-enforced field patterns.** The daemon validates each submitted
    value against its field's `pattern` using `mustMatch()`. Fields with no
    explicit `pattern` default to `M.string()`. If a value does not match,
    `submit` throws — patterns are a contract, not a hint. The Chat UI uses
@@ -316,17 +367,17 @@ definitions between agents.
    checkbox), providing client-side guidance that complements server-side
    enforcement.
 
-4. **Values support capability references.** Form values are full passables,
+5. **Values support capability references.** Form values are full passables,
    including capability references resolved from pet names. This enables use
    cases like "which worker should I use?" where the answer is a live
    reference. The CLI's string-only limitation is a CLI concern, not a
    daemon design constraint.
 
-5. **No form templates.** Forms are always constructed inline in each
+6. **No form templates.** Forms are always constructed inline in each
    `form()` call. Agents can build their own abstractions for reuse. No new
    formula type needed.
 
-6. **`/submit` command in Chat UI.** The `/submit` command takes a message
+7. **`/submit` command in Chat UI.** The `/submit` command takes a message
    number, opens a modal pre-populated with the form's field labels and
    input fields, and calls `E(host).submit()` on confirmation. This
    parallels `/form` for sending and `/submit` for responding. The same
@@ -351,19 +402,21 @@ definitions between agents.
    Unrecognized patterns fall back to a text input. This mapping is
    extensible as new patterns are introduced.
 
-7. **Modal form builder for `/form` command.** Sending a form uses a modal
+8. **Modal form builder for `/form` command.** Sending a form uses a modal
    dialog (like the `/js` eval form) with a recipient picker, description
    field, dynamic "Add field" button for name+label rows. The `--name` option
    for response naming is removed since form responses are no longer
    promise-based. The modal pattern handles the variable number of fields
    naturally, following the established eval-form endowments UI pattern.
 
-8. **Inline form rendering in inbox.** Form messages render in the message
-   stream showing the description and field labels. The inline display is
-   read-only — submission is done via the `/submit` command. Previous
+9. **Inline form rendering in inbox.** Form messages render inline in the
+   message stream with labeled input fields and a Submit button. Both
+   sender and receiver see input fields and can submit values. The inline
+   form uses `field.label` for the display label and
+   `field.example || field.name` for the input placeholder. Previous
    submissions appear as `value` messages in the reply chain below the form.
 
-9. **Simplified internals.** `makeForm` generates a `messageId` and envelope
+10. **Simplified internals.** `makeForm` generates a `messageId` and envelope
    without allocating any promise/resolver pair. `makeStampedMessage` does
    not reconstruct promises for form messages. `makeMessageFormula` does not
    store `promiseId` or `resolverId`. The message hub registers only

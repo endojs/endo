@@ -112,12 +112,12 @@ On startup, instead of creating a provider and immediately following the inbox,
 the agent sends a form to HOST:
 
 ```js
-await E(powers).form('HOST', 'Add an agent', {
-  name: { label: 'Agent name' },
-  host: { label: 'API host (e.g., https://api.anthropic.com)' },
-  model: { label: 'Model name (e.g., claude-sonnet-4-6-20250514)' },
-  authToken: { label: 'API auth token' },
-});
+await E(powers).form('HOST', 'Add an agent', [
+  { name: 'name', label: 'Agent name' },
+  { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
+  { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
+  { name: 'authToken', label: 'API auth token' },
+]);
 ```
 
 The form's `messageId` becomes the anchor for all future submissions. The
@@ -259,12 +259,12 @@ export const make = (guestPowers, context) => {
   const powers = guestPowers;
 
   // 1. Send the configuration form to HOST.
-  const formSent = E(powers).form('HOST', 'Add an agent', {
-    name: { label: 'Agent name' },
-    host: { label: 'API host (e.g., https://api.anthropic.com)' },
-    model: { label: 'Model name (e.g., claude-sonnet-4-6-20250514)' },
-    authToken: { label: 'API auth token' },
-  });
+  const formSent = E(powers).form('HOST', 'Add an agent', [
+    { name: 'name', label: 'Agent name' },
+    { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
+    { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
+    { name: 'authToken', label: 'API auth token' },
+  ]);
 
   // 2. Resolve the host agent reference for provideGuest calls.
   const agentP = E(powers).lookup('AGENT');
