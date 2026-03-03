@@ -53,6 +53,13 @@
   --tooltip-bg: #2d3748;
   --tooltip-fg: #f7fafc;
 
+  /* Warning / untrusted names */
+  --color-warning: #cc6633;
+
+  /* Own message highlight */
+  --own-msg-bg: #e7f5ff;
+  --own-msg-border: #a5d8ff;
+
   /* Backdrop */
   --backdrop: rgba(0, 0, 0, 0.5);
 
@@ -1882,9 +1889,9 @@ body.resizing * {
 }
 
 .message.own-message {
-  /* Light blue highlight for the user's own messages */
-  --bubble-bg: #e7f5ff;
-  --bubble-border: #a5d8ff;
+  /* Subtle highlight for the user's own messages */
+  --bubble-bg: var(--own-msg-bg);
+  --bubble-border: var(--own-msg-border);
 }
 
 .message strong {
@@ -4251,7 +4258,7 @@ button.btn-spinner::after {
 }
 
 .channel-member-entry.disabled .member-name {
-  color: #e53e3e;
+  color: var(--danger);
   text-decoration: line-through;
 }
 
@@ -4269,16 +4276,16 @@ button.btn-spinner::after {
 .member-revoke-btn {
   font-size: 11px;
   padding: 3px 8px;
-  border: 1px solid #e53e3e;
+  border: 1px solid var(--danger);
   border-radius: var(--radius-sm);
   background: none;
-  color: #e53e3e;
+  color: var(--danger);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .member-revoke-btn:hover {
-  background: #e53e3e;
+  background: var(--danger);
   color: white;
 }
 
@@ -4368,10 +4375,10 @@ button.btn-spinner::after {
 
 .attenuator-ban-btn {
   padding: 4px 10px;
-  border: 1px solid #e53e3e;
+  border: 1px solid var(--danger);
   border-radius: var(--radius-sm);
   background: none;
-  color: #e53e3e;
+  color: var(--danger);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
@@ -4379,7 +4386,7 @@ button.btn-spinner::after {
 }
 
 .attenuator-ban-btn:hover {
-  background: #e53e3e;
+  background: var(--danger);
   color: white;
 }
 
@@ -4433,7 +4440,7 @@ button.btn-spinner::after {
   right: 4px;
   top: -16px;
   font-size: 10px;
-  color: #e03131;
+  color: var(--danger);
   font-weight: 600;
   pointer-events: none;
   white-space: nowrap;
@@ -4684,6 +4691,11 @@ button.btn-spinner::after {
     --tooltip-bg: #e1e3e6;
     --tooltip-fg: #1a1b1e;
 
+    --color-warning: #e8945a;
+
+    --own-msg-bg: rgba(59, 130, 246, 0.12);
+    --own-msg-border: rgba(59, 130, 246, 0.25);
+
     --backdrop: rgba(0, 0, 0, 0.6);
 
     --msg-chip-fg: #ffffff;
@@ -4741,6 +4753,11 @@ button.btn-spinner::after {
 
   --tooltip-bg: #e1e3e6;
   --tooltip-fg: #1a1b1e;
+
+  --color-warning: #e8945a;
+
+  --own-msg-bg: rgba(59, 130, 246, 0.12);
+  --own-msg-border: rgba(59, 130, 246, 0.25);
 
   --backdrop: rgba(0, 0, 0, 0.6);
 
@@ -4849,6 +4866,11 @@ button.btn-spinner::after {
 
   --tooltip-bg: #e1e3e6;
   --tooltip-fg: #1a1b1e;
+
+  --color-warning: #e8945a;
+
+  --own-msg-bg: rgba(59, 130, 246, 0.15);
+  --own-msg-border: rgba(59, 130, 246, 0.3);
 
   --backdrop: rgba(0, 0, 0, 0.8);
 
@@ -5016,7 +5038,7 @@ button.btn-spinner::after {
 .profile-proposed-name {
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-warning, #cc6633);
+  color: var(--color-warning);
   font-style: italic;
 }
 
@@ -5091,7 +5113,7 @@ button.btn-spinner::after {
 }
 
 .pedigree-name {
-  color: var(--color-warning, #cc6633);
+  color: var(--color-warning);
   font-style: italic;
   font-weight: 500;
 }
@@ -5139,7 +5161,7 @@ button.btn-spinner::after {
    ============================ */
 
 .channel-author {
-  color: var(--color-warning, #cc6633);
+  color: var(--color-warning);
   font-style: italic;
   cursor: pointer;
   font-weight: 500;

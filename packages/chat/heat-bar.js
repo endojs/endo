@@ -1,6 +1,7 @@
 // @ts-check
 /* global document, setTimeout */
 
+import harden from '@endo/harden';
 import { interpolateHeatColor, formatDuration, LOCKOUT_THRESHOLD } from './heat-engine.js';
 
 /**

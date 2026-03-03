@@ -3,6 +3,7 @@
 
 /** @import { ERef } from '@endo/far' */
 
+import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 import {

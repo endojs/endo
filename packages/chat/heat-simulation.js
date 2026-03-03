@@ -1,6 +1,7 @@
 // @ts-check
 /* global document */
 
+import harden from '@endo/harden';
 import {
   runSimulation,
   deriveConstants,
@@ -131,6 +132,11 @@ export const createHeatSimulation = ($container, initialParams) => {
     const ctx = $canvas.getContext('2d');
     if (!ctx) return;
 
+    // Read theme colors from CSS custom properties
+    const styles = getComputedStyle(document.documentElement);
+    const bgColor = styles.getPropertyValue('--bg-secondary').trim() || '#f8f9fa';
+    const dangerColor = styles.getPropertyValue('--danger').trim() || '#e03131';
+
     const messageTimes = activeScenario.messageTimes(currentParams);
     const points = runSimulation(currentParams, messageTimes, SIM_DURATION_MS);
 
@@ -138,13 +144,13 @@ export const createHeatSimulation = ($container, initialParams) => {
     ctx.clearRect(0, 0, width, CANVAS_HEIGHT);
 
     // Background
-    ctx.fillStyle = '#f8f9fa';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, CANVAS_HEIGHT);
 
     // Lockout threshold dashed line
     const thresholdY = CANVAS_HEIGHT - (LOCKOUT_THRESHOLD / 100) * CANVAS_HEIGHT;
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = '#e03131';
+    ctx.strokeStyle = dangerColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, thresholdY);
@@ -152,13 +158,15 @@ export const createHeatSimulation = ($container, initialParams) => {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw lockout shading
+    // Draw lockout shading (danger color with low opacity)
     for (const point of points) {
       if (point.locked) {
         const x = (point.t / SIM_DURATION_MS) * width;
         const stepWidth = Math.max(1, (50 / SIM_DURATION_MS) * width);
-        ctx.fillStyle = 'rgba(224, 49, 49, 0.12)';
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = dangerColor;
         ctx.fillRect(x, 0, stepWidth, CANVAS_HEIGHT);
+        ctx.globalAlpha = 1.0;
       }
     }
 
@@ -197,12 +205,17 @@ export const createHeatSimulation = ($container, initialParams) => {
   // Use requestAnimationFrame to ensure canvas is laid out before drawing
   requestAnimationFrame(() => drawChart());
 
+  // Redraw when the color scheme changes
+  const onThemeChange = () => drawChart();
+  document.addEventListener('endo-theme-change', onThemeChange);
+
   return {
     updateParams: p => {
       currentParams = p;
       drawChart();
     },
     dispose: () => {
+      document.removeEventListener('endo-theme-change', onThemeChange);
       $wrapper.remove();
     },
   };

@@ -1,6 +1,8 @@
 // @ts-check
 /* global document, setTimeout */
 
+import harden from '@endo/harden';
+
 /**
  * @typedef {object} ProfilePopupAPI
  * @property {(options: { proposedName: string, pedigree: string[], yourName?: string, onAssignName?: (name: string) => void, anchorElement: HTMLElement }) => void} show

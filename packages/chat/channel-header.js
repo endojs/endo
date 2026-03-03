@@ -1,6 +1,8 @@
 // @ts-check
 /* global document, window */
 
+import harden from '@endo/harden';
+
 /** @import { ERef } from '@endo/far' */
 
 import { E } from '@endo/far';
