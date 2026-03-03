@@ -83,6 +83,7 @@ const updateRecordedPid = async () => {
     .then(pidText => {
       const oldPid = Number(pidText);
       kill(oldPid);
+      // TODO what no wait for it to terminate? ... oh and now we're not doing SIGKILL brutality like we do to "workers"?
     })
     .catch(() => {});
 
@@ -106,7 +107,7 @@ const killStaleWorkers = async () => {
         const workerPid = Number(pidText);
         if (Number.isFinite(workerPid) && workerPid > 0) {
           try {
-            kill(workerPid, 'SIGKILL');
+            kill(workerPid, 'SIGKILL'); // TODO why so brutal
           } catch {
             /* already gone */
           }
@@ -188,6 +189,12 @@ const main = async () => {
       const address = await E(apps).getAddress();
       console.log(`Endo gateway listening on ${address}`);
     }
+
+    // TODO bundled agents should be extensible, not hardcoded:
+    // - bundles could be given on cli
+    // - with a default bundle as part of the distro
+    //
+    // TODO we should at least start by factoring out this code, rather than burying it inside main() here
 
     // Provision bundled agents (Lal).
     const lalSpecifier = process.env.ENDO_LAL_PATH;
