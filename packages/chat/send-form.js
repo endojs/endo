@@ -5,6 +5,9 @@
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
+import { makeLiveHeatEngine } from './heat-engine.js';
+import { makeCompositeHeatEngine } from './composite-heat-engine.js';
+import { createHeatBar } from './heat-bar.js';
 
 /**
  * @typedef {object} SendFormState
@@ -41,6 +44,8 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
+ * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
+ * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -57,6 +62,8 @@ export const sendFormComponent = ({
   onStateChange,
   getConversationPetName,
   navigateToConversation,
+  getMoiMessageNumber,
+  getChannelRef,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -65,6 +72,104 @@ export const sendFormComponent = ({
   /** @type {string | null} */
   let lastRecipient = null;
   let submitting = false;
+
+  // --- Heat engine integration ---
+  /** @type {ReturnType<typeof makeLiveHeatEngine> | null} */
+  let heatEngine = null;
+  /** @type {ReturnType<typeof makeCompositeHeatEngine> | null} */
+  let compositeEngine = null;
+  /** @type {ReturnType<typeof createHeatBar> | null} */
+  let heatBar = null;
+  /** Guard against double-init (polling + async race) */
+  let heatEngineInitialized = false;
+  /** Polling cancellation flag */
+  let heatPollingStopped = false;
+
+  /**
+   * Initialize the composite heat engine for multi-hop heat tracking.
+   * Falls back to single-hop engine if getHopInfo is not available.
+   * @param {unknown} channelRef
+   */
+  const initHeatEngine = async channelRef => {
+    if (heatEngineInitialized) return;
+    heatEngineInitialized = true;
+
+    try {
+      // Try composite (multi-hop) engine first
+      const hopInfo = await E(channelRef).getHopInfo();
+      if (hopInfo && hopInfo.policies && hopInfo.policies.length > 0) {
+        heatBar = createHeatBar(
+          /** @type {HTMLElement} */ ($input.parentElement),
+          $sendButton,
+        );
+        compositeEngine = makeCompositeHeatEngine(
+          hopInfo.policies,
+          hopInfo.states,
+          state => {
+            if (heatBar) heatBar.update(state);
+          },
+        );
+        compositeEngine.start();
+
+        // Subscribe to heat events for real-time updates
+        try {
+          const eventsRef = await E(channelRef).followHeatEvents();
+          const eventIter = makeRefIterator(eventsRef);
+          (async () => {
+            for await (const event of eventIter) {
+              if (compositeEngine) {
+                compositeEngine.applyEvent(/** @type {any} */ (event));
+              }
+            }
+          })();
+        } catch {
+          // Heat events not available — composite engine still works locally
+        }
+        return;
+      }
+    } catch {
+      // getHopInfo not available — try legacy single-hop
+    }
+
+    // Fallback: single-hop heat engine
+    try {
+      const config = await E(channelRef).getHeatConfig();
+      if (config && typeof config === 'object') {
+        const heatConfig = /** @type {import('./heat-engine.js').HeatConfig} */ (config);
+        heatBar = createHeatBar(
+          /** @type {HTMLElement} */ ($input.parentElement),
+          $sendButton,
+        );
+        heatEngine = makeLiveHeatEngine(heatConfig, state => {
+          if (heatBar) heatBar.update(state);
+        });
+        heatEngine.start();
+      }
+    } catch {
+      // Heat config not available — no rate limiting UI
+    }
+  };
+
+  // If in channel mode, try to init heat engine.
+  // The channel ref may not be available yet (it's set asynchronously),
+  // so poll until it appears.
+  if (getChannelRef) {
+    const channelRef = getChannelRef();
+    if (channelRef) {
+      void initHeatEngine(channelRef);
+    } else {
+      const pollForChannelRef = () => {
+        if (heatPollingStopped || heatEngineInitialized) return;
+        const ref = getChannelRef();
+        if (ref) {
+          void initHeatEngine(ref);
+        } else {
+          setTimeout(pollForChannelRef, 500);
+        }
+      };
+      setTimeout(pollForChannelRef, 500);
+    }
+  }
 
   // Initialize token autocomplete
   const tokenComponent = tokenAutocompleteComponent($input, $menu, {
@@ -124,6 +229,67 @@ export const sendFormComponent = ({
       return;
     }
 
+    // Channel mode: post directly to the channel (no recipient needed)
+    const channelRef = getChannelRef ? getChannelRef() : null;
+    if (channelRef) {
+      // Client-side heat check (composite engine takes priority)
+      if (compositeEngine) {
+        const result = compositeEngine.recordSend();
+        if (!result.allowed) {
+          $sendButton.classList.add('heat-shake');
+          setTimeout(() => $sendButton.classList.remove('heat-shake'), 500);
+          $error.textContent = result.lockRemainingMs > 0
+            ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
+            : 'Sending too fast — slow down';
+          return;
+        }
+      } else if (heatEngine) {
+        const result = heatEngine.attemptSend();
+        if (!result.allowed) {
+          $sendButton.classList.add('heat-shake');
+          setTimeout(() => $sendButton.classList.remove('heat-shake'), 500);
+          $error.textContent = result.lockRemainingMs > 0
+            ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
+            : 'Sending too fast — slow down';
+          return;
+        }
+      }
+
+      const messageStrings = strings.map((s, i) => {
+        if (i === 0) return s.trimStart();
+        if (i === strings.length - 1) return s.trimEnd();
+        return s;
+      });
+
+      const replyTo = getMoiMessageNumber ? getMoiMessageNumber() : undefined;
+      const replyToStr =
+        replyTo !== undefined ? String(replyTo) : undefined;
+
+      E(channelRef)
+        .post(messageStrings, edgeNames, petNames, replyToStr)
+        .then(
+          () => {
+            tokenComponent.clear();
+            clearError();
+          },
+          (/** @type {Error} */ err) => {
+            $error.textContent = err.message;
+            // On server rejection, sync heat to threshold
+            if (/rate limit/i.test(err.message)) {
+              if (compositeEngine) {
+                compositeEngine.recordSend();
+              } else if (heatEngine) {
+                const state = heatEngine.getState();
+                if (!state.locked) {
+                  heatEngine.attemptSend();
+                }
+              }
+            }
+          },
+        );
+      return;
+    }
+
     const conversationPetName = getConversationPetName
       ? getConversationPetName()
       : null;
@@ -137,8 +303,17 @@ export const sendFormComponent = ({
       });
 
       setSubmitting(true);
+      const replyToNumber = getMoiMessageNumber
+        ? getMoiMessageNumber()
+        : undefined;
       E(powers)
-        .send(conversationPetName, messageStrings, edgeNames, petNames)
+        .send(
+          conversationPetName,
+          messageStrings,
+          edgeNames,
+          petNames,
+          replyToNumber,
+        )
         .then(
           () => {
             lastRecipient = conversationPetName;
@@ -223,8 +398,11 @@ export const sendFormComponent = ({
     const navigateAfterSend = firstStringEmpty && petNames.length > 0;
 
     setSubmitting(true);
+    const replyToNum = getMoiMessageNumber
+      ? getMoiMessageNumber()
+      : undefined;
     E(powers)
-      .send(to, messageStrings, messageEdgeNames, messagePetNames)
+      .send(to, messageStrings, messageEdgeNames, messagePetNames, replyToNum)
       .then(
         () => {
           lastRecipient = to;
@@ -244,12 +422,13 @@ export const sendFormComponent = ({
   $sendButton.addEventListener('click', handleSend);
 
   $input.addEventListener('keydown', (/** @type {KeyboardEvent} */ event) => {
-    // Space at empty start inserts last recipient
+    // Space at empty start inserts last recipient (not in channel mode)
     if (
       event.key === ' ' &&
       !tokenComponent.isMenuVisible() &&
       lastRecipient &&
-      isAtEmptyStart()
+      isAtEmptyStart() &&
+      !(getChannelRef && getChannelRef())
     ) {
       event.preventDefault();
       tokenComponent.insertTokenAtCursor(lastRecipient);

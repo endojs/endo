@@ -22,8 +22,10 @@ import { makeRefIterator } from './ref-iterator.js';
  * @property {string} name - display name (shown on hover)
  * @property {string} icon - emoji character
  * @property {string[]} profilePath - pet-name path to the agent
- * @property {'inbox'} mode - interaction mode (future: 'conversations', 'channels')
+ * @property {'inbox' | 'channel'} mode - interaction mode
  * @property {ColorScheme} [scheme] - color scheme preference (default: 'auto')
+ * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
+ * @property {string} [proposedName] - display name for the channel creator
  */
 
 /**
@@ -78,7 +80,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[]) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel', channelPetName?: string, proposedName?: string }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -179,7 +181,14 @@ export const createSpacesGutter = ({
   };
 
   /**
-   * Remove a space.
+   * Remove a space and clean up associated daemon-level pet names
+   * and browser-side address book entries.
+   *
+   * For channel spaces:
+   * - The handle and agent pet names in the root pet store are removed
+   *   so that recreating a space with the same name produces a fresh agent.
+   * - All localStorage address-book entries scoped to this persona are
+   *   cleared so a recreated space starts with an empty address book.
    *
    * @param {string} id
    * @returns {Promise<void>}
@@ -189,6 +198,50 @@ export const createSpacesGutter = ({
     if (id === 'home') return;
 
     await null; // safe-await-separator
+
+    // Look up the space config before removing it so we know what to clean up.
+    const config = spacesMap.get(id);
+    if (config && config.mode === 'channel' && config.profilePath.length > 0) {
+      const agentPetName = config.profilePath[0];
+      // config.name is the spaceName passed to provideHost (the handle pet name).
+      const handlePetName = config.name;
+
+      // Clear browser-side address book entries for this persona.
+      // The channelComponent stores nicknames under keys like
+      // "channel-names:<personaId>:<channelName>" where personaId is
+      // profilePath.join('.').  Without this cleanup, recreating a space
+      // with the same name would inherit the old persona's nicknames.
+      try {
+        const personaId = config.profilePath.join('.');
+        const prefix = `channel-names:${personaId}:`;
+        const keysToRemove = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith(prefix)) {
+            keysToRemove.push(key);
+          }
+        }
+        for (const key of keysToRemove) {
+          window.localStorage.removeItem(key);
+        }
+      } catch {
+        // localStorage not available
+      }
+
+      // Remove the handle so provideHost creates a new agent next time.
+      try {
+        await E(powers).remove(handlePetName);
+      } catch {
+        // May not exist
+      }
+      // Remove the agent pet name so the old agent can be garbage collected.
+      try {
+        await E(powers).remove(agentPetName);
+      } catch {
+        // May not exist
+      }
+    }
+
     try {
       await E(powers).remove('spaces', id);
     } catch {
@@ -291,7 +344,11 @@ export const createSpacesGutter = ({
     activeSpaceId = id;
     applyScheme(space.scheme);
     render();
-    onNavigate(space.profilePath);
+    onNavigate(space.profilePath, {
+      mode: space.mode,
+      channelPetName: space.channelPetName,
+      proposedName: space.proposedName,
+    });
   };
 
   /** @type {string | null} */
@@ -485,16 +542,37 @@ export const createSpacesGutter = ({
       return icons;
     },
     onSubmit: async data => {
-      await addSpace({
+      const spaceConfig = {
         name: data.name,
         icon: data.icon,
         profilePath: data.profilePath,
-        mode: 'inbox',
+        mode: data.layout === 'channel' ? 'channel' : 'inbox',
         scheme: data.scheme || 'auto',
-      });
+      };
+      if (data.channelPetName) {
+        spaceConfig.channelPetName = data.channelPetName;
+      }
+      if (data.proposedName) {
+        spaceConfig.proposedName = data.proposedName;
+      }
+      await addSpace(spaceConfig);
     },
     onClose: () => {
       // Modal closed
+    },
+    getExistingChannelSpaces: () => {
+      const result = [];
+      for (const space of spacesMap.values()) {
+        if (space.mode === 'channel') {
+          result.push({
+            id: space.id,
+            name: space.name,
+            icon: space.icon,
+            profilePath: space.profilePath,
+          });
+        }
+      }
+      return result;
     },
   });
 
@@ -553,22 +631,27 @@ export const createSpacesGutter = ({
     if (!Array.isArray(obj.profilePath)) return null;
     if (!obj.profilePath.every(p => typeof p === 'string')) return null;
     // Mode is optional, default to 'inbox'
-    const mode = obj.mode === 'inbox' ? 'inbox' : 'inbox';
+    const mode = obj.mode === 'channel' ? 'channel' : 'inbox';
     // Scheme is optional, default to 'auto'
     const scheme =
       typeof obj.scheme === 'string' && validSchemes.includes(obj.scheme)
         ? /** @type {ColorScheme} */ (obj.scheme)
         : 'auto';
-    return /** @type {SpaceConfig} */ (
-      harden({
-        id,
-        name: obj.name,
-        icon: obj.icon,
-        profilePath: obj.profilePath,
-        mode,
-        scheme,
-      })
-    );
+    const result = {
+      id,
+      name: obj.name,
+      icon: obj.icon,
+      profilePath: obj.profilePath,
+      mode,
+      scheme,
+    };
+    if (typeof obj.channelPetName === 'string') {
+      result.channelPetName = obj.channelPetName;
+    }
+    if (typeof obj.proposedName === 'string') {
+      result.proposedName = obj.proposedName;
+    }
+    return /** @type {SpaceConfig} */ (harden(result));
   };
 
   /**

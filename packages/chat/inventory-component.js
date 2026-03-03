@@ -14,6 +14,9 @@ import { makeRefIterator } from './ref-iterator.js';
  * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} showValue
  * @property {((petName: string, formulaId: string) => void)} [onSelectConversation]
  * @property {string | null} [activeConversationPetName]
+ * @property {boolean} [channelMode] - If true, show "Channels" header and channel-specific UI
+ * @property {(channelPetName: string) => void} [onSelectChannel] - Called when a channel is selected
+ * @property {string | null} [activeChannelPetName] - Currently active channel pet name
  */
 
 /**
@@ -23,6 +26,12 @@ import { makeRefIterator } from './ref-iterator.js';
  * Excludes 'host' and 'guest' which are powers/profile objects, not contacts.
  */
 const CONVERSABLE_TYPES = harden(['handle', 'peer', 'remote']);
+
+/**
+ * Non-expandable formula types — these items have no children and should not
+ * show a disclosure triangle.
+ */
+const NON_EXPANDABLE_TYPES = harden(['channel']);
 
 /**
  * @param {HTMLElement} $parent
@@ -35,10 +44,232 @@ export const inventoryComponent = async (
   $parent,
   _end,
   powers,
-  { showValue, onSelectConversation, activeConversationPetName },
+  {
+    showValue,
+    onSelectConversation,
+    activeConversationPetName,
+    channelMode,
+    onSelectChannel,
+    activeChannelPetName,
+  },
   path = [],
 ) => {
   const $list = $parent.querySelector('.pet-list') || $parent;
+
+  // Update header text for channel mode
+  if (channelMode && path.length === 0) {
+    const $title = $parent.querySelector('.inventory-title');
+    if ($title) {
+      $title.textContent = 'Channels';
+    }
+
+    // Add channel action buttons if not already present
+    const $header = $parent.querySelector('.inventory-header');
+    if ($header && !$header.querySelector('.channel-actions')) {
+      const $actions = document.createElement('span');
+      $actions.className = 'channel-actions';
+
+      const $newBtn = document.createElement('button');
+      $newBtn.className = 'channel-action-btn';
+      $newBtn.textContent = 'New';
+      $newBtn.title = 'Create a new channel';
+
+      const $joinBtn = document.createElement('button');
+      $joinBtn.className = 'channel-action-btn';
+      $joinBtn.textContent = 'Join';
+      $joinBtn.title = 'Join an existing channel';
+
+      $actions.appendChild($newBtn);
+      $actions.appendChild($joinBtn);
+
+      // Insert before the toggle label
+      const $toggle = $header.querySelector('.inventory-toggle');
+      if ($toggle) {
+        $header.insertBefore($actions, $toggle);
+      } else {
+        $header.appendChild($actions);
+      }
+
+      // Inline form container (shared between New and Join)
+      let $inlineForm = $parent.querySelector('.channel-inline-form');
+      if (!$inlineForm) {
+        $inlineForm = document.createElement('div');
+        $inlineForm.className = 'channel-inline-form';
+        // Insert between header and pet-list
+        const $petList = $parent.querySelector('.pet-list');
+        if ($petList) {
+          $parent.insertBefore($inlineForm, $petList);
+        } else {
+          $parent.appendChild($inlineForm);
+        }
+      }
+
+      /**
+       * Show the "New Channel" inline form.
+       */
+      const showNewForm = () => {
+        if (!$inlineForm) return;
+        $inlineForm.innerHTML = '';
+        $inlineForm.classList.add('visible');
+
+        const $form = document.createElement('div');
+        $form.className = 'channel-form';
+
+        const $nameInput = document.createElement('input');
+        $nameInput.type = 'text';
+        $nameInput.placeholder = 'Channel name';
+        $nameInput.className = 'channel-form-input';
+
+        const $displayInput = document.createElement('input');
+        $displayInput.type = 'text';
+        $displayInput.placeholder = 'Your display name';
+        $displayInput.className = 'channel-form-input';
+
+        const $btnRow = document.createElement('div');
+        $btnRow.className = 'channel-form-buttons';
+
+        const $createBtn = document.createElement('button');
+        $createBtn.className = 'channel-form-submit';
+        $createBtn.textContent = 'Create';
+
+        const $cancelBtn = document.createElement('button');
+        $cancelBtn.className = 'channel-form-cancel';
+        $cancelBtn.textContent = 'Cancel';
+
+        $btnRow.appendChild($createBtn);
+        $btnRow.appendChild($cancelBtn);
+
+        $form.appendChild($nameInput);
+        $form.appendChild($displayInput);
+        $form.appendChild($btnRow);
+        $inlineForm.appendChild($form);
+
+        $nameInput.focus();
+
+        $cancelBtn.onclick = () => {
+          $inlineForm.classList.remove('visible');
+          $inlineForm.innerHTML = '';
+        };
+
+        $createBtn.onclick = async () => {
+          const petName = $nameInput.value.trim();
+          const displayName = $displayInput.value.trim();
+          if (!petName || !displayName) return;
+
+          $createBtn.disabled = true;
+          $createBtn.textContent = 'Creating...';
+          try {
+            await E(powers).makeChannel(petName, displayName);
+            $inlineForm.classList.remove('visible');
+            $inlineForm.innerHTML = '';
+            // Auto-select the new channel
+            if (onSelectChannel) {
+              onSelectChannel(petName);
+            }
+          } catch (err) {
+            window.reportError(/** @type {Error} */ (err));
+            $createBtn.disabled = false;
+            $createBtn.textContent = 'Create';
+          }
+        };
+
+        // Submit on Enter in last input
+        $displayInput.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            $createBtn.click();
+          }
+        });
+      };
+
+      /**
+       * Show the "Join Channel" inline form.
+       */
+      const showJoinForm = () => {
+        if (!$inlineForm) return;
+        $inlineForm.innerHTML = '';
+        $inlineForm.classList.add('visible');
+
+        const $form = document.createElement('div');
+        $form.className = 'channel-form';
+
+        const $locatorInput = document.createElement('input');
+        $locatorInput.type = 'text';
+        $locatorInput.placeholder = 'Locator URL';
+        $locatorInput.className = 'channel-form-input';
+
+        const $nameInput = document.createElement('input');
+        $nameInput.type = 'text';
+        $nameInput.placeholder = 'Channel name (local)';
+        $nameInput.className = 'channel-form-input';
+
+        const $btnRow = document.createElement('div');
+        $btnRow.className = 'channel-form-buttons';
+
+        const $joinSubmit = document.createElement('button');
+        $joinSubmit.className = 'channel-form-submit';
+        $joinSubmit.textContent = 'Join';
+
+        const $cancelBtn = document.createElement('button');
+        $cancelBtn.className = 'channel-form-cancel';
+        $cancelBtn.textContent = 'Cancel';
+
+        $btnRow.appendChild($joinSubmit);
+        $btnRow.appendChild($cancelBtn);
+
+        $form.appendChild($locatorInput);
+        $form.appendChild($nameInput);
+        $form.appendChild($btnRow);
+        $inlineForm.appendChild($form);
+
+        $locatorInput.focus();
+
+        $cancelBtn.onclick = () => {
+          $inlineForm.classList.remove('visible');
+          $inlineForm.innerHTML = '';
+        };
+
+        $joinSubmit.onclick = async () => {
+          const locator = $locatorInput.value.trim();
+          const petName = $nameInput.value.trim();
+          if (!locator || !petName) return;
+
+          $joinSubmit.disabled = true;
+          $joinSubmit.textContent = 'Joining...';
+          try {
+            // Parse formula ID from locator URL
+            const url = new URL(locator);
+            const formulaNumber = url.searchParams.get('id');
+            const nodeNumber = url.hostname;
+            if (!formulaNumber) {
+              throw new Error('Invalid locator: missing formula id');
+            }
+            const formulaId = `${formulaNumber}:${nodeNumber}`;
+            await E(powers).write(petName, formulaId);
+            $inlineForm.classList.remove('visible');
+            $inlineForm.innerHTML = '';
+            // Auto-select the new channel
+            if (onSelectChannel) {
+              onSelectChannel(petName);
+            }
+          } catch (err) {
+            window.reportError(/** @type {Error} */ (err));
+            $joinSubmit.disabled = false;
+            $joinSubmit.textContent = 'Join';
+          }
+        };
+
+        // Submit on Enter in last input
+        $nameInput.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            $joinSubmit.click();
+          }
+        });
+      };
+
+      $newBtn.onclick = showNewForm;
+      $joinBtn.onclick = showJoinForm;
+    }
+  }
 
   /** @type {Map<string, { $wrapper: HTMLElement, cleanup?: () => void }>} */
   const $names = new Map();
@@ -127,14 +358,38 @@ export const inventoryComponent = async (
         .remove(.../** @type {[string, ...string[]]} */ (itemPath))
         .catch(window.reportError);
 
-    // Probe the formula type to detect conversable items
-    if (onSelectConversation) {
-      E(powers)
-        .locate(.../** @type {[string, ...string[]]} */ (itemPath))
-        .then(locator => {
-          if (!locator) return;
-          const url = new URL(/** @type {string} */ (locator));
-          const type = url.searchParams.get('type');
+    // Probe the formula type to detect conversable items and non-expandable types
+    E(powers)
+      .locate(.../** @type {[string, ...string[]]} */ (itemPath))
+      .then(locator => {
+        if (!locator) return;
+        const url = new URL(/** @type {string} */ (locator));
+        const type = url.searchParams.get('type');
+
+        // Hide disclosure triangle for known non-expandable types
+        if (type && NON_EXPANDABLE_TYPES.includes(type)) {
+          $disclosure.classList.add('hidden');
+        }
+
+        // Channel mode: make channel items selectable
+        if (channelMode && type === 'channel' && onSelectChannel) {
+          $wrapper.classList.add('channel-item');
+          $name.title = 'Switch to this channel';
+          $name.classList.add('selectable');
+          $name.onclick = () => {
+            onSelectChannel(name);
+          };
+          if (
+            activeChannelPetName &&
+            path.length === 0 &&
+            name === activeChannelPetName
+          ) {
+            $wrapper.classList.add('active-channel');
+          }
+        }
+
+        // Non-channel mode: detect conversable items
+        if (!channelMode && onSelectConversation) {
           if (type && CONVERSABLE_TYPES.includes(type)) {
             $wrapper.classList.add('conversable');
             $name.title = 'Open conversation';
@@ -152,11 +407,11 @@ export const inventoryComponent = async (
               $wrapper.classList.add('active-conversation');
             }
           }
-        })
-        .catch(() => {
-          // Item may have been removed
-        });
-    }
+        }
+      })
+      .catch(() => {
+        // Item may have been removed
+      });
 
     // Track expansion state and cleanup
     let isExpanded = false;
@@ -236,7 +491,14 @@ export const inventoryComponent = async (
             $children,
             null,
             nestedPowers,
-            { showValue, onSelectConversation, activeConversationPetName },
+            {
+              showValue,
+              onSelectConversation,
+              activeConversationPetName,
+              channelMode,
+              onSelectChannel,
+              activeChannelPetName,
+            },
             [], // Reset path since nestedPowers handles the prefix
           ).catch(() => {
             // Silently handle errors (e.g., if the item is removed)
