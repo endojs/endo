@@ -41,7 +41,8 @@
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "test": "ava",
-    "test:clean": "rm -rf tmp && yarn test"
+    "test:clean": "rm -rf tmp && yarn test",
+    "test:engo": "ENDO_BIN=../../go/engo/engo ava"
   },
   "dependencies": {
     "@chainsafe/libp2p-noise": "^16.1.3",
