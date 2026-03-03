@@ -358,6 +358,37 @@ test.serial('channel - sub-invitations carry full pedigree chain', async t => {
   );
 });
 
+test.serial('channel - messages include pedigreeMemberIds for ancestor chain', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const adminMemberId = await E(channel).getMemberId();
+
+  // Alice invites Bob, Bob invites Carol.
+  const [bobInvite] = await E(channel).createInvitation('Bob');
+  const bobMember = await E(bobInvite).join('Bob');
+  const bobMemberId = await E(bobMember).getMemberId();
+  const [carolInvite] = await E(bobMember).createInvitation('Carol');
+  const carolMember = await E(carolInvite).join('Carol');
+
+  // Admin and Carol both post.
+  await E(channel).post(['Admin message'], [], []);
+  await E(carolMember).post(['Carol message'], [], []);
+
+  const messages = await E(channel).listMessages();
+  t.is(messages.length, 2);
+
+  // Admin has no ancestors.
+  t.deepEqual(messages[0].pedigree, []);
+  t.deepEqual(messages[0].pedigreeMemberIds, []);
+
+  // Carol's invitation chain is Alice -> Bob, and IDs align to those members.
+  t.deepEqual(messages[1].pedigree, ['Alice', 'Bob']);
+  t.deepEqual(messages[1].pedigreeMemberIds, [adminMemberId, bobMemberId]);
+});
+
 // ---------- Implicit threading ----------
 
 test.serial('channel - implicit threading with replyTo', async t => {
