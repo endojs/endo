@@ -203,18 +203,16 @@ export const GuestInterface = M.interface('EndoGuest', {
     M.string(), // source
     M.record(), // slots
   ).returns(M.promise()),
-  // Request a form from a recipient
+  // Send a form to a recipient
   form: M.call(
     NameOrPathShape, // recipientName
     M.string(), // description
-    M.record(), // fields
-  )
-    .optional(NameOrPathShape) // responseName
-    .returns(M.promise()),
+    M.arrayOf(M.record()), // fields
+  ).returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
-  // Respond to a form request with values
-  respondForm: M.call(
+  // Submit values for a form
+  submit: M.call(
     MessageNumberShape, // messageNumber
     M.record(), // values
   ).returns(M.promise()),
@@ -266,14 +264,12 @@ export const HostInterface = M.interface('EndoHost', {
     NamesOrPathsShape,
   ).returns(M.promise()),
   deliver: M.call(M.record()).returns(),
-  // Send a form request
+  // Send a form to a recipient
   form: M.call(
     NameOrPathShape, // recipientName
     M.string(), // description
-    M.record(), // fields
-  )
-    .optional(NameOrPathShape) // responseName
-    .returns(M.promise()),
+    M.arrayOf(M.record()), // fields
+  ).returns(M.promise()),
   // Host
   // Store a blob
   storeBlob: M.call(M.remotable())
@@ -343,8 +339,8 @@ export const HostInterface = M.interface('EndoHost', {
       NameOrPathShape, // resultName
     )
     .returns(M.promise()),
-  // Respond to a form request with values
-  respondForm: M.call(
+  // Submit values for a form
+  submit: M.call(
     MessageNumberShape, // messageNumber
     M.record(), // values
   ).returns(M.promise()),

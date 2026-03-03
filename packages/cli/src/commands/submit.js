@@ -5,20 +5,20 @@ import { withEndoAgent } from '../context.js';
 import { parseBigint } from '../number-parse.js';
 
 /**
- * Parse --value arguments into a values record.
+ * Parse --field arguments into a values record.
  * Each value is "fieldName:value" e.g. "name:Alice"
  *
- * @param {string[]} valueArgs
+ * @param {string[]} fieldArgs
  * @returns {Record<string, string>}
  */
-const parseValues = valueArgs => {
+const parseValues = fieldArgs => {
   /** @type {Record<string, string>} */
   const values = Object.create(null);
-  for (const arg of valueArgs) {
+  for (const arg of fieldArgs) {
     const colonIndex = arg.indexOf(':');
     if (colonIndex === -1) {
       throw new Error(
-        `Invalid value format ${JSON.stringify(arg)}, expected "fieldName:value"`,
+        `Invalid field format ${JSON.stringify(arg)}, expected "fieldName:value"`,
       );
     }
     const fieldName = arg.slice(0, colonIndex);
@@ -28,12 +28,12 @@ const parseValues = valueArgs => {
   return values;
 };
 
-export const respondFormCommand = async ({
+export const submitCommand = async ({
   messageNumberText,
-  valueArgs,
+  fieldArgs,
   agentNames,
 }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    const values = parseValues(valueArgs);
-    await E(agent).respondForm(parseBigint(messageNumberText), values);
+    const values = parseValues(fieldArgs);
+    await E(agent).submit(parseBigint(messageNumberText), values);
   });

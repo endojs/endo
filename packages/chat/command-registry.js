@@ -214,11 +214,29 @@ export const COMMANDS = {
   form: {
     name: 'form',
     label: 'Send Form',
-    description: 'Send a structured form request to a recipient',
+    description: 'Send a structured form to a recipient',
     category: 'messaging',
     mode: 'modal',
     fields: [],
     submitLabel: 'Send Form',
+  },
+
+  submit: {
+    name: 'submit',
+    label: 'Submit',
+    description: 'Submit values for a form',
+    category: 'messaging',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'messageNumber',
+        label: 'Form #',
+        type: 'messageNumber',
+        required: true,
+        placeholder: '#',
+      },
+    ],
+    submitLabel: 'Submit',
   },
 
   'approve-eval': {

@@ -3343,16 +3343,17 @@ test('trusted shim executes before lockdown and persists across restart', async 
 
 // ============ FORM REQUEST TESTS ============
 
-test('form request happy path: guest sends form, host responds', async t => {
+test('form happy path: guest sends form, host submits', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
 
-  // Follow host messages to catch the form request
+  // Follow messages on both sides
   const hostIteratorRef = E(host).followMessages();
+  const guestIteratorRef = E(guest).followMessages();
 
-  // Guest sends a form request to the host
-  const responseP = E(guest).form(
+  // Guest sends a form to the host (fire-and-forget)
+  await E(guest).form(
     'HOST',
     'Please configure',
     harden({
@@ -3361,30 +3362,34 @@ test('form request happy path: guest sends form, host responds', async t => {
     }),
   );
 
-  // Host receives the form-request message
+  // Host receives the form message
   const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.type, 'form');
   t.is(formMsg.description, 'Please configure');
 
-  // Host responds with values
-  await E(host).respondForm(
+  // Host submits values
+  await E(host).submit(
     formMsg.number,
     harden({ name: 'Alice', color: 'blue' }),
   );
 
-  // Guest receives the response
-  const result = await responseP;
-  t.deepEqual(result, { name: 'Alice', color: 'blue' });
+  // Guest should receive the value message in followMessages
+  // First message is the form itself (self-delivery), then the value reply
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  const { value: valueMsg } = await E(guestIteratorRef).next();
+  t.is(valueMsg.type, 'value');
+  t.is(typeof valueMsg.valueId, 'string');
+  t.is(valueMsg.replyTo, formMsg.messageId);
 });
 
-test('form request rejects when a field is missing', async t => {
+test('form submit rejects when a field is missing', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
   const hostIteratorRef = E(host).followMessages();
 
-  // Suppress the unhandled rejection from the guest's form promise
-  const formP = E(guest).form(
+  await E(guest).form(
     'HOST',
     'Need info',
     harden({
@@ -3392,52 +3397,49 @@ test('form request rejects when a field is missing', async t => {
       email: { label: 'Email' },
     }),
   );
-  formP.catch(() => {});
 
   const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.type, 'form');
 
-  // Respond with only one field — should throw
+  // Submit with only one field — should throw
   await t.throwsAsync(
-    () => E(host).respondForm(formMsg.number, harden({ name: 'Alice' })),
+    () => E(host).submit(formMsg.number, harden({ name: 'Alice' })),
     { message: /Missing value for field "email"/ },
   );
 });
 
-test('form request with pattern validation', async t => {
+test('form submit with pattern validation rejects non-matching value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
   const hostIteratorRef = E(host).followMessages();
 
-  // Suppress the unhandled rejection from the guest's form promise
-  const formP = E(guest).form(
+  await E(guest).form(
     'HOST',
     'Typed form',
     harden({
       count: { label: 'Count', pattern: M.number() },
     }),
   );
-  formP.catch(() => {});
 
   const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.type, 'form');
 
-  // Respond with wrong type — should throw
+  // Submit with wrong type — should throw
   await t.throwsAsync(
     () =>
-      E(host).respondForm(formMsg.number, harden({ count: 'not-a-number' })),
+      E(host).submit(formMsg.number, harden({ count: 'not-a-number' })),
     { message: /field "count"/ },
   );
 });
 
-test('form request with pattern validation accepts matching value', async t => {
+test('form submit with pattern validation accepts matching value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
   const hostIteratorRef = E(host).followMessages();
 
-  const responseP = E(guest).form(
+  await E(guest).form(
     'HOST',
     'Typed form',
     harden({
@@ -3446,311 +3448,166 @@ test('form request with pattern validation accepts matching value', async t => {
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.type, 'form');
 
-  await E(host).respondForm(formMsg.number, harden({ count: 42 }));
-
-  const result = await responseP;
-  t.deepEqual(result, { count: 42 });
+  // Should not throw
+  await E(host).submit(formMsg.number, harden({ count: 42 }));
+  t.pass();
 });
 
-test('form request stores response under responseName', async t => {
+test('form default pattern is M.string() — rejects non-string', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
   const hostIteratorRef = E(host).followMessages();
 
-  const responseP = E(guest).form(
+  await E(guest).form(
     'HOST',
-    'Config',
-    harden({ key: { label: 'API key' } }),
-    'my-config',
-  );
-
-  const { value: formMsg } = await E(hostIteratorRef).next();
-  await E(host).respondForm(formMsg.number, harden({ key: 'sk-1234' }));
-
-  await responseP;
-
-  // Verify the response was stored under the pet name
-  const stored = await E(guest).lookup('my-config');
-  t.deepEqual(stored, { key: 'sk-1234' });
-});
-
-test('form request settled promise resolves on response', async t => {
-  const { host } = await prepareHost(t);
-
-  const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-
-  const responseP = E(guest).form(
-    'HOST',
-    'Settings',
+    'String form',
     harden({
-      theme: { label: 'Theme' },
-      lang: { label: 'Language' },
-    }),
-  );
-
-  // Host receives the form-request message
-  const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
-  t.is(formMsg.description, 'Settings');
-
-  // settled should be a promise
-  t.is(typeof formMsg.settled.then, 'function');
-
-  // Host responds with values
-  await E(host).respondForm(
-    formMsg.number,
-    harden({ theme: 'dark', lang: 'en' }),
-  );
-
-  // settled should resolve to 'fulfilled'
-  const status = await formMsg.settled;
-  t.is(status, 'fulfilled');
-
-  // Sender's form() promise should resolve with the values object
-  const result = await responseP;
-  t.deepEqual(result, { theme: 'dark', lang: 'en' });
-});
-
-test('form request resultId and result resolve after response', async t => {
-  const { host } = await prepareHost(t);
-
-  const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-
-  const responseP = E(guest).form(
-    'HOST',
-    'Credentials',
-    harden({
-      username: { label: 'Username' },
-      token: { label: 'API Token' },
+      name: { label: 'Name' },
     }),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.type, 'form');
 
-  // resultId and result should be promises
-  t.is(typeof formMsg.resultId?.then, 'function');
-  t.is(typeof formMsg.result?.then, 'function');
-
-  // Host responds with values
-  await E(host).respondForm(
-    formMsg.number,
-    harden({ username: 'alice', token: 'abc123' }),
+  // Submit with a number — should throw because default pattern is M.string()
+  await t.throwsAsync(
+    () => E(host).submit(formMsg.number, harden({ name: 42 })),
+    { message: /field "name"/ },
   );
-
-  // resultId should resolve to a formula identifier string
-  const resolvedId = await formMsg.resultId;
-  t.is(typeof resolvedId, 'string');
-
-  // result should resolve to the submitted values object
-  const resolvedValue = await formMsg.result;
-  t.deepEqual(resolvedValue, { username: 'alice', token: 'abc123' });
-
-  // Sender's promise should agree
-  const senderResult = await responseP;
-  t.deepEqual(senderResult, { username: 'alice', token: 'abc123' });
 });
 
-test('form request RESULT is addressable via MAIL.N.RESULT name path', async t => {
+test('form multi-submission: same form submitted twice produces two value messages', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
   const hostIteratorRef = E(host).followMessages();
+  const guestIteratorRef = E(guest).followMessages();
 
-  const responseP = E(guest).form(
+  await E(guest).form(
     'HOST',
-    'Profile',
+    'Multi-submit',
     harden({
-      displayName: { label: 'Display Name' },
-      bio: { label: 'Bio' },
+      answer: { label: 'Answer' },
     }),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
+  t.is(formMsg.type, 'form');
 
-  // Host responds
-  await E(host).respondForm(
-    formMsg.number,
-    harden({ displayName: 'Bob', bio: 'Hello world' }),
-  );
+  // Submit twice
+  await E(host).submit(formMsg.number, harden({ answer: 'first' }));
+  await E(host).submit(formMsg.number, harden({ answer: 'second' }));
 
-  // Wait for the sender promise to confirm delivery
-  await responseP;
+  // Guest should see the form + two value messages
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  const { value: value1 } = await E(guestIteratorRef).next();
+  t.is(value1.type, 'value');
+  const { value: value2 } = await E(guestIteratorRef).next();
+  t.is(value2.type, 'value');
 
-  // Look up the message hub for this message number
-  const messageHub = await E(host).lookup(['MAIL', String(formMsg.number)]);
-  const names = await E(messageHub).list();
-
-  // The message hub should include the RESULT name
-  t.true(names.includes('RESULT'));
-
-  // RESULT should resolve to the submitted values
-  const resultValue = await E(host).lookup([
-    'MAIL',
-    String(formMsg.number),
-    'RESULT',
-  ]);
-  t.deepEqual(resultValue, { displayName: 'Bob', bio: 'Hello world' });
+  // Both should reference the same form
+  t.is(value1.replyTo, formMsg.messageId);
+  t.is(value2.replyTo, formMsg.messageId);
 });
 
-test('form request RESULT is adoptable via pet name', async t => {
+test('form returns void (fire-and-forget)', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
 
-  E.sendOnly(guest).form(
+  const result = await E(guest).form(
     'HOST',
-    'Config',
+    'Fire and forget',
     harden({
-      endpoint: { label: 'Endpoint URL' },
-      retries: { label: 'Max Retries' },
+      field: { label: 'Field' },
     }),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
-
-  // Host responds
-  await E(host).respondForm(
-    formMsg.number,
-    harden({ endpoint: 'https://api.example.com', retries: '3' }),
-  );
-
-  // Wait for settlement
-  const status = await formMsg.settled;
-  t.is(status, 'fulfilled');
-
-  // Get the result's formula identifier and write a pet name for it
-  const resultId = await formMsg.resultId;
-  t.is(typeof resultId, 'string');
-  await E(host).write(['saved-config'], resultId);
-
-  // Look up the adopted pet name
-  const adopted = await E(host).lookup('saved-config');
-  t.deepEqual(adopted, {
-    endpoint: 'https://api.example.com',
-    retries: '3',
-  });
+  t.is(result, undefined);
 });
 
-test('form request rejected settled promise resolves to rejected', async t => {
-  const { host } = await prepareHost(t);
-
-  const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-
-  // Suppress the unhandled rejection from the guest's form promise
-  const formP = E(guest).form(
-    'HOST',
-    'Unwanted form',
-    harden({
-      field1: { label: 'Field 1' },
-    }),
-  );
-  formP.catch(() => {});
-
-  const { value: formMsg } = await E(hostIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
-
-  // Reject the form request
-  await E(host).reject(formMsg.number, 'Not needed');
-
-  // settled should resolve to 'rejected'
-  const status = await formMsg.settled;
-  t.is(status, 'rejected');
-
-  // resultId should resolve to undefined on rejection
-  const resolvedId = await formMsg.resultId;
-  t.is(resolvedId, undefined);
-
-  // result should resolve to undefined on rejection
-  const resolvedValue = await formMsg.result;
-  t.is(resolvedValue, undefined);
-});
-
-test('form request reverse: host sends form to guest, guest responds', async t => {
+test('form reverse: host sends form to guest, guest submits', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('alice');
 
-  // Follow guest messages to catch the form request
+  // Follow guest messages
   const guestIteratorRef = E(guest).followMessages();
+  const hostIteratorRef = E(host).followMessages();
 
-  // Host sends a form to the guest via the guest's pet name path
-  const responseP = E(host).form(
+  // Host sends a form to the guest
+  await E(host).form(
     ['alice'],
     'Survey',
     harden({
       favoriteColor: { label: 'Favorite color' },
-      city: { label: 'City' },
     }),
   );
 
-  // Guest receives the form-request message
-  const { value: formMsg } = await E(guestIteratorRef).next();
-  t.is(formMsg.type, 'form-request');
-  t.is(formMsg.description, 'Survey');
+  // Guest receives the form message
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  t.is(guestFormMsg.description, 'Survey');
 
-  // Guest responds with values
-  await E(guest).respondForm(
-    formMsg.number,
-    harden({ favoriteColor: 'green', city: 'Portland' }),
+  // Guest submits values
+  await E(guest).submit(
+    guestFormMsg.number,
+    harden({ favoriteColor: 'green' }),
   );
 
-  // Host's form() promise resolves with the submitted values
-  const result = await responseP;
-  t.deepEqual(result, { favoriteColor: 'green', city: 'Portland' });
+  // Host should see the form (self-delivery) and then the value message
+  const { value: hostFormMsg } = await E(hostIteratorRef).next();
+  t.is(hostFormMsg.type, 'form');
+  const { value: hostValueMsg } = await E(hostIteratorRef).next();
+  t.is(hostValueMsg.type, 'value');
+  t.is(hostValueMsg.replyTo, guestFormMsg.messageId);
 });
 
-test('form request reverse: host sends form to guest, result is accessible', async t => {
+test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
   const { host } = await prepareHost(t);
 
-  const guest = await E(host).provideGuest('alice');
-
-  // Follow messages on both sides
+  const guest = await E(host).provideGuest('guest');
   const hostIteratorRef = E(host).followMessages();
   const guestIteratorRef = E(guest).followMessages();
 
-  // Host sends a form to the guest
-  E.sendOnly(host).form(
-    ['alice'],
-    'Preferences',
+  await E(guest).form(
+    'HOST',
+    'Profile',
     harden({
-      theme: { label: 'Theme' },
+      displayName: { label: 'Display Name' },
     }),
   );
 
-  // Host should see the outgoing form-request in its own messages
-  const { value: hostFormMsg } = await E(hostIteratorRef).next();
-  t.is(hostFormMsg.type, 'form-request');
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
 
-  // Guest receives the form-request
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
-  t.is(guestFormMsg.type, 'form-request');
-  t.is(guestFormMsg.description, 'Preferences');
-
-  // Guest responds
-  await E(guest).respondForm(
-    guestFormMsg.number,
-    harden({ theme: 'dark' }),
+  await E(host).submit(
+    formMsg.number,
+    harden({ displayName: 'Bob' }),
   );
 
-  // The host's message settled promise should resolve
-  const status = await hostFormMsg.settled;
-  t.is(status, 'fulfilled');
+  // Guest receives form + value
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  const { value: valueMsg } = await E(guestIteratorRef).next();
+  t.is(valueMsg.type, 'value');
 
-  // The host's result promise should resolve to the submitted values
-  const resultValue = await hostFormMsg.result;
-  t.deepEqual(resultValue, { theme: 'dark' });
+  // Look up the value message hub
+  const messageHub = await E(guest).lookup(['MAIL', String(valueMsg.number)]);
+  const names = await E(messageHub).list();
 
-  // The result should also be accessible via resultId
-  const resultId = await hostFormMsg.resultId;
-  t.is(typeof resultId, 'string');
+  // The message hub should include the VALUE name
+  t.true(names.includes('VALUE'));
+
+  // VALUE should resolve to the submitted values
+  const resultValue = await E(guest).lookup([
+    'MAIL',
+    String(valueMsg.number),
+    'VALUE',
+  ]);
+  t.deepEqual(resultValue, { displayName: 'Bob' });
 });

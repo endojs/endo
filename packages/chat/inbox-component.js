@@ -17,6 +17,7 @@ import {
   relativeTime,
 } from './time-formatters.js';
 import { computeLayout } from './moi-layout.js';
+import { render as renderValue } from './value-render.js';
 
 /**
  * @param {HTMLElement} $parent
@@ -44,6 +45,10 @@ export const inboxComponent = async (
 
   /** @type {TrackedMessage[]} */
   const trackedMessages = [];
+
+  /** Map from form messageId to its description, for value message rendering. */
+  /** @type {Map<string, string>} */
+  const formDescriptions = new Map();
 
   /**
    * Recompute layout and apply data attributes to all tracked message elements.
@@ -640,8 +645,9 @@ export const inboxComponent = async (
 
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
-    } else if (message.type === 'form-request') {
-      const { description, fields, settled, resultId, result } = message;
+    } else if (message.type === 'form') {
+      const { description, fields, messageId: formMsgId } = message;
+      formDescriptions.set(String(formMsgId), String(description));
 
       const $form = document.createElement('div');
       $form.className = 'form-request-message';
@@ -655,40 +661,39 @@ export const inboxComponent = async (
       }
       $desc.appendChild(
         document.createTextNode(
-          `requests form: ${JSON.stringify(description)}`,
+          `${isSent ? 'form' : 'sent form'}: ${JSON.stringify(description)}`,
         ),
       );
       $form.appendChild($desc);
 
-      // Build input fields
+      // Show fields as read-only list
       const $fieldsContainer = document.createElement('div');
       $fieldsContainer.className = 'form-request-fields';
 
+      const fieldArray =
+        /** @type {Array<{name: string, label: string, example?: string}>} */ (
+          fields
+        );
+
       /** @type {Record<string, HTMLInputElement>} */
       const fieldInputs = {};
-      const fieldKeys = Object.keys(
-        /** @type {Record<string, {label: string}>} */ (fields),
-      );
-      for (const key of fieldKeys) {
-        const fieldDef = /** @type {{label: string}} */ (
-          /** @type {Record<string, {label: string}>} */ (fields)[key]
-        );
+      for (const field of fieldArray) {
         const $row = document.createElement('div');
         $row.className = 'form-request-field-row';
 
         const $label = document.createElement('label');
         $label.className = 'form-request-field-label';
-        $label.textContent = fieldDef.label || key;
+        $label.textContent = field.label || field.name;
 
         const $input = document.createElement('input');
         $input.type = 'text';
         $input.className = 'form-request-field-input';
-        $input.placeholder = key;
+        $input.placeholder = field.example || field.name;
         $input.autocomplete = 'off';
         $input.dataset.formType = 'other';
         $input.dataset.lpignore = 'true';
 
-        fieldInputs[key] = $input;
+        fieldInputs[field.name] = $input;
         $row.appendChild($label);
         $row.appendChild($input);
         $fieldsContainer.appendChild($row);
@@ -699,23 +704,23 @@ export const inboxComponent = async (
       const $actions = document.createElement('div');
       $actions.className = 'form-request-actions';
 
-      const $submit = document.createElement('button');
-      $submit.className = 'form-request-submit';
-      $submit.textContent = 'Submit';
+      const $submitBtn = document.createElement('button');
+      $submitBtn.className = 'form-request-submit';
+      $submitBtn.textContent = 'Submit';
       const submitForm = () => {
         /** @type {Record<string, string>} */
         const values = {};
-        for (const key of fieldKeys) {
-          values[key] = fieldInputs[key].value;
+        for (const field of fieldArray) {
+          values[field.name] = fieldInputs[field.name].value;
         }
         E(powers)
-          .respondForm(number, values)
+          .submit(number, values)
           .catch(err => {
             $error.innerText = ` ${/** @type {Error} */ (err).message}`;
           });
       };
-      $submit.onclick = submitForm;
-      $actions.appendChild($submit);
+      $submitBtn.onclick = submitForm;
+      $actions.appendChild($submitBtn);
 
       $fieldsContainer.addEventListener(
         'keydown',
@@ -727,59 +732,76 @@ export const inboxComponent = async (
         },
       );
 
-      const $reject = document.createElement('button');
-      $reject.className = 'form-request-reject';
-      $reject.textContent = 'Reject';
-      $reject.onclick = () => {
-        E(powers)
-          .reject(number)
-          .catch(err => {
-            $error.innerText = ` ${/** @type {Error} */ (err).message}`;
-          });
-      };
-      $actions.appendChild($reject);
       $form.appendChild($actions);
 
-      // Replace with status when settled
-      settled.then(status => {
-        $fieldsContainer.style.display = 'none';
-        $actions.innerHTML = '';
-        const $status = document.createElement('span');
-        $status.className = 'form-request-status';
-        if (status === 'fulfilled') {
-          $status.textContent = 'Submitted';
-          $status.classList.add('status-granted');
-
-          const $showResult = document.createElement('button');
-          $showResult.className = 'form-request-show-result';
-          $showResult.textContent = 'Show Result';
-          $showResult.title = 'Show the form result';
-          $showResult.addEventListener('click', () => {
-            Promise.all([resultId, result]).then(
-              ([id, value]) => {
-                if (!id) {
-                  $error.innerText = ' Result is not available.';
-                  return;
-                }
-                showValue(value, id, undefined, {
-                  number,
-                  edgeName: 'RESULT',
-                });
-              },
-              (/** @type {Error} */ err) => {
-                $error.innerText = ` ${err.message}`;
-              },
-            );
-          });
-          $actions.appendChild($showResult);
-        } else {
-          $status.textContent = 'Rejected';
-          $status.classList.add('status-rejected');
-        }
-        $actions.appendChild($status);
-      });
-
       $body.appendChild($form);
+    } else if (message.type === 'value') {
+      const { valueId } = message;
+      const valueReplyTo = /** @type {string | undefined} */ (
+        'replyTo' in message ? message.replyTo : undefined
+      );
+      const formTitle = valueReplyTo !== undefined
+        ? formDescriptions.get(String(valueReplyTo))
+        : undefined;
+
+      const $valueMsg = document.createElement('div');
+      $valueMsg.className = 'form-request-message';
+
+      const $desc = document.createElement('div');
+      $desc.className = 'form-request-description';
+      if ($senderChip) {
+        $desc.appendChild($senderChip);
+        $desc.appendChild(document.createTextNode(' '));
+      }
+      const responseText = formTitle !== undefined
+        ? `responded to form: ${JSON.stringify(formTitle)}`
+        : 'responded to form';
+      $desc.appendChild(
+        document.createTextNode(responseText),
+      );
+      $valueMsg.appendChild($desc);
+
+      // Render the value inline
+      const $inlineValue = document.createElement('div');
+      $inlineValue.className = 'form-request-inline-value';
+      $valueMsg.appendChild($inlineValue);
+      E(powers)
+        .lookupById(valueId)
+        .then(
+          value => {
+            $inlineValue.appendChild(renderValue(value));
+          },
+          (/** @type {Error} */ err) => {
+            $inlineValue.innerText = `Error: ${err.message}`;
+          },
+        );
+
+      // Show Value button for closer inspection
+      const $actions = document.createElement('div');
+      $actions.className = 'form-request-actions';
+      const $showResult = document.createElement('button');
+      $showResult.className = 'form-request-show-result';
+      $showResult.textContent = 'Show Value';
+      $showResult.title = 'Inspect the submitted value';
+      $showResult.addEventListener('click', () => {
+        E(powers)
+          .lookupById(valueId)
+          .then(
+            value => {
+              showValue(value, valueId, undefined, {
+                number,
+                edgeName: 'VALUE',
+              });
+            },
+            (/** @type {Error} */ err) => {
+              $error.innerText = ` ${err.message}`;
+            },
+          );
+      });
+      $actions.appendChild($showResult);
+      $valueMsg.appendChild($actions);
+
+      $body.appendChild($valueMsg);
     }
 
     // Track message for reply chain visualization.

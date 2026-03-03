@@ -12,14 +12,14 @@ import { inboxComponent } from '../../inbox-component.js';
 const { document: testDocument } = createDOM();
 
 /**
- * Build a mock powers object that yields a single form-request message.
+ * Build a mock powers object that yields a single form message.
  *
  * @param {object} opts
  * @param {string} opts.selfId - Formula identifier for the current agent.
- * @param {object} opts.message - The form-request message to deliver.
+ * @param {object} opts.message - The form message to deliver.
  * @returns {{ powers: unknown, calls: Array<{method: string, args: unknown[]}> }}
  */
-const makeFormRequestPowers = ({ selfId, message }) => {
+const makeFormPowers = ({ selfId, message }) => {
   /** @type {Array<{method: string, args: unknown[]}>} */
   const calls = [];
 
@@ -53,9 +53,14 @@ const makeFormRequestPowers = ({ selfId, message }) => {
       });
     },
 
-    respondForm(number, values) {
-      calls.push({ method: 'respondForm', args: [number, values] });
+    submit(number, values) {
+      calls.push({ method: 'submit', args: [number, values] });
       return Promise.resolve();
+    },
+
+    lookupById(id) {
+      calls.push({ method: 'lookupById', args: [id] });
+      return Promise.resolve({ submitted: true });
     },
 
     reject(number, reason) {
@@ -93,16 +98,13 @@ const createInboxDOM = () => {
   return { $parent, $end };
 };
 
-test('form-request renders fields and Submit calls respondForm', async t => {
+test('form renders fields and Submit calls submit()', async t => {
   const { $parent, $end } = createInboxDOM();
 
-  const settledKit = makePromiseKit();
-  const resultIdKit = makePromiseKit();
-  const resultKit = makePromiseKit();
   const dismissedKit = makePromiseKit();
 
   const message = {
-    type: 'form-request',
+    type: 'form',
     number: 1n,
     date: new Date().toISOString(),
     from: 'host-handle-id',
@@ -110,13 +112,10 @@ test('form-request renders fields and Submit calls respondForm', async t => {
     messageId: '42',
     dismissed: dismissedKit.promise,
     description: 'Survey',
-    fields: { favoriteColor: { label: 'Favorite color' }, city: { label: 'City' } },
-    settled: settledKit.promise,
-    resultId: resultIdKit.promise,
-    result: resultKit.promise,
+    fields: [{ name: 'favoriteColor', label: 'Favorite color' }, { name: 'city', label: 'City' }],
   };
 
-  const { powers, calls } = makeFormRequestPowers({
+  const { powers, calls } = makeFormPowers({
     selfId: 'guest-handle-id',
     message,
   });
@@ -135,9 +134,9 @@ test('form-request renders fields and Submit calls respondForm', async t => {
   // Wait for the message to be rendered
   await tick(50);
 
-  // Verify the form-request description is rendered
+  // Verify the form description is rendered
   const descEl = $parent.querySelector('.form-request-description');
-  t.truthy(descEl, 'form-request description should be rendered');
+  t.truthy(descEl, 'form description should be rendered');
   t.true(descEl.textContent.includes('Survey'));
 
   // Verify the field inputs are rendered
@@ -161,41 +160,84 @@ test('form-request renders fields and Submit calls respondForm', async t => {
 
   await tick(20);
 
-  // Verify respondForm was called with the correct values
-  const respondCall = calls.find(c => c.method === 'respondForm');
-  t.truthy(respondCall, 'respondForm should have been called');
-  t.is(respondCall.args[0], 1n);
-  t.deepEqual(respondCall.args[1], { favoriteColor: 'green', city: 'Portland' });
+  // Verify submit was called with the correct values
+  const submitCall = calls.find(c => c.method === 'submit');
+  t.truthy(submitCall, 'submit should have been called');
+  t.is(submitCall.args[0], 1n);
+  t.deepEqual(submitCall.args[1], { favoriteColor: 'green', city: 'Portland' });
 });
 
-test('form-request shows "Submitted" and "Show Result" after settlement', async t => {
+test('form sender view shows input fields and submit button', async t => {
   const { $parent, $end } = createInboxDOM();
 
-  const settledKit = makePromiseKit();
-  const resultIdKit = makePromiseKit();
-  const resultKit = makePromiseKit();
   const dismissedKit = makePromiseKit();
 
   const message = {
-    type: 'form-request',
-    number: 2n,
+    type: 'form',
+    number: 10n,
     date: new Date().toISOString(),
     from: 'host-handle-id',
     to: 'guest-handle-id',
-    messageId: '43',
+    messageId: '100',
     dismissed: dismissedKit.promise,
-    description: 'Preferences',
-    fields: { theme: { label: 'Theme' } },
-    settled: settledKit.promise,
-    resultId: resultIdKit.promise,
-    result: resultKit.promise,
+    description: 'Survey',
+    fields: [{ name: 'favoriteColor', label: 'Favorite color' }],
+  };
+
+  const { powers } = makeFormPowers({
+    selfId: 'host-handle-id',
+    message,
+  });
+
+  globalThis.requestAnimationFrame = fn => {
+    fn(0);
+    return 0;
+  };
+
+  inboxComponent($parent, $end, powers, {
+    showValue: () => {},
+  });
+
+  await tick(50);
+
+  // Host sees the sent message (from === selfId, so isSent = true)
+  const hostMsgEl = $parent.querySelector('.message.sent');
+  t.truthy(hostMsgEl, 'host should see the form as a sent message');
+
+  // Sender sees input fields and submit button (same as receiver)
+  const $submit = $parent.querySelector('.form-request-submit');
+  t.truthy($submit, 'submit button should exist on sender view');
+
+  const inputs = $parent.querySelectorAll('.form-request-field-input');
+  t.is(inputs.length, 1, 'should render one field input');
+
+  const labels = $parent.querySelectorAll('.form-request-field-label');
+  t.is(labels.length, 1);
+  t.is(labels[0].textContent, 'Favorite color');
+});
+
+test('value message renders with Show Value button', async t => {
+  const { $parent, $end } = createInboxDOM();
+
+  const dismissedKit = makePromiseKit();
+
+  const message = {
+    type: 'value',
+    number: 5n,
+    date: new Date().toISOString(),
+    from: 'guest-handle-id',
+    to: 'host-handle-id',
+    messageId: '200',
+    replyTo: '42',
+    valueId: 'marshal-formula-id',
+    dismissed: dismissedKit.promise,
   };
 
   /** @type {Array<{value: unknown, id: unknown}>} */
   const showValueCalls = [];
 
-  const { powers } = makeFormRequestPowers({
-    selfId: 'guest-handle-id',
+  const { powers } = makeFormPowers({
+    selfId: 'host-handle-id',
     message,
   });
 
@@ -212,238 +254,29 @@ test('form-request shows "Submitted" and "Show Result" after settlement', async 
 
   await tick(50);
 
-  // Verify Submit and Reject buttons exist before settlement
-  t.truthy($parent.querySelector('.form-request-submit'));
-  t.truthy($parent.querySelector('.form-request-reject'));
+  // Verify the value message description is rendered
+  const descEl = $parent.querySelector('.form-request-description');
+  t.truthy(descEl, 'value message description should be rendered');
+  t.is(descEl.textContent.trim(), '@alice responded to form');
 
-  // Settle the form-request as fulfilled
-  settledKit.resolve('fulfilled');
-  resultIdKit.resolve('marshal-formula-id');
-  resultKit.resolve({ theme: 'dark' });
-
+  // Verify the value is rendered inline (wait for async lookupById)
   await tick(50);
+  const $inlineValue = $parent.querySelector('.form-request-inline-value');
+  t.truthy($inlineValue, 'inline value container should exist');
+  t.truthy($inlineValue.textContent.length > 0, 'inline value should render the looked-up value');
 
-  // Verify "Submitted" status text appears
-  const $status = $parent.querySelector('.form-request-status');
-  t.truthy($status, 'status element should appear after settlement');
-  t.is($status.textContent, 'Submitted');
-  t.true($status.classList.contains('status-granted'));
-
-  // Verify "Show Result" button appears
+  // Click "Show Value" button
   const $showResult = $parent.querySelector('.form-request-show-result');
-  t.truthy($showResult, 'Show Result button should appear');
-
-  // Click "Show Result"
+  t.truthy($showResult, 'Show Value button should exist');
   $showResult.click();
-  await tick(20);
 
-  // Verify showValue was called with the result
+  // E() adds multiple microtask hops; flush them.
+  await tick(10);
+  await tick(10);
+  await tick(10);
+
+  // Verify showValue was called
   t.is(showValueCalls.length, 1, 'showValue should have been called');
-  t.deepEqual(showValueCalls[0].value, { theme: 'dark' });
+  t.deepEqual(showValueCalls[0].value, { submitted: true });
   t.is(showValueCalls[0].id, 'marshal-formula-id');
-});
-
-test('form-request shows "Rejected" after rejection', async t => {
-  const { $parent, $end } = createInboxDOM();
-
-  const settledKit = makePromiseKit();
-  const resultIdKit = makePromiseKit();
-  const resultKit = makePromiseKit();
-  const dismissedKit = makePromiseKit();
-
-  const message = {
-    type: 'form-request',
-    number: 3n,
-    date: new Date().toISOString(),
-    from: 'host-handle-id',
-    to: 'guest-handle-id',
-    messageId: '44',
-    dismissed: dismissedKit.promise,
-    description: 'Unwanted',
-    fields: { field1: { label: 'Field 1' } },
-    settled: settledKit.promise,
-    resultId: resultIdKit.promise,
-    result: resultKit.promise,
-  };
-
-  const { powers, calls } = makeFormRequestPowers({
-    selfId: 'guest-handle-id',
-    message,
-  });
-
-  globalThis.requestAnimationFrame = fn => {
-    fn(0);
-    return 0;
-  };
-
-  inboxComponent($parent, $end, powers, {
-    showValue: () => {},
-  });
-
-  await tick(50);
-
-  // Click Reject
-  const $reject = $parent.querySelector('.form-request-reject');
-  t.truthy($reject, 'reject button should exist');
-  $reject.click();
-
-  await tick(20);
-
-  // Verify reject was called
-  const rejectCall = calls.find(c => c.method === 'reject');
-  t.truthy(rejectCall, 'reject should have been called');
-  t.is(rejectCall.args[0], 3n);
-
-  // Settle as rejected
-  settledKit.resolve('rejected');
-  resultIdKit.resolve(undefined);
-  resultKit.resolve(undefined);
-
-  await tick(50);
-
-  // Verify "Rejected" status text appears
-  const $status = $parent.querySelector('.form-request-status');
-  t.truthy($status, 'status element should appear after rejection');
-  t.is($status.textContent, 'Rejected');
-  t.true($status.classList.contains('status-rejected'));
-
-  // Verify no "Show Result" button
-  const $showResult = $parent.querySelector('.form-request-show-result');
-  t.falsy($showResult, 'Show Result button should not appear for rejected forms');
-});
-
-test('form-request full workflow: host sends form, guest responds, host views result', async t => {
-  // This test exercises the user's manual test scenario:
-  // 1. Host sends a form to guest (form appears as "sent" in host inbox)
-  // 2. Guest receives form, fills in fields, clicks Submit
-  // 3. Host sees "Submitted" status and clicks "Show Result"
-
-  // --- Step 1: Host's view (sent form-request) ---
-  const hostDOM = createInboxDOM();
-
-  const hostSettledKit = makePromiseKit();
-  const hostResultIdKit = makePromiseKit();
-  const hostResultKit = makePromiseKit();
-  const hostDismissedKit = makePromiseKit();
-
-  const hostMessage = {
-    type: 'form-request',
-    number: 10n,
-    date: new Date().toISOString(),
-    from: 'host-handle-id',
-    to: 'guest-handle-id',
-    messageId: '100',
-    dismissed: hostDismissedKit.promise,
-    description: 'Survey',
-    fields: { favoriteColor: { label: 'Favorite color' } },
-    settled: hostSettledKit.promise,
-    resultId: hostResultIdKit.promise,
-    result: hostResultKit.promise,
-  };
-
-  const { powers: hostPowers } = makeFormRequestPowers({
-    selfId: 'host-handle-id',
-    message: hostMessage,
-  });
-
-  /** @type {Array<{value: unknown, id: unknown, messageContext: unknown}>} */
-  const hostShowValueCalls = [];
-
-  globalThis.requestAnimationFrame = fn => {
-    fn(0);
-    return 0;
-  };
-
-  inboxComponent(hostDOM.$parent, hostDOM.$end, hostPowers, {
-    showValue: (value, id, petNamePath, messageContext) => {
-      hostShowValueCalls.push({ value, id, messageContext });
-    },
-  });
-
-  await tick(50);
-
-  // Host sees the sent message (from === selfId, so isSent = true)
-  const hostMsgEl = hostDOM.$parent.querySelector('.message.sent');
-  t.truthy(hostMsgEl, 'host should see the form-request as a sent message');
-
-  // --- Step 2: Guest's view (received form-request) ---
-  const guestDOM = createInboxDOM();
-
-  const guestSettledKit = makePromiseKit();
-  const guestResultIdKit = makePromiseKit();
-  const guestResultKit = makePromiseKit();
-  const guestDismissedKit = makePromiseKit();
-
-  const guestMessage = {
-    type: 'form-request',
-    number: 1n,
-    date: new Date().toISOString(),
-    from: 'host-handle-id',
-    to: 'guest-handle-id',
-    messageId: '101',
-    dismissed: guestDismissedKit.promise,
-    description: 'Survey',
-    fields: { favoriteColor: { label: 'Favorite color' } },
-    settled: guestSettledKit.promise,
-    resultId: guestResultIdKit.promise,
-    result: guestResultKit.promise,
-  };
-
-  const { powers: guestPowers, calls: guestCalls } = makeFormRequestPowers({
-    selfId: 'guest-handle-id',
-    message: guestMessage,
-  });
-
-  inboxComponent(guestDOM.$parent, guestDOM.$end, guestPowers, {
-    showValue: () => {},
-  });
-
-  await tick(50);
-
-  // Guest sees the received message
-  const guestMsgEl = guestDOM.$parent.querySelector('.message:not(.sent)');
-  t.truthy(guestMsgEl, 'guest should see the form-request as a received message');
-
-  // Guest fills in the form and clicks Submit
-  const guestInput = guestDOM.$parent.querySelector('.form-request-field-input');
-  t.truthy(guestInput);
-  guestInput.value = 'green';
-
-  const guestSubmit = guestDOM.$parent.querySelector('.form-request-submit');
-  t.truthy(guestSubmit);
-  guestSubmit.click();
-
-  await tick(20);
-
-  // Verify respondForm was called on the guest's powers
-  const respondCall = guestCalls.find(c => c.method === 'respondForm');
-  t.truthy(respondCall, 'guest respondForm should have been called');
-  t.deepEqual(respondCall.args[1], { favoriteColor: 'green' });
-
-  // --- Step 3: Back on host — settlement arrives, host clicks "Show Result" ---
-  hostSettledKit.resolve('fulfilled');
-  hostResultIdKit.resolve('marshal-formula-id');
-  hostResultKit.resolve({ favoriteColor: 'green' });
-
-  await tick(50);
-
-  const hostStatus = hostDOM.$parent.querySelector('.form-request-status');
-  t.truthy(hostStatus, 'host should see settlement status');
-  t.is(hostStatus.textContent, 'Submitted');
-
-  const hostShowResult = hostDOM.$parent.querySelector(
-    '.form-request-show-result',
-  );
-  t.truthy(hostShowResult, 'host should see Show Result button');
-  hostShowResult.click();
-
-  await tick(20);
-
-  t.is(hostShowValueCalls.length, 1, 'showValue should have been called on host');
-  t.deepEqual(hostShowValueCalls[0].value, { favoriteColor: 'green' });
-  t.is(hostShowValueCalls[0].id, 'marshal-formula-id');
-  t.deepEqual(hostShowValueCalls[0].messageContext, {
-    number: 10n,
-    edgeName: 'RESULT',
-  });
 });

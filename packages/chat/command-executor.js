@@ -153,27 +153,32 @@ export const createCommandExecutor = ({
             recipient,
             description,
             fields: fieldDefs,
-            resultName,
           } = params;
           const recipientPath = String(recipient).split('.');
-          /** @type {Record<string, {label: string}>} */
-          const fieldsRecord = {};
-          for (const f of /** @type {Array<{name: string, label: string}>} */ (
-            fieldDefs
-          )) {
-            fieldsRecord[f.name] = { label: f.label };
-          }
-          const resultPath = resultName
-            ? String(resultName).split('.')
-            : undefined;
-          // Fire without awaiting — form() blocks until the recipient responds,
-          // but we only need to know the form was dispatched.
-          E(powers)
-            .form(recipientPath, String(description), fieldsRecord, resultPath)
-            .catch(error => {
-              console.error('Form dispatch error:', error);
-            });
+          const fields =
+            /** @type {Array<{name: string, label: string}>} */ (fieldDefs).map(
+              f => ({
+                name: String(f.name).trim(),
+                label: String(f.label).trim(),
+              }),
+            );
+          await E(powers).form(recipientPath, String(description), fields);
           return { success: true, message: 'Form sent' };
+        }
+
+        case 'submit': {
+          const { messageNumber } = params;
+          // Submit is typically called from the inline form UI with values,
+          // but the /submit command just validates the message exists.
+          // Actual value submission happens via the inbox form UI.
+          await E(powers).submit(
+            BigInt(/** @type {number} */ (messageNumber)),
+            {},
+          );
+          return {
+            success: true,
+            message: `Values submitted for form #${messageNumber}`,
+          };
         }
 
         case 'approve-eval': {

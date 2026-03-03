@@ -23,7 +23,7 @@ import {
   formatId,
 } from './formula-identifier.js';
 import { makePetSitter } from './pet-sitter.js';
-import { mustMatch } from '@endo/patterns';
+
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 import { HostInterface } from './interfaces.js';
@@ -752,6 +752,7 @@ export const makeHostMaker = ({
       grantEvaluate: mailboxGrantEvaluate,
       counterEvaluate: mailboxCounterEvaluate,
       form,
+      submit,
     } = mailbox;
 
     /**
@@ -865,46 +866,6 @@ export const makeHostMaker = ({
       );
       const resolver = await provide(resolverId, 'resolver');
       E.sendOnly(resolver).resolveWithId(evalId);
-    };
-
-    /** @type {EndoHost['respondForm']} */
-    const respondForm = async (messageNumber, values) => {
-      const { fields, resolverId } = mailbox.getFormRequest(messageNumber);
-
-      // Validate that values cover every field and match patterns
-      const fieldKeys = Object.keys(fields);
-      for (const key of fieldKeys) {
-        if (!(key in values)) {
-          throw new Error(`Missing value for field ${q(key)}`);
-        }
-        const { pattern } = fields[key];
-        if (pattern !== undefined) {
-          mustMatch(values[key], pattern, `field ${q(key)}`);
-        }
-      }
-
-      // Marshal the values record.
-      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
-      const marshalTasks = makeDeferredTasks();
-      const { id: marshalledId } = await formulateMarshalValue(
-        /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
-        marshalTasks,
-      );
-
-      // Write the marshal formula ID directly to the shared pet store so
-      // the formula graph makes it reachable immediately. The resolver's
-      // fire-and-forget resolveWithId would write this asynchronously, but
-      // collection could run before that completes and delete the formula.
-      const resolverFormula =
-        /** @type {{ store: FormulaIdentifier }} */ (await getFormulaForId(resolverId));
-      const petStore =
-        /** @type {{ write: (name: string, id: string) => Promise<void> }} */ (
-          await provide(resolverFormula.store)
-        );
-      await petStore.write('value', marshalledId);
-
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(marshalledId);
     };
 
     /**
@@ -1086,7 +1047,7 @@ export const makeHostMaker = ({
       grantEvaluate,
       counterEvaluate,
       endow,
-      respondForm,
+      submit,
     };
 
     /** @param {Function} fn */
@@ -1112,7 +1073,7 @@ export const makeHostMaker = ({
       'approveEvaluation',
       'endow',
       'grantEvaluate',
-      'respondForm',
+      'submit',
     ]);
     const wrappedHost = Object.fromEntries(
       Object.entries(host).map(([name, fn]) => [

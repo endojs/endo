@@ -282,7 +282,8 @@ type MessageFormula = {
     | 'package'
     | 'eval-request'
     | 'definition'
-    | 'form-request'
+    | 'form'
+    | 'value'
     | 'eval-proposal-reviewer'
     | 'eval-proposal-proposer';
   messageId: FormulaNumber;
@@ -300,7 +301,8 @@ type MessageFormula = {
   codeNames?: string[];
   petNamePaths?: NamePath[];
   slots?: Record<string, { label: string; pattern?: unknown }>;
-  fields?: Record<string, { label: string; pattern?: unknown }>;
+  fields?: FormField[];
+  valueId?: FormulaIdentifier;
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
@@ -417,16 +419,24 @@ export type DefineRequest = MessageBase & {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type FormRequest = MessageBase & {
-  type: 'form-request';
+export type FormField = {
+  name: string;
+  label: string;
+  example?: string;
+  pattern?: unknown;
+};
+
+export type Form = MessageBase & {
+  type: 'form';
   replyTo?: FormulaNumber;
   description: string;
-  fields: Record<string, { label: string; pattern?: unknown }>;
-  promiseId: FormulaIdentifier;
-  resolverId: FormulaIdentifier;
-  settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<FormulaIdentifier | undefined>;
-  result: Promise<unknown>;
+  fields: FormField[];
+};
+
+export type ValueMessage = MessageBase & {
+  type: 'value';
+  replyTo: FormulaNumber;
+  valueId: FormulaIdentifier;
 };
 
 export type EvalProposalBase = {
@@ -458,7 +468,8 @@ export type Message =
   | Package
   | EvalRequest
   | DefineRequest
-  | FormRequest
+  | Form
+  | ValueMessage
   | EvalProposalReviewer
   | EvalProposalProposer;
 
@@ -714,21 +725,24 @@ export interface Mail {
   form(
     recipientNameOrPath: string | string[],
     description: string,
-    fields: Record<string, { label: string; pattern?: unknown }>,
-    responseName?: string | string[],
-  ): Promise<unknown>;
+    fields: FormField[],
+  ): Promise<void>;
   getDefineRequest(messageNumber: bigint): {
     source: string;
     slots: Record<string, { label: string; pattern?: unknown }>;
     resolverId: FormulaIdentifier;
     guestHandleId: string;
   };
-  getFormRequest(messageNumber: bigint): {
+  getForm(messageNumber: bigint): {
     description: string;
-    fields: Record<string, { label: string; pattern?: unknown }>;
-    resolverId: FormulaIdentifier;
+    fields: FormField[];
+    messageId: FormulaNumber;
     guestHandleId: string;
   };
+  submit(
+    messageNumber: bigint,
+    values: Record<string, unknown>,
+  ): Promise<void>;
   // Eval-proposal workflow
   evaluate(
     toId: string,
@@ -872,14 +886,13 @@ export interface EndoGuest extends EndoAgent {
   form(
     recipientNameOrPath: string | string[],
     description: string,
-    fields: Record<string, { label: string; pattern?: unknown }>,
-    responseName?: string | string[],
-  ): Promise<unknown>;
+    fields: FormField[],
+  ): Promise<void>;
   storeValue<T extends Passable>(
     value: T,
     petName: string | string[],
   ): Promise<void>;
-  respondForm(
+  submit(
     messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;
@@ -891,9 +904,8 @@ export interface EndoHost extends EndoAgent {
   form(
     recipientNameOrPath: string | string[],
     description: string,
-    fields: Record<string, { label: string; pattern?: unknown }>,
-    responseName?: string | string[],
-  ): Promise<unknown>;
+    fields: FormField[],
+  ): Promise<void>;
   storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string | string[],
@@ -954,7 +966,7 @@ export interface EndoHost extends EndoAgent {
     workerName?: string,
     resultName?: string | string[],
   ): Promise<void>;
-  respondForm(
+  submit(
     messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;

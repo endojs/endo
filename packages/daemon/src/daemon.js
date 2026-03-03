@@ -370,6 +370,7 @@ const makeDaemonCore = async (
           ...(formula.ids ?? []),
           ...(formula.promiseId ? [formula.promiseId] : []),
           ...(formula.resolverId ? [formula.resolverId] : []),
+          ...(formula.valueId ? [formula.valueId] : []),
         ];
       case 'promise':
       case 'resolver':
@@ -1503,6 +1504,7 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makeMessageHub = async (messageFormula, context) => {
+    const formula = messageFormula;
     const {
       messageType,
       messageId,
@@ -1516,7 +1518,7 @@ const makeDaemonCore = async (
       strings,
       names,
       ids,
-    } = messageFormula;
+    } = formula;
 
     if (
       typeof messageId !== 'string' ||
@@ -1596,18 +1598,17 @@ const makeDaemonCore = async (
       names.forEach((name, index) => {
         registerName(name, ids[index], undefined);
       });
-    } else if (messageType === 'form-request') {
-      if (
-        typeof description !== 'string' ||
-        promiseId === undefined ||
-        resolverId === undefined
-      ) {
-        throw new Error('Form-request message formula is incomplete');
+    } else if (messageType === 'form') {
+      if (typeof description !== 'string') {
+        throw new Error('Form message formula is incomplete');
       }
       registerName(MESSAGE_DESCRIPTION_NAME, undefined, description);
-      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
-      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
-      registerName('RESULT', promiseId, undefined);
+    } else if (messageType === 'value') {
+      const { valueId } = formula;
+      if (valueId === undefined) {
+        throw new Error('Value message formula is incomplete');
+      }
+      registerName('VALUE', valueId, undefined);
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }

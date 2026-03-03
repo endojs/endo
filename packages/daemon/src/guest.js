@@ -3,7 +3,6 @@
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { mustMatch } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
@@ -132,6 +131,7 @@ export const makeGuestMaker = ({
       requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
+      submit: mailboxSubmit,
     } = mailbox;
 
     /** @type {EndoGuest['requestEvaluation']} */
@@ -209,8 +209,12 @@ export const makeGuestMaker = ({
     const define = (source, slots) => mailboxDefine(source, slots);
 
     /** @type {EndoGuest['form']} */
-    const form = (recipientName, description, fields, responseName) =>
-      mailboxForm(recipientName, description, fields, responseName);
+    const form = (recipientName, description, fields) =>
+      mailboxForm(recipientName, description, fields);
+
+    /** @type {EndoGuest['submit']} */
+    const submit = (messageNumber, values) =>
+      mailboxSubmit(messageNumber, values);
 
     /** @type {EndoGuest['storeValue']} */
     const storeValue = async (value, petName) => {
@@ -223,46 +227,6 @@ export const makeGuestMaker = ({
       );
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
       unpinTransient(id);
-    };
-
-    /** @type {EndoGuest['respondForm']} */
-    const respondForm = async (messageNumber, values) => {
-      const { fields, resolverId } = mailbox.getFormRequest(messageNumber);
-
-      // Validate that values cover every field and match patterns
-      const fieldKeys = Object.keys(fields);
-      for (const key of fieldKeys) {
-        if (!(key in values)) {
-          throw new Error(`Missing value for field ${q(key)}`);
-        }
-        const { pattern } = fields[key];
-        if (pattern !== undefined) {
-          mustMatch(values[key], pattern, `field ${q(key)}`);
-        }
-      }
-
-      // Marshal the values record.
-      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
-      const marshalTasks = makeDeferredTasks();
-      const { id: marshalledId } = await formulateMarshalValue(
-        /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
-        marshalTasks,
-      );
-
-      // Write the marshal formula ID directly to the shared pet store so
-      // the formula graph makes it reachable immediately. The resolver's
-      // fire-and-forget resolveWithId would write this asynchronously, but
-      // collection could run before that completes and delete the formula.
-      const resolverFormula =
-        /** @type {{ store: FormulaIdentifier }} */ (await getFormulaForId(resolverId));
-      const petStore =
-        /** @type {{ write: (name: string, id: string) => Promise<void> }} */ (
-          await provide(resolverFormula.store)
-        );
-      await petStore.write('value', marshalledId);
-
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(marshalledId);
     };
 
     /** @type {EndoGuest} */
@@ -305,7 +269,7 @@ export const makeGuestMaker = ({
       define,
       form,
       storeValue,
-      respondForm,
+      submit,
     };
 
     /** @param {Function} fn */
@@ -320,7 +284,7 @@ export const makeGuestMaker = ({
         }
       };
 
-    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'respondForm']);
+    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'submit']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,

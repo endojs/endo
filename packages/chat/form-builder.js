@@ -11,6 +11,7 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @typedef {object} FormField
  * @property {string} name - Field name (key in the form values)
  * @property {string} label - Display label for the field
+ * @property {string} [example] - Optional example value (used as placeholder)
  */
 
 /**
@@ -18,7 +19,6 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @property {string} recipient - Pet name path of the recipient
  * @property {string} description - Human-readable description
  * @property {FormField[]} fields - Field definitions
- * @property {string} resultName - Optional pet name for the result
  */
 
 /**
@@ -79,10 +79,6 @@ export const createFormBuilder = ({
           <div class="form-builder-fields-list"></div>
           <button class="form-builder-add-field" title="Add field">+ Add field</button>
         </div>
-        <div class="form-builder-option">
-          <label>Save response as (optional)</label>
-          <input type="text" class="form-builder-result-name" placeholder="result-name" autocomplete="off" data-form-type="other" data-lpignore="true" />
-        </div>
       </div>
       <div class="form-builder-footer">
         <span class="form-builder-error"></span>
@@ -105,9 +101,6 @@ export const createFormBuilder = ({
   );
   const $addFieldBtn = /** @type {HTMLButtonElement} */ (
     $container.querySelector('.form-builder-add-field')
-  );
-  const $resultNameInput = /** @type {HTMLInputElement} */ (
-    $container.querySelector('.form-builder-result-name')
   );
   const $closeBtn = /** @type {HTMLButtonElement} */ (
     $container.querySelector('.form-builder-close')
@@ -269,7 +262,6 @@ export const createFormBuilder = ({
           name: f.name.trim(),
           label: f.label.trim() || f.name.trim(),
         })),
-        resultName: $resultNameInput.value.trim(),
       });
 
       // Success - reset form and close
@@ -292,7 +284,6 @@ export const createFormBuilder = ({
     $recipientInput.value = '';
     $descriptionInput.value = '';
     $fieldsList.innerHTML = '';
-    $resultNameInput.value = '';
     clearError();
     updateSubmitButton();
   };
@@ -332,10 +323,6 @@ export const createFormBuilder = ({
   $descriptionInput.addEventListener('input', () => {
     isDirty = true;
     updateSubmitButton();
-  });
-
-  $resultNameInput.addEventListener('input', () => {
-    isDirty = true;
   });
 
   // Handle Escape to close

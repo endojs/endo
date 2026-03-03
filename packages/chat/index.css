@@ -1710,6 +1710,13 @@ body.resizing * {
   --bubble-code-bg: var(--msg-code-bg);
   --bubble-code-fg: var(--msg-code-fg);
   --bubble-code-inline-bg: var(--msg-code-inline-bg);
+  --bubble-value-string: var(--code-string);
+  --bubble-value-number: var(--code-number);
+  --bubble-value-success: var(--success);
+  --bubble-value-accent: var(--accent-primary);
+  --bubble-value-danger: var(--danger);
+  --bubble-value-danger-bg: var(--danger-bg);
+  --bubble-value-danger-border: var(--danger-border);
 
   display: flex;
   flex-direction: row;
@@ -1743,6 +1750,13 @@ body.resizing * {
   --bubble-code-bg: var(--msg-sent-code-bg);
   --bubble-code-fg: var(--msg-code-fg);
   --bubble-code-inline-bg: var(--msg-sent-code-inline-bg);
+  --bubble-value-string: #fde68a;
+  --bubble-value-number: #bfdbfe;
+  --bubble-value-success: #86efac;
+  --bubble-value-accent: #c4b5fd;
+  --bubble-value-danger: #fecaca;
+  --bubble-value-danger-bg: rgba(255, 255, 255, 0.1);
+  --bubble-value-danger-border: rgba(255, 255, 255, 0.2);
 }
 
 .message strong {
@@ -2267,6 +2281,17 @@ button.btn-spinner::after {
   background: var(--danger-bg);
   border-radius: var(--radius-sm);
   border: 1px solid var(--danger-border);
+}
+
+.message .string { color: var(--bubble-value-string); }
+.message .number { color: var(--bubble-value-number); }
+.message .bigint { color: var(--bubble-value-success); }
+.message .remotable,
+.message .tag { color: var(--bubble-value-accent); }
+.message .error {
+  color: var(--bubble-value-danger);
+  background: var(--bubble-value-danger-bg);
+  border-color: var(--bubble-value-danger-border);
 }
 
 /* Scrollbar styling */
