@@ -27,6 +27,7 @@
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
+| [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | 2026-02-26 | **Complete** |
@@ -45,7 +46,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 14 Complete, 6 In Progress, 18 Not Started
+**Totals:** 14 Complete, 6 In Progress, 19 Not Started
 
 ## Roadmap
 
@@ -70,9 +71,12 @@ flowchart TD
     subgraph LLM Agents
         laltx[lal-reply-chain-transcripts<br/><i>IN PROGRESS</i>]
         lalfp[lal-fae-form-provisioning]
+        fagent[familiar-bundled-agents]
         dform --> lalfp
         dval --> lalfp
         laltx --> lalfp
+        lalfp --> fagent
+        fbund --> fagent
     end
 
     subgraph Familiar
@@ -146,6 +150,7 @@ Enable new capabilities once infrastructure is ready.
 | Design | Urgency | Depends On | Rationale |
 |--------|---------|------------|-----------|
 | lal-fae-form-provisioning | Medium | ~~daemon-form-request~~, daemon-value-message, lal-reply-chain-transcripts | Form-based multi-agent provisioning for Lal and Fae; form primitives complete |
+| familiar-bundled-agents | Medium | familiar-daemon-bundling, lal-fae-form-provisioning | Bundle Lal/Fae into Familiar for out-of-the-box AI agent experience |
 | ocapn-tcp-for-test-extraction | Medium | ocapn-network-transport-separation | Clean separation before adding Noise |
 | familiar-chat-weblet-hosting | Medium | familiar-unified-weblet-server, familiar-localhttp-protocol | Core Familiar feature |
 | daemon-weblet-application | Medium | familiar-unified-weblet-server, familiar-chat-weblet-hosting | Readable trees and weblets from zip archives |
@@ -255,6 +260,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ocapn-network-transport-separation | M-L | 1-1.5 weeks | Architectural refactor across ocapn packages |
 | **Tier 3** |
 | lal-fae-form-provisioning | M | 3-4 days | Manager/worker refactor, 4 phases; form primitives complete |
+| familiar-bundled-agents | S-M | 2-3 days | esbuild entries, resource paths, special formulas, self-provisioning; no native deps |
 | ocapn-tcp-for-test-extraction | S-M | 2-3 days | Code relocation, interface cleanup |
 | familiar-chat-weblet-hosting | M | 3-4 days | Iframe hosting, panel UI, guest profiles |
 | daemon-weblet-application | M | 3-4 days | Two formula types, gateway serving, CLI/chat verbs |
