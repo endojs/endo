@@ -126,7 +126,7 @@ export const makeArbitraries = (
       v => {
         const found = recoverabilityCache.get(/** @type {any} */ (v));
         if (found !== undefined || recoverabilityCache.has(found)) return found;
-        reject('not a cached output');
+        throw reject('not a cached output');
       },
     );
 
@@ -255,11 +255,13 @@ export const makeArbitraries = (
       ),
     ),
   }));
-  const { liftedKeyDag, liftedArbDag } = /** @type {{
+  /**
+   * @typedef {{
    *    liftedKeyDag: Arbitrary<LiftedPair<Key, Lifted>>,
    *    liftedArbDag: Arbitrary<LiftedPair<Passable, Lifted>>,
-   *  }}
-   */ (recursives);
+   *  }} Recursives
+   */
+  const { liftedKeyDag, liftedArbDag } = /** @type {Recursives} */ (recursives);
 
   /**
    * A factory for arbitrary [unliftedKey, liftedKey] pairs.
