@@ -3567,6 +3567,75 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   t.is(hostValueMsg.replyTo, guestFormMsg.messageId);
 });
 
+test('sendValue replies to a message with a retained value', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Host sends a package to the guest
+  await E(host).send('guest', ['Here is a question'], [], []);
+
+  // Guest receives the package
+  const guestIteratorRef = E(guest).followMessages();
+  const { value: pkgMsg } = await E(guestIteratorRef).next();
+  t.is(pkgMsg.type, 'package');
+
+  // Set up host iterator and drain existing messages BEFORE sendValue
+  const hostIteratorRef = E(host).followMessages();
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
+
+  // Guest stores a value and sends it back as a reply
+  await E(guest).storeValue(99, 'my-reply');
+  await E(guest).sendValue(pkgMsg.number, 'my-reply');
+
+  // Host receives the value message via the iterator
+  const { value: valueMsg } = await E(hostIteratorRef).next();
+  t.is(valueMsg.type, 'value');
+  t.is(valueMsg.replyTo, pkgMsg.messageId);
+
+  // The value should be accessible via MAIL.N.VALUE
+  const resultValue = await E(host).lookup([
+    'MAIL',
+    String(valueMsg.number),
+    'VALUE',
+  ]);
+  t.is(resultValue, 99);
+});
+
+test('sendValue rejects unknown pet name', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Send a message to the guest so there's something to reply to
+  await E(host).send('guest', ['Hello'], [], []);
+
+  const guestIteratorRef = E(guest).followMessages();
+  const { value: pkgMsg } = await E(guestIteratorRef).next();
+
+  // Attempt to sendValue with a nonexistent pet name
+  await t.throwsAsync(
+    () => E(guest).sendValue(pkgMsg.number, 'nonexistent'),
+    { message: /Unknown pet name/ },
+  );
+});
+
+test('sendValue rejects invalid message number', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  await E(guest).storeValue(10, 'ten');
+
+  // No message 999 exists
+  await t.throwsAsync(() => E(guest).sendValue(999n, 'ten'), {
+    message: /No such message/,
+  });
+});
+
 test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
   const { host } = await prepareHost(t);
 

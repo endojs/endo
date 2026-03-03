@@ -771,6 +771,10 @@ export interface Mail {
     messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;
+  sendValue(
+    messageNumber: bigint,
+    petNameOrPath: string | string[],
+  ): Promise<void>;
   // Eval-proposal workflow
   evaluate(
     toId: string,
@@ -879,6 +883,7 @@ export interface EndoAgent extends EndoDirectory {
   reply: Mail['reply'];
   request: Mail['request'];
   send: Mail['send'];
+  sendValue: Mail['sendValue'];
   deliver: Mail['deliver'];
   /**
    * @param id The formula identifier to look up.
@@ -924,6 +929,7 @@ export interface EndoGuest extends EndoAgent {
     messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;
+  sendValue: Mail['sendValue'];
 }
 
 export type FarEndoGuest = FarRef<EndoGuest>;
@@ -999,6 +1005,7 @@ export interface EndoHost extends EndoAgent {
     messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;
+  sendValue: Mail['sendValue'];
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}

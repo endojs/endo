@@ -399,6 +399,16 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('send-value <message-number> <pet-name>')
+    .description('reply to a message with a retained value from the pet store')
+    .option(...commonOptions.as)
+    .action(async (messageNumberText, petName, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { sendValueCommand } = await import('./commands/send-value.js');
+      return sendValueCommand({ messageNumberText, petName, agentNames });
+    });
+
+  program
     .command('adopt <message-number> <name-in-message>')
     .option(...commonOptions.name)
     .option(...commonOptions.as)

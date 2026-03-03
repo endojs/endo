@@ -1456,6 +1456,45 @@ export const makeMailboxMaker = ({
       }
     };
 
+    /** @type {Mail['sendValue']} */
+    const sendValue = async (messageNumber, petNameOrPath) => {
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      const parent = messages.get(normalizedMessageNumber);
+      if (parent === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (typeof parent.messageId !== 'string') {
+        throw new Error(`Message ${q(messageNumber)} has no messageId`);
+      }
+      const otherId = parent.from === selfId ? parent.to : parent.from;
+
+      const petPath = namePathFrom(petNameOrPath);
+      const valueId = await E(directory).identify(...petPath);
+      if (valueId === undefined) {
+        throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
+      }
+      assertValidId(valueId);
+
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex256()
+      );
+      const to = await provideHandle(
+        /** @type {FormulaIdentifier} */ (otherId),
+      );
+
+      /** @type {import('./types.js').ValueMessage & { from: FormulaIdentifier, to: FormulaIdentifier }} */
+      const message = harden({
+        type: /** @type {const} */ ('value'),
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (otherId),
+        messageId,
+        replyTo: parent.messageId,
+        valueId: /** @type {FormulaIdentifier} */ (valueId),
+      });
+
+      await post(to, message);
+    };
+
     /**
      * Send an eval-proposal to a recipient.
      * @type {Mail['evaluate']}
@@ -1709,6 +1748,7 @@ export const makeMailboxMaker = ({
       getDefineRequest,
       getForm,
       submit,
+      sendValue,
       evaluate,
       grantEvaluate,
       counterEvaluate,

@@ -218,6 +218,11 @@ export const GuestInterface = M.interface('EndoGuest', {
     MessageNumberShape, // messageNumber
     M.record(), // values
   ).returns(M.promise()),
+  // Send a retained value as a reply
+  sendValue: M.call(
+    MessageNumberShape, // messageNumber
+    NameOrPathShape, // petNameOrPath
+  ).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
   // Propose code evaluation to host (same signature as Host.evaluate)
@@ -349,6 +354,11 @@ export const HostInterface = M.interface('EndoHost', {
   submit: M.call(
     MessageNumberShape, // messageNumber
     M.record(), // values
+  ).returns(M.promise()),
+  // Send a retained value as a reply
+  sendValue: M.call(
+    MessageNumberShape, // messageNumber
+    NameOrPathShape, // petNameOrPath
   ).returns(M.promise()),
 });
 

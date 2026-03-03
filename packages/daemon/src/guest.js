@@ -132,6 +132,7 @@ export const makeGuestMaker = ({
       define: mailboxDefine,
       form: mailboxForm,
       submit: mailboxSubmit,
+      sendValue: mailboxSendValue,
     } = mailbox;
 
     /** @type {EndoGuest['requestEvaluation']} */
@@ -216,6 +217,10 @@ export const makeGuestMaker = ({
     const submit = (messageNumber, values) =>
       mailboxSubmit(messageNumber, values);
 
+    /** @type {EndoGuest['sendValue']} */
+    const sendValue = (messageNumber, petNameOrPath) =>
+      mailboxSendValue(messageNumber, petNameOrPath);
+
     /** @type {EndoGuest['storeValue']} */
     const storeValue = async (value, petName) => {
       const namePath = namePathFrom(petName);
@@ -270,6 +275,7 @@ export const makeGuestMaker = ({
       form,
       storeValue,
       submit,
+      sendValue,
     };
 
     /** @param {Function} fn */
@@ -284,7 +290,7 @@ export const makeGuestMaker = ({
         }
       };
 
-    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'submit']);
+    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'submit', 'sendValue']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,

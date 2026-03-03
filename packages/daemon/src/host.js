@@ -776,6 +776,7 @@ export const makeHostMaker = ({
       counterEvaluate: mailboxCounterEvaluate,
       form,
       submit,
+      sendValue,
     } = mailbox;
 
     /**
@@ -1072,6 +1073,7 @@ export const makeHostMaker = ({
       counterEvaluate,
       endow,
       submit,
+      sendValue,
     };
 
     /** @param {Function} fn */
@@ -1098,6 +1100,7 @@ export const makeHostMaker = ({
       'endow',
       'grantEvaluate',
       'submit',
+      'sendValue',
     ]);
     const wrappedHost = Object.fromEntries(
       Object.entries(host).map(([name, fn]) => [
