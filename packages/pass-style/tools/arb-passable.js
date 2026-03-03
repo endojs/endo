@@ -8,7 +8,7 @@ import { nameForPassableSymbol, passableSymbolForName } from '../src/symbol.js';
 
 /**
  * @import { Arbitrary } from 'fast-check';
- * @import { Key } from '@endo/patterns';
+ * @import { Key } from '@internal/patterns-types';
  * @import { Passable, CopyTagged } from '../src/types.js';
  */
 

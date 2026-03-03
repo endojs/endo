@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
-    "@endo/patterns": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@fast-check/ava": "catalog:dev",
     "ava": "catalog:dev",
