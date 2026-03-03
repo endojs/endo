@@ -112,7 +112,7 @@ export type LalContext = {
 
 /** Options passed to the make function */
 export type LalOptions = {
-  env: LalEnv;
+  env?: LalEnv;
 };
 
 /**

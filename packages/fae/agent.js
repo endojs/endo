@@ -80,18 +80,15 @@ try it right away.
 `;
 
 /**
- * Caplet entry point. Follows the lal pattern: export make(guestPowers, context, { env }).
+ * Spawn a worker loop that follows a guest's inbox and processes messages
+ * using the given LLM configuration.
  *
- * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
- * @param {Promise<object> | object | undefined} context
- * @param {{ env: Record<string, string | undefined> }} options
- * @returns {object}
+ * @param {any} powers - Guest powers (manager's own or a sub-guest's)
+ * @param {Promise<object> | object | undefined} context - Context for cancellation
+ * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
+ * @returns {Promise<void>}
  */
-export const make = (guestPowers, context, { env }) => {
-  console.log('[fae]', env);
-  /** @type {any} */
-  const powers = guestPowers;
-
+const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const getCancelled = async () => {
     if (!context) return null;
     const resolvedContext = await context;
@@ -105,7 +102,7 @@ export const make = (guestPowers, context, { env }) => {
     return null;
   };
 
-  const provider = createProvider(env);
+  const provider = createProvider(workerEnv);
 
   /**
    * @param {object[]} messages
@@ -382,8 +379,141 @@ export const make = (guestPowers, context, { env }) => {
     }
   };
 
-  runAgent().catch(error => {
-    console.error('[fae] Fatal error:', error);
+  // Start the worker loop
+  await runAgent();
+};
+
+// ============================================================================
+// Manager / Entry Point
+// ============================================================================
+
+/**
+ * Caplet entry point. Follows the lal pattern: export make(guestPowers, context, options).
+ *
+ * If env vars are provided, spawns a worker immediately using the manager's
+ * own guest powers. Always sends a configuration form to HOST so additional
+ * agents can be added via form submission.
+ *
+ * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
+ * @param {Promise<object> | object | undefined} context
+ * @param {{ env?: Record<string, string | undefined> }} [options]
+ * @returns {object}
+ */
+export const make = (guestPowers, context, options) => {
+  const env = options?.env;
+  console.log('[fae]', env);
+  /** @type {any} */
+  const powers = guestPowers;
+
+  // If env vars provided, spawn a worker immediately with the manager's own guest powers.
+  if (env?.LAL_HOST) {
+    spawnWorkerLoop(powers, context, env).catch(error => {
+      console.error('[fae] Worker error:', error);
+    });
+  }
+
+  // Always send the configuration form to HOST for adding more agents.
+  const runManager = async () => {
+    await E(powers).form('HOST', 'Add an agent', harden([
+      { name: 'name', label: 'Agent name' },
+      { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
+      { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
+      { name: 'authToken', label: 'API auth token' },
+    ]));
+
+    // Resolve the host agent reference for provideGuest calls.
+    const agent = await E(powers).lookup('AGENT');
+    const selfId = await E(powers).identify('SELF');
+    const activeWorkers = new Map();
+
+    /** @type {string | undefined} */
+    let formMessageId;
+
+    const messageIterator = makeRefIterator(E(powers).followMessages());
+    while (true) {
+      const { value: message, done } = await messageIterator.next();
+      if (done) break;
+
+      const msg = /** @type {any} */ (message);
+
+      // Capture the form's messageId from our own outbound message.
+      if (msg.from === selfId && msg.type === 'form') {
+        formMessageId = msg.messageId;
+        continue;
+      }
+
+      // Skip non-value messages and value messages not replying to our form.
+      if (msg.type !== 'value') continue;
+      if (msg.replyTo !== formMessageId) continue;
+
+      try {
+        // Adopt the submitted values into our pet store.
+        const petName = `submission-${msg.messageId}`;
+        await E(powers).adopt(msg.number, 'VALUE', petName);
+        const config = /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+          await E(powers).lookup(petName)
+        );
+
+        const { name } = config;
+
+        // Skip if a worker is already running for this name.
+        if (activeWorkers.has(name)) {
+          await E(powers).reply(
+            msg.number,
+            [`Agent "${name}" already exists.`],
+            [],
+            [],
+          );
+          continue;
+        }
+
+        // Create the guest profile via the host agent.
+        await E(agent).provideGuest(name, {
+          introducedNames: harden({}),
+          agentName: `profile-for-${name}`,
+        });
+
+        // Look up the newly created guest's powers.
+        const guest = await E(powers).lookup(name);
+
+        // Spawn a worker loop for this guest.
+        const workerP = spawnWorkerLoop(guest, null, {
+          LAL_HOST: config.host,
+          LAL_MODEL: config.model,
+          LAL_AUTH_TOKEN: config.authToken,
+        });
+        activeWorkers.set(name, workerP);
+        workerP.catch(error => {
+          console.error(`[fae] Worker "${name}" error:`, error);
+          activeWorkers.delete(name);
+        });
+
+        await E(powers).reply(
+          msg.number,
+          [`Agent "${name}" is now running.`],
+          [],
+          [],
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error('[fae] Form submission error:', errorMessage);
+        try {
+          await E(powers).reply(
+            msg.number,
+            [`Error creating agent: ${errorMessage}`],
+            [],
+            [],
+          );
+        } catch {
+          // Best-effort reply.
+        }
+      }
+    }
+  };
+
+  runManager().catch(error => {
+    console.error('[fae] Manager error:', error);
   });
 
   return makeExo('Fae', FaeInterface, {
@@ -393,13 +523,7 @@ export const make = (guestPowers, context, { env }) => {
      */
     help(methodName) {
       if (methodName === undefined) {
-        return `\
-Fae - An LLM agent with dynamic tool capabilities.
-
-This agent processes messages from its inbox using tool calls to an LLM.
-It can manage pet names, send/receive messages, and adopt new tools at runtime.
-
-The agent runs autonomously, responding to incoming mail.`;
+        return 'Fae agent manager. Submit the configuration form to add agents.';
       }
       return `No documentation for method "${methodName}".`;
     },

@@ -2,9 +2,9 @@
 // @ts-check
 // endo run --UNCONFINED setup.js \
 //   --powers AGENT \
-//   -E LAL_HOST=$LAL_HOST \
-//   -E LAL_MODEL=$LAL_MODEL \
-//   -E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN
+//   [-E LAL_HOST=$LAL_HOST] \
+//   [-E LAL_MODEL=$LAL_MODEL] \
+//   [-E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN]
 
 import { E } from '@endo/eventual-send';
 
@@ -35,20 +35,25 @@ harden(readConfig);
  */
 export const main = async agent => {
   const config = readConfig();
+  const hasEnvConfig = config.host !== undefined;
 
   await E(agent).provideGuest('fae', {
-    introducedNames: {},
+    introducedNames: { AGENT: 'AGENT' },
     agentName: 'profile-for-fae',
   });
 
   await E(agent).makeUnconfined('MAIN', faeSpecifier, {
     powersName: 'profile-for-fae',
     resultName: 'controller-for-fae',
-    env: {
-      LAL_HOST: config.host,
-      LAL_AUTH_TOKEN: config.authToken,
-      LAL_MODEL: config.model,
-    },
+    ...(hasEnvConfig
+      ? {
+          env: {
+            LAL_HOST: config.host,
+            LAL_MODEL: config.model,
+            LAL_AUTH_TOKEN: config.authToken,
+          },
+        }
+      : {}),
   });
 };
 harden(main);

@@ -5,7 +5,7 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 import { whereEndoState } from '@endo/where';
 
@@ -15,8 +15,12 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(dirname, '../..');
 
 // Paths to network modules (file:// URLs for the daemon worker)
-const tcpNetstringUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js')}`;
-const libp2pUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/libp2p.js')}`;
+const tcpNetstringUrl = pathToFileURL(path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js')).href;
+const libp2pUrl = pathToFileURL(path.join(repoRoot, 'packages/daemon/src/networks/libp2p.js')).href;
+
+// Bootstrap specifiers for AI agent setup scripts
+const lalSetupUrl = pathToFileURL(path.join(repoRoot, 'packages/lal/setup.js')).href;
+const faeSetupUrl = pathToFileURL(path.join(repoRoot, 'packages/fae/setup.js')).href;
 
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
@@ -145,6 +149,11 @@ export const makeEndoPlugin = () => {
 
     async configureServer(server) {
       try {
+        // Set ENDO_EXTRA so the daemon auto-provisions lal/fae on startup.
+        if (!process.env.ENDO_EXTRA) {
+          process.env.ENDO_EXTRA = `${lalSetupUrl},${faeSetupUrl}`;
+        }
+
         await ensureEndoRunning();
 
         gatewayAddress = getGatewayAddress();

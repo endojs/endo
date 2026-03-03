@@ -860,19 +860,15 @@ Always check tool results before proceeding - don't assume success.
 // ============================================================================
 
 /**
- * Creates a Lal agent that processes messages using an LLM.
+ * Spawn a worker loop that follows a guest's inbox and processes messages
+ * using the given LLM configuration.
  *
- * @param {FarRef<GuestPowers>} guestPowers - Guest powers from the Endo daemon
- * @param {Promise<LalContext> | LalContext | undefined} context - Context for cancellation support
- * @param {LalOptions} options - Configuration options
- * @param {import('./agent.types').LalEnv} options.env - Environment variables for LLM provider
- * @returns {object} The Lal exo object
+ * @param {any} powers - Guest powers (manager's own or a sub-guest's)
+ * @param {Promise<object> | object | undefined} context - Context for cancellation
+ * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
+ * @returns {Promise<void>}
  */
-export const make = (guestPowers, context, { env }) => {
-  console.log('[LAL]', env);
-  // Cast to any for E() calls since TypeScript can't properly infer FarRef types
-  /** @type {any} */
-  const powers = guestPowers;
+const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const getCancelled = async () => {
     if (!context) return null;
     const resolvedContext = await context;
@@ -886,8 +882,7 @@ export const make = (guestPowers, context, { env }) => {
     return null;
   };
 
-  // LAL_HOST, LAL_MODEL, LAL_AUTH_TOKEN; see providers/index.js.
-  const provider = createProvider(env);
+  const provider = createProvider(workerEnv);
 
   /**
    * Chat with the LLM.
@@ -1766,28 +1761,151 @@ You should:
     }
   };
 
-  // Start the agent loop
-  runAgent().catch(error => {
-    console.error('[agent] Fatal error:', error);
+  // Start the worker loop
+  await runAgent();
+};
+
+// ============================================================================
+// Manager / Entry Point
+// ============================================================================
+
+/**
+ * Creates a Lal agent manager that processes messages using an LLM.
+ *
+ * If env vars are provided, spawns a worker immediately using the manager's
+ * own guest powers. Always sends a configuration form to HOST so additional
+ * agents can be added via form submission.
+ *
+ * @param {FarRef<GuestPowers>} guestPowers - Guest powers from the Endo daemon
+ * @param {Promise<LalContext> | LalContext | undefined} context - Context for cancellation support
+ * @param {LalOptions} [options] - Configuration options
+ * @returns {object} The Lal exo object
+ */
+export const make = (guestPowers, context, options) => {
+  const env = options?.env;
+  console.log('[lal]', env);
+  /** @type {any} */
+  const powers = guestPowers;
+
+  // If env vars provided, spawn a worker immediately with the manager's own guest powers.
+  if (env?.LAL_HOST) {
+    spawnWorkerLoop(powers, context, env).catch(error => {
+      console.error('[lal] Worker error:', error);
+    });
+  }
+
+  // Always send the configuration form to HOST for adding more agents.
+  const runManager = async () => {
+    await E(powers).form('HOST', 'Add an agent', harden([
+      { name: 'name', label: 'Agent name' },
+      { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
+      { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
+      { name: 'authToken', label: 'API auth token' },
+    ]));
+
+    // Resolve the host agent reference for provideGuest calls.
+    const agent = await E(powers).lookup('AGENT');
+    const selfId = await E(powers).identify('SELF');
+    const activeWorkers = new Map();
+
+    /** @type {string | undefined} */
+    let formMessageId;
+
+    const messageIterator = makeRefIterator(E(powers).followMessages());
+    while (true) {
+      const { value: message, done } = await messageIterator.next();
+      if (done) break;
+
+      const msg = /** @type {any} */ (message);
+
+      // Capture the form's messageId from our own outbound message.
+      if (msg.from === selfId && msg.type === 'form') {
+        formMessageId = msg.messageId;
+        continue;
+      }
+
+      // Skip non-value messages and value messages not replying to our form.
+      if (msg.type !== 'value') continue;
+      if (msg.replyTo !== formMessageId) continue;
+
+      try {
+        // Adopt the submitted values into our pet store.
+        const petName = `submission-${msg.messageId}`;
+        await E(powers).adopt(msg.number, 'VALUE', petName);
+        const config = /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+          await E(powers).lookup(petName)
+        );
+
+        const { name } = config;
+
+        // Skip if a worker is already running for this name.
+        if (activeWorkers.has(name)) {
+          await E(powers).reply(
+            msg.number,
+            [`Agent "${name}" already exists.`],
+            [],
+            [],
+          );
+          continue;
+        }
+
+        // Create the guest profile via the host agent.
+        await E(agent).provideGuest(name, {
+          introducedNames: harden({}),
+          agentName: `profile-for-${name}`,
+        });
+
+        // Look up the newly created guest's powers.
+        const guest = await E(powers).lookup(name);
+
+        // Spawn a worker loop for this guest.
+        const workerP = spawnWorkerLoop(guest, null, {
+          LAL_HOST: config.host,
+          LAL_MODEL: config.model,
+          LAL_AUTH_TOKEN: config.authToken,
+        });
+        activeWorkers.set(name, workerP);
+        workerP.catch(error => {
+          console.error(`[lal] Worker "${name}" error:`, error);
+          activeWorkers.delete(name);
+        });
+
+        await E(powers).reply(
+          msg.number,
+          [`Agent "${name}" is now running.`],
+          [],
+          [],
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error('[lal] Form submission error:', errorMessage);
+        try {
+          await E(powers).reply(
+            msg.number,
+            [`Error creating agent: ${errorMessage}`],
+            [],
+            [],
+          );
+        } catch {
+          // Best-effort reply.
+        }
+      }
+    }
+  };
+
+  runManager().catch(error => {
+    console.error('[lal] Manager error:', error);
   });
 
-  // Return the exo interface
   return makeExo('Lal', LalInterface, {
     /**
-     * Get help documentation for the Lal agent.
-     *
-     * @param {string} [methodName] - Optional method name for specific documentation
-     * @returns {string} Help text
+     * @param {string} [methodName]
+     * @returns {string}
      */
     help(methodName) {
       if (methodName === undefined) {
-        return `\
-Lal - An LLM agent with Endo Guest capabilities.
-
-This agent processes messages from its inbox using tool calls to an LLM.
-It can manage pet names, send/receive messages, and interact with capabilities.
-
-The agent runs autonomously, responding to incoming mail.`;
+        return 'Lal agent manager. Submit the configuration form to add agents.';
       }
       return `No documentation for method "${methodName}".`;
     },
