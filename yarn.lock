@@ -1077,6 +1077,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
@@ -5741,7 +5742,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-check@npm:^3.0.0 || ^4.0.0":
+"fast-check@npm:^3.0.0 || ^4.0.0, fast-check@npm:^4.0.0":
   version: 4.5.3
   resolution: "fast-check@npm:4.5.3"
   dependencies:
