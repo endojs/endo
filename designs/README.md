@@ -19,13 +19,15 @@
 | [chat-test-coverage](chat-test-coverage.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | 2026-03-02 | **Complete** |
 | [daemon-agent-network-identity](daemon-agent-network-identity.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [daemon-agent-tools](daemon-agent-tools.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
+| [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-03-02 | **Complete** |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
-| [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-02 | Partially Complete |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
 | [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
@@ -35,6 +37,7 @@
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | — | — | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-02-26 | In Progress |
 | [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [lal-fae-form-provisioning](lal-fae-form-provisioning.md) | 2026-03-02 | 2026-03-02 | Not Started |
@@ -46,7 +49,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 14 Complete, 6 In Progress, 19 Not Started
+**Totals:** 14 Complete, 1 Partially Complete, 6 In Progress, 21 Not Started
 
 ## Roadmap
 
@@ -64,7 +67,7 @@ flowchart TD
 
     subgraph Daemon Messaging
         dform[daemon-form-request<br/><i>COMPLETE</i>]
-        dval[daemon-value-message]
+        dval[daemon-value-message<br/><i>PARTIAL</i>]
         dform --> dval
     end
 
@@ -72,11 +75,14 @@ flowchart TD
         laltx[lal-reply-chain-transcripts<br/><i>IN PROGRESS</i>]
         lalfp[lal-fae-form-provisioning]
         fagent[familiar-bundled-agents]
+        dtools[daemon-agent-tools]
         dform --> lalfp
         dval --> lalfp
         laltx --> lalfp
         lalfp --> fagent
         fbund --> fagent
+        dfs --> dtools
+        dtools --> fagent
     end
 
     subgraph Familiar
@@ -89,6 +95,13 @@ flowchart TD
         fweb --> dapp
         fchat --> dapp
         flhttp --> fchat
+    end
+
+    subgraph Remote Access
+        gauth[gateway-bearer-token-auth]
+        ddock[daemon-docker-selfhost]
+        gauth --> ddock
+        fbund --> ddock
     end
 
     subgraph OCapN
@@ -120,85 +133,133 @@ flowchart TD
     end
 ```
 
-### Prioritized Tiers
+### Milestones
 
-#### Tier 1 — Critical Path (High Urgency)
+#### Milestone 0: Downloadable AI Agent Experience
 
-These block distribution or foundational work.
+**Goal:** A Familiar application suitable for use on at least one
+platform that folks can download and use to interact with an agent using
+their own API key and local capabilities.
 
-| Design | Urgency | Rationale |
-|--------|---------|-----------|
-| ~~daemon-256-bit-identifiers~~ | — | ✅ Complete |
-| familiar-daemon-bundling | High | Blocks Familiar distribution; in progress |
+| Design | Status | Notes |
+|--------|--------|-------|
+| ~~daemon-256-bit-identifiers~~ | **Complete** | Core migration done |
+| ~~daemon-form-request~~ | **Complete** | Fields as ordered array, CLI, Chat UI |
+| daemon-value-message | Partially Complete | `value` type, persistence, `submit()` delivery, Chat rendering all done. Standalone `sendValue` and `send-value` CLI not yet built but not strictly needed — `submit()` covers the form-provisioning path |
+| lal-reply-chain-transcripts | In Progress | Phases 1-4 complete |
+| familiar-daemon-bundling | In Progress | Blocks distribution |
+| lal-fae-form-provisioning | Not Started | Manager/worker refactor, form-based config |
+| familiar-bundled-agents | Not Started | Bundle Lal/Fae into Familiar via esbuild; no native deps |
 
-#### Tier 2 — Enabling Infrastructure (High-Medium Urgency)
+**Exit criterion:** There is a Familiar application suitable for use on
+at least one platform that folks can download and use to interact with an
+agent using their own API key and local capabilities.
 
-Unblock downstream features and networking.
+**Estimated duration (1 dev):** 2-3 weeks
 
-| Design | Urgency | Depends On | Rationale |
-|--------|---------|------------|-----------|
-| ~~daemon-form-request~~ | — | — | ✅ Complete (fields as ordered array, CLI, Chat UI) |
-| daemon-locator-terminology | High | ~~daemon-256-bit-identifiers~~ | Clean API for locators; unblocked |
-| daemon-value-message | High | ~~daemon-form-request~~ | Reply mechanism for forms; blocks agent provisioning. Form `submit()` already sends value messages; standalone `sendValue` not yet built |
-| familiar-unified-weblet-server | High | familiar-daemon-bundling | Required for weblet hosting in Familiar |
-| ocapn-network-transport-separation | Medium | — | Foundation for OCapN-Noise; in progress |
+---
 
-#### Tier 3 — Near-term Features (Medium Urgency)
+#### Milestone 1: Remote Access and Coding Capabilities
 
-Enable new capabilities once infrastructure is ready.
+**Goal:** Self-host a daemon with Docker, remote control it via local
+Familiar or hosted Chat with bearer token auth. Claw-like coding
+capabilities available to agents.
 
-| Design | Urgency | Depends On | Rationale |
-|--------|---------|------------|-----------|
-| lal-fae-form-provisioning | Medium | ~~daemon-form-request~~, daemon-value-message, lal-reply-chain-transcripts | Form-based multi-agent provisioning for Lal and Fae; form primitives complete |
-| familiar-bundled-agents | Medium | familiar-daemon-bundling, lal-fae-form-provisioning | Bundle Lal/Fae into Familiar for out-of-the-box AI agent experience |
-| ocapn-tcp-for-test-extraction | Medium | ocapn-network-transport-separation | Clean separation before adding Noise |
-| familiar-chat-weblet-hosting | Medium | familiar-unified-weblet-server, familiar-localhttp-protocol | Core Familiar feature |
-| daemon-weblet-application | Medium | familiar-unified-weblet-server, familiar-chat-weblet-hosting | Readable trees and weblets from zip archives |
-| ocapn-noise-cryptographic-review | Medium | — | Should complete before stabilizing Noise |
+| Design | Status | Notes |
+|--------|--------|-------|
+| gateway-bearer-token-auth | Not Started | Agent ID as bearer token in URL fragment, WebSocket auth handshake |
+| daemon-docker-selfhost | Not Started | Dockerfile, state persistence, network exposure, Chat hosting |
+| daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
+| daemon-capability-filesystem | Not Started | `Dir`/`File` capabilities for structural filesystem confinement |
+| daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 
-#### Tier 4 — User Experience (Medium-Low Urgency)
+**Exit criterion:** Someone can self-host a daemon with our Docker image
+and remote control it, by whatever means, using a local Familiar or a
+Chat interface hosted by the Daemon itself online. If using Chat, the
+user must be able to present their bearer token (the id of their root
+agent) in the URL anchor, so that the Chat UI can submit this over
+WebSocket to the Daemon's Gateway, in order to establish the root or
+home profile.
 
-Improve Chat UI; independent of core infrastructure.
+**Estimated duration (1 dev):** 3-4 weeks
 
-| Design | Urgency | Depends On | Rationale |
-|--------|---------|------------|-----------|
-| ~~chat-color-schemes~~ | — | — | ✅ Complete |
-| ~~chat-per-space-color-scheme~~ | — | — | ✅ Complete |
-| ~~chat-high-contrast-mode~~ | — | — | ✅ Complete |
-| chat-reply-chain-visualization | Low | — | Visual improvement; no blockers |
-| inventory-grouping-by-type | Low | — | UX polish |
-| inventory-drag-and-drop | Low | — | UX polish |
-| formula-inspector | Low | — | Power-user feature |
-| workers-panel | Low | — | Observability feature |
-| live-reference-indicator | Low | — | Requires daemon incarnation status API |
+---
 
-#### Tier 5 — Networking Completion (Medium Urgency, Gated)
+#### Milestone 2: Networking
 
-| Design | Urgency | Depends On | Rationale |
-|--------|---------|------------|-----------|
-| daemon-agent-network-identity | Medium | ~~daemon-256-bit-identifiers~~, ocapn-network-transport-separation | Per-agent keypairs used for network identity |
-| ocapn-noise-network | Medium | ocapn-tcp-for-test-extraction, ocapn-noise-cryptographic-review, daemon-agent-network-identity | Secure peer networking |
+**Goal:** Secure peer connections via OCapN-Noise, locator format
+finalized.
 
-#### Tier 6 — Long-term / Research (Low Urgency)
+| Design | Status | Notes |
+|--------|--------|-------|
+| ocapn-network-transport-separation | In Progress | Foundation for transport abstraction |
+| ocapn-tcp-for-test-extraction | Not Started | Clean separation before Noise |
+| ocapn-noise-cryptographic-review | Not Started | External review coordination |
+| daemon-agent-network-identity | Not Started | Per-agent keypairs for network identity |
+| ocapn-noise-network | Not Started | Full Noise protocol network layer |
 
-Security and capability research; no immediate blockers.
+**Exit criterion:** Two Endo daemons can connect securely over
+OCapN-Noise. Locator format supports node identification via agent
+keypairs.
 
-| Design | Urgency | Depends On | Rationale |
-|--------|---------|------------|-----------|
-| daemon-os-sandbox-plugin | Low | — | Foundational for native process confinement |
-| daemon-capability-filesystem | Low | — | Exploratory; informs capability bank |
-| daemon-capability-persona | Low | — | Exploratory; epithets and delegation |
-| daemon-capability-bank | Low | daemon-os-sandbox-plugin, daemon-capability-filesystem | Long-term vision for AI agent confinement |
+**Estimated duration (1 dev):** 3-4 weeks
 
-### Suggested Execution Order
+---
 
-1. **Now:** Complete `daemon-value-message` (standalone `sendValue`; form `submit` already works), continue `familiar-daemon-bundling`, continue `ocapn-network-transport-separation`
-2. **Next:** `lal-fae-form-provisioning` (all daemon dependencies nearly complete), `daemon-locator-terminology` (unblocked)
-3. **Then:** `familiar-unified-weblet-server` → `familiar-chat-weblet-hosting`
-4. **Parallel:** `ocapn-tcp-for-test-extraction`, `ocapn-noise-cryptographic-review`
-5. **After review:** `ocapn-noise-network`
-6. **Ongoing:** Chat UI improvements (Tier 4) as bandwidth permits
-7. **Research:** Capability system designs (Tier 6) inform future direction
+#### Milestone 3: UX Polish and Agent Tooling
+
+**Goal:** Polished Chat experience, developer observability.
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| chat-reply-chain-visualization | In Progress | Layout algorithm, connector lines |
+| inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
+| inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
+| formula-inspector | Not Started | New panel, daemon API exposure |
+| workers-panel | Not Started | Metrics, sparklines |
+| live-reference-indicator | Not Started | Incarnation status API + UI |
+
+**Exit criterion:** Chat UI feature-complete for current design scope.
+Developer tools (inspector, workers panel) available.
+
+**Estimated duration (1 dev):** 3-4.5 weeks
+
+---
+
+#### Milestone 4: Weblets
+
+**Goal:** Weblet hosting in Familiar and daemon.
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| familiar-unified-weblet-server | In Progress | Web-server restructuring |
+| familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
+| daemon-weblet-application | Not Started | Readable trees, zip archives |
+
+**Exit criterion:** Users can install and interact with weblets inside
+Familiar.
+
+**Estimated duration (1 dev):** 2-3 weeks
+
+---
+
+#### Milestone 5: Capability Confinement
+
+**Goal:** Full capability bank for AI agent confinement.
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| daemon-os-sandbox-plugin | Not Started | Platform-specific process confinement |
+| daemon-capability-persona | Not Started | Epithets and delegation |
+| daemon-capability-bank | Not Started | Integrates all capability categories |
+
+**Exit criterion:** AI coding agent runs with principle of least
+authority enforced — sandboxed processes, confined filesystem, auditable
+identity.
+
+**Estimated duration (1 dev):** 6-9 weeks
+
+---
 
 ### Size and Time Estimates
 
@@ -245,237 +306,95 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
    | L | 1500-3000 | 1-1.5 weeks | Architectural changes, new subsystems |
    | XL | > 3000 | 2-3 weeks | Cross-cutting, platform-specific, or research-heavy |
 
-#### Project Estimates (1 Developer, Serial)
+#### Per-Design Estimates
 
-| Design | Size | Estimate | Notes |
-|--------|------|----------|-------|
-| **Tier 1** |
-| ~~daemon-256-bit-identifiers~~ | — | — | ✅ Complete (1 day actual) |
-| ~~daemon-form-request~~ | — | — | ✅ Complete (5 days actual) |
-| familiar-daemon-bundling | S-M | 2-3 days | Remaining: esbuild config, worker bundling |
-| **Tier 2** |
-| daemon-locator-terminology | S | 1 day | Unblocked; locator.js + host.js changes |
-| daemon-value-message | S | 1-2 days | Form `submit()` already sends value messages; remaining: standalone `sendValue`, CLI, Chat UI |
-| familiar-unified-weblet-server | M | 2-3 days | Web-server restructuring, routing |
-| ocapn-network-transport-separation | M-L | 1-1.5 weeks | Architectural refactor across ocapn packages |
-| **Tier 3** |
-| lal-fae-form-provisioning | M | 3-4 days | Manager/worker refactor, 4 phases; form primitives complete |
-| familiar-bundled-agents | S-M | 2-3 days | esbuild entries, resource paths, special formulas, self-provisioning; no native deps |
-| ocapn-tcp-for-test-extraction | S-M | 2-3 days | Code relocation, interface cleanup |
-| familiar-chat-weblet-hosting | M | 3-4 days | Iframe hosting, panel UI, guest profiles |
-| daemon-weblet-application | M | 3-4 days | Two formula types, gateway serving, CLI/chat verbs |
-| ocapn-noise-cryptographic-review | S | 1 day | Coordination work + external review wait time |
-| **Tier 4** |
-| chat-reply-chain-visualization | M | 3-4 days | Layout algorithm, SVG/CSS connector lines |
-| inventory-grouping-by-type | S | 1-2 days | UI grouping, collapsible sections |
-| inventory-drag-and-drop | S-M | 2-3 days | HTML5 DnD handlers, drop targets |
-| formula-inspector | M | 3-4 days | New panel, daemon InspectorHub API exposure |
-| workers-panel | M | 3-5 days | New panel, daemon metrics API, sparklines |
-| live-reference-indicator | M | 3-4 days | Daemon incarnation status API + UI indicators |
-| **Tier 5** |
-| daemon-agent-network-identity | S-M | 2-3 days | Network registration, null-node, locator construction |
-| ocapn-noise-network | L | 1.5-2 weeks | Full network + transport implementations |
-| **Tier 6** |
-| daemon-os-sandbox-plugin | L-XL | 2-3 weeks | Platform-specific (macOS sandbox-exec, Linux namespaces) |
-| daemon-capability-filesystem | L | 1-2 weeks | New capability type, VFS interface |
-| daemon-capability-persona | S-M | 2-3 days | Handle extension, epithet tracking |
-| daemon-capability-bank | XL | 3-4 weeks | Integrates sandbox, filesystem, persona |
+| Design | Size | Estimate | Milestone | Notes |
+|--------|------|----------|-----------|-------|
+| ~~daemon-256-bit-identifiers~~ | — | — | 0 | ✅ Complete (1 day actual) |
+| ~~daemon-form-request~~ | — | — | 0 | ✅ Complete (5 days actual) |
+| daemon-value-message | S | 1-2 days | 0 | Remaining: standalone `sendValue`, CLI |
+| lal-reply-chain-transcripts | S | 1 day | 0 | Remaining: phase 5 |
+| familiar-daemon-bundling | S-M | 2-3 days | 0 | Remaining: esbuild config, worker bundling |
+| lal-fae-form-provisioning | M | 3-4 days | 0 | Manager/worker refactor, 4 phases |
+| familiar-bundled-agents | S-M | 2-3 days | 0 | esbuild entries, special formulas; no native deps |
+| gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
+| daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
+| daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
+| daemon-capability-filesystem | L | 1-2 weeks | 1 | Dir/File exos, physical backend |
+| daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
+| ocapn-network-transport-separation | M-L | 1-1.5 weeks | 2 | Architectural refactor |
+| ocapn-tcp-for-test-extraction | S-M | 2-3 days | 2 | Code relocation |
+| ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
+| daemon-agent-network-identity | S-M | 2-3 days | 2 | Network registration, locator construction |
+| ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
+| chat-reply-chain-visualization | M | 3-4 days | 3 | Layout algorithm, connector lines |
+| inventory-grouping-by-type | S | 1-2 days | 3 | UI grouping |
+| inventory-drag-and-drop | S-M | 2-3 days | 3 | HTML5 DnD |
+| formula-inspector | M | 3-4 days | 3 | New panel, daemon API |
+| workers-panel | M | 3-5 days | 3 | Metrics, sparklines |
+| live-reference-indicator | M | 3-4 days | 3 | Incarnation status API + UI |
+| familiar-unified-weblet-server | M | 2-3 days | 4 | Web-server restructuring |
+| familiar-chat-weblet-hosting | M | 3-4 days | 4 | Iframe hosting, guest profiles |
+| daemon-weblet-application | M | 3-4 days | 4 | Formula types, gateway serving |
+| daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
+| daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
+| daemon-capability-bank | XL | 3-4 weeks | 5 | Integrates all capabilities |
 
-#### Summary
+#### Summary by Milestone
 
-| Category | Items | Total Estimate (1 dev, serial) |
-|----------|-------|-------------------------------|
-| Tier 1 (Critical) | 1 | 2-3 days |
-| Tier 2 (Infrastructure) | 4 | 1.5-3 weeks |
-| Tier 3 (Near-term) | 5 | 2.5-3.5 weeks |
-| Tier 4 (UX) | 6 | 3-4.5 weeks |
-| Tier 5 (Networking) | 2 | 2-2.5 weeks |
-| Tier 6 (Research) | 4 | 6.5-9.5 weeks |
-| **Total remaining** | **22** | **~16-23 weeks** |
+| Milestone | Items | Total Estimate (1 dev, serial) |
+|-----------|-------|-------------------------------|
+| M0: AI Agent Experience | 5 remaining | 2-3 weeks |
+| M1: Remote Access & Tools | 5 | 3-4 weeks |
+| M2: Networking | 5 | 3-4 weeks |
+| M3: UX & Tooling | 6 | 3-4.5 weeks |
+| M4: Weblets | 3 | 2-3 weeks |
+| M5: Capability Confinement | 3 | 6-9 weeks |
+| **Total remaining** | **27** | **~19-28 weeks** |
 
-*Per-project estimates assume one developer. Milestone durations below
-reflect ~2.5 developers working in parallel, with ~10-15% overhead for
-coordination and code review.*
-
-### Milestones (~2.5 Developers)
-
-Approximately 2.5 developers working full-time, each at the observed
-velocity (~9 commits/day, ~500-2500 LOC/day). Developer focus areas:
-
-- **Dev A (Daemon/Core):** Messaging, agent provisioning, capability system
-- **Dev B (Familiar/Chat):** Electron app, Chat UI, weblet hosting, UX
-- **Dev C (OCapN/Networking, ~half-time):** Transport separation, Noise
-  protocol, peer networking; supports A or B when not on networking
-
----
-
-#### Milestone 1: Foundation
-**Duration:** 1.5 weeks | **Goal:** Complete messaging infrastructure, unblock agent provisioning
-
-| Dev | Projects | Est. (1-dev) |
-|-----|----------|--------------|
-| A | daemon-value-message (remaining), daemon-locator-terminology | 2 days |
-| A | lal-fae-form-provisioning (all 4 phases) | 3-4 days |
-| B | familiar-daemon-bundling | 2-3 days |
-| B | chat-reply-chain-visualization (start) | 2 days |
-| C | ocapn-network-transport-separation (start) | 3 days |
-
-**Deliverables:**
-- ~~256-bit identifiers~~ ✅ Complete
-- ~~daemon-form-request~~ ✅ Complete (fields as ordered array, CLI, Chat UI)
-- Standalone `sendValue` method and CLI `send-value` command
-- New locator format
-- LLM agents provisioned via form submission (no environment variables)
-- Multiple agent personas per install via form resubmission
-- Familiar app distributable with bundled daemon
-
-**Exit criteria:** `endo form` + `endo submit` creates named Lal/Fae agent personas; Familiar can be packaged
-
----
-
-#### Milestone 2: Weblets & Networking Groundwork
-**Duration:** 2 weeks | **Goal:** Weblet hosting in Familiar, OCapN transport separation
-
-| Dev | Projects | Est. (1-dev) |
-|-----|----------|--------------|
-| A | daemon-weblet-application | 3-4 days |
-| A | formula-inspector | 3-4 days |
-| B | familiar-unified-weblet-server → familiar-chat-weblet-hosting | 5-7 days |
-| C | ocapn-network-transport-separation (complete) | 4-5 days |
-| C | ocapn-tcp-for-test-extraction | 2-3 days |
-
-**Deliverables:**
-- Weblets hosted inside Familiar Chat UI
-- Weblet application formula type working
-- OCapN transport abstraction complete
-- TCP-for-test extracted into standalone package
-- Formula inspector panel available
-
-**Exit criteria:** Users can install and interact with weblets in Familiar
-
----
-
-#### Milestone 3: UX Polish & Agent Tooling
-**Duration:** 1.5 weeks | **Goal:** Polished Chat experience, developer tooling
-
-| Dev | Projects | Est. (1-dev) |
-|-----|----------|--------------|
-| A | workers-panel | 3-5 days |
-| A | live-reference-indicator (daemon API) | 2 days |
-| B | chat-reply-chain-visualization (complete) | 2-3 days |
-| B | inventory-grouping-by-type, inventory-drag-and-drop | 3-5 days |
-| C | live-reference-indicator (UI) | 2 days |
-| C | ocapn-noise-cryptographic-review (coordinate) | 1 day |
-
-**Deliverables:**
-- Reply chain visualization in Chat
-- Workers panel with metrics and observability
-- Inventory grouping and drag-and-drop
-- Live reference indicators
-- Crypto review initiated
-
-**Exit criteria:** Chat UI feature-complete for current design scope
-
----
-
-#### Milestone 4: Secure Networking
-**Duration:** 2 weeks | **Goal:** Secure peer connections
-
-| Dev | Projects | Est. (1-dev) |
-|-----|----------|--------------|
-| A | daemon-agent-network-identity | 2-3 days |
-| A | Support C on ocapn-noise-network | — |
-| B | Stabilization, bug fixes, integration testing | — |
-| C | ocapn-noise-network | 1.5-2 weeks |
-
-**Deliverables:**
-- Per-agent network identity with keypairs
-- OCapN-Noise network operational for secure peer connections
-
-**Exit criteria:** Two Familiar instances can connect securely over OCapN-Noise
-
----
-
-#### Milestone 5: Capability Foundation
-**Duration:** 2.5 weeks | **Goal:** Lay groundwork for AI agent confinement
-
-| Dev | Projects | Est. (1-dev) |
-|-----|----------|--------------|
-| A | daemon-capability-persona | 2-3 days |
-| A | daemon-os-sandbox-plugin | 2-3 weeks |
-| B | daemon-capability-filesystem | 1-2 weeks |
-| C | Support A on sandbox plugin | — |
-| C | Documentation, stabilization | — |
-
-**Deliverables:**
-- Persona/epithet system for delegate identity
-- OS sandbox plugin for macOS (Linux stretch goal)
-- Filesystem capability prototype
-
-**Exit criteria:** Native processes can be sandboxed with specified capabilities
-
----
-
-#### Milestone 6: Capability Bank
-**Duration:** 2 weeks | **Goal:** Integrated capability management
-
-| Dev | Projects | Est. (1-dev) |
-|-----|----------|--------------|
-| A, B, C | daemon-capability-bank (collaborative) | 3-4 weeks 1-dev; ~2 weeks with team |
-
-**Deliverables:**
-- Unified capability bank integrating sandbox, filesystem, and persona
-- AI agent confinement demonstration
-- Documentation and security review
-
-**Exit criteria:** AI coding agent runs with principle of least authority enforced
-
----
-
-#### Timeline Summary
+### Timeline
 
 ```mermaid
 gantt
-    title Endo Roadmap (~2.5 Developers)
+    title Endo Roadmap (1 Developer)
     dateFormat YYYY-MM-DD
 
+    section Milestone 0
+    AI Agent Experience           :m0, 2026-03-03, 3w
+
     section Milestone 1
-    Foundation                    :m1, 2026-03-03, 1.5w
+    Remote Access & Tools         :m1, after m0, 4w
 
     section Milestone 2
-    Weblets & Networking          :m2, after m1, 2w
+    Networking                    :m2, after m1, 4w
 
     section Milestone 3
-    UX Polish & Tooling           :m3, after m2, 1.5w
+    UX & Tooling                  :m3, after m2, 4w
 
     section Milestone 4
-    Secure Networking             :m4, after m3, 2w
+    Weblets                       :m4, after m3, 3w
 
     section Milestone 5
-    Capability Foundation         :m5, after m4, 2.5w
-
-    section Milestone 6
-    Capability Bank               :m6, after m5, 2w
+    Capability Confinement        :m5, after m4, 8w
 ```
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M1: Foundation | 1.5 weeks | 1.5 weeks | Mid-March 2026 |
-| M2: Weblets & Networking | 2 weeks | 3.5 weeks | Late March 2026 |
-| M3: UX Polish & Tooling | 1.5 weeks | 5 weeks | Early April 2026 |
-| M4: Secure Networking | 2 weeks | 7 weeks | Mid-April 2026 |
-| M5: Capability Foundation | 2.5 weeks | 9.5 weeks | Early May 2026 |
-| M6: Capability Bank | 2 weeks | 11.5 weeks | Mid-May 2026 |
+| M0: AI Agent Experience | 2-3 weeks | 2-3 weeks | Late March 2026 |
+| M1: Remote Access & Tools | 3-4 weeks | 5-7 weeks | Late April 2026 |
+| M2: Networking | 3-4 weeks | 8-11 weeks | Late May 2026 |
+| M3: UX & Tooling | 3-4.5 weeks | 11-15.5 weeks | Late June 2026 |
+| M4: Weblets | 2-3 weeks | 13-18.5 weeks | Mid-July 2026 |
+| M5: Capability Confinement | 6-9 weeks | 19-27.5 weeks | Mid-September 2026 |
 
-**Total calendar time:** ~11.5 weeks (~3 months) with ~2.5 developers
+*Milestones 3 and 4 are less order-dependent and can be interleaved or
+reordered based on priorities. Milestones 0, 1, and 2 form the critical
+path.*
 
-*Compared to ~16-23 weeks serial (1 dev), parallelization achieves ~1.5-2x
-calendar speedup. The limiting factor is the longest critical path through
-dependent work (daemon messaging → agent provisioning → capability bank),
-not total effort.*
-
-**Progress as of 2026-03-02:** 14 of 38 designs complete. 15 active work days
-elapsed (Feb 15 – Mar 2) with 1 developer. Observed throughput: ~9
-commits/day, ~500-2500 LOC/day. `daemon-form-request` complete.
-`daemon-value-message` partially implemented. `lal-fae-form-provisioning`
-designed and ready for implementation.
+**Progress as of 2026-03-02:** 14 of 42 designs complete, 1 partially
+complete. 15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
+Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
+`daemon-form-request` complete. `daemon-value-message` partially
+implemented (value type and `submit()` delivery working; standalone
+`sendValue` remaining). `lal-fae-form-provisioning` designed and ready
+for implementation.
