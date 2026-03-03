@@ -5,7 +5,7 @@ import harden from '@endo/harden';
 
 /**
  * @typedef {object} ProfilePopupAPI
- * @property {(options: { proposedName: string, pedigree: string[], yourName?: string, onAssignName?: (name: string) => void, anchorElement: HTMLElement }) => void} show
+ * @property {(options: { proposedName: string, pedigree: string[], pedigreeMemberIds?: string[], nameMap?: Map<string, string>, yourName?: string, onAssignName?: (name: string) => void, anchorElement: HTMLElement }) => void} show
  * @property {() => void} hide
  */
 
@@ -28,6 +28,8 @@ export const createProfilePopup = $container => {
    * @param {object} options
    * @param {string} options.proposedName
    * @param {string[]} options.pedigree
+   * @param {string[]} [options.pedigreeMemberIds] - Member IDs corresponding to pedigree entries
+   * @param {Map<string, string>} [options.nameMap] - Local address book mapping memberId to assigned name
    * @param {string} [options.yourName]
    * @param {(name: string) => void} [options.onAssignName]
    * @param {HTMLElement} options.anchorElement
@@ -35,6 +37,8 @@ export const createProfilePopup = $container => {
   const show = ({
     proposedName,
     pedigree,
+    pedigreeMemberIds,
+    nameMap,
     yourName,
     onAssignName,
     anchorElement,
@@ -42,13 +46,27 @@ export const createProfilePopup = $container => {
     void anchorElement; // reserved for future anchor-relative positioning
     visible = true;
 
+    /**
+     * Resolve a pedigree entry to its display name.
+     * Prefers the viewer's assigned name from the address book;
+     * falls back to the proposed name in scare quotes.
+     * @param {string} name - Proposed name from the pedigree
+     * @param {number} index - Index in the pedigree array
+     * @returns {string} HTML for the pedigree entry
+     */
+    const renderPedigreeName = (name, index) => {
+      const memberId = pedigreeMemberIds && pedigreeMemberIds[index];
+      const assigned = memberId && nameMap && nameMap.get(memberId);
+      if (assigned) {
+        return `<span class="pedigree-name named" title="Proposed: \u201C${name}\u201D">${assigned}</span>`;
+      }
+      return `<span class="pedigree-name">\u201C${name}\u201D</span>`;
+    };
+
     const pedigreeHtml =
       pedigree.length > 0
         ? pedigree
-            .map(
-              name =>
-                `<span class="pedigree-name">\u201C${name}\u201D</span>`,
-            )
+            .map(renderPedigreeName)
             .join(' <span class="pedigree-arrow">\u2192</span> ') +
           ` <span class="pedigree-arrow">\u2192</span> <span class="pedigree-name pedigree-self">\u201C${proposedName}\u201D</span>`
         : '<span class="pedigree-creator">Channel Creator</span>';

@@ -195,6 +195,24 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     };
 
     /**
+     * Build an array of member IDs corresponding to the pedigree chain,
+     * by walking up the inviterMemberId chain from the given entry.
+     * Returns IDs in the same order as the pedigree array (oldest ancestor first).
+     * @param {MemberEntry} entry
+     * @returns {string[]}
+     */
+    const buildPedigreeMemberIds = entry => {
+      const ids = [];
+      let currentId = entry.inviterMemberId;
+      while (currentId && memberEntries.has(currentId)) {
+        ids.unshift(currentId);
+        const parent = /** @type {MemberEntry} */ (memberEntries.get(currentId));
+        currentId = parent.inviterMemberId;
+      }
+      return ids;
+    };
+
+    /**
      * Internal: post a message from an identified author.
      * @param {string} author
      * @param {string[]} pedigree
@@ -216,6 +234,9 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1n;
 
+      const entry = memberEntries.get(memberId);
+      const pedigreeMemberIds = entry ? buildPedigreeMemberIds(entry) : [];
+
       /** @type {ChannelMessage} */
       const message = harden({
         number: messageNumber,
@@ -223,6 +244,7 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         author,
         memberId,
         pedigree: [...pedigree],
+        pedigreeMemberIds,
         strings,
         edgeNames,
         ids,

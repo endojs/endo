@@ -20,6 +20,7 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {string} author
  * @property {string} [memberId]
  * @property {string[]} pedigree
+ * @property {string[]} [pedigreeMemberIds]
  * @property {string[]} strings
  * @property {string[]} edgeNames
  * @property {string[]} ids
@@ -205,13 +206,19 @@ export const channelComponent = async (
 
     $author.title =
       message.pedigree.length > 0
-        ? `Invited by: ${message.pedigree.join(' \u2192 ')}`
+        ? `Invited by: ${message.pedigree.map((name, i) => {
+            const mid = message.pedigreeMemberIds && message.pedigreeMemberIds[i];
+            const assigned = mid && nameMap.get(mid);
+            return assigned || `\u201C${name}\u201D`;
+          }).join(' \u2192 ')}`
         : 'Channel creator';
     $author.addEventListener('click', e => {
       e.stopPropagation();
       profilePopup.show({
         proposedName: message.author,
         pedigree: message.pedigree || [],
+        pedigreeMemberIds: message.pedigreeMemberIds,
+        nameMap,
         yourName: nameMap.get(memberKey),
         onAssignName: name => {
           nameMap.set(memberKey, name);

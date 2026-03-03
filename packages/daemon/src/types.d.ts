@@ -343,7 +343,9 @@ export type ChannelMessage = {
   number: bigint;
   date: string;
   author: string;
+  memberId: string;
   pedigree: string[];
+  pedigreeMemberIds: string[];
   strings: string[];
   edgeNames: string[];
   ids: FormulaIdentifier[];

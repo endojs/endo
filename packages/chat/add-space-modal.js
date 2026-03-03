@@ -272,7 +272,7 @@ export const createAddSpaceModal = ({
         <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
       </div>
       <form class="add-space-form">
-        ${renderIconSelector('Channel Icon')}
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
         <div class="add-space-field">
           <label for="channel-pet-name">Space Name</label>
@@ -361,7 +361,7 @@ export const createAddSpaceModal = ({
         ${
           connectPersonaMode === 'new'
             ? `
-          ${renderIconSelector()}
+          ${renderIconSelector({ selectedIcon, useLetterIcon })}
           <div class="add-space-field">
             <label for="connect-space-name">Space Name</label>
             <input type="text" id="connect-space-name" placeholder="e.g., team-chat"
