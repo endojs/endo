@@ -27,14 +27,14 @@ import { E } from '@endo/eventual-send';
  * @returns {Promise<DiscoveredTools>}
  */
 export const discoverTools = async (host, localTools) => {
-  /** @type {Map<string, FaeTool | object>} */
-  const toolMap = new Map(localTools);
   /** @type {ToolSchema[]} */
   const schemas = [];
-
-  for (const [, tool] of localTools) {
+  for (const tool of localTools.values()) {
     schemas.push(tool.schema());
   }
+
+  /** @type {Map<string, FaeTool | object>} */
+  const toolMap = new Map(localTools);
 
   try {
     const names = /** @type {string[]} */ (await E(host).list('tools'));
