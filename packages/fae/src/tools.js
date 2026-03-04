@@ -43,9 +43,10 @@ export const discoverTools = async (host, localTools) => {
     .map(async name => {
       try {
         const tool = await E(host).lookup(['tools', name]);
+        toolMap.set(name, /** @type {object} */(tool));
+
         const toolSchema = await E(tool).schema();
-        toolMap.set(name, /** @type {object} */ (tool));
-        schemas.push(/** @type {ToolSchema} */ (toolSchema));
+        schemas.push(/** @type {ToolSchema} */(toolSchema));
       } catch (/** @type {any} */ err) {
         console.warn(
           `[fae] tools/${name}: not a valid FaeTool: ${err.message || err}`,
