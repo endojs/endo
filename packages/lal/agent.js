@@ -10,7 +10,7 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification, LalContext, LalOptions } from './agent.types' */
+/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification, LalContext } from './agent.types' */
 
 // ============================================================================
 // Interface Definition
@@ -868,7 +868,7 @@ Always check tool results before proceeding - don't assume success.
  * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
  * @returns {Promise<void>}
  */
-const spawnWorkerLoop = async (powers, context, workerEnv) => {
+export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const getCancelled = async () => {
     if (!context) return null;
     const resolvedContext = await context;
@@ -1764,52 +1764,65 @@ You should:
   // Start the worker loop
   await runAgent();
 };
+harden(spawnWorkerLoop);
 
 // ============================================================================
 // Manager / Entry Point
 // ============================================================================
 
 /**
- * Creates a Lal agent manager that processes messages using an LLM.
+ * Creates a Lal agent manager.
  *
- * If env vars are provided, spawns a worker immediately using the manager's
- * own guest powers. Always sends a configuration form to HOST so additional
- * agents can be added via form submission.
+ * Sends a configuration form to HOST on startup. Each form submission
+ * creates a new guest profile and spawns a worker loop for it.
  *
  * @param {FarRef<GuestPowers>} guestPowers - Guest powers from the Endo daemon
- * @param {Promise<LalContext> | LalContext | undefined} context - Context for cancellation support
- * @param {LalOptions} [options] - Configuration options
+ * @param {Promise<LalContext> | LalContext | undefined} _context - Context for cancellation support
  * @returns {object} The Lal exo object
  */
-export const make = (guestPowers, context, options) => {
-  const env = options?.env;
-  console.log('[lal]', env);
+export const make = (guestPowers, _context) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  // If env vars provided, spawn a worker immediately with the manager's own guest powers.
-  if (env?.LAL_HOST) {
-    spawnWorkerLoop(powers, context, env).catch(error => {
-      console.error('[lal] Worker error:', error);
-    });
-  }
-
-  // Always send the configuration form to HOST for adding more agents.
+  // Send the configuration form to HOST for adding agents.
   const runManager = async () => {
-    await E(powers).form('HOST', 'Add an agent', harden([
-      { name: 'name', label: 'Agent name' },
-      { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
-      { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
-      { name: 'authToken', label: 'API auth token' },
-    ]));
+    await E(powers).form(
+      'HOST',
+      'Add an agent',
+      harden([
+        { name: 'name', label: 'Agent name' },
+        {
+          name: 'host',
+          label: 'API host',
+          example: 'https://api.anthropic.com',
+        },
+        {
+          name: 'model',
+          label: 'Model name',
+          example: 'claude-sonnet-4-6-20250514',
+        },
+        { name: 'authToken', label: 'API auth token' },
+      ]),
+    );
 
     // Resolve the host agent reference for provideGuest calls.
-    const agent = await E(powers).lookup('AGENT');
+    const agent = await E(powers).lookup('host-agent');
     const selfId = await E(powers).identify('SELF');
     const activeWorkers = new Map();
 
+    // Pre-scan existing messages to find our latest form messageId so that
+    // old value messages (from prior sessions) that reply to an earlier form
+    // are not accidentally matched when the iterator replays history.
     /** @type {string | undefined} */
     let formMessageId;
+    const existingMessages = /** @type {any[]} */ (
+      await E(powers).listMessages()
+    );
+    for (const msg of existingMessages) {
+      if (msg.from === selfId && msg.type === 'form') {
+        formMessageId = msg.messageId;
+      }
+    }
 
     const messageIterator = makeRefIterator(E(powers).followMessages());
     while (true) {
@@ -1829,12 +1842,11 @@ export const make = (guestPowers, context, options) => {
       if (msg.replyTo !== formMessageId) continue;
 
       try {
-        // Adopt the submitted values into our pet store.
-        const petName = `submission-${msg.messageId}`;
-        await E(powers).adopt(msg.number, 'VALUE', petName);
-        const config = /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
-          await E(powers).lookup(petName)
-        );
+        // Resolve the submitted values from the value message.
+        const config =
+          /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+            await E(powers).lookupById(msg.valueId)
+          );
 
         const { name } = config;
 
@@ -1850,13 +1862,10 @@ export const make = (guestPowers, context, options) => {
         }
 
         // Create the guest profile via the host agent.
-        await E(agent).provideGuest(name, {
-          introducedNames: harden({}),
+        // provideGuest returns the full EndoGuest (not the handle).
+        const guest = await E(agent).provideGuest(name, {
           agentName: `profile-for-${name}`,
         });
-
-        // Look up the newly created guest's powers.
-        const guest = await E(powers).lookup(name);
 
         // Spawn a worker loop for this guest.
         const workerP = spawnWorkerLoop(guest, null, {

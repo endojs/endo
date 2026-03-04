@@ -1,59 +1,31 @@
-/* global process */
 // @ts-check
-// endo run --UNCONFINED setup.js \
-//   --powers AGENT \
-//   [-E LAL_HOST=$LAL_HOST] \
-//   [-E LAL_MODEL=$LAL_MODEL] \
-//   [-E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN]
+// endo run --UNCONFINED setup.js --powers AGENT
 
 import { E } from '@endo/eventual-send';
 
 const faeSpecifier = new URL('agent.js', import.meta.url).href;
 
 /**
- * @returns {{ host: string | undefined, model: string | undefined, authToken: string | undefined }}
- */
-const readConfig = () => {
-  const host = process.env.LAL_HOST;
-  const model = process.env.LAL_MODEL;
-  const authToken = process.env.LAL_AUTH_TOKEN;
-
-  if (host && host.includes('anthropic.com') && !authToken) {
-    throw new Error(
-      'LAL_AUTH_TOKEN is required when LAL_HOST points to Anthropic',
-    );
-  }
-
-  return harden({ host, model, authToken });
-};
-harden(readConfig);
-
-/**
- * Provision a fae agent as a guest caplet (no tools pre-installed).
+ * Provision a fae manager guest and launch the agent caplet.
+ * Configuration is handled via the form flow inside the agent.
  *
  * @param {import('@endo/eventual-send').ERef<object>} agent
  */
 export const main = async agent => {
-  const config = readConfig();
-  const hasEnvConfig = config.host !== undefined;
-
-  await E(agent).provideGuest('fae', {
-    introducedNames: { AGENT: 'AGENT' },
-    agentName: 'profile-for-fae',
-  });
+  // Only create the guest on first run; on restart the guest already exists
+  // and re-running provideGuest with introducedNames hits a daemon bug
+  // where the handle formula lacks the write method.
+  const hasFae = await E(agent).has('fae');
+  if (!hasFae) {
+    await E(agent).provideGuest('fae', {
+      introducedNames: harden({ AGENT: 'host-agent' }),
+      agentName: 'profile-for-fae',
+    });
+  }
 
   await E(agent).makeUnconfined('MAIN', faeSpecifier, {
     powersName: 'profile-for-fae',
     resultName: 'controller-for-fae',
-    ...(hasEnvConfig
-      ? {
-          env: {
-            LAL_HOST: config.host,
-            LAL_MODEL: config.model,
-            LAL_AUTH_TOKEN: config.authToken,
-          },
-        }
-      : {}),
   });
 };
 harden(main);

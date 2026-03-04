@@ -7,6 +7,8 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+/** Same pattern as isSpecialName in packages/daemon/src/pet-name.js */
+const specialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 import { createProvider } from '@endo/lal/providers/index.js';
 
 import { discoverTools, executeTool } from './src/tools.js';
@@ -88,7 +90,7 @@ try it right away.
  * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
  * @returns {Promise<void>}
  */
-const spawnWorkerLoop = async (powers, context, workerEnv) => {
+export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const getCancelled = async () => {
     if (!context) return null;
     const resolvedContext = await context;
@@ -261,7 +263,7 @@ const spawnWorkerLoop = async (powers, context, workerEnv) => {
     try {
       const topNames = /** @type {string[]} */ (await E(powers).list());
       for (const name of topNames) {
-        if (name === 'tools' || name === 'SELF' || name === 'HOST') {
+        if (name === 'tools' || specialNamePattern.test(name)) {
           continue;
         }
         try {
@@ -382,52 +384,65 @@ const spawnWorkerLoop = async (powers, context, workerEnv) => {
   // Start the worker loop
   await runAgent();
 };
+harden(spawnWorkerLoop);
 
 // ============================================================================
 // Manager / Entry Point
 // ============================================================================
 
 /**
- * Caplet entry point. Follows the lal pattern: export make(guestPowers, context, options).
+ * Creates a Fae agent manager.
  *
- * If env vars are provided, spawns a worker immediately using the manager's
- * own guest powers. Always sends a configuration form to HOST so additional
- * agents can be added via form submission.
+ * Sends a configuration form to HOST on startup. Each form submission
+ * creates a new guest profile and spawns a worker loop for it.
  *
  * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
- * @param {Promise<object> | object | undefined} context
- * @param {{ env?: Record<string, string | undefined> }} [options]
+ * @param {Promise<object> | object | undefined} _context
  * @returns {object}
  */
-export const make = (guestPowers, context, options) => {
-  const env = options?.env;
-  console.log('[fae]', env);
+export const make = (guestPowers, _context) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  // If env vars provided, spawn a worker immediately with the manager's own guest powers.
-  if (env?.LAL_HOST) {
-    spawnWorkerLoop(powers, context, env).catch(error => {
-      console.error('[fae] Worker error:', error);
-    });
-  }
-
-  // Always send the configuration form to HOST for adding more agents.
+  // Send the configuration form to HOST for adding agents.
   const runManager = async () => {
-    await E(powers).form('HOST', 'Add an agent', harden([
-      { name: 'name', label: 'Agent name' },
-      { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
-      { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
-      { name: 'authToken', label: 'API auth token' },
-    ]));
+    await E(powers).form(
+      'HOST',
+      'Add an agent',
+      harden([
+        { name: 'name', label: 'Agent name' },
+        {
+          name: 'host',
+          label: 'API host',
+          example: 'https://api.anthropic.com',
+        },
+        {
+          name: 'model',
+          label: 'Model name',
+          example: 'claude-sonnet-4-6-20250514',
+        },
+        { name: 'authToken', label: 'API auth token' },
+      ]),
+    );
 
     // Resolve the host agent reference for provideGuest calls.
-    const agent = await E(powers).lookup('AGENT');
+    const agent = await E(powers).lookup('host-agent');
     const selfId = await E(powers).identify('SELF');
     const activeWorkers = new Map();
 
+    // Pre-scan existing messages to find our latest form messageId so that
+    // old value messages (from prior sessions) that reply to an earlier form
+    // are not accidentally matched when the iterator replays history.
     /** @type {string | undefined} */
     let formMessageId;
+    const existingMessages = /** @type {any[]} */ (
+      await E(powers).listMessages()
+    );
+    for (const msg of existingMessages) {
+      if (msg.from === selfId && msg.type === 'form') {
+        formMessageId = msg.messageId;
+      }
+    }
 
     const messageIterator = makeRefIterator(E(powers).followMessages());
     while (true) {
@@ -447,12 +462,11 @@ export const make = (guestPowers, context, options) => {
       if (msg.replyTo !== formMessageId) continue;
 
       try {
-        // Adopt the submitted values into our pet store.
-        const petName = `submission-${msg.messageId}`;
-        await E(powers).adopt(msg.number, 'VALUE', petName);
-        const config = /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
-          await E(powers).lookup(petName)
-        );
+        // Resolve the submitted values from the value message.
+        const config =
+          /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+            await E(powers).lookupById(msg.valueId)
+          );
 
         const { name } = config;
 
@@ -468,13 +482,10 @@ export const make = (guestPowers, context, options) => {
         }
 
         // Create the guest profile via the host agent.
-        await E(agent).provideGuest(name, {
-          introducedNames: harden({}),
+        // provideGuest returns the full EndoGuest (not the handle).
+        const guest = await E(agent).provideGuest(name, {
           agentName: `profile-for-${name}`,
         });
-
-        // Look up the newly created guest's powers.
-        const guest = await E(powers).lookup(name);
 
         // Spawn a worker loop for this guest.
         const workerP = spawnWorkerLoop(guest, null, {

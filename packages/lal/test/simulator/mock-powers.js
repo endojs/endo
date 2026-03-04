@@ -267,6 +267,10 @@ export function makeMockPowers(options = {}) {
         message: `Mock would run: ${source.slice(0, 50)}...`,
       });
     },
+
+    form(_recipientName, _label, _fields) {
+      return Promise.resolve();
+    },
   };
 
   return {
