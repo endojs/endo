@@ -156,6 +156,16 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
   [daemon-capability-bank](daemon-capability-bank.md).
 - A design document (`daemon-capability-browser.md`) would be needed.
 
+> Josh: Only need a full-fat browser to evade countermeasures like [Anubis][anubis].
+>   ... To gets tarted, all we need is a pair of "web_fetch" and "web_search" tools.
+>   ... Search is deliberately separated, for better integration across
+>       providers, typical ones include: Brave, Tavily, and Provider-Native
+>       options (e.g. Ollama and others).
+>   ... Past that, if we add an MCP bridge, than we could just use pre-existing
+>       browser MCP servers
+
+[anubis]: https://github.com/TecharoHQ/anubis
+
 ### Productivity Integrations
 
 | OpenClaw Integration    | Endo Equivalent | Status       |
@@ -224,6 +234,8 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 | `AGENTS.md` (agent definitions)        | Form-based agent provisioning                      | Designed ([lal-fae-form-provisioning](lal-fae-form-provisioning.md)) |
 | `SOUL.md` (agent personality)          | System prompt in agent setup module                | **Available** (in `packages/lal/agent.js`)                           |
 
+> Josh: I'm really not convinced that the claw notion of session is 1:1 with our chat spaces
+
 **Endo approach**:
 - Endo's multi-agent model is more structured than OpenClaw's file-based
   workspace.
@@ -239,6 +251,10 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 - Agent personality is currently coded into the agent module.
 - A future enhancement could let the form include a "system prompt" field that
   the agent prepends to its LLM context.
+
+> Josh: insufficient, the claw's soul, identity, memory file (s) need to be
+>       part of its mutable workspace so that it can "evolve" or at least be
+>       told to modify itself or remember a thing
 
 ### Persistence and Memory
 
@@ -257,6 +273,12 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 - Lal's transcript node store
   ([lal-reply-chain-transcripts](lal-reply-chain-transcripts.md)) provides
   conversation history with reply chain structure.
+
+> Josh: whatever else we do internally, message history (sessions) should get
+>       stored as Pi-compatible jsonl files (openclaw and localgpt at least bot
+>       do this, probably most of the other too).
+>       This is at least for offline operator inspect-ability, but also the
+>       claw itself can use these as a form of memory if withing its workspace.
 
 **Gap**:
 - Endo has no cron/scheduler or proactive outreach mechanism.
@@ -312,6 +334,10 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
   the agent literally cannot name paths outside its granted `Dir` root, cannot
   execute commands outside its `Shell` allowlist, and cannot access network
   endpoints outside its granted scope.
+
+> Josh: other claws like LocalGPT, PicoClaw, and IronClaw at least implement
+>       system level sandboxing around their tool executions at least, things
+>       like seccomp, or even just basic file path filtering
 
 ### Companion Apps
 
@@ -383,9 +409,13 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 
 | Gap                                                 | Priority | Notes                                               |
 |-----------------------------------------------------|----------|-----------------------------------------------------|
-| Browser automation capability                       | Medium   | Puppeteer/Playwright-backed `Browser` exo           |
+| Web Fetch and Search capability                     | High     | Basic fetch and search provider API usage           |
+| Core workspace / memory system                      | High     | This is the core engine that contitues a claw       |
+| Heartbeat Timer                                     | High     | This is the core "there" that makes a claw tick     |
+| Chat Channel Bridge                                 | Medium   | At least for easy ones like Telegram                |
 | Cron/scheduler capability                           | Medium   | Timer capability in bank taxonomy                   |
 | Proactive agent outreach                            | Medium   | Agent-initiated messages, morning briefings         |
+| Browser automation capability                       | Low      | Puppeteer/Playwright-backed `Browser` exo           |
 | System notifications                                | Low      | Electron `Notification` API in Familiar             |
 | Productivity integrations (Gmail, Calendar, Notion) | Low      | Guest plugins with OAuth capabilities               |
 | Smart home integrations                             | Low      | Guest plugins with network capabilities             |
