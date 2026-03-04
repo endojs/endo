@@ -389,6 +389,7 @@ export const makeRunCommandTool = cwd => {
       return toolSchema;
     },
     async execute(args) {
+      // TODO hardcoded timeout default should be config to makeRunCommandTool
       const { command, timeout = 30_000 } =
         /** @type {{ command: string, timeout?: number }} */ (args);
       if (!command) {
@@ -402,9 +403,10 @@ export const makeRunCommandTool = cwd => {
         const { stdout, stderr } = await execAsync(command, {
           cwd,
           timeout,
-          maxBuffer: 1024 * 1024,
+          maxBuffer: 1024 * 1024, // TODO buffer size should be hoisted out into a makeRunCommandTool constant
         });
         const output = stdout + (stderr ? `\n[stderr]:\n${stderr}` : '');
+        // TODO truncation limit should be hoisted out and config to makeRunCommandTool
         if (output.length > 50_000) {
           return `${output.slice(0, 50_000)}\n\n... (truncated, ${output.length} chars total)`;
         }
