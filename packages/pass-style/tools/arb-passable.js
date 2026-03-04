@@ -8,7 +8,6 @@ import { nameForPassableSymbol, passableSymbolForName } from '../src/symbol.js';
 
 /**
  * @import { Arbitrary } from 'fast-check';
- * @import { Key } from '@internal/patterns-types';
  * @import { Passable, CopyTagged } from '../src/types.js';
  */
 
@@ -41,6 +40,7 @@ export const exampleCarol = Far('carol', {});
  * of a `lift([leaf], detail)` or  `lift([composite, liftedParts], detail)`
  * invocation in which `detail` is drawn from `arbLiftingDetail`.
  *
+ * @template {Passable} Key
  * @template {Passable} [Lifted=Passable]
  * @template [LiftingDetail=unknown]
  * @param {typeof import('@fast-check/ava').fc} fc
@@ -48,6 +48,7 @@ export const exampleCarol = Far('carol', {});
  * @param {Array<'byteArray'>} [options.excludePassStyles]
  * @param {<T extends Passable>(input: LiftedInput<T, Lifted>, detail: LiftingDetail) => T | Lifted} [options.lift]
  * @param {Arbitrary<LiftingDetail>} [options.arbLiftingDetail]
+ * @param {(leaves: (Arbitrary<Passable>)[]) => (Arbitrary<Key>)[]} [options.transformKeyableLeaves] for refining types without introducing a (pass-style, patterns) import cycle
  */
 export const makeArbitraries = (
   fc,
@@ -55,6 +56,7 @@ export const makeArbitraries = (
     excludePassStyles = [],
     lift = /** @type {any} */ (([x]) => x),
     arbLiftingDetail = /** @type {any} */ (fc.constant(undefined)),
+    transformKeyableLeaves = /** @type {any} */ (x => x),
   } = {},
 ) => {
   const arbString = fc.oneof(
@@ -64,8 +66,7 @@ export const makeArbitraries = (
   );
   const notThen = arbString.filter(s => s !== 'then');
 
-  /** @type {(Arbitrary<Key>)[]} */
-  const keyableLeaves = [
+  const keyableLeaves = transformKeyableLeaves([
     fc.constantFrom(null, undefined, false, true),
     arbString,
     arbString
@@ -100,7 +101,7 @@ export const makeArbitraries = (
       fc.record({}, { noNullPrototype: true })
     ),
     fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
-  ];
+  ]);
 
   const arbKeyLeaf = fc.oneof(...keyableLeaves);
 

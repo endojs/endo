@@ -1079,6 +1079,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
+    fast-check: "npm:^4.0.0"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
     tsd: "npm:^0.31.2"
