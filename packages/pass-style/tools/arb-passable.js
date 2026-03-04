@@ -10,8 +10,6 @@ import { nameForPassableSymbol, passableSymbolForName } from '../src/symbol.js';
  * @import { Arbitrary } from 'fast-check';
  * @import { Passable, CopyTagged } from '../src/types.js';
  */
-// @ts-expect-error circular dependencies are fine in tools/.
-/** @import { Key } from '@endo/patterns'; */
 
 /** Avoid wasting time on overly large data structures. */
 const maxLength = 100;
@@ -42,6 +40,7 @@ export const exampleCarol = Far('carol', {});
  * of a `lift([leaf], detail)` or  `lift([composite, liftedParts], detail)`
  * invocation in which `detail` is drawn from `arbLiftingDetail`.
  *
+ * @template {Passable} Key
  * @template {Passable} [Lifted=Passable]
  * @template [LiftingDetail=unknown]
  * @param {typeof import('@fast-check/ava').fc} fc
@@ -49,6 +48,7 @@ export const exampleCarol = Far('carol', {});
  * @param {Array<'byteArray'>} [options.excludePassStyles]
  * @param {<T extends Passable>(input: LiftedInput<T, Lifted>, detail: LiftingDetail) => T | Lifted} [options.lift]
  * @param {Arbitrary<LiftingDetail>} [options.arbLiftingDetail]
+ * @param {(leaves: (Arbitrary<Passable>)[]) => (Arbitrary<Key>)[]} [options.transformKeyableLeaves] for refining types without introducing a (pass-style, patterns) import cycle
  */
 export const makeArbitraries = (
   fc,
@@ -56,6 +56,7 @@ export const makeArbitraries = (
     excludePassStyles = [],
     lift = /** @type {any} */ (([x]) => x),
     arbLiftingDetail = /** @type {any} */ (fc.constant(undefined)),
+    transformKeyableLeaves = /** @type {any} */ (x => x),
   } = {},
 ) => {
   const arbString = fc.oneof(
@@ -65,43 +66,48 @@ export const makeArbitraries = (
   );
   const notThen = arbString.filter(s => s !== 'then');
 
-  /** @type {(Arbitrary<Key>)[]} */
-  const keyableLeaves = /** @type {Arbitrary<Key>[]} */ ([
-    fc.constantFrom(null, undefined, false, true),
-    arbString,
-    arbString
-      // TODO Once we flip symbol representation, we should revisit everywhere
-      // we make a special case of "@@". It may no longer be appropriate.
-      .filter(s => !s.startsWith('@@'))
-      .map(
-        s => passableSymbolForName(s),
-        v =>
-          nameForPassableSymbol(/** @type {any} */ (v)) ??
-          reject('not a passable symbol'),
+  const keyableLeaves = transformKeyableLeaves(
+    /** @type {Arbitrary<Key>[]} */ ([
+      fc.constantFrom(null, undefined, false, true),
+      arbString,
+      arbString
+        // TODO Once we flip symbol representation, we should revisit everywhere
+        // we make a special case of "@@". It may no longer be appropriate.
+        .filter(s => !s.startsWith('@@'))
+        .map(
+          s => passableSymbolForName(s),
+          v =>
+            nameForPassableSymbol(/** @type {any} */ (v)) ??
+            reject('not a passable symbol'),
+        ),
+      // primordial symbols and registered lookalikes
+      fc.constantFrom(
+        ...Object.getOwnPropertyNames(Symbol).flatMap(k => {
+          const v = Symbol[k];
+          if (typeof v !== 'symbol') return [];
+          return [
+            v,
+            passableSymbolForName(k),
+            passableSymbolForName(`@@@@${k}`),
+          ];
+        }),
       ),
-    // primordial symbols and registered lookalikes
-    fc.constantFrom(
-      ...Object.getOwnPropertyNames(Symbol).flatMap(k => {
-        const v = Symbol[k];
-        if (typeof v !== 'symbol') return [];
-        return [v, passableSymbolForName(k), passableSymbolForName(`@@@@${k}`)];
-      }),
-    ),
-    fc.bigInt(),
-    fc.integer(),
-    // Using `sliceToImmutable` rather than `transferToImmutable` only
-    // because we may go through a phase where only `sliceToImmutable` is
-    // provided when the shim is run on Hermes.
-    // See https://github.com/endojs/endo/pull/2785
-    ...[fc.uint8Array().map(arr => arr.buffer.sliceToImmutable())].filter(
-      () => !excludePassStyles.includes('byteArray'),
-    ),
-    fc.constantFrom(-0, NaN, Infinity, -Infinity),
-    /** @type {Arbitrary<Record<string, Key>>} */ (
-      fc.record({}, { noNullPrototype: true })
-    ),
-    fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
-  ]);
+      fc.bigInt(),
+      fc.integer(),
+      // Using `sliceToImmutable` rather than `transferToImmutable` only
+      // because we may go through a phase where only `sliceToImmutable` is
+      // provided when the shim is run on Hermes.
+      // See https://github.com/endojs/endo/pull/2785
+      ...[fc.uint8Array().map(arr => arr.buffer.sliceToImmutable())].filter(
+        () => !excludePassStyles.includes('byteArray'),
+      ),
+      fc.constantFrom(-0, NaN, Infinity, -Infinity),
+      /** @type {Arbitrary<Record<string, Key>>} */ (
+        fc.record({}, { noNullPrototype: true })
+      ),
+      fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
+    ]),
+  );
 
   const arbKeyLeaf = fc.oneof(...keyableLeaves);
 

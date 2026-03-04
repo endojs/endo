@@ -23,9 +23,14 @@ import {
 } from '../src/keys/merge-set-operators.js';
 import { M, matches } from '../src/patterns/patternMatchers.js';
 
-const { arbKey, exampleAlice, exampleBob, exampleCarol } = makeArbitraries(fc);
+/**
+ * @import { Arbitrary } from 'fast-check';
+ * @import { Key } from '../src/types.js';
+ */
 
-/** @import { Key } from '../src/types.js'; */
+const { arbKey, exampleAlice, exampleBob, exampleCarol } = makeArbitraries(fc, {
+  transformKeyableLeaves: x => /** @type {(Arbitrary<Key>)[]} */ (x),
+});
 
 const assertIsCopySet = (t, s) => {
   t.is(passStyleOf(s), 'tagged');

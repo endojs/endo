@@ -16,7 +16,11 @@ import {
 import { isKey } from '../src/keys/checkKey.js';
 import { getRankCover, kindOf, M } from '../src/patterns/patternMatchers.js';
 
-/** @import {Implementation} from 'ava'; */
+/**
+ * @import { Implementation } from 'ava';
+ * @import { Arbitrary } from 'fast-check';
+ * @import { Key } from '../src/types.js';
+ */
 
 /** Avoid wasting time on overly large data structures. */
 const maxLength = 100;
@@ -32,6 +36,7 @@ const {
   arbLiftedPassable: arbPassableAndPattern,
 } = makeArbitraries(fc, {
   excludePassStyles: ['byteArray'],
+  transformKeyableLeaves: x => /** @type {(Arbitrary<Key>)[]} */ (x),
   arbLiftingDetail: fc.oneof(
     { withCrossShrink: true },
     { arbitrary: fc.constant(false), weight: 80 },
