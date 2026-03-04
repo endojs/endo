@@ -187,6 +187,7 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 
 | OpenClaw Integration | Endo Equivalent | Status       |
 |----------------------|-----------------|--------------|
+| Home Assistant (OSS) | —               | Not designed |
 | HomeKit              | —               | Not designed |
 | Google Home          | —               | Not designed |
 | Alexa                | —               | Not designed |
@@ -204,6 +205,12 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 - Smart home is out of scope for the current roadmap.
 - It could become relevant once the capability bank and network capabilities
   are implemented.
+
+> Josh: if we're going to even sketch a thing on the roadmap, start with [Home
+>       Assistant][homeass], rather than any one of the vendor platforms, as
+>       it'll serve as an abstraction/intermediary to such vendors
+
+[homeass]: https://www.home-assistant.io/
 
 ### Agent Management
 
