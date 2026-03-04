@@ -39,14 +39,13 @@ export const discoverTools = async (host, localTools) => {
   const maybeToolNames = await E(host).list('tools');
   const names = (Array.isArray(maybeToolNames) ? maybeToolNames : []).filter(/** @returns {x is string} */x => typeof x === 'string');
   await Promise.allSettled(names
+    .filter(name => !toolMap.has(name))
     .map(async name => {
       try {
         const tool = await E(host).lookup(['tools', name]);
-        if (!toolMap.has(name)) {
-          const toolSchema = await E(tool).schema();
-          toolMap.set(name, /** @type {object} */ (tool));
-          schemas.push(/** @type {ToolSchema} */ (toolSchema));
-        }
+        const toolSchema = await E(tool).schema();
+        toolMap.set(name, /** @type {object} */ (tool));
+        schemas.push(/** @type {ToolSchema} */ (toolSchema));
       } catch (/** @type {any} */ err) {
         console.warn(
           `[fae] tools/${name}: not a valid FaeTool: ${err.message || err}`,
