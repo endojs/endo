@@ -197,6 +197,15 @@ storeValue(value, petNameOrPath) -> Promise<void>
 Store a passable value in the agent's directory.
 Values must be passable (numbers, strings, arrays, records, etc.).`,
 
+  sendValue: `\
+sendValue(messageNumber, petNameOrPath) -> Promise<void>
+Reply to any message with a retained value from your pet store.
+
+- messageNumber: The inbox message number to reply to
+- petNameOrPath: Pet name (or path) of the value to send
+
+Example: sendValue(0, "my-counter")`,
+
   deliver: `\
 deliver(message) -> void
 Internal method to deliver a message to this mailbox.
@@ -289,6 +298,15 @@ in reply to the form, allowing multiple submissions.
 - values: A record with keys matching the form's field definitions
 
 Example: submit(0, { name: "Alice", age: 30 })`,
+
+  sendValue: `\
+sendValue(messageNumber, petNameOrPath) -> Promise<void>
+Reply to any message with a retained value from your pet store.
+
+- messageNumber: The inbox message number to reply to
+- petNameOrPath: Pet name (or path) of the value to send
+
+Example: sendValue(0, "my-counter")`,
 
   // Directory operations inherit from directoryHelp
   // Mail operations inherit from mailHelp
@@ -462,6 +480,15 @@ Each value must match the pattern specified by the form field (if any).
 Fields without explicit patterns default to M.string().
 
 Example: submit(0, { name: "Alice", age: 30 })`,
+
+  sendValue: `\
+sendValue(messageNumber, petNameOrPath) -> Promise<void>
+Reply to any message with a retained value from your pet store.
+
+- messageNumber: The inbox message number to reply to
+- petNameOrPath: Pet name (or path) of the value to send
+
+Example: sendValue(0, "my-counter")`,
 };
 
 /** @type {HelpText} */

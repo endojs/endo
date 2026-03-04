@@ -5,7 +5,7 @@
 | **Created** | 2026-03-02 |
 | **Updated** | 2026-03-02 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Partially Complete — `value` message type, persistence, delivery via `submit()`, Chat UI rendering, and `VALUE` edge all implemented. Standalone `sendValue` method and `send-value` CLI command not yet built. |
+| **Status** | Complete — `value` message type, persistence, delivery via `submit()`, Chat UI rendering, `VALUE` edge, standalone `sendValue` method on Mail/Host/Guest, and `send-value` CLI command all implemented. |
 
 ## What is the Problem Being Solved?
 

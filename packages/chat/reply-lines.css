@@ -63,3 +63,46 @@
 .message[data-indent='1'] {
   margin-left: var(--reply-indent-width);
 }
+
+/* Collapsed threads: hide non-root messages */
+.message.thread-collapsed {
+  display: none;
+}
+
+/* Collapse toggle button in gutter */
+.thread-collapse-toggle {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--reply-line-color);
+  z-index: 1;
+}
+
+.thread-collapse-toggle:hover {
+  color: inherit;
+}
+
+/* Show toggle only on thread roots */
+.message.thread-root .thread-collapse-toggle {
+  display: block;
+}
+
+/* Rotate indicator based on collapsed state */
+.message.thread-root .thread-collapse-toggle::before {
+  content: '\25BE'; /* down-pointing triangle */
+}
+
+.message.thread-root[data-thread-collapsed='true'] .thread-collapse-toggle::before {
+  content: '\25B8'; /* right-pointing triangle */
+}

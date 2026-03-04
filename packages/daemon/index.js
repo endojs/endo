@@ -33,6 +33,13 @@ const removePath = async removalPath => {
     });
 };
 
+const enoentOk = error => {
+  if (error.code === 'ENOENT') {
+    return;
+  }
+  throw error;
+};
+
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
 const info = {
@@ -179,13 +186,6 @@ const killWorkersByPidFiles = async ephemeralStatePath => {
       }
     }),
   );
-};
-
-const enoentOk = error => {
-  if (error.code === 'ENOENT') {
-    return;
-  }
-  throw error;
 };
 
 export const clean = async (config = defaultConfig) => {

@@ -182,7 +182,9 @@ export const GuestInterface = M.interface('EndoGuest', {
     M.arrayOf(M.string()),
     EdgeNamesShape,
     NamesOrPathsShape,
-  ).returns(M.promise()),
+  )
+    .optional(MessageNumberShape)
+    .returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
@@ -215,6 +217,11 @@ export const GuestInterface = M.interface('EndoGuest', {
   submit: M.call(
     MessageNumberShape, // messageNumber
     M.record(), // values
+  ).returns(M.promise()),
+  // Send a retained value as a reply
+  sendValue: M.call(
+    MessageNumberShape, // messageNumber
+    NameOrPathShape, // petNameOrPath
   ).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
@@ -262,7 +269,9 @@ export const HostInterface = M.interface('EndoHost', {
     M.arrayOf(M.string()),
     EdgeNamesShape,
     NamesOrPathsShape,
-  ).returns(M.promise()),
+  )
+    .optional(MessageNumberShape)
+    .returns(M.promise()),
   deliver: M.call(M.record()).returns(),
   // Send a form to a recipient
   form: M.call(
@@ -293,6 +302,8 @@ export const HostInterface = M.interface('EndoHost', {
   makeBundle: M.call(M.or(NameShape, M.undefined()), NameShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
+  // Create a channel
+  makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
   // Get the greeter
@@ -344,7 +355,66 @@ export const HostInterface = M.interface('EndoHost', {
     MessageNumberShape, // messageNumber
     M.record(), // values
   ).returns(M.promise()),
+  // Send a retained value as a reply
+  sendValue: M.call(
+    MessageNumberShape, // messageNumber
+    NameOrPathShape, // petNameOrPath
+  ).returns(M.promise()),
 });
+
+export const ChannelInterface = M.interface('EndoChannel', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
+    .optional(M.string())
+    .returns(M.promise()),
+  followMessages: M.call().returns(M.promise()),
+  listMessages: M.call().returns(M.promise()),
+  createInvitation: M.call(M.string()).returns(M.promise()),
+  join: M.call(M.string()).returns(M.promise()),
+
+  getMembers: M.call().returns(M.promise()),
+  getProposedName: M.call().returns(M.string()),
+  getMemberId: M.call().returns(M.string()),
+  getAttenuator: M.call(M.string()).returns(M.promise()),
+  getHeatConfig: M.call().returns(M.promise()),
+  getHopInfo: M.call().returns(M.promise()),
+  followHeatEvents: M.call().returns(M.promise()),
+});
+
+export const ChannelMemberInterface = M.interface('EndoChannelMember', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
+    .optional(M.string())
+    .returns(M.promise()),
+  setProposedName: M.call(M.string()).returns(M.promise()),
+  followMessages: M.call().returns(M.promise()),
+  listMessages: M.call().returns(M.promise()),
+  createInvitation: M.call(M.string()).returns(M.promise()),
+  getMembers: M.call().returns(M.promise()),
+  getProposedName: M.call().returns(M.string()),
+  getMemberId: M.call().returns(M.string()),
+  getAttenuator: M.call(M.string()).returns(M.promise()),
+  getHeatConfig: M.call().returns(M.promise()),
+  getHopInfo: M.call().returns(M.promise()),
+  followHeatEvents: M.call().returns(M.promise()),
+});
+
+export const ChannelInvitationInterface = M.interface(
+  'EndoChannelInvitation',
+  {
+    help: M.call().optional(M.string()).returns(M.string()),
+    join: M.call(M.string()).returns(M.promise()),
+  },
+);
+harden(ChannelInvitationInterface);
+
+export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {
+  setInvitationValidity: M.call(M.boolean()).returns(M.promise()),
+  setHeatConfig: M.call(M.record()).returns(M.promise()),
+  getHeatConfig: M.call().returns(M.promise()),
+  temporaryBan: M.call(M.number()).returns(M.promise()),
+});
+harden(AttenuatorInterface);
 
 export const InvitationInterface = M.interface('EndoInvitation', {
   accept: M.call(IdShape).returns(M.promise()),

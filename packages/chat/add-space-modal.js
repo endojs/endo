@@ -26,8 +26,10 @@ import { createSchemePicker } from './scheme-picker.js';
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
- * @property {'mailbox'} layout - Layout type (reserved for future use)
- * @property {ColorScheme} scheme - Color scheme preference
+ * @property {'mailbox' | 'channel'} layout - Layout type
+ * @property {ColorScheme} [scheme] - Color scheme preference
+ * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
+ * @property {string} [proposedName] - Display name for the channel creator
  */
 
 /**
@@ -39,6 +41,7 @@ import { createSchemePicker } from './scheme-picker.js';
  * @param {() => Set<string>} options.getUsedIcons - Returns set of icons already in use
  * @param {(data: SpaceFormData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when modal is closed
+ * @param {() => Array<{ id: string, name: string, icon: string, profilePath: string[] }>} [options.getExistingChannelSpaces] - Returns existing channel spaces for reuse
  * @returns {AddSpaceModalAPI}
  */
 export const createAddSpaceModal = ({
@@ -47,6 +50,7 @@ export const createAddSpaceModal = ({
   getUsedIcons,
   onSubmit,
   onClose,
+  getExistingChannelSpaces,
 }) => {
   /**
    * Get the first unused icon from the available icons.
@@ -64,7 +68,7 @@ export const createAddSpaceModal = ({
   };
 
   let visible = false;
-  /** @type {'choose' | 'new-agent' | 'existing'} */
+  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel'} */
   let mode = 'choose';
   let selectedIcon = '🐈‍⬛';
   let useLetterIcon = false;
@@ -74,6 +78,20 @@ export const createAddSpaceModal = ({
   let agentName = '';
   /** @type {boolean} */
   let agentNameManuallyEdited = false;
+  /** @type {string} */
+  let channelPetName = '';
+  /** @type {string} */
+  let channelProposedName = '';
+  /** @type {string} */
+  let connectLocator = '';
+  /** @type {string} */
+  let connectSpaceName = '';
+  /** @type {string} */
+  let connectProposedName = '';
+  /** @type {'new' | 'existing'} */
+  let connectPersonaMode = 'new';
+  /** @type {string | null} */
+  let connectExistingSpaceId = null;
   /** @type {string | null} */
   let error = null;
   /** @type {boolean} */
@@ -108,6 +126,16 @@ export const createAddSpaceModal = ({
           <span class="space-type-icon">🐈‍⬛</span>
           <span class="space-type-title">Existing Profile</span>
           <span class="space-type-desc">Connect to an existing profile</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="new-channel">
+          <span class="space-type-icon">📡</span>
+          <span class="space-type-title">New Channel</span>
+          <span class="space-type-desc">Create a multi-party chat room</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="connect-channel">
+          <span class="space-type-icon">🔗</span>
+          <span class="space-type-title">Connect to Channel</span>
+          <span class="space-type-desc">Join a channel via invitation link</span>
         </button>
       </div>
     </div>
@@ -232,6 +260,146 @@ export const createAddSpaceModal = ({
   `;
 
   /**
+   * Render the new channel form.
+   * @returns {string}
+   */
+  const renderNewChannelForm = () => `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">←</button>
+        <h2 class="add-space-title">New Channel</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div class="add-space-field">
+          <label for="channel-pet-name">Space Name</label>
+          <input type="text" id="channel-pet-name" placeholder="e.g., general, dev-chat"
+                 pattern="[a-z][a-z0-9-]*"
+                 value="${channelPetName}" autocomplete="off" />
+          <div class="field-hint">Lowercase letters, numbers, and hyphens only (e.g., my-team)</div>
+        </div>
+
+        <div class="add-space-field">
+          <label for="channel-proposed-name">Your Display Name</label>
+          <input type="text" id="channel-proposed-name" placeholder="e.g., Alice, Admin"
+                 value="${channelProposedName}" autocomplete="off" />
+          <div class="field-hint">How others will see you in this channel</div>
+        </div>
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Creating...' : 'Create Channel'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  /**
+   * Render the connect to channel form.
+   * @returns {string}
+   */
+  const renderConnectChannelForm = () => {
+    const existingSpaces = getExistingChannelSpaces
+      ? getExistingChannelSpaces()
+      : [];
+
+    const existingSpacesHtml = existingSpaces
+      .map(
+        s => `
+        <label class="connect-persona-option">
+          <input type="radio" name="connect-persona" value="${s.id}"
+                 ${connectExistingSpaceId === s.id ? 'checked' : ''} />
+          <span class="connect-persona-icon">${s.icon}</span>
+          <span class="connect-persona-name">${s.name}</span>
+        </label>`,
+      )
+      .join('');
+
+    return `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">\u2190</button>
+        <h2 class="add-space-title">Connect to Channel</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        <div class="add-space-field">
+          <label for="connect-locator">Invitation Locator</label>
+          <input type="text" id="connect-locator" placeholder="endo://\u2026"
+                 value="${connectLocator}" autocomplete="off" />
+          <div class="field-hint">Paste the invitation link you received</div>
+        </div>
+
+        <div class="add-space-field">
+          <label>Persona</label>
+          <div class="connect-persona-choices">
+            <label class="connect-persona-option">
+              <input type="radio" name="connect-persona-mode" value="new"
+                     ${connectPersonaMode === 'new' ? 'checked' : ''} />
+              <span>Create new persona</span>
+            </label>
+            ${
+              existingSpaces.length > 0
+                ? `<label class="connect-persona-option">
+                <input type="radio" name="connect-persona-mode" value="existing"
+                       ${connectPersonaMode === 'existing' ? 'checked' : ''} />
+                <span>Use existing persona</span>
+              </label>`
+                : ''
+            }
+          </div>
+        </div>
+
+        ${
+          connectPersonaMode === 'new'
+            ? `
+          ${renderIconSelector({ selectedIcon, useLetterIcon })}
+          <div class="add-space-field">
+            <label for="connect-space-name">Space Name</label>
+            <input type="text" id="connect-space-name" placeholder="e.g., team-chat"
+                   pattern="[a-z][a-z0-9-]*"
+                   value="${connectSpaceName}" autocomplete="off" />
+            <div class="field-hint">Lowercase letters, numbers, and hyphens only (e.g., my-team)</div>
+          </div>
+          <div class="add-space-field">
+            <label for="connect-proposed-name">Your Display Name</label>
+            <input type="text" id="connect-proposed-name" placeholder="e.g., Alice"
+                   value="${connectProposedName}" autocomplete="off" />
+            <div class="field-hint">How others will see you in this channel</div>
+          </div>
+        `
+            : `
+          <div class="add-space-field">
+            <label>Choose a persona</label>
+            <div class="connect-existing-list">
+              ${existingSpacesHtml || '<div class="field-hint">No existing channel spaces found</div>'}
+            </div>
+          </div>
+        `
+        }
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Connecting...' : 'Connect'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  };
+
+  /**
    * Render the modal content based on current mode.
    */
   const render = () => {
@@ -239,6 +407,12 @@ export const createAddSpaceModal = ({
     switch (mode) {
       case 'new-agent':
         html = renderNewAgentForm();
+        break;
+      case 'new-channel':
+        html = renderNewChannelForm();
+        break;
+      case 'connect-channel':
+        html = renderConnectChannelForm();
         break;
       case 'existing':
         html = renderExistingForm();
@@ -279,6 +453,22 @@ export const createAddSpaceModal = ({
           $handleInput.value.length,
           $handleInput.value.length,
         );
+      }
+    }
+    if (mode === 'new-channel') {
+      const $channelPetNameInput = /** @type {HTMLInputElement | null} */ (
+        $container.querySelector('#channel-pet-name')
+      );
+      if ($channelPetNameInput) {
+        $channelPetNameInput.focus();
+      }
+    }
+    if (mode === 'connect-channel') {
+      const $locatorInput = /** @type {HTMLInputElement | null} */ (
+        $container.querySelector('#connect-locator')
+      );
+      if ($locatorInput) {
+        $locatorInput.focus();
       }
     }
   };
@@ -388,6 +578,20 @@ export const createAddSpaceModal = ({
           useLetterIcon = false;
           error = null;
           render();
+        } else if (selectedMode === 'new-channel') {
+          mode = 'new-channel';
+          selectedIcon = '📡';
+          useLetterIcon = false;
+          error = null;
+          render();
+        } else if (selectedMode === 'connect-channel') {
+          mode = 'connect-channel';
+          selectedIcon = getFirstUnusedIcon();
+          useLetterIcon = false;
+          connectPersonaMode = 'new';
+          connectExistingSpaceId = null;
+          error = null;
+          render();
         }
       });
     }
@@ -451,6 +655,71 @@ export const createAddSpaceModal = ({
       });
     }
 
+    // Channel form inputs
+    const $channelPetNameInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#channel-pet-name')
+    );
+    const $channelProposedNameInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#channel-proposed-name')
+    );
+    if ($channelPetNameInput) {
+      $channelPetNameInput.addEventListener('input', () => {
+        channelPetName = $channelPetNameInput.value;
+      });
+    }
+    if ($channelProposedNameInput) {
+      $channelProposedNameInput.addEventListener('input', () => {
+        channelProposedName = $channelProposedNameInput.value;
+      });
+    }
+
+    // Connect channel form inputs
+    const $connectLocatorInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#connect-locator')
+    );
+    const $connectSpaceNameInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#connect-space-name')
+    );
+    const $connectProposedNameInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#connect-proposed-name')
+    );
+    const $personaModeRadios = $container.querySelectorAll(
+      'input[name="connect-persona-mode"]',
+    );
+    const $existingPersonaRadios = $container.querySelectorAll(
+      'input[name="connect-persona"]',
+    );
+
+    if ($connectLocatorInput) {
+      $connectLocatorInput.addEventListener('input', () => {
+        connectLocator = $connectLocatorInput.value;
+      });
+    }
+    if ($connectSpaceNameInput) {
+      $connectSpaceNameInput.addEventListener('input', () => {
+        connectSpaceName = $connectSpaceNameInput.value;
+      });
+    }
+    if ($connectProposedNameInput) {
+      $connectProposedNameInput.addEventListener('input', () => {
+        connectProposedName = $connectProposedNameInput.value;
+      });
+    }
+    for (const $radio of $personaModeRadios) {
+      $radio.addEventListener('change', () => {
+        connectPersonaMode =
+          /** @type {HTMLInputElement} */ ($radio).value === 'existing'
+            ? 'existing'
+            : 'new';
+        render();
+      });
+    }
+    for (const $radio of $existingPersonaRadios) {
+      $radio.addEventListener('change', () => {
+        connectExistingSpaceId = /** @type {HTMLInputElement} */ ($radio).value;
+      });
+    }
+
     // Form submission
     if ($form) {
       $form.addEventListener('submit', async e => {
@@ -460,6 +729,10 @@ export const createAddSpaceModal = ({
           await handleNewAgentSubmit();
         } else if (mode === 'existing') {
           await handleExistingSubmit();
+        } else if (mode === 'new-channel') {
+          await handleNewChannelSubmit();
+        } else if (mode === 'connect-channel') {
+          await handleConnectChannelSubmit();
         }
       });
     }
@@ -555,6 +828,250 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Handle new channel form submission.
+   */
+  const handleNewChannelSubmit = async () => {
+    const spaceName = channelPetName.trim();
+    if (!spaceName) {
+      error = 'Please enter a space name';
+      render();
+      return;
+    }
+
+    if (!/^[a-z][a-z0-9-]*$/.test(spaceName)) {
+      error =
+        'Space name must be lowercase, start with a letter, and contain only letters, numbers, and hyphens';
+      render();
+      return;
+    }
+
+    const displayName = channelProposedName.trim();
+    if (!displayName) {
+      error = 'Please enter a display name';
+      render();
+      return;
+    }
+
+    isSubmitting = true;
+    error = null;
+    render();
+
+    try {
+      // 1. Create persona (host) — same pattern as New Profile
+      const agentName = `persona-for-${spaceName}`;
+      await E(
+        /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
+          powers
+        ),
+      ).provideHost(spaceName, { agentName });
+
+      // 2. Get the persona's powers
+      const personaPowers = await E(
+        /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+          powers
+        ),
+      ).lookup(agentName);
+
+      // 3. Create channel inside persona's store
+      await E(
+        /** @type {{ makeChannel: (petName: string, proposedName: string) => Promise<unknown> }} */ (
+          personaPowers
+        ),
+      ).makeChannel('general', displayName);
+
+      // 4. Space config with profilePath pointing to persona
+      await onSubmit({
+        name: spaceName,
+        icon: selectedIcon,
+        profilePath: [agentName],
+        layout: 'channel',
+        channelPetName: 'general',
+        proposedName: displayName,
+      });
+
+      hide();
+      onClose();
+    } catch (err) {
+      console.error('[AddSpaceModal] Failed to create channel:', err);
+      let message;
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === 'string') {
+        message = err;
+      } else {
+        message = JSON.stringify(err);
+      }
+      error = `Failed to create channel: ${message || 'Unknown error'}`;
+      isSubmitting = false;
+      render();
+    }
+  };
+
+  /**
+   * Parse an endo locator URL into a formula identifier string.
+   * @param {string} locator - e.g., "endo://node/?id=num&type=channel"
+   * @returns {string} formula identifier, e.g., "num:node"
+   */
+  const formulaIdFromLocator = locator => {
+    const url = new URL(locator);
+    const node = url.host;
+    const number = url.searchParams.get('id');
+    if (!node || !number) {
+      throw new Error('Invalid locator: missing node or id');
+    }
+    return `${number}:${node}`;
+  };
+
+  /**
+   * Handle connect to channel form submission.
+   */
+  const handleConnectChannelSubmit = async () => {
+    const locator = connectLocator.trim();
+    if (!locator) {
+      error = 'Please paste an invitation locator';
+      render();
+      return;
+    }
+
+    if (!locator.startsWith('endo://')) {
+      error = 'Locator must start with endo://';
+      render();
+      return;
+    }
+
+    /** @type {string} */
+    let formulaId;
+    try {
+      formulaId = formulaIdFromLocator(locator);
+    } catch {
+      error = 'Invalid locator URL format';
+      render();
+      return;
+    }
+
+    if (connectPersonaMode === 'new') {
+      const spaceName = connectSpaceName.trim();
+      if (!spaceName) {
+        error = 'Please enter a space name';
+        render();
+        return;
+      }
+      if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(spaceName)) {
+        error =
+          'Space name must start with a letter and contain only letters, numbers, hyphens, and underscores';
+        render();
+        return;
+      }
+      const displayName = connectProposedName.trim();
+      if (!displayName) {
+        error = 'Please enter a display name';
+        render();
+        return;
+      }
+
+      isSubmitting = true;
+      error = null;
+      render();
+
+      try {
+        // 1. Create persona (host)
+        const agentName = `persona-for-${spaceName}`;
+        await E(
+          /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
+            powers
+          ),
+        ).provideHost(spaceName, { agentName });
+
+        // 2. Get persona's powers
+        const personaPowers = await E(
+          /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+            powers
+          ),
+        ).lookup(agentName);
+
+        // 3. Write the channel formula ID into the persona's pet store
+        await E(
+          /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+            personaPowers
+          ),
+        ).write('general', formulaId);
+
+        // 4. Create space config
+        await onSubmit({
+          name: spaceName,
+          icon: selectedIcon,
+          profilePath: [agentName],
+          layout: 'channel',
+          channelPetName: 'general',
+          proposedName: displayName,
+        });
+
+        hide();
+        onClose();
+      } catch (err) {
+        console.error('[AddSpaceModal] Failed to connect to channel:', err);
+        const message =
+          err instanceof Error ? err.message : JSON.stringify(err);
+        error = `Failed to connect: ${message || 'Unknown error'}`;
+        isSubmitting = false;
+        render();
+      }
+    } else {
+      // Existing persona mode
+      if (!connectExistingSpaceId) {
+        error = 'Please select an existing persona';
+        render();
+        return;
+      }
+
+      isSubmitting = true;
+      error = null;
+      render();
+
+      try {
+        const existingSpaces = getExistingChannelSpaces
+          ? getExistingChannelSpaces()
+          : [];
+        const space = existingSpaces.find(
+          s => s.id === connectExistingSpaceId,
+        );
+        if (!space) {
+          throw new Error('Selected space not found');
+        }
+
+        // Resolve the existing persona's powers
+        /** @type {unknown} */
+        let personaPowers = powers;
+        for (const segment of space.profilePath) {
+          personaPowers = await E(
+            /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+              personaPowers
+            ),
+          ).lookup(segment);
+        }
+
+        // Write the channel formula ID into the persona's pet store
+        await E(
+          /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+            personaPowers
+          ),
+        ).write('general', formulaId);
+
+        // No new space needed — the existing space already renders the channel
+        hide();
+        onClose();
+      } catch (err) {
+        console.error('[AddSpaceModal] Failed to connect to channel:', err);
+        const message =
+          err instanceof Error ? err.message : JSON.stringify(err);
+        error = `Failed to connect: ${message || 'Unknown error'}`;
+        isSubmitting = false;
+        render();
+      }
+    }
+  };
+
+  /**
    * Handle existing profile form submission.
    */
   const handleExistingSubmit = async () => {
@@ -627,6 +1144,13 @@ export const createAddSpaceModal = ({
     handleName = '';
     agentName = '';
     agentNameManuallyEdited = false;
+    channelPetName = '';
+    channelProposedName = '';
+    connectLocator = '';
+    connectSpaceName = '';
+    connectProposedName = '';
+    connectPersonaMode = 'new';
+    connectExistingSpaceId = null;
     error = null;
     isSubmitting = false;
     schemePicker = null;

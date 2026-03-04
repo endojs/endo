@@ -428,9 +428,6 @@ export const makeMailboxMaker = ({
         assertFormulaNumber(envelope.replyTo);
       }
       if (envelope.type === 'request') {
-        if (envelope.replyTo !== undefined) {
-          throw new Error('Request messages cannot have replyTo');
-        }
         if (typeof envelope.description !== 'string') {
           throw new Error('Invalid request description');
         }
@@ -952,7 +949,13 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['send']} */
-    const send = async (toNameOrPath, strings, edgeNames, petNamesOrPaths) => {
+    const send = async (
+      toNameOrPath,
+      strings,
+      edgeNames,
+      petNamesOrPaths,
+      replyToMessageNumber,
+    ) => {
       const toPath = namePathFrom(toNameOrPath);
       assertNames(edgeNames);
       assertUniqueEdgeNames(edgeNames);
@@ -990,12 +993,26 @@ export const makeMailboxMaker = ({
         }),
       );
 
+      /** @type {import('./types.js').FormulaNumber | undefined} */
+      let replyTo;
+      if (replyToMessageNumber !== undefined) {
+        const normalizedNumber = mustParseBigint(
+          replyToMessageNumber,
+          'message',
+        );
+        const parent = messages.get(normalizedNumber);
+        if (parent !== undefined && typeof parent.messageId === 'string') {
+          replyTo = parent.messageId;
+        }
+      }
+
       const message = harden({
         type: /** @type {const} */ ('package'),
         strings,
         names: edgeNames,
         ids,
         messageId,
+        ...(replyTo !== undefined ? { replyTo } : {}),
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });
@@ -1439,6 +1456,45 @@ export const makeMailboxMaker = ({
       }
     };
 
+    /** @type {Mail['sendValue']} */
+    const sendValue = async (messageNumber, petNameOrPath) => {
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      const parent = messages.get(normalizedMessageNumber);
+      if (parent === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (typeof parent.messageId !== 'string') {
+        throw new Error(`Message ${q(messageNumber)} has no messageId`);
+      }
+      const otherId = parent.from === selfId ? parent.to : parent.from;
+
+      const petPath = namePathFrom(petNameOrPath);
+      const valueId = await E(directory).identify(...petPath);
+      if (valueId === undefined) {
+        throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
+      }
+      assertValidId(valueId);
+
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex256()
+      );
+      const to = await provideHandle(
+        /** @type {FormulaIdentifier} */ (otherId),
+      );
+
+      /** @type {import('./types.js').ValueMessage & { from: FormulaIdentifier, to: FormulaIdentifier }} */
+      const message = harden({
+        type: /** @type {const} */ ('value'),
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (otherId),
+        messageId,
+        replyTo: parent.messageId,
+        valueId: /** @type {FormulaIdentifier} */ (valueId),
+      });
+
+      await post(to, message);
+    };
+
     /**
      * Send an eval-proposal to a recipient.
      * @type {Mail['evaluate']}
@@ -1692,6 +1748,7 @@ export const makeMailboxMaker = ({
       getDefineRequest,
       getForm,
       submit,
+      sendValue,
       evaluate,
       grantEvaluate,
       counterEvaluate,
