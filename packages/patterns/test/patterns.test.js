@@ -1,20 +1,33 @@
 /* eslint-disable no-continue */
+import harden from '@endo/harden';
 import test from '@endo/ses-ava/test.js';
 
-import harden from '@endo/harden';
+import { fc } from '@fast-check/ava';
+import { makeArbitraries } from '@endo/pass-style/tools.js';
+
 import { Fail } from '@endo/errors';
 import { makeTagged, Far, qp, passableAsJustin } from '@endo/marshal';
+import { passStyleOf } from '@endo/pass-style';
 import {
   makeCopyBag,
   makeCopyMap,
   makeCopySet,
   getCopyMapKeys,
 } from '../src/keys/checkKey.js';
-import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
+import {
+  isPattern,
+  mustMatch,
+  matches,
+  M,
+} from '../src/patterns/patternMatchers.js';
 
 const { stringify: q } = JSON;
 
 /** @import * as ava from 'ava' */
+/** @import {CopyRecord} from '@endo/pass-style' */
+/** @import {Pattern} from '../src/types.js' */
+
+const { arbPassable } = makeArbitraries(fc);
 
 // TODO The desired semantics for CopyMap comparison have not yet been decided.
 // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
@@ -244,6 +257,12 @@ const defineTests = (successCase, failCase) => {
 
     failCase(
       specimen,
+      M.choose('0', { 3: M.any() }),
+      'copyArray [3,4] - Must be a copyRecord',
+    );
+
+    failCase(
+      specimen,
       M.containerHas('c'),
       'Has only "[0n]" matches, but needs "[1n]"',
     );
@@ -422,6 +441,73 @@ const defineTests = (successCase, failCase) => {
       M.recordOf(M.string(), M.string()),
       'foo: [1]: number 3 - Must be a string',
     );
+
+    failCase(
+      specimen,
+      M.choose('foo', { 3: M.any() }),
+      '{"bar":4,"foo":3} - Must have discriminator key "foo" with value in ["3"]',
+    );
+  }
+  {
+    const specimen = { foo: 'bar', bar: 'baz' };
+    successCase(specimen, { foo: 'bar', bar: 'baz' });
+    const yesMethods = ['record', 'any', 'and', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(
+        specimen,
+        M[method](),
+        makeMessage('{"bar":"baz","foo":"bar"}', 'copyRecord'),
+      );
+    }
+    successCase(specimen, { foo: M.string(), bar: M.any() });
+    successCase(specimen, { foo: M.lte('bar'), bar: M.gte('baz') });
+    // Records compare pareto
+    successCase(specimen, M.gt({ foo: 'bar', bar: 'bat' }));
+    successCase(specimen, M.lt({ foo: 'bar', bar: 'bazz' }));
+    successCase(
+      specimen,
+      M.split(
+        { foo: M.string() },
+        M.and(M.partial({ bar: M.string() }), M.partial({ baz: M.string() })),
+      ),
+    );
+    successCase(
+      specimen,
+      M.split(
+        { foo: M.string() },
+        M.partial({ bar: M.string(), baz: M.string() }),
+      ),
+    );
+
+    successCase(specimen, M.recordOf(M.string(), M.string()));
+
+    failCase(
+      specimen,
+      { foo: M.lte('bar'), bar: M.gt('baz') },
+      'bar: "baz" - Must be > "baz"',
+    );
+    failCase(
+      specimen,
+      M.gt({ foo: 'bar', bar: 'baz' }),
+      '{"bar":"baz","foo":"bar"} - Must be > {"bar":"baz","foo":"bar"}',
+    );
+    failCase(
+      specimen,
+      M.lt({ foo: 'bar', bar: 'baz' }),
+      '{"bar":"baz","foo":"bar"} - Must be < {"bar":"baz","foo":"bar"}',
+    );
+
+    successCase(specimen, M.choose('foo', { bar: M.any(), baz: null }));
+    successCase(
+      specimen,
+      M.choose('foo', { bar: { bar: M.string() }, baz: null }),
+    );
+    successCase(specimen, M.choose('foo', { bar: { bar: 'baz' }, baz: null }));
   }
   {
     const specimen = makeCopySet([3, 4]);
@@ -948,4 +1034,35 @@ test('well formed patterns', t => {
   t.throws(() => M.containerHas(3, 1), {
     message: 'M.containerHas payload: [1]: 1 - Must be >= "[1n]"',
   });
+});
+
+test('M.choose well-formedness', async t => {
+  // @ts-expect-error purposeful type violation for testing
+  t.throws(() => M.choose(), {
+    message:
+      'match:choose payload: ["[undefined]","[undefined]"] - Must be [string, Record<string, Pattern>]',
+  });
+
+  await fc.assert(
+    fc.property(fc.array(arbPassable, { minLength: 1, maxLength: 2 }), args => {
+      const [keyName, patts] = args;
+      if (
+        typeof keyName === 'string' &&
+        passStyleOf(patts) === 'copyRecord' &&
+        isPattern(patts)
+      ) {
+        // This input seems valid, so we just check it (avoiding fast-check
+        // `.filter` which can otherwise lead to https://crbug.com/1201626
+        // crashes).
+        const typedPatts = /** @type {CopyRecord<Pattern>} */ (patts);
+        t.truthy(M.choose(keyName, typedPatts));
+      } else {
+        // @ts-expect-error purposeful type violation for testing
+        t.throws(() => M.choose(...args), {
+          message:
+            /^match:choose payload: \[.+?\] - Must be \[string, Record<string, Pattern>\]$/,
+        });
+      }
+    }),
+  );
 });
