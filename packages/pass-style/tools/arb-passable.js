@@ -146,7 +146,7 @@ export const makeArbitraries = (
 
   const recursives = fc.letrec(tie => ({
     liftedKeyDag: fc.oneof(
-      { withCrossShrink: true },
+      { withCrossShrink: true, depthSize: 'xsmall' },
       // Base case: lift a leaf into a [leaf, lifted] pair.
       withLiftingDetail(arbKeyLeaf, leaf => [leaf]),
       // Recursive cases: compose lifted pairs, project into an [unlifted, liftedParts] pair,
@@ -169,7 +169,7 @@ export const makeArbitraries = (
       ),
     ),
     liftedArbDag: fc.oneof(
-      { withCrossShrink: true },
+      { withCrossShrink: true, depthSize: 'xsmall' },
       // Base case: lift a leaf into a [leaf, lifted] pair.
       withLiftingDetail(arbLeaf, leaf => [leaf]),
       // Recursive cases: compose lifted pairs, project into an [unlifted, liftedParts] pair,
