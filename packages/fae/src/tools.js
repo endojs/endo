@@ -38,20 +38,21 @@ export const discoverTools = async (host, localTools) => {
 
   const maybeToolNames = await E(host).list('tools');
   const names = (Array.isArray(maybeToolNames) ? maybeToolNames : []).filter(/** @returns {x is string} */x => typeof x === 'string');
-  for (const name of names) {
-    try {
-      const tool = await E(host).lookup(['tools', name]);
-      const toolSchema = /** @type {ToolSchema} */ (await E(tool).schema());
-      if (!toolMap.has(name)) {
-        toolMap.set(name, /** @type {object} */ (tool));
-        schemas.push(toolSchema);
+  await Promise.allSettled(names
+    .map(async name => {
+      try {
+        const tool = await E(host).lookup(['tools', name]);
+        if (!toolMap.has(name)) {
+          const toolSchema = await E(tool).schema();
+          toolMap.set(name, /** @type {object} */ (tool));
+          schemas.push(/** @type {ToolSchema} */ (toolSchema));
+        }
+      } catch (/** @type {any} */ err) {
+        console.warn(
+          `[fae] tools/${name}: not a valid FaeTool: ${err.message || err}`,
+        );
       }
-    } catch (/** @type {any} */ err) {
-      console.warn(
-        `[fae] tools/${name}: not a valid FaeTool: ${err.message || err}`,
-      );
-    }
-  }
+    }));
 
   return harden({ schemas, toolMap });
 };
