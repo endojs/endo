@@ -275,6 +275,14 @@ OpenAI-compatible, so it should work via the OpenAI SDK path.
 | Media pipeline (images, audio, video) | —               | Not designed |
 | Transcription hooks                   | —               | Not designed |
 
+> Josh: <https://github.com/TrevorS/voxtral-mini-realtime-rs>
+
+> Josh: at an LLM level, there's plenty of support for vision models and
+>       multi-modal models if we can plumb "give image attachment" thru to
+>       their chat api; come to think of it
+
+> Josh: file attachment is probably more general than just "image file" eh?
+
 **Gap**:
 - Voice and media are not on the current Endo roadmap.
 - These are device-specific features that would live in the Familiar (Electron
