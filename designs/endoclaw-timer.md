@@ -1,51 +1,74 @@
-# EndoClaw: Timer / Scheduler Capability
+# EndoClaw: Core Heartbeat Scheduler
 
-| | |
-|---|---|
-| **Created** | 2026-03-03 |
-| **Updated** | 2026-03-03 |
-| **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
-| **Parent** | [endoclaw](endoclaw.md) |
+|             |                            |
+|-------------|----------------------------|
+| **Created** | 2026-03-03                 |
+| **Updated** | 2026-03-04                 |
+| **Author**  | Kris Kowal (prompted)      |
+| **Author**  | Joshua T Corbin (revamped) |
+| **Status**  | Not Started                |
+| **Parent**  | [endoclaw](endoclaw.md)    |
 
 ## Summary
 
-A `Timer` capability lets an agent schedule recurring or one-shot
-callbacks with host-controlled limits on frequency, concurrency, and
-total active timers. Prerequisite for proactive agent behavior (morning
-briefings, reminders, monitoring). Listed in the
-[daemon-capability-bank](daemon-capability-bank.md) taxonomy.
+An `IntervalScheduler` capability provides the core heartbeat ticks for an agent.
+Key concerns are:
+- a deadline for each heartbeat tick's execution
+- consistent start-to-start timings, readily consumable as a stream of wakeups;
+  this is more similar to a Golang `time.Ticker` or `tokio::time::Interval`
+  than it is to a one-shot timer
+- this is **not** a general purpose cron facility
+- the time-until-first fire should be configurable, or 0 by default so that we get an immediate first-tick
+  consistent tick interval can be saved and reloaded across agent restarts
+- per-tick timeout option at construction, default to something reasonable like
+  delay or delay/2
+- each tick should be able to be either:
+  1. resolved: everything worked out, or failed in a terminal manner, see you next tick
+  2. transiently rescheduled: decline the tick wakeup, but request "soon"
+     re-wake; scheduler should count these an provide exponential backoff
+     within each interval period
 
 ## Capability Shape
 
 ```ts
-interface Timer {
-  schedule(cron: string, label: string): Promise<TimerHandle>;
-  delay(ms: number, label: string): Promise<TimerHandle>;
-  list(): Promise<TimerEntry[]>;
-  help(): string;
+
+interface IntervalScheduler {
+    makeInterval(
+        label: string,
+        delay: number,
+        // TODO timeout, defaults to delay or delay/2
+        // TODO first-delay option?
+    ): Interval; // Promise<> ?
 }
 
-interface TimerHandle {
-  cancel(): void;
+interface Interval {
   label(): string;
-  nextFire(): Promise<number>;  // epoch ms
+
+  cancel(): void;
+
+  setPeriod(delay: number); // since-last-start
+  // TODO probably a getter also?
+
+  tick(): AsyncIterator<Tick>;
+
+  // TODO how does deadline work...
+  // TODO behavior when missed
 }
 
-interface TimerControl {
-  setMaxActive(n: number): void;
-  setMinIntervalMs(ms: number): void;
-  pause(): void;     // suspends all timers
-  resume(): void;
-  revoke(): void;    // cancels all and invalidates
-  help(): string;
+interface Tick {
+    // when the interaval started
+    start(): number;
+
+    // when the scheduler will consider this run to be overdue
+    deadline(): number;
+
+    // finished successuflly
+    resolve();
+
+    // fast/ephemeral fail, please rescheudle (scheduler should implement a backoff counter up to deadline
+    reschedule();
 }
 
-type TimerEntry = {
-  label: string;
-  cron: string | undefined;
-  nextFire: number;
-};
 ```
 
 ## How It Works
