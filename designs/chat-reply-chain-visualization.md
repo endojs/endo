@@ -446,10 +446,6 @@ The MOI algorithm keeps visual design minimal:
 - Line updates on scroll/resize
 - Accessibility (ARIA, keyboard nav)
 
-### Blocked: Daemon `replyTo` support
-- The daemon does not yet produce `replyTo` on messages
-- The client-side feature is fully implemented and will activate once `replyTo` is available
-
 ## Alternatives Considered
 
 ### Flat List with Thread Indicators

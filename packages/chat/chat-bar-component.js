@@ -33,7 +33,6 @@ import { kbd, modKey } from './platform-keys.js';
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {() => void} [options.exitConversation] - Exit the current conversation view
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
- * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  */
 export const chatBarComponent = (
@@ -47,7 +46,6 @@ export const chatBarComponent = (
     getConversationPetName,
     exitConversation,
     navigateToConversation,
-    getMoiMessageNumber,
     getChannelRef,
   },
 ) => {
@@ -189,7 +187,6 @@ export const chatBarComponent = (
     },
     getConversationPetName,
     navigateToConversation,
-    getMoiMessageNumber,
     getChannelRef,
   });
 

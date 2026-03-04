@@ -35,7 +35,6 @@ import { createProfilePopup } from './profile-popup.js';
  * @param {unknown} channel - Channel or ChannelMember reference
  * @param {object} options
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
- * @param {(messageNumber: bigint) => void} [options.onMessageChange] - Called with each new message number for implicit threading
  * @param {string} [options.personaId] - Unique identifier for the current persona/space, used to scope the address book in localStorage
  * @param {string} [options.ownMemberId] - The current user's memberId, used to highlight own messages
  */
@@ -43,7 +42,7 @@ export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, onMessageChange, personaId, ownMemberId },
+  { showValue, personaId, ownMemberId },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -307,9 +306,6 @@ export const channelComponent = async (
       scrollToBottom();
     }
 
-    if (onMessageChange) {
-      onMessageChange(typedMessage.number);
-    }
   }
 };
 harden(channelComponent);
