@@ -38,7 +38,7 @@
 | [endoclaw-webhooks](endoclaw-webhooks.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
-| [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-02 | Partially Complete |
+| [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-03 | **Complete** |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
 | [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
@@ -60,7 +60,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 14 Complete, 1 Partially Complete, 6 In Progress, 31 Not Started, 1 Reference
+**Totals:** 15 Complete, 6 In Progress, 31 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -78,7 +78,7 @@ flowchart TD
 
     subgraph Daemon Messaging
         dform[daemon-form-request<br/><i>COMPLETE</i>]
-        dval[daemon-value-message<br/><i>PARTIAL</i>]
+        dval[daemon-value-message<br/><i>COMPLETE</i>]
         dform --> dval
     end
 
@@ -174,7 +174,7 @@ their own API key and local capabilities.
 |--------|--------|-------|
 | ~~daemon-256-bit-identifiers~~ | **Complete** | Core migration done |
 | ~~daemon-form-request~~ | **Complete** | Fields as ordered array, CLI, Chat UI |
-| daemon-value-message | Partially Complete | `value` type, persistence, `submit()` delivery, Chat rendering all done. Standalone `sendValue` and `send-value` CLI not yet built but not strictly needed — `submit()` covers the form-provisioning path |
+| ~~daemon-value-message~~ | **Complete** | `value` type, persistence, `submit()` delivery, Chat rendering, standalone `sendValue`, `send-value` CLI, daemon tests all done |
 | lal-reply-chain-transcripts | In Progress | Phases 1-4 complete |
 | familiar-daemon-bundling | In Progress | Blocks distribution |
 | lal-fae-form-provisioning | Not Started | Manager/worker refactor, form-based config |
@@ -359,7 +359,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 |--------|------|----------|-----------|-------|
 | ~~daemon-256-bit-identifiers~~ | — | — | 0 | ✅ Complete (1 day actual) |
 | ~~daemon-form-request~~ | — | — | 0 | ✅ Complete (5 days actual) |
-| daemon-value-message | S | 1-2 days | 0 | Remaining: standalone `sendValue`, CLI |
+| ~~daemon-value-message~~ | — | — | 0 | ✅ Complete |
 | lal-reply-chain-transcripts | S | 1 day | 0 | Remaining: phase 5 |
 | familiar-daemon-bundling | S-M | 2-3 days | 0 | Remaining: esbuild config, worker bundling |
 | lal-fae-form-provisioning | M | 3-4 days | 0 | Manager/worker refactor, 4 phases |
@@ -401,7 +401,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 6 remaining | 2-3 weeks |
+| M0: AI Agent Experience | 5 remaining | 2-3 weeks |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: UX & Tooling | 6 | 3-4.5 weeks |
@@ -459,10 +459,9 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-03:** 14 of 53 designs complete, 1 partially
-complete. 15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
+**Progress as of 2026-03-03:** 15 of 53 designs complete.
+15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
 Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
-`daemon-form-request` complete. `daemon-value-message` partially
-implemented (value type and `submit()` delivery working; standalone
-`sendValue` remaining). `lal-fae-form-provisioning` designed and ready
-for implementation.
+`daemon-form-request` and `daemon-value-message` complete (value type,
+persistence, `submit()` delivery, standalone `sendValue`, CLI, tests).
+`lal-fae-form-provisioning` designed and ready for implementation.
