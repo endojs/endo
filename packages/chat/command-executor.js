@@ -149,19 +149,14 @@ export const createCommandExecutor = ({
         }
 
         case 'form': {
-          const {
-            recipient,
-            description,
-            fields: fieldDefs,
-          } = params;
+          const { recipient, description, fields: fieldDefs } = params;
           const recipientPath = String(recipient).split('.');
-          const fields =
-            /** @type {Array<{name: string, label: string}>} */ (fieldDefs).map(
-              f => ({
-                name: String(f.name).trim(),
-                label: String(f.label).trim(),
-              }),
-            );
+          const fields = /** @type {Array<{name: string, label: string}>} */ (
+            fieldDefs
+          ).map(f => ({
+            name: String(f.name).trim(),
+            label: String(f.label).trim(),
+          }));
           await E(powers).form(recipientPath, String(description), fields);
           return { success: true, message: 'Form sent' };
         }

@@ -869,7 +869,6 @@ export const chatBarComponent = (
           $envelopes[i].classList.add('chain-through');
         }
       }
-
     }
   };
 
@@ -972,7 +971,9 @@ export const chatBarComponent = (
     );
     if ($messages.length === 0) return;
 
-    const $current = $messagesContainer.querySelector('.message-envelope.focused');
+    const $current = $messagesContainer.querySelector(
+      '.message-envelope.focused',
+    );
     let index = $messages.length - 1;
     if ($current) {
       for (let i = 0; i < $messages.length; i += 1) {
@@ -1490,8 +1491,12 @@ export const chatBarComponent = (
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         // If already on the last message, exit focus mode back to command line
-        const $msgs = $messagesContainer.querySelectorAll('.message-envelope[data-number]');
-        const $foc = $messagesContainer.querySelector('.message-envelope.focused');
+        const $msgs = $messagesContainer.querySelectorAll(
+          '.message-envelope[data-number]',
+        );
+        const $foc = $messagesContainer.querySelector(
+          '.message-envelope.focused',
+        );
         if ($msgs.length > 0 && $foc === $msgs[$msgs.length - 1]) {
           exitFocusMode();
         } else {

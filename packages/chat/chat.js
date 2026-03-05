@@ -437,10 +437,7 @@ const bodyComponent = (
             const channelCreatorName = await E(channelRef).getProposedName();
             const ourProposedName = activeSpaceInfo.proposedName;
 
-            if (
-              ourProposedName &&
-              ourProposedName !== channelCreatorName
-            ) {
+            if (ourProposedName && ourProposedName !== channelCreatorName) {
               // We're not the admin — join to get our own member ref for posting
               const memberRef = await E(channelRef).join(ourProposedName);
               currentChannelRef = memberRef;
@@ -465,7 +462,9 @@ const bodyComponent = (
             let ownMemberId;
             try {
               ownMemberId = await E(
-                /** @type {{ getMemberId: () => string }} */ (currentChannelRef),
+                /** @type {{ getMemberId: () => string }} */ (
+                  currentChannelRef
+                ),
               ).getMemberId();
             } catch {
               // getMemberId not available on this channel/member ref
@@ -506,10 +505,7 @@ const bodyComponent = (
        * @param {string} channelPetName
        */
       const switchChannel = channelPetName => {
-        if (
-          !activeSpaceInfo ||
-          activeSpaceInfo.mode !== 'channel'
-        ) {
+        if (!activeSpaceInfo || activeSpaceInfo.mode !== 'channel') {
           return;
         }
 
@@ -528,17 +524,11 @@ const bodyComponent = (
         E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
           .lookup(channelPetName)
           .then(async channelRef => {
-            const channelCreatorName =
-              await E(channelRef).getProposedName();
+            const channelCreatorName = await E(channelRef).getProposedName();
             const ourProposedName = activeSpaceInfo.proposedName;
 
-            if (
-              ourProposedName &&
-              ourProposedName !== channelCreatorName
-            ) {
-              currentChannelRef = await E(channelRef).join(
-                ourProposedName,
-              );
+            if (ourProposedName && ourProposedName !== channelCreatorName) {
+              currentChannelRef = await E(channelRef).join(ourProposedName);
             } else {
               currentChannelRef = channelRef;
             }
@@ -557,7 +547,9 @@ const bodyComponent = (
             let switchOwnMemberId;
             try {
               switchOwnMemberId = await E(
-                /** @type {{ getMemberId: () => string }} */ (currentChannelRef),
+                /** @type {{ getMemberId: () => string }} */ (
+                  currentChannelRef
+                ),
               ).getMemberId();
             } catch {
               // getMemberId not available on this channel/member ref

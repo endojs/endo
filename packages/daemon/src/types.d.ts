@@ -766,10 +766,7 @@ export interface Mail {
     messageId: FormulaNumber;
     guestHandleId: string;
   };
-  submit(
-    messageNumber: bigint,
-    values: Record<string, unknown>,
-  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue(
     messageNumber: bigint,
     petNameOrPath: string | string[],
@@ -924,10 +921,7 @@ export interface EndoGuest extends EndoAgent {
     value: T,
     petName: string | string[],
   ): Promise<void>;
-  submit(
-    messageNumber: bigint,
-    values: Record<string, unknown>,
-  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue: Mail['sendValue'];
 }
 
@@ -1000,10 +994,7 @@ export interface EndoHost extends EndoAgent {
     workerName?: string,
     resultName?: string | string[],
   ): Promise<void>;
-  submit(
-    messageNumber: bigint,
-    values: Record<string, unknown>,
-  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue: Mail['sendValue'];
 }
 
@@ -1029,13 +1020,16 @@ export interface EndoChannel {
   >;
   getProposedName(): string;
   getMemberId(): string;
-  getMember(memberId: string): Promise<{
-    proposedName: string;
-    invitedAs: string;
-    memberId: string;
-    pedigree: string[];
-    pedigreeMemberIds: string[];
-  } | undefined>;
+  getMember(memberId: string): Promise<
+    | {
+        proposedName: string;
+        invitedAs: string;
+        memberId: string;
+        pedigree: string[];
+        pedigreeMemberIds: string[];
+      }
+    | undefined
+  >;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
   getHopInfo(): Promise<HopInfo>;
@@ -1111,13 +1105,16 @@ export interface EndoChannelMember {
   getProposedName(): string;
   getMemberId(): string;
   setProposedName(newName: string): Promise<void>;
-  getMember(memberId: string): Promise<{
-    proposedName: string;
-    invitedAs: string;
-    memberId: string;
-    pedigree: string[];
-    pedigreeMemberIds: string[];
-  } | undefined>;
+  getMember(memberId: string): Promise<
+    | {
+        proposedName: string;
+        invitedAs: string;
+        memberId: string;
+        pedigree: string[];
+        pedigreeMemberIds: string[];
+      }
+    | undefined
+  >;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
   getHopInfo(): Promise<HopInfo>;

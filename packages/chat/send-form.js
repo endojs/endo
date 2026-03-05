@@ -133,7 +133,8 @@ export const sendFormComponent = ({
     try {
       const config = await E(channelRef).getHeatConfig();
       if (config && typeof config === 'object') {
-        const heatConfig = /** @type {import('./heat-engine.js').HeatConfig} */ (config);
+        const heatConfig =
+          /** @type {import('./heat-engine.js').HeatConfig} */ (config);
         heatBar = createHeatBar(
           /** @type {HTMLElement} */ ($input.parentElement),
           $sendButton,
@@ -236,9 +237,10 @@ export const sendFormComponent = ({
         if (!result.allowed) {
           $sendButton.classList.add('heat-shake');
           setTimeout(() => $sendButton.classList.remove('heat-shake'), 500);
-          $error.textContent = result.lockRemainingMs > 0
-            ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
-            : 'Sending too fast — slow down';
+          $error.textContent =
+            result.lockRemainingMs > 0
+              ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
+              : 'Sending too fast — slow down';
           return;
         }
       } else if (heatEngine) {
@@ -246,9 +248,10 @@ export const sendFormComponent = ({
         if (!result.allowed) {
           $sendButton.classList.add('heat-shake');
           setTimeout(() => $sendButton.classList.remove('heat-shake'), 500);
-          $error.textContent = result.lockRemainingMs > 0
-            ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
-            : 'Sending too fast — slow down';
+          $error.textContent =
+            result.lockRemainingMs > 0
+              ? `Rate limited — wait ${Math.ceil(result.lockRemainingMs / 1000)}s`
+              : 'Sending too fast — slow down';
           return;
         }
       }
@@ -298,12 +301,7 @@ export const sendFormComponent = ({
 
       setSubmitting(true);
       E(powers)
-        .send(
-          conversationPetName,
-          messageStrings,
-          edgeNames,
-          petNames,
-        )
+        .send(conversationPetName, messageStrings, edgeNames, petNames)
         .then(
           () => {
             lastRecipient = conversationPetName;

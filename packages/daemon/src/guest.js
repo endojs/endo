@@ -290,7 +290,12 @@ export const makeGuestMaker = ({
         }
       };
 
-    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'submit', 'sendValue']);
+    const unwrappedMethods = new Set([
+      'handle',
+      'reverseIdentify',
+      'submit',
+      'sendValue',
+    ]);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,

@@ -401,13 +401,10 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   followHeatEvents: M.call().returns(M.promise()),
 });
 
-export const ChannelInvitationInterface = M.interface(
-  'EndoChannelInvitation',
-  {
-    help: M.call().optional(M.string()).returns(M.string()),
-    join: M.call(M.string()).returns(M.promise()),
-  },
-);
+export const ChannelInvitationInterface = M.interface('EndoChannelInvitation', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  join: M.call(M.string()).returns(M.promise()),
+});
 harden(ChannelInvitationInterface);
 
 export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {

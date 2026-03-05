@@ -2,7 +2,11 @@
 /* global document, setTimeout */
 
 import harden from '@endo/harden';
-import { interpolateHeatColor, formatDuration, LOCKOUT_THRESHOLD } from './heat-engine.js';
+import {
+  interpolateHeatColor,
+  formatDuration,
+  LOCKOUT_THRESHOLD,
+} from './heat-engine.js';
 
 /**
  * @typedef {import('./heat-engine.js').HeatState} HeatState
@@ -81,7 +85,8 @@ export const createHeatBar = ($container, $sendButton) => {
    * @param {HeatState | CompositeState} state
    * @returns {state is CompositeState}
    */
-  const isComposite = state => 'hops' in state && Array.isArray(/** @type {any} */ (state).hops);
+  const isComposite = state =>
+    'hops' in state && Array.isArray(/** @type {any} */ (state).hops);
 
   /**
    * Update with a single-hop (legacy) HeatState.
@@ -134,7 +139,14 @@ export const createHeatBar = ($container, $sendButton) => {
    * @param {CompositeState} state
    */
   const updateComposite = state => {
-    const { effectiveHeat, effectiveLocked, effectiveLockRemaining, bottleneckLabel, isSelfBottleneck, hops } = state;
+    const {
+      effectiveHeat,
+      effectiveLocked,
+      effectiveLockRemaining,
+      bottleneckLabel,
+      isSelfBottleneck,
+      hops,
+    } = state;
 
     // Hide single fill, show segments
     $fill.style.display = 'none';
@@ -159,7 +171,10 @@ export const createHeatBar = ($container, $sendButton) => {
       $seg.className = `heat-bar-segment${hop.isSelf ? ' self' : ' ancestor'}`;
 
       // Width proportional to share of total heat (with minimum 2px)
-      let widthPct = totalHeat > 0 ? (hop.normalizedHeat / totalHeat) * 100 : 100 / hops.length;
+      let widthPct =
+        totalHeat > 0
+          ? (hop.normalizedHeat / totalHeat) * 100
+          : 100 / hops.length;
       // The segment container fills the bar width proportional to effective heat
       const color = interpolateHeatColor(hop.normalizedHeat);
       $seg.style.backgroundColor = hop.isSelf ? color : desaturateColor(color);
@@ -223,7 +238,12 @@ export const createHeatBar = ($container, $sendButton) => {
 
   const dispose = () => {
     $bar.remove();
-    $sendButton.classList.remove('heat-locked', 'heat-glow', 'heat-jitter', 'heat-shake');
+    $sendButton.classList.remove(
+      'heat-locked',
+      'heat-glow',
+      'heat-jitter',
+      'heat-shake',
+    );
   };
 
   return { update, dispose };

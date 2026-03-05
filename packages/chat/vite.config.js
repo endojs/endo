@@ -3,9 +3,7 @@ import { defineConfig } from 'vite';
 import { makeEndoPlugin } from './vite-endo-plugin.js';
 
 export default defineConfig({
-  plugins: [
-    makeEndoPlugin(),
-  ],
+  plugins: [makeEndoPlugin()],
   base: './',
   build: {
     outDir: 'dist',

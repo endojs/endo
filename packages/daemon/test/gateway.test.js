@@ -247,110 +247,116 @@ test.serial('gateway WebSocket fetch(token)', async t => {
   t.is(result, 42);
 });
 
-test.serial('gateway: channel invite returns iterable [attenuator, proxy] via WebSocket', async t => {
-  const { host } = await prepareHost(t);
+test.serial(
+  'gateway: channel invite returns iterable [attenuator, proxy] via WebSocket',
+  async t => {
+    const { host } = await prepareHost(t);
 
-  // 1. Create a channel and get its formula ID
-  await E(host).makeChannel('gw-channel', 'Alice');
-  const channelFormulaId = await E(host).identify('gw-channel');
-  t.truthy(channelFormulaId);
+    // 1. Create a channel and get its formula ID
+    await E(host).makeChannel('gw-channel', 'Alice');
+    const channelFormulaId = await E(host).identify('gw-channel');
+    t.truthy(channelFormulaId);
 
-  // 2. Connect to the gateway via WebSocket (like the Electron chat UI does)
-  const apps = E(host).lookup('APPS');
-  const address = await E(apps).getAddress();
+    // 2. Connect to the gateway via WebSocket (like the Electron chat UI does)
+    const apps = E(host).lookup('APPS');
+    const address = await E(apps).getAddress();
 
-  const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
-  await new Promise((resolve, reject) => {
-    socket.on('open', resolve);
-    socket.on('error', reject);
-  });
-  t.teardown(() => socket.close());
+    const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
+    await new Promise((resolve, reject) => {
+      socket.on('open', resolve);
+      socket.on('error', reject);
+    });
+    t.teardown(() => socket.close());
 
-  const [gwReader, gwSink] = makePipe();
-  socket.on(
-    'message',
-    (/** @type {Uint8Array} */ bytes, /** @type {boolean} */ isBinary) => {
-      if (isBinary) {
-        gwSink.next(bytes);
-      }
-    },
-  );
-  socket.on('close', () => {
-    gwSink.return(undefined);
-  });
+    const [gwReader, gwSink] = makePipe();
+    socket.on(
+      'message',
+      (/** @type {Uint8Array} */ bytes, /** @type {boolean} */ isBinary) => {
+        if (isBinary) {
+          gwSink.next(bytes);
+        }
+      },
+    );
+    socket.on('close', () => {
+      gwSink.return(undefined);
+    });
 
-  const gwWriter = harden({
-    /** @param {Uint8Array} bytes */
-    async next(bytes) {
-      socket.send(bytes, { binary: true });
-      return harden({ done: false, value: undefined });
-    },
-    async return() {
-      socket.close();
-      return harden({ done: true, value: undefined });
-    },
-    /** @param {Error} error */
-    async throw(error) {
-      socket.close();
-      return harden({ done: true, value: error });
-    },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-  });
+    const gwWriter = harden({
+      /** @param {Uint8Array} bytes */
+      async next(bytes) {
+        socket.send(bytes, { binary: true });
+        return harden({ done: false, value: undefined });
+      },
+      async return() {
+        socket.close();
+        return harden({ done: true, value: undefined });
+      },
+      /** @param {Error} error */
+      async throw(error) {
+        socket.close();
+        return harden({ done: true, value: error });
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    });
 
-  const gwMessageWriter = mapWriter(gwWriter, messageToBytes);
-  const gwMessageReader = mapReader(gwReader, bytesToMessage);
+    const gwMessageWriter = mapWriter(gwWriter, messageToBytes);
+    const gwMessageReader = mapReader(gwReader, bytesToMessage);
 
-  const { promise: gwCancelled, reject: cancelGwCapTP } = makePromiseKit();
-  t.teardown(() => cancelGwCapTP(Error('test done')));
+    const { promise: gwCancelled, reject: cancelGwCapTP } = makePromiseKit();
+    t.teardown(() => cancelGwCapTP(Error('test done')));
 
-  const { getBootstrap: getGwBootstrap } = makeMessageCapTP(
-    'TestGw',
-    gwMessageWriter,
-    gwMessageReader,
-    gwCancelled,
-    undefined,
-  );
+    const { getBootstrap: getGwBootstrap } = makeMessageCapTP(
+      'TestGw',
+      gwMessageWriter,
+      gwMessageReader,
+      gwCancelled,
+      undefined,
+    );
 
-  const gwBootstrap = getGwBootstrap();
+    const gwBootstrap = getGwBootstrap();
 
-  // 3. Fetch the channel through the gateway (like the chat UI does)
-  const channel = await E(gwBootstrap).fetch(
-    /** @type {string} */ (channelFormulaId),
-  );
-  t.truthy(channel, 'channel should be fetchable through gateway');
+    // 3. Fetch the channel through the gateway (like the chat UI does)
+    const channel = await E(gwBootstrap).fetch(
+      /** @type {string} */ (channelFormulaId),
+    );
+    t.truthy(channel, 'channel should be fetchable through gateway');
 
-  // 4. Call createInvitation() — this is the exact path that triggers the UI error
-  //    The result crosses TWO CapTP boundaries: daemon→gateway→test
-  const inviteResult = await E(channel).createInvitation('Bob');
+    // 4. Call createInvitation() — this is the exact path that triggers the UI error
+    //    The result crosses TWO CapTP boundaries: daemon→gateway→test
+    const inviteResult = await E(channel).createInvitation('Bob');
 
-  // 5. Verify the result is an iterable array
-  t.true(
-    Array.isArray(inviteResult),
-    'createInvitation result should be an Array (not a non-iterable object)',
-  );
-  t.is(inviteResult.length, 2, 'createInvitation result should be [invitation, attenuator]');
+    // 5. Verify the result is an iterable array
+    t.true(
+      Array.isArray(inviteResult),
+      'createInvitation result should be an Array (not a non-iterable object)',
+    );
+    t.is(
+      inviteResult.length,
+      2,
+      'createInvitation result should be [invitation, attenuator]',
+    );
 
-  // 6. Destructure and verify (this is what channel-header.js does)
-  const [invitation, attenuator] = inviteResult;
-  t.truthy(invitation, 'invitation should exist');
-  t.truthy(attenuator, 'attenuator should exist');
+    // 6. Destructure and verify (this is what channel-header.js does)
+    const [invitation, attenuator] = inviteResult;
+    t.truthy(invitation, 'invitation should exist');
+    t.truthy(attenuator, 'attenuator should exist');
 
-  // 7. Join via the invitation and use the handle
-  const proxy = await E(invitation).join('Bob');
-  const bobName = await E(proxy).getProposedName();
-  t.is(bobName, 'Bob');
+    // 7. Join via the invitation and use the handle
+    const proxy = await E(invitation).join('Bob');
+    const bobName = await E(proxy).getProposedName();
+    t.is(bobName, 'Bob');
 
-  await E(proxy).post(['Hello from gateway Bob'], [], []);
+    await E(proxy).post(['Hello from gateway Bob'], [], []);
 
-  // 8. Verify attenuator works through gateway
-  await E(attenuator).setInvitationValidity(false);
-  await t.throwsAsync(
-    () => E(proxy).post(['Should fail'], [], []),
-    { message: /disabled/ },
-  );
-});
+    // 8. Verify attenuator works through gateway
+    await E(attenuator).setInvitationValidity(false);
+    await t.throwsAsync(() => E(proxy).post(['Should fail'], [], []), {
+      message: /disabled/,
+    });
+  },
+);
 
 test.serial('weblet on unified server', async t => {
   const { host } = await prepareHost(t);

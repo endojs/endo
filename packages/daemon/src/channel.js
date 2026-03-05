@@ -114,19 +114,22 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
           const raw = /** @type {any} */ (value);
           // Migrate old-format messages: rename edgeNames->names, add type/messageId
           /** @type {ChannelMessage} */
-          const msg = raw.type === 'package'
-            ? raw
-            : harden({
-                type: 'package',
-                messageId: /** @type {FormulaNumber} */ (raw.messageId || '0'),
-                number: raw.number,
-                date: raw.date,
-                memberId: raw.memberId || '0',
-                strings: raw.strings,
-                names: raw.edgeNames || raw.names || [],
-                ids: raw.ids || [],
-                replyTo: raw.replyTo,
-              });
+          const msg =
+            raw.type === 'package'
+              ? raw
+              : harden({
+                  type: 'package',
+                  messageId: /** @type {FormulaNumber} */ (
+                    raw.messageId || '0'
+                  ),
+                  number: raw.number,
+                  date: raw.date,
+                  memberId: raw.memberId || '0',
+                  strings: raw.strings,
+                  names: raw.edgeNames || raw.names || [],
+                  ids: raw.ids || [],
+                  replyTo: raw.replyTo,
+                });
           messages.push(msg);
           if (msg.number >= nextMessageNumber) {
             nextMessageNumber = msg.number + 1n;
@@ -222,7 +225,9 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       let currentId = entry.inviterMemberId;
       while (currentId && memberEntries.has(currentId)) {
         ids.unshift(currentId);
-        const parent = /** @type {MemberEntry} */ (memberEntries.get(currentId));
+        const parent = /** @type {MemberEntry} */ (
+          memberEntries.get(currentId)
+        );
         currentId = parent.inviterMemberId;
       }
       return ids;
@@ -236,13 +241,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
      * @param {FormulaIdentifier[]} ids
      * @param {string} [replyTo]
      */
-    const postInternal = async (
-      memberId,
-      strings,
-      names,
-      ids,
-      replyTo,
-    ) => {
+    const postInternal = async (memberId, strings, names, ids, replyTo) => {
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1n;
 
@@ -379,9 +378,10 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         const config = entry.heatConfig;
         if (!config) return;
 
-        const stateObj = /** @type {{ heat: number, locked: boolean, lockEndTime: number, lastHeatUpdateTime: number }} */ (
-          heatStates.get(entry.memberId)
-        );
+        const stateObj =
+          /** @type {{ heat: number, locked: boolean, lockEndTime: number, lastHeatUpdateTime: number }} */ (
+            heatStates.get(entry.memberId)
+          );
 
         const heatPerMessage = HEAT_LOCKOUT_THRESHOLD / config.burstLimit;
         const coolRate = heatPerMessage * (config.sustainedRate / 60);
@@ -389,9 +389,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         // Check if locked
         if (stateObj.lockEndTime > 0) {
           if (now < stateObj.lockEndTime) {
-            const remaining = Math.ceil(
-              (stateObj.lockEndTime - now) / 1000,
-            );
+            const remaining = Math.ceil((stateObj.lockEndTime - now) / 1000);
             throw new Error(
               `Rate limit lockout for ${q(entry.invitedAs)} (${remaining}s remaining)`,
             );
@@ -462,7 +460,10 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       let current = entry;
       while (current) {
         chain.push(current);
-        if (current.inviterMemberId === '' || current.inviterMemberId === current.memberId) {
+        if (
+          current.inviterMemberId === '' ||
+          current.inviterMemberId === current.memberId
+        ) {
           break;
         }
         const parent = memberEntries.get(current.inviterMemberId);
@@ -499,10 +500,8 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
             // cools heat during checkPostRate calls, so stateObj.heat may
             // be stale if no posts have occurred recently.
             const config = hop.heatConfig;
-            const heatPerMessage =
-              HEAT_LOCKOUT_THRESHOLD / config.burstLimit;
-            const coolRate =
-              heatPerMessage * (config.sustainedRate / 60);
+            const heatPerMessage = HEAT_LOCKOUT_THRESHOLD / config.burstLimit;
+            const coolRate = heatPerMessage * (config.sustainedRate / 60);
 
             if (stateObj.lockEndTime > 0 && now >= stateObj.lockEndTime) {
               // Lockout has expired
@@ -516,32 +515,33 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
               lockEndTime = stateObj.lockEndTime;
             } else if (stateObj.lastHeatUpdateTime > 0) {
               // Not locked — apply passive cooling since last update
-              const dt =
-                (now - stateObj.lastHeatUpdateTime) / 1000;
+              const dt = (now - stateObj.lastHeatUpdateTime) / 1000;
               heat = Math.max(0, stateObj.heat - coolRate * dt);
               locked = false;
               lockEndTime = 0;
             }
           }
 
-          const lockRemaining = locked
-            ? Math.max(0, lockEndTime - now)
-            : 0;
-          policies.push(harden({
-            hopIndex,
-            label: hop.proposedName,
-            memberId: hop.memberId,
-            burstLimit: hop.heatConfig.burstLimit,
-            sustainedRate: hop.heatConfig.sustainedRate,
-            lockoutDurationMs: hop.heatConfig.lockoutDurationMs,
-            postLockoutPct: hop.heatConfig.postLockoutPct,
-          }));
-          states.push(harden({
-            hopIndex,
-            heat,
-            locked,
-            lockRemaining,
-          }));
+          const lockRemaining = locked ? Math.max(0, lockEndTime - now) : 0;
+          policies.push(
+            harden({
+              hopIndex,
+              label: hop.proposedName,
+              memberId: hop.memberId,
+              burstLimit: hop.heatConfig.burstLimit,
+              sustainedRate: hop.heatConfig.sustainedRate,
+              lockoutDurationMs: hop.heatConfig.lockoutDurationMs,
+              postLockoutPct: hop.heatConfig.postLockoutPct,
+            }),
+          );
+          states.push(
+            harden({
+              hopIndex,
+              heat,
+              locked,
+              lockRemaining,
+            }),
+          );
           hopIndex += 1;
         }
       }
@@ -701,13 +701,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
           const now = Date.now();
           checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ ([]);
-          await postInternal(
-            entry.memberId,
-            strings,
-            names,
-            ids,
-            replyTo,
-          );
+          await postInternal(entry.memberId, strings, names, ids, replyTo);
         },
         setProposedName: async newName => {
           checkAccess();
@@ -818,7 +812,10 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         getHopInfo: async () => {
           checkAccess();
           const info = buildHopInfo(entry);
-          return harden({ policies: harden(info.policies), states: harden(info.states) });
+          return harden({
+            policies: harden(info.policies),
+            states: harden(info.states),
+          });
         },
         followHeatEvents: async () => {
           return makeGatedFollowHeatEvents(entry, checkAccess);
@@ -933,7 +930,11 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       const checkPostRate = makeHeatCheckPostRate(entry, parentCheckPostRate);
 
       const attenuator = makeAttenuator(entry);
-      const invitation = makeInvitation(entry, parentCheckAccess, parentCheckPostRate);
+      const invitation = makeInvitation(
+        entry,
+        parentCheckAccess,
+        parentCheckPostRate,
+      );
 
       const rec = { invitation, attenuator, entry };
       parentInfo.invitations.set(entry.invitedAs, rec);
@@ -956,13 +957,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       help: makeHelp(channelHelp),
       post: async (strings, names, petNamesOrPaths, replyTo) => {
         const ids = /** @type {FormulaIdentifier[]} */ ([]);
-        await postInternal(
-          adminMemberId,
-          strings,
-          names,
-          ids,
-          replyTo,
-        );
+        await postInternal(adminMemberId, strings, names, ids, replyTo);
       },
       followMessages: async () => {
         const iterator = (async function* channelMessages() {

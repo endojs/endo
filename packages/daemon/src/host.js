@@ -602,9 +602,7 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers =>
-        petStore.write(petName, identifiers.channelId),
-      );
+      tasks.push(identifiers => petStore.write(petName, identifiers.channelId));
       const { value } = await formulateChannel(
         hostId,
         handleId,

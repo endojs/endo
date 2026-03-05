@@ -110,7 +110,9 @@ export const createChannelHeader = ({
   };
 
   const handleInvite = async () => {
-    const inviteeName = window.prompt('Enter a display name for the new member:');
+    const inviteeName = window.prompt(
+      'Enter a display name for the new member:',
+    );
     if (!inviteeName) return;
 
     try {
@@ -217,7 +219,9 @@ export const createChannelHeader = ({
 
     const burstLimit = existingConfig ? existingConfig.burstLimit : 10;
     const sustainedRate = existingConfig ? existingConfig.sustainedRate : 30;
-    const lockoutDurationMs = existingConfig ? existingConfig.lockoutDurationMs : 10000;
+    const lockoutDurationMs = existingConfig
+      ? existingConfig.lockoutDurationMs
+      : 10000;
     const postLockoutPct = existingConfig ? existingConfig.postLockoutPct : 40;
     const lockoutSlider = lockoutMsToSlider(lockoutDurationMs);
 
@@ -294,8 +298,7 @@ export const createChannelHeader = ({
       const { heatPerMessage, coolRate } = deriveConstants(config);
       const $derived = $container.querySelector('.heat-derived-params');
       if ($derived) {
-        $derived.textContent =
-          `Heat/msg: ${heatPerMessage.toFixed(1)} | Cool rate: ${coolRate.toFixed(2)}/s`;
+        $derived.textContent = `Heat/msg: ${heatPerMessage.toFixed(1)} | Cool rate: ${coolRate.toFixed(2)}/s`;
       }
     };
     updateDerived();
@@ -349,8 +352,11 @@ export const createChannelHeader = ({
     const $lockoutVal = $container.querySelector('.heat-lockout-val');
     if ($lockoutSlider) {
       $lockoutSlider.addEventListener('input', () => {
-        config.lockoutDurationMs = sliderToLockoutMs(Number($lockoutSlider.value));
-        if ($lockoutVal) $lockoutVal.textContent = formatDuration(config.lockoutDurationMs);
+        config.lockoutDurationMs = sliderToLockoutMs(
+          Number($lockoutSlider.value),
+        );
+        if ($lockoutVal)
+          $lockoutVal.textContent = formatDuration(config.lockoutDurationMs);
         updateDerived();
         if (simInstance) simInstance.updateParams(config);
         debouncedSave();
@@ -364,7 +370,8 @@ export const createChannelHeader = ({
     if ($postLockoutSlider) {
       $postLockoutSlider.addEventListener('input', () => {
         config.postLockoutPct = Number($postLockoutSlider.value);
-        if ($postLockoutVal) $postLockoutVal.textContent = `${$postLockoutSlider.value}%`;
+        if ($postLockoutVal)
+          $postLockoutVal.textContent = `${$postLockoutSlider.value}%`;
         updateDerived();
         if (simInstance) simInstance.updateParams(config);
         debouncedSave();
@@ -378,7 +385,10 @@ export const createChannelHeader = ({
         e.stopPropagation();
         attenuatorModalMember = null;
         manageMembersVisible = false;
-        if (simInstance) { simInstance.dispose(); simInstance = null; }
+        if (simInstance) {
+          simInstance.dispose();
+          simInstance = null;
+        }
         menuVisible = !menuVisible;
         render();
       });
@@ -389,7 +399,10 @@ export const createChannelHeader = ({
       $close.addEventListener('click', async () => {
         attenuatorModalMember = null;
         manageMembersVisible = true;
-        if (simInstance) { simInstance.dispose(); simInstance = null; }
+        if (simInstance) {
+          simInstance.dispose();
+          simInstance = null;
+        }
         await showMembers();
       });
     }
@@ -417,7 +430,9 @@ export const createChannelHeader = ({
       $banBtn.addEventListener('click', async () => {
         try {
           await E(attenuator).temporaryBan(Number($banDuration.value));
-          window.alert(`Temporary ban applied for ${$banDuration.value} seconds.`);
+          window.alert(
+            `Temporary ban applied for ${$banDuration.value} seconds.`,
+          );
         } catch (err) {
           window.alert(
             `Failed to apply ban: ${/** @type {Error} */ (err).message}`,
@@ -437,9 +452,7 @@ export const createChannelHeader = ({
       <div class="channel-member-entry ${m.active ? '' : 'disabled'}">
         <span class="member-name">\u201C${m.proposedName}\u201D</span>
         <span class="member-pedigree">${
-          m.pedigree.length > 0
-            ? m.pedigree.join(' \u2192 ')
-            : 'Creator'
+          m.pedigree.length > 0 ? m.pedigree.join(' \u2192 ') : 'Creator'
         }</span>
         <button type="button" class="member-manage-btn" data-invited-as="${m.invitedAs}">Manage</button>
       </div>
@@ -494,7 +507,10 @@ export const createChannelHeader = ({
 
   return harden({
     dispose: () => {
-      if (simInstance) { simInstance.dispose(); simInstance = null; }
+      if (simInstance) {
+        simInstance.dispose();
+        simInstance = null;
+      }
       $container.innerHTML = '';
     },
   });

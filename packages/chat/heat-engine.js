@@ -273,24 +273,18 @@ const formatDuration = ms => {
   const minutes = Math.floor(seconds / 60);
   const remainSeconds = Math.floor(seconds % 60);
   if (minutes < 60) {
-    return remainSeconds > 0
-      ? `${minutes}m ${remainSeconds}s`
-      : `${minutes}m`;
+    return remainSeconds > 0 ? `${minutes}m ${remainSeconds}s` : `${minutes}m`;
   }
 
   const hours = Math.floor(minutes / 60);
   const remainMinutes = minutes % 60;
   if (hours < 24) {
-    return remainMinutes > 0
-      ? `${hours}h ${remainMinutes}m`
-      : `${hours}h`;
+    return remainMinutes > 0 ? `${hours}h ${remainMinutes}m` : `${hours}h`;
   }
 
   const days = Math.floor(hours / 24);
   const remainHours = hours % 24;
-  return remainHours > 0
-    ? `${days}d ${remainHours}h`
-    : `${days}d`;
+  return remainHours > 0 ? `${days}d ${remainHours}h` : `${days}d`;
 };
 
 export {

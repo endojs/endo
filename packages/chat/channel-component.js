@@ -114,10 +114,9 @@ export const channelComponent = async (
   // entry is a direct invitee whose invitedAs name should be pre-populated
   // in the address book (unless the viewer has already overridden it).
   try {
-    const members =
-      /** @type {{ memberId: string, invitedAs?: string }[]} */ (
-        await E(channel).getMembers()
-      );
+    const members = /** @type {{ memberId: string, invitedAs?: string }[]} */ (
+      await E(channel).getMembers()
+    );
     let didAutoAssign = false;
     for (const member of members) {
       if (nameMap.has(member.memberId)) continue;
@@ -209,7 +208,9 @@ export const channelComponent = async (
   const createMessageElement = async message => {
     const $msg = document.createElement('div');
     const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
-    $msg.className = isOwn ? 'message received own-message' : 'message received';
+    $msg.className = isOwn
+      ? 'message received own-message'
+      : 'message received';
     $msg.dataset.messageId = String(message.number);
 
     // Timestamp
@@ -222,7 +223,9 @@ export const channelComponent = async (
 
     // Look up member info for author display
     const memberInfo = await getMemberInfo(message.memberId);
-    const authorProposedName = memberInfo ? memberInfo.proposedName : message.memberId;
+    const authorProposedName = memberInfo
+      ? memberInfo.proposedName
+      : message.memberId;
     const pedigree = memberInfo ? memberInfo.pedigree : [];
     const pedigreeMemberIds = memberInfo ? memberInfo.pedigreeMemberIds : [];
 
@@ -243,11 +246,13 @@ export const channelComponent = async (
 
     $author.title =
       pedigree.length > 0
-        ? `Invited by: ${pedigree.map((name, i) => {
-            const mid = pedigreeMemberIds[i];
-            const assigned = mid && nameMap.get(mid);
-            return assigned || `\u201C${name}\u201D`;
-          }).join(' \u2192 ')}`
+        ? `Invited by: ${pedigree
+            .map((name, i) => {
+              const mid = pedigreeMemberIds[i];
+              const assigned = mid && nameMap.get(mid);
+              return assigned || `\u201C${name}\u201D`;
+            })
+            .join(' \u2192 ')}`
         : 'Channel creator';
     $author.addEventListener('click', e => {
       e.stopPropagation();
@@ -270,14 +275,15 @@ export const channelComponent = async (
     $msg.appendChild(document.createTextNode(' '));
 
     // Message body — use 'names' (new format) with fallback to 'edgeNames' (old format)
-    const messageNames = /** @type {any} */ (message).names || /** @type {any} */ (message).edgeNames || [];
+    const messageNames =
+      /** @type {any} */ (message).names ||
+      /** @type {any} */ (message).edgeNames ||
+      [];
     const $body = document.createElement('span');
     $body.className = 'message-body';
 
     if (message.strings && message.strings.length > 0) {
-      const textWithPlaceholders = prepareTextWithPlaceholders(
-        message.strings,
-      );
+      const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
       const { fragment, insertionPoints } =
         renderMarkdown(textWithPlaceholders);
       $body.appendChild(fragment);
@@ -344,7 +350,6 @@ export const channelComponent = async (
     } else {
       scrollToBottom();
     }
-
   }
 };
 harden(channelComponent);

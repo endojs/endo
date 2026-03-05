@@ -18,18 +18,18 @@ import test from 'ava';
 test('monaco editor API is documented', t => {
   // MonacoEditorAPI shape returned by createMonacoEditor():
   const apiMethods = [
-    'getValue',        // () => string
-    'setValue',        // (value: string) => void
+    'getValue', // () => string
+    'setValue', // (value: string) => void
     'setCursorPosition', // (line: number, column: number) => void
-    'focus',          // () => void
-    'dispose',        // () => void
+    'focus', // () => void
+    'dispose', // () => void
     'onAddEndowment', // (callback: () => void) => void
   ];
 
   // CustomEvents dispatched on $container:
   const containerEvents = [
-    'monaco-submit',     // Cmd+Enter pressed
-    'monaco-escape',     // Escape pressed
+    'monaco-submit', // Cmd+Enter pressed
+    'monaco-escape', // Escape pressed
     'monaco-focus-name', // Cmd+N pressed
   ];
 

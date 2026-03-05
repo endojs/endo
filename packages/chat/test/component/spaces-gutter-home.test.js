@@ -180,7 +180,14 @@ const setupGutter = async (opts = {}) => {
   // Wait for refresh + watcher to settle
   await tick(50);
 
-  return { $container, $modalContainer, gutter, calls, storedValues, navigated };
+  return {
+    $container,
+    $modalContainer,
+    gutter,
+    calls,
+    storedValues,
+    navigated,
+  };
 };
 
 // ── Test 1: Right-click space 0 shows Edit but not Delete ──
@@ -252,85 +259,92 @@ test.serial('right-click regular space shows both Edit and Delete', async t => {
 
 // ── Test 3: Edit home space modal omits Name field ──
 
-test.serial('edit home modal omits Name field but has icon and scheme', async t => {
-  const { $container, $modalContainer } = await setupGutter();
+test.serial(
+  'edit home modal omits Name field but has icon and scheme',
+  async t => {
+    const { $container, $modalContainer } = await setupGutter();
 
-  // Open context menu on home
-  const $home = $container.querySelector('.space-item.home');
-  const ctxEvent = new Event('contextmenu', { bubbles: true });
-  // @ts-expect-error
-  ctxEvent.clientX = 50;
-  // @ts-expect-error
-  ctxEvent.clientY = 50;
-  $home.dispatchEvent(ctxEvent);
+    // Open context menu on home
+    const $home = $container.querySelector('.space-item.home');
+    const ctxEvent = new Event('contextmenu', { bubbles: true });
+    // @ts-expect-error
+    ctxEvent.clientX = 50;
+    // @ts-expect-error
+    ctxEvent.clientY = 50;
+    $home.dispatchEvent(ctxEvent);
 
-  // Click Edit
-  const $edit = $container.querySelector('[data-action="edit"]');
-  $edit.click();
+    // Click Edit
+    const $edit = $container.querySelector('[data-action="edit"]');
+    $edit.click();
 
-  await tick(20);
+    await tick(20);
 
-  // Name field should NOT exist
-  const $nameInput = $modalContainer.querySelector('#edit-space-name');
-  t.is($nameInput, null, 'name field is not rendered for home');
+    // Name field should NOT exist
+    const $nameInput = $modalContainer.querySelector('#edit-space-name');
+    t.is($nameInput, null, 'name field is not rendered for home');
 
-  // Icon selector should exist
-  const $iconSelector = $modalContainer.querySelector('.icon-selector');
-  t.truthy($iconSelector, 'icon selector exists');
+    // Icon selector should exist
+    const $iconSelector = $modalContainer.querySelector('.icon-selector');
+    t.truthy($iconSelector, 'icon selector exists');
 
-  // Scheme picker slot should exist
-  const $schemeSlot = $modalContainer.querySelector('#scheme-picker-slot');
-  t.truthy($schemeSlot, 'scheme picker slot exists');
-});
+    // Scheme picker slot should exist
+    const $schemeSlot = $modalContainer.querySelector('#scheme-picker-slot');
+    t.truthy($schemeSlot, 'scheme picker slot exists');
+  },
+);
 
 // ── Test 4: Changing icon and scheme of space 0 stores correctly ──
 
-test.serial('changing home icon/scheme stores at spaces.0 with enforced name/path', async t => {
-  const { $container, $modalContainer, calls, storedValues } = await setupGutter();
+test.serial(
+  'changing home icon/scheme stores at spaces.0 with enforced name/path',
+  async t => {
+    const { $container, $modalContainer, calls, storedValues } =
+      await setupGutter();
 
-  // Open context menu on home
-  const $home = $container.querySelector('.space-item.home');
-  const ctxEvent = new Event('contextmenu', { bubbles: true });
-  // @ts-expect-error
-  ctxEvent.clientX = 50;
-  // @ts-expect-error
-  ctxEvent.clientY = 50;
-  $home.dispatchEvent(ctxEvent);
+    // Open context menu on home
+    const $home = $container.querySelector('.space-item.home');
+    const ctxEvent = new Event('contextmenu', { bubbles: true });
+    // @ts-expect-error
+    ctxEvent.clientX = 50;
+    // @ts-expect-error
+    ctxEvent.clientY = 50;
+    $home.dispatchEvent(ctxEvent);
 
-  // Click Edit
-  const $edit = $container.querySelector('[data-action="edit"]');
-  $edit.click();
-  await tick(20);
+    // Click Edit
+    const $edit = $container.querySelector('[data-action="edit"]');
+    $edit.click();
+    await tick(20);
 
-  // Click a different emoji icon (e.g., the wizard 🧙)
-  const $icons = $modalContainer.querySelectorAll('.icon-option');
-  t.true($icons.length > 0, 'icon options rendered');
-  // Click the first icon option (🧙)
-  $icons[0].click();
-  await tick(10);
+    // Click a different emoji icon (e.g., the wizard 🧙)
+    const $icons = $modalContainer.querySelectorAll('.icon-option');
+    t.true($icons.length > 0, 'icon options rendered');
+    // Click the first icon option (🧙)
+    $icons[0].click();
+    await tick(10);
 
-  // Submit the form
-  const $form = $modalContainer.querySelector('.add-space-form');
-  t.truthy($form, 'form exists');
-  $form.dispatchEvent(new Event('submit', { bubbles: true }));
-  await tick(50);
+    // Submit the form
+    const $form = $modalContainer.querySelector('.add-space-form');
+    t.truthy($form, 'form exists');
+    $form.dispatchEvent(new Event('submit', { bubbles: true }));
+    await tick(50);
 
-  // Check that storeValue was called with ['spaces', '1']
-  const storeCalls = calls.filter(c => c.method === 'storeValue');
-  const homeStoreCall = storeCalls.find(
-    c => c.args[1][0] === 'spaces' && c.args[1][1] === '0',
-  );
-  t.truthy(homeStoreCall, 'storeValue called for spaces.0');
+    // Check that storeValue was called with ['spaces', '1']
+    const storeCalls = calls.filter(c => c.method === 'storeValue');
+    const homeStoreCall = storeCalls.find(
+      c => c.args[1][0] === 'spaces' && c.args[1][1] === '0',
+    );
+    t.truthy(homeStoreCall, 'storeValue called for spaces.0');
 
-  const storedConfig = homeStoreCall.args[0];
-  t.is(storedConfig.name, 'Home', 'name is enforced as Home');
-  t.deepEqual(storedConfig.profilePath, [], 'profilePath is enforced as []');
-  t.is(storedConfig.icon, '🧙', 'icon was changed');
+    const storedConfig = homeStoreCall.args[0];
+    t.is(storedConfig.name, 'Home', 'name is enforced as Home');
+    t.deepEqual(storedConfig.profilePath, [], 'profilePath is enforced as []');
+    t.is(storedConfig.icon, '🧙', 'icon was changed');
 
-  // Verify the rendered home icon updated
-  const $homeIcon = $container.querySelector('.space-item.home .space-icon');
-  t.is($homeIcon.textContent, '🧙', 'rendered icon reflects new value');
-});
+    // Verify the rendered home icon updated
+    const $homeIcon = $container.querySelector('.space-item.home .space-icon');
+    t.is($homeIcon.textContent, '🧙', 'rendered icon reflects new value');
+  },
+);
 
 // ── Test 5: Home config loads from stored space 0 on refresh ──
 
@@ -356,5 +370,8 @@ test.serial('home config loads stored icon/scheme from spaces.0', async t => {
 
   // Name should still be Home (not "Ignored")
   const $home = $container.querySelector('.space-item.home');
-  t.true($home.getAttribute('title').startsWith('Home'), 'home name is enforced');
+  t.true(
+    $home.getAttribute('title').startsWith('Home'),
+    'home name is enforced',
+  );
 });

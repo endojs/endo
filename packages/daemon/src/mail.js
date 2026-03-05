@@ -278,9 +278,7 @@ export const makeMailboxMaker = ({
      * @param {FormulaIdentifier} toId
      */
     const makeForm = async (description, fields, fromId, toId) => {
-      const messageId = /** @type {FormulaNumber} */ (
-        await randomHex256()
-      );
+      const messageId = /** @type {FormulaNumber} */ (await randomHex256());
       return harden({
         type: /** @type {const} */ ('form'),
         from: fromId,
@@ -676,10 +674,7 @@ export const makeMailboxMaker = ({
       }
 
       if (formula.messageType === 'form') {
-        if (
-          formula.description === undefined ||
-          formula.fields === undefined
-        ) {
+        if (formula.description === undefined || formula.fields === undefined) {
           throw new Error('Form message formula is incomplete');
         }
         return harden({
@@ -1411,8 +1406,11 @@ export const makeMailboxMaker = ({
 
     /** @type {Mail['submit']} */
     const submit = async (messageNumber, values) => {
-      const { fields, messageId: formMessageId, guestHandleId } =
-        getForm(messageNumber);
+      const {
+        fields,
+        messageId: formMessageId,
+        guestHandleId,
+      } = getForm(messageNumber);
 
       // Validate that values cover every field and match patterns.
       for (const { name, pattern } of fields) {

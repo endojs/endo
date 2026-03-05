@@ -2005,9 +2005,7 @@ const makeDaemonCore = async (
           console.log(
             `addPeerInfo: new peer for node ${nodeNumber.slice(0, 16)}... with ${addresses.length} address(es)`,
           );
-          console.log(
-            `addPeerInfo:   addresses=${JSON.stringify(addresses)}`,
-          );
+          console.log(`addPeerInfo:   addresses=${JSON.stringify(addresses)}`);
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(networksId, nodeNumber, addresses);
