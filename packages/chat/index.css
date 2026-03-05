@@ -1325,6 +1325,11 @@ body.resizing * {
   flex: 0 0 auto;
 }
 
+/* The field wrapper around a message-number input should not grow */
+.inline-field:has(.message-number-input) {
+  flex: 0 0 auto;
+}
+
 /* Message field (contenteditable) for inline commands like /reply */
 .message-field-wrapper {
   flex: 1;
@@ -5176,4 +5181,18 @@ button.btn-spinner::after {
   color: var(--text-primary);
   font-style: normal;
   font-weight: 600;
+}
+
+/* ============================
+   Focus Message Mode
+   ============================ */
+
+.focus-active .message {
+  margin-left: 4ex;
+  transition: margin-left 150ms ease;
+}
+
+.focus-active .message.focused {
+  margin-left: 0;
+  box-shadow: 0 0 0 2px var(--accent-primary);
 }

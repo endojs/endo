@@ -152,7 +152,7 @@ export const chatBarComponent = (
     $chatBar.classList.add('has-modeline');
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form' | 'focus'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -591,8 +591,9 @@ export const chatBarComponent = (
   /**
    * Enter command mode for an inline command.
    * @param {string} commandName
+   * @param {Record<string, string>} [prefill] - Optional field values to pre-fill
    */
-  const enterCommandMode = commandName => {
+  const enterCommandMode = (commandName, prefill) => {
     const command = getCommand(commandName);
     if (!command) return;
 
@@ -604,7 +605,7 @@ export const chatBarComponent = (
     $commandSubmitButton.disabled = true;
     updateModeline(commandName);
 
-    inlineForm.setCommand(commandName);
+    inlineForm.setCommand(commandName, prefill);
 
     // Auto-enable message picker for commands that need message numbers
     const needsMessagePicker = command.fields.some(
@@ -625,9 +626,11 @@ export const chatBarComponent = (
       }, 50);
     }
 
-    // Focus the first field after a brief delay for DOM update
+    // Focus the first field after a brief delay for DOM update.
+    // When prefill is provided, skip past filled fields.
+    const skipFilled = prefill !== undefined;
     setTimeout(() => {
-      inlineForm.focus();
+      inlineForm.focus(skipFilled);
     }, 50);
   };
 
@@ -647,6 +650,144 @@ export const chatBarComponent = (
     $error.textContent = '';
     $commandError.textContent = '';
     updateHasContent();
+  };
+
+  // --- Focus mode ---
+
+  /** Shortcut keys mapped to command names for focus mode. */
+  const FOCUS_SHORTCUTS = {
+    r: 'reply',
+    d: 'dismiss',
+    a: 'adopt',
+    g: 'grant',
+    s: 'submit',
+  };
+
+  /**
+   * Enter focus mode: highlight the last message and show the focus modeline.
+   */
+  const enterFocusMode = () => {
+    const $messages = $messagesContainer.querySelectorAll('.message[data-number]');
+    if ($messages.length === 0) return;
+
+    mode = 'focus';
+    $input.blur();
+    $messagesContainer.classList.add('focus-active');
+
+    // Focus the last message
+    const $last = /** @type {HTMLElement} */ ($messages[$messages.length - 1]);
+    $last.classList.add('focused');
+    $last.scrollIntoView({ block: 'nearest' });
+
+    updateFocusModeline(); // eslint-disable-line no-use-before-define
+  };
+
+  /**
+   * Exit focus mode: remove highlights and return to send mode.
+   */
+  const exitFocusMode = () => {
+    mode = 'send';
+    $messagesContainer.classList.remove('focus-active');
+    const $focused = $messagesContainer.querySelector('.message.focused');
+    if ($focused) {
+      $focused.classList.remove('focused');
+    }
+    updateModeline(null);
+    sendForm.focus();
+    updateHasContent();
+  };
+
+  /**
+   * Move focus to the next or previous message.
+   * @param {'up' | 'down'} direction
+   * @param {boolean} [page] - If true, jump by half a viewport
+   */
+  const moveFocus = (direction, page = false) => {
+    const $messages = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message[data-number]')
+    );
+    if ($messages.length === 0) return;
+
+    const $current = $messagesContainer.querySelector('.message.focused');
+    let index = $messages.length - 1;
+    if ($current) {
+      for (let i = 0; i < $messages.length; i += 1) {
+        if ($messages[i] === $current) {
+          index = i;
+          break;
+        }
+      }
+      $current.classList.remove('focused');
+    }
+
+    const step = page ? pageFocusStep($messages, index, direction) : 1;
+    if (direction === 'up') {
+      index = Math.max(0, index - step);
+    } else {
+      index = Math.min($messages.length - 1, index + step);
+    }
+
+    $messages[index].classList.add('focused');
+    // At the edges, scroll the container to its limit so the focused
+    // message aligns flush with the viewport edge. scrollIntoView with
+    // 'nearest' does not reliably do this inside the #messages container
+    // which uses large top padding.
+    if (index === $messages.length - 1 && direction === 'down') {
+      $messagesContainer.scrollTo(0, $messagesContainer.scrollHeight);
+    } else if (index === 0 && direction === 'up') {
+      $messagesContainer.scrollTo(0, 0);
+    } else {
+      $messages[index].scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  /**
+   * Count how many messages to skip to move roughly half a viewport,
+   * by accumulating actual rendered heights from the current position.
+   * @param {NodeListOf<HTMLElement>} $messages
+   * @param {number} fromIndex - Current focused index
+   * @param {'up' | 'down'} direction
+   * @returns {number} Step count (at least 1)
+   */
+  const pageFocusStep = ($messages, fromIndex, direction) => {
+    const budget = $messagesContainer.clientHeight / 2;
+    let accumulated = 0;
+    let count = 0;
+    const delta = direction === 'up' ? -1 : 1;
+    let i = fromIndex + delta;
+    while (i >= 0 && i < $messages.length) {
+      accumulated += $messages[i].offsetHeight + 8; // 8px margin-bottom
+      count += 1;
+      if (accumulated >= budget) break;
+      i += delta;
+    }
+    return Math.max(1, count);
+  };
+
+  /**
+   * Get the message number of the currently focused message.
+   * @returns {string | undefined}
+   */
+  const getFocusedMessageNumber = () => {
+    const $focused = /** @type {HTMLElement | null} */ (
+      $messagesContainer.querySelector('.message.focused')
+    );
+    return $focused?.dataset.number;
+  };
+
+  /**
+   * Update the modeline for focus mode.
+   */
+  const updateFocusModeline = () => {
+    $modeline.innerHTML = `
+      <span class="modeline-hint"><kbd>r</kbd> reply</span>
+      <span class="modeline-hint"><kbd>d</kbd> dismiss</span>
+      <span class="modeline-hint"><kbd>a</kbd> adopt</span>
+      <span class="modeline-hint"><kbd>g</kbd> grant</span>
+      <span class="modeline-hint"><kbd>s</kbd> submit</span>
+      <span class="modeline-hint"><kbd>Esc</kbd> back</span>
+    `;
+    $chatBar.classList.add('has-modeline');
   };
 
   /**
@@ -962,8 +1103,21 @@ export const chatBarComponent = (
     }
   });
 
-  // Handle keydown for command selection navigation
+  // Handle keydown for command selection navigation and focus mode entry
   $input.addEventListener('keydown', event => {
+    // ⌘↑ / Ctrl+↑ to enter focus mode from empty send input
+    if (
+      mode === 'send' &&
+      event.key === 'ArrowUp' &&
+      (event.metaKey || event.ctrlKey) &&
+      sendForm.getState().isEmpty
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      enterFocusMode();
+      return;
+    }
+
     if (mode === 'selecting' && commandSelector.isVisible()) {
       switch (event.key) {
         case 'ArrowDown':
@@ -1011,8 +1165,56 @@ export const chatBarComponent = (
     }
   });
 
-  // Global escape key handler
+  // Global escape key handler and focus mode keyboard handler
   window.addEventListener('keydown', event => {
+    // Focus mode keyboard handling
+    if (mode === 'focus') {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        exitFocusMode();
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveFocus('up');
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        // If already on the last message, exit focus mode back to command line
+        const $msgs = $messagesContainer.querySelectorAll('.message[data-number]');
+        const $foc = $messagesContainer.querySelector('.message.focused');
+        if ($msgs.length > 0 && $foc === $msgs[$msgs.length - 1]) {
+          exitFocusMode();
+        } else {
+          moveFocus('down');
+        }
+        return;
+      }
+      if (event.key === 'PageUp') {
+        event.preventDefault();
+        moveFocus('up', true);
+        return;
+      }
+      if (event.key === 'PageDown') {
+        event.preventDefault();
+        moveFocus('down', true);
+        return;
+      }
+      // Single-letter shortcut keys
+      const commandName = FOCUS_SHORTCUTS[event.key];
+      if (commandName) {
+        event.preventDefault();
+        const messageNumber = getFocusedMessageNumber();
+        if (messageNumber) {
+          exitFocusMode();
+          enterCommandMode(commandName, { messageNumber });
+        }
+        return;
+      }
+      return;
+    }
+
     if (event.key === 'Escape') {
       if (helpModal.isVisible()) {
         event.preventDefault();
@@ -1044,7 +1246,7 @@ export const chatBarComponent = (
 
   // Focus command line on any keypress when nothing else is focused
   window.addEventListener('keydown', event => {
-    // Skip if in command mode or if already focused on an interactive element
+    // Skip if not in send mode (command mode, focus mode, etc.)
     if (mode !== 'send') return;
 
     const active = document.activeElement;

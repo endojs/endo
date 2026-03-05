@@ -80,6 +80,7 @@ export const inboxComponent = async (
 
     const $message = document.createElement('div');
     $message.className = isSent ? 'message sent' : 'message';
+    $message.dataset.number = String(number);
 
     const $error = document.createElement('span');
     $error.style.color = 'red';
