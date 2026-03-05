@@ -98,17 +98,30 @@ export type PackageDependenciesHook = (params: {
  * The `moduleSource` property value for {@link ModuleSourceHook}
  */
 export type ModuleSourceHookModuleSource =
-  | {
-      location: FileUrlString;
-      language: Language;
-      bytes: Uint8Array;
-      imports?: string[] | undefined;
-      exports?: string[] | undefined;
-      reexports?: string[] | undefined;
-      sha512?: string | undefined;
-    }
-  | { error: string }
-  | { exit: string };
+  | ModuleSourceHookFileModuleSource
+  | ModuleSourceHookExitModuleSource;
+
+/**
+ * The `moduleSource` property value for {@link ModuleSourceHook} for a module
+ * on disk
+ */
+export type ModuleSourceHookFileModuleSource = {
+  location: FileUrlString;
+  language: Language;
+  bytes: Uint8Array;
+  imports?: string[] | undefined;
+  exports?: string[] | undefined;
+  reexports?: string[] | undefined;
+  sha512?: string | undefined;
+};
+
+/**
+ * The `moduleSource` property value for {@link ModuleSourceHook} for an exit
+ * module (virtual)
+ */
+export type ModuleSourceHookExitModuleSource = {
+  exit: string;
+};
 
 /**
  * Hook executed when processing a module source.
