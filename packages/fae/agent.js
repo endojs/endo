@@ -119,15 +119,21 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   // Built-in tools: petname ops + mail (no filesystem tools for guest)
   /** @type {Map<string, object>} */
   const localTools = new Map();
+
+  // petname tools
   localTools.set('list', makeListPetnamesTool(powers));
   localTools.set('lookup', makeLookupTool(powers));
   localTools.set('store', makeStoreTool(powers));
   localTools.set('remove', makeRemoveTool(powers));
-  localTools.set('adoptTool', makeAdoptToolTool(powers));
+
+  // messaging tools
   localTools.set('send', makeSendTool(powers));
   localTools.set('reply', makeReplyTool(powers));
   localTools.set('listMessages', makeListMessagesTool(powers));
   localTools.set('dismiss', makeDismissTool(powers));
+
+  // tooling tool
+  localTools.set('adoptTool', makeAdoptToolTool(powers));
 
   /**
    * Process tool calls from the LLM response.
@@ -262,21 +268,30 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
 
     try {
       const topNames = /** @type {string[]} */ (await E(powers).list());
+
+      // TODO parallel
+
       for (const name of topNames) {
+
         if (name === 'tools' || specialNamePattern.test(name)) {
           continue;
         }
+
         try {
+
           const entry = await E(powers).lookup([name]);
-          await E(entry).schema();
-          await E(entry).help();
+          await E(entry).schema(); // quack
+          await E(entry).help(); // quack
+
           // Looks like a FaeTool — move it into tools/
           await E(powers).copy([name], ['tools', name]);
           await E(powers).remove(name);
           console.log(`[fae] Moved introduced tool "${name}" into tools/`);
+
         } catch {
           // Not a FaeTool; leave it alone.
         }
+
       }
     } catch {
       // list() failed; skip initialization.
@@ -498,6 +513,7 @@ export const make = (guestPowers, _context) => {
           console.error(`[fae] Worker "${name}" error:`, error);
           activeWorkers.delete(name);
         });
+        // TODO should the workerP.then( also => delete )?
 
         await E(powers).reply(
           msg.number,
