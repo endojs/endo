@@ -52,7 +52,8 @@
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [lal-fae-form-provisioning](lal-fae-form-provisioning.md) | 2026-03-02 | 2026-03-02 | Not Started |
-| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-02-28 | In Progress (phases 1-4 complete) |
+| [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-03-05 | **Complete** |
+| [lal-transcript-memory-management](lal-transcript-memory-management.md) | 2026-03-05 | 2026-03-05 | Not Started |
 | [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
@@ -60,7 +61,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 16 Complete, 5 In Progress, 31 Not Started, 1 Reference
+**Totals:** 17 Complete, 4 In Progress, 32 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -83,7 +84,7 @@ flowchart TD
     end
 
     subgraph LLM Agents
-        laltx[lal-reply-chain-transcripts<br/><i>IN PROGRESS</i>]
+        laltx[lal-reply-chain-transcripts<br/><i>COMPLETE</i>]
         lalfp[lal-fae-form-provisioning]
         fagent[familiar-bundled-agents]
         dtools[daemon-agent-tools]
@@ -175,7 +176,7 @@ their own API key and local capabilities.
 | ~~daemon-256-bit-identifiers~~ | **Complete** | Core migration done |
 | ~~daemon-form-request~~ | **Complete** | Fields as ordered array, CLI, Chat UI |
 | ~~daemon-value-message~~ | **Complete** | `value` type, persistence, `submit()` delivery, Chat rendering, standalone `sendValue`, `send-value` CLI, daemon tests all done |
-| lal-reply-chain-transcripts | In Progress | Phases 1-4 complete |
+| ~~lal-reply-chain-transcripts~~ | **Complete** | Phases 1-4 implemented; Phase 5 (memory management) deferred as out-of-scope |
 | ~~familiar-daemon-bundling~~ | **Complete** | esbuild bundles, Node download, Forge integration |
 | lal-fae-form-provisioning | Not Started | Manager/worker refactor, form-based config |
 | familiar-bundled-agents | Not Started | Bundle Lal/Fae into Familiar via esbuild; no native deps |
@@ -186,7 +187,7 @@ at least one platform that folks can download and use to interact with an
 agent using their own API key and local capabilities. Agents can post
 desktop notifications when tasks complete.
 
-**Estimated duration (1 dev):** 1.5-2.5 weeks
+**Estimated duration (1 dev):** 1-2 weeks
 
 ---
 
@@ -251,9 +252,11 @@ keypairs.
 | formula-inspector | Not Started | New panel, daemon API exposure |
 | workers-panel | Not Started | Metrics, sparklines |
 | live-reference-indicator | Not Started | Incarnation status API + UI |
+| lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
-Developer tools (inspector, workers panel) available.
+Developer tools (inspector, workers panel) available. Agent transcript
+memory is bounded.
 
 **Estimated duration (1 dev):** 3-4.5 weeks
 
@@ -360,7 +363,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~daemon-256-bit-identifiers~~ | — | — | 0 | ✅ Complete (1 day actual) |
 | ~~daemon-form-request~~ | — | — | 0 | ✅ Complete (5 days actual) |
 | ~~daemon-value-message~~ | — | — | 0 | ✅ Complete |
-| lal-reply-chain-transcripts | S | 1 day | 0 | Remaining: phase 5 |
+| ~~lal-reply-chain-transcripts~~ | — | — | 0 | ✅ Complete (phases 1-4; phase 5 deferred) |
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | lal-fae-form-provisioning | M | 3-4 days | 0 | Manager/worker refactor, 4 phases |
 | familiar-bundled-agents | S-M | 2-3 days | 0 | esbuild entries, special formulas; no native deps |
@@ -383,6 +386,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | formula-inspector | M | 3-4 days | 3 | New panel, daemon API |
 | workers-panel | M | 3-5 days | 3 | Metrics, sparklines |
 | live-reference-indicator | M | 3-4 days | 3 | Incarnation status API + UI |
+| lal-transcript-memory-management | S | 1 day | 3 | Durable message-to-node mapping, broken chain detection |
 | familiar-unified-weblet-server | M | 2-3 days | 4 | Web-server restructuring |
 | familiar-chat-weblet-hosting | M | 3-4 days | 4 | Iframe hosting, guest profiles |
 | daemon-weblet-application | M | 3-4 days | 4 | Formula types, gateway serving |
@@ -401,13 +405,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 4 remaining | 1.5-2.5 weeks |
+| M0: AI Agent Experience | 3 remaining | 1-2 weeks |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
-| M3: UX & Tooling | 6 | 3-4.5 weeks |
+| M3: UX & Tooling | 7 | 3-4.5 weeks |
 | M4: Weblets & Integrations | 7 | 4-6 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **36** | **~23.5-34.5 weeks** |
+| **Total remaining** | **36** | **~23-34 weeks** |
 
 ### Timeline
 
@@ -437,7 +441,7 @@ gantt
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M0: AI Agent Experience | 1.5-2.5 weeks | 1.5-2.5 weeks | Mid-Late March 2026 |
+| M0: AI Agent Experience | 1-2 weeks | 1-2 weeks | Mid March 2026 |
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
 | M3: UX & Tooling | 3-4.5 weeks | 12-16.5 weeks | Late June 2026 |
@@ -459,11 +463,13 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-05:** 16 of 53 designs complete.
+**Progress as of 2026-03-05:** 17 of 54 designs complete.
 15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
 Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
 persistence, `submit()` delivery, standalone `sendValue`, CLI, tests).
 `familiar-daemon-bundling` complete (esbuild bundles, Node download,
 Forge integration, dev/packaged path resolution all implemented).
+`lal-reply-chain-transcripts` complete (phases 1-4 implemented; phase 5
+memory management deferred as out-of-scope future work).
 `lal-fae-form-provisioning` designed and ready for implementation.
