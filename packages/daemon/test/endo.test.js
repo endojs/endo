@@ -3680,3 +3680,39 @@ test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
   ]);
   t.deepEqual(resultValue, { displayName: 'Bob' });
 });
+
+test.serial('formula write failure does not leak into graph', async t => {
+  const { cancelled, config, host } = await prepareHost(t);
+
+  // Record names before the failed operation.
+  const namesBefore = await E(host).list();
+
+  // Make the formulas directory read-only so writeFormula fails.
+  const formulasDir = path.join(config.statePath, 'formulas');
+  await fs.promises.chmod(formulasDir, 0o444);
+
+  try {
+    // provideGuest triggers formulate() for several sub-formulas.
+    // With the formulas directory read-only, writeFormula should fail
+    // and the error should propagate without leaving orphaned state.
+    await t.throwsAsync(() => E(host).provideGuest('doomed-guest'), {
+      message: /permission denied|EACCES|EPERM/i,
+    });
+  } finally {
+    // Restore write permissions so teardown can clean up.
+    await fs.promises.chmod(formulasDir, 0o755);
+  }
+
+  // The host should still be operational.
+  const namesAfter = await E(host).list();
+  t.deepEqual(
+    namesAfter,
+    namesBefore,
+    'No new names should appear after a failed provideGuest',
+  );
+
+  // A subsequent provideGuest should succeed now that writes work again.
+  await E(host).provideGuest('healthy-guest');
+  const namesWithGuest = await E(host).list();
+  t.true(namesWithGuest.includes('healthy-guest'));
+});

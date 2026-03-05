@@ -2213,6 +2213,11 @@ const makeDaemonCore = async (
       node: localNodeNumber,
     });
 
+    // Persist to disk before the formula becomes visible in the graph.
+    // This ensures that retries and reincarnation can always read the
+    // formula JSON, even if evaluation fails immediately.
+    await persistencePowers.writeFormula(formulaNumber, formula);
+
     await withFormulaGraphLock(async () => {
       formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
       formulaForId.set(id, formula);
@@ -2235,13 +2240,9 @@ const makeDaemonCore = async (
     });
     controllerForId.set(id, controller);
 
-    // Ensure that failure to flush the formula to storage
-    // causes a rejection for both the controller and the value.
-    const written = persistencePowers.writeFormula(formulaNumber, formula);
     // The controller _must_ be constructed in the synchronous prelude of this function.
     const valuePromise = evaluateFormula(id, formulaNumber, formula, context);
-    resolve(written.then(() => valuePromise));
-    await written;
+    resolve(valuePromise);
 
     return harden({
       id,

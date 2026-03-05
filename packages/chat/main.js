@@ -1,5 +1,5 @@
 // @ts-check
-/* global document, window, setTimeout */
+/* global document, window, setTimeout, clearTimeout */
 
 // Import SES to make `harden` available globally.
 // We use `ses` directly (not `@endo/init`) so that intrinsics are NOT frozen,
@@ -13,45 +13,45 @@ import { make } from './chat.js';
 
 const RECONNECT_INTERVAL_MS = 5000;
 
-// Runtime config: prefer URL fragment params (Electron/Familiar passes config
-// as a fragment so the agent ID is never sent on the wire in an HTTP request),
-// fall back to Vite env.
+// Runtime config from the URL fragment.  Both the Vite dev plugin
+// (/dev redirect) and the Familiar (Electron) place the gateway address
+// and agent ID in the fragment so the bearer-token-like agent ID is
+// never sent over HTTP.
 const urlParams = new URLSearchParams(window.location.hash.slice(1));
-// @ts-expect-error Vite injects env at build time
-const gateway = urlParams.get('gateway') || import.meta.env.ENDO_GATEWAY;
-// @ts-expect-error Vite injects env at build time
-const agent = urlParams.get('agent') || import.meta.env.ENDO_AGENT;
+const gateway = urlParams.get('gateway');
+const agent = urlParams.get('agent');
+
+// If the fragment doesn't contain config, try the Vite /dev endpoint
+// which will redirect back with the config in the fragment.
+// Guard against infinite loops: only attempt the redirect once per page load.
+if (!gateway || !agent) {
+  if (!sessionStorage.getItem('endo-dev-attempted')) {
+    sessionStorage.setItem('endo-dev-attempted', '1');
+    console.log('[Chat] No config in fragment, trying /dev...');
+    window.location.href = '/dev';
+    throw new Error('Redirecting to /dev');
+  }
+  sessionStorage.removeItem('endo-dev-attempted');
+  document.body.innerHTML = `
+    <h1>Gateway not configured</h1>
+    <p>Run via <code>yarn dev</code> (Vite) or the Familiar app.</p>
+  `;
+  throw new Error('Gateway not configured');
+}
+sessionStorage.removeItem('endo-dev-attempted');
 
 console.log('[Chat] Starting application...');
 console.log(`[Chat] Gateway: ${gateway}`);
-console.log(
-  `[Chat] Agent: ${agent ? `${String(agent).slice(0, 16)}...` : '(not set)'}`,
-);
+console.log(`[Chat] Agent: ${agent.slice(0, 16)}...`);
 
-if (!gateway) {
-  document.body.innerHTML = `
-    <h1>❌ Gateway not configured</h1>
-    <p>Configuration should be injected by the Vite Endo plugin or the Familiar.</p>
-    <p>Make sure you're running with <code>yarn dev</code> or via the Familiar.</p>
-  `;
-  throw new Error('Gateway not configured - running via Vite or Familiar?');
-}
-
-if (!agent) {
-  document.body.innerHTML = `
-    <h1>❌ Agent not configured</h1>
-    <p>Configuration should be injected by the Vite Endo plugin or the Familiar.</p>
-    <p>Make sure you're running with <code>yarn dev</code> or via the Familiar.</p>
-  `;
-  throw new Error('Agent not configured - running via Vite or Familiar?');
-}
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let countdownTimer;
 
 /**
  * Show reconnecting UI overlay.
  * @param {string} message
  */
 const showReconnecting = message => {
-  // Create or update reconnecting overlay
   let overlay = document.getElementById('reconnect-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -70,12 +70,24 @@ const showReconnecting = message => {
     `;
     document.body.appendChild(overlay);
   }
+
   overlay.innerHTML = `
-    <h1 style="margin: 0 0 16px; font-size: 24px;">🔄 Reconnecting...</h1>
+    <h1 style="margin: 0 0 16px; font-size: 24px;">🔄 Reconnecting…</h1>
     <p style="margin: 0 0 8px; opacity: 0.8;">${message}</p>
-    <p style="margin: 0; font-size: 14px; opacity: 0.6;">Retrying every ${RECONNECT_INTERVAL_MS / 1000} seconds</p>
+    <p id="reconnect-status" style="margin: 0; font-size: 14px; opacity: 0.6;"></p>
   `;
   overlay.style.display = 'flex';
+};
+
+/**
+ * Update the status line on the reconnecting overlay.
+ * @param {string} text
+ */
+const setReconnectStatus = text => {
+  const el = document.getElementById('reconnect-status');
+  if (el) {
+    el.textContent = text;
+  }
 };
 
 /**
@@ -86,23 +98,53 @@ const hideReconnecting = () => {
   if (overlay) {
     overlay.style.display = 'none';
   }
+  if (countdownTimer !== undefined) {
+    clearTimeout(countdownTimer);
+    countdownTimer = undefined;
+  }
 };
 
 /**
- * Schedule a reconnection attempt.
+ * Poll /health until the Vite dev server is reachable, then navigate
+ * to /dev to pick up fresh credentials for the (possibly restarted) daemon.
+ *
+ * Counts down to each attempt, shows "Reconnecting…" during the fetch,
+ * and restarts the countdown if the attempt fails.
  */
-/**
- * Schedule a reconnection attempt.
- * @param {() => Promise<void>} reconnect
- */
-function scheduleReconnect(reconnect) {
-  setTimeout(() => {
-    reconnect().catch(error => {
-      console.error('[Chat] Reconnection failed:', error);
-      showReconnecting(/** @type {Error} */ (error).message);
-      scheduleReconnect(reconnect);
-    });
-  }, RECONNECT_INTERVAL_MS);
+function pollHealthThenReconnect() {
+  const totalSeconds = RECONNECT_INTERVAL_MS / 1000;
+
+  const poll = () => {
+    setReconnectStatus('Reconnecting…');
+    fetch('/health')
+      .then(res => {
+        if (res.ok) {
+          console.log('[Chat] Server healthy, reconnecting via /dev...');
+          window.location.href = '/dev';
+        } else {
+          countdown();
+        }
+      })
+      .catch(() => {
+        countdown();
+      });
+  };
+
+  const countdown = () => {
+    let remaining = totalSeconds;
+    const tick = () => {
+      if (remaining <= 0) {
+        poll();
+        return;
+      }
+      setReconnectStatus(`Retrying in ${remaining}s`);
+      remaining -= 1;
+      countdownTimer = setTimeout(tick, 1000);
+    };
+    tick();
+  };
+
+  countdown();
 }
 
 /**
@@ -111,35 +153,24 @@ function scheduleReconnect(reconnect) {
  */
 async function connectAndRun() {
   document.body.innerHTML = `
-    <h1>🔌 Connecting to Endo Gateway...</h1>
+    <h1>Connecting to Endo Gateway…</h1>
     <p>Gateway: <code>${gateway}</code></p>
-    <p><em>Check browser console for detailed connection logs</em></p>
   `;
 
-  // Retry loop for initial connection
-  let connection;
+  const connection = connectToGateway({
+    gateway: String(gateway),
+    agent: String(agent),
+  });
+
   let powers;
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    connection = connectToGateway({
-      gateway: String(gateway),
-      agent: String(agent),
-    });
-
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      powers = await connection.powers;
-      console.log('[Chat] Host powers received, initializing UI...');
-      hideReconnecting();
-      break;
-    } catch (error) {
-      console.error('[Chat] Failed to connect:', error);
-      showReconnecting(/** @type {Error} */ (error).message);
-      // Wait before retrying
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise(resolve => setTimeout(resolve, RECONNECT_INTERVAL_MS));
-    }
+  try {
+    powers = await connection.powers;
+    console.log('[Chat] Host powers received, initializing UI...');
+  } catch (error) {
+    console.error('[Chat] Failed to connect:', error);
+    showReconnecting(/** @type {Error} */ (error).message);
+    pollHealthThenReconnect();
+    return;
   }
 
   // Initialize the chat UI
@@ -147,17 +178,18 @@ async function connectAndRun() {
   await make(powers);
   console.log('[Chat] UI initialized successfully');
 
-  // Watch for disconnection and reconnect
+  // On disconnect, poll /health until the server is back, then navigate
+  // to /dev to pick up fresh credentials for the (possibly restarted) daemon.
   connection.closed.then(
     () => {
-      console.log('[Chat] Connection closed, will reconnect...');
+      console.log('[Chat] Connection closed, waiting for server...');
       showReconnecting('Connection lost');
-      scheduleReconnect(connectAndRun);
+      pollHealthThenReconnect();
     },
     error => {
       console.error('[Chat] Connection error:', error);
-      showReconnecting(error.message);
-      scheduleReconnect(connectAndRun);
+      showReconnecting(/** @type {Error} */ (error).message);
+      pollHealthThenReconnect();
     },
   );
 }

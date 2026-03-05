@@ -19,7 +19,7 @@
 import '@endo/init';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
-import { make } from '../../agent.js';
+import { spawnWorkerLoop } from '../../agent.js';
 import { makeMockPowers } from './mock-powers.js';
 
 const TIMEOUT_MS = 120_000;
@@ -88,7 +88,10 @@ async function main() {
     },
   });
 
-  make(powers, null, { env });
+  // Spawn the worker loop directly with env-based config.
+  spawnWorkerLoop(powers, null, env).catch(error => {
+    console.error('[simulator] Worker error:', error.message);
+  });
 
   const done = whenDismissed(1);
   const timeout = new Promise((_, reject) => {
@@ -115,7 +118,7 @@ async function main() {
     }
     console.log('[simulator] Done.');
   } catch (err) {
-    console.error('[simulator] Error:', err.message);
+    console.error('[simulator] Error:', /** @type {Error} */ (err).message);
     process.exitCode = 1;
   }
 }
