@@ -13,7 +13,7 @@ import { parseBigint } from '../number-parse.js';
  */
 const parseValues = fieldArgs => {
   /** @type {Record<string, string>} */
-  const values = Object.create(null);
+  const values = {};
   for (const arg of fieldArgs) {
     const colonIndex = arg.indexOf(':');
     if (colonIndex === -1) {

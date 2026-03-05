@@ -13,13 +13,13 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /**
  * @typedef {object} InlineCommandFormAPI
- * @property {(commandName: string) => void} setCommand - Set the active command
+ * @property {(commandName: string, prefill?: Record<string, string>) => void} setCommand - Set the active command
  * @property {() => string | null} getCommand - Get current command name
  * @property {() => Record<string, unknown>} getData - Get form data
  * @property {() => boolean} isValid - Check if form is valid
  * @property {(disabled: boolean) => void} setDisabled - Disable or enable all fields
  * @property {() => void} clear - Clear the form
- * @property {() => void} focus - Focus the first field
+ * @property {(skipFilled?: boolean) => void} focus - Focus the first field (or first empty field if skipFilled)
  * @property {() => void} dispose - Clean up
  */
 
@@ -213,6 +213,7 @@ export const createInlineCommandForm = ({
 
         $wrapper.appendChild($input);
         fieldElements.push($input);
+        fieldInputsByName[field.name] = $input;
         break;
       }
 
@@ -546,8 +547,9 @@ export const createInlineCommandForm = ({
   /**
    * Set the active command and render its form.
    * @param {string} commandName
+   * @param {Record<string, string>} [prefill] - Optional field values to pre-fill
    */
-  const setCommand = commandName => {
+  const setCommand = (commandName, prefill) => {
     // Clean up previous
     dispose();
 
@@ -626,6 +628,18 @@ export const createInlineCommandForm = ({
 
     $container.appendChild($form);
 
+    // Apply prefill values if provided
+    if (prefill) {
+      for (const [fieldName, value] of Object.entries(prefill)) {
+        const $input = fieldInputsByName[fieldName];
+        if ($input) {
+          $input.value = value;
+          formData[fieldName] = $input.type === 'number' ? Number(value) : value;
+          $input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+
     // Handle keyboard
     $form.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
@@ -672,9 +686,10 @@ export const createInlineCommandForm = ({
   };
 
   /**
-   * Focus the first field.
+   * Focus the first field, or the first empty field when `skipFilled` is true.
+   * @param {boolean} [skipFilled] - If true, skip fields that already have values
    */
-  const focus = () => {
+  const focus = (skipFilled = false) => {
     // Special handling for eval (handles aliases like 'eval' -> 'js')
     if (inlineEvalInstance) {
       inlineEvalInstance.focus();
@@ -682,6 +697,15 @@ export const createInlineCommandForm = ({
     }
 
     if (fieldElements.length > 0) {
+      if (skipFilled) {
+        for (const $el of fieldElements) {
+          const val = /** @type {HTMLInputElement} */ ($el).value;
+          if (!val) {
+            $el.focus();
+            return;
+          }
+        }
+      }
       fieldElements[0].focus();
       return;
     }

@@ -95,24 +95,18 @@ export type ProposalNotification = {
   error?: string;
 };
 
-/** Environment variables for configuring the LLM provider */
-export type LalEnv = {
-  LAL_HOST?: string;
-  LAL_MODEL?: string;
-  LAL_AUTH_TOKEN?: string;
-  LAL_MAX_TOKENS?: string;
-  LAL_MAX_MESSAGES?: string;
+/** Configuration for a worker spawned from a form submission */
+export type WorkerConfig = {
+  name: string;
+  host: string;
+  model: string;
+  authToken: string;
 };
 
 /** Context object for cancellation support */
 export type LalContext = {
   whenCancelled?: () => Promise<void>;
   cancelled?: Promise<void>;
-};
-
-/** Options passed to the make function */
-export type LalOptions = {
-  env: LalEnv;
 };
 
 /**

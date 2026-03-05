@@ -183,6 +183,22 @@ const main = async () => {
     }
 
     informParentWhenReady();
+
+    // Run ENDO_EXTRA bootstrap scripts (e.g., lal/fae setup for dev mode).
+    const extraSpecifiers = (process.env.ENDO_EXTRA || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    for (const specifier of extraSpecifiers) {
+      try {
+        console.log(`Endo extra: running ${specifier}`);
+        const namespace = await import(specifier);
+        await namespace.main(host);
+        console.log(`Endo extra: ${specifier} done`);
+      } catch (error) {
+        console.error(`Endo extra: ${specifier} failed:`, error);
+      }
+    }
   } catch (error) {
     reportErrorToParent(/** @type {Error} */ (error).message);
     throw error;

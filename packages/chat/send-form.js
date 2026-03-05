@@ -44,7 +44,6 @@ import { createHeatBar } from './heat-bar.js';
  * @param {(state: SendFormState) => void} [options.onStateChange] - Called when input state changes
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
- * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  * @returns {SendFormAPI}
  */
@@ -62,7 +61,6 @@ export const sendFormComponent = ({
   onStateChange,
   getConversationPetName,
   navigateToConversation,
-  getMoiMessageNumber,
   getChannelRef,
 }) => {
   const clearError = () => {
@@ -261,12 +259,8 @@ export const sendFormComponent = ({
         return s;
       });
 
-      const replyTo = getMoiMessageNumber ? getMoiMessageNumber() : undefined;
-      const replyToStr =
-        replyTo !== undefined ? String(replyTo) : undefined;
-
       E(channelRef)
-        .post(messageStrings, edgeNames, petNames, replyToStr)
+        .post(messageStrings, edgeNames, petNames)
         .then(
           () => {
             tokenComponent.clear();
@@ -303,16 +297,12 @@ export const sendFormComponent = ({
       });
 
       setSubmitting(true);
-      const replyToNumber = getMoiMessageNumber
-        ? getMoiMessageNumber()
-        : undefined;
       E(powers)
         .send(
           conversationPetName,
           messageStrings,
           edgeNames,
           petNames,
-          replyToNumber,
         )
         .then(
           () => {
@@ -398,11 +388,8 @@ export const sendFormComponent = ({
     const navigateAfterSend = firstStringEmpty && petNames.length > 0;
 
     setSubmitting(true);
-    const replyToNum = getMoiMessageNumber
-      ? getMoiMessageNumber()
-      : undefined;
     E(powers)
-      .send(to, messageStrings, messageEdgeNames, messagePetNames, replyToNum)
+      .send(to, messageStrings, messageEdgeNames, messagePetNames)
       .then(
         () => {
           lastRecipient = to;

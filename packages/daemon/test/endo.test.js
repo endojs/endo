@@ -3343,7 +3343,7 @@ testShim(
       );
     }
 
-    await restart(config);
+    await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
 
     {
       const { host } = await makeHost(config, cancelled);
@@ -3356,3 +3356,379 @@ testShim(
     }
   },
 );
+
+// ============ FORM REQUEST TESTS ============
+
+test('form happy path: guest sends form, host submits', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Follow messages on both sides
+  const hostIteratorRef = E(host).followMessages();
+  const guestIteratorRef = E(guest).followMessages();
+
+  // Guest sends a form to the host (fire-and-forget)
+  await E(guest).form(
+    'HOST',
+    'Please configure',
+    harden({
+      name: { label: 'Your name' },
+      color: { label: 'Favorite color' },
+    }),
+  );
+
+  // Host receives the form message
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+  t.is(formMsg.description, 'Please configure');
+
+  // Host submits values
+  await E(host).submit(
+    formMsg.number,
+    harden({ name: 'Alice', color: 'blue' }),
+  );
+
+  // Guest should receive the value message in followMessages
+  // First message is the form itself (self-delivery), then the value reply
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  const { value: valueMsg } = await E(guestIteratorRef).next();
+  t.is(valueMsg.type, 'value');
+  t.is(typeof valueMsg.valueId, 'string');
+  t.is(valueMsg.replyTo, formMsg.messageId);
+});
+
+test('form submit rejects when a field is missing', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  await E(guest).form(
+    'HOST',
+    'Need info',
+    harden({
+      name: { label: 'Name' },
+      email: { label: 'Email' },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+
+  // Submit with only one field — should throw
+  await t.throwsAsync(
+    () => E(host).submit(formMsg.number, harden({ name: 'Alice' })),
+    { message: /Missing value for field "email"/ },
+  );
+});
+
+test('form submit with pattern validation rejects non-matching value', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  await E(guest).form(
+    'HOST',
+    'Typed form',
+    harden({
+      count: { label: 'Count', pattern: M.number() },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+
+  // Submit with wrong type — should throw
+  await t.throwsAsync(
+    () =>
+      E(host).submit(formMsg.number, harden({ count: 'not-a-number' })),
+    { message: /field "count"/ },
+  );
+});
+
+test('form submit with pattern validation accepts matching value', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  await E(guest).form(
+    'HOST',
+    'Typed form',
+    harden({
+      count: { label: 'Count', pattern: M.number() },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+
+  // Should not throw
+  await E(host).submit(formMsg.number, harden({ count: 42 }));
+  t.pass();
+});
+
+test('form default pattern is M.string() — rejects non-string', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+
+  await E(guest).form(
+    'HOST',
+    'String form',
+    harden({
+      name: { label: 'Name' },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+
+  // Submit with a number — should throw because default pattern is M.string()
+  await t.throwsAsync(
+    () => E(host).submit(formMsg.number, harden({ name: 42 })),
+    { message: /field "name"/ },
+  );
+});
+
+test('form multi-submission: same form submitted twice produces two value messages', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+  const guestIteratorRef = E(guest).followMessages();
+
+  await E(guest).form(
+    'HOST',
+    'Multi-submit',
+    harden({
+      answer: { label: 'Answer' },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+
+  // Submit twice
+  await E(host).submit(formMsg.number, harden({ answer: 'first' }));
+  await E(host).submit(formMsg.number, harden({ answer: 'second' }));
+
+  // Guest should see the form + two value messages
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  const { value: value1 } = await E(guestIteratorRef).next();
+  t.is(value1.type, 'value');
+  const { value: value2 } = await E(guestIteratorRef).next();
+  t.is(value2.type, 'value');
+
+  // Both should reference the same form
+  t.is(value1.replyTo, formMsg.messageId);
+  t.is(value2.replyTo, formMsg.messageId);
+});
+
+test('form returns void (fire-and-forget)', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  const result = await E(guest).form(
+    'HOST',
+    'Fire and forget',
+    harden({
+      field: { label: 'Field' },
+    }),
+  );
+
+  t.is(result, undefined);
+});
+
+test('form reverse: host sends form to guest, guest submits', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('alice');
+
+  // Follow guest messages
+  const guestIteratorRef = E(guest).followMessages();
+  const hostIteratorRef = E(host).followMessages();
+
+  // Host sends a form to the guest
+  await E(host).form(
+    ['alice'],
+    'Survey',
+    harden({
+      favoriteColor: { label: 'Favorite color' },
+    }),
+  );
+
+  // Guest receives the form message
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  t.is(guestFormMsg.description, 'Survey');
+
+  // Guest submits values
+  await E(guest).submit(
+    guestFormMsg.number,
+    harden({ favoriteColor: 'green' }),
+  );
+
+  // Host should see the form (self-delivery) and then the value message
+  const { value: hostFormMsg } = await E(hostIteratorRef).next();
+  t.is(hostFormMsg.type, 'form');
+  const { value: hostValueMsg } = await E(hostIteratorRef).next();
+  t.is(hostValueMsg.type, 'value');
+  t.is(hostValueMsg.replyTo, guestFormMsg.messageId);
+});
+
+test('sendValue replies to a message with a retained value', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Host sends a package to the guest
+  await E(host).send('guest', ['Here is a question'], [], []);
+
+  // Guest receives the package
+  const guestIteratorRef = E(guest).followMessages();
+  const { value: pkgMsg } = await E(guestIteratorRef).next();
+  t.is(pkgMsg.type, 'package');
+
+  // Set up host iterator and drain existing messages BEFORE sendValue
+  const hostIteratorRef = E(host).followMessages();
+  const existingMessages = /** @type {unknown[]} */ (
+    await E(host).listMessages()
+  );
+  await drainIterator(hostIteratorRef, existingMessages.length);
+
+  // Guest stores a value and sends it back as a reply
+  await E(guest).storeValue(99, 'my-reply');
+  await E(guest).sendValue(pkgMsg.number, 'my-reply');
+
+  // Host receives the value message via the iterator
+  const { value: valueMsg } = await E(hostIteratorRef).next();
+  t.is(valueMsg.type, 'value');
+  t.is(valueMsg.replyTo, pkgMsg.messageId);
+
+  // The value should be accessible via MAIL.N.VALUE
+  const resultValue = await E(host).lookup([
+    'MAIL',
+    String(valueMsg.number),
+    'VALUE',
+  ]);
+  t.is(resultValue, 99);
+});
+
+test('sendValue rejects unknown pet name', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Send a message to the guest so there's something to reply to
+  await E(host).send('guest', ['Hello'], [], []);
+
+  const guestIteratorRef = E(guest).followMessages();
+  const { value: pkgMsg } = await E(guestIteratorRef).next();
+
+  // Attempt to sendValue with a nonexistent pet name
+  await t.throwsAsync(
+    () => E(guest).sendValue(pkgMsg.number, 'nonexistent'),
+    { message: /Unknown pet name/ },
+  );
+});
+
+test('sendValue rejects invalid message number', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  await E(guest).storeValue(10, 'ten');
+
+  // No message 999 exists
+  await t.throwsAsync(() => E(guest).sendValue(999n, 'ten'), {
+    message: /No such message/,
+  });
+});
+
+test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+  const hostIteratorRef = E(host).followMessages();
+  const guestIteratorRef = E(guest).followMessages();
+
+  await E(guest).form(
+    'HOST',
+    'Profile',
+    harden({
+      displayName: { label: 'Display Name' },
+    }),
+  );
+
+  const { value: formMsg } = await E(hostIteratorRef).next();
+  t.is(formMsg.type, 'form');
+
+  await E(host).submit(
+    formMsg.number,
+    harden({ displayName: 'Bob' }),
+  );
+
+  // Guest receives form + value
+  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  t.is(guestFormMsg.type, 'form');
+  const { value: valueMsg } = await E(guestIteratorRef).next();
+  t.is(valueMsg.type, 'value');
+
+  // Look up the value message hub
+  const messageHub = await E(guest).lookup(['MAIL', String(valueMsg.number)]);
+  const names = await E(messageHub).list();
+
+  // The message hub should include the VALUE name
+  t.true(names.includes('VALUE'));
+
+  // VALUE should resolve to the submitted values
+  const resultValue = await E(guest).lookup([
+    'MAIL',
+    String(valueMsg.number),
+    'VALUE',
+  ]);
+  t.deepEqual(resultValue, { displayName: 'Bob' });
+});
+
+test.serial('formula write failure does not leak into graph', async t => {
+  const { cancelled, config, host } = await prepareHost(t);
+
+  // Record names before the failed operation.
+  const namesBefore = await E(host).list();
+
+  // Make the formulas directory read-only so writeFormula fails.
+  const formulasDir = path.join(config.statePath, 'formulas');
+  await fs.promises.chmod(formulasDir, 0o444);
+
+  try {
+    // provideGuest triggers formulate() for several sub-formulas.
+    // With the formulas directory read-only, writeFormula should fail
+    // and the error should propagate without leaving orphaned state.
+    await t.throwsAsync(() => E(host).provideGuest('doomed-guest'), {
+      message: /permission denied|EACCES|EPERM/i,
+    });
+  } finally {
+    // Restore write permissions so teardown can clean up.
+    await fs.promises.chmod(formulasDir, 0o755);
+  }
+
+  // The host should still be operational.
+  const namesAfter = await E(host).list();
+  t.deepEqual(
+    namesAfter,
+    namesBefore,
+    'No new names should appear after a failed provideGuest',
+  );
+
+  // A subsequent provideGuest should succeed now that writes work again.
+  await E(host).provideGuest('healthy-guest');
+  const namesWithGuest = await E(host).list();
+  t.true(namesWithGuest.includes('healthy-guest'));
+});

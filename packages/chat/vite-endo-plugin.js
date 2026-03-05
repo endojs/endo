@@ -1,11 +1,11 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout */
+/* global process, setInterval, setTimeout, clearTimeout */
 
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 import { whereEndoState } from '@endo/where';
 
@@ -15,8 +15,12 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(dirname, '../..');
 
 // Paths to network modules (file:// URLs for the daemon worker)
-const tcpNetstringUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js')}`;
-const libp2pUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/libp2p.js')}`;
+const tcpNetstringUrl = pathToFileURL(path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js')).href;
+const libp2pUrl = pathToFileURL(path.join(repoRoot, 'packages/daemon/src/networks/libp2p.js')).href;
+
+// Bootstrap specifiers for AI agent setup scripts
+const lalSetupUrl = pathToFileURL(path.join(repoRoot, 'packages/lal/setup.js')).href;
+const faeSetupUrl = pathToFileURL(path.join(repoRoot, 'packages/fae/setup.js')).href;
 
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
@@ -55,6 +59,22 @@ const runEndoCli = (args, timeoutMs = 15000) =>
     });
   });
 
+const DAEMON_POLL_INTERVAL_MS = 5000;
+
+/**
+ * Ping the daemon and return whether it responded.
+ *
+ * @returns {Promise<boolean>}
+ */
+const pingDaemon = async () => {
+  try {
+    const { code } = await runEndoCli(['ping'], 10000);
+    return code === 0;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Ensure the system Endo daemon is running using this repo's CLI.
  * Pings first to avoid needlessly restarting an already-running daemon.
@@ -64,14 +84,9 @@ const runEndoCli = (args, timeoutMs = 15000) =>
 const ensureEndoRunning = async () => {
   console.log('[Endo Plugin] Ensuring Endo daemon is running...');
 
-  try {
-    const { code } = await runEndoCli(['ping'], 10000);
-    if (code === 0) {
-      console.log('[Endo Plugin] Endo daemon is already running');
-      return;
-    }
-  } catch {
-    // ping failed or timed out — fall through to start
+  if (await pingDaemon()) {
+    console.log('[Endo Plugin] Endo daemon is already running');
+    return;
   }
 
   console.log('[Endo Plugin] Starting Endo daemon...');
@@ -118,7 +133,11 @@ const getAgentId = async () => {
  * The plugin:
  * 1. Ensures the system Endo daemon is running (using this repo's CLI)
  * 2. Reads the gateway address and agent ID from daemon state
- * 3. Injects ENDO_GATEWAY and ENDO_AGENT as environment variables
+ * 3. Serves /dev which redirects to /#gateway=...&agent=...
+ *    The agent ID travels only in the URL fragment, which browsers never
+ *    send back over HTTP in subsequent requests.
+ * 4. Serves /health so the client can poll for server availability after
+ *    a daemon restart before navigating to /dev.
  *
  * @returns {import('vite').Plugin}
  */
@@ -127,6 +146,51 @@ export const makeEndoPlugin = () => {
   let gatewayAddress;
   /** @type {string | undefined} */
   let agentId;
+  let daemonHealthy = false;
+  /** True while an ensureEndoRunning() call is in flight. */
+  let startingDaemon = false;
+
+  /**
+   * Check daemon liveness and attempt a restart if it's down.
+   * Called on a recurring interval after the initial startup.
+   */
+  const checkAndRestart = async () => {
+    if (startingDaemon) return;
+    if (await pingDaemon()) {
+      if (!daemonHealthy) {
+        // Daemon just came back (or was restarted externally).
+        try {
+          agentId = await getAgentId();
+          console.log(
+            `[Endo Plugin] Daemon recovered, agent: ${agentId.slice(0, 16)}...`,
+          );
+        } catch {
+          // root file not yet available; will retry next tick.
+          return;
+        }
+      }
+      daemonHealthy = true;
+      return;
+    }
+
+    daemonHealthy = false;
+    startingDaemon = true;
+    try {
+      await ensureEndoRunning();
+      agentId = await getAgentId();
+      daemonHealthy = true;
+      console.log(
+        `[Endo Plugin] Daemon restarted, agent: ${agentId.slice(0, 16)}...`,
+      );
+    } catch (err) {
+      console.error(
+        `[Endo Plugin] Daemon restart failed:`,
+        /** @type {Error} */ (err).message,
+      );
+    } finally {
+      startingDaemon = false;
+    }
+  };
 
   return {
     name: 'vite-endo-plugin',
@@ -145,22 +209,60 @@ export const makeEndoPlugin = () => {
 
     async configureServer(server) {
       try {
+        // Set ENDO_EXTRA so the daemon auto-provisions lal/fae on startup.
+        if (!process.env.ENDO_EXTRA) {
+          process.env.ENDO_EXTRA = `${lalSetupUrl},${faeSetupUrl}`;
+        }
+
         await ensureEndoRunning();
 
         gatewayAddress = getGatewayAddress();
         agentId = await getAgentId();
+        daemonHealthy = true;
 
         console.log(`[Endo Plugin] Gateway at ${gatewayAddress}`);
         console.log(`[Endo Plugin] Agent: ${agentId.slice(0, 16)}...`);
-
-        Object.assign(server.config.define || {}, {
-          'import.meta.env.ENDO_GATEWAY': JSON.stringify(gatewayAddress),
-          'import.meta.env.ENDO_AGENT': JSON.stringify(agentId),
-        });
       } catch (error) {
         console.error(`[Endo Plugin] Failed to start:`, error);
         throw error;
       }
+
+      // Monitor daemon liveness and attempt restarts.
+      setInterval(checkAndRestart, DAEMON_POLL_INTERVAL_MS);
+
+      // Returns 200 only when the daemon is confirmed reachable.
+      // The client polls this after a disconnect before navigating to /dev.
+      server.middlewares.use('/health', (_req, res) => {
+        if (daemonHealthy) {
+          res.setHeader('Content-Type', 'text/plain');
+          res.end('ok');
+        } else {
+          res.statusCode = 503;
+          res.end('daemon unavailable');
+        }
+      });
+
+      // Redirect to / with the agent ID in the URL fragment.
+      // The fragment appears in the Location header, which is fine here:
+      // this endpoint is only served by the Vite dev server over localhost,
+      // the same trust boundary as the daemon's own Unix socket.  Once the
+      // browser follows the redirect, the fragment stays client-side and is
+      // never sent back in subsequent HTTP requests.
+      server.middlewares.use('/dev', async (_req, res) => {
+        try {
+          const freshAgentId = await getAgentId();
+          agentId = freshAgentId;
+          const fragment = new URLSearchParams({
+            gateway: gatewayAddress || '',
+            agent: freshAgentId,
+          });
+          res.writeHead(302, { Location: `/#${fragment}` });
+          res.end();
+        } catch (error) {
+          res.statusCode = 503;
+          res.end('Daemon not available');
+        }
+      });
     },
 
     api: {

@@ -414,8 +414,6 @@ const bodyComponent = (
           .catch(window.reportError);
       };
 
-      /** @type {bigint | undefined} */
-      let currentMoiMessageNumber;
       /** @type {unknown} */
       let currentChannelRef = null;
 
@@ -481,9 +479,6 @@ const bodyComponent = (
             // leakage between spaces viewing the same channel.
             channelComponent($messages, $anchor, currentChannelRef, {
               showValue,
-              onMessageChange: messageNumber => {
-                currentMoiMessageNumber = messageNumber;
-              },
               personaId: profilePath.join('.'),
               ownMemberId,
             }).catch(window.reportError);
@@ -501,9 +496,6 @@ const bodyComponent = (
             conversationPetName: activeConversation
               ? activeConversation.petName
               : null,
-            onMoiChange: messageNumber => {
-              currentMoiMessageNumber = messageNumber;
-            },
           },
         ).catch(window.reportError);
       }
@@ -575,9 +567,6 @@ const bodyComponent = (
             // controls are enforced on the iterator.
             channelComponent($messages, $anchor, currentChannelRef, {
               showValue,
-              onMessageChange: messageNumber => {
-                currentMoiMessageNumber = messageNumber;
-              },
               personaId: profilePath.join('.'),
               ownMemberId: switchOwnMemberId,
             }).catch(window.reportError);
@@ -626,7 +615,6 @@ const bodyComponent = (
           getConversationPetName,
           exitConversation: () => onConversationChange(null),
           navigateToConversation,
-          getMoiMessageNumber: () => currentMoiMessageNumber,
           getChannelRef: () => currentChannelRef,
         },
       );

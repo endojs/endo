@@ -1325,6 +1325,11 @@ body.resizing * {
   flex: 0 0 auto;
 }
 
+/* The field wrapper around a message-number input should not grow */
+.inline-field:has(.message-number-input) {
+  flex: 0 0 auto;
+}
+
 /* Message field (contenteditable) for inline commands like /reply */
 .message-field-wrapper {
   flex: 1;
@@ -1851,7 +1856,6 @@ body.resizing * {
   flex-direction: row;
   gap: 12px;
   padding: 12px 16px;
-  margin-bottom: 8px;
   background: var(--bubble-bg);
   color: var(--bubble-fg);
   border-radius: var(--radius-lg);
@@ -5176,4 +5180,214 @@ button.btn-spinner::after {
   color: var(--text-primary);
   font-style: normal;
   font-weight: 600;
+}
+
+/* ============================
+   Focus Message Mode
+   ============================ */
+
+.message-envelope {
+  /* Padding keeps the bubble centered; margin creates a visible gap
+     between envelopes so start/end connectors are distinguishable
+     from through-lines. */
+  padding: 2px 0;
+  margin: 2px 0;
+}
+
+/* Envelopes carrying a continuous line eat back the margin so the
+   background-image bridges the gap to the neighboring envelope. */
+.message-envelope.chain-through,
+.message-envelope.chain-tee,
+.message-envelope.sub-through {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* chain-start only bridges downward; chain-end only upward. */
+.message-envelope.chain-start {
+  margin-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.message-envelope.chain-end {
+  margin-top: 0;
+  padding-top: 4px;
+}
+
+/* sub-start bridges downward; sub-end bridges upward. */
+.message-envelope.sub-start {
+  margin-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.message-envelope.sub-end {
+  margin-top: 0;
+  padding-top: 4px;
+}
+
+.focus-active .message-envelope .message {
+  transition: margin-left 150ms ease;
+}
+
+.focus-active .message-envelope.indented .message {
+  margin-left: 4ex;
+}
+
+.focus-active .message-envelope.focused .message {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+/* Chain lines connecting non-indented messages through the gutter */
+.message-envelope.chain-start,
+.message-envelope.chain-through,
+.message-envelope.chain-end {
+  background-image: linear-gradient(
+    var(--msg-sent-bg),
+    var(--msg-sent-bg)
+  );
+  background-repeat: no-repeat;
+  background-size: 2px 100%;
+  background-position: 2ex 0;
+}
+
+.message-envelope.chain-start {
+  background-size: 2px 50%;
+  background-position: 2ex bottom;
+}
+
+.message-envelope.chain-end {
+  background-size: 2px 50%;
+  background-position: 2ex top;
+}
+
+/* Tee junction: vertical through-line plus horizontal stub to the right */
+.message-envelope.chain-tee {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size:
+    2px 100%,
+    calc(2ex - 2px) 2px;
+  background-position:
+    2ex 0,
+    calc(2ex + 2px) 50%;
+}
+
+/* --- Secondary connections for indented messages --- */
+
+/* Sub through-line: same weight as primary, at 6ex (2ex into the 4ex indent) */
+.message-envelope.sub-through {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%;
+  background-position: 6ex 0;
+}
+
+/* Sub start: line from bottom half (connects downward to child) */
+.message-envelope.sub-start {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 50%;
+  background-position: 6ex bottom;
+}
+
+/* Sub end: line from top half (connects upward to parent) */
+.message-envelope.sub-end {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 50%;
+  background-position: 6ex top;
+}
+
+/* Reply indicator: short stub at top for non-adjacent replies */
+.message-envelope.sub-indicator {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 6px;
+  background-position: 6ex top;
+}
+
+/* Composite: when a sub-class coexists with a primary chain-through,
+   layer both the primary and secondary lines. */
+.message-envelope.chain-through.sub-through {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, 2px 100%;
+  background-position: 2ex 0, 6ex 0;
+}
+
+.message-envelope.chain-through.sub-start {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, 2px 50%;
+  background-position: 2ex 0, 6ex bottom;
+}
+
+.message-envelope.chain-through.sub-end {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, 2px 50%;
+  background-position: 2ex 0, 6ex top;
+}
+
+.message-envelope.chain-through.sub-indicator {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, 2px 6px;
+  background-position: 2ex 0, 6ex top;
+}
+
+.message-envelope.chain-tee.sub-through {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 100%;
+  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex 0;
+}
+
+.message-envelope.chain-tee.sub-start {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 50%;
+  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex bottom;
+}
+
+.message-envelope.chain-tee.sub-end {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 50%;
+  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex top;
+}
+
+.message-envelope.chain-tee.sub-indicator {
+  background-image:
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
+    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-repeat: no-repeat;
+  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 6px;
+  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex top;
 }
