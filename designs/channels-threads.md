@@ -24,11 +24,11 @@ A reaction is similar to a reply but instead of appending a new message, it atta
 When a user clicks the reply button:
 
 1. A small-font preview of the target message is pinned above the input bar to indicate the message being replied to.
-2. An **X** button in the corner of this preview dismisses it, converting the draft back to a normal (non-reply) message.
+2. An **X** button in the corner of this preview dismisses it, converting the draft back to a normal message (replyTo is implicitly the message before it).
 
 ## 5. Reply Display
 
-A sent reply looks like a normal message but includes a small connector line leading up to a small-font preview of the message it replies to.
+A sent reply looks like a normal message but includes a small-font preview of the message it replies to above it.
 
 ## 6. Thread View
 

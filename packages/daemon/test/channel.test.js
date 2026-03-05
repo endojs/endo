@@ -37,6 +37,28 @@ const takeCount = async (asyncIterator, count) => {
   return values;
 };
 
+/**
+ * Get the author's proposed name for a channel message via getMember().
+ * @param {any} channelRef - The channel or member ref.
+ * @param {any} message - A channel message with memberId.
+ * @returns {Promise<string>}
+ */
+const getAuthor = async (channelRef, message) => {
+  const info = await E(channelRef).getMember(message.memberId);
+  return info ? info.proposedName : message.memberId;
+};
+
+/**
+ * Get the pedigree for a channel message via getMember().
+ * @param {any} channelRef - The channel or member ref.
+ * @param {any} message - A channel message with memberId.
+ * @returns {Promise<string[]>}
+ */
+const getPedigree = async (channelRef, message) => {
+  const info = await E(channelRef).getMember(message.memberId);
+  return info ? info.pedigree : [];
+};
+
 const MAX_UNIX_SOCKET_PATH = 90;
 let configPathId = 0;
 
@@ -155,7 +177,7 @@ test.serial('smoke: full channel lifecycle - create, join, post, follow, getMemb
   const adminMessages = await E(channel).listMessages();
   t.is(adminMessages.length, 1);
   t.deepEqual(adminMessages[0].strings, ['Hello from admin']);
-  t.is(adminMessages[0].author, 'Alice');
+  t.is(await getAuthor(channel, adminMessages[0]), 'Alice');
 
   // 4. Admin can get their memberId
   const adminMemberId = await E(channel).getMemberId();
@@ -218,9 +240,9 @@ test.serial('channel - create and post message as admin', async t => {
   // List messages
   const messages = await E(channel).listMessages();
   t.is(messages.length, 1, 'should have one message');
-  t.is(messages[0].author, 'Alice', 'author should be the admin display name');
+  t.is(await getAuthor(channel, messages[0]), 'Alice', 'author should be the admin display name');
   t.deepEqual(messages[0].strings, ['Hello, world!']);
-  t.deepEqual(messages[0].pedigree, [], 'admin has empty pedigree');
+  t.deepEqual(await getPedigree(channel, messages[0]), [], 'admin has empty pedigree');
 });
 
 test.serial('channel - admin can invite a member', async t => {
@@ -267,13 +289,13 @@ test.serial('channel - member posts appear with correct author and pedigree', as
   t.is(messages.length, 2);
 
   // Admin's message
-  t.is(messages[0].author, 'Alice');
-  t.deepEqual(messages[0].pedigree, []);
+  t.is(await getAuthor(channel, messages[0]), 'Alice');
+  t.deepEqual(await getPedigree(channel, messages[0]), []);
   t.deepEqual(messages[0].strings, ['Admin message']);
 
   // Bob's message
-  t.is(messages[1].author, 'Bob');
-  t.deepEqual(messages[1].pedigree, ['Alice']);
+  t.is(await getAuthor(channel, messages[1]), 'Bob');
+  t.deepEqual(await getPedigree(channel, messages[1]), ['Alice']);
   t.deepEqual(messages[1].strings, ['HELLO!']);
 });
 
@@ -296,7 +318,7 @@ test.serial('channel - member sees same messages as admin via followMessages', a
 
   // Take the first existing message
   const [firstMsg] = await takeCount(bobIterator, 1);
-  t.is(firstMsg.author, 'Alice');
+  t.is(await getAuthor(bobMember, firstMsg), 'Alice');
   t.deepEqual(firstMsg.strings, ['First message']);
 
   // Bob posts
@@ -304,7 +326,7 @@ test.serial('channel - member sees same messages as admin via followMessages', a
 
   // Bob should see his own message via the iterator
   const [bobMsg] = await takeCount(bobIterator, 1);
-  t.is(bobMsg.author, 'Bob');
+  t.is(await getAuthor(bobMember, bobMsg), 'Bob');
   t.deepEqual(bobMsg.strings, ['HELLO!']);
 });
 
@@ -325,9 +347,9 @@ test.serial('channel - admin sees member messages via followMessages', async t =
 
   // Admin should see Bob's message
   const [bobMsg] = await takeCount(adminIterator, 1);
-  t.is(bobMsg.author, 'Bob');
+  t.is(await getAuthor(channel, bobMsg), 'Bob');
   t.deepEqual(bobMsg.strings, ['HELLO!']);
-  t.deepEqual(bobMsg.pedigree, ['Alice'], 'pedigree shows invited by Alice');
+  t.deepEqual(await getPedigree(channel, bobMsg), ['Alice'], 'pedigree shows invited by Alice');
 });
 
 // ---------- Pedigree chains ----------
@@ -350,9 +372,9 @@ test.serial('channel - sub-invitations carry full pedigree chain', async t => {
 
   const messages = await E(channel).listMessages();
   t.is(messages.length, 1);
-  t.is(messages[0].author, 'Carol');
+  t.is(await getAuthor(channel, messages[0]), 'Carol');
   t.deepEqual(
-    messages[0].pedigree,
+    await getPedigree(channel, messages[0]),
     ['Alice', 'Bob'],
     'pedigree shows full invitation chain',
   );
@@ -772,14 +794,14 @@ test.serial('channel - persona creates channel, member posts with own identity',
   t.is(adminMessages.length, 2, 'admin sees two messages');
 
   // Admin sees their own message
-  t.is(adminMessages[0].author, 'AdminAlice');
+  t.is(await getAuthor(adminChannel, adminMessages[0]), 'AdminAlice');
   t.deepEqual(adminMessages[0].strings, ['Welcome to the channel!']);
 
   // Admin sees Bob's message with Bob's proposed name
-  t.is(adminMessages[1].author, 'BobJoiner');
+  t.is(await getAuthor(adminChannel, adminMessages[1]), 'BobJoiner');
   t.deepEqual(adminMessages[1].strings, ['HELLO!']);
   t.deepEqual(
-    adminMessages[1].pedigree,
+    await getPedigree(adminChannel, adminMessages[1]),
     ['AdminAlice'],
     'Bob was invited by AdminAlice',
   );
@@ -790,11 +812,11 @@ test.serial('channel - persona creates channel, member posts with own identity',
   t.is(bobMessages.length, 2, 'Bob sees two messages');
 
   // Bob sees admin's message with admin's proposed name
-  t.is(bobMessages[0].author, 'AdminAlice');
+  t.is(await getAuthor(bobMember, bobMessages[0]), 'AdminAlice');
   t.deepEqual(bobMessages[0].strings, ['Welcome to the channel!']);
 
   // Bob sees his own message with his proposed name
-  t.is(bobMessages[1].author, 'BobJoiner');
+  t.is(await getAuthor(bobMember, bobMessages[1]), 'BobJoiner');
   t.deepEqual(bobMessages[1].strings, ['HELLO!']);
 });
 
@@ -818,9 +840,9 @@ test.serial('channel - join creates a member with own identity', async t => {
   // Verify messages
   const messages = await E(channel).listMessages();
   t.is(messages.length, 2);
-  t.is(messages[0].author, 'Alice', 'first message from admin');
-  t.is(messages[1].author, 'Bob', 'second message from Bob, not Alice');
-  t.deepEqual(messages[1].pedigree, ['Alice'], 'pedigree shows channel creator');
+  t.is(await getAuthor(channel, messages[0]), 'Alice', 'first message from admin');
+  t.is(await getAuthor(channel, messages[1]), 'Bob', 'second message from Bob, not Alice');
+  t.deepEqual(await getPedigree(channel, messages[1]), ['Alice'], 'pedigree shows channel creator');
 });
 
 test.serial('channel - join via shared formula ID: persona posts with own identity', async t => {
@@ -856,22 +878,22 @@ test.serial('channel - join via shared formula ID: persona posts with own identi
   // --- Verify admin's perspective ---
   const adminMessages = await E(adminChannel).listMessages();
   t.is(adminMessages.length, 2, 'admin sees two messages');
-  t.is(adminMessages[0].author, 'AdminAlice');
+  t.is(await getAuthor(adminChannel, adminMessages[0]), 'AdminAlice');
   t.deepEqual(adminMessages[0].strings, ['Welcome to the channel!']);
   // Admin sees Bob's message as "BobJoiner" — a proposed name, not a pet name
-  t.is(adminMessages[1].author, 'BobJoiner');
+  t.is(await getAuthor(adminChannel, adminMessages[1]), 'BobJoiner');
   t.deepEqual(adminMessages[1].strings, ['HELLO!']);
-  t.deepEqual(adminMessages[1].pedigree, ['AdminAlice']);
+  t.deepEqual(await getPedigree(adminChannel, adminMessages[1]), ['AdminAlice']);
 
   // --- Verify Bob's perspective ---
   const bobMessages = await E(bobMember).listMessages();
   t.is(bobMessages.length, 2, 'Bob sees two messages');
   // Bob sees admin's message as "AdminAlice" — a proposed name (in scare quotes
   // in the UI), because Bob's address book is empty and doesn't know this person
-  t.is(bobMessages[0].author, 'AdminAlice');
+  t.is(await getAuthor(bobMember, bobMessages[0]), 'AdminAlice');
   t.deepEqual(bobMessages[0].strings, ['Welcome to the channel!']);
   // Bob sees his own message with his own proposed name
-  t.is(bobMessages[1].author, 'BobJoiner');
+  t.is(await getAuthor(bobMember, bobMessages[1]), 'BobJoiner');
   t.deepEqual(bobMessages[1].strings, ['HELLO!']);
 
   // --- Verify namespace independence ---
@@ -906,7 +928,7 @@ test.serial('channel - joined member has independent follow stream', async t => 
 
   // Bob receives it
   const [msg] = await takeCount(bobIterator, 1);
-  t.is(msg.author, 'Alice');
+  t.is(await getAuthor(bobMember, msg), 'Alice');
   t.deepEqual(msg.strings, ['Hello Bob!']);
 
   // Bob replies
@@ -914,7 +936,7 @@ test.serial('channel - joined member has independent follow stream', async t => 
 
   // Bob sees his own reply
   const [reply] = await takeCount(bobIterator, 1);
-  t.is(reply.author, 'Bob');
+  t.is(await getAuthor(bobMember, reply), 'Bob');
   t.deepEqual(reply.strings, ['Hi Alice!']);
   t.is(reply.replyTo, String(msg.number), 'reply points to Alice message');
 });
@@ -968,9 +990,9 @@ test.serial('channel - multiple followers receive the same new message', async t
   const [adminMsg] = await takeCount(adminIterator, 1);
   const [bobMsg] = await takeCount(bobIterator, 1);
 
-  t.is(adminMsg.author, 'Bob');
+  t.is(await getAuthor(channel, adminMsg), 'Bob');
   t.deepEqual(adminMsg.strings, ['shared message']);
-  t.is(bobMsg.author, 'Bob');
+  t.is(await getAuthor(bobMember, bobMsg), 'Bob');
   t.deepEqual(bobMsg.strings, ['shared message']);
 });
 
@@ -1001,7 +1023,7 @@ test.serial('channel - Alice invites Bob who renames himself Robert', async t =>
   t.is(messages.length, 1);
 
   // The message author is "Robert" — what Bob calls himself
-  t.is(messages[0].author, 'Robert',
+  t.is(await getAuthor(channel, messages[0]), 'Robert',
     'message author should be the poster self-chosen name');
 
   // The message carries a stable memberId so each viewer can resolve
@@ -1041,12 +1063,12 @@ test.serial('channel - per-viewer name resolution with memberId', async t => {
 
   // --- Message 0: Bob's "hi" ---
   const bobMsg = messages[0];
-  t.is(bobMsg.author, 'Robert', 'Bob posted as "Robert"');
+  t.is(await getAuthor(channel, bobMsg), 'Robert', 'Bob posted as "Robert"');
   t.truthy(bobMsg.memberId, 'Bob message has memberId');
 
   // --- Message 1: Alice's "Hi also" ---
   const aliceMsg = messages[1];
-  t.is(aliceMsg.author, 'Alice', 'Alice posted as "Alice"');
+  t.is(await getAuthor(channel, aliceMsg), 'Alice', 'Alice posted as "Alice"');
   t.truthy(aliceMsg.memberId, 'Alice message has memberId');
 
   // Alice and Bob have different memberIds
@@ -1069,14 +1091,14 @@ test.serial('channel - per-viewer name resolution with memberId', async t => {
   // Bob sees Alice's message. He looks up Alice's memberId in his address book.
   // Bob has NO entry for Alice — his address book is empty.
   // Result: Bob sees '"Alice" Hi also' (proposed name in scare quotes)
-  // The proposed name "Alice" is available as aliceMsg.author.
-  t.is(aliceMsg.author, 'Alice',
+  // The proposed name "Alice" is available via getAuthor(channel, aliceMsg).
+  t.is(await getAuthor(channel, aliceMsg), 'Alice',
     'Alice proposed name available for Bob to show in scare quotes');
 
   // Bob sees his own message. He looks up his own memberId.
   // His address book maps his own memberId -> "Robert" (his chosen name).
   // Result: Bob sees "Robert hi"
-  t.is(bobMsg.author, 'Robert',
+  t.is(await getAuthor(channel, bobMsg), 'Robert',
     'Bob sees his own posts under his chosen name');
 
   // --- Bob nicknames Alice "Al" ---
@@ -1089,7 +1111,7 @@ test.serial('channel - per-viewer name resolution with memberId', async t => {
     'admin memberId is stable so nicknames persist');
 });
 
-test.serial('channel - setProposedName affects future posts but not past ones', async t => {
+test.serial('channel - setProposedName changes live name, memberId stays stable', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).makeChannel('my-channel', 'Alice');
@@ -1104,20 +1126,24 @@ test.serial('channel - setProposedName affects future posts but not past ones', 
   // Bob renames himself
   await E(bobMember).setProposedName('Robert');
 
-  // Bob posts as "Robert"
+  // Bob posts again
   await E(bobMember).post(['second post'], [], []);
 
   const messages = await E(channel).listMessages();
   t.is(messages.length, 2);
 
-  // First post used the original invite name
-  t.is(messages[0].author, 'Bob');
-  // Second post uses the new proposed name
-  t.is(messages[1].author, 'Robert');
-
   // Both messages have the same memberId — the identity is stable
   t.is(messages[0].memberId, messages[1].memberId,
     'memberId stays the same across name changes');
+
+  // getMember() returns the current (latest) proposed name for both
+  t.is(await getAuthor(channel, messages[0]), 'Robert',
+    'getMember resolves to current name, not snapshot at post time');
+  t.is(await getAuthor(channel, messages[1]), 'Robert');
+
+  // But invitedAs preserves the original invitation name
+  const info = await E(channel).getMember(messages[0].memberId);
+  t.is(info.invitedAs, 'Bob', 'invitedAs preserves original name');
 });
 
 test.serial('channel - admin memberId is 0, members get incrementing ids', async t => {
@@ -1213,8 +1239,8 @@ test.serial('channel - two personas join same channel independently', async t =>
   // Verify both see all messages
   const adminMessages = await E(adminChannel).listMessages();
   t.is(adminMessages.length, 2, 'admin sees both messages');
-  t.is(adminMessages[0].author, 'Alice');
-  t.is(adminMessages[1].author, 'Bob');
+  t.is(await getAuthor(adminChannel, adminMessages[0]), 'Alice');
+  t.is(await getAuthor(adminChannel, adminMessages[1]), 'Bob');
 
   // Verify Alice and Bob have different memberIds
   t.not(adminMessages[0].memberId, adminMessages[1].memberId,
@@ -1592,8 +1618,8 @@ test.serial('UI flow: handleNewChannelSubmit creates distinct agents per space',
   t.is(messagesB.length, 1, 'Space B sees only its own message');
   t.deepEqual(messagesA[0].strings, ['Hello from Alice in Space A']);
   t.deepEqual(messagesB[0].strings, ['Hello from Bob in Space B']);
-  t.is(messagesA[0].author, displayNameA);
-  t.is(messagesB[0].author, displayNameB);
+  t.is(await getAuthor(channelA, messagesA[0]), displayNameA);
+  t.is(await getAuthor(channelB, messagesB[0]), displayNameB);
 });
 
 test.serial('UI flow: handleConnectChannelSubmit creates new agent that joins existing channel', async t => {
@@ -1649,8 +1675,8 @@ test.serial('UI flow: handleConnectChannelSubmit creates new agent that joins ex
   // === Verify both see all messages ===
   const adminMessages = await E(adminChannel).listMessages();
   t.is(adminMessages.length, 2, 'admin sees both messages');
-  t.is(adminMessages[0].author, adminDisplayName);
-  t.is(adminMessages[1].author, joinerDisplayName);
+  t.is(await getAuthor(adminChannel, adminMessages[0]), adminDisplayName);
+  t.is(await getAuthor(adminChannel, adminMessages[1]), joinerDisplayName);
 
   const joinerMessages = await E(joinerMemberRef).listMessages();
   t.is(joinerMessages.length, 2, 'joiner sees both messages');
@@ -2798,4 +2824,82 @@ test.serial('channel - parent heat accumulates at parent rate from child posts',
   t.true(bobState.heat < 30,
     `Bob hop heat should be ~18 (at Bob's rate), got ${bobState.heat}`);
   t.false(bobState.locked, 'Bob hop should not be locked after only 2 child posts');
+});
+
+// ---------- Unified message format tests ----------
+
+test.serial('channel messages have type:"package" field', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).post(['Hello'], [], []);
+  const messages = await E(channel).listMessages();
+  t.is(messages[0].type, 'package', 'message should have type "package"');
+});
+
+test.serial('channel messages use "names" not "edgeNames"', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).post(['Hello ', ''], ['attachment'], []);
+  const messages = await E(channel).listMessages();
+  t.deepEqual(messages[0].names, ['attachment'], 'message should have names field');
+  t.is(/** @type {any} */ (messages[0]).edgeNames, undefined, 'message should NOT have edgeNames');
+});
+
+test.serial('channel messages have a messageId', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  await E(channel).post(['Hello'], [], []);
+  const messages = await E(channel).listMessages();
+  t.is(typeof messages[0].messageId, 'string', 'messageId should be a string');
+  t.true(messages[0].messageId.length > 0, 'messageId should be non-empty');
+});
+
+test.serial('channel messages do NOT carry author/pedigree/pedigreeMemberIds', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobInvite] = await E(channel).createInvitation('Bob');
+  const bobMember = await E(bobInvite).join('Bob');
+  await E(bobMember).post(['Hello'], [], []);
+
+  const messages = await E(channel).listMessages();
+  const msg = /** @type {any} */ (messages[0]);
+  t.is(msg.author, undefined, 'message should NOT have author field');
+  t.is(msg.pedigree, undefined, 'message should NOT have pedigree field');
+  t.is(msg.pedigreeMemberIds, undefined, 'message should NOT have pedigreeMemberIds field');
+});
+
+test.serial('getMember(memberId) returns member info', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeChannel('my-channel', 'Alice');
+  const channel = await E(host).lookup('my-channel');
+
+  const [bobInvite] = await E(channel).createInvitation('Bob');
+  const bobMember = await E(bobInvite).join('Bob');
+
+  const bobMemberId = await E(bobMember).getMemberId();
+  const info = await E(channel).getMember(bobMemberId);
+  t.truthy(info, 'getMember should return info for a valid memberId');
+  t.is(info.proposedName, 'Bob');
+  t.is(info.invitedAs, 'Bob');
+  t.is(info.memberId, bobMemberId);
+  t.deepEqual(info.pedigree, ['Alice']);
+  t.true(Array.isArray(info.pedigreeMemberIds), 'pedigreeMemberIds should be an array');
+
+  // Admin member info
+  const adminInfo = await E(channel).getMember('0');
+  t.truthy(adminInfo, 'getMember should return info for admin');
+  t.is(adminInfo.proposedName, 'Alice');
+  t.deepEqual(adminInfo.pedigree, []);
+
+  // Unknown memberId
+  const unknown = await E(channel).getMember('999');
+  t.is(unknown, undefined, 'getMember should return undefined for unknown memberId');
 });

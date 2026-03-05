@@ -3454,6 +3454,7 @@ const makeDaemonCore = async (
   const makeChannelInstance = makeChannelMaker({
     provide,
     persistValue,
+    randomHex256,
   });
 
   const makeGuest = makeGuestMaker({
