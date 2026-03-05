@@ -5,7 +5,7 @@
 | **Created** | 2026-02-23 |
 | **Updated** | 2026-02-28 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | In Progress |
+| **Status** | Deprecated — see `designs/chat-focus-message.md` |
 
 ## Motivation
 
@@ -445,10 +445,6 @@ The MOI algorithm keeps visual design minimal:
 - Smooth animations on MOI change
 - Line updates on scroll/resize
 - Accessibility (ARIA, keyboard nav)
-
-### Blocked: Daemon `replyTo` support
-- The daemon does not yet produce `replyTo` on messages
-- The client-side feature is fully implemented and will activate once `replyTo` is available
 
 ## Alternatives Considered
 
