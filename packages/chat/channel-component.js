@@ -133,6 +133,20 @@ export const channelComponent = async (
     // getMembers may not be available on all channel references
   }
 
+  // Auto-assign the current user's own proposed name so they never see
+  // themselves in scare quotes.
+  if (ownMemberId !== undefined && !nameMap.has(ownMemberId)) {
+    try {
+      const ownInfo = await E(channel).getMember(ownMemberId);
+      if (ownInfo && ownInfo.proposedName) {
+        nameMap.set(ownMemberId, ownInfo.proposedName);
+        saveNameMap();
+      }
+    } catch {
+      // getMember may not be available
+    }
+  }
+
   /**
    * Update all author chips in the DOM for a given memberId.
    * @param {string} memberId
