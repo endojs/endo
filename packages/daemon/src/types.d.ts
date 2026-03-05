@@ -1653,6 +1653,12 @@ export type BidirectionalMultimap<K, V> = {
   getAllFor(key: K): V[];
 };
 
+export type ParsedCIDR =
+  | { type: 'ipv4'; network: number[]; prefixLen: number }
+  | { type: 'ipv6'; network: number[]; prefixLen: number };
+
+export type AddressChecker = (remoteAddress: string) => boolean;
+
 export interface RemoteControl {
   accept(
     remoteGateway: Promise<EndoGateway>,
