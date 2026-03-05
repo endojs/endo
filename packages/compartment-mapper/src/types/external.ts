@@ -25,6 +25,11 @@ import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
 import type { CanonicalName } from './canonical-name.js';
 import type { PackageDescriptor } from './node-modules.js';
+import type {
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+} from '../policy-format.js';
+import type { LiteralUnion } from './typescript.js';
 
 export type { CanonicalName };
 export type { PackageDescriptor };
@@ -59,7 +64,15 @@ export type PackageData = {
  * Called once before `translateGraph`.
  */
 export type PackageDataHook = (params: {
-  packageData: Readonly<Map<PackageCompartmentDescriptorName, PackageData>>;
+  packageData: Readonly<
+    Map<
+      LiteralUnion<
+        typeof ATTENUATORS_COMPARTMENT | typeof ENTRY_COMPARTMENT,
+        FileUrlString
+      >,
+      PackageData
+    >
+  >;
   log: LogFn;
 }) => void;
 
