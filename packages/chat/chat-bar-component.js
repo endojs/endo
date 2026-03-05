@@ -873,16 +873,6 @@ export const chatBarComponent = (
   };
 
   /**
-   * Remove all focus-mode classes from envelopes.
-   */
-  const clearFocusIndent = () => {
-    const $all = $messagesContainer.querySelectorAll('.message-envelope');
-    for (const $el of $all) {
-      $el.classList.remove('indented', ...LINE_CLASSES);
-    }
-  };
-
-  /**
    * Set a specific message as focused by index, updating indent and highlight.
    * Assumes focus-active is already on the container.
    * @param {NodeListOf<HTMLElement>} $messages
@@ -985,7 +975,7 @@ export const chatBarComponent = (
       $current.classList.remove('focused');
     }
 
-    const step = page ? pageFocusStep($messages, index, direction) : 1;
+    const step = page ? pageFocusStep($messages, index, direction) : 1; // eslint-disable-line no-use-before-define
     if (direction === 'up') {
       index = Math.max(0, index - step);
     } else {
