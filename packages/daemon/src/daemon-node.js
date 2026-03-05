@@ -182,6 +182,36 @@ const main = async () => {
       console.log(`Endo gateway listening on ${address}`);
     }
 
+    // Provision bundled agents (Lal).
+    const lalSpecifier = process.env.ENDO_LAL_PATH;
+    if (lalSpecifier && !(await E(host).has('controller-for-lal'))) {
+      if (!(await E(host).has('lal'))) {
+        await E(host).provideGuest('lal', {
+          introducedNames: harden({ AGENT: 'host-agent' }),
+          agentName: 'profile-for-lal',
+        });
+      }
+      await E(host).makeUnconfined('MAIN', lalSpecifier, {
+        powersName: 'profile-for-lal',
+        resultName: 'controller-for-lal',
+      });
+    }
+
+    // Provision bundled agents (Fae).
+    const faeSpecifier = process.env.ENDO_FAE_PATH;
+    if (faeSpecifier && !(await E(host).has('controller-for-fae'))) {
+      if (!(await E(host).has('fae'))) {
+        await E(host).provideGuest('fae', {
+          introducedNames: harden({ AGENT: 'host-agent' }),
+          agentName: 'profile-for-fae',
+        });
+      }
+      await E(host).makeUnconfined('MAIN', faeSpecifier, {
+        powersName: 'profile-for-fae',
+        resultName: 'controller-for-fae',
+      });
+    }
+
     informParentWhenReady();
 
     // Run ENDO_EXTRA bootstrap scripts (e.g., lal/fae setup for dev mode).

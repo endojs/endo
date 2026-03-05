@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-02-26 |
-| **Updated** | 2026-02-28 |
+| **Updated** | 2026-03-05 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | In Progress |
+| **Status** | **Complete** |
 
 ## Motivation
 
@@ -455,11 +455,10 @@ outbound `messageId`. No daemon API changes required.
 - `computeDepth()` counts user + assistant turns in the assembled transcript.
 - `reply` tool prepends `[depth:N] ` to the first string fragment.
 
-### Phase 5: Memory Management (Future)
+### Phase 5: Memory Management
 
-- Sliding window or summarization for long chains.
-- Garbage collection of transcript nodes when all related inbox messages
-  are dismissed.
+Extracted to a separate design:
+[lal-transcript-memory-management](lal-transcript-memory-management.md).
 
 ## Alternatives Considered
 

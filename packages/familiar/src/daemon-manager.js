@@ -147,6 +147,12 @@ const startDaemon = async () => {
         ...(resourcePaths.webPageBundlePath
           ? { ENDO_WEB_PAGE_BUNDLE_PATH: resourcePaths.webPageBundlePath }
           : {}),
+        ...(resourcePaths.endoLalPath
+          ? { ENDO_LAL_PATH: pathToFileURL(resourcePaths.endoLalPath).href }
+          : {}),
+        ...(resourcePaths.endoFaePath
+          ? { ENDO_FAE_PATH: pathToFileURL(resourcePaths.endoFaePath).href }
+          : {}),
       },
       stdio: ['ignore', output, output, 'ipc'],
     },
