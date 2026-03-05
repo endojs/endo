@@ -78,22 +78,25 @@ export const inboxComponent = async (
       }
     }
 
-    const $message = document.createElement('div');
-    $message.className = isSent ? 'message sent' : 'message';
-    $message.dataset.number = String(number);
+    const $envelope = document.createElement('div');
+    $envelope.className = 'message-envelope';
+    $envelope.dataset.number = String(number);
     if (message.messageId) {
-      $message.dataset.messageId = String(message.messageId);
+      $envelope.dataset.messageId = String(message.messageId);
     }
     if (message.replyTo) {
-      $message.dataset.replyTo = String(message.replyTo);
+      $envelope.dataset.replyTo = String(message.replyTo);
     }
+
+    const $message = document.createElement('div');
+    $message.className = isSent ? 'message sent' : 'message';
 
     const $error = document.createElement('span');
     $error.style.color = 'red';
     $error.innerText = '';
 
     dismissed.then(() => {
-      $message.remove();
+      $envelope.remove();
     });
 
     const parsedDate = new Date(date);
@@ -776,7 +779,8 @@ export const inboxComponent = async (
       $body.appendChild($valueMsg);
     }
 
-    $parent.insertBefore($message, $end);
+    $envelope.appendChild($message);
+    $parent.insertBefore($envelope, $end);
 
     if (wasAtEnd) {
       $parent.scrollTo(0, $parent.scrollHeight);

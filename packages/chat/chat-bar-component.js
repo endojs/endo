@@ -695,26 +695,34 @@ export const chatBarComponent = (
       $messages[i].classList.add('indented');
     }
 
+    // Collect the ordered chain of non-indented indices
+    /** @type {number[]} */
+    const chain = [];
+
     // The focused message is never indented
     $messages[focusIndex].classList.remove('indented');
 
     // Walk backward: find ancestor chain
+    /** @type {number[]} */
+    const ancestors = [];
     let cursor = focusIndex;
     for (let i = cursor - 1; i >= 0; i -= 1) {
       const cursorReplyTo = $messages[cursor].dataset.replyTo;
       if (cursorReplyTo) {
         const parentIndex = idToIndex.get(cursorReplyTo);
         if (parentIndex !== undefined && parentIndex <= i) {
-          // Skip ahead to the parent (everything between stays indented)
           $messages[parentIndex].classList.remove('indented');
+          ancestors.push(parentIndex);
           cursor = parentIndex;
-          i = parentIndex; // loop will decrement to parentIndex - 1
+          i = parentIndex;
           // eslint-disable-next-line no-continue
           continue;
         }
       }
-      // No replyTo or parent not found above — indent all remaining
     }
+    // Ancestors were collected child-to-parent; reverse for top-down order
+    ancestors.reverse();
+    chain.push(...ancestors, focusIndex);
 
     // Walk forward: find descendant chain
     cursor = focusIndex;
@@ -723,7 +731,6 @@ export const chatBarComponent = (
       const cursorMid = $messages[cursor].dataset.messageId;
       if (!cursorMid) break;
 
-      // Find the last reply to the cursor message
       let lastReplyIndex = -1;
       for (let i = searchFrom; i < $messages.length; i += 1) {
         if ($messages[i].dataset.replyTo === cursorMid) {
@@ -734,18 +741,145 @@ export const chatBarComponent = (
       if (lastReplyIndex === -1) break;
 
       $messages[lastReplyIndex].classList.remove('indented');
+      chain.push(lastReplyIndex);
       cursor = lastReplyIndex;
       searchFrom = lastReplyIndex + 1;
+    }
+
+    applyChainLines($messages, chain); // eslint-disable-line no-use-before-define
+    // Secondary connections apply to all indented messages, not just
+    // those within chain segments.
+    applyIndentedConnections($messages, 0, $messages.length); // eslint-disable-line no-use-before-define
+  };
+
+  /** Line class names applied to envelopes for the chain line. */
+  const LINE_CLASSES = [
+    'chain-start',
+    'chain-through',
+    'chain-end',
+    'chain-tee',
+    'sub-start',
+    'sub-through',
+    'sub-end',
+    'sub-indicator',
+  ];
+
+  /**
+   * Within a range of indented envelopes, find reply groups and apply
+   * secondary chain classes. For each parent message that has replies
+   * in the range, the last reply gets a sub-line and earlier siblings
+   * get sub-tees.
+   *
+   * @param {NodeListOf<HTMLElement>} $envelopes
+   * @param {number} from - Start index (inclusive)
+   * @param {number} to - End index (exclusive)
+   */
+  const applyIndentedConnections = ($envelopes, from, to) => {
+    // For each indented message, determine its connection to neighbors.
+    // Case 1 (gutter-connected via chain-tee) is already handled.
+    // Case 2: adjacent indented predecessor is our replyTo parent.
+    // Case 3: has a replyTo but parent is not adjacent — reply indicator.
+    for (let i = from; i < to; i += 1) {
+      if (!$envelopes[i].classList.contains('indented')) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const rt = $envelopes[i].dataset.replyTo;
+      const mid = $envelopes[i].dataset.messageId;
+
+      // Connect upward: previous envelope is indented and is our parent
+      const prevIndented =
+        i > from && $envelopes[i - 1].classList.contains('indented');
+      const connectsUp =
+        prevIndented && rt && $envelopes[i - 1].dataset.messageId === rt;
+
+      // Connect downward: next envelope is indented and replies to us
+      const nextIndented =
+        i + 1 < to && $envelopes[i + 1].classList.contains('indented');
+      const connectsDown =
+        nextIndented && mid && $envelopes[i + 1].dataset.replyTo === mid;
+
+      if (connectsUp && connectsDown) {
+        $envelopes[i].classList.add('sub-through');
+      } else if (connectsUp) {
+        $envelopes[i].classList.add('sub-end');
+      } else if (connectsDown) {
+        $envelopes[i].classList.add('sub-start');
+      } else if (rt && !$envelopes[i].classList.contains('chain-tee')) {
+        // Has a replyTo but not adjacent to parent and not already
+        // gutter-connected — show a small reply indicator.
+        $envelopes[i].classList.add('sub-indicator');
+      }
     }
   };
 
   /**
-   * Remove all focus-mode indent classes from messages.
+   * Apply chain-line classes to envelopes between the first and last
+   * chain member so CSS background-image draws a connecting line
+   * through the indentation gutter.
+   *
+   * Indented messages whose `replyTo` matches the upper chain member
+   * of their segment get a tee junction (branch stub) instead of a
+   * plain through-line.
+   *
+   * Within each segment, indented messages get adjacency-based
+   * connections: adjacent parent-child pairs get sub-lines, and
+   * non-adjacent replies get a small indicator stub.
+   *
+   * @param {NodeListOf<HTMLElement>} $envelopes
+   * @param {number[]} chain - Ordered indices of non-indented envelopes
+   */
+  const applyChainLines = ($envelopes, chain) => {
+    // Clear previous line classes from all envelopes
+    for (let i = 0; i < $envelopes.length; i += 1) {
+      $envelopes[i].classList.remove(...LINE_CLASSES);
+    }
+
+    if (chain.length < 2) return;
+
+    const first = chain[0];
+    const last = chain[chain.length - 1];
+
+    // First chain member: line from bottom half
+    $envelopes[first].classList.add('chain-start');
+
+    // Last chain member: line from top half
+    $envelopes[last].classList.add('chain-end');
+
+    // Middle chain members connect both up and down
+    for (let c = 1; c < chain.length - 1; c += 1) {
+      $envelopes[chain[c]].classList.add('chain-through');
+    }
+
+    // Walk each segment between consecutive chain members
+    for (let seg = 0; seg < chain.length - 1; seg += 1) {
+      const upperIdx = chain[seg];
+      const lowerIdx = chain[seg + 1];
+      const upperMid = $envelopes[upperIdx].dataset.messageId;
+
+      for (let i = upperIdx + 1; i < lowerIdx; i += 1) {
+        if (
+          upperMid &&
+          $envelopes[i].dataset.replyTo === upperMid &&
+          $envelopes[i].classList.contains('indented')
+        ) {
+          $envelopes[i].classList.add('chain-tee');
+        } else {
+          $envelopes[i].classList.add('chain-through');
+        }
+      }
+
+    }
+  };
+
+  /**
+   * Remove all focus-mode classes from envelopes.
    */
   const clearFocusIndent = () => {
-    const $indented = $messagesContainer.querySelectorAll('.message.indented');
-    for (const $el of $indented) {
-      $el.classList.remove('indented');
+    const $all = $messagesContainer.querySelectorAll('.message-envelope');
+    for (const $el of $all) {
+      $el.classList.remove('indented', ...LINE_CLASSES);
     }
   };
 
@@ -756,7 +890,7 @@ export const chatBarComponent = (
    * @param {number} index
    */
   const setFocusedMessage = ($messages, index) => {
-    const $prev = $messagesContainer.querySelector('.message.focused');
+    const $prev = $messagesContainer.querySelector('.message-envelope.focused');
     if ($prev) {
       $prev.classList.remove('focused');
     }
@@ -765,11 +899,42 @@ export const chatBarComponent = (
   };
 
   /**
+   * Apply passive focus to the last received message. This runs when
+   * the command line has focus (send mode) so the user always sees
+   * chain context around the most recent incoming message.
+   */
+  const updatePassiveFocus = () => {
+    const $envelopes = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
+    );
+    if ($envelopes.length === 0) return;
+
+    // Find the last received (non-sent) message envelope.
+    let targetIndex = -1;
+    for (let i = $envelopes.length - 1; i >= 0; i -= 1) {
+      const $msg = $envelopes[i].querySelector('.message');
+      if ($msg && !$msg.classList.contains('sent')) {
+        targetIndex = i;
+        break;
+      }
+    }
+    if (targetIndex === -1) return;
+
+    $messagesContainer.classList.add('focus-active');
+    const $prev = $messagesContainer.querySelector('.message-envelope.focused');
+    if ($prev) {
+      $prev.classList.remove('focused');
+    }
+    $envelopes[targetIndex].classList.add('focused');
+    applyFocusIndent($envelopes, targetIndex);
+  };
+
+  /**
    * Enter focus mode: highlight the last message and show the focus modeline.
    */
   const enterFocusMode = () => {
     const $messages = /** @type {NodeListOf<HTMLElement>} */ (
-      $messagesContainer.querySelectorAll('.message[data-number]')
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
     );
     if ($messages.length === 0) return;
 
@@ -789,15 +954,11 @@ export const chatBarComponent = (
    */
   const exitFocusMode = () => {
     mode = 'send';
-    $messagesContainer.classList.remove('focus-active');
-    const $focused = $messagesContainer.querySelector('.message.focused');
-    if ($focused) {
-      $focused.classList.remove('focused');
-    }
-    clearFocusIndent();
     updateModeline(null);
     sendForm.focus();
     updateHasContent();
+    // Revert to passive focus on the last received message.
+    updatePassiveFocus();
   };
 
   /**
@@ -807,11 +968,11 @@ export const chatBarComponent = (
    */
   const moveFocus = (direction, page = false) => {
     const $messages = /** @type {NodeListOf<HTMLElement>} */ (
-      $messagesContainer.querySelectorAll('.message[data-number]')
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
     );
     if ($messages.length === 0) return;
 
-    const $current = $messagesContainer.querySelector('.message.focused');
+    const $current = $messagesContainer.querySelector('.message-envelope.focused');
     let index = $messages.length - 1;
     if ($current) {
       for (let i = 0; i < $messages.length; i += 1) {
@@ -875,7 +1036,7 @@ export const chatBarComponent = (
    */
   const getFocusedMessageNumber = () => {
     const $focused = /** @type {HTMLElement | null} */ (
-      $messagesContainer.querySelector('.message.focused')
+      $messagesContainer.querySelector('.message-envelope.focused')
     );
     return $focused?.dataset.number;
   };
@@ -911,11 +1072,11 @@ export const chatBarComponent = (
     }
 
     // Find the closest .message ancestor
-    const $msg = $target.closest('.message[data-number]');
+    const $msg = $target.closest('.message-envelope');
     if (!$msg) return;
 
     const $messages = /** @type {NodeListOf<HTMLElement>} */ (
-      $messagesContainer.querySelectorAll('.message[data-number]')
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
     );
 
     let clickIndex = -1;
@@ -1329,8 +1490,8 @@ export const chatBarComponent = (
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         // If already on the last message, exit focus mode back to command line
-        const $msgs = $messagesContainer.querySelectorAll('.message[data-number]');
-        const $foc = $messagesContainer.querySelector('.message.focused');
+        const $msgs = $messagesContainer.querySelectorAll('.message-envelope[data-number]');
+        const $foc = $messagesContainer.querySelector('.message-envelope.focused');
         if ($msgs.length > 0 && $foc === $msgs[$msgs.length - 1]) {
           exitFocusMode();
         } else {
@@ -1433,4 +1594,16 @@ export const chatBarComponent = (
       event.preventDefault();
     }
   });
+
+  // Watch for new messages and update passive focus unless the user
+  // is actively navigating in focus mode.
+  const messageObserver = new MutationObserver(() => {
+    if (mode !== 'focus') {
+      updatePassiveFocus();
+    }
+  });
+  messageObserver.observe($messagesContainer, { childList: true });
+
+  // Apply passive focus on initial load.
+  updatePassiveFocus();
 };
