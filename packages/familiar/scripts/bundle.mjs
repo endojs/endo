@@ -79,6 +79,18 @@ await build({
   outfile: path.join(familiarRoot, 'bundles/worker-node.cjs'),
 });
 
+await build({
+  ...shared,
+  entryPoints: [path.join(repoRoot, 'packages/lal/agent.js')],
+  outfile: path.join(familiarRoot, 'bundles/endo-lal.cjs'),
+});
+
+await build({
+  ...shared,
+  entryPoints: [path.join(repoRoot, 'packages/fae/agent.js')],
+  outfile: path.join(familiarRoot, 'bundles/endo-fae.cjs'),
+});
+
 // Pre-bundle web-page.js using the compartment mapper.
 // The daemon's web server normally does this at runtime, but in the packaged app the
 // source files and @endo/* dependencies aren't available on disk.
