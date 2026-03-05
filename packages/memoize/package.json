@@ -35,6 +35,7 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
@@ -66,7 +67,9 @@
   },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "base": "../../ava-base.config.mjs",
+    "noop-harden": "../../ava-noop-harden.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 95.83

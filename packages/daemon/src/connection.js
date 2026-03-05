@@ -46,7 +46,11 @@ export const makeMessageCapTP = (
 ) => {
   /** @param {any} message */
   const send = message => {
-    return writer.next(message);
+    try {
+      return writer.next(message);
+    } catch (sendError) {
+      return Promise.reject(sendError);
+    }
   };
 
   const { promise: closedPromise, resolve: resolveClosed } = makePromiseKit();
@@ -77,6 +81,11 @@ export const makeMessageCapTP = (
       dispatch(message);
     }
   })();
+
+  drained.then(
+    () => close(new Error('Connection stream ended')),
+    error => close(error),
+  );
 
   let isClosed = false;
   close = reason => {

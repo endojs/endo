@@ -23,9 +23,6 @@ let nodePath;
 let endoCliPath;
 
 /** @type {string} */
-let gatewayServerPath;
-
-/** @type {string} */
 let chatDistPath;
 
 /** @type {string} */
@@ -47,7 +44,6 @@ if (isPackaged) {
   );
   nodePath = path.join(appRoot, nodeBinary);
   endoCliPath = path.join(appRoot, 'bundles', 'endo-cli.cjs');
-  gatewayServerPath = path.join(appRoot, 'bundles', 'gateway-server.cjs');
   chatDistPath = path.join(appRoot, 'dist', 'chat', 'index.html');
   endoDaemonPath = path.join(appRoot, 'bundles', 'endo-daemon.cjs');
   endoWorkerPath = path.join(appRoot, 'bundles', 'endo-worker.cjs');
@@ -57,10 +53,6 @@ if (isPackaged) {
   const repoRoot = path.resolve(dirname, '../../..');
   nodePath = 'node';
   endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
-  gatewayServerPath = path.join(
-    repoRoot,
-    'packages/chat/scripts/gateway-server.js',
-  );
   chatDistPath = path.join(repoRoot, 'packages/chat/dist/index.html');
   endoDaemonPath = path.join(repoRoot, 'packages/daemon/src/daemon-node.js');
   endoWorkerPath = path.join(
@@ -78,7 +70,6 @@ if (isPackaged) {
 const resourcePaths = {
   nodePath,
   endoCliPath,
-  gatewayServerPath,
   chatDistPath,
   endoDaemonPath,
   endoWorkerPath,

@@ -1,6 +1,6 @@
 // @ts-check
-/// <reference types="ses"/>
 
+import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 
 const COMMA_BUFFER = new Uint8Array([','.charCodeAt(0)]);

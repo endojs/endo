@@ -1,8 +1,9 @@
 /* eslint-disable no-continue */
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { Fail } from '@endo/errors';
-import { makeTagged, Far, qp } from '@endo/marshal';
+import { makeTagged, Far, qp, passableAsJustin } from '@endo/marshal';
 import {
   makeCopyBag,
   makeCopyMap,
@@ -25,7 +26,7 @@ const copyMapComparison = (() => {
   }
 })();
 
-const runTests = (t, successCase, failCase) => {
+const defineTests = (successCase, failCase) => {
   /**
    * @callback MakeErrorMessage
    * @param {string} repr
@@ -79,7 +80,7 @@ const runTests = (t, successCase, failCase) => {
       failCase(specimen, M[method](), makeMessage('3', 'number'));
     }
     successCase(specimen, M.not(4));
-    successCase(specimen, M.kind('number'));
+    successCase(specimen, M.kind('number'), ' (known duplicate of M.number)');
     successCase(specimen, M.lte(7));
     successCase(specimen, M.gte(2));
     successCase(specimen, M.and(3, 3));
@@ -205,7 +206,11 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.arrayOf(M.number()));
 
     successCase(specimen, M.containerHas(3));
-    successCase(specimen, M.containerHas(3, 1n));
+    successCase(
+      specimen,
+      M.containerHas(3, 1n),
+      ' (duplicate because 1n is the default)',
+    );
     successCase(specimen, M.containerHas(M.number(), 2n));
 
     failCase(specimen, [4, 3], '[3,4] - Must be: [4,3]');
@@ -249,14 +254,16 @@ const runTests = (t, successCase, failCase) => {
     const yesMethods = ['record', 'any', 'and', 'key', 'pattern'];
     for (const [method, makeMessage] of Object.entries(simpleMethods)) {
       if (yesMethods.includes(method)) {
-        successCase(specimen, M[method]());
+        successCase(specimen, M[method](), ' (table)');
         continue;
       }
-      successCase(specimen, M.not(M[method]()));
+      successCase(specimen, M.not(M[method]()), ' (table)');
       failCase(
         specimen,
         M[method](),
         makeMessage('{"bar":4,"foo":3}', 'copyRecord'),
+        false, // matchable
+        ' (table)',
       );
     }
     successCase(specimen, { foo: M.number(), bar: M.any() });
@@ -402,6 +409,8 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.map(),
       'copyRecord {"bar":4,"foo":3} - Must be a copyMap',
+      false, // matchable
+      ' (duplicate 2 of map for non-map)',
     );
     failCase(
       specimen,
@@ -420,14 +429,16 @@ const runTests = (t, successCase, failCase) => {
     const yesMethods = ['set', 'any', 'and', 'key', 'pattern'];
     for (const [method, makeMessage] of Object.entries(simpleMethods)) {
       if (yesMethods.includes(method)) {
-        successCase(specimen, M[method]());
+        successCase(specimen, M[method](), ' (table)');
         continue;
       }
-      successCase(specimen, M.not(M[method]()));
+      successCase(specimen, M.not(M[method]()), ' (table)');
       failCase(
         specimen,
         M[method](),
         makeMessage('"[copySet]"', 'copySet', 'tagged'),
+        false, // matchable
+        ' (table)',
       );
     }
     successCase(specimen, M.gte(makeCopySet([])));
@@ -435,7 +446,11 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.setOf(M.number()));
 
     successCase(specimen, M.containerHas(3));
-    successCase(specimen, M.containerHas(3, 1n));
+    successCase(
+      specimen,
+      M.containerHas(3, 1n),
+      ' (duplicate because 1n is the default for containerHas)',
+    );
     successCase(specimen, M.containerHas(M.number(), 2n));
 
     failCase(specimen, makeCopySet([]), '"[copySet]" - Must be: "[copySet]"');
@@ -502,8 +517,11 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.containerHas('a'));
     successCase(specimen, M.containerHas('a', 2n));
     successCase(specimen, M.containerHas(M.string(), 5n));
-    successCase(specimen, M.containerHas('a', 1n));
-    successCase(specimen, M.containerHas('a'));
+    successCase(
+      specimen,
+      M.containerHas('a', 1n),
+      ' (duplicate because 1n is the default',
+    );
     successCase(specimen, M.containerHas('b', 2n));
 
     failCase(
@@ -557,16 +575,18 @@ const runTests = (t, successCase, failCase) => {
         makeMessage('"[copyMap]"', 'copyMap', 'tagged'),
       );
     }
-    // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
-    t.throws(
-      () => {
-        copyMapComparison || Fail`No CopyMap comparison support`;
-        // @ts-expect-error XXX Key types
-        successCase(specimen, M.gt(makeCopyMap([])));
-      },
-      { message: 'No CopyMap comparison support' },
-      'CopyMap comparison support (time to unwrap assertions?)',
-    );
+    test('copy map comparison throws', t => {
+      // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
+      t.throws(
+        () => {
+          copyMapComparison || Fail`No CopyMap comparison support`;
+          // @ts-expect-error XXX Key types
+          successCase(specimen, M.gt(makeCopyMap([])));
+        },
+        { message: 'No CopyMap comparison support' },
+        'CopyMap comparison support (time to unwrap assertions?)',
+      );
+    });
     successCase(specimen, M.mapOf(M.record(), M.string()));
 
     failCase(
@@ -627,15 +647,15 @@ const runTests = (t, successCase, failCase) => {
     const yesMethods = ['any', 'and'];
     for (const [method, makeMessage] of Object.entries(simpleMethods)) {
       if (yesMethods.includes(method)) {
-        successCase(specimen, M[method]());
+        successCase(specimen, M[method](), ' (loop test)');
         continue;
       }
       // This specimen has an invalid payload for its tag, so testing is less straightforward.
       const message = tagIgnorantMethods.includes(method)
         ? makeMessage('"[match:any]"', 'match:any', 'tagged')
-        : 'match:any payload: 88 - Must be undefined';
-      successCase(specimen, M.not(M[method]()));
-      failCase(specimen, M[method](), message);
+        : /^match:any payload: (\(a number\)|88) - Must be undefined$/;
+      successCase(specimen, M.not(M[method]()), false, ' (loop test)');
+      failCase(specimen, M[method](), message, false, ' (loop test)');
     }
   }
   {
@@ -670,8 +690,8 @@ const runTests = (t, successCase, failCase) => {
   }
   {
     const specimen = makeTagged('match:remotable', harden({ label: 88 }));
-    successCase(specimen, M.any());
-    successCase(specimen, M.not(M.pattern()));
+    successCase(specimen, M.any(), ' (remotable)');
+    successCase(specimen, M.not(M.pattern()), ' (remotable)');
 
     failCase(
       specimen,
@@ -769,17 +789,30 @@ const assertNoMatch = (t, specimen, pattern, message, isUnmatchable, label) => {
   }
 };
 
-test('test simple matches', t => {
-  const successCase = (specimen, yesPattern) => {
+{
+  const successCase = (specimen, yesPattern, nameSuffix = '') => {
     harden(specimen);
     harden(yesPattern);
-    assertMatch(t, specimen, yesPattern, `${yesPattern}`);
+    test(
+      `assertMatch ${passableAsJustin(specimen, false)} ${qp(yesPattern)}${nameSuffix}`,
+      assertMatch,
+      specimen,
+      yesPattern,
+      `${yesPattern}`,
+    );
   };
-  const failCase = (specimen, noPattern, message, isUnmatchable) => {
+  const failCase = (
+    specimen,
+    noPattern,
+    message,
+    isUnmatchable,
+    nameSuffix = '',
+  ) => {
     harden(specimen);
     harden(noPattern);
-    assertNoMatch(
-      t,
+    test(
+      `assertNoMatch ${passableAsJustin(specimen, false)} ${qp(noPattern)}${nameSuffix}${isUnmatchable ? ' unmatchable' : ''}`,
+      assertNoMatch,
       specimen,
       noPattern,
       message,
@@ -787,8 +820,8 @@ test('test simple matches', t => {
       `${noPattern}`,
     );
   };
-  runTests(t, successCase, failCase);
-});
+  defineTests(successCase, failCase);
+}
 
 test('masking match failure', t => {
   const nonSet = makeTagged('copySet', harden([M.string()]));
@@ -814,6 +847,8 @@ test('masking match failure', t => {
     nonMap,
     M.map(),
     'A passable tagged "match:string" is not a key: "[match:string]"',
+    false, // matchable
+    ' (duplicate 1 of map for non-map)',
   );
 });
 

@@ -10,6 +10,7 @@
  * @import { SessionId, PublicKeyId } from '../client/types.js'
  */
 
+import harden from '@endo/harden';
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
   makeOcapnRecordCodec,

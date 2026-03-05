@@ -1,9 +1,13 @@
 // @ts-check
-/* global setTimeout, process */
+/* global process, setTimeout, clearTimeout */
 
+import os from 'os';
+import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+
+import { whereEndoState } from '@endo/where';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,14 +20,6 @@ const libp2pUrl = `file://${path.join(repoRoot, 'packages/daemon/src/networks/li
 
 // Path to the endo CLI in this repo
 const endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
-
-// Path to the gateway server script
-const gatewayServerPath = path.join(dirname, 'scripts/gateway-server.js');
-
-/**
- * @typedef {object} EndoPluginOptions
- * @property {number} [port] - Requested gateway port (0 = host-assigned)
- */
 
 /**
  * Run a short-lived CLI command and resolve/reject based on exit code.
@@ -44,13 +40,19 @@ const runEndoCli = (args, timeoutMs = 15000) =>
       stderr += data.toString();
     });
 
-    child.on('close', code => resolve({ code, stderr }));
-    child.on('error', reject);
-
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       child.kill();
       reject(new Error(`Timeout running endo ${args.join(' ')}`));
     }, timeoutMs);
+
+    child.on('close', code => {
+      clearTimeout(timer);
+      resolve({ code, stderr });
+    });
+    child.on('error', error => {
+      clearTimeout(timer);
+      reject(error);
+    });
   });
 
 /**
@@ -86,102 +88,53 @@ const ensureEndoRunning = async () => {
 };
 
 /**
- * Start the gateway server and get connection info.
+ * Get the gateway address from ENDO_ADDR (default 127.0.0.1:8920).
  *
- * @param {number} port
- * @returns {Promise<{ httpPort: number, endoId: string, process: import('child_process').ChildProcess }>}
+ * @returns {string}
  */
-const startGatewayServer = async port => {
-  return new Promise((resolve, reject) => {
-    console.log('[Endo Plugin] Starting gateway server...');
-
-    const child = spawn('node', [gatewayServerPath, JSON.stringify({ port })], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: dirname,
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let resolved = false;
-
-    child.stdout.on('data', data => {
-      stdout += data.toString();
-
-      // Try to parse the JSON output (first complete line)
-      if (!resolved) {
-        const lines = stdout.trim().split('\n');
-        for (const line of lines) {
-          try {
-            const result = JSON.parse(line);
-            if (result.httpPort && result.endoId) {
-              resolved = true;
-              resolve({ ...result, process: child });
-              return;
-            }
-          } catch {
-            // Not JSON yet, keep waiting
-          }
-        }
-      }
-    });
-
-    child.stderr.on('data', data => {
-      stderr += data.toString();
-      // Log gateway server stderr to console
-      process.stderr.write(data);
-    });
-
-    child.on('close', code => {
-      if (!resolved) {
-        reject(new Error(`Gateway server exited with code ${code}: ${stderr}`));
-      }
-    });
-
-    child.on('error', error => {
-      if (!resolved) {
-        reject(error);
-      }
-    });
-
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      if (!resolved) {
-        child.kill();
-        reject(new Error('Timeout waiting for gateway server to start'));
-      }
-    }, 30000);
-  });
+const getGatewayAddress = () => {
+  return process.env.ENDO_ADDR || '127.0.0.1:8920';
 };
 
 /**
- * Create a Vite plugin that connects to the system Endo daemon.
+ * Read the AGENT formula identifier from the daemon's state directory.
+ *
+ * @returns {Promise<string>}
+ */
+const getAgentId = async () => {
+  const { username, homedir } = os.userInfo();
+  const temp = os.tmpdir();
+  const info = { user: username, home: homedir, temp };
+  const statePath = whereEndoState(process.platform, process.env, info);
+  const agentIdPath = path.join(statePath, 'root');
+  const contents = await fs.promises.readFile(agentIdPath, 'utf-8');
+  return contents.trim();
+};
+
+/**
+ * Create a Vite plugin that connects to the system Endo daemon's
+ * built-in gateway.
  *
  * The plugin:
  * 1. Ensures the system Endo daemon is running (using this repo's CLI)
- * 2. Starts a gateway server for WebSocket access
+ * 2. Reads the gateway address and agent ID from daemon state
  * 3. Injects ENDO_GATEWAY and ENDO_AGENT as environment variables
  *
- * @param {EndoPluginOptions} [options]
  * @returns {import('vite').Plugin}
  */
-export const makeEndoPlugin = (options = {}) => {
-  const { port = 0 } = options;
-
+export const makeEndoPlugin = () => {
   /** @type {string | undefined} */
   let gatewayAddress;
   /** @type {string | undefined} */
   let agentId;
-  /** @type {import('child_process').ChildProcess | undefined} */
-  let gatewayProcess;
 
   return {
     name: 'vite-endo-plugin',
-    apply: 'serve', // Only run in dev mode
+    apply: 'serve',
 
     config() {
       return {
         define: {
-          // Placeholders - will be overwritten after gateway starts
           'import.meta.env.ENDO_GATEWAY': JSON.stringify(''),
           'import.meta.env.ENDO_AGENT': JSON.stringify(''),
           'import.meta.env.TCP_NETSTRING_PATH': JSON.stringify(tcpNetstringUrl),
@@ -192,19 +145,14 @@ export const makeEndoPlugin = (options = {}) => {
 
     async configureServer(server) {
       try {
-        // Ensure system Endo daemon is running
         await ensureEndoRunning();
 
-        // Start gateway server
-        const result = await startGatewayServer(port);
-        gatewayAddress = `127.0.0.1:${result.httpPort}`;
-        agentId = result.endoId;
-        gatewayProcess = result.process;
+        gatewayAddress = getGatewayAddress();
+        agentId = await getAgentId();
 
-        console.log(`[Endo Plugin] Gateway ready at ${gatewayAddress}`);
+        console.log(`[Endo Plugin] Gateway at ${gatewayAddress}`);
         console.log(`[Endo Plugin] Agent: ${agentId.slice(0, 16)}...`);
 
-        // Update the define values (mutate because we can't reassign readonly)
         Object.assign(server.config.define || {}, {
           'import.meta.env.ENDO_GATEWAY': JSON.stringify(gatewayAddress),
           'import.meta.env.ENDO_AGENT': JSON.stringify(agentId),
@@ -213,17 +161,8 @@ export const makeEndoPlugin = (options = {}) => {
         console.error(`[Endo Plugin] Failed to start:`, error);
         throw error;
       }
-
-      // Handle server close - stop gateway server
-      server.httpServer?.on('close', () => {
-        console.log('[Endo Plugin] Shutting down gateway server...');
-        if (gatewayProcess) {
-          gatewayProcess.kill('SIGTERM');
-        }
-      });
     },
 
-    // Provide a way to get info for debugging
     api: {
       getGatewayAddress: () => gatewayAddress,
       getAgentId: () => agentId,

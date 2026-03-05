@@ -34,6 +34,13 @@ const removePath = async removalPath => {
     });
 };
 
+const enoentOk = error => {
+  if (error.code === 'ENOENT') {
+    return;
+  }
+  throw error;
+};
+
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
 const info = {
@@ -143,9 +150,10 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
  * environment variables, and wait for the daemon socket to become ready.
  *
  * @param {typeof defaultConfig} config
+ * @param {Record<string, string>} [envOverrides]
  * @returns {Promise<void>}
  */
-const startEngo = async config => {
+const startEngo = async (config, envOverrides) => {
   const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
@@ -158,6 +166,7 @@ const startEngo = async config => {
 
   const env = {
     ...process.env,
+    ...envOverrides,
     ENDO_STATE_PATH: config.statePath,
     ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
     ENDO_SOCK_PATH: config.sockPath,
@@ -183,9 +192,17 @@ const startEngo = async config => {
   await waitForFile(rootPath);
 };
 
-export const start = async (config = defaultConfig) => {
+/**
+ * @param {typeof defaultConfig} [config]
+ * @param {{ env?: Record<string, string> }} [options]
+ */
+export const start = async (
+  config = defaultConfig,
+  { env: envOverrides } = {},
+) => {
+  await clean(config);
   if (process.env.ENDO_BIN) {
-    return startEngo(config);
+    return startEngo(config, envOverrides);
   }
 
   await fs.promises.mkdir(config.statePath, {
@@ -194,7 +211,7 @@ export const start = async (config = defaultConfig) => {
   const logPath = path.join(config.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
-  const env = { ...process.env };
+  const env = { ...process.env, ...envOverrides };
 
   const child = popen.fork(
     endoDaemonPath,
@@ -251,11 +268,39 @@ export const start = async (config = defaultConfig) => {
   });
 };
 
-const enoentOk = error => {
-  if (error.code === 'ENOENT') {
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * @param {string} ephemeralStatePath
+ */
+const killWorkersByPidFiles = async ephemeralStatePath => {
+  const workerDir = path.join(ephemeralStatePath, 'worker');
+  /** @type {string[]} */
+  let workerIds;
+  try {
+    workerIds = await fs.promises.readdir(workerDir);
+  } catch {
     return;
   }
-  throw error;
+  await Promise.all(
+    workerIds.map(async workerId => {
+      const pidPath = path.join(workerDir, workerId, 'worker.pid');
+      try {
+        const pidText = await fs.promises.readFile(pidPath, 'utf-8');
+        const workerPid = Number(pidText);
+        if (Number.isFinite(workerPid) && workerPid > 0) {
+          try {
+            process.kill(workerPid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }
+        await fs.promises.rm(pidPath, { force: true });
+      } catch {
+        /* no pid file */
+      }
+    }),
+  );
 };
 
 /**
@@ -359,28 +404,28 @@ export const clean = async (config = defaultConfig) => {
 export const stop = async (config = defaultConfig) => {
   await terminate(config).catch(() => {});
   await killDaemonProcess(config);
+  await killWorkersByPidFiles(config.ephemeralStatePath);
   await clean(config);
 };
 
-export const restart = async (config = defaultConfig) => {
+/**
+ * @param {typeof defaultConfig} [config]
+ * @param {{ env?: Record<string, string> }} [options]
+ */
+export const restart = async (config = defaultConfig, options = {}) => {
   await stop(config);
-  return start(config);
+  return start(config, options);
 };
 
 export const purge = async (config = defaultConfig) => {
   await terminate(config).catch(() => {});
   await killDaemonProcess(config);
+  await killWorkersByPidFiles(config.ephemeralStatePath);
 
-  const cleanedUp = clean(config);
-  const removedState = removePath(config.statePath).catch(enoentOk);
-  const removedEphemeralState = removePath(config.ephemeralStatePath).catch(
-    enoentOk,
-  );
-  const removedCache = removePath(config.cachePath).catch(enoentOk);
   await Promise.all([
-    cleanedUp,
-    removedState,
-    removedEphemeralState,
-    removedCache,
+    clean(config),
+    removePath(config.statePath).catch(enoentOk),
+    removePath(config.ephemeralStatePath).catch(enoentOk),
+    removePath(config.cachePath).catch(enoentOk),
   ]);
 };

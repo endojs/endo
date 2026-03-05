@@ -333,9 +333,8 @@ export const main = async rawArgs => {
 
   program
     .command('form <recipient> <description>')
-    .description('send a structured form request')
+    .description('send a structured form')
     .option(...commonOptions.as)
-    .option(...commonOptions.name)
     .option(
       '-f,--field <field>',
       'Field definition as fieldName:label (repeatable)',
@@ -346,23 +345,22 @@ export const main = async rawArgs => {
       [],
     )
     .action(async (toName, description, cmd) => {
-      const { as: agentNames, field: fieldArgs, name: resultName } = cmd.opts();
+      const { as: agentNames, field: fieldArgs } = cmd.opts();
       const { formCommand } = await import('./commands/form.js');
       return formCommand({
         toName,
         description,
         fieldArgs,
-        resultName,
         agentNames,
       });
     });
 
   program
-    .command('respond-form <message-number>')
-    .description('respond to a form request with values')
+    .command('submit <message-number>')
+    .description('submit values for a form')
     .option(...commonOptions.as)
     .option(
-      '-v,--value <value>',
+      '-f,--field <field>',
       'Value as fieldName:value (repeatable)',
       (val, acc) => {
         acc.push(val);
@@ -371,11 +369,11 @@ export const main = async rawArgs => {
       [],
     )
     .action(async (messageNumberText, cmd) => {
-      const { as: agentNames, value: valueArgs } = cmd.opts();
-      const { respondFormCommand } = await import('./commands/respond-form.js');
-      return respondFormCommand({
+      const { as: agentNames, field: fieldArgs } = cmd.opts();
+      const { submitCommand } = await import('./commands/submit.js');
+      return submitCommand({
         messageNumberText,
-        valueArgs,
+        fieldArgs,
         agentNames,
       });
     });
@@ -398,6 +396,16 @@ export const main = async rawArgs => {
       const { as: agentNames } = cmd.opts();
       const { reply } = await import('./commands/reply.js');
       return reply({ messageNumberText, message, agentNames });
+    });
+
+  program
+    .command('send-value <message-number> <pet-name>')
+    .description('reply to a message with a retained value from the pet store')
+    .option(...commonOptions.as)
+    .action(async (messageNumberText, petName, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { sendValueCommand } = await import('./commands/send-value.js');
+      return sendValueCommand({ messageNumberText, petName, agentNames });
     });
 
   program

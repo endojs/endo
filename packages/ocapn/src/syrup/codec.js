@@ -4,12 +4,12 @@
  * @import { SyrupWriter } from './encode.js'
  */
 
+import harden from '@endo/harden';
 import {
   decodeImmutableArrayBufferToString,
   encodeStringToImmutableArrayBuffer,
 } from '../buffer-utils.js';
 import { ocapnPassStyleOf } from '../codecs/ocapn-pass-style.js';
-
 /**
  * @typedef {object} SyrupCodec
  * @property {function(SyrupReader): any} read

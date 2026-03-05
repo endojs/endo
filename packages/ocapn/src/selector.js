@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { nameForPassableSymbol, passableSymbolForName } from '@endo/pass-style';
 
 /**

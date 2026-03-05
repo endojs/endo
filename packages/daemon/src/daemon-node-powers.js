@@ -2,6 +2,7 @@
 /* global process */
 /* eslint-disable no-void */
 
+import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
@@ -77,13 +78,10 @@ export const makeSocketPowers = ({ net }) => {
     );
 
   /** @type {SocketPowers['connectPort']} */
-  const connectPort = ({ port, host }) =>
+  const connectPort = ({ port, host, cancelled }) =>
     new Promise((resolve, reject) => {
-      const conn = net.connect(port, host, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
+      const conn = net.connect(port, host);
+      conn.on('connect', () => {
         const reader = makeNodeReader(conn);
         const writer = makeNodeWriter(conn);
         const closed = new Promise(close => conn.on('close', close));
@@ -92,6 +90,11 @@ export const makeSocketPowers = ({ net }) => {
           writer,
           closed,
         });
+      });
+      conn.on('error', reject);
+      cancelled.catch(error => {
+        conn.destroy();
+        reject(error);
       });
     });
 
@@ -573,7 +576,8 @@ export const makeDaemonicControlPowers = (
   /**
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
-   * @param {Promise<never>} cancelled
+   * @param {Promise<never>} cancelled - rejects to initiate shutdown (SIGTERM)
+   * @param {Promise<never>} forceCancelled - rejects to force shutdown (SIGKILL)
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [trustedShims]
    */
@@ -581,6 +585,7 @@ export const makeDaemonicControlPowers = (
     workerId,
     daemonWorkerFacet,
     cancelled,
+    forceCancelled,
     capTpConnectionRegistrar = undefined,
     trustedShims = undefined,
   ) => {
@@ -634,8 +639,14 @@ export const makeDaemonicControlPowers = (
 
     await filePowers.writeFileText(pidPath, `${child.pid}\n`);
 
-    cancelled.catch(async () => {
+    workerClosed.then(() => filePowers.removePath(pidPath).catch(() => {}));
+
+    cancelled.catch(() => {
       child.kill();
+    });
+
+    forceCancelled.catch(() => {
+      child.kill('SIGKILL');
     });
 
     console.log(

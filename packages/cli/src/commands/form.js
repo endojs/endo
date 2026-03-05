@@ -2,18 +2,17 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
-import { parseOptionalPetNamePath } from '../pet-name.js';
 
 /**
- * Parse --field arguments into a fields record.
+ * Parse --field arguments into a fields array.
  * Each field is "fieldName:label" e.g. "name:Your name"
  *
  * @param {string[]} fieldArgs
- * @returns {Record<string, { label: string }>}
+ * @returns {Array<{ name: string, label: string }>}
  */
 const parseFields = fieldArgs => {
-  /** @type {Record<string, { label: string }>} */
-  const fields = Object.create(null);
+  /** @type {Array<{ name: string, label: string }>} */
+  const fields = [];
   for (const arg of fieldArgs) {
     const colonIndex = arg.indexOf(':');
     if (colonIndex === -1) {
@@ -23,25 +22,18 @@ const parseFields = fieldArgs => {
     }
     const fieldName = arg.slice(0, colonIndex);
     const label = arg.slice(colonIndex + 1);
-    fields[fieldName] = { label };
+    fields.push({ name: fieldName, label });
   }
-  return fields;
+  return harden(fields);
 };
 
 export const formCommand = async ({
   toName,
   description,
   fieldArgs,
-  resultName,
   agentNames,
 }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const fields = parseFields(fieldArgs);
-    const result = await E(agent).form(
-      toName,
-      description,
-      fields,
-      parseOptionalPetNamePath(resultName),
-    );
-    console.log(result);
+    await E(agent).form(toName, description, fields);
   });

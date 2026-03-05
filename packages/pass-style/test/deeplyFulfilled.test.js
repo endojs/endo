@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { Far } from '../src/make-far.js';
 import { deeplyFulfilled } from '../src/deeplyFulfilled.js';
 

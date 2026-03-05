@@ -295,17 +295,14 @@ export const make = async (powers, context, { env = {} } = {}) => {
   // Start the unified server
   /** @type {Promise<string>} */
   const started = new Promise((resolve, reject) => {
-    server.listen(gatewayPort, gatewayHost, error => {
-      if (error) {
-        reject(error);
+    server.on('error', reject);
+    server.listen(gatewayPort, gatewayHost, () => {
+      serverCancelled.catch(() => server.close());
+      const address = server.address();
+      if (address === null || typeof address === 'string') {
+        reject(new Error('expected listener to be assigned a port'));
       } else {
-        serverCancelled.catch(() => server.close());
-        const address = server.address();
-        if (address === null || typeof address === 'string') {
-          reject(new Error('expected listener to be assigned a port'));
-        } else {
-          resolve(`http://${gatewayHost}:${address.port}`);
-        }
+        resolve(`http://${gatewayHost}:${address.port}`);
       }
     });
   });

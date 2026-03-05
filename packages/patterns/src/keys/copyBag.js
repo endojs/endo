@@ -1,3 +1,4 @@
+import harden from '@endo/harden';
 import { Fail, hideAndHardenFunction } from '@endo/errors';
 import {
   makeTagged,

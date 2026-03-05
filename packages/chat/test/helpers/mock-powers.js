@@ -190,9 +190,13 @@ export const makeMockPowers = ({
     },
   });
 
+  const typedPowers = /** @type {ERef<EndoHost>} */ (
+    /** @type {unknown} */ (powers)
+  );
+
   return {
     // Cast via unknown since mock doesn't implement full EndoHost interface
-    powers,
+    powers: typedPowers,
     sentMessages,
 
     addName(name) {

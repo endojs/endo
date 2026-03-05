@@ -87,6 +87,36 @@ const updateRecordedPid = async () => {
   await filePowers.writeFileText(pidPath, `${pid}\n`);
 };
 
+const killStaleWorkers = async () => {
+  const workerDir = filePowers.joinPath(ephemeralStatePath, 'worker');
+  /** @type {string[]} */
+  let workerIds;
+  try {
+    workerIds = await filePowers.readDirectory(workerDir);
+  } catch {
+    return;
+  }
+  await Promise.all(
+    workerIds.map(async workerId => {
+      const pidPath = filePowers.joinPath(workerDir, workerId, 'worker.pid');
+      try {
+        const pidText = await filePowers.readFileText(pidPath);
+        const workerPid = Number(pidText);
+        if (Number.isFinite(workerPid) && workerPid > 0) {
+          try {
+            kill(workerPid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }
+        await fs.promises.rm(pidPath, { force: true });
+      } catch {
+        /* no pid file */
+      }
+    }),
+  );
+};
+
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
@@ -95,6 +125,7 @@ const main = async () => {
   });
 
   await daemonicPersistencePowers.initializePersistence();
+  await killStaleWorkers();
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled, {
@@ -130,8 +161,11 @@ const main = async () => {
   );
   const services = [privatePathService];
 
-  // Start all services, persist the root formula identifier, and start the gateway.
-  // Block the ready signal until everything is available.
+  // INVARIANT: The ready signal must not be sent until all services are fully
+  // operational — including the CapTP socket, the host, and the APPS gateway.
+  // Callers of start() depend on this: a resolved start() means the daemon is
+  // completely ready to serve. If any service fails to start, the error must
+  // propagate to the parent via reportErrorToParent so start() rejects.
   try {
     await Promise.all(services.map(({ started }) => started));
 
@@ -141,7 +175,9 @@ const main = async () => {
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
     if (await E(host).has('APPS')) {
-      const apps = await E(host).lookup('APPS');
+      const apps = /** @type {{ getAddress(): Promise<string> }} */ (
+        await E(host).lookup('APPS')
+      );
       const address = await E(apps).getAddress();
       console.log(`Endo gateway listening on ${address}`);
     }

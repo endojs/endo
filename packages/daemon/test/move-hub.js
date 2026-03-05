@@ -5,7 +5,7 @@ import { M } from '@endo/patterns';
 
 import { q } from '@endo/errors';
 
-/** @import {Name, NameHub} from '../src/types.js' */
+/** @import {Name, NameHub, FormulaIdentifier} from '../src/types.js' */
 
 // This caplet is a mock name hub for testing NameHub.move().
 export const make = (_powers, _context, _options) => {

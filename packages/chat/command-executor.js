@@ -1,6 +1,8 @@
 // @ts-check
 /* global setTimeout */
 
+import harden from '@endo/harden';
+
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
@@ -116,6 +118,24 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'reply': {
+          const { messageNumber, message } = params;
+          const { strings, edgeNames, petNames } =
+            /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
+              message
+            );
+          await E(powers).reply(
+            BigInt(/** @type {number} */ (messageNumber)),
+            strings,
+            edgeNames,
+            petNames,
+          );
+          return {
+            success: true,
+            message: `Reply sent to message #${messageNumber}`,
+          };
+        }
+
         case 'grant':
         case 'allow': {
           const { messageNumber } = params;
@@ -125,6 +145,39 @@ export const createCommandExecutor = ({
           return {
             success: true,
             message: `Eval-proposal #${messageNumber} granted`,
+          };
+        }
+
+        case 'form': {
+          const {
+            recipient,
+            description,
+            fields: fieldDefs,
+          } = params;
+          const recipientPath = String(recipient).split('.');
+          const fields =
+            /** @type {Array<{name: string, label: string}>} */ (fieldDefs).map(
+              f => ({
+                name: String(f.name).trim(),
+                label: String(f.label).trim(),
+              }),
+            );
+          await E(powers).form(recipientPath, String(description), fields);
+          return { success: true, message: 'Form sent' };
+        }
+
+        case 'submit': {
+          const { messageNumber } = params;
+          // Submit is typically called from the inline form UI with values,
+          // but the /submit command just validates the message exists.
+          // Actual value submission happens via the inbox form UI.
+          await E(powers).submit(
+            BigInt(/** @type {number} */ (messageNumber)),
+            {},
+          );
+          return {
+            success: true,
+            message: `Values submitted for form #${messageNumber}`,
           };
         }
 
@@ -194,8 +247,7 @@ export const createCommandExecutor = ({
         case 'show': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
-          // @ts-expect-error lookup signature expects tuple
-          const value = await E(powers).lookup(...pathParts);
+          const value = await E(powers).lookup(pathParts);
           const id = await E(powers).identify(...pathParts);
           showValue(value, id, pathParts, undefined);
           return { success: true, value };
@@ -247,8 +299,7 @@ export const createCommandExecutor = ({
         case 'mkdir': {
           const { petName } = params;
           const pathParts = String(petName).split('.');
-          // @ts-expect-error spread argument requires tuple type
-          await E(powers).makeDirectory(...pathParts);
+          await E(powers).makeDirectory(pathParts);
           return { success: true, message: `Directory "${petName}" created` };
         }
 
@@ -298,8 +349,9 @@ export const createCommandExecutor = ({
             String(params.modulePath || '') ||
             // @ts-ignore Vite injects this at build time
             (import.meta.env?.TCP_NETSTRING_PATH ?? '');
-          const effectiveHostPort =
-            String(params.hostPort || '') || 'localhost:0';
+          const effectiveHost = String(params.host || '') || '127.0.0.1';
+          const effectivePort = String(params.port || '') || '8940';
+          const effectiveHostPort = `${effectiveHost}:${effectivePort}`;
 
           if (!effectiveModulePath) {
             return {
@@ -309,35 +361,12 @@ export const createCommandExecutor = ({
             };
           }
 
+          await E(powers).storeValue(effectiveHostPort, 'tcp-listen-addr');
           console.log(`[Chat] /network: loading module ${effectiveModulePath}`);
-          const network = E(powers).makeUnconfined(
-            'MAIN',
-            effectiveModulePath,
-            {
-              powersName: 'AGENT',
-              resultName: 'network-service',
-            },
-          );
-          console.log(`[Chat] /network: waiting for port request message...`);
-          const iteratorRef = E(powers).followMessages();
-          const existingMessages = /** @type {unknown[]} */ (
-            await E(powers).listMessages()
-          );
-          for (let i = 0; i < existingMessages.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await E(iteratorRef).next();
-          }
-          const { value: message } = await E(iteratorRef).next();
-          const { number } = E.get(message);
-          console.log(
-            `[Chat] /network: resolving port request with "${effectiveHostPort}"`,
-          );
-          await E(powers).storeValue(effectiveHostPort, 'netport');
-          await E(powers).resolve(await number, 'netport');
-          console.log(
-            `[Chat] /network: waiting for network module to start...`,
-          );
-          await network;
+          await E(powers).makeUnconfined('MAIN', effectiveModulePath, {
+            powersName: 'AGENT',
+            resultName: 'network-service',
+          });
           console.log(`[Chat] /network: moving to NETS.tcp`);
           await E(powers).move(['network-service'], ['NETS', 'tcp']);
           console.log(`[Chat] /network: TCP network ready`);
@@ -419,7 +448,6 @@ export const createCommandExecutor = ({
           const error = reason
             ? new Error(String(reason))
             : new Error('Cancelled');
-          // @ts-expect-error cancel expects string, not string[]
           await E(powers).cancel(pathParts, error);
           return { success: true, message: `"${petName}" cancelled` };
         }

@@ -1,5 +1,6 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { testWithErrorUnwrapping, makeTestClient } from './_util.js';

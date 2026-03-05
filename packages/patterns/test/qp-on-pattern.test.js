@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { q } from '@endo/errors';
 import { qp } from '@endo/marshal';
 import { M } from '../src/patterns/patternMatchers.js';

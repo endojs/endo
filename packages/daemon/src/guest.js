@@ -16,16 +16,22 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {object} args
  * @param {Provide} args.provide
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
+ * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {() => Promise<void>} [args.collectIfDirty]
+ * @param {DaemonCore['pinTransient']} [args.pinTransient]
+ * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  */
 export const makeGuestMaker = ({
   provide,
   formulateMarshalValue,
+  getFormulaForId,
   makeMailbox,
   makeDirectoryNode,
   collectIfDirty = async () => {},
+  pinTransient = /** @param {any} _id */ _id => {},
+  unpinTransient = /** @param {any} _id */ _id => {},
 }) => {
   /**
    * @param {FormulaIdentifier} guestId
@@ -35,10 +41,9 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier} hostHandleId
    * @param {FormulaIdentifier} petStoreId
    * @param {FormulaIdentifier} mailboxStoreId
-   * @param {FormulaIdentifier} mailHubId
+   * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
    * @param {Context} context
-   * @param {string} [mailHubId] - Formula id for MAIL hub view (when provided, MAIL is added to special names)
    */
   const makeGuest = async (
     guestId,
@@ -56,7 +61,9 @@ export const makeGuestMaker = ({
     context.thisDiesIfThatDies(hostAgentId);
     context.thisDiesIfThatDies(petStoreId);
     context.thisDiesIfThatDies(mailboxStoreId);
-    context.thisDiesIfThatDies(mailHubId);
+    if (mailHubId !== undefined) {
+      context.thisDiesIfThatDies(mailHubId);
+    }
     context.thisDiesIfThatDies(mainWorkerId);
 
     const basePetStore = await provide(petStoreId, 'pet-store');
@@ -106,7 +113,8 @@ export const makeGuestMaker = ({
      * @param {string} id - The formula identifier.
      * @returns {Promise<unknown>} The value for the given formula identifier.
      */
-    const lookupById = async id => provide(id);
+    const lookupById = async id =>
+      provide(/** @type {FormulaIdentifier} */ (id));
     const {
       listMessages,
       followMessages,
@@ -123,6 +131,8 @@ export const makeGuestMaker = ({
       requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
+      submit: mailboxSubmit,
+      sendValue: mailboxSendValue,
     } = mailbox;
 
     /** @type {EndoGuest['requestEvaluation']} */
@@ -200,8 +210,16 @@ export const makeGuestMaker = ({
     const define = (source, slots) => mailboxDefine(source, slots);
 
     /** @type {EndoGuest['form']} */
-    const form = (recipientName, description, fields, responseName) =>
-      mailboxForm(recipientName, description, fields, responseName);
+    const form = (recipientName, description, fields) =>
+      mailboxForm(recipientName, description, fields);
+
+    /** @type {EndoGuest['submit']} */
+    const submit = (messageNumber, values) =>
+      mailboxSubmit(messageNumber, values);
+
+    /** @type {EndoGuest['sendValue']} */
+    const sendValue = (messageNumber, petNameOrPath) =>
+      mailboxSendValue(messageNumber, petNameOrPath);
 
     /** @type {EndoGuest['storeValue']} */
     const storeValue = async (value, petName) => {
@@ -212,7 +230,8 @@ export const makeGuestMaker = ({
       tasks.push(identifiers =>
         E(directory).write(namePath, identifiers.marshalId),
       );
-      await formulateMarshalValue(value, tasks);
+      const { id } = await formulateMarshalValue(value, tasks, pinTransient);
+      unpinTransient(id);
     };
 
     /** @type {EndoGuest} */
@@ -255,6 +274,8 @@ export const makeGuestMaker = ({
       define,
       form,
       storeValue,
+      submit,
+      sendValue,
     };
 
     /** @param {Function} fn */
@@ -269,7 +290,7 @@ export const makeGuestMaker = ({
         }
       };
 
-    const unwrappedMethods = new Set(['handle', 'reverseIdentify']);
+    const unwrappedMethods = new Set(['handle', 'reverseIdentify', 'submit', 'sendValue']);
     const wrappedGuest = Object.fromEntries(
       Object.entries(guest).map(([name, fn]) => [
         name,

@@ -1,7 +1,6 @@
 /* global globalThis */
 
-/// <reference types="ses"/>
-
+import harden from '@endo/harden';
 import { isPromise } from '@endo/promise-kit';
 import {
   X,

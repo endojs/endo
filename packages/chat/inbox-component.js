@@ -16,20 +16,137 @@ import {
   timeFormatter,
   relativeTime,
 } from './time-formatters.js';
+import { computeLayout } from './moi-layout.js';
+import { render as renderValue } from './value-render.js';
 
 /**
  * @param {HTMLElement} $parent
  * @param {HTMLElement | null} $end
  * @param {ERef<EndoHost>} powers
- * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>, conversationId?: string | null, conversationPetName?: string | null }} options
+ * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>, conversationId?: string | null, conversationPetName?: string | null, onMoiChange?: (messageNumber: bigint | undefined) => void }} options
  */
 export const inboxComponent = async (
   $parent,
   $end,
   powers,
-  { showValue, conversationId, conversationPetName },
+  { showValue, conversationId, conversationPetName, onMoiChange },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
+
+  /** @type {string | undefined} */
+  let moiId;
+
+  /**
+   * Update moiId and notify the callback.
+   * @param {string | undefined} newMoiId
+   */
+  const setMoiId = newMoiId => {
+    moiId = newMoiId;
+    if (onMoiChange) {
+      onMoiChange(
+        moiId !== undefined ? BigInt(moiId) : undefined,
+      );
+    }
+  };
+
+  /**
+   * @typedef {object} TrackedMessage
+   * @property {string} id
+   * @property {string} [replyTo]
+   * @property {HTMLElement} element
+   */
+
+  /** @type {TrackedMessage[]} */
+  const trackedMessages = [];
+
+  /** Map from form messageId to its description, for value message rendering. */
+  /** @type {Map<string, string>} */
+  const formDescriptions = new Map();
+
+  // localStorage-backed set of collapsed thread root messageIds.
+  const COLLAPSED_KEY = 'endo-collapsed-threads';
+
+  /** @type {Set<string>} */
+  const collapsedThreads = new Set(
+    (() => {
+      try {
+        const stored = window.localStorage.getItem(COLLAPSED_KEY);
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    })(),
+  );
+
+  const persistCollapsed = () => {
+    try {
+      window.localStorage.setItem(
+        COLLAPSED_KEY,
+        JSON.stringify([...collapsedThreads]),
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+  };
+
+  /**
+   * Toggle collapse state for a thread root.
+   * @param {string} threadRootId - The messageId of the thread root
+   */
+  const toggleCollapsed = threadRootId => {
+    if (collapsedThreads.has(threadRootId)) {
+      collapsedThreads.delete(threadRootId);
+    } else {
+      collapsedThreads.add(threadRootId);
+    }
+    persistCollapsed();
+    applyLayout(); // eslint-disable-line no-use-before-define
+  };
+
+  /**
+   * Recompute layout and apply data attributes to all tracked message elements.
+   */
+  const applyLayout = () => {
+    if (moiId === undefined || trackedMessages.length === 0) return;
+    const msgs = trackedMessages.map(m => ({ id: m.id, replyTo: m.replyTo }));
+    const layout = computeLayout(msgs, moiId);
+
+    // Build a map from messageId to its thread root (first ancestor with no replyTo).
+    /** @type {Map<string, string>} */
+    const threadRoots = new Map();
+    /** @param {string} id */
+    const findRoot = id => {
+      if (threadRoots.has(id)) return /** @type {string} */ (threadRoots.get(id));
+      const msg = trackedMessages.find(m => m.id === id);
+      if (!msg || !msg.replyTo) {
+        threadRoots.set(id, id);
+        return id;
+      }
+      const root = findRoot(msg.replyTo);
+      threadRoots.set(id, root);
+      return root;
+    };
+
+    for (const tracked of trackedMessages) {
+      const entry = layout.get(tracked.id);
+      if (entry) {
+        tracked.element.dataset.indent = String(entry.indent);
+        tracked.element.dataset.line = entry.lineType;
+      }
+
+      // Apply collapse: hide non-root messages in collapsed threads.
+      const root = findRoot(tracked.id);
+      const isCollapsed = collapsedThreads.has(root) && tracked.id !== root;
+      tracked.element.classList.toggle('thread-collapsed', isCollapsed);
+
+      // Mark thread roots so CSS can style the collapse toggle.
+      const isRoot = tracked.id === root && tracked.replyTo === undefined;
+      tracked.element.classList.toggle('thread-root', isRoot);
+      tracked.element.dataset.threadCollapsed = collapsedThreads.has(root)
+        ? 'true'
+        : 'false';
+    }
+  };
 
   const selfId = await E(powers).identify('SELF');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
@@ -57,7 +174,12 @@ export const inboxComponent = async (
         if (conversationPetName) {
           // eslint-disable-next-line no-await-in-loop
           const names = await E(powers).reverseIdentify(otherPartyId);
-          if (!Array.isArray(names) || !names.includes(conversationPetName)) {
+          if (
+            !Array.isArray(names) ||
+            !names.includes(
+              /** @type {import('@endo/daemon').Name} */ (conversationPetName),
+            )
+          ) {
             // eslint-disable-next-line no-continue
             continue;
           }
@@ -70,6 +192,23 @@ export const inboxComponent = async (
 
     const $message = document.createElement('div');
     $message.className = isSent ? 'message sent' : 'message';
+
+    // Gutter element for reply chain lines
+    const $gutter = document.createElement('div');
+    $gutter.className = 'message-gutter';
+
+    // Collapse toggle button (visible on thread roots via CSS)
+    const $collapseToggle = document.createElement('button');
+    $collapseToggle.className = 'thread-collapse-toggle';
+    $collapseToggle.title = 'Toggle thread';
+    $collapseToggle.addEventListener('click', event => {
+      event.stopPropagation();
+      const msgId = String(number);
+      toggleCollapsed(msgId);
+    });
+    $gutter.appendChild($collapseToggle);
+
+    $message.appendChild($gutter);
 
     const $error = document.createElement('span');
     $error.style.color = 'red';
@@ -600,7 +739,196 @@ export const inboxComponent = async (
 
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
+    } else if (message.type === 'form') {
+      const { description, fields, messageId: formMsgId } = message;
+      formDescriptions.set(String(formMsgId), String(description));
+
+      const $form = document.createElement('div');
+      $form.className = 'form-request-message';
+
+      // Sender chip + description
+      const $desc = document.createElement('div');
+      $desc.className = 'form-request-description';
+      if ($senderChip) {
+        $desc.appendChild($senderChip);
+        $desc.appendChild(document.createTextNode(' '));
+      }
+      $desc.appendChild(
+        document.createTextNode(
+          `${isSent ? 'form' : 'sent form'}: ${JSON.stringify(description)}`,
+        ),
+      );
+      $form.appendChild($desc);
+
+      // Show fields as read-only list
+      const $fieldsContainer = document.createElement('div');
+      $fieldsContainer.className = 'form-request-fields';
+
+      const fieldArray =
+        /** @type {Array<{name: string, label: string, example?: string}>} */ (
+          fields
+        );
+
+      /** @type {Record<string, HTMLInputElement>} */
+      const fieldInputs = {};
+      for (const field of fieldArray) {
+        const $row = document.createElement('div');
+        $row.className = 'form-request-field-row';
+
+        const $label = document.createElement('label');
+        $label.className = 'form-request-field-label';
+        $label.textContent = field.label || field.name;
+
+        const $input = document.createElement('input');
+        $input.type = 'text';
+        $input.className = 'form-request-field-input';
+        $input.placeholder = field.example || field.name;
+        $input.autocomplete = 'off';
+        $input.dataset.formType = 'other';
+        $input.dataset.lpignore = 'true';
+
+        fieldInputs[field.name] = $input;
+        $row.appendChild($label);
+        $row.appendChild($input);
+        $fieldsContainer.appendChild($row);
+      }
+      $form.appendChild($fieldsContainer);
+
+      // Actions
+      const $actions = document.createElement('div');
+      $actions.className = 'form-request-actions';
+
+      const $submitBtn = document.createElement('button');
+      $submitBtn.className = 'form-request-submit';
+      $submitBtn.textContent = 'Submit';
+      const submitForm = () => {
+        /** @type {Record<string, string>} */
+        const values = {};
+        for (const field of fieldArray) {
+          values[field.name] = fieldInputs[field.name].value;
+        }
+        E(powers)
+          .submit(number, values)
+          .catch(err => {
+            $error.innerText = ` ${/** @type {Error} */ (err).message}`;
+          });
+      };
+      $submitBtn.onclick = submitForm;
+      $actions.appendChild($submitBtn);
+
+      $fieldsContainer.addEventListener(
+        'keydown',
+        /** @param {KeyboardEvent} e */ e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submitForm();
+          }
+        },
+      );
+
+      $form.appendChild($actions);
+
+      $body.appendChild($form);
+    } else if (message.type === 'value') {
+      const { valueId } = message;
+      const valueReplyTo = /** @type {string | undefined} */ (
+        'replyTo' in message ? message.replyTo : undefined
+      );
+      const formTitle = valueReplyTo !== undefined
+        ? formDescriptions.get(String(valueReplyTo))
+        : undefined;
+
+      const $valueMsg = document.createElement('div');
+      $valueMsg.className = 'form-request-message';
+
+      const $desc = document.createElement('div');
+      $desc.className = 'form-request-description';
+      if ($senderChip) {
+        $desc.appendChild($senderChip);
+        $desc.appendChild(document.createTextNode(' '));
+      }
+      const responseText = formTitle !== undefined
+        ? `responded to form: ${JSON.stringify(formTitle)}`
+        : 'responded to form';
+      $desc.appendChild(
+        document.createTextNode(responseText),
+      );
+      $valueMsg.appendChild($desc);
+
+      // Render the value inline
+      const $inlineValue = document.createElement('div');
+      $inlineValue.className = 'form-request-inline-value';
+      $valueMsg.appendChild($inlineValue);
+      E(powers)
+        .lookupById(valueId)
+        .then(
+          value => {
+            $inlineValue.appendChild(renderValue(value));
+          },
+          (/** @type {Error} */ err) => {
+            $inlineValue.innerText = `Error: ${err.message}`;
+          },
+        );
+
+      // Show Value button for closer inspection
+      const $actions = document.createElement('div');
+      $actions.className = 'form-request-actions';
+      const $showResult = document.createElement('button');
+      $showResult.className = 'form-request-show-result';
+      $showResult.textContent = 'Show Value';
+      $showResult.title = 'Inspect the submitted value';
+      $showResult.addEventListener('click', () => {
+        E(powers)
+          .lookupById(valueId)
+          .then(
+            value => {
+              showValue(value, valueId, undefined, {
+                number,
+                edgeName: 'VALUE',
+              });
+            },
+            (/** @type {Error} */ err) => {
+              $error.innerText = ` ${err.message}`;
+            },
+          );
+      });
+      $actions.appendChild($showResult);
+      $valueMsg.appendChild($actions);
+
+      $body.appendChild($valueMsg);
     }
+
+    // Track message for reply chain visualization.
+    const messageId = String(number);
+    const replyTo = /** @type {string | undefined} */ (
+      'replyTo' in message ? message.replyTo : undefined
+    );
+    trackedMessages.push({ id: messageId, replyTo, element: $message });
+
+    // Update MOI: when scroll-pinned, the latest message is the MOI.
+    if (wasAtEnd || moiId === undefined) {
+      setMoiId(messageId);
+    }
+
+    // Click to set MOI.
+    $message.addEventListener('click', () => {
+      setMoiId(messageId);
+      applyLayout();
+    });
+
+    // Remove from tracked array when dismissed.
+    dismissed.then(() => {
+      const idx = trackedMessages.findIndex(m => m.id === messageId);
+      if (idx !== -1) {
+        trackedMessages.splice(idx, 1);
+      }
+      if (moiId === messageId && trackedMessages.length > 0) {
+        setMoiId(trackedMessages[trackedMessages.length - 1].id);
+      }
+      applyLayout();
+    });
+
+    applyLayout();
 
     $parent.insertBefore($message, $end);
 

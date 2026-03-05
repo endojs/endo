@@ -35,6 +35,7 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/stream": "workspace:^",
@@ -67,9 +68,9 @@
     ]
   },
   "sesAvaConfigs": {
-    "shims": "../../ava-endo-shims-only.config.mjs",
     "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs"
+    "base": "../../ava-base.config.mjs",
+    "noop-harden": "../../ava-noop-harden.config.mjs"
   },
   "typeCoverage": {
     "atLeast": 100

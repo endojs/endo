@@ -197,6 +197,15 @@ storeValue(value, petNameOrPath) -> Promise<void>
 Store a passable value in the agent's directory.
 Values must be passable (numbers, strings, arrays, records, etc.).`,
 
+  sendValue: `\
+sendValue(messageNumber, petNameOrPath) -> Promise<void>
+Reply to any message with a retained value from your pet store.
+
+- messageNumber: The inbox message number to reply to
+- petNameOrPath: Pet name (or path) of the value to send
+
+Example: sendValue(0, "my-counter")`,
+
   deliver: `\
 deliver(message) -> void
 Internal method to deliver a message to this mailbox.
@@ -262,16 +271,15 @@ and trigger evaluation. This separates code proposal from capability binding.
 Example: define("E(counter).incr()", { counter: { label: "A counter capability" } })`,
 
   form: `\
-form(recipientName, description, fields, responseName?) -> Promise<Record>
-Send a structured form request to another agent.
-The recipient fills out the form fields and the result is returned as a record.
+form(recipientName, description, fields) -> Promise<void>
+Send a structured form to another agent.
+The form appears in the recipient's inbox. They can submit values using submit().
 
 - recipientName: Pet name of the recipient (e.g., "HOST")
 - description: Human-readable description of the form
-- fields: Record of field definitions, e.g. { name: { label: "Your name" } }
-- responseName: Optional pet name to store the response
+- fields: Array of field definitions, e.g. [{ name: "email", label: "Your email" }]
 
-Example: form("HOST", "Configure settings", { name: { label: "Your name" } })`,
+Example: form("HOST", "Configure settings", [{ name: "name", label: "Your name" }])`,
 
   storeValue: `\
 storeValue(value, petNameOrPath) -> Promise<void>
@@ -280,6 +288,25 @@ Store a passable value (number, string, array, record, etc.) in your directory.
 - storeValue({x: 1, y: 2}, "point") stores a record as "point"
 - storeValue(["a", "b"], ["subdir", "items"]) stores in a subdirectory
 Values must be passable (no functions or non-transferable objects).`,
+
+  submit: `\
+submit(messageNumber, values) -> Promise<void>
+Submit values for a form message. Each call creates a new value message
+in reply to the form, allowing multiple submissions.
+
+- messageNumber: The inbox message number of the form
+- values: A record with keys matching the form's field definitions
+
+Example: submit(0, { name: "Alice", age: 30 })`,
+
+  sendValue: `\
+sendValue(messageNumber, petNameOrPath) -> Promise<void>
+Reply to any message with a retained value from your pet store.
+
+- messageNumber: The inbox message number to reply to
+- petNameOrPath: Pet name (or path) of the value to send
+
+Example: sendValue(0, "my-counter")`,
 
   // Directory operations inherit from directoryHelp
   // Mail operations inherit from mailHelp
@@ -430,17 +457,38 @@ The code proposed by the guest runs with these host-chosen bindings.
 
 Example: endow(0, { counter: "my-counter" })`,
 
-  respondForm: `\
-respondForm(messageNumber, values) -> Promise<void>
-Respond to a structured form request with values.
+  form: `\
+form(recipientName, description, fields) -> Promise<void>
+Send a structured form to another agent.
+The form appears in the recipient's inbox. They can submit values using submit().
 
-- messageNumber: The form-request message number
+- recipientName: Pet name or path of the recipient
+- description: Human-readable description of what the form is for
+- fields: Array of field definitions, e.g. [{ name: "email", label: "Your email" }]
+
+Example: form("HOST", "Configure settings", [{ name: "name", label: "Name" }, { name: "email", label: "Email" }])`,
+
+  submit: `\
+submit(messageNumber, values) -> Promise<void>
+Submit values for a form message. Each call creates a new value message
+in reply to the form, allowing multiple submissions.
+
+- messageNumber: The form message number
 - values: Record mapping field names to values, e.g. { name: "Alice" }
 
 Each value must match the pattern specified by the form field (if any).
-The guest that sent the form request receives the values record.
+Fields without explicit patterns default to M.string().
 
-Example: respondForm(0, { name: "Alice", age: 30 })`,
+Example: submit(0, { name: "Alice", age: 30 })`,
+
+  sendValue: `\
+sendValue(messageNumber, petNameOrPath) -> Promise<void>
+Reply to any message with a retained value from your pet store.
+
+- messageNumber: The inbox message number to reply to
+- petNameOrPath: Pet name (or path) of the value to send
+
+Example: sendValue(0, "my-counter")`,
 };
 
 /** @type {HelpText} */

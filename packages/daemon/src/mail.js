@@ -1,9 +1,11 @@
 // @ts-check
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
+import { mustMatch, M } from '@endo/patterns';
 import { makeChangeTopic } from './pubsub.js';
 import { assertFormulaNumber, assertValidId } from './formula-identifier.js';
 import {
@@ -24,7 +26,7 @@ import {
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, EvalProposalProposer, EvalProposalReviewer, EvalRequest, FormulaIdentifier, FormRequest, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, EvalProposalProposer, EvalProposalReviewer, EvalRequest, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
@@ -37,8 +39,8 @@ const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
 const mapSettled = responseIdP =>
   responseIdP.then(
     id =>
-      id && typeof id.then === 'function'
-        ? id.then(
+      id && typeof id === 'object'
+        ? /** @type {Promise<string>} */ (id).then(
             () => /** @type {const} */ ('fulfilled'),
             () => /** @type {const} */ ('rejected'),
           )
@@ -100,6 +102,7 @@ const MESSAGE_SPECIAL_NAMES = new Set([
   'STRINGS',
   'PROMISE',
   'RESOLVER',
+  'RESULT',
 ]);
 
 /**
@@ -270,32 +273,22 @@ export const makeMailboxMaker = ({
 
     /**
      * @param {string} description
-     * @param {Record<string, { label: string, pattern?: unknown }>} fields
+     * @param {import('./types.js').FormField[]} fields
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
      */
-    const makeFormRequest = async (description, fields, fromId, toId) => {
-      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+    const makeForm = async (description, fields, fromId, toId) => {
+      const messageId = /** @type {FormulaNumber} */ (
         await randomHex256()
       );
-      const { promiseId, resolverId } = await formulatePromise(pinTransient);
-      const resolutionIdP = provide(promiseId);
-      const settled = resolutionIdP.then(
-        () => /** @type {const} */ ('fulfilled'),
-        () => /** @type {const} */ ('rejected'),
-      );
-      const request = harden({
-        type: /** @type {const} */ ('form-request'),
+      return harden({
+        type: /** @type {const} */ ('form'),
         from: fromId,
         to: toId,
         messageId,
         description,
         fields,
-        promiseId,
-        resolverId,
-        settled,
       });
-      return harden({ request, response: resolutionIdP });
     };
 
     /**
@@ -365,7 +358,7 @@ export const makeMailboxMaker = ({
           resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
-      if (envelope.type === 'form-request') {
+      if (envelope.type === 'form') {
         return harden({
           type: 'message',
           messageType: envelope.type,
@@ -376,14 +369,9 @@ export const makeMailboxMaker = ({
           date,
           description: envelope.description,
           fields: envelope.fields,
-          promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
-          resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
-      if (
-        envelope.type === 'eval-proposal-reviewer' ||
-        envelope.type === 'eval-proposal-proposer'
-      ) {
+      if (envelope.type === 'value') {
         return harden({
           type: 'message',
           messageType: envelope.type,
@@ -392,13 +380,32 @@ export const makeMailboxMaker = ({
           from: /** @type {FormulaIdentifier} */ (envelope.from),
           to: /** @type {FormulaIdentifier} */ (envelope.to),
           date,
-          source: envelope.source,
-          codeNames: envelope.codeNames,
-          petNamePaths: envelope.petNamePaths,
-          edgeNames: envelope.edgeNames,
-          ids: envelope.ids,
-          workerName: envelope.workerName,
+          valueId: /** @type {FormulaIdentifier} */ (envelope.valueId),
         });
+      }
+      if (
+        envelope.type === 'eval-proposal-reviewer' ||
+        envelope.type === 'eval-proposal-proposer'
+      ) {
+        return /** @type {MessageFormula} */ (
+          /** @type {unknown} */ (
+            harden({
+              type: 'message',
+              messageType: envelope.type,
+              messageId,
+              ...replyToRecord,
+              from: /** @type {FormulaIdentifier} */ (envelope.from),
+              to: /** @type {FormulaIdentifier} */ (envelope.to),
+              date,
+              source: envelope.source,
+              codeNames: envelope.codeNames,
+              petNamePaths: envelope.petNamePaths,
+              edgeNames: envelope.edgeNames,
+              ids: envelope.ids,
+              workerName: envelope.workerName,
+            })
+          )
+        );
       }
       throw new Error('Unknown message type');
     };
@@ -421,9 +428,6 @@ export const makeMailboxMaker = ({
         assertFormulaNumber(envelope.replyTo);
       }
       if (envelope.type === 'request') {
-        if (envelope.replyTo !== undefined) {
-          throw new Error('Request messages cannot have replyTo');
-        }
         if (typeof envelope.description !== 'string') {
           throw new Error('Invalid request description');
         }
@@ -472,12 +476,21 @@ export const makeMailboxMaker = ({
         }
         return;
       }
-      if (envelope.type === 'form-request') {
+      if (envelope.type === 'form') {
         if (typeof envelope.description !== 'string') {
-          throw new Error('Invalid form-request description');
+          throw new Error('Invalid form description');
         }
-        if (typeof envelope.fields !== 'object' || envelope.fields === null) {
-          throw new Error('Invalid form-request fields');
+        if (!Array.isArray(envelope.fields)) {
+          throw new Error('Invalid form fields');
+        }
+        return;
+      }
+      if (envelope.type === 'value') {
+        if (typeof envelope.replyTo !== 'string') {
+          throw new Error('Invalid value replyTo');
+        }
+        if (typeof envelope.valueId !== 'string') {
+          throw new Error('Invalid value valueId');
         }
         return;
       }
@@ -662,30 +675,37 @@ export const makeMailboxMaker = ({
         });
       }
 
-      if (formula.messageType === 'form-request') {
+      if (formula.messageType === 'form') {
         if (
           formula.description === undefined ||
-          formula.fields === undefined ||
-          formula.promiseId === undefined ||
-          formula.resolverId === undefined
+          formula.fields === undefined
         ) {
-          throw new Error('Form-request message formula is incomplete');
+          throw new Error('Form message formula is incomplete');
         }
-        const resolutionIdP = provide(formula.promiseId);
-        /** @type {Promise<'fulfilled' | 'rejected'>} */
-        const settled = resolutionIdP.then(
-          () => /** @type {const} */ ('fulfilled'),
-          () => /** @type {const} */ ('rejected'),
-        );
         return harden({
           type: formula.messageType,
           from: formula.from,
           to: formula.to,
           description: formula.description,
           fields: formula.fields,
-          promiseId: formula.promiseId,
-          resolverId: formula.resolverId,
-          settled,
+          messageId: formula.messageId,
+          replyTo: formula.replyTo,
+          number: messageNumber,
+          date: formula.date,
+          dismissed: dismissal.promise,
+          dismisser,
+        });
+      }
+
+      if (formula.messageType === 'value') {
+        if (formula.valueId === undefined) {
+          throw new Error('Value message formula is incomplete');
+        }
+        return harden({
+          type: formula.messageType,
+          from: formula.from,
+          to: formula.to,
+          valueId: formula.valueId,
           messageId: formula.messageId,
           replyTo: formula.replyTo,
           number: messageNumber,
@@ -862,8 +882,12 @@ export const makeMailboxMaker = ({
       const type = await getTypeForId(id);
       if (type === 'host' || type === 'guest') {
         const formula = await getFormulaForId(id);
+        const hostOrGuestFormula =
+          /** @type {import('./types.js').HostFormula | import('./types.js').GuestFormula} */ (
+            formula
+          );
         return provide(
-          /** @type {FormulaIdentifier} */ (formula.handle),
+          /** @type {FormulaIdentifier} */ (hostOrGuestFormula.handle),
           'handle',
         );
       }
@@ -925,7 +949,13 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['send']} */
-    const send = async (toNameOrPath, strings, edgeNames, petNamesOrPaths) => {
+    const send = async (
+      toNameOrPath,
+      strings,
+      edgeNames,
+      petNamesOrPaths,
+      replyToMessageNumber,
+    ) => {
       const toPath = namePathFrom(toNameOrPath);
       assertNames(edgeNames);
       assertUniqueEdgeNames(edgeNames);
@@ -963,12 +993,26 @@ export const makeMailboxMaker = ({
         }),
       );
 
+      /** @type {import('./types.js').FormulaNumber | undefined} */
+      let replyTo;
+      if (replyToMessageNumber !== undefined) {
+        const normalizedNumber = mustParseBigint(
+          replyToMessageNumber,
+          'message',
+        );
+        const parent = messages.get(normalizedNumber);
+        if (parent !== undefined && typeof parent.messageId === 'string') {
+          replyTo = parent.messageId;
+        }
+      }
+
       const message = harden({
         type: /** @type {const} */ ('package'),
         strings,
         names: edgeNames,
         ids,
         messageId,
+        ...(replyTo !== undefined ? { replyTo } : {}),
         from: selfId,
         to: /** @type {FormulaIdentifier} */ (toId),
       });
@@ -1296,17 +1340,9 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {Mail['form']} */
-    const form = async (toNameOrPath, description, fields, responseName) => {
+    const form = async (toNameOrPath, description, fields) => {
       const toPath = namePathFrom(toNameOrPath);
       await null;
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
-        const responseId = await E(directory).identify(...responseNamePath);
-        if (responseId !== undefined) {
-          context.thisDiesIfThatDies(responseId);
-          return provide(/** @type {FormulaIdentifier} */ (responseId));
-        }
-      }
 
       const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
@@ -1315,33 +1351,14 @@ export const makeMailboxMaker = ({
       assertValidId(toId);
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
-      const { request: req, response: resolutionIdP } = await makeFormRequest(
+      const req = await makeForm(
         description,
         fields,
         selfId,
         /** @type {FormulaIdentifier} */ (toId),
       );
 
-      try {
-        await post(to, req);
-      } finally {
-        unpinTransient(req.promiseId);
-        unpinTransient(req.resolverId);
-      }
-
-      const resolutionId = /** @type {FormulaIdentifier} */ (
-        await resolutionIdP
-      );
-      assertValidId(resolutionId);
-      context.thisDiesIfThatDies(resolutionId);
-      const responseP = provide(resolutionId);
-
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
-        await E(directory).write(responseNamePath, resolutionId);
-      }
-
-      return responseP;
+      await post(to, req);
     };
 
     /** @type {Mail['getDefineRequest']} */
@@ -1368,28 +1385,114 @@ export const makeMailboxMaker = ({
       });
     };
 
-    /** @type {Mail['getFormRequest']} */
-    const getFormRequest = messageNumber => {
+    /** @type {Mail['getForm']} */
+    const getForm = messageNumber => {
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
-      if (message.type !== 'form-request') {
+      if (message.type !== 'form') {
         throw new Error(
-          `Message ${q(messageNumber)} is not a form-request (is ${q(message.type)})`,
+          `Message ${q(messageNumber)} is not a form (is ${q(message.type)})`,
         );
       }
-      const formReq =
-        /** @type {FormRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
+      const formMsg =
+        /** @type {Form & { from: FormulaIdentifier, messageId: FormulaNumber }} */ (
           message
         );
       return harden({
-        description: formReq.description,
-        fields: formReq.fields,
-        resolverId: formReq.resolverId,
-        guestHandleId: formReq.from,
+        description: formMsg.description,
+        fields: formMsg.fields,
+        messageId: formMsg.messageId,
+        guestHandleId: formMsg.from,
       });
+    };
+
+    /** @type {Mail['submit']} */
+    const submit = async (messageNumber, values) => {
+      const { fields, messageId: formMessageId, guestHandleId } =
+        getForm(messageNumber);
+
+      // Validate that values cover every field and match patterns.
+      for (const { name, pattern } of fields) {
+        if (!(name in values)) {
+          throw new Error(`Missing value for field ${q(name)}`);
+        }
+        const effectivePattern = pattern !== undefined ? pattern : M.string();
+        mustMatch(values[name], effectivePattern, `field ${q(name)}`);
+      }
+
+      // Marshal the values record.
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const marshalTasks = makeDeferredTasks();
+      const { id: marshalledId } = await formulateMarshalValue(
+        /** @type {import('@endo/pass-style').Passable} */ (harden(values)),
+        marshalTasks,
+        pinTransient,
+      );
+
+      try {
+        // Build a value message envelope addressed back to the form sender.
+        const valueMessageId = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        /** @type {ValueMessage & { from: FormulaIdentifier, to: FormulaIdentifier }} */
+        const valueEnvelope = harden({
+          type: /** @type {const} */ ('value'),
+          from: /** @type {FormulaIdentifier} */ (selfId),
+          to: /** @type {FormulaIdentifier} */ (guestHandleId),
+          messageId: valueMessageId,
+          replyTo: formMessageId,
+          valueId: marshalledId,
+        });
+
+        const recipientHandle = await provideHandle(
+          /** @type {FormulaIdentifier} */ (guestHandleId),
+        );
+        await post(recipientHandle, valueEnvelope);
+      } finally {
+        unpinTransient(marshalledId);
+      }
+    };
+
+    /** @type {Mail['sendValue']} */
+    const sendValue = async (messageNumber, petNameOrPath) => {
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      const parent = messages.get(normalizedMessageNumber);
+      if (parent === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (typeof parent.messageId !== 'string') {
+        throw new Error(`Message ${q(messageNumber)} has no messageId`);
+      }
+      const otherId = parent.from === selfId ? parent.to : parent.from;
+
+      const petPath = namePathFrom(petNameOrPath);
+      const valueId = await E(directory).identify(...petPath);
+      if (valueId === undefined) {
+        throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
+      }
+      assertValidId(valueId);
+
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex256()
+      );
+      const to = await provideHandle(
+        /** @type {FormulaIdentifier} */ (otherId),
+      );
+
+      /** @type {import('./types.js').ValueMessage & { from: FormulaIdentifier, to: FormulaIdentifier }} */
+      const message = harden({
+        type: /** @type {const} */ ('value'),
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (otherId),
+        messageId,
+        replyTo: parent.messageId,
+        valueId: /** @type {FormulaIdentifier} */ (valueId),
+      });
+
+      await post(to, message);
     };
 
     /**
@@ -1406,7 +1509,9 @@ export const makeMailboxMaker = ({
       workerName,
       resultName,
     ) => {
-      const to = /** @type {Handle} */ (await provide(toId));
+      const to = /** @type {Handle} */ (
+        await provide(/** @type {FormulaIdentifier} */ (toId))
+      );
 
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()
@@ -1423,10 +1528,14 @@ export const makeMailboxMaker = ({
 
       const resultId = responseIdP.catch(() => undefined);
       const result = responseIdP
-        .then(id => (typeof id === 'string' ? provide(id) : id))
+        .then(id =>
+          typeof id === 'string'
+            ? provide(/** @type {FormulaIdentifier} */ (id))
+            : id,
+        )
         .catch(() => undefined);
 
-      /** @type {EvalProposalReviewer & { from: string, to: string }} */
+      /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const reviewerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-reviewer'),
         messageId,
@@ -1440,11 +1549,11 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: toId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (toId),
       });
 
-      /** @type {EvalProposalProposer & { from: string, to: string }} */
+      /** @type {EvalProposalProposer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const proposerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-proposer'),
         messageId,
@@ -1458,8 +1567,8 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: toId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (toId),
       });
 
       // Deliver the proposer view to our own inbox first,
@@ -1479,7 +1588,7 @@ export const makeMailboxMaker = ({
         const resultNamePath = namePathFrom(resultName.split('.'));
         await E(directory).write(resultNamePath, responseId);
       }
-      return provide(responseId);
+      return provide(/** @type {FormulaIdentifier} */ (responseId));
     };
 
     /**
@@ -1543,7 +1652,9 @@ export const makeMailboxMaker = ({
       const originalSenderId = originalProposal.from;
 
       // Send counter-proposal back to original sender
-      const to = /** @type {Handle} */ (await provide(originalSenderId));
+      const to = /** @type {Handle} */ (
+        await provide(/** @type {FormulaIdentifier} */ (originalSenderId))
+      );
 
       const counterMessageId =
         /** @type {import('./types.js').FormulaNumber} */ (
@@ -1562,7 +1673,7 @@ export const makeMailboxMaker = ({
       const resultId = Promise.resolve(undefined);
       const result = Promise.resolve(undefined);
 
-      /** @type {EvalProposalReviewer & { from: string, to: string }} */
+      /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const counterReviewerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-reviewer'),
         messageId: counterMessageId,
@@ -1576,11 +1687,11 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: originalSenderId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (originalSenderId),
       });
 
-      /** @type {EvalProposalProposer & { from: string, to: string }} */
+      /** @type {EvalProposalProposer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
       const counterProposerMessage = harden({
         type: /** @type {const} */ ('eval-proposal-proposer'),
         messageId: counterMessageId,
@@ -1594,8 +1705,8 @@ export const makeMailboxMaker = ({
         settled,
         resultId,
         result,
-        from: selfId,
-        to: originalSenderId,
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (originalSenderId),
       });
 
       // Deliver the counter-proposal proposer view to our own inbox first.
@@ -1635,7 +1746,9 @@ export const makeMailboxMaker = ({
       define,
       form,
       getDefineRequest,
-      getFormRequest,
+      getForm,
+      submit,
+      sendValue,
       evaluate,
       grantEvaluate,
       counterEvaluate,

@@ -10,6 +10,7 @@ import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
 import { createCounterProposalForm } from './counter-proposal-form.js';
+import { createFormBuilder } from './form-builder.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
 import {
@@ -32,6 +33,8 @@ import { kbd, modKey } from './platform-keys.js';
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {() => void} [options.exitConversation] - Exit the current conversation view
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
+ * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
+ * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  */
 export const chatBarComponent = (
   $parent,
@@ -44,6 +47,8 @@ export const chatBarComponent = (
     getConversationPetName,
     exitConversation,
     navigateToConversation,
+    getMoiMessageNumber,
+    getChannelRef,
   },
 ) => {
   const $chatBar = /** @type {HTMLElement} */ (
@@ -78,6 +83,12 @@ export const chatBarComponent = (
   );
   const $counterProposalBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#counter-proposal-backdrop')
+  );
+  const $formBuilderContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#form-builder-container')
+  );
+  const $formBuilderBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#form-builder-backdrop')
   );
   const $inlineFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#inline-form-container')
@@ -143,7 +154,7 @@ export const chatBarComponent = (
     $chatBar.classList.add('has-modeline');
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'js'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -155,12 +166,16 @@ export const chatBarComponent = (
   /** @type {import('./counter-proposal-form.js').CounterProposalFormAPI | null} */
   let counterProposalForm = null;
 
+  /** @type {import('./form-builder.js').FormBuilderAPI | null} */
+  let formBuilder = null;
+
   // Initialize the send form component
   const sendForm = sendFormComponent({
     $input,
     $menu: $tokenMenu,
     $error,
     $sendButton,
+    $chatBar,
     E,
     makeRefIterator,
     powers,
@@ -174,6 +189,8 @@ export const chatBarComponent = (
     },
     getConversationPetName,
     navigateToConversation,
+    getMoiMessageNumber,
+    getChannelRef,
   });
 
   // Initialize command executor
@@ -193,13 +210,17 @@ export const chatBarComponent = (
         $error.textContent = message;
       }
       console.error(`[Chat] Command error:`, message);
-      if (error?.errors?.length) {
-        for (const sub of error.errors) {
+      const { errors } = /** @type {{ errors?: Error[] }} */ (error);
+      if (errors?.length) {
+        for (const sub of errors) {
           console.error(`[Chat]   caused by:`, sub?.message || sub);
         }
       }
       if (error?.cause) {
-        console.error(`[Chat]   cause:`, error.cause?.message || error.cause);
+        console.error(
+          `[Chat]   cause:`,
+          /** @type {Error} */ (error.cause)?.message || error.cause,
+        );
       }
     },
   });
@@ -435,30 +456,49 @@ export const chatBarComponent = (
     }
   });
 
-  // Initialize inline command form
-  const inlineForm = createInlineCommandForm({
-    $container: $inlineFormContainer,
-    E,
-    powers,
-    onSubmit: async (commandName, data) => {
-      messagePicker.disable();
-      $commandError.textContent = '';
+  let commandSubmitting = false;
 
-      // Special handling for enter command - uses profile navigation
-      if (commandName === 'enter') {
-        const { hostName } = /** @type {{ hostName: string }} */ (data);
-        exitCommandMode(); // eslint-disable-line no-use-before-define
-        await enterProfile(hostName);
-        return;
-      }
+  const setCommandSubmitting = (/** @type {boolean} */ value) => {
+    commandSubmitting = value;
+    if (value) {
+      $chatBar.classList.add('submitting');
+      $commandSubmitButton.classList.add('btn-spinner');
+      $commandSubmitButton.disabled = true;
+      inlineForm.setDisabled(true); // eslint-disable-line no-use-before-define
+    } else {
+      $chatBar.classList.remove('submitting');
+      $commandSubmitButton.classList.remove('btn-spinner');
+      inlineForm.setDisabled(false); // eslint-disable-line no-use-before-define
+      $commandSubmitButton.disabled = !inlineForm.isValid(); // eslint-disable-line no-use-before-define
+    }
+  };
 
-      // For js/eval: reset command line immediately so guest proposals don't block the UI.
-      // (Guest evaluate() resolves only when the host grants; we show the result when it does.)
-      const isEval = commandName === 'js' || commandName === 'eval';
-      if (isEval) {
-        exitCommandMode(); // eslint-disable-line no-use-before-define
-      }
+  /**
+   * Run a command with spinner/disabled state management.
+   *
+   * @param {string} commandName
+   * @param {Record<string, unknown>} data
+   */
+  const executeWithSpinner = async (commandName, data) => {
+    messagePicker.disable();
+    $commandError.textContent = '';
 
+    if (commandName === 'enter') {
+      const { hostName } = /** @type {{ hostName: string }} */ (data);
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+      await enterProfile(hostName);
+      return;
+    }
+
+    // For js/eval: reset command line immediately so guest proposals don't block the UI.
+    const isEval = commandName === 'js' || commandName === 'eval';
+    if (isEval) {
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+    } else {
+      setCommandSubmitting(true);
+    }
+
+    try {
       const result = await executor.execute(commandName, data);
       if (result.success) {
         if (!isEval) {
@@ -469,7 +509,6 @@ export const chatBarComponent = (
             ? String(data.resultName)
             : undefined;
         const resultPath = resultName ? resultName.split('.') : undefined;
-        // Always show js results (even undefined), skip show/list which handle their own display
         if (commandName === 'js') {
           showValue(result.value, undefined, resultPath, undefined);
         } else if (
@@ -480,14 +519,31 @@ export const chatBarComponent = (
           showValue(result.value, undefined, resultPath, undefined);
         }
       }
-      // Error case: showError callback already set $commandError or $error.textContent
+    } finally {
+      if (!isEval) {
+        setCommandSubmitting(false);
+      }
+    }
+  };
+
+  // Initialize inline command form
+  const inlineForm = createInlineCommandForm({
+    $container: $inlineFormContainer,
+    E,
+    powers,
+    makeRefIterator,
+    onSubmit: async (commandName, data) => {
+      if (commandSubmitting) return;
+      await executeWithSpinner(commandName, data);
     },
     onCancel: () => {
       messagePicker.disable();
       exitCommandMode(); // eslint-disable-line no-use-before-define
     },
     onValidityChange: isValid => {
-      $commandSubmitButton.disabled = !isValid;
+      if (!commandSubmitting) {
+        $commandSubmitButton.disabled = !isValid;
+      }
     },
     onMessageNumberClick: () => {
       // Enable picker and track the input
@@ -728,6 +784,50 @@ export const chatBarComponent = (
     hideCounterProposalForm();
   });
 
+  /**
+   * Show the form builder modal.
+   */
+  const showFormBuilder = () => {
+    if (!formBuilder) {
+      formBuilder = createFormBuilder({
+        $container: $formBuilderContainer,
+        E,
+        powers,
+        onSubmit: async data => {
+          await executor.execute('form', {
+            recipient: data.recipient,
+            description: data.description,
+            fields: data.fields,
+            resultName: data.resultName,
+          });
+        },
+        onClose: () => {
+          hideFormBuilder(); // eslint-disable-line no-use-before-define
+        },
+      });
+    }
+
+    mode = 'form';
+    $formBuilderBackdrop.style.display = 'block';
+    $formBuilderContainer.style.display = 'block';
+    formBuilder.show();
+  };
+
+  const hideFormBuilder = () => {
+    mode = 'send';
+    $formBuilderBackdrop.style.display = 'none';
+    $formBuilderContainer.style.display = 'none';
+    if (formBuilder) {
+      formBuilder.hide();
+    }
+    sendForm.focus();
+  };
+
+  // Click on backdrop closes form builder
+  $formBuilderBackdrop.addEventListener('click', () => {
+    hideFormBuilder();
+  });
+
   // Listen for counter-proposal events from message buttons
   $parent.addEventListener('open-counter-proposal', event => {
     const { detail } = /** @type {CustomEvent} */ (event);
@@ -746,46 +846,10 @@ export const chatBarComponent = (
 
   // Command submit button
   $commandSubmitButton.addEventListener('click', async () => {
+    if (commandSubmitting) return;
     if (currentCommand && inlineForm.isValid()) {
-      $commandError.textContent = '';
       const data = inlineForm.getData();
-
-      // Special handling for enter command - uses profile navigation
-      if (currentCommand === 'enter') {
-        const { hostName } = /** @type {{ hostName: string }} */ (data);
-        exitCommandMode();
-        await enterProfile(hostName);
-        return;
-      }
-
-      // For js/eval: reset command line immediately so guest proposals don't block the UI
-      const isEval = currentCommand === 'js' || currentCommand === 'eval';
-      if (isEval) {
-        exitCommandMode();
-      }
-
-      const result = await executor.execute(currentCommand, data);
-      if (result.success) {
-        if (!isEval) {
-          exitCommandMode();
-        }
-        const resultName =
-          'resultName' in data && data.resultName
-            ? String(data.resultName)
-            : undefined;
-        const resultPath = resultName ? resultName.split('.') : undefined;
-        // Always show js results (even undefined), skip show/list which handle their own display
-        if (currentCommand === 'js') {
-          showValue(result.value, undefined, resultPath, undefined);
-        } else if (
-          result.value !== undefined &&
-          currentCommand !== 'show' &&
-          currentCommand !== 'list'
-        ) {
-          showValue(result.value, undefined, resultPath, undefined);
-        }
-      }
-      // Error case: showError callback already set $commandError or $error.textContent
+      await executeWithSpinner(currentCommand, data);
     }
   });
 
@@ -808,9 +872,10 @@ export const chatBarComponent = (
       case 'modal':
         // Reset mode since we're leaving selecting state
         mode = 'send';
-        // For now only js uses modal
         if (commandName === 'js') {
           showEvalForm();
+        } else if (commandName === 'form') {
+          showFormBuilder();
         }
         break;
 
@@ -956,6 +1021,9 @@ export const chatBarComponent = (
         event.preventDefault();
         helpModal.hide();
         sendForm.focus();
+      } else if (mode === 'form') {
+        event.preventDefault();
+        hideFormBuilder();
       } else if (mode === 'inline') {
         event.preventDefault();
         exitCommandMode();

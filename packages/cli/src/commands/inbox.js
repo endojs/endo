@@ -39,8 +39,10 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested evaluation of';
       } else if (type === 'definition') {
         verb = 'proposed definition';
-      } else if (type === 'form-request') {
+      } else if (type === 'form') {
         verb = 'sent form';
+      } else if (type === 'value') {
+        verb = 'sent value';
       } else {
         verb = 'sent an unrecognizable message';
       }
@@ -109,12 +111,22 @@ export const inbox = async ({ follow, agentNames }) =>
         console.log(
           `${number}. ${provenance}${q(source)}${slotInfo} at ${q(date)}`,
         );
-      } else if (message.type === 'form-request') {
+      } else if (message.type === 'form') {
         const { description, fields } = message;
-        const fieldNames = Object.keys(fields || {}).join(', ');
+        const fieldNames = (fields || []).map(f => f.name).join(', ');
         const fieldInfo = fieldNames ? ` (fields: ${fieldNames})` : '';
         console.log(
           `${number}. ${provenance}${q(description)}${fieldInfo} at ${q(date)}`,
+        );
+      } else if (message.type === 'value') {
+        const { replyTo } = message;
+        const replyNumber = messageNumberById.get(replyTo);
+        const replyContext =
+          replyNumber === undefined
+            ? 'unknown'
+            : `#${replyNumber}`;
+        console.log(
+          `${number}. ${provenance}in reply to ${replyContext} at ${q(date)}`,
         );
       } else if (
         message.type === 'eval-proposal-reviewer' ||

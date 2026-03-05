@@ -2,9 +2,26 @@
 
 | | |
 |---|---|
-| **Date** | 2026-02-14 |
+| **Created** | 2026-02-14 |
+| **Updated** | 2026-02-26 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
+
+## Status
+
+**Implemented.** The unified weblet server is in
+`packages/daemon/src/web-server-node.js`. Key implementation details:
+
+- The `webletHandlers` map is keyed by the bare access token (first 32 chars
+  of the weblet ID), not by `<id>.localhost`. This simplifies the
+  `localhttp://` protocol handler, which sends the bare access token as the
+  `Host` header.
+- Both HTTP requests and WebSocket upgrades are routed by `Host` header.
+- `makeWeblet` supports two modes: unified server (hostname-based routing on
+  the gateway port) and dedicated port (per-weblet server, path-based
+  routing). The unified mode returns `localhttp://{accessToken}` URLs.
+- The `localhttp://` protocol handler in `packages/familiar` proxies to
+  `http://127.0.0.1:{gatewayPort}` with `Host: {accessToken}`.
 
 ## What is the Problem Being Solved?
 

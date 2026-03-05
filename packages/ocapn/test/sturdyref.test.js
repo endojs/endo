@@ -1,10 +1,9 @@
 // @ts-check
 
-import test from '@endo/ses-ava/test.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { passStyleOf } from '@endo/pass-style';
-import { testWithErrorUnwrapping, makeTestClient } from './_util.js';
+import { test, testWithErrorUnwrapping, makeTestClient } from './_util.js';
 import { encodeSwissnum } from '../src/client/util.js';
 import { isSturdyRef, getSturdyRefDetails } from '../src/client/sturdyrefs.js';
 import { ocapnPassStyleOf } from '../src/codecs/ocapn-pass-style.js';

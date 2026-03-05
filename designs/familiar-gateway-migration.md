@@ -2,9 +2,25 @@
 
 | | |
 |---|---|
-| **Date** | 2026-02-14 |
+| **Created** | 2026-02-14 |
+| **Updated** | 2026-02-26 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Complete |
+
+## Status
+
+**Implemented.** The gateway is a built-in daemon service:
+
+- The `APPS` formula in `packages/daemon/src/daemon-node.js` launches
+  `web-server-node.js` as an unconfined guest with `ENDO` powers.
+- The gateway listens on `ENDO_ADDR` (default `127.0.0.1:8920`).
+- It serves both HTTP (weblet virtual hosts) and WebSocket (CapTP sessions).
+- `packages/chat/scripts/gateway-server.js` is retained as a standalone
+  server for Chat's Vite dev plugin, connecting to the daemon over the Unix
+  socket.
+- The Familiar spawns the daemon directly (which hosts the gateway) and
+  reads the gateway address from `ENDO_ADDR` or defaults to
+  `127.0.0.1:8920`.
 
 ## What is the Problem Being Solved?
 

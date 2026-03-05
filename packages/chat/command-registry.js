@@ -2,7 +2,7 @@
 
 /**
  * Field types for command parameters.
- * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
+ * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'message' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
  */
 
 /**
@@ -168,6 +168,30 @@ export const COMMANDS = {
     ],
     submitLabel: 'Reject',
   },
+  reply: {
+    name: 'reply',
+    label: 'Reply',
+    description: 'Reply to a message',
+    category: 'messaging',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'messageNumber',
+        label: 'Message #',
+        type: 'messageNumber',
+        required: true,
+        placeholder: '#',
+      },
+      {
+        name: 'message',
+        label: 'Message',
+        type: 'message',
+        required: true,
+        placeholder: 'Type a reply...',
+      },
+    ],
+    submitLabel: 'Reply',
+  },
   grant: {
     name: 'grant',
     label: 'Grant',
@@ -185,6 +209,34 @@ export const COMMANDS = {
     ],
     submitLabel: 'Grant',
     aliases: ['allow'],
+  },
+
+  form: {
+    name: 'form',
+    label: 'Send Form',
+    description: 'Send a structured form to a recipient',
+    category: 'messaging',
+    mode: 'modal',
+    fields: [],
+    submitLabel: 'Send Form',
+  },
+
+  submit: {
+    name: 'submit',
+    label: 'Submit',
+    description: 'Submit values for a form',
+    category: 'messaging',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'messageNumber',
+        label: 'Form #',
+        type: 'messageNumber',
+        required: true,
+        placeholder: '#',
+      },
+    ],
+    submitLabel: 'Submit',
   },
 
   'approve-eval': {
@@ -413,12 +465,20 @@ export const COMMANDS = {
         defaultValue: import.meta.env?.TCP_NETSTRING_PATH || '',
       },
       {
-        name: 'hostPort',
-        label: 'Listen address',
+        name: 'host',
+        label: 'Host',
         type: 'text',
         required: false,
-        defaultValue: 'localhost:0',
-        placeholder: 'localhost:0',
+        defaultValue: '127.0.0.1',
+        placeholder: '127.0.0.1',
+      },
+      {
+        name: 'port',
+        label: 'Port',
+        type: 'text',
+        required: false,
+        defaultValue: '8940',
+        placeholder: '8940',
       },
     ],
     submitLabel: 'Enable',

@@ -97,9 +97,13 @@ type IdRecord = {
   node: NodeNumber;
 };
 
-type ParseIdRecord = IdRecord & {
+export type ParseIdRecord = IdRecord & {
   id: FormulaIdentifier;
 };
+
+export type EdgeName = string;
+
+export type EnvRecord = Record<string, string>;
 
 type EndoFormula = {
   type: 'endo';
@@ -131,7 +135,7 @@ export type AgentDeferredTaskParams = {
   handleId: FormulaIdentifier;
 };
 
-type HostFormula = {
+export type HostFormula = {
   type: 'host';
   handle: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
@@ -146,7 +150,7 @@ type HostFormula = {
   pins: FormulaIdentifier;
 };
 
-type GuestFormula = {
+export type GuestFormula = {
   type: 'guest';
   handle: FormulaIdentifier;
   keypair: FormulaIdentifier;
@@ -217,6 +221,7 @@ type MakeUnconfinedFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   specifier: string;
+  env?: Record<string, string>;
   // TODO formula slots
 };
 
@@ -225,6 +230,7 @@ type MakeBundleFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   bundle: FormulaIdentifier;
+  env?: Record<string, string>;
   // TODO formula slots
 };
 
@@ -276,7 +282,10 @@ type MessageFormula = {
     | 'package'
     | 'eval-request'
     | 'definition'
-    | 'form-request';
+    | 'form'
+    | 'value'
+    | 'eval-proposal-reviewer'
+    | 'eval-proposal-proposer';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -292,7 +301,8 @@ type MessageFormula = {
   codeNames?: string[];
   petNamePaths?: NamePath[];
   slots?: Record<string, { label: string; pattern?: unknown }>;
-  fields?: Record<string, { label: string; pattern?: unknown }>;
+  fields?: FormField[];
+  valueId?: FormulaIdentifier;
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
@@ -316,6 +326,32 @@ type DirectoryFormula = {
   petStore: FormulaIdentifier;
 };
 
+type ChannelFormula = {
+  type: 'channel';
+  handle: FormulaIdentifier;
+  creatorAgent: FormulaIdentifier;
+  messageStore: FormulaIdentifier;
+  memberStore: FormulaIdentifier;
+  proposedName: string;
+};
+
+export type ChannelDeferredTaskParams = {
+  channelId: FormulaIdentifier;
+};
+
+export type ChannelMessage = {
+  number: bigint;
+  date: string;
+  author: string;
+  memberId: string;
+  pedigree: string[];
+  pedigreeMemberIds: string[];
+  strings: string[];
+  edgeNames: string[];
+  ids: FormulaIdentifier[];
+  replyTo?: string;
+};
+
 type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
@@ -328,6 +364,7 @@ export type InvitationDeferredTaskParams = {
 };
 
 export type Formula =
+  | ChannelFormula
   | EndoFormula
   | LoopbackNetworkFormula
   | WorkerFormula
@@ -409,17 +446,29 @@ export type DefineRequest = MessageBase & {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type FormRequest = MessageBase & {
-  type: 'form-request';
+export type FormField = {
+  name: string;
+  label: string;
+  example?: string;
+  pattern?: unknown;
+};
+
+export type Form = MessageBase & {
+  type: 'form';
   replyTo?: FormulaNumber;
   description: string;
-  fields: Record<string, { label: string; pattern?: unknown }>;
-  promiseId: FormulaIdentifier;
-  resolverId: FormulaIdentifier;
-  settled: Promise<'fulfilled' | 'rejected'>;
+  fields: FormField[];
+};
+
+export type ValueMessage = MessageBase & {
+  type: 'value';
+  replyTo: FormulaNumber;
+  valueId: FormulaIdentifier;
 };
 
 export type EvalProposalBase = {
+  messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
   source: string;
   codeNames: Array<string>;
   petNamePaths?: Array<NamePath>;
@@ -427,7 +476,7 @@ export type EvalProposalBase = {
   ids: Array<string>;
   workerName?: string;
   settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<string>;
+  resultId: Promise<string | undefined>;
   result: Promise<unknown>;
 };
 
@@ -446,7 +495,8 @@ export type Message =
   | Package
   | EvalRequest
   | DefineRequest
-  | FormRequest
+  | Form
+  | ValueMessage
   | EvalProposalReviewer
   | EvalProposalProposer;
 
@@ -468,6 +518,7 @@ export type StampedMessage = EnvelopedMessage & {
 
 export interface Invitation {
   accept(guestHandleLocator: string): Promise<void>;
+  locate(): Promise<string>;
 }
 
 export interface Topic<
@@ -678,6 +729,7 @@ export interface Mail {
     strings: Array<string>,
     edgeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
+    replyToMessageNumber?: bigint,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): Promise<void>;
   requestEvaluation(
@@ -701,21 +753,28 @@ export interface Mail {
   form(
     recipientNameOrPath: string | string[],
     description: string,
-    fields: Record<string, { label: string; pattern?: unknown }>,
-    responseName?: string | string[],
-  ): Promise<unknown>;
+    fields: FormField[],
+  ): Promise<void>;
   getDefineRequest(messageNumber: bigint): {
     source: string;
     slots: Record<string, { label: string; pattern?: unknown }>;
     resolverId: FormulaIdentifier;
     guestHandleId: string;
   };
-  getFormRequest(messageNumber: bigint): {
+  getForm(messageNumber: bigint): {
     description: string;
-    fields: Record<string, { label: string; pattern?: unknown }>;
-    resolverId: FormulaIdentifier;
+    fields: FormField[];
+    messageId: FormulaNumber;
     guestHandleId: string;
   };
+  submit(
+    messageNumber: bigint,
+    values: Record<string, unknown>,
+  ): Promise<void>;
+  sendValue(
+    messageNumber: bigint,
+    petNameOrPath: string | string[],
+  ): Promise<void>;
   // Eval-proposal workflow
   evaluate(
     toId: string,
@@ -746,7 +805,7 @@ export interface Mail {
     ids: Array<string>,
     workerName?: string,
     resultName?: string,
-  ): Promise<unknown>;
+  ): Promise<void>;
 }
 
 export type MakeMailbox = (args: {
@@ -824,6 +883,7 @@ export interface EndoAgent extends EndoDirectory {
   reply: Mail['reply'];
   request: Mail['request'];
   send: Mail['send'];
+  sendValue: Mail['sendValue'];
   deliver: Mail['deliver'];
   /**
    * @param id The formula identifier to look up.
@@ -859,18 +919,27 @@ export interface EndoGuest extends EndoAgent {
   form(
     recipientNameOrPath: string | string[],
     description: string,
-    fields: Record<string, { label: string; pattern?: unknown }>,
-    responseName?: string | string[],
-  ): Promise<unknown>;
+    fields: FormField[],
+  ): Promise<void>;
   storeValue<T extends Passable>(
     value: T,
     petName: string | string[],
   ): Promise<void>;
+  submit(
+    messageNumber: bigint,
+    values: Record<string, unknown>,
+  ): Promise<void>;
+  sendValue: Mail['sendValue'];
 }
 
 export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoAgent {
+  form(
+    recipientNameOrPath: string | string[],
+    description: string,
+    fields: FormField[],
+  ): Promise<void>;
   storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string | string[],
@@ -899,20 +968,19 @@ export interface EndoHost extends EndoAgent {
   makeUnconfined(
     workerName: string | undefined,
     specifier: string,
-    powersName: string,
-    resultName?: string | string[],
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeBundle(
     workerPetName: string | undefined,
     bundleName: string,
-    powersName: string,
-    resultName?: string | string[],
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
-  cancel(petName: string, reason: Error): Promise<void>;
+  cancel(petNameOrPath: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
+  makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
@@ -933,13 +1001,115 @@ export interface EndoHost extends EndoAgent {
     workerName?: string,
     resultName?: string | string[],
   ): Promise<void>;
-  respondForm(
+  submit(
     messageNumber: bigint,
     values: Record<string, unknown>,
   ): Promise<void>;
+  sendValue: Mail['sendValue'];
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
+
+export interface EndoChannel {
+  help(topic?: string): string;
+  post(
+    strings: string[],
+    edgeNames: string[],
+    petNamesOrPaths: (string | string[])[],
+    replyTo?: string,
+  ): Promise<void>;
+  followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
+  listMessages(): Promise<ChannelMessage[]>;
+  createInvitation(
+    proposedName: string,
+  ): Promise<[EndoChannelInvitation, EndoChannelAttenuator]>;
+  join(proposedName: string): Promise<EndoChannelMember>;
+
+  getMembers(): Promise<
+    Array<{ proposedName: string; pedigree: string[]; active: boolean }>
+  >;
+  getProposedName(): string;
+  getMemberId(): string;
+  getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+  getHeatConfig(): Promise<HeatConfig | null>;
+  getHopInfo(): Promise<HopInfo>;
+  followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
+}
+
+export interface EndoChannelInvitation {
+  help(topic?: string): string;
+  join(proposedName: string): Promise<EndoChannelMember>;
+}
+
+export interface HeatConfig {
+  burstLimit: number;
+  sustainedRate: number;
+  lockoutDurationMs: number;
+  postLockoutPct: number;
+}
+
+export interface HopPolicy {
+  hopIndex: number;
+  label: string;
+  memberId: string;
+  burstLimit: number;
+  sustainedRate: number;
+  lockoutDurationMs: number;
+  postLockoutPct: number;
+}
+
+export interface HopState {
+  hopIndex: number;
+  heat: number;
+  locked: boolean;
+  lockRemaining: number;
+}
+
+export interface HeatEvent {
+  type: 'heat' | 'snapshot';
+  hopMemberId: string;
+  heat: number;
+  locked: boolean;
+  lockEndTime: number;
+  timestamp: number;
+}
+
+export interface HopInfo {
+  policies: HopPolicy[];
+  states: HopState[];
+}
+
+export interface EndoChannelAttenuator {
+  setInvitationValidity(valid: boolean): Promise<void>;
+  setHeatConfig(config: HeatConfig): Promise<void>;
+  getHeatConfig(): Promise<HeatConfig | null>;
+  temporaryBan(seconds: number): Promise<void>;
+}
+
+export interface EndoChannelMember {
+  help(topic?: string): string;
+  post(
+    strings: string[],
+    edgeNames: string[],
+    petNamesOrPaths: (string | string[])[],
+    replyTo?: string,
+  ): Promise<void>;
+  followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
+  listMessages(): Promise<ChannelMessage[]>;
+  createInvitation(
+    proposedName: string,
+  ): Promise<[EndoChannelInvitation, EndoChannelAttenuator]>;
+  getMembers(): Promise<
+    Array<{ proposedName: string; pedigree: string[]; active: boolean }>
+  >;
+  getProposedName(): string;
+  getMemberId(): string;
+  setProposedName(newName: string): Promise<void>;
+  getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+  getHeatConfig(): Promise<HeatConfig | null>;
+  getHopInfo(): Promise<HopInfo>;
+  followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
+}
 
 export type EndoInspector<Record = string> = {
   lookup: (petNameOrPath: Record | NameOrPath) => Promise<unknown>;
@@ -1142,6 +1312,7 @@ type FormulateHostDependenciesParams = {
   networksDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
   specifiedWorkerId?: FormulaIdentifier;
+  hostHandleId?: FormulaIdentifier;
 };
 
 type FormulateNumberedHostParams = {
@@ -1264,12 +1435,20 @@ export interface DaemonCore {
     hostHandleId: FormulaIdentifier,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
+  formulateChannel: (
+    creatorAgentId: FormulaIdentifier,
+    handleId: FormulaIdentifier,
+    proposedName: string,
+    deferredTasks: DeferredTasks<ChannelDeferredTaskParams>,
+  ) => FormulateResult<EndoChannel>;
+
   formulateHost: (
     endoId: FormulaIdentifier,
     networksDirectoryId: FormulaIdentifier,
     pinsDirectoryId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier | undefined,
+    hostHandleId?: FormulaIdentifier,
   ) => FormulateResult<EndoHost>;
 
   /**

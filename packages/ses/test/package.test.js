@@ -1,8 +1,33 @@
 import test from 'ava';
 import url from 'url';
 import { spawn } from 'child_process';
+import fs from 'fs';
 
 const cwd = url.fileURLToPath(new URL('_package/', import.meta.url));
+const packageRoot = url.fileURLToPath(new URL('..', import.meta.url));
+const distCjs = url.fileURLToPath(new URL('../dist/ses.cjs', import.meta.url));
+const bundleScript = url.fileURLToPath(
+  new URL('../scripts/bundle.js', import.meta.url),
+);
+
+test.before(async () => {
+  if (fs.existsSync(distCjs)) {
+    return;
+  }
+  await new Promise((resolve, reject) => {
+    const child = spawn('node', [bundleScript], {
+      cwd: packageRoot,
+      stdio: 'inherit',
+    });
+    child.on('close', code => {
+      if (code === 0) {
+        resolve(undefined);
+      } else {
+        reject(new Error(`SES build failed with exit code ${code}`));
+      }
+    });
+  });
+});
 
 const table = {
   cjs: {

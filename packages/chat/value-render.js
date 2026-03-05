@@ -179,3 +179,44 @@ export const inferType = value => {
 
   return 'remotable';
 };
+
+/**
+ * Convert a value to a clipboard-friendly plain-text string.
+ * Returns undefined for non-copyable values (remotables, promises).
+ * @param {unknown} value
+ * @returns {string | undefined}
+ */
+export const toClipboardText = value => {
+  let passStyle;
+  try {
+    passStyle = passStyleOf(value);
+  } catch {
+    return undefined;
+  }
+
+  switch (passStyle) {
+    case 'string':
+      return /** @type {string} */ (value);
+    case 'number':
+    case 'bigint':
+    case 'boolean':
+    case 'null':
+    case 'undefined':
+    case 'symbol':
+      return String(value);
+    case 'copyArray':
+    case 'copyRecord':
+      return JSON.stringify(value, null, 2);
+    case 'error':
+      return /** @type {Error} */ (value).message;
+    case 'tagged': {
+      const tagged =
+        /** @type {{ [Symbol.toStringTag]: string, payload: unknown }} */ (
+          value
+        );
+      return toClipboardText(tagged.payload);
+    }
+    default:
+      return undefined;
+  }
+};

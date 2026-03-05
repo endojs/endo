@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Date** | 2026-02-24 |
+| **Created** | 2026-02-24 |
+| **Updated** | 2026-02-24 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Core migration and per-agent keypairs complete; network registration and null-node locators are future work |
+| **Status** | Complete |
 
 ## What is the Problem Being Solved?
 
@@ -274,138 +275,9 @@ The complete set of 26 formula types (`formula-type.js`):
 
 ## Future Work
 
-### Network Registration
-
-Each installed network (accessible through the NETS formula) will need to know
-the public keys of all active agents so the network layer can accept and
-negotiate connections on behalf of any persona.
-
-**Registration flow:**
-
-1. When a new agent with a keypair is created, the daemon registers that
-   agent's public key with every installed network.
-2. Each agent tracks its own set of retained agents (via its pet store) and
-   maintains the list of known keys for each installed network incrementally.
-3. When a network receives an inbound connection, it can identify which local
-   agent the remote peer is trying to reach by matching the target public key.
-
-**Interface sketch:**
-
-```typescript
-// On the network object (Far reference)
-interface EndoNetwork {
-  // ... existing methods ...
-  registerAgentKey(publicKey: string, agentId: FormulaIdentifier): Promise<void>;
-  unregisterAgentKey(publicKey: string): Promise<void>;
-}
-```
-
-This is additive — networks that do not support multi-key registration simply
-ignore the calls. The daemon root keypair is always registered as the default.
-
-### Per-Agent Connection Hints
-
-Each agent/persona can independently manage connection hints that control how
-peers reach them on the network.
-
-**Examples of per-agent connection policies:**
-
-- **Require anonymizing relay**: A pseudonymous persona may require all inbound
-  connections to arrive through a relay, never revealing the daemon's network
-  address.
-- **Allow direct connections**: A named persona may accept direct TCP
-  connections for lower latency.
-- **Prefer specific transports**: A persona may prefer WebSocket over raw TCP,
-  or vice versa.
-
-**Storage:** Connection hints are stored per-agent alongside the keypair:
-
-```typescript
-type AgentConnectionHints = {
-  publicKey: string;                // 64-char hex Ed25519 public key
-  requireRelay?: boolean;           // force connections through relay
-  allowDirectConnect?: boolean;     // accept direct inbound connections
-  preferredTransports?: string[];   // ordered list of transport preferences
-  relayAddresses?: string[];        // specific relay nodes to use
-};
-```
-
-Connection hints are advisory — the network layer uses them to configure
-listener behavior and to advertise appropriate addresses to peers, but the
-agent's keypair is the ultimate identity.
-
-### Locator Construction with Agent Keys
-
-When an agent constructs a locator for external consumption, it should use
-*its own* public key as the peer/node component, not `localNodeNumber`. This
-means the same local formula can appear under different locators depending on
-which agent is sharing it.
-
-### Null Local Node in Formula Keys
-
-With multiple agent public keys, there is no single canonical
-`localNodeNumber` to embed in formula keys for locally-stored formulas. Using
-any specific agent's public key would create an artificial dependency between
-formula storage and agent identity.
-
-**Proposal: Sentinel Null Node**
-
-Use 64 characters of `'0'` (`'0'.repeat(64)`) as a sentinel "null node" value
-in locally-stored formula keys. This is analogous to how `0.0.0.0` works in
-networking — a "this host" placeholder that is never a valid Ed25519 public key
-(since the all-zeros point is not on the curve).
-
-```js
-const NULL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
-```
-
-**Formula key construction:**
-
-```js
-// Local formula key (stored on disk)
-const localId = formatId({ number: formulaNumber, node: NULL_NODE });
-
-// Locator for external consumption (agent-specific)
-const locator = formatId({ number: formulaNumber, node: agentPublicKey });
-```
-
-**`isLocalId` change:**
-
-```js
-// Current
-const isLocalId = id => parseId(id).node === localNodeNumber;
-
-// Proposed
-const isLocalId = id => parseId(id).node === NULL_NODE;
-```
-
-**Inbound locator normalization:** When receiving a locator from the network
-and converting it to a formula key for local storage, the daemon replaces the
-agent's public key with `NULL_NODE`:
-
-```js
-const normalizeInboundId = id => {
-  const { number, node } = parseId(id);
-  if (isKnownLocalKey(node)) {
-    return formatId({ number, node: NULL_NODE });
-  }
-  return id; // remote formula, keep as-is
-};
-```
-
-**Outbound locator construction:** When constructing a locator for external
-consumption, the daemon replaces `NULL_NODE` with the sharing agent's public
-key:
-
-```js
-const externalizeId = (id, agentPublicKey) => {
-  const { number, node } = parseId(id);
-  if (node === NULL_NODE) {
-    return formatId({ number, node: agentPublicKey });
-  }
-  return id; // remote formula, keep as-is
-};
-```
+Network registration, per-agent connection hints, locator construction with
+agent keys, and the null local node sentinel are covered in
+[daemon-agent-network-identity](daemon-agent-network-identity.md).
 
 ## Security Considerations
 

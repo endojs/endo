@@ -1,10 +1,12 @@
 // @ts-check
 /* global document, window, setTimeout */
 
-// Initialize SES and make `harden` available globally
-// Using debug.js for better stack traces during development
-// Note: Monaco is loaded in an iframe to avoid SES conflicts
-import '@endo/init/debug.js';
+// Import SES to make `harden` available globally.
+// We use `ses` directly (not `@endo/init`) so that intrinsics are NOT frozen,
+// allowing Monaco editor to run inline without iframe isolation.
+import 'ses';
+// CapTP and E() require HandledPromise to be installed as a global.
+import '@endo/eventual-send/shim.js';
 
 import { connectToGateway } from './connection.js';
 import { make } from './chat.js';

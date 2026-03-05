@@ -7,6 +7,7 @@
  * @import { Connection, Logger, SelfIdentity, SessionManager, SessionId } from './types.js'
  */
 
+import harden from '@endo/harden';
 import { ONE_N, ZERO_N } from '@endo/nat';
 import {
   readOcapnHandshakeMessage,
