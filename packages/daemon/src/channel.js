@@ -13,7 +13,7 @@ import {
 } from './interfaces.js';
 import { makeHelp } from './help-text.js';
 
-/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, Provide } from './types.js' */
+/** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, Provide } from './types.js' */
 
 /**
  * @type {Record<string, string>}
@@ -68,8 +68,9 @@ harden(channelInvitationHelp);
  * @param {object} args
  * @param {Provide} args.provide
  * @param {(value: import('@endo/pass-style').Passable) => Promise<FormulaIdentifier>} args.persistValue
+ * @param {() => Promise<string>} args.randomHex256
  */
-export const makeChannelMaker = ({ provide, persistValue }) => {
+export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
   /**
    * @param {FormulaIdentifier} channelId
    * @param {FormulaIdentifier} handleId
@@ -110,7 +111,22 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
       if (id !== undefined) {
         const value = await provide(id);
         if (value && typeof value === 'object') {
-          const msg = /** @type {ChannelMessage} */ (value);
+          const raw = /** @type {any} */ (value);
+          // Migrate old-format messages: rename edgeNames->names, add type/messageId
+          /** @type {ChannelMessage} */
+          const msg = raw.type === 'package'
+            ? raw
+            : harden({
+                type: 'package',
+                messageId: /** @type {FormulaNumber} */ (raw.messageId || '0'),
+                number: raw.number,
+                date: raw.date,
+                memberId: raw.memberId || '0',
+                strings: raw.strings,
+                names: raw.edgeNames || raw.names || [],
+                ids: raw.ids || [],
+                replyTo: raw.replyTo,
+              });
           messages.push(msg);
           if (msg.number >= nextMessageNumber) {
             nextMessageNumber = msg.number + 1n;
@@ -213,40 +229,34 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     };
 
     /**
-     * Internal: post a message from an identified author.
-     * @param {string} author
-     * @param {string[]} pedigree
+     * Internal: post a message from an identified member.
      * @param {string} memberId
      * @param {string[]} strings
-     * @param {string[]} edgeNames
+     * @param {string[]} names
      * @param {FormulaIdentifier[]} ids
      * @param {string} [replyTo]
      */
     const postInternal = async (
-      author,
-      pedigree,
       memberId,
       strings,
-      edgeNames,
+      names,
       ids,
       replyTo,
     ) => {
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1n;
 
-      const entry = memberEntries.get(memberId);
-      const pedigreeMemberIds = entry ? buildPedigreeMemberIds(entry) : [];
+      const messageId = /** @type {FormulaNumber} */ (await randomHex256());
 
       /** @type {ChannelMessage} */
       const message = harden({
+        type: 'package',
+        messageId,
         number: messageNumber,
         date: new Date().toISOString(),
-        author,
         memberId,
-        pedigree: [...pedigree],
-        pedigreeMemberIds,
         strings,
-        edgeNames,
+        names,
         ids,
         replyTo,
       });
@@ -686,17 +696,15 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
 
       return makeExo('EndoChannelMember', ChannelMemberInterface, {
         help: makeHelp(channelMemberHelp),
-        post: async (strings, edgeNames, petNamesOrPaths, replyTo) => {
+        post: async (strings, names, petNamesOrPaths, replyTo) => {
           checkAccess();
           const now = Date.now();
           checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ ([]);
           await postInternal(
-            entry.proposedName,
-            entry.pedigree,
             entry.memberId,
             strings,
-            edgeNames,
+            names,
             ids,
             replyTo,
           );
@@ -777,6 +785,21 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
         getMemberId: () => {
           checkAccess();
           return entry.memberId;
+        },
+        getMember: async targetMemberId => {
+          checkAccess();
+          const targetEntry = memberEntries.get(targetMemberId);
+          if (!targetEntry) {
+            return undefined;
+          }
+          const pedigreeMemberIds = buildPedigreeMemberIds(targetEntry);
+          return harden({
+            proposedName: targetEntry.proposedName,
+            invitedAs: targetEntry.invitedAs,
+            memberId: targetEntry.memberId,
+            pedigree: [...targetEntry.pedigree],
+            pedigreeMemberIds,
+          });
         },
         getAttenuator: async invitedAs => {
           checkAccess();
@@ -931,14 +954,12 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
     /** @type {EndoChannel} */
     const channelExo = makeExo('EndoChannel', ChannelInterface, {
       help: makeHelp(channelHelp),
-      post: async (strings, edgeNames, petNamesOrPaths, replyTo) => {
+      post: async (strings, names, petNamesOrPaths, replyTo) => {
         const ids = /** @type {FormulaIdentifier[]} */ ([]);
         await postInternal(
-          proposedName,
-          [],
           adminMemberId,
           strings,
-          edgeNames,
+          names,
           ids,
           replyTo,
         );
@@ -1036,6 +1057,20 @@ export const makeChannelMaker = ({ provide, persistValue }) => {
       },
       getProposedName: () => proposedName,
       getMemberId: () => adminMemberId,
+      getMember: async targetMemberId => {
+        const targetEntry = memberEntries.get(targetMemberId);
+        if (!targetEntry) {
+          return undefined;
+        }
+        const pedigreeMemberIds = buildPedigreeMemberIds(targetEntry);
+        return harden({
+          proposedName: targetEntry.proposedName,
+          invitedAs: targetEntry.invitedAs,
+          memberId: targetEntry.memberId,
+          pedigree: [...targetEntry.pedigree],
+          pedigreeMemberIds,
+        });
+      },
       getAttenuator: async invitedAs => {
         const rec = adminInvitations.get(invitedAs);
         if (!rec) {

@@ -340,14 +340,13 @@ export type ChannelDeferredTaskParams = {
 };
 
 export type ChannelMessage = {
+  type: 'package';
+  messageId: FormulaNumber;
   number: bigint;
   date: string;
-  author: string;
   memberId: string;
-  pedigree: string[];
-  pedigreeMemberIds: string[];
   strings: string[];
-  edgeNames: string[];
+  names: Name[];
   ids: FormulaIdentifier[];
   replyTo?: string;
 };
@@ -1014,7 +1013,7 @@ export interface EndoChannel {
   help(topic?: string): string;
   post(
     strings: string[],
-    edgeNames: string[],
+    names: string[],
     petNamesOrPaths: (string | string[])[],
     replyTo?: string,
   ): Promise<void>;
@@ -1030,6 +1029,13 @@ export interface EndoChannel {
   >;
   getProposedName(): string;
   getMemberId(): string;
+  getMember(memberId: string): Promise<{
+    proposedName: string;
+    invitedAs: string;
+    memberId: string;
+    pedigree: string[];
+    pedigreeMemberIds: string[];
+  } | undefined>;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
   getHopInfo(): Promise<HopInfo>;
@@ -1090,7 +1096,7 @@ export interface EndoChannelMember {
   help(topic?: string): string;
   post(
     strings: string[],
-    edgeNames: string[],
+    names: string[],
     petNamesOrPaths: (string | string[])[],
     replyTo?: string,
   ): Promise<void>;
@@ -1105,6 +1111,13 @@ export interface EndoChannelMember {
   getProposedName(): string;
   getMemberId(): string;
   setProposedName(newName: string): Promise<void>;
+  getMember(memberId: string): Promise<{
+    proposedName: string;
+    invitedAs: string;
+    memberId: string;
+    pedigree: string[];
+    pedigreeMemberIds: string[];
+  } | undefined>;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
   getHopInfo(): Promise<HopInfo>;

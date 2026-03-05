@@ -15,14 +15,13 @@ import { createProfilePopup } from './profile-popup.js';
 
 /**
  * @typedef {object} ChannelMessage
+ * @property {'package'} type
+ * @property {string} messageId
  * @property {bigint} number
  * @property {string} date
- * @property {string} author
- * @property {string} [memberId]
- * @property {string[]} pedigree
- * @property {string[]} [pedigreeMemberIds]
+ * @property {string} memberId
  * @property {string[]} strings
- * @property {string[]} edgeNames
+ * @property {string[]} names
  * @property {string[]} ids
  * @property {string} [replyTo]
  */
@@ -155,6 +154,27 @@ export const channelComponent = async (
     }
   };
 
+  /**
+   * Member info cache: maps memberId -> { proposedName, invitedAs, pedigree, pedigreeMemberIds }.
+   * @type {Map<string, { proposedName: string, invitedAs: string, memberId: string, pedigree: string[], pedigreeMemberIds: string[] }>}
+   */
+  const memberCache = new Map();
+
+  /**
+   * Look up member info, using cache to avoid repeated remote calls.
+   * @param {string} memberId
+   */
+  const getMemberInfo = async memberId => {
+    if (memberCache.has(memberId)) return memberCache.get(memberId);
+    try {
+      const info = await E(channel).getMember(memberId);
+      if (info) memberCache.set(memberId, info);
+      return info;
+    } catch {
+      return undefined;
+    }
+  };
+
   const scrollToBottom = () => {
     if (isNearBottom) {
       requestAnimationFrame(() => {
@@ -170,9 +190,9 @@ export const channelComponent = async (
   /**
    * Create a message element for a channel message.
    * @param {ChannelMessage} message
-   * @returns {HTMLElement}
+   * @returns {Promise<HTMLElement>}
    */
-  const createMessageElement = message => {
+  const createMessageElement = async message => {
     const $msg = document.createElement('div');
     const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
     $msg.className = isOwn ? 'message received own-message' : 'message received';
@@ -186,27 +206,31 @@ export const channelComponent = async (
     $time.title = relativeTime(date);
     $msg.appendChild($time);
 
+    // Look up member info for author display
+    const memberInfo = await getMemberInfo(message.memberId);
+    const authorProposedName = memberInfo ? memberInfo.proposedName : message.memberId;
+    const pedigree = memberInfo ? memberInfo.pedigree : [];
+    const pedigreeMemberIds = memberInfo ? memberInfo.pedigreeMemberIds : [];
+
     // Author chip — keyed on memberId for per-viewer name resolution
     const $author = document.createElement('span');
     $author.className = 'channel-author';
-    $author.dataset.proposedName = message.author;
-    if (message.memberId) {
-      $author.dataset.memberId = message.memberId;
-    }
+    $author.dataset.proposedName = authorProposedName;
+    $author.dataset.memberId = message.memberId;
 
-    const memberKey = message.memberId || message.author;
+    const memberKey = message.memberId;
     const assignedName = nameMap.get(memberKey);
     if (assignedName) {
       $author.textContent = assignedName;
       $author.classList.add('named');
     } else {
-      $author.textContent = `\u201C${message.author}\u201D`;
+      $author.textContent = `\u201C${authorProposedName}\u201D`;
     }
 
     $author.title =
-      message.pedigree.length > 0
-        ? `Invited by: ${message.pedigree.map((name, i) => {
-            const mid = message.pedigreeMemberIds && message.pedigreeMemberIds[i];
+      pedigree.length > 0
+        ? `Invited by: ${pedigree.map((name, i) => {
+            const mid = pedigreeMemberIds[i];
             const assigned = mid && nameMap.get(mid);
             return assigned || `\u201C${name}\u201D`;
           }).join(' \u2192 ')}`
@@ -214,9 +238,9 @@ export const channelComponent = async (
     $author.addEventListener('click', e => {
       e.stopPropagation();
       profilePopup.show({
-        proposedName: message.author,
-        pedigree: message.pedigree || [],
-        pedigreeMemberIds: message.pedigreeMemberIds,
+        proposedName: authorProposedName,
+        pedigree,
+        pedigreeMemberIds,
         nameMap,
         yourName: nameMap.get(memberKey),
         onAssignName: name => {
@@ -231,7 +255,8 @@ export const channelComponent = async (
 
     $msg.appendChild(document.createTextNode(' '));
 
-    // Message body
+    // Message body — use 'names' (new format) with fallback to 'edgeNames' (old format)
+    const messageNames = /** @type {any} */ (message).names || /** @type {any} */ (message).edgeNames || [];
     const $body = document.createElement('span');
     $body.className = 'message-body';
 
@@ -243,13 +268,13 @@ export const channelComponent = async (
         renderMarkdown(textWithPlaceholders);
       $body.appendChild(fragment);
 
-      // Create token chips for edge names
+      // Create token chips for names
       for (
         let index = 0;
-        index < Math.min(insertionPoints.length, message.edgeNames.length);
+        index < Math.min(insertionPoints.length, messageNames.length);
         index += 1
       ) {
-        const edgeName = message.edgeNames[index];
+        const edgeName = messageNames[index];
         const $slot = insertionPoints[index];
 
         const $token = document.createElement('span');
@@ -287,7 +312,7 @@ export const channelComponent = async (
 
   for await (const message of messageIterator) {
     const typedMessage = /** @type {ChannelMessage} */ (message);
-    const $msg = createMessageElement(typedMessage);
+    const $msg = await createMessageElement(typedMessage);
     if ($end) {
       $parent.insertBefore($msg, $end);
     } else {
