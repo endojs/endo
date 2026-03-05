@@ -146,6 +146,8 @@ test.beforeEach(t => {
 
 test.afterEach.always(async t => {
   delete process.env.ENDO_ADDR;
+  delete process.env.ENDO_GATEWAY_ALLOW_REMOTE;
+  delete process.env.ENDO_GATEWAY_ALLOWED_CIDRS;
   await Promise.allSettled(
     /** @type {Array<{cancel: Function, cancelled: Promise<void>, config: ReturnType<typeof makeConfig>}>} */ (
       t.context
@@ -436,6 +438,81 @@ test.serial('weblet on dedicated port', async t => {
   t.is(jsStatus, 200);
   t.true(jsBody.length > 0);
 });
+
+test.serial(
+  'gateway allows connection when ENDO_GATEWAY_ALLOW_REMOTE=1',
+  async t => {
+    process.env.ENDO_GATEWAY_ALLOW_REMOTE = '1';
+    const { host } = await prepareHost(t);
+
+    await E(host).evaluate('MAIN', '99', [], [], ['val']);
+    const formulaId = await E(host).identify('val');
+    t.truthy(formulaId);
+
+    const apps = E(host).lookup('APPS');
+    const address = await E(apps).getAddress();
+
+    const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
+    await new Promise((resolve, reject) => {
+      socket.on('open', resolve);
+      socket.on('error', reject);
+    });
+    t.teardown(() => socket.close());
+
+    const [reader, sink] = makePipe();
+    socket.on(
+      'message',
+      (/** @type {Uint8Array} */ bytes, /** @type {boolean} */ isBinary) => {
+        if (isBinary) {
+          sink.next(bytes);
+        }
+      },
+    );
+    socket.on('close', () => {
+      sink.return(undefined);
+    });
+
+    const writer = harden({
+      /** @param {Uint8Array} bytes */
+      async next(bytes) {
+        socket.send(bytes, { binary: true });
+        return harden({ done: false, value: undefined });
+      },
+      async return() {
+        socket.close();
+        return harden({ done: true, value: undefined });
+      },
+      /** @param {Error} error */
+      async throw(error) {
+        socket.close();
+        return harden({ done: true, value: error });
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    });
+
+    const messageWriter = mapWriter(writer, messageToBytes);
+    const messageReader = mapReader(reader, bytesToMessage);
+
+    const { promise: cancelled, reject: cancelCapTP } = makePromiseKit();
+    t.teardown(() => cancelCapTP(Error('test done')));
+
+    const { getBootstrap } = makeMessageCapTP(
+      'Test',
+      messageWriter,
+      messageReader,
+      cancelled,
+      undefined,
+    );
+
+    const bootstrap = getBootstrap();
+    const result = await E(bootstrap).fetch(
+      /** @type {string} */ (formulaId),
+    );
+    t.is(result, 99);
+  },
+);
 
 test.serial('daemon writes root file matching AGENT identifier', async t => {
   const { config, host } = await prepareHost(t);
