@@ -81,6 +81,12 @@ export const inboxComponent = async (
     const $message = document.createElement('div');
     $message.className = isSent ? 'message sent' : 'message';
     $message.dataset.number = String(number);
+    if (message.messageId) {
+      $message.dataset.messageId = String(message.messageId);
+    }
+    if (message.replyTo) {
+      $message.dataset.replyTo = String(message.replyTo);
+    }
 
     const $error = document.createElement('span');
     $error.style.color = 'red';

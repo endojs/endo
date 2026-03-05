@@ -5188,11 +5188,13 @@ button.btn-spinner::after {
    ============================ */
 
 .focus-active .message {
-  margin-left: 4ex;
   transition: margin-left 150ms ease;
 }
 
+.focus-active .message.indented {
+  margin-left: 4ex;
+}
+
 .focus-active .message.focused {
-  margin-left: 0;
   box-shadow: 0 0 0 2px var(--accent-primary);
 }

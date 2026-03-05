@@ -664,20 +664,122 @@ export const chatBarComponent = (
   };
 
   /**
+   * Compute which messages should be indented based on the reply chain
+   * through the focused message.
+   *
+   * Walking backward from the focus: indent every message until reaching
+   * the message that the cursor replies to (its parent). The parent is
+   * not indented and becomes the new cursor. Repeat until history is
+   * exhausted.
+   *
+   * Walking forward from the focus: indent every message until reaching
+   * the last message that replies to the cursor. That reply becomes the
+   * new cursor. Repeat until messages are exhausted.
+   *
+   * @param {NodeListOf<HTMLElement>} $messages
+   * @param {number} focusIndex
+   */
+  const applyFocusIndent = ($messages, focusIndex) => {
+    // Build messageId → index lookup
+    /** @type {Map<string, number>} */
+    const idToIndex = new Map();
+    for (let i = 0; i < $messages.length; i += 1) {
+      const mid = $messages[i].dataset.messageId;
+      if (mid) {
+        idToIndex.set(mid, i);
+      }
+    }
+
+    // Start with all messages indented, then un-indent the chain
+    for (let i = 0; i < $messages.length; i += 1) {
+      $messages[i].classList.add('indented');
+    }
+
+    // The focused message is never indented
+    $messages[focusIndex].classList.remove('indented');
+
+    // Walk backward: find ancestor chain
+    let cursor = focusIndex;
+    for (let i = cursor - 1; i >= 0; i -= 1) {
+      const cursorReplyTo = $messages[cursor].dataset.replyTo;
+      if (cursorReplyTo) {
+        const parentIndex = idToIndex.get(cursorReplyTo);
+        if (parentIndex !== undefined && parentIndex <= i) {
+          // Skip ahead to the parent (everything between stays indented)
+          $messages[parentIndex].classList.remove('indented');
+          cursor = parentIndex;
+          i = parentIndex; // loop will decrement to parentIndex - 1
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+      }
+      // No replyTo or parent not found above — indent all remaining
+    }
+
+    // Walk forward: find descendant chain
+    cursor = focusIndex;
+    let searchFrom = focusIndex + 1;
+    while (searchFrom < $messages.length) {
+      const cursorMid = $messages[cursor].dataset.messageId;
+      if (!cursorMid) break;
+
+      // Find the last reply to the cursor message
+      let lastReplyIndex = -1;
+      for (let i = searchFrom; i < $messages.length; i += 1) {
+        if ($messages[i].dataset.replyTo === cursorMid) {
+          lastReplyIndex = i;
+        }
+      }
+
+      if (lastReplyIndex === -1) break;
+
+      $messages[lastReplyIndex].classList.remove('indented');
+      cursor = lastReplyIndex;
+      searchFrom = lastReplyIndex + 1;
+    }
+  };
+
+  /**
+   * Remove all focus-mode indent classes from messages.
+   */
+  const clearFocusIndent = () => {
+    const $indented = $messagesContainer.querySelectorAll('.message.indented');
+    for (const $el of $indented) {
+      $el.classList.remove('indented');
+    }
+  };
+
+  /**
+   * Set a specific message as focused by index, updating indent and highlight.
+   * Assumes focus-active is already on the container.
+   * @param {NodeListOf<HTMLElement>} $messages
+   * @param {number} index
+   */
+  const setFocusedMessage = ($messages, index) => {
+    const $prev = $messagesContainer.querySelector('.message.focused');
+    if ($prev) {
+      $prev.classList.remove('focused');
+    }
+    $messages[index].classList.add('focused');
+    applyFocusIndent($messages, index);
+  };
+
+  /**
    * Enter focus mode: highlight the last message and show the focus modeline.
    */
   const enterFocusMode = () => {
-    const $messages = $messagesContainer.querySelectorAll('.message[data-number]');
+    const $messages = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message[data-number]')
+    );
     if ($messages.length === 0) return;
 
     mode = 'focus';
     $input.blur();
     $messagesContainer.classList.add('focus-active');
 
-    // Focus the last message
-    const $last = /** @type {HTMLElement} */ ($messages[$messages.length - 1]);
-    $last.classList.add('focused');
-    $last.scrollIntoView({ block: 'nearest' });
+    const lastIndex = $messages.length - 1;
+    setFocusedMessage($messages, lastIndex);
+    $messages[lastIndex].scrollIntoView({ block: 'nearest' });
 
     updateFocusModeline(); // eslint-disable-line no-use-before-define
   };
@@ -692,6 +794,7 @@ export const chatBarComponent = (
     if ($focused) {
       $focused.classList.remove('focused');
     }
+    clearFocusIndent();
     updateModeline(null);
     sendForm.focus();
     updateHasContent();
@@ -728,6 +831,8 @@ export const chatBarComponent = (
     }
 
     $messages[index].classList.add('focused');
+    applyFocusIndent($messages, index);
+
     // At the edges, scroll the container to its limit so the focused
     // message aligns flush with the viewport edge. scrollIntoView with
     // 'nearest' does not reliably do this inside the #messages container
@@ -789,6 +894,48 @@ export const chatBarComponent = (
     `;
     $chatBar.classList.add('has-modeline');
   };
+
+  // Click on a message enters focus mode (or changes focus if already in it)
+  $messagesContainer.addEventListener('click', event => {
+    const $target = /** @type {HTMLElement} */ (event.target);
+    // Don't intercept clicks on interactive elements
+    if (
+      $target.tagName === 'INPUT' ||
+      $target.tagName === 'TEXTAREA' ||
+      $target.tagName === 'BUTTON' ||
+      $target.tagName === 'A' ||
+      $target.tagName === 'SELECT' ||
+      $target.isContentEditable
+    ) {
+      return;
+    }
+
+    // Find the closest .message ancestor
+    const $msg = $target.closest('.message[data-number]');
+    if (!$msg) return;
+
+    const $messages = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message[data-number]')
+    );
+
+    let clickIndex = -1;
+    for (let i = 0; i < $messages.length; i += 1) {
+      if ($messages[i] === $msg) {
+        clickIndex = i;
+        break;
+      }
+    }
+    if (clickIndex === -1) return;
+
+    if (mode !== 'focus') {
+      mode = 'focus';
+      $input.blur();
+      $messagesContainer.classList.add('focus-active');
+      updateFocusModeline();
+    }
+
+    setFocusedMessage($messages, clickIndex);
+  });
 
   /**
    * Show the eval form (lazily initialize if needed).
