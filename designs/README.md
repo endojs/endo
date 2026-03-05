@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-03*
+*Last updated: 2026-03-05*
 
 ## Summary
 
@@ -42,7 +42,7 @@
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
 | [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
-| [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-02-24 | In Progress |
+| [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-03-05 | **Complete** |
 | [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | 2026-02-24 | 2026-02-25 | In Progress (partially implemented) |
@@ -60,7 +60,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 15 Complete, 6 In Progress, 31 Not Started, 1 Reference
+**Totals:** 16 Complete, 5 In Progress, 31 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -97,7 +97,7 @@ flowchart TD
     end
 
     subgraph Familiar
-        fbund[familiar-daemon-bundling<br/><i>IN PROGRESS</i>]
+        fbund[familiar-daemon-bundling<br/><i>COMPLETE</i>]
         fweb[familiar-unified-weblet-server<br/><i>IN PROGRESS</i>]
         flhttp[familiar-localhttp-protocol<br/><i>IN PROGRESS</i>]
         fchat[familiar-chat-weblet-hosting]
@@ -176,7 +176,7 @@ their own API key and local capabilities.
 | ~~daemon-form-request~~ | **Complete** | Fields as ordered array, CLI, Chat UI |
 | ~~daemon-value-message~~ | **Complete** | `value` type, persistence, `submit()` delivery, Chat rendering, standalone `sendValue`, `send-value` CLI, daemon tests all done |
 | lal-reply-chain-transcripts | In Progress | Phases 1-4 complete |
-| familiar-daemon-bundling | In Progress | Blocks distribution |
+| ~~familiar-daemon-bundling~~ | **Complete** | esbuild bundles, Node download, Forge integration |
 | lal-fae-form-provisioning | Not Started | Manager/worker refactor, form-based config |
 | familiar-bundled-agents | Not Started | Bundle Lal/Fae into Familiar via esbuild; no native deps |
 | endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; trivial, high UX value |
@@ -186,7 +186,7 @@ at least one platform that folks can download and use to interact with an
 agent using their own API key and local capabilities. Agents can post
 desktop notifications when tasks complete.
 
-**Estimated duration (1 dev):** 2-3 weeks
+**Estimated duration (1 dev):** 1.5-2.5 weeks
 
 ---
 
@@ -361,7 +361,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~daemon-form-request~~ | — | — | 0 | ✅ Complete (5 days actual) |
 | ~~daemon-value-message~~ | — | — | 0 | ✅ Complete |
 | lal-reply-chain-transcripts | S | 1 day | 0 | Remaining: phase 5 |
-| familiar-daemon-bundling | S-M | 2-3 days | 0 | Remaining: esbuild config, worker bundling |
+| ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | lal-fae-form-provisioning | M | 3-4 days | 0 | Manager/worker refactor, 4 phases |
 | familiar-bundled-agents | S-M | 2-3 days | 0 | esbuild entries, special formulas; no native deps |
 | endoclaw-notifications | S | 1 day | 0 | Electron Notification API, rate-limited exo |
@@ -401,13 +401,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 5 remaining | 2-3 weeks |
+| M0: AI Agent Experience | 4 remaining | 1.5-2.5 weeks |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: UX & Tooling | 6 | 3-4.5 weeks |
 | M4: Weblets & Integrations | 7 | 4-6 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **37** | **~24-35 weeks** |
+| **Total remaining** | **36** | **~23.5-34.5 weeks** |
 
 ### Timeline
 
@@ -417,7 +417,7 @@ gantt
     dateFormat YYYY-MM-DD
 
     section Milestone 0
-    AI Agent Experience           :m0, 2026-03-03, 3w
+    AI Agent Experience           :m0, 2026-03-03, 2w
 
     section Milestone 1
     Remote Access & Tools         :m1, after m0, 5w
@@ -437,7 +437,7 @@ gantt
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M0: AI Agent Experience | 2-3 weeks | 2-3 weeks | Late March 2026 |
+| M0: AI Agent Experience | 1.5-2.5 weeks | 1.5-2.5 weeks | Mid-Late March 2026 |
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
 | M3: UX & Tooling | 3-4.5 weeks | 12-16.5 weeks | Late June 2026 |
@@ -459,9 +459,11 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-03:** 15 of 53 designs complete.
+**Progress as of 2026-03-05:** 16 of 53 designs complete.
 15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
 Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
 persistence, `submit()` delivery, standalone `sendValue`, CLI, tests).
+`familiar-daemon-bundling` complete (esbuild bundles, Node download,
+Forge integration, dev/packaged path resolution all implemented).
 `lal-fae-form-provisioning` designed and ready for implementation.

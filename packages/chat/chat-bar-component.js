@@ -33,7 +33,6 @@ import { kbd, modKey } from './platform-keys.js';
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {() => void} [options.exitConversation] - Exit the current conversation view
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
- * @param {() => bigint | undefined} [options.getMoiMessageNumber] - Returns current MOI message number for reply threading
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
  */
 export const chatBarComponent = (
@@ -47,7 +46,6 @@ export const chatBarComponent = (
     getConversationPetName,
     exitConversation,
     navigateToConversation,
-    getMoiMessageNumber,
     getChannelRef,
   },
 ) => {
@@ -154,7 +152,7 @@ export const chatBarComponent = (
     $chatBar.classList.add('has-modeline');
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form' | 'focus'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -189,7 +187,6 @@ export const chatBarComponent = (
     },
     getConversationPetName,
     navigateToConversation,
-    getMoiMessageNumber,
     getChannelRef,
   });
 
@@ -594,8 +591,9 @@ export const chatBarComponent = (
   /**
    * Enter command mode for an inline command.
    * @param {string} commandName
+   * @param {Record<string, string>} [prefill] - Optional field values to pre-fill
    */
-  const enterCommandMode = commandName => {
+  const enterCommandMode = (commandName, prefill) => {
     const command = getCommand(commandName);
     if (!command) return;
 
@@ -607,7 +605,7 @@ export const chatBarComponent = (
     $commandSubmitButton.disabled = true;
     updateModeline(commandName);
 
-    inlineForm.setCommand(commandName);
+    inlineForm.setCommand(commandName, prefill);
 
     // Auto-enable message picker for commands that need message numbers
     const needsMessagePicker = command.fields.some(
@@ -628,9 +626,11 @@ export const chatBarComponent = (
       }, 50);
     }
 
-    // Focus the first field after a brief delay for DOM update
+    // Focus the first field after a brief delay for DOM update.
+    // When prefill is provided, skip past filled fields.
+    const skipFilled = prefill !== undefined;
     setTimeout(() => {
-      inlineForm.focus();
+      inlineForm.focus(skipFilled);
     }, 50);
   };
 
@@ -651,6 +651,452 @@ export const chatBarComponent = (
     $commandError.textContent = '';
     updateHasContent();
   };
+
+  // --- Focus mode ---
+
+  /** Shortcut keys mapped to command names for focus mode. */
+  const FOCUS_SHORTCUTS = {
+    r: 'reply',
+    d: 'dismiss',
+    a: 'adopt',
+    g: 'grant',
+    s: 'submit',
+  };
+
+  /**
+   * Compute which messages should be indented based on the reply chain
+   * through the focused message.
+   *
+   * Walking backward from the focus: indent every message until reaching
+   * the message that the cursor replies to (its parent). The parent is
+   * not indented and becomes the new cursor. Repeat until history is
+   * exhausted.
+   *
+   * Walking forward from the focus: indent every message until reaching
+   * the last message that replies to the cursor. That reply becomes the
+   * new cursor. Repeat until messages are exhausted.
+   *
+   * @param {NodeListOf<HTMLElement>} $messages
+   * @param {number} focusIndex
+   */
+  const applyFocusIndent = ($messages, focusIndex) => {
+    // Build messageId → index lookup
+    /** @type {Map<string, number>} */
+    const idToIndex = new Map();
+    for (let i = 0; i < $messages.length; i += 1) {
+      const mid = $messages[i].dataset.messageId;
+      if (mid) {
+        idToIndex.set(mid, i);
+      }
+    }
+
+    // Start with all messages indented, then un-indent the chain
+    for (let i = 0; i < $messages.length; i += 1) {
+      $messages[i].classList.add('indented');
+    }
+
+    // Collect the ordered chain of non-indented indices
+    /** @type {number[]} */
+    const chain = [];
+
+    // The focused message is never indented
+    $messages[focusIndex].classList.remove('indented');
+
+    // Walk backward: find ancestor chain
+    /** @type {number[]} */
+    const ancestors = [];
+    let cursor = focusIndex;
+    for (let i = cursor - 1; i >= 0; i -= 1) {
+      const cursorReplyTo = $messages[cursor].dataset.replyTo;
+      if (cursorReplyTo) {
+        const parentIndex = idToIndex.get(cursorReplyTo);
+        if (parentIndex !== undefined && parentIndex <= i) {
+          $messages[parentIndex].classList.remove('indented');
+          ancestors.push(parentIndex);
+          cursor = parentIndex;
+          i = parentIndex;
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+      }
+    }
+    // Ancestors were collected child-to-parent; reverse for top-down order
+    ancestors.reverse();
+    chain.push(...ancestors, focusIndex);
+
+    // Walk forward: find descendant chain
+    cursor = focusIndex;
+    let searchFrom = focusIndex + 1;
+    while (searchFrom < $messages.length) {
+      const cursorMid = $messages[cursor].dataset.messageId;
+      if (!cursorMid) break;
+
+      let lastReplyIndex = -1;
+      for (let i = searchFrom; i < $messages.length; i += 1) {
+        if ($messages[i].dataset.replyTo === cursorMid) {
+          lastReplyIndex = i;
+        }
+      }
+
+      if (lastReplyIndex === -1) break;
+
+      $messages[lastReplyIndex].classList.remove('indented');
+      chain.push(lastReplyIndex);
+      cursor = lastReplyIndex;
+      searchFrom = lastReplyIndex + 1;
+    }
+
+    applyChainLines($messages, chain); // eslint-disable-line no-use-before-define
+    // Secondary connections apply to all indented messages, not just
+    // those within chain segments.
+    applyIndentedConnections($messages, 0, $messages.length); // eslint-disable-line no-use-before-define
+  };
+
+  /** Line class names applied to envelopes for the chain line. */
+  const LINE_CLASSES = [
+    'chain-start',
+    'chain-through',
+    'chain-end',
+    'chain-tee',
+    'sub-start',
+    'sub-through',
+    'sub-end',
+    'sub-indicator',
+  ];
+
+  /**
+   * Within a range of indented envelopes, find reply groups and apply
+   * secondary chain classes. For each parent message that has replies
+   * in the range, the last reply gets a sub-line and earlier siblings
+   * get sub-tees.
+   *
+   * @param {NodeListOf<HTMLElement>} $envelopes
+   * @param {number} from - Start index (inclusive)
+   * @param {number} to - End index (exclusive)
+   */
+  const applyIndentedConnections = ($envelopes, from, to) => {
+    // For each indented message, determine its connection to neighbors.
+    // Case 1 (gutter-connected via chain-tee) is already handled.
+    // Case 2: adjacent indented predecessor is our replyTo parent.
+    // Case 3: has a replyTo but parent is not adjacent — reply indicator.
+    for (let i = from; i < to; i += 1) {
+      if (!$envelopes[i].classList.contains('indented')) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const rt = $envelopes[i].dataset.replyTo;
+      const mid = $envelopes[i].dataset.messageId;
+
+      // Connect upward: previous envelope is indented and is our parent
+      const prevIndented =
+        i > from && $envelopes[i - 1].classList.contains('indented');
+      const connectsUp =
+        prevIndented && rt && $envelopes[i - 1].dataset.messageId === rt;
+
+      // Connect downward: next envelope is indented and replies to us
+      const nextIndented =
+        i + 1 < to && $envelopes[i + 1].classList.contains('indented');
+      const connectsDown =
+        nextIndented && mid && $envelopes[i + 1].dataset.replyTo === mid;
+
+      if (connectsUp && connectsDown) {
+        $envelopes[i].classList.add('sub-through');
+      } else if (connectsUp) {
+        $envelopes[i].classList.add('sub-end');
+      } else if (connectsDown) {
+        $envelopes[i].classList.add('sub-start');
+      } else if (rt && !$envelopes[i].classList.contains('chain-tee')) {
+        // Has a replyTo but not adjacent to parent and not already
+        // gutter-connected — show a small reply indicator.
+        $envelopes[i].classList.add('sub-indicator');
+      }
+    }
+  };
+
+  /**
+   * Apply chain-line classes to envelopes between the first and last
+   * chain member so CSS background-image draws a connecting line
+   * through the indentation gutter.
+   *
+   * Indented messages whose `replyTo` matches the upper chain member
+   * of their segment get a tee junction (branch stub) instead of a
+   * plain through-line.
+   *
+   * Within each segment, indented messages get adjacency-based
+   * connections: adjacent parent-child pairs get sub-lines, and
+   * non-adjacent replies get a small indicator stub.
+   *
+   * @param {NodeListOf<HTMLElement>} $envelopes
+   * @param {number[]} chain - Ordered indices of non-indented envelopes
+   */
+  const applyChainLines = ($envelopes, chain) => {
+    // Clear previous line classes from all envelopes
+    for (let i = 0; i < $envelopes.length; i += 1) {
+      $envelopes[i].classList.remove(...LINE_CLASSES);
+    }
+
+    if (chain.length < 2) return;
+
+    const first = chain[0];
+    const last = chain[chain.length - 1];
+
+    // First chain member: line from bottom half
+    $envelopes[first].classList.add('chain-start');
+
+    // Last chain member: line from top half
+    $envelopes[last].classList.add('chain-end');
+
+    // Middle chain members connect both up and down
+    for (let c = 1; c < chain.length - 1; c += 1) {
+      $envelopes[chain[c]].classList.add('chain-through');
+    }
+
+    // Walk each segment between consecutive chain members
+    for (let seg = 0; seg < chain.length - 1; seg += 1) {
+      const upperIdx = chain[seg];
+      const lowerIdx = chain[seg + 1];
+      const upperMid = $envelopes[upperIdx].dataset.messageId;
+
+      for (let i = upperIdx + 1; i < lowerIdx; i += 1) {
+        if (
+          upperMid &&
+          $envelopes[i].dataset.replyTo === upperMid &&
+          $envelopes[i].classList.contains('indented')
+        ) {
+          $envelopes[i].classList.add('chain-tee');
+        } else {
+          $envelopes[i].classList.add('chain-through');
+        }
+      }
+
+    }
+  };
+
+  /**
+   * Remove all focus-mode classes from envelopes.
+   */
+  const clearFocusIndent = () => {
+    const $all = $messagesContainer.querySelectorAll('.message-envelope');
+    for (const $el of $all) {
+      $el.classList.remove('indented', ...LINE_CLASSES);
+    }
+  };
+
+  /**
+   * Set a specific message as focused by index, updating indent and highlight.
+   * Assumes focus-active is already on the container.
+   * @param {NodeListOf<HTMLElement>} $messages
+   * @param {number} index
+   */
+  const setFocusedMessage = ($messages, index) => {
+    const $prev = $messagesContainer.querySelector('.message-envelope.focused');
+    if ($prev) {
+      $prev.classList.remove('focused');
+    }
+    $messages[index].classList.add('focused');
+    applyFocusIndent($messages, index);
+  };
+
+  /**
+   * Apply passive focus to the last received message. This runs when
+   * the command line has focus (send mode) so the user always sees
+   * chain context around the most recent incoming message.
+   */
+  const updatePassiveFocus = () => {
+    const $envelopes = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
+    );
+    if ($envelopes.length === 0) return;
+
+    // Find the last received (non-sent) message envelope.
+    let targetIndex = -1;
+    for (let i = $envelopes.length - 1; i >= 0; i -= 1) {
+      const $msg = $envelopes[i].querySelector('.message');
+      if ($msg && !$msg.classList.contains('sent')) {
+        targetIndex = i;
+        break;
+      }
+    }
+    if (targetIndex === -1) return;
+
+    $messagesContainer.classList.add('focus-active');
+    const $prev = $messagesContainer.querySelector('.message-envelope.focused');
+    if ($prev) {
+      $prev.classList.remove('focused');
+    }
+    $envelopes[targetIndex].classList.add('focused');
+    applyFocusIndent($envelopes, targetIndex);
+  };
+
+  /**
+   * Enter focus mode: highlight the last message and show the focus modeline.
+   */
+  const enterFocusMode = () => {
+    const $messages = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
+    );
+    if ($messages.length === 0) return;
+
+    mode = 'focus';
+    $input.blur();
+    $messagesContainer.classList.add('focus-active');
+
+    const lastIndex = $messages.length - 1;
+    setFocusedMessage($messages, lastIndex);
+    $messages[lastIndex].scrollIntoView({ block: 'nearest' });
+
+    updateFocusModeline(); // eslint-disable-line no-use-before-define
+  };
+
+  /**
+   * Exit focus mode: remove highlights and return to send mode.
+   */
+  const exitFocusMode = () => {
+    mode = 'send';
+    updateModeline(null);
+    sendForm.focus();
+    updateHasContent();
+    // Revert to passive focus on the last received message.
+    updatePassiveFocus();
+  };
+
+  /**
+   * Move focus to the next or previous message.
+   * @param {'up' | 'down'} direction
+   * @param {boolean} [page] - If true, jump by half a viewport
+   */
+  const moveFocus = (direction, page = false) => {
+    const $messages = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
+    );
+    if ($messages.length === 0) return;
+
+    const $current = $messagesContainer.querySelector('.message-envelope.focused');
+    let index = $messages.length - 1;
+    if ($current) {
+      for (let i = 0; i < $messages.length; i += 1) {
+        if ($messages[i] === $current) {
+          index = i;
+          break;
+        }
+      }
+      $current.classList.remove('focused');
+    }
+
+    const step = page ? pageFocusStep($messages, index, direction) : 1;
+    if (direction === 'up') {
+      index = Math.max(0, index - step);
+    } else {
+      index = Math.min($messages.length - 1, index + step);
+    }
+
+    $messages[index].classList.add('focused');
+    applyFocusIndent($messages, index);
+
+    // At the edges, scroll the container to its limit so the focused
+    // message aligns flush with the viewport edge. scrollIntoView with
+    // 'nearest' does not reliably do this inside the #messages container
+    // which uses large top padding.
+    if (index === $messages.length - 1 && direction === 'down') {
+      $messagesContainer.scrollTo(0, $messagesContainer.scrollHeight);
+    } else if (index === 0 && direction === 'up') {
+      $messagesContainer.scrollTo(0, 0);
+    } else {
+      $messages[index].scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  /**
+   * Count how many messages to skip to move roughly half a viewport,
+   * by accumulating actual rendered heights from the current position.
+   * @param {NodeListOf<HTMLElement>} $messages
+   * @param {number} fromIndex - Current focused index
+   * @param {'up' | 'down'} direction
+   * @returns {number} Step count (at least 1)
+   */
+  const pageFocusStep = ($messages, fromIndex, direction) => {
+    const budget = $messagesContainer.clientHeight / 2;
+    let accumulated = 0;
+    let count = 0;
+    const delta = direction === 'up' ? -1 : 1;
+    let i = fromIndex + delta;
+    while (i >= 0 && i < $messages.length) {
+      accumulated += $messages[i].offsetHeight + 8; // 8px margin-bottom
+      count += 1;
+      if (accumulated >= budget) break;
+      i += delta;
+    }
+    return Math.max(1, count);
+  };
+
+  /**
+   * Get the message number of the currently focused message.
+   * @returns {string | undefined}
+   */
+  const getFocusedMessageNumber = () => {
+    const $focused = /** @type {HTMLElement | null} */ (
+      $messagesContainer.querySelector('.message-envelope.focused')
+    );
+    return $focused?.dataset.number;
+  };
+
+  /**
+   * Update the modeline for focus mode.
+   */
+  const updateFocusModeline = () => {
+    $modeline.innerHTML = `
+      <span class="modeline-hint"><kbd>r</kbd> reply</span>
+      <span class="modeline-hint"><kbd>d</kbd> dismiss</span>
+      <span class="modeline-hint"><kbd>a</kbd> adopt</span>
+      <span class="modeline-hint"><kbd>g</kbd> grant</span>
+      <span class="modeline-hint"><kbd>s</kbd> submit</span>
+      <span class="modeline-hint"><kbd>Esc</kbd> back</span>
+    `;
+    $chatBar.classList.add('has-modeline');
+  };
+
+  // Click on a message enters focus mode (or changes focus if already in it)
+  $messagesContainer.addEventListener('click', event => {
+    const $target = /** @type {HTMLElement} */ (event.target);
+    // Don't intercept clicks on interactive elements
+    if (
+      $target.tagName === 'INPUT' ||
+      $target.tagName === 'TEXTAREA' ||
+      $target.tagName === 'BUTTON' ||
+      $target.tagName === 'A' ||
+      $target.tagName === 'SELECT' ||
+      $target.isContentEditable
+    ) {
+      return;
+    }
+
+    // Find the closest .message ancestor
+    const $msg = $target.closest('.message-envelope');
+    if (!$msg) return;
+
+    const $messages = /** @type {NodeListOf<HTMLElement>} */ (
+      $messagesContainer.querySelectorAll('.message-envelope[data-number]')
+    );
+
+    let clickIndex = -1;
+    for (let i = 0; i < $messages.length; i += 1) {
+      if ($messages[i] === $msg) {
+        clickIndex = i;
+        break;
+      }
+    }
+    if (clickIndex === -1) return;
+
+    if (mode !== 'focus') {
+      mode = 'focus';
+      $input.blur();
+      $messagesContainer.classList.add('focus-active');
+      updateFocusModeline();
+    }
+
+    setFocusedMessage($messages, clickIndex);
+  });
 
   /**
    * Show the eval form (lazily initialize if needed).
@@ -965,8 +1411,21 @@ export const chatBarComponent = (
     }
   });
 
-  // Handle keydown for command selection navigation
+  // Handle keydown for command selection navigation and focus mode entry
   $input.addEventListener('keydown', event => {
+    // ⌘↑ / Ctrl+↑ to enter focus mode from empty send input
+    if (
+      mode === 'send' &&
+      event.key === 'ArrowUp' &&
+      (event.metaKey || event.ctrlKey) &&
+      sendForm.getState().isEmpty
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      enterFocusMode();
+      return;
+    }
+
     if (mode === 'selecting' && commandSelector.isVisible()) {
       switch (event.key) {
         case 'ArrowDown':
@@ -1014,8 +1473,56 @@ export const chatBarComponent = (
     }
   });
 
-  // Global escape key handler
+  // Global escape key handler and focus mode keyboard handler
   window.addEventListener('keydown', event => {
+    // Focus mode keyboard handling
+    if (mode === 'focus') {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        exitFocusMode();
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveFocus('up');
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        // If already on the last message, exit focus mode back to command line
+        const $msgs = $messagesContainer.querySelectorAll('.message-envelope[data-number]');
+        const $foc = $messagesContainer.querySelector('.message-envelope.focused');
+        if ($msgs.length > 0 && $foc === $msgs[$msgs.length - 1]) {
+          exitFocusMode();
+        } else {
+          moveFocus('down');
+        }
+        return;
+      }
+      if (event.key === 'PageUp') {
+        event.preventDefault();
+        moveFocus('up', true);
+        return;
+      }
+      if (event.key === 'PageDown') {
+        event.preventDefault();
+        moveFocus('down', true);
+        return;
+      }
+      // Single-letter shortcut keys
+      const commandName = FOCUS_SHORTCUTS[event.key];
+      if (commandName) {
+        event.preventDefault();
+        const messageNumber = getFocusedMessageNumber();
+        if (messageNumber) {
+          exitFocusMode();
+          enterCommandMode(commandName, { messageNumber });
+        }
+        return;
+      }
+      return;
+    }
+
     if (event.key === 'Escape') {
       if (helpModal.isVisible()) {
         event.preventDefault();
@@ -1047,7 +1554,7 @@ export const chatBarComponent = (
 
   // Focus command line on any keypress when nothing else is focused
   window.addEventListener('keydown', event => {
-    // Skip if in command mode or if already focused on an interactive element
+    // Skip if not in send mode (command mode, focus mode, etc.)
     if (mode !== 'send') return;
 
     const active = document.activeElement;
@@ -1087,4 +1594,16 @@ export const chatBarComponent = (
       event.preventDefault();
     }
   });
+
+  // Watch for new messages and update passive focus unless the user
+  // is actively navigating in focus mode.
+  const messageObserver = new MutationObserver(() => {
+    if (mode !== 'focus') {
+      updatePassiveFocus();
+    }
+  });
+  messageObserver.observe($messagesContainer, { childList: true });
+
+  // Apply passive focus on initial load.
+  updatePassiveFocus();
 };
