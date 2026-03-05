@@ -51,7 +51,7 @@
 | [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
-| [lal-fae-form-provisioning](lal-fae-form-provisioning.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [lal-fae-form-provisioning](lal-fae-form-provisioning.md) | 2026-03-02 | 2026-03-05 | **Complete** |
 | [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-03-05 | **Complete** |
 | [lal-transcript-memory-management](lal-transcript-memory-management.md) | 2026-03-05 | 2026-03-05 | Not Started |
 | [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | 2026-02-24 | Not Started |
@@ -61,7 +61,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 17 Complete, 4 In Progress, 32 Not Started, 1 Reference
+**Totals:** 18 Complete, 4 In Progress, 31 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -85,7 +85,7 @@ flowchart TD
 
     subgraph LLM Agents
         laltx[lal-reply-chain-transcripts<br/><i>COMPLETE</i>]
-        lalfp[lal-fae-form-provisioning]
+        lalfp[lal-fae-form-provisioning<br/><i>COMPLETE</i>]
         fagent[familiar-bundled-agents]
         dtools[daemon-agent-tools]
         dform --> lalfp
@@ -178,7 +178,7 @@ their own API key and local capabilities.
 | ~~daemon-value-message~~ | **Complete** | `value` type, persistence, `submit()` delivery, Chat rendering, standalone `sendValue`, `send-value` CLI, daemon tests all done |
 | ~~lal-reply-chain-transcripts~~ | **Complete** | Phases 1-4 implemented; Phase 5 (memory management) deferred as out-of-scope |
 | ~~familiar-daemon-bundling~~ | **Complete** | esbuild bundles, Node download, Forge integration |
-| lal-fae-form-provisioning | Not Started | Manager/worker refactor, form-based config |
+| ~~lal-fae-form-provisioning~~ | **Complete** | Manager/worker split, form-based config, inbox-replay recovery |
 | familiar-bundled-agents | Not Started | Bundle Lal/Fae into Familiar via esbuild; no native deps |
 | endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; trivial, high UX value |
 
@@ -187,7 +187,7 @@ at least one platform that folks can download and use to interact with an
 agent using their own API key and local capabilities. Agents can post
 desktop notifications when tasks complete.
 
-**Estimated duration (1 dev):** 1-2 weeks
+**Estimated duration (1 dev):** 3-4 days
 
 ---
 
@@ -365,7 +365,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~daemon-value-message~~ | — | — | 0 | ✅ Complete |
 | ~~lal-reply-chain-transcripts~~ | — | — | 0 | ✅ Complete (phases 1-4; phase 5 deferred) |
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
-| lal-fae-form-provisioning | M | 3-4 days | 0 | Manager/worker refactor, 4 phases |
+| ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
 | familiar-bundled-agents | S-M | 2-3 days | 0 | esbuild entries, special formulas; no native deps |
 | endoclaw-notifications | S | 1 day | 0 | Electron Notification API, rate-limited exo |
 | gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
@@ -405,13 +405,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 3 remaining | 1-2 weeks |
+| M0: AI Agent Experience | 2 remaining | 3-4 days |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: UX & Tooling | 7 | 3-4.5 weeks |
 | M4: Weblets & Integrations | 7 | 4-6 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **36** | **~23-34 weeks** |
+| **Total remaining** | **35** | **~22.5-33.5 weeks** |
 
 ### Timeline
 
@@ -421,7 +421,7 @@ gantt
     dateFormat YYYY-MM-DD
 
     section Milestone 0
-    AI Agent Experience           :m0, 2026-03-03, 2w
+    AI Agent Experience           :m0, 2026-03-03, 4d
 
     section Milestone 1
     Remote Access & Tools         :m1, after m0, 5w
@@ -441,7 +441,7 @@ gantt
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M0: AI Agent Experience | 1-2 weeks | 1-2 weeks | Mid March 2026 |
+| M0: AI Agent Experience | 3-4 days | 3-4 days | Early March 2026 |
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
 | M3: UX & Tooling | 3-4.5 weeks | 12-16.5 weeks | Late June 2026 |
@@ -463,7 +463,7 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-05:** 17 of 54 designs complete.
+**Progress as of 2026-03-05:** 18 of 54 designs complete.
 15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
 Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
@@ -472,4 +472,6 @@ persistence, `submit()` delivery, standalone `sendValue`, CLI, tests).
 Forge integration, dev/packaged path resolution all implemented).
 `lal-reply-chain-transcripts` complete (phases 1-4 implemented; phase 5
 memory management deferred as out-of-scope future work).
-`lal-fae-form-provisioning` designed and ready for implementation.
+`lal-fae-form-provisioning` complete (manager/worker split, form-based
+config, restart recovery via inbox replay — no explicit config persistence
+needed since `followMessages()` replays all historical submissions).

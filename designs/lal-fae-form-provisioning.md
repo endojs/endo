@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-03-02 |
-| **Updated** | 2026-03-02 |
+| **Updated** | 2026-03-05 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | **Complete** |
 
 ## What is the Problem Being Solved?
 
@@ -633,38 +633,30 @@ endo send bob "Can you summarize..."
 
 ## Implementation Phases
 
-### Phase 1: Extract Worker Loop
+### Phase 1: Extract Worker Loop — **Complete**
 
-- Factor the agentic loop out of `agent.js` into a `spawnWorkerLoop`
-  function (in Lal) and the equivalent in Fae.
-- The function accepts `(name, guestRef, config)` and runs the full
-  existing message-following and LLM interaction loop.
-- Verify that the extracted function works identically to the current
-  monolithic loop by running it with the manager's own guest reference
-  and a hardcoded config. Existing tests pass.
+- Factored the agentic loop into `spawnWorkerLoop(powers, context, workerEnv)`
+  in both Lal and Fae.
 
-### Phase 2: Manager Loop and Form
+### Phase 2: Manager Loop and Form — **Complete**
 
-- Add the manager startup logic: send form to HOST, follow inbox for
-  value replies.
-- On each value reply to the form, extract config, create guest via
-  `E(agent).provideGuest(name, ...)`, spawn worker loop.
-- Update setup scripts to introduce `AGENT` and remove `env`.
-- Test: install Lal, submit form via CLI, verify agent responds to messages.
+- Manager sends configuration form to HOST on startup.
+- Follows inbox for `value` replies to the form.
+- On each reply, extracts config, creates guest via
+  `E(agent).provideGuest(name, ...)`, spawns worker loop.
+- Setup scripts introduce `AGENT` (as `host-agent`) and pass no `env`.
 
-### Phase 3: Restart Recovery
+### Phase 3: Restart Recovery — **Complete**
 
-- Persist each worker config under `worker-config-<name>` in the manager's
-  pet store.
-- On startup, scan for persisted configs and respawn workers.
-- Test: create agent, restart daemon, verify agent resumes without
-  resubmitting the form.
+- No explicit config persistence needed. `followMessages()` replays all
+  historical messages on restart, including past `value` submissions.
+  The manager re-processes each submission: `provideGuest` is idempotent
+  (returns the existing guest), and the worker loop is respawned.
+  The inbox itself serves as the durable config store.
 
-### Phase 4: Fae Parity
+### Phase 4: Fae Parity — **Complete**
 
-- Apply the same manager/worker refactoring to Fae.
-- Verify dynamic tool discovery works correctly when the worker loop
-  uses a guest reference other than the manager's.
+- Fae has identical manager/worker architecture.
 
 ## Alternatives Considered
 
