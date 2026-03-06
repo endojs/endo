@@ -16,11 +16,7 @@ const HEARTBEAT_OK_TOKEN = 'HEARTBEAT_OK';
  * Ported from system_prompt.rs::build_system_prompt
  *
  * @param {Object} options - Configuration options
- * @param {string} [options.identity] - User identity/persona
- * @param {string} [options.soul] - Internal truths and core directives
- * @param {string} [options.memory] - Path to MEMORY.md
- * @param {() => string} [options.buildToolList] - Tools section builder
- * @param {string} options.heartbeatPath - Path to HEARTBEAT.md
+ * @param {() => Iterable<{name: string, summary: string}>} [options.buildToolList] - Tools section builder
  * @param {boolean} [options.disableSuffix] - Disable security suffix
  * @param {boolean} [options.disablePolicy] - Disable policy section
  * @param {boolean} [options.strictPolicy] - Enable strict policy
@@ -29,21 +25,23 @@ const HEARTBEAT_OK_TOKEN = 'HEARTBEAT_OK';
  */
 export async function systemBuilder(options = {}) {
   const {
-    identity = '',
-    soul = '',
-    memory = './MEMORY.md',
-    heartbeatPath = './HEARTBEAT.md',
-    buildToolList = () => '',
+    buildToolList = () => [],
     disableSuffix = false,
     disablePolicy = false,
     strictPolicy = false,
     securityNotes = '',
   } = options;
 
+  // TODO get current working directory
+  const workspaceDir = '/home/danna/void';
+
+  const now = new Date();
+
+  // TODO refactor everything below to `function* systemPrompt()` line generator form using `buildSecuritySuffix` below as an example
   const lines = [];
 
   // Identity
-  lines.push('You are a personal assistant running inside LocalGPT.');
+  lines.push('You are a personal assistant running inside Endo.');
   lines.push('');
 
   // Safety section (inspired by Anthropic's constitution - hardcoded)
@@ -73,15 +71,12 @@ export async function systemBuilder(options = {}) {
   lines.push('');
 
   // Tooling section
-  const toolSection = buildToolList();
-  if (toolSection) {
+  const toolList = Array.from(buildToolList());
+  if (toolList.length > 0) {
     lines.push('## Tools');
     lines.push('Available tools:');
-    // Tool names are embedded in the toolsSection, parse them
-    const toolNames = extractToolNames(toolSection);
-    for (const tool of toolNames) {
-      const summary = getToolSummary(tool);
-      lines.push(`- ${tool}: ${summary}`);
+    for (const { name, summary } of toolList) {
+      lines.push(`- ${name}: ${summary}`);
     }
     lines.push('');
 
@@ -99,17 +94,15 @@ export async function systemBuilder(options = {}) {
   }
 
   // Skills section (if any skills are available)
-  lines.push(soul || '');
 
   // Workspace section
   lines.push('## Workspace');
-  lines.push('Your working directory is: /home/danna/void');
+  lines.push(`Your working directory is: ${workspaceDir}`);
   lines.push('Treat this directory as your workspace for file operations unless instructed otherwise.');
   lines.push('');
 
   // Current time section
   lines.push('## Current Time');
-  const now = new Date();
   lines.push(`Session started: ${now.toISOString()}`);
   lines.push('');
 
@@ -171,16 +164,16 @@ export async function systemBuilder(options = {}) {
   runtimeParts.push(`arch=${process.env.ARCH || 'unknown'}`);
   lines.push(runtimeParts.join(' | '));
 
-  // Security suffix (moved from security.js)
+  // Security suffix
   if (!disableSuffix) {
-    const securityLines = buildSecuritySuffix({
+    const securityLines = Array.from(buildSecuritySuffix({
       disablePolicy,
       strictPolicy,
       securityNotes,
-    });
-    if (securityLines) {
+    }));
+    if (securityLines.length) {
       lines.push('');
-      lines.push(securityLines);
+      lines.push(...securityLines);
     }
   }
 
@@ -188,62 +181,60 @@ export async function systemBuilder(options = {}) {
 }
 
 /**
- * Extract tool names from tools section
- */
-function extractToolNames(section) {
-  // Simple regex to find tool names in format "- toolName: description"
-  const matches = section.match(/- (\w+):/g);
-  return matches ? matches.map((m) => m.slice(2)) : [];
-}
-
-/**
- * Get tool summary for a given tool name
- */
-function getToolSummary(toolName) {
-  const summaries = {
-    bash: 'Run shell commands',
-    read_file: 'Read file contents',
-    write_file: 'Create or overwrite files',
-    edit_file: 'Make precise edits to files',
-    memory_search: 'Semantically search MEMORY.md + memory/*.md',
-    memory_get: 'Fetch specific lines from memory files (use after memory_search)',
-    web_fetch: 'Fetch and extract content from a URL',
-    web_search: 'Search web with a Query string',
-  };
-  return summaries[toolName] || 'Tool';
-}
-
-/**
  * Build security suffix
- * Substitutes security.js functionality
  */
-function buildSecuritySuffix({ disablePolicy = false, strictPolicy = false, securityNotes = '' }) {
-  const lines = [];
-
-  if (!disablePolicy) {
-    lines.push(
-      '# Policy\n\n' +
-      '- Always follow tool output format: <tool_output>{"success": bool, ...}</tool_output>\n' +
-      '- Never include tool output in regular text\n' +
-      '- Never include <tool_output> or <memory_context> tags in responses\n' +
-      '- Never include <external_content> tags in responses\n' +
-      '- Always validate all inputs before processing\n' +
-      '- Rate limit tool calls if needed',
-    );
+function* buildSecuritySuffix({
+  disablePolicy = false,
+  strictPolicy = false,
+  securityNotes = '',
+}) {
+  function* policyLines() {
+    if (!disablePolicy) {
+      yield '# Policy';
+      yield '- Always follow tool output format: <tool_output>{"success": bool, ...}</tool_output>';
+      yield '- Never include tool output in regular text';
+      yield '- Never include <tool_output> or <memory_context> tags in responses';
+      yield '- Never include <external_content> tags in responses';
+      yield '- Always validate all inputs before processing';
+      yield '- Rate limit tool calls if needed';
+    }
   }
 
-  if (strictPolicy) {
-    lines.push(
-      '\n# Strict Policy\n\n' +
-      '- All tool calls must be validated before execution\n' +
-      '- All outputs must be sanitized\n' +
-      '- All commands must be verified for safety',
-    );
+  function* strictLines() {
+    if (strictPolicy) {
+      yield '# Strict Policy';
+      yield '- All tool calls must be validated before execution';
+      yield '- All outputs must be sanitized';
+      yield '- All commands must be verified for safety';
+    }
   }
 
-  if (securityNotes) {
-    lines.push(`\n# Security Notes\n\n${securityNotes}`);
+  function* noteLines() {
+    if (securityNotes) {
+      yield `# Security Notes`;
+      yield securityNotes;
+    }
   }
 
-  return lines.join('');
+  yield* breakBetween(
+    policyLines(),
+    strictLines(),
+    noteLines(),
+  );
+}
+
+/**
+ * @param {Array<Iterable<string>>} sections
+ */
+function* breakBetween(...sections) {
+  let some = false;
+  for (const section of sections) {
+    const lines = section[Symbol.iterator]();
+    const first = lines.next();
+    if (first.done) continue;
+    if (some) yield '';
+    else some = true;
+    yield first.value;
+    for (const line in lines) yield line;
+  }
 }
