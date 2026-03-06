@@ -1,5 +1,13 @@
 # @endo/compartment-mapper
 
+## 2.0.1
+
+### Patch Changes
+
+- [#3111](https://github.com/endojs/endo/pull/3111) [`154102b`](https://github.com/endojs/endo/commit/154102b47491f8fc587c891cfe69d206bd7833d2) Thanks [@boneskull](https://github.com/boneskull)! - Fix type of `PackageDataHook.packageData` which now correctly allows `$root$` as a key.
+
+- [#3115](https://github.com/endojs/endo/pull/3115) [`1cd1246`](https://github.com/endojs/endo/commit/1cd12469b6874bb181238c2d2e41ce9bc6e8bb9f) Thanks [@boneskull](https://github.com/boneskull)! - Remove unused "error" `ModuleSourceHookModuleSource` type.
+
 ## 2.0.0
 
 ### Major Changes
