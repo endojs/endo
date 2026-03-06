@@ -1,22 +1,43 @@
 # ses
 
+## 1.15.0
+
+### Minor Changes
+
+- [#3082](https://github.com/endojs/endo/pull/3082) [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7) Thanks [@boneskull](https://github.com/boneskull)! - - Adds `assert.makeError` and deprecates `assert.error` as an alias, matching
+  the API already exported from `@endo/errors`.
+  - Before this version, the `assert` left in global scope before `lockdown`
+    would redact errors and would be replaced by `lockdown` with a version that
+    did _not_ redact errors if the caller opted-in with `errorTaming`
+    set to one of the `unsafe` variants.
+    After this version, the reverse is true: the `assert` left in global scope
+    before `lockdown` does not redact.
+    Then, `lockdown` replaces `assert` with a redacting `assert` unless the
+    caller opted-out with `errorTaming` set to one of the `unsafe` variants.
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`a29ecd4`](https://github.com/endojs/endo/commit/a29ecd44c788440faf016f1f8e658a5a364d6181) Thanks [@kriskowal](https://github.com/kriskowal)! - - `lockdown` and `repairIntrinsics` now detect when code has already called a
+  `harden` imported from `@endo/harden` before lockdown, and fail with a clear
+  error about hardened modules executing before lockdown.
+  - Adds `Object[Symbol.for('harden')]` as a variant of `globalThis.harden` that
+    cannot be overridden by an endowment named `harden` in compartments.
+
 ## [1.14.0](https://github.com/endojs/endo/compare/ses@1.13.1...ses@1.14.0) (2025-07-12)
 
 ### Features
 
-* **cache-map:** Promote makeLRUCacheMap into a new package ([a39db9e](https://github.com/endojs/endo/commit/a39db9e03dd9bdcc20e25bb857351ca5bfe314ef))
-* **cache-map:** Return a kit for exposing metrics ([f513ebd](https://github.com/endojs/endo/commit/f513ebd36c01ce45eb2684d5f9db4db57a4ac526))
-* **ses:** add noAggregateLoadErrors flag ([#2832](https://github.com/endojs/endo/issues/2832)) ([b222f9f](https://github.com/endojs/endo/commit/b222f9f5c68ef373c31a68b091452b7789a6621b))
+- **cache-map:** Promote makeLRUCacheMap into a new package ([a39db9e](https://github.com/endojs/endo/commit/a39db9e03dd9bdcc20e25bb857351ca5bfe314ef))
+- **cache-map:** Return a kit for exposing metrics ([f513ebd](https://github.com/endojs/endo/commit/f513ebd36c01ce45eb2684d5f9db4db57a4ac526))
+- **ses:** add noAggregateLoadErrors flag ([#2832](https://github.com/endojs/endo/issues/2832)) ([b222f9f](https://github.com/endojs/endo/commit/b222f9f5c68ef373c31a68b091452b7789a6621b))
 
 ### Bug Fixes
 
-* **immutable-arraybuffer:** unify shim to work on more platforms ([#2855](https://github.com/endojs/endo/issues/2855)) ([25039f5](https://github.com/endojs/endo/commit/25039f561d5e0c1bac48260adcf7e1a26d661659)), closes [#2785](https://github.com/endojs/endo/issues/2785) [#2399](https://github.com/endojs/endo/issues/2399) [#2785](https://github.com/endojs/endo/issues/2785) [#2785](https://github.com/endojs/endo/issues/2785)
+- **immutable-arraybuffer:** unify shim to work on more platforms ([#2855](https://github.com/endojs/endo/issues/2855)) ([25039f5](https://github.com/endojs/endo/commit/25039f561d5e0c1bac48260adcf7e1a26d661659)), closes [#2785](https://github.com/endojs/endo/issues/2785) [#2399](https://github.com/endojs/endo/issues/2399) [#2785](https://github.com/endojs/endo/issues/2785) [#2785](https://github.com/endojs/endo/issues/2785)
 
 ## [1.13.1](https://github.com/endojs/endo/compare/ses@1.13.0...ses@1.13.1) (2025-06-17)
 
 ### Bug Fixes
 
-* **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
+- **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
 
 ## [1.13.0](https://github.com/endojs/endo/compare/ses@1.12.0...ses@1.13.0) (2025-06-02)
 
@@ -57,7 +78,7 @@
 
   By default, its value is `false`, which retains the previous behavior (it causes all relevant errors to be collected and rejected or thrown in a single exception from `compartment.import()` or `compartment.importNow()`, respectively).
 
-  If set to `true`, this will cause the *first* module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
+  If set to `true`, this will cause the _first_ module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
 
   This is mostly useful for supporting optional dependencies in CommonJS modules.
 
@@ -130,7 +151,7 @@ and subject to breaking changes that will not be signaled by semver.
   [`Array.prototype.transfer`](https://github.com/tc39/proposal-resizablearraybuffer)
   but with a global `structuredClone`, the ses-shim's `lockdown` will now
   install an emulation of `Array.prototype.transfer`. On platforms with neither,
-  the ses-shim will *currently* not install such an emulation.
+  the ses-shim will _currently_ not install such an emulation.
   However, once we verify that endo is not intended to support platforms
   without both, we may change `lockdown` to throw, failing to lock down.
   - XS and Node >= 22 already have `Array.prototype.transfer`.
@@ -152,20 +173,20 @@ and subject to breaking changes that will not be signaled by semver.
   may be hard to find in source code.
 
   This is not likely to affect most systems built with SES, as stderr is
-  generally reserved for user-only messages.  If your SES system sends its
+  generally reserved for user-only messages. If your SES system sends its
   stderr to a program which parses it, you may need to adapt that program to be
-  tolerant of the `SES_UNCAUGHT_EXCEPTION:` prefix.  Even for such programs, it
+  tolerant of the `SES_UNCAUGHT_EXCEPTION:` prefix. Even for such programs, it
   is unlikely they are that sensitive to stderr formatting.
 
 ## [1.7.0](https://github.com/endojs/endo/compare/ses@1.6.0...ses@1.7.0) (2024-08-01)
 
 ### Features
 
-* **ses:** call lockdown before bundling SES shim ([#2337](https://github.com/endojs/endo/issues/2337)) ([8c01dd4](https://github.com/endojs/endo/commit/8c01dd4dd796d6fc492784d3a993d091fd3cd595))
+- **ses:** call lockdown before bundling SES shim ([#2337](https://github.com/endojs/endo/issues/2337)) ([8c01dd4](https://github.com/endojs/endo/commit/8c01dd4dd796d6fc492784d3a993d091fd3cd595))
 
 ## [1.6.0](https://github.com/endojs/endo/compare/ses@1.5.0...ses@1.6.0) (2024-07-30)
 
-- *NOTICE*: This version introduces multiple features to converge upon a
+- _NOTICE_: This version introduces multiple features to converge upon a
   more common standard for [Hardened JavaScript](https://hardenedjs.org).
   All code should begin migrating to these usage patterns as the older
   patterns are now deprecated and will not be supported in a future major
@@ -197,11 +218,11 @@ and subject to breaking changes that will not be signaled by semver.
   The modules option or argument to the Compatment constructor has module
   descriptors for all its values.
   - `{record, specifier, compartment}` should become `{source: record,
-    specifier, compartment}`.
+specifier, compartment}`.
   - `{specifier, compartment}` should become `{source: specifier,
-    compartment}`.
+compartment}`.
   - `{record: compartment.module(specifier)}` should become `{namespace:
-    specifier, compartment}`.
+specifier, compartment}`.
 
 - When running transpiled code on Node, the SES error taming
   gives line-numbers into the generated JavaScript, which often don't match the
@@ -209,7 +230,7 @@ and subject to breaking changes that will not be signaled by semver.
   lockdown options setting,
 
   ```js
-  errorTaming: 'unsafe'
+  errorTaming: 'unsafe';
   ```
 
   or setting the environment variable
@@ -220,7 +241,7 @@ and subject to breaking changes that will not be signaled by semver.
 
   To get the original line numbers, this release
   adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
-  should be used ***during development only*** when you can
+  should be used **_during development only_** when you can
   sacrifice more security for a better debugging experience, as explained at
   [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
   With this setting, when running transpiled code on Node (e.g. tests written
@@ -241,8 +262,8 @@ and subject to breaking changes that will not be signaled by semver.
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
-* **ses:** tolerate omitted species ([#2108](https://github.com/endojs/endo/issues/2108)) ([70c85ef](https://github.com/endojs/endo/commit/70c85ef3796acb579af8651e210f172ee200c364))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses:** tolerate omitted species ([#2108](https://github.com/endojs/endo/issues/2108)) ([70c85ef](https://github.com/endojs/endo/commit/70c85ef3796acb579af8651e210f172ee200c364))
 
 ## [1.3.0](https://github.com/endojs/endo/compare/ses@1.2.0...ses@1.3.0) (2024-02-23)
 
@@ -296,17 +317,17 @@ and subject to breaking changes that will not be signaled by semver.
 
 ### Features
 
-* **ses:** add SES version ([db17743](https://github.com/endojs/endo/commit/db17743885e7a221eaf3f6cf5e811a1a1d97788f))
-* **ses:** Freeze evaluators, Compartment constructor and Symbol ([1016375](https://github.com/endojs/endo/commit/1016375f86082e927e7906f11046bb53d9025d68))
+- **ses:** add SES version ([db17743](https://github.com/endojs/endo/commit/db17743885e7a221eaf3f6cf5e811a1a1d97788f))
+- **ses:** Freeze evaluators, Compartment constructor and Symbol ([1016375](https://github.com/endojs/endo/commit/1016375f86082e927e7906f11046bb53d9025d68))
 
 ### Bug Fixes
 
-* enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
-* **ses:** Fake a good-enough console ([a2fd851](https://github.com/endojs/endo/commit/a2fd85145b6c0e316b2205090ba49b60974d10e0)), closes [#1819](https://github.com/endojs/endo/issues/1819)
-* **ses:** fix ThirdPartyStaticModuleInterface type ([fe38c40](https://github.com/endojs/endo/commit/fe38c4095c059ed9550aa682a0de5ab958d3522e))
-* **ses:** fix types export for newer module resolutions ([9cc3dd5](https://github.com/endojs/endo/commit/9cc3dd5551be369d854d5a4c3724b96dc8cc6691)), closes [#1803](https://github.com/endojs/endo/issues/1803)
-* **ses:** refactor import assert {type: json} to fs ([d5741a4](https://github.com/endojs/endo/commit/d5741a44450bb31150cf90e9a0d12eecc836503a))
-* **ses:** Support absence of console ([fece445](https://github.com/endojs/endo/commit/fece445f0191e41c1324d26d83d830dfa8822400)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+- enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
+- **ses:** Fake a good-enough console ([a2fd851](https://github.com/endojs/endo/commit/a2fd85145b6c0e316b2205090ba49b60974d10e0)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+- **ses:** fix ThirdPartyStaticModuleInterface type ([fe38c40](https://github.com/endojs/endo/commit/fe38c4095c059ed9550aa682a0de5ab958d3522e))
+- **ses:** fix types export for newer module resolutions ([9cc3dd5](https://github.com/endojs/endo/commit/9cc3dd5551be369d854d5a4c3724b96dc8cc6691)), closes [#1803](https://github.com/endojs/endo/issues/1803)
+- **ses:** refactor import assert {type: json} to fs ([d5741a4](https://github.com/endojs/endo/commit/d5741a44450bb31150cf90e9a0d12eecc836503a))
+- **ses:** Support absence of console ([fece445](https://github.com/endojs/endo/commit/fece445f0191e41c1324d26d83d830dfa8822400)), closes [#1819](https://github.com/endojs/endo/issues/1819)
 
 ## [0.18.8](https://github.com/endojs/endo/compare/ses@0.18.7...ses@0.18.8) (2023-09-12)
 
@@ -322,7 +343,7 @@ and subject to breaking changes that will not be signaled by semver.
   the constructor that would normally have returned an indication of the
   current date, instead return the corresponding invalid date indication.
   Now, all of these throw a `TypeError` whose message begins with `'secure
-  mode'`.
+mode'`.
   This aligns with the XS implementation of HardenedJS.
 - Similarly, In the SES-shim implementation of HardenedJS, all constructed
   compartments get the same safe `Math` namespace object that does not provide
@@ -337,9 +358,9 @@ and subject to breaking changes that will not be signaled by semver.
 
 ### Bug Fixes
 
-* **fix:** Censor spread import ([fc90c64](https://github.com/endojs/endo/commit/fc90c6429604dc79ce8e3355e236ccce2bada041))
-* **ses:** add more missing permits ([222f8f1](https://github.com/endojs/endo/commit/222f8f1ee9f579de9e325a2807663fc3931efa9a))
-* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+- **fix:** Censor spread import ([fc90c64](https://github.com/endojs/endo/commit/fc90c6429604dc79ce8e3355e236ccce2bada041))
+- **ses:** add more missing permits ([222f8f1](https://github.com/endojs/endo/commit/222f8f1ee9f579de9e325a2807663fc3931efa9a))
+- **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
 
 ## [0.18.6](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.6) (2023-08-07)
 
@@ -394,7 +415,7 @@ and subject to breaking changes that will not be signaled by semver.
 
 ## [0.18.0](https://github.com/endojs/endo/compare/ses@0.17.0...ses@0.18.0) (2022-11-14)
 
-- *BREAKING*: Removes support for `globalLexicals`.
+- _BREAKING_: Removes support for `globalLexicals`.
   To our knowledge, there are no production uses for `globalLexicals`.
   They currently could leak because `moduleLexicals` and `globalLexicals`
   used the same scope object, so properties of one would leak to the other
@@ -594,7 +615,7 @@ and subject to breaking changes that will not be signaled by semver.
 
 ## [0.15.0](https://github.com/endojs/endo/compare/ses@0.14.4...ses@0.15.0) (2021-11-02)
 
-- *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by
+- _BREAKING CHANGE_: The lockdown option `domainTaming` is now `safe` by
   default, which will break any application that depends transtively on the
   Node.js `domain` module.
   Notably, [standard-things/esm](https://github.com/standard-things/esm)
@@ -602,11 +623,11 @@ and subject to breaking changes that will not be signaled by semver.
 
   This protects against the unhardened `domain` property appearing on shared
   objects like callbacks and promises.
-  This overcomes the last *known* obstacle toward object capability containment.
+  This overcomes the last _known_ obstacle toward object capability containment.
 
 - Lockdown will now read options from the environment as defined by the Node.js
   `process.env` parameter space.
-- *BREAKING CHANGE*: Lockdown may no longer be called more than once.
+- _BREAKING CHANGE_: Lockdown may no longer be called more than once.
   Lockdown no longer returns a boolean to indicate whether it was effective
   (true) or redundant (false). Instead, Lockdown will return undefined for
   its first invocation or throw an error otherwise.
@@ -656,7 +677,7 @@ and subject to breaking changes that will not be signaled by semver.
 
 ## [0.14.0](https://github.com/endojs/endo/compare/ses@0.13.4...ses@0.14.0) (2021-07-22)
 
-- *BREAKING*: Any precompiled static module records from prior versions
+- _BREAKING_: Any precompiled static module records from prior versions
   will not load in this version of SES or beyond. The format of the preamble
   has been changed to admit the possibility of a variable named `Map` declared
   in the scope of a module.
@@ -695,25 +716,25 @@ and subject to breaking changes that will not be signaled by semver.
 
 ## 0.13.0 (2021-06-02)
 
-- *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
+- _BREAKING CHANGE_ The `ses/lockdown` module is again just `ses`.
   Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
   is just a 52KB `ses` that has everything except `StaticModuleRecord`.
   For this release, there remains a `ses/lockdown` alias to `ses`.
-- *BREAKING CHANGE* Third-party static module interface implementations *must*
+- _BREAKING CHANGE_ Third-party static module interface implementations _must_
   now explicitly list their exported names.
   For CommonJS, this implies using a heuristic static analysis of `exports`
   changes.
   Consequently, third-party modules can now participate in linkage with ESM
   including support for `export * from './spec.cjs'` and also named imports
   like `import * from './spec.cjs'`.
-- *BREAKING CHANGE* The `StaticModuleRecord` constructor has been removed in
+- _BREAKING CHANGE_ The `StaticModuleRecord` constructor has been removed in
   favor of a duck-type for compiled static module records that is intrinsic to
   the shim and may be emulated by a third-party `StaticModuleRecord`
   constructor.
   The constructor must perform the module analysis and transform the source,
   and present this duck-type to the Compartment `importHook`.
   This relieves SES of a dependency on Babel and simplifies its API.
-- *BREAKING CHANGE* The UMD distribution of SES must have the UTF-8 charset.
+- _BREAKING CHANGE_ The UMD distribution of SES must have the UTF-8 charset.
   The prior versions were accidentally ASCII, so SES would have worked
   in any web page, regardless of the charset.
   To remedy this, be sure to include `<head><meta charset="utf-8"></head>` in
@@ -895,7 +916,7 @@ inspector.
 
 The new `'moderate'` setting only tames those properties we know or expect to
 be problematic. If you run into an override mistake problem not addressed at
-the `'moderate'` setting ***please file an issue.***
+the `'moderate'` setting **_please file an issue._**
 
 <details>
   <summary>Expand for { overrideTaming: 'moderate' } vscode inspector display</summary>
@@ -924,9 +945,9 @@ all the code you're running under SES.
 - Added an `overrideTaming` option to `lockdown` with two settings,
   `'min'` and `'moderate'`. See
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
-  for an explanation of when to use which. ***(This documentation has moved
+  for an explanation of when to use which. **_(This documentation has moved
   to [`overrideTaming`
-  options](./lockdown-options.md#overridetaming-options))***
+  options](./lockdown-options.md#overridetaming-options))_**
 - Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now
   throw errors that contain the `sourceURL` from any `//#sourceURL=` comment
@@ -1066,7 +1087,7 @@ all the code you're running under SES.
 
 - This version decouples lockdown and the Compartment constructor.
   The Compartment constructor is now exported by `ses` (was previously only
-  available as a property of `globalThis` *after* lockdown).
+  available as a property of `globalThis` _after_ lockdown).
   The Compartment constructor will also create "privileged" compartments when
   constructed before lockdown.
 

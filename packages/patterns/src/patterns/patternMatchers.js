@@ -1327,8 +1327,12 @@ const makePatternKit = () => {
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
-   * @param {T[]} [inResults]
-   * @param {T[]} [outResults]
+   * @param {T[] | undefined} inResults
+   * @param {T[] | undefined} outResults
+   * @param {-1 | 1} direction -1 for picking from the end (which gives
+   * intuitive results with descending lexicographic CopySet/CopyBag payloads);
+   * 1 for picking from the start (which gives intuitive results with other
+   * arrays)
    * @returns {boolean}
    */
   const confirmElementsHasSplit = (
@@ -1336,18 +1340,14 @@ const makePatternKit = () => {
     elementPatt,
     bound,
     reject,
-    inResults = undefined,
-    outResults = undefined,
+    inResults,
+    outResults,
+    direction,
   ) => {
     let inCount = 0n;
-    // Since this feature is motivated by ERTP's use on
-    // non-fungible (`set`, `copySet`) amounts,
-    // their arrays store their elements in decending lexicographic order.
-    // But this function has to make some choice amoung equally good minimal
-    // results. It is more intuitive for the choice to be the first `bound`
-    // matching elements in ascending lexicigraphic order, rather than
-    // decending. Thus we iterate `elements` in reverse order.
-    for (let i = elements.length - 1; i >= 0; i -= 1) {
+    const firstIndex = direction === -1 ? elements.length - 1 : 0;
+    const stopIndex = direction === -1 ? -1 : elements.length;
+    for (let i = firstIndex; i !== stopIndex; i += direction) {
       const element = elements[i];
       if (inCount >= bound) {
         if (!outResults) break;
@@ -1366,7 +1366,7 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {CopyArray<[Key, bigint]>} pairs
+   * @param {CopyArray<[Key, bigint]>} pairs in descending lexicographic order
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
@@ -1383,13 +1383,9 @@ const makePatternKit = () => {
     outResults = undefined,
   ) => {
     let inCount = 0n;
-    // Since this feature is motivated by ERTP's use on
-    // semi-fungible (`copyBag`) amounts,
-    // their arrays store their elements in decending lexicographic order.
-    // But this function has to make some choice amoung equally good minimal
-    // results. It is more intuitive for the choice to be the first `bound`
-    // matching elements in ascending lexicigraphic order, rather than
-    // decending. Thus we iterate `pairs` in reverse order.
+    // To produce intuitive results with CopyBag payloads (which are ordered by
+    // descending lexicographic Key order), we iterate by reverse array index
+    // and therefore consider elements in *ascending* lexicographic Key order.
     for (let i = pairs.length - 1; i >= 0; i -= 1) {
       const [element, num] = pairs[i];
       const stillNeeds = bound - inCount;
@@ -1416,9 +1412,11 @@ const makePatternKit = () => {
    * Confirms that `specimen` contains at least `bound` instances of an element
    * matched by `elementPatt`, optionally returning those bounded matches and/or
    * their complement as specified by `needInResults` and `needOutResults`
-   * (ensuring for CopyBags that at most one Key is split across both, but
-   * otherwise making no guarantee regarding the order in which elements are
-   * considered beyond a best-effort attempt to align with intuition).
+   * (considering CopyArray elements by ascending index and CopySet/CopyBag
+   * elements in lexicographic order).
+   * Note that CopyBag elements can be split; when only some of the count
+   * associated with a single Key is necessary to bring cumulative matches up to
+   * `bound`, the rest of that count is not considered to be matching.
    * If the specimen does not contain enough matching instances, this function
    * terminates as directed by `reject` (i.e., either returning `false` or
    * throwing an error).
@@ -1455,6 +1453,7 @@ const makePatternKit = () => {
             reject,
             inResults,
             outResults,
+            1,
           ) && harden([inResults, outResults])
         );
       }
@@ -1467,6 +1466,7 @@ const makePatternKit = () => {
             reject,
             inResults,
             outResults,
+            -1,
           ) &&
           harden([
             inResults && makeCopySet(inResults),

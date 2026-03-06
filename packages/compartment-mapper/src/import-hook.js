@@ -41,7 +41,8 @@
  *   CompartmentModuleConfiguration,
  *   LogOptions,
  *   CanonicalName,
- *   LocalModuleSource
+ *   LocalModuleSource,
+ *   ModuleSourceHook,
  * } from './types.js'
  */
 
@@ -262,7 +263,7 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
  *
  * Preprocesses the fields for the hook.
  *
- * @param {import('./types.js').ModuleSourceHook | undefined} moduleSourceHook Hook function
+ * @param {ModuleSourceHook | undefined} moduleSourceHook Hook function
  * @param {LocalModuleSource} moduleSource Original `LocalModuleSource` object
  * @param {CanonicalName} canonicalName Canonical name of the compartment/package
  * @param {LogOptions} options Options

@@ -1,5 +1,30 @@
 # @endo/marshal
 
+## 1.9.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea), [`98f77e9`](https://github.com/endojs/endo/commit/98f77e9a77040cafe27f2facb5900f1c57043a20)]:
+  - @endo/errors@1.3.0
+  - @endo/harden@1.1.0
+  - @endo/common@1.3.0
+  - @endo/eventual-send@1.4.0
+  - @endo/nat@5.2.0
+  - @endo/pass-style@1.7.0
+  - @endo/promise-kit@1.2.0
+
 ## [1.8.0](https://github.com/endojs/endo/compare/@endo/marshal@1.7.1...@endo/marshal@1.8.0) (2025-07-12)
 
 - Introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
@@ -8,8 +33,8 @@
 
 ### Bug Fixes
 
-* **marshal:** fix consequence of typo ([#2841](https://github.com/endojs/endo/issues/2841)) ([fbee7d9](https://github.com/endojs/endo/commit/fbee7d9b86b535c5d3f3cb23caa68b5ca0facb89))
-* **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
+- **marshal:** fix consequence of typo ([#2841](https://github.com/endojs/endo/issues/2841)) ([fbee7d9](https://github.com/endojs/endo/commit/fbee7d9b86b535c5d3f3cb23caa68b5ca0facb89))
+- **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
 
 ## [1.7.0](https://github.com/endojs/endo/compare/@endo/marshal@1.6.4...@endo/marshal@1.7.0) (2025-06-02)
 
@@ -35,7 +60,7 @@
 
 ### Bug Fixes
 
-* **marshal:** Manually intervene in choice of semver for 1.6.0 instead of 2.0.0 ([c242c28](https://github.com/endojs/endo/commit/c242c28a68d1af29475150e44b5f3e9d0feda8cd))
+- **marshal:** Manually intervene in choice of semver for 1.6.0 instead of 2.0.0 ([c242c28](https://github.com/endojs/endo/commit/c242c28a68d1af29475150e44b5f3e9d0feda8cd))
 
 ## [1.6.0](https://github.com/endojs/endo/compare/@endo/marshal@1.5.4...@endo/marshal@1.6.0) (2024-10-22)
 
@@ -74,12 +99,12 @@
 
 ### Features
 
-* **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
-* **types:** generic Passable ([fa59e05](https://github.com/endojs/endo/commit/fa59e05fc5621410a184c1eb4f4ee850bddce09c))
+- **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
+- **types:** generic Passable ([fa59e05](https://github.com/endojs/endo/commit/fa59e05fc5621410a184c1eb4f4ee850bddce09c))
 
 ### Bug Fixes
 
-* **ses:** makeError defaults to making passable errors ([#2200](https://github.com/endojs/endo/issues/2200)) ([3b0f766](https://github.com/endojs/endo/commit/3b0f76675b32bae4a428aada739b62a5dae02192))
+- **ses:** makeError defaults to making passable errors ([#2200](https://github.com/endojs/endo/issues/2200)) ([3b0f766](https://github.com/endojs/endo/commit/3b0f76675b32bae4a428aada739b62a5dae02192))
 
 ## [1.4.1](https://github.com/endojs/endo/compare/@endo/marshal@1.4.0...@endo/marshal@1.4.1) (2024-04-04)
 
@@ -89,7 +114,7 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ## [1.3.0](https://github.com/endojs/endo/compare/@endo/marshal@1.2.0...@endo/marshal@1.3.0) (2024-02-23)
 
@@ -125,26 +150,26 @@
 
 ### Features
 
-* **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
+- **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
 
 ## [1.0.1](https://github.com/endojs/endo/compare/@endo/marshal@1.0.0...@endo/marshal@1.0.1) (2023-12-20)
 
 ### Bug Fixes
 
-* Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
+- Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
 
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/marshal@0.8.9...@endo/marshal@1.0.0) (2023-12-12)
 
 ### Features
 
-* **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
-* **pass-style:** Safe promises can override @[@to](https://github.com/to)StringTag with a string ([55e094c](https://github.com/endojs/endo/commit/55e094c689b3460dae29baf04f7934b60c594c60))
+- **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
+- **pass-style:** Safe promises can override @[@to](https://github.com/to)StringTag with a string ([55e094c](https://github.com/endojs/endo/commit/55e094c689b3460dae29baf04f7934b60c594c60))
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
-* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
-* review suggestions ([25ded7a](https://github.com/endojs/endo/commit/25ded7a14b82103ca58be15b8ec0195bdc9dd434))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+- review suggestions ([25ded7a](https://github.com/endojs/endo/commit/25ded7a14b82103ca58be15b8ec0195bdc9dd434))
 
 ## 0.26.10 (2021-07-28)
 
@@ -154,27 +179,27 @@
 
 ### Features
 
-* **patterns:** Implement CopyMap comparison ([13028b2](https://github.com/endojs/endo/commit/13028b2b7e18b82cb313f58b66dfb7f35e2efde2))
+- **patterns:** Implement CopyMap comparison ([13028b2](https://github.com/endojs/endo/commit/13028b2b7e18b82cb313f58b66dfb7f35e2efde2))
 
 ## [0.8.8](https://github.com/endojs/endo/compare/@endo/marshal@0.8.6...@endo/marshal@0.8.8) (2023-08-07)
 
 ### Bug Fixes
 
-* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+- **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
 
 ## [0.8.7](https://github.com/endojs/endo/compare/@endo/marshal@0.8.6...@endo/marshal@0.8.7) (2023-08-07)
 
 ### Bug Fixes
 
-* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+- **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
 
 ## [0.8.6](https://github.com/endojs/endo/compare/@endo/marshal@0.8.5...@endo/marshal@0.8.6) (2023-07-19)
 
 ### Bug Fixes
 
-* better wording ([3c5ccfc](https://github.com/endojs/endo/commit/3c5ccfc5aa7fb066a367e2876d17047fc394bed9))
-* format ([7d1a1b0](https://github.com/endojs/endo/commit/7d1a1b01dff4cb96dbedfac1943b2c257c4acbc5))
-* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+- better wording ([3c5ccfc](https://github.com/endojs/endo/commit/3c5ccfc5aa7fb066a367e2876d17047fc394bed9))
+- format ([7d1a1b0](https://github.com/endojs/endo/commit/7d1a1b01dff4cb96dbedfac1943b2c257c4acbc5))
+- warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
 
 ## [0.8.5](https://github.com/endojs/endo/compare/@endo/marshal@0.8.4...@endo/marshal@0.8.5) (2023-04-20)
 
@@ -279,7 +304,7 @@
 
 - Prepares for far classes.
 - Full `passStyleOf` input validation.
-- *BREAKING*: Removes `assertPure`, which was wrong but not used to the best of
+- _BREAKING_: Removes `assertPure`, which was wrong but not used to the best of
   our knowledge.
 
 ## [0.6.9](https://github.com/endojs/endo/compare/@endo/marshal@0.6.8...@endo/marshal@0.6.9) (2022-06-28)
@@ -335,6 +360,7 @@ dependents to parse `.js` files in their `node_modules`.
 
 In order to use the types from `@endo/marshal` you now need to import them
 explicitly. For example, to make them available in scope, use the following:
+
 - JSDoc: `/** @import {PassStyle} from '@endo/marshal' */`
 - TypeScript: `import type { PassStyle } from '@endo/marshal'`
 

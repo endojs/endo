@@ -25,6 +25,11 @@ import type { SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
 import type { CanonicalName } from './canonical-name.js';
 import type { PackageDescriptor } from './node-modules.js';
+import type {
+  ATTENUATORS_COMPARTMENT,
+  ENTRY_COMPARTMENT,
+} from '../policy-format.js';
+import type { LiteralUnion } from './typescript.js';
 
 export type { CanonicalName };
 export type { PackageDescriptor };
@@ -59,7 +64,15 @@ export type PackageData = {
  * Called once before `translateGraph`.
  */
 export type PackageDataHook = (params: {
-  packageData: Readonly<Map<PackageCompartmentDescriptorName, PackageData>>;
+  packageData: Readonly<
+    Map<
+      LiteralUnion<
+        typeof ATTENUATORS_COMPARTMENT | typeof ENTRY_COMPARTMENT,
+        FileUrlString
+      >,
+      PackageData
+    >
+  >;
   log: LogFn;
 }) => void;
 
@@ -85,17 +98,30 @@ export type PackageDependenciesHook = (params: {
  * The `moduleSource` property value for {@link ModuleSourceHook}
  */
 export type ModuleSourceHookModuleSource =
-  | {
-      location: FileUrlString;
-      language: Language;
-      bytes: Uint8Array;
-      imports?: string[] | undefined;
-      exports?: string[] | undefined;
-      reexports?: string[] | undefined;
-      sha512?: string | undefined;
-    }
-  | { error: string }
-  | { exit: string };
+  | ModuleSourceHookFileModuleSource
+  | ModuleSourceHookExitModuleSource;
+
+/**
+ * The `moduleSource` property value for {@link ModuleSourceHook} for a module
+ * on disk
+ */
+export type ModuleSourceHookFileModuleSource = {
+  location: FileUrlString;
+  language: Language;
+  bytes: Uint8Array;
+  imports?: string[] | undefined;
+  exports?: string[] | undefined;
+  reexports?: string[] | undefined;
+  sha512?: string | undefined;
+};
+
+/**
+ * The `moduleSource` property value for {@link ModuleSourceHook} for an exit
+ * module (virtual)
+ */
+export type ModuleSourceHookExitModuleSource = {
+  exit: string;
+};
 
 /**
  * Hook executed when processing a module source.

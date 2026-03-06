@@ -69,5 +69,5 @@ function sedi() {
 sedi -ne '/###/ { x; q; }; p' CHANGELOG.md
 # LICENSE: current year
 sedi -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" LICENSE
-# NEWS.md and README.md: package name
-sedi -e "s#\[package\]#@endo/$NAME#g; s#\[name\]#$NAME#g" NEWS.md README.md
+# README.md: package name
+sedi -e "s#\[package\]#@endo/$NAME#g; s#\[name\]#$NAME#g" README.md

@@ -200,7 +200,7 @@ module.exports = {
         }
 
         // Case 2: `export { local as exported }` (only when source == null; otherwise it's a re-export)
-        if (!node.source && node.specifiers && node.specifiers.length > 0) {
+        if (!node.source && node.specifiers && node.specifiers[0]) {
           for (const spec of node.specifiers) {
             if (spec.type === 'ExportSpecifier') {
               // spec.local is the local binding in this module

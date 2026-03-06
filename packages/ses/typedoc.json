@@ -1,8 +1,4 @@
 {
-    "extends": [
-        "../../typedoc.base.json"
-    ],
-    "entryPoints": [
-        "types.d.ts",
-    ]
+  "extends": ["../../typedoc.base.json"],
+  "entryPoints": ["types.d.ts"]
 }

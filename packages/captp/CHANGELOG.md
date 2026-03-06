@@ -1,5 +1,30 @@
 # @endo/captp
 
+## 4.5.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea), [`98f77e9`](https://github.com/endojs/endo/commit/98f77e9a77040cafe27f2facb5900f1c57043a20)]:
+  - @endo/errors@1.3.0
+  - @endo/harden@1.1.0
+  - @endo/eventual-send@1.4.0
+  - @endo/marshal@1.9.0
+  - @endo/nat@5.2.0
+  - @endo/pass-style@1.7.0
+  - @endo/promise-kit@1.2.0
+
 ## [4.4.8](https://github.com/endojs/endo/compare/@endo/captp@4.4.7...@endo/captp@4.4.8) (2025-07-12)
 
 **Note:** Version bump only for package @endo/captp
@@ -12,7 +37,7 @@
 
 ### Bug Fixes
 
-* **types:** abort reason optional ([a601d86](https://github.com/endojs/endo/commit/a601d8631a0df2ec0459b477bb6d95e45e6f6a46))
+- **types:** abort reason optional ([a601d86](https://github.com/endojs/endo/commit/a601d8631a0df2ec0459b477bb6d95e45e6f6a46))
 
 ## [4.4.5](https://github.com/endojs/endo/compare/@endo/captp@4.4.4...@endo/captp@4.4.5) (2025-03-24)
 
@@ -54,7 +79,7 @@
 
 ### Features
 
-* **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
+- **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
 
 ## [4.1.1](https://github.com/endojs/endo/compare/@endo/captp@4.1.0...@endo/captp@4.1.1) (2024-04-04)
 
@@ -64,11 +89,11 @@
 
 ### Features
 
-* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+- **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
 
 ### Bug Fixes
 
-* **captp:** Teardown worker test ([63a75f7](https://github.com/endojs/endo/commit/63a75f75dc31328b35b7c63e7cd3628fcc465842))
+- **captp:** Teardown worker test ([63a75f7](https://github.com/endojs/endo/commit/63a75f75dc31328b35b7c63e7cd3628fcc465842))
 
 ## [4.0.4](https://github.com/endojs/endo/compare/@endo/captp@4.0.3...@endo/captp@4.0.4) (2024-02-23)
 
@@ -78,27 +103,27 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
-* Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
 
 ## [4.0.2](https://github.com/endojs/endo/compare/@endo/captp@4.0.1...@endo/captp@4.0.2) (2024-01-18)
 
 ### Bug Fixes
 
-* Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+- Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
 
 ## [4.0.1](https://github.com/endojs/endo/compare/@endo/captp@4.0.0...@endo/captp@4.0.1) (2023-12-20)
 
 ### Bug Fixes
 
-* Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
+- Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
 
 ## [4.0.0](https://github.com/endojs/endo/compare/@endo/captp@3.1.5...@endo/captp@4.0.0) (2023-12-12)
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
-* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
 
 ## [3.1.5](https://github.com/endojs/endo/compare/@endo/captp@3.1.4...@endo/captp@3.1.5) (2023-09-12)
 
@@ -152,7 +177,7 @@
 
 # v1.2.0 (17-Dec-2019)
 
-* use @agoric/eventual-send HandledPromise interface (#6)
+- use @agoric/eventual-send HandledPromise interface (#6)
 
 Moved from https://github.com/Agoric/captp into the `packages/captp/`
 directory in the monorepo at https://github.com/Agoric/agoric-sdk .
@@ -313,7 +338,7 @@ directory in the monorepo at https://github.com/Agoric/agoric-sdk .
 
 ## [1.8.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.20...@agoric/captp@1.8.0) (2021-07-28)
 
-* introduce TrapCaps for synchronous "kernel trap" interfaces (see the
+- introduce TrapCaps for synchronous "kernel trap" interfaces (see the
   README.md).
 
 ## [1.7.20](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.19...@agoric/captp@1.7.20) (2021-07-01)

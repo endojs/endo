@@ -4,6 +4,9 @@
         "allowSyntheticDefaultImports": true,
     },
     "exclude": [
+        "api-docs",
+        "api-docs/**",
+        "**/node_modules",
         "packages/eslint-plugin",
         "packages/ses-integration-test",
         "packages/module-source",

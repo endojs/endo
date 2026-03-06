@@ -1,5 +1,26 @@
 # @endo/check-bundle
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3008](https://github.com/endojs/endo/pull/3008) [`d83b1ab`](https://github.com/endojs/endo/commit/d83b1ab9fabc4f7b9b12fa9574749e46e03f26ea) Thanks [@kriskowal](https://github.com/kriskowal)! - - Relaxes dependence on a global, post-lockdown `harden` function by taking a
+  dependency on the new `@endo/harden` package.
+  Consequently, bundles will now entrain a `harden` implementation that is
+  superfluous if the bundled program is guaranteed to run in a post-lockdown
+  HardenedJS environment.
+  To compensate, use `bundle-source` with `-C hardened` or the analogous feature
+  for packaging conditions with your preferred bundler tool.
+  This will hollow out `@endo/harden` and defer exclusively to the global
+  `harden`.
+
+### Patch Changes
+
+- Updated dependencies [[`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`2e00276`](https://github.com/endojs/endo/commit/2e00276ce0f08beb5e5259b8df195063fe008fe7), [`029dcc4`](https://github.com/endojs/endo/commit/029dcc464cd93bc7380da45e694585ab2f7aa139), [`81b4c40`](https://github.com/endojs/endo/commit/81b4c4096d96e4624f0623a0c70006a1f1db17b4)]:
+  - @endo/errors@1.3.0
+  - @endo/compartment-mapper@2.0.0
+  - @endo/harden@1.1.0
+
 ## [1.0.17](https://github.com/endojs/endo/compare/@endo/check-bundle@1.0.16...@endo/check-bundle@1.0.17) (2025-07-12)
 
 **Note:** Version bump only for package @endo/check-bundle
@@ -60,7 +81,7 @@
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [1.0.2](https://github.com/endojs/endo/compare/@endo/check-bundle@1.0.1...@endo/check-bundle@1.0.2) (2024-01-18)
 
@@ -74,7 +95,7 @@
 
 ### Bug Fixes
 
-* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+- Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
 
 ## [0.2.22](https://github.com/endojs/endo/compare/@endo/check-bundle@0.2.21...@endo/check-bundle@0.2.22) (2023-09-12)
 
@@ -176,12 +197,12 @@
 
 ## [0.2.0](https://github.com/endojs/endo/compare/@endo/check-bundle@0.1.2...@endo/check-bundle@0.2.0) (2022-04-12)
 
-- *BREAKING:* the `@endo/check-bundle` module exports Node.js convenience
+- _BREAKING:_ the `@endo/check-bundle` module exports Node.js convenience
   functions that reach for Node.js specific powerful modules like `fs` and
-  `crypto`.  The `checkBundle` function now accepts a bundle object,
+  `crypto`. The `checkBundle` function now accepts a bundle object,
   `checkBundleFile` accepts a path, and `checkBundleBytes` accepts a
   TypedArray.
-- *BREAKING:* bundles must now consist entirely of string type value properties
+- _BREAKING:_ bundles must now consist entirely of string type value properties
   and must not have any accessors, in addition to frozen.
 
 ## [0.1.2](https://github.com/endojs/endo/compare/@endo/check-bundle@0.1.1...@endo/check-bundle@0.1.2) (2022-03-07)
