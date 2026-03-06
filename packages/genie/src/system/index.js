@@ -12,30 +12,35 @@ const SILENT_REPLY_TOKEN = 'NO_REPLY';
 const HEARTBEAT_OK_TOKEN = 'HEARTBEAT_OK';
 
 /**
- * Builds complete system prompt for LLM integration
+ * Build the full system prompt for the agent
  * Ported from system_prompt.rs::build_system_prompt
  *
  * @param {Object} options - Configuration options
+ * @param {string} [options.hostname] - Hostname (optional)
+ * @param {string} [options.currentTime] - Current time string (optional)
+ * @param {string} [options.workspaceDir] - Workspace directory path
+ * @param {string} [options.model] - Model identifier
  * @param {() => Iterable<{name: string, summary: string}>} [options.buildToolList] - Tools section builder
+ * @param {string} [options.skillsPrompt] - Skills prompt section
  * @param {boolean} [options.disableSuffix] - Disable security suffix
  * @param {boolean} [options.disablePolicy] - Disable policy section
  * @param {boolean} [options.strictPolicy] - Enable strict policy
  * @param {string} [options.securityNotes] - Custom security notes
  * @returns {Promise<string>} Complete system prompt
  */
-export async function systemBuilder(options = {}) {
+export async function buildSystemPrompt(options = {}) {
   const {
+    hostname = 'unknown',
+    currentTime = 'unknown',
+    workspaceDir = '/dev/null',
+    model = 'unknown',
     buildToolList = () => [],
+    skillsPrompt = '',
     disableSuffix = false,
     disablePolicy = false,
     strictPolicy = false,
     securityNotes = '',
   } = options;
-
-  // TODO get current working directory
-  const workspaceDir = '/home/danna/void';
-
-  const now = new Date();
 
   // TODO refactor everything below to `function* systemPrompt()` line generator form using `buildSecuritySuffix` below as an example
   const lines = [];
@@ -94,6 +99,9 @@ export async function systemBuilder(options = {}) {
   }
 
   // Skills section (if any skills are available)
+  if (skillsPrompt) {
+    lines.push(skillsPrompt);
+  }
 
   // Workspace section
   lines.push('## Workspace');
@@ -103,7 +111,7 @@ export async function systemBuilder(options = {}) {
 
   // Current time section
   lines.push('## Current Time');
-  lines.push(`Session started: ${now.toISOString()}`);
+  lines.push(`Session started: ${currentTime}`);
   lines.push('');
 
   // Memory section
@@ -122,14 +130,18 @@ export async function systemBuilder(options = {}) {
   lines.push('');
 
   // Memory recall guidance
-  lines.push('## Memory Recall');
-  lines.push(
-    'Before answering questions about prior work, decisions, dates, people, preferences, ' +
-    'or todos: run memory_search on MEMORY.md + memory/*.md first.',
-  );
-  lines.push('Then use memory_get to pull only the needed lines and keep context small.');
-  lines.push('If low confidence after search, say you checked but found no relevant notes.');
-  lines.push('');
+  if (toolList.some(({name}) => name == 'memory_search')) {
+    lines.push('## Memory Recall');
+    lines.push(
+      'Before answering questions about prior work, decisions, dates, people, preferences, ' +
+      'or todos: run memory_search on MEMORY.md + memory/*.md first.',
+    );
+    if (toolList.some(({name}) => name == 'memory_get')) {
+      lines.push('Then use memory_get to pull only the needed lines and keep context small.');
+    }
+    lines.push('If low confidence after search, say you checked but found no relevant notes.');
+    lines.push('');
+  }
 
   // Silent replies section
   lines.push('## Silent Replies');
@@ -158,10 +170,8 @@ export async function systemBuilder(options = {}) {
   // Runtime info
   lines.push('## Runtime');
   const runtimeParts = [];
-  runtimeParts.push(`model=${process.env.MODEL || 'unknown'}`);
-  runtimeParts.push(`host=${process.env.HOST || 'unknown'}`);
-  runtimeParts.push(`os=${process.env.OS || 'unknown'}`);
-  runtimeParts.push(`arch=${process.env.ARCH || 'unknown'}`);
+  runtimeParts.push(`model=${model}`);
+  runtimeParts.push(`host=${hostname}`);
   lines.push(runtimeParts.join(' | '));
 
   // Security suffix
