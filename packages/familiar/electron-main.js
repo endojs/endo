@@ -19,7 +19,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 // @ts-ignore Electron is not typed in this project
-import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, screen, session } from 'electron';
 
 import {
   ensureDaemonRunning,
@@ -131,6 +131,7 @@ const createWindow = () => {
       preload: path.join(dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // allowRunningInsecureContent: true, // TODO only if isDevMode if this helps
     },
   });
 
@@ -247,6 +248,32 @@ const main = async () => {
 
   // Wait for Electron to be ready
   await app.whenReady();
+
+  // Interlude: Install CSP for dev mode
+  if (isDevMode) {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      `connect-src 'self' ws: ws://127.0.0.1:${vitePort} http://${gatewayAddress} http://127.0.0.1:*`,
+    ].join('; ');
+
+    // TODO For more information and help, consult https://electronjs.org/docs/tutorial/security.
+    //
+    // TODO [renderer:warning] Electron Security Warning (Insecure Content-Security-Policy)
+    //      This renderer process has either no Content Security Policy set or a policy with "unsafe-eval" enabled.
+    //      This exposes users of this app to unnecessary security risks.
+
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': csp,
+        },
+      });
+    });
+  }
 
   // Step 3: Install localhttp:// handler and exfiltration defenses
   const gatewayPort = parseGatewayPort(gatewayAddress);
