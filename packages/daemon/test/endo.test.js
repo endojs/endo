@@ -823,6 +823,36 @@ test('closure state lost by restart', async t => {
   }
 });
 
+test('makeUnconfined with guest powers reincarnates after restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).provideGuest('fae', {
+      introducedNames: harden({ AGENT: 'host-agent' }),
+      agentName: 'profile-for-fae',
+    });
+
+    const controller = await E(host).makeUnconfined('MAIN', counterLocation, {
+      powersName: 'profile-for-fae',
+      resultName: 'controller-for-fae',
+    });
+    t.is(await E(controller).incr(), 1);
+    t.is(await E(controller).incr(), 2);
+  }
+
+  await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const reincarnatedController = await E(host).lookup('controller-for-fae');
+    t.is(await E(reincarnatedController).incr(), 1);
+    t.is(await E(reincarnatedController).incr(), 2);
+  }
+});
+
 test('persist unconfined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
