@@ -134,7 +134,8 @@ export const createHeatSimulation = ($container, initialParams) => {
 
     // Read theme colors from CSS custom properties
     const styles = getComputedStyle(document.documentElement);
-    const bgColor = styles.getPropertyValue('--bg-secondary').trim() || '#f8f9fa';
+    const bgColor =
+      styles.getPropertyValue('--bg-secondary').trim() || '#f8f9fa';
     const dangerColor = styles.getPropertyValue('--danger').trim() || '#e03131';
 
     const messageTimes = activeScenario.messageTimes(currentParams);
@@ -148,7 +149,8 @@ export const createHeatSimulation = ($container, initialParams) => {
     ctx.fillRect(0, 0, width, CANVAS_HEIGHT);
 
     // Lockout threshold dashed line
-    const thresholdY = CANVAS_HEIGHT - (LOCKOUT_THRESHOLD / 100) * CANVAS_HEIGHT;
+    const thresholdY =
+      CANVAS_HEIGHT - (LOCKOUT_THRESHOLD / 100) * CANVAS_HEIGHT;
     ctx.setLineDash([4, 4]);
     ctx.strokeStyle = dangerColor;
     ctx.lineWidth = 1;
@@ -176,7 +178,8 @@ export const createHeatSimulation = ($container, initialParams) => {
     for (let i = 0; i < points.length; i += 1) {
       const point = points[i];
       const x = (point.t / SIM_DURATION_MS) * width;
-      const y = CANVAS_HEIGHT - (Math.min(100, point.heat) / 100) * CANVAS_HEIGHT;
+      const y =
+        CANVAS_HEIGHT - (Math.min(100, point.heat) / 100) * CANVAS_HEIGHT;
 
       ctx.strokeStyle = interpolateHeatColor(point.heat);
       if (i === 0) {

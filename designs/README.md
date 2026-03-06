@@ -41,7 +41,7 @@
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-03 | **Complete** |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
-| [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-05 | **Complete** |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-03-05 | **Complete** |
 | [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | 2026-02-26 | **Complete** |
@@ -62,7 +62,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 18 Complete, 4 In Progress, 32 Not Started, 1 Reference
+**Totals:** 19 Complete, 4 In Progress, 31 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -87,7 +87,7 @@ flowchart TD
     subgraph LLM Agents
         laltx[lal-reply-chain-transcripts<br/><i>COMPLETE</i>]
         lalfp[lal-fae-form-provisioning<br/><i>COMPLETE</i>]
-        fagent[familiar-bundled-agents]
+        fagent[familiar-bundled-agents<br/><i>COMPLETE</i>]
         dtools[daemon-agent-tools]
         dform --> lalfp
         dval --> lalfp
@@ -180,7 +180,7 @@ their own API key and local capabilities.
 | ~~lal-reply-chain-transcripts~~ | **Complete** | Phases 1-4 implemented; Phase 5 (memory management) deferred as out-of-scope |
 | ~~familiar-daemon-bundling~~ | **Complete** | esbuild bundles, Node download, Forge integration |
 | ~~lal-fae-form-provisioning~~ | **Complete** | Manager/worker split, form-based config, inbox-replay recovery |
-| familiar-bundled-agents | Not Started | Bundle Lal/Fae into Familiar via esbuild; no native deps |
+| ~~familiar-bundled-agents~~ | **Complete** | esbuild bundles, resource paths, env vars, daemon-node.js provisioning |
 | endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; trivial, high UX value |
 
 **Exit criterion:** There is a Familiar application suitable for use on
@@ -367,7 +367,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~lal-reply-chain-transcripts~~ | — | — | 0 | ✅ Complete (phases 1-4; phase 5 deferred) |
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
-| familiar-bundled-agents | S-M | 2-3 days | 0 | esbuild entries, special formulas; no native deps |
+| ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
 | endoclaw-notifications | S | 1 day | 0 | Electron Notification API, rate-limited exo |
 | gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
 | daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
@@ -406,13 +406,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 2 remaining | 3-4 days |
+| M0: AI Agent Experience | 1 remaining | 1 day |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: UX & Tooling | 7 | 3-4.5 weeks |
 | M4: Weblets & Integrations | 7 | 4-6 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **35** | **~22.5-33.5 weeks** |
+| **Total remaining** | **34** | **~22-33 weeks** |
 
 ### Timeline
 
@@ -464,7 +464,7 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-05:** 18 of 54 designs complete.
+**Progress as of 2026-03-05:** 19 of 54 designs complete.
 15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
 Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
@@ -476,3 +476,6 @@ memory management deferred as out-of-scope future work).
 `lal-fae-form-provisioning` complete (manager/worker split, form-based
 config, restart recovery via inbox replay — no explicit config persistence
 needed since `followMessages()` replays all historical submissions).
+`familiar-bundled-agents` complete (esbuild bundles for Lal/Fae, resource
+paths, env var passthrough, inline guest provisioning in daemon-node.js
+using setup.js pattern — Option C instead of Option A from the design doc).

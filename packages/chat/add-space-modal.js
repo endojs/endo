@@ -1032,9 +1032,7 @@ export const createAddSpaceModal = ({
         const existingSpaces = getExistingChannelSpaces
           ? getExistingChannelSpaces()
           : [];
-        const space = existingSpaces.find(
-          s => s.id === connectExistingSpaceId,
-        );
+        const space = existingSpaces.find(s => s.id === connectExistingSpaceId);
         if (!space) {
           throw new Error('Selected space not found');
         }

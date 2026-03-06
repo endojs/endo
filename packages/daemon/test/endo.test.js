@@ -3443,8 +3443,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
 
   // Submit with wrong type — should throw
   await t.throwsAsync(
-    () =>
-      E(host).submit(formMsg.number, harden({ count: 'not-a-number' })),
+    () => E(host).submit(formMsg.number, harden({ count: 'not-a-number' })),
     { message: /field "count"/ },
   );
 });
@@ -3633,10 +3632,9 @@ test('sendValue rejects unknown pet name', async t => {
   const { value: pkgMsg } = await E(guestIteratorRef).next();
 
   // Attempt to sendValue with a nonexistent pet name
-  await t.throwsAsync(
-    () => E(guest).sendValue(pkgMsg.number, 'nonexistent'),
-    { message: /Unknown pet name/ },
-  );
+  await t.throwsAsync(() => E(guest).sendValue(pkgMsg.number, 'nonexistent'), {
+    message: /Unknown pet name/,
+  });
 });
 
 test('sendValue rejects invalid message number', async t => {
@@ -3670,10 +3668,7 @@ test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
   const { value: formMsg } = await E(hostIteratorRef).next();
   t.is(formMsg.type, 'form');
 
-  await E(host).submit(
-    formMsg.number,
-    harden({ displayName: 'Bob' }),
-  );
+  await E(host).submit(formMsg.number, harden({ displayName: 'Bob' }));
 
   // Guest receives form + value
   const { value: guestFormMsg } = await E(guestIteratorRef).next();

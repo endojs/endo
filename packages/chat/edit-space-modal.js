@@ -67,11 +67,15 @@ export const createEditSpaceModal = ({
         <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
       </div>
       <form class="add-space-form">
-        ${showName ? `<div class="add-space-field">
+        ${
+          showName
+            ? `<div class="add-space-field">
           <label for="edit-space-name">Name</label>
           <input type="text" id="edit-space-name" placeholder="e.g., clark, bruce, diana"
                  value="${spaceName}" autocomplete="off" />
-        </div>` : ''}
+        </div>`
+            : ''
+        }
 
         ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
@@ -228,9 +232,7 @@ export const createEditSpaceModal = ({
   const handleSubmit = async () => {
     if (!editingSpace) return;
 
-    const name = showName
-      ? spaceName.trim()
-      : editingSpace.name;
+    const name = showName ? spaceName.trim() : editingSpace.name;
     if (showName && !name) {
       error = 'Please enter a name';
       render();

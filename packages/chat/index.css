@@ -2422,11 +2422,19 @@ button.btn-spinner::after {
   border: 1px solid var(--danger-border);
 }
 
-.message .string { color: var(--bubble-value-string); }
-.message .number { color: var(--bubble-value-number); }
-.message .bigint { color: var(--bubble-value-success); }
+.message .string {
+  color: var(--bubble-value-string);
+}
+.message .number {
+  color: var(--bubble-value-number);
+}
+.message .bigint {
+  color: var(--bubble-value-success);
+}
 .message .remotable,
-.message .tag { color: var(--bubble-value-accent); }
+.message .tag {
+  color: var(--bubble-value-accent);
+}
 .message .error {
   color: var(--bubble-value-danger);
   background: var(--bubble-value-danger-bg);
@@ -4361,7 +4369,7 @@ button.btn-spinner::after {
   flex-shrink: 0;
 }
 
-.attenuator-field input[type="number"] {
+.attenuator-field input[type='number'] {
   width: 80px;
   padding: 4px 8px;
   border: 1px solid var(--border-color);
@@ -4413,7 +4421,9 @@ button.btn-spinner::after {
   height: 100%;
   width: 0;
   border-radius: 2px;
-  transition: width 100ms linear, background-color 100ms linear;
+  transition:
+    width 100ms linear,
+    background-color 100ms linear;
 }
 
 .heat-bar-segments {
@@ -4469,16 +4479,32 @@ button.btn-spinner::after {
 }
 
 @keyframes heat-shake {
-  0%, 100% { transform: translateX(0); }
-  15% { transform: translateX(-4px); }
-  30% { transform: translateX(3px); }
-  45% { transform: translateX(-2px); }
-  60% { transform: translateX(1px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-4px);
+  }
+  30% {
+    transform: translateX(3px);
+  }
+  45% {
+    transform: translateX(-2px);
+  }
+  60% {
+    transform: translateX(1px);
+  }
 }
 
 @keyframes heat-jitter {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(1px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4507,7 +4533,7 @@ button.btn-spinner::after {
   align-items: baseline;
 }
 
-.heat-slider-field input[type="range"] {
+.heat-slider-field input[type='range'] {
   width: 100%;
   cursor: pointer;
   accent-color: var(--accent-primary);
@@ -5098,7 +5124,8 @@ button.btn-spinner::after {
   color: var(--text-primary);
   outline: none;
   font-family: inherit;
-  transition: border-color var(--transition-fast),
+  transition:
+    border-color var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
@@ -5158,6 +5185,31 @@ button.btn-spinner::after {
 
 .profile-save-btn:hover {
   background: var(--accent-hover);
+}
+
+/* ============================
+   Channel Connection Status
+   ============================ */
+
+.channel-status {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.channel-status-connecting {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.channel-status-error {
+  color: #e74c3c;
+  font-style: normal;
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 8px;
+  margin: 16px;
+  padding: 16px;
 }
 
 /* ============================
@@ -5243,10 +5295,7 @@ button.btn-spinner::after {
 .message-envelope.chain-start,
 .message-envelope.chain-through,
 .message-envelope.chain-end {
-  background-image: linear-gradient(
-    var(--msg-sent-bg),
-    var(--msg-sent-bg)
-  );
+  background-image: linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
   background-size: 2px 100%;
   background-position: 2ex 0;
@@ -5280,8 +5329,7 @@ button.btn-spinner::after {
 
 /* Sub through-line: same weight as primary, at 6ex (2ex into the 4ex indent) */
 .message-envelope.sub-through {
-  background-image:
-    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-image: linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
   background-size: 2px 100%;
   background-position: 6ex 0;
@@ -5289,8 +5337,7 @@ button.btn-spinner::after {
 
 /* Sub start: line from bottom half (connects downward to child) */
 .message-envelope.sub-start {
-  background-image:
-    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-image: linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
   background-size: 2px 50%;
   background-position: 6ex bottom;
@@ -5298,8 +5345,7 @@ button.btn-spinner::after {
 
 /* Sub end: line from top half (connects upward to parent) */
 .message-envelope.sub-end {
-  background-image:
-    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-image: linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
   background-size: 2px 50%;
   background-position: 6ex top;
@@ -5307,8 +5353,7 @@ button.btn-spinner::after {
 
 /* Reply indicator: short stub at top for non-adjacent replies */
 .message-envelope.sub-indicator {
-  background-image:
-    linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
+  background-image: linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
   background-size: 2px 6px;
   background-position: 6ex top;
@@ -5321,8 +5366,12 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, 2px 100%;
-  background-position: 2ex 0, 6ex 0;
+  background-size:
+    2px 100%,
+    2px 100%;
+  background-position:
+    2ex 0,
+    6ex 0;
 }
 
 .message-envelope.chain-through.sub-start {
@@ -5330,8 +5379,12 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, 2px 50%;
-  background-position: 2ex 0, 6ex bottom;
+  background-size:
+    2px 100%,
+    2px 50%;
+  background-position:
+    2ex 0,
+    6ex bottom;
 }
 
 .message-envelope.chain-through.sub-end {
@@ -5339,8 +5392,12 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, 2px 50%;
-  background-position: 2ex 0, 6ex top;
+  background-size:
+    2px 100%,
+    2px 50%;
+  background-position:
+    2ex 0,
+    6ex top;
 }
 
 .message-envelope.chain-through.sub-indicator {
@@ -5348,8 +5405,12 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, 2px 6px;
-  background-position: 2ex 0, 6ex top;
+  background-size:
+    2px 100%,
+    2px 6px;
+  background-position:
+    2ex 0,
+    6ex top;
 }
 
 .message-envelope.chain-tee.sub-through {
@@ -5358,8 +5419,14 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 100%;
-  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex 0;
+  background-size:
+    2px 100%,
+    calc(2ex - 2px) 2px,
+    2px 100%;
+  background-position:
+    2ex 0,
+    calc(2ex + 2px) 50%,
+    6ex 0;
 }
 
 .message-envelope.chain-tee.sub-start {
@@ -5368,8 +5435,14 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 50%;
-  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex bottom;
+  background-size:
+    2px 100%,
+    calc(2ex - 2px) 2px,
+    2px 50%;
+  background-position:
+    2ex 0,
+    calc(2ex + 2px) 50%,
+    6ex bottom;
 }
 
 .message-envelope.chain-tee.sub-end {
@@ -5378,8 +5451,14 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 50%;
-  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex top;
+  background-size:
+    2px 100%,
+    calc(2ex - 2px) 2px,
+    2px 50%;
+  background-position:
+    2ex 0,
+    calc(2ex + 2px) 50%,
+    6ex top;
 }
 
 .message-envelope.chain-tee.sub-indicator {
@@ -5388,6 +5467,12 @@ button.btn-spinner::after {
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg)),
     linear-gradient(var(--msg-sent-bg), var(--msg-sent-bg));
   background-repeat: no-repeat;
-  background-size: 2px 100%, calc(2ex - 2px) 2px, 2px 6px;
-  background-position: 2ex 0, calc(2ex + 2px) 50%, 6ex top;
+  background-size:
+    2px 100%,
+    calc(2ex - 2px) 2px,
+    2px 6px;
+  background-position:
+    2ex 0,
+    calc(2ex + 2px) 50%,
+    6ex top;
 }

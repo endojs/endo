@@ -22,6 +22,10 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
+import {
+  formatLocatorForSharing,
+  addressesFromLocator,
+} from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -65,6 +69,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
+ * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
@@ -88,6 +93,7 @@ export const makeHostMaker = ({
   formulateInvitation,
   formulateChannel,
   getAllNetworkAddresses,
+  getTypeForId,
   getFormulaForId,
   makeMailbox,
   makeDirectoryNode,
@@ -602,9 +608,7 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers =>
-        petStore.write(petName, identifiers.channelId),
-      );
+      tasks.push(identifiers => petStore.write(petName, identifiers.channelId));
       const { value } = await formulateChannel(
         hostId,
         handleId,
@@ -733,6 +737,47 @@ export const makeHostMaker = ({
         addresses,
       };
       return peerInfo;
+    };
+
+    /** @type {EndoHost['locateForSharing']} */
+    const locateForSharing = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await E(directory).identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const formulaType = await getTypeForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      const addresses = await getAllNetworkAddresses(networksDirectoryId);
+      return formatLocatorForSharing(id, formulaType, addresses);
+    };
+
+    /** @type {EndoHost['adoptFromLocator']} */
+    const adoptFromLocator = async (locator, petNameOrPath) => {
+      const namePath = namePathFrom(petNameOrPath);
+      assertNamePath(namePath);
+      const url = new URL(locator);
+      const nodeNumber = url.hostname;
+      assertNodeNumber(nodeNumber);
+      const addresses = addressesFromLocator(locator);
+      if (addresses.length > 0) {
+        /** @type {PeerInfo} */
+        const peerInfo = {
+          node: nodeNumber,
+          addresses,
+        };
+        await addPeerInfo(peerInfo);
+      }
+      const formulaNumber = url.searchParams.get('id');
+      if (!formulaNumber) {
+        throw makeError('Locator must have an "id" parameter');
+      }
+      const id = formatId({
+        number: /** @type {import('./types.js').FormulaNumber} */ (formulaNumber),
+        node: /** @type {NodeNumber} */ (nodeNumber),
+      });
+      await E(directory).write(namePath, id);
     };
 
     const { reverseIdentify } = specialStore;
@@ -1063,6 +1108,8 @@ export const makeHostMaker = ({
       greeter,
       getPeerInfo,
       addPeerInfo,
+      locateForSharing,
+      adoptFromLocator,
       deliver,
       makeChannel: makeChannelCmd,
       invite,

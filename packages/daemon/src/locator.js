@@ -54,12 +54,15 @@ export const parseLocator = allegedLocator => {
     throw makeError(`${errorPrefix} Invalid node identifier.`);
   }
 
-  if (
-    url.searchParams.size !== 2 ||
-    !url.searchParams.has('id') ||
-    !url.searchParams.has('type')
-  ) {
+  if (!url.searchParams.has('id') || !url.searchParams.has('type')) {
     throw makeError(`${errorPrefix} Invalid search params.`);
+  }
+
+  // Only 'id', 'type', and 'at' (connection hints) are allowed.
+  for (const key of url.searchParams.keys()) {
+    if (key !== 'id' && key !== 'type' && key !== 'at') {
+      throw makeError(`${errorPrefix} Invalid search params.`);
+    }
   }
 
   const number = url.searchParams.get('id');
@@ -106,4 +109,39 @@ export const formatLocator = (id, formulaType) => {
 export const idFromLocator = locator => {
   const { number, node } = parseLocator(locator);
   return formatId({ number, node });
+};
+
+/**
+ * Format a locator with connection hints for sharing with remote peers.
+ *
+ * @param {string} id - The full formula identifier.
+ * @param {string} formulaType - The type of the formula with the given id.
+ * @param {string[]} addresses - Network addresses (connection hints).
+ */
+export const formatLocatorForSharing = (id, formulaType, addresses) => {
+  const { number, node } = parseId(id);
+  const url = new URL(`endo://${node}`);
+  url.pathname = '/';
+
+  url.searchParams.set('id', number);
+
+  assertValidLocatorType(formulaType);
+  url.searchParams.set('type', formulaType);
+
+  for (const address of addresses) {
+    url.searchParams.append('at', address);
+  }
+
+  return url.toString();
+};
+
+/**
+ * Extract connection hint addresses from a locator, if any.
+ *
+ * @param {string} locator
+ * @returns {string[]}
+ */
+export const addressesFromLocator = locator => {
+  const url = new URL(locator);
+  return url.searchParams.getAll('at');
 };

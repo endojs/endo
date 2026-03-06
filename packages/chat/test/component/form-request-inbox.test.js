@@ -112,7 +112,10 @@ test('form renders fields and Submit calls submit()', async t => {
     messageId: '42',
     dismissed: dismissedKit.promise,
     description: 'Survey',
-    fields: [{ name: 'favoriteColor', label: 'Favorite color' }, { name: 'city', label: 'City' }],
+    fields: [
+      { name: 'favoriteColor', label: 'Favorite color' },
+      { name: 'city', label: 'City' },
+    ],
   };
 
   const { powers, calls } = makeFormPowers({
@@ -263,7 +266,10 @@ test('value message renders with Show Value button', async t => {
   await tick(50);
   const $inlineValue = $parent.querySelector('.form-request-inline-value');
   t.truthy($inlineValue, 'inline value container should exist');
-  t.truthy($inlineValue.textContent.length > 0, 'inline value should render the looked-up value');
+  t.truthy(
+    $inlineValue.textContent.length > 0,
+    'inline value should render the looked-up value',
+  );
 
   // Click "Show Value" button
   const $showResult = $parent.querySelector('.form-request-show-result');

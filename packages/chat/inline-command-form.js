@@ -634,7 +634,8 @@ export const createInlineCommandForm = ({
         const $input = fieldInputsByName[fieldName];
         if ($input) {
           $input.value = value;
-          formData[fieldName] = $input.type === 'number' ? Number(value) : value;
+          formData[fieldName] =
+            $input.type === 'number' ? Number(value) : value;
           $input.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }

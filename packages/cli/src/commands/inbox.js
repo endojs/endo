@@ -122,9 +122,7 @@ export const inbox = async ({ follow, agentNames }) =>
         const { replyTo } = message;
         const replyNumber = messageNumberById.get(replyTo);
         const replyContext =
-          replyNumber === undefined
-            ? 'unknown'
-            : `#${replyNumber}`;
+          replyNumber === undefined ? 'unknown' : `#${replyNumber}`;
         console.log(
           `${number}. ${provenance}in reply to ${replyContext} at ${q(date)}`,
         );

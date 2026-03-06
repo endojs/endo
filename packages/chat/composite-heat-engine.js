@@ -1,7 +1,11 @@
 // @ts-check
 /* global requestAnimationFrame, cancelAnimationFrame */
 
-import { deriveConstants, LOCKOUT_THRESHOLD, formatDuration } from './heat-engine.js';
+import {
+  deriveConstants,
+  LOCKOUT_THRESHOLD,
+  formatDuration,
+} from './heat-engine.js';
 
 /**
  * @typedef {object} HopPolicy
@@ -77,7 +81,11 @@ const makeCompositeHeatEngine = (hopPolicies, initialStates, onUpdate) => {
   /** @type {PerHopSim[]} */
   const hops = hopPolicies.map((policy, i) => {
     const { heatPerMessage, coolRate } = deriveConstants(policy);
-    const initial = initialStates[i] || { heat: 0, locked: false, lockRemaining: 0 };
+    const initial = initialStates[i] || {
+      heat: 0,
+      locked: false,
+      lockRemaining: 0,
+    };
     // Only honour server lock state if there is meaningful time remaining.
     // A lockRemaining of 0 (or already expired) means the lockout is over.
     const stillLocked = initial.locked && initial.lockRemaining > 0;
@@ -134,7 +142,10 @@ const makeCompositeHeatEngine = (hopPolicies, initialStates, onUpdate) => {
 
     /** @type {PerHopView[]} */
     const hopViews = hops.map((hop, i) => {
-      const normalizedHeat = Math.min(100, (hop.heat / LOCKOUT_THRESHOLD) * 100);
+      const normalizedHeat = Math.min(
+        100,
+        (hop.heat / LOCKOUT_THRESHOLD) * 100,
+      );
       const lockRemaining = hop.locked ? Math.max(0, hop.lockEndTime - now) : 0;
       const isSelf = i === hops.length - 1;
 
@@ -144,7 +155,10 @@ const makeCompositeHeatEngine = (hopPolicies, initialStates, onUpdate) => {
       }
       if (hop.locked) {
         effectiveLocked = true;
-        effectiveLockRemaining = Math.max(effectiveLockRemaining, lockRemaining);
+        effectiveLockRemaining = Math.max(
+          effectiveLockRemaining,
+          lockRemaining,
+        );
       }
 
       return {
@@ -222,10 +236,7 @@ const makeCompositeHeatEngine = (hopPolicies, initialStates, onUpdate) => {
 
         if (hop.locked) {
           anyLocked = true;
-          maxLockRemaining = Math.max(
-            maxLockRemaining,
-            hop.lockEndTime - now,
-          );
+          maxLockRemaining = Math.max(maxLockRemaining, hop.lockEndTime - now);
           continue;
         }
 
