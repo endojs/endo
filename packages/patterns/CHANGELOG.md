@@ -1,5 +1,12 @@
 # @endo/patterns
 
+## 1.9.0
+
+### Minor Changes
+
+- [#3067](https://github.com/endojs/endo/pull/3067) [`8195a5a`](https://github.com/endojs/endo/commit/8195a5aa8dd99d147b34e40ce8fa7328ce596e87) Thanks [@gibson042](https://github.com/gibson042)! - - Updates `containerHasSplit` to consider copyArray elements in forward order,
+  better aligning with intuition.
+
 ## 1.8.0
 
 ### Minor Changes
