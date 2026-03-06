@@ -240,29 +240,7 @@ keypairs.
 
 ---
 
-#### Milestone 3: UX Polish and Agent Tooling
-
-**Goal:** Polished Chat experience, developer observability.
-
-| Design | Status | Notes |
-|--------|--------|-------|
-| chat-reply-chain-visualization | In Progress | Layout algorithm, connector lines |
-| inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
-| inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
-| formula-inspector | Not Started | New panel, daemon API exposure |
-| workers-panel | Not Started | Metrics, sparklines |
-| live-reference-indicator | Not Started | Incarnation status API + UI |
-| lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
-
-**Exit criterion:** Chat UI feature-complete for current design scope.
-Developer tools (inspector, workers panel) available. Agent transcript
-memory is bounded.
-
-**Estimated duration (1 dev):** 3-4.5 weeks
-
----
-
-#### Milestone 4: Weblets and Integrations
+#### Milestone 3: Weblets and Integrations
 
 **Goal:** Weblet hosting in Familiar and daemon. OAuth-based external
 service integrations. Proactive agent behavior. Webhooks for event-driven
@@ -285,6 +263,28 @@ capabilities, send proactive briefings on a schedule, and receive
 webhook events.
 
 **Estimated duration (1 dev):** 4-6 weeks
+
+---
+
+#### Milestone 4: UX Polish and Agent Tooling
+
+**Goal:** Polished Chat experience, developer observability.
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| chat-reply-chain-visualization | In Progress | Layout algorithm, connector lines |
+| inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
+| inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
+| formula-inspector | Not Started | New panel, daemon API exposure |
+| workers-panel | Not Started | Metrics, sparklines |
+| live-reference-indicator | Not Started | Incarnation status API + UI |
+| lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
+
+**Exit criterion:** Chat UI feature-complete for current design scope.
+Developer tools (inspector, workers panel) available. Agent transcript
+memory is bounded.
+
+**Estimated duration (1 dev):** 3-4.5 weeks
 
 ---
 
@@ -368,7 +368,6 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
 | ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
-| endoclaw-notifications | S | 1 day | 4 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
 | gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
 | daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
 | daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
@@ -381,20 +380,21 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
 | daemon-agent-network-identity | S-M | 2-3 days | 2 | Network registration, locator construction |
 | ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
-| chat-reply-chain-visualization | M | 3-4 days | 3 | Layout algorithm, connector lines |
-| inventory-grouping-by-type | S | 1-2 days | 3 | UI grouping |
-| inventory-drag-and-drop | S-M | 2-3 days | 3 | HTML5 DnD |
-| formula-inspector | M | 3-4 days | 3 | New panel, daemon API |
-| workers-panel | M | 3-5 days | 3 | Metrics, sparklines |
-| live-reference-indicator | M | 3-4 days | 3 | Incarnation status API + UI |
-| lal-transcript-memory-management | S | 1 day | 3 | Durable message-to-node mapping, broken chain detection |
-| familiar-unified-weblet-server | M | 2-3 days | 4 | Web-server restructuring |
-| familiar-chat-weblet-hosting | M | 3-4 days | 4 | Iframe hosting, guest profiles |
-| daemon-weblet-application | M | 3-4 days | 4 | Formula types, gateway serving |
-| endoclaw-oauth | S-M | 2-3 days | 4 | Credential proxy exo, token injection |
-| endoclaw-proactive-messages | S | 1 day | 4 | Pattern doc: Timer + data caps + send() |
-| endoclaw-webhooks | S-M | 2-3 days | 4 | Gateway webhook routes → inbox messages |
-| endoclaw-voice | S | 1-2 days | 4 | Web Speech API in Chat UI |
+| familiar-unified-weblet-server | M | 2-3 days | 3 | Web-server restructuring |
+| familiar-chat-weblet-hosting | M | 3-4 days | 3 | Iframe hosting, guest profiles |
+| daemon-weblet-application | M | 3-4 days | 3 | Formula types, gateway serving |
+| endoclaw-oauth | S-M | 2-3 days | 3 | Credential proxy exo, token injection |
+| endoclaw-proactive-messages | S | 1 day | 3 | Pattern doc: Timer + data caps + send() |
+| endoclaw-notifications | S | 1 day | 3 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
+| endoclaw-webhooks | S-M | 2-3 days | 3 | Gateway webhook routes → inbox messages |
+| endoclaw-voice | S | 1-2 days | 3 | Web Speech API in Chat UI |
+| chat-reply-chain-visualization | M | 3-4 days | 4 | Layout algorithm, connector lines |
+| inventory-grouping-by-type | S | 1-2 days | 4 | UI grouping |
+| inventory-drag-and-drop | S-M | 2-3 days | 4 | HTML5 DnD |
+| formula-inspector | M | 3-4 days | 4 | New panel, daemon API |
+| workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
+| live-reference-indicator | M | 3-4 days | 4 | Incarnation status API + UI |
+| lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
 | daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
 | daemon-capability-bank | XL | 3-4 weeks | 5 | Integrates all capabilities |
@@ -409,8 +409,8 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | M0: AI Agent Experience | 0 remaining | **Complete** |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
-| M3: UX & Tooling | 7 | 3-4.5 weeks |
-| M4: Weblets & Integrations | 8 | 4-6 weeks |
+| M3: Weblets & Integrations | 8 | 4-6 weeks |
+| M4: UX & Tooling | 7 | 3-4.5 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
 | **Total remaining** | **34** | **~22-32 weeks** |
 
@@ -431,10 +431,10 @@ gantt
     Networking                    :m2, after m1, 4w
 
     section Milestone 3
-    UX & Tooling                  :m3, after m2, 4w
+    Weblets & Integrations        :m3, after m2, 5w
 
     section Milestone 4
-    Weblets & Integrations        :m4, after m3, 5w
+    UX & Tooling                  :m4, after m3, 4w
 
     section Milestone 5
     Confinement & Ecosystem       :m5, after m4, 10w
@@ -445,13 +445,13 @@ gantt
 | M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
-| M3: UX & Tooling | 3-4.5 weeks | 12-16.5 weeks | Late June 2026 |
-| M4: Weblets & Integrations | 4-6 weeks | 16-22.5 weeks | Early August 2026 |
+| M3: Weblets & Integrations | 4-6 weeks | 12-17 weeks | Late June 2026 |
+| M4: UX & Tooling | 3-4.5 weeks | 15.5-21.5 weeks | Early August 2026 |
 | M5: Confinement & Ecosystem | 8-12 weeks | 24-34.5 weeks | Late October 2026 |
 
-*Milestones 3 and 4 are less order-dependent and can be interleaved or
-reordered based on priorities. Milestones 0, 1, and 2 form the critical
-path.*
+*Milestones 3 and 4 are less order-dependent and can be interleaved.
+Milestones 0, 1, and 2 form the critical path. Weblets prioritized over
+UX polish (swapped 2026-03-06).*
 
 ### Strategic Early Items
 
