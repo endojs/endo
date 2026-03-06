@@ -412,6 +412,37 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'share': {
+          const { petName } = params;
+          const petNameStr = String(petName);
+          const pathParts = petNameStr.split('.');
+          console.log(`[Chat] Generating shareable locator for "${petNameStr}"...`);
+          const locator = await E(powers).locateForSharing(...pathParts);
+          if (!locator) {
+            throw new Error(`No value found for "${petNameStr}"`);
+          }
+          showMessage(`Shareable locator for "${petNameStr}":`);
+          showValue(locator, undefined, undefined, undefined);
+          return {
+            success: true,
+            value: locator,
+            message: `Locator generated for "${petNameStr}"`,
+          };
+        }
+
+        case 'adopt-locator': {
+          const { locator, petName } = params;
+          const petNameStr = String(petName);
+          console.log(
+            `[Chat] Adopting from locator as "${petNameStr}"...`,
+          );
+          await E(powers).adoptFromLocator(String(locator), petNameStr);
+          return {
+            success: true,
+            message: `Adopted as "${petNameStr}" from locator`,
+          };
+        }
+
         case 'network': {
           const effectiveModulePath =
             String(params.modulePath || '') ||

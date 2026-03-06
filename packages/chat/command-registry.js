@@ -458,6 +458,47 @@ export const COMMANDS = {
     ],
     submitLabel: 'Accept',
   },
+  share: {
+    name: 'share',
+    label: 'Share',
+    description: 'Generate a shareable locator with connection hints',
+    category: 'connections',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'my-channel',
+      },
+    ],
+    submitLabel: 'Share',
+  },
+  'adopt-locator': {
+    name: 'adopt-locator',
+    label: 'Adopt from Locator',
+    description: 'Adopt a remote value from a shareable locator',
+    category: 'connections',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'locator',
+        label: 'Locator',
+        type: 'locator',
+        required: true,
+        placeholder: 'endo://...?id=...&type=...&at=...',
+      },
+      {
+        name: 'petName',
+        label: 'Save as',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'remote-channel',
+      },
+    ],
+    submitLabel: 'Adopt',
+  },
   network: {
     name: 'network',
     label: 'Enable Network',

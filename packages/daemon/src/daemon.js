@@ -3497,6 +3497,7 @@ const makeDaemonCore = async (
     formulateReadableBlob,
     formulateInvitation,
     getAllNetworkAddresses,
+    getTypeForId,
     getFormulaForId,
     formulateChannel,
     makeMailbox,

@@ -314,6 +314,10 @@ export const HostInterface = M.interface('EndoHost', {
   getPeerInfo: M.call().returns(M.promise()),
   // Add peer info
   addPeerInfo: M.call(M.record()).returns(M.promise()),
+  // Locate a formula with connection hints for sharing with remote peers
+  locateForSharing: M.call().rest(NamePathShape).returns(M.promise()),
+  // Adopt a value from a locator with connection hints
+  adoptFromLocator: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Create an invitation
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation

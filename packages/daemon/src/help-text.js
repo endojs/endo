@@ -422,6 +422,20 @@ addPeerInfo(peerInfo) -> Promise<void>
 Add information about a remote peer.
 peerInfo: { node: string, addresses: string[] }`,
 
+  locateForSharing: `\
+locateForSharing(...petNamePath) -> Promise<string | undefined>
+Locate a formula and return a locator URL with connection hints.
+The returned locator includes network addresses from all registered netlayers,
+allowing remote peers to connect and access the value.
+Example: locateForSharing("my-channel") returns a shareable locator URL.`,
+
+  adoptFromLocator: `\
+adoptFromLocator(locator, petNameOrPath) -> Promise<void>
+Adopt a value from a locator that includes connection hints.
+Parses the locator to extract peer info, establishes a connection if needed,
+and writes the formula ID into the local pet store.
+Example: adoptFromLocator("endo://node...?id=...&type=channel&at=...", "remote-channel")`,
+
   invite: `\
 invite(guestName) -> Promise<Invitation>
 Create an invitation for a guest to connect.`,
