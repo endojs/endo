@@ -109,28 +109,9 @@ export const channelComponent = async (
     }
   };
 
-  // Auto-assign invitation names for members we directly invited.
-  // getMembers() now returns only members the caller invited, so every
-  // entry is a direct invitee whose invitedAs name should be pre-populated
-  // in the address book (unless the viewer has already overridden it).
-  try {
-    const members = /** @type {{ memberId: string, invitedAs?: string }[]} */ (
-      await E(channel).getMembers()
-    );
-    let didAutoAssign = false;
-    for (const member of members) {
-      if (nameMap.has(member.memberId)) continue;
-      if (member.invitedAs) {
-        nameMap.set(member.memberId, member.invitedAs);
-        didAutoAssign = true;
-      }
-    }
-    if (didAutoAssign) {
-      saveNameMap();
-    }
-  } catch {
-    // getMembers may not be available on all channel references
-  }
+  // Members who joined via invitation show their self-proposed name
+  // in scare quotes (the default for unassigned names) rather than
+  // auto-assigning the inviter's chosen invitation name.
 
   // Auto-assign the current user's own proposed name so they never see
   // themselves in scare quotes.
