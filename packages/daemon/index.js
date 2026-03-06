@@ -194,15 +194,16 @@ const startEngo = async (config, envOverrides) => {
 
 /**
  * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string> }} [options]
+ * @param {{ env?: Record<string, string>, gcEnabled?: boolean }} [options]
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides } = {},
+  { env: envOverrides, gcEnabled } = {},
 ) => {
+  const gcEnv = gcEnabled === false ? { ENDO_GC: '0' } : {};
   await clean(config);
   if (process.env.ENDO_BIN) {
-    return startEngo(config, envOverrides);
+    return startEngo(config, { ...gcEnv, ...envOverrides });
   }
 
   await fs.promises.mkdir(config.statePath, {
@@ -211,7 +212,7 @@ export const start = async (
   const logPath = path.join(config.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
-  const env = { ...process.env, ...envOverrides };
+  const env = { ...process.env, ...gcEnv, ...envOverrides };
 
   const child = popen.fork(
     endoDaemonPath,
@@ -410,7 +411,7 @@ export const stop = async (config = defaultConfig) => {
 
 /**
  * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string> }} [options]
+ * @param {{ env?: Record<string, string>, gcEnabled?: boolean }} [options]
  */
 export const restart = async (config = defaultConfig, options = {}) => {
   await stop(config);
