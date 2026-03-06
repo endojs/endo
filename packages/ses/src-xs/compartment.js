@@ -19,7 +19,8 @@ import {
   uncurryThis,
   weakmapGet,
   weakmapSet,
-} from '../src/commons.js';
+} from '@endo/error-console-internal/commons.js';
+import { makeError } from '@endo/error-console-internal';
 import { nativeGetGlobalThis } from './commons.js';
 import {
   makeCompartmentConstructor,
@@ -28,7 +29,6 @@ import {
 import { getGlobalIntrinsics } from '../src/intrinsics.js';
 import { tameFunctionToString } from '../src/tame-function-tostring.js';
 import { chooseReporter } from '../src/reporting.js';
-import { makeError } from '../src/error/assert.js';
 
 /**
  * @import {CompartmentOptionsArgs, LegacyCompartmentOptionsArgs} from '../src/compartment.js'

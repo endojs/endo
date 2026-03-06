@@ -1,4 +1,7 @@
-import { toStringTagSymbol, iteratorSymbol } from './commons.js';
+import {
+  toStringTagSymbol,
+  iteratorSymbol,
+} from '@endo/error-console-internal/commons.js';
 
 /**
  * Exports {@code enablements}, a recursively defined

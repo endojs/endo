@@ -1,7 +1,7 @@
 /* global globalThis */
 
 import test262Runner from '@endo/test262-runner';
-import tameErrorConstructor from '../src/error/tame-error-constructor.js';
+import { tameErrorConstructor } from '@endo/error-console-internal';
 
 test262Runner({
   testDirs: ['/test/built-ins/Error'],

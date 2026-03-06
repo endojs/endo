@@ -49,8 +49,8 @@ import {
   FERAL_STACK_GETTER,
   FERAL_STACK_SETTER,
   isError,
-} from './commons.js';
-import { assert } from './error/assert.js';
+} from '@endo/error-console-internal/commons.js';
+import { assert } from '@endo/error-console-internal';
 
 /**
  * @import {Harden} from '../types.js'

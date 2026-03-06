@@ -1,6 +1,6 @@
 import test from 'ava';
+import { getPrototypeOf } from '@endo/error-console-internal/commons.js';
 import '../../index.js';
-import { getPrototypeOf } from '../../src/commons.js';
 
 const originalConsole = console;
 
