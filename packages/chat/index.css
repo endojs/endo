@@ -5188,6 +5188,31 @@ button.btn-spinner::after {
 }
 
 /* ============================
+   Channel Connection Status
+   ============================ */
+
+.channel-status {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.channel-status-connecting {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.channel-status-error {
+  color: #e74c3c;
+  font-style: normal;
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 8px;
+  margin: 16px;
+  padding: 16px;
+}
+
+/* ============================
    Channel Author Chip
    ============================ */
 

@@ -299,7 +299,22 @@ export const channelComponent = async (
   };
 
   // Follow messages from the channel
-  const messagesRef = await E(channel).followMessages();
+  /** @type {unknown} */
+  let messagesRef;
+  try {
+    messagesRef = await E(channel).followMessages();
+  } catch (err) {
+    const $error = document.createElement('div');
+    $error.className = 'channel-status channel-status-error';
+    const message = err instanceof Error ? err.message : String(err);
+    $error.textContent = `Unable to load messages: ${message}`;
+    if ($end) {
+      $parent.insertBefore($error, $end);
+    } else {
+      $parent.appendChild($error);
+    }
+    throw err;
+  }
   const messageIterator = makeRefIterator(messagesRef);
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.
