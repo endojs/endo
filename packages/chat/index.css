@@ -1948,6 +1948,15 @@ body.resizing * {
   color: var(--text-muted);
 }
 
+/* Hide message numbers in channel view by default; show during picking */
+.message-wrapper .timestamp-num {
+  display: none;
+}
+
+.message-picking-mode .message-wrapper .timestamp-num {
+  display: block;
+}
+
 .timestamp-times {
   display: flex;
   flex-direction: column;
@@ -5232,6 +5241,167 @@ button.btn-spinner::after {
   color: var(--text-primary);
   font-style: normal;
   font-weight: 600;
+}
+
+/* ============================
+   Threading
+   ============================ */
+
+/* Wrapper for reply-indicator + message bubble */
+.message-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Reply indicator above a message that is a reply */
+.reply-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-indicator:hover {
+  color: var(--text-secondary);
+}
+
+.reply-indicator-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.reply-indicator-author {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.reply-indicator-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+/* Reply count badge on messages that have replies */
+.reply-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.reply-count:hover {
+  background: rgba(108, 140, 255, 0.1);
+  text-decoration: underline;
+}
+
+/* Hover action buttons on messages */
+.message-actions {
+  position: absolute;
+  top: -12px;
+  right: 8px;
+  display: none;
+  gap: 2px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px;
+  z-index: 10;
+}
+
+.message:hover .message-actions {
+  display: flex;
+}
+
+.message-action-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.message-action-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Highlight flash when scrolling to a replied-to message */
+@keyframes reply-highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent-primary);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.reply-highlight {
+  animation: reply-highlight-pulse 2s ease-out;
+}
+
+/* Reply context bar above chat input */
+.reply-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.reply-context-label {
+  color: var(--accent-primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.reply-context-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-context-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.reply-context-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Messages need position:relative for action buttons */
+.message {
+  position: relative;
 }
 
 /* ============================

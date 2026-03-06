@@ -1,5 +1,5 @@
 // @ts-check
-/* global window, document, requestAnimationFrame */
+/* global window, document, requestAnimationFrame, setTimeout, clearTimeout, CSS */
 
 /** @import { ERef } from '@endo/far' */
 
@@ -36,12 +36,13 @@ import { createProfilePopup } from './profile-popup.js';
  * @param {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} options.showValue
  * @param {string} [options.personaId] - Unique identifier for the current persona/space, used to scope the address book in localStorage
  * @param {string} [options.ownMemberId] - The current user's memberId, used to highlight own messages
+ * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply] - Called when user clicks reply on a message
  */
 export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId },
+  { showValue, personaId, ownMemberId, onReply },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -181,12 +182,95 @@ export const channelComponent = async (
     }
   };
 
+  // --- Thread tracking ---
+  /**
+   * Index of rendered messages by their number (as string).
+   * @type {Map<string, { message: ChannelMessage, $element: HTMLElement }>}
+   */
+  const messageIndex = new Map();
+
+  /**
+   * Map from parent message number (string) to child message numbers (string[]).
+   * @type {Map<string, string[]>}
+   */
+  const replyChildren = new Map();
+
+  /**
+   * Update or create the reply-count badge on a parent message element.
+   * @param {string} parentKey - String(parentMessage.number)
+   */
+  const updateReplyCount = parentKey => {
+    const parentData = messageIndex.get(parentKey);
+    if (!parentData) return;
+    const children = replyChildren.get(parentKey);
+    if (!children || children.length === 0) return;
+
+    let $badge = parentData.$element.querySelector('.reply-count');
+    if (!$badge) {
+      $badge = document.createElement('div');
+      $badge.className = 'reply-count';
+      parentData.$element.appendChild($badge);
+    }
+    const count = children.length;
+    $badge.textContent = `${count} ${count === 1 ? 'reply' : 'replies'}`;
+  };
+
   /**
    * Create a message element for a channel message.
    * @param {ChannelMessage} message
    * @returns {Promise<HTMLElement>}
    */
   const createMessageElement = async message => {
+    // Wrapper holds the optional reply indicator above the message bubble.
+    const $wrapper = document.createElement('div');
+    $wrapper.className = 'message-wrapper';
+
+    // Reply indicator (rendered above the bubble, outside the flex row)
+    if (message.replyTo) {
+      const $replyBar = document.createElement('div');
+      $replyBar.className = 'reply-indicator';
+
+      const parentData = messageIndex.get(message.replyTo);
+      if (parentData) {
+        const parentMsg = parentData.message;
+        const parentInfo = await getMemberInfo(parentMsg.memberId);
+        const parentAuthor = parentInfo
+          ? parentInfo.proposedName
+          : parentMsg.memberId;
+        const parentPreview = parentMsg.strings.join('').substring(0, 60);
+
+        const $icon = document.createElement('span');
+        $icon.className = 'reply-indicator-icon';
+        $icon.textContent = '\u21A9';
+        $replyBar.appendChild($icon);
+
+        const $author = document.createElement('span');
+        $author.className = 'reply-indicator-author';
+        $author.textContent = nameMap.get(parentMsg.memberId) || parentAuthor;
+        $replyBar.appendChild($author);
+
+        const $preview = document.createElement('span');
+        $preview.className = 'reply-indicator-preview';
+        $preview.textContent = parentPreview;
+        $replyBar.appendChild($preview);
+
+        $replyBar.addEventListener('click', () => {
+          parentData.$element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+          parentData.$element.classList.add('reply-highlight');
+          setTimeout(
+            () => parentData.$element.classList.remove('reply-highlight'),
+            2000,
+          );
+        });
+      } else {
+        $replyBar.textContent = `\u21A9 Message #${message.replyTo}`;
+      }
+      $wrapper.appendChild($replyBar);
+    }
+
     const $msg = document.createElement('div');
     const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
     $msg.className = isOwn
@@ -194,13 +278,23 @@ export const channelComponent = async (
       : 'message received';
     $msg.dataset.messageId = String(message.number);
 
-    // Timestamp
+    // Timestamp + message number
+    const $controls = document.createElement('div');
+    $controls.className = 'timestamp-controls';
+
+    const $msgNum = document.createElement('span');
+    $msgNum.className = 'timestamp-num';
+    $msgNum.textContent = `#${message.number}`;
+    $controls.appendChild($msgNum);
+
     const $time = document.createElement('time');
     $time.className = 'message-time';
     const date = new Date(message.date);
     $time.textContent = timeFormatter.format(date);
     $time.title = relativeTime(date);
-    $msg.appendChild($time);
+    $controls.appendChild($time);
+
+    $msg.appendChild($controls);
 
     // Look up member info for author display
     const memberInfo = await getMemberInfo(message.memberId);
@@ -295,7 +389,32 @@ export const channelComponent = async (
     }
 
     $msg.appendChild($body);
-    return $msg;
+
+    // Hover action buttons
+    if (onReply) {
+      const $actions = document.createElement('div');
+      $actions.className = 'message-actions';
+
+      const $replyBtn = document.createElement('button');
+      $replyBtn.className = 'message-action-btn';
+      $replyBtn.title = 'Reply';
+      $replyBtn.textContent = '\u21A9';
+      $replyBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const preview = message.strings.join('').substring(0, 60);
+        onReply({
+          number: message.number,
+          memberId: message.memberId,
+          authorName: authorProposedName,
+          preview,
+        });
+      });
+      $actions.appendChild($replyBtn);
+      $msg.appendChild($actions);
+    }
+
+    $wrapper.appendChild($msg);
+    return $wrapper;
   };
 
   // Follow messages from the channel
@@ -333,6 +452,23 @@ export const channelComponent = async (
       $parent.insertBefore($msg, $end);
     } else {
       $parent.appendChild($msg);
+    }
+
+    // Register in thread index (store the inner .message element, not the wrapper)
+    const msgKey = String(typedMessage.number);
+    const $innerMsg = /** @type {HTMLElement} */ (
+      $msg.querySelector('.message') || $msg
+    );
+    messageIndex.set(msgKey, { message: typedMessage, $element: $innerMsg });
+
+    // Track reply relationships
+    if (typedMessage.replyTo) {
+      const parentKey = typedMessage.replyTo;
+      if (!replyChildren.has(parentKey)) {
+        replyChildren.set(parentKey, []);
+      }
+      /** @type {string[]} */ (replyChildren.get(parentKey)).push(msgKey);
+      updateReplyCount(parentKey);
     }
 
     // During the initial batch, reschedule the hard scroll so it fires

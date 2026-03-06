@@ -493,6 +493,15 @@ const bodyComponent = (
               showValue,
               personaId: profilePath.join('.'),
               ownMemberId,
+              onReply: info => {
+                if (chatBarAPI) {
+                  chatBarAPI.setReplyTo(
+                    String(info.number),
+                    info.authorName,
+                    info.preview,
+                  );
+                }
+              },
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -594,6 +603,15 @@ const bodyComponent = (
               showValue,
               personaId: profilePath.join('.'),
               ownMemberId: switchOwnMemberId,
+              onReply: info => {
+                if (chatBarAPI) {
+                  chatBarAPI.setReplyTo(
+                    String(info.number),
+                    info.authorName,
+                    info.preview,
+                  );
+                }
+              },
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -636,7 +654,7 @@ const bodyComponent = (
             : null,
         },
       ).catch(window.reportError);
-      chatBarComponent(
+      const chatBarAPI = chatBarComponent(
         $parent,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
         {
