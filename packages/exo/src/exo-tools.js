@@ -14,13 +14,13 @@ import {
 import { listDifference } from '@endo/common/list-difference.js';
 import { objectMap } from '@endo/common/object-map.js';
 import { q, Fail } from '@endo/errors';
-import { GET_INTERFACE_GUARD } from './get-interface.js';
+import { GET_INTERFACE_GUARD, PERFORM, PROSE_PERFORM } from './meta-methods.js';
 
 /**
  * @import {RemotableMethodName} from '@endo/pass-style';
  * @import {InterfaceGuard, Method, MethodGuard, MethodGuardPayload, DefaultGuardType} from '@endo/patterns'
  * @import {ClassContext, ContextProvider, FacetName, KitContext, KitContextProvider, MatchConfig, Methods} from './types.js'
- * @import {GetInterfaceGuard} from './get-interface.js';
+ * @import {MetaMethods} from './meta-methods.js';
  */
 
 const { apply, ownKeys } = Reflect;
@@ -462,8 +462,37 @@ export const defendPrototype = (
       PassableMethodGuard,
     );
   }
+  if (!hasOwn(prototype, PERFORM)) {
+    const performMethod = {
+      [PERFORM](selector, ...args) {
+        const { self, facets } = this;
+        (self && facets === undefined) ||
+          Fail`"perform" on facets not yet implemented`;
+        return self[selector](...args);
+      },
+    }[PERFORM];
+    prototype[PERFORM] = bindMethod(
+      `In ${q(PERFORM)} method of (${tag})`,
+      contextProvider,
+      performMethod,
+      PassableMethodGuard,
+    );
+  }
+  if (!hasOwn(prototype, PROSE_PERFORM)) {
+    const prosePerformMethod = {
+      [PROSE_PERFORM](selector, ...args) {
+        Fail`${q(PROSE_PERFORM)} not yet implemented by default`;
+      },
+    }[PROSE_PERFORM];
+    prototype[PROSE_PERFORM] = bindMethod(
+      `In ${q(PROSE_PERFORM)} method of (${tag})`,
+      contextProvider,
+      prosePerformMethod,
+      PassableMethodGuard,
+    );
+  }
 
-  return Far(tag, /** @type {T & GetInterfaceGuard<T>} */ (prototype));
+  return Far(tag, /** @type {T & MetaMethods<T>} */ (prototype));
 };
 harden(defendPrototype);
 

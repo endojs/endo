@@ -15,7 +15,11 @@ import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M, getNamedMethodGuards } from '@endo/patterns';
 
 import { Fail, q } from '@endo/errors';
-import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
+import {
+  GET_INTERFACE_GUARD,
+  PERFORM,
+  PROSE_PERFORM,
+} from '../src/meta-methods.js';
 import { defineExoClass } from '../src/exo-makers.js';
 
 const { apply } = Reflect;
@@ -116,6 +120,8 @@ test('ExoPoint instances', t => {
   assertMethodNames(t, pt, [
     GET_INTERFACE_GUARD,
     GET_METHOD_NAMES,
+    PERFORM,
+    PROSE_PERFORM,
     'getX',
     'getY',
     'setY',
@@ -205,6 +211,8 @@ test('FarWobblyPoint inheritance', t => {
   assertMethodNames(t, wpt, [
     GET_INTERFACE_GUARD,
     GET_METHOD_NAMES,
+    PERFORM,
+    PROSE_PERFORM,
     'getX',
     'getY',
     'setY',
