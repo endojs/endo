@@ -37,12 +37,14 @@ import { createProfilePopup } from './profile-popup.js';
  * @param {string} [options.personaId] - Unique identifier for the current persona/space, used to scope the address book in localStorage
  * @param {string} [options.ownMemberId] - The current user's memberId, used to highlight own messages
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply] - Called when user clicks reply on a message
+ * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen] - Called when a thread view is opened
+ * @param {() => void} [options.onThreadClose] - Called when the thread view is closed
  */
 export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply },
+  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -195,8 +197,105 @@ export const channelComponent = async (
    */
   const replyChildren = new Map();
 
+  /** Maximum indentation depth in thread view before showing "Continue thread". */
+  const MAX_INDENT_DEPTH = 3;
+
+  /** Thread navigation stack (array of root message keys). */
+  /** @type {string[]} */
+  const threadStack = [];
+
+  /** Currently rendered thread view element. */
+  /** @type {HTMLElement | null} */
+  let $currentThreadView = null;
+
+  /** Guard against concurrent thread renders. */
+  let threadViewRendering = false;
+
+  /**
+   * Generation counter — incremented by showThreadView and hideThreadView
+   * so that an in-flight render can detect it was superseded.
+   */
+  let threadRenderGeneration = 0;
+
+  /** Queued re-render key when showThreadView is called while already rendering. */
+  /** @type {string | null} */
+  let pendingThreadRender = null;
+
+  /**
+   * Count all descendants of a message recursively.
+   * @param {string} key
+   * @returns {number}
+   */
+  const countDescendants = key => {
+    const children = replyChildren.get(key) || [];
+    let count = children.length;
+    for (const childKey of children) {
+      count += countDescendants(childKey);
+    }
+    return count;
+  };
+
+  /**
+   * Build a flat list of thread messages with depth, stopping at maxDepth.
+   * @param {string} rootKey
+   * @param {number} maxDepth
+   * @returns {{ entries: Array<{ key: string, message: ChannelMessage, depth: number }>, continuePoints: string[] }}
+   */
+  const buildThread = (rootKey, maxDepth) => {
+    /** @type {Array<{ key: string, message: ChannelMessage, depth: number }>} */
+    const entries = [];
+    /** @type {string[]} */
+    const continuePoints = [];
+
+    /** @param {string} key @param {number} depth */
+    const walk = (key, depth) => {
+      const data = messageIndex.get(key);
+      if (!data) return;
+      entries.push({ key, message: data.message, depth });
+      const children = replyChildren.get(key) || [];
+      if (children.length === 0) return;
+
+      if (depth >= maxDepth) {
+        continuePoints.push(key);
+        return;
+      }
+
+      const sorted = [...children].sort((a, b) => {
+        const na = messageIndex.get(a);
+        const nb = messageIndex.get(b);
+        if (!na || !nb) return 0;
+        if (na.message.number < nb.message.number) return -1;
+        if (na.message.number > nb.message.number) return 1;
+        return 0;
+      });
+      for (const childKey of sorted) {
+        walk(childKey, depth + 1);
+      }
+    };
+    walk(rootKey, 0);
+    return { entries, continuePoints };
+  };
+
+  /**
+   * Check if a message belongs to a thread rooted at rootKey.
+   * @param {string} key
+   * @param {string} rootKey
+   * @returns {boolean}
+   */
+  const isInThread = (key, rootKey) => {
+    let current = key;
+    while (current) {
+      if (current === rootKey) return true;
+      const data = messageIndex.get(current);
+      if (!data || !data.message.replyTo) return false;
+      current = data.message.replyTo;
+    }
+    return false;
+  };
+
   /**
    * Update or create the reply-count badge on a parent message element.
+   * Clicking the badge opens the thread drill-down view.
    * @param {string} parentKey - String(parentMessage.number)
    */
   const updateReplyCount = parentKey => {
@@ -209,6 +308,12 @@ export const channelComponent = async (
     if (!$badge) {
       $badge = document.createElement('div');
       $badge.className = 'reply-count';
+      $badge.addEventListener('click', e => {
+        e.stopPropagation();
+        threadStack.length = 0;
+        threadStack.push(parentKey);
+        showThreadView(parentKey); // eslint-disable-line no-use-before-define
+      });
       parentData.$element.appendChild($badge);
     }
     const count = children.length;
@@ -417,6 +522,212 @@ export const channelComponent = async (
     return $wrapper;
   };
 
+  // --- Thread drill-down view ---
+
+  /**
+   * Render the thread drill-down view for a root message.
+   * Hides the chronological message list and shows the threaded view.
+   * @param {string} rootKey - message number (as string)
+   */
+  const showThreadView = async rootKey => {
+    if (threadViewRendering) {
+      pendingThreadRender = rootKey;
+      return;
+    }
+    threadViewRendering = true;
+    threadRenderGeneration += 1;
+    const myGeneration = threadRenderGeneration;
+    try {
+      if ($currentThreadView) {
+        $currentThreadView.remove();
+      }
+      $parent.classList.add('thread-active');
+
+      const $threadView = document.createElement('div');
+      $threadView.className = 'thread-view';
+      $currentThreadView = $threadView;
+
+      // Header: back button + breadcrumb
+      const $header = document.createElement('div');
+      $header.className = 'thread-header';
+
+      const $back = document.createElement('button');
+      $back.className = 'thread-back';
+      $back.textContent = '\u2190 Back';
+      $back.addEventListener('click', () => {
+        if (threadStack.length > 1) {
+          threadStack.pop();
+          showThreadView(threadStack[threadStack.length - 1]);
+        } else {
+          hideThreadView(); // eslint-disable-line no-use-before-define
+        }
+      });
+      $header.appendChild($back);
+
+      const $breadcrumb = document.createElement('div');
+      $breadcrumb.className = 'thread-breadcrumb';
+
+      const $channelCrumb = document.createElement('span');
+      $channelCrumb.className = 'thread-crumb';
+      $channelCrumb.textContent = 'Channel';
+      $channelCrumb.addEventListener('click', () => {
+        hideThreadView(); // eslint-disable-line no-use-before-define
+      });
+      $breadcrumb.appendChild($channelCrumb);
+
+      for (let i = 0; i < threadStack.length; i += 1) {
+        const $sep = document.createElement('span');
+        $sep.className = 'thread-crumb-sep';
+        $sep.textContent = '\u203A';
+        $breadcrumb.appendChild($sep);
+
+        const isCurrent = i === threadStack.length - 1;
+        const $crumb = document.createElement('span');
+        $crumb.className = isCurrent ? 'thread-crumb current' : 'thread-crumb';
+        $crumb.textContent = `Thread #${threadStack[i]}`;
+        if (!isCurrent) {
+          const targetDepth = i;
+          $crumb.addEventListener('click', () => {
+            threadStack.length = targetDepth + 1;
+            showThreadView(threadStack[targetDepth]);
+          });
+        }
+        $breadcrumb.appendChild($crumb);
+      }
+
+      $header.appendChild($breadcrumb);
+      $threadView.appendChild($header);
+
+      // Build and render thread
+      const { entries, continuePoints } = buildThread(
+        rootKey,
+        MAX_INDENT_DEPTH,
+      );
+
+      const $threadMessages = document.createElement('div');
+      $threadMessages.className = 'thread-messages';
+
+      // Build all message elements in parallel to avoid await-in-loop
+      const messageElements = await Promise.all(
+        entries.map(({ message }) => createMessageElement(message)),
+      );
+
+      // If a newer render or hideThreadView superseded us, bail out.
+      if (myGeneration !== threadRenderGeneration) return;
+
+      for (let i = 0; i < entries.length; i += 1) {
+        const { key, depth } = entries[i];
+        const $wrapper = messageElements[i];
+        $wrapper.classList.add(
+          'thread-message',
+          `depth-${Math.min(depth, MAX_INDENT_DEPTH)}`,
+        );
+        $threadMessages.appendChild($wrapper);
+
+        if (continuePoints.includes(key)) {
+          const descendants = countDescendants(key);
+          const $continue = document.createElement('div');
+          $continue.className = 'thread-continue';
+          $continue.textContent = `Continue thread (${descendants} ${descendants === 1 ? 'reply' : 'replies'}) \u2192`;
+          const continueKey = key;
+          $continue.addEventListener('click', () => {
+            threadStack.push(continueKey);
+            showThreadView(continueKey);
+          });
+          $threadMessages.appendChild($continue);
+        }
+      }
+
+      $threadView.appendChild($threadMessages);
+
+      if ($end) {
+        $parent.insertBefore($threadView, $end);
+      } else {
+        $parent.appendChild($threadView);
+      }
+
+      // Notify that a thread is open so the send form can auto-set replyTo.
+      // Use cached member info (synchronous) to avoid another async gap.
+      if (onThreadOpen) {
+        const rootData = messageIndex.get(rootKey);
+        if (rootData) {
+          const cachedInfo = memberCache.get(rootData.message.memberId);
+          const rootAuthor = cachedInfo
+            ? cachedInfo.proposedName
+            : rootData.message.memberId;
+          onThreadOpen({
+            number: rootKey,
+            authorName:
+              nameMap.get(rootData.message.memberId) || rootAuthor,
+            preview: rootData.message.strings.join('').substring(0, 60),
+          });
+        }
+      }
+    } finally {
+      threadViewRendering = false;
+      // Process any re-render that was queued while we were rendering.
+      if (pendingThreadRender !== null) {
+        const rerenderKey = pendingThreadRender;
+        pendingThreadRender = null;
+        showThreadView(rerenderKey);
+      }
+    }
+  };
+
+  /**
+   * Close the thread view and return to the chronological channel view.
+   */
+  const hideThreadView = () => {
+    threadRenderGeneration += 1;
+    pendingThreadRender = null;
+    threadStack.length = 0;
+    if ($currentThreadView) {
+      $currentThreadView.remove();
+      $currentThreadView = null;
+    }
+    $parent.classList.remove('thread-active');
+    $parent.scrollTo(0, $parent.scrollHeight);
+    if (onThreadClose) {
+      onThreadClose();
+    }
+  };
+
+  // Expose a control API on the parent element so chat.js can
+  // programmatically close the thread (e.g. from #conversation-back).
+  /** @type {{ closeThread: () => boolean }} */
+  const channelAPI = harden({
+    closeThread: () => {
+      if ($parent.classList.contains('thread-active')) {
+        hideThreadView();
+        return true;
+      }
+      return false;
+    },
+  });
+  /** @type {any} */ ($parent).channelAPI = channelAPI;
+
+  // Escape key navigates back through thread stack (capture phase
+  // so it fires before the chat-bar's Escape handler).
+  document.addEventListener(
+    'keydown',
+    e => {
+      if (
+        e.key === 'Escape' &&
+        $parent.classList.contains('thread-active')
+      ) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (threadStack.length > 1) {
+          threadStack.pop();
+          showThreadView(threadStack[threadStack.length - 1]);
+        } else {
+          hideThreadView();
+        }
+      }
+    },
+    true,
+  );
+
   // Follow messages from the channel
   /** @type {unknown} */
   let messagesRef;
@@ -469,6 +780,23 @@ export const channelComponent = async (
       }
       /** @type {string[]} */ (replyChildren.get(parentKey)).push(msgKey);
       updateReplyCount(parentKey);
+    }
+
+    // Live-update thread view if the new message belongs to the currently viewed thread
+    if ($currentThreadView && threadStack.length > 0) {
+      const currentRoot = threadStack[threadStack.length - 1];
+      if (isInThread(msgKey, currentRoot)) {
+        try {
+          await showThreadView(currentRoot);
+          // Scroll thread messages to show the new message
+          const $tm = $currentThreadView && $currentThreadView.querySelector('.thread-messages');
+          if ($tm) {
+            $tm.scrollTop = $tm.scrollHeight;
+          }
+        } catch {
+          // Don't let a thread render failure kill message processing
+        }
+      }
     }
 
     // During the initial batch, reschedule the hard scroll so it fires

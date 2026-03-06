@@ -96,6 +96,10 @@ export const sendFormComponent = ({
   /** @type {ReplyContext | null} */
   let replyContext = null;
 
+  /** Default reply context that auto-restores after send (e.g. thread root). */
+  /** @type {ReplyContext | null} */
+  let defaultReplyContext = null;
+
   const $replyContextBar = document.createElement('div');
   $replyContextBar.className = 'reply-context-bar';
   $replyContextBar.style.display = 'none';
@@ -127,7 +131,7 @@ export const sendFormComponent = ({
     $close.title = 'Cancel reply';
     $close.textContent = '\u00D7';
     $close.addEventListener('click', () => {
-      replyContext = null;
+      replyContext = defaultReplyContext;
       renderReplyContextBar();
     });
     $replyContextBar.appendChild($close);
@@ -342,8 +346,8 @@ export const sendFormComponent = ({
           () => {
             tokenComponent.clear();
             clearError();
-            // Clear reply context after successful send
-            replyContext = null;
+            // Reset reply context: fall back to thread default if set
+            replyContext = defaultReplyContext;
             renderReplyContextBar();
           },
           (/** @type {Error} */ err) => {
@@ -549,6 +553,16 @@ export const sendFormComponent = ({
       $input.focus();
     },
     clearReplyTo: () => {
+      replyContext = null;
+      renderReplyContextBar();
+    },
+    setDefaultReplyTo: (/** @type {string} */ number, /** @type {string} */ authorName, /** @type {string} */ preview) => {
+      defaultReplyContext = { number, authorName, preview };
+      replyContext = defaultReplyContext;
+      renderReplyContextBar();
+    },
+    clearDefaultReplyTo: () => {
+      defaultReplyContext = null;
       replyContext = null;
       renderReplyContextBar();
     },

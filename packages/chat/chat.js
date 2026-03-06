@@ -425,6 +425,20 @@ const bodyComponent = (
         // Channel mode: look up the channel object and render channel component
         $conversationHeader.classList.add('visible');
         $conversationName.textContent = `#${activeSpaceInfo.channelPetName}`;
+        $conversationBack.onclick = () => {
+          // If a thread is open, close it and stay in the channel.
+          if (
+            /** @type {any} */ ($messages).channelAPI &&
+            /** @type {any} */ ($messages).channelAPI.closeThread()
+          ) {
+            return;
+          }
+          // Not in a thread — go back to channel list.
+          onProfileChange(profilePath, {
+            mode: 'channel',
+            proposedName: activeSpaceInfo.proposedName,
+          });
+        };
         $chatMessage.dataset.placeholder = 'Type a message...';
 
         // Show a connecting indicator while we reach the channel.
@@ -502,6 +516,20 @@ const bodyComponent = (
                   );
                 }
               },
+              onThreadOpen: info => {
+                if (chatBarAPI) {
+                  chatBarAPI.setDefaultReplyTo(
+                    info.number,
+                    info.authorName,
+                    info.preview,
+                  );
+                }
+              },
+              onThreadClose: () => {
+                if (chatBarAPI) {
+                  chatBarAPI.clearDefaultReplyTo();
+                }
+              },
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -536,6 +564,11 @@ const bodyComponent = (
       const switchChannel = channelPetName => {
         if (!activeSpaceInfo || activeSpaceInfo.mode !== 'channel') {
           return;
+        }
+
+        // Close any open thread before tearing down.
+        if (/** @type {any} */ ($messages).channelAPI) {
+          /** @type {any} */ ($messages).channelAPI.closeThread();
         }
 
         // Clear messages (keep anchor)
@@ -610,6 +643,20 @@ const bodyComponent = (
                     info.authorName,
                     info.preview,
                   );
+                }
+              },
+              onThreadOpen: info => {
+                if (chatBarAPI) {
+                  chatBarAPI.setDefaultReplyTo(
+                    info.number,
+                    info.authorName,
+                    info.preview,
+                  );
+                }
+              },
+              onThreadClose: () => {
+                if (chatBarAPI) {
+                  chatBarAPI.clearDefaultReplyTo();
                 }
               },
             }).catch(window.reportError);
