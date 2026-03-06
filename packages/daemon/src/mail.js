@@ -295,45 +295,41 @@ export const makeMailboxMaker = ({
      * @returns {MessageFormula}
      */
     const makeMessageFormula = (envelope, date) => {
-      const { messageId, replyTo } = envelope;
+      const { type, messageId, replyTo, from, to } = envelope;
       const replyToRecord = replyTo === undefined ? {} : { replyTo };
-      if (envelope.type === 'request') {
+      const envelopeRecord = {
+        date,
+        messageType: type,
+        messageId,
+        from,
+        to,
+        ...replyToRecord,
+      };
+
+      if (type === 'request') {
         return harden({
           type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
+          ...envelopeRecord,
           description: envelope.description,
           promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
           resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
-      if (envelope.type === 'package') {
+
+      if (type === 'package') {
         return harden({
           type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
+          ...envelopeRecord,
           strings: envelope.strings,
           names: envelope.names,
           ids: /** @type {FormulaIdentifier[]} */ (envelope.ids),
         });
       }
-      if (envelope.type === 'eval-request') {
+
+      if (type === 'eval-request') {
         return harden({
           type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
+          ...envelopeRecord,
           source: envelope.source,
           codeNames: envelope.codeNames,
           petNamePaths: envelope.petNamePaths,
@@ -341,60 +337,45 @@ export const makeMailboxMaker = ({
           resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
-      if (envelope.type === 'definition') {
+
+      if (type === 'definition') {
         return harden({
           type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
+          ...envelopeRecord,
           source: envelope.source,
           slots: envelope.slots,
           promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
           resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
-      if (envelope.type === 'form') {
+
+      if (type === 'form') {
         return harden({
           type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
+          ...envelopeRecord,
           description: envelope.description,
           fields: envelope.fields,
         });
       }
-      if (envelope.type === 'value') {
+
+      if (type === 'value') {
         return harden({
           type: 'message',
-          messageType: envelope.type,
-          messageId,
-          ...replyToRecord,
-          from: /** @type {FormulaIdentifier} */ (envelope.from),
-          to: /** @type {FormulaIdentifier} */ (envelope.to),
-          date,
+          ...envelopeRecord,
           valueId: /** @type {FormulaIdentifier} */ (envelope.valueId),
         });
       }
+
       if (
-        envelope.type === 'eval-proposal-reviewer' ||
-        envelope.type === 'eval-proposal-proposer'
+        type === 'eval-proposal-reviewer' ||
+        type === 'eval-proposal-proposer'
       ) {
         return /** @type {MessageFormula} */ (
           /** @type {unknown} */ (
             harden({
               type: 'message',
-              messageType: envelope.type,
-              messageId,
-              ...replyToRecord,
-              from: /** @type {FormulaIdentifier} */ (envelope.from),
-              to: /** @type {FormulaIdentifier} */ (envelope.to),
-              date,
+              ...envelopeRecord,
+
               source: envelope.source,
               codeNames: envelope.codeNames,
               petNamePaths: envelope.petNamePaths,
@@ -405,6 +386,7 @@ export const makeMailboxMaker = ({
           )
         );
       }
+
       throw new Error('Unknown message type');
     };
 
