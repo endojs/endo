@@ -22,6 +22,7 @@ import { E } from '@endo/far';
  * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => unknown} showValue - Display a value
  * @property {(message: string) => unknown} showMessage - Display a message
  * @property {(error: Error) => unknown} showError - Display an error
+ * @property {() => unknown | null} [getChannelRef] - Returns channel ref when in channel mode
  */
 
 /**
@@ -34,6 +35,7 @@ export const createCommandExecutor = ({
   showValue,
   showMessage,
   showError,
+  getChannelRef,
 }) => {
   /**
    * Execute a command with the given parameters.
@@ -84,8 +86,46 @@ export const createCommandExecutor = ({
         case 'adopt': {
           const { messageNumber, edgeName, petName } = params;
           const targetNameStr = petName ? String(petName) : String(edgeName);
-          // Interface expects petName as string[]
           const targetNamePath = targetNameStr.split('.');
+
+          // In channel mode, adopt from channel message by formula ID
+          const channelRef = getChannelRef ? getChannelRef() : null;
+          if (channelRef) {
+            const channelMessages = await E(channelRef).listMessages();
+            const targetNumber = BigInt(/** @type {number} */ (messageNumber));
+            const msg = channelMessages.find(
+              (/** @type {{ number: bigint }} */ m) => m.number === targetNumber,
+            );
+            if (!msg) {
+              throw new Error(`Channel message #${messageNumber} not found`);
+            }
+            const msgNames =
+              /** @type {string[]} */ (
+                /** @type {any} */ (msg).names ||
+                  /** @type {any} */ (msg).edgeNames ||
+                  []
+              );
+            const msgIds = /** @type {string[]} */ (
+              /** @type {any} */ (msg).ids || []
+            );
+            const edgeIndex = msgNames.indexOf(String(edgeName));
+            if (edgeIndex === -1) {
+              throw new Error(
+                `No edge named "${edgeName}" in channel message #${messageNumber}`,
+              );
+            }
+            const formulaId = msgIds[edgeIndex];
+            if (!formulaId) {
+              throw new Error(
+                `No formula ID for edge "${edgeName}" in channel message #${messageNumber}`,
+              );
+            }
+            // Write the formula ID into the user's pet store
+            await E(powers).write(targetNamePath, formulaId);
+            return { success: true, message: `Adopted as "${targetNameStr}"` };
+          }
+
+          // Inbox mode: use the host's adopt method
           await E(powers).adopt(
             BigInt(/** @type {number} */ (messageNumber)),
             String(edgeName),
@@ -124,6 +164,34 @@ export const createCommandExecutor = ({
             /** @type {{ strings: string[], edgeNames: string[], petNames: string[] }} */ (
               message
             );
+
+          // In channel mode, post to channel with replyTo
+          const channelRef = getChannelRef ? getChannelRef() : null;
+          if (channelRef) {
+            // Resolve pet names to formula IDs for the channel
+            const resolvedIds = await Promise.all(
+              petNames.map(async petName => {
+                const petPath = petName.split('.');
+                const id = await E(powers).identify(
+                  .../** @type {[string, ...string[]]} */ (petPath),
+                );
+                return id || '';
+              }),
+            );
+            await E(channelRef).post(
+              strings,
+              edgeNames,
+              petNames,
+              String(messageNumber),
+              resolvedIds,
+            );
+            return {
+              success: true,
+              message: `Reply sent to channel message #${messageNumber}`,
+            };
+          }
+
+          // Inbox mode: use the host's reply method
           await E(powers).reply(
             BigInt(/** @type {number} */ (messageNumber)),
             strings,

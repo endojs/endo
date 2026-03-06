@@ -25,6 +25,7 @@
  * @property {CommandField[]} fields - Command parameters
  * @property {string} [submitLabel] - Custom submit button label
  * @property {string[]} [aliases] - Shorthand aliases for the command
+ * @property {'inbox' | 'channel' | 'both'} [context] - Where this command is available ('both' by default)
  */
 
 /**
@@ -39,6 +40,7 @@ export const COMMANDS = {
     description: 'Request something from a recipient',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'recipient',
@@ -70,6 +72,7 @@ export const COMMANDS = {
     description: 'Dismiss a message',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
@@ -87,6 +90,7 @@ export const COMMANDS = {
     description: 'Dismiss all messages',
     category: 'messaging',
     mode: 'immediate',
+    context: 'inbox',
     fields: [],
   },
   adopt: {
@@ -126,6 +130,7 @@ export const COMMANDS = {
     description: 'Resolve a request with a value',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
@@ -150,6 +155,7 @@ export const COMMANDS = {
     description: 'Reject a request',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
@@ -198,6 +204,7 @@ export const COMMANDS = {
     description: 'Grant an eval-proposal',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
@@ -217,6 +224,7 @@ export const COMMANDS = {
     description: 'Send a structured form to a recipient',
     category: 'messaging',
     mode: 'modal',
+    context: 'inbox',
     fields: [],
     submitLabel: 'Send Form',
   },
@@ -227,6 +235,7 @@ export const COMMANDS = {
     description: 'Submit values for a form',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
@@ -245,6 +254,7 @@ export const COMMANDS = {
     description: 'Approve a sandboxed evaluation request',
     category: 'messaging',
     mode: 'inline',
+    context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
@@ -646,11 +656,17 @@ export const getCommandList = () =>
 /**
  * Filter commands by prefix (matches name or aliases).
  * @param {string} prefix - Prefix to filter by
+ * @param {'inbox' | 'channel'} [context] - Filter by context ('inbox' or 'channel')
  * @returns {CommandDefinition[]}
  */
-export const filterCommands = prefix => {
+export const filterCommands = (prefix, context) => {
   const lower = prefix.toLowerCase();
   return getCommandList().filter(cmd => {
+    // Filter by context if specified
+    if (context) {
+      const cmdContext = cmd.context || 'both';
+      if (cmdContext !== 'both' && cmdContext !== context) return false;
+    }
     if (cmd.name.toLowerCase().startsWith(lower)) return true;
     if (cmd.aliases) {
       return cmd.aliases.some(alias => alias.toLowerCase().startsWith(lower));
@@ -679,10 +695,18 @@ export const getCommand = name => COMMANDS[name] || COMMANDS[ALIASES[name]];
 /**
  * Get commands by category.
  * @param {string} category - Category name
+ * @param {'inbox' | 'channel'} [context] - Filter by context
  * @returns {CommandDefinition[]}
  */
-export const getCommandsByCategory = category =>
-  getCommandList().filter(cmd => cmd.category === category);
+export const getCommandsByCategory = (category, context) =>
+  getCommandList().filter(cmd => {
+    if (cmd.category !== category) return false;
+    if (context) {
+      const cmdContext = cmd.context || 'both';
+      if (cmdContext !== 'both' && cmdContext !== context) return false;
+    }
+    return true;
+  });
 
 /**
  * Get all categories.

@@ -63,6 +63,10 @@ At the top-right corner of the thread view is a **star button**.
    - It can be selected and navigated to as if it were its own channel.
 4. Messages added to this saved thread are implicitly replies to the messages in the thread view, which may not be the most recent messages in the parent channel. This enables interleaved, threaded discussions within a single channel, even as messages in that channel alternate between many topics.
 
+## 9. /new Command Behavior
+
+In the channel space, the `/new` command is used for a user to indicate that their next message is meant to begin a new topic, and its `replyTo` field should remain `undefined`. This should just be a locally stored flag, and doesn't need to be persisted, but is a practice for users who want to practice good thread hygiene.
+
 ### Snapshot Behavior
 
 When a thread is saved, the virtual thread view is derived from the latest message in the thread *at the time the star was pressed*. Subsequent sub-threads that further bifurcate the conversation are not included, because it is unknown which branch the saving user intends to follow. Context is conserved only as it existed at the moment of saving.
