@@ -56,3 +56,7 @@ Having a single cryptography over multiple transport protocols allows this
 OCapN netlayer to preserve the identities of message targets regardless of what
 transport capabilities are available on various platforms, such that client,
 server, cloud, edge, and any other kind of peer can join the network.
+
+## License
+
+[Apache-2.0](./LICENSE)

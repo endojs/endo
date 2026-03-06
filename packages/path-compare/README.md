@@ -1,4 +1,4 @@
-# @endo/path-compare
+# `@endo/path-compare`
 
 > [Shortlex](https://en.wikipedia.org/wiki/Shortlex_order)-based comparison of string arrays
 
@@ -80,6 +80,6 @@ const result = pathCompare(path1, path2); // -1
 
 ## License
 
-Copyright (c) 2021 Endo Project Contributors. Licensed Apache-2.0
+[Apache-2.0](./LICENSE)
 
 [@endo/compartment-mapper]: https://github.com/endojs/endo/tree/main/packages/compartment-mapper

@@ -1,4 +1,4 @@
-# Promise Kit
+# `@endo/promise-kit`
 
 The promise-kit package provides a simple abstraction for creating and managing a promise. It exports, `makePromiseKit` which is a utility function used to create a Promise and its associated resolver and rejector functions. This is particularly useful in asynchronous programming, where you might need to create a promise and resolve or reject it at a later point in time.
 Note that this serves as a "ponyfill" for `Promise.withResolvers`, making certain accommodations to ensure that the resulting promises can pipeline messages through `@endo/eventual-send`.
@@ -69,4 +69,5 @@ Creates a new promise kit.
 [Repository](https://github.com/endojs/endo/tree/master/packages/promise-kit)
 
 ## License
-This package is licensed under the Apache-2.0 License.
+
+[Apache-2.0](./LICENSE)
