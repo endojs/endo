@@ -1,8 +1,10 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import {
+  addressesFromLocator,
   assertValidLocator,
   formatLocator,
+  formatLocatorForSharing,
   idFromLocator,
   parseLocator,
 } from '../src/locator.js';
@@ -77,4 +79,36 @@ test('idFromLocator', t => {
     idFromLocator(makeLocator()),
     formatId({ number: validId, node: validNode }),
   );
+});
+
+test('parseLocator - tolerates at= connection hints', t => {
+  const locator = `${makeLocator()}&at=libp2p%2Bcaptp0%3A%2F%2Fpeer1&at=libp2p%2Bcaptp0%3A%2F%2Fpeer2`;
+  const parsed = parseLocator(locator);
+  t.is(parsed.number, validId);
+  t.is(parsed.node, validNode);
+  t.is(parsed.formulaType, validType);
+});
+
+test('formatLocatorForSharing', t => {
+  const id = formatId({ number: validId, node: validNode });
+  const addresses = ['libp2p+captp0:///peer1', 'tcp+captp0://127.0.0.1:8940'];
+  const locator = formatLocatorForSharing(id, validType, addresses);
+  t.true(locator.startsWith('endo://'));
+  const parsed = parseLocator(locator);
+  t.is(parsed.number, validId);
+  t.is(parsed.node, validNode);
+  t.is(parsed.formulaType, validType);
+  const extractedAddresses = addressesFromLocator(locator);
+  t.deepEqual(extractedAddresses, addresses);
+});
+
+test('formatLocatorForSharing - no addresses', t => {
+  const id = formatId({ number: validId, node: validNode });
+  const locator = formatLocatorForSharing(id, validType, []);
+  t.is(locator, formatLocator(id, validType));
+  t.deepEqual(addressesFromLocator(locator), []);
+});
+
+test('addressesFromLocator - plain locator returns empty', t => {
+  t.deepEqual(addressesFromLocator(makeLocator()), []);
 });

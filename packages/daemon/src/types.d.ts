@@ -974,6 +974,13 @@ export interface EndoHost extends EndoAgent {
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  /** Locate a formula with connection hints for sharing with remote peers. */
+  locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
+  /** Adopt a value from a locator that includes connection hints. */
+  adoptFromLocator(
+    locator: string,
+    petNameOrPath: string | string[],
+  ): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
