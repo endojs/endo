@@ -55,10 +55,9 @@ const parseVerboseComponents = value => {
 };
 
 const processEnv = /** @type {any} */ (globalThis).process?.env;
-const configuredVerboseComponents =
-  parseVerboseComponents(processEnv?.ENDO_LIBP2P_VERBOSE_COMPONENTS) ?? [
-    ...DEFAULT_VERBOSE_COMPONENTS,
-  ];
+const configuredVerboseComponents = parseVerboseComponents(
+  processEnv?.ENDO_LIBP2P_VERBOSE_COMPONENTS,
+) ?? [...DEFAULT_VERBOSE_COMPONENTS];
 
 const VERBOSE_COMPONENTS = harden(configuredVerboseComponents);
 
@@ -114,7 +113,9 @@ const summarizeAddressStrings = addrs => {
   }
   const shown = addrs.slice(0, MAX_LOGGED_MULTIADDRS);
   const suffix =
-    addrs.length > shown.length ? ` (+${addrs.length - shown.length} more)` : '';
+    addrs.length > shown.length
+      ? ` (+${addrs.length - shown.length} more)`
+      : '';
   return `${shown.join(', ')}${suffix}`;
 };
 
@@ -227,7 +228,9 @@ const formatDhtProgressDetail = (type, detail) => {
   }
   if (type === 'kad-dht:query:peer-response') {
     const closer = Array.isArray(data?.closer) ? data.closer.length : 0;
-    const providers = Array.isArray(data?.providers) ? data.providers.length : 0;
+    const providers = Array.isArray(data?.providers)
+      ? data.providers.length
+      : 0;
     const hasRecord = data?.record !== undefined;
     return `from=${shortPeer(data?.from)} closer=${closer} providers=${providers} record=${hasRecord} ${formatDhtPath(data?.path)}`;
   }
@@ -463,9 +466,7 @@ export const make = async (powers, context) => {
   );
 
   const startupAddrs = libp2pNode.getMultiaddrs();
-  console.log(
-    `Endo libp2p: listening on ${startupAddrs.length} address(es):`,
-  );
+  console.log(`Endo libp2p: listening on ${startupAddrs.length} address(es):`);
   for (const addr of startupAddrs) {
     console.log(`  ${addr.toString()}`);
   }
@@ -579,9 +580,7 @@ export const make = async (powers, context) => {
   });
 
   libp2pNode.addEventListener('peer:disconnect', evt => {
-    console.log(
-      `Endo libp2p: peer:disconnect ${evt.detail.toString()}`,
-    );
+    console.log(`Endo libp2p: peer:disconnect ${evt.detail.toString()}`);
   });
 
   libp2pNode.addEventListener('peer:discovery', evt => {
@@ -617,8 +616,8 @@ export const make = async (powers, context) => {
       return;
     }
 
-    const previousAddrs = (peerUpdate.previous?.addresses || []).map(
-      entry => entry.multiaddr.toString(),
+    const previousAddrs = (peerUpdate.previous?.addresses || []).map(entry =>
+      entry.multiaddr.toString(),
     );
     const nextAddrs = (peerValue.addresses || []).map(entry =>
       entry.multiaddr.toString(),
@@ -683,17 +682,15 @@ export const make = async (powers, context) => {
   // addresses() reads getMultiaddrs() live so callers always get current state.
   libp2pNode.addEventListener('self:peer:update', () => {
     const addrs = libp2pNode.getMultiaddrs();
-    const relayAddrs = addrs.filter(a =>
-      a.toString().includes('/p2p-circuit'),
-    );
+    const relayAddrs = addrs.filter(a => a.toString().includes('/p2p-circuit'));
     const webrtcAddrs = addrs.filter(a => a.toString().includes('/webrtc'));
     const otherAddrs = addrs.filter(
       a =>
         !a.toString().includes('/p2p-circuit') &&
         !a.toString().includes('/webrtc'),
     );
-    const publishableHintCount = addrs.filter(a =>
-      classifyAddressHint(a.toString()).include,
+    const publishableHintCount = addrs.filter(
+      a => classifyAddressHint(a.toString()).include,
     ).length;
     console.log(
       `Endo libp2p: self:peer:update — ${addrs.length} total address(es): ${relayAddrs.length} relay, ${webrtcAddrs.length} webrtc, ${otherAddrs.length} other, ${publishableHintCount} publishable hint(s), DHT mode=${getDhtMode()} routingTableSize=${getDhtRoutingTableSize() ?? 'n/a'}`,
@@ -868,9 +865,7 @@ export const make = async (powers, context) => {
         `Endo libp2p connect ${connectionNumber}: trying ${maHints.length} multiaddr hint(s):`,
       );
       for (const h of maHints) {
-        console.log(
-          `  hint: ${h} (transport=${identifyTransport(h)})`,
-        );
+        console.log(`  hint: ${h} (transport=${identifyTransport(h)})`);
       }
       let lastError;
       for (const maStr of maHints) {
@@ -946,9 +941,7 @@ export const make = async (powers, context) => {
       );
       const knownPeers = await libp2pNode.peerStore.all();
       const totalPeers = knownPeers.length;
-      const targetPeer = knownPeers.find(
-        p => p.id.toString() === remotePeerId,
-      );
+      const targetPeer = knownPeers.find(p => p.id.toString() === remotePeerId);
       console.log(
         `Endo libp2p connect ${connectionNumber}: peer store contains ${totalPeers} peer(s)`,
       );
@@ -978,7 +971,9 @@ export const make = async (powers, context) => {
       );
     }
 
-    await maybeLogPeerStoreEntry(`after successful connect ${connectionNumber}`);
+    await maybeLogPeerStoreEntry(
+      `after successful connect ${connectionNumber}`,
+    );
     console.log(
       `Endo daemon connected ${connectionNumber} over libp2p at ${new Date().toISOString()}`,
     );

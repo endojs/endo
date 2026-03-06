@@ -340,14 +340,13 @@ export type ChannelDeferredTaskParams = {
 };
 
 export type ChannelMessage = {
+  type: 'package';
+  messageId: FormulaNumber;
   number: bigint;
   date: string;
-  author: string;
   memberId: string;
-  pedigree: string[];
-  pedigreeMemberIds: string[];
   strings: string[];
-  edgeNames: string[];
+  names: Name[];
   ids: FormulaIdentifier[];
   replyTo?: string;
 };
@@ -767,10 +766,7 @@ export interface Mail {
     messageId: FormulaNumber;
     guestHandleId: string;
   };
-  submit(
-    messageNumber: bigint,
-    values: Record<string, unknown>,
-  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue(
     messageNumber: bigint,
     petNameOrPath: string | string[],
@@ -925,10 +921,7 @@ export interface EndoGuest extends EndoAgent {
     value: T,
     petName: string | string[],
   ): Promise<void>;
-  submit(
-    messageNumber: bigint,
-    values: Record<string, unknown>,
-  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue: Mail['sendValue'];
 }
 
@@ -981,6 +974,13 @@ export interface EndoHost extends EndoAgent {
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  /** Locate a formula with connection hints for sharing with remote peers. */
+  locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
+  /** Adopt a value from a locator that includes connection hints. */
+  adoptFromLocator(
+    locator: string,
+    petNameOrPath: string | string[],
+  ): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
@@ -1001,10 +1001,7 @@ export interface EndoHost extends EndoAgent {
     workerName?: string,
     resultName?: string | string[],
   ): Promise<void>;
-  submit(
-    messageNumber: bigint,
-    values: Record<string, unknown>,
-  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue: Mail['sendValue'];
 }
 
@@ -1014,7 +1011,7 @@ export interface EndoChannel {
   help(topic?: string): string;
   post(
     strings: string[],
-    edgeNames: string[],
+    names: string[],
     petNamesOrPaths: (string | string[])[],
     replyTo?: string,
   ): Promise<void>;
@@ -1030,6 +1027,16 @@ export interface EndoChannel {
   >;
   getProposedName(): string;
   getMemberId(): string;
+  getMember(memberId: string): Promise<
+    | {
+        proposedName: string;
+        invitedAs: string;
+        memberId: string;
+        pedigree: string[];
+        pedigreeMemberIds: string[];
+      }
+    | undefined
+  >;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
   getHopInfo(): Promise<HopInfo>;
@@ -1090,7 +1097,7 @@ export interface EndoChannelMember {
   help(topic?: string): string;
   post(
     strings: string[],
-    edgeNames: string[],
+    names: string[],
     petNamesOrPaths: (string | string[])[],
     replyTo?: string,
   ): Promise<void>;
@@ -1105,6 +1112,16 @@ export interface EndoChannelMember {
   getProposedName(): string;
   getMemberId(): string;
   setProposedName(newName: string): Promise<void>;
+  getMember(memberId: string): Promise<
+    | {
+        proposedName: string;
+        invitedAs: string;
+        memberId: string;
+        pedigree: string[];
+        pedigreeMemberIds: string[];
+      }
+    | undefined
+  >;
   getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
   getHeatConfig(): Promise<HeatConfig | null>;
   getHopInfo(): Promise<HopInfo>;
@@ -1642,6 +1659,12 @@ export type BidirectionalMultimap<K, V> = {
    */
   getAllFor(key: K): V[];
 };
+
+export type ParsedCIDR =
+  | { type: 'ipv4'; network: number[]; prefixLen: number }
+  | { type: 'ipv6'; network: number[]; prefixLen: number };
+
+export type AddressChecker = (remoteAddress: string) => boolean;
 
 export interface RemoteControl {
   accept(

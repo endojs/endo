@@ -378,8 +378,7 @@ export const createSpacesGutter = ({
     if (!$menu) return;
 
     contextMenuSpaceId = spaceId;
-    const space =
-      spaceId === 'home' ? homeSpaceConfig : spacesMap.get(spaceId);
+    const space = spaceId === 'home' ? homeSpaceConfig : spacesMap.get(spaceId);
     const $title = $menu.querySelector('.context-menu-title');
     if ($title && space) {
       $title.textContent = space.name;

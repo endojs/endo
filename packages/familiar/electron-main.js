@@ -48,6 +48,8 @@ const isDevMode = process.argv.includes('--dev');
 registerLocalhttpScheme();
 configureCommandLineFlags();
 
+const vitePort = 5173;
+
 /** @type {string | undefined} */
 let gatewayAddress;
 
@@ -140,7 +142,7 @@ const createWindow = () => {
     // In dev mode, load from Vite dev server.
     // Use 127.0.0.1 instead of localhost to avoid DNS resolution, which
     // is vulnerable to integrity attacks.
-    const devUrl = `http://127.0.0.1:5173#${fragment}`;
+    const devUrl = `http://127.0.0.1:${vitePort}#${fragment}`;
     console.log(`[🐈‍⬛ Familiar] Loading dev URL: ${devUrl}`);
     win.loadURL(devUrl);
     win.webContents.openDevTools();
@@ -161,7 +163,7 @@ const createWindow = () => {
   );
 
   // Install navigation guard
-  installNavigationGuard(win, { isDevMode });
+  installNavigationGuard(win, { isDevMode, vitePort });
 
   return win;
 };
@@ -182,7 +184,7 @@ const handleRestartDaemon = async win => {
       // the agent ID is never sent on the wire in an HTTP request.
       const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
       if (isDevMode) {
-        win.loadURL(`http://127.0.0.1:5173#${fragment}`);
+        win.loadURL(`http://127.0.0.1:${vitePort}#${fragment}`);
       } else {
         win.loadURL(`file://${resourcePaths.chatDistPath}#${fragment}`);
       }
@@ -208,7 +210,7 @@ const handlePurgeDaemon = async win => {
       // the agent ID is never sent on the wire in an HTTP request.
       const fragment = `gateway=${gatewayAddress}&agent=${agentId}`;
       if (isDevMode) {
-        win.loadURL(`http://127.0.0.1:5173#${fragment}`);
+        win.loadURL(`http://127.0.0.1:${vitePort}#${fragment}`);
       } else {
         win.loadURL(`file://${resourcePaths.chatDistPath}#${fragment}`);
       }

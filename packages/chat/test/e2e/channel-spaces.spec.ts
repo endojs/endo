@@ -178,9 +178,7 @@ test.describe('Channel Space Isolation', () => {
     expect(headerText.toLowerCase()).toBe('channels');
   });
 
-  test('each channel space gets an independent pet store', async ({
-    page,
-  }) => {
+  test('each channel space gets an independent pet store', async ({ page }) => {
     await page.goto('/');
     await waitForApp(page);
 
@@ -227,7 +225,7 @@ test.describe('Channel Space Isolation', () => {
     expect(messagesB).not.toContain('Hello from Alice!');
   });
 
-  test('two spaces joining the same channel see each other\'s messages with independent identities', async ({
+  test("two spaces joining the same channel see each other's messages with independent identities", async ({
     page,
   }) => {
     await page.goto('/');
@@ -313,7 +311,7 @@ test.describe('Channel Space Isolation', () => {
 
     // Verify that a localStorage key exists for this persona's address book
     const personaId = `persona-for-${spaceName}`;
-    const keysBefore = await page.evaluate((pid) => {
+    const keysBefore = await page.evaluate(pid => {
       const keys: string[] = [];
       for (let i = 0; i < window.localStorage.length; i++) {
         const key = window.localStorage.key(i);
@@ -329,7 +327,7 @@ test.describe('Channel Space Isolation', () => {
     expect(keysBefore.length).toBeGreaterThanOrEqual(0);
 
     // Seed the address book with a known entry to test cleanup
-    await page.evaluate((pid) => {
+    await page.evaluate(pid => {
       window.localStorage.setItem(
         `channel-names:${pid}:TestChannel`,
         JSON.stringify([['member-1', 'OldNickname']]),
@@ -338,7 +336,7 @@ test.describe('Channel Space Isolation', () => {
 
     // Verify the seeded entry exists
     const seededKey = await page.evaluate(
-      (pid) => window.localStorage.getItem(`channel-names:${pid}:TestChannel`),
+      pid => window.localStorage.getItem(`channel-names:${pid}:TestChannel`),
       personaId,
     );
     expect(seededKey).toBeTruthy();
@@ -349,12 +347,14 @@ test.describe('Channel Space Isolation', () => {
     // The last user space should be the one we just created
     const lastSpace = spaceItems.nth(spaceCount - 1);
     await lastSpace.click({ button: 'right' });
-    await page.waitForSelector('.space-context-menu.visible', { timeout: 5000 });
+    await page.waitForSelector('.space-context-menu.visible', {
+      timeout: 5000,
+    });
     await page.locator('[data-action="delete"]').click();
     await page.waitForTimeout(1000);
 
     // After deletion, the address book entries for this persona should be cleared
-    const keysAfter = await page.evaluate((pid) => {
+    const keysAfter = await page.evaluate(pid => {
       const keys: string[] = [];
       for (let i = 0; i < window.localStorage.length; i++) {
         const key = window.localStorage.key(i);
@@ -386,7 +386,9 @@ test.describe('Channel Space Isolation', () => {
     for (let i = 0; i < count; i++) {
       const disclosure = disclosureButtons.nth(i);
       const isHidden = await disclosure.evaluate(
-        el => el.classList.contains('hidden') || getComputedStyle(el).visibility === 'hidden',
+        el =>
+          el.classList.contains('hidden') ||
+          getComputedStyle(el).visibility === 'hidden',
       );
       // Channel items should have hidden disclosure triangles
       // (other items like SELF, AGENT etc. may or may not be visible)
@@ -432,7 +434,9 @@ test.describe('Channel Space Isolation', () => {
     expect(messagesAfterSwitch).not.toContain('Message in default channel');
 
     // Switch back to the original channel by clicking it in the list
-    const channelItem = page.locator('.pet-name', { hasText: 'general' }).first();
+    const channelItem = page
+      .locator('.pet-name', { hasText: 'general' })
+      .first();
     await channelItem.click();
     await page.waitForTimeout(1000);
 

@@ -314,6 +314,10 @@ export const HostInterface = M.interface('EndoHost', {
   getPeerInfo: M.call().returns(M.promise()),
   // Add peer info
   addPeerInfo: M.call(M.record()).returns(M.promise()),
+  // Locate a formula with connection hints for sharing with remote peers
+  locateForSharing: M.call().rest(NamePathShape).returns(M.promise()),
+  // Adopt a value from a locator with connection hints
+  adoptFromLocator: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Create an invitation
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
@@ -365,7 +369,7 @@ export const HostInterface = M.interface('EndoHost', {
 export const ChannelInterface = M.interface('EndoChannel', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.string())
+    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape))
     .returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
@@ -375,6 +379,7 @@ export const ChannelInterface = M.interface('EndoChannel', {
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
   getMemberId: M.call().returns(M.string()),
+  getMember: M.call(M.string()).returns(M.promise()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
   getHeatConfig: M.call().returns(M.promise()),
   getHopInfo: M.call().returns(M.promise()),
@@ -384,7 +389,7 @@ export const ChannelInterface = M.interface('EndoChannel', {
 export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.string())
+    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape))
     .returns(M.promise()),
   setProposedName: M.call(M.string()).returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
@@ -393,19 +398,17 @@ export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   getMembers: M.call().returns(M.promise()),
   getProposedName: M.call().returns(M.string()),
   getMemberId: M.call().returns(M.string()),
+  getMember: M.call(M.string()).returns(M.promise()),
   getAttenuator: M.call(M.string()).returns(M.promise()),
   getHeatConfig: M.call().returns(M.promise()),
   getHopInfo: M.call().returns(M.promise()),
   followHeatEvents: M.call().returns(M.promise()),
 });
 
-export const ChannelInvitationInterface = M.interface(
-  'EndoChannelInvitation',
-  {
-    help: M.call().optional(M.string()).returns(M.string()),
-    join: M.call(M.string()).returns(M.promise()),
-  },
-);
+export const ChannelInvitationInterface = M.interface('EndoChannelInvitation', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  join: M.call(M.string()).returns(M.promise()),
+});
 harden(ChannelInvitationInterface);
 
 export const AttenuatorInterface = M.interface('EndoChannelAttenuator', {

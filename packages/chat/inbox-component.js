@@ -715,9 +715,10 @@ export const inboxComponent = async (
       const valueReplyTo = /** @type {string | undefined} */ (
         'replyTo' in message ? message.replyTo : undefined
       );
-      const formTitle = valueReplyTo !== undefined
-        ? formDescriptions.get(String(valueReplyTo))
-        : undefined;
+      const formTitle =
+        valueReplyTo !== undefined
+          ? formDescriptions.get(String(valueReplyTo))
+          : undefined;
 
       const $valueMsg = document.createElement('div');
       $valueMsg.className = 'form-request-message';
@@ -728,12 +729,11 @@ export const inboxComponent = async (
         $desc.appendChild($senderChip);
         $desc.appendChild(document.createTextNode(' '));
       }
-      const responseText = formTitle !== undefined
-        ? `responded to form: ${JSON.stringify(formTitle)}`
-        : 'responded to form';
-      $desc.appendChild(
-        document.createTextNode(responseText),
-      );
+      const responseText =
+        formTitle !== undefined
+          ? `responded to form: ${JSON.stringify(formTitle)}`
+          : 'responded to form';
+      $desc.appendChild(document.createTextNode(responseText));
       $valueMsg.appendChild($desc);
 
       // Render the value inline

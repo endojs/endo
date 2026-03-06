@@ -198,6 +198,7 @@ export const chatBarComponent = (
       // For now, just log messages - could add a toast system later
       console.log(message);
     },
+    getChannelRef,
     showError: error => {
       const message = error?.message || String(error) || 'Unknown error';
       // Use command error element in command mode, chat error otherwise
@@ -386,10 +387,15 @@ export const chatBarComponent = (
    */
   const renderCommandPopover = () => {
     const categories = getCategories();
+    const context = getCommandContext();
     let html = '<div class="command-popover-header">Commands</div>';
 
     for (const category of categories) {
-      const commands = getCommandsByCategory(category);
+      const commands = getCommandsByCategory(category, context);
+      if (commands.length === 0) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const label = CATEGORY_LABELS[category] || category;
 
       html += '<div class="command-popover-section">';
@@ -570,9 +576,15 @@ export const chatBarComponent = (
     },
     getMessageEdgeNames: async messageNumber => {
       try {
-        const messages = await E(powers).listMessages();
+        // In channel mode, look up edge names from channel messages
+        const channelRef = getChannelRef ? getChannelRef() : null;
+        const messageList = channelRef
+          ? await E(channelRef).listMessages()
+          : await E(powers).listMessages();
         const targetNumber = BigInt(messageNumber);
-        const message = messages.find(m => m.number === targetNumber);
+        const message = messageList.find(
+          (/** @type {{ number: bigint }} */ m) => m.number === targetNumber,
+        );
         if (!message) return [];
         // Package messages have 'names', eval-proposal messages have 'edgeNames'
         if ('names' in message && Array.isArray(message.names)) {
@@ -869,7 +881,6 @@ export const chatBarComponent = (
           $envelopes[i].classList.add('chain-through');
         }
       }
-
     }
   };
 
@@ -972,7 +983,9 @@ export const chatBarComponent = (
     );
     if ($messages.length === 0) return;
 
-    const $current = $messagesContainer.querySelector('.message-envelope.focused');
+    const $current = $messagesContainer.querySelector(
+      '.message-envelope.focused',
+    );
     let index = $messages.length - 1;
     if ($current) {
       for (let i = 0; i < $messages.length; i += 1) {
@@ -1368,11 +1381,21 @@ export const chatBarComponent = (
     updateSendModeline(sendForm.getState());
   };
 
+  /**
+   * Get the current UI context for command filtering.
+   * @returns {'inbox' | 'channel' | undefined}
+   */
+  const getCommandContext = () => {
+    if (getChannelRef && getChannelRef()) return 'channel';
+    return 'inbox';
+  };
+
   // Initialize command selector
   const commandSelector = commandSelectorComponent({
     $menu: $commandMenu,
     onSelect: handleCommandSelect,
     onCancel: handleCommandCancel,
+    getContext: getCommandContext,
   });
 
   /**
@@ -1490,8 +1513,12 @@ export const chatBarComponent = (
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         // If already on the last message, exit focus mode back to command line
-        const $msgs = $messagesContainer.querySelectorAll('.message-envelope[data-number]');
-        const $foc = $messagesContainer.querySelector('.message-envelope.focused');
+        const $msgs = $messagesContainer.querySelectorAll(
+          '.message-envelope[data-number]',
+        );
+        const $foc = $messagesContainer.querySelector(
+          '.message-envelope.focused',
+        );
         if ($msgs.length > 0 && $foc === $msgs[$msgs.length - 1]) {
           exitFocusMode();
         } else {

@@ -27,9 +27,10 @@ import { filterCommands, getCommandList } from './command-registry.js';
  * @param {HTMLElement} options.$menu - The menu container element
  * @param {(commandName: string) => void} options.onSelect - Called when a command is selected
  * @param {() => void} options.onCancel - Called when selection is cancelled
+ * @param {() => 'inbox' | 'channel' | undefined} [options.getContext] - Returns the current UI context
  * @returns {CommandSelectorAPI}
  */
-export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
+export const commandSelectorComponent = ({ $menu, onSelect, onCancel, getContext }) => {
   let isVisible = false;
   let selectedIndex = 0;
   let currentFilter = '';
@@ -39,7 +40,8 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
   const show = () => {
     isVisible = true;
     currentFilter = '';
-    filteredCommands = getCommandList();
+    const context = getContext ? getContext() : undefined;
+    filteredCommands = filterCommands('', context);
     selectedIndex = 0;
     render();
     $menu.classList.add('visible');
@@ -58,7 +60,8 @@ export const commandSelectorComponent = ({ $menu, onSelect, onCancel }) => {
    */
   const filter = prefix => {
     currentFilter = prefix;
-    filteredCommands = filterCommands(prefix);
+    const context = getContext ? getContext() : undefined;
+    filteredCommands = filterCommands(prefix, context);
     if (selectedIndex >= filteredCommands.length) {
       selectedIndex = Math.max(0, filteredCommands.length - 1);
     }

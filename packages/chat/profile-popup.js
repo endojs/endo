@@ -124,12 +124,15 @@ export const createProfilePopup = $container => {
         }
       };
       $saveBtn.addEventListener('click', submitName);
-      $nameInput.addEventListener('keydown', (/** @type {KeyboardEvent} */ e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          submitName();
-        }
-      });
+      $nameInput.addEventListener(
+        'keydown',
+        (/** @type {KeyboardEvent} */ e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            submitName();
+          }
+        },
+      );
     }
 
     // Close on Escape

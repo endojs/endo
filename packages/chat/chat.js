@@ -427,6 +427,16 @@ const bodyComponent = (
         $conversationName.textContent = `#${activeSpaceInfo.channelPetName}`;
         $chatMessage.dataset.placeholder = 'Type a message...';
 
+        // Show a connecting indicator while we reach the channel.
+        const $connectingStatus = document.createElement('div');
+        $connectingStatus.className = 'channel-status channel-status-connecting';
+        $connectingStatus.textContent = 'Connecting to channel\u2026';
+        if ($anchor) {
+          $messages.insertBefore($connectingStatus, $anchor);
+        } else {
+          $messages.appendChild($connectingStatus);
+        }
+
         E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
           .lookup(activeSpaceInfo.channelPetName)
           .then(async channelRef => {
@@ -437,10 +447,7 @@ const bodyComponent = (
             const channelCreatorName = await E(channelRef).getProposedName();
             const ourProposedName = activeSpaceInfo.proposedName;
 
-            if (
-              ourProposedName &&
-              ourProposedName !== channelCreatorName
-            ) {
+            if (ourProposedName && ourProposedName !== channelCreatorName) {
               // We're not the admin — join to get our own member ref for posting
               const memberRef = await E(channelRef).join(ourProposedName);
               currentChannelRef = memberRef;
@@ -448,6 +455,9 @@ const bodyComponent = (
               // We're the admin — use the channel directly
               currentChannelRef = channelRef;
             }
+
+            // Connected — remove the connecting indicator.
+            $connectingStatus.remove();
 
             // Set up channel header with invite/members menu.
             // Use currentChannelRef (member ref for joiners, raw channel for admin)
@@ -465,7 +475,9 @@ const bodyComponent = (
             let ownMemberId;
             try {
               ownMemberId = await E(
-                /** @type {{ getMemberId: () => string }} */ (currentChannelRef),
+                /** @type {{ getMemberId: () => string }} */ (
+                  currentChannelRef
+                ),
               ).getMemberId();
             } catch {
               // getMemberId not available on this channel/member ref
@@ -483,7 +495,14 @@ const bodyComponent = (
               ownMemberId,
             }).catch(window.reportError);
           })
-          .catch(window.reportError);
+          .catch(err => {
+            // Connection failed — replace the connecting indicator with an error.
+            $connectingStatus.className = 'channel-status channel-status-error';
+            const message =
+              err instanceof Error ? err.message : String(err);
+            $connectingStatus.textContent = `Unable to connect to channel: ${message}`;
+            window.reportError(err);
+          });
       } else {
         // Default inbox mode
         inboxComponent(
@@ -506,10 +525,7 @@ const bodyComponent = (
        * @param {string} channelPetName
        */
       const switchChannel = channelPetName => {
-        if (
-          !activeSpaceInfo ||
-          activeSpaceInfo.mode !== 'channel'
-        ) {
+        if (!activeSpaceInfo || activeSpaceInfo.mode !== 'channel') {
           return;
         }
 
@@ -524,24 +540,31 @@ const bodyComponent = (
         // Update header
         $conversationName.textContent = `#${channelPetName}`;
 
+        // Show a connecting indicator while we reach the channel.
+        const $switchStatus = document.createElement('div');
+        $switchStatus.className = 'channel-status channel-status-connecting';
+        $switchStatus.textContent = 'Connecting to channel\u2026';
+        if ($anchor) {
+          $messages.insertBefore($switchStatus, $anchor);
+        } else {
+          $messages.appendChild($switchStatus);
+        }
+
         // Look up and connect to new channel
         E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
           .lookup(channelPetName)
           .then(async channelRef => {
-            const channelCreatorName =
-              await E(channelRef).getProposedName();
+            const channelCreatorName = await E(channelRef).getProposedName();
             const ourProposedName = activeSpaceInfo.proposedName;
 
-            if (
-              ourProposedName &&
-              ourProposedName !== channelCreatorName
-            ) {
-              currentChannelRef = await E(channelRef).join(
-                ourProposedName,
-              );
+            if (ourProposedName && ourProposedName !== channelCreatorName) {
+              currentChannelRef = await E(channelRef).join(ourProposedName);
             } else {
               currentChannelRef = channelRef;
             }
+
+            // Connected — remove the connecting indicator.
+            $switchStatus.remove();
 
             // Update channel header
             createChannelHeader({
@@ -557,7 +580,9 @@ const bodyComponent = (
             let switchOwnMemberId;
             try {
               switchOwnMemberId = await E(
-                /** @type {{ getMemberId: () => string }} */ (currentChannelRef),
+                /** @type {{ getMemberId: () => string }} */ (
+                  currentChannelRef
+                ),
               ).getMemberId();
             } catch {
               // getMemberId not available on this channel/member ref
@@ -571,7 +596,14 @@ const bodyComponent = (
               ownMemberId: switchOwnMemberId,
             }).catch(window.reportError);
           })
-          .catch(window.reportError);
+          .catch(err => {
+            // Connection failed — replace the connecting indicator with an error.
+            $switchStatus.className = 'channel-status channel-status-error';
+            const message =
+              err instanceof Error ? err.message : String(err);
+            $switchStatus.textContent = `Unable to connect to channel: ${message}`;
+            window.reportError(err);
+          });
 
         // Update active highlight in inventory
         const $activeItems = $pets.querySelectorAll('.active-channel');

@@ -13,6 +13,7 @@ import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 
+import { makeAddressChecker } from './cidr.js';
 import { makeHttpPowers } from './web-server-node-powers.js';
 
 import {
@@ -40,6 +41,11 @@ export const make = async (powers, context, { env = {} } = {}) => {
   const addrUrl = new URL(`http://${env.ENDO_ADDR || '127.0.0.1:8920'}`);
   const gatewayHost = addrUrl.hostname;
   const gatewayPort = addrUrl.port !== '' ? Number(addrUrl.port) : 8920;
+
+  const isAllowed = makeAddressChecker({
+    allowRemote: env.ENDO_GATEWAY_ALLOW_REMOTE === '1',
+    allowedCIDRs: env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
+  });
   let script;
   if (env.ENDO_WEB_PAGE_BUNDLE_PATH) {
     script = await fs.promises.readFile(env.ENDO_WEB_PAGE_BUNDLE_PATH, 'utf-8');
@@ -183,16 +189,9 @@ export const make = async (powers, context, { env = {} } = {}) => {
 
   wss.on('connection', (socket, req) => {
     const remoteAddress = req.socket.remoteAddress;
-    // XXX: When the gateway migrates from CapTP to OCapN with a Noise
-    // Protocol network layer, accept connections from non-local remote
-    // addresses.
-    if (
-      remoteAddress !== '127.0.0.1' &&
-      remoteAddress !== '::1' &&
-      remoteAddress !== '::ffff:127.0.0.1'
-    ) {
+    if (!isAllowed(remoteAddress || '')) {
       console.error(
-        `[Gateway] Rejected non-local connection from ${remoteAddress}`,
+        `[Gateway] Rejected connection from ${remoteAddress}`,
       );
       socket.close(1008, 'Only local connections allowed');
       return;
