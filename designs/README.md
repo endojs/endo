@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-05*
+*Last updated: 2026-03-06*
 
 ## Summary
 
@@ -180,14 +180,14 @@ their own API key and local capabilities.
 | ~~familiar-daemon-bundling~~ | **Complete** | esbuild bundles, Node download, Forge integration |
 | ~~lal-fae-form-provisioning~~ | **Complete** | Manager/worker split, form-based config, inbox-replay recovery |
 | ~~familiar-bundled-agents~~ | **Complete** | esbuild bundles, resource paths, env vars, daemon-node.js provisioning |
-| endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; trivial, high UX value |
 
 **Exit criterion:** There is a Familiar application suitable for use on
 at least one platform that folks can download and use to interact with an
-agent using their own API key and local capabilities. Agents can post
-desktop notifications when tasks complete.
+agent using their own API key and local capabilities.
 
-**Estimated duration (1 dev):** 3-4 days
+**Actual duration:** 18 active work days (Feb 15 – Mar 5), primarily 1
+developer (128 of 201 commits). 7 designs completed. Original estimate
+was 3-4 days for the final item; revised to 0 remaining.
 
 ---
 
@@ -275,6 +275,7 @@ automation.
 | daemon-weblet-application | Not Started | Readable trees, zip archives |
 | endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
 | endoclaw-proactive-messages | Not Started | Composes Timer + data caps + send() for briefings/reminders |
+| endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; needs daemon↔Electron bridge |
 | endoclaw-webhooks | Not Started | Gateway webhook endpoints → agent inbox as messages |
 | endoclaw-voice | Not Started | Web Speech API or Whisper in Chat UI; UI feature only |
 
@@ -367,7 +368,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
 | ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
-| endoclaw-notifications | S | 1 day | 0 | Electron Notification API, rate-limited exo |
+| endoclaw-notifications | S | 1 day | 4 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
 | gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
 | daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
 | daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
@@ -405,13 +406,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 1 remaining | 1 day |
+| M0: AI Agent Experience | 0 remaining | **Complete** |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: UX & Tooling | 7 | 3-4.5 weeks |
-| M4: Weblets & Integrations | 7 | 4-6 weeks |
+| M4: Weblets & Integrations | 8 | 4-6 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **34** | **~22-33 weeks** |
+| **Total remaining** | **34** | **~22-32 weeks** |
 
 ### Timeline
 
@@ -421,10 +422,10 @@ gantt
     dateFormat YYYY-MM-DD
 
     section Milestone 0
-    AI Agent Experience           :m0, 2026-03-03, 4d
+    AI Agent Experience           :done, m0, 2026-02-15, 2026-03-05
 
     section Milestone 1
-    Remote Access & Tools         :m1, after m0, 5w
+    Remote Access & Tools         :m1, 2026-03-06, 5w
 
     section Milestone 2
     Networking                    :m2, after m1, 4w
@@ -441,7 +442,7 @@ gantt
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M0: AI Agent Experience | 3-4 days | 3-4 days | Early March 2026 |
+| M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
 | M3: UX & Tooling | 3-4.5 weeks | 12-16.5 weeks | Late June 2026 |
@@ -454,18 +455,17 @@ path.*
 
 ### Strategic Early Items
 
-Three EndoClaw capabilities are surfaced before the last two milestones
+Two EndoClaw capabilities are surfaced before the last two milestones
 because they are foundational rather than features:
 
 | Design | Milestone | Rationale |
 |--------|-----------|-----------|
-| endoclaw-notifications | M0 | Trivial (S). Familiar already has Electron. Immediate UX value — agents alert users when tasks complete. |
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-05:** 19 of 54 designs complete.
-15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
-Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
+**Progress as of 2026-03-06:** 19 of 54 designs complete. M0 complete.
+18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
+(128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
 persistence, `submit()` delivery, standalone `sendValue`, CLI, tests).
 `familiar-daemon-bundling` complete (esbuild bundles, Node download,
