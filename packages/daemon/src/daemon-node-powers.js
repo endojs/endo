@@ -7,14 +7,13 @@ import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
 import { makeNetstringCapTP } from './connection.js';
-import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
-/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
 
 const textEncoder = new TextEncoder();
 
@@ -361,27 +360,13 @@ export const makeDaemonicPersistencePowers = (
       },
       /**
        * @param {string} sha512
-       * @returns {EndoReadable}
        */
       fetch(sha512) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
-        const streamBase64 = () => {
-          const reader = filePowers.makeFileReader(storagePath);
-          return makeReaderRef(reader);
-        };
-        const text = async () => {
-          return filePowers.readFileText(storagePath);
-        };
-        const json = async () => {
-          const jsonSrc = await text();
-          return JSON.parse(jsonSrc);
-        };
-        return harden({
-          sha512: () => sha512,
-          streamBase64,
-          text,
-          json,
-        });
+        const makeFileReader = () => filePowers.makeFileReader(storagePath);
+        const text = async () => filePowers.readFileText(storagePath);
+        const json = async () => JSON.parse(await text());
+        return harden({ sha512: () => sha512, makeFileReader, text, json });
       },
     });
   };

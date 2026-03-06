@@ -76,10 +76,75 @@ guides in the `docs/` directory, and package-specific documentation.
 should use long lines (paragraphs joined without manual wrapping), as GitHub
 uses a different Markdown flavor for those contexts.
 
+### Mermaid Diagrams
+
+Use 2-space indentation for Mermaid diagrams, within ` ```mermaid ` fenced
+code blocks:
+
+````markdown
+```mermaid
+sequenceDiagram
+  participant A as Alice
+  participant B as Bob
+
+  A->>B: send(Carol)
+```
+````
+
+Which renders as:
+
+```mermaid
+sequenceDiagram
+  participant A as Alice
+  participant B as Bob
+
+  A->>B: send(Carol)
+```
+
 ## Rebuilding `ses`
 
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
 Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
+
+# Code Style
+
+## JSDoc Type Imports
+
+Prefer `@import` JSDoc tags over inline dynamic imports in type declarations:
+
+```javascript
+// Preferred: @import tag at top of file
+/** @import { SomeType } from '@some/package' */
+
+/** @type {SomeType} */
+let value;
+```
+
+```javascript
+// Avoid: inline import() in type declaration
+/** @type {import('@some/package').SomeType} */
+let value;
+```
+
+The `@import` style keeps type imports consolidated at the top of the file (similar to regular imports) and makes type annotations cleaner and more readable.
+
+## Module Naming
+
+Module specifiers use `kebab-case.js`.
+Name each module after the distinguishing function it exports.
+If the function is a maker like `makeThing`, omit `make` from the module name,
+so the module is `thing.js` rather than `make-thing.js`.
+
+For example, a module exporting `readerFromIterator` is named
+`reader-from-iterator.js`, and a module exporting `iterateReader` is named
+`iterate-reader.js`.
+
+We currently mirror the exported specifier and the implementing file name,
+including the `.js` extension, in the `"exports"` field of `package.json`.
+This avoids inhibiting migration from tools that do not recognize the
+`"exports"` field.
+We may relax this practice soon, and when we do, we will do so
+comprehensively, consistently, and backward-compatibly.
 
 ## Using Changesets
 
