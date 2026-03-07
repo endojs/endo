@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-06*
+*Last updated: 2026-03-07*
 
 ## Summary
 
@@ -23,6 +23,7 @@
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
+| [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-03-07 | Not Started |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-engo-supervisor](daemon-engo-supervisor.md) | 2026-02-25 | 2026-02-25 | Not Started |
 | [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-03-02 | **Complete** |
@@ -62,7 +63,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 19 Complete, 4 In Progress, 31 Not Started, 1 Reference
+**Totals:** 19 Complete, 4 In Progress, 32 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -207,6 +208,7 @@ capabilities available to agents.
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | endoclaw-timer | Not Started | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. |
 | endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
+| daemon-cross-peer-gc | Not Started | **Urgent:** Synced pet store CRDT for cross-peer GC, revocation propagation, offline progress |
 
 **Exit criterion:** Someone can self-host a daemon with our Docker image
 and remote control it, by whatever means, using a local Familiar or a
@@ -408,12 +410,12 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 7 | 4-5 weeks |
+| M1: Remote Access & Tools | 8 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 7 | 3-4.5 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **34** | **~22-32 weeks** |
+| **Total remaining** | **35** | **~22-32 weeks** |
 
 ### Timeline
 
