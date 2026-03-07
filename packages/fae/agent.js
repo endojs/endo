@@ -430,6 +430,47 @@ export const make = (guestPowers, _context) => {
     const selfId = await E(powers).identify('SELF');
     const activeWorkers = new Map();
 
+    // Restore existing sub-agents from persisted config.
+    const configSuffix = '-config';
+    try {
+      const allNames = /** @type {string[]} */ (await E(powers).list());
+      for (const entryName of allNames) {
+        if (!entryName.endsWith(configSuffix)) continue;
+        const agentName = entryName.slice(0, -configSuffix.length);
+        if (activeWorkers.has(agentName)) continue;
+        try {
+          const config =
+            /** @type {{ host: string, model: string, authToken: string }} */ (
+              await E(powers).lookup(entryName)
+            );
+          const guest = await E(agent).provideGuest(agentName, {
+            agentName: `profile-for-${agentName}`,
+          });
+          const workerP = spawnWorkerLoop(guest, null, {
+            LAL_HOST: config.host,
+            LAL_MODEL: config.model,
+            LAL_AUTH_TOKEN: config.authToken,
+          });
+          activeWorkers.set(agentName, workerP);
+          workerP.catch(error => {
+            console.error(
+              `[fae] Restored worker "${agentName}" error:`,
+              error,
+            );
+            activeWorkers.delete(agentName);
+          });
+          console.log(`[fae] Restored sub-agent "${agentName}"`);
+        } catch (error) {
+          console.error(
+            `[fae] Failed to restore sub-agent "${agentName}":`,
+            error,
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[fae] Failed to list names for restoration:', error);
+    }
+
     // Pre-scan existing messages to find our latest form messageId so that
     // old value messages (from prior sessions) that reply to an earlier form
     // are not accidentally matched when the iterator replays history.
@@ -486,6 +527,16 @@ export const make = (guestPowers, _context) => {
         const guest = await E(agent).provideGuest(name, {
           agentName: `profile-for-${name}`,
         });
+
+        // Persist the agent config so it survives restarts.
+        await E(powers).store(
+          `${name}${configSuffix}`,
+          harden({
+            host: config.host,
+            model: config.model,
+            authToken: config.authToken,
+          }),
+        );
 
         // Spawn a worker loop for this guest.
         const workerP = spawnWorkerLoop(guest, null, {
