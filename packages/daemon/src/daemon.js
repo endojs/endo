@@ -413,6 +413,36 @@ const makeDaemonCore = async (
   for (const id of Object.values(platformNames)) {
     formulaGraph.addRoot(/** @type {FormulaIdentifier} */ (id));
   }
+  const startupBootFormulaIds = new Set([
+    knownPeersId,
+    leastAuthorityId,
+    mainWorkerId,
+    endoFormulaId,
+    ...Object.values(platformNames),
+  ]);
+  let startupSeedingComplete = false;
+  const {
+    promise: startupReady,
+    resolve: resolveStartupReady,
+    reject: rejectStartupReady,
+  } = /** @type {PromiseKit<void>} */ (makePromiseKit());
+  startupReady.catch(() => {});
+
+  /**
+   * Defer startup reincarnation of non-boot formulas until persistence seeding
+   * has loaded all formula and pet-store edges into the in-memory graph.
+   *
+   * @param {FormulaIdentifier} id
+   */
+  const waitForStartupSeeding = async id => {
+    if (startupSeedingComplete || !isLocalId(id)) {
+      return;
+    }
+    if (startupBootFormulaIds.has(id)) {
+      return;
+    }
+    await startupReady;
+  };
 
   // Transient roots protect formulas from collection for the duration of
   // a command. Without this, a formula created by a command could be
@@ -602,7 +632,7 @@ const makeDaemonCore = async (
   };
 
   const collectIfDirty = async () => {
-    if (!enableFormulaCollection) {
+    if (!enableFormulaCollection || !startupSeedingComplete) {
       return;
     }
     // collectIfDirty is never called re-entrantly (only from
@@ -2208,6 +2238,7 @@ const makeDaemonCore = async (
       return E(peer).provide(id);
     }
 
+    await waitForStartupSeeding(id);
     const formula = await getFormulaForId(id);
     console.log(`Reincarnating ${formula.type} ${id}`);
     assertValidFormulaType(formula.type);
@@ -3641,7 +3672,14 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCoreExternal} */
-  await seedFormulaGraphFromPersistence();
+  try {
+    await seedFormulaGraphFromPersistence();
+    startupSeedingComplete = true;
+    resolveStartupReady(undefined);
+  } catch (error) {
+    rejectStartupReady(error);
+    throw error;
+  }
   return {
     formulateEndo,
     provide,
