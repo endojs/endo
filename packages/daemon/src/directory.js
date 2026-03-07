@@ -12,10 +12,11 @@ import {
   assertPetNamePath,
   namePathFrom,
 } from './pet-name.js';
+import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, FormulaIdentifier, Name, NamePath, PetName } from './types.js' */
+/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier } from './types.js' */
 
 /**
  * @param {object} args
@@ -23,12 +24,16 @@ import { DirectoryInterface } from './interfaces.js';
  * @param {DaemonCore['getIdForRef']} args.getIdForRef
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {DaemonCore['formulateDirectory']} args.formulateDirectory
+ * @param {DaemonCore['pinTransient']} args.pinTransient
+ * @param {DaemonCore['unpinTransient']} args.unpinTransient
  */
 export const makeDirectoryMaker = ({
   provide,
   getIdForRef,
   getTypeForId,
   formulateDirectory,
+  pinTransient,
+  unpinTransient,
 }) => {
   /** @type {MakeDirectoryNode} */
   const makeDirectoryNode = petStore => {
@@ -259,7 +264,12 @@ export const makeDirectoryMaker = ({
     /** @type {EndoDirectory['makeDirectory']} */
     const makeDirectory = async directoryPetNamePath => {
       const { value: newDirectory, id } = await formulateDirectory();
-      await write(directoryPetNamePath, id);
+      pinTransient(id);
+      try {
+        await write(directoryPetNamePath, id);
+      } finally {
+        unpinTransient(id);
+      }
       return newDirectory;
     };
 
@@ -295,8 +305,11 @@ export const makeDirectoryMaker = ({
     const petStore = await provide(petStoreId, 'pet-store');
     const directory = makeDirectoryNode(petStore);
 
+    const help = makeHelp(directoryHelp);
+
     return makeExo('EndoDirectory', DirectoryInterface, {
       ...directory,
+      help,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
         makeIteratorRef(directory.followLocatorNameChanges(locator)),

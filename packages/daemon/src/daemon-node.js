@@ -11,6 +11,7 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 
+import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
 import {
@@ -33,6 +34,8 @@ if (process.argv.length < 5) {
 
 const [sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
+
+const gcEnabled = process.env.ENDO_GC !== '0';
 
 /** @type {Config} */
 const config = {
@@ -86,6 +89,36 @@ const updateRecordedPid = async () => {
   await filePowers.writeFileText(pidPath, `${pid}\n`);
 };
 
+const killStaleWorkers = async () => {
+  const workerDir = filePowers.joinPath(ephemeralStatePath, 'worker');
+  /** @type {string[]} */
+  let workerIds;
+  try {
+    workerIds = await filePowers.readDirectory(workerDir);
+  } catch {
+    return;
+  }
+  await Promise.all(
+    workerIds.map(async workerId => {
+      const pidPath = filePowers.joinPath(workerDir, workerId, 'worker.pid');
+      try {
+        const pidText = await filePowers.readFileText(pidPath);
+        const workerPid = Number(pidText);
+        if (Number.isFinite(workerPid) && workerPid > 0) {
+          try {
+            kill(workerPid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }
+        await fs.promises.rm(pidPath, { force: true });
+      } catch {
+        /* no pid file */
+      }
+    }),
+  );
+};
+
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
@@ -94,22 +127,29 @@ const main = async () => {
   });
 
   await daemonicPersistencePowers.initializePersistence();
+  await killStaleWorkers();
 
-  const { endoBootstrap, cancelGracePeriod } = await makeDaemon(
-    powers,
-    daemonLabel,
-    cancel,
-    cancelled,
-    {
+  const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
+    await makeDaemon(powers, daemonLabel, cancel, cancelled, {
+      gcEnabled,
       /** @param {Builtins} builtins */
-      APPS: ({ MAIN, NONE }) => ({
+      APPS: ({ MAIN, ENDO }) => ({
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,
-        powers: NONE,
-        specifier: new URL('web-server-node.js', import.meta.url).href,
+        powers: ENDO,
+        specifier:
+          process.env.ENDO_WORKER_PATH ||
+          new URL('web-server-node.js', import.meta.url).href,
+        env: {
+          ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
+          ENDO_WEB_PAGE_BUNDLE_PATH:
+            process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
+          ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
+          ENDO_GATEWAY_ALLOWED_CIDRS:
+            process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
+        },
       }),
-    },
-  );
+    });
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -123,17 +163,83 @@ const main = async () => {
     sockPath,
     cancelled,
     exitWithError,
+    capTpConnectionRegistrar,
   );
   const services = [privatePathService];
-  await Promise.all(services.map(({ started }) => started)).then(
-    () => {
-      informParentWhenReady();
-    },
-    error => {
-      reportErrorToParent(error.message);
-      throw error;
-    },
-  );
+
+  // INVARIANT: The ready signal must not be sent until all services are fully
+  // operational — including the CapTP socket, the host, and the APPS gateway.
+  // Callers of start() depend on this: a resolved start() means the daemon is
+  // completely ready to serve. If any service fails to start, the error must
+  // propagate to the parent via reportErrorToParent so start() rejects.
+  try {
+    await Promise.all(services.map(({ started }) => started));
+
+    const host = await E(endoBootstrap).host();
+    const agentId = /** @type {string} */ (await E(host).identify('AGENT'));
+    const agentIdPath = filePowers.joinPath(statePath, 'root');
+    await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
+
+    if (await E(host).has('APPS')) {
+      const apps = /** @type {{ getAddress(): Promise<string> }} */ (
+        await E(host).lookup('APPS')
+      );
+      const address = await E(apps).getAddress();
+      console.log(`Endo gateway listening on ${address}`);
+    }
+
+    // Provision bundled agents (Lal).
+    const lalSpecifier = process.env.ENDO_LAL_PATH;
+    if (lalSpecifier && !(await E(host).has('controller-for-lal'))) {
+      if (!(await E(host).has('lal'))) {
+        await E(host).provideGuest('lal', {
+          introducedNames: harden({ AGENT: 'host-agent' }),
+          agentName: 'profile-for-lal',
+        });
+      }
+      await E(host).makeUnconfined('MAIN', lalSpecifier, {
+        powersName: 'profile-for-lal',
+        resultName: 'controller-for-lal',
+      });
+    }
+
+    // Provision bundled agents (Fae).
+    const faeSpecifier = process.env.ENDO_FAE_PATH;
+    if (faeSpecifier && !(await E(host).has('controller-for-fae'))) {
+      if (!(await E(host).has('fae'))) {
+        await E(host).provideGuest('fae', {
+          introducedNames: harden({ AGENT: 'host-agent' }),
+          agentName: 'profile-for-fae',
+        });
+      }
+      await E(host).makeUnconfined('MAIN', faeSpecifier, {
+        powersName: 'profile-for-fae',
+        resultName: 'controller-for-fae',
+      });
+    }
+
+    informParentWhenReady();
+
+    // Run ENDO_EXTRA bootstrap scripts (e.g., lal/fae setup for dev mode).
+    const extraSpecifiers = (process.env.ENDO_EXTRA || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    for (const specifier of extraSpecifiers) {
+      try {
+        console.log(`Endo extra: running ${specifier}`);
+        const namespace = await import(specifier);
+        await namespace.main(host);
+        console.log(`Endo extra: ${specifier} done`);
+      } catch (error) {
+        console.error(`Endo extra: ${specifier} failed:`, error);
+      }
+    }
+  } catch (error) {
+    reportErrorToParent(/** @type {Error} */ (error).message);
+    throw error;
+  }
+
   const servicesStopped = Promise.all(services.map(({ stopped }) => stopped));
 
   // Record self as official daemon process

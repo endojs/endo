@@ -1,6 +1,7 @@
 import type { Passable } from '@endo/pass-style';
 import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
+import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
 // Branded string types for pet names and special names
@@ -16,10 +17,10 @@ export type PetName = string & { [PetNameBrand]: true };
 /** A validated special name (uppercase, e.g., 'SELF', 'HOST', 'ENDO') */
 export type SpecialName = string & { [SpecialNameBrand]: true };
 
-/** A 128-character hex string identifying a formula within a node */
+/** A 64-character hex string identifying a formula within a node */
 export type FormulaNumber = string & { [FormulaNumberBrand]: true };
 
-/** A 128-character hex string identifying a node */
+/** A 64-character hex string (Ed25519 public key) identifying a node */
 export type NodeNumber = string & { [NodeNumberBrand]: true };
 
 /** A full formula identifier in the format {FormulaNumber}:{NodeNumber} */
@@ -49,10 +50,15 @@ export type Config = {
   sockPath: string;
 };
 
-export type Sha512 = {
+export type Sha256 = {
   update: (chunk: Uint8Array) => void;
   updateText: (chunk: string) => void;
   digestHex: () => string;
+};
+
+export type Ed25519Keypair = {
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
 };
 
 export type Connection = {
@@ -91,9 +97,13 @@ type IdRecord = {
   node: NodeNumber;
 };
 
-type ParseIdRecord = IdRecord & {
+export type ParseIdRecord = IdRecord & {
   id: FormulaIdentifier;
 };
+
+export type EdgeName = string;
+
+export type EnvRecord = Record<string, string>;
 
 type EndoFormula = {
   type: 'endo';
@@ -110,6 +120,7 @@ type LoopbackNetworkFormula = {
 
 type WorkerFormula = {
   type: 'worker';
+  trustedShims?: string[];
 };
 
 export type WorkerDeferredTaskParams = {
@@ -124,9 +135,11 @@ export type AgentDeferredTaskParams = {
   handleId: FormulaIdentifier;
 };
 
-type HostFormula = {
+export type HostFormula = {
   type: 'host';
   handle: FormulaIdentifier;
+  hostHandle: FormulaIdentifier;
+  keypair: FormulaIdentifier;
   worker: FormulaIdentifier;
   inspector: FormulaIdentifier;
   petStore: FormulaIdentifier;
@@ -137,9 +150,10 @@ type HostFormula = {
   pins: FormulaIdentifier;
 };
 
-type GuestFormula = {
+export type GuestFormula = {
   type: 'guest';
   handle: FormulaIdentifier;
+  keypair: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
   hostAgent: FormulaIdentifier;
   petStore: FormulaIdentifier;
@@ -207,6 +221,7 @@ type MakeUnconfinedFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   specifier: string;
+  env?: Record<string, string>;
   // TODO formula slots
 };
 
@@ -215,6 +230,7 @@ type MakeBundleFormula = {
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
   bundle: FormulaIdentifier;
+  env?: Record<string, string>;
   // TODO formula slots
 };
 
@@ -222,6 +238,12 @@ export type MakeCapletDeferredTaskParams = {
   capletId: FormulaIdentifier;
   powersId: FormulaIdentifier;
   workerId: FormulaIdentifier;
+};
+
+type KeypairFormula = {
+  type: 'keypair';
+  publicKey: string; // 64-char hex
+  privateKey: string; // 64-char hex (seed)
 };
 
 type PeerFormula = {
@@ -255,7 +277,17 @@ type MailHubFormula = {
 
 type MessageFormula = {
   type: 'message';
-  messageType: 'request' | 'package';
+  messageType:
+    | 'request'
+    | 'package'
+    | 'eval-request'
+    | 'definition'
+    | 'form'
+    | 'value'
+    | 'eval-proposal-reviewer'
+    | 'eval-proposal-proposer';
+  messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
@@ -265,6 +297,12 @@ type MessageFormula = {
   strings?: string[];
   names?: string[];
   ids?: FormulaIdentifier[];
+  source?: string;
+  codeNames?: string[];
+  petNamePaths?: NamePath[];
+  slots?: Record<string, { label: string; pattern?: unknown }>;
+  fields?: FormField[];
+  valueId?: FormulaIdentifier;
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
@@ -288,6 +326,31 @@ type DirectoryFormula = {
   petStore: FormulaIdentifier;
 };
 
+type ChannelFormula = {
+  type: 'channel';
+  handle: FormulaIdentifier;
+  creatorAgent: FormulaIdentifier;
+  messageStore: FormulaIdentifier;
+  memberStore: FormulaIdentifier;
+  proposedName: string;
+};
+
+export type ChannelDeferredTaskParams = {
+  channelId: FormulaIdentifier;
+};
+
+export type ChannelMessage = {
+  type: 'package';
+  messageId: FormulaNumber;
+  number: bigint;
+  date: string;
+  memberId: string;
+  strings: string[];
+  names: Name[];
+  ids: FormulaIdentifier[];
+  replyTo?: string;
+};
+
 type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
@@ -300,6 +363,7 @@ export type InvitationDeferredTaskParams = {
 };
 
 export type Formula =
+  | ChannelFormula
   | EndoFormula
   | LoopbackNetworkFormula
   | WorkerFormula
@@ -323,11 +387,13 @@ export type Formula =
   | ResolverFormula
   | DirectoryFormula
   | PeerFormula
+  | KeypairFormula
   | InvitationFormula;
 
 export type Builtins = {
   NONE: FormulaIdentifier;
   MAIN: FormulaIdentifier;
+  ENDO: FormulaIdentifier;
 };
 
 export type Specials = {
@@ -338,7 +404,12 @@ export interface Responder {
   resolveWithId(id: string | Promise<string>): void;
 }
 
-export type Request = {
+export type MessageBase = {
+  messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
+};
+
+export type Request = MessageBase & {
   type: 'request';
   description: string;
   promiseId: FormulaIdentifier;
@@ -346,14 +417,87 @@ export type Request = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type Package = {
+export type Package = MessageBase & {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<Name>; // edge names
   ids: Array<FormulaIdentifier>; // formula identifiers
 };
 
-export type Message = Request | Package;
+export type EvalRequest = MessageBase & {
+  type: 'eval-request';
+  replyTo?: FormulaNumber;
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths: Array<NamePath>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type DefineRequest = MessageBase & {
+  type: 'definition';
+  replyTo?: FormulaNumber;
+  source: string;
+  slots: Record<string, { label: string; pattern?: unknown }>;
+  promiseId: FormulaIdentifier;
+  resolverId: FormulaIdentifier;
+  settled: Promise<'fulfilled' | 'rejected'>;
+};
+
+export type FormField = {
+  name: string;
+  label: string;
+  example?: string;
+  pattern?: unknown;
+};
+
+export type Form = MessageBase & {
+  type: 'form';
+  replyTo?: FormulaNumber;
+  description: string;
+  fields: FormField[];
+};
+
+export type ValueMessage = MessageBase & {
+  type: 'value';
+  replyTo: FormulaNumber;
+  valueId: FormulaIdentifier;
+};
+
+export type EvalProposalBase = {
+  messageId: FormulaNumber;
+  replyTo?: FormulaNumber;
+  source: string;
+  codeNames: Array<string>;
+  petNamePaths?: Array<NamePath>;
+  edgeNames: Array<string>;
+  ids: Array<string>;
+  workerName?: string;
+  settled: Promise<'fulfilled' | 'rejected'>;
+  resultId: Promise<string | undefined>;
+  result: Promise<unknown>;
+};
+
+export type EvalProposalReviewer = EvalProposalBase & {
+  type: 'eval-proposal-reviewer';
+  responder: ERef<Responder>;
+};
+
+export type EvalProposalProposer = EvalProposalBase & {
+  type: 'eval-proposal-proposer';
+  resultName?: string;
+};
+
+export type Message =
+  | Request
+  | Package
+  | EvalRequest
+  | DefineRequest
+  | Form
+  | ValueMessage
+  | EvalProposalReviewer
+  | EvalProposalProposer;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -373,6 +517,7 @@ export type StampedMessage = EnvelopedMessage & {
 
 export interface Invitation {
   accept(guestHandleLocator: string): Promise<void>;
+  locate(): Promise<string>;
 }
 
 export interface Topic<
@@ -467,7 +612,7 @@ export interface Handle {
   open(envelope: Envelope): EnvelopedMessage;
 }
 
-export type MakeSha512 = () => Sha512;
+export type MakeSha256 = () => Sha256;
 
 export type PetStoreNameChange =
   | { add: Name; value: IdRecord }
@@ -566,18 +711,97 @@ export interface Mail {
     petName: string[],
   ): Promise<void>;
   dismiss(messageNumber: bigint): Promise<void>;
-  request(
-    recipientName: string,
-    what: string,
-    responseName: string,
-  ): Promise<unknown>;
-  send(
-    recipientName: string,
+  dismissAll(): Promise<void>;
+  reply(
+    messageNumber: bigint,
     strings: Array<string>,
     edgeNames: Array<string>,
-    petNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+  ): Promise<void>;
+  request(
+    recipientNameOrPath: string | string[],
+    what: string,
+    responseNameOrPath?: string | string[],
+  ): Promise<unknown>;
+  send(
+    recipientNameOrPath: string | string[],
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    replyToMessageNumber?: bigint,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): Promise<void>;
+  requestEvaluation(
+    recipientNameOrPath: string | string[],
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<string | string[]>,
+    responseName?: string | string[],
+  ): Promise<unknown>;
+  getEvalRequest(messageNumber: bigint): {
+    source: string;
+    codeNames: Array<string>;
+    petNamePaths: Array<NamePath>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
+  define(
+    source: string,
+    slots: Record<string, { label: string; pattern?: unknown }>,
+  ): Promise<unknown>;
+  form(
+    recipientNameOrPath: string | string[],
+    description: string,
+    fields: FormField[],
+  ): Promise<void>;
+  getDefineRequest(messageNumber: bigint): {
+    source: string;
+    slots: Record<string, { label: string; pattern?: unknown }>;
+    resolverId: FormulaIdentifier;
+    guestHandleId: string;
+  };
+  getForm(messageNumber: bigint): {
+    description: string;
+    fields: FormField[];
+    messageId: FormulaNumber;
+    guestHandleId: string;
+  };
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
+  sendValue(
+    messageNumber: bigint,
+    petNameOrPath: string | string[],
+  ): Promise<void>;
+  // Eval-proposal workflow
+  evaluate(
+    toId: string,
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<NamePath>,
+    edgeNames: Array<string>,
+    ids: Array<string>,
+    workerName?: string,
+    resultName?: string,
+  ): Promise<unknown>;
+  grantEvaluate(
+    messageNumber: bigint,
+    executeEval: (
+      source: string,
+      codeNames: string[],
+      ids: string[],
+      workerName: string | undefined,
+      proposal: EvalProposalReviewer,
+    ) => Promise<{ id: string; value: unknown }>,
+  ): Promise<unknown>;
+  counterEvaluate(
+    messageNumber: bigint,
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<NamePath>,
+    edgeNames: Array<string>,
+    ids: Array<string>,
+    workerName?: string,
+    resultName?: string,
+  ): Promise<void>;
 }
 
 export type MakeMailbox = (args: {
@@ -596,7 +820,7 @@ export type RequestFn = (
 ) => Promise<unknown>;
 
 export interface EndoReadable {
-  sha512(): string;
+  sha256(): string;
   streamBase64(): FarRef<Reader<string>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
@@ -606,6 +830,13 @@ export interface EndoWorker {}
 export type MakeHostOrGuestOptions = {
   agentName?: string;
   introducedNames?: Record<string, string>;
+};
+
+export type MakeCapletOptions = {
+  powersName?: string;
+  resultName?: string | string[];
+  env?: Record<string, string>;
+  workerTrustedShims?: string[];
 };
 
 export interface EndoPeer {
@@ -644,21 +875,64 @@ export interface EndoAgent extends EndoDirectory {
   reject: Mail['reject'];
   adopt: Mail['adopt'];
   dismiss: Mail['dismiss'];
+  dismissAll: Mail['dismissAll'];
+  reply: Mail['reply'];
   request: Mail['request'];
   send: Mail['send'];
+  sendValue: Mail['sendValue'];
   deliver: Mail['deliver'];
   /**
    * @param id The formula identifier to look up.
    * @returns The pet names for the given formula identifier.
    */
   reverseIdentify(id: string): Array<Name>;
+  /**
+   * @param id The formula identifier to look up.
+   * @returns The value for the given formula identifier.
+   */
+  lookupById(id: string): Promise<unknown>;
 }
 
-export interface EndoGuest extends EndoAgent {}
+export interface EndoGuest extends EndoAgent {
+  requestEvaluation(
+    source: string,
+    codeNames: Array<string>,
+    petNamePaths: Array<string | string[]>,
+    resultName?: string | string[],
+  ): Promise<unknown>;
+  /** Propose code evaluation to host with full eval-proposal workflow */
+  evaluate(
+    workerPetName: string | undefined,
+    source: string,
+    codeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    resultNameOrPath?: string | string[],
+  ): Promise<unknown>;
+  define(
+    source: string,
+    slots: Record<string, { label: string; pattern?: unknown }>,
+  ): Promise<unknown>;
+  form(
+    recipientNameOrPath: string | string[],
+    description: string,
+    fields: FormField[],
+  ): Promise<void>;
+  storeValue<T extends Passable>(
+    value: T,
+    petName: string | string[],
+  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
+  sendValue: Mail['sendValue'];
+}
 
 export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoAgent {
+  form(
+    recipientNameOrPath: string | string[],
+    description: string,
+    fields: FormField[],
+  ): Promise<void>;
   storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string | string[],
@@ -681,31 +955,178 @@ export interface EndoHost extends EndoAgent {
     workerPetName: string | undefined,
     source: string,
     codeNames: Array<string>,
-    petNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
   makeUnconfined(
     workerName: string | undefined,
     specifier: string,
-    powersName: string,
-    resultName?: string | string[],
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeBundle(
     workerPetName: string | undefined,
     bundleName: string,
-    powersName: string,
-    resultName?: string | string[],
+    options?: MakeCapletOptions,
   ): Promise<unknown>;
-  cancel(petName: string, reason: Error): Promise<void>;
+  cancel(petNameOrPath: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
+  makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  /** Locate a formula with connection hints for sharing with remote peers. */
+  locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
+  /** Adopt a value from a locator that includes connection hints. */
+  adoptFromLocator(
+    locator: string,
+    petNameOrPath: string | string[],
+  ): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
+  approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
+  /** Grant an eval-proposal by executing the proposed code. */
+  grantEvaluate(messageNumber: bigint): Promise<unknown>;
+  /** Send a counter-proposal with modified code and/or bindings. */
+  counterEvaluate(
+    messageNumber: bigint,
+    source: string,
+    codeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    workerName?: string,
+    resultName?: string | string[],
+  ): Promise<unknown>;
+  endow(
+    messageNumber: bigint,
+    bindings: Record<string, string | string[]>,
+    workerName?: string,
+    resultName?: string | string[],
+  ): Promise<void>;
+  submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
+  sendValue: Mail['sendValue'];
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
+
+export interface EndoChannel {
+  help(topic?: string): string;
+  post(
+    strings: string[],
+    names: string[],
+    petNamesOrPaths: (string | string[])[],
+    replyTo?: string,
+  ): Promise<void>;
+  followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
+  listMessages(): Promise<ChannelMessage[]>;
+  createInvitation(
+    proposedName: string,
+  ): Promise<[EndoChannelInvitation, EndoChannelAttenuator]>;
+  join(proposedName: string): Promise<EndoChannelMember>;
+
+  getMembers(): Promise<
+    Array<{ proposedName: string; pedigree: string[]; active: boolean }>
+  >;
+  getProposedName(): string;
+  getMemberId(): string;
+  getMember(memberId: string): Promise<
+    | {
+        proposedName: string;
+        invitedAs: string;
+        memberId: string;
+        pedigree: string[];
+        pedigreeMemberIds: string[];
+      }
+    | undefined
+  >;
+  getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+  getHeatConfig(): Promise<HeatConfig | null>;
+  getHopInfo(): Promise<HopInfo>;
+  followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
+}
+
+export interface EndoChannelInvitation {
+  help(topic?: string): string;
+  join(proposedName: string): Promise<EndoChannelMember>;
+}
+
+export interface HeatConfig {
+  burstLimit: number;
+  sustainedRate: number;
+  lockoutDurationMs: number;
+  postLockoutPct: number;
+}
+
+export interface HopPolicy {
+  hopIndex: number;
+  label: string;
+  memberId: string;
+  burstLimit: number;
+  sustainedRate: number;
+  lockoutDurationMs: number;
+  postLockoutPct: number;
+}
+
+export interface HopState {
+  hopIndex: number;
+  heat: number;
+  locked: boolean;
+  lockRemaining: number;
+}
+
+export interface HeatEvent {
+  type: 'heat' | 'snapshot';
+  hopMemberId: string;
+  heat: number;
+  locked: boolean;
+  lockEndTime: number;
+  timestamp: number;
+}
+
+export interface HopInfo {
+  policies: HopPolicy[];
+  states: HopState[];
+}
+
+export interface EndoChannelAttenuator {
+  setInvitationValidity(valid: boolean): Promise<void>;
+  setHeatConfig(config: HeatConfig): Promise<void>;
+  getHeatConfig(): Promise<HeatConfig | null>;
+  temporaryBan(seconds: number): Promise<void>;
+}
+
+export interface EndoChannelMember {
+  help(topic?: string): string;
+  post(
+    strings: string[],
+    names: string[],
+    petNamesOrPaths: (string | string[])[],
+    replyTo?: string,
+  ): Promise<void>;
+  followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
+  listMessages(): Promise<ChannelMessage[]>;
+  createInvitation(
+    proposedName: string,
+  ): Promise<[EndoChannelInvitation, EndoChannelAttenuator]>;
+  getMembers(): Promise<
+    Array<{ proposedName: string; pedigree: string[]; active: boolean }>
+  >;
+  getProposedName(): string;
+  getMemberId(): string;
+  setProposedName(newName: string): Promise<void>;
+  getMember(memberId: string): Promise<
+    | {
+        proposedName: string;
+        invitedAs: string;
+        memberId: string;
+        pedigree: string[];
+        pedigreeMemberIds: string[];
+      }
+    | undefined
+  >;
+  getAttenuator(invitedAs: string): Promise<EndoChannelAttenuator>;
+  getHeatConfig(): Promise<HeatConfig | null>;
+  getHopInfo(): Promise<HopInfo>;
+  followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
+}
 
 export type EndoInspector<Record = string> = {
   lookup: (petNameOrPath: Record | NameOrPath) => Promise<unknown>;
@@ -734,8 +1155,9 @@ export type EndoBootstrap = {
 };
 
 export type CryptoPowers = {
-  makeSha512: () => Sha512;
-  randomHex512: () => Promise<string>;
+  makeSha256: () => Sha256;
+  randomHex256: () => Promise<string>;
+  generateEd25519Keypair: () => Promise<Ed25519Keypair>;
 };
 
 export type FilePowers = {
@@ -759,6 +1181,10 @@ export type PetStorePowers = {
     formulaType: 'pet-store' | 'known-peers-store' | 'mailbox-store',
     assertValidName: AssertValidNameFn,
   ) => Promise<PetStore>;
+  deletePetStore: (
+    formulaNumber: FormulaNumber,
+    formulaType: string,
+  ) => Promise<void>;
 };
 
 export type SocketPowers = {
@@ -781,12 +1207,19 @@ export type SocketPowers = {
   }) => Promise<AsyncIterableIterator<Connection>>;
 };
 
+export type CapTpConnectionRegistrar = (args: {
+  name: string;
+  close: (reason?: Error) => Promise<void>;
+  closed: Promise<void>;
+}) => CapTPOptions;
+
 export type NetworkPowers = SocketPowers & {
   makePrivatePathService: (
     endoBootstrap: FarRef<EndoBootstrap>,
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
+    capTpConnectionRegistrar?: CapTpConnectionRegistrar,
   ) => { started: Promise<void>; stopped: Promise<void> };
 };
 
@@ -795,18 +1228,26 @@ export type RootNonceDescriptor = {
   isNewlyCreated: boolean;
 };
 
+export type RootKeypairDescriptor = {
+  keypair: Ed25519Keypair;
+  isNewlyCreated: boolean;
+};
+
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
   provideRootNonce: () => Promise<RootNonceDescriptor>;
-  makeContentSha512Store: () => {
+  provideRootKeypair: () => Promise<RootKeypairDescriptor>;
+  makeContentSha256Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
-    fetch: (sha512: string) => EndoReadable;
+    fetch: (sha256: string) => EndoReadable;
   };
   readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
   writeFormula: (
     formulaNumber: FormulaNumber,
     formula: Formula,
   ) => Promise<void>;
+  deleteFormula: (formulaNumber: FormulaNumber) => Promise<void>;
+  listFormulas: () => Promise<FormulaNumber[]>;
 };
 
 export interface DaemonWorkerFacet {}
@@ -837,6 +1278,8 @@ export type DaemonicControlPowers = {
     id: string,
     daemonWorkerFacet: DaemonWorkerFacet,
     cancelled: Promise<never>,
+    capTpConnectionRegistrar?: CapTpConnectionRegistrar,
+    trustedShims?: string[],
   ) => Promise<{
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
@@ -871,6 +1314,7 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
 type FormulateNumberedGuestParams = {
   guestFormulaNumber: FormulaNumber;
   handleId: FormulaIdentifier;
+  keypairId: FormulaIdentifier;
   guestId: FormulaIdentifier;
   hostAgentId: FormulaIdentifier;
   hostHandleId: FormulaIdentifier;
@@ -885,12 +1329,15 @@ type FormulateHostDependenciesParams = {
   networksDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
   specifiedWorkerId?: FormulaIdentifier;
+  hostHandleId?: FormulaIdentifier;
 };
 
 type FormulateNumberedHostParams = {
   hostFormulaNumber: FormulaNumber;
   hostId: FormulaIdentifier;
   handleId: FormulaIdentifier;
+  hostHandleId: FormulaIdentifier;
+  keypairId: FormulaIdentifier;
   workerId: FormulaIdentifier;
   storeId: FormulaIdentifier;
   mailboxStoreId: FormulaIdentifier;
@@ -948,6 +1395,8 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
     specifiedPowersId?: FormulaIdentifier,
+    env?: Record<string, string>,
+    trustedShims?: string[],
   ) => FormulateResult<unknown>;
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
@@ -959,15 +1408,22 @@ export interface DaemonCore {
   formulateMarshalValue: (
     value: Passable,
     deferredTasks: DeferredTasks<MarshalDeferredTaskParams>,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<void>;
 
-  formulatePromise: () => Promise<{
+  formulatePromise: (
+    pinTransient?: (id: FormulaIdentifier) => void,
+  ) => Promise<{
     promiseId: FormulaIdentifier;
     resolverId: FormulaIdentifier;
   }>;
 
+  pinTransient: (id: FormulaIdentifier) => void;
+  unpinTransient: (id: FormulaIdentifier) => void;
+
   formulateMessage: (
     messageFormula: MessageFormula,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<NameHub>;
 
   formulateEval: (
@@ -977,6 +1433,7 @@ export interface DaemonCore {
     endowmentIdsOrPaths: (FormulaIdentifier | NamePath)[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
+    pin?: (id: FormulaIdentifier) => void,
   ) => FormulateResult<unknown>;
 
   formulateGuest: (
@@ -995,12 +1452,20 @@ export interface DaemonCore {
     hostHandleId: FormulaIdentifier,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
+  formulateChannel: (
+    creatorAgentId: FormulaIdentifier,
+    handleId: FormulaIdentifier,
+    proposedName: string,
+    deferredTasks: DeferredTasks<ChannelDeferredTaskParams>,
+  ) => FormulateResult<EndoChannel>;
+
   formulateHost: (
     endoId: FormulaIdentifier,
     networksDirectoryId: FormulaIdentifier,
     pinsDirectoryId: FormulaIdentifier,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier | undefined,
+    hostHandleId?: FormulaIdentifier,
   ) => FormulateResult<EndoHost>;
 
   /**
@@ -1051,10 +1516,13 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
     specifiedPowersId?: FormulaIdentifier,
+    env?: Record<string, string>,
+    trustedShims?: string[],
   ) => FormulateResult<unknown>;
 
   formulateWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
+    trustedShims?: string[],
   ) => FormulateResult<EndoWorker>;
 
   getAllNetworkAddresses: (
@@ -1074,12 +1542,17 @@ export interface DaemonCore {
   provideController: (id: FormulaIdentifier) => Controller;
 
   provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
+
+  getAgentIdForHandleId: (
+    handleId: FormulaIdentifier,
+  ) => Promise<FormulaIdentifier>;
 }
 
 export interface DaemonCoreExternal {
   formulateEndo: DaemonCore['formulateEndo'];
   nodeNumber: NodeNumber;
   provide: DaemonCore['provide'];
+  capTpConnectionRegistrar: CapTpConnectionRegistrar;
 }
 
 export type SerialJobs = {
@@ -1186,6 +1659,12 @@ export type BidirectionalMultimap<K, V> = {
    */
   getAllFor(key: K): V[];
 };
+
+export type ParsedCIDR =
+  | { type: 'ipv4'; network: number[]; prefixLen: number }
+  | { type: 'ipv6'; network: number[]; prefixLen: number };
+
+export type AddressChecker = (remoteAddress: string) => boolean;
 
 export interface RemoteControl {
   accept(

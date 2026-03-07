@@ -1,0 +1,147 @@
+name: Familiar Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0)'
+        required: false
+        type: string
+  push:
+    tags:
+      - 'familiar-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-artifacts:
+    name: Build bundles and chat dist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build chat dist
+        run: yarn workspace @endo/chat build
+
+      - name: Bundle CLI and gateway
+        run: yarn workspace @endo/familiar bundle
+
+      - name: Upload chat dist
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chat-dist
+          path: packages/chat/dist/
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bundles
+          path: packages/familiar/bundles/
+
+  make:
+    name: Make (${{ matrix.target-os }}-${{ matrix.target-arch }})
+    needs: build-artifacts
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14
+            target-os: darwin
+            target-arch: arm64
+          - runner: macos-13
+            target-os: darwin
+            target-arch: x64
+          - runner: ubuntu-latest
+            target-os: linux
+            target-arch: x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Download chat dist
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: chat-dist
+          path: packages/chat/dist/
+
+      - name: Download bundles
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bundles
+          path: packages/familiar/bundles/
+
+      - name: Download Node.js binary
+        run: |
+          cd packages/familiar
+          ./scripts/download-node.sh v20.18.1 ${{ matrix.target-os }} ${{ matrix.target-arch }}
+
+      - name: Prepare package
+        run: |
+          cd packages/familiar
+          ./scripts/prepare-package.sh ${{ matrix.target-os }} ${{ matrix.target-arch }}
+
+      - name: Make distributables
+        run: yarn workspace @endo/familiar make
+
+      - name: Upload make output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: familiar-${{ matrix.target-os }}-${{ matrix.target-arch }}
+          path: packages/familiar/out/make/
+
+  release:
+    name: Create release
+    needs: make
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/familiar-v') || github.event.inputs.version != ''
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: artifacts/
+          pattern: familiar-*
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "tag=familiar-v${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Familiar ${{ steps.version.outputs.tag }}
+          draft: true
+          files: artifacts/**/*

@@ -5,11 +5,11 @@ import { M } from '@endo/patterns';
 
 import { q } from '@endo/errors';
 
-/** @import {FormulaIdentifier, Name, NameHub} from '../src/types.js' */
+/** @import {Name, NameHub, FormulaIdentifier} from '../src/types.js' */
 
 // This caplet is a mock name hub for testing NameHub.move().
-export const make = () => {
-  /** @type {Map<FormulaIdentifier, string>} */
+export const make = (_powers, _context, _options) => {
+  /** @type {Map<string, string>} */
   const idToName = new Map();
   /** @type {Map<string, FormulaIdentifier>} */
   const nameToId = new Map();
