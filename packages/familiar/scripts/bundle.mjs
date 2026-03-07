@@ -91,6 +91,13 @@ await build({
   outfile: path.join(familiarRoot, 'bundles/endo-fae.cjs'),
 });
 
+await build({
+  ...shared,
+  entryPoints: [path.join(familiarRoot, 'electron-main.js')],
+  outfile: path.join(familiarRoot, 'bundles/electron-main.cjs'),
+  external: [...shared.external, 'electron'],
+});
+
 // Pre-bundle web-page.js using the compartment mapper.
 // The daemon's web server normally does this at runtime, but in the packaged app the
 // source files and @endo/* dependencies aren't available on disk.

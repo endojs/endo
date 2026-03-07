@@ -21,33 +21,35 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./electron-main.js",
+  "main": "./bundles/electron-main.cjs",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev",
+    "dev": "electron electron-main.js --dev",
     "build": "node scripts/build.mjs",
-    "bundle": "node scripts/bundle.mjs",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
+    "build:app": "node scripts/build.mjs --app-only",
+    "step:bundle": "node scripts/bundle.mjs",
+    "step:download-node": "node scripts/download-node.mjs",
+    "step:prepare": "node scripts/prepare-package.mjs",
+    "step:package": "node scripts/package-app.mjs",
+    "step:make": "node scripts/make-distributables.mjs",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
     "lint:types": "tsc",
-    "download-node": "node scripts/download-node.mjs",
     "generate-icons": "./scripts/generate-icons.sh"
   },
   "dependencies": {
-    "@endo/where": "workspace:^",
-    "electron": "^33.0.0"
+    "electron": "^40.8.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.0.0",
-    "@electron-forge/maker-dmg": "^7.0.0",
-    "@electron-forge/maker-zip": "^7.0.0",
+    "@electron/packager": "^19.0.5",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/where": "workspace:^",
     "@lavamoat/allow-scripts": "^3.4.1",
-    "electron": "^33.0.0",
+    "appdmg": "^0.6.6",
+    "electron": "^40.8.0",
+    "electron-installer-dmg": "^5.0.1",
     "esbuild": "^0.24.0",
     "eslint": "catalog:dev",
     "typescript": "~5.9.2"
@@ -62,8 +64,7 @@
     "overrides": [
       {
         "files": [
-          "preload.js",
-          "forge.config.cjs"
+          "preload.js"
         ],
         "parserOptions": {
           "sourceType": "script"
@@ -85,9 +86,7 @@
   "lavamoat": {
     "allowScripts": {
       "electron": true,
-      "esbuild": true,
-      "@electron-forge/maker-dmg>electron-installer-dmg>appdmg>ds-store>macos-alias": true,
-      "@electron-forge/maker-dmg>electron-installer-dmg>appdmg>fs-xattr": true
+      "esbuild": true
     }
   }
 }
