@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-05*
+*Last updated: 2026-03-06*
 
 ## Summary
 
@@ -24,6 +24,7 @@
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-docker-selfhost](daemon-docker-selfhost.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [daemon-engo-supervisor](daemon-engo-supervisor.md) | 2026-02-25 | 2026-02-25 | Not Started |
 | [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-03-02 | **Complete** |
 | [endoclaw](endoclaw.md) | 2026-03-03 | 2026-03-03 | Reference |
 | [endoclaw-browser](endoclaw-browser.md) | 2026-03-03 | 2026-03-03 | Not Started |
@@ -40,7 +41,7 @@
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-03 | **Complete** |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
-| [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-05 | **Complete** |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md) | 2026-02-14 | 2026-03-05 | **Complete** |
 | [familiar-electron-shell](familiar-electron-shell.md) | 2026-02-14 | 2026-02-26 | **Complete** |
@@ -61,7 +62,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 18 Complete, 4 In Progress, 31 Not Started, 1 Reference
+**Totals:** 19 Complete, 4 In Progress, 31 Not Started, 1 Reference
 
 ## Roadmap
 
@@ -86,7 +87,7 @@ flowchart TD
     subgraph LLM Agents
         laltx[lal-reply-chain-transcripts<br/><i>COMPLETE</i>]
         lalfp[lal-fae-form-provisioning<br/><i>COMPLETE</i>]
-        fagent[familiar-bundled-agents]
+        fagent[familiar-bundled-agents<br/><i>COMPLETE</i>]
         dtools[daemon-agent-tools]
         dform --> lalfp
         dval --> lalfp
@@ -179,15 +180,15 @@ their own API key and local capabilities.
 | ~~lal-reply-chain-transcripts~~ | **Complete** | Phases 1-4 implemented; Phase 5 (memory management) deferred as out-of-scope |
 | ~~familiar-daemon-bundling~~ | **Complete** | esbuild bundles, Node download, Forge integration |
 | ~~lal-fae-form-provisioning~~ | **Complete** | Manager/worker split, form-based config, inbox-replay recovery |
-| familiar-bundled-agents | Not Started | Bundle Lal/Fae into Familiar via esbuild; no native deps |
-| endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; trivial, high UX value |
+| ~~familiar-bundled-agents~~ | **Complete** | esbuild bundles, resource paths, env vars, daemon-node.js provisioning |
 
 **Exit criterion:** There is a Familiar application suitable for use on
 at least one platform that folks can download and use to interact with an
-agent using their own API key and local capabilities. Agents can post
-desktop notifications when tasks complete.
+agent using their own API key and local capabilities.
 
-**Estimated duration (1 dev):** 3-4 days
+**Actual duration:** 18 active work days (Feb 15 – Mar 5), primarily 1
+developer (128 of 201 commits). 7 designs completed. Original estimate
+was 3-4 days for the final item; revised to 0 remaining.
 
 ---
 
@@ -240,7 +241,33 @@ keypairs.
 
 ---
 
-#### Milestone 3: UX Polish and Agent Tooling
+#### Milestone 3: Weblets and Integrations
+
+**Goal:** Weblet hosting in Familiar and daemon. OAuth-based external
+service integrations. Proactive agent behavior. Webhooks for event-driven
+automation.
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| familiar-unified-weblet-server | In Progress | Web-server restructuring |
+| familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
+| daemon-weblet-application | Not Started | Readable trees, zip archives |
+| endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
+| endoclaw-proactive-messages | Not Started | Composes Timer + data caps + send() for briefings/reminders |
+| endoclaw-notifications | Not Started | `Notify` exo → Electron `Notification`; needs daemon↔Electron bridge |
+| endoclaw-webhooks | Not Started | Gateway webhook endpoints → agent inbox as messages |
+| endoclaw-voice | Not Started | Web Speech API or Whisper in Chat UI; UI feature only |
+
+**Exit criterion:** Users can install and interact with weblets. Agents
+can authenticate to external services (Gmail, Calendar, etc.) via OAuth
+capabilities, send proactive briefings on a schedule, and receive
+webhook events.
+
+**Estimated duration (1 dev):** 4-6 weeks
+
+---
+
+#### Milestone 4: UX Polish and Agent Tooling
 
 **Goal:** Polished Chat experience, developer observability.
 
@@ -259,31 +286,6 @@ Developer tools (inspector, workers panel) available. Agent transcript
 memory is bounded.
 
 **Estimated duration (1 dev):** 3-4.5 weeks
-
----
-
-#### Milestone 4: Weblets and Integrations
-
-**Goal:** Weblet hosting in Familiar and daemon. OAuth-based external
-service integrations. Proactive agent behavior. Webhooks for event-driven
-automation.
-
-| Design | Status | Notes |
-|--------|--------|-------|
-| familiar-unified-weblet-server | In Progress | Web-server restructuring |
-| familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
-| daemon-weblet-application | Not Started | Readable trees, zip archives |
-| endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
-| endoclaw-proactive-messages | Not Started | Composes Timer + data caps + send() for briefings/reminders |
-| endoclaw-webhooks | Not Started | Gateway webhook endpoints → agent inbox as messages |
-| endoclaw-voice | Not Started | Web Speech API or Whisper in Chat UI; UI feature only |
-
-**Exit criterion:** Users can install and interact with weblets. Agents
-can authenticate to external services (Gmail, Calendar, etc.) via OAuth
-capabilities, send proactive briefings on a schedule, and receive
-webhook events.
-
-**Estimated duration (1 dev):** 4-6 weeks
 
 ---
 
@@ -366,8 +368,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~lal-reply-chain-transcripts~~ | — | — | 0 | ✅ Complete (phases 1-4; phase 5 deferred) |
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
-| familiar-bundled-agents | S-M | 2-3 days | 0 | esbuild entries, special formulas; no native deps |
-| endoclaw-notifications | S | 1 day | 0 | Electron Notification API, rate-limited exo |
+| ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
 | gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
 | daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
 | daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
@@ -380,20 +381,21 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
 | daemon-agent-network-identity | S-M | 2-3 days | 2 | Network registration, locator construction |
 | ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
-| chat-reply-chain-visualization | M | 3-4 days | 3 | Layout algorithm, connector lines |
-| inventory-grouping-by-type | S | 1-2 days | 3 | UI grouping |
-| inventory-drag-and-drop | S-M | 2-3 days | 3 | HTML5 DnD |
-| formula-inspector | M | 3-4 days | 3 | New panel, daemon API |
-| workers-panel | M | 3-5 days | 3 | Metrics, sparklines |
-| live-reference-indicator | M | 3-4 days | 3 | Incarnation status API + UI |
-| lal-transcript-memory-management | S | 1 day | 3 | Durable message-to-node mapping, broken chain detection |
-| familiar-unified-weblet-server | M | 2-3 days | 4 | Web-server restructuring |
-| familiar-chat-weblet-hosting | M | 3-4 days | 4 | Iframe hosting, guest profiles |
-| daemon-weblet-application | M | 3-4 days | 4 | Formula types, gateway serving |
-| endoclaw-oauth | S-M | 2-3 days | 4 | Credential proxy exo, token injection |
-| endoclaw-proactive-messages | S | 1 day | 4 | Pattern doc: Timer + data caps + send() |
-| endoclaw-webhooks | S-M | 2-3 days | 4 | Gateway webhook routes → inbox messages |
-| endoclaw-voice | S | 1-2 days | 4 | Web Speech API in Chat UI |
+| familiar-unified-weblet-server | M | 2-3 days | 3 | Web-server restructuring |
+| familiar-chat-weblet-hosting | M | 3-4 days | 3 | Iframe hosting, guest profiles |
+| daemon-weblet-application | M | 3-4 days | 3 | Formula types, gateway serving |
+| endoclaw-oauth | S-M | 2-3 days | 3 | Credential proxy exo, token injection |
+| endoclaw-proactive-messages | S | 1 day | 3 | Pattern doc: Timer + data caps + send() |
+| endoclaw-notifications | S | 1 day | 3 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
+| endoclaw-webhooks | S-M | 2-3 days | 3 | Gateway webhook routes → inbox messages |
+| endoclaw-voice | S | 1-2 days | 3 | Web Speech API in Chat UI |
+| chat-reply-chain-visualization | M | 3-4 days | 4 | Layout algorithm, connector lines |
+| inventory-grouping-by-type | S | 1-2 days | 4 | UI grouping |
+| inventory-drag-and-drop | S-M | 2-3 days | 4 | HTML5 DnD |
+| formula-inspector | M | 3-4 days | 4 | New panel, daemon API |
+| workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
+| live-reference-indicator | M | 3-4 days | 4 | Incarnation status API + UI |
+| lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
 | daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
 | daemon-capability-bank | XL | 3-4 weeks | 5 | Integrates all capabilities |
@@ -405,13 +407,13 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
-| M0: AI Agent Experience | 2 remaining | 3-4 days |
+| M0: AI Agent Experience | 0 remaining | **Complete** |
 | M1: Remote Access & Tools | 7 | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
-| M3: UX & Tooling | 7 | 3-4.5 weeks |
-| M4: Weblets & Integrations | 7 | 4-6 weeks |
+| M3: Weblets & Integrations | 8 | 4-6 weeks |
+| M4: UX & Tooling | 7 | 3-4.5 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **35** | **~22.5-33.5 weeks** |
+| **Total remaining** | **34** | **~22-32 weeks** |
 
 ### Timeline
 
@@ -421,19 +423,19 @@ gantt
     dateFormat YYYY-MM-DD
 
     section Milestone 0
-    AI Agent Experience           :m0, 2026-03-03, 4d
+    AI Agent Experience           :done, m0, 2026-02-15, 2026-03-05
 
     section Milestone 1
-    Remote Access & Tools         :m1, after m0, 5w
+    Remote Access & Tools         :m1, 2026-03-06, 5w
 
     section Milestone 2
     Networking                    :m2, after m1, 4w
 
     section Milestone 3
-    UX & Tooling                  :m3, after m2, 4w
+    Weblets & Integrations        :m3, after m2, 5w
 
     section Milestone 4
-    Weblets & Integrations        :m4, after m3, 5w
+    UX & Tooling                  :m4, after m3, 4w
 
     section Milestone 5
     Confinement & Ecosystem       :m5, after m4, 10w
@@ -441,31 +443,30 @@ gantt
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M0: AI Agent Experience | 3-4 days | 3-4 days | Early March 2026 |
+| M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
-| M3: UX & Tooling | 3-4.5 weeks | 12-16.5 weeks | Late June 2026 |
-| M4: Weblets & Integrations | 4-6 weeks | 16-22.5 weeks | Early August 2026 |
+| M3: Weblets & Integrations | 4-6 weeks | 12-17 weeks | Late June 2026 |
+| M4: UX & Tooling | 3-4.5 weeks | 15.5-21.5 weeks | Early August 2026 |
 | M5: Confinement & Ecosystem | 8-12 weeks | 24-34.5 weeks | Late October 2026 |
 
-*Milestones 3 and 4 are less order-dependent and can be interleaved or
-reordered based on priorities. Milestones 0, 1, and 2 form the critical
-path.*
+*Milestones 3 and 4 are less order-dependent and can be interleaved.
+Milestones 0, 1, and 2 form the critical path. Weblets prioritized over
+UX polish (swapped 2026-03-06).*
 
 ### Strategic Early Items
 
-Three EndoClaw capabilities are surfaced before the last two milestones
+Two EndoClaw capabilities are surfaced before the last two milestones
 because they are foundational rather than features:
 
 | Design | Milestone | Rationale |
 |--------|-----------|-----------|
-| endoclaw-notifications | M0 | Trivial (S). Familiar already has Electron. Immediate UX value — agents alert users when tasks complete. |
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-05:** 18 of 54 designs complete.
-15 active work days elapsed (Feb 15 – Mar 2) with 1 developer.
-Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
+**Progress as of 2026-03-06:** 19 of 54 designs complete. M0 complete.
+18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
+(128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
 persistence, `submit()` delivery, standalone `sendValue`, CLI, tests).
 `familiar-daemon-bundling` complete (esbuild bundles, Node download,
@@ -475,3 +476,6 @@ memory management deferred as out-of-scope future work).
 `lal-fae-form-provisioning` complete (manager/worker split, form-based
 config, restart recovery via inbox replay — no explicit config persistence
 needed since `followMessages()` replays all historical submissions).
+`familiar-bundled-agents` complete (esbuild bundles for Lal/Fae, resource
+paths, env var passthrough, inline guest provisioning in daemon-node.js
+using setup.js pattern — Option C instead of Option A from the design doc).

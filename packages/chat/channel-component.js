@@ -109,28 +109,9 @@ export const channelComponent = async (
     }
   };
 
-  // Auto-assign invitation names for members we directly invited.
-  // getMembers() now returns only members the caller invited, so every
-  // entry is a direct invitee whose invitedAs name should be pre-populated
-  // in the address book (unless the viewer has already overridden it).
-  try {
-    const members = /** @type {{ memberId: string, invitedAs?: string }[]} */ (
-      await E(channel).getMembers()
-    );
-    let didAutoAssign = false;
-    for (const member of members) {
-      if (nameMap.has(member.memberId)) continue;
-      if (member.invitedAs) {
-        nameMap.set(member.memberId, member.invitedAs);
-        didAutoAssign = true;
-      }
-    }
-    if (didAutoAssign) {
-      saveNameMap();
-    }
-  } catch {
-    // getMembers may not be available on all channel references
-  }
+  // Members who joined via invitation show their self-proposed name
+  // in scare quotes (the default for unassigned names) rather than
+  // auto-assigning the inviter's chosen invitation name.
 
   // Auto-assign the current user's own proposed name so they never see
   // themselves in scare quotes.
@@ -318,7 +299,22 @@ export const channelComponent = async (
   };
 
   // Follow messages from the channel
-  const messagesRef = await E(channel).followMessages();
+  /** @type {unknown} */
+  let messagesRef;
+  try {
+    messagesRef = await E(channel).followMessages();
+  } catch (err) {
+    const $error = document.createElement('div');
+    $error.className = 'channel-status channel-status-error';
+    const message = err instanceof Error ? err.message : String(err);
+    $error.textContent = `Unable to load messages: ${message}`;
+    if ($end) {
+      $parent.insertBefore($error, $end);
+    } else {
+      $parent.appendChild($error);
+    }
+    throw err;
+  }
   const messageIterator = makeRefIterator(messagesRef);
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.

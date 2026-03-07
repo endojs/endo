@@ -191,11 +191,19 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  * @param {Specials} args.specials
  * @param {Promise<never>} args.gracePeriodElapsed
  * @param {NodeNumber} args.localNodeNumber
+ * @param {boolean} [args.gcEnabled]
  */
 const makeDaemonCore = async (
   powers,
   rootEntropy,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials, localNodeNumber },
+  {
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+    specials,
+    localNodeNumber,
+    gcEnabled = true,
+  },
 ) => {
   const {
     crypto: cryptoPowers,
@@ -518,7 +526,10 @@ const makeDaemonCore = async (
       provideController(id).value
     );
 
-  const enableFormulaCollection = true;
+  const enableFormulaCollection = gcEnabled;
+  if (!enableFormulaCollection) {
+    console.log('Formula collection disabled (ENDO_GC=0)');
+  }
 
   /** @param {FormulaIdentifier} id */
   const dropLiveValue = id => {
@@ -3495,6 +3506,7 @@ const makeDaemonCore = async (
     formulateReadableBlob,
     formulateInvitation,
     getAllNetworkAddresses,
+    getTypeForId,
     getFormulaForId,
     formulateChannel,
     makeMailbox,
@@ -3645,11 +3657,12 @@ const makeDaemonCore = async (
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  * @param {Specials} args.specials
+ * @param {boolean} [args.gcEnabled]
  * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
  */
 const provideEndoBootstrap = async (
   powers,
-  { cancel, gracePeriodMs, gracePeriodElapsed, specials },
+  { cancel, gracePeriodMs, gracePeriodElapsed, specials, gcEnabled },
 ) => {
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
@@ -3664,6 +3677,7 @@ const provideEndoBootstrap = async (
     gracePeriodElapsed,
     specials,
     localNodeNumber,
+    gcEnabled,
   });
   const { capTpConnectionRegistrar } = daemonCore;
   const isInitialized = !isNewlyCreated;
@@ -3688,7 +3702,7 @@ const provideEndoBootstrap = async (
  * @param {string} daemonLabel
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
- * @param {Specials} [specials]
+ * @param {Specials & { gcEnabled?: boolean }} [specials]
  */
 export const makeDaemon = async (
   powers,
@@ -3697,6 +3711,7 @@ export const makeDaemon = async (
   cancelled,
   specials = {},
 ) => {
+  const { gcEnabled, ...specialFormulas } = specials;
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
@@ -3717,7 +3732,8 @@ export const makeDaemon = async (
       cancel,
       gracePeriodMs,
       gracePeriodElapsed,
-      specials,
+      specials: specialFormulas,
+      gcEnabled,
     });
 
   await Promise.allSettled([

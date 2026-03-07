@@ -13,6 +13,33 @@ envelopes.
 The bootstrap provides the user agent API from which one can derive facets for
 other agents.
 
+## Debugging
+
+### Disabling formula garbage collection
+
+The daemon collects unused formulas by default.
+Set `ENDO_GC=0` to disable formula garbage collection for a daemon run.
+This is useful for diagnosing whether a bug is caused by premature collection
+without rebuilding from source.
+
+```sh
+ENDO_GC=0 endo start
+```
+
+When disabled, the daemon logs `Formula collection disabled (ENDO_GC=0)` at
+startup.
+Omitting the variable or setting any other value (e.g. `ENDO_GC=1`) leaves
+the default behaviour unchanged.
+
+The `start()` and `restart()` functions exported from this package also accept
+a `gcEnabled` option:
+
+```js
+import { start } from '@endo/daemon';
+
+await start(config, { gcEnabled: false });
+```
+
 ## Gateway
 
 The daemon runs a unified HTTP/WebSocket gateway server.

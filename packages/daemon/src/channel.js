@@ -260,6 +260,10 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         replyTo,
       });
 
+      // Persist message to store for rehydration on restart
+      const formulaId = await persistValue(message);
+      await messageStore.write(`msg-${String(messageNumber)}`, formulaId);
+
       messages.push(message);
       messagesTopic.publisher.next(message);
     };
@@ -696,12 +700,20 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
 
       return makeExo('EndoChannelMember', ChannelMemberInterface, {
         help: makeHelp(channelMemberHelp),
-        post: async (strings, names, petNamesOrPaths, replyTo) => {
+        post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds) => {
           checkAccess();
           const now = Date.now();
           checkPostRate(now);
-          const ids = /** @type {FormulaIdentifier[]} */ ([]);
-          await postInternal(entry.memberId, strings, names, ids, replyTo);
+          const ids = /** @type {FormulaIdentifier[]} */ (
+            resolvedIds || []
+          );
+          await postInternal(
+            entry.memberId,
+            strings,
+            names,
+            ids,
+            replyTo,
+          );
         },
         setProposedName: async newName => {
           checkAccess();
@@ -955,9 +967,17 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
     /** @type {EndoChannel} */
     const channelExo = makeExo('EndoChannel', ChannelInterface, {
       help: makeHelp(channelHelp),
-      post: async (strings, names, petNamesOrPaths, replyTo) => {
-        const ids = /** @type {FormulaIdentifier[]} */ ([]);
-        await postInternal(adminMemberId, strings, names, ids, replyTo);
+      post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds) => {
+        const ids = /** @type {FormulaIdentifier[]} */ (
+          resolvedIds || []
+        );
+        await postInternal(
+          adminMemberId,
+          strings,
+          names,
+          ids,
+          replyTo,
+        );
       },
       followMessages: async () => {
         const iterator = (async function* channelMessages() {

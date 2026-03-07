@@ -118,16 +118,16 @@ export const createChannelHeader = ({
     try {
       await E(channel).createInvitation(inviteeName);
 
-      // Generate a locator for sharing
+      // Generate a locator with connection hints for sharing
       if (powers && channelPetName) {
         try {
           const locator = await E(
-            /** @type {{ locate: (...args: string[]) => Promise<string> }} */ (
+            /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
               powers
             ),
-          ).locate(channelPetName);
+          ).locateForSharing(channelPetName);
           window.prompt(
-            'Share this locator with the invitee:',
+            'Share this locator with the invitee (includes connection hints):',
             /** @type {string} */ (locator),
           );
         } catch {
