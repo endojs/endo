@@ -61,11 +61,11 @@ LAN), you must both **bind to a reachable interface** via `ENDO_ADDR` and
 
 #### Allow all remote connections
 
-Set `ENDO_GATEWAY_ALLOW_REMOTE=1` to disable the client-IP check entirely.
+Set `ENDO_GATEWAY=remote` to disable the client-IP check entirely.
 Every address that can reach the gateway port will be allowed through.
 
 ```sh
-ENDO_ADDR=0.0.0.0:8920 ENDO_GATEWAY_ALLOW_REMOTE=1 endo start
+ENDO_ADDR=0.0.0.0:8920 ENDO_GATEWAY=remote endo start
 ```
 
 #### Allow specific IP ranges (CIDR allowlist)
