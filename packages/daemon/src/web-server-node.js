@@ -30,6 +30,51 @@ const GatewayBootstrapInterface = M.interface('GatewayBootstrap', {
   fetch: M.call(M.string()).returns(M.promise()),
 });
 
+/**
+ * Per-key rate limiter. Each failed attempt delays the next allowed
+ * attempt by `penaltyMs`. State per key is a single timestamp:
+ * the earliest time the next attempt is accepted.
+ *
+ * @param {number} penaltyMs - delay imposed per failure
+ */
+const makeRateLimiter = penaltyMs => {
+  /** @type {Map<string, number>} */
+  const nextAllowed = new Map();
+  const collectionThreshold = penaltyMs * 10;
+
+  return harden({
+    /**
+     * @param {string} key
+     * @returns {number} 0 if the attempt is allowed, otherwise ms until allowed
+     */
+    check: key => {
+      const now = Date.now();
+      const deadline = nextAllowed.get(key);
+      if (deadline !== undefined && now < deadline) {
+        return deadline - now;
+      }
+      // Lazy sweep: collect stale entries
+      for (const [k, t] of nextAllowed) {
+        if (now >= t + collectionThreshold) {
+          nextAllowed.delete(k);
+        }
+      }
+      return 0;
+    },
+    /**
+     * Record a failure, pushing back the next allowed time.
+     * @param {string} key
+     */
+    recordFailure: key => {
+      const now = Date.now();
+      const current = nextAllowed.get(key);
+      const base = current !== undefined && current > now ? current : now;
+      nextAllowed.set(key, base + penaltyMs);
+    },
+  });
+};
+harden(makeRateLimiter);
+
 const read = async location => fs.promises.readFile(fileURLToPath(location));
 
 /**
@@ -42,10 +87,14 @@ export const make = async (powers, context, { env = {} } = {}) => {
   const gatewayHost = addrUrl.hostname;
   const gatewayPort = addrUrl.port !== '' ? Number(addrUrl.port) : 8920;
 
+  const allowRemote = env.ENDO_GATEWAY === 'remote';
+
   const isAllowed = makeAddressChecker({
-    allowRemote: env.ENDO_GATEWAY_ALLOW_REMOTE === '1',
+    allowRemote,
     allowedCIDRs: env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
   });
+
+  const fetchLimiter = makeRateLimiter(1000);
   let script;
   if (env.ENDO_WEB_PAGE_BUNDLE_PATH) {
     script = await fs.promises.readFile(env.ENDO_WEB_PAGE_BUNDLE_PATH, 'utf-8');
@@ -268,7 +317,17 @@ export const make = async (powers, context, { env = {} } = {}) => {
         {
           /** @param {string} token */
           async fetch(token) {
-            return E(gateway).provide(token);
+            const addr = remoteAddress || '';
+            const retryIn = fetchLimiter.check(addr);
+            if (retryIn > 0) {
+              throw new Error(`Rate limit exceeded, try in ${retryIn}ms`);
+            }
+            try {
+              return await E(gateway).provide(token);
+            } catch (e) {
+              fetchLimiter.recordFailure(addr);
+              throw e;
+            }
           },
         },
       );
@@ -310,6 +369,12 @@ export const make = async (powers, context, { env = {} } = {}) => {
     console.log(
       `Endo unified server listening on ${address} at ${new Date().toISOString()}`,
     );
+    if (allowRemote) {
+      console.warn(
+        '[Gateway] Remote mode active. Ensure TLS termination (reverse proxy) ' +
+          'is configured — bearer tokens are transmitted over the WebSocket connection.',
+      );
+    }
   });
 
   // --- Weblet registration ---
