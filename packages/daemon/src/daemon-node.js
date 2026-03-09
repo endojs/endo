@@ -24,7 +24,8 @@ import {
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config, Builtins } from './types.js' */
 
-if (process.argv.length < 5) {
+const args = process.argv.slice(2);
+if (args.length < 4) {
   throw new Error(
     `daemon.js requires arguments [sockPath] [statePath] [ephemeralStatePath] [cachePath], got ${process.argv.join(
       ', ',
@@ -32,8 +33,7 @@ if (process.argv.length < 5) {
   );
 }
 
-const [sockPath, statePath, ephemeralStatePath, cachePath] =
-  process.argv.slice(2);
+const [sockPath, statePath, ephemeralStatePath, cachePath] = args;
 
 const gcEnabled = process.env.ENDO_GC === '1';
 
@@ -122,8 +122,8 @@ const killStaleWorkers = async () => {
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
-  cancelled.catch(() => {
-    console.log(`Endo daemon stopping on PID ${pid}`);
+  cancelled.catch((err) => {
+    console.log(`Endo daemon stopping on PID ${pid} (caught: ${err})`);
   });
 
   await daemonicPersistencePowers.initializePersistence();
@@ -253,6 +253,7 @@ const main = async () => {
 };
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
+process.once('SIGTERM', () => cancel(new Error('SIGTERM')));
 
 // @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;
