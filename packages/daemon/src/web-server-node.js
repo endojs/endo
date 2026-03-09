@@ -1,3 +1,5 @@
+// @ts-check
+
 import 'ses';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -25,6 +27,11 @@ import {
 const { servePortHttp } = makeHttpPowers({ ws, http });
 
 const { WebSocketServer } = ws;
+
+// `1008` is the WebSocket Close Status Code for **"Policy Violation"** (RFC
+// 6455, Section 7.4.1). It's used to indicate that the server is terminating
+// the connection because it encountered a violation of its policy.
+const POLICY_VIOLATION = 1008;
 
 const GatewayBootstrapInterface = M.interface('GatewayBootstrap', {
   fetch: M.call(M.string()).returns(M.promise()),
@@ -56,7 +63,7 @@ export const make = async (powers, context, { env = {} } = {}) => {
 
   const connectionNumbers = (function* generateNumbers() {
     let n = 0;
-    for (;;) {
+    for (; ;) {
       yield n;
       n += 1;
     }
@@ -117,7 +124,7 @@ export const make = async (powers, context, { env = {} } = {}) => {
   const server = http.createServer();
 
   server.on('error', error => {
-    console.error(error);
+    console.error(`[Gateway] server error: ${error}`);
   });
 
   server.on('request', (req, res) => {
@@ -133,18 +140,21 @@ export const make = async (powers, context, { env = {} } = {}) => {
 
       if (handlers) {
         // Delegate to weblet HTTP handler
+        let headSent = false;
         try {
           const response = await handlers.respond(
             harden({
               method: req.method,
               url: req.url,
               headers: harden(
-                /** @type {Record<string, string | Array<string> | undefined>} */ (
+                /** @type {Record<string, string | Array<string> | undefined>} */(
                   req.headers
                 ),
               ),
             }),
           );
+
+          headSent = true;
           res.writeHead(response.status, response.headers);
           if (response.content === undefined) {
             res.end();
@@ -159,12 +169,21 @@ export const make = async (powers, context, { env = {} } = {}) => {
             }
             res.end();
           }
-        } catch (_error) {
+        } catch (error) {
+          console.error(`[Gateway] weblet error: ${error}`);
           try {
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end('Internal Server Error');
-          } catch (error) {
-            console.error(error);
+            if (!headSent) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('Internal Server Error');
+            } else {
+              res.end();
+            }
+          } catch (error2) {
+            if (headSent) {
+              console.error(`[Gateway] weblet error while ending failed response: ${error2}`);
+            } else {
+              console.error(`[Gateway] weblet error while sending 500 response: ${error2}`);
+            }
           }
         }
       } else {
@@ -190,7 +209,7 @@ export const make = async (powers, context, { env = {} } = {}) => {
       console.error(
         `[Gateway] Rejected non-local connection from ${remoteAddress}`,
       );
-      socket.close(1008, 'Only local connections allowed');
+      socket.close(POLICY_VIOLATION, 'Only local connections allowed');
       return;
     }
 
@@ -249,7 +268,7 @@ export const make = async (powers, context, { env = {} } = {}) => {
         harden({
           reader,
           writer,
-          closed: closed.then(() => {}),
+          closed: closed.then(() => { }),
         }),
         harden({
           method: /** @type {string} */ (req.method),
@@ -282,33 +301,55 @@ export const make = async (powers, context, { env = {} } = {}) => {
       );
 
       trackConnection(
-        Promise.race([closed.then(() => {}), capTpClosed]),
+        Promise.race([closed.then(() => { }), capTpClosed]),
         `[Gateway] Closed connection ${connectionNumber}`,
       );
     }
   });
 
+  /**
+   * @typedef {{address: string, port: number}} AddrPort
+   */
+  /**
+   * @typedef {object} StartedRes
+   * @property {AddrPort} config - requested gateway listen spec
+   * @property {AddrPort} actual - actual address and port given by OS
+   */
+
   // Start the unified server
-  /** @type {Promise<string>} */
+  /** @type {Promise<StartedRes>} */
   const started = new Promise((resolve, reject) => {
     server.listen(gatewayPort, gatewayHost, error => {
       if (error) {
         reject(error);
-      } else {
-        serverCancelled.catch(() => server.close());
-        const address = server.address();
-        if (address === null || typeof address === 'string') {
-          reject(new Error('expected listener to be assigned a port'));
-        } else {
-          resolve(`http://${gatewayHost}:${address.port}`);
-        }
+        return;
       }
+
+      serverCancelled.catch(() => server.close());
+      const address = server.address();
+      if (address === null || typeof address === 'string') {
+        reject(new Error('expected listener to be assigned a port'));
+        return;
+      }
+
+      resolve({
+        config: {
+          address: gatewayHost,
+          port: gatewayPort,
+        },
+        actual: {
+          address: address.address,
+          port: address.port,
+        },
+      });
     });
   });
 
-  started.then(address => {
+  started.then(addr => {
+    const actual = `http://${addr.actual.address}:${addr.actual.port}`;
+    const spec = `${addr.config.address}:${addr.config.port}`;
     console.log(
-      `Endo unified server listening on ${address} at ${new Date().toISOString()}`,
+      `Endo unified server listening on ${actual} at ${new Date().toISOString()} (config wanted ${spec})`,
     );
   });
 
@@ -400,7 +441,7 @@ export const make = async (powers, context, { env = {} } = {}) => {
 
         E(webletBootstrap)
           .makeBundle(
-            await E(/** @type {any} */ (webletBundle)).json(),
+            await E(/** @type {any} */(webletBundle)).json(),
             webletPowers,
           )
           .catch(error => {
@@ -465,7 +506,10 @@ export const make = async (powers, context, { env = {} } = {}) => {
   return Far('WebletService', {
     makeWeblet,
     async getAddress() {
-      return started;
+      const addr = await started;
+      // NOTE this was prior behavior, but we may want to consider passing `actual.address` out, since config might be `0.0.0.0`?
+      const actual = `http://${addr.config.address}:${addr.actual.port}`;
+      return actual;
     },
   });
 };
