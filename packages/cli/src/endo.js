@@ -708,7 +708,38 @@ export const main = async rawArgs => {
 
   const where = program
     .command('where')
-    .description('prints paths for state, logs, caches, socket, pids');
+    .option(
+      '-j,--json',
+      'Output as JOSN rather than simple text')
+    .description(
+      'prints paths for state, logs, caches, socket, pids\n' +
+      'specify just one part, or none to get them all')
+    .action(async cmd => {
+      const {
+        json: asJSON = false,
+      } = cmd.opts();
+      const {
+        cachePath,
+        ephemeralStatePath,
+        logPath,
+        sockPath,
+        statePath,
+      } = await import('./config.js');
+      const stuff = {
+        state: statePath,
+        run: ephemeralStatePath,
+        socket: sockPath,
+        log: logPath,
+        cache: cachePath,
+      };
+      if (asJSON) {
+        process.stdout.write(`${JSON.stringify(stuff)}\n`);
+      } else {
+        for (const [key, val] of Object.entries(stuff)) {
+          process.stdout.write(`${key}: ${val}\n`);
+        }
+      }
+    });
 
   where
     .command('state')

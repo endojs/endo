@@ -46,6 +46,7 @@ automatically when following.
 ```sh
 endo where state   # state directory (contains endo.log)
 endo where log     # log file path directly
+endo where         # or just print all the paths
 ```
 
 Worker logs live at `<state>/worker/<hash>/worker.log`.
