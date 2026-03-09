@@ -428,6 +428,14 @@ export const make = async (powers, context, { env = {} } = {}) => {
           };
         }
       }
+
+      // TODO should method check after path check, and return
+      //   HTTP/1.1 405 Method Not Allowed
+      //   Allow: GET, POST, HEAD
+      //   Content-Type: text/plain
+      //
+      //   The method GET is not allowed on this resource.
+
       return {
         status: 404,
         headers: { 'Content-Type': 'text/plain' },
