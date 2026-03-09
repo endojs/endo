@@ -2,7 +2,16 @@
 
 /** @import { AddressChecker, ParsedCIDR } from './types.js' */
 
+/** @type {AddressChecker} */
+const allowAll = _addr => true;
+
 const localhostAddresses = harden(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+/**
+ * Localhost-only address checker
+ *
+ * @param {string} addr
+ */
+const allowLocalCIDR = addr => localhostAddresses.includes(addr);
 
 /**
  * Strip the IPv4-mapped IPv6 prefix so `::ffff:10.1.2.3` becomes `10.1.2.3`.
@@ -164,6 +173,37 @@ export const addressMatchesCIDR = (addr, cidr) => {
 harden(addressMatchesCIDR);
 
 /**
+ * Combines two address checkers with OR logic
+ *
+ * @param {Array<AddressChecker>} checkers
+ * @returns {AddressChecker}
+ */
+const allowSome = (...checkers) => {
+  return harden(addr => {
+    for (const checker of checkers) {
+      if (checker(addr)) {
+        return true;
+      }
+    }
+    return false;
+  });
+};
+
+/**
+ * CIDR-only address checker
+ *
+ * @param {string} addr
+ * @param {Array<ParsedCIDR>} cidrs
+ */
+const allowAnyMatchedCIDR = (addr, ...cidrs) => {
+  const normalized = normalizeAddress(addr);
+  for (const cidr of cidrs) {
+    if (addressMatchesCIDR(normalized, cidr)) return true;
+  }
+  return false;
+};
+
+/**
  * Build a predicate that returns `true` when a given `remoteAddress` should be
  * allowed through the gateway.
  *
@@ -173,45 +213,35 @@ harden(addressMatchesCIDR);
  *   CIDRs passes.
  *
  * @param {{ allowRemote?: boolean, allowedCIDRs?: string }} [options]
- * @returns {AddressChecker}
  */
 export const makeAddressChecker = (options = {}) => {
-  const { allowRemote = false, allowedCIDRs = '' } = options;
+  const {
+    allowRemote = false,
+    allowedCIDRs = '',
+  } = options;
 
-  if (allowRemote) {
-    /** @type {AddressChecker} */
-    const allowAll = _addr => true;
-    return harden(allowAll);
-  }
-
-  if (!allowedCIDRs) {
-    /** @type {AddressChecker} */
-    const localhostOnly = addr => localhostAddresses.includes(addr);
-    return harden(localhostOnly);
-  }
-
-  /** @type {ParsedCIDR[]} */
-  const cidrs = [];
-  for (const entry of allowedCIDRs.split(',')) {
-    const trimmed = entry.trim();
-    if (trimmed.length > 0) {
-      const parsed = parseCIDR(trimmed);
-      if (parsed !== undefined) {
-        cidrs.push(parsed);
-      }
+  /** @returns {AddressChecker} */
+  function compile() {
+    if (allowRemote) {
+      return allowAll;
     }
-  }
-  harden(cidrs);
 
-  /** @type {AddressChecker} */
-  const cidrChecker = addr => {
-    if (localhostAddresses.includes(addr)) return true;
-    const normalized = normalizeAddress(addr);
-    for (const cidr of cidrs) {
-      if (addressMatchesCIDR(normalized, cidr)) return true;
+    let allow = allowLocalCIDR;
+
+    const cidrs = harden(allowedCIDRs.split(',')
+      .map(entry => entry.trim())
+      .filter(trimmed => trimmed.length > 0)
+      .map(trimmed => parseCIDR(trimmed))
+      .filter(parsed => !!parsed));
+
+    if (cidrs.length > 0) {
+      allow = allowSome(allow,
+        addr => allowAnyMatchedCIDR(addr, ...cidrs));
     }
-    return false;
-  };
-  return harden(cidrChecker);
+
+    return allow;
+  }
+
+  return harden(compile());
 };
 harden(makeAddressChecker);
