@@ -414,7 +414,7 @@ export const sendFormComponent = ({
       petNames.length === 1 && strings.every(part => !part.trim());
     if (onlyToken) {
       const [petName] = petNames;
-      const petNamePath = petName.split('.');
+      const petNamePath = petName.split('/');
       setSubmitting(true);
       Promise.all([
         E(powers).identify(

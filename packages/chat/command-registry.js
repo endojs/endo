@@ -622,7 +622,7 @@ export const COMMANDS = {
         label: 'Handle',
         type: 'petNamePath',
         required: true,
-        placeholder: 'SELF',
+        placeholder: '@self',
       },
       {
         name: 'agentName',
@@ -647,7 +647,7 @@ export const COMMANDS = {
         label: 'Handle',
         type: 'petNamePath',
         required: true,
-        placeholder: 'HOST',
+        placeholder: '@host',
       },
       {
         name: 'agentName',

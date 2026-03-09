@@ -6,16 +6,29 @@
 
 import { q } from '@endo/errors';
 
-const validPetNamePattern = /^[a-z0-9][a-z0-9-]{0,127}$/;
-const validSpecialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
-/** Non-negative integer string, used for MAIL.0, MAIL.1, ... */
-const validMailSlotPattern = /^\d+$/;
+/**
+ * A valid name is 1–255 chars, contains no `/`, `\0`, or `@`, and is not `.`
+ * or `..`.
+ * @param {string} name
+ * @returns {boolean}
+ */
+export const isValidName = name =>
+  typeof name === 'string' &&
+  name.length > 0 &&
+  name.length <= 255 &&
+  !name.includes('/') &&
+  !name.includes('\0') &&
+  !name.includes('@') &&
+  name !== '.' &&
+  name !== '..';
+
+const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
 
 /**
  * @param {string} petName
  * @returns {petName is PetName}
  */
-export const isPetName = petName => validPetNamePattern.test(petName);
+export const isPetName = petName => isValidName(petName);
 
 /**
  * @param {string} name
@@ -25,17 +38,9 @@ export const isSpecialName = name => validSpecialNamePattern.test(name);
 
 /**
  * @param {string} name
- * @returns {name is string} true if valid mail slot (e.g. "0", "1")
- */
-export const isMailSlotName = name =>
-  typeof name === 'string' && validMailSlotPattern.test(name);
-
-/**
- * @param {string} name
  * @returns {name is Name}
  */
-export const isName = name =>
-  isPetName(name) || isSpecialName(name) || isMailSlotName(name);
+export const isName = name => isPetName(name) || isSpecialName(name);
 
 /**
  * @param {string} petName

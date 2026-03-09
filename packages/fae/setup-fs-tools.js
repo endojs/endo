@@ -21,31 +21,31 @@ export const main = async agent => {
   const listDirUrl = new URL('tools/list-dir.js', import.meta.url).href;
   const runCommandUrl = new URL('tools/run-command.js', import.meta.url).href;
 
-  await E(agent).makeUnconfined('MAIN', readFileUrl, {
+  await E(agent).makeUnconfined('@main', readFileUrl, {
     resultName: 'read-file',
     env,
   });
   console.log('[setup-fs-tools] Created read-file (root:', cwd, ')');
 
-  await E(agent).makeUnconfined('MAIN', writeFileUrl, {
+  await E(agent).makeUnconfined('@main', writeFileUrl, {
     resultName: 'write-file',
     env,
   });
   console.log('[setup-fs-tools] Created write-file');
 
-  await E(agent).makeUnconfined('MAIN', editFileUrl, {
+  await E(agent).makeUnconfined('@main', editFileUrl, {
     resultName: 'edit-file',
     env,
   });
   console.log('[setup-fs-tools] Created edit-file');
 
-  await E(agent).makeUnconfined('MAIN', listDirUrl, {
+  await E(agent).makeUnconfined('@main', listDirUrl, {
     resultName: 'list-dir',
     env,
   });
   console.log('[setup-fs-tools] Created list-dir');
 
-  await E(agent).makeUnconfined('MAIN', runCommandUrl, {
+  await E(agent).makeUnconfined('@main', runCommandUrl, {
     resultName: 'run-command',
     env,
   });

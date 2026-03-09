@@ -69,13 +69,13 @@ export const makeGuestMaker = ({
     const basePetStore = await provide(petStoreId, 'pet-store');
     const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
     const specialNames = {
-      AGENT: guestId,
-      SELF: handleId,
-      HOST: hostHandleId,
-      KEYPAIR: keypairId,
+      '@agent': guestId,
+      '@self': handleId,
+      '@host': hostHandleId,
+      '@keypair': keypairId,
     };
     if (mailHubId !== undefined) {
-      specialNames.MAIL = mailHubId;
+      specialNames['@mail'] = mailHubId;
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
@@ -138,7 +138,7 @@ export const makeGuestMaker = ({
     /** @type {EndoGuest['requestEvaluation']} */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
       mailboxRequestEvaluation(
-        'HOST',
+        '@host',
         source,
         codeNames,
         petNamePaths,
@@ -184,12 +184,12 @@ export const makeGuestMaker = ({
 
       // Create edge names from the pet names (for display in the proposal)
       const edgeNames = /** @type {EdgeName[]} */ (
-        petNamePaths.map(path => (Array.isArray(path) ? path.join('.') : path))
+        petNamePaths.map(path => (Array.isArray(path) ? path.join('/') : path))
       );
 
       // Get optional result name and worker name as strings
       const resultName = resultNameOrPath
-        ? namePathFrom(resultNameOrPath).join('.')
+        ? namePathFrom(resultNameOrPath).join('/')
         : undefined;
       const workerName = workerPetName || undefined;
 

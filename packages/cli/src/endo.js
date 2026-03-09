@@ -84,7 +84,7 @@ export const main = async rawArgs => {
     .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, NONE, SELF, or ENDO)',
+      'Endowment to give the weblet (a name, @none, @self, or @endo)',
     )
     .option(...commonOptions.requiredName)
     .option('-o,--open', 'Open the new web page immediately (weblet)')
@@ -92,7 +92,7 @@ export const main = async rawArgs => {
       const {
         name: webletName,
         bundle: bundleName,
-        powers: powersName = 'NONE',
+        powers: powersName = '@none',
         listen: requestedPort,
         as: agentNames,
         open: doOpen,
@@ -148,7 +148,7 @@ export const main = async rawArgs => {
         as: agentNames,
         bundle: bundleName,
         UNCONFINED: importPath,
-        powers: powersName = 'NONE',
+        powers: powersName = '@none',
         env = {},
       } = cmd.opts();
       const { run } = await import('./commands/run.js');
@@ -189,7 +189,7 @@ export const main = async rawArgs => {
         bundle: bundleName,
         worker: workerName = undefined,
         as: agentNames,
-        powers: powersName = 'NONE',
+        powers: powersName = '@none',
         env = {},
       } = cmd.opts();
       const { makeCommand } = await import('./commands/make.js');
@@ -229,7 +229,7 @@ export const main = async rawArgs => {
       const {
         name: resultName,
         as: agentNames,
-        to: toName = 'HOST',
+        to: toName = '@host',
       } = cmd.opts();
       const { request } = await import('./commands/request.js');
       return request({ toName, description, resultName, agentNames });
@@ -585,7 +585,7 @@ export const main = async rawArgs => {
     .action(async (source, names, cmd) => {
       const {
         name: resultName,
-        worker: workerName = 'MAIN',
+        worker: workerName = '@main',
         as: agentNames,
       } = cmd.opts();
       const { evalCommand } = await import('./commands/eval.js');

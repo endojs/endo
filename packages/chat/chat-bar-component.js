@@ -511,7 +511,7 @@ export const chatBarComponent = (
           'resultName' in data && data.resultName
             ? String(data.resultName)
             : undefined;
-        const resultPath = resultName ? resultName.split('.') : undefined;
+        const resultPath = resultName ? resultName.split('/') : undefined;
         if (commandName === 'js') {
           showValue(result.value, undefined, resultPath, undefined);
         } else if (
@@ -569,7 +569,7 @@ export const chatBarComponent = (
           source: data.source,
           endowments: data.endowments,
           resultName: '',
-          workerName: 'MAIN',
+          workerName: '@main',
           cursorPosition: data.cursorPosition,
         });
       }
@@ -1115,11 +1115,11 @@ export const chatBarComponent = (
           // Call E(powers).evaluate()
           // Split dot-notation pet names into paths for the evaluate API
           const codeNames = data.endowments.map(e => e.codeName);
-          const petNamePaths = data.endowments.map(e => e.petName.split('.'));
+          const petNamePaths = data.endowments.map(e => e.petName.split('/'));
           const resultNamePath = data.resultName
-            ? data.resultName.split('.')
+            ? data.resultName.split('/')
             : undefined;
-          const workerName = data.workerName || 'MAIN';
+          const workerName = data.workerName || '@main';
 
           await E(powers).evaluate(
             workerName,
@@ -1179,11 +1179,11 @@ export const chatBarComponent = (
         onSubmit: async data => {
           // Call E(powers).counterEvaluate()
           const codeNames = data.endowments.map(e => e.codeName);
-          const petNamePaths = data.endowments.map(e => e.petName.split('.'));
+          const petNamePaths = data.endowments.map(e => e.petName.split('/'));
           const resultNamePath = data.resultName
-            ? data.resultName.split('.')
+            ? data.resultName.split('/')
             : undefined;
-          const workerName = data.workerName || 'MAIN';
+          const workerName = data.workerName || '@main';
 
           await E(powers).counterEvaluate(
             data.messageNumber,

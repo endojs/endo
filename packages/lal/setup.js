@@ -23,7 +23,7 @@ export const main = async agent => {
     });
   }
 
-  await E(agent).makeUnconfined('MAIN', lalSpecifier, {
+  await E(agent).makeUnconfined('@main', lalSpecifier, {
     powersName: 'profile-for-lal',
     resultName: 'controller-for-lal',
   });

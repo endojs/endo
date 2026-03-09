@@ -26,7 +26,7 @@ const makeFormPowers = ({ selfId, message }) => {
   const powers = Far('MockPowers', {
     identify(...path) {
       calls.push({ method: 'identify', args: path });
-      if (path.length === 1 && path[0] === 'SELF') {
+      if (path.length === 1 && path[0] === '@self') {
         return selfId;
       }
       return undefined;
@@ -34,7 +34,7 @@ const makeFormPowers = ({ selfId, message }) => {
 
     reverseIdentify(id) {
       calls.push({ method: 'reverseIdentify', args: [id] });
-      if (id === 'host-handle-id') return ['HOST'];
+      if (id === 'host-handle-id') return ['@host'];
       if (id === 'guest-handle-id') return ['alice'];
       return [];
     },

@@ -41,7 +41,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
    * @returns {{ pathPrefix: string[], partial: string }}
    */
   const parseValue = value => {
-    const parts = value.split('.');
+    const parts = value.split('/');
     if (parts.length === 1) {
       return { pathPrefix: [], partial: parts[0] };
     }
@@ -160,7 +160,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     const { pathPrefix } = parseValue($input.value);
 
     // Build the new value with the selected name
-    const newPath = [...pathPrefix, selected].join('.');
+    const newPath = [...pathPrefix, selected].join('/');
     $input.value = newPath;
 
     hideMenu();

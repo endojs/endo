@@ -11,10 +11,10 @@ declare const FormulaNumberBrand: unique symbol;
 declare const NodeNumberBrand: unique symbol;
 declare const FormulaIdentifierBrand: unique symbol;
 
-/** A validated pet name (lowercase, e.g., 'worker', 'my-app') */
+/** A validated pet name (1–255 chars, no `/`, `\0`, or `@`, not `.` or `..`) */
 export type PetName = string & { [PetNameBrand]: true };
 
-/** A validated special name (uppercase, e.g., 'SELF', 'HOST', 'ENDO') */
+/** A validated special name (@-prefixed, e.g., '@self', '@host', '@endo') */
 export type SpecialName = string & { [SpecialNameBrand]: true };
 
 /** A 64-character hex string identifying a formula within a node */

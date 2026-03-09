@@ -285,7 +285,7 @@ const numberFormatter = new Intl.NumberFormat();
 const inboxComponent = async ($parent, $end, powers) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
-  const selfId = await E(powers).identify('SELF');
+  const selfId = await E(powers).identify('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane.
@@ -952,7 +952,7 @@ const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
 
   const handleEval = () => {
     const source = $source.value;
-    const workerName = 'MAIN';
+    const workerName = '@main';
     const names = Array.from($endowments.values(), $endowment => {
       const $codeName = $endowment.querySelector('.code-name');
       const $petName = $endowment.querySelector('.pet-name');

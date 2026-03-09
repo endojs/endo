@@ -141,7 +141,7 @@ const main = async () => {
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled, {
       /** @param {Builtins} builtins */
-      APPS: ({ MAIN, ENDO }) => ({
+      '@apps': ({ MAIN, ENDO }) => ({
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,
         powers: ENDO,
@@ -177,12 +177,12 @@ const main = async () => {
     await Promise.all(services.map(({ started }) => started));
 
     const host = await E(endoBootstrap).host();
-    const agentId = /** @type {string} */ (await E(host).identify('AGENT'));
+    const agentId = /** @type {string} */ (await E(host).identify('@agent'));
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
-    if (await E(host).has('APPS')) {
-      const apps = await E(host).lookup('APPS');
+    if (await E(host).has('@apps')) {
+      const apps = await E(host).lookup('@apps');
       const address = await E(apps).getAddress();
       console.log(`Endo gateway listening on ${address}`);
     }

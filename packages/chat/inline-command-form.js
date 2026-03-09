@@ -583,7 +583,7 @@ export const createInlineCommandForm = ({
           onSubmit('js', {
             source: data.source,
             endowments: data.endowments,
-            workerName: 'MAIN',
+            workerName: '@main',
           });
         },
         onExpand: data => {

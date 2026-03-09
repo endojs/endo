@@ -375,7 +375,7 @@ const bodyComponent = (
       // by checking if it responds to identify() - a lightweight check
       const selfId = await E(
         /** @type {ERef<EndoHost>} */ (targetPowers),
-      ).identify('SELF');
+      ).identify('@self');
       if (selfId === undefined) {
         throw new Error(`"${hostName}" does not appear to be a valid host`);
       }

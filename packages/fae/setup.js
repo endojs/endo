@@ -1,5 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED setup.js --powers AGENT
+// endo run --UNCONFINED setup.js --powers @agent
 
 import { E } from '@endo/eventual-send';
 
@@ -27,12 +27,12 @@ export const main = async agent => {
   const hasFactory = await E(agent).has(guestName);
   if (!hasFactory) {
     await E(agent).provideGuest(guestName, {
-      introducedNames: harden({ AGENT: 'host-agent' }),
+      introducedNames: harden({ '@agent': 'host-agent' }),
       agentName,
     });
   }
 
-  await E(agent).makeUnconfined('MAIN', llmProviderFactorySpecifier, {
+  await E(agent).makeUnconfined('@main', llmProviderFactorySpecifier, {
     powersName: agentName,
     resultName: 'llm-provider-factory',
   });
