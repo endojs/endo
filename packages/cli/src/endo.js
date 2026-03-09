@@ -788,10 +788,20 @@ export const main = async rawArgs => {
       '--feral-errors',
       'disable SES error taming (readable error traces)',
     )
+    .option(
+      '-f,--foreground',
+      'Run daemon in foreground, do not fork',
+    )
     .action(async cmd => {
-      const { feralErrors } = cmd.opts();
+      const {
+        feralErrors,
+        foreground = false,
+      } = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start(undefined, { feralErrors });
+      await start(undefined, {
+        feralErrors,
+        foreground,
+      });
     });
 
   program

@@ -2,7 +2,7 @@
 /* global process, setTimeout */
 
 import url from 'url';
-import popen from 'child_process';
+import { default as popen, spawn } from 'child_process';
 import fs from 'fs';
 import net from 'net';
 import path from 'path';
@@ -194,6 +194,10 @@ const startEngo = async (config, envOverrides) => {
  * @param {object} [options]
  * @param {Record<string, string>} [options.env] - overrides for process.env
  * @param {boolean} [options.feralErrors] - enable to turn off lockdown error stack trace sanitization
+ * @param {boolean} [options.foreground] - if enabled, the daemon will be spawn-ed instead of fork-ed;
+ *                                         the current process will wait for and then exit,
+ *                                         behaving as if execv had been a thing that node could call;
+ *                                         i.e. this causes `start()` to effectively never return
  * @param {boolean} [options.gcEnabled] - enable GC of TODO what exactly?
  */
 export const start = async (
@@ -201,6 +205,7 @@ export const start = async (
   {
     env: envOverrides,
     feralErrors,
+    foreground = false,
     gcEnabled,
   } = {},
 ) => {
@@ -231,6 +236,32 @@ export const start = async (
     config.ephemeralStatePath,
     config.cachePath,
   ];
+
+  if (foreground) {
+    // NOTE ideally this would be execv replacement, but node does not ship a stdlib binding for that?
+
+    let daemonExe = daemonPath;
+    if (daemonPath.endsWith('.js')) {
+      daemonArgs.unshift(daemonPath);
+      daemonExe = process.execPath; // Use the current Node.js executable path
+    }
+
+    const child = spawn(daemonExe, daemonArgs, {
+      stdio: 'inherit',
+      detached: false,
+    });
+
+    /** @type {Promise<number>} */
+    const childDone = new Promise(resolve => {
+      child.on('error', err => {
+        console.error('Failed to spawn daemon:', [daemonExe, ...daemonArgs], err);
+        resolve(1);
+      });
+      child.on('exit', code => resolve(code || 0));
+    });
+
+    process.exit(await childDone);
+  }
 
   const child = popen.fork(daemonPath, daemonArgs, {
     detached: true,
