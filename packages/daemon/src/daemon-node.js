@@ -35,7 +35,7 @@ if (process.argv.length < 5) {
 const [sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
-const gcEnabled = process.env.ENDO_GC !== '0';
+const gcEnabled = process.env.ENDO_GC === '1';
 
 /** @type {Config} */
 const config = {
@@ -131,7 +131,6 @@ const main = async () => {
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled, {
-      gcEnabled,
       /** @param {Builtins} builtins */
       APPS: ({ MAIN, ENDO }) => ({
         type: /** @type {const} */ ('make-unconfined'),
@@ -149,6 +148,8 @@ const main = async () => {
             process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
         },
       }),
+    }, {
+      gcEnabled,
     });
 
   /** @param {Error} error */
