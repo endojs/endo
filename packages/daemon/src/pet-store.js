@@ -5,8 +5,9 @@ import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
+import { makeSyncedPetStore } from './synced-pet-store.js';
 
-/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetName, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
+/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, Name, NameChangesTopic, PetName, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers, SyncedPetStore } from './types.js' */
 
 /**
  * @param {string} formulaNumber
@@ -309,8 +310,62 @@ export const makePetStoreMaker = (filePowers, config) => {
     await filePowers.removePath(directory).catch(() => {});
   };
 
+  /**
+   * @param {string} formulaNumber
+   * @param {string} localNodeId
+   * @param {'grantor' | 'grantee'} role
+   * @returns {Promise<SyncedPetStore>}
+   */
+  const makeIdentifiedSyncedPetStore = (formulaNumber, localNodeId, role) => {
+    const storePath = makePetStorePath(
+      formulaNumber,
+      'synced-pet-store',
+      filePowers,
+      config,
+    );
+    return makeSyncedPetStore({
+      storePath,
+      filePowers,
+      localNodeId,
+      role,
+    });
+  };
+
+  /**
+   * @param {string} formulaNumber
+   */
+  const deleteSyncedPetStore = async formulaNumber => {
+    const directory = makePetStorePath(
+      formulaNumber,
+      'synced-pet-store',
+      filePowers,
+      config,
+    );
+    // Recursively remove the synced store directory (names/ subdir + clock.json).
+    const removeDir = async (/** @type {string} */ dir) => {
+      const entries = await filePowers.readDirectory(dir).catch(error => {
+        if (error.message.startsWith('ENOENT: ')) {
+          return [];
+        }
+        throw error;
+      });
+      await Promise.all(
+        entries.map(async entry => {
+          const entryPath = filePowers.joinPath(dir, entry);
+          // Try as directory first, fall back to file.
+          await removeDir(entryPath).catch(() => {});
+          await filePowers.removePath(entryPath).catch(() => {});
+        }),
+      );
+      await filePowers.removePath(dir).catch(() => {});
+    };
+    await removeDir(directory);
+  };
+
   return {
     makeIdentifiedPetStore,
     deletePetStore,
+    makeIdentifiedSyncedPetStore,
+    deleteSyncedPetStore,
   };
 };

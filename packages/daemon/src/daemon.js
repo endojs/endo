@@ -39,6 +39,7 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+import { makeSyncedPetStore } from './synced-pet-store.js';
 import {
   blobHelp,
   directoryHelp,
@@ -395,6 +396,8 @@ const makeDaemonCore = async (
         return [formula.petStore];
       case 'directory':
         return [formula.petStore];
+      case 'synced-pet-store':
+        return [formula.peer, formula.store];
       case 'invitation':
         return [formula.hostAgent, formula.hostHandle];
       default:
@@ -570,33 +573,70 @@ const makeDaemonCore = async (
 
     await Promise.all(
       entries.map(async ({ id, formula }) => {
+        // Handle regular pet stores.
         const assertValidName = petStoreTypes.get(formula.type);
-        if (assertValidName === undefined) {
-          return;
-        }
-        const { number: formulaNumber } = parseId(id);
-        const petStore = await petStorePowers.makeIdentifiedPetStore(
-          formulaNumber,
-          /** @type {'pet-store' | 'mailbox-store' | 'known-peers-store'} */ (
-            formula.type
-          ),
-          assertValidName,
-        );
-        const storedIds = petStore
-          .list()
-          .map(petName => petStore.identifyLocal(petName))
-          .filter(storedId => storedId !== undefined);
-        if (storedIds.length === 0) {
-          return;
-        }
-        await withFormulaGraphLock(async () => {
-          for (const storedId of storedIds) {
-            formulaGraph.onPetStoreWrite(
-              /** @type {FormulaIdentifier} */ (id),
-              /** @type {FormulaIdentifier} */ (storedId),
-            );
+        if (assertValidName !== undefined) {
+          const { number: formulaNumber } = parseId(id);
+          const petStore = await petStorePowers.makeIdentifiedPetStore(
+            formulaNumber,
+            /** @type {'pet-store' | 'mailbox-store' | 'known-peers-store'} */ (
+              formula.type
+            ),
+            assertValidName,
+          );
+          const storedIds = petStore
+            .list()
+            .map(petName => petStore.identifyLocal(petName))
+            .filter(storedId => storedId !== undefined);
+          if (storedIds.length > 0) {
+            await withFormulaGraphLock(async () => {
+              for (const storedId of storedIds) {
+                formulaGraph.onPetStoreWrite(
+                  /** @type {FormulaIdentifier} */ (id),
+                  /** @type {FormulaIdentifier} */ (storedId),
+                );
+              }
+            });
           }
-        });
+          return;
+        }
+        // Handle synced pet stores.
+        if (formula.type === 'synced-pet-store') {
+          const { number: formulaNumber } = parseId(id);
+          const syncedStore =
+            await petStorePowers.makeIdentifiedSyncedPetStore(
+              formulaNumber,
+              localNodeNumber,
+              formula.role,
+            );
+          const state = syncedStore.getState();
+          /** @type {FormulaIdentifier[]} */
+          const localIds = [];
+          for (const entry of Object.values(state)) {
+            if (entry.locator !== null) {
+              try {
+                const formulaId = idFromLocator(entry.locator);
+                if (isLocalId(formulaId)) {
+                  localIds.push(
+                    /** @type {FormulaIdentifier} */ (formulaId),
+                  );
+                }
+              } catch {
+                // Ignore unparseable locators.
+              }
+            }
+          }
+          if (localIds.length > 0) {
+            await withFormulaGraphLock(async () => {
+              for (const localFormulaId of localIds) {
+                formulaGraph.onPetStoreWrite(
+                  /** @type {FormulaIdentifier} */ (id),
+                  localFormulaId,
+                );
+              }
+            });
+          }
+        }
       }),
     );
   };
@@ -757,7 +797,8 @@ const makeDaemonCore = async (
           if (
             formula.type === 'pet-store' ||
             formula.type === 'mailbox-store' ||
-            formula.type === 'known-peers-store'
+            formula.type === 'known-peers-store' ||
+            formula.type === 'synced-pet-store'
           ) {
             formulaGraph.onPetStoreRemoveAll(id);
           }
@@ -783,6 +824,8 @@ const makeDaemonCore = async (
               parseId(id).number,
               formula.type,
             );
+          } else if (formula.type === 'synced-pet-store') {
+            await petStorePowers.deleteSyncedPetStore(parseId(id).number);
           }
         }),
       );
@@ -2102,6 +2145,109 @@ const makeDaemonCore = async (
     message: (formula, context) => makeMessageHub(formula, context),
     promise: ({ store: storeId }, context) => makePromise(storeId, context),
     resolver: ({ store: storeId }, context) => makeResolver(storeId, context),
+    'synced-pet-store': async (formula, _context, id, formulaNumber) => {
+      await null;
+      const store = await petStorePowers.makeIdentifiedSyncedPetStore(
+        formulaNumber,
+        localNodeNumber,
+        formula.role,
+      );
+      // Wire GC graph edges for local formula IDs stored in the synced store.
+      const state = store.getState();
+      for (const entry of Object.values(state)) {
+        if (entry.locator !== null) {
+          try {
+            const formulaId = idFromLocator(entry.locator);
+            if (isLocalId(formulaId)) {
+              await withFormulaGraphLock(async () => {
+                formulaGraph.onPetStoreWrite(id, formulaId);
+              });
+            }
+          } catch {
+            // Ignore unparseable locators.
+          }
+        }
+      }
+      // Wrap with Far for CapTP access by the remote peer.
+      return Far('SyncedPetStore', {
+        write: async (/** @type {PetName} */ petName, /** @type {string} */ locator) => {
+          await store.write(petName, locator);
+          // Add GC edge for local formula IDs.
+          try {
+            const formulaId = idFromLocator(locator);
+            if (isLocalId(formulaId)) {
+              await withFormulaGraphLock(async () => {
+                formulaGraph.onPetStoreWrite(id, formulaId);
+              });
+            }
+          } catch {
+            // Remote locators don't create local GC edges.
+          }
+        },
+        remove: async (/** @type {PetName} */ petName) => {
+          const previousLocator = store.lookup(petName);
+          await store.remove(petName);
+          // Remove GC edge if the formula was local.
+          if (previousLocator) {
+            try {
+              const formulaId = idFromLocator(previousLocator);
+              if (isLocalId(formulaId)) {
+                // Check if any other entry still references this formula.
+                const currentState = store.getState();
+                const stillReferenced = Object.values(currentState).some(
+                  e => e.locator !== null && e.locator === previousLocator,
+                );
+                if (!stillReferenced) {
+                  await withFormulaGraphLock(async () => {
+                    formulaGraph.onPetStoreRemove(id, formulaId);
+                  });
+                }
+              }
+            } catch {
+              // Ignore.
+            }
+          }
+        },
+        has: store.has,
+        lookup: store.lookup,
+        list: store.list,
+        getState: store.getState,
+        getLocalClock: store.getLocalClock,
+        getRemoteAckedClock: store.getRemoteAckedClock,
+        mergeRemoteState: async (
+          /** @type {Record<string, import('./types.js').SyncedEntry>} */ remoteState,
+          /** @type {number} */ remoteClock,
+        ) => {
+          const changed = await store.mergeRemoteState(remoteState, remoteClock);
+          // Update GC edges for changed keys.
+          for (const key of changed) {
+            const entry = store.getState()[key];
+            if (!entry) continue;
+            if (entry.locator !== null) {
+              try {
+                const formulaId = idFromLocator(entry.locator);
+                if (isLocalId(formulaId)) {
+                  await withFormulaGraphLock(async () => {
+                    formulaGraph.onPetStoreWrite(id, formulaId);
+                  });
+                }
+              } catch {
+                // Ignore.
+              }
+            } else {
+              // Tombstone: check if we need to remove a GC edge.
+              // The previous locator is lost after merge, so we rely on
+              // the full state scan at startup for correctness.
+            }
+          }
+          // Return as array (Set is not passable over CapTP).
+          return harden([...changed]);
+        },
+        acknowledgeRemoteClock: store.acknowledgeRemoteClock,
+        pruneTombstones: store.pruneTombstones,
+        followChanges: store.followChanges,
+      });
+    },
     'known-peers-store': async (_formula, _context, id, formulaNumber) => {
       await null;
       return wrapPetStore(
@@ -2552,6 +2698,37 @@ const makeDaemonCore = async (
         pinTransient(result.id);
         return result;
       })
+    );
+  };
+
+  /**
+   * Formulates a `synced-pet-store` formula.
+   *
+   * @param {FormulaIdentifier} peerId - The peer formula ID.
+   * @param {'grantor' | 'grantee'} role
+   * @param {import('./types.js').FormulaNumber} remoteStoreNumber
+   * @param {FormulaIdentifier} storeId - The underlying pet-store formula ID.
+   * @returns {FormulateResult<import('./types.js').SyncedPetStore>}
+   */
+  const formulateSyncedPetStore = async (
+    peerId,
+    role,
+    remoteStoreNumber,
+    storeId,
+  ) => {
+    const formulaNumber = /** @type {FormulaNumber} */ (
+      await randomHex256()
+    );
+    /** @type {import('./types.js').SyncedPetStoreFormula} */
+    const formula = {
+      type: 'synced-pet-store',
+      peer: peerId,
+      role,
+      remoteStoreNumber,
+      store: storeId,
+    };
+    return /** @type {FormulateResult<import('./types.js').SyncedPetStore>} */ (
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -3415,12 +3592,37 @@ const makeDaemonCore = async (
       console.log('Cancelled:');
       await controller.context.cancel(new Error('Invitation accepted'));
 
-      await E(hostAgent).write(
-        /** @type {NamePath} */ ([guestName]),
-        guestHandleId,
+      // Create a synced-pet-store (grantor role) for this peer relationship.
+      const peerId = await getPeerIdForNodeIdentifier(
+        /** @type {NodeNumber} */ (guestNodeNumber),
+      );
+      const { id: syncedStoreId, value: syncedStoreValue } =
+        await formulateSyncedPetStore(
+          peerId,
+          'grantor',
+          // Placeholder: the guest will create its own store and we
+          // don't know the number yet. The guest sends back its store
+          // number on the next sync.
+          /** @type {FormulaNumber} */ ('0'.repeat(64)),
+          peerId, // store dependency (peer keeps alive)
+        );
+
+      // Write the guest handle locator into the synced store.
+      const guestHandleLocatorStr = formatLocator(guestHandleId, 'remote');
+      await E(syncedStoreValue).write(
+        /** @type {PetName} */ (guestName),
+        guestHandleLocatorStr,
       );
 
-      return provide(guestHandleId);
+      // Write the synced store into the host's pet store under guestName.
+      await E(hostAgent).write(
+        /** @type {NamePath} */ ([guestName]),
+        syncedStoreId,
+      );
+
+      // Return the synced store number so the guest can create its paired replica.
+      const { number: syncedStoreNumber } = parseId(syncedStoreId);
+      return harden({ syncedStoreNumber });
     };
 
     return makeExo('Invitation', InvitationInterface, { accept, locate });
@@ -3505,6 +3707,8 @@ const makeDaemonCore = async (
     formulateBundle,
     formulateReadableBlob,
     formulateInvitation,
+    formulateSyncedPetStore,
+    getPeerIdForNodeIdentifier,
     getAllNetworkAddresses,
     getTypeForId,
     getFormulaForId,
