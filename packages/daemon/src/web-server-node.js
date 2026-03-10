@@ -95,7 +95,9 @@ export const make = async (powers, context, { env = {} } = {}) => {
   });
 
   const fetchLimiter = makeRateLimiter(1000);
-  let script;
+
+  /** @type {string} */
+  let script = '';
   if (env.ENDO_WEB_PAGE_BUNDLE_PATH) {
     script = await fs.promises.readFile(env.ENDO_WEB_PAGE_BUNDLE_PATH, 'utf-8');
   } else {
