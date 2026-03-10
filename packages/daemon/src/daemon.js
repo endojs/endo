@@ -402,6 +402,7 @@ const makeDaemonCore = async (
     }
   };
 
+  /** @param {string} id */
   const isLocalId = id => parseId(id).node === localNodeNumber;
 
   const formulaGraph = makeFormulaGraph({ extractDeps, isLocalId });
@@ -411,7 +412,7 @@ const makeDaemonCore = async (
   formulaGraph.addRoot(mainWorkerId);
   formulaGraph.addRoot(endoFormulaId);
   for (const id of Object.values(platformNames)) {
-    formulaGraph.addRoot(/** @type {FormulaIdentifier} */ (id));
+    formulaGraph.addRoot(/** @type {FormulaIdentifier} */(id));
   }
 
   // Transient roots protect formulas from collection for the duration of
@@ -500,7 +501,7 @@ const makeDaemonCore = async (
       return undefined;
     }
     const id = /** @type {FormulaIdentifier | undefined} */ (
-      getIdForRef(/** @type {any} */ (value))
+      getIdForRef(/** @type {any} */(value))
     );
     return id !== undefined && isLocalId(id) ? id : undefined;
   };
@@ -511,7 +512,7 @@ const makeDaemonCore = async (
     terminateWorker: (workerId, reason) => {
       const terminate = workerTerminationByNumber.get(workerId);
       if (terminate) {
-        terminate(reason).catch(() => {});
+        terminate(reason).catch(() => { });
       }
     },
   });
@@ -520,11 +521,11 @@ const makeDaemonCore = async (
 
   /** @type {Provide} */
   const provide = (id, _expectedType) =>
-    /** @type {any} */ (
-      // Behold, unavoidable forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      provideController(id).value
-    );
+    /** @type {any} */(
+    // Behold, unavoidable forward-reference:
+    // eslint-disable-next-line no-use-before-define
+    provideController(id).value
+  );
 
   const enableFormulaCollection = gcEnabled;
   if (!enableFormulaCollection) {
@@ -577,7 +578,7 @@ const makeDaemonCore = async (
         const { number: formulaNumber } = parseId(id);
         const petStore = await petStorePowers.makeIdentifiedPetStore(
           formulaNumber,
-          /** @type {'pet-store' | 'mailbox-store' | 'known-peers-store'} */ (
+          /** @type {'pet-store' | 'mailbox-store' | 'known-peers-store'} */(
             formula.type
           ),
           assertValidName,
@@ -592,8 +593,8 @@ const makeDaemonCore = async (
         await withFormulaGraphLock(async () => {
           for (const storedId of storedIds) {
             formulaGraph.onPetStoreWrite(
-              /** @type {FormulaIdentifier} */ (id),
-              /** @type {FormulaIdentifier} */ (storedId),
+              /** @type {FormulaIdentifier} */(id),
+              /** @type {FormulaIdentifier} */(storedId),
             );
           }
         });
@@ -627,6 +628,10 @@ const makeDaemonCore = async (
 
       /** @type {Map<FormulaIdentifier, Set<FormulaIdentifier>>} */
       const groupDeps = new Map();
+      /**
+       * @param {FormulaIdentifier} fromGroup
+       * @param {FormulaIdentifier} toGroup
+       */
       const addGroupEdge = (fromGroup, toGroup) => {
         if (fromGroup === toGroup) {
           return;
@@ -819,6 +824,10 @@ const makeDaemonCore = async (
 
     return harden({
       ...petStore,
+      /**
+       * @param {PetName} petName
+       * @param {FormulaIdentifier} id
+       */
       write: async (petName, id) => {
         const previousId = petStore.identifyLocal(petName);
         await petStore.write(petName, id);
@@ -827,19 +836,26 @@ const makeDaemonCore = async (
         });
         if (previousId && previousId !== id) {
           await removeEdgeIfUnreferenced(
-            /** @type {FormulaIdentifier} */ (previousId),
+            /** @type {FormulaIdentifier} */(previousId),
           );
         }
       },
+      /**
+       * @param {PetName} petName
+       */
       remove: async petName => {
         const previousId = petStore.identifyLocal(petName);
         await petStore.remove(petName);
         if (previousId) {
           await removeEdgeIfUnreferenced(
-            /** @type {FormulaIdentifier} */ (previousId),
+            /** @type {FormulaIdentifier} */(previousId),
           );
         }
       },
+      /**
+       * @param {PetName} fromPetName
+       * @param {PetName} toPetName
+       */
       rename: async (fromPetName, toPetName) => {
         const fromId = petStore.identifyLocal(fromPetName);
         const overwrittenId = petStore.identifyLocal(toPetName);
@@ -848,13 +864,13 @@ const makeDaemonCore = async (
           await withFormulaGraphLock(async () => {
             formulaGraph.onPetStoreWrite(
               petStoreId,
-              /** @type {FormulaIdentifier} */ (fromId),
+              /** @type {FormulaIdentifier} */(fromId),
             );
           });
         }
         if (overwrittenId && overwrittenId !== fromId) {
           await removeEdgeIfUnreferenced(
-            /** @type {FormulaIdentifier} */ (overwrittenId),
+            /** @type {FormulaIdentifier} */(overwrittenId),
           );
         }
       },
@@ -942,8 +958,7 @@ const makeDaemonCore = async (
       await controlPowers.makeWorker(
         workerId512,
         daemonWorkerFacet,
-        workerCancelled,
-        Promise.race([forceCancelled, gracePeriodElapsed]),
+        Promise.race([forceCancelled, workerCancelled, gracePeriodElapsed]),
         capTpConnectionRegistrar,
         trustedShims,
       );
@@ -952,8 +967,8 @@ const makeDaemonCore = async (
       E.sendOnly(workerDaemonFacet).terminate();
       await Promise.race([
         workerTerminated,
-        delay(gracePeriodMs, gracePeriodElapsed).catch(() => {}),
-      ]).catch(() => {});
+        delay(gracePeriodMs, gracePeriodElapsed).catch(() => { }),
+      ]).catch(() => { });
     };
 
     workerTerminationByNumber.set(workerId512, terminateWorker);
@@ -1081,11 +1096,11 @@ const makeDaemonCore = async (
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make unconfined plugin with non-worker');
     const powersP = provide(powersId);
-    return E(/** @type {any} */ (workerDaemonFacet)).makeUnconfined(
+    return E(/** @type {any} */(workerDaemonFacet)).makeUnconfined(
       specifier,
       // TODO fix type
-      /** @type {any} */ (powersP),
-      /** @type {any} */ (makeFarContext(context)),
+      /** @type {any} */(powersP),
+      /** @type {any} */(makeFarContext(context)),
       env,
     );
   };
@@ -1102,21 +1117,21 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(powersId);
 
     const worker = await provide(
-      /** @type {FormulaIdentifier} */ (workerId),
+      /** @type {FormulaIdentifier} */(workerId),
       'worker',
     );
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
     const readableBundleP = provide(
-      /** @type {FormulaIdentifier} */ (bundleId),
+      /** @type {FormulaIdentifier} */(bundleId),
       'readable-blob',
     );
-    const powersP = provide(/** @type {FormulaIdentifier} */ (powersId));
-    return E(/** @type {any} */ (workerDaemonFacet)).makeBundle(
+    const powersP = provide(/** @type {FormulaIdentifier} */(powersId));
+    return E(/** @type {any} */(workerDaemonFacet)).makeBundle(
       readableBundleP,
       // TODO fix type
-      /** @type {any} */ (powersP),
-      /** @type {any} */ (makeFarContext(context)),
+      /** @type {any} */(powersP),
+      /** @type {any} */(makeFarContext(context)),
       env,
     );
   };
@@ -1200,7 +1215,7 @@ const makeDaemonCore = async (
     const settleFromStatusId = async statusId => {
       await null;
       const recordValue = await provide(
-        /** @type {FormulaIdentifier} */ (statusId),
+        /** @type {FormulaIdentifier} */(statusId),
       );
       const record = parsePromiseStatusRecord(recordValue);
       settle(record);
@@ -1339,7 +1354,7 @@ const makeDaemonCore = async (
      */
     const identifyMessage = name =>
       isMessageNumberName(name)
-        ? mailboxStore.identifyLocal(/** @type {Name} */ (name))
+        ? mailboxStore.identifyLocal(/** @type {Name} */(name))
         : undefined;
 
     /** @type {NameHub} */
@@ -1356,7 +1371,7 @@ const makeDaemonCore = async (
         if (id === undefined) {
           throw new TypeError(`Unknown message number: ${q(headName)}`);
         }
-        return provide(/** @type {FormulaIdentifier} */ (id), 'message');
+        return provide(/** @type {FormulaIdentifier} */(id), 'message');
       }
       return tailNames.reduce(
         (directory, petName) => E(directory).lookup(petName),
@@ -1385,7 +1400,7 @@ const makeDaemonCore = async (
         return identifyMessage(petNamePath[0]) !== undefined;
       }
       const { hub, name } = await lookupTailNameHub(
-        /** @type {NamePath} */ (petNamePath),
+        /** @type {NamePath} */(petNamePath),
       );
       return E(hub).has(name);
     };
@@ -1396,7 +1411,7 @@ const makeDaemonCore = async (
         return identifyMessage(petNamePath[0]);
       }
       const { hub, name } = await lookupTailNameHub(
-        /** @type {NamePath} */ (petNamePath),
+        /** @type {NamePath} */(petNamePath),
       );
       return E(hub).identify(name);
     };
@@ -1408,7 +1423,7 @@ const makeDaemonCore = async (
         return undefined;
       }
       const formulaType = await getTypeForId(
-        /** @type {FormulaIdentifier} */ (id),
+        /** @type {FormulaIdentifier} */(id),
       );
       return formatLocator(id, formulaType);
     };
@@ -1486,7 +1501,7 @@ const makeDaemonCore = async (
         return harden([]);
       }
       return harden(
-        /** @type {Name[]} */ (
+        /** @type {Name[]} */(
           mailboxStore.reverseIdentify(id).filter(isMessageNumberName)
         ),
       );
@@ -1653,7 +1668,7 @@ const makeDaemonCore = async (
               resolutionId => {
                 if (typeof resolutionId === 'string') {
                   return provide(
-                    /** @type {FormulaIdentifier} */ (resolutionId),
+                    /** @type {FormulaIdentifier} */(resolutionId),
                   );
                 }
                 return resolutionId;
@@ -1700,7 +1715,7 @@ const makeDaemonCore = async (
         return idByName.has(petNamePath[0]) || valueByName.has(petNamePath[0]);
       }
       const { hub, name } = await lookupTailNameHub(
-        /** @type {NamePath} */ (petNamePath),
+        /** @type {NamePath} */(petNamePath),
       );
       return E(hub).has(name);
     };
@@ -1711,7 +1726,7 @@ const makeDaemonCore = async (
         return idByName.get(petNamePath[0]);
       }
       const { hub, name } = await lookupTailNameHub(
-        /** @type {NamePath} */ (petNamePath),
+        /** @type {NamePath} */(petNamePath),
       );
       return E(hub).identify(name);
     };
@@ -1723,7 +1738,7 @@ const makeDaemonCore = async (
         return undefined;
       }
       const formulaType = await getTypeForId(
-        /** @type {FormulaIdentifier} */ (id),
+        /** @type {FormulaIdentifier} */(id),
       );
       return formatLocator(id, formulaType);
     };
@@ -1731,7 +1746,7 @@ const makeDaemonCore = async (
     const reverseLocate = async locator => {
       const id = idFromLocator(locator);
       return harden(
-        /** @type {Name[]} */ (
+        /** @type {Name[]} */(
           orderedNames.filter(name => idByName.get(name) === id)
         ),
       );
@@ -1754,7 +1769,7 @@ const makeDaemonCore = async (
     const list = async (...petNamePath) => {
       assertNames(petNamePath);
       if (petNamePath.length === 0) {
-        return harden(/** @type {Name[]} */ ([...orderedNames]));
+        return harden(/** @type {Name[]} */([...orderedNames]));
       }
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
       return E(hub).list();
@@ -1799,7 +1814,7 @@ const makeDaemonCore = async (
         return harden([]);
       }
       return harden(
-        /** @type {Name[]} */ (
+        /** @type {Name[]} */(
           orderedNames.filter(name => idByName.get(name) === id)
         ),
       );
@@ -1844,7 +1859,7 @@ const makeDaemonCore = async (
     lookup: ({ hub, path }, context) =>
       makeLookup(
         hub,
-        /** @type {import('./types.js').NamePath} */ (path),
+        /** @type {import('./types.js').NamePath} */(path),
         context,
       ),
     worker: (formula, context, _id, formulaNumber) =>
@@ -1961,7 +1976,7 @@ const makeDaemonCore = async (
           const networkIds = await networksDirectory.listIdentifiers();
           await Promise.allSettled(
             networkIds.map(id =>
-              provide(/** @type {FormulaIdentifier} */ (id)),
+              provide(/** @type {FormulaIdentifier} */(id)),
             ),
           );
         },
@@ -1969,7 +1984,7 @@ const makeDaemonCore = async (
           const pinsDirectory = await provide(pinsId, 'directory');
           const pinIds = await pinsDirectory.listIdentifiers();
           await Promise.allSettled(
-            pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
+            pinIds.map(id => provide(/** @type {FormulaIdentifier} */(id))),
           );
         },
         addPeerInfo: async peerInfo => {
@@ -1988,7 +2003,7 @@ const makeDaemonCore = async (
               if (
                 existingFormula.type === 'peer' &&
                 JSON.stringify(existingFormula.addresses) !==
-                  JSON.stringify(addresses)
+                JSON.stringify(addresses)
               ) {
                 console.log(
                   `addPeerInfo: replacing stale peer for node ${nodeNumber.slice(0, 16)}... (old: ${existingFormula.addresses.length} addr, new: ${addresses.length} addr)`,
@@ -2002,7 +2017,7 @@ const makeDaemonCore = async (
                   new Error('Peer addresses updated'),
                 );
                 await knownPeers.remove(
-                  /** @type {PetName} */ (/** @type {unknown} */ (nodeNumber)),
+                  /** @type {PetName} */(/** @type {unknown} */ (nodeNumber)),
                 );
                 const { id: peerId } =
                   // eslint-disable-next-line no-use-before-define
@@ -2144,7 +2159,7 @@ const makeDaemonCore = async (
         id,
         hostAgentId,
         hostHandleId,
-        /** @type {import('./types.js').PetName} */ (guestName),
+        /** @type {import('./types.js').PetName} */(guestName),
       ),
     channel: async (formula, context, id) => {
       const {
@@ -2179,7 +2194,6 @@ const makeDaemonCore = async (
     if (Object.hasOwn(makers, formula.type)) {
       const make = makers[formula.type];
       const value = await /** @type {unknown} */ (
-        // @ts-expect-error TypeScript is trying too hard to infer the unknown.
         make(formula, context, id, formulaNumber)
       );
       if (typeof value === 'object' && value !== null) {
@@ -2538,7 +2552,7 @@ const makeDaemonCore = async (
     return /** @type {FormulateResult<EndoDirectory>} */ (
       withFormulaGraphLock(async () => {
         const { id: petStoreId } = await formulateNumberedPetStore(
-          /** @type {FormulaNumber} */ (await randomHex256()),
+          /** @type {FormulaNumber} */(await randomHex256()),
         );
         const formulaNumber = /** @type {FormulaNumber} */ (
           await randomHex256()
@@ -2628,17 +2642,17 @@ const makeDaemonCore = async (
     await null;
     const storeId = (
       await formulateNumberedPetStore(
-        /** @type {FormulaNumber} */ (await randomHex256()),
+        /** @type {FormulaNumber} */(await randomHex256()),
       )
     ).id;
     const mailboxStoreId = (
       await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex256()),
+        /** @type {FormulaNumber} */(await randomHex256()),
       )
     ).id;
     const mailHubId = (
       await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex256()),
+        /** @type {FormulaNumber} */(await randomHex256()),
         mailboxStoreId,
       )
     ).id;
@@ -2652,7 +2666,7 @@ const makeDaemonCore = async (
     });
 
     const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex256()),
+      /** @type {FormulaNumber} */(await randomHex256()),
       hostId,
     );
 
@@ -2671,7 +2685,7 @@ const makeDaemonCore = async (
       /* eslint-disable no-use-before-define */
       inspectorId: (
         await formulateNumberedPetInspector(
-          /** @type {FormulaNumber} */ (await randomHex256()),
+          /** @type {FormulaNumber} */(await randomHex256()),
           storeId,
         )
       ).id,
@@ -2740,17 +2754,17 @@ const makeDaemonCore = async (
       node: localNodeNumber,
     });
     const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex256()),
+      /** @type {FormulaNumber} */(await randomHex256()),
       guestId,
     );
     const mailboxStoreId = (
       await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex256()),
+        /** @type {FormulaNumber} */(await randomHex256()),
       )
     ).id;
     const mailHubId = (
       await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex256()),
+        /** @type {FormulaNumber} */(await randomHex256()),
         mailboxStoreId,
       )
     ).id;
@@ -2764,14 +2778,14 @@ const makeDaemonCore = async (
       hostHandleId,
       storeId: (
         await formulateNumberedPetStore(
-          /** @type {FormulaNumber} */ (await randomHex256()),
+          /** @type {FormulaNumber} */(await randomHex256()),
         )
       ).id,
       mailboxStoreId,
       mailHubId,
       workerId: (
         await formulateNumberedWorker(
-          /** @type {FormulaNumber} */ (await randomHex256()),
+          /** @type {FormulaNumber} */(await randomHex256()),
         )
       ).id,
     });
@@ -2977,9 +2991,9 @@ const makeDaemonCore = async (
                 /* eslint-disable no-use-before-define */
                 (
                   await formulateNumberedLookup(
-                    /** @type {FormulaNumber} */ (await randomHex256()),
+                    /** @type {FormulaNumber} */(await randomHex256()),
                     nameHubId,
-                    /** @type {NamePath} */ (formulaIdOrPath),
+                    /** @type {NamePath} */(formulaIdOrPath),
                   )
                 ).id
                 /* eslint-enable no-use-before-define */
@@ -3204,7 +3218,7 @@ const makeDaemonCore = async (
     const { id, value } = await formulateDirectory();
     // Make default networks.
     const { id: loopbackNetworkId } = await formulateLoopbackNetwork();
-    await E(value).write(/** @type {NamePath} */ (['loop']), loopbackNetworkId);
+    await E(value).write(/** @type {NamePath} */(['loop']), loopbackNetworkId);
     return { id, value };
   };
 
@@ -3221,7 +3235,7 @@ const makeDaemonCore = async (
         });
 
         const { id: defaultHostWorkerId } = await formulateNumberedWorker(
-          /** @type {FormulaNumber} */ (await randomHex256()),
+          /** @type {FormulaNumber} */(await randomHex256()),
         );
         const { id: networksDirectoryId } = await formulateNetworksDirectory();
         const { id: pinsDirectoryId } = await formulateDirectory();
@@ -3261,9 +3275,9 @@ const makeDaemonCore = async (
     const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
     const readyNetworks = networkIds
-      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .map(id => /** @type {FormulaIdentifier} */(id))
       .filter(id => refForId.has(id))
-      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
+      .map(id => /** @type {EndoNetwork} */(refForId.get(id)));
     return readyNetworks;
   };
 
@@ -3272,9 +3286,9 @@ const makeDaemonCore = async (
     const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
     const readyNetworks = networkIds
-      .map(id => /** @type {FormulaIdentifier} */ (id))
+      .map(id => /** @type {FormulaIdentifier} */(id))
       .filter(id => refForId.has(id))
-      .map(id => /** @type {EndoNetwork} */ (refForId.get(id)));
+      .map(id => /** @type {EndoNetwork} */(refForId.get(id)));
     const addresses = (
       await Promise.all(
         readyNetworks.map(async network => {
@@ -3416,7 +3430,7 @@ const makeDaemonCore = async (
       await controller.context.cancel(new Error('Invitation accepted'));
 
       await E(hostAgent).write(
-        /** @type {NamePath} */ ([guestName]),
+        /** @type {NamePath} */([guestName]),
         guestHandleId,
       );
 
