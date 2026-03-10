@@ -3960,8 +3960,9 @@ const provideEndoBootstrap = async (
  * @param {string} daemonLabel - A label for the daemon instance (used for logging).
  * @param {(error: Error) => void} cancel - Callback to call when daemon needs to cancel.
  * @param {Promise<never>} cancelled - A promise that rejects when cancelled.
- * @param {Specials & { gcEnabled?: boolean }} [specials] - Special formula generators and optional GC settings.
- * @param {boolean} [specials.gcEnabled=true] - Enable garbage collection of worker daemons.
+ * @param {Specials} [specials] - Special formula generators
+ * @param {object} [options]
+ * @param {boolean} [options.gcEnabled=true] - Enable garbage collection of worker daemons.
  *
  * @example
  * ```js
@@ -3980,8 +3981,9 @@ export const makeDaemon = async (
   cancel,
   cancelled,
   specials = {},
+  options = {},
 ) => {
-  const { gcEnabled, ...specialFormulas } = specials;
+  const { gcEnabled } = options;
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
@@ -4002,7 +4004,7 @@ export const makeDaemon = async (
       cancel,
       gracePeriodMs,
       gracePeriodElapsed,
-      specials: specialFormulas,
+      specials,
       gcEnabled,
     });
 
