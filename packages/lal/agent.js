@@ -916,8 +916,10 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         const stored = /** @type {TranscriptNode} */ (
           await E(powers).lookup(petName)
         );
-        nodeCache.set(messageId, stored);
-        return stored;
+        // The stored node is hardened; make a mutable working copy.
+        const mutable = { ...stored, messages: [...stored.messages] };
+        nodeCache.set(messageId, mutable);
+        return mutable;
       }
     } catch {
       // Storage lookup failed; treat as missing.
@@ -933,7 +935,11 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
     nodeCache.set(node.messageId, node);
     const petName = `transcript-${node.messageId}`;
     try {
-      await E(powers).storeValue(harden(node), petName);
+      // Harden a snapshot for storage; the working node stays mutable.
+      await E(powers).storeValue(
+        harden({ ...node, messages: [...node.messages] }),
+        petName,
+      );
     } catch (error) {
       console.error(
         `[transcript] Failed to persist node ${node.messageId}:`,
