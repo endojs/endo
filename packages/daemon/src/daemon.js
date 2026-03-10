@@ -183,6 +183,7 @@ const MESSAGE_RESOLVER_NAME = 'RESOLVER';
  *
  * @param {string} name - The string to check.
  * @returns {boolean} True if the string is a valid message number.
+ * TODO is there a shadow type for MessageID? If so, we could instead have {name is MessageID} as the return type
  *
  * @example
  * ```js
