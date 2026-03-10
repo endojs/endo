@@ -140,6 +140,7 @@ const main = async () => {
         specifier:
           process.env.ENDO_WORKER_PATH ||
           new URL('web-server-node.js', import.meta.url).href,
+        // TODO factor out a `passEnv(keys, defaults)` utility here
         env: {
           ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
           ENDO_WEB_PAGE_BUNDLE_PATH:
