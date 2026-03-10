@@ -7,6 +7,8 @@ import { makePromiseKit } from '@endo/promise-kit';
 /** @import { Context, FormulaIdentifier } from './types.js' */
 
 /**
+ * Creates a factory function for generating `Context` objects.
+ *
  * @param {object} args
  * @param {Map<FormulaIdentifier, { context: Context }>} args.controllerForId
  * @param {(id: FormulaIdentifier) => { context: Context }} args.provideController
@@ -18,7 +20,12 @@ export const makeContextMaker = ({
   getFormulaType,
 }) => {
   /**
-   * @param {FormulaIdentifier} id
+   * Creates a new lifecycle-managed context for a specific guest formula.
+   *
+   * This context tracks the formula's status, handles cancellation propagation
+   * to dependents, and manages cleanup hooks.
+   *
+   * @param {FormulaIdentifier} id - The unique identifier for the formula.
    */
   const makeContext = id => {
     let done = false;
@@ -34,8 +41,10 @@ export const makeContextMaker = ({
     const hooks = [];
 
     /**
-     * @param {Error} reason
-     * @param {string} [prefix]
+     * Triggers cancellation of this context and all registered dependents.
+     *
+     * @param {Error} reason - The error or reason for cancellation.
+     * @param {string} [prefix='*'] - A prefix for console logging, useful for indentation.
      */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
@@ -60,7 +69,9 @@ export const makeContextMaker = ({
     };
 
     /**
-     * @param {FormulaIdentifier} dependentId
+     * Registers a dependent formula that will be cancelled if this one is cancelled.
+     *
+     * @param {FormulaIdentifier} dependentId - The identifier of the dependent formula.
      */
     const thatDiesIfThisDies = dependentId => {
       if (done) {
@@ -75,7 +86,9 @@ export const makeContextMaker = ({
     };
 
     /**
-     * @param {FormulaIdentifier} dependencyId
+     * Registers this context as a dependent of the formula with the given identifier.
+     *
+     * @param {FormulaIdentifier} dependencyId - The identifier of the formula this context depends on.
      */
     const thisDiesIfThatDies = dependencyId => {
       const dependencyController = provideController(dependencyId);
@@ -83,7 +96,9 @@ export const makeContextMaker = ({
     };
 
     /**
-     * @param {() => void} hook
+     * Registers a function to be called when this context is cancelled.
+     *
+     * @param {() => void} hook - A function with no parameters to execute during disposal.
      */
     const onCancel = hook => {
       if (done) {

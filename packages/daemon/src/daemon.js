@@ -67,8 +67,23 @@ import {
 /** @import { Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
 
 /**
- * @param {number} ms
- * @param {Promise<never>} cancelled
+ * Creates a delayed promise that can be cancelled.
+ *
+ * This function creates a timeout that resolves after the specified number of milliseconds.
+ * If cancelled, the promise will be rejected
+ * with the cancellation reason
+ * after the grace period
+ * (or immediately if already cancelled).
+ *
+ * @param {number} ms - The number of milliseconds to delay before resolving.
+ * @param {Promise<never>} cancelled - A promise that resolves/rejects when cancelled.
+ * @returns {Promise<void>} A promise that resolves after the delay or rejects if cancelled.
+ *
+ * @example
+ * ```js
+ * const cancelled = makePromiseKit();
+ * await delay(5000, cancelled.promise);
+ * ```
  */
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -126,11 +141,22 @@ const makeFarContext = context =>
   });
 
 /**
+ * Derives a unique ID by digesting the path with the root nonce.
  *
- * @param {string} path
- * @param {string} rootNonce
- * @param {Sha256} digester
- * @returns {string}
+ * This function creates a deterministic ID from a path and root nonce using
+ * the provided digester.
+ * The root nonce is first added to the digester, followed by the path.
+ *
+ * @param {string} path - The path to derive the ID from.
+ * @param {string} rootNonce - The root nonce to use as a base for derivation.
+ * @param {Sha256} digester - A SHA256 digester instance
+ * @returns {string} The hex digest ID derived from the path and root nonce.
+ *
+ * @example
+ * ```js
+ * const digester = makeSha256();
+ * const id = deriveId('/my/path', 'root-123', digester);
+ * ```
  */
 const deriveId = (path, rootNonce, digester) => {
   digester.updateText(rootNonce);
@@ -151,13 +177,34 @@ const MESSAGE_PROMISE_NAME = 'PROMISE';
 const MESSAGE_RESOLVER_NAME = 'RESOLVER';
 
 /**
- * @param {string} name
+ * Checks if a string is a valid message number.
+ *
+ * Message numbers are non-negative integers without leading zeros.
+ *
+ * @param {string} name - The string to check.
+ * @returns {boolean} True if the string is a valid message number.
+ *
+ * @example
+ * ```js
+ * console.log(isMessageNumberName('0'));    // true
+ * console.log(isMessageNumberName('5'));    // true
+ * console.log(isMessageNumberName('10'));   // true
+ * console.log(isMessageNumberName('01'));   // false
+ * console.log(isMessageNumberName('-1'));   // false
+ * ```
  */
 const isMessageNumberName = name => messageNumberNamePattern.test(name);
 
 /**
- * @param {string} left
- * @param {string} right
+ * Compares two message names for ordering.
+ *
+ * This function compares message names as numeric values.
+ * It returns -1 if the first name is less than the second, 1 if greater, and 0 if equal.
+ * The comparison uses BigInt to handle potentially large message numbers.
+ *
+ * @param {string} left - The first message name to compare.
+ * @param {string} right - The second message name to compare.
+ * @returns {number} -1 if left < right, 1 if left > right, or 0 if equal.
  */
 const compareMessageNames = (left, right) => {
   if (left === right) {
@@ -183,15 +230,41 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  */
 
 /**
- * @param {DaemonicPowers} powers
- * @param {string} rootEntropy
+ * Creates the core daemon infrastructure with formula graph management.
+ *
+ * This function sets up the fundamental components of an Endo daemon, including:
+ * - Formula graph serialization and persistence
+ * - Worker termination management
+ * - Built-in formula references (ENDO, NONE, MAIN)
+ * - Special formula support for user-defined entities
+ * - Inspectors for accessing formula graph contents
+ *
+ * The daemon maintains a persistent formula graph that is loaded from storage on startup.
+ * All formula mutations (formulation, removal, provision, cancellation) are
+ * serialized to prevent concurrent modifications.
+ *
+ * @param {DaemonicPowers} powers - The daemon powers including crypto,
+ * petStore, persistence, and control capabilities.
+ * @param {FormulaNumber} rootEntropy - A root entropy value used for deriving
+ * formula IDs for this daemon instance.
  * @param {object} args
- * @param {(error: Error) => void} args.cancel
- * @param {number} args.gracePeriodMs
- * @param {Specials} args.specials
- * @param {Promise<never>} args.gracePeriodElapsed
- * @param {NodeNumber} args.localNodeNumber
- * @param {boolean} [args.gcEnabled]
+ * @param {(error: Error) => void} args.cancel - Function to call when daemon needs to cancel.
+ * @param {number} args.gracePeriodMs - Grace period in milliseconds for worker shutdown.
+ * @param {Specials} args.specials - Map of special names to formula generators.
+ * @param {Promise<never>} args.gracePeriodElapsed - A promise that resolves/cancels when the grace period expires.
+ * @param {NodeNumber} args.localNodeNumber - The local node number for this daemon.
+ * @param {boolean} [args.gcEnabled=true] - Enable garbage collection of worker daemons.
+ *
+ * @example
+ * ```js
+ * const core = await makeDaemonCore(powers, 'entropy-abc123', {
+ *   cancel: onError,
+ *   gracePeriodMs: 5000,
+ *   gracePeriodElapsed: onCancelled,
+ *   specials: mySpecials,
+ *   localNodeNumber: 'node-123'
+ * });
+ * ```
  */
 const makeDaemonCore = async (
   powers,
@@ -3800,14 +3873,38 @@ const makeDaemonCore = async (
 };
 
 /**
- * @param {DaemonicPowers} powers
+ * Creates and bootstraps the Endo daemon by loading or creating formulas.
+ *
+ * This function provides the main entry point for creating an Endo daemon. It:
+ * 1. Loads the root nonce and keypair from persistence (or generates new ones)
+ * 2. Creates or recreates the daemon core with appropriate formulas
+ * 3. If the daemon was newly created, formulates the Endo bootstrap formula
+ * 4. Returns the endo bootstrap interface and CapTP connection registrar
+ *
+ * For existing daemons, the formula graph is loaded from persistence and the
+ * Endo bootstrap is provided.
+ * For new daemons, the bootstrap formula is formulated and returned.
+ *
+ * @param {DaemonicPowers} powers - The daemon powers for crypto and persistence.
  * @param {object} args
- * @param {(error: Error) => void} args.cancel
- * @param {number} args.gracePeriodMs
- * @param {Promise<never>} args.gracePeriodElapsed
- * @param {Specials} args.specials
- * @param {boolean} [args.gcEnabled]
+ * @param {(error: Error) => void} args.cancel - Callback for cancellation.
+ * @param {number} args.gracePeriodMs - Grace period in milliseconds for shutdown.
+ * @param {Promise<never>} args.gracePeriodElapsed - Promise that resolves on grace period end.
+ * @param {Specials} args.specials - Special formula generators.
+ * @param {boolean} [args.gcEnabled=true] - Enable garbage collection.
  * @returns {Promise<{ endoBootstrap: FarRef<EndoBootstrap>, capTpConnectionRegistrar: CapTpConnectionRegistrar }>}
+ *         An object containing the endo bootstrap and CapTP connection registrar.
+ *
+ * @example
+ * ```js
+ * const { endoBootstrap, capTpConnectionRegistrar } =
+ *   await provideEndoBootstrap(powers, {
+ *     cancel: handleCancel,
+ *     gracePeriodMs: 3000,
+ *     gracePeriodElapsed: onCancelled,
+ *     specials: myFormulas
+ *   });
+ * ```
  */
 const provideEndoBootstrap = async (
   powers,
@@ -3847,11 +3944,35 @@ const provideEndoBootstrap = async (
 };
 
 /**
- * @param {DaemonicPowers} powers
- * @param {string} daemonLabel
- * @param {(error: Error) => void} cancel
- * @param {Promise<never>} cancelled
- * @param {Specials & { gcEnabled?: boolean }} [specials]
+ * Creates and initializes an Endo daemon instance.
+ *
+ * This is the main exported function for creating an Endo daemon:
+ * 1. Sets up a grace period for graceful shutdown
+ * 2. Provides the endo bootstrap with CapTP connection registration
+ * 3. Revives networks and pins from the endo bootstrap
+ * 4. Returns a daemon object with the endo bootstrap, cancellation callback,
+ *    and CapTP connection registrar
+ *
+ * The daemon runs in the background and serves as the central point of
+ * coordination for formulas, workers, and persistent state.
+ *
+ * @param {DaemonicPowers} powers - The daemon powers including crypto, persistence, and control.
+ * @param {string} daemonLabel - A label for the daemon instance (used for logging).
+ * @param {(error: Error) => void} cancel - Callback to call when daemon needs to cancel.
+ * @param {Promise<never>} cancelled - A promise that rejects when cancelled.
+ * @param {Specials & { gcEnabled?: boolean }} [specials] - Special formula generators and optional GC settings.
+ * @param {boolean} [specials.gcEnabled=true] - Enable garbage collection of worker daemons.
+ *
+ * @example
+ * ```js
+ * const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
+ *   await makeDaemon(powers, 'my-daemon', handleError, cancelledPromise, {
+ *     // your special formulas here
+ *   });
+ *
+ * // Later, to cancel:
+ * await cancelGracePeriod(new Error('Daemon shutdown'));
+ * ```
  */
 export const makeDaemon = async (
   powers,
