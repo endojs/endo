@@ -59,10 +59,7 @@ const defaultConfig = {
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
 };
-
-const endoDaemonPath =
-  process.env.ENDO_DAEMON_PATH ||
-  url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+/** @typedef {typeof defaultConfig} Config */
 
 export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
@@ -76,10 +73,10 @@ export const terminate = async (config = defaultConfig) => {
   const bootstrap = getBootstrap();
   await E(bootstrap)
     .terminate()
-    .catch(() => {});
+    .catch(() => { });
   // @ts-expect-error zero-argument promise resolve
   cancel();
-  await closed.catch(() => {});
+  await closed.catch(() => { });
 };
 
 /**
@@ -193,26 +190,30 @@ const startEngo = async (config, envOverrides) => {
 };
 
 /**
- * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string>, gcEnabled?: boolean, feralErrors?: boolean }} [options]
+ * @param {Config} [config]
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] - overrides for process.env
+ * @param {boolean} [options.feralErrors] - enable to turn off lockdown error stack trace sanitization
+ * @param {boolean} [options.gcEnabled] - enable GC of TODO what exactly?
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides, gcEnabled, feralErrors } = {},
+  {
+    env: envOverrides,
+    feralErrors,
+    gcEnabled,
+  } = {},
 ) => {
-  /** @type {Record<string, string>} */
-  const gcEnv = gcEnabled === false ? { ENDO_GC: '0' } : {};
-  /** @type {Record<string, string>} */
-  const feralErrorsEnv = feralErrors
-    ? { LOCKDOWN_ERROR_TAMING: 'unsafe' }
-    : {};
+  if (feralErrors) {
+    envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';
+  }
+  if (gcEnabled === true) {
+    envOverrides.ENDO_GC = '1';
+  }
+
   await clean(config);
   if (process.env.ENDO_BIN) {
-    return startEngo(config, {
-      ...gcEnv,
-      ...feralErrorsEnv,
-      ...envOverrides,
-    });
+    return startEngo(config, envOverrides);
   }
 
   await fs.promises.mkdir(config.statePath, {
@@ -221,22 +222,21 @@ export const start = async (
   const logPath = path.join(config.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
-  const env = { ...process.env, ...gcEnv, ...feralErrorsEnv, ...envOverrides };
+  const daemonPath =
+    process.env.ENDO_DAEMON_PATH ||
+    url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+  const daemonArgs = [
+    config.sockPath,
+    config.statePath,
+    config.ephemeralStatePath,
+    config.cachePath,
+  ];
 
-  const child = popen.fork(
-    endoDaemonPath,
-    [
-      config.sockPath,
-      config.statePath,
-      config.ephemeralStatePath,
-      config.cachePath,
-    ],
-    {
-      detached: true,
-      env,
-      stdio: ['ignore', output, output, 'ipc'],
-    },
-  );
+  const child = popen.fork(daemonPath, daemonArgs, {
+    detached: true,
+    env: { ...process.env, ...envOverrides },
+    stdio: ['ignore', output, output, 'ipc'],
+  });
 
   return new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
@@ -412,7 +412,7 @@ export const clean = async (config = defaultConfig) => {
 };
 
 export const stop = async (config = defaultConfig) => {
-  await terminate(config).catch(() => {});
+  await terminate(config).catch(() => { });
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
   await clean(config);
@@ -428,6 +428,7 @@ export const restart = async (config = defaultConfig, options = {}) => {
 };
 
 export const purge = async (config = defaultConfig) => {
+  await terminate(config).catch(() => { });
   await terminate(config).catch(() => {});
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
