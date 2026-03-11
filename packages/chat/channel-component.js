@@ -294,6 +294,22 @@ export const channelComponent = async (
   };
 
   /**
+   * Walk up the replyTo chain from a message key and return the root
+   * (the first ancestor with no replyTo).
+   * @param {string} key
+   * @returns {string}
+   */
+  const findThreadRoot = key => {
+    let current = key;
+    while (current) {
+      const data = messageIndex.get(current);
+      if (!data || !data.message.replyTo) return current;
+      current = data.message.replyTo;
+    }
+    return key;
+  };
+
+  /**
    * Update or create the reply-count badge on a parent message element.
    * Clicking the badge opens the thread drill-down view.
    * @param {string} parentKey - String(parentMessage.number)
@@ -360,15 +376,10 @@ export const channelComponent = async (
         $replyBar.appendChild($preview);
 
         $replyBar.addEventListener('click', () => {
-          parentData.$element.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          parentData.$element.classList.add('reply-highlight');
-          setTimeout(
-            () => parentData.$element.classList.remove('reply-highlight'),
-            2000,
-          );
+          const rootKey = findThreadRoot(message.replyTo);
+          threadStack.length = 0;
+          threadStack.push(rootKey);
+          showThreadView(rootKey); // eslint-disable-line no-use-before-define
         });
       } else {
         $replyBar.textContent = `\u21A9 Message #${message.replyTo}`;

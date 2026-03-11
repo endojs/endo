@@ -105,6 +105,17 @@ export const sendFormComponent = ({
   $replyContextBar.style.display = 'none';
   $chatBar.insertBefore($replyContextBar, $chatBar.firstChild);
 
+  // Keep #messages bottom in sync with #chat-bar's actual height so the
+  // reply context bar (and any other dynamic chat-bar content) never
+  // overlaps the scrollable message area.
+  const $messages = document.getElementById('messages');
+  if ($messages && typeof ResizeObserver !== 'undefined') {
+    const chatBarObserver = new ResizeObserver(() => {
+      $messages.style.bottom = `${$chatBar.offsetHeight}px`;
+    });
+    chatBarObserver.observe($chatBar);
+  }
+
   /**
    * Render the reply context bar UI.
    */

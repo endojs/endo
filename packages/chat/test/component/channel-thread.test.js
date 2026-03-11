@@ -498,6 +498,45 @@ test.serial('onThreadClose fires when Channel breadcrumb closes thread', async t
   t.is(threadCloseCallbacks.length, 1, 'onThreadClose should fire on breadcrumb click');
 });
 
+// ---- Reply indicator opens full thread from root ----
+
+test.serial(
+  'clicking reply indicator opens thread rooted at the topmost ancestor',
+  async t => {
+    const { $parent, push } = await setup();
+
+    // Build a chain: 1 → 2 → 3 (message 3 replies to 2, which replies to 1)
+    await push(makeMessage(1, 'Root'));
+    await push(makeMessage(2, 'Reply to root', { replyTo: 1 }));
+    await push(makeMessage(3, 'Reply to reply', { replyTo: 2 }));
+
+    // Click the reply indicator on message 3 (which shows "↩ Reply to root" / message 2)
+    const indicators = $parent.querySelectorAll('.reply-indicator');
+    // Message 2 has a reply indicator (replying to 1) and message 3 has one (replying to 2)
+    t.is(indicators.length, 2, 'should have two reply indicators');
+    // Click the indicator on message 3 (the deepest one)
+    indicators[1].click();
+    await tick(100);
+
+    t.true(
+      $parent.classList.contains('thread-active'),
+      'thread view should open',
+    );
+
+    // The thread should be rooted at message 1 (the topmost ancestor),
+    // showing all three messages in the chain.
+    const threadMsgs = $parent.querySelectorAll('.thread-message');
+    t.is(threadMsgs.length, 3, 'thread should contain entire chain from root');
+    t.true(threadMsgs[0].classList.contains('depth-0'), 'root at depth 0');
+    t.true(threadMsgs[1].classList.contains('depth-1'), 'first reply at depth 1');
+    t.true(threadMsgs[2].classList.contains('depth-2'), 'second reply at depth 2');
+
+    // Breadcrumb should reference the root message
+    const crumbs = $parent.querySelectorAll('.thread-crumb');
+    t.is(crumbs[1].textContent, 'Thread #1');
+  },
+);
+
 // ---- Conversation-back integration: thread → channel → new thread ----
 
 test.serial(
