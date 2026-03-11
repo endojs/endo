@@ -1,8 +1,40 @@
 # @endo/fae
 
-An LLM agent for Endo with dynamic tool capabilities. Fae runs as an
-autonomous guest caplet inside the Endo daemon, where it processes messages
-and adopts tool capabilities at runtime.
+An LLM agent manager for Endo. Fae runs as a factory caplet inside the
+Endo daemon, creating named agent instances that process inbox messages
+via an LLM and adopt tool capabilities at runtime.
+
+## Architecture
+
+Fae uses a three-layer architecture:
+
+1. **LLM Provider Factory** (`llm-provider-factory.js`) — presents a
+   form to HOST for configuring LLM providers (API host, model, auth
+   token). Stores submitted configs as named values in the host's
+   directory.
+
+2. **Fae Factory** (`agent.js` — `make()`) — bound to a named LLM
+   provider. Creates agent instances on demand via `createAgent(name,
+   options)`. Each agent gets its own guest (inbox, petstore, tools)
+   and a driver caplet.
+
+3. **Driver** (`driver.js`) — a standalone caplet per agent that runs
+   the inbox/LLM loop (`spawnWorkerLoop`). The driver is constructed
+   with two capability references:
+   - `llm-provider` — the provider config object
+   - `agent` — the agent's EndoGuest (inbox, mail, petstore, tools)
+
+   When pinned to `PINS`, the driver is eagerly re-evaluated on daemon
+   restart via `revivePins()`, automatically restarting the inbox loop.
+
+### Restart survival
+
+Agents created with `pin: true` survive `endo restart`. The driver
+caplet's formula ID is written to the daemon's `PINS` directory. On
+startup, `revivePins()` calls `provide()` on each pinned formula,
+which re-imports `driver.js`, calls `make()`, looks up the provider
+config and agent guest from the driver's namespace, and restarts
+`spawnWorkerLoop`. Unpinned agents are not restored.
 
 ## Configuration
 
@@ -21,10 +53,7 @@ cp .env.example .env
 # Edit .env with your provider details
 ```
 
-## Caplet Mode (Chat Demo Integration)
-
-Fae can run as a guest caplet inside the Endo daemon, processing messages
-autonomously. This is the mode used with the `@endo/chat` UI.
+## Setup
 
 ### Prerequisites
 
@@ -35,69 +64,92 @@ cd ../..
 npx corepack yarn install
 ```
 
-### Full Demo Walkthrough
-
-#### 1. Purge and start the daemon
-
-Start fresh by purging all daemon state:
+Start the daemon:
 
 ```bash
 yarn endo purge -f
 yarn endo start
 ```
 
-#### 2. Start the chat UI
+### Step 1: Provision the LLM provider factory
 
-In a separate terminal, start the chat application:
-
-```bash
-cd packages/chat
-yarn dev
-```
-
-The UI will be available at http://localhost:5173.
-
-#### 3. Source your LLM config
-
-Back in the fae package directory:
+Creates the `llm-provider-factory` guest and launches its caplet.
+The factory presents a form to HOST for submitting provider configs.
 
 ```bash
 cd packages/fae
-source .env
-```
-
-#### 4a. Provision fae WITHOUT tools
-
-Creates a fae agent with only built-in mail and directory tools:
-
-```bash
 yarn setup
 ```
 
-#### 4b. Provision fae WITH pre-installed tools
+### Step 2: Submit your LLM provider config
 
-Creates example tools (greet, math, timestamp) and provisions fae with
-them already in its inventory:
+Sources `.env` and submits the provider configuration (host, model,
+auth token) via the factory's form:
+
+```bash
+yarn create-provider
+```
+
+### Step 3: Create the fae factory and default agent
+
+Creates the fae-factory guest bound to the provider, then spawns a
+default `"fae"` agent with `pin: true` so it survives restarts:
+
+```bash
+yarn setup-factory
+```
+
+After this step you have a running `fae` agent listening to its inbox.
+
+### All-in-one alternative
+
+`setup-with-tools` combines the above steps and also creates example
+tools (greet, math, timestamp) in the host's inventory:
 
 ```bash
 yarn setup-with-tools
 ```
 
-#### 5. Create tools independently (optional)
+## Creating additional agents
 
-Create tool caplets in the host's inventory without provisioning fae.
-Useful for demonstrating capability passing:
+Use the factory to create more agents programmatically:
+
+```js
+const factory = await E(host).lookup('fae-factory');
+
+// Pinned agent — survives endo restart
+await E(factory).createAgent('researcher', { pin: true });
+
+// Unpinned agent — ephemeral, dies on restart
+await E(factory).createAgent('scratchpad', { pin: false });
+
+// Custom system prompt
+await E(factory).createAgent('poet', {
+  pin: true,
+  systemPrompt: 'You are a poet. Respond only in verse.',
+});
+```
+
+## Tools
+
+### Built-in tools
+
+Every agent has these tools available immediately:
+
+- `list`, `lookup`, `store`, `remove` — petname directory operations
+- `send`, `reply`, `listMessages`, `dismiss` — mail operations
+- `adoptTool` — adopt a tool capability from an incoming message
+
+### Creating tool caplets
+
+Create example tools (greet, math, timestamp) in the host's inventory:
 
 ```bash
 yarn setup-tools
 ```
 
-This creates `greet-tool`, `math-tool`, and `timestamp-tool` in the
-host's petname directory.
-
-**Create filesystem tools** (read-file, write-file, edit-file, list-dir,
-run-command). The root directory for all operations is fixed at creation
-time, defaulting to the current directory. Override with `FAE_CWD`:
+Create filesystem tools (read-file, write-file, edit-file, list-dir,
+run-command). The root directory defaults to `process.cwd()`:
 
 ```bash
 yarn setup-fs-tools
@@ -105,38 +157,27 @@ yarn setup-fs-tools
 FAE_CWD=/path/to/project yarn setup-fs-tools
 ```
 
-You can verify created tools with:
+Send a tool to an agent via the chat UI:
 
-```bash
-yarn endo list
 ```
-
-#### 6. Interact via the chat UI
-
-Open http://localhost:5173 in your browser. You should see fae's
-"Fae agent ready." announcement in the inbox.
-
-**Send a message to fae:**
-
-Type in the chat input: `@fae Hello, what can you do?`
-
-**Send a tool to fae:**
-
-If you created tools independently (step 5), send one to fae via chat:
-
-`@fae Here is a timestamp tool @timestamp-tool`
+@fae Here is a timestamp tool @timestamp-tool
+```
 
 Fae will adopt the tool and can use it on subsequent turns.
 
-**Ask fae to use a tool:**
+## Chat UI integration
 
-`@fae What time is it?`
+Start the `@endo/chat` UI in a separate terminal:
 
-Fae will discover the timestamp tool and call it to answer.
+```bash
+cd packages/chat
+yarn dev
+```
 
-### Verifying State
+Open http://localhost:5173. You should see fae's "Fae agent ready."
+announcement in the inbox. Send messages with `@fae Hello!`.
 
-Use the Endo CLI to inspect what's happening:
+### Verifying state
 
 ```bash
 # List all petnames in the host directory
@@ -149,9 +190,7 @@ yarn endo inbox --as fae
 yarn endo list --as fae
 ```
 
-### Starting Over
-
-To reset all state and start fresh:
+### Starting over
 
 ```bash
 yarn endo purge -f
@@ -160,38 +199,24 @@ yarn endo start
 
 Then re-run the setup steps above.
 
-## Architecture
-
-### Caplet mode (`agent.js`)
-
-Autonomous guest agent running inside the daemon. No filesystem access.
-Tools are limited to petname operations (`list`, `lookup`, `store`,
-`remove`), mail operations (`send`, `listMessages`, `dismiss`), and
-`adoptTool` for runtime tool adoption. Additional capabilities come from tool caplets sent via messages.
-Filesystem tools (read-file, write-file, edit-file, list-dir,
-run-command) can be created with `yarn setup-fs-tools`; each tool's
-root directory is set at creation time via `FAE_CWD` (default:
-`process.cwd()`).
-
-### Tool caplets (`tools/*.js`)
-
-Unsandboxed modules that produce FaeTool exo objects conforming to the
-`FaeTool` interface (`schema()`, `execute(args)`, `help()`). Each is
-created via `yarn endo run --UNCONFINED` and can live in any agent's inventory.
-
-## File Structure
+## File structure
 
 ```
 packages/fae/
-├── agent.js                  # Caplet entry point (make function)
-├── setup.js                  # Provision fae (no tools)
+├── agent.js                  # Factory entry point + spawnWorkerLoop
+├── driver.js                 # Driver caplet (inbox loop, pinnable)
+├── setup.js                  # Step 1: provision LLM provider factory
+├── llm-provider-factory.js   # Provider factory caplet (form → config)
+├── submit-provider.js        # Submit provider form programmatically
+├── provider-setup.sh         # Step 2: source .env and submit provider
+├── fae-factory-setup.js      # Step 3: create fae-factory + default agent
 ├── setup-tools.js            # Create example tools in host inventory
-├── setup-fs-tools.js         # Create filesystem tools (FAE_CWD at creation time)
-├── setup-with-tools.js       # Provision fae with pre-installed tools
+├── setup-fs-tools.js         # Create filesystem tools (FAE_CWD)
+├── setup-with-tools.js       # All-in-one: provider + factory + tools
 ├── src/
-│   ├── extract-tool-calls.js # Shared XML tool call parser
+│   ├── extract-tool-calls.js # XML tool call parser
 │   ├── fae-tool-interface.js # FaeTool M.interface guard
-│   ├── tool-makers.js        # Tool factory functions
+│   ├── tool-makers.js        # Built-in tool factory functions
 │   └── tools.js              # Tool discovery and execution
 └── tools/
     ├── greet.js              # Example: greeting generator

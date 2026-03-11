@@ -102,6 +102,8 @@ export const makeHostMaker = ({
   collectIfDirty = async () => {},
   pinTransient = /** @param {any} _id */ _id => {},
   unpinTransient = /** @param {any} _id */ _id => {},
+  getFormulaGraphSnapshot = /** @param {any[]} _ids */ async _ids =>
+    harden({ nodes: [], edges: [] }),
 }) => {
   /**
    * @param {FormulaIdentifier} hostId
@@ -1061,6 +1063,27 @@ export const makeHostMaker = ({
       );
     };
 
+    /**
+     * Returns a snapshot of the formula dependency graph for all formulas
+     * reachable from this agent's pet store entries.
+     */
+    const getFormulaGraph = async () => {
+      const names = await list();
+      /** @type {import('./types.js').FormulaIdentifier[]} */
+      const seedIds = [];
+      await Promise.all(
+        names.map(async name => {
+          const id = await identify(name);
+          if (id !== undefined) {
+            seedIds.push(
+              /** @type {import('./types.js').FormulaIdentifier} */ (id),
+            );
+          }
+        }),
+      );
+      return getFormulaGraphSnapshot(seedIds);
+    };
+
     /** @type {EndoHost} */
     const host = {
       // Directory
@@ -1121,6 +1144,8 @@ export const makeHostMaker = ({
       endow,
       submit,
       sendValue,
+      // Graph
+      getFormulaGraph,
     };
 
     /** @param {Function} fn */

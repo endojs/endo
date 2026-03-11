@@ -17,7 +17,6 @@
  */
 
 import path from 'path';
-import { fileURLToPath } from 'url';
 // @ts-ignore Electron is not typed in this project
 import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
 
@@ -40,7 +39,7 @@ import {
   verifyExfiltrationDefenses,
 } from './src/exfiltration-defense.js';
 
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = app.getAppPath();
 const isDevMode = process.argv.includes('--dev');
 
 // --- Pre-ready setup ---
@@ -128,7 +127,7 @@ const createWindow = () => {
     width,
     height,
     webPreferences: {
-      preload: path.join(dirname, 'preload.js'),
+      preload: path.join(appRoot, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },

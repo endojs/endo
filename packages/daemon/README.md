@@ -13,6 +13,21 @@ envelopes.
 The bootstrap provides the user agent API from which one can derive facets for
 other agents.
 
+## Debugging
+
+The daemon has structured logging and environment variable flags for
+debugging formula lifecycle, CapTP messages, dependency graphs, and more.
+See [DEBUGGING.md](./DEBUGGING.md) for the full guide.
+
+Quick reference:
+
+```sh
+ENDO_GC=0 endo start           # disable formula garbage collection
+ENDO_CAPTP_TRACE=1 endo start  # trace CapTP messages
+ENDO_FORMULA_GRAPH=1 endo start # dump dependency graph at startup
+endo log --all -f               # follow daemon + worker logs
+```
+
 ## Gateway
 
 The daemon runs a unified HTTP/WebSocket gateway server.
@@ -34,11 +49,11 @@ LAN), you must both **bind to a reachable interface** via `ENDO_ADDR` and
 
 #### Allow all remote connections
 
-Set `ENDO_GATEWAY_ALLOW_REMOTE=1` to disable the client-IP check entirely.
+Set `ENDO_GATEWAY=remote` to disable the client-IP check entirely.
 Every address that can reach the gateway port will be allowed through.
 
 ```sh
-ENDO_ADDR=0.0.0.0:8920 ENDO_GATEWAY_ALLOW_REMOTE=1 endo start
+ENDO_ADDR=0.0.0.0:8920 ENDO_GATEWAY=remote endo start
 ```
 
 #### Allow specific IP ranges (CIDR allowlist)

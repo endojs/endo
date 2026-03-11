@@ -27,36 +27,32 @@ import { E } from '@endo/eventual-send';
  * @returns {Promise<DiscoveredTools>}
  */
 export const discoverTools = async (host, localTools) => {
-  /** @type {Map<string, FaeTool | object>} */
-  const toolMap = new Map(localTools);
   /** @type {ToolSchema[]} */
   const schemas = [];
-
-  for (const [, tool] of localTools) {
+  for (const tool of localTools.values()) {
     schemas.push(tool.schema());
   }
 
-  try {
-    const names = /** @type {string[]} */ (await E(host).list('tools'));
-    for (const name of names) {
+  /** @type {Map<string, FaeTool | object>} */
+  const toolMap = new Map(localTools);
+
+  const maybeToolNames = await E(host).list('tools');
+  const names = (Array.isArray(maybeToolNames) ? maybeToolNames : []).filter(/** @returns {x is string} */x => typeof x === 'string');
+  await Promise.allSettled(names
+    .filter(name => !toolMap.has(name))
+    .map(async name => {
       try {
         const tool = await E(host).lookup(['tools', name]);
-        const toolSchema = /** @type {ToolSchema} */ (await E(tool).schema());
-        if (!toolMap.has(name)) {
-          toolMap.set(name, /** @type {object} */ (tool));
-          schemas.push(toolSchema);
-        }
+        toolMap.set(name, /** @type {object} */(tool));
+
+        const toolSchema = await E(tool).schema();
+        schemas.push(/** @type {ToolSchema} */(toolSchema));
       } catch (/** @type {any} */ err) {
         console.warn(
           `[fae] tools/${name}: not a valid FaeTool: ${err.message || err}`,
         );
       }
-    }
-  } catch (/** @type {any} */ err) {
-    console.warn(
-      `[fae] Could not list tools/ directory: ${err.message || err}`,
-    );
-  }
+    }));
 
   return harden({ schemas, toolMap });
 };

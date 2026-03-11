@@ -146,7 +146,7 @@ test.beforeEach(t => {
 
 test.afterEach.always(async t => {
   delete process.env.ENDO_ADDR;
-  delete process.env.ENDO_GATEWAY_ALLOW_REMOTE;
+  delete process.env.ENDO_GATEWAY;
   delete process.env.ENDO_GATEWAY_ALLOWED_CIDRS;
   await Promise.allSettled(
     /** @type {Array<{cancel: Function, cancelled: Promise<void>, config: ReturnType<typeof makeConfig>}>} */ (
@@ -440,9 +440,9 @@ test.serial('weblet on dedicated port', async t => {
 });
 
 test.serial(
-  'gateway allows connection when ENDO_GATEWAY_ALLOW_REMOTE=1',
+  'gateway allows connection when ENDO_GATEWAY=remote',
   async t => {
-    process.env.ENDO_GATEWAY_ALLOW_REMOTE = '1';
+    process.env.ENDO_GATEWAY = 'remote';
     const { host } = await prepareHost(t);
 
     await E(host).evaluate('MAIN', '99', [], [], ['val']);

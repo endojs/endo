@@ -34,7 +34,7 @@
   "scripts": {
     "build": "exit 0",
     "build:types": "tsc --build tsconfig.build.json",
-    "clean:types": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
+    "clean:types": "git clean -fX -e node_modules/",
     "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",

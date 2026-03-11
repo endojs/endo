@@ -708,7 +708,38 @@ export const main = async rawArgs => {
 
   const where = program
     .command('where')
-    .description('prints paths for state, logs, caches, socket, pids');
+    .option(
+      '-j,--json',
+      'Output as JOSN rather than simple text')
+    .description(
+      'prints paths for state, logs, caches, socket, pids\n' +
+      'specify just one part, or none to get them all')
+    .action(async cmd => {
+      const {
+        json: asJSON = false,
+      } = cmd.opts();
+      const {
+        cachePath,
+        ephemeralStatePath,
+        logPath,
+        sockPath,
+        statePath,
+      } = await import('./config.js');
+      const stuff = {
+        state: statePath,
+        run: ephemeralStatePath,
+        socket: sockPath,
+        log: logPath,
+        cache: cachePath,
+      };
+      if (asJSON) {
+        process.stdout.write(`${JSON.stringify(stuff)}\n`);
+      } else {
+        for (const [key, val] of Object.entries(stuff)) {
+          process.stdout.write(`${key}: ${val}\n`);
+        }
+      }
+    });
 
   where
     .command('state')
@@ -753,9 +784,24 @@ export const main = async rawArgs => {
   program
     .command('start')
     .description('start the endo daemon')
-    .action(async _cmd => {
+    .option(
+      '--feral-errors',
+      'disable SES error taming (readable error traces)',
+    )
+    .option(
+      '-f,--foreground',
+      'Run daemon in foreground, do not fork',
+    )
+    .action(async cmd => {
+      const {
+        feralErrors,
+        foreground = false,
+      } = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start();
+      await start(undefined, {
+        feralErrors,
+        foreground,
+      });
     });
 
   program
@@ -769,9 +815,14 @@ export const main = async rawArgs => {
   program
     .command('restart')
     .description('stop and start the daemon')
-    .action(async _cmd => {
+    .option(
+      '--feral-errors',
+      'disable SES error taming (readable error traces)',
+    )
+    .action(async cmd => {
+      const { feralErrors } = cmd.opts();
       const { restart } = await import('@endo/daemon');
-      await restart();
+      await restart(undefined, { feralErrors });
     });
 
   program

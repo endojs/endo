@@ -35,6 +35,8 @@ if (process.argv.length < 5) {
 const [sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
+const gcEnabled = process.env.ENDO_GC === '1';
+
 /** @type {Config} */
 const config = {
   sockPath,
@@ -141,12 +143,13 @@ const main = async () => {
           ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
           ENDO_WEB_PAGE_BUNDLE_PATH:
             process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
-          ENDO_GATEWAY_ALLOW_REMOTE:
-            process.env.ENDO_GATEWAY_ALLOW_REMOTE || '',
+          ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
           ENDO_GATEWAY_ALLOWED_CIDRS:
             process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
         },
       }),
+    }, {
+      gcEnabled,
     });
 
   /** @param {Error} error */

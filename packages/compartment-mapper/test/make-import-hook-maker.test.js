@@ -1,12 +1,16 @@
 /* eslint-disable no-shadow */
 import './ses-lockdown.js';
 import test from 'ava';
+import fs from 'node:fs';
+import url from 'node:url';
 import { mapNodeModules } from '../src/node-modules.js';
 import { makeProjectFixtureReadPowers } from './project-fixture.js';
 import { defaultParserForLanguage } from '../src/import-parsers.js';
 import { captureFromMap } from '../capture-lite.js';
 import { loadFromMap } from '../import-lite.js';
 import { loadLocation } from '../import.js';
+import { makeReadPowers } from '../src/node-powers.js';
+import { ENTRY_COMPARTMENT } from '../src/policy-format.js';
 
 /**
  * @import {
@@ -153,4 +157,69 @@ test(
     callImport: true,
   },
 );
+
+test('captureFromMap - moduleSourceHook - receives correct parameters w/ implicit dependency', async t => {
+  t.plan(5);
+  const readPowers = makeReadPowers({ fs, url });
+  const moduleLocation = new URL(
+    'fixtures-module-source-hook/node_modules/app-implicit/index.js',
+    import.meta.url,
+  ).href;
+
+  /**
+   * Track hook call arguments for verification
+   * @type {Array<{moduleSource: object, canonicalName: string}>}
+   */
+  const hookCallArgs = [];
+
+  /** @type {ModuleSourceHook} */
+  const moduleSourceHook = ({ moduleSource, canonicalName }) => {
+    hookCallArgs.push({ moduleSource, canonicalName });
+  };
+
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
+  t.falsy(
+    compartmentMap.compartments[compartmentMap.entry.compartment].modules[
+      'dependency-a>dependency-b'
+    ],
+    'app-implicit should not have a module reference to dependency-b',
+  );
+  t.truthy(
+    Object.values(compartmentMap.compartments).find(
+      compartment => compartment.label === 'dependency-a>dependency-b',
+    ),
+    'dependency-b should be in the compartment map',
+  );
+
+  await captureFromMap(readPowers, compartmentMap, {
+    moduleSourceHook,
+    parserForLanguage: defaultParserForLanguage,
+    importHook: async (_moduleSpecifier, _compartmentName) => {
+      return {
+        imports: [],
+        exports: [],
+        execute() {},
+      };
+    },
+  });
+
+  t.is(
+    hookCallArgs.length,
+    2,
+    'moduleSource hook should have been called twice',
+  );
+  t.like(
+    hookCallArgs[0],
+    { canonicalName: ENTRY_COMPARTMENT },
+    'entry compartment should be the first hook call',
+  );
+  t.deepEqual(
+    hookCallArgs[1],
+    {
+      canonicalName: ENTRY_COMPARTMENT,
+      moduleSource: { exit: 'dependency-b' },
+    },
+    'dependency-b should be the second hook call',
+  );
+});
 // #endregion

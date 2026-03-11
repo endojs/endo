@@ -17,14 +17,17 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
+    "postpack": "git clean -fX -e node_modules/"
   },
   "dependencies": {
     "@eslint-community/eslint-utils": "^4.7.0",
+    "@typescript-eslint/eslint-plugin": "8.39.1",
+    "@typescript-eslint/parser": "8.39.1",
+    "@typescript-eslint/utils": "8.39.1",
     "requireindex": "~1.2.0",
     "tsutils": "~3.21.0",
     "typescript": "~5.9.2",
-    "typescript-eslint": "^8.39.1"
+    "typescript-eslint": "8.39.1"
   },
   "devDependencies": {
     "@types/mocha": "^10",

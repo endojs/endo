@@ -364,6 +364,8 @@ export const HostInterface = M.interface('EndoHost', {
     MessageNumberShape, // messageNumber
     NameOrPathShape, // petNameOrPath
   ).returns(M.promise()),
+  // Get formula dependency graph snapshot for this agent's pet store
+  getFormulaGraph: M.call().returns(M.promise()),
 });
 
 export const ChannelInterface = M.interface('EndoChannel', {

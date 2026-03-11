@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "private": true,
   "description": "Endo daemon",
   "keywords": [
@@ -33,15 +33,16 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "postpack": "git clean -fX -e node_modules/",
     "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "test": "ava",
-    "test:clean": "rm -rf tmp && yarn test"
+    "test:clean": "rm -rf tmp && yarn test",
+    "test:engo": "ENDO_BIN=../../go/engo/engo ava"
   },
   "dependencies": {
     "@chainsafe/libp2p-noise": "^16.1.3",
@@ -81,6 +82,7 @@
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@types/ws": "^8.18.1",
     "ava": "catalog:dev",

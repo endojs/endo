@@ -1,8 +1,4 @@
 {
-    "extends": [
-        "../../typedoc.base.json"
-    ],
-    "entryPoints": [
-        "src/no-shim.js"
-    ]
+  "extends": ["../../typedoc.base.json"],
+  "entryPoints": ["src/no-shim.js"]
 }
