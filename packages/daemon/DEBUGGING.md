@@ -54,9 +54,52 @@ Worker logs live at `<state>/worker/<hash>/worker.log`.
 | `ENDO_FORMULA_GRAPH` | Dump the full formula dependency graph after loading from persistence at startup. |
 | `ENDO_GC=0` | Disable formula garbage collection for a daemon run. |
 
+### Feral errors (readable error traces)
+
+SES lockdown redacts error `.message` and `.stack` for security
+(`errorTaming: 'safe'`). This is why CapTP exceptions appear as
+`{}` — the error properties are hidden.
+
+Use `--feral-errors` to disable error taming for the daemon and
+all its workers:
+
+```sh
+endo start --feral-errors
+endo restart --feral-errors
+```
+
+This sets `LOCKDOWN_ERROR_TAMING=unsafe` in the daemon's environment.
+It is appropriate for development and debugging but not recommended
+for production use with untrusted code, since error messages can be
+used as a covert channel.
+
+The same effect can be achieved via the environment variable directly:
+
+```sh
+LOCKDOWN_ERROR_TAMING=unsafe endo start
+```
+
+### Other SES lockdown options
+
+Additional `LOCKDOWN_*` environment variables can be set manually.
+Workers inherit the daemon's environment, so these apply everywhere.
+
+| Variable | Values | Effect |
+|---|---|---|
+| `LOCKDOWN_ERROR_TAMING` | `safe` (default), `unsafe`, `unsafe-debug` | Preserve error `.message` and `.stack` instead of redacting them |
+| `LOCKDOWN_CONSOLE_TAMING` | `safe` (default), `unsafe` | Use original `console` instead of SES wrapper |
+| `LOCKDOWN_STACK_FILTERING` | `concise` (default), `verbose` | Show full stack traces instead of filtered |
+
 ### Examples
 
 ```sh
+# Readable error messages (fixes CapTP exception: {})
+endo start --feral-errors
+
+# Readable errors + CapTP tracing
+endo start --feral-errors
+ENDO_CAPTP_TRACE=1 endo restart --feral-errors
+
 # Trace CapTP messages to see what's being sent between daemon and workers
 ENDO_CAPTP_TRACE=1 endo start
 
@@ -70,7 +113,7 @@ ENDO_GC=0 endo start
 ENDO_LIFECYCLE_LOG=0 endo start
 
 # Combine multiple flags
-ENDO_CAPTP_TRACE=1 ENDO_FORMULA_GRAPH=1 endo start
+LOCKDOWN_ERROR_TAMING=unsafe ENDO_CAPTP_TRACE=1 ENDO_FORMULA_GRAPH=1 endo start
 ```
 
 ## Formula Lifecycle Log
@@ -175,8 +218,14 @@ CapTP exceptions are logged with the raw error message and stack trace:
 CapTP Worker abc123 exception: <message> <stack>
 ```
 
-This replaces the default `CapTP Endo exception: {}` with actionable
-information even when the error doesn't marshal cleanly.
+**If you see `CapTP ... exception: {}`**, the error properties are
+being redacted by SES lockdown. Restart with `--feral-errors`:
+
+```sh
+endo restart --feral-errors
+```
+
+See [Feral errors](#feral-errors-readable-error-traces) above.
 
 ## Formula Graph Dump
 
@@ -219,9 +268,10 @@ Formula graph after persistence seed:
 
 ### "Why is CapTP exception empty ({})?
 
-The daemon logs the raw error with message and stack before marshalling.
-Look for `CapTP <name> exception:` lines in the log — these show the
-actual error even when the marshalled form is opaque.
+SES lockdown redacts error properties by default. Restart with
+`endo restart --feral-errors` to get readable error messages.
+Look for `CapTP <name> exception:` lines in the log — with feral
+errors enabled, these show the actual message and stack.
 
 ### "Which dependency died first after restart?"
 

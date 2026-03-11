@@ -753,9 +753,14 @@ export const main = async rawArgs => {
   program
     .command('start')
     .description('start the endo daemon')
-    .action(async _cmd => {
+    .option(
+      '--feral-errors',
+      'disable SES error taming (readable error traces)',
+    )
+    .action(async cmd => {
+      const { feralErrors } = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start();
+      await start(undefined, { feralErrors });
     });
 
   program
@@ -769,9 +774,14 @@ export const main = async rawArgs => {
   program
     .command('restart')
     .description('stop and start the daemon')
-    .action(async _cmd => {
+    .option(
+      '--feral-errors',
+      'disable SES error taming (readable error traces)',
+    )
+    .action(async cmd => {
+      const { feralErrors } = cmd.opts();
       const { restart } = await import('@endo/daemon');
-      await restart();
+      await restart(undefined, { feralErrors });
     });
 
   program
