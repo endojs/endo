@@ -864,7 +864,7 @@ Always check tool results before proceeding - don't assume success.
  * using the given LLM configuration.
  *
  * @param {any} powers - Guest powers (manager's own or a sub-guest's)
- * @param {Promise<object> | object | undefined} context - Context for cancellation
+ * @param {Promise<object> | object | null | undefined} context - Context for cancellation
  * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
  * @returns {Promise<void>}
  */
@@ -1869,9 +1869,16 @@ export const make = (guestPowers, _context) => {
 
         // Create the guest profile via the host agent.
         // provideGuest returns the full EndoGuest (not the handle).
-        const guest = await E(agent).provideGuest(name, {
-          agentName: `profile-for-${name}`,
-        });
+        // Guard with has() — on restart the guest already exists and
+        // re-running provideGuest hits "Formula already exists".
+        let guest;
+        if (await E(agent).has(name)) {
+          guest = await E(agent).lookup(name);
+        } else {
+          guest = await E(agent).provideGuest(name, {
+            agentName: `profile-for-${name}`,
+          });
+        }
 
         // Spawn a worker loop for this guest.
         const workerP = spawnWorkerLoop(guest, null, {

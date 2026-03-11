@@ -7,8 +7,6 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-/** Same pattern as isSpecialName in packages/daemon/src/pet-name.js */
-const specialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 import { createProvider } from '@endo/lal/providers/index.js';
 
 import { discoverTools, executeTool } from './src/tools.js';
@@ -18,12 +16,16 @@ import {
   makeStoreTool,
   makeRemoveTool,
   makeAdoptToolTool,
+  makeAdoptTool,
   makeSendTool,
   makeReplyTool,
   makeListMessagesTool,
   makeDismissTool,
 } from './src/tool-makers.js';
 import { extractToolCallsFromContent } from './src/extract-tool-calls.js';
+
+/** Same pattern as isSpecialName in packages/daemon/src/pet-name.js */
+const specialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 
 const m = makeMarshal(undefined, undefined, {
   errorTagging: 'off',

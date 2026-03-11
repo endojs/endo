@@ -1278,6 +1278,7 @@ export type DaemonicControlPowers = {
     id: string,
     daemonWorkerFacet: DaemonWorkerFacet,
     cancelled: Promise<never>,
+    forceCancelled: Promise<never>,
     capTpConnectionRegistrar?: CapTpConnectionRegistrar,
     trustedShims?: string[],
   ) => Promise<{
@@ -1322,6 +1323,7 @@ type FormulateNumberedGuestParams = {
   mailboxStoreId: FormulaIdentifier;
   mailHubId: FormulaIdentifier;
   workerId: FormulaIdentifier;
+  pinned: FormulaIdentifier[];
 };
 
 type FormulateHostDependenciesParams = {
@@ -1346,6 +1348,7 @@ type FormulateNumberedHostParams = {
   endoId: FormulaIdentifier;
   networksDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
+  pinned: FormulaIdentifier[];
 };
 
 export type FormulaValueTypes = {

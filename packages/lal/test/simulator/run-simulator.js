@@ -89,7 +89,7 @@ async function main() {
   });
 
   // Spawn the worker loop directly with env-based config.
-  spawnWorkerLoop(powers, null, env).catch(error => {
+  spawnWorkerLoop(powers, null, /** @type {any} */ (env)).catch(error => {
     console.error('[simulator] Worker error:', error.message);
   });
 

@@ -70,6 +70,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
+ * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber

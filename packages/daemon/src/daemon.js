@@ -2625,23 +2625,40 @@ const makeDaemonCore = async (
     const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
       specifiedIdentifiers;
 
+    // Pin each dependency formula to protect it from collection until the
+    // parent host formula links them via formulaDeps.
+    /** @type {FormulaIdentifier[]} */
+    const pinned = [];
+    /** @param {FormulaIdentifier} id */
+    const pin = id => {
+      pinTransient(id);
+      pinned.push(id);
+      return id;
+    };
+
     await null;
-    const storeId = (
-      await formulateNumberedPetStore(
-        /** @type {FormulaNumber} */ (await randomHex256()),
-      )
-    ).id;
-    const mailboxStoreId = (
-      await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex256()),
-      )
-    ).id;
-    const mailHubId = (
-      await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex256()),
-        mailboxStoreId,
-      )
-    ).id;
+    const storeId = pin(
+      (
+        await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        )
+      ).id,
+    );
+    const mailboxStoreId = pin(
+      (
+        await formulateNumberedMailboxStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        )
+      ).id,
+    );
+    const mailHubId = pin(
+      (
+        await formulateNumberedMailHub(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          mailboxStoreId,
+        )
+      ).id,
+    );
 
     const hostFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex256()
@@ -2651,12 +2668,27 @@ const makeDaemonCore = async (
       node: localNodeNumber,
     });
 
-    const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex256()),
-      hostId,
+    const handleId = pin(
+      await formulateNumberedHandle(
+        /** @type {FormulaNumber} */ (await randomHex256()),
+        hostId,
+      ),
     );
 
     const { keypairId } = await formulateKeypair();
+    pin(keypairId);
+
+    /* eslint-disable no-use-before-define */
+    const inspectorId = pin(
+      (
+        await formulateNumberedPetInspector(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          storeId,
+        )
+      ).id,
+    );
+    const workerId = pin(await provideWorkerId(specifiedWorkerId));
+    /* eslint-enable no-use-before-define */
 
     return harden({
       ...remainingSpecifiedIdentifiers,
@@ -2668,15 +2700,9 @@ const makeDaemonCore = async (
       storeId,
       mailboxStoreId,
       mailHubId,
-      /* eslint-disable no-use-before-define */
-      inspectorId: (
-        await formulateNumberedPetInspector(
-          /** @type {FormulaNumber} */ (await randomHex256()),
-          storeId,
-        )
-      ).id,
-      workerId: await provideWorkerId(specifiedWorkerId),
-      /* eslint-enable no-use-before-define */
+      inspectorId,
+      workerId,
+      pinned,
     });
   };
 
@@ -2726,12 +2752,27 @@ const makeDaemonCore = async (
         handleId: identifiers.handleId,
       });
 
-      return formulateNumberedHost(identifiers);
+      const result = formulateNumberedHost(identifiers);
+      for (const id of identifiers.pinned) {
+        unpinTransient(id);
+      }
+      return result;
     });
   };
 
   /** @type {DaemonCore['formulateGuestDependencies']} */
   const formulateGuestDependencies = async (hostAgentId, hostHandleId) => {
+    // Pin each dependency formula to protect it from collection until the
+    // parent guest formula links them via formulaDeps.
+    /** @type {FormulaIdentifier[]} */
+    const pinned = [];
+    /** @param {FormulaIdentifier} id */
+    const pin = id => {
+      pinTransient(id);
+      pinned.push(id);
+      return id;
+    };
+
     const guestFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex256()
     );
@@ -2739,22 +2780,43 @@ const makeDaemonCore = async (
       number: guestFormulaNumber,
       node: localNodeNumber,
     });
-    const handleId = await formulateNumberedHandle(
-      /** @type {FormulaNumber} */ (await randomHex256()),
-      guestId,
+    const handleId = pin(
+      await formulateNumberedHandle(
+        /** @type {FormulaNumber} */ (await randomHex256()),
+        guestId,
+      ),
     );
-    const mailboxStoreId = (
-      await formulateNumberedMailboxStore(
-        /** @type {FormulaNumber} */ (await randomHex256()),
-      )
-    ).id;
-    const mailHubId = (
-      await formulateNumberedMailHub(
-        /** @type {FormulaNumber} */ (await randomHex256()),
-        mailboxStoreId,
-      )
-    ).id;
+    const mailboxStoreId = pin(
+      (
+        await formulateNumberedMailboxStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        )
+      ).id,
+    );
+    const mailHubId = pin(
+      (
+        await formulateNumberedMailHub(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          mailboxStoreId,
+        )
+      ).id,
+    );
     const { keypairId } = await formulateKeypair();
+    pin(keypairId);
+    const storeId = pin(
+      (
+        await formulateNumberedPetStore(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        )
+      ).id,
+    );
+    const workerId = pin(
+      (
+        await formulateNumberedWorker(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+        )
+      ).id,
+    );
     return harden({
       guestFormulaNumber,
       guestId,
@@ -2762,18 +2824,11 @@ const makeDaemonCore = async (
       keypairId,
       hostAgentId,
       hostHandleId,
-      storeId: (
-        await formulateNumberedPetStore(
-          /** @type {FormulaNumber} */ (await randomHex256()),
-        )
-      ).id,
+      storeId,
       mailboxStoreId,
       mailHubId,
-      workerId: (
-        await formulateNumberedWorker(
-          /** @type {FormulaNumber} */ (await randomHex256()),
-        )
-      ).id,
+      workerId,
+      pinned,
     });
   };
 
@@ -2810,7 +2865,11 @@ const makeDaemonCore = async (
         handleId: identifiers.handleId,
       });
 
-      return formulateNumberedGuest(identifiers);
+      const result = formulateNumberedGuest(identifiers);
+      for (const id of identifiers.pinned) {
+        unpinTransient(id);
+      }
+      return result;
     });
   };
 

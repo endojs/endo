@@ -46,7 +46,7 @@ test('simulator: agent processes one message with real provider (env)', async t 
   });
 
   // Spawn the worker loop directly with env-based config.
-  spawnWorkerLoop(powers, null, env).catch(error => {
+  spawnWorkerLoop(powers, null, /** @type {any} */ (env)).catch(error => {
     t.log('Worker error:', error.message);
   });
 
