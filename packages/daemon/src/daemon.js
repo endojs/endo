@@ -2139,6 +2139,8 @@ const makeDaemonCore = async (
             define: disallowedFn,
             form: disallowedFn,
             storeValue: disallowedFn,
+            submit: disallowedFn,
+            sendValue: disallowedFn,
             deliver: disallowedSyncFn,
           })
         )
