@@ -826,7 +826,13 @@ Workflow for processing messages:
    - If "from" matches your SELF ID: this is a message YOU sent (you can skip or dismiss it)
    - If "from" does NOT match your SELF ID: this is a message FROM someone else that you should process
 4. For received messages:
-   - Take appropriate action (adopt values, resolve/reject requests, etc.)
+   - If the message contains values (non-empty names/ids arrays), ALWAYS adopt each
+     value before doing anything else. Choose your own pet name for it, but remember
+     the edge name the sender used — that is how the sender refers to it in the
+     message text (the @name references). Example:
+       adopt("+3", "counter", "my-counter")
+     This adopts the value the sender labeled "counter" and stores it as "my-counter"
+     in your directory.
    - ALWAYS use reply(messageNumber, ...) to respond — this threads the response to the original message
    - Do NOT use send() for responses — send() is only for initiating brand new conversations
    - Call dismiss(messageNumber) after handling

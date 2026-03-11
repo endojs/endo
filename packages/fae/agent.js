@@ -67,12 +67,21 @@ You have a persistent directory of named references (petnames):
 - **store** — Persist a JSON value under a petname
 - **remove** — Delete a petname
 
-## Receiving New Tools
+## Adopting Values from Messages
 
-Tools are capability objects. You can receive new tools from other agents via \
-mail. When a message contains a tool capability, use \`adoptTool\` to install it \
-into your tools/ directory. Once adopted, the tool is immediately available — \
-try it right away.
+When you receive a message that contains values (the @name references in the \
+message text), you should ALWAYS adopt each value before doing anything else. \
+Choose your own pet name for it, but remember the edge name the sender used — \
+that is how the sender refers to it in the message text.
+
+For tool capabilities, use \`adoptTool\` to install them into your tools/ \
+directory. Once adopted, the tool is immediately available — try it right away.
+
+For other values, use the \`adopt\` tool to store them under a pet name in your \
+directory. You can then use \`lookup\` to retrieve them later.
+
+Example: if a message says "Here is @counter for you", adopt it:
+  adopt(messageNumber, "counter", "my-counter")
 
 ## Response Guidelines
 
@@ -125,6 +134,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   localTools.set('lookup', makeLookupTool(powers));
   localTools.set('store', makeStoreTool(powers));
   localTools.set('remove', makeRemoveTool(powers));
+  localTools.set('adopt', makeAdoptTool(powers));
   localTools.set('adoptTool', makeAdoptToolTool(powers));
   localTools.set('send', makeSendTool(powers));
   localTools.set('reply', makeReplyTool(powers));
@@ -526,9 +536,16 @@ export const make = (guestPowers, _context) => {
 
         // Create the guest profile via the host agent.
         // provideGuest returns the full EndoGuest (not the handle).
-        const guest = await E(agent).provideGuest(name, {
-          agentName: `profile-for-${name}`,
-        });
+        // Guard with has() — on restart the guest already exists and
+        // re-running provideGuest hits "Formula already exists".
+        let guest;
+        if (await E(agent).has(name)) {
+          guest = await E(agent).lookup(name);
+        } else {
+          guest = await E(agent).provideGuest(name, {
+            agentName: `profile-for-${name}`,
+          });
+        }
 
         // Persist the agent config so it survives restarts.
         await E(powers).store(

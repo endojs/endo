@@ -896,3 +896,60 @@ export const makeAdoptToolTool = host => {
   });
 };
 harden(makeAdoptToolTool);
+
+/**
+ * @param {object} host
+ */
+export const makeAdoptTool = host => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'adopt',
+      description:
+        'Adopt a value from an incoming package message, giving it a pet name. ' +
+        'Edge names are the labels the sender attached to values in the package ' +
+        '(the @name references in the message text).',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'integer',
+            description:
+              'The message number containing the value (integer).',
+          },
+          edgeName: {
+            type: 'string',
+            description: 'The edge name (label) of the value in the message.',
+          },
+          petName: {
+            type: 'string',
+            description: 'The pet name to give the adopted value in your directory.',
+          },
+        },
+        required: ['messageNumber', 'edgeName', 'petName'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { messageNumber, edgeName, petName } =
+        /** @type {{ messageNumber: number, edgeName: string, petName: string }} */ (
+          args
+        );
+      if (messageNumber === undefined || !edgeName || !petName) {
+        throw new Error('messageNumber, edgeName, and petName are required');
+      }
+      await E(host).adopt(BigInt(messageNumber), edgeName, petName);
+      return `Adopted "${edgeName}" from message #${messageNumber} as "${petName}".`;
+    },
+    help() {
+      return 'Adopt a value from a mail message into your petname directory.';
+    },
+  });
+};
+harden(makeAdoptTool);
