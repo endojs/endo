@@ -1003,6 +1003,15 @@ export interface EndoHost extends EndoAgent {
   ): Promise<void>;
   submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue: Mail['sendValue'];
+  /** Returns a snapshot of the formula dependency graph reachable from this agent's pet store. */
+  getFormulaGraph(): Promise<{
+    nodes: Array<{ id: FormulaIdentifier; type: string }>;
+    edges: Array<{
+      sourceId: FormulaIdentifier;
+      targetId: FormulaIdentifier;
+      label: string;
+    }>;
+  }>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}

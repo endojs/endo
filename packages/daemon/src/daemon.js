@@ -340,89 +340,127 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Returns [label, id] pairs for each dependency of a formula,
+   * providing meaningful edge labels (e.g. "worker", "handle") for the
+   * graph snapshot.
+   *
    * @param {Formula} formula
-   * @returns {FormulaIdentifier[]}
+   * @returns {Array<[string, FormulaIdentifier]>}
    */
-  const extractDeps = formula => {
+  const extractLabeledDeps = formula => {
     switch (formula.type) {
       case 'endo':
         return [
-          formula.networks,
-          formula.pins,
-          formula.peers,
-          formula.host,
-          formula.leastAuthority,
+          ['networks', formula.networks],
+          ['pins', formula.pins],
+          ['peers', formula.peers],
+          ['host', formula.host],
+          ['leastAuthority', formula.leastAuthority],
         ];
       case 'channel':
         return [
-          formula.handle,
-          formula.creatorAgent,
-          formula.messageStore,
-          formula.memberStore,
+          ['handle', formula.handle],
+          ['creator', formula.creatorAgent],
+          ['messages', formula.messageStore],
+          ['members', formula.memberStore],
         ];
       case 'host':
         return [
-          formula.handle,
-          formula.hostHandle,
-          formula.keypair,
-          formula.worker,
-          formula.inspector,
-          formula.petStore,
-          formula.mailboxStore,
-          formula.mailHub,
-          formula.endo,
-          formula.networks,
-          formula.pins,
+          ['handle', formula.handle],
+          ['hostHandle', formula.hostHandle],
+          ['keypair', formula.keypair],
+          ['worker', formula.worker],
+          ['inspector', formula.inspector],
+          ['petStore', formula.petStore],
+          ['mailbox', formula.mailboxStore],
+          ['mailHub', formula.mailHub],
+          ['endo', formula.endo],
+          ['networks', formula.networks],
+          ['pins', formula.pins],
         ];
       case 'guest':
         return [
-          formula.handle,
-          formula.keypair,
-          formula.hostHandle,
-          formula.hostAgent,
-          formula.petStore,
-          formula.mailboxStore,
-          formula.mailHub,
-          formula.worker,
+          ['handle', formula.handle],
+          ['keypair', formula.keypair],
+          ['hostHandle', formula.hostHandle],
+          ['hostAgent', formula.hostAgent],
+          ['petStore', formula.petStore],
+          ['mailbox', formula.mailboxStore],
+          ['mailHub', formula.mailHub],
+          ['worker', formula.worker],
         ];
       case 'marshal':
-        return formula.slots ?? [];
+        return (formula.slots ?? []).map((s, i) => [`slot${i}`, s]);
       case 'eval':
-        return [formula.worker, ...(formula.values ?? [])];
-      case 'lookup':
-        return [formula.hub];
-      case 'make-unconfined':
-        return [formula.worker, formula.powers];
-      case 'make-bundle':
-        return [formula.worker, formula.powers, formula.bundle];
-      case 'peer':
-        return [formula.networks];
-      case 'handle':
-        return [formula.agent];
-      case 'mail-hub':
-        return [formula.store];
-      case 'message':
         return [
-          formula.from,
-          formula.to,
-          ...(formula.ids ?? []),
-          ...(formula.promiseId ? [formula.promiseId] : []),
-          ...(formula.resolverId ? [formula.resolverId] : []),
-          ...(formula.valueId ? [formula.valueId] : []),
+          ['worker', formula.worker],
+          ...(formula.values ?? []).map(
+            (v, i) => /** @type {[string, FormulaIdentifier]} */ ([formula.names?.[i] || `val${i}`, v]),
+          ),
         ];
+      case 'lookup':
+        return [['hub', formula.hub]];
+      case 'make-unconfined':
+        return [
+          ['worker', formula.worker],
+          ['powers', formula.powers],
+        ];
+      case 'make-bundle':
+        return [
+          ['worker', formula.worker],
+          ['powers', formula.powers],
+          ['bundle', formula.bundle],
+        ];
+      case 'peer':
+        return [['networks', formula.networks]];
+      case 'handle':
+        return [['agent', formula.agent]];
+      case 'mail-hub':
+        return [['store', formula.store]];
+      case 'message': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const messageDeps = [
+          ['from', formula.from],
+          ['to', formula.to],
+          ...(formula.ids ?? []).map(
+            (id, i) =>
+              /** @type {[string, FormulaIdentifier]} */ ([`ref${i}`, id]),
+          ),
+        ];
+        if (formula.promiseId) {
+          messageDeps.push(['promise', formula.promiseId]);
+        }
+        if (formula.resolverId) {
+          messageDeps.push(['resolver', formula.resolverId]);
+        }
+        if (formula.valueId) {
+          messageDeps.push(['value', formula.valueId]);
+        }
+        return messageDeps;
+      }
       case 'promise':
       case 'resolver':
-        return [formula.store];
+        return [['store', formula.store]];
       case 'pet-inspector':
-        return [formula.petStore];
+        return [['petStore', formula.petStore]];
       case 'directory':
-        return [formula.petStore];
+        return [['petStore', formula.petStore]];
       case 'invitation':
-        return [formula.hostAgent, formula.hostHandle];
+        return [
+          ['hostAgent', formula.hostAgent],
+          ['hostHandle', formula.hostHandle],
+        ];
       default:
         return [];
     }
   };
+
+  /**
+   * @param {Formula} formula
+   * @returns {FormulaIdentifier[]}
+   */
+  const extractDeps = formula =>
+    extractLabeledDeps(formula).map(([_label, id]) => id);
 
   const isLocalId = id => parseId(id).node === localNodeNumber;
 
@@ -3522,6 +3560,53 @@ const makeDaemonCore = async (
     return agentId;
   };
 
+  /**
+   * Returns a snapshot of the formula dependency graph restricted to
+   * formulas reachable from a given set of formula identifiers.
+   *
+   * @param {FormulaIdentifier[]} seedIds
+   * @returns {Promise<{ nodes: Array<{ id: FormulaIdentifier, type: string }>, edges: Array<{ sourceId: FormulaIdentifier, targetId: FormulaIdentifier, label: string }> }>}
+   */
+  const getFormulaGraphSnapshot = async seedIds => {
+    /** @type {Set<FormulaIdentifier>} */
+    const visited = new Set();
+    /** @type {FormulaIdentifier[]} */
+    const queue = [...seedIds.filter(isLocalId)];
+
+    while (queue.length > 0) {
+      const id = /** @type {FormulaIdentifier} */ (queue.shift());
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const deps = formulaGraph.formulaDeps.get(id);
+      if (deps) {
+        for (const dep of deps) {
+          if (!visited.has(dep)) {
+            queue.push(dep);
+          }
+        }
+      }
+    }
+
+    /** @type {Array<{ id: FormulaIdentifier, type: string }>} */
+    const snapshotNodes = [];
+    /** @type {Array<{ sourceId: FormulaIdentifier, targetId: FormulaIdentifier, label: string }>} */
+    const graphEdges = [];
+
+    for (const id of visited) {
+      const formula = formulaForId.get(id);
+      snapshotNodes.push({ id, type: formula ? formula.type : 'unknown' });
+      if (formula) {
+        for (const [label, dep] of extractLabeledDeps(formula)) {
+          if (dep && visited.has(dep)) {
+            graphEdges.push({ sourceId: id, targetId: dep, label });
+          }
+        }
+      }
+    }
+
+    return harden({ nodes: snapshotNodes, edges: graphEdges });
+  };
+
   const makeHost = makeHostMaker({
     provide,
     provideController,
@@ -3546,6 +3631,7 @@ const makeDaemonCore = async (
     collectIfDirty,
     pinTransient,
     unpinTransient,
+    getFormulaGraphSnapshot,
   });
 
   /**

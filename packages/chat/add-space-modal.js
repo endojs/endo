@@ -50,7 +50,7 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
- * @property {'mailbox' | 'channel' | 'whylip'} layout - Layout type
+ * @property {'mailbox' | 'channel' | 'whylip' | 'graph'} layout - Layout type
  * @property {ColorScheme} [scheme] - Color scheme preference
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
@@ -93,7 +93,7 @@ export const createAddSpaceModal = ({
   };
 
   let visible = false;
-  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip'} */
+  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph'} */
   let mode = 'choose';
   /** @type {string} */
   let whylipName = '';
@@ -170,6 +170,11 @@ export const createAddSpaceModal = ({
           <span class="space-type-icon">📖</span>
           <span class="space-type-title">Whylip Book</span>
           <span class="space-type-desc">An interactive illustrated primer powered by a Fae agent</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="graph">
+          <span class="space-type-icon">🕸️</span>
+          <span class="space-type-title">Inventory Graph</span>
+          <span class="space-type-desc">Visualize your pet store as a force-directed graph</span>
         </button>
       </div>
     </div>
@@ -478,6 +483,44 @@ export const createAddSpaceModal = ({
   `;
 
   /**
+   * Render the inventory graph form.
+   * @returns {string}
+   */
+  const renderGraphForm = () => `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">\u2190</button>
+        <h2 class="add-space-title">Inventory Graph</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div class="add-space-field">
+          <label>Profile Path</label>
+          <div class="petname-path-selector">
+            <div id="profile-path-input" class="profile-path-input-container"></div>
+            <div id="profile-path-menu" class="token-menu"></div>
+          </div>
+          <div class="field-hint">Use <kbd>.</kbd> to drill down, <kbd>Enter</kbd> to add space</div>
+        </div>
+
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Creating...' : 'Create Graph'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  /**
    * Render the modal content based on current mode.
    */
   const render = () => {
@@ -498,6 +541,9 @@ export const createAddSpaceModal = ({
       case 'whylip':
         html = renderWhylipForm();
         break;
+      case 'graph':
+        html = renderGraphForm();
+        break;
       default:
         html = renderChooseMode();
     }
@@ -506,7 +552,7 @@ export const createAddSpaceModal = ({
     attachEventListeners();
 
     // Mount scheme picker into slot if in a form mode
-    if (mode === 'new-agent' || mode === 'existing' || mode === 'whylip') {
+    if (mode === 'new-agent' || mode === 'existing' || mode === 'whylip' || mode === 'graph') {
       const $slot = /** @type {HTMLElement | null} */ (
         $container.querySelector('#scheme-picker-slot')
       );
@@ -519,7 +565,7 @@ export const createAddSpaceModal = ({
       }
     }
 
-    if (mode === 'existing') {
+    if (mode === 'existing' || mode === 'graph') {
       initPathAutocomplete();
     }
 
@@ -689,6 +735,12 @@ export const createAddSpaceModal = ({
           whylipAgentName = '';
           error = null;
           render();
+        } else if (selectedMode === 'graph') {
+          mode = 'graph';
+          selectedIcon = '🕸️';
+          useLetterIcon = false;
+          error = null;
+          render();
         }
       });
     }
@@ -850,6 +902,8 @@ export const createAddSpaceModal = ({
           await handleConnectChannelSubmit();
         } else if (mode === 'whylip') {
           await handleWhylipSubmit();
+        } else if (mode === 'graph') {
+          await handleGraphSubmit();
         }
       });
     }
@@ -1288,6 +1342,51 @@ export const createAddSpaceModal = ({
         message = JSON.stringify(err);
       }
       error = `Failed to create book: ${message || 'Unknown error'}`;
+      isSubmitting = false;
+      render();
+    }
+  };
+
+  /**
+   * Handle inventory graph form submission.
+   */
+  const handleGraphSubmit = async () => {
+    if (!pathAutocomplete) return;
+
+    const paths = pathAutocomplete.getValue();
+    if (paths.length === 0) {
+      error = 'Please select a profile path';
+      render();
+      return;
+    }
+
+    const pathString = paths[0];
+    const profilePath = pathString.split('.').filter(Boolean);
+
+    if (profilePath.length === 0) {
+      error = 'Please select a valid profile path';
+      render();
+      return;
+    }
+
+    const name = `${profilePath[profilePath.length - 1]}-graph`;
+
+    isSubmitting = true;
+    error = null;
+    render();
+
+    try {
+      await onSubmit({
+        name,
+        icon: selectedIcon,
+        profilePath,
+        layout: 'graph',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
+      });
+      hide({ restoreScheme: false });
+      onClose();
+    } catch (err) {
+      error = `Failed to create graph space: ${/** @type {Error} */ (err).message}`;
       isSubmitting = false;
       render();
     }

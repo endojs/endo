@@ -927,6 +927,7 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/inventory-graph": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
@@ -1355,6 +1356,16 @@ __metadata:
     ava: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/inventory-graph@workspace:^, @endo/inventory-graph@workspace:packages/inventory-graph":
+  version: 0.0.0-use.local
+  resolution: "@endo/inventory-graph@workspace:packages/inventory-graph"
+  dependencies:
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
 
