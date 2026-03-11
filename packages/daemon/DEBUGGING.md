@@ -4,6 +4,17 @@ This guide covers the daemon's debugging and observability tools:
 environment variables, log interpretation, and recipes for common
 failure modes.
 
+## Run In Foreground
+
+For easier debugging, the endo daemon can be told not to fork:
+```sh
+# stop hiding from me!
+endo start -f
+
+# goes great with: Show Me The Stack Trace mode:
+endo start -f --feral-errors
+```
+
 ## Environment Variables
 
 | Variable                | Description                                                               |
@@ -55,17 +66,17 @@ Worker logs live at `<state>/worker/<hash>/worker.log`.
 
 ### Always-on (default)
 
-| Variable | Purpose |
-|---|---|
+| Variable      | Purpose                                                                                 |
+|---------------|-----------------------------------------------------------------------------------------|
 | Lifecycle log | Formula lifecycle events are logged by default. Set `ENDO_LIFECYCLE_LOG=0` to suppress. |
 
 ### Opt-in
 
-| Variable | Purpose |
-|---|---|
-| `ENDO_CAPTP_TRACE` | Log every CapTP message (SEND/RECV) per connection. Very verbose. |
+| Variable             | Purpose                                                                           |
+|----------------------|-----------------------------------------------------------------------------------|
+| `ENDO_CAPTP_TRACE`   | Log every CapTP message (SEND/RECV) per connection. Very verbose.                 |
 | `ENDO_FORMULA_GRAPH` | Dump the full formula dependency graph after loading from persistence at startup. |
-| `ENDO_GC=0` | Disable formula garbage collection for a daemon run. |
+| `ENDO_GC=0`          | Disable formula garbage collection for a daemon run.                              |
 
 ### Feral errors (readable error traces)
 
@@ -97,11 +108,11 @@ LOCKDOWN_ERROR_TAMING=unsafe endo start
 Additional `LOCKDOWN_*` environment variables can be set manually.
 Workers inherit the daemon's environment, so these apply everywhere.
 
-| Variable | Values | Effect |
-|---|---|---|
-| `LOCKDOWN_ERROR_TAMING` | `safe` (default), `unsafe`, `unsafe-debug` | Preserve error `.message` and `.stack` instead of redacting them |
-| `LOCKDOWN_CONSOLE_TAMING` | `safe` (default), `unsafe` | Use original `console` instead of SES wrapper |
-| `LOCKDOWN_STACK_FILTERING` | `concise` (default), `verbose` | Show full stack traces instead of filtered |
+| Variable                   | Values                                     | Effect                                                           |
+|----------------------------|--------------------------------------------|------------------------------------------------------------------|
+| `LOCKDOWN_ERROR_TAMING`    | `safe` (default), `unsafe`, `unsafe-debug` | Preserve error `.message` and `.stack` instead of redacting them |
+| `LOCKDOWN_CONSOLE_TAMING`  | `safe` (default), `unsafe`                 | Use original `console` instead of SES wrapper                    |
+| `LOCKDOWN_STACK_FILTERING` | `concise` (default), `verbose`             | Show full stack traces instead of filtered                       |
 
 ### Examples
 
@@ -138,24 +149,24 @@ every formula state transition. Each line has the format:
 T+<ms>  <id-prefix>  <type>  <event>  <detail>
 ```
 
-| Field | Description |
-|---|---|
-| `T+<ms>` | Milliseconds since daemon core initialization |
-| `<id-prefix>` | First 12 characters of the formula identifier |
-| `<type>` | Formula type (`worker`, `guest`, `make-unconfined`, `host`, etc.) |
-| `<event>` | Lifecycle event (see below) |
-| `<detail>` | Optional extra information |
+| Field         | Description                                                       |
+|---------------|-------------------------------------------------------------------|
+| `T+<ms>`      | Milliseconds since daemon core initialization                     |
+| `<id-prefix>` | First 12 characters of the formula identifier                     |
+| `<type>`      | Formula type (`worker`, `guest`, `make-unconfined`, `host`, etc.) |
+| `<event>`     | Lifecycle event (see below)                                       |
+| `<detail>`    | Optional extra information                                        |
 
 ### Events
 
-| Event | Meaning |
-|---|---|
-| `FORMULATE` | New formula created and persisted |
-| `REINCARNATE` | Existing formula being re-evaluated from persistence |
-| `WORKER_READY` | Worker process spawned and CapTP connected |
-| `REVIVE_PIN` | Pinned formula about to be provided during startup |
-| `CANCEL_REQUEST` | Explicit cancellation requested (via `endo cancel`) |
-| `COLLECTED` | Formula selected for garbage collection |
+| Event            | Meaning                                              |
+|------------------|------------------------------------------------------|
+| `FORMULATE`      | New formula created and persisted                    |
+| `REINCARNATE`    | Existing formula being re-evaluated from persistence |
+| `WORKER_READY`   | Worker process spawned and CapTP connected           |
+| `REVIVE_PIN`     | Pinned formula about to be provided during startup   |
+| `CANCEL_REQUEST` | Explicit cancellation requested (via `endo cancel`)  |
+| `COLLECTED`      | Formula selected for garbage collection              |
 
 ### Example: healthy startup
 
@@ -255,10 +266,10 @@ Formula graph after persistence seed:
   3cc8a6e92b10 mailbox-store deps=[none]
 ```
 
-| Annotation | Meaning |
-|---|---|
-| `[ROOT]` | Formula is in the GC root set (never collected) |
-| `deps=[...]` | Static dependency IDs (first 12 chars) |
+| Annotation   | Meaning                                         |
+|--------------|-------------------------------------------------|
+| `[ROOT]`     | Formula is in the GC root set (never collected) |
+| `deps=[...]` | Static dependency IDs (first 12 chars)          |
 
 ## Common Debugging Scenarios
 
