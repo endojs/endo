@@ -44,8 +44,17 @@ export const makeMessageCapTP = (
   capTpOptions = undefined,
   capTpConnectionRegistrar = undefined,
 ) => {
+  // eslint-disable-next-line no-undef
+  const traceCapTP = typeof process !== 'undefined' && process.env.ENDO_CAPTP_TRACE;
+
   /** @param {any} message */
   const send = message => {
+    if (traceCapTP) {
+      console.log(
+        `[captp:${name}] SEND`,
+        JSON.stringify(message).slice(0, 200),
+      );
+    }
     try {
       return writer.next(message);
     } catch (sendError) {
@@ -68,7 +77,18 @@ export const makeMessageCapTP = (
     reason => close(reason),
     closedPromise,
   );
-  const mergedOptions = { ...registrarOptions, ...capTpOptions };
+  const defaultOnReject = err => {
+    console.error(
+      `CapTP ${name} exception:`,
+      err?.message || err,
+      err?.stack || '',
+    );
+  };
+  const mergedOptions = {
+    onReject: defaultOnReject,
+    ...registrarOptions,
+    ...capTpOptions,
+  };
   const { dispatch, getBootstrap, abort } = makeCapTP(
     name,
     send,
@@ -78,6 +98,12 @@ export const makeMessageCapTP = (
 
   const drained = (async () => {
     for await (const message of reader) {
+      if (traceCapTP) {
+        console.log(
+          `[captp:${name}] RECV`,
+          JSON.stringify(message).slice(0, 200),
+        );
+      }
       dispatch(message);
     }
   })();

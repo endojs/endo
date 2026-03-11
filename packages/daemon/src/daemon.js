@@ -317,6 +317,28 @@ const makeDaemonCore = async (
    */
   const formulaForId = new Map();
 
+  // eslint-disable-next-line no-undef
+  const lifecycleLogEnabled =
+    typeof process === 'undefined' ||
+    process.env.ENDO_LIFECYCLE_LOG !== '0';
+  const lifecycleT0 = Date.now();
+  /**
+   * @param {FormulaIdentifier} id
+   * @param {string} event
+   * @param {string} [detail]
+   */
+  const logLifecycle = (id, event, detail = '') => {
+    if (!lifecycleLogEnabled) {
+      return;
+    }
+    const elapsed = Date.now() - lifecycleT0;
+    const formula = formulaForId.get(id);
+    const type = formula?.type || '?';
+    console.log(
+      `T+${elapsed}ms\t${id.slice(0, 12)}\t${type}\t${event}\t${detail}`,
+    );
+  };
+
   /**
    * @param {Formula} formula
    * @returns {FormulaIdentifier[]}
@@ -733,6 +755,9 @@ const makeDaemonCore = async (
       }
 
       const cancelReason = new Error('Collected formula');
+      for (const id of collectedIds) {
+        logLifecycle(id, 'COLLECTED');
+      }
       await Promise.allSettled(
         collectedIds.map(async id => {
           await null;
@@ -955,6 +980,8 @@ const makeDaemonCore = async (
         delay(gracePeriodMs, gracePeriodElapsed).catch(() => {}),
       ]).catch(() => {});
     };
+
+    logLifecycle(context.id, 'WORKER_READY');
 
     workerTerminationByNumber.set(workerId512, terminateWorker);
     workerTerminated.finally(() => {
@@ -1968,6 +1995,9 @@ const makeDaemonCore = async (
         revivePins: async () => {
           const pinsDirectory = await provide(pinsId, 'directory');
           const pinIds = await pinsDirectory.listIdentifiers();
+          for (const id of pinIds) {
+            logLifecycle(/** @type {FormulaIdentifier} */ (id), 'REVIVE_PIN');
+          }
           await Promise.allSettled(
             pinIds.map(id => provide(/** @type {FormulaIdentifier} */ (id))),
           );
@@ -2209,7 +2239,7 @@ const makeDaemonCore = async (
     }
 
     const formula = await getFormulaForId(id);
-    console.log(`Reincarnating ${formula.type} ${id}`);
+    logLifecycle(id, 'REINCARNATE');
     assertValidFormulaType(formula.type);
 
     return evaluateFormula(id, formulaNumber, formula, context);
@@ -2233,8 +2263,7 @@ const makeDaemonCore = async (
       formulaGraph.onFormulaAdded(id, formula);
     });
 
-    // Memoize for lookup.
-    console.log(`Making ${formula.type} ${id}`);
+    logLifecycle(id, 'FORMULATE');
     const { promise, resolve } = /** @type {PromiseKit<unknown>} */ (
       makePromiseKit()
     );
@@ -2313,7 +2342,7 @@ const makeDaemonCore = async (
     // to finish before cancelling.
     await formulaGraphJobs.enqueue();
     const controller = provideController(id);
-    console.log('Cancelled:');
+    logLifecycle(id, 'CANCEL_REQUEST', reason?.message);
     return controller.context.cancel(reason);
   };
 
@@ -3429,6 +3458,7 @@ const makeDaemonCore = async (
   const makeContext = makeContextMaker({
     controllerForId,
     provideController,
+    getFormulaType: id => formulaForId.get(id)?.type,
   });
 
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
@@ -3642,6 +3672,22 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCoreExternal} */
   await seedFormulaGraphFromPersistence();
+
+  // eslint-disable-next-line no-undef
+  if (typeof process !== 'undefined' && process.env.ENDO_FORMULA_GRAPH) {
+    console.log('Formula graph after persistence seed:');
+    for (const [id, formula] of formulaForId.entries()) {
+      const deps = formulaGraph.formulaDeps.get(id);
+      const depList = deps
+        ? [...deps].map(d => d.slice(0, 12)).join(', ')
+        : 'none';
+      const isRoot = formulaGraph.roots.has(id);
+      console.log(
+        `  ${id.slice(0, 12)} ${formula.type}${isRoot ? ' [ROOT]' : ''} deps=[${depList}]`,
+      );
+    }
+  }
+
   return {
     formulateEndo,
     provide,

@@ -15,29 +15,17 @@ other agents.
 
 ## Debugging
 
-### Disabling formula garbage collection
+The daemon has structured logging and environment variable flags for
+debugging formula lifecycle, CapTP messages, dependency graphs, and more.
+See [DEBUGGING.md](./DEBUGGING.md) for the full guide.
 
-The daemon collects unused formulas by default.
-Set `ENDO_GC=0` to disable formula garbage collection for a daemon run.
-This is useful for diagnosing whether a bug is caused by premature collection
-without rebuilding from source.
+Quick reference:
 
 ```sh
-ENDO_GC=0 endo start
-```
-
-When disabled, the daemon logs `Formula collection disabled (ENDO_GC=0)` at
-startup.
-Omitting the variable or setting any other value (e.g. `ENDO_GC=1`) leaves
-the default behaviour unchanged.
-
-The `start()` and `restart()` functions exported from this package also accept
-a `gcEnabled` option:
-
-```js
-import { start } from '@endo/daemon';
-
-await start(config, { gcEnabled: false });
+ENDO_GC=0 endo start           # disable formula garbage collection
+ENDO_CAPTP_TRACE=1 endo start  # trace CapTP messages
+ENDO_FORMULA_GRAPH=1 endo start # dump dependency graph at startup
+endo log --all -f               # follow daemon + worker logs
 ```
 
 ## Gateway

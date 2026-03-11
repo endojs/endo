@@ -6,7 +6,17 @@ import { makePromiseKit } from '@endo/promise-kit';
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Context, FormulaIdentifier } from './types.js' */
 
-export const makeContextMaker = ({ controllerForId, provideController }) => {
+/**
+ * @param {object} args
+ * @param {Map<FormulaIdentifier, { context: Context }>} args.controllerForId
+ * @param {(id: FormulaIdentifier) => { context: Context }} args.provideController
+ * @param {(id: FormulaIdentifier) => string | undefined} args.getFormulaType
+ */
+export const makeContextMaker = ({
+  controllerForId,
+  provideController,
+  getFormulaType,
+}) => {
   /**
    * @param {FormulaIdentifier} id
    */
@@ -32,7 +42,10 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
       done = true;
       rejectCancelled(reason || harden(new Error('Cancelled')));
 
-      console.log(`${prefix} ${id}`);
+      const formulaType = getFormulaType(id) || '?';
+      console.log(
+        `${prefix} ${id} (${formulaType}) REASON: ${reason?.message || reason}`,
+      );
 
       controllerForId.delete(id);
       for (const dependentContext of dependents.values()) {
