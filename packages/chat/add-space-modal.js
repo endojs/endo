@@ -14,6 +14,30 @@ import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
 
+const WHYLIP_SYSTEM_PROMPT = `\
+You are The Whylip Primer — an interactive illustrated primer that teaches \
+through story and interactive experience.
+
+You communicate via the reply tool. When you receive a message, use the \
+reply tool and set the strings parameter to a single JSON object:
+{
+  "narrative": "markdown prose explaining the concept",
+  "scene": {
+    "title": "Scene title",
+    "html": "<!-- fully self-contained HTML+CSS+JS document for an iframe -->"
+  }
+}
+
+Set scene to null if no interactive visualization is needed for this response.
+
+IMPORTANT: The JSON object must be the ONLY content in your reply. Do not \
+include any text before or after the JSON. Do not wrap it in code fences. \
+After replying, dismiss the message and stop — do not output anything else.
+
+Scene HTML must be fully self-contained (inline CSS + JS, no external requests). \
+Use canvas, SVG, or DOM manipulation to create interactive visualizations. \
+The scene runs in a sandboxed iframe with no network access.`;
+
 /**
  * @typedef {object} AddSpaceModalAPI
  * @property {() => void} show - Show the modal
@@ -26,10 +50,11 @@ import { createSchemePicker } from './scheme-picker.js';
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
- * @property {'mailbox' | 'channel'} layout - Layout type
+ * @property {'mailbox' | 'channel' | 'whylip'} layout - Layout type
  * @property {ColorScheme} [scheme] - Color scheme preference
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
+ * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
  */
 
 /**
@@ -68,8 +93,12 @@ export const createAddSpaceModal = ({
   };
 
   let visible = false;
-  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel'} */
+  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip'} */
   let mode = 'choose';
+  /** @type {string} */
+  let whylipName = '';
+  /** @type {string} */
+  let whylipAgentName = '';
   let selectedIcon = '🐈‍⬛';
   let useLetterIcon = false;
   /** @type {string} */
@@ -136,6 +165,11 @@ export const createAddSpaceModal = ({
           <span class="space-type-icon">🔗</span>
           <span class="space-type-title">Connect to Channel</span>
           <span class="space-type-desc">Join a channel via invitation link</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="whylip">
+          <span class="space-type-icon">📖</span>
+          <span class="space-type-title">Whylip Book</span>
+          <span class="space-type-desc">An interactive illustrated primer powered by a Fae agent</span>
         </button>
       </div>
     </div>
@@ -400,6 +434,50 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Render the Whylip Book form.
+   * @returns {string}
+   */
+  const renderWhylipForm = () => `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">\u2190</button>
+        <h2 class="add-space-title">Whylip Book</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        <div class="add-space-field">
+          <label for="whylip-name">Book Name</label>
+          <input type="text" id="whylip-name" placeholder="e.g., physics-primer"
+                 pattern="[a-zA-Z][a-zA-Z0-9_-]*"
+                 value="${whylipName}" autocomplete="off" />
+          <div class="field-hint">A short name for this primer (letters, numbers, hyphens)</div>
+        </div>
+
+        <div class="add-space-field">
+          <label for="whylip-agent-name">Fae Factory</label>
+          <input type="text" id="whylip-agent-name" placeholder="e.g., fae-factory"
+                 value="${whylipAgentName}" autocomplete="off" />
+          <div class="field-hint">Pet name of the Fae factory controller (from <code>endo list</code>)</div>
+        </div>
+
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Creating...' : 'Create Book'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  /**
    * Render the modal content based on current mode.
    */
   const render = () => {
@@ -417,6 +495,9 @@ export const createAddSpaceModal = ({
       case 'existing':
         html = renderExistingForm();
         break;
+      case 'whylip':
+        html = renderWhylipForm();
+        break;
       default:
         html = renderChooseMode();
     }
@@ -425,7 +506,7 @@ export const createAddSpaceModal = ({
     attachEventListeners();
 
     // Mount scheme picker into slot if in a form mode
-    if (mode === 'new-agent' || mode === 'existing') {
+    if (mode === 'new-agent' || mode === 'existing' || mode === 'whylip') {
       const $slot = /** @type {HTMLElement | null} */ (
         $container.querySelector('#scheme-picker-slot')
       );
@@ -469,6 +550,14 @@ export const createAddSpaceModal = ({
       );
       if ($locatorInput) {
         $locatorInput.focus();
+      }
+    }
+    if (mode === 'whylip') {
+      const $whylipNameInput = /** @type {HTMLInputElement | null} */ (
+        $container.querySelector('#whylip-name')
+      );
+      if ($whylipNameInput) {
+        $whylipNameInput.focus();
       }
     }
   };
@@ -592,6 +681,14 @@ export const createAddSpaceModal = ({
           connectExistingSpaceId = null;
           error = null;
           render();
+        } else if (selectedMode === 'whylip') {
+          mode = 'whylip';
+          selectedIcon = '📖';
+          useLetterIcon = false;
+          whylipName = '';
+          whylipAgentName = '';
+          error = null;
+          render();
         }
       });
     }
@@ -673,6 +770,24 @@ export const createAddSpaceModal = ({
       });
     }
 
+    // Whylip form inputs
+    const $whylipNameInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#whylip-name')
+    );
+    const $whylipAgentNameInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#whylip-agent-name')
+    );
+    if ($whylipNameInput) {
+      $whylipNameInput.addEventListener('input', () => {
+        whylipName = $whylipNameInput.value;
+      });
+    }
+    if ($whylipAgentNameInput) {
+      $whylipAgentNameInput.addEventListener('input', () => {
+        whylipAgentName = $whylipAgentNameInput.value;
+      });
+    }
+
     // Connect channel form inputs
     const $connectLocatorInput = /** @type {HTMLInputElement | null} */ (
       $container.querySelector('#connect-locator')
@@ -733,6 +848,8 @@ export const createAddSpaceModal = ({
           await handleNewChannelSubmit();
         } else if (mode === 'connect-channel') {
           await handleConnectChannelSubmit();
+        } else if (mode === 'whylip') {
+          await handleWhylipSubmit();
         }
       });
     }
@@ -1070,6 +1187,113 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Handle Whylip Book form submission.
+   * Looks up the fae-factory by petname, calls createAgent with the
+   * whylip system prompt, then creates a host profile with the fae
+   * agent reference written into its pet store.
+   */
+  const handleWhylipSubmit = async () => {
+    const name = whylipName.trim();
+    if (!name) {
+      error = 'Please enter a book name';
+      render();
+      return;
+    }
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
+      error =
+        'Name must start with a letter and contain only letters, numbers, hyphens, and underscores';
+      render();
+      return;
+    }
+
+    const factoryPetName = whylipAgentName.trim();
+    if (!factoryPetName) {
+      error = 'Please enter the pet name of a Fae factory';
+      render();
+      return;
+    }
+
+    isSubmitting = true;
+    error = null;
+    render();
+
+    try {
+      const faeAgentName = `${name}-agent`;
+      const finalAgentName = `whylip-${name}`;
+
+      // Look up the fae-factory and create an agent with the whylip prompt.
+      const faeFactory = await E(
+        /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+          powers
+        ),
+      ).lookup(factoryPetName);
+
+      const agentProfileName = /** @type {string} */ (
+        await E(
+          /** @type {{ createAgent: (name: string, opts: object) => Promise<string> }} */ (
+            faeFactory
+          ),
+        ).createAgent(faeAgentName, harden({ systemPrompt: WHYLIP_SYSTEM_PROMPT }))
+      );
+
+      // Get the formula ID for the agent profile so we can write it
+      // into the whylip host's pet store.
+      const agentFormulaId = /** @type {string} */ (
+        await E(
+          /** @type {{ identify: (petName: string) => Promise<string> }} */ (
+            powers
+          ),
+        ).identify(agentProfileName)
+      );
+
+      // Create the whylip host profile.
+      await E(
+        /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
+          powers
+        ),
+      ).provideHost(name, { agentName: finalAgentName });
+
+      // Write the fae agent reference into the whylip host's pet store
+      // under the well-known name "fae".
+      const whylipPowers = await E(
+        /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+          powers
+        ),
+      ).lookup(finalAgentName);
+
+      await E(
+        /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+          whylipPowers
+        ),
+      ).write('fae', agentFormulaId);
+
+      await onSubmit({
+        name,
+        icon: selectedIcon,
+        profilePath: [finalAgentName],
+        layout: 'whylip',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
+      });
+
+      hide({ restoreScheme: false });
+      onClose();
+    } catch (err) {
+      console.error('[AddSpaceModal] Failed to create Whylip book:', err);
+      let message;
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === 'string') {
+        message = err;
+      } else {
+        message = JSON.stringify(err);
+      }
+      error = `Failed to create book: ${message || 'Unknown error'}`;
+      isSubmitting = false;
+      render();
+    }
+  };
+
+  /**
    * Handle existing profile form submission.
    */
   const handleExistingSubmit = async () => {
@@ -1149,6 +1373,8 @@ export const createAddSpaceModal = ({
     connectProposedName = '';
     connectPersonaMode = 'new';
     connectExistingSpaceId = null;
+    whylipName = '';
+    whylipAgentName = '';
     error = null;
     isSubmitting = false;
     schemePicker = null;

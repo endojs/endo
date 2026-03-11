@@ -1,0 +1,55 @@
+{
+  "name": "@endo/conversation-tree",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generic branching conversation tree with pluggable backends",
+  "keywords": [
+    "endo",
+    "conversation",
+    "tree",
+    "context-window"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/conversation-tree"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/pass-style": "workspace:^"
+  },
+  "devDependencies": {
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}

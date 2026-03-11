@@ -12,6 +12,7 @@ import { inventoryComponent } from './inventory-component.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
 import { createSpacesGutter } from './spaces-gutter.js';
+import { whylipComponent } from './whylip-component.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -258,6 +259,11 @@ const bodyComponent = (
   onConversationChange,
   activeSpaceInfo,
 ) => {
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'whylip') {
+    whylipComponent($parent, rootPowers, profilePath, onProfileChange);
+    return;
+  }
+
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -665,9 +671,10 @@ const bodyComponent = (
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel'} mode
+ * @property {'inbox' | 'channel' | 'whylip'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
+ * @property {string} [whylipSystemPrompt]
  */
 
 /**

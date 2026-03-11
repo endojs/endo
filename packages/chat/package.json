@@ -52,6 +52,7 @@
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/where": "workspace:^",
+    "@endo/whylip": "workspace:^",
     "monaco-editor": "^0.52.0",
     "ses": "workspace:^"
   },
@@ -62,6 +63,7 @@
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@playwright/test": "^1.40.0",
+    "@vitejs/plugin-react": "^4.0.0",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",

@@ -10,6 +10,10 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 /** Same pattern as isSpecialName in packages/daemon/src/pet-name.js */
 const specialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 import { createProvider } from '@endo/lal/providers/index.js';
+import {
+  makeConversationTree,
+  makeEndoPetstoreBackend,
+} from '@endo/conversation-tree';
 
 import { discoverTools, executeTool } from './src/tools.js';
 import {
@@ -32,7 +36,8 @@ const m = makeMarshal(undefined, undefined, {
 const decodeSmallcaps = jsonString =>
   m.unserialize({ body: jsonString, slots: [] });
 
-const FaeInterface = M.interface('Fae', {
+const FaeFactoryInterface = M.interface('FaeFactory', {
+  createAgent: M.callWhen(M.string()).optional(M.record()).returns(M.string()),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 
@@ -83,14 +88,20 @@ try it right away.
 
 /**
  * Spawn a worker loop that follows a guest's inbox and processes messages
- * using the given LLM configuration.
+ * using the given LLM provider configuration.
  *
  * @param {any} powers - Guest powers (manager's own or a sub-guest's)
  * @param {Promise<object> | object | undefined} context - Context for cancellation
- * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
+ * @param {{ host: string, model: string, authToken: string }} providerConfig - LLM provider config
+ * @param {string} [systemPrompt] - Override system prompt (defaults to guestSystemPrompt)
  * @returns {Promise<void>}
  */
-export const spawnWorkerLoop = async (powers, context, workerEnv) => {
+export const spawnWorkerLoop = async (
+  powers,
+  context,
+  providerConfig,
+  systemPrompt,
+) => {
   const getCancelled = async () => {
     if (!context) return null;
     const resolvedContext = await context;
@@ -104,7 +115,11 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
     return null;
   };
 
-  const provider = createProvider(workerEnv);
+  const provider = createProvider({
+    LAL_HOST: providerConfig.host,
+    LAL_MODEL: providerConfig.model,
+    LAL_AUTH_TOKEN: providerConfig.authToken,
+  });
 
   /**
    * @param {object[]} messages
@@ -113,8 +128,26 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
    */
   const chat = (messages, toolSchemas) => provider.chat(messages, toolSchemas);
 
-  /** @type {object[]} */
-  const transcript = [{ role: 'system', content: guestSystemPrompt }];
+  const effectivePrompt = systemPrompt || guestSystemPrompt;
+  const tree = makeConversationTree(makeEndoPetstoreBackend(powers));
+
+  /**
+   * Find or create the root node that carries the system prompt.
+   *
+   * @returns {Promise<string>} rootNodeId
+   */
+  const getOrCreateRoot = async () => {
+    const roots = await tree.getRoots();
+    if (roots.length > 0) {
+      return roots[0].id;
+    }
+    const root = await tree.addNode(null, [
+      { role: 'system', content: effectivePrompt },
+    ]);
+    return root.id;
+  };
+
+  const rootNodeIdP = getOrCreateRoot();
 
   // Built-in tools: petname ops + mail (no filesystem tools for guest)
   /** @type {Map<string, object>} */
@@ -125,7 +158,22 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   localTools.set('remove', makeRemoveTool(powers));
   localTools.set('adoptTool', makeAdoptToolTool(powers));
   localTools.set('send', makeSendTool(powers));
-  localTools.set('reply', makeReplyTool(powers));
+  // Wrap the reply tool to track whether a reply was sent during
+  // the current agentic loop iteration, so we can auto-reply if
+  // the LLM outputs content without calling the tool.
+  const replyTracker = { sent: false };
+  const baseReplyTool = makeReplyTool(powers);
+  localTools.set(
+    'reply',
+    harden({
+      schema: () => baseReplyTool.schema(),
+      async execute(/** @type {any} */ args) {
+        replyTracker.sent = true;
+        return baseReplyTool.execute(args);
+      },
+      help: () => baseReplyTool.help(),
+    }),
+  );
   localTools.set('listMessages', makeListMessagesTool(powers));
   localTools.set('dismiss', makeDismissTool(powers));
 
@@ -183,19 +231,26 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
    * Re-discovers tools after any adoptTool call so newly adopted tools
    * are immediately available in the same turn.
    *
+   * The context snapshot is rebuilt from the tree on each LLM call so
+   * that newly appended nodes are always included.
+   *
    * @param {object[]} initialSchemas
    * @param {Map<string, object>} initialToolMap
-   * @returns {Promise<void>}
+   * @param {string} leafNodeId - the node to continue from
+   * @returns {Promise<string>} the final leaf node ID after the loop completes
    */
-  const runAgenticLoop = async (initialSchemas, initialToolMap) => {
+  const runAgenticLoop = async (initialSchemas, initialToolMap, leafNodeId) => {
     let currentSchemas = initialSchemas;
     let currentToolMap = initialToolMap;
+    let currentLeafId = leafNodeId;
+    /** @type {boolean} */
     let continueLoop = true;
     while (continueLoop) {
+      const context = await tree.getPath(currentLeafId);
       console.log(
-        `[fae] ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
+        `[fae] context has ${context.length} messages, sending to LLM`,
       );
-      const response = await chat(transcript, currentSchemas);
+      const response = await chat(context, currentSchemas);
 
       const { message: responseMessage } = response;
       if (!responseMessage) {
@@ -211,9 +266,8 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         }
       }
 
-      transcript.push(responseMessage);
       console.log(
-        `[fae] sent: ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
+        `[fae] sent: ${JSON.stringify(responseMessage, null, 2)}`,
       );
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
@@ -222,10 +276,14 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         console.log(
           `[fae] tool results: ${JSON.stringify(toolResults, null, 2)}`,
         );
-        transcript.push(...toolResults);
 
-        // Re-discover tools if adoptTool was called so the new tool
-        // is available in the next iteration of this loop.
+        // Store the assistant response + tool results as a single tree node.
+        const stepNode = await tree.addNode(
+          currentLeafId,
+          [responseMessage, ...toolResults],
+        );
+        currentLeafId = stepNode.id;
+
         const adopted = toolCalls.some(
           tc => /** @type {any} */ (tc).function?.name === 'adoptTool',
         );
@@ -238,12 +296,16 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
           );
         }
       } else {
+        // Final assistant response — store as a tree node.
+        const finalNode = await tree.addNode(currentLeafId, [responseMessage]);
+        currentLeafId = finalNode.id;
         continueLoop = false;
         if (rm.content) {
           console.log(`[fae] ${rm.content}`);
         }
       }
     }
+    return currentLeafId;
   };
 
   /**
@@ -303,6 +365,11 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         )
       : null;
 
+    // Track the most recent leaf across messages so that follow-up
+    // messages from the same sender continue the conversation rather
+    // than branching from the root (which would lose all context).
+    let lastLeafId = await rootNodeIdP;
+
     const messageIterator = makeRefIterator(E(powers).followMessages());
     while (true) {
       const nextMessage = messageIterator.next();
@@ -336,10 +403,14 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         continue;
       }
 
+      const {
+        messageId,
+        replyTo,
+      } = /** @type {any} */ (message);
+
+      const rootNodeId = await rootNodeIdP;
+
       console.log(`[fae] New message #${number} from ${fromId}`);
-      console.log(
-        `[fae] Transcript has ${transcript.length} messages before processing`,
-      );
 
       // Discover tools (picks up newly adopted tools each turn)
       const { schemas: toolSchemas, toolMap } = await discoverTools(
@@ -362,22 +433,60 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         textContent = `(${type || 'unknown'} message)`;
       }
 
-      transcript.push({
-        role: 'user',
-        content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
-      });
+      // Determine the parent node for this message:
+      //  1. If replyTo matches a node in the tree, branch from there
+      //  2. Otherwise continue from the last leaf (preserves context)
+      let parentId = lastLeafId;
+      if (typeof replyTo === 'string') {
+        const existingNode = await tree.getNode(replyTo);
+        if (existingNode !== null) {
+          parentId = replyTo;
+        }
+      }
+
+      const userNode = await tree.addNode(
+        parentId,
+        [
+          {
+            role: 'user',
+            content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
+          },
+        ],
+        { messageId },
+      );
 
       try {
-        await runAgenticLoop(toolSchemas, toolMap);
+        replyTracker.sent = false;
+        lastLeafId = await runAgenticLoop(toolSchemas, toolMap, userNode.id);
+
+        // If the LLM produced a final response without calling the reply
+        // tool, send the content as a fallback reply so the sender
+        // (e.g. a Whylip UI) actually receives it.
+        if (!replyTracker.sent) {
+          const finalNode = await tree.getNode(lastLeafId);
+          if (finalNode) {
+            const lastMsg = finalNode.messages[finalNode.messages.length - 1];
+            if (
+              lastMsg &&
+              lastMsg.role === 'assistant' &&
+              lastMsg.content
+            ) {
+              console.log('[fae] No reply tool called, sending fallback reply');
+              await E(powers).reply(
+                number,
+                [lastMsg.content],
+                [],
+                [],
+              );
+            }
+          }
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         console.error('[fae] LLM error, notifying sender:', errorMessage);
         await E(powers).reply(number, [errorMessage], [], []);
       }
-      console.log(
-        `[fae] Transcript has ${transcript.length} messages after processing`,
-      );
     }
   };
 
@@ -387,207 +496,135 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
 harden(spawnWorkerLoop);
 
 // ============================================================================
-// Manager / Entry Point
+// Fae Factory — Entry Point
 // ============================================================================
 
 /**
- * Creates a Fae agent manager.
+ * Creates a Fae factory that provisions and manages agent instances.
  *
- * Sends a configuration form to HOST on startup. Each form submission
- * creates a new guest profile and spawns a worker loop for it.
+ * Reads `llm-provider` from its petstore for the LLM configuration.
+ * Restores previously created agents on restart, and exposes a
+ * `createAgent(name, options)` method for creating new ones.
  *
  * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
  * @param {Promise<object> | object | undefined} _context
- * @returns {object}
+ * @returns {Promise<object>}
  */
-export const make = (guestPowers, _context) => {
+export const make = async (guestPowers, _context) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  // Send the configuration form to HOST for adding agents.
-  const runManager = async () => {
-    await E(powers).form(
-      'HOST',
-      'Add an agent',
-      harden([
-        { name: 'name', label: 'Agent name' },
-        {
-          name: 'host',
-          label: 'API host',
-          example: 'https://api.anthropic.com',
-        },
-        {
-          name: 'model',
-          label: 'Model name',
-          example: 'claude-sonnet-4-6-20250514',
-        },
-        { name: 'authToken', label: 'API auth token' },
-      ]),
+  const providerConfig =
+    /** @type {{ host: string, model: string, authToken: string }} */ (
+      await E(powers).lookup('llm-provider')
     );
 
-    // Resolve the host agent reference for provideGuest calls.
-    const agent = await E(powers).lookup('host-agent');
-    const selfId = await E(powers).identify('SELF');
-    const activeWorkers = new Map();
+  const hostAgent = await E(powers).lookup('host-agent');
+  const activeWorkers = new Map();
+  const configSuffix = '-config';
 
-    // Restore existing sub-agents from persisted config.
-    const configSuffix = '-config';
-    try {
-      const allNames = /** @type {string[]} */ (await E(powers).list());
-      for (const entryName of allNames) {
-        if (!entryName.endsWith(configSuffix)) continue;
-        const agentName = entryName.slice(0, -configSuffix.length);
-        if (activeWorkers.has(agentName)) continue;
-        try {
-          const config =
-            /** @type {{ host: string, model: string, authToken: string }} */ (
-              await E(powers).lookup(entryName)
-            );
-          const guest = await E(agent).provideGuest(agentName, {
-            agentName: `profile-for-${agentName}`,
-          });
-          const workerP = spawnWorkerLoop(guest, null, {
-            LAL_HOST: config.host,
-            LAL_MODEL: config.model,
-            LAL_AUTH_TOKEN: config.authToken,
-          });
-          activeWorkers.set(agentName, workerP);
-          workerP.catch(error => {
-            console.error(
-              `[fae] Restored worker "${agentName}" error:`,
-              error,
-            );
-            activeWorkers.delete(agentName);
-          });
-          console.log(`[fae] Restored sub-agent "${agentName}"`);
-        } catch (error) {
+  // Restore existing sub-agents from persisted config.
+  try {
+    const allNames = /** @type {string[]} */ (await E(powers).list());
+    for (const entryName of allNames) {
+      if (!entryName.endsWith(configSuffix)) continue;
+      const agentName = entryName.slice(0, -configSuffix.length);
+      if (activeWorkers.has(agentName)) continue;
+      const guestName = agentName;
+      try {
+        const config = /** @type {{ systemPrompt?: string }} */ (
+          await E(powers).lookup(entryName)
+        );
+        const guest = await E(hostAgent).provideGuest(guestName, {
+          agentName: `profile-for-${guestName}`,
+        });
+        const workerP = spawnWorkerLoop(
+          guest,
+          null,
+          providerConfig,
+          config.systemPrompt,
+        );
+        activeWorkers.set(agentName, workerP);
+        workerP.catch(error => {
           console.error(
-            `[fae] Failed to restore sub-agent "${agentName}":`,
+            `[fae-factory] Restored worker "${agentName}" error:`,
             error,
           );
-        }
-      }
-    } catch (error) {
-      console.error('[fae] Failed to list names for restoration:', error);
-    }
-
-    // Pre-scan existing messages to find our latest form messageId so that
-    // old value messages (from prior sessions) that reply to an earlier form
-    // are not accidentally matched when the iterator replays history.
-    /** @type {string | undefined} */
-    let formMessageId;
-    const existingMessages = /** @type {any[]} */ (
-      await E(powers).listMessages()
-    );
-    for (const msg of existingMessages) {
-      if (msg.from === selfId && msg.type === 'form') {
-        formMessageId = msg.messageId;
-      }
-    }
-
-    const messageIterator = makeRefIterator(E(powers).followMessages());
-    while (true) {
-      const { value: message, done } = await messageIterator.next();
-      if (done) break;
-
-      const msg = /** @type {any} */ (message);
-
-      // Capture the form's messageId from our own outbound message.
-      if (msg.from === selfId && msg.type === 'form') {
-        formMessageId = msg.messageId;
-        continue;
-      }
-
-      // Skip non-value messages and value messages not replying to our form.
-      if (msg.type !== 'value') continue;
-      if (msg.replyTo !== formMessageId) continue;
-
-      try {
-        // Resolve the submitted values from the value message.
-        const config =
-          /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
-            await E(powers).lookupById(msg.valueId)
-          );
-
-        const { name } = config;
-
-        // Skip if a worker is already running for this name.
-        if (activeWorkers.has(name)) {
-          await E(powers).reply(
-            msg.number,
-            [`Agent "${name}" already exists.`],
-            [],
-            [],
-          );
-          continue;
-        }
-
-        // Create the guest profile via the host agent.
-        // provideGuest returns the full EndoGuest (not the handle).
-        const guest = await E(agent).provideGuest(name, {
-          agentName: `profile-for-${name}`,
+          activeWorkers.delete(agentName);
         });
-
-        // Persist the agent config so it survives restarts.
-        await E(powers).store(
-          `${name}${configSuffix}`,
-          harden({
-            host: config.host,
-            model: config.model,
-            authToken: config.authToken,
-          }),
-        );
-
-        // Spawn a worker loop for this guest.
-        const workerP = spawnWorkerLoop(guest, null, {
-          LAL_HOST: config.host,
-          LAL_MODEL: config.model,
-          LAL_AUTH_TOKEN: config.authToken,
-        });
-        activeWorkers.set(name, workerP);
-        workerP.catch(error => {
-          console.error(`[fae] Worker "${name}" error:`, error);
-          activeWorkers.delete(name);
-        });
-
-        await E(powers).reply(
-          msg.number,
-          [`Agent "${name}" is now running.`],
-          [],
-          [],
-        );
+        console.log(`[fae-factory] Restored sub-agent "${agentName}"`);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[fae] Form submission error:', errorMessage);
-        try {
-          await E(powers).reply(
-            msg.number,
-            [`Error creating agent: ${errorMessage}`],
-            [],
-            [],
-          );
-        } catch {
-          // Best-effort reply.
-        }
+        console.error(
+          `[fae-factory] Failed to restore sub-agent "${agentName}":`,
+          error,
+        );
       }
     }
-  };
+  } catch (error) {
+    console.error('[fae-factory] Failed to list names for restoration:', error);
+  }
 
-  runManager().catch(error => {
-    console.error('[fae] Manager error:', error);
-  });
+  return makeExo('FaeFactory', FaeFactoryInterface, {
+    /**
+     * Create a new agent instance with its own guest, conversation tree,
+     * and worker loop.
+     *
+     * @param {string} name - Unique name for this agent
+     * @param {object} [options]
+     * @param {string} [options.systemPrompt] - Override system prompt
+     * @returns {Promise<string>} The agent's profile petname
+     */
+    async createAgent(name, options = {}) {
+      const { systemPrompt } = /** @type {{ systemPrompt?: string }} */ (
+        options
+      );
 
-  return makeExo('Fae', FaeInterface, {
+      if (activeWorkers.has(name)) {
+        throw new Error(`Agent "${name}" already exists.`);
+      }
+
+      const guestName = name;
+      const profileName = `profile-for-${guestName}`;
+      const guest = await E(hostAgent).provideGuest(guestName, {
+        agentName: profileName,
+      });
+
+      await E(powers).storeValue(
+        harden({
+          systemPrompt: systemPrompt || undefined,
+        }),
+        `${name}${configSuffix}`,
+      );
+
+      const workerP = spawnWorkerLoop(
+        guest,
+        null,
+        providerConfig,
+        systemPrompt,
+      );
+      activeWorkers.set(name, workerP);
+      workerP.catch(error => {
+        console.error(`[fae-factory] Worker "${name}" error:`, error);
+        activeWorkers.delete(name);
+      });
+
+      console.log(`[fae-factory] Created agent "${name}"`);
+      return profileName;
+    },
+
     /**
      * @param {string} [methodName]
      * @returns {string}
      */
     help(methodName) {
       if (methodName === undefined) {
-        return 'Fae agent manager. Submit the configuration form to add agents.';
+        return 'Fae factory: creates LLM agent instances bound to a configured LLM provider. Use createAgent(name, { systemPrompt }) to create a new agent.';
+      }
+      if (methodName === 'createAgent') {
+        return 'createAgent(name, { systemPrompt? }) — Create a new agent with its own guest and worker loop. Returns the profile petname.';
       }
       return `No documentation for method "${methodName}".`;
     },
   });
 };
+harden(make);
