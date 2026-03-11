@@ -67,6 +67,8 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
+ * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
+ * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
@@ -92,6 +94,8 @@ export const makeHostMaker = ({
   formulateBundle,
   formulateReadableBlob,
   formulateInvitation,
+  formulateSyncedPetStore,
+  getPeerIdForNodeIdentifier,
   formulateChannel,
   getAllNetworkAddresses,
   getTypeForId,
@@ -698,8 +702,27 @@ export const makeHostMaker = ({
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      await E(invitation).accept(handleLocator);
-      await petStore.write(guestName, guestHandleId);
+      const acceptResult = await E(invitation).accept(handleLocator);
+
+      // The host's accept handler returns the synced store number.
+      const { syncedStoreNumber } =
+        /** @type {{ syncedStoreNumber: import('./types.js').FormulaNumber }} */ (
+          acceptResult
+        );
+
+      // Create a synced-pet-store (grantee role) paired with the host's store.
+      const peerId = await getPeerIdForNodeIdentifier(
+        /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
+      );
+      const { id: syncedStoreId } = await formulateSyncedPetStore(
+        peerId,
+        'grantee',
+        /** @type {import('./types.js').FormulaNumber} */ (syncedStoreNumber),
+        peerId, // store dependency
+      );
+
+      // Write the synced store into the guest's pet store under guestName.
+      await petStore.write(guestName, syncedStoreId);
     };
 
     /** @type {EndoHost['cancel']} */
