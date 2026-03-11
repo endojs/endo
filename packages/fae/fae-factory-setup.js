@@ -77,10 +77,14 @@ export const main = async agent => {
   );
 
   // Create a default "fae" agent instance for direct mailbox chat.
+  // Pin by default so the agent survives daemon restarts.
   const factory = await E(agent).lookup(factoryName);
-  const faeProfileName = await E(factory).createAgent('fae', harden({}));
+  const faeProfileName = await E(factory).createAgent(
+    'fae',
+    harden({ pin: true }),
+  );
   console.log(
-    `Default agent "fae" created (profile: ${faeProfileName}). Add a space with this profile to chat.`,
+    `Default agent "fae" created and pinned (profile: ${faeProfileName}). Add a space with this profile to chat.`,
   );
 };
 harden(main);

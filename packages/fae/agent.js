@@ -499,12 +499,14 @@ harden(spawnWorkerLoop);
 // Fae Factory — Entry Point
 // ============================================================================
 
+const driverSpecifier = new URL('driver.js', import.meta.url).href;
+
 /**
  * Creates a Fae factory that provisions and manages agent instances.
  *
  * Reads `llm-provider` from its petstore for the LLM configuration.
- * Restores previously created agents on restart, and exposes a
- * `createAgent(name, options)` method for creating new ones.
+ * Exposes `createAgent(name, options)` for creating new agents, each
+ * backed by a driver caplet that can be pinned for restart survival.
  *
  * @param {import('@endo/eventual-send').FarRef<object>} guestPowers
  * @param {Promise<object> | object | undefined} _context
@@ -514,99 +516,71 @@ export const make = async (guestPowers, _context) => {
   /** @type {any} */
   const powers = guestPowers;
 
-  const providerConfig =
-    /** @type {{ host: string, model: string, authToken: string }} */ (
-      await E(powers).lookup('llm-provider')
-    );
-
   const hostAgent = await E(powers).lookup('host-agent');
-  const activeWorkers = new Map();
-  const configSuffix = '-config';
-
-  // Restore existing sub-agents from persisted config.
-  try {
-    const allNames = /** @type {string[]} */ (await E(powers).list());
-    for (const entryName of allNames) {
-      if (!entryName.endsWith(configSuffix)) continue;
-      const agentName = entryName.slice(0, -configSuffix.length);
-      if (activeWorkers.has(agentName)) continue;
-      const guestName = agentName;
-      try {
-        const config = /** @type {{ systemPrompt?: string }} */ (
-          await E(powers).lookup(entryName)
-        );
-        const guest = await E(hostAgent).provideGuest(guestName, {
-          agentName: `profile-for-${guestName}`,
-        });
-        const workerP = spawnWorkerLoop(
-          guest,
-          null,
-          providerConfig,
-          config.systemPrompt,
-        );
-        activeWorkers.set(agentName, workerP);
-        workerP.catch(error => {
-          console.error(
-            `[fae-factory] Restored worker "${agentName}" error:`,
-            error,
-          );
-          activeWorkers.delete(agentName);
-        });
-        console.log(`[fae-factory] Restored sub-agent "${agentName}"`);
-      } catch (error) {
-        console.error(
-          `[fae-factory] Failed to restore sub-agent "${agentName}":`,
-          error,
-        );
-      }
-    }
-  } catch (error) {
-    console.error('[fae-factory] Failed to list names for restoration:', error);
-  }
 
   return makeExo('FaeFactory', FaeFactoryInterface, {
     /**
-     * Create a new agent instance with its own guest, conversation tree,
-     * and worker loop.
+     * Create a new agent instance with its own guest, driver caplet,
+     * and inbox/LLM loop.
+     *
+     * The driver is a standalone `make-unconfined` formula that holds
+     * capability references to the LLM provider config and the agent
+     * guest.  When `pin: true`, the driver is written to PINS so
+     * `revivePins()` restarts it automatically on daemon reboot.
      *
      * @param {string} name - Unique name for this agent
      * @param {object} [options]
      * @param {string} [options.systemPrompt] - Override system prompt
+     * @param {boolean} [options.pin] - Pin the driver to PINS for restart survival
      * @returns {Promise<string>} The agent's profile petname
      */
     async createAgent(name, options = {}) {
-      const { systemPrompt } = /** @type {{ systemPrompt?: string }} */ (
-        options
-      );
-
-      if (activeWorkers.has(name)) {
-        throw new Error(`Agent "${name}" already exists.`);
-      }
+      const { systemPrompt, pin } =
+        /** @type {{ systemPrompt?: string, pin?: boolean }} */ (options);
 
       const guestName = name;
       const profileName = `profile-for-${guestName}`;
-      const guest = await E(hostAgent).provideGuest(guestName, {
+      const driverHandleName = `${name}-driver-handle`;
+      const driverProfileName = `profile-for-${driverHandleName}`;
+      const driverResultName = `${name}-driver`;
+
+      if (await E(hostAgent).has(driverResultName)) {
+        throw new Error(`Agent "${name}" already exists.`);
+      }
+
+      // 1. Create the agent guest (inbox, petstore, tools).
+      await E(hostAgent).provideGuest(guestName, {
         agentName: profileName,
       });
 
-      await E(powers).storeValue(
-        harden({
-          systemPrompt: systemPrompt || undefined,
-        }),
-        `${name}${configSuffix}`,
-      );
-
-      const workerP = spawnWorkerLoop(
-        guest,
-        null,
-        providerConfig,
-        systemPrompt,
-      );
-      activeWorkers.set(name, workerP);
-      workerP.catch(error => {
-        console.error(`[fae-factory] Worker "${name}" error:`, error);
-        activeWorkers.delete(name);
+      // 2. Create a lightweight driver guest whose namespace will hold
+      //    capability references to the provider config and the agent.
+      const driverGuest = await E(hostAgent).provideGuest(driverHandleName, {
+        agentName: driverProfileName,
       });
+
+      // 3. Write capability references into the driver's namespace.
+      const providerId = await E(powers).identify('llm-provider');
+      await E(driverGuest).write('llm-provider', providerId);
+
+      const agentId = await E(hostAgent).identify(profileName);
+      await E(driverGuest).write('agent', agentId);
+
+      // 4. Launch the driver caplet.
+      await E(hostAgent).makeUnconfined('MAIN', driverSpecifier, {
+        powersName: driverProfileName,
+        resultName: driverResultName,
+        env: harden({ FAE_SYSTEM_PROMPT: systemPrompt || '' }),
+      });
+
+      // 5. Pin the driver so it auto-restarts on daemon reboot.
+      if (pin) {
+        await E(hostAgent).copy(
+          [driverResultName],
+          ['PINS', driverResultName],
+        );
+        console.log(`[fae-factory] Pinned driver "${driverResultName}"`);
+      }
 
       console.log(`[fae-factory] Created agent "${name}"`);
       return profileName;
@@ -618,10 +592,10 @@ export const make = async (guestPowers, _context) => {
      */
     help(methodName) {
       if (methodName === undefined) {
-        return 'Fae factory: creates LLM agent instances bound to a configured LLM provider. Use createAgent(name, { systemPrompt }) to create a new agent.';
+        return 'Fae factory: creates LLM agent instances bound to a configured LLM provider. Use createAgent(name, { systemPrompt, pin }) to create a new agent.';
       }
       if (methodName === 'createAgent') {
-        return 'createAgent(name, { systemPrompt? }) — Create a new agent with its own guest and worker loop. Returns the profile petname.';
+        return 'createAgent(name, { systemPrompt?, pin? }) — Create a new agent with its own guest, driver caplet, and inbox loop. Pass pin: true to survive daemon restarts. Returns the profile petname.';
       }
       return `No documentation for method "${methodName}".`;
     },

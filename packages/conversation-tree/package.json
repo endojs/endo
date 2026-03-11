@@ -35,6 +35,7 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/pass-style": "workspace:^"
   },
   "devDependencies": {
