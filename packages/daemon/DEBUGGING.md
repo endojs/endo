@@ -4,6 +4,18 @@ This guide covers the daemon's debugging and observability tools:
 environment variables, log interpretation, and recipes for common
 failure modes.
 
+## Environment Variables
+
+| Variable                | Description                                                               |
+|-------------------------|---------------------------------------------------------------------------|
+| `ENDO_ADDR`             | Address for the Endo daemon (connect to or listen on)                     |
+| `ENDO_DAEMON`           | Path to the Node.js executable to use for running endo daemon processes   |
+| `ENDO_DAEMON_PATH`      | Path to the daemon script to use when not loading from `package.json`     |
+| `ENDO_SOCK_PATH`        | Path to the unix socket file that endo clients use for communication with |
+| `ENDO_CACHE_PATH`       | Path to the endo cache directory                                          |
+| `ENDO_GC`               | Enable GC (off by default for now)                                        |
+| `LOCKDOWN_ERROR_TAMING` | Configure error suppression behavior for error messages                   |
+
 ## Reading Logs
 
 ### Daemon log
@@ -295,7 +307,7 @@ After an unclean daemon shutdown, worker processes may linger:
 
 ```sh
 # Find leftover worker processes
-ps aux | grep daemon-node
+pgrep -laf daemon-node
 
 # Kill them
 pkill -f "daemon-node.*packages/daemon/tmp"
