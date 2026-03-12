@@ -12,8 +12,6 @@ SUBDIRECTORY_OK=true
 [ "$(git rev-parse --is-bare-repository)" == "true" ] && \
   die "fatal: $0 cannot be used without a working tree"
 
-set -x
-
 head_ref=$(git symbolic-ref HEAD)
 
 while read -r oldrev newrev refname; do
