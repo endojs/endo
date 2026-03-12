@@ -460,7 +460,6 @@ export const restart = async (config = defaultConfig, options = {}) => {
 
 export const purge = async (config = defaultConfig) => {
   await terminate(config).catch(() => { });
-  await terminate(config).catch(() => {});
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
 
