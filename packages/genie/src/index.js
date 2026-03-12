@@ -16,3 +16,6 @@ export {
   makeMessage,
   makeError,
 } from './agent/index.js';
+
+// Re-export heartbeat module
+export { makeHeartbeatRunner } from './heartbeat/index.js';
