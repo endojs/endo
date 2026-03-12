@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreWorkspaces": [".", "golang/cosmos"],
+  "workspaces": {
+    "packages/*": {
+      "project": [
+        "**/*.{js,cjs,mjs,ts,cts,mts}",
+        "!dist/**",
+        "!coverage/**",
+        "!build/**",
+        "!bundles/**",
+        "!test/snapshots/**"
+      ]
+    },
+    "packages/wallet/api": {
+      "project": [
+        "**/*.{js,cjs,mjs,ts,cts,mts}",
+        "!dist/**",
+        "!coverage/**",
+        "!build/**",
+        "!bundles/**",
+        "!test/snapshots/**"
+      ]
+    },
+    "services/*": {
+      "project": [
+        "**/*.{js,cjs,mjs,ts,cts,mts}",
+        "!dist/**",
+        "!coverage/**",
+        "!build/**",
+        "!bundles/**",
+        "!test/snapshots/**"
+      ]
+    }
+  }
+}
