@@ -28,6 +28,8 @@ import '@endo/init/debug.js';
 import { createInterface } from 'readline';
 // eslint-disable-next-line import/no-unresolved
 import {
+  buildHeartbeatPrompt,
+  isHeartbeatOk,
   makePiAgent,
   runAgentRound,
   DEFAULT_MODEL_STRING,
@@ -44,6 +46,9 @@ import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
 import { initWorkspace, isWorkspace } from './src/workspace/init.js';
+
+import { promises as fs } from 'fs';
+import { join } from 'path';
 
 /**
  * @param {never} nope
@@ -69,6 +74,25 @@ const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether a directory is a git repository.
+ *
+ * @param {string} dir
+ * @returns {Promise<boolean>}
+ */
+const isGitRepo = async dir => {
+  try {
+    await fs.access(join(dir, '.git'));
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -335,24 +359,36 @@ async function* runPrompt(
  * @param {PiAgent} options.piAgent
  * @param {Record<string, Tool>} options.tools
  * @param {boolean} options.verbose - Enable debug output.
+ * @param {string} options.workspaceDir - Workspace directory path.
  * @param {Array<{ role: string, content: string }>} [options.messages]
  * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
  * @returns {AsyncGenerator<string>}
  */
-async function* runAgent({ piAgent, tools, verbose, prompts, messages = [] }) {
+async function* runAgent({
+  piAgent,
+  tools,
+  verbose,
+  workspaceDir,
+  prompts,
+  messages = [],
+}) {
   for await (const prompt of prompts) {
     if (prompt === '.exit' || prompt === '.quit') {
       yield `${DIM}Goodbye.${RESET}\n`;
       break;
+
     } else if (prompt === '.help') {
       yield `${DIM}Commands:${RESET}\n`;
-      yield `${DIM}  .exit   — quit the REPL${RESET}\n`;
-      yield `${DIM}  .clear  — clear conversation history${RESET}\n`;
-      yield `${DIM}  .tools  — list available tools${RESET}\n`;
-      yield `${DIM}  .help   — show this help${RESET}\n`;
+      yield `${DIM}  .exit      — quit the REPL${RESET}\n`;
+      yield `${DIM}  .clear     — clear conversation history${RESET}\n`;
+      yield `${DIM}  .tools     — list available tools${RESET}\n`;
+      yield `${DIM}  .help      — show this help${RESET}\n`;
+      yield `${DIM}  .heartbeat — run a heartbeat cycle${RESET}\n`;
+
     } else if (prompt === '.clear') {
       messages.length = 0;
       yield `${DIM}Conversation history cleared.${RESET}\n`;
+
     } else if (prompt === '.tools') {
       const toolNames = Object.keys(tools);
       if (!toolNames.length) {
@@ -362,6 +398,32 @@ async function* runAgent({ piAgent, tools, verbose, prompts, messages = [] }) {
           yield `${DIM}  • ${name}${RESET}\n`;
         }
       }
+
+    } else if (prompt === '.heartbeat') {
+      // ─── Dot command .heartbeat ──────────────────────
+      yield `${DIM}Running heartbeat cycle...${RESET}\n`;
+      try {
+        const workspaceIsGit = await isGitRepo(workspaceDir);
+        const heartbeatPrompt = buildHeartbeatPrompt(workspaceIsGit);
+        const result = yield* runPrompt(piAgent, heartbeatPrompt, {
+          messages,
+          verbose,
+          echoUser: true,
+        });
+        if (isHeartbeatOk(result)) {
+          yield `${GREEN}✓ Heartbeat OK.${RESET}\n`;
+        } else {
+          yield `${YELLOW}⚠ Heartbeat completed but response did not indicate OK.${RESET}\n`;
+        }
+      } catch (err) {
+        yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+      }
+
+    } else if (prompt.startsWith('.')) {
+      // ─── Unknown dot command ────────────────────────
+      yield `${RED}Unknown command: ${prompt}${RESET}\n`;
+      yield `${DIM}Type .help for a list of commands.${RESET}\n`;
+
     } else {
       try {
         yield* runPrompt(piAgent, prompt, { messages, verbose });
@@ -424,7 +486,7 @@ async function* readPrompts() {
       rl.once('close', onClose);
     });
 
-  for (;;) {
+  for (; ;) {
     const prompt = await nextPrompt();
     if (prompt === null) {
       break;
@@ -513,13 +575,13 @@ async function* runMain(args) {
   const tools = noTools
     ? {}
     : {
-        bash,
-        git,
-        ...fileTools,
-        ...memoryTools,
-        webFetch,
-        webSearch,
-      };
+      bash,
+      git,
+      ...fileTools,
+      ...memoryTools,
+      webFetch,
+      webSearch,
+    };
 
   // Create the PiAgent once, reused across all chat rounds.
   const piAgent = await makePiAgent({
@@ -588,7 +650,7 @@ async function* runMain(args) {
     const bannerMinWidth = 40;
     const ruleWidth = Math.max(title.length + 2, bannerMinWidth - 2);
     const rule = '═'.repeat(ruleWidth);
-    const titlePad = (ruleWidth - title.length)/2;
+    const titlePad = (ruleWidth - title.length) / 2;
     const head = `${' '.repeat(Math.floor(titlePad))}${title}${' '.repeat(Math.ceil(titlePad))}`;
     yield `${BOLD}${CYAN}╔${rule}╗${RESET}\n`;
     yield `${BOLD}${CYAN}║${head}║${RESET}\n`;
@@ -603,6 +665,7 @@ async function* runMain(args) {
       piAgent,
       tools,
       verbose,
+      workspaceDir,
       prompts: readPrompts(),
       messages,
     });

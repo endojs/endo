@@ -1,11 +1,15 @@
-# Heartbeat
+# HEARTBEAT.md - Pending Tasks
 
-Pending tasks for autonomous execution during heartbeat ticks.
+Tasks listed here will be executed during heartbeat cycles (autonomous mode).
 
-<!-- Format:
-- [ ] Task description
-- [x] Completed task description
+## Format
 
-The heartbeat agent reads this file on each tick, executes pending
-tasks, and marks them complete.
--->
+- [ ] Task description (include context needed to complete it)
+
+## Repeating Tasks
+
+Do these everytime, do not check them off, or updated them, they are standing instructions:
+
+## Current Tasks
+
+(No pending tasks)
