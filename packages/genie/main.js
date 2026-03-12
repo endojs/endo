@@ -23,13 +23,24 @@
  *     as a single final message.
  */
 
+import { promises as fs } from 'fs';
+import { join } from 'path';
+
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import {
+  makePiAgent,
+  runAgentRound,
+  HeartbeatStatus,
+  makeHeartbeatEvent,
+  buildHeartbeatPrompt,
+  isHeartbeatOk,
+} from '@endo/genie';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
-import { makePiAgent, runAgentRound } from '@endo/genie';
 
+import { makeIntervalScheduler } from './src/interval/index.js';
 import { bash } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
@@ -39,9 +50,46 @@ import { webSearch } from './src/tools/web-search.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { EndoGuest, EndoHost } from '@endo/daemon' */
+/** @import { IntervalTickMessage, IntervalHandle, IntervalControlFacet } from './src/interval/types.js' */
 
 /** Default endo directory name for tracking child agents. */
 const DEFAULT_AGENT_DIRECTORY = 'genie';
+
+/** Default heartbeat period: 30 minutes. */
+const DEFAULT_HEARTBEAT_PERIOD_MS = 1_800_000;
+
+/**
+ * Check whether a workspace directory is a git repository.
+ *
+ * @param {string} dir
+ * @returns {Promise<boolean>}
+ */
+const isGitRepo = async dir => {
+  try {
+    await fs.access(join(dir, '.git'));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Record a heartbeat event to the agent's workspace status file.
+ *
+ * @param {string} workspaceDir
+ * @param {object} event - Heartbeat event from `makeHeartbeatEvent`.
+ */
+const recordHeartbeatEvent = async (workspaceDir, event) => {
+  const statusPath = join(workspaceDir, '.heartbeats.log');
+  try {
+    await fs.appendFile(statusPath, `${JSON.stringify(event)}\n`, 'utf-8');
+  } catch (err) {
+    console.error(
+      `[genie] Failed to record heartbeat event:`,
+      /** @type {Error} */(err).message,
+    );
+  }
+};
 
 // Register built-in API providers so getModel lookups work for known providers.
 registerBuiltInApiProviders();
@@ -137,6 +185,8 @@ export const make = (guestPowers, _context) => {
    * @prop {string} workspace
    * @prop {string} [name]
    * @prop {string} [agentDirectory]
+   * @prop {string} [heartbeatPeriod]
+   * @prop {string} [heartbeatTimeout]
    */
 
   /**
@@ -279,28 +329,163 @@ export const make = (guestPowers, _context) => {
   };
 
   /**
+   * Process a heartbeat tick: build a heartbeat prompt, run an agent
+   * round, record the result, and resolve the tick.
+   *
+   * @param {EndoGuest} agentPowers
+   * @param {object} piAgent
+   * @param {string} agentName
+   * @param {string} workspaceDir
+   * @param {IntervalTickMessage} tick
+   * @param {bigint} messageNumber - Inbox message number to reply to.
+   */
+  const processHeartbeat = async (
+    agentPowers,
+    piAgent,
+    agentName,
+    workspaceDir,
+    tick,
+    messageNumber,
+  ) => {
+    const tickStart = Date.now();
+    const workspaceIsGit = await isGitRepo(workspaceDir);
+    const prompt = buildHeartbeatPrompt(workspaceIsGit);
+
+    console.log(
+      `[genie:${agentName}] Heartbeat tick #${tick.tickNumber} (missed: ${tick.missedTicks})`,
+    );
+
+    let responseText = '';
+
+    try {
+      for await (const event of runAgentRound(piAgent, prompt)) {
+        switch (event.type) {
+          case 'Message': {
+            if (event.role === 'assistant' && event.content) {
+              responseText = event.content;
+              await E(agentPowers).reply(
+                messageNumber,
+                [event.content],
+                [],
+                [],
+              );
+            }
+            break;
+          }
+          case 'ToolCallStart': {
+            console.log(
+              `[genie:${agentName}] Heartbeat tool: ${event.toolName}`,
+            );
+            break;
+          }
+          case 'Error': {
+            console.error(
+              `[genie:${agentName}] Heartbeat error: ${event.message}`,
+            );
+            responseText = `Error: ${event.message}`;
+            await E(agentPowers).reply(
+              messageNumber,
+              [responseText],
+              [],
+              [],
+            );
+            break;
+          }
+          default:
+            break;
+        }
+      }
+    } catch (err) {
+      const errorMessage = /** @type {Error} */ (err).message || String(err);
+      console.error(
+        `[genie:${agentName}] Heartbeat round error:`,
+        errorMessage,
+      );
+      responseText = `Heartbeat error: ${errorMessage}`;
+      await E(agentPowers).reply(
+        messageNumber,
+        [responseText],
+        [],
+        [],
+      );
+    }
+
+    const elapsed = Date.now() - tickStart;
+    const status = isHeartbeatOk(responseText)
+      ? HeartbeatStatus.Ok
+      : HeartbeatStatus.Failed;
+    const preview =
+      responseText.length > 200
+        ? `${responseText.slice(0, 200)}...`
+        : responseText;
+    const heartbeatEvent = makeHeartbeatEvent(Date.now(), status, {
+      elapsed,
+      preview,
+    });
+
+    await recordHeartbeatEvent(workspaceDir, heartbeatEvent);
+
+    // Resolve the tick so the scheduler advances to the next period.
+    tick.tickResponse.resolve();
+  };
+
+  /**
    * Run the message processing loop for a single agent guest.
    *
    * Follows the agent guest's inbox and dispatches each inbound message
    * to processMessage, using the agent guest's powers so that replies
    * originate from the agent's identity (not setup-genie).
    *
+   * Heartbeat messages (type `'heartbeat'`) are detected and coalesced:
+   * if multiple heartbeat messages have accumulated, only one heartbeat
+   * round runs and all stacked heartbeat ticks are resolved.
+   *
    * @param {EndoGuest} agentPowers - The agent guest's EndoGuest powers
    * @param {object} piAgent - The PiAgent instance
    * @param {string} agentName - Display name for logging
+   * @param {string} workspaceDir - Agent workspace directory
    */
-  const runAgentLoop = async (agentPowers, piAgent, agentName) => {
+  const runAgentLoop = async (agentPowers, piAgent, agentName, workspaceDir) => {
     const selfId = await E(agentPowers).locate('@self');
     const messageIterator = makeRefIterator(
       E(agentPowers).followMessages(),
     );
+
+    /**
+     * Collect any additional pending heartbeat messages from the
+     * iterator without blocking.  Returns an array of heartbeat
+     * messages that were drained.
+     *
+     * @returns {Promise<Array<{number: bigint, heartbeat: IntervalTickMessage}>>}
+     */
+    const drainPendingHeartbeats = async () => {
+      /** @type {Array<{number: bigint, heartbeat: IntervalTickMessage}>} */
+      const extra = [];
+      // listMessages gives a snapshot of all current inbox messages.
+      const allMessages = /** @type {any[]} */ (
+        await E(agentPowers).listMessages()
+      );
+      for (const m of allMessages) {
+        if (m.from === selfId) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (m.type === 'heartbeat') {
+          extra.push({
+            number: m.number,
+            heartbeat: /** @type {IntervalTickMessage} */ (m.heartbeat),
+          });
+        }
+      }
+      return extra;
+    };
 
     while (true) {
       const { value: message, done } = await messageIterator.next();
       if (done) break;
 
       const msg =
-        /** @type {{ from: string, number: bigint, type?: string, strings: string[], messageId?: string, replyTo?: string }} */ (
+        /** @type {{ from: string, number: bigint, type?: string, strings: string[], messageId?: string, replyTo?: string, heartbeat?: IntervalTickMessage }} */ (
           message
         );
 
@@ -311,6 +496,57 @@ export const make = (guestPowers, _context) => {
         `[genie:${agentName}] New message #${msg.number} (type: ${msg.type || 'package'})`,
       );
 
+      // ─── Heartbeat messages ──────────────────────────────────────
+      if (msg.type === 'heartbeat' && msg.heartbeat) {
+        // Coalesce: drain any additional pending heartbeat messages
+        // so one round clears them all.
+        const extraHeartbeats = await drainPendingHeartbeats();
+
+        // Run a single heartbeat round for the latest tick.
+        const latestTick = msg.heartbeat;
+        try {
+          await processHeartbeat(
+            agentPowers,
+            piAgent,
+            agentName,
+            workspaceDir,
+            latestTick,
+            msg.number,
+          );
+        } catch (err) {
+          const errorMessage =
+            /** @type {Error} */ (err).message || String(err);
+          console.error(
+            `[genie:${agentName}] Heartbeat processing error:`,
+            errorMessage,
+          );
+        }
+
+        // Resolve all coalesced heartbeat ticks and dismiss their
+        // messages.
+        for (const extra of extraHeartbeats) {
+          try {
+            extra.heartbeat.tickResponse.resolve();
+          } catch {
+            // best-effort
+          }
+          try {
+            await E(agentPowers).dismiss(extra.number);
+          } catch {
+            // best-effort
+          }
+        }
+
+        // Dismiss the primary heartbeat message.
+        try {
+          await E(agentPowers).dismiss(msg.number);
+        } catch {
+          // Best-effort dismiss.
+        }
+        continue;
+      }
+
+      // ─── Normal user messages ────────────────────────────────────
       try {
         await processMessage(agentPowers, piAgent, msg);
       } catch (err) {
@@ -333,7 +569,8 @@ export const make = (guestPowers, _context) => {
 
   /**
    * Provision a new Endo guest for the agent, build its tools and
-   * PiAgent, announce readiness, and start the message loop.
+   * PiAgent, set up a heartbeat interval, announce readiness, and
+   * start the message loop.
    *
    * When `parentPowers` is provided, the child agent's locator is
    * stored in the parent's agent directory so that the parent can
@@ -401,11 +638,87 @@ export const make = (guestPowers, _context) => {
       execTool,
     });
 
+    // ── Heartbeat interval ─────────────────────────────────────────
+    const heartbeatPeriodMs = config.heartbeatPeriod
+      ? Number(config.heartbeatPeriod)
+      : DEFAULT_HEARTBEAT_PERIOD_MS;
+    const heartbeatTimeoutMs = config.heartbeatTimeout
+      ? Number(config.heartbeatTimeout)
+      : heartbeatPeriodMs / 2;
+
+    /** @type {IntervalHandle | null} */
+    let heartbeatHandle = null;
+    /** @type {IntervalControlFacet | null} */
+    let heartbeatControl = null;
+
+    if (heartbeatPeriodMs > 0) {
+      const intervalsDir = join(workspaceDir, '.genie', agentName, 'intervals');
+
+      /**
+       * onTick callback — sends a heartbeat message into the agent's
+       * own daemon inbox so it is processed in FIFO order by the
+       * message loop, interleaved with normal user messages.
+       *
+       * @param {IntervalTickMessage} tick
+       */
+      const onTick = tick => {
+        // Fire-and-forget: deliver the heartbeat as a daemon mail
+        // message to ourselves.  The message loop detects
+        // `type: 'heartbeat'` and handles it.
+        E(agentGuest)
+          .send(
+            `@self`,
+            ['HEARTBEAT'],
+            [],
+            [],
+          )
+          .catch(err => {
+            console.error(
+              `[genie:${agentName}] Failed to send heartbeat message:`,
+              /** @type {Error} */(err).message,
+            );
+            // Resolve the tick anyway to prevent the scheduler from
+            // stalling.
+            tick.tickResponse.resolve();
+          });
+      };
+
+      try {
+        const { scheduler, schedulerControl } =
+          await makeIntervalScheduler({
+            persistDir: intervalsDir,
+            onTick,
+          });
+
+        heartbeatControl = schedulerControl;
+        heartbeatHandle = await scheduler.makeInterval(
+          'heartbeat',
+          heartbeatPeriodMs,
+          {
+            tickTimeoutMs: heartbeatTimeoutMs,
+          },
+        );
+
+        console.log(
+          `[genie:${agentName}] Heartbeat scheduled: period=${heartbeatPeriodMs}ms, timeout=${heartbeatTimeoutMs}ms`,
+        );
+      } catch (err) {
+        console.error(
+          `[genie:${agentName}] Failed to create heartbeat scheduler:`,
+          /** @type {Error} */(err).message,
+        );
+      }
+    }
+
     // Announce readiness from the agent's own identity.
+    const heartbeatInfo =
+      heartbeatPeriodMs > 0
+        ? `, heartbeat: ${heartbeatPeriodMs / 1000}s`
+        : '';
     await E(agentGuest).send(
       '@host',
       [
-        `Genie agent ready (model: ${config.model}, workspace: ${workspaceDir}).`,
+        `Genie agent ready (model: ${config.model}, workspace: ${workspaceDir}${heartbeatInfo}).`,
       ],
       [],
       [],
@@ -416,8 +729,12 @@ export const make = (guestPowers, _context) => {
     );
 
     // Start the message loop (fire-and-forget).
-    runAgentLoop(agentGuest, piAgent, agentName).catch(err => {
+    runAgentLoop(agentGuest, piAgent, agentName, workspaceDir).catch(err => {
       console.error(`[genie:${agentName}] Agent loop error:`, err);
+      // Tear down scheduler on fatal loop error.
+      if (heartbeatControl) {
+        heartbeatControl.revoke();
+      }
     });
   };
 
@@ -496,6 +813,16 @@ export const make = (guestPowers, _context) => {
           name: 'workspace',
           label: 'Workspace directory',
           example: '/home/user/project',
+        },
+        {
+          name: 'heartbeatPeriod',
+          label: 'Heartbeat period (ms, 0 to disable)',
+          example: '1800000',
+        },
+        {
+          name: 'heartbeatTimeout',
+          label: 'Heartbeat timeout (ms, default: period/2)',
+          example: '900000',
         },
       ]),
     );
