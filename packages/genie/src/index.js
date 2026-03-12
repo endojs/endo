@@ -21,3 +21,7 @@ export {
 export {
   makeIntervalScheduler
 } from './interval/index.js';
+
+export {
+  makeHeartbeatRunner
+} from './heartbeat/index.js';
