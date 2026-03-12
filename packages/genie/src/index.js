@@ -13,3 +13,5 @@ export {
   makeMessage,
   makeError,
 } from './agent/index.js';
+
+// TODO heartbeat module re-export
