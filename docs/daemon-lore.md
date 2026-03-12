@@ -27,29 +27,49 @@ In fact this document will mostly grow by:
 A program that exports `make(powers)`, and returns a capability, and is
 intended to live as long as that capability shall live.
 
+> TODO what is a capability tho?
+
 ## runlet
 
 A program that exports `main(powers)`, and is not expected to return anything,
 and consequently, is not intended to exceed the life of the main. Whether to
 wait for IO handles to close is debatable still.
 
+> TODO why is that debatable? seems like an echo of the live-ref/GC/&c situation
+
 Neither caplet nor runlet is a Worker.
+
+> TODO Okay, so what is a Worker then?
 
 ## worklet
 
 A caplet that is intended to run in a Worker.
 
+> TODO what's a Worker
+
 **Note:** Workers can be co-tenant but YMMV what with availability and
 HardenedJS not being quite bullet-proof for passable proxies.
+
+> TODO **HardenedJS** — what's that? what's the relevance? say more about co-tenancy, maybe in a separate section below
+> TODO **passable proxies** — what're those? the relevance?
 
 ## weblet
 
 A caplet that runs in a `WebView`.
 
+> TODO what is a WebView? is that inside the browser DOM? an electron thing outside of it?
+
 Web views are not safely co-tenant.
+
+> TODO there's that topic of co-tenancy again (like with worklet above), say more
+
 They rely on same origin isolation.
 
+> TODO this is about CSP right? say more.
+
 They persist only so long as the window is open.
+
+> TODO whose window? is that relevant? is each window-ified instance a separate "weblet" per-se? does "weblet" have stable identity separate from being enlivend thusly?
 
 ## Gateway
 
@@ -62,12 +82,18 @@ Hosts:
 - Gateway provides demi-secure port hosting
 - Familiar is more secure via `localhttp://`
 
+> TODO is this about the instance <-> WebView locking questioned above?
+
+> TODO does a gateway hosted weblet have any presence when not loaded in a live browser dom?
+
 ## Formula
 
 A JSON spec for an object constructor:
 - a readable blob is one of the most primitive types
 - notably program source code gets stored in a blob
 - evaluating a JS string in the presence of various dependencies
+
+> TODO say more about these use cases, provide examples from your investigation
 
 # System Internals
 
@@ -76,6 +102,8 @@ A JSON spec for an object constructor:
 Design tensions with timely revocation. Need to ensure that:
 - Some stuff cleans up
 - Don't leave a hole open for something to go rogue
+
+> TODO what does "going rogue" look like? what does the "hole" look like, is that a hole in time vs variants claimed to a revoker? or something more?
 
 **Considerations:**
 - Some workers might not get an opportunity to cleanup
