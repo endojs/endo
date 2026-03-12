@@ -30,6 +30,8 @@ import { createInterface } from 'readline';
 
 // eslint-disable-next-line import/no-unresolved
 import {
+  runHeartbeat,
+  HeartbeatStatus,
   makePiAgent,
   runAgentRound,
   DEFAULT_MODEL_STRING,
@@ -39,6 +41,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 
 /** @import {ChatEvent} from './src/agent/index.js' */
 /** @import { Tool } from './src/tools/common.js' */
+/** @import { HeartbeatEvent } from './src/heartbeat/index.js' */
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
@@ -53,6 +56,16 @@ const { version: GENIE_VERSION } =
   /** @type {{ version: string }} */ (
     createRequire(import.meta.url)('./package.json')
   );
+
+/**
+ * @template T, R
+ * @param {(r: R) => void} have
+ * @param {AsyncIterable<T, R>} it
+ */
+async function* collectIt(have, it) {
+  const r = yield* it;
+  have(r);
+}
 
 /**
  * @param {never} nope
@@ -78,6 +91,10 @@ const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -345,24 +362,39 @@ async function* runPrompt(
  * @param {Record<string, Tool>} options.tools
  * @param {boolean} options.verbose - Enable debug output.
  * @param {Array<{ role: string, content: string }>} [options.messages]
+ * @param {Record<string, (tail: string[]) => AsyncIterable<string>>} [options.specials] - special builtin commands like .heartbeat
  * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
  * @returns {AsyncGenerator<string>}
  */
-async function* runAgent({ piAgent, tools, verbose, prompts, messages = [] }) {
+async function* runAgent({
+  piAgent,
+  tools,
+  verbose,
+  specials = {},
+  prompts,
+  messages = [],
+}) {
   for await (const prompt of prompts) {
     if (prompt === '.exit' || prompt === '.quit') {
       yield `${DIM}Goodbye.${RESET}\n`;
       break;
+
     } else if (prompt === '.help') {
+      // TODO eject
       yield `${DIM}Commands:${RESET}\n`;
-      yield `${DIM}  .exit   — quit the REPL${RESET}\n`;
-      yield `${DIM}  .clear  — clear conversation history${RESET}\n`;
-      yield `${DIM}  .tools  — list available tools${RESET}\n`;
-      yield `${DIM}  .help   — show this help${RESET}\n`;
+      yield `${DIM}  .exit      — quit the REPL${RESET}\n`;
+      yield `${DIM}  .clear     — clear conversation history${RESET}\n`;
+      yield `${DIM}  .tools     — list available tools${RESET}\n`;
+      yield `${DIM}  .help      — show this help${RESET}\n`;
+      yield `${DIM}  .heartbeat — run a heartbeat cycle${RESET}\n`;
+
     } else if (prompt === '.clear') {
+      // TODO eject
       messages.length = 0;
       yield `${DIM}Conversation history cleared.${RESET}\n`;
+
     } else if (prompt === '.tools') {
+      // TODO eject
       const toolNames = Object.keys(tools);
       if (!toolNames.length) {
         yield `${DIM}-- No Tools --${RESET}\n`;
@@ -370,6 +402,15 @@ async function* runAgent({ piAgent, tools, verbose, prompts, messages = [] }) {
         for (const name of toolNames) {
           yield `${DIM}  • ${name}${RESET}\n`;
         }
+      }
+
+    } else if (prompt.startsWith('.')) {
+      const [head, ...tail] = prompt.slice(1).split(/\s+/);
+      if (head in specials) {
+        yield* specials[head](tail);
+      } else {
+        yield `${RED}Unknown command: ${prompt}${RESET}\n`;
+        yield `${DIM}Type .help for a list of commands.${RESET}\n`;
       }
     } else {
       try {
@@ -433,7 +474,7 @@ async function* readPrompts() {
       rl.once('close', onClose);
     });
 
-  for (;;) {
+  for (; ;) {
     const prompt = await nextPrompt();
     if (prompt === null) {
       break;
@@ -522,47 +563,58 @@ async function* runMain(args) {
   const tools = noTools
     ? {}
     : {
-        bash,
-        git,
-        ...fileTools,
-        ...memoryTools,
-        webFetch,
-        webSearch,
-      };
+      bash,
+      git,
+      ...fileTools,
+      ...memoryTools,
+      webFetch,
+      webSearch,
+    };
 
-  // Create the PiAgent once, reused across all chat rounds.
+  /**
+   * List available tools in the ToolSpec format expected by makeAgent.
+   *
+   * @returns {Array<{ name: string, summary: string }>}
+   */
+  const listTools = () => {
+    return Object.entries(tools).map(([name, tool]) => ({
+      name,
+      summary: tool.help(),
+    }));
+  };
+
+  /**
+   * Execute a tool by name.
+   *
+   * @param {string} name
+   * @param {any} toolArgs
+   * @returns {Promise<any>}
+   */
+  const execTool = async (name, toolArgs) => {
+    const tool = tools[name];
+    if (!tool) {
+      throw new Error(`Unknown tool: ${name}`);
+    }
+    return tool.execute(toolArgs);
+  };
+
+  // main chat agent
   const piAgent = await makePiAgent({
     hostname: 'dev-repl',
     currentTime: new Date().toISOString(),
     workspaceDir,
     model: modelArg,
+    listTools,
+    execTool,
+  });
 
-    /**
-     * List available tools in the ToolSpec format expected by makeAgent.
-     *
-     * @returns {Array<{ name: string, summary: string }>}
-     */
-    listTools() {
-      return Object.entries(tools).map(([name, tool]) => ({
-        name,
-        summary: tool.help(),
-      }));
-    },
-
-    /**
-     * Execute a tool by name.
-     *
-     * @param {string} name
-     * @param {any} toolArgs
-     * @returns {Promise<any>}
-     */
-    async execTool(name, toolArgs) {
-      const tool = tools[name];
-      if (!tool) {
-        throw new Error(`Unknown tool: ${name}`);
-      }
-      return tool.execute(toolArgs);
-    },
+  const heartbeatAgent = await makePiAgent({
+    hostname: 'dev-repl',
+    currentTime: new Date().toISOString(),
+    workspaceDir,
+    model: modelArg,
+    listTools,
+    execTool,
   });
 
   function* describe() {
@@ -606,7 +658,7 @@ async function* runMain(args) {
     const bannerMinWidth = 40;
     const ruleWidth = Math.max(title.length + 2, bannerMinWidth - 2);
     const rule = '═'.repeat(ruleWidth);
-    const titlePad = (ruleWidth - title.length)/2;
+    const titlePad = (ruleWidth - title.length) / 2;
     const head = `${' '.repeat(Math.floor(titlePad))}${title}${' '.repeat(Math.ceil(titlePad))}`;
     yield `${BOLD}${CYAN}╔${rule}╗${RESET}\n`;
     yield `${BOLD}${CYAN}║${head}║${RESET}\n`;
@@ -623,6 +675,41 @@ async function* runMain(args) {
       verbose,
       prompts: readPrompts(),
       messages,
+      specials: {
+
+        heartbeat: async function*(_tail) {
+          yield `${DIM}Running heartbeat cycle...${RESET}\n`;
+
+          /** @type {HeartbeatEvent|null} */
+          let heartbeatEvent = null;
+          try {
+            yield* runAgentEvents(
+              collectIt(he => { heartbeatEvent = he }, runHeartbeat({
+                workspaceDir,
+                piAgent: heartbeatAgent,
+              })),
+              {
+                verbose,
+                echoUser: true,
+              }
+            );
+            if (!heartbeatEvent) {
+              yield `${RED}⚠ Heartbeat failed, but did not throw?.${RESET}\n`;
+            } else {
+              // TODO why need the cast
+              const status = /** @type {HeartbeatEvent} */(heartbeatEvent).status;
+              if (status != HeartbeatStatus.Ok) {
+                yield `${YELLOW}⚠ Heartbeat completed not OK: ${status}${RESET}\n`;
+              } else {
+                yield `${GREEN}✓ Heartbeat OK.${RESET}\n`;
+              }
+            }
+          } catch (err) {
+            yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+          }
+        },
+
+      },
     });
   }
 }

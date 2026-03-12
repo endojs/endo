@@ -15,6 +15,14 @@ export {
   makeError,
 } from './agent/index.js';
 
+export {
+  runHeartbeat,
+  HeartbeatStatus,
+  makeHeartbeatEvent,
+  buildHeartbeatPrompt,
+  isHeartbeatOk,
+} from './heartbeat/index.js';
+
 export { makeIntervalScheduler } from './interval/index.js';
 
 export { default as buildSystemPrompt } from './system/index.js';
