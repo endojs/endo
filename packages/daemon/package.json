@@ -54,7 +54,6 @@
     "@endo/harden": "workspace:^",
     "@endo/import-bundle": "workspace:^",
     "@endo/init": "workspace:^",
-    "@endo/lockdown": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/netstring": "workspace:^",
     "@endo/patterns": "workspace:^",

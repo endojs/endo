@@ -535,7 +535,6 @@ __metadata:
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
     "@endo/bundle-source": "workspace:^"
-    "@endo/compartment-mapper": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
@@ -544,7 +543,6 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/import-bundle": "workspace:^"
     "@endo/init": "workspace:^"
-    "@endo/lockdown": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
@@ -561,7 +559,6 @@ __metadata:
     eslint-plugin-import: "npm:^2.31.0"
     execa: "npm:^9.3.0"
     open: "npm:^9.1.0"
-    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   bin:
     endo: ./bin/endo
@@ -597,7 +594,6 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/module-source": "workspace:^"
-    "@endo/path-compare": "workspace:^"
     "@endo/trampoline": "workspace:^"
     "@endo/zip": "workspace:^"
     ava: "catalog:dev"
@@ -629,7 +625,6 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/import-bundle": "workspace:^"
     "@endo/init": "workspace:^"
-    "@endo/lockdown": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/netstring": "workspace:^"
     "@endo/pass-style": "workspace:^"
@@ -858,7 +853,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -876,7 +870,6 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/nat": "workspace:^"
     "@endo/pass-style": "workspace:^"
-    "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
     ava: "catalog:dev"
@@ -915,7 +908,6 @@ __metadata:
     "@babel/parser": "npm:~7.28.3"
     "@babel/traverse": "npm:~7.28.3"
     "@babel/types": "npm:~7.28.2"
-    "@endo/harden": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     babel-eslint: "npm:^10.1.0"
@@ -955,7 +947,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -978,10 +969,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
-    "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
-    "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/marshal": "workspace:^"
@@ -1021,7 +1010,6 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
-    "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -1041,7 +1029,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/path-compare@workspace:^, @endo/path-compare@workspace:packages/path-compare":
+"@endo/path-compare@workspace:packages/path-compare":
   version: 0.0.0-use.local
   resolution: "@endo/path-compare@workspace:packages/path-compare"
   dependencies:
@@ -1064,7 +1052,6 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/pass-style": "workspace:^"
-    "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
     ava: "catalog:dev"
@@ -1133,13 +1120,11 @@ __metadata:
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
-    "@endo/init": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft

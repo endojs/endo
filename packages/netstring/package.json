@@ -38,8 +38,7 @@
     "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/promise-kit": "workspace:^",
-    "@endo/stream": "workspace:^",
-    "ses": "workspace:^"
+    "@endo/stream": "workspace:^"
   },
   "devDependencies": {
     "@endo/eventual-send": "workspace:^",
