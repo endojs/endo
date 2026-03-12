@@ -9,11 +9,18 @@ trap 'rm -f "$REPORT_FILE"' EXIT
 
 cd "$REPO_ROOT"
 
+set +e
 yarn dlx -q -p knip -p typescript -p @types/node knip \
   --config "$SCRIPT_DIR/knip.json" \
   --reporter json \
   --include dependencies \
   "$@" >"$REPORT_FILE"
+KNIP_STATUS=$?
+set -e
+
+if [ "$KNIP_STATUS" -gt 1 ]; then
+  exit "$KNIP_STATUS"
+fi
 
 node -e '
   const fs = require("node:fs");

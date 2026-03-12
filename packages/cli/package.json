@@ -30,27 +30,6 @@
     "lint:types": "tsc",
     "test": "ava"
   },
-  "dependencies": {
-    "@endo/bundle-source": "workspace:^",
-    "@endo/compartment-mapper": "workspace:^",
-    "@endo/daemon": "workspace:^",
-    "@endo/errors": "workspace:^",
-    "@endo/eventual-send": "workspace:^",
-    "@endo/exo": "workspace:^",
-    "@endo/far": "workspace:^",
-    "@endo/harden": "workspace:^",
-    "@endo/import-bundle": "workspace:^",
-    "@endo/init": "workspace:^",
-    "@endo/lockdown": "workspace:^",
-    "@endo/pass-style": "workspace:^",
-    "@endo/patterns": "workspace:^",
-    "@endo/promise-kit": "workspace:^",
-    "@endo/stream-node": "workspace:^",
-    "@endo/where": "workspace:^",
-    "commander": "^5.0.0",
-    "open": "^9.1.0",
-    "ses": "workspace:^"
-  },
   "devDependencies": {
     "@endo/stream": "workspace:^",
     "ava": "catalog:dev",

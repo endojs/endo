@@ -25,11 +25,6 @@
     "lint:types": "tsc",
     "test": "yarn lint:types"
   },
-  "dependencies": {
-    "@endo/nat": "workspace:^",
-    "@endo/stream": "workspace:^",
-    "ses": "workspace:^"
-  },
   "devDependencies": {
     "eslint": "catalog:dev",
     "typescript": "~5.9.2"

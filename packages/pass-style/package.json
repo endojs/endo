@@ -35,12 +35,10 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
   },
   "dependencies": {
-    "@endo/common": "workspace:^",
     "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
-    "@endo/immutable-arraybuffer": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
