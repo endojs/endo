@@ -1091,7 +1091,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
