@@ -8,3 +8,11 @@ export {
 
 // Re-export interval scheduler
 export { makeIntervalScheduler } from './interval/index.js';
+
+export {
+  default as makeAgent,
+  makeToolCallStart,
+  makeToolCallEnd,
+  makeMessage,
+  makeError,
+} from './agent/index.js';
