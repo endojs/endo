@@ -1,122 +1,124 @@
-# Evoke Service - Systemd One-Shot Unit
+# Pi Servitor Evoker
 
 ## Overview
-Created a systemd user-level one-shot service to run `~/endo/evoke.sh` on-demand.
-The script integrates with the `pi` coding agent to process tasks and automatically captures
-session transcripts for complete audit trails.
 
-## Configuration
+- `evoke-run.sh` creates an ephemeral systemd exec unit that runs
+- `~/endo/evoke.sh` runs Pi with a given prompt or canned `TODOs.md` prompt
 
-**Unit File Location:** `~/endo/evoke.service`
-**Symlink Location:** `~/.config/systemd/user/evoke.service`
+**Working Directory:** `/home/danna/endo`
+**System Prompt:** comes form `SOUL.md`
+**Task Queue:** kept in `TODOs.md`
 
-## Key Settings Explained
+## Directory Structure
 
-### Service Settings
-
-**Type=oneshot**
-- Service type for one-time execution
-- The service must complete successfully before systemd marks it as running
-
-**RemainAfterExit=no**
-- Critical setting for on-demand services
-- Service is considered active while script is running
-- Service is marked as stopped after script completion
-- Allows repeated runs without re-enabling
-
-**ExecStart=/home/danna/endo/evoke.sh**
-- Path to the script to execute
-- Ensure the script is executable with `chmod +x`
-
-**ExecStop=/bin/true**
-- Required when dealing with one-shot services
-- Prevents systemd from looking for a stop capability that doesn't exist
-
-> TODO is that true? what if we don't set this, will systemd just kill any running unit for us? that's pretty much all we need...
-
-**StandardOutput=journal**
-**StandardError=journal**
-- Redirects output to systemd journal for easier viewing
-
-### Unit Settings
-
-> Future enhancement: Consider adding `ProtectSystem=strict` or `ProtectHome=yes` for enhanced security if needed
-
-## Usage
-
-### Enable for User Space (creates symlink)
-```bash
-systemctl --user enable evoke.service
+```
+~/endo/
+├── evoke/
+│   └── sessions/          # Captured session files
+└── evoke.md               # This documentation
+├── evoke.sh               # Main execution script
+├── evoke-run.sh           # Ephemeral systemd runner
 ```
 
-### Run Immediately
+## Usage: Run Evoke (Interactively)
+
+If you want to watch it go:
 ```bash
-systemctl --user start evoke.service
+$ ./evoke.sh
+... proceeds to work on TODOs.md tasks as assigned
 ```
 
-### Check Status
+If you have specific thing:
 ```bash
-systemctl --user status evoke.service
+$ ./evoke.sh 'Please do this specific thing for me'
+... crimes as foretold
 ```
 
-### View Logs
+## Usage: Run Evoke (Detached as Background Service)
+
+If you don't care to watch, or need to kick it off from a hook:
 ```bash
-# General logs
-journalctl --user -u evoke.service
-
-# Watch logs in real-time
-journalctl --user -fu evoke.service
-
-# View last 20 lines with system metadata
-journalctl --user -u evoke.service -n 20
-
-# View last 20 lines without systemd metadata
-journalctl --user -u evoke.service -n 20 -o cat
+# Runs evoke.sh in an ephemeral background service
+$ ./evoke-run.sh
 ```
 
-### Check Active State
+**Behind the Scenes:**
+- Creates user-level systemd unit `evoke.service`
+- Runs `evoke.sh` in the background with automatic cleanup
+- Collects and commits session files to git
+- Commits any working tree changes
+
+## Component: `evoke.sh`
+
+**Purpose:** Main script for task execution and session capture
+
+**Features:**
+- Captures start time for session tracking
+- Runs PI with `SOUL.md` when available
+- Processes `TODOs.md` or CLI-provided prompts
+- Commits working tree changes automatically
+- Captures and commits Pi session file(s)
+
+**Usage:**
 ```bash
-systemctl --user is-active evoke.service
+./evoke.sh [prompt...]
+
+# Without arguments: processes TODOs.md
+./evoke.sh
+
+# With arguments: passes them to PI
+./evoke.sh "Do some specific task"
 ```
 
-### Reload Systemd Daemon (after changes to service unit)
-```bash
-systemctl --user daemon-reload
-```
+## Component: `evoke-run.sh`
 
-## Session Capture
+**Purpose:** Creates ephemeral systemd units for safe long-running processes
 
-When `evoke.sh` runs, it automatically:
-
-1. **Captures start time** - Records when the session begins for precise file tracking
-2. **Runs `pi`** - using `SOUL.md` and either `TODOs.md` or CLI-provided prompt
-3. **Commits working tree** - Adds any leftover changes made to repository files during the run
-4. **Copies new session file(s) to repository** - Copies session files from `~/.pi/agent/sessions/` to `~/endo/evoke/sessions/`
-5. **Commits transcript** - Adds session files to git for observability, debugging, etc
-
-### Example Flow
-```bash
-# Run evoke - session file gets captured
-$ systemctl --user start evoke.service
-
-# Session saved to evoke/sessions/
-# Commit: "evoke: added session transcript 2024-03-12T15:30"
-
-# Working tree changes also committed
-# Commit: (file-specific message)
-```
+**Features:**
+- Creates user-level background slice unit
+- Sets environment appropriately
+- Provides automatic signal handling and cleanup
+- Redirects output for debugging
 
 ## Workflow
 
-1. Create unit file at `~/endo/evoke.service`
-2. Create symlink at `~/.config/systemd/user/evoke.service`
-3. Reload systemd: `systemctl --user daemon-reload`
-4. Run on demand: `systemctl --user start evoke.service`
-5. Check status: `systemctl --user status evoke.service`
+1. **Navigate to project directory:**
+   ```bash
+   cd ~/endo
+   ```
 
-## Notes
+2. **Execute evoke:**
+   ```bash
+   ./evoke.sh
+   ```
 
-- All commands use `--user` flag for user-level systemd
-- No elevated access required to manage service units
-- The service can be run repeatedly with `start` command only
-- Output is logged to systemd journal for easier troubleshooting
+## Check Logs
+
+```bash
+# View systemd journal for the ephemeral unit
+journalctl --user -u evoke
+
+# Watch logs in real-time
+journalctl --user -u evoke -f
+```
+
+## Git Integration
+
+1. **Working Tree Changes:**
+   - Any files modified during the run are automatically added and committed
+   - Commit message: `[evoke] leftovers`
+
+2. **Session Files:**
+   - Session files from `~/.pi/agent/sessions/` are copied to `evoke/sessions/`
+   - Newly created files are added and committed
+   - Commit message format: `[evoke] sessions since 2024-03-12T15:30`
+
+## Systemd Issues Troubleshooting
+
+```bash
+# Verify systemd is running
+systemctl --user status
+
+# Failed ephemeral unit(s) should be automatically GC'd, but...
+systemctl --user reset-failed
+```
