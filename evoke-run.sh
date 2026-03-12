@@ -13,15 +13,20 @@
 set -x
 set -e
 
+# Change to the script's directory to ensure relative paths work correctly
+cd "$(dirname "$0")" || {
+  echo "Error: Unable to change to script directory: $(dirname "$0")"
+  exit 1
+}
+
 # Main script to execute - created in user's home directory
-MAIN_SCRIPT="$HOME/endo/evoke.sh"
+MAIN_SCRIPT="./evoke.sh"
 
 # Verify main script exists and is executable
 if [ ! -f "$MAIN_SCRIPT" ]; then
     echo "Error: Main script not found at $MAIN_SCRIPT"
     exit 1
 fi
-
 if [ ! -x "$MAIN_SCRIPT" ]; then
     echo "Error: Main script not executable. Run: chmod +x $MAIN_SCRIPT"
     exit 1

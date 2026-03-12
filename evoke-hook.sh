@@ -33,6 +33,7 @@ while read -r oldrev newrev refname; do
 
     if ! git diff --exit-code "$oldrev...$newrev" -- "$task_file"; then
       echo '!!! Evoke !!!'
+      ./evoke-run.sh
     else
       echo '... Noop ...'
     fi
