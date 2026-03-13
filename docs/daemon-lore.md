@@ -27,7 +27,30 @@ In fact this document will mostly grow by:
 A program that exports `make(powers)`, and returns a capability, and is
 intended to live as long as that capability shall live.
 
-> TODO what is a capability tho?
+**What is a capability?** In the object capability (ocap) security model,
+a capability is a reference that authorizes the holder to perform an action or
+access a resource. Capabilities are fundamental to secure, distributed computing:
+
+- **Reference as authority**: A capability represents the *right* to perform an
+  operation, rather than the ability to perform the operation itself
+- **Pass-by-reference**: Capabilities use pass-by-reference semantics—the reference
+  (handle) itself is passed, granting access to the referenced object's behavior
+  (methods, state, etc.)
+- **Encapsulation**: Only the holder of the capability can exercise its authority
+- **Principle of least authority**: Caplets expose only the capabilities necessary
+  for their functionality
+
+In Endo's implementation, a **remotable object** (created with `Far()` or an
+exo) is a capability because:
+- It can be passed across vat boundaries (same or different machines)
+- Its behavior is protected by interface guards that validate inputs
+- Its internal state cannot be accessed or modified by unauthorized code
+- It represents a privileged operation or access to a resource
+
+For example, a mint's `makePurse()` method returns a **capability** (a purse
+object with deposit/withdraw methods)—not because the method executes the
+operation, but because the returned purse object encodes the authority to perform
+deposits and withdrawals within the system's security policy.
 
 ## runlet
 
