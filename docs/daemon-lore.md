@@ -157,6 +157,90 @@ Design tensions with timely revocation. Need to ensure that:
 - This puts them in a "weird hell" where the only thing they can do is teardown,
   and everything they touch remotely throws an async error
 
+## End-to-End Client Flow
+
+The end-to-end flow shows how users interact with the Endo daemon from code execution to receiving capabilities:
+
+### High-Level Flow
+
+1. **Daemon Startup**: The Endo daemon runs in the background, managing worker processes
+   and providing the gateway API and pet-name system
+
+2. **CLI Commands**: Users interact with the daemon through the `endo` CLI tool:
+   - `endo start` — Start the daemon
+   - `endo run <file>` — Execute a script with powers
+   - `endo install <file>` — Deploy a caplet or weblet in the daemon
+   - `endo open <name>` — Open a web interface for a deployed application
+   - `endo request` — Send requests to running agents and receive responses
+
+3. **Guest Execution**: When a guest program is started:
+   - It runs in a dedicated worker process
+   - The daemon provides it with environment powers (storage, network, networked objects)
+   - The guest communicates via CapTP (Capability Transport Protocol) for remote calls
+
+4. **Form Interactions**: For structured user input, guests can send forms to agents:
+   - Guest: `E(agent).form(title, fields)` sends a structured form request
+   - User: Receives the form and fills in values (often through the Familiar Chat UI)
+   - User: Submits values with `E(agent).submit(messageNumber, values)`
+   - Result: Form `value` messages are sent back to the guest with user's answers
+
+5. **Capability Distribution**: Capabilities are passed through:
+   - Form submissions → structured user inputs
+   - Package sends → executable code
+   - Chat/inbox messages → arbitrary remote objects
+
+### User-Agent Interaction Model
+
+The flow centers on the Pet-name system for capability identification:
+- Each capability (purses, pets, agents) gets a memorable pet name
+- Users manage and share names instead of tracking IDs or addresses
+- The daemon routes messages to the correct vat/process via the pet name
+
+### Example: Publishing and Requesting
+
+```
+User executes:
+  $ endo install cat.js --powers AGENT --listen 8920 --name cat
+  $ endo open cat
+
+The cat.js weblet:
+1. Opens a WebView UI
+2. Listens for requests via the gateway
+3. Waits for user interactions
+```
+
+And:
+
+```
+User executes:
+  $ endo request --as feline 'pet me'
+
+The system:
+1. Resolves the request in the daemon's Chat UI
+2. Returns the result (e.g., 42) back to the CLI process
+```
+
+### Key Components Involved
+
+| Component | Role |
+|-----------|------|
+| **Daemon** | Host for workers, gateway API, pet-name system |
+| **CLI** | User interface to the daemon |
+| **Worker** | Isolated runtime for guest computations |
+| **Guest** | User's code running in isolation |
+| **Gateway** | HTTP/WebSocket endpoint for web access |
+| **Familiar Chat** | UI for forms, requests, and replies |
+
+### Security Property: The Human in the Loop
+
+The end-to-end flow emphasizes security by keeping humans in critical decision points:
+- Forms allow users to review and validate structured requests before forwarding
+- Capability requests can be audited and accepted/rejected by the user
+- Each distributed system boundary has a human verification step
+
+This ensures that capabilities cannot be silently forwarded between strangers,
+maintaining the principle of least authority throughout the flow.
+
 # CLI and User Experience
 
 # Notes Circa Endo Sync 2026-03-11
