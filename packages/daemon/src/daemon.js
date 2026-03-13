@@ -34,7 +34,7 @@ import {
 } from './formula-identifier.js';
 import { makeFormulaGraph } from './graph.js';
 import { makeResidenceTracker } from './residence.js';
-import { toHex } from './hex.js';
+import { toHex, fromHex } from './hex.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -253,6 +253,7 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  * @param {Specials} args.specials - Map of special names to formula generators.
  * @param {Promise<never>} args.gracePeriodElapsed - A promise that resolves/cancels when the grace period expires.
  * @param {NodeNumber} args.localNodeNumber - The local node number for this daemon.
+ * @param {(bytes: Uint8Array) => Uint8Array} args.signBytes - Sign bytes with the daemon's root Ed25519 key.
  * @param {boolean} [args.gcEnabled=true] - Enable garbage collection of worker daemons.
  *
  * @example
@@ -275,6 +276,7 @@ const makeDaemonCore = async (
     gracePeriodElapsed,
     specials,
     localNodeNumber,
+    signBytes,
     gcEnabled = true,
   },
 ) => {
@@ -2110,6 +2112,7 @@ const makeDaemonCore = async (
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
         nodeId: () => localNodeNumber,
+        sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
@@ -3959,6 +3962,7 @@ const provideEndoBootstrap = async (
     gracePeriodElapsed,
     specials,
     localNodeNumber,
+    signBytes: rootKeypair.sign,
     gcEnabled,
   });
   const { capTpConnectionRegistrar } = daemonCore;

@@ -725,6 +725,12 @@ export const makeHostMaker = ({
       return E(endoBootstrap).greeter();
     };
 
+    /** @type {EndoHost['sign']} */
+    const sign = async hexBytes => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).sign(hexBytes);
+    };
+
     /** @type {EndoHost['addPeerInfo']} */
     const addPeerInfo = async peerInfo => {
       const endoBootstrap = getEndoBootstrap();
@@ -1141,6 +1147,7 @@ export const makeHostMaker = ({
       cancel,
       gateway,
       greeter,
+      sign,
       getPeerInfo,
       addPeerInfo,
       listKnownPeers,

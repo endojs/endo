@@ -554,6 +554,42 @@ export const COMMANDS = {
     submitLabel: 'Enable',
   },
 
+  'network-ws-relay': {
+    name: 'network-ws-relay',
+    label: 'Enable Relay Network',
+    description: 'Connect to a WebSocket relay server for peer connections',
+    category: 'connections',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'relayUrl',
+        label: 'Relay URL',
+        type: 'text',
+        required: true,
+        placeholder: 'wss://relay.example.com',
+        // Public relay instance maintained by @kumavis
+        defaultValue: 'wss://endo-relay.fly.dev',
+      },
+      {
+        name: 'relayDomain',
+        label: 'Relay Domain',
+        type: 'text',
+        required: false,
+        placeholder: 'derived from relay URL if empty',
+      },
+      {
+        name: 'modulePath',
+        label: 'Module',
+        type: 'text',
+        required: false,
+        placeholder: 'ws-relay.js path (auto-detected)',
+        // @ts-ignore Vite injects this at build time
+        defaultValue: import.meta.env?.WS_RELAY_PATH || '',
+      },
+    ],
+    submitLabel: 'Connect',
+  },
+
   // ============ WORKERS ============
   spawn: {
     name: 'spawn',

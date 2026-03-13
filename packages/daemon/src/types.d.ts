@@ -59,6 +59,7 @@ export type Sha256 = {
 export type Ed25519Keypair = {
   publicKey: Uint8Array;
   privateKey: Uint8Array;
+  sign: (message: Uint8Array) => Uint8Array;
 };
 
 export type Connection = {
@@ -972,6 +973,7 @@ export interface EndoHost extends EndoAgent {
   cancel(petNameOrPath: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
+  sign(hexBytes: string): Promise<string>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   listKnownPeers(): Promise<PeerInfo[]>;
@@ -1161,6 +1163,7 @@ export type EndoBootstrap = {
   leastAuthority: () => Promise<EndoGuest>;
   greeter: () => Promise<EndoGreeter>;
   gateway: () => Promise<EndoGateway>;
+  sign: (hexBytes: string) => Promise<string>;
   reviveNetworks: () => Promise<void>;
   revivePins: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
@@ -1174,6 +1177,7 @@ export type CryptoPowers = {
   makeSha256: () => Sha256;
   randomHex256: () => Promise<string>;
   generateEd25519Keypair: () => Promise<Ed25519Keypair>;
+  ed25519Sign: (privateKey: Uint8Array, message: Uint8Array) => Uint8Array;
 };
 
 export type FilePowers = {

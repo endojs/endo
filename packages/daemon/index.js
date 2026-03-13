@@ -203,7 +203,7 @@ const startEngo = async (config, envOverrides) => {
 export const start = async (
   config = defaultConfig,
   {
-    env: envOverrides,
+    env: envOverrides = {},
     feralErrors,
     foreground = false,
     gcEnabled,
