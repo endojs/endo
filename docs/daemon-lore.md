@@ -151,13 +151,55 @@ Design tensions with timely revocation. Need to ensure that:
 - Some stuff cleans up
 - Don't leave a hole open for something to go rogue
 
-> TODO what does "going rogue" look like? what does the "hole" look like, is that a hole in time vs variants claimed to a revoker? or something more?
+**What "going rogue" looks like:**
 
-**Considerations:**
-- Some workers might not get an opportunity to cleanup
-- Workers should be immediately isolated with the closure of open sessions
-- This puts them in a "weird hell" where the only thing they can do is teardown,
-  and everything they touch remotely throws an async error
+In a capability-based system, "going rogue" means a program that breaks isolation expectations:
+
+1. **Escaped Capabilities**: A worker or guest uses a capability it shouldn't have access to,
+   such as accessing the daemon's internal state or another guest's data through an unintended reference.
+
+2. **Bypassed Revocation**: A capability remains active even after the original holder has explicitly
+   given it up or revoked their permission. The program continues to use the capability beyond its
+   intended lifetime.
+
+3. **Time-Based Exploits**: A capability could be used after the intended revocation time or scenario,
+   exploiting a "hole" in the revocation mechanism.
+
+4. **Unsanctioned Communication**: A guest sends messages to other guests or the daemon at times
+   when it shouldn't have network access or messaging privileges.
+
+**What the "hole" looks like:**
+
+The "hole" represents a security vulnerability in how references are managed:
+
+1. **Dangling Reference**: A reference to a formula or object exists in memory or code, but the
+   underlying resource (e.g., the formula JSON file) has been deleted or invalidated.
+   When accessed, this causes a `ReferenceError("No reference exists at path...")`.
+
+2. **Reference Leak**: A capability that should have been garbage collected remains valid,
+   allowing a program to continue using resources it shouldn't have.
+
+3. **Missing Revocation Signal**: A mechanism that should notify programs when a capability
+   is revoked does not function correctly, leaving a time-based hole.
+
+4. **Path-Based Leaks**: A reference may be identified by a filesystem path (formulaPath). When
+   the corresponding file doesn't exist on disk, we have a "hole" where the reference doesn't
+   match reality.
+
+**Security Implications:**
+
+- If a capability is accessible after its intended revocation period, an attacker could potentially
+  use it if they capture it before revocation.
+- A dangling reference could be a pointer to privileged internal state that no longer exists,
+  but attempting to access it reveals an attack surface.
+- Time-based holes allow unauthorized actions during transition periods between authorization states.
+
+**Mitigation Strategies:**
+
+- Ensure all references are checked for existence on disk before use
+- Implement strong reference counting and automatic cleanup
+- Use explicit revocation events that invalidate capabilities in all parties
+- Log attempts to access revoked capabilities for audit purposes
 
 ## End-to-End Client Flow
 
