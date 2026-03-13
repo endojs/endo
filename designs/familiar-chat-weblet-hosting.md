@@ -148,8 +148,8 @@ Installed weblets appear in the inventory (under "Hubs" or a new "Weblets"
 group, per the `inventory-grouping-by-type` work item). Actions:
 
 - **Click**: Open the weblet in the right panel iframe.
-- **Live indicator** (from `live-reference-indicator` work item): Shows whether
-  the weblet's worker is alive.
+- **Live indicator** (from `inventory-cancel-and-liveness` work item): Shows
+  whether the weblet's worker is alive.
 - **Cancel**: Stop the weblet's worker, close the iframe.
 - **Remove**: Cancel + remove the pet name.
 

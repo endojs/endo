@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-07*
+*Last updated: 2026-03-13*
 
 ## Summary
 
@@ -12,7 +12,11 @@
 | [chat-high-contrast-mode](chat-high-contrast-mode.md) | 2026-02-26 | 2026-02-26 | **Complete** |
 | [chat-invariants](chat-invariants.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | 2026-02-26 | **Complete** |
-| [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | In Progress |
+| [chat-focus-message](chat-focus-message.md) | 2026-03-04 | 2026-03-04 | Active |
+| [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-03 | Proposed |
+| [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
+| [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
+| [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | Deprecated |
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
 | [chat-spaces-inbox](chat-spaces-inbox.md) | 2026-02-21 | 2026-02-24 | **Complete** |
@@ -20,6 +24,7 @@
 | [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) | 2026-02-24 | 2026-03-02 | **Complete** |
 | [daemon-agent-network-identity](daemon-agent-network-identity.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-agent-tools](daemon-agent-tools.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [daemon-commands-as-messages](daemon-commands-as-messages.md) | 2026-03-11 | 2026-03-11 | Not Started |
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
@@ -41,6 +46,7 @@
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
 | [daemon-os-sandbox-plugin](daemon-os-sandbox-plugin.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-value-message](daemon-value-message.md) | 2026-03-02 | 2026-03-03 | **Complete** |
+| [daemon-web-gateway](daemon-web-gateway.md) | 2026-03-11 | 2026-03-11 | **Complete** |
 | [daemon-weblet-application](daemon-weblet-application.md) | 2026-02-24 | 2026-02-25 | Not Started |
 | [familiar-bundled-agents](familiar-bundled-agents.md) | 2026-03-02 | 2026-03-05 | **Complete** |
 | [familiar-chat-weblet-hosting](familiar-chat-weblet-hosting.md) | 2026-02-14 | 2026-02-26 | Not Started |
@@ -50,20 +56,20 @@
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | 2026-02-24 | 2026-02-25 | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-02-26 | In Progress |
 | [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
-| [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-02 | Not Started |
+| [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-06 | **Implemented** |
+| [inventory-cancel-and-liveness](inventory-cancel-and-liveness.md) | 2026-02-14 | 2026-03-13 | Not Started |
 | [inventory-drag-and-drop](inventory-drag-and-drop.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [inventory-grouping-by-type](inventory-grouping-by-type.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [lal-fae-form-provisioning](lal-fae-form-provisioning.md) | 2026-03-02 | 2026-03-05 | **Complete** |
 | [lal-reply-chain-transcripts](lal-reply-chain-transcripts.md) | 2026-02-26 | 2026-03-05 | **Complete** |
 | [lal-transcript-memory-management](lal-transcript-memory-management.md) | 2026-03-05 | 2026-03-05 | Not Started |
-| [live-reference-indicator](live-reference-indicator.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-network-transport-separation](ocapn-network-transport-separation.md) | 2026-02-14 | 2026-02-24 | In Progress |
 | [ocapn-noise-cryptographic-review](ocapn-noise-cryptographic-review.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 19 Complete, 4 In Progress, 32 Not Started, 1 Reference
+**Totals:** 21 Complete/Implemented, 3 In Progress, 34 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -82,7 +88,10 @@ flowchart TD
     subgraph Daemon Messaging
         dform[daemon-form-request<br/><i>COMPLETE</i>]
         dval[daemon-value-message<br/><i>COMPLETE</i>]
+        dcmd[daemon-commands-as-messages]
         dform --> dval
+        dform --> dcmd
+        dval --> dcmd
     end
 
     subgraph LLM Agents
@@ -146,7 +155,9 @@ flowchart TD
         dnet --> onoise
     end
 
-    subgraph Chat Theming
+    subgraph Chat UX
+        cpend[chat-pending-commands]
+        dcmd --> cpend
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
         chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
@@ -159,9 +170,11 @@ flowchart TD
         dfs[daemon-capability-filesystem]
         dpers[daemon-capability-persona]
         dbank[daemon-capability-bank]
+        icancel[inventory-cancel-and-liveness]
         dsand --> dbank
         dfs --> dbank
         dpers --> dbank
+        dbank --> icancel
     end
 ```
 
@@ -201,7 +214,7 @@ capabilities available to agents.
 
 | Design | Status | Notes |
 |--------|--------|-------|
-| gateway-bearer-token-auth | Not Started | Agent ID as bearer token in URL fragment, WebSocket auth handshake |
+| ~~gateway-bearer-token-auth~~ | **Implemented** | Agent ID as bearer token, rate limiting, CIDR filtering |
 | daemon-docker-selfhost | Not Started | Dockerfile, state persistence, network exposure, Chat hosting |
 | daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
 | daemon-capability-filesystem | Not Started | `Dir`/`File` capabilities for structural filesystem confinement |
@@ -275,19 +288,22 @@ webhook events.
 
 | Design | Status | Notes |
 |--------|--------|-------|
-| chat-reply-chain-visualization | In Progress | Layout algorithm, connector lines |
+| ~~chat-reply-chain-visualization~~ | Deprecated | Superseded by chat-focus-message |
+| chat-pending-commands | Not Started | Pending commands region, unlocked command bar |
+| daemon-commands-as-messages | Not Started | Commands as self-addressed messages with reply results; subsumes pending region |
+| inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
 | formula-inspector | Not Started | New panel, daemon API exposure |
 | workers-panel | Not Started | Metrics, sparklines |
-| live-reference-indicator | Not Started | Incarnation status API + UI |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
-Developer tools (inspector, workers panel) available. Agent transcript
-memory is bounded.
+Commands are non-blocking with visible pending state. Developer tools
+(inspector, workers panel) available. Inventory shows liveness with
+inline cancel. Agent transcript memory is bounded.
 
-**Estimated duration (1 dev):** 3-4.5 weeks
+**Estimated duration (1 dev):** 5-7 weeks
 
 ---
 
@@ -371,7 +387,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
 | ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
 | ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
-| gateway-bearer-token-auth | S-M | 2-3 days | 1 | WebSocket auth, gateway remote mode, Chat changes |
+| ~~gateway-bearer-token-auth~~ | — | — | 1 | ✅ Implemented |
 | daemon-docker-selfhost | S-M | 2-3 days | 1 | Dockerfile, entrypoint, compose |
 | daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
 | daemon-capability-filesystem | L | 1-2 weeks | 1 | Dir/File exos, physical backend |
@@ -391,12 +407,14 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | endoclaw-notifications | S | 1 day | 3 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
 | endoclaw-webhooks | S-M | 2-3 days | 3 | Gateway webhook routes → inbox messages |
 | endoclaw-voice | S | 1-2 days | 3 | Web Speech API in Chat UI |
-| chat-reply-chain-visualization | M | 3-4 days | 4 | Layout algorithm, connector lines |
+| ~~chat-reply-chain-visualization~~ | — | — | 4 | Deprecated (superseded by chat-focus-message) |
+| chat-pending-commands | S-M | 2-3 days | 4 | Pending region, unlocked command bar (UI only) |
+| daemon-commands-as-messages | M-L | 1-1.5 weeks | 4 | New message type, self-delivery, result replies, Chat rendering |
+| inventory-cancel-and-liveness | M | 3-4 days | 4 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
 | inventory-grouping-by-type | S | 1-2 days | 4 | UI grouping |
 | inventory-drag-and-drop | S-M | 2-3 days | 4 | HTML5 DnD |
 | formula-inspector | M | 3-4 days | 4 | New panel, daemon API |
 | workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
-| live-reference-indicator | M | 3-4 days | 4 | Incarnation status API + UI |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
 | daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
@@ -410,12 +428,12 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 8 | 4-5 weeks |
+| M1: Remote Access & Tools | 7 remaining | 4-5 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
-| M4: UX & Tooling | 7 | 3-4.5 weeks |
+| M4: UX & Tooling | 8 | 5-7 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **35** | **~22-32 weeks** |
+| **Total remaining** | **34** | **~24-34 weeks** |
 
 ### Timeline
 
@@ -437,7 +455,7 @@ gantt
     Weblets & Integrations        :m3, after m2, 5w
 
     section Milestone 4
-    UX & Tooling                  :m4, after m3, 4w
+    UX & Tooling                  :m4, after m3, 6w
 
     section Milestone 5
     Confinement & Ecosystem       :m5, after m4, 10w
@@ -449,8 +467,8 @@ gantt
 | M1: Remote Access & Tools | 4-5 weeks | 6-8 weeks | Late April 2026 |
 | M2: Networking | 3-4 weeks | 9-12 weeks | Late May 2026 |
 | M3: Weblets & Integrations | 4-6 weeks | 12-17 weeks | Late June 2026 |
-| M4: UX & Tooling | 3-4.5 weeks | 15.5-21.5 weeks | Early August 2026 |
-| M5: Confinement & Ecosystem | 8-12 weeks | 24-34.5 weeks | Late October 2026 |
+| M4: UX & Tooling | 5-7 weeks | 16-23 weeks | Late August 2026 |
+| M5: Confinement & Ecosystem | 8-12 weeks | 24-35 weeks | Late October 2026 |
 
 *Milestones 3 and 4 are less order-dependent and can be interleaved.
 Milestones 0, 1, and 2 form the critical path. Weblets prioritized over
@@ -466,7 +484,7 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-06:** 19 of 54 designs complete. M0 complete.
+**Progress as of 2026-03-13:** 21 of 64 designs complete/implemented. M0 complete.
 18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
 (128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
