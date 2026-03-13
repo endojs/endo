@@ -176,9 +176,17 @@ HardenedJS not being quite bullet-proof for passable proxies.
 
 A caplet that runs in a `WebView`.
 
-> TODO what is a WebView? is that inside the browser DOM? an electron thing outside of it?
+**WebView clarification**: A WebView is NOT an iframe component inside the browser DOM. Instead, it's a **separate, self-contained browser instance**—like a mini-browser window embedded in an application. In Endo, WebViews are used to execute weblets that need browser UI, with each view running its own isolated browser context independent of the main browser window.
 
-Web views are not safely co-tenant.
+Examples of WebView implementations:
+- **Electron BrowserView**: A separate browser instance within Electron desktop apps (outside main DOM)
+- **Chrome DevTools**: Embedded browser component for inspecting web pages
+- **System WebViews**: Platform-specific APIs like iOS WKWebView or Android WebView
+- **Embeddable browsers**: Standalone browser engines (Chromium, WebKit) embedded in other applications
+
+> Read more: [WebView - Wikipedia](https://en.wikipedia.org/wiki/WebView)
+
+Web views are **not safely co-tenant** when there's no isolation between them. In Endo's implementation, each WebView provides independent separation from main browsers and other WebViews, which is why they can run weblets in parallel.
 
 > TODO there's that topic of co-tenancy again (like with worklet above), say more
 
