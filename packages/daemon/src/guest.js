@@ -1,9 +1,10 @@
 // @ts-check
 
 import { makeExo } from '@endo/exo';
-import { makeIteratorRef } from './reader-ref.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePetSitter } from './pet-sitter.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { Context, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 
@@ -128,9 +129,12 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       ...guest,
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
-        makeIteratorRef(guest.followLocatorNameChanges(locator)),
-      followMessages: () => makeIteratorRef(guest.followMessages()),
-      followNameChanges: () => makeIteratorRef(guest.followNameChanges()),
+        readerFromIterator(guest.followLocatorNameChanges(locator)),
+      followMessages: () =>
+        readerFromIterator(
+          /** @type {AsyncIterable<Passable>} */ (guest.followMessages()),
+        ),
+      followNameChanges: () => readerFromIterator(guest.followNameChanges()),
     });
   };
 
