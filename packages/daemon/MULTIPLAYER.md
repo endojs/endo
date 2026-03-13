@@ -68,15 +68,20 @@ bob ping     # prints "ok"
 ```
 
 Run a chat UI instance for each daemon. The Vite dev server uses the
-system daemon by default; for a second instance, point the gateway at the
-other daemon's socket and use a different port:
+system daemon by default; for a second instance, pass the same env vars
+Bob's daemon uses so the plugin reads the correct state directory,
+connects to the correct gateway, and listens on a different port:
 
 ```bash
 # Terminal 1 — Alice's chat (default port 5173)
 yarn dev
 
 # Terminal 2 — Bob's chat (port 5174)
-ENDO_SOCK=/tmp/endo-bob/endo.sock VITE_PORT=5174 yarn dev
+XDG_STATE_HOME=/tmp/endo-bob/state \
+  ENDO_SOCK=/tmp/endo-bob/endo.sock \
+  ENDO_ADDR=127.0.0.1:8921 \
+  VITE_PORT=5174 \
+  yarn dev
 ```
 
 ## Step 1: Enable TCP Networking
