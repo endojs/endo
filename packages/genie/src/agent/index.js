@@ -172,7 +172,6 @@ export default function makeAgent(options = {}) {
       return;
     }
 
-    // TODO we need to also collect error feedback to pass to the LLM
     /** @type {Array<{error: string}|{toolName: string, result: any, error: any}>} */
     const results = [];
 
