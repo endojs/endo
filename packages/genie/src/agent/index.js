@@ -378,3 +378,6 @@ export default function makeAgent(options = {}) {
     chatRound,
   };
 }
+
+// Re-export helper functions for external use
+export { makeToolCallStart, makeToolCallEnd, makeMessage, makeError };
