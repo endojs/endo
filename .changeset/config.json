@@ -4,7 +4,7 @@
   "baseBranch": "master",
   "bumpVersionsWithWorkspaceProtocolOnly": true,
   "changelog": [
-    "@changesets/changelog-github",
+    "./endo-changelog-generator.js",
     {
       "repo": "endojs/endo"
     }
