@@ -28,7 +28,10 @@ export type {
   NameOrPath,
   StampedMessage,
 };
+
+// TODO infer `export type StartOptions = { ... };` from packages/daemon/index.js circa `export const start = `
 export function start(config?: Config): Promise<void>;
+
 export function stop(config?: Config): Promise<void>;
 export function restart(config?: Config): Promise<void>;
 export function terminate(config?: Config): Promise<void>;
