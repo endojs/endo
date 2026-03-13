@@ -503,6 +503,16 @@ Reply to any message with a retained value from your pet store.
 - petNameOrPath: Pet name (or path) of the value to send
 
 Example: sendValue(0, "my-counter")`,
+
+  getFormulaGraph: `\
+getFormulaGraph() -> Promise<{ nodes, edges }>
+Returns a snapshot of the formula dependency graph reachable from
+this agent's pet store.
+
+- nodes: Array of { id, type } for each formula
+- edges: Array of { sourceId, targetId, label } for each dependency
+
+Used by the Chat inventory graph space to visualize formula relationships.`,
 };
 
 /** @type {HelpText} */

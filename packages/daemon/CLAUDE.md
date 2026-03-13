@@ -54,3 +54,7 @@ A guest sends a form to HOST via `E(powers).form('HOST', title, fields)`. The ho
 ## Gateway
 
 The gateway (`src/daemon.js` line ~851) rejects requests for non-local node IDs with `"Gateway can only provide local values"`. After a daemon restart, the node number changes, so any client holding a stale formula ID from a previous session will hit this error.
+
+## Debugging
+
+See [DEBUGGING.md](./DEBUGGING.md) for environment variables, log interpretation, and common debugging recipes.

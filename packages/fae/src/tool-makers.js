@@ -915,8 +915,7 @@ export const makeAdoptTool = host => {
         properties: {
           messageNumber: {
             type: 'integer',
-            description:
-              'The message number containing the value (integer).',
+            description: 'The message number containing the value (integer).',
           },
           edgeName: {
             type: 'string',
@@ -924,7 +923,8 @@ export const makeAdoptTool = host => {
           },
           petName: {
             type: 'string',
-            description: 'The pet name to give the adopted value in your directory.',
+            description:
+              'The pet name to give the adopted value in your directory.',
           },
         },
         required: ['messageNumber', 'edgeName', 'petName'],

@@ -12,6 +12,8 @@ import { inventoryComponent } from './inventory-component.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
 import { createSpacesGutter } from './spaces-gutter.js';
+import { inventoryGraphComponent } from './inventory-graph-component.js';
+import { whylipComponent } from './whylip-component.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -248,6 +250,7 @@ const renderProfileBar = ($profileBar, profilePath, onNavigate) => {
  * @param {(newPath: string[], spaceInfo?: ActiveSpaceInfo) => void} onProfileChange
  * @param {(conversation: ConversationState | null) => void} onConversationChange
  * @param {ActiveSpaceInfo} [activeSpaceInfo]
+ * @returns {(() => void) | null} cleanup function, if any
  */
 const bodyComponent = (
   $parent,
@@ -258,6 +261,19 @@ const bodyComponent = (
   onConversationChange,
   activeSpaceInfo,
 ) => {
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'whylip') {
+    return whylipComponent($parent, rootPowers, profilePath, onProfileChange);
+  }
+
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'graph') {
+    return inventoryGraphComponent(
+      $parent,
+      rootPowers,
+      profilePath,
+      onProfileChange,
+    );
+  }
+
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -429,7 +445,8 @@ const bodyComponent = (
 
         // Show a connecting indicator while we reach the channel.
         const $connectingStatus = document.createElement('div');
-        $connectingStatus.className = 'channel-status channel-status-connecting';
+        $connectingStatus.className =
+          'channel-status channel-status-connecting';
         $connectingStatus.textContent = 'Connecting to channel\u2026';
         if ($anchor) {
           $messages.insertBefore($connectingStatus, $anchor);
@@ -498,8 +515,7 @@ const bodyComponent = (
           .catch(err => {
             // Connection failed — replace the connecting indicator with an error.
             $connectingStatus.className = 'channel-status channel-status-error';
-            const message =
-              err instanceof Error ? err.message : String(err);
+            const message = err instanceof Error ? err.message : String(err);
             $connectingStatus.textContent = `Unable to connect to channel: ${message}`;
             window.reportError(err);
           });
@@ -599,8 +615,7 @@ const bodyComponent = (
           .catch(err => {
             // Connection failed — replace the connecting indicator with an error.
             $switchStatus.className = 'channel-status channel-status-error';
-            const message =
-              err instanceof Error ? err.message : String(err);
+            const message = err instanceof Error ? err.message : String(err);
             $switchStatus.textContent = `Unable to connect to channel: ${message}`;
             window.reportError(err);
           });
@@ -661,13 +676,16 @@ const bodyComponent = (
       /* eslint-enable no-use-before-define */
     })
     .catch(window.reportError);
+
+  return null;
 };
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel'} mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
+ * @property {string} [whylipSystemPrompt]
  */
 
 /**
@@ -682,10 +700,16 @@ export const make = async powers => {
   let activeConversation = null;
   /** @type {ActiveSpaceInfo} */
   let activeSpaceInfo = { mode: 'inbox' };
+  /** @type {(() => void) | null} */
+  let activeCleanup = null;
 
   const rebuild = () => {
+    if (activeCleanup) {
+      activeCleanup();
+      activeCleanup = null;
+    }
     document.body.innerHTML = '';
-    bodyComponent(
+    activeCleanup = bodyComponent(
       document.body,
       powers,
       currentProfilePath,

@@ -2,7 +2,7 @@
 /* global process, setTimeout */
 
 import url from 'url';
-import popen from 'child_process';
+import { default as popen, spawn } from 'child_process';
 import fs from 'fs';
 import net from 'net';
 import path from 'path';
@@ -59,10 +59,7 @@ const defaultConfig = {
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
 };
-
-const endoDaemonPath =
-  process.env.ENDO_DAEMON_PATH ||
-  url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+/** @typedef {typeof defaultConfig} Config */
 
 export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
@@ -193,17 +190,30 @@ const startEngo = async (config, envOverrides) => {
 };
 
 /**
- * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string>, gcEnabled?: boolean }} [options]
+ * @param {Config} [config]
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] - overrides for process.env
+ * @param {boolean} [options.feralErrors] - enable to turn off lockdown error stack trace sanitization
+ * @param {boolean} [options.foreground] - if enabled, the daemon will be spawn-ed instead of fork-ed;
+ *                                         the current process will wait for and then exit,
+ *                                         behaving as if execv had been a thing that node could call;
+ *                                         i.e. this causes `start()` to effectively never return
+ * @param {boolean} [options.gcEnabled] - enable GC of TODO what exactly?
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides, gcEnabled } = {},
+  { env: envOverrides, feralErrors, foreground = false, gcEnabled } = {},
 ) => {
-  const gcEnv = gcEnabled === false ? { ENDO_GC: '0' } : {};
+  if (feralErrors) {
+    envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';
+  }
+  if (gcEnabled === true) {
+    envOverrides.ENDO_GC = '1';
+  }
+
   await clean(config);
   if (process.env.ENDO_BIN) {
-    return startEngo(config, { ...gcEnv, ...envOverrides });
+    return startEngo(config, envOverrides);
   }
 
   await fs.promises.mkdir(config.statePath, {
@@ -212,22 +222,51 @@ export const start = async (
   const logPath = path.join(config.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
-  const env = { ...process.env, ...gcEnv, ...envOverrides };
+  const daemonPath =
+    process.env.ENDO_DAEMON_PATH ||
+    url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+  const daemonArgs = [
+    config.sockPath,
+    config.statePath,
+    config.ephemeralStatePath,
+    config.cachePath,
+  ];
 
-  const child = popen.fork(
-    endoDaemonPath,
-    [
-      config.sockPath,
-      config.statePath,
-      config.ephemeralStatePath,
-      config.cachePath,
-    ],
-    {
-      detached: true,
-      env,
-      stdio: ['ignore', output, output, 'ipc'],
-    },
-  );
+  if (foreground) {
+    // NOTE ideally this would be execv replacement, but node does not ship a stdlib binding for that?
+
+    let daemonExe = daemonPath;
+    if (daemonPath.endsWith('.js')) {
+      daemonArgs.unshift(daemonPath);
+      daemonExe = process.execPath; // Use the current Node.js executable path
+    }
+
+    const child = spawn(daemonExe, daemonArgs, {
+      stdio: 'inherit',
+      detached: false,
+    });
+
+    /** @type {Promise<number>} */
+    const childDone = new Promise(resolve => {
+      child.on('error', err => {
+        console.error(
+          'Failed to spawn daemon:',
+          [daemonExe, ...daemonArgs],
+          err,
+        );
+        resolve(1);
+      });
+      child.on('exit', code => resolve(code || 0));
+    });
+
+    process.exit(await childDone);
+  }
+
+  const child = popen.fork(daemonPath, daemonArgs, {
+    detached: true,
+    env: { ...process.env, ...envOverrides },
+    stdio: ['ignore', output, output, 'ipc'],
+  });
 
   return new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
@@ -290,10 +329,7 @@ const killWorkersByPidFiles = async ephemeralStatePath => {
         const pidText = await fs.promises.readFile(pidPath, 'utf-8');
         const workerPid = Number(pidText);
         if (Number.isFinite(workerPid) && workerPid > 0) {
-          try {
-            process.kill(workerPid, 'SIGKILL');
-          } catch {
-            /* already gone */
+          for await (const _ of politeEndProcess(workerPid)) {
           }
         }
         await fs.promises.rm(pidPath, { force: true });
@@ -322,19 +358,106 @@ const readPidFile = async pidPath => {
 };
 
 /**
- * Test whether a process is still alive using signal 0.
- *
- * @param {number} pid
- * @returns {boolean}
+ * @typedef {{kill: string}} KillStep
+ * @typedef {{wait: number}} WaitStep
+ * @typedef {{notify: 'throw'|'error'|'warn'}} NotifyStep
+ * @typedef {KillStep|WaitStep|NotifyStep} EndProcStep
+ * @typedef {Array<EndProcStep>} EndProcPolicy
  */
-const isProcessAlive = pid => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
+
+/** @type {EndProcPolicy} */
+const defaultEndProcPolicy = harden([
+  { kill: 'SIGTERM' },
+  { wait: 2_000 }, // try SIGTERM for 2s
+  { kill: 'SIGKILL' },
+  { wait: 400 }, // try SIGKILL for 0.4s
+  { notify: 'warn' }, // or warn of zombie remnant
+]);
+
+/**
+ * Process a sequence of steps to gracefully stop a process.
+ *
+ * Each step is either wait for a duration or send a signal to kill the process.
+ *
+ * @param {number} pid - Process ID to stop
+ * @param {object} options
+ * @param {number} [options.waitBefore] - convenience for an initial wait before following process end steps;
+ *                                        equivalent to passing `steps: [ { wait: NNN }, ...defaultEndProcPolicy ]`
+ * @param {EndProcPolicy} [options.steps=defaultEndProcPolicy] - sequence of signals and wait-for-exit timeouts to follow
+ * @param {number} [options.pollInterval] - how long to sleep between wait-for-exit checks (within per-step timeout)
+ * @param {boolean} [options.verbose=true] - whether to log signals sent
+ */
+export async function* politeEndProcess(
+  pid,
+  {
+    waitBefore,
+    steps = defaultEndProcPolicy,
+    pollInterval = 100,
+    verbose = true,
+  } = {},
+) {
+  if (typeof waitBefore === 'number') {
+    steps = [{ wait: waitBefore }, ...steps];
   }
-};
+
+  const isAlive = () => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  /** @param {number} deadline */
+  async function* waitForExit(deadline) {
+    while (Date.now() < deadline) {
+      if (!isAlive()) {
+        return;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => {
+        setTimeout(resolve, pollInterval);
+      });
+    }
+  }
+
+  for (const step of steps) {
+    if (!isAlive()) {
+      return;
+    }
+
+    if ('kill' in step) {
+      const signal = step.kill || 'SIGTERM';
+      if (verbose) {
+        console.info(`kill ${pid} ${signal}`);
+      }
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // Already dead
+        return;
+      }
+    } else if ('wait' in step) {
+      yield* waitForExit(Date.now() + step.wait);
+    } else if ('notify' in step) {
+      const { notify } = step;
+      const message = `Zombie process ${pid} remains after SIGKILL`;
+      switch (notify) {
+        case 'error':
+          console.error(message);
+          return;
+        case 'warn':
+          console.warn(message);
+          return;
+        case 'throw':
+          throw new Error(message);
+        default:
+          throw new Error(`unknown notify:${notify}`);
+      }
+    }
+  }
+}
 
 /**
  * Ensure the daemon process is dead, using endo.pid as a fallback when
@@ -351,45 +474,11 @@ const killDaemonProcess = async config => {
   if (pid === 0) {
     return;
   }
-
-  // Wait up to 5 s for the process to exit on its own (graceful
-  // shutdown from a prior terminate() call).
-  const deadline = Date.now() + 5_000;
-  while (Date.now() < deadline) {
-    if (!isProcessAlive(pid)) {
-      return;
-    }
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise(resolve => {
-      setTimeout(resolve, 100);
-    });
-  }
-
-  // Still alive — send SIGTERM.
-  try {
-    process.kill(pid, 'SIGTERM');
-  } catch {
-    // Already dead.
-    return;
-  }
-
-  // Wait up to 2 s for SIGTERM to take effect.
-  const killDeadline = Date.now() + 2_000;
-  while (Date.now() < killDeadline) {
-    if (!isProcessAlive(pid)) {
-      return;
-    }
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise(resolve => {
-      setTimeout(resolve, 100);
-    });
-  }
-
-  // SIGKILL anything that survived.
-  try {
-    process.kill(pid, 'SIGKILL');
-  } catch {
-    // Already dead.
+  for await (const _ of politeEndProcess(pid, {
+    // Wait up to 5s for the process to exit on its own
+    // (graceful shutdown from a prior terminate() call).
+    waitBefore: 5_000,
+  })) {
   }
 };
 
@@ -411,7 +500,7 @@ export const stop = async (config = defaultConfig) => {
 
 /**
  * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string>, gcEnabled?: boolean }} [options]
+ * @param {{ env?: Record<string, string>, gcEnabled?: boolean, feralErrors?: boolean }} [options]
  */
 export const restart = async (config = defaultConfig, options = {}) => {
   await stop(config);

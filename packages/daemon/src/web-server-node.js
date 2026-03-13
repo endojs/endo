@@ -239,9 +239,7 @@ export const make = async (powers, context, { env = {} } = {}) => {
   wss.on('connection', (socket, req) => {
     const remoteAddress = req.socket.remoteAddress;
     if (!isAllowed(remoteAddress || '')) {
-      console.error(
-        `[Gateway] Rejected connection from ${remoteAddress}`,
-      );
+      console.error(`[Gateway] Rejected connection from ${remoteAddress}`);
       socket.close(1008, 'Only local connections allowed');
       return;
     }

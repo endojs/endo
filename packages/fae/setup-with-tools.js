@@ -2,44 +2,36 @@
 // @ts-check
 // endo run --UNCONFINED setup-with-tools.js \
 //   --powers AGENT \
-//   -E LAL_HOST=$LAL_HOST \
-//   -E LAL_MODEL=$LAL_MODEL \
-//   -E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN
+//   -E PROVIDER_NAME=$PROVIDER_NAME \
+//   -E FACTORY_NAME=$FACTORY_NAME
 //
-// Creates tools in the host inventory, then provisions a fae agent
-// with those tools pre-introduced via introducedNames.
+// Creates tools in the host inventory, sets up the llm-provider-factory,
+// then creates a fae-factory with those tools available.
 
 import { E } from '@endo/eventual-send';
 
-const faeSpecifier = new URL('agent.js', import.meta.url).href;
+const llmProviderFactorySpecifier = new URL(
+  'llm-provider-factory.js',
+  import.meta.url,
+).href;
+const faeFactorySpecifier = new URL('agent.js', import.meta.url).href;
 
 /**
- * @returns {{ host: string | undefined, model: string | undefined, authToken: string | undefined }}
- */
-const readConfig = () => {
-  const host = process.env.LAL_HOST;
-  const model = process.env.LAL_MODEL;
-  const authToken = process.env.LAL_AUTH_TOKEN;
-
-  if (host && host.includes('anthropic.com') && !authToken) {
-    throw new Error(
-      'LAL_AUTH_TOKEN is required when LAL_HOST points to Anthropic',
-    );
-  }
-
-  return harden({ host, model, authToken });
-};
-harden(readConfig);
-
-/**
- * Provision tools and a fae agent with those tools pre-introduced.
+ * Provision tools, the provider factory, and a fae-factory in one shot.
+ *
+ * This is a convenience script that orchestrates the multi-step setup.
+ * For more control, use the individual scripts:
+ *   1. yarn setup          (install llm-provider-factory)
+ *   2. yarn create-provider (submit provider config via .env)
+ *   3. yarn setup-factory   (create fae-factory bound to provider)
  *
  * @param {import('@endo/eventual-send').ERef<object>} agent
  */
 export const main = async agent => {
-  const config = readConfig();
+  const providerName = process.env.PROVIDER_NAME || 'default';
+  const factoryName = process.env.FACTORY_NAME || 'fae-factory';
 
-  // Create tools in host inventory
+  // 1. Create tools in host inventory
   const greetUrl = new URL('tools/greet.js', import.meta.url).href;
   const mathUrl = new URL('tools/math.js', import.meta.url).href;
   const timestampUrl = new URL('tools/timestamp.js', import.meta.url).href;
@@ -59,27 +51,54 @@ export const main = async agent => {
   });
   console.log('[setup] Created timestamp-tool');
 
-  // Provision fae guest with tools introduced at top level.
-  // Fae's initializeIntroducedTools() will move them into tools/.
-  await E(agent).provideGuest('fae', {
-    agentName: 'profile-for-fae',
-    introducedNames: {
-      'greet-tool': 'greet-tool',
-      'math-tool': 'math-tool',
-      'timestamp-tool': 'timestamp-tool',
-    },
+  // 2. Install the llm-provider-factory
+  const providerFactoryGuest = 'llm-provider-factory-handle';
+  const providerFactoryAgent = `profile-for-${providerFactoryGuest}`;
+  const hasProviderFactory = await E(agent).has(providerFactoryGuest);
+  if (!hasProviderFactory) {
+    await E(agent).provideGuest(providerFactoryGuest, {
+      introducedNames: harden({ AGENT: 'host-agent' }),
+      agentName: providerFactoryAgent,
+    });
+  }
+  await E(agent).makeUnconfined('MAIN', llmProviderFactorySpecifier, {
+    powersName: providerFactoryAgent,
+    resultName: 'llm-provider-factory',
   });
-  console.log('[setup] Created fae guest with introduced tools');
+  console.log('[setup] LLM provider factory installed');
+  console.log('[setup] Submit provider config via: yarn create-provider');
 
-  await E(agent).makeUnconfined('MAIN', faeSpecifier, {
-    powersName: 'profile-for-fae',
-    resultName: 'controller-for-fae',
-    env: {
-      LAL_HOST: config.host,
-      LAL_AUTH_TOKEN: config.authToken,
-      LAL_MODEL: config.model,
-    },
-  });
-  console.log('[setup] Fae agent started');
+  // 3. Create the fae-factory (will fail until a provider is submitted)
+  const factoryGuestName = `${factoryName}-handle`;
+  const factoryAgent = `profile-for-${factoryGuestName}`;
+  const hasProvider = await E(agent).has(providerName);
+  if (hasProvider) {
+    const providerId = /** @type {string} */ (
+      await E(agent).identify(providerName)
+    );
+
+    const hasFactory = await E(agent).has(factoryGuestName);
+    if (!hasFactory) {
+      await E(agent).provideGuest(factoryGuestName, {
+        introducedNames: harden({ AGENT: 'host-agent' }),
+        agentName: factoryAgent,
+      });
+    }
+
+    const factoryPowers = await E(agent).lookup(factoryAgent);
+    await E(factoryPowers).write('llm-provider', providerId);
+
+    await E(agent).makeUnconfined('MAIN', faeFactorySpecifier, {
+      powersName: factoryAgent,
+      resultName: factoryName,
+    });
+    console.log(
+      `[setup] Fae factory "${factoryName}" created, bound to provider "${providerName}"`,
+    );
+  } else {
+    console.log(
+      `[setup] Provider "${providerName}" not found yet. After submitting provider config, run: yarn setup-factory`,
+    );
+  }
 };
 harden(main);

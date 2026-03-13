@@ -704,16 +704,8 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
           checkAccess();
           const now = Date.now();
           checkPostRate(now);
-          const ids = /** @type {FormulaIdentifier[]} */ (
-            resolvedIds || []
-          );
-          await postInternal(
-            entry.memberId,
-            strings,
-            names,
-            ids,
-            replyTo,
-          );
+          const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
+          await postInternal(entry.memberId, strings, names, ids, replyTo);
         },
         setProposedName: async newName => {
           checkAccess();
@@ -968,16 +960,8 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
     const channelExo = makeExo('EndoChannel', ChannelInterface, {
       help: makeHelp(channelHelp),
       post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds) => {
-        const ids = /** @type {FormulaIdentifier[]} */ (
-          resolvedIds || []
-        );
-        await postInternal(
-          adminMemberId,
-          strings,
-          names,
-          ids,
-          replyTo,
-        );
+        const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
+        await postInternal(adminMemberId, strings, names, ids, replyTo);
       },
       followMessages: async () => {
         const iterator = (async function* channelMessages() {

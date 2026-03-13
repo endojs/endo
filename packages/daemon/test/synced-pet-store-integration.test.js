@@ -10,13 +10,7 @@ import path from 'path';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import {
-  start,
-  stop,
-  restart,
-  purge,
-  makeEndoClient,
-} from '../index.js';
+import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 
 const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
@@ -96,12 +90,7 @@ const prepareHostWithTestNetwork = async t => {
   await E(host).storeValue('127.0.0.1:0', 'tcp-listen-addr');
 
   // Install test network.
-  const servicePath = path.join(
-    dirname,
-    'src',
-    'networks',
-    'tcp-netstring.js',
-  );
+  const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
   await E(host).makeUnconfined('MAIN', serviceLocation, {
     powersName: 'AGENT',
@@ -152,7 +141,10 @@ test.serial(
     t.true(Array.isArray(aliceNames), 'Alice synced store should be listable');
     // Alice's grantor store wrote the guest handle under "bob" pet name
     // during acceptance.
-    t.true(aliceNames.length >= 1, 'Alice store should have at least one entry');
+    t.true(
+      aliceNames.length >= 1,
+      'Alice store should have at least one entry',
+    );
 
     // Bob should have a synced-pet-store under 'alice'.
     const bobSyncedStore = await E(hostB).lookup('alice');
@@ -162,61 +154,58 @@ test.serial(
   },
 );
 
-test.serial(
-  'synced stores converge via manual sync',
-  async t => {
-    const { host: hostA } = await prepareHostWithTestNetwork(t);
-    const { host: hostB } = await prepareHostWithTestNetwork(t);
+test.serial('synced stores converge via manual sync', async t => {
+  const { host: hostA } = await prepareHostWithTestNetwork(t);
+  const { host: hostB } = await prepareHostWithTestNetwork(t);
 
-    // Introduce daemons.
-    const invitation = await E(hostA).invite('bob');
-    const invitationLocator = await E(invitation).locate();
-    await E(hostB).accept(invitationLocator, 'alice');
+  // Introduce daemons.
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
 
-    // Get the synced stores.
-    const aliceStore = await E(hostA).lookup('bob');
-    const bobStore = await E(hostB).lookup('alice');
+  // Get the synced stores.
+  const aliceStore = await E(hostA).lookup('bob');
+  const bobStore = await E(hostB).lookup('alice');
 
-    // Alice (grantor) writes a new capability into the synced store.
-    await E(hostA).storeValue('shared-secret', 'secret');
-    const secretLocator = await E(hostA).locate('secret');
-    await E(aliceStore).write('shared-secret', secretLocator);
+  // Alice (grantor) writes a new capability into the synced store.
+  await E(hostA).storeValue('shared-secret', 'secret');
+  const secretLocator = await E(hostA).locate('secret');
+  await E(aliceStore).write('shared-secret', secretLocator);
 
-    // Before sync, Bob's grantee store does not have the new entry.
-    const bobNamesBefore = await E(bobStore).list();
-    t.false(
-      bobNamesBefore.includes('shared-secret'),
-      'Bob should not see the entry before sync',
-    );
+  // Before sync, Bob's grantee store does not have the new entry.
+  const bobNamesBefore = await E(bobStore).list();
+  t.false(
+    bobNamesBefore.includes('shared-secret'),
+    'Bob should not see the entry before sync',
+  );
 
-    // Perform manual sync: exchange state between the two stores.
-    const aliceState = await E(aliceStore).getState();
-    const aliceClock = await E(aliceStore).getLocalClock();
-    const bobState = await E(bobStore).getState();
-    const bobClock = await E(bobStore).getLocalClock();
+  // Perform manual sync: exchange state between the two stores.
+  const aliceState = await E(aliceStore).getState();
+  const aliceClock = await E(aliceStore).getLocalClock();
+  const bobState = await E(bobStore).getState();
+  const bobClock = await E(bobStore).getLocalClock();
 
-    // Merge Alice -> Bob.
-    await E(bobStore).mergeRemoteState(aliceState, aliceClock);
-    // Merge Bob -> Alice.
-    await E(aliceStore).mergeRemoteState(bobState, bobClock);
+  // Merge Alice -> Bob.
+  await E(bobStore).mergeRemoteState(aliceState, aliceClock);
+  // Merge Bob -> Alice.
+  await E(aliceStore).mergeRemoteState(bobState, bobClock);
 
-    // Ack both directions.
-    await E(aliceStore).acknowledgeRemoteClock(bobClock);
-    await E(bobStore).acknowledgeRemoteClock(aliceClock);
+  // Ack both directions.
+  await E(aliceStore).acknowledgeRemoteClock(bobClock);
+  await E(bobStore).acknowledgeRemoteClock(aliceClock);
 
-    // After sync, Bob should see the shared entry.
-    const bobNamesAfter = await E(bobStore).list();
-    t.true(
-      bobNamesAfter.includes('shared-secret'),
-      'Bob should see the entry after sync',
-    );
+  // After sync, Bob should see the shared entry.
+  const bobNamesAfter = await E(bobStore).list();
+  t.true(
+    bobNamesAfter.includes('shared-secret'),
+    'Bob should see the entry after sync',
+  );
 
-    // Both stores should have the same effective entry for 'shared-secret'.
-    const aliceLocator = await E(aliceStore).lookup('shared-secret');
-    const bobLocator = await E(bobStore).lookup('shared-secret');
-    t.is(aliceLocator, bobLocator, 'Both stores should agree on the locator');
-  },
-);
+  // Both stores should have the same effective entry for 'shared-secret'.
+  const aliceLocator = await E(aliceStore).lookup('shared-secret');
+  const bobLocator = await E(bobStore).lookup('shared-secret');
+  t.is(aliceLocator, bobLocator, 'Both stores should agree on the locator');
+});
 
 test.serial(
   'revocation propagates via sync and tombstone bias holds',
@@ -276,140 +265,137 @@ test.serial(
   },
 );
 
-test.serial(
-  'grantee can disclaim (remove) and it propagates',
-  async t => {
-    const { host: hostA } = await prepareHostWithTestNetwork(t);
-    const { host: hostB } = await prepareHostWithTestNetwork(t);
+test.serial('grantee can disclaim (remove) and it propagates', async t => {
+  const { host: hostA } = await prepareHostWithTestNetwork(t);
+  const { host: hostB } = await prepareHostWithTestNetwork(t);
 
-    const invitation = await E(hostA).invite('bob');
-    const invitationLocator = await E(invitation).locate();
-    await E(hostB).accept(invitationLocator, 'alice');
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
 
-    const aliceStore = await E(hostA).lookup('bob');
-    const bobStore = await E(hostB).lookup('alice');
+  const aliceStore = await E(hostA).lookup('bob');
+  const bobStore = await E(hostB).lookup('alice');
 
-    // Alice writes a capability.
-    await E(hostA).storeValue('optional-thing', 'optional');
-    const optionalLocator = await E(hostA).locate('optional');
-    await E(aliceStore).write('optional', optionalLocator);
+  // Alice writes a capability.
+  await E(hostA).storeValue('optional-thing', 'optional');
+  const optionalLocator = await E(hostA).locate('optional');
+  await E(aliceStore).write('optional', optionalLocator);
 
-    // Sync.
-    const syncStores = async () => {
-      const aState = await E(aliceStore).getState();
-      const aClock = await E(aliceStore).getLocalClock();
-      const bState = await E(bobStore).getState();
-      const bClock = await E(bobStore).getLocalClock();
-      await E(bobStore).mergeRemoteState(aState, aClock);
-      await E(aliceStore).mergeRemoteState(bState, bClock);
-      await E(aliceStore).acknowledgeRemoteClock(bClock);
-      await E(bobStore).acknowledgeRemoteClock(aClock);
-    };
+  // Sync.
+  const syncStores = async () => {
+    const aState = await E(aliceStore).getState();
+    const aClock = await E(aliceStore).getLocalClock();
+    const bState = await E(bobStore).getState();
+    const bClock = await E(bobStore).getLocalClock();
+    await E(bobStore).mergeRemoteState(aState, aClock);
+    await E(aliceStore).mergeRemoteState(bState, bClock);
+    await E(aliceStore).acknowledgeRemoteClock(bClock);
+    await E(bobStore).acknowledgeRemoteClock(aClock);
+  };
 
-    await syncStores();
-    t.true(await E(bobStore).has('optional'));
+  await syncStores();
+  t.true(await E(bobStore).has('optional'));
 
-    // Bob (grantee) disclaims by removing.
-    await E(bobStore).remove('optional');
+  // Bob (grantee) disclaims by removing.
+  await E(bobStore).remove('optional');
 
-    // After sync, Alice should also see it removed.
-    await syncStores();
-    t.false(
-      await E(aliceStore).has('optional'),
-      'Alice should see the entry removed after Bob disclaimed',
-    );
-  },
-);
+  // After sync, Alice should also see it removed.
+  await syncStores();
+  t.false(
+    await E(aliceStore).has('optional'),
+    'Alice should see the entry removed after Bob disclaimed',
+  );
+});
 
-test.serial(
-  'synced stores converge after offline changes',
-  async t => {
-    const { host: hostA, config: configA, cancel: cancelA } =
-      await prepareHostWithTestNetwork(t);
-    const { host: hostB } = await prepareHostWithTestNetwork(t);
+test.serial('synced stores converge after offline changes', async t => {
+  const {
+    host: hostA,
+    config: configA,
+    cancel: cancelA,
+  } = await prepareHostWithTestNetwork(t);
+  const { host: hostB } = await prepareHostWithTestNetwork(t);
 
-    // Introduce daemons.
-    const invitation = await E(hostA).invite('bob');
-    const invitationLocator = await E(invitation).locate();
-    await E(hostB).accept(invitationLocator, 'alice');
+  // Introduce daemons.
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
 
-    const aliceStore = await E(hostA).lookup('bob');
-    const bobStore = await E(hostB).lookup('alice');
+  const aliceStore = await E(hostA).lookup('bob');
+  const bobStore = await E(hostB).lookup('alice');
 
-    // Alice writes a capability and syncs.
-    await E(hostA).storeValue('pre-restart-val', 'pre-restart');
-    const preRestartLocator = await E(hostA).locate('pre-restart');
-    await E(aliceStore).write('pre-restart', preRestartLocator);
+  // Alice writes a capability and syncs.
+  await E(hostA).storeValue('pre-restart-val', 'pre-restart');
+  const preRestartLocator = await E(hostA).locate('pre-restart');
+  await E(aliceStore).write('pre-restart', preRestartLocator);
 
-    const syncStores = async (aStore, bStore) => {
-      const aState = await E(aStore).getState();
-      const aClock = await E(aStore).getLocalClock();
-      const bState = await E(bStore).getState();
-      const bClock = await E(bStore).getLocalClock();
-      await E(bStore).mergeRemoteState(aState, aClock);
-      await E(aStore).mergeRemoteState(bState, bClock);
-      await E(aStore).acknowledgeRemoteClock(bClock);
-      await E(bStore).acknowledgeRemoteClock(aClock);
-    };
+  const syncStores = async (aStore, bStore) => {
+    const aState = await E(aStore).getState();
+    const aClock = await E(aStore).getLocalClock();
+    const bState = await E(bStore).getState();
+    const bClock = await E(bStore).getLocalClock();
+    await E(bStore).mergeRemoteState(aState, aClock);
+    await E(aStore).mergeRemoteState(bState, bClock);
+    await E(aStore).acknowledgeRemoteClock(bClock);
+    await E(bStore).acknowledgeRemoteClock(aClock);
+  };
 
-    await syncStores(aliceStore, bobStore);
-    t.true(
-      await E(bobStore).has('pre-restart'),
-      'Bob should see pre-restart entry',
-    );
+  await syncStores(aliceStore, bobStore);
+  t.true(
+    await E(bobStore).has('pre-restart'),
+    'Bob should see pre-restart entry',
+  );
 
-    // Stop daemon A (simulating offline/partition).
-    cancelA(Error('simulate-partition'));
-    await stop(configA);
+  // Stop daemon A (simulating offline/partition).
+  cancelA(Error('simulate-partition'));
+  await stop(configA);
 
-    // Restart daemon A.
-    const { reject: cancelA2, promise: cancelledA2 } = makePromiseKit();
-    t.context.push({ cancel: cancelA2, cancelled: cancelledA2, config: configA });
-    await start(configA, { env: { ENDO_ADDR: '127.0.0.1:0' } });
-    const { host: hostA2 } = await makeHost(configA, cancelledA2);
+  // Restart daemon A.
+  const { reject: cancelA2, promise: cancelledA2 } = makePromiseKit();
+  t.context.push({ cancel: cancelA2, cancelled: cancelledA2, config: configA });
+  await start(configA, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+  const { host: hostA2 } = await makeHost(configA, cancelledA2);
 
-    // Reinstall test network on restarted daemon A.
-    await E(hostA2).storeValue('127.0.0.1:0', 'tcp-listen-addr');
-    const servicePath2 = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation2 = url.pathToFileURL(servicePath2).href;
-    await E(hostA2).makeUnconfined('MAIN', serviceLocation2, {
-      powersName: 'AGENT',
-      resultName: 'test-network-2',
-    });
-    await E(hostA2).move(['test-network-2'], ['NETS', 'tcp']);
+  // Reinstall test network on restarted daemon A.
+  await E(hostA2).storeValue('127.0.0.1:0', 'tcp-listen-addr');
+  const servicePath2 = path.join(
+    dirname,
+    'src',
+    'networks',
+    'tcp-netstring.js',
+  );
+  const serviceLocation2 = url.pathToFileURL(servicePath2).href;
+  await E(hostA2).makeUnconfined('MAIN', serviceLocation2, {
+    powersName: 'AGENT',
+    resultName: 'test-network-2',
+  });
+  await E(hostA2).move(['test-network-2'], ['NETS', 'tcp']);
 
-    // After restart, the synced store should still exist with persisted state.
-    const aliceStore2 = await E(hostA2).lookup('bob');
-    t.truthy(aliceStore2, 'Alice synced store should survive restart');
+  // After restart, the synced store should still exist with persisted state.
+  const aliceStore2 = await E(hostA2).lookup('bob');
+  t.truthy(aliceStore2, 'Alice synced store should survive restart');
 
-    // The pre-restart entry should be present.
-    const preRestartNames = await E(aliceStore2).list();
-    t.true(
-      preRestartNames.includes('pre-restart'),
-      'Pre-restart entry should survive daemon restart',
-    );
+  // The pre-restart entry should be present.
+  const preRestartNames = await E(aliceStore2).list();
+  t.true(
+    preRestartNames.includes('pre-restart'),
+    'Pre-restart entry should survive daemon restart',
+  );
 
-    // Alice writes a new entry offline (while Bob doesn't know).
-    await E(hostA2).storeValue('post-restart-val', 'post-restart');
-    const postRestartLocator = await E(hostA2).locate('post-restart');
-    await E(aliceStore2).write('post-restart', postRestartLocator);
+  // Alice writes a new entry offline (while Bob doesn't know).
+  await E(hostA2).storeValue('post-restart-val', 'post-restart');
+  const postRestartLocator = await E(hostA2).locate('post-restart');
+  await E(aliceStore2).write('post-restart', postRestartLocator);
 
-    // Sync the restarted Alice store with Bob's store.
-    await syncStores(aliceStore2, bobStore);
+  // Sync the restarted Alice store with Bob's store.
+  await syncStores(aliceStore2, bobStore);
 
-    // Bob should now see both the pre-restart and post-restart entries.
-    t.true(
-      await E(bobStore).has('pre-restart'),
-      'Bob should still have pre-restart entry after sync',
-    );
-    t.true(
-      await E(bobStore).has('post-restart'),
-      'Bob should have post-restart entry after sync with restarted daemon',
-    );
-  },
-);
+  // Bob should now see both the pre-restart and post-restart entries.
+  t.true(
+    await E(bobStore).has('pre-restart'),
+    'Bob should still have pre-restart entry after sync',
+  );
+  t.true(
+    await E(bobStore).has('post-restart'),
+    'Bob should have post-restart entry after sync with restarted daemon',
+  );
+});

@@ -646,7 +646,7 @@ export const inboxComponent = async (
       $fieldsContainer.className = 'form-request-fields';
 
       const fieldArray =
-        /** @type {Array<{name: string, label: string, example?: string}>} */ (
+        /** @type {Array<{name: string, label: string, example?: string, default?: string}>} */ (
           fields
         );
 
@@ -664,6 +664,9 @@ export const inboxComponent = async (
         $input.type = 'text';
         $input.className = 'form-request-field-input';
         $input.placeholder = field.example || field.name;
+        if (field.default) {
+          $input.value = field.default;
+        }
         $input.autocomplete = 'off';
         $input.dataset.formType = 'other';
         $input.dataset.lpignore = 'true';

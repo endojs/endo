@@ -178,9 +178,12 @@ test('synced store: grantee cannot write', async t => {
       localNodeId: 'node-bob',
       role: 'grantee',
     });
-    await t.throwsAsync(() => store.write('alice', 'endo://node-alice/handle:xyz'), {
-      message: /Grantee cannot write/,
-    });
+    await t.throwsAsync(
+      () => store.write('alice', 'endo://node-alice/handle:xyz'),
+      {
+        message: /Grantee cannot write/,
+      },
+    );
   } finally {
     await removeTmpDir(dir);
   }
@@ -221,7 +224,13 @@ test('synced store: grantee can remove', async t => {
     });
     // Simulate a remote merge that creates an entry.
     await store.mergeRemoteState(
-      { alice: { locator: 'endo://node-alice/handle:xyz', timestamp: 1, writer: 'node-alice' } },
+      {
+        alice: {
+          locator: 'endo://node-alice/handle:xyz',
+          timestamp: 1,
+          writer: 'node-alice',
+        },
+      },
       1,
     );
     t.true(store.has('alice'));
@@ -277,8 +286,16 @@ test('synced store: merge remote state', async t => {
 
     const changed = await store.mergeRemoteState(
       {
-        'remote-name': { locator: 'loc-remote', timestamp: 5, writer: 'node-bob' },
-        'local-name': { locator: 'loc-override', timestamp: 10, writer: 'node-bob' },
+        'remote-name': {
+          locator: 'loc-remote',
+          timestamp: 5,
+          writer: 'node-bob',
+        },
+        'local-name': {
+          locator: 'loc-override',
+          timestamp: 10,
+          writer: 'node-bob',
+        },
       },
       5,
     );
@@ -460,14 +477,8 @@ test('synced store: crash recovery cleans tmp files', async t => {
     const namesDir = path.join(dir, 'names');
     await fs.promises.mkdir(namesDir, { recursive: true });
     // Simulate stale tmp files from a crash.
-    await fs.promises.writeFile(
-      path.join(namesDir, '.tmp.deadbeef'),
-      'stale',
-    );
-    await fs.promises.writeFile(
-      path.join(dir, '.tmp.cafebabe'),
-      'stale',
-    );
+    await fs.promises.writeFile(path.join(namesDir, '.tmp.deadbeef'), 'stale');
+    await fs.promises.writeFile(path.join(dir, '.tmp.cafebabe'), 'stale');
 
     const store = await makeSyncedPetStore({
       storePath: dir,

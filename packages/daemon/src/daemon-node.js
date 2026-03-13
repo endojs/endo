@@ -24,7 +24,8 @@ import {
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config, Builtins } from './types.js' */
 
-if (process.argv.length < 5) {
+const args = process.argv.slice(2);
+if (args.length < 4) {
   throw new Error(
     `daemon.js requires arguments [sockPath] [statePath] [ephemeralStatePath] [cachePath], got ${process.argv.join(
       ', ',
@@ -32,10 +33,9 @@ if (process.argv.length < 5) {
   );
 }
 
-const [sockPath, statePath, ephemeralStatePath, cachePath] =
-  process.argv.slice(2);
+const [sockPath, statePath, ephemeralStatePath, cachePath] = args;
 
-const gcEnabled = process.env.ENDO_GC !== '0';
+const gcEnabled = process.env.ENDO_GC === '1';
 
 /** @type {Config} */
 const config = {
@@ -122,34 +122,42 @@ const killStaleWorkers = async () => {
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
-  cancelled.catch(() => {
-    console.log(`Endo daemon stopping on PID ${pid}`);
+  cancelled.catch(err => {
+    console.log(`Endo daemon stopping on PID ${pid} (caught: ${err})`);
   });
 
   await daemonicPersistencePowers.initializePersistence();
   await killStaleWorkers();
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
-    await makeDaemon(powers, daemonLabel, cancel, cancelled, {
-      gcEnabled,
-      /** @param {Builtins} builtins */
-      APPS: ({ MAIN, ENDO }) => ({
-        type: /** @type {const} */ ('make-unconfined'),
-        worker: MAIN,
-        powers: ENDO,
-        specifier:
-          process.env.ENDO_WORKER_PATH ||
-          new URL('web-server-node.js', import.meta.url).href,
-        env: {
-          ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
-          ENDO_WEB_PAGE_BUNDLE_PATH:
-            process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
-          ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
-          ENDO_GATEWAY_ALLOWED_CIDRS:
-            process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
-        },
-      }),
-    });
+    await makeDaemon(
+      powers,
+      daemonLabel,
+      cancel,
+      cancelled,
+      {
+        /** @param {Builtins} builtins */
+        APPS: ({ MAIN, ENDO }) => ({
+          type: /** @type {const} */ ('make-unconfined'),
+          worker: MAIN,
+          powers: ENDO,
+          specifier:
+            process.env.ENDO_WORKER_PATH ||
+            new URL('web-server-node.js', import.meta.url).href,
+          env: {
+            ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
+            ENDO_WEB_PAGE_BUNDLE_PATH:
+              process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
+            ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
+            ENDO_GATEWAY_ALLOWED_CIDRS:
+              process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
+          },
+        }),
+      },
+      {
+        gcEnabled,
+      },
+    );
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -252,6 +260,7 @@ const main = async () => {
 };
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
+process.once('SIGTERM', () => cancel(new Error('SIGTERM')));
 
 // @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;

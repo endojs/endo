@@ -89,10 +89,7 @@ const atomicWriteJSON = async (filePowers, targetDir, fileName, value) => {
     `.tmp.${randomTmpSuffix()}`,
   );
   const finalPath = filePowers.joinPath(targetDir, fileName);
-  await filePowers.writeFileText(
-    temporaryPath,
-    `${JSON.stringify(value)}\n`,
-  );
+  await filePowers.writeFileText(temporaryPath, `${JSON.stringify(value)}\n`);
   await filePowers.renamePath(temporaryPath, finalPath);
 };
 
@@ -112,9 +109,7 @@ const cleanTmpFiles = async (filePowers, directory) => {
   await Promise.all(
     entries
       .filter(name => name.startsWith('.tmp.'))
-      .map(name =>
-        filePowers.removePath(filePowers.joinPath(directory, name)),
-      ),
+      .map(name => filePowers.removePath(filePowers.joinPath(directory, name))),
   );
 };
 
@@ -143,8 +138,9 @@ export const makeSyncedPetStore = async ({
   // Load metadata.
   /** @type {SyncedPetStoreMetadata} */
   let meta = { localClock: 0, remoteAckedClock: 0 };
-  const metaText = await filePowers
-    .maybeReadFileText(filePowers.joinPath(storePath, 'clock.json'));
+  const metaText = await filePowers.maybeReadFileText(
+    filePowers.joinPath(storePath, 'clock.json'),
+  );
   if (metaText !== undefined) {
     meta = JSON.parse(metaText);
   }
@@ -196,9 +192,7 @@ export const makeSyncedPetStore = async ({
    */
   const deleteEntryFile = async key => {
     await writeJobs.enqueue(async () => {
-      await filePowers.removePath(
-        filePowers.joinPath(namesDir, `${key}.json`),
-      );
+      await filePowers.removePath(filePowers.joinPath(namesDir, `${key}.json`));
     });
   };
 
@@ -344,10 +338,7 @@ export const makeSyncedPetStore = async ({
     /** @type {string[]} */
     const pruned = [];
     for (const [key, entry] of state) {
-      if (
-        entry.locator === null &&
-        entry.timestamp <= meta.remoteAckedClock
-      ) {
+      if (entry.locator === null && entry.timestamp <= meta.remoteAckedClock) {
         pruned.push(key);
       }
     }

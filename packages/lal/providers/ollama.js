@@ -120,16 +120,15 @@ export const makeOllamaProvider = ({ host, model, apiKey }) => {
       };
 
       // Handle tool calls if present
-      if (
-        response.message?.tool_calls &&
-        response.message.tool_calls.length > 0
-      ) {
-        message.tool_calls = response.message.tool_calls.map(
+      const { tool_calls } = response.message || {};
+      if (tool_calls && tool_calls.length > 0) {
+        const idBase = `ollama_tool_${Date.now()}_`;
+        message.tool_calls = tool_calls.map(
           (
             /** @type {{ function?: { name?: string, arguments?: object }}} */ tc,
             /** @type {number} */ index,
           ) => ({
-            id: `ollama_tool_${Date.now()}_${index}`,
+            id: `${idBase}${index}`,
             function: {
               name: tc.function?.name ?? '',
               arguments: JSON.stringify(tc.function?.arguments ?? {}),
