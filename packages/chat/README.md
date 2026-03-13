@@ -12,6 +12,7 @@ This package extracts the chat functionality from `packages/cli/demo/cat.js` int
 - **Inventory**: Browse and manage pet names (capabilities)
 - **Chat**: Send messages with capability references to other guests
 - **Eval**: Evaluate JavaScript expressions with pet name endowments
+- **Known Peers**: List all known remote Endo peers and their connection hints
 
 ## Development
 
@@ -72,6 +73,7 @@ packages/chat/
 ├── main.js                 # Application entry point
 ├── connection.js           # Gateway WebSocket + CapTP connection
 ├── chat.js                 # Main chat UI components
+├── peers-component.js      # Known Peers space component
 ├── vite.config.js          # Vite configuration
 ├── vite-endo-plugin.js     # Vite plugin that ensures daemon is running
 └── package.json

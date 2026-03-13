@@ -731,6 +731,18 @@ export const makeHostMaker = ({
       await E(endoBootstrap).addPeerInfo(peerInfo);
     };
 
+    /** @type {EndoHost['listKnownPeers']} */
+    const listKnownPeers = async () => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).listKnownPeers();
+    };
+
+    /** @type {EndoHost['followPeerChanges']} */
+    const followPeerChanges = async () => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).followPeerChanges();
+    };
+
     /** @type {EndoHost['getPeerInfo']} */
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
@@ -1131,6 +1143,8 @@ export const makeHostMaker = ({
       greeter,
       getPeerInfo,
       addPeerInfo,
+      listKnownPeers,
+      followPeerChanges,
       locateForSharing,
       adoptFromLocator,
       deliver,
@@ -1197,6 +1211,11 @@ export const makeHostMaker = ({
       },
       followNameChanges: async () => {
         const iterator = host.followNameChanges();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followPeerChanges: async () => {
+        const iterator = await host.followPeerChanges();
         await collectIfDirty();
         return makeIteratorRef(iterator);
       },
