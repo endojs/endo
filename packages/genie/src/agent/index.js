@@ -12,6 +12,7 @@
 import {
   default as buildSystemPrompt,
 } from '../system/index.js';
+import { createProvider } from '@endo/lal/providers/index.js';
 
 /**
  * ToolCallStart - Event emitted when starting a tool call
@@ -218,10 +219,19 @@ export default function makeAgent(options = {}) {
     // Feed tool results back to LLM
     let finalResponse = '';
     try {
-      // TODO append tool call results to messages, otherwise the LLM cannot see them, and will not make progress
+      // Append tool call results to messages so the LLM can see them
+      const messagesWithToolResults = [
+        ...messagesArray,
+        ...results
+          .filter(r => 'result' in r && !('error' in r))
+          .map(({ toolName, result }) => ({
+            role: 'tool',
+            content: `Tool result for ${toolName}: ${JSON.stringify(result)}`,
+          })),
+      ];
 
       // Call LLM
-      finalResponse = await callLLM(messagesArray, finalToolList);
+      finalResponse = await callLLM(messagesWithToolResults, finalToolList);
     } catch (err) {
       yield makeError('LLM call failed', err);
       finalResponse = ''; // Fallback - but still yield messages
@@ -255,11 +265,22 @@ export default function makeAgent(options = {}) {
   function* extractToolCalls(response, toolList) {
     const toolNames = new Set(toolList.map(({ name }) => name));
 
+    // Extract all ToolCallStart patterns first (without filtering by toolList)
+    // This allows us to detect invalid tool names
+    const allToolStartRegex = /ToolCallStart\s*\{[^}]*\}/g;
+    let match;
+    const toolStartMatches = [];
+    while ((match = allToolStartRegex.exec(response)) !== null) {
+      toolStartMatches.push({
+        index: match.index,
+        text: match[0],
+      });
+    }
+
+    // Look for plain function call patterns for all known tools
     for (const toolName of toolNames) {
-      // TODO we could extract all such `ToolCallStart`s separately from all `toolNames`, which would give us a chance to recognize invalid tool names (not just look for the ones we know), and also to detect malformed calls
       // Look for ToolCallStart{...toolName...} patterns
-      const regex = new RegExp(`ToolCallStart\\{[^}]*${toolName}\\.?\\s*\\}`, 'g');
-      let match;
+      const regex = new RegExp(`ToolCallStart\\{[^}]*${toolName}.?\\s*\\}`, 'g');
       while ((match = regex.exec(response)) !== null) {
         yield {
           start: match.index,
@@ -275,6 +296,22 @@ export default function makeAgent(options = {}) {
           start: match.index,
           text: match[0],
           toolName,
+        };
+      }
+    }
+
+    // Check for any ToolCallStart patterns that are not in the known tool list
+    // These represent invalid tool names
+    for (const tcMatch of toolStartMatches) {
+      // Extract the tool name from the pattern
+      const toolNameMatch = tcMatch.text.match(/ToolCallStart\s*\{[^}]*toolName:\s*"?([^"]+)"?/);
+      const invalidToolName = toolNameMatch ? toolNameMatch[1] : null;
+
+      if (invalidToolName && !toolNames.has(invalidToolName)) {
+        yield {
+          start: tcMatch.index,
+          text: tcMatch.text,
+          error: `Unknown tool: ${invalidToolName}`,
         };
       }
     }
@@ -318,7 +355,11 @@ export default function makeAgent(options = {}) {
     // Try to parse the JSON content inside { }
     try {
       const args = JSON.parse(pattern.text);
-      // TODO args may need adapting form the ToolCallStart{"toolName":"name",...}
+      // Args may need adapting from ToolCallStart format
+      // Remove the toolName field from args if it exists, as it's already extracted
+      if ('toolName' in args) {
+        delete args.toolName;
+      }
       return {
         toolName: pattern.toolName,
         args,
@@ -354,22 +395,31 @@ export default function makeAgent(options = {}) {
    * @returns {Promise<string>} LLM response text
    */
   async function callLLM(messages, tools) {
-    // Placeholder implementation
-    // When LLM client is available, this would:
-    // 1. Create/Get session
-    // 2. Send messages with tools schema
-    // 3. Stream response using session API
-    // 4. Return assistant message content
+    // Initialize the LLM provider using lal
+    try {
+      const provider = createProvider({ model });
 
-    // For now, check if there's a model configured
-    if (!model) {
-      console.warn('[Agent] No model configured, returning placeholder response');
-      return 'I am a placeholder agent. Configure a model to enable LLM responses.';
+      // Convert our ToolSpec to CommonTool format expected by lal
+      const toolsSchema = tools.map(({ name, summary }) => ({
+        type: 'function',
+        function: {
+          name,
+          description: summary,
+          parameters: {
+            type: 'object',
+            properties: {},
+          },
+        },
+      }));
+
+      // Call the LLM
+      const { message } = await provider.chat(messages, toolsSchema);
+
+      return message.content || '';
+    } catch (err) {
+      console.error('[Agent] LLM call failed:', err);
+      throw err;
     }
-
-    // For now, return a simple response indicating integration needed
-    console.warn('[Agent] LLM integration not yet fully implemented. Using model:', model);
-    return `I can help you with tasks using the ${model} model. Full LLM integration coming soon.`;
   }
 
   // Return agent interface
