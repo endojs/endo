@@ -172,41 +172,54 @@ export default function makeAgent(options = {}) {
       return;
     }
 
-    // Process LLM response - extract and execute tool calls
-    const toolCalls = parseToolCalls(llmResponse, finalToolList);
+    // TODO we need to also collect error feedback to pass to the LLM
+    /** @type {Array<{error: string}|{toolName: string, result: any, error: any}>} */
     const results = [];
 
-    // Execute tool calls sequentially with streaming
-    for (const toolCall of toolCalls) {
-      // Emit start event
-      yield makeToolCallStart(toolCall.toolName, toolCall.args);
+    // Process LLM response - extract and parse tool calls using generators
 
-      // Execute tool
+    const matches = Array.from(extractToolCalls(llmResponse, finalToolList));
+    matches.sort((a, b) => a.start - b.start); // Sort by message order
+
+    for (const match of matches) {
+      if (!('toolName' in match)) {
+        const { error } = match;
+        const message = `Malformed tool call - ${error}`;
+        results.push({ error: message });
+        yield makeError(message, new Error(error));
+        continue;
+      }
+
+      const parsed = parseToolCall(match, finalToolList);
+      if ('error' in parsed) {
+        const { pattern, error } = parsed;
+        const message = `Invalid tool call: toolName:${pattern.toolName} - ${error}`;
+        results.push({ error: message });
+        yield makeError(message, new Error(error));
+        continue;
+      }
+
+      // Emit start event
+      yield makeToolCallStart(parsed.toolName, parsed.args);
+
+      // Execute tool and collect result
       let result = null;
       let error = null;
       try {
-        result = await execTool(toolCall.toolName, toolCall.args);
+        result = await execTool(parsed.toolName, parsed.args);
       } catch (err) {
         error = err;
       }
+      results.push({ ...parsed, result, error });
 
       // Emit end event
-      yield makeToolCallEnd(toolCall.toolName, result, error);
-
-      // Store result
-      results.push({
-        toolName: toolCall.toolName,
-        args: toolCall.args,
-        result,
-        error,
-      });
+      yield makeToolCallEnd(parsed.toolName, result, error);
     }
 
     // Feed tool results back to LLM
     let finalResponse = '';
     try {
-      // Note: Tool results would normally be added to messagesArray here.
-      // But for this placeholder implementation, we'll just keep everything in one call.
+      // TODO append tool call results to messages, otherwise the LLM cannot see them, and will not make progress
 
       // Call LLM
       finalResponse = await callLLM(messagesArray, finalToolList);
@@ -220,82 +233,118 @@ export default function makeAgent(options = {}) {
   }
 
   /**
-   * Parse tool calls from LLM response
+   * Extract tool call patterns from LLM response
    *
-   * Extracts tool invocation patterns like:
-   * - ToolCallStart{...}
-   * - toolName({...})
+   * This generator scans the LLM response text for potential tool invocation patterns:
+   * - ToolCallStart{...toolName...} style tool calls
+   * - toolName({...}) style function calls
    *
-   * @param {string} response - LLM response text
-   * @param {Array<ToolSpec>} toolList - Available tools
-   * @returns {Array<{toolName: string, args: any}>} Array of tool call objects
+   * Yields matches as they're found (streaming pattern detection).
+   * This makes it possible to report tool calls as they're detected without
+   * waiting for full parsing.
+   *
+   * The matches are yielded in order without validation.
+   *
+   * @typedef {{start: number, text: string}} ToolCallMatch
+   * @typedef {ToolCallMatch & {toolName: string}} ToolCallPattern
+   * @typedef {ToolCallMatch & {error: string}} MalformedToolCall
+   *
+   * @param {string} response - LLM response text to scan for tool calls
+   * @param {Array<ToolSpec>} toolList - List of available tools to consider
+   * @returns {Generator<ToolCallPattern|MalformedToolCall>}
    */
-  function parseToolCalls(response, toolList) {
+  function* extractToolCalls(response, toolList) {
     const toolNames = new Set(toolList.map(({ name }) => name));
 
-    // TODO extract this loop out as a separate `function* extractToolCalls(response, toolNames)` generator
-    // - the yielded type should be these pattern matches
-    // - but at least start planning for how we can capture malformed tool calls alongside well-formed ones, using a type union to differentiate
-    // Simple parsing: look for pattern
-    // ToolCallStart{...} or toolName({...}) after context
-    /** @type {Array<{name: string, start: number, text: string}>} */
-    const patterns = [];
     for (const toolName of toolNames) {
-      // Look for ToolCallStart{...} pattern
+      // TODO we could extract all such `ToolCallStart`s separately from all `toolNames`, which would give us a chance to recognize invalid tool names (not just look for the ones we know), and also to detect malformed calls
+      // Look for ToolCallStart{...toolName...} patterns
       const regex = new RegExp(`ToolCallStart\\{[^}]*${toolName}\\.?\\s*\\}`, 'g');
       let match;
       while ((match = regex.exec(response)) !== null) {
-        patterns.push({ start: match.index, text: match[0], name: toolName });
+        yield {
+          start: match.index,
+          text: match[0],
+          toolName,
+        };
       }
 
-      // Look for executeTool call pattern
+      // Look for plain function call patterns: toolName({...})
       const execRegex = new RegExp(`${toolName}\\(\\s*\\{[^}]*\\}\\s*\\)`, 'g');
       while ((match = execRegex.exec(response)) !== null) {
-        patterns.push({ start: match.index, text: match[0], name: toolName });
+        yield {
+          start: match.index,
+          text: match[0],
+          toolName,
+        };
       }
     }
+  }
 
-    // Sort by position and extract
-    patterns.sort((a, b) => a.start - b.start);
+  /**
+   * Parse tool calls from extracted patterns
+   *
+   * Takes a pattern matche from extractToolCalls and:
+   * 1. Validates that the tool name exists in the registry
+   * 2. Extracts and parses the argument object from within { } delimiters
+   * 3. Falls back to heuristic parsing for malformed JSON
+   * 4. Yields normalized tool calls along with invalid call information for handling
+   *
+   * @typedef {{toolName: string, args: any}} ToolCall
+   * @typedef {{error: string, pattern: ToolCallPattern}} InvalidToolCall
+   *
+   * @param {ToolCallPattern} pattern
+   * @param {Array<ToolSpec>} toolList - List of available tools
+   * @returns {ToolCall|InvalidToolCall}
+   */
+  function parseToolCall(pattern, toolList) {
+    const toolNames = new Set(toolList.map(({ name }) => name));
 
-    // TODO refactor this to a generator function that yields `ToolCall | InvalidToolCall`
-    // - ToolCall is the normalized `{toolName, args}` shape we've already got below
-    // - InvalidToolCall will describe any parse errors, but should be generic enough to also be able to capture malformed pattern matches from `extractToolCalls` eventually
-    /** @type {Array<{toolName: string, args: any}>} */
-    const toolCalls = [];
-    for (const pattern of patterns) {
-      try {
-        // Try to parse the JSON content inside { }
-        let match = pattern.text.match(/\{([^}]*)\}/);
-        if (!match) {
-          continue;
-        }
+    // Skip if we don't have a tool name (shouldn't happen, but defensively handle it)
+    if (!pattern.toolName) {
+      return {
+        error: `Missing toolName in ${pattern.text}`,
+        pattern,
+      };
+    }
 
-        /** @type {any} */
-        let args = {};
-        try {
-          args = JSON.parse(match[1]);
-        } catch (e) {
-          // If JSON parsing fails, try to extract key-value pairs manually
-          // Simple heuristic for common patterns
-          const cleanMatch = match[1]
-            .replace(/'([^']+)':\s*"([^"]*)"/g, (s, k, v) => {
-              if (k === 'command') return `"${k}":"${v.toLowerCase().replace(/\n/g, ' ')}"`;
-              return s;
-            });
-          args = JSON.parse(cleanMatch);
-        }
+    // Validate tool name exists
+    if (!toolNames.has(pattern.toolName)) {
+      return {
+        error: `Unknown tool: ${pattern.toolName}`,
+        pattern,
+      };
+    }
 
-        toolCalls.push({
-          toolName: pattern.name,
-          args,
+    // Try to parse the JSON content inside { }
+    try {
+      const args = JSON.parse(pattern.text);
+      // TODO args may need adapting form the ToolCallStart{"toolName":"name",...}
+      return {
+        toolName: pattern.toolName,
+        args,
+      };
+    } catch (parseError) {
+      // If JSON parsing fails, try to extract key-value pairs manually
+      const cleanMatch = pattern.text
+        .replace(/'([^']+)':\s*"([^"]*)"/g, (s, k, v) => {
+          if (k === 'command') return `"${k}":"${v.toLowerCase().replace(/\n/g, ' ')}"`;
+          return s;
         });
-      } catch (e) {
-        // Skip malformed patterns
-        continue;
+      try {
+        const args = JSON.parse(cleanMatch);
+        return {
+          toolName: pattern.toolName,
+          args,
+        };
+      } catch (_fixupParseError) {
+        // Parsing failed after both direct and heuristic attempts
+        return {
+          error: `Failed to parse tool call args: ${parseError?.message}`,
+          pattern,
+        };
       }
     }
-    return toolCalls;
   }
 
   /**
