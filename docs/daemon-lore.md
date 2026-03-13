@@ -159,6 +159,77 @@ own process, memory, and event loop, providing true isolation.
   operations
 - **Shared Worker**: Workers that can communicate with each other via CapTP (rarely used)
 
+## HardenedJS
+
+**HardenedJS** is a security-focused JavaScript environment based on SES (Secure ECMAScript).
+It provides foundations for capability-based security and supply chain attack resistance.
+
+### Core Concepts
+
+- **Lockdown**: A process that freezes the JavaScript runtime, making it tamper-resistant
+- **Compartments**: Isolated execution contexts with their own global scope, sharing only
+  a frozen set of intrinsics (arrays, objects, built-ins) to maintain identity
+- **Hardened Objects**: Objects that cannot be modified once frozen, serving as capabilities
+- **Principle of Least Authority**: Components only have the capabilities they explicitly need
+
+### Security Model
+
+1. **No Ambient Authority**: By default, compartments have no built-in capabilities like
+   `fetch`, `http`, or `fs`. They must accept only the specific powers they require.
+
+2. **Tamper Resistance**: Once `lockdown()` is called, the runtime cannot be reconfigured
+   or altered. Modifications to prototypes, globals, or intrinsics are detected and throw errors.
+
+3. **Capability-Based Security**: Capabilities are objects with methods that can only be
+   invoked. They cannot be forged, as a useful object cannot be created unless explicitly
+   provided to the compartment.
+
+4. **Interoperable Intrinsics**: By freezing and sharing intrinsics like `Array`, `Object`,
+   and `Function`, programs running in different compartments can recognize instances of
+   the same JavaScript types, maintaining identity and compatibility.
+
+### Why HardenedJS Matters in Endo
+
+1. **Supply Chain Attack Mitigation**: Third-party plugins and dependencies cannot silently
+   modify the runtime to compromise the host. Every modification is detected and blocked.
+
+2. **Isolation for Guests**: When running user code in a worker, HardenedJS ensures that
+   the guest cannot:
+   - Read or modify the daemon's internal state
+   - Use capabilities it wasn't provided
+   - Access sensitive APIs or private data
+
+3. **Secure Co-Tenancy**: Workers can share a HardenedJS runtime, but with careful
+   compartment setup to prevent cross-guest attacks.
+
+4. **Compliance with Modern Standards**: HardenedJS is based on SES, an ECMAScript proposal
+   for secure JavaScript execution with strict standards compliance.
+
+### How Endo Uses HardenedJS
+
+- **Workers**: Each daemon worker uses HardenedJS to isolate guest computations
+- **Compartment Maps**: Endo builds compartment maps for Node.js applications, creating
+  separate compartments for each dependency with minimal necessary authorities
+- **Bundle System**: Endo's bundler includes HardenedJS as a core dependency, ensuring
+  execution in a locked-down runtime
+
+### Limitations and Trade-offs
+
+While HardenedJS provides strong security guarantees, there are practical considerations:
+
+- **Performance Overhead**: Lockdown and compartment creation add some runtime cost
+- **Prototype Pollution Prevention**: Many common JavaScript patterns that mutate
+  prototypes are rejected
+- **Compatibility**: Some existing libraries may not work without modification
+- **Learning Curve**: Developers must think in capability terms rather than
+  relying on global state
+
+### See Also
+
+- [SES README](../../packages/ses/README.md) — Complete SES specification and usage
+- [Lockdown Documentation](../../packages/ses/docs/guide.md) — How to lock down a JavaScript environment
+- [@endo/ses](../../packages/ses) — SES implementation package
+
 ## worklet
 
 A caplet that is intended to run in a Worker.
