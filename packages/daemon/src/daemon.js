@@ -3486,6 +3486,9 @@ const makeDaemonCore = async (
       hostHandleId,
     );
     const guestFormulation = await formulateNumberedGuest(guestFormulationData);
+    for (const id of guestFormulationData.pinned) {
+      unpinTransient(id);
+    }
     return guestFormulation.id;
   };
 
