@@ -1,11 +1,11 @@
 # Daemon OS Sandbox Plugin
 
-| | |
-|---|---|
-| **Created** | 2026-02-15 |
-| **Updated** | 2026-02-24 |
-| **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+|             |                       |
+|-------------|-----------------------|
+| **Created** | 2026-02-15            |
+| **Updated** | 2026-02-24            |
+| **Author**  | Kris Kowal (prompted) |
+| **Status**  | Not Started           |
 
 ## What is the Problem Being Solved?
 
@@ -23,6 +23,18 @@ principle of least authority to native processes.  macOS provides
 `sandbox-exec` with SBPL profiles, and Linux provides `bubblewrap`
 (combining namespaces, bind mounts, and seccomp-bpf).  Both can be driven
 programmatically by generating configuration and spawning a child process.
+
+NOTE(Josh): not sure exactly what "bubblewrap" is but most other such project's
+around right now say "Landlock" in the same breath before "seccomp-bpf"
+
+NOTE(Josh): this could be extended to other forms of isolation:
+- containers on Linux: LXC (Incus), Podman, systemd-nspawn, Docker
+- lightweight VMs: Incus, Firecracker, etc
+- there's no need to spec this to just be syscall-intercepting attenuators that
+  run in demi-userspace
+- e.g. anything on Linux that provide a separate "network namespace" should be
+  able to do any degree of net filtering we want; all of the container solution
+  above establish a separate namespace afaik
 
 ## Description of the Design
 
@@ -81,12 +93,11 @@ lists the resources a sandbox should provide:
  */
 
 /** @typedef {object} NetEndowment
- * @property {boolean} [outbound] - Allow outgoing connections
- * @property {boolean} [inbound] - Allow incoming connections
- * @property {Array<string>} [allowHosts] - Restrict outbound to these
- *   hosts/CIDRs (macOS SBPL: ip filter; Linux: not enforceable by
- *   bubblewrap alone, noted in limitations)
- * @property {Array<number>} [allowPorts] - Restrict to these ports
+ * @property {Array<{cidr: string, port: number}>} [allowOutbound] - Allow outgoing connections
+ * @property {Array<{cidr: string, port: number}>} [allowInbound] - Allow incoming connections
+ *
+ * Restrict outbound to these hosts/CIDRs
+ * Note: may be some platform specific net filtering limitations, see limitations section
  */
 
 /** @typedef {object} ExecEndowment
