@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@endo/bundle-source": "workspace:^",
+    "@endo/cancel": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",

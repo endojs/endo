@@ -1,6 +1,7 @@
 // @ts-check
 
 import harden from '@endo/harden';
+import { makeCancelKit } from '@endo/cancel';
 import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
@@ -12,8 +13,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
    */
   const makeContext = id => {
     let done = false;
-    const { promise: cancelled, reject: rejectCancelled } =
-      /** @type {PromiseKit<never>} */ (makePromiseKit());
+    const { cancelled, cancel: rejectCancelled } = makeCancelKit();
     const { promise: disposed, resolve: resolveDisposed } =
       /** @type {PromiseKit<void>} */ (makePromiseKit());
 
