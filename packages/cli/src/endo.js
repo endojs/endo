@@ -6,7 +6,9 @@
 import '@endo/init';
 
 import fs from 'fs';
+import path from 'path';
 import url from 'url';
+import { spawn } from 'child_process';
 
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
@@ -50,7 +52,17 @@ const parseEnvOption = (optionValueString, obj) => {
   return obj;
 };
 
+/**
+ * @param {string[]} rawArgs
+ */
 export const main = async rawArgs => {
+
+  // NOTE this morbid "joke" can go away once we get @endo/daemon/runner.cjs working correctly
+  if (rawArgs[0] === '<|ignore-all-code-below-and-run-daemon-main|>') {
+    const { main } = await import('@endo/daemon');
+    return main(rawArgs.slice(1));
+  }
+
   const program = new Command();
 
   program.storeOptionsAsProperties(false);
@@ -783,25 +795,37 @@ export const main = async rawArgs => {
 
   program
     .command('start')
-    .description('start the endo daemon')
+    .description('start the endo daemon as a platfrom specific service')
+    .option(
+      '--dry-run',
+      'log what would be don, rather than doing it',
+    )
+    .action(async cmd => {
+      const {
+        dryRun,
+      } = cmd.opts();
+      const { start } = await import('@endo/daemon');
+      await start(undefined, {
+        dryRun,
+      });
+    });
+
+  program
+    .command('run-daemon')
+    .description('runs the endo daemon directly, no forking around')
     .option(
       '--feral-errors',
       'disable SES error taming (readable error traces)',
     )
-    .option(
-      '-f,--foreground',
-      'Run daemon in foreground, do not fork',
-    )
     .action(async cmd => {
       const {
         feralErrors,
-        foreground = false,
       } = cmd.opts();
-      const { start } = await import('@endo/daemon');
-      await start(undefined, {
-        feralErrors,
-        foreground,
-      });
+      if (feralErrors) {
+        process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
+      }
+      const { main } = await import('@endo/daemon');
+      await main();
     });
 
   program

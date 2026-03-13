@@ -2,7 +2,7 @@
 /* global process, setTimeout */
 
 import url from 'url';
-import { default as popen, spawn } from 'child_process';
+import popen from 'child_process';
 import fs from 'fs';
 import net from 'net';
 import path from 'path';
@@ -60,6 +60,32 @@ const defaultConfig = {
   cachePath: whereEndoCache(process.platform, process.env, info),
 };
 /** @typedef {typeof defaultConfig} Config */
+
+/**
+ * @param {Config} config
+ */
+const configToEnv = (config) => ({
+  ENDO_STATE_PATH: config.statePath,
+  ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
+  ENDO_SOCK_PATH: config.sockPath,
+  ENDO_CACHE_PATH: config.cachePath,
+});
+
+/**
+ * @param {{[key: string]: string|undefined}} env
+ * @returns {Config}
+ */
+const configFromEnv = (env) => {
+  const {
+    ENDO_STATE_PATH: statePath = defaultConfig.statePath,
+    ENDO_EPHEMERAL_STATE_PATH: ephemeralStatePath = defaultConfig.ephemeralStatePath,
+    ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
+    ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
+  } = env;
+  return {
+    statePath, ephemeralStatePath, sockPath, cachePath,
+  };
+};
 
 export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
@@ -143,14 +169,97 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
 };
 
 /**
+ * @param {string} prog
+ * @returns {Promise<string|null>}
+ */
+async function whichProg(prog) {
+  const pathEnv = process.env.PATH || process.env.MPATH || '';
+  const pathDirs = pathEnv.split(process.platform === 'win32' ? ';' : ':');
+  for (const pathDir of pathDirs) {
+    if (!pathDir) continue;
+    const binaryPath = path.join(pathDir, prog);
+    // Check if path exists and is a file
+    const stats = await fs.promises.stat(binaryPath).catch(() => null);
+    if (!stats?.isFile()) {
+      continue;
+    }
+    // On Windows, we accept any file as executable
+    if (process.platform === 'win32') {
+      return binaryPath;
+    }
+    // On Unix-lie systems, check if executable
+    if ((stats.mode & 0o111) !== 0) {
+      return binaryPath;
+    }
+  }
+  return null;
+}
+
+/**
+ * Spawn a child process and wait for it to exit.
+ *
+ * NOTE: shared-by-copy with @endo/cli , could perhaps seed an @endo/platform module Soon™️
+ *
+ * @param {string} prog - the binary ; may be a java-script, if so the current
+ * node binary is used instead, and prog becomes first arg
+ * @param {Array<string>} args
+ * @returns {Promise<number>} - child exit code
+ */
+const waitForSpawn = async (prog, ...args) => {
+  let exe = prog;
+  if (prog.endsWith('.js')) {
+    args.unshift(prog);
+    exe = process.execPath; // Use the current Node.js executable path
+  }
+  const child = popen.spawn(exe, args, {
+    stdio: 'inherit',
+    detached: false,
+  });
+  return new Promise((resolve, reject) => {
+    child.on('error', err => {
+      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
+    });
+    child.on('exit', code => resolve(code || 0));
+  });
+};
+
+/**
+ * @param {popen.ChildProcess} proc
+ * @returns {Promise<number>} proc exit code
+ */
+const waitForProc = async proc => {
+  return new Promise((resolve, reject) => {
+    proc.on('error', err => {
+      const [exe] = proc.spawnargs;
+      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
+    });
+    proc.on('exit', code => resolve(code || 0));
+  });
+};
+
+/**
+ * @param {string[]} _args
+ */
+export const main = async _args => {
+  const config = configFromEnv(process.env);
+
+  const child =
+    process.env.ENDO_BIN
+      ? await runEngo(false, config)
+      : await runEndo(false, config);
+  process.exit(await waitForProc(child));
+};
+
+/**
  * Start the engo (Go supervisor) binary, passing config paths via
  * environment variables, and wait for the daemon socket to become ready.
  *
- * @param {typeof defaultConfig} config
+ * @param {boolean} detached
+ * @param {Config} config
  * @param {Record<string, string>} [envOverrides]
- * @returns {Promise<void>}
+ * @returns {Promise<popen.ChildProcess>}
  */
-const startEngo = async (config, envOverrides) => {
+const runEngo = async (detached, config, envOverrides) => {
   const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
@@ -164,20 +273,15 @@ const startEngo = async (config, envOverrides) => {
   const env = {
     ...process.env,
     ...envOverrides,
-    ENDO_STATE_PATH: config.statePath,
-    ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
-    ENDO_SOCK_PATH: config.sockPath,
-    ENDO_CACHE_PATH: config.cachePath,
+    ...configToEnv(config),
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
 
   const child = popen.spawn(endoBin, ['daemon'], {
-    detached: true,
     env,
-    stdio: ['ignore', output, output],
+    detached,
+    stdio: detached ? ['ignore', output, output] : 'inherit',
   });
-
-  child.unref();
 
   // Wait for the socket to accept connections (fast).
   await waitForSocket(config.sockPath);
@@ -187,40 +291,20 @@ const startEngo = async (config, envOverrides) => {
   // Without this, tests that read the root file immediately may race.
   const rootPath = path.join(config.statePath, 'root');
   await waitForFile(rootPath);
+
+  return child;
 };
 
 /**
- * @param {Config} [config]
- * @param {object} [options]
- * @param {Record<string, string>} [options.env] - overrides for process.env
- * @param {boolean} [options.feralErrors] - enable to turn off lockdown error stack trace sanitization
- * @param {boolean} [options.foreground] - if enabled, the daemon will be spawn-ed instead of fork-ed;
- *                                         the current process will wait for and then exit,
- *                                         behaving as if execv had been a thing that node could call;
- *                                         i.e. this causes `start()` to effectively never return
- * @param {boolean} [options.gcEnabled] - enable GC of TODO what exactly?
+ * Start the endo (Node.js supervisor), passing config paths via
+ * environment variables, and wait for the daemon socket to become ready.
+ *
+ * @param {boolean} detached
+ * @param {typeof defaultConfig} config
+ * @param {Record<string, string>} [envOverrides]
+ * @returns {Promise<popen.ChildProcess>}
  */
-export const start = async (
-  config = defaultConfig,
-  {
-    env: envOverrides = {},
-    feralErrors,
-    foreground = false,
-    gcEnabled,
-  } = {},
-) => {
-  if (feralErrors) {
-    envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';
-  }
-  if (gcEnabled === true) {
-    envOverrides.ENDO_GC = '1';
-  }
-
-  await clean(config);
-  if (process.env.ENDO_BIN) {
-    return startEngo(config, envOverrides);
-  }
-
+const runEndo = async (detached, config, envOverrides) => {
   await fs.promises.mkdir(config.statePath, {
     recursive: true,
   });
@@ -230,6 +314,8 @@ export const start = async (
   const daemonPath =
     process.env.ENDO_DAEMON_PATH ||
     url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+
+  // TODO why not pass these as ENDO_* env vars instead
   const daemonArgs = [
     config.sockPath,
     config.statePath,
@@ -237,39 +323,20 @@ export const start = async (
     config.cachePath,
   ];
 
-  if (foreground) {
-    // NOTE ideally this would be execv replacement, but node does not ship a stdlib binding for that?
+  // TODO better form if we whitelist filter, say ENDO_* from process.env, rather than pass all
+  const env = {
+    ...process.env,
+    ...envOverrides,
+    ...configToEnv(config),
+  };
 
-    let daemonExe = daemonPath;
-    if (daemonPath.endsWith('.js')) {
-      daemonArgs.unshift(daemonPath);
-      daemonExe = process.execPath; // Use the current Node.js executable path
-    }
-
-    const child = spawn(daemonExe, daemonArgs, {
-      stdio: 'inherit',
-      detached: false,
-    });
-
-    /** @type {Promise<number>} */
-    const childDone = new Promise(resolve => {
-      child.on('error', err => {
-        console.error('Failed to spawn daemon:', [daemonExe, ...daemonArgs], err);
-        resolve(1);
-      });
-      child.on('exit', code => resolve(code || 0));
-    });
-
-    process.exit(await childDone);
-  }
-
-  const child = popen.fork(daemonPath, daemonArgs, {
-    detached: true,
-    env: { ...process.env, ...envOverrides },
-    stdio: ['ignore', output, output, 'ipc'],
+  const child = popen.spawn(process.execPath, [daemonPath, ...daemonArgs], {
+    env,
+    detached,
+    stdio: detached ? ['ignore', output, output, 'ipc'] : 'inherit',
   });
 
-  return new Promise((resolve, reject) => {
+  await new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
       reject(
         Error(
@@ -286,7 +353,6 @@ export const start = async (
     });
     child.on('message', message => {
       child.disconnect();
-      child.unref();
       if (
         typeof message === 'object' &&
         message !== null &&
@@ -307,6 +373,76 @@ export const start = async (
       }
     });
   });
+
+  return child;
+};
+
+/**
+ * @param {Config} [config]
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] - overrides for process.env
+ * @param {boolean} [options.dryRun] - log what would be done, don't do it
+ */
+export const start = async (
+  config = defaultConfig,
+  {
+    env: envOverrides = {},
+    dryRun = false,
+  } = {},
+) => {
+  if (dryRun) {
+    await clean(config); // TODO push dryRun down into clean
+  } else {
+    console.log('would clean(config)');
+  }
+
+  // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
+
+  const runnerPath = url.fileURLToPath(new URL('runner.cjs', import.meta.url));
+  const cliPath = url.fileURLToPath(new URL('../cli/bin/endo.cjs', import.meta.url));
+  const selfExe = [
+    process.execPath,
+
+    // NOTE this morbid "joke" can go away once we get @endo/daemon/runner.cjs working correctly
+    cliPath,
+    '<|ignore-all-code-below-and-run-daemon-main|>',
+
+    // runnerPath,
+  ];
+
+  // TODO detect Windows, do crimes
+
+  // TODO detect MacOS, do crimes
+
+  if (await whichProg('systemd-run')) {
+    // TODO detect systemd persistent user unit, prefer to start instead of running an ephemeral unit:
+    const launchCmd = [
+      'systemd-run',
+      '--user',
+      '--slice=background.slice',
+      '--unit=endo-daemon',
+      '--service-type=simple',
+      '--collect',
+      '--',
+      ...selfExe,
+    ];
+    if (dryRun) {
+      console.log(`would run ${launchCmd}`);
+    } else {
+      process.exit(await waitForSpawn(launchCmd[0], ...launchCmd.slice(1)));
+    }
+    return;
+  }
+
+  if (dryRun) {
+    console.log(`would run directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
+  } else {
+    const child =
+      process.env.ENDO_BIN
+        ? await runEngo(true, config, envOverrides)
+        : await runEndo(true, config, envOverrides);
+    child.unref();
+  }
 };
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -487,7 +623,11 @@ export const clean = async (config = defaultConfig) => {
   await fs.promises.rm(pidPath, { force: true }).catch(enoentOk);
 };
 
+/**
+ * @param {Config} config
+ */
 export const stop = async (config = defaultConfig) => {
+  // TODO platform aware service stop
   await terminate(config).catch(() => { });
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
