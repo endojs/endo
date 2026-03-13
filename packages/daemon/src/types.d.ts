@@ -859,6 +859,7 @@ export interface EndoGreeter {
 export interface PeerInfo {
   node: NodeNumber;
   addresses: string[];
+  connectionState?: string;
 }
 
 export interface EndoNetwork {
@@ -973,6 +974,8 @@ export interface EndoHost extends EndoAgent {
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
+  listKnownPeers(): Promise<PeerInfo[]>;
+  followPeerChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
   /** Locate a formula with connection hints for sharing with remote peers. */
   locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
@@ -1161,6 +1164,10 @@ export type EndoBootstrap = {
   reviveNetworks: () => Promise<void>;
   revivePins: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
+  listKnownPeers: () => Promise<PeerInfo[]>;
+  followPeerChanges: () => Promise<
+    AsyncGenerator<PetStoreNameChange, undefined, undefined>
+  >;
 };
 
 export type CryptoPowers = {
@@ -1688,6 +1695,7 @@ export interface RemoteControl {
     cancelled: Promise<never>,
     dispose?: () => void,
   ): Promise<EndoGateway>;
+  getStateName(): string;
 }
 
 export interface RemoteControlState {

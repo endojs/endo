@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
+    "@endo/chat-network-view": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",

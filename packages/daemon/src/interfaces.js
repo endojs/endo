@@ -314,6 +314,10 @@ export const HostInterface = M.interface('EndoHost', {
   getPeerInfo: M.call().returns(M.promise()),
   // Add peer info
   addPeerInfo: M.call(M.record()).returns(M.promise()),
+  // List all known remote peers
+  listKnownPeers: M.call().returns(M.promise()),
+  // Follow changes to the known peers store
+  followPeerChanges: M.call().returns(M.promise()),
   // Locate a formula with connection hints for sharing with remote peers
   locateForSharing: M.call().rest(NamePathShape).returns(M.promise()),
   // Adopt a value from a locator with connection hints
@@ -484,4 +488,6 @@ export const EndoInterface = M.interface('Endo', {
   reviveNetworks: M.call().returns(M.promise()),
   revivePins: M.call().returns(M.promise()),
   addPeerInfo: M.call(M.record()).returns(M.promise()),
+  listKnownPeers: M.call().returns(M.promise()),
+  followPeerChanges: M.call().returns(M.promise()),
 });

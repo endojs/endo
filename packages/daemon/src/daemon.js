@@ -2179,6 +2179,42 @@ const makeDaemonCore = async (
             await formulatePeer(networksId, nodeNumber, addresses);
           await knownPeers.write(nodeNumber, peerId);
         },
+        listKnownPeers: async () => {
+          const knownPeers = /** @type {KnownPeersStore} */ (
+            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
+          );
+          const connectionStates = provideRemoteControl.getConnectionStates();
+          const nodeNumbers = knownPeers.list();
+          /** @type {Array<PeerInfo & { connectionState: string }>} */
+          const peers = [];
+          for (const nodeNumber of nodeNumbers) {
+            const peerId = knownPeers.identifyLocal(
+              /** @type {NodeNumber} */ (/** @type {unknown} */ (nodeNumber)),
+            );
+            if (peerId !== undefined) {
+              const formula = await getFormulaForId(
+                /** @type {FormulaIdentifier} */ (peerId),
+              );
+              if (formula.type === 'peer') {
+                const nodeId = /** @type {PeerFormula} */ (formula).node;
+                peers.push(
+                  harden({
+                    node: nodeId,
+                    addresses: /** @type {PeerFormula} */ (formula).addresses,
+                    connectionState: connectionStates[nodeId] || 'start',
+                  }),
+                );
+              }
+            }
+          }
+          return harden(peers);
+        },
+        followPeerChanges: async () => {
+          const knownPeers = /** @type {KnownPeersStore} */ (
+            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
+          );
+          return knownPeers.followNameChanges();
+        },
       });
       return endoBootstrap;
     },

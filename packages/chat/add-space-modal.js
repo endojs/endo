@@ -50,7 +50,7 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
- * @property {'mailbox' | 'channel' | 'whylip' | 'graph'} layout - Layout type
+ * @property {'mailbox' | 'channel' | 'whylip' | 'graph' | 'peers'} layout - Layout type
  * @property {ColorScheme} [scheme] - Color scheme preference
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
@@ -93,7 +93,7 @@ export const createAddSpaceModal = ({
   };
 
   let visible = false;
-  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph'} */
+  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph' | 'peers'} */
   let mode = 'choose';
   /** @type {string} */
   let whylipName = '';
@@ -175,6 +175,11 @@ export const createAddSpaceModal = ({
           <span class="space-type-icon">🕸️</span>
           <span class="space-type-title">Inventory Graph</span>
           <span class="space-type-desc">Visualize your pet store as a force-directed graph</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="peers">
+          <span class="space-type-icon">🌐</span>
+          <span class="space-type-title">Known Peers</span>
+          <span class="space-type-desc">List all known remote Endo peers and connection hints</span>
         </button>
       </div>
     </div>
@@ -521,6 +526,35 @@ export const createAddSpaceModal = ({
   `;
 
   /**
+   * Render the peers form.
+   * @returns {string}
+   */
+  const renderPeersForm = () => `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">\u2190</button>
+        <h2 class="add-space-title">Known Peers</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Creating...' : 'Create Space'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  /**
    * Render the modal content based on current mode.
    */
   const render = () => {
@@ -544,6 +578,9 @@ export const createAddSpaceModal = ({
       case 'graph':
         html = renderGraphForm();
         break;
+      case 'peers':
+        html = renderPeersForm();
+        break;
       default:
         html = renderChooseMode();
     }
@@ -552,7 +589,7 @@ export const createAddSpaceModal = ({
     attachEventListeners();
 
     // Mount scheme picker into slot if in a form mode
-    if (mode === 'new-agent' || mode === 'existing' || mode === 'whylip' || mode === 'graph') {
+    if (mode === 'new-agent' || mode === 'existing' || mode === 'whylip' || mode === 'graph' || mode === 'peers') {
       const $slot = /** @type {HTMLElement | null} */ (
         $container.querySelector('#scheme-picker-slot')
       );
@@ -741,6 +778,12 @@ export const createAddSpaceModal = ({
           useLetterIcon = false;
           error = null;
           render();
+        } else if (selectedMode === 'peers') {
+          mode = 'peers';
+          selectedIcon = '🌐';
+          useLetterIcon = false;
+          error = null;
+          render();
         }
       });
     }
@@ -904,6 +947,8 @@ export const createAddSpaceModal = ({
           await handleWhylipSubmit();
         } else if (mode === 'graph') {
           await handleGraphSubmit();
+        } else if (mode === 'peers') {
+          await handlePeersSubmit();
         }
       });
     }
@@ -1387,6 +1432,31 @@ export const createAddSpaceModal = ({
       onClose();
     } catch (err) {
       error = `Failed to create graph space: ${/** @type {Error} */ (err).message}`;
+      isSubmitting = false;
+      render();
+    }
+  };
+
+  /**
+   * Handle peers form submission.
+   */
+  const handlePeersSubmit = async () => {
+    isSubmitting = true;
+    error = null;
+    render();
+
+    try {
+      await onSubmit({
+        name: 'peers',
+        icon: selectedIcon,
+        profilePath: [],
+        layout: 'peers',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
+      });
+      hide({ restoreScheme: false });
+      onClose();
+    } catch (err) {
+      error = `Failed to create peers space: ${/** @type {Error} */ (err).message}`;
       isSubmitting = false;
       render();
     }
