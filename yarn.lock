@@ -953,6 +953,8 @@ __metadata:
     eslint: "catalog:dev"
     happy-dom: "npm:^15.0.0"
     monaco-editor: "npm:^0.52.0"
+    react: "npm:^19.0.0"
+    react-dom: "npm:^19.0.0"
     ses: "workspace:^"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
