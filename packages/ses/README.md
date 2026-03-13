@@ -1,4 +1,4 @@
-# SES
+# `ses`
 
 SES is a [shim][define shim] for [Hardened JavaScript][] as [proposed][SES
 proposal] to ECMA TC39.
@@ -962,3 +962,7 @@ intrinsics, including `ses`.
 [SES proposal]: https://github.com/tc39/proposal-ses
 [SES Strategy Group]: https://groups.google.com/g/ses-strategy
 [SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
+
+## License
+
+[Apache-2.0](./LICENSE)

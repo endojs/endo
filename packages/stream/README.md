@@ -1,4 +1,4 @@
-# Endo Streams
+# `@endo/stream`
 
 Endo models streams as hardened async iterators.
 Async iterators are sufficient to model back-pressure or pacing
@@ -10,6 +10,16 @@ The same stream type serves for both a reader and a writer.
 These streams depend on full Endo environment initialization, as with `@endo/init`
 to ensure that they are run in Hardened JavaScript with remote promise support
 (eventual send).
+
+This stream package also establishes a precedent for separate readers and
+writers for duplex connections.
+We create parallel reader and writer types, and connections consist of a
+`{reader, writer}` pair.
+Separating read and write is consistent with the object capability model.
+This is in contrast to systems that conflate the read and write capabilities
+and use different names for the methods.
+We use `next` for both reading and writing, as is consistent with the precedent
+established by iterators and generators in the base language.
 
 ## Writing
 
@@ -138,3 +148,7 @@ frozen.
 The user is responsible for hardening the transported values if that is their
 intent.
 Some values like array buffers cannot be frozen.
+
+## License
+
+[Apache-2.0](./LICENSE)
