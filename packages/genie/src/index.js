@@ -14,4 +14,5 @@ export {
   makeError,
 } from './agent/index.js';
 
-// TODO heartbeat module re-export
+// Re-export heartbeat module
+export { makeHeartbeatRunner } from './heartbeat/index.js';
