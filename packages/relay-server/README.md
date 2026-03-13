@@ -50,10 +50,9 @@ Use the `/network-ws-relay` slash command:
 ### Using the CLI
 
 ```sh
-# Install the network caplet (relay config is passed as formula env)
-endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers HOST \
-  --env WS_RELAY_URL=wss://relay.example.com \
-  --env WS_RELAY_DOMAIN=relay.example.com
+# Install the network caplet (uses the default relay wss://endo-relay.fly.dev).
+# --powers HOST is required because the setup script calls makeUnconfined().
+endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers HOST
 ```
 
 ### Programmatically

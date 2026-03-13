@@ -1,13 +1,10 @@
 /* global harden */
 // @ts-check
-// Usage:
-//   endo eval --UNCONFINED \
-//     'E(powers).makeUnconfined(undefined, specifier, {
-//       powersName: "AGENT",
-//       resultName: "network-service-ws-relay",
-//       env: { WS_RELAY_URL: "wss://endo-relay.fly.dev", WS_RELAY_DOMAIN: "endo-relay.fly.dev" },
-//     })' specifier:ws-relay-specifier powers:SELF
-//   endo mv network-service-ws-relay NETS.ws-relay
+// Usage (installs the ws-relay network caplet at NETS/ws-relay):
+//   endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers HOST
+//
+// Requires --powers HOST because the script calls makeUnconfined().
+// Edit the defaults below to target a different relay server.
 
 import { E } from '@endo/eventual-send';
 
@@ -17,14 +14,16 @@ const wsRelaySpecifier = new URL('ws-relay.js', import.meta.url).href;
  * Install the ws-relay network module into the daemon and register it
  * under NETS/ws-relay so the daemon discovers it as an active transport.
  *
- * The relay URL and domain are passed via the `env` argument so that they
- * are persisted in the formula itself rather than looked up from the pet store
- * at boot time (which would fail on reincarnation).
+ * The relay URL and domain default to the public relay at
+ * wss://endo-relay.fly.dev. The resolved values are persisted in the
+ * formula env so they survive reincarnation without a pet-store lookup
+ * at boot time.
  *
- * @param {import('@endo/eventual-send').ERef<object>} powers
- * @param {object} _context
- * @param {object} options
- * @param {Record<string, string>} options.env
+ * @param {import('@endo/eventual-send').ERef<object>} powers - HOST powers
+ * (requires `makeUnconfined`; use `--powers HOST`).
+ * @param {object} [_context]
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env]
  */
 export const main = async (powers, _context, { env = {} } = {}) => {
   const relayUrl = env.WS_RELAY_URL || 'wss://endo-relay.fly.dev';
