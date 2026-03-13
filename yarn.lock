@@ -1311,6 +1311,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/genie@workspace:packages/genie":
+  version: 0.0.0-use.local
+  resolution: "@endo/genie@workspace:packages/genie"
+  dependencies:
+    "@endo/cli": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/lal": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/harden@workspace:^, @endo/harden@workspace:packages/harden":
   version: 0.0.0-use.local
   resolution: "@endo/harden@workspace:packages/harden"

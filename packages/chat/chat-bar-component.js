@@ -1558,6 +1558,7 @@ export const chatBarComponent = (
           exitConversation();
         } else {
           sendForm.clear();
+          sendForm.clearReplyTo();
           $error.textContent = '';
           updateHasContent();
         }
@@ -1623,4 +1624,11 @@ export const chatBarComponent = (
 
   // Apply passive focus on initial load.
   updatePassiveFocus();
+
+  return {
+    setReplyTo: sendForm.setReplyTo,
+    clearReplyTo: sendForm.clearReplyTo,
+    setDefaultReplyTo: sendForm.setDefaultReplyTo,
+    clearDefaultReplyTo: sendForm.clearDefaultReplyTo,
+  };
 };

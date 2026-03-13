@@ -1,5 +1,5 @@
 // @ts-check
-/* global window */
+/* global window, document */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -18,6 +18,13 @@ import { createHeatBar } from './heat-bar.js';
  */
 
 /**
+ * @typedef {object} ReplyContext
+ * @property {string} number - The message number being replied to (stringified)
+ * @property {string} authorName - Display name of the message author
+ * @property {string} preview - Short preview of the message text
+ */
+
+/**
  * @typedef {object} SendFormAPI
  * @property {() => void} focus - Focus the input
  * @property {() => void} clear - Clear the input
@@ -25,6 +32,8 @@ import { createHeatBar } from './heat-bar.js';
  * @property {() => string | null} getLastRecipient - Get the last recipient for continuation
  * @property {() => SendFormState} getState - Get current input state for modeline
  * @property {() => boolean} isSubmitting - Check if a send is in progress
+ * @property {(number: string, authorName: string, preview: string) => void} setReplyTo - Set reply context
+ * @property {() => void} clearReplyTo - Clear reply context
  */
 
 /**
@@ -82,6 +91,62 @@ export const sendFormComponent = ({
   let heatEngineInitialized = false;
   /** Polling cancellation flag */
   let heatPollingStopped = false;
+
+  // --- Reply context ---
+  /** @type {ReplyContext | null} */
+  let replyContext = null;
+
+  /** Default reply context that auto-restores after send (e.g. thread root). */
+  /** @type {ReplyContext | null} */
+  let defaultReplyContext = null;
+
+  const $replyContextBar = document.createElement('div');
+  $replyContextBar.className = 'reply-context-bar';
+  $replyContextBar.style.display = 'none';
+  $chatBar.insertBefore($replyContextBar, $chatBar.firstChild);
+
+  // Keep #messages bottom in sync with #chat-bar's actual height so the
+  // reply context bar (and any other dynamic chat-bar content) never
+  // overlaps the scrollable message area.
+  const $messages = document.getElementById('messages');
+  if ($messages && typeof ResizeObserver !== 'undefined') {
+    const chatBarObserver = new ResizeObserver(() => {
+      $messages.style.bottom = `${$chatBar.offsetHeight}px`;
+    });
+    chatBarObserver.observe($chatBar);
+  }
+
+  /**
+   * Render the reply context bar UI.
+   */
+  const renderReplyContextBar = () => {
+    if (!replyContext) {
+      $replyContextBar.style.display = 'none';
+      return;
+    }
+    $replyContextBar.style.display = '';
+    $replyContextBar.innerHTML = '';
+
+    const $label = document.createElement('span');
+    $label.className = 'reply-context-label';
+    $label.textContent = `Replying to ${replyContext.authorName}`;
+    $replyContextBar.appendChild($label);
+
+    const $preview = document.createElement('span');
+    $preview.className = 'reply-context-preview';
+    $preview.textContent = replyContext.preview;
+    $replyContextBar.appendChild($preview);
+
+    const $close = document.createElement('button');
+    $close.className = 'reply-context-close';
+    $close.title = 'Cancel reply';
+    $close.textContent = '\u00D7';
+    $close.addEventListener('click', () => {
+      replyContext = defaultReplyContext;
+      renderReplyContextBar();
+    });
+    $replyContextBar.appendChild($close);
+  };
 
   /**
    * Initialize the composite heat engine for multi-hop heat tracking.
@@ -277,13 +342,15 @@ export const sendFormComponent = ({
             )
           : Promise.resolve(/** @type {string[]} */ ([]));
 
+      const replyTo = replyContext ? replyContext.number : undefined;
+
       resolveIds
         .then(ids =>
           E(channelRef).post(
             messageStrings,
             edgeNames,
             petNames,
-            undefined,
+            replyTo,
             ids,
           ),
         )
@@ -291,6 +358,9 @@ export const sendFormComponent = ({
           () => {
             tokenComponent.clear();
             clearError();
+            // Reset reply context: fall back to thread default if set
+            replyContext = defaultReplyContext;
+            renderReplyContextBar();
           },
           (/** @type {Error} */ err) => {
             $error.textContent = err.message;
@@ -489,5 +559,24 @@ export const sendFormComponent = ({
     getLastRecipient: () => lastRecipient,
     getState,
     isSubmitting: () => submitting,
+    setReplyTo: (/** @type {string} */ number, /** @type {string} */ authorName, /** @type {string} */ preview) => {
+      replyContext = { number, authorName, preview };
+      renderReplyContextBar();
+      $input.focus();
+    },
+    clearReplyTo: () => {
+      replyContext = null;
+      renderReplyContextBar();
+    },
+    setDefaultReplyTo: (/** @type {string} */ number, /** @type {string} */ authorName, /** @type {string} */ preview) => {
+      defaultReplyContext = { number, authorName, preview };
+      replyContext = defaultReplyContext;
+      renderReplyContextBar();
+    },
+    clearDefaultReplyTo: () => {
+      defaultReplyContext = null;
+      replyContext = null;
+      renderReplyContextBar();
+    },
   };
 };
