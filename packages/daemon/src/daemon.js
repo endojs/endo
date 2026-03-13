@@ -34,7 +34,7 @@ import {
 } from './formula-identifier.js';
 import { makeFormulaGraph } from './graph.js';
 import { makeResidenceTracker } from './residence.js';
-import { toHex } from './hex.js';
+import { toHex, fromHex } from './hex.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -254,6 +254,7 @@ const RESOLVED_VALUE_NAME = /** @type {PetName} */ ('value');
  * @param {Specials} args.specials - Map of special names to formula generators.
  * @param {Promise<never>} args.gracePeriodElapsed - A promise that resolves/cancels when the grace period expires.
  * @param {NodeNumber} args.localNodeNumber - The local node number for this daemon.
+ * @param {(bytes: Uint8Array) => Uint8Array} args.signBytes - Sign bytes with the daemon's root Ed25519 key.
  * @param {boolean} [args.gcEnabled=true] - Enable garbage collection of worker daemons.
  *
  * @example
@@ -276,6 +277,7 @@ const makeDaemonCore = async (
     gracePeriodElapsed,
     specials,
     localNodeNumber,
+    signBytes,
     gcEnabled = true,
   },
 ) => {
@@ -2156,6 +2158,7 @@ const makeDaemonCore = async (
         greeter: async () => localGreeter,
         gateway: async () => localGateway,
         nodeId: () => localNodeNumber,
+        sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
         reviveNetworks: async () => {
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
@@ -2224,6 +2227,42 @@ const makeDaemonCore = async (
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(networksId, nodeNumber, addresses);
           await knownPeers.write(nodeNumber, peerId);
+        },
+        listKnownPeers: async () => {
+          const knownPeers = /** @type {KnownPeersStore} */ (
+            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
+          );
+          const connectionStates = provideRemoteControl.getConnectionStates();
+          const nodeNumbers = knownPeers.list();
+          /** @type {Array<PeerInfo & { connectionState: string }>} */
+          const peers = [];
+          for (const nodeNumber of nodeNumbers) {
+            const peerId = knownPeers.identifyLocal(
+              /** @type {NodeNumber} */ (/** @type {unknown} */ (nodeNumber)),
+            );
+            if (peerId !== undefined) {
+              const formula = await getFormulaForId(
+                /** @type {FormulaIdentifier} */ (peerId),
+              );
+              if (formula.type === 'peer') {
+                const nodeId = /** @type {PeerFormula} */ (formula).node;
+                peers.push(
+                  harden({
+                    node: nodeId,
+                    addresses: /** @type {PeerFormula} */ (formula).addresses,
+                    connectionState: connectionStates[nodeId] || 'start',
+                  }),
+                );
+              }
+            }
+          }
+          return harden(peers);
+        },
+        followPeerChanges: async () => {
+          const knownPeers = /** @type {KnownPeersStore} */ (
+            /** @type {unknown} */ (await provide(peersId, 'pet-store'))
+          );
+          return knownPeers.followNameChanges();
         },
       });
       return endoBootstrap;
@@ -4193,6 +4232,7 @@ const provideEndoBootstrap = async (
     gracePeriodElapsed,
     specials,
     localNodeNumber,
+    signBytes: rootKeypair.sign,
     gcEnabled,
   });
   const { capTpConnectionRegistrar } = daemonCore;

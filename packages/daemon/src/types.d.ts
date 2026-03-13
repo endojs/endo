@@ -59,6 +59,7 @@ export type Sha256 = {
 export type Ed25519Keypair = {
   publicKey: Uint8Array;
   privateKey: Uint8Array;
+  sign: (message: Uint8Array) => Uint8Array;
 };
 
 export type Connection = {
@@ -936,6 +937,7 @@ export interface EndoGreeter {
 export interface PeerInfo {
   node: NodeNumber;
   addresses: string[];
+  connectionState?: string;
 }
 
 export interface EndoNetwork {
@@ -1048,8 +1050,11 @@ export interface EndoHost extends EndoAgent {
   cancel(petNameOrPath: string | string[], reason?: Error): Promise<void>;
   greeter(): Promise<EndoGreeter>;
   gateway(): Promise<EndoGateway>;
+  sign(hexBytes: string): Promise<string>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
+  listKnownPeers(): Promise<PeerInfo[]>;
+  followPeerChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
   /** Locate a formula with connection hints for sharing with remote peers. */
   locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
@@ -1235,15 +1240,21 @@ export type EndoBootstrap = {
   leastAuthority: () => Promise<EndoGuest>;
   greeter: () => Promise<EndoGreeter>;
   gateway: () => Promise<EndoGateway>;
+  sign: (hexBytes: string) => Promise<string>;
   reviveNetworks: () => Promise<void>;
   revivePins: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
+  listKnownPeers: () => Promise<PeerInfo[]>;
+  followPeerChanges: () => Promise<
+    AsyncGenerator<PetStoreNameChange, undefined, undefined>
+  >;
 };
 
 export type CryptoPowers = {
   makeSha256: () => Sha256;
   randomHex256: () => Promise<string>;
   generateEd25519Keypair: () => Promise<Ed25519Keypair>;
+  ed25519Sign: (privateKey: Uint8Array, message: Uint8Array) => Uint8Array;
 };
 
 export type FilePowers = {
@@ -1786,6 +1797,7 @@ export interface RemoteControl {
     cancelled: Promise<never>,
     dispose?: () => void,
   ): Promise<EndoGateway>;
+  getStateName(): string;
 }
 
 export interface RemoteControlState {

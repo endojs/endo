@@ -202,7 +202,7 @@ const startEngo = async (config, envOverrides) => {
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides, feralErrors, foreground = false, gcEnabled } = {},
+  { env: envOverrides = {}, feralErrors, foreground = false, gcEnabled } = {},
 ) => {
   if (feralErrors) {
     envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';

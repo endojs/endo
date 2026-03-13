@@ -508,6 +508,54 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'network-ws-relay': {
+          const effectiveModulePath =
+            String(params.modulePath || '') ||
+            // @ts-ignore Vite injects this at build time
+            (import.meta.env?.WS_RELAY_PATH ?? '');
+          const relayUrl = String(params.relayUrl || '');
+          const relayDomain =
+            String(params.relayDomain || '') ||
+            new URL(relayUrl).hostname;
+
+          if (!relayUrl) {
+            return {
+              success: false,
+              message: 'Relay URL required (e.g. wss://relay.example.com)',
+            };
+          }
+
+          if (!effectiveModulePath) {
+            return {
+              success: false,
+              message:
+                'Module path required. Provide the file:// URL to ws-relay.js',
+            };
+          }
+
+          console.log(
+            `[Chat] /network-ws-relay: connecting to relay ${relayUrl} (domain=${relayDomain})`,
+          );
+          await E(powers).makeUnconfined(undefined, effectiveModulePath, {
+            powersName: 'AGENT',
+            resultName: 'network-service-ws-relay',
+            env: {
+              WS_RELAY_URL: relayUrl,
+              WS_RELAY_DOMAIN: relayDomain,
+            },
+          });
+          console.log(`[Chat] /network-ws-relay: moving to NETS.ws-relay`);
+          await E(powers).move(
+            ['network-service-ws-relay'],
+            ['NETS', 'ws-relay'],
+          );
+          console.log(`[Chat] /network-ws-relay: relay network ready`);
+          return {
+            success: true,
+            message: `Connected to relay at ${relayUrl}`,
+          };
+        }
+
         // ============ WORKERS ============
         case 'spawn': {
           const { workerName } = params;

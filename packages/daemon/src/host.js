@@ -746,10 +746,28 @@ export const makeHostMaker = ({
       return E(endoBootstrap).greeter();
     };
 
+    /** @type {EndoHost['sign']} */
+    const sign = async hexBytes => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).sign(hexBytes);
+    };
+
     /** @type {EndoHost['addPeerInfo']} */
     const addPeerInfo = async peerInfo => {
       const endoBootstrap = getEndoBootstrap();
       await E(endoBootstrap).addPeerInfo(peerInfo);
+    };
+
+    /** @type {EndoHost['listKnownPeers']} */
+    const listKnownPeers = async () => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).listKnownPeers();
+    };
+
+    /** @type {EndoHost['followPeerChanges']} */
+    const followPeerChanges = async () => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).followPeerChanges();
     };
 
     /** @type {EndoHost['getPeerInfo']} */
@@ -1152,8 +1170,11 @@ export const makeHostMaker = ({
       cancel,
       gateway,
       greeter,
+      sign,
       getPeerInfo,
       addPeerInfo,
+      listKnownPeers,
+      followPeerChanges,
       locateForSharing,
       adoptFromLocator,
       deliver,
@@ -1220,6 +1241,11 @@ export const makeHostMaker = ({
       },
       followNameChanges: async () => {
         const iterator = host.followNameChanges();
+        await collectIfDirty();
+        return makeIteratorRef(iterator);
+      },
+      followPeerChanges: async () => {
+        const iterator = await host.followPeerChanges();
         await collectIfDirty();
         return makeIteratorRef(iterator);
       },

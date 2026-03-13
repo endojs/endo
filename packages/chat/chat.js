@@ -14,6 +14,7 @@ import { valueComponent } from './value-component.js';
 import { createSpacesGutter } from './spaces-gutter.js';
 import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
+import { peersComponent } from './peers-component.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -272,6 +273,10 @@ const bodyComponent = (
       profilePath,
       onProfileChange,
     );
+  }
+
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'peers') {
+    return peersComponent($parent, rootPowers, profilePath, onProfileChange);
   }
 
   $parent.innerHTML = template;
@@ -682,7 +687,7 @@ const bodyComponent = (
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel' | 'whylip' | 'graph'} mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
