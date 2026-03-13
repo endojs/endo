@@ -29,8 +29,11 @@ while read -r oldrev newrev refname; do
 
     git checkout -f
 
-    if ! git diff --exit-code "$oldrev...$newrev" -- "$task_file"; then
+    task_diff="$GIT_DIR/evoke_task.diff"
+
+    if ! git diff --exit-code "$oldrev...$newrev" -- "$task_file" >$task_diff; then
       echo '!!! Evoke !!!'
+      # TODO summarize or use $task_diff
       ./evoke-run.sh
     else
       echo '... Noop ...'
