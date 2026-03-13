@@ -332,7 +332,9 @@ export const makeRemoteControlProvider = localNodeId => {
       return remoteGateway;
     };
 
-    return { accept, connect };
+    const getStateName = () => stateName;
+
+    return { accept, connect, getStateName };
   };
 
   /** @param {string} remoteNodeId */
@@ -344,6 +346,20 @@ export const makeRemoteControlProvider = localNodeId => {
     }
     return remoteControl;
   };
+
+  /**
+   * @returns {Record<string, string>} Map of nodeId to state name
+   */
+  const getConnectionStates = () => {
+    /** @type {Record<string, string>} */
+    const states = {};
+    for (const [nodeId, control] of remoteControls.entries()) {
+      states[nodeId] = control.getStateName();
+    }
+    return states;
+  };
+
+  provideRemoteControl.getConnectionStates = getConnectionStates;
 
   return provideRemoteControl;
 };

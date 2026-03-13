@@ -293,6 +293,30 @@ export const makeCryptoPowers = crypto => {
       }),
     );
 
+  // PKCS8 DER prefix for wrapping a raw 32-byte Ed25519 private key seed.
+  const ED25519_PKCS8_PREFIX = Buffer.from(
+    '302e020100300506032b657004220420',
+    'hex',
+  );
+
+  /**
+   * Sign a message with a raw 32-byte Ed25519 private key.
+   *
+   * @param {Uint8Array} privateKey - 32-byte raw Ed25519 private key seed
+   * @param {Uint8Array} message - message bytes to sign
+   * @returns {Uint8Array} 64-byte Ed25519 signature
+   */
+  const ed25519Sign = (privateKey, message) => {
+    const derKey = Buffer.concat([ED25519_PKCS8_PREFIX, privateKey]);
+    const keyObject = crypto.createPrivateKey({
+      key: derKey,
+      format: 'der',
+      type: 'pkcs8',
+    });
+    const sig = crypto.sign(null, message, keyObject);
+    return new Uint8Array(sig);
+  };
+
   const generateEd25519Keypair = () =>
     new Promise((resolve, reject) =>
       crypto.generateKeyPair(
@@ -315,10 +339,13 @@ export const makeCryptoPowers = crypto => {
             // Ed25519 PKCS8 DER has a 16-byte prefix before the 32-byte seed.
             const rawPublicKey = publicDer.subarray(publicDer.length - 32);
             const rawPrivateKey = privateDer.subarray(privateDer.length - 32);
+            const publicKey = new Uint8Array(rawPublicKey);
+            const privateKey = new Uint8Array(rawPrivateKey);
             resolve(
               harden({
-                publicKey: new Uint8Array(rawPublicKey),
-                privateKey: new Uint8Array(rawPrivateKey),
+                publicKey,
+                privateKey,
+                sign: message => ed25519Sign(privateKey, message),
               }),
             );
           }
@@ -330,6 +357,7 @@ export const makeCryptoPowers = crypto => {
     makeSha256,
     randomHex256,
     generateEd25519Keypair,
+    ed25519Sign,
   });
 };
 
@@ -385,7 +413,14 @@ export const makeDaemonicPersistencePowers = (
       const lines = existingKeypair.trim().split('\n');
       const publicKey = fromHex(lines[0]);
       const privateKey = fromHex(lines[1]);
-      return { keypair: { publicKey, privateKey }, isNewlyCreated: false };
+      return {
+        keypair: harden({
+          publicKey,
+          privateKey,
+          sign: message => cryptoPowers.ed25519Sign(privateKey, message),
+        }),
+        isNewlyCreated: false,
+      };
     }
   };
 

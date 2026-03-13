@@ -915,11 +915,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/chat-network-view@workspace:^, @endo/chat-network-view@workspace:packages/chat-network-view":
+  version: 0.0.0-use.local
+  resolution: "@endo/chat-network-view@workspace:packages/chat-network-view"
+  dependencies:
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/chat@workspace:packages/chat":
   version: 0.0.0-use.local
   resolution: "@endo/chat@workspace:packages/chat"
   dependencies:
     "@endo/captp": "workspace:^"
+    "@endo/chat-network-view": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
@@ -1108,6 +1119,7 @@ __metadata:
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    "@endo/relay-server": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     "@endo/stream-node": "workspace:^"
@@ -1651,6 +1663,17 @@ __metadata:
     eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/relay-server@workspace:^, @endo/relay-server@workspace:packages/relay-server":
+  version: 0.0.0-use.local
+  resolution: "@endo/relay-server@workspace:packages/relay-server"
+  dependencies:
+    "@noble/curves": "npm:^1.8.1"
+    ws: "npm:^8.13.0"
+  bin:
+    endo-relay: ./src/index.js
   languageName: unknown
   linkType: soft
 
@@ -3226,7 +3249,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:^1.1.0":
+"@noble/curves@npm:^1.1.0, @noble/curves@npm:^1.8.1":
   version: 1.9.7
   resolution: "@noble/curves@npm:1.9.7"
   dependencies:

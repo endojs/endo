@@ -310,10 +310,16 @@ export const HostInterface = M.interface('EndoHost', {
   greeter: M.call().returns(M.promise()),
   // Get the gateway
   gateway: M.call().returns(M.promise()),
+  // Sign hex-encoded bytes with the daemon's root Ed25519 key, returns hex signature
+  sign: M.call(M.string()).returns(M.promise()),
   // Get peer info
   getPeerInfo: M.call().returns(M.promise()),
   // Add peer info
   addPeerInfo: M.call(M.record()).returns(M.promise()),
+  // List all known remote peers
+  listKnownPeers: M.call().returns(M.promise()),
+  // Follow changes to the known peers store
+  followPeerChanges: M.call().returns(M.promise()),
   // Locate a formula with connection hints for sharing with remote peers
   locateForSharing: M.call().rest(NamePathShape).returns(M.promise()),
   // Adopt a value from a locator with connection hints
@@ -481,7 +487,10 @@ export const EndoInterface = M.interface('Endo', {
   greeter: M.call().returns(M.promise()),
   gateway: M.call().returns(M.promise()),
   nodeId: M.call().returns(M.string()),
+  sign: M.call(M.string()).returns(M.promise()),
   reviveNetworks: M.call().returns(M.promise()),
   revivePins: M.call().returns(M.promise()),
   addPeerInfo: M.call(M.record()).returns(M.promise()),
+  listKnownPeers: M.call().returns(M.promise()),
+  followPeerChanges: M.call().returns(M.promise()),
 });
