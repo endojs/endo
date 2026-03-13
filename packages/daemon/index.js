@@ -198,7 +198,12 @@ const startEngo = async (config, envOverrides) => {
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides, gcEnabled, feralErrors } = {},
+  {
+    env: envOverrides = {},
+    feralErrors,
+    foreground = false,
+    gcEnabled,
+  } = {},
 ) => {
   /** @type {Record<string, string>} */
   const gcEnv = gcEnabled === false ? { ENDO_GC: '0' } : {};
