@@ -1,6 +1,23 @@
 import { start, makeEndoClient } from '@endo/daemon';
 
 /**
+ * Custom onReject handler that suppresses "normal termination" errors.
+ * These occur when CLI commands complete successfully and the connection
+ * is intentionally closed.
+ *
+ * @param {Error} err
+ */
+const onReject = err => {
+  if (err && err.message === 'normal termination') {
+    return;
+  }
+  console.error('CapTP cli exception:', err);
+};
+
+/** @type {import('@endo/captp').CapTPOptions} */
+const capTpOptions = harden({ onReject });
+
+/**
  * @template TBootstrap
  * @param {string} name
  * @param {string} sockPath
@@ -22,7 +39,7 @@ export const provideEndoClient = async (
     // It is okay to fail to connect because the daemon is not running.
 
     return await /** @type {any} XXX EndoBootstrap not exported */ (
-      makeEndoClient(name, sockPath, cancelled, bootstrap)
+      makeEndoClient(name, sockPath, cancelled, bootstrap, capTpOptions)
     );
   } catch {
     console.error('Starting Endo daemon...');
@@ -34,7 +51,7 @@ export const provideEndoClient = async (
     // That is a bridge too far.
 
     return /** @type {any} XXX EndoBootstrap not exported */ (
-      makeEndoClient(name, sockPath, cancelled, bootstrap)
+      makeEndoClient(name, sockPath, cancelled, bootstrap, capTpOptions)
     );
   }
 };

@@ -80,22 +80,24 @@ export const makeWorkerFacet = ({ cancel }) => {
      * @param {string} specifier
      * @param {Promise<unknown>} powersP
      * @param {Promise<unknown>} contextP
+     * @param {Record<string, string>} env
      */
-    makeUnconfined: async (specifier, powersP, contextP) => {
+    makeUnconfined: async (specifier, powersP, contextP, env) => {
       // Windows absolute path includes drive letter which is confused for
       // protocol specifier. So, we reformat the specifier to include the
       // file protocol.
       const specifierUrl = normalizeFilePath(specifier);
       const namespace = await import(specifierUrl);
-      return namespace.make(powersP, contextP);
+      return namespace.make(powersP, contextP, { env });
     },
 
     /**
      * @param {ERef<EndoReadable>} readableP
      * @param {Promise<unknown>} powersP
      * @param {Promise<unknown>} contextP
+     * @param {Record<string, string>} env
      */
-    makeBundle: async (readableP, powersP, contextP) => {
+    makeBundle: async (readableP, powersP, contextP, env) => {
       const bundleText = await E(readableP).text();
       const bundle = JSON.parse(bundleText);
 
@@ -105,7 +107,7 @@ export const makeWorkerFacet = ({ cancel }) => {
       const namespace = await importBundle(bundle, {
         endowments,
       });
-      return namespace.make(powersP, contextP);
+      return namespace.make(powersP, contextP, { env });
     },
   });
 };

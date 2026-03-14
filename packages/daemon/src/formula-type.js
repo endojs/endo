@@ -4,6 +4,7 @@ import { q } from '@endo/errors';
 
 // Note: Alphabetically sorted
 const formulaTypes = new Set([
+  'channel',
   'directory',
   'endo',
   'eval',
@@ -11,6 +12,7 @@ const formulaTypes = new Set([
   'handle',
   'host',
   'invitation',
+  'keypair',
   'known-peers-store',
   'least-authority',
   'lookup',
@@ -27,6 +29,7 @@ const formulaTypes = new Set([
   'promise',
   'readable-blob',
   'resolver',
+  'synced-pet-store',
   'worker',
 ]);
 
