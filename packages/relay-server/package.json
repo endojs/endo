@@ -7,7 +7,8 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./protocol.js": "./src/protocol.js"
+    "./protocol.js": "./src/protocol.js",
+    "./relay.js": "./src/relay.js"
   },
   "bin": {
     "endo-relay": "./src/index.js"

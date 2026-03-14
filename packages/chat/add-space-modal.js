@@ -1190,6 +1190,19 @@ export const createAddSpaceModal = ({
       render();
 
       try {
+        // 0. Register peer info from the locator's connection hints
+        //    so the daemon knows how to reach the remote node.
+        const locatorUrl = new URL(locator);
+        const nodeNumber = locatorUrl.host;
+        const addresses = locatorUrl.searchParams.getAll('at');
+        if (addresses.length > 0 && nodeNumber) {
+          await E(
+            /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
+              powers
+            ),
+          ).addPeerInfo({ node: nodeNumber, addresses });
+        }
+
         // 1. Create persona (host)
         const agentName = `persona-for-${spaceName}`;
         await E(
@@ -1245,6 +1258,18 @@ export const createAddSpaceModal = ({
       render();
 
       try {
+        // Register peer info from the locator's connection hints
+        const locatorUrl = new URL(locator);
+        const nodeNumber = locatorUrl.host;
+        const addresses = locatorUrl.searchParams.getAll('at');
+        if (addresses.length > 0 && nodeNumber) {
+          await E(
+            /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
+              powers
+            ),
+          ).addPeerInfo({ node: nodeNumber, addresses });
+        }
+
         const existingSpaces = getExistingChannelSpaces
           ? getExistingChannelSpaces()
           : [];

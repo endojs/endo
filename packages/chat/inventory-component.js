@@ -243,6 +243,16 @@ export const inventoryComponent = async (
             if (!formulaNumber) {
               throw new Error('Invalid locator: missing formula id');
             }
+            // Register peer info from connection hints so the daemon
+            // knows how to reach the remote node.
+            const addresses = url.searchParams.getAll('at');
+            if (addresses.length > 0 && nodeNumber) {
+              await E(
+                /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
+                  powers
+                ),
+              ).addPeerInfo({ node: nodeNumber, addresses });
+            }
             const formulaId = `${formulaNumber}:${nodeNumber}`;
             await E(powers).write(petName, formulaId);
             $inlineForm.classList.remove('visible');
