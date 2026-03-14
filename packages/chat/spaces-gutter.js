@@ -31,6 +31,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [proposedName] - display name for the channel creator
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
  * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
+ * @property {boolean} [ownedPersona] - whether the space owns the persona (for cleanup on delete)
  */
 
 /**
@@ -206,7 +207,12 @@ export const createSpacesGutter = ({
 
     // Look up the space config before removing it so we know what to clean up.
     const config = spacesMap.get(id);
-    if (config && config.mode === 'channel' && config.profilePath.length > 0) {
+    if (
+      config &&
+      config.mode === 'channel' &&
+      config.profilePath.length > 0 &&
+      config.ownedPersona !== false
+    ) {
       const agentPetName = config.profilePath[0];
       // config.name is the spaceName passed to provideHost (the handle pet name).
       const handlePetName = config.name;
@@ -574,6 +580,9 @@ export const createSpacesGutter = ({
       if (data.viewMode) {
         spaceConfig.viewMode = data.viewMode;
       }
+      if (typeof data.ownedPersona === 'boolean') {
+        spaceConfig.ownedPersona = data.ownedPersona;
+      }
       await addSpace(spaceConfig);
     },
     onClose: () => {
@@ -687,6 +696,9 @@ export const createSpacesGutter = ({
       (obj.viewMode === 'chat' || obj.viewMode === 'forum')
     ) {
       result.viewMode = obj.viewMode;
+    }
+    if (typeof obj.ownedPersona === 'boolean') {
+      result.ownedPersona = obj.ownedPersona;
     }
     return /** @type {SpaceConfig} */ (harden(result));
   };

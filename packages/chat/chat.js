@@ -439,6 +439,28 @@ const bodyComponent = (
       /** @type {unknown} */
       let currentChannelRef = null;
 
+      // Wrap showValue so channel token clicks resolve the value
+      // via lookupById before displaying, matching inbox behavior.
+      const channelShowValue = async (
+        /** @type {unknown} */ value,
+        /** @type {string | undefined} */ id,
+        /** @type {string[] | undefined} */ petNamePath,
+      ) => {
+        if (value === undefined && id) {
+          try {
+            const resolved = await E(
+              /** @type {ERef<EndoHost>} */ (resolvedPowers),
+            ).lookupById(id);
+            showValue(resolved, id, petNamePath);
+          } catch {
+            // Fall back to showing with undefined value
+            showValue(value, id, petNamePath);
+          }
+        } else {
+          showValue(value, id, petNamePath);
+        }
+      };
+
       if (
         activeSpaceInfo &&
         activeSpaceInfo.mode === 'channel' &&
@@ -531,7 +553,7 @@ const bodyComponent = (
                 ? forumComponent
                 : channelComponent;
             channelViewFn($messages, $anchor, currentChannelRef, {
-              showValue,
+              showValue: channelShowValue,
               personaId: profilePath.join('.'),
               ownMemberId,
               onReply: info => {
@@ -663,7 +685,7 @@ const bodyComponent = (
                 ? forumComponent
                 : channelComponent;
             switchViewFn($messages, $anchor, currentChannelRef, {
-              showValue,
+              showValue: channelShowValue,
               personaId: profilePath.join('.'),
               ownMemberId: switchOwnMemberId,
               onReply: info => {
