@@ -509,7 +509,7 @@ test.serial('gateway allows connection when ENDO_GATEWAY=remote', async t => {
   t.is(result, 99);
 });
 
-test.serial('daemon writes root file matching AGENT identifier', async t => {
+test.serial('daemon writes root file matching @agent identifier', async t => {
   const { config, host } = await prepareHost(t);
 
   // The daemon writes root before signaling ready, so the file

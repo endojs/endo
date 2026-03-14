@@ -515,8 +515,7 @@ export const createCommandExecutor = ({
             (import.meta.env?.WS_RELAY_PATH ?? '');
           const relayUrl = String(params.relayUrl || '');
           const relayDomain =
-            String(params.relayDomain || '') ||
-            new URL(relayUrl).hostname;
+            String(params.relayDomain || '') || new URL(relayUrl).hostname;
 
           if (!relayUrl) {
             return {

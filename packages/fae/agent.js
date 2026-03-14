@@ -573,7 +573,10 @@ export const make = async (guestPowers, _context) => {
 
       // 5. Pin the driver so it auto-restarts on daemon reboot.
       if (pin) {
-        await E(hostAgent).copy([driverResultName], ['@pins', driverResultName]);
+        await E(hostAgent).copy(
+          [driverResultName],
+          ['@pins', driverResultName],
+        );
         console.log(`[fae-factory] Pinned driver "${driverResultName}"`);
       }
 
