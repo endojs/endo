@@ -204,11 +204,14 @@ test('remote control accept after accept', async t => {
     cancelBob3,
     bob3Cancelled,
   );
-  t.is(bobGateway3, bobGateway1);
+  t.is(bobGateway3, bobGateway2);
 
-  cancelBob1(new Error('Peer cancelled'));
+  // bob1 was already cancelled when the second accept replaced it.
   await t.throwsAsync(() => bob1Cancelled);
+  // bob2 and bob3 are entangled; cancelling one cancels the other.
+  cancelBob3(new Error('Peer cancelled'));
   await t.throwsAsync(() => bob2Cancelled);
+  await t.throwsAsync(() => bob3Cancelled);
 });
 
 test('remote control connects first, ignores second, entagles cancellation of second peer incarnations', async t => {

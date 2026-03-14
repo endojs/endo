@@ -68,15 +68,15 @@ export const terminate = async (config = defaultConfig) => {
     config.sockPath,
     cancelled,
     undefined,
-    { onReject: () => { } },
+    { onReject: () => {} },
   );
   const bootstrap = getBootstrap();
   await E(bootstrap)
     .terminate()
-    .catch(() => { });
+    .catch(() => {});
   // @ts-expect-error zero-argument promise resolve
   cancel();
-  await closed.catch(() => { });
+  await closed.catch(() => {});
 };
 
 /**
@@ -202,12 +202,7 @@ const startEngo = async (config, envOverrides) => {
  */
 export const start = async (
   config = defaultConfig,
-  {
-    env: envOverrides = {},
-    feralErrors,
-    foreground = false,
-    gcEnabled,
-  } = {},
+  { env: envOverrides = {}, feralErrors, foreground = false, gcEnabled } = {},
 ) => {
   if (feralErrors) {
     envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';
@@ -254,7 +249,11 @@ export const start = async (
     /** @type {Promise<number>} */
     const childDone = new Promise(resolve => {
       child.on('error', err => {
-        console.error('Failed to spawn daemon:', [daemonExe, ...daemonArgs], err);
+        console.error(
+          'Failed to spawn daemon:',
+          [daemonExe, ...daemonArgs],
+          err,
+        );
         resolve(1);
       });
       child.on('exit', code => resolve(code || 0));
@@ -368,9 +367,11 @@ const readPidFile = async pidPath => {
 
 /** @type {EndProcPolicy} */
 const defaultEndProcPolicy = harden([
-  { kill: 'SIGTERM' }, { wait: 2_000 }, // try SIGTERM for 2s
-  { kill: 'SIGKILL' }, { wait: 400 },   // try SIGKILL for 0.4s
-  { notify: 'warn' },                   // or warn of zombie remnant
+  { kill: 'SIGTERM' },
+  { wait: 2_000 }, // try SIGTERM for 2s
+  { kill: 'SIGKILL' },
+  { wait: 400 }, // try SIGKILL for 0.4s
+  { notify: 'warn' }, // or warn of zombie remnant
 ]);
 
 /**
@@ -386,12 +387,15 @@ const defaultEndProcPolicy = harden([
  * @param {number} [options.pollInterval] - how long to sleep between wait-for-exit checks (within per-step timeout)
  * @param {boolean} [options.verbose=true] - whether to log signals sent
  */
-export async function* politeEndProcess(pid, {
-  waitBefore,
-  steps = defaultEndProcPolicy,
-  pollInterval = 100,
-  verbose = true,
-} = {}) {
+export async function* politeEndProcess(
+  pid,
+  {
+    waitBefore,
+    steps = defaultEndProcPolicy,
+    pollInterval = 100,
+    verbose = true,
+  } = {},
+) {
   if (typeof waitBefore === 'number') {
     steps = [{ wait: waitBefore }, ...steps];
   }
@@ -488,7 +492,7 @@ export const clean = async (config = defaultConfig) => {
 };
 
 export const stop = async (config = defaultConfig) => {
-  await terminate(config).catch(() => { });
+  await terminate(config).catch(() => {});
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
   await clean(config);
@@ -504,7 +508,7 @@ export const restart = async (config = defaultConfig, options = {}) => {
 };
 
 export const purge = async (config = defaultConfig) => {
-  await terminate(config).catch(() => { });
+  await terminate(config).catch(() => {});
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
 

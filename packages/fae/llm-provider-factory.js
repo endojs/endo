@@ -83,10 +83,7 @@ export const make = (guestPowers, _context) => {
 
         const { name, host, model, authToken } = config;
 
-        await E(hostAgent).storeValue(
-          harden({ host, model, authToken }),
-          name,
-        );
+        await E(hostAgent).storeValue(harden({ host, model, authToken }), name);
 
         console.log(`[llm-provider-factory] Provider "${name}" stored.`);
         await E(powers).reply(

@@ -85,13 +85,10 @@ const parseResponse = text => {
    */
   const extractFromParsed = (obj, method) => {
     const o = /** @type {Record<string, unknown>} */ (obj);
-    const narrative =
-      typeof o.narrative === 'string' ? o.narrative : trimmed;
+    const narrative = typeof o.narrative === 'string' ? o.narrative : trimmed;
     const s = /** @type {Record<string, unknown> | null} */ (o.scene);
     const scene =
-      s &&
-      typeof s.html === 'string' &&
-      typeof s.title === 'string'
+      s && typeof s.html === 'string' && typeof s.title === 'string'
         ? /** @type {{ title: string, html: string }} */ (s)
         : null;
     return { narrative, scene, method };
@@ -123,12 +120,8 @@ const parseResponse = text => {
   // Fallback: try to extract narrative and scene fields with targeted regexes.
   // This handles cases where JSON.parse fails due to invalid escapes
   // (e.g., \' from JS single-quote escapes in embedded HTML).
-  const narrativeMatch = trimmed.match(
-    /"narrative"\s*:\s*"((?:[^"\\]|\\.)*)"/,
-  );
-  const sceneTitleMatch = trimmed.match(
-    /"title"\s*:\s*"((?:[^"\\]|\\.)*)"/,
-  );
+  const narrativeMatch = trimmed.match(/"narrative"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const sceneTitleMatch = trimmed.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   const sceneHtmlMatch = trimmed.match(
     /"html"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"\s*\}\s*\}$/,
   );
@@ -148,7 +141,8 @@ const parseResponse = text => {
   }
 
   // Total fallback — check if the text *looks* like it was trying to be JSON
-  const looksLikeJson = trimmed.startsWith('{') && trimmed.includes('"narrative"');
+  const looksLikeJson =
+    trimmed.startsWith('{') && trimmed.includes('"narrative"');
   if (looksLikeJson) {
     return {
       narrative: trimmed,
@@ -157,7 +151,7 @@ const parseResponse = text => {
       parseError:
         'Your response could not be parsed as JSON. Ensure the reply ' +
         'contains a single valid JSON object with "narrative" and "scene" ' +
-        'fields. Avoid JavaScript escapes like \\\' inside JSON strings — ' +
+        "fields. Avoid JavaScript escapes like \\' inside JSON strings — " +
         'use Unicode escapes (\\u0027) instead.',
     };
   }
@@ -182,9 +176,7 @@ const parseResponse = text => {
  * @param {unknown} powers - Resolved endo powers (the fae agent's profile)
  */
 export const useConversation = powers => {
-  const [tree] = useState(() =>
-    makeConversationTree(makeMemoryBackend()),
-  );
+  const [tree] = useState(() => makeConversationTree(makeMemoryBackend()));
   /** @type {[TreeNode[], (n: TreeNode[]) => void]} */
   const [nodes, setNodes] = useState([]);
   /** @type {[string | null, (id: string | null) => void]} */
@@ -406,21 +398,15 @@ export const useConversation = powers => {
       formatRetryRef.current = 0;
 
       try {
-        const userNode = await treeRef.current.addNode(
-          activeNodeId,
-          [{ role: 'user', content: text }],
-        );
+        const userNode = await treeRef.current.addNode(activeNodeId, [
+          { role: 'user', content: text },
+        ]);
         setActiveNodeId(userNode.id);
         await refreshNodes();
 
         // Send to fae agent via the well-known "fae" petname
         // written into this profile's pet store at space creation time.
-        await E(/** @type {any} */ (powers)).send(
-          'fae',
-          [text],
-          [],
-          [],
-        );
+        await E(/** @type {any} */ (powers)).send('fae', [text], [], []);
       } catch (err) {
         console.error('[whylip] send error:', err);
         setSending(false);
@@ -434,22 +420,19 @@ export const useConversation = powers => {
    *
    * @param {string} nodeId
    */
-  const navigateTo = useCallback(
-    async nodeId => {
-      const node = await treeRef.current.getNode(nodeId);
-      if (!node) return;
+  const navigateTo = useCallback(async nodeId => {
+    const node = await treeRef.current.getNode(nodeId);
+    if (!node) return;
 
-      setActiveNodeId(nodeId);
+    setActiveNodeId(nodeId);
 
-      const firstMsg = node.messages[0];
-      if (firstMsg && firstMsg.role === 'assistant') {
-        const parsed = parseResponse(firstMsg.content);
-        setActiveScene(parsed.scene);
-        setActiveNarrative(parsed.narrative);
-      }
-    },
-    [],
-  );
+    const firstMsg = node.messages[0];
+    if (firstMsg && firstMsg.role === 'assistant') {
+      const parsed = parseResponse(firstMsg.content);
+      setActiveScene(parsed.scene);
+      setActiveNarrative(parsed.narrative);
+    }
+  }, []);
 
   return {
     nodes,

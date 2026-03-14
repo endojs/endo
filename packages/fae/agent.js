@@ -7,8 +7,6 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-/** Same pattern as isSpecialName in packages/daemon/src/pet-name.js */
-const specialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 import { createProvider } from '@endo/lal/providers/index.js';
 import {
   makeConversationTree,
@@ -22,12 +20,16 @@ import {
   makeStoreTool,
   makeRemoveTool,
   makeAdoptToolTool,
+  makeAdoptTool,
   makeSendTool,
   makeReplyTool,
   makeListMessagesTool,
   makeDismissTool,
 } from './src/tool-makers.js';
 import { extractToolCallsFromContent } from './src/extract-tool-calls.js';
+
+/** Same pattern as isSpecialName in packages/daemon/src/pet-name.js */
+const specialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
 
 const m = makeMarshal(undefined, undefined, {
   errorTagging: 'off',
@@ -70,12 +72,21 @@ You have a persistent directory of named references (petnames):
 - **store** — Persist a JSON value under a petname
 - **remove** — Delete a petname
 
-## Receiving New Tools
+## Adopting Values from Messages
 
-Tools are capability objects. You can receive new tools from other agents via \
-mail. When a message contains a tool capability, use \`adoptTool\` to install it \
-into your tools/ directory. Once adopted, the tool is immediately available — \
-try it right away.
+When you receive a message that contains values (the @name references in the \
+message text), you should ALWAYS adopt each value before doing anything else. \
+Choose your own pet name for it, but remember the edge name the sender used — \
+that is how the sender refers to it in the message text.
+
+For tool capabilities, use \`adoptTool\` to install them into your tools/ \
+directory. Once adopted, the tool is immediately available — try it right away.
+
+For other values, use the \`adopt\` tool to store them under a pet name in your \
+directory. You can then use \`lookup\` to retrieve them later.
+
+Example: if a message says "Here is @counter for you", adopt it:
+  adopt(messageNumber, "counter", "my-counter")
 
 ## Response Guidelines
 
@@ -156,6 +167,7 @@ export const spawnWorkerLoop = async (
   localTools.set('lookup', makeLookupTool(powers));
   localTools.set('store', makeStoreTool(powers));
   localTools.set('remove', makeRemoveTool(powers));
+  localTools.set('adopt', makeAdoptTool(powers));
   localTools.set('adoptTool', makeAdoptToolTool(powers));
   localTools.set('send', makeSendTool(powers));
   // Wrap the reply tool to track whether a reply was sent during
@@ -266,9 +278,7 @@ export const spawnWorkerLoop = async (
         }
       }
 
-      console.log(
-        `[fae] sent: ${JSON.stringify(responseMessage, null, 2)}`,
-      );
+      console.log(`[fae] sent: ${JSON.stringify(responseMessage, null, 2)}`);
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
       if (toolCalls.length !== 0) {
@@ -278,10 +288,10 @@ export const spawnWorkerLoop = async (
         );
 
         // Store the assistant response + tool results as a single tree node.
-        const stepNode = await tree.addNode(
-          currentLeafId,
-          [responseMessage, ...toolResults],
-        );
+        const stepNode = await tree.addNode(currentLeafId, [
+          responseMessage,
+          ...toolResults,
+        ]);
         currentLeafId = stepNode.id;
 
         const adopted = toolCalls.some(
@@ -403,10 +413,7 @@ export const spawnWorkerLoop = async (
         continue;
       }
 
-      const {
-        messageId,
-        replyTo,
-      } = /** @type {any} */ (message);
+      const { messageId, replyTo } = /** @type {any} */ (message);
 
       const rootNodeId = await rootNodeIdP;
 
@@ -466,18 +473,9 @@ export const spawnWorkerLoop = async (
           const finalNode = await tree.getNode(lastLeafId);
           if (finalNode) {
             const lastMsg = finalNode.messages[finalNode.messages.length - 1];
-            if (
-              lastMsg &&
-              lastMsg.role === 'assistant' &&
-              lastMsg.content
-            ) {
+            if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
               console.log('[fae] No reply tool called, sending fallback reply');
-              await E(powers).reply(
-                number,
-                [lastMsg.content],
-                [],
-                [],
-              );
+              await E(powers).reply(number, [lastMsg.content], [], []);
             }
           }
         }
@@ -575,10 +573,7 @@ export const make = async (guestPowers, _context) => {
 
       // 5. Pin the driver so it auto-restarts on daemon reboot.
       if (pin) {
-        await E(hostAgent).copy(
-          [driverResultName],
-          ['PINS', driverResultName],
-        );
+        await E(hostAgent).copy([driverResultName], ['PINS', driverResultName]);
         console.log(`[fae-factory] Pinned driver "${driverResultName}"`);
       }
 

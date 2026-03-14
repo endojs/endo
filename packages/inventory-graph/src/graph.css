@@ -32,7 +32,9 @@
   font-family: system-ui, sans-serif;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .inventory-graph-back:hover {
@@ -58,7 +60,9 @@
   font-size: 11px;
   font-family: system-ui, sans-serif;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .inventory-graph-layout-btn:last-child {
@@ -99,7 +103,7 @@
   user-select: none;
 }
 
-.inventory-graph-filter-label input[type="checkbox"] {
+.inventory-graph-filter-label input[type='checkbox'] {
   margin: 0;
   accent-color: #64b5f6;
 }

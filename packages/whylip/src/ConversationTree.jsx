@@ -49,9 +49,7 @@ export function ConversationTree({ nodes, activeNodeId, onNavigate }) {
             title={displayText.slice(0, 120)}
           >
             <span className="tree-icon">{roleIcon}</span>
-            <span className="tree-preview">
-              {preview || `(${node.role})`}
-            </span>
+            <span className="tree-preview">{preview || `(${node.role})`}</span>
           </button>
           {hasChildren && renderLevel(node.id, depth + 1)}
         </div>
@@ -64,9 +62,7 @@ export function ConversationTree({ nodes, activeNodeId, onNavigate }) {
       <div className="tree-header">Conversation</div>
       <div className="tree-list">
         {nodes.length === 0 ? (
-          <div className="tree-empty">
-            Send a message to begin.
-          </div>
+          <div className="tree-empty">Send a message to begin.</div>
         ) : (
           renderLevel(null, 0)
         )}

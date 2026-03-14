@@ -66,9 +66,7 @@ export const main = async agent => {
     resultName: 'llm-provider-factory',
   });
   console.log('[setup] LLM provider factory installed');
-  console.log(
-    '[setup] Submit provider config via: yarn create-provider',
-  );
+  console.log('[setup] Submit provider config via: yarn create-provider');
 
   // 3. Create the fae-factory (will fail until a provider is submitted)
   const factoryGuestName = `${factoryName}-handle`;

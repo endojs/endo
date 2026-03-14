@@ -26,7 +26,7 @@ export function makeMockPowers(options = {}) {
 
   /** @type {Array<{ number: number, from: string, to: string, type?: string, strings?: string[], names?: string[], ids?: string[], messageId?: string, replyTo?: string }>} */
   const messages = [];
-  /** @type {Map<number, { promise: Promise<void>, resolve: () => void }>} */
+  /** @type {Map<number, { promise: Promise<unknown>, resolve: (value?: unknown) => void }>} */
   const dismissWaiters = new Map();
 
   /** @type {Array<{ recipient: string, strings: string[], edgeNames: string[], petNames: string[] }>} */
@@ -43,9 +43,13 @@ export function makeMockPowers(options = {}) {
     if (!dismissWaiters.has(n)) {
       const { promise, resolve } = makePromiseKit();
       dismissWaiters.set(n, { promise, resolve });
-      return promise;
+      return /** @type {Promise<void>} */ (promise);
     }
-    return dismissWaiters.get(n).promise;
+    return /** @type {Promise<void>} */ (
+      /** @type {{ promise: Promise<unknown>, resolve: (value?: unknown) => void }} */ (
+        dismissWaiters.get(n)
+      ).promise
+    );
   }
 
   function whenSend() {

@@ -122,7 +122,7 @@ export const makeOllamaProvider = ({ host, model, apiKey }) => {
       // Handle tool calls if present
       const { tool_calls } = response.message || {};
       if (tool_calls && tool_calls.length > 0) {
-        const idBase =  `ollama_tool_${Date.now()}_`;
+        const idBase = `ollama_tool_${Date.now()}_`;
         message.tool_calls = tool_calls.map(
           (
             /** @type {{ function?: { name?: string, arguments?: object }}} */ tc,

@@ -116,11 +116,12 @@ export const renderGraph = (
   const $layoutGroup = document.createElement('div');
   $layoutGroup.className = 'inventory-graph-layout-group';
 
-  const modes = /** @type {Array<['force' | 'hierarchy' | 'radial', string]>} */ ([
-    ['force', 'Force'],
-    ['hierarchy', 'Hierarchy'],
-    ['radial', 'Radial'],
-  ]);
+  const modes =
+    /** @type {Array<['force' | 'hierarchy' | 'radial', string]>} */ ([
+      ['force', 'Force'],
+      ['hierarchy', 'Hierarchy'],
+      ['radial', 'Radial'],
+    ]);
   /** @type {Map<string, HTMLButtonElement>} */
   const layoutButtons = new Map();
   for (const [mode, label] of modes) {
@@ -274,9 +275,7 @@ export const renderGraph = (
       return;
     }
     const n = hoveredNode;
-    const names = n.allNames.length > 0
-      ? n.allNames.join(', ')
-      : n.label;
+    const names = n.allNames.length > 0 ? n.allNames.join(', ') : n.label;
     const lines = [names];
     if (n.type && n.type !== 'unknown') lines.push(`type: ${n.type}`);
     lines.push(`id: ${n.id}`);
@@ -297,11 +296,15 @@ export const renderGraph = (
   $canvas.addEventListener('mouseup', onMouseUp);
   document.addEventListener('mouseup', onMouseUp);
 
-  $canvas.addEventListener('wheel', e => {
-    e.preventDefault();
-    const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    zoom = Math.max(0.1, Math.min(5, zoom * factor));
-  }, { passive: false });
+  $canvas.addEventListener(
+    'wheel',
+    e => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      zoom = Math.max(0.1, Math.min(5, zoom * factor));
+    },
+    { passive: false },
+  );
 
   $canvas.addEventListener('mouseleave', () => {
     hoveredNode = null;
@@ -309,9 +312,13 @@ export const renderGraph = (
   });
 
   $layoutGroup.addEventListener('click', e => {
-    const $btn = /** @type {HTMLElement} */ (e.target).closest('.inventory-graph-layout-btn');
+    const $btn = /** @type {HTMLElement} */ (e.target).closest(
+      '.inventory-graph-layout-btn',
+    );
     if (!$btn) return;
-    const next = /** @type {'force' | 'hierarchy' | 'radial'} */ ($btn.dataset.mode);
+    const next = /** @type {'force' | 'hierarchy' | 'radial'} */ (
+      $btn.dataset.mode
+    );
     if (next === layoutMode) return;
     layoutMode = next;
     for (const [m, b] of layoutButtons) {
@@ -337,8 +344,9 @@ export const renderGraph = (
     if (existing) {
       if (isPetName && !existing.allNames.includes(label)) {
         existing.allNames.push(label);
-        existing.label = existing.allNames.filter(n => !SPECIAL_NAME_RE.test(n))[0]
-          || existing.allNames[0];
+        existing.label =
+          existing.allNames.filter(n => !SPECIAL_NAME_RE.test(n))[0] ||
+          existing.allNames[0];
         existing.isPetName = true;
       }
       if (type !== 'unknown' && existing.type === 'unknown') {
@@ -392,9 +400,30 @@ export const renderGraph = (
       }
 
       for (const { sourceId, targetId, label } of graphData.edges) {
-        ensureNode(sourceId, sourceId.split(':')[0].slice(-6), 'unknown', false, cx, cy, radius);
-        ensureNode(targetId, targetId.split(':')[0].slice(-6), 'unknown', false, cx, cy, radius);
-        edges.push({ source: sourceId, target: targetId, label, kind: 'formula' });
+        ensureNode(
+          sourceId,
+          sourceId.split(':')[0].slice(-6),
+          'unknown',
+          false,
+          cx,
+          cy,
+          radius,
+        );
+        ensureNode(
+          targetId,
+          targetId.split(':')[0].slice(-6),
+          'unknown',
+          false,
+          cx,
+          cy,
+          radius,
+        );
+        edges.push({
+          source: sourceId,
+          target: targetId,
+          label,
+          kind: 'formula',
+        });
       }
     }
 
@@ -409,7 +438,12 @@ export const renderGraph = (
       for (const { name, id } of entries) {
         if (id === agentId || seen.has(id) || hasIncoming.has(id)) continue;
         seen.add(id);
-        edges.push({ source: agentId, target: id, label: name, kind: 'petstore' });
+        edges.push({
+          source: agentId,
+          target: id,
+          label: name,
+          kind: 'petstore',
+        });
       }
     }
 
@@ -434,9 +468,8 @@ export const renderGraph = (
   const computeDepthRings = () => {
     /** @type {Map<string, number>} */
     const depthOf = new Map();
-    const root = rootNodeId && nodeMap.has(rootNodeId)
-      ? rootNodeId
-      : nodes[0]?.id;
+    const root =
+      rootNodeId && nodeMap.has(rootNodeId) ? rootNodeId : nodes[0]?.id;
     if (!root) return { depthOf, rings: new Map() };
 
     const queue = [root];
@@ -445,9 +478,8 @@ export const renderGraph = (
       const id = /** @type {string} */ (queue.shift());
       const d = /** @type {number} */ (depthOf.get(id));
       for (const e of edges) {
-        const neighbor = e.source === id ? e.target
-          : e.target === id ? e.source
-          : undefined;
+        const neighbor =
+          e.source === id ? e.target : e.target === id ? e.source : undefined;
         if (neighbor && !depthOf.has(neighbor)) {
           depthOf.set(neighbor, d + 1);
           queue.push(neighbor);
@@ -617,8 +649,14 @@ export const renderGraph = (
     const angle = Math.atan2(toY - fromY, toX - fromX);
     ctx.beginPath();
     ctx.moveTo(toX, toY);
-    ctx.lineTo(toX - size * Math.cos(angle - Math.PI / 6), toY - size * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(toX - size * Math.cos(angle + Math.PI / 6), toY - size * Math.sin(angle + Math.PI / 6));
+    ctx.lineTo(
+      toX - size * Math.cos(angle - Math.PI / 6),
+      toY - size * Math.sin(angle - Math.PI / 6),
+    );
+    ctx.lineTo(
+      toX - size * Math.cos(angle + Math.PI / 6),
+      toY - size * Math.sin(angle + Math.PI / 6),
+    );
     ctx.closePath();
     ctx.fill();
   };
@@ -710,9 +748,10 @@ export const renderGraph = (
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = e.kind === 'formula'
-        ? 'rgba(255, 152, 0, 0.6)'
-        : 'rgba(100, 181, 246, 0.5)';
+      ctx.fillStyle =
+        e.kind === 'formula'
+          ? 'rgba(255, 152, 0, 0.6)'
+          : 'rgba(100, 181, 246, 0.5)';
       drawArrow(ctx, startX, startY, endX, endY, 9);
 
       if (e.label) {
@@ -786,15 +825,18 @@ export const renderGraph = (
       ctx.fillStyle = n.isSpecial ? '#90caf9' : '#e0e0e0';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      const displayLabel = n.label.length > 22
-        ? `${n.label.slice(0, 20)}\u2026`
-        : n.label;
+      const displayLabel =
+        n.label.length > 22 ? `${n.label.slice(0, 20)}\u2026` : n.label;
       ctx.fillText(displayLabel, n.x, n.y + r + 4);
 
       if (n.allNames.length > 1) {
         ctx.font = '8px system-ui, sans-serif';
         ctx.fillStyle = 'rgba(144, 202, 249, 0.7)';
-        ctx.fillText(`+${n.allNames.length - 1} alias${n.allNames.length > 2 ? 'es' : ''}`, n.x, n.y + r + 18);
+        ctx.fillText(
+          `+${n.allNames.length - 1} alias${n.allNames.length > 2 ? 'es' : ''}`,
+          n.x,
+          n.y + r + 18,
+        );
       } else if (n.type && n.type !== 'unknown') {
         ctx.font = '8px monospace';
         ctx.fillStyle = 'rgba(180, 180, 180, 0.6)';
@@ -821,16 +863,22 @@ export const renderGraph = (
     if (hasFormulaEdges) {
       const petItem = document.createElement('span');
       petItem.className = 'legend-item';
-      petItem.innerHTML = '<span class="legend-line legend-petstore"></span> pet-store';
+      petItem.innerHTML =
+        '<span class="legend-line legend-petstore"></span> pet-store';
       $legend.appendChild(petItem);
 
       const formulaItem = document.createElement('span');
       formulaItem.className = 'legend-item';
-      formulaItem.innerHTML = '<span class="legend-line legend-formula"></span> formula dep';
+      formulaItem.innerHTML =
+        '<span class="legend-line legend-formula"></span> formula dep';
       $legend.appendChild(formulaItem);
     }
 
-    for (const [key, clr] of [['live', LIVENESS_RING.live], ['pending', LIVENESS_RING.pending], ['failed', LIVENESS_RING.failed]]) {
+    for (const [key, clr] of [
+      ['live', LIVENESS_RING.live],
+      ['pending', LIVENESS_RING.pending],
+      ['failed', LIVENESS_RING.failed],
+    ]) {
       const item = document.createElement('span');
       item.className = 'legend-item';
       item.innerHTML = `<span class="legend-ring" style="border-color:${clr}"></span>${key}`;
@@ -839,15 +887,19 @@ export const renderGraph = (
 
     const shapeSpecial = document.createElement('span');
     shapeSpecial.className = 'legend-item';
-    shapeSpecial.innerHTML = '<span class="legend-shape legend-square"></span>system';
+    shapeSpecial.innerHTML =
+      '<span class="legend-shape legend-square"></span>system';
     $legend.appendChild(shapeSpecial);
 
     const shapePeer = document.createElement('span');
     shapePeer.className = 'legend-item';
-    shapePeer.innerHTML = '<span class="legend-shape legend-diamond"></span>peer/remote';
+    shapePeer.innerHTML =
+      '<span class="legend-shape legend-diamond"></span>peer/remote';
     $legend.appendChild(shapePeer);
 
-    const typesUsed = new Set(nodes.map(n => n.type).filter(t => t !== 'unknown'));
+    const typesUsed = new Set(
+      nodes.map(n => n.type).filter(t => t !== 'unknown'),
+    );
     for (const t of typesUsed) {
       const item = document.createElement('span');
       item.className = 'legend-item';
@@ -875,7 +927,11 @@ export const renderGraph = (
             const nodeNumber = url.hostname;
             const type = url.searchParams.get('type') || 'unknown';
             if (formulaNumber) {
-              entries.push({ name, id: `${formulaNumber}:${nodeNumber}`, type });
+              entries.push({
+                name,
+                id: `${formulaNumber}:${nodeNumber}`,
+                type,
+              });
             }
           } catch {
             // skip entries we can't locate
@@ -888,7 +944,11 @@ export const renderGraph = (
       try {
         const host = /** @type {ERef<unknown>} */ (rootPowers);
         const result = /** @type {any} */ (await E(host).getFormulaGraph());
-        if (result && Array.isArray(result.edges) && Array.isArray(result.nodes)) {
+        if (
+          result &&
+          Array.isArray(result.edges) &&
+          Array.isArray(result.nodes)
+        ) {
           graphData = result;
         }
       } catch (graphErr) {
@@ -938,9 +998,12 @@ export const renderGraph = (
                   node.allNames.push(nm);
                 }
               }
-              node.label = node.allNames.filter(nm => !SPECIAL_NAME_RE.test(nm))[0]
-                || node.allNames[0];
-              node.isSpecial = node.allNames.every(nm => SPECIAL_NAME_RE.test(nm));
+              node.label =
+                node.allNames.filter(nm => !SPECIAL_NAME_RE.test(nm))[0] ||
+                node.allNames[0];
+              node.isSpecial = node.allNames.every(nm =>
+                SPECIAL_NAME_RE.test(nm),
+              );
             }
           } catch {
             // ignore
@@ -956,7 +1019,10 @@ export const renderGraph = (
             await Promise.race([
               E(powers).lookup(name),
               new Promise((_resolve, reject) =>
-                setTimeout(() => reject(new Error('timeout')), LIVENESS_TIMEOUT_MS),
+                setTimeout(
+                  () => reject(new Error('timeout')),
+                  LIVENESS_TIMEOUT_MS,
+                ),
               ),
             ]);
             node.liveness = 'live';

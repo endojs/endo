@@ -66,9 +66,12 @@ const zipPath = path.join(makeDir, zipName);
 if (platform === 'darwin') {
   // ditto preserves macOS resource forks and .app bundle structure
   const appBundle = path.join(appDir, 'Familiar.app');
-  execSync(`ditto -c -k --sequesterRsrc ${JSON.stringify(appBundle)} ${JSON.stringify(zipPath)}`, {
-    stdio: 'inherit',
-  });
+  execSync(
+    `ditto -c -k --sequesterRsrc ${JSON.stringify(appBundle)} ${JSON.stringify(zipPath)}`,
+    {
+      stdio: 'inherit',
+    },
+  );
 } else {
   execSync(`zip -r -y ${JSON.stringify(zipPath)} .`, {
     stdio: 'inherit',

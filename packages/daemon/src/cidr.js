@@ -101,9 +101,7 @@ const matchesPrefix = (addr, network, prefixLen, groupBits) => {
       remaining -= groupBits;
     } else {
       const divisor = 2 ** (groupBits - remaining);
-      return (
-        Math.floor(addr[i] / divisor) === Math.floor(network[i] / divisor)
-      );
+      return Math.floor(addr[i] / divisor) === Math.floor(network[i] / divisor);
     }
   }
   return true;
@@ -215,10 +213,7 @@ const allowAnyMatchedCIDR = (addr, ...cidrs) => {
  * @param {{ allowRemote?: boolean, allowedCIDRs?: string }} [options]
  */
 export const makeAddressChecker = (options = {}) => {
-  const {
-    allowRemote = false,
-    allowedCIDRs = '',
-  } = options;
+  const { allowRemote = false, allowedCIDRs = '' } = options;
 
   /** @returns {AddressChecker} */
   function compile() {
@@ -228,15 +223,17 @@ export const makeAddressChecker = (options = {}) => {
 
     let allow = allowLocalCIDR;
 
-    const cidrs = harden(allowedCIDRs.split(',')
-      .map(entry => entry.trim())
-      .filter(trimmed => trimmed.length > 0)
-      .map(trimmed => parseCIDR(trimmed))
-      .filter(parsed => !!parsed));
+    const cidrs = harden(
+      allowedCIDRs
+        .split(',')
+        .map(entry => entry.trim())
+        .filter(trimmed => trimmed.length > 0)
+        .map(trimmed => parseCIDR(trimmed))
+        .filter(parsed => !!parsed),
+    );
 
     if (cidrs.length > 0) {
-      allow = allowSome(allow,
-        addr => allowAnyMatchedCIDR(addr, ...cidrs));
+      allow = allowSome(allow, addr => allowAnyMatchedCIDR(addr, ...cidrs));
     }
 
     return allow;

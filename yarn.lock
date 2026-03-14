@@ -953,6 +953,8 @@ __metadata:
     eslint: "catalog:dev"
     happy-dom: "npm:^15.0.0"
     monaco-editor: "npm:^0.52.0"
+    react: "npm:^19.0.0"
+    react-dom: "npm:^19.0.0"
     ses: "workspace:^"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
@@ -1306,6 +1308,23 @@ __metadata:
     eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/genie@workspace:packages/genie":
+  version: 0.0.0-use.local
+  resolution: "@endo/genie@workspace:packages/genie"
+  dependencies:
+    "@endo/cli": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/lal": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
 

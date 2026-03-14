@@ -87,13 +87,10 @@ const parseResponse = text => {
 
   const extractFromParsed = (obj, method) => {
     const o = /** @type {Record<string, unknown>} */ (obj);
-    const narrative =
-      typeof o.narrative === 'string' ? o.narrative : trimmed;
+    const narrative = typeof o.narrative === 'string' ? o.narrative : trimmed;
     const s = /** @type {Record<string, unknown> | null} */ (o.scene);
     const scene =
-      s &&
-      typeof s.html === 'string' &&
-      typeof s.title === 'string'
+      s && typeof s.html === 'string' && typeof s.title === 'string'
         ? /** @type {{ title: string, html: string }} */ (s)
         : null;
     return { narrative, scene, method };
@@ -120,12 +117,8 @@ const parseResponse = text => {
     }
   }
 
-  const narrativeMatch = trimmed.match(
-    /"narrative"\s*:\s*"((?:[^"\\]|\\.)*)"/,
-  );
-  const sceneTitleMatch = trimmed.match(
-    /"title"\s*:\s*"((?:[^"\\]|\\.)*)"/,
-  );
+  const narrativeMatch = trimmed.match(/"narrative"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const sceneTitleMatch = trimmed.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   const sceneHtmlMatch = trimmed.match(
     /"html"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"\s*\}\s*\}$/,
   );
@@ -141,7 +134,8 @@ const parseResponse = text => {
     return { narrative, scene, method: 'regex' };
   }
 
-  const looksLikeJson = trimmed.startsWith('{') && trimmed.includes('"narrative"');
+  const looksLikeJson =
+    trimmed.startsWith('{') && trimmed.includes('"narrative"');
   if (looksLikeJson) {
     return {
       narrative: trimmed,
@@ -150,7 +144,7 @@ const parseResponse = text => {
       parseError:
         'Your response could not be parsed as JSON. Ensure the reply ' +
         'contains a single valid JSON object with "narrative" and "scene" ' +
-        'fields. Avoid JavaScript escapes like \\\' inside JSON strings — ' +
+        "fields. Avoid JavaScript escapes like \\' inside JSON strings — " +
         'use Unicode escapes (\\u0027) instead.',
     };
   }
@@ -281,34 +275,40 @@ test('pipeline: HTML with JS single-quote escapes via JSON.stringify', t => {
 // Pipeline tests: LLM-generated raw JSON (the bug scenario)
 // ===========================================================================
 
-test('HYPOTHESIS: ORIGINAL parser fails with bare ' +
-  "\\' in inner JSON", t => {
-  // The LLM generates an inner JSON string where the HTML contains \'
-  // (invalid JSON escape) instead of the correct \\'.
-  const innerJsonBad =
-    '{"narrative":"The moons","scene":{"title":"Moons","html":' +
-    '"<script>const f=' +
-    "'" +
-    'Sun' +
-    "\\'" +
-    's' +
-    "'" +
-    ';</script>"}}';
+test(
+  'HYPOTHESIS: ORIGINAL parser fails with bare ' + "\\' in inner JSON",
+  t => {
+    // The LLM generates an inner JSON string where the HTML contains \'
+    // (invalid JSON escape) instead of the correct \\'.
+    const innerJsonBad =
+      '{"narrative":"The moons","scene":{"title":"Moons","html":' +
+      '"<script>const f=' +
+      "'" +
+      'Sun' +
+      "\\'" +
+      's' +
+      "'" +
+      ';</script>"}}';
 
-  // Confirm the inner JSON IS invalid
-  t.throws(
-    () => JSON.parse(innerJsonBad),
-    undefined,
-    "inner JSON with bare \\' should be invalid",
-  );
+    // Confirm the inner JSON IS invalid
+    t.throws(
+      () => JSON.parse(innerJsonBad),
+      undefined,
+      "inner JSON with bare \\' should be invalid",
+    );
 
-  // ORIGINAL parser: falls back to raw JSON as narrative (the bug)
-  const { parsed } = simulatePipelineRawLlmJson(innerJsonBad, {
-    useOriginal: true,
-  });
-  t.is(parsed.scene, null, 'ORIGINAL: scene is null');
-  t.is(parsed.narrative, innerJsonBad, 'ORIGINAL: raw JSON dumped as narrative');
-});
+    // ORIGINAL parser: falls back to raw JSON as narrative (the bug)
+    const { parsed } = simulatePipelineRawLlmJson(innerJsonBad, {
+      useOriginal: true,
+    });
+    t.is(parsed.scene, null, 'ORIGINAL: scene is null');
+    t.is(
+      parsed.narrative,
+      innerJsonBad,
+      'ORIGINAL: raw JSON dumped as narrative',
+    );
+  },
+);
 
 test('FIXED parser recovers from bare ' + "\\' in inner JSON", t => {
   const innerJsonBad =
@@ -541,8 +541,7 @@ test('lenientUnescape: handles standard JSON escapes', t => {
   t.is(lenientUnescape('back\\\\slash'), 'back\\slash');
 });
 
-test('lenientUnescape: handles non-standard \\' +
-  "' escape", t => {
+test('lenientUnescape: handles non-standard \\' + "' escape", t => {
   t.is(lenientUnescape("it\\'s"), "it's");
   t.is(lenientUnescape("Sun\\'s gravity"), "Sun's gravity");
 });

@@ -17,7 +17,12 @@ import './whylip.css';
  * @param {string[]} props.profilePath
  * @param {(newPath: string[]) => void} props.onProfileChange
  */
-export function WhylipApp({ powers, rootPowers, profilePath, onProfileChange }) {
+export function WhylipApp({
+  powers,
+  rootPowers,
+  profilePath,
+  onProfileChange,
+}) {
   const {
     nodes,
     activeNodeId,

@@ -21,9 +21,7 @@ export function NarrativePanel({ narrative, loading }) {
   if (!narrative) {
     return (
       <div className="whylip-narrative">
-        <div className="narrative-empty">
-          Ask a question to start learning.
-        </div>
+        <div className="narrative-empty">Ask a question to start learning.</div>
       </div>
     );
   }

@@ -267,7 +267,12 @@ const bodyComponent = (
   }
 
   if (activeSpaceInfo && activeSpaceInfo.mode === 'graph') {
-    return inventoryGraphComponent($parent, rootPowers, profilePath, onProfileChange);
+    return inventoryGraphComponent(
+      $parent,
+      rootPowers,
+      profilePath,
+      onProfileChange,
+    );
   }
 
   if (activeSpaceInfo && activeSpaceInfo.mode === 'peers') {
@@ -459,7 +464,8 @@ const bodyComponent = (
 
         // Show a connecting indicator while we reach the channel.
         const $connectingStatus = document.createElement('div');
-        $connectingStatus.className = 'channel-status channel-status-connecting';
+        $connectingStatus.className =
+          'channel-status channel-status-connecting';
         $connectingStatus.textContent = 'Connecting to channel\u2026';
         if ($anchor) {
           $messages.insertBefore($connectingStatus, $anchor);
@@ -551,8 +557,7 @@ const bodyComponent = (
           .catch(err => {
             // Connection failed — replace the connecting indicator with an error.
             $connectingStatus.className = 'channel-status channel-status-error';
-            const message =
-              err instanceof Error ? err.message : String(err);
+            const message = err instanceof Error ? err.message : String(err);
             $connectingStatus.textContent = `Unable to connect to channel: ${message}`;
             window.reportError(err);
           });
@@ -680,8 +685,7 @@ const bodyComponent = (
           .catch(err => {
             // Connection failed — replace the connecting indicator with an error.
             $switchStatus.className = 'channel-status channel-status-error';
-            const message =
-              err instanceof Error ? err.message : String(err);
+            const message = err instanceof Error ? err.message : String(err);
             $switchStatus.textContent = `Unable to connect to channel: ${message}`;
             window.reportError(err);
           });

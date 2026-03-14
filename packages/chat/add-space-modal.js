@@ -589,7 +589,13 @@ export const createAddSpaceModal = ({
     attachEventListeners();
 
     // Mount scheme picker into slot if in a form mode
-    if (mode === 'new-agent' || mode === 'existing' || mode === 'whylip' || mode === 'graph' || mode === 'peers') {
+    if (
+      mode === 'new-agent' ||
+      mode === 'existing' ||
+      mode === 'whylip' ||
+      mode === 'graph' ||
+      mode === 'peers'
+    ) {
       const $slot = /** @type {HTMLElement | null} */ (
         $container.querySelector('#scheme-picker-slot')
       );
@@ -1357,7 +1363,10 @@ export const createAddSpaceModal = ({
           /** @type {{ createAgent: (name: string, opts: object) => Promise<string> }} */ (
             faeFactory
           ),
-        ).createAgent(faeAgentName, harden({ systemPrompt: WHYLIP_SYSTEM_PROMPT }))
+        ).createAgent(
+          faeAgentName,
+          harden({ systemPrompt: WHYLIP_SYSTEM_PROMPT }),
+        )
       );
 
       // Get the formula ID for the agent profile so we can write it

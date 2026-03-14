@@ -51,7 +51,9 @@ const appPaths = await packager({
   name: 'Familiar',
   executableName: 'Familiar',
   icon: path.join(familiarDir, 'assets/icon'),
-  platform: /** @type {any} */ (process.platform === 'win32' ? 'win32' : process.platform),
+  platform: /** @type {any} */ (
+    process.platform === 'win32' ? 'win32' : process.platform
+  ),
   arch: process.arch,
   ignore: contents => !includeFilter(contents),
 });

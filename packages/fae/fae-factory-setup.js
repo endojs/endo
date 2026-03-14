@@ -20,9 +20,7 @@ const resolveProvider = async (agent, providerName) => {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const id = /** @type {string} */ (
-        await E(agent).identify(providerName)
-      );
+      const id = /** @type {string} */ (await E(agent).identify(providerName));
       if (id) return id;
     } catch {
       // Name not found yet; retry.

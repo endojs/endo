@@ -29,6 +29,7 @@ const formulaTypes = new Set([
   'promise',
   'readable-blob',
   'resolver',
+  'synced-pet-store',
   'worker',
 ]);
 

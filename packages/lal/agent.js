@@ -826,7 +826,13 @@ Workflow for processing messages:
    - If "from" matches your SELF ID: this is a message YOU sent (you can skip or dismiss it)
    - If "from" does NOT match your SELF ID: this is a message FROM someone else that you should process
 4. For received messages:
-   - Take appropriate action (adopt values, resolve/reject requests, etc.)
+   - If the message contains values (non-empty names/ids arrays), ALWAYS adopt each
+     value before doing anything else. Choose your own pet name for it, but remember
+     the edge name the sender used — that is how the sender refers to it in the
+     message text (the @name references). Example:
+       adopt("+3", "counter", "my-counter")
+     This adopts the value the sender labeled "counter" and stores it as "my-counter"
+     in your directory.
    - ALWAYS use reply(messageNumber, ...) to respond — this threads the response to the original message
    - Do NOT use send() for responses — send() is only for initiating brand new conversations
    - Call dismiss(messageNumber) after handling
@@ -864,7 +870,7 @@ Always check tool results before proceeding - don't assume success.
  * using the given LLM configuration.
  *
  * @param {any} powers - Guest powers (manager's own or a sub-guest's)
- * @param {Promise<object> | object | undefined} context - Context for cancellation
+ * @param {Promise<object> | object | null | undefined} context - Context for cancellation
  * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
  * @returns {Promise<void>}
  */
@@ -916,8 +922,10 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         const stored = /** @type {TranscriptNode} */ (
           await E(powers).lookup(petName)
         );
-        nodeCache.set(messageId, stored);
-        return stored;
+        // The stored node is hardened; make a mutable working copy.
+        const mutable = { ...stored, messages: [...stored.messages] };
+        nodeCache.set(messageId, mutable);
+        return mutable;
       }
     } catch {
       // Storage lookup failed; treat as missing.
@@ -933,7 +941,11 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
     nodeCache.set(node.messageId, node);
     const petName = `transcript-${node.messageId}`;
     try {
-      await E(powers).storeValue(harden(node), petName);
+      // Harden a snapshot for storage; the working node stays mutable.
+      await E(powers).storeValue(
+        harden({ ...node, messages: [...node.messages] }),
+        petName,
+      );
     } catch (error) {
       console.error(
         `[transcript] Failed to persist node ${node.messageId}:`,
@@ -1863,9 +1875,16 @@ export const make = (guestPowers, _context) => {
 
         // Create the guest profile via the host agent.
         // provideGuest returns the full EndoGuest (not the handle).
-        const guest = await E(agent).provideGuest(name, {
-          agentName: `profile-for-${name}`,
-        });
+        // Guard with has() — on restart the guest already exists and
+        // re-running provideGuest hits "Formula already exists".
+        let guest;
+        if (await E(agent).has(name)) {
+          guest = await E(agent).lookup(name);
+        } else {
+          guest = await E(agent).provideGuest(name, {
+            agentName: `profile-for-${name}`,
+          });
+        }
 
         // Spawn a worker loop for this guest.
         const workerP = spawnWorkerLoop(guest, null, {

@@ -708,23 +708,15 @@ export const main = async rawArgs => {
 
   const where = program
     .command('where')
-    .option(
-      '-j,--json',
-      'Output as JOSN rather than simple text')
+    .option('-j,--json', 'Output as JOSN rather than simple text')
     .description(
       'prints paths for state, logs, caches, socket, pids\n' +
-      'specify just one part, or none to get them all')
+        'specify just one part, or none to get them all',
+    )
     .action(async cmd => {
-      const {
-        json: asJSON = false,
-      } = cmd.opts();
-      const {
-        cachePath,
-        ephemeralStatePath,
-        logPath,
-        sockPath,
-        statePath,
-      } = await import('./config.js');
+      const { json: asJSON = false } = cmd.opts();
+      const { cachePath, ephemeralStatePath, logPath, sockPath, statePath } =
+        await import('./config.js');
       const stuff = {
         state: statePath,
         run: ephemeralStatePath,
@@ -788,15 +780,9 @@ export const main = async rawArgs => {
       '--feral-errors',
       'disable SES error taming (readable error traces)',
     )
-    .option(
-      '-f,--foreground',
-      'Run daemon in foreground, do not fork',
-    )
+    .option('-f,--foreground', 'Run daemon in foreground, do not fork')
     .action(async cmd => {
-      const {
-        feralErrors,
-        foreground = false,
-      } = cmd.opts();
+      const { feralErrors, foreground = false } = cmd.opts();
       const { start } = await import('@endo/daemon');
       await start(undefined, {
         feralErrors,

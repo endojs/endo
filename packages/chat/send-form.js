@@ -329,17 +329,18 @@ export const sendFormComponent = ({
 
       // Resolve pet names to formula IDs so channel messages carry references
       // that other members can adopt.
-      const resolveIds = petNames.length > 0
-        ? Promise.all(
-            petNames.map(async petName => {
-              const petPath = petName.split('.');
-              const id = await E(powers).identify(
-                .../** @type {[string, ...string[]]} */ (petPath),
-              );
-              return id || '';
-            }),
-          )
-        : Promise.resolve(/** @type {string[]} */ ([]));
+      const resolveIds =
+        petNames.length > 0
+          ? Promise.all(
+              petNames.map(async petName => {
+                const petPath = petName.split('.');
+                const id = await E(powers).identify(
+                  .../** @type {[string, ...string[]]} */ (petPath),
+                );
+                return id || '';
+              }),
+            )
+          : Promise.resolve(/** @type {string[]} */ ([]));
 
       const replyTo = replyContext ? replyContext.number : undefined;
 

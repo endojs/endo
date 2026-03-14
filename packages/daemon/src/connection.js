@@ -45,7 +45,8 @@ export const makeMessageCapTP = (
   capTpConnectionRegistrar = undefined,
 ) => {
   // eslint-disable-next-line no-undef
-  const traceCapTP = typeof process !== 'undefined' && process.env.ENDO_CAPTP_TRACE;
+  const traceCapTP =
+    typeof process !== 'undefined' && process.env.ENDO_CAPTP_TRACE;
 
   /** @param {any} message */
   const send = message => {

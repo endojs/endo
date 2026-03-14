@@ -315,8 +315,12 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
   return configSubDirectory;
 };
 
-/** @param {import('ava').ExecutionContext<any>} t */
-const prepareConfig = async t => {
+/**
+ * @param {import('ava').ExecutionContext<any>} t
+ * @param {object} [options]
+ * @param {boolean} [options.gcEnabled]
+ */
+const prepareConfig = async (t, options = {}) => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   const config = makeConfig(
     'tmp',
@@ -324,7 +328,7 @@ const prepareConfig = async t => {
   );
 
   await purge(config);
-  await start(config);
+  await start(config, options);
 
   const contextObj = { cancel, cancelled, config };
   t.context.push(contextObj);
@@ -1422,7 +1426,7 @@ test('pins restored on restart', async t => {
 });
 
 test('collects formulas after pet name removal', async t => {
-  const { cancelled, config } = await prepareConfig(t);
+  const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   await E(host).storeValue({ ok: true }, 'temp-value');
@@ -1452,7 +1456,7 @@ const testWorkerTermination = process.env.ENDO_BIN ? test.skip : test;
 testWorkerTermination(
   'terminates worker retaining collected values',
   async t => {
-    const { cancelled, config } = await prepareConfig(t);
+    const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
     const { host } = await makeHost(config, cancelled);
 
     await E(host).provideWorker('worker');
@@ -1490,7 +1494,7 @@ testWorkerTermination(
 testWorkerTermination(
   'terminates worker retaining derived value after dependency collection',
   async t => {
-    const { cancelled, config } = await prepareConfig(t);
+    const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
     const { host } = await makeHost(config, cancelled);
 
     const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1554,7 +1558,7 @@ testWorkerTermination(
 );
 
 test('recreates counter after collection resets state', async t => {
-  const { cancelled, config } = await prepareConfig(t);
+  const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   await E(host).provideWorker('worker-a');
@@ -1644,7 +1648,7 @@ test('recreates counter after collection resets state', async t => {
 });
 
 test('PINS values survive collection', async t => {
-  const { cancelled, config } = await prepareConfig(t);
+  const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   // Create a counter via eval in MAIN
@@ -1692,7 +1696,7 @@ test('PINS values survive collection', async t => {
 });
 
 test('PINS values reincarnate after cancellation', async t => {
-  const { cancelled, config } = await prepareConfig(t);
+  const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   // Create a counter caplet
@@ -1753,7 +1757,7 @@ test('PINS values reincarnate after cancellation', async t => {
 });
 
 test('facet group (agent + handle) collects atomically', async t => {
-  const { cancelled, config } = await prepareConfig(t);
+  const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   // Create a guest with both handle and agent names
@@ -1819,7 +1823,7 @@ test('facet group (agent + handle) collects atomically', async t => {
 });
 
 test('unnamed eval results are collected', async t => {
-  const { cancelled, config } = await prepareConfig(t);
+  const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   // Create a named eval to establish a baseline (ensures MAIN worker exists)

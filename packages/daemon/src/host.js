@@ -22,10 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import {
-  formatLocatorForSharing,
-  addressesFromLocator,
-} from './locator.js';
+import { formatLocatorForSharing, addressesFromLocator } from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -67,9 +64,12 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
+ * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
+ * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
+ * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
@@ -91,6 +91,8 @@ export const makeHostMaker = ({
   formulateBundle,
   formulateReadableBlob,
   formulateInvitation,
+  formulateSyncedPetStore,
+  getPeerIdForNodeIdentifier,
   formulateChannel,
   getAllNetworkAddresses,
   getTypeForId,
@@ -699,8 +701,27 @@ export const makeHostMaker = ({
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      await E(invitation).accept(handleLocator);
-      await petStore.write(guestName, guestHandleId);
+      const acceptResult = await E(invitation).accept(handleLocator);
+
+      // The host's accept handler returns the synced store number.
+      const { syncedStoreNumber } =
+        /** @type {{ syncedStoreNumber: import('./types.js').FormulaNumber }} */ (
+          acceptResult
+        );
+
+      // Create a synced-pet-store (grantee role) paired with the host's store.
+      const peerId = await getPeerIdForNodeIdentifier(
+        /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
+      );
+      const { id: syncedStoreId } = await formulateSyncedPetStore(
+        peerId,
+        'grantee',
+        /** @type {import('./types.js').FormulaNumber} */ (syncedStoreNumber),
+        peerId, // store dependency
+      );
+
+      // Write the synced store into the guest's pet store under guestName.
+      await petStore.write(guestName, syncedStoreId);
     };
 
     /** @type {EndoHost['cancel']} */
@@ -794,7 +815,9 @@ export const makeHostMaker = ({
         throw makeError('Locator must have an "id" parameter');
       }
       const id = formatId({
-        number: /** @type {import('./types.js').FormulaNumber} */ (formulaNumber),
+        number: /** @type {import('./types.js').FormulaNumber} */ (
+          formulaNumber
+        ),
         node: /** @type {NodeNumber} */ (nodeNumber),
       });
       await E(directory).write(namePath, id);

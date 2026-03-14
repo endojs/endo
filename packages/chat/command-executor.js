@@ -94,17 +94,17 @@ export const createCommandExecutor = ({
             const channelMessages = await E(channelRef).listMessages();
             const targetNumber = BigInt(/** @type {number} */ (messageNumber));
             const msg = channelMessages.find(
-              (/** @type {{ number: bigint }} */ m) => m.number === targetNumber,
+              (/** @type {{ number: bigint }} */ m) =>
+                m.number === targetNumber,
             );
             if (!msg) {
               throw new Error(`Channel message #${messageNumber} not found`);
             }
-            const msgNames =
-              /** @type {string[]} */ (
-                /** @type {any} */ (msg).names ||
-                  /** @type {any} */ (msg).edgeNames ||
-                  []
-              );
+            const msgNames = /** @type {string[]} */ (
+              /** @type {any} */ (msg).names ||
+                /** @type {any} */ (msg).edgeNames ||
+                []
+            );
             const msgIds = /** @type {string[]} */ (
               /** @type {any} */ (msg).ids || []
             );
@@ -411,7 +411,9 @@ export const createCommandExecutor = ({
           const { petName } = params;
           const petNameStr = String(petName);
           const pathParts = petNameStr.split('.');
-          console.log(`[Chat] Generating shareable locator for "${petNameStr}"...`);
+          console.log(
+            `[Chat] Generating shareable locator for "${petNameStr}"...`,
+          );
           const locator = await E(powers).locateForSharing(...pathParts);
           if (!locator) {
             throw new Error(`No value found for "${petNameStr}"`);
@@ -428,9 +430,7 @@ export const createCommandExecutor = ({
         case 'adopt-locator': {
           const { locator, petName } = params;
           const petNameStr = String(petName);
-          console.log(
-            `[Chat] Adopting from locator as "${petNameStr}"...`,
-          );
+          console.log(`[Chat] Adopting from locator as "${petNameStr}"...`);
           await E(powers).adoptFromLocator(String(locator), petNameStr);
           return {
             success: true,

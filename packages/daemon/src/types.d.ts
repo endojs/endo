@@ -352,6 +352,18 @@ export type ChannelMessage = {
   replyTo?: string;
 };
 
+type SyncedPetStoreFormula = {
+  type: 'synced-pet-store';
+  /** The peer this store is shared with. */
+  peer: FormulaIdentifier;
+  /** Role of this replica. */
+  role: 'grantor' | 'grantee';
+  /** The formula number of the paired store on the remote peer. */
+  remoteStoreNumber: FormulaNumber;
+  /** Underlying local storage (a pet-store formula for persistence). */
+  store: FormulaIdentifier;
+};
+
 type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
@@ -389,6 +401,7 @@ export type Formula =
   | DirectoryFormula
   | PeerFormula
   | KeypairFormula
+  | SyncedPetStoreFormula
   | InvitationFormula;
 
 export type Builtins = {
@@ -653,6 +666,70 @@ export interface PetStore {
    */
   reverseIdentify(id: string): Array<Name>;
 }
+
+// --- Synced Pet Store (CRDT) types ---
+
+export type SyncedEntry = {
+  /** The formula locator, or null if deleted/revoked (tombstone). */
+  locator: string | null;
+  /** Lamport timestamp: incremented on every local write. */
+  timestamp: number;
+  /** Node number of the peer that wrote this entry. */
+  writer: string;
+};
+
+export type SyncedPetStoreState = Map<string, SyncedEntry>;
+
+export type SyncedPetStoreMetadata = {
+  /** This replica's Lamport clock (monotonically increasing). */
+  localClock: number;
+  /** The highest localClock value the remote peer has acknowledged. */
+  remoteAckedClock: number;
+};
+
+export type SyncedPetStoreChange = {
+  key: string;
+  entry: SyncedEntry;
+};
+
+export interface SyncedPetStore {
+  /** Write a name->locator entry (grantor only). */
+  write(petName: PetName, locator: string): Promise<void>;
+  /** Delete a name (tombstone). Either party can delete. */
+  remove(petName: PetName): Promise<void>;
+  /** Check if a non-tombstoned entry exists for the name. */
+  has(petName: string): boolean;
+  /** Look up the locator for a name, or undefined if absent/tombstoned. */
+  lookup(petName: string): string | undefined;
+  /** List all non-tombstoned pet names, sorted. */
+  list(): PetName[];
+  /** Return a serializable snapshot of the full CRDT state (including tombstones). */
+  getState(): Record<string, SyncedEntry>;
+  /** Return the current Lamport clock value. */
+  getLocalClock(): number;
+  /** Return the highest clock value acknowledged by the remote peer. */
+  getRemoteAckedClock(): number;
+  /** Merge a remote peer's state into this replica. Returns changed keys. */
+  mergeRemoteState(
+    remoteState: Record<string, SyncedEntry>,
+    remoteClock: number,
+  ): Promise<Set<string>>;
+  /** Record that the remote peer has acknowledged up to the given clock. */
+  acknowledgeRemoteClock(ackedClock: number): Promise<void>;
+  /** Prune tombstones that both sides have acknowledged. Returns pruned keys. */
+  pruneTombstones(): Promise<string[]>;
+  /** Subscribe to entry changes (yields current state, then deltas). */
+  followChanges(): AsyncGenerator<SyncedPetStoreChange, undefined, undefined>;
+}
+
+export type SyncedPetStorePowers = {
+  makeSyncedPetStore: (opts: {
+    storePath: string;
+    filePowers: FilePowers;
+    localNodeId: string;
+    role: 'grantor' | 'grantee';
+  }) => Promise<SyncedPetStore>;
+};
 
 export type KnownPeersStore = Omit<
   PetStore,
@@ -1205,6 +1282,12 @@ export type PetStorePowers = {
     formulaNumber: FormulaNumber,
     formulaType: string,
   ) => Promise<void>;
+  makeIdentifiedSyncedPetStore: (
+    formulaNumber: string,
+    localNodeId: string,
+    role: 'grantor' | 'grantee',
+  ) => Promise<SyncedPetStore>;
+  deleteSyncedPetStore: (formulaNumber: string) => Promise<void>;
 };
 
 export type SocketPowers = {
@@ -1298,6 +1381,7 @@ export type DaemonicControlPowers = {
     id: string,
     daemonWorkerFacet: DaemonWorkerFacet,
     cancelled: Promise<never>,
+    forceCancelled: Promise<never>,
     capTpConnectionRegistrar?: CapTpConnectionRegistrar,
     trustedShims?: string[],
   ) => Promise<{
@@ -1342,6 +1426,7 @@ type FormulateNumberedGuestParams = {
   mailboxStoreId: FormulaIdentifier;
   mailHubId: FormulaIdentifier;
   workerId: FormulaIdentifier;
+  pinned: FormulaIdentifier[];
 };
 
 type FormulateHostDependenciesParams = {
@@ -1366,6 +1451,7 @@ type FormulateNumberedHostParams = {
   endoId: FormulaIdentifier;
   networksDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
+  pinned: FormulaIdentifier[];
 };
 
 export type FormulaValueTypes = {
@@ -1373,6 +1459,7 @@ export type FormulaValueTypes = {
   network: EndoNetwork;
   peer: EndoGateway;
   'pet-store': PetStore;
+  'synced-pet-store': SyncedPetStore;
   'mailbox-store': PetStore;
   'mail-hub': NameHub;
   message: NameHub;
@@ -1420,6 +1507,17 @@ export interface DaemonCore {
   ) => FormulateResult<unknown>;
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
+
+  formulateSyncedPetStore: (
+    peerId: FormulaIdentifier,
+    role: 'grantor' | 'grantee',
+    remoteStoreNumber: FormulaNumber,
+    storeId: FormulaIdentifier,
+  ) => FormulateResult<SyncedPetStore>;
+
+  getPeerIdForNodeIdentifier: (
+    nodeNumber: NodeNumber,
+  ) => Promise<FormulaIdentifier>;
 
   formulateEndo: (
     specifiedFormulaNumber?: FormulaNumber,

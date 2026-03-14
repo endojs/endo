@@ -39,13 +39,13 @@
     "generate-icons": "./scripts/generate-icons.sh"
   },
   "dependencies": {
+    "@endo/where": "workspace:^",
     "electron": "^40.8.0"
   },
   "devDependencies": {
     "@electron/packager": "^19.0.5",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/init": "workspace:^",
-    "@endo/where": "workspace:^",
     "@lavamoat/allow-scripts": "^3.4.1",
     "appdmg": "^0.6.6",
     "electron": "^40.8.0",

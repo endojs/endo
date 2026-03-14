@@ -30,7 +30,12 @@ import { filterCommands, getCommandList } from './command-registry.js';
  * @param {() => 'inbox' | 'channel' | undefined} [options.getContext] - Returns the current UI context
  * @returns {CommandSelectorAPI}
  */
-export const commandSelectorComponent = ({ $menu, onSelect, onCancel, getContext }) => {
+export const commandSelectorComponent = ({
+  $menu,
+  onSelect,
+  onCancel,
+  getContext,
+}) => {
   let isVisible = false;
   let selectedIndex = 0;
   let currentFilter = '';
