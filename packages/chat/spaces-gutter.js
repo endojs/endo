@@ -30,6 +30,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
+ * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
  */
 
 /**
@@ -38,7 +39,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
  * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
- * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>) => Promise<void>} updateSpace - Update a space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
  * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
@@ -84,7 +85,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -258,7 +259,7 @@ export const createSpacesGutter = ({
    * Update an existing space's configuration.
    *
    * @param {string} id
-   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>} updates
+   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} updates
    * @returns {Promise<void>}
    */
   const updateSpace = async (id, updates) => {
@@ -353,6 +354,7 @@ export const createSpacesGutter = ({
       channelPetName: space.channelPetName,
       proposedName: space.proposedName,
       whylipSystemPrompt: space.whylipSystemPrompt,
+      viewMode: space.viewMode,
     });
   };
 
@@ -564,6 +566,9 @@ export const createSpacesGutter = ({
       if (data.whylipSystemPrompt) {
         spaceConfig.whylipSystemPrompt = data.whylipSystemPrompt;
       }
+      if (data.viewMode) {
+        spaceConfig.viewMode = data.viewMode;
+      }
       await addSpace(spaceConfig);
     },
     onClose: () => {
@@ -589,11 +594,16 @@ export const createSpacesGutter = ({
   const editSpaceModal = createEditSpaceModal({
     $container: $modalContainer,
     onSubmit: async (id, data) => {
-      await updateSpace(id, {
+      /** @type {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} */
+      const updates = {
         name: data.name,
         icon: data.icon,
         scheme: data.scheme || 'auto',
-      });
+      };
+      if (data.viewMode) {
+        updates.viewMode = data.viewMode;
+      }
+      await updateSpace(id, updates);
     },
     onClose: () => {
       // Modal closed
@@ -666,6 +676,12 @@ export const createSpacesGutter = ({
     }
     if (typeof obj.whylipSystemPrompt === 'string') {
       result.whylipSystemPrompt = obj.whylipSystemPrompt;
+    }
+    if (
+      typeof obj.viewMode === 'string' &&
+      (obj.viewMode === 'chat' || obj.viewMode === 'forum')
+    ) {
+      result.viewMode = obj.viewMode;
     }
     return /** @type {SpaceConfig} */ (harden(result));
   };

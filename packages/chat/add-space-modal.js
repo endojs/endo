@@ -55,6 +55,7 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
+ * @property {'chat' | 'forum'} [viewMode] - Channel view mode (default: 'chat')
  */
 
 /**
@@ -111,6 +112,8 @@ export const createAddSpaceModal = ({
   let channelPetName = '';
   /** @type {string} */
   let channelProposedName = '';
+  /** @type {'chat' | 'forum'} */
+  let channelViewMode = 'chat';
   /** @type {string} */
   let connectLocator = '';
   /** @type {string} */
@@ -331,6 +334,20 @@ export const createAddSpaceModal = ({
           <input type="text" id="channel-proposed-name" placeholder="e.g., Alice, Admin"
                  value="${channelProposedName}" autocomplete="off" />
           <div class="field-hint">How others will see you in this channel</div>
+        </div>
+
+        <div class="add-space-field">
+          <label>Channel View</label>
+          <div class="view-mode-selector">
+            <button type="button" class="view-mode-option ${channelViewMode === 'chat' ? 'selected' : ''}" data-view-mode="chat">
+              <span class="view-mode-label">Traditional Chat</span>
+              <span class="view-mode-desc">Chronological messages with thread drill-downs</span>
+            </button>
+            <button type="button" class="view-mode-option ${channelViewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
+              <span class="view-mode-label">Forum</span>
+              <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
+            </button>
+          </div>
         </div>
 
         ${error ? `<div class="add-space-error">${error}</div>` : ''}
@@ -871,6 +888,24 @@ export const createAddSpaceModal = ({
       });
     }
 
+    // View mode selector
+    const $viewModeOptions = $container.querySelectorAll('.view-mode-option');
+    for (const $option of $viewModeOptions) {
+      $option.addEventListener('click', () => {
+        const vm = $option.getAttribute('data-view-mode');
+        if (vm === 'chat' || vm === 'forum') {
+          channelViewMode = vm;
+          // Update selection visually
+          for (const $opt of $viewModeOptions) {
+            $opt.classList.toggle(
+              'selected',
+              $opt.getAttribute('data-view-mode') === vm,
+            );
+          }
+        }
+      });
+    }
+
     // Whylip form inputs
     const $whylipNameInput = /** @type {HTMLInputElement | null} */ (
       $container.querySelector('#whylip-name')
@@ -1109,6 +1144,7 @@ export const createAddSpaceModal = ({
         layout: 'channel',
         channelPetName: 'general',
         proposedName: displayName,
+        viewMode: channelViewMode,
       });
 
       hide();

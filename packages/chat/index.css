@@ -5545,6 +5545,134 @@ button.btn-spinner::after {
 }
 
 /* ============================
+   Forum View
+   ============================ */
+
+.forum-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.forum-node {
+  transition: margin-left 150ms ease;
+}
+
+.forum-node.depth-0 {
+  margin-left: 0;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.forum-node.depth-0:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.forum-node.depth-1 {
+  margin-left: 24px;
+  border-left: 2px solid #6c8cff;
+  padding-left: 8px;
+}
+
+.forum-node.depth-2 {
+  margin-left: 48px;
+  border-left: 2px solid #e06cff;
+  padding-left: 8px;
+}
+
+.forum-node.depth-3 {
+  margin-left: 72px;
+  border-left: 2px solid #ff6c8c;
+  padding-left: 8px;
+}
+
+.forum-node.depth-4 {
+  margin-left: 96px;
+  border-left: 2px solid #6cffb5;
+  padding-left: 8px;
+}
+
+.forum-node.depth-5 {
+  margin-left: 120px;
+  border-left: 2px solid #ffc86c;
+  padding-left: 8px;
+}
+
+.forum-node.chain-member {
+  background: transparent;
+}
+
+.forum-node.collapsed > .message-wrapper ~ .forum-node {
+  display: none;
+}
+
+.forum-collapse-handle {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.forum-collapse-handle:hover {
+  background: rgba(108, 140, 255, 0.1);
+  text-decoration: underline;
+}
+
+/* ============================
+   View Mode Selector (Add/Edit Space Modal)
+   ============================ */
+
+.view-mode-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.view-mode-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.view-mode-option:hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-light);
+}
+
+.view-mode-option.selected {
+  border-color: var(--accent-primary);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.view-mode-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.view-mode-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ============================
    Focus Message Mode
    ============================ */
 

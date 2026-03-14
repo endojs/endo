@@ -22,6 +22,7 @@ import { createSchemePicker } from './scheme-picker.js';
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {ColorScheme} scheme - Color scheme preference
+ * @property {'chat' | 'forum'} [viewMode] - Channel view mode
  */
 
 /**
@@ -47,6 +48,8 @@ export const createEditSpaceModal = ({
   let useLetterIcon = false;
   /** @type {string} */
   let spaceName = '';
+  /** @type {'chat' | 'forum'} */
+  let viewMode = 'chat';
   /** @type {string | null} */
   let error = null;
   /** @type {boolean} */
@@ -80,6 +83,24 @@ export const createEditSpaceModal = ({
         ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
         <div id="scheme-picker-slot" class="add-space-field"></div>
+
+        ${
+          editingSpace && editingSpace.mode === 'channel'
+            ? `<div class="add-space-field">
+          <label>Channel View</label>
+          <div class="view-mode-selector">
+            <button type="button" class="view-mode-option ${viewMode === 'chat' ? 'selected' : ''}" data-view-mode="chat">
+              <span class="view-mode-label">Traditional Chat</span>
+              <span class="view-mode-desc">Chronological messages with thread drill-downs</span>
+            </button>
+            <button type="button" class="view-mode-option ${viewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
+              <span class="view-mode-label">Forum</span>
+              <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
+            </button>
+          </div>
+        </div>`
+            : ''
+        }
 
         ${error ? `<div class="add-space-error">${error}</div>` : ''}
 
@@ -208,6 +229,23 @@ export const createEditSpaceModal = ({
       });
     }
 
+    // View mode selector
+    const $viewModeOptions = $container.querySelectorAll('.view-mode-option');
+    for (const $option of $viewModeOptions) {
+      $option.addEventListener('click', () => {
+        const vm = $option.getAttribute('data-view-mode');
+        if (vm === 'chat' || vm === 'forum') {
+          viewMode = vm;
+          for (const $opt of $viewModeOptions) {
+            $opt.classList.toggle(
+              'selected',
+              $opt.getAttribute('data-view-mode') === vm,
+            );
+          }
+        }
+      });
+    }
+
     // Form submission
     if ($form) {
       $form.addEventListener('submit', async e => {
@@ -244,11 +282,16 @@ export const createEditSpaceModal = ({
     render();
 
     try {
-      await onSubmit(editingSpace.id, {
+      /** @type {EditSpaceFormData} */
+      const formData = {
         name,
         icon: selectedIcon,
         scheme: schemePicker ? schemePicker.getValue() : 'auto',
-      });
+      };
+      if (editingSpace.mode === 'channel') {
+        formData.viewMode = viewMode;
+      }
+      await onSubmit(editingSpace.id, formData);
 
       hide({ restoreScheme: false });
       onClose();
@@ -285,6 +328,7 @@ export const createEditSpaceModal = ({
     spaceName = space.name;
     selectedIcon = space.icon;
     useLetterIcon = space.icon.length <= 2 && !ALL_ICONS.includes(space.icon);
+    viewMode = space.viewMode || 'chat';
     error = null;
     isSubmitting = false;
     schemePicker = null;

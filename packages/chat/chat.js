@@ -6,6 +6,7 @@
 
 import { E } from '@endo/far';
 import { channelComponent } from './channel-component.js';
+import { forumComponent } from './forum-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
@@ -525,7 +526,11 @@ const bodyComponent = (
             // Pass personaId (derived from profile path) so the address book
             // localStorage key is scoped per-persona, preventing nickname
             // leakage between spaces viewing the same channel.
-            channelComponent($messages, $anchor, currentChannelRef, {
+            const channelViewFn =
+              activeSpaceInfo.viewMode === 'forum'
+                ? forumComponent
+                : channelComponent;
+            channelViewFn($messages, $anchor, currentChannelRef, {
               showValue,
               personaId: profilePath.join('.'),
               ownMemberId,
@@ -653,7 +658,11 @@ const bodyComponent = (
 
             // Start message stream from the current channel ref so access
             // controls are enforced on the iterator.
-            channelComponent($messages, $anchor, currentChannelRef, {
+            const switchViewFn =
+              activeSpaceInfo.viewMode === 'forum'
+                ? forumComponent
+                : channelComponent;
+            switchViewFn($messages, $anchor, currentChannelRef, {
               showValue,
               personaId: profilePath.join('.'),
               ownMemberId: switchOwnMemberId,
@@ -756,6 +765,7 @@ const bodyComponent = (
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
+ * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
  */
 
 /**
