@@ -343,6 +343,7 @@ export const make = async (
         currentWs = null;
       }
       closeAllChannels();
+      rejectAuth(new Error('WebSocket closed before authentication completed'));
       if (!stopped) {
         scheduleReconnect();
       }
@@ -389,11 +390,18 @@ export const make = async (
 
   E.sendOnly(context).addDisposalHook(() => stoppedPromise);
 
-  await connectToRelay();
-
-  console.log(
-    `Endo daemon started local ${protocol} network device`,
-  );
+  try {
+    await connectToRelay();
+    console.log(
+      `Endo daemon started local ${protocol} network device`,
+    );
+  } catch (err) {
+    console.warn(
+      `Endo daemon initial relay connection failed (will retry): ${/** @type {Error} */ (err).message}`,
+    );
+    // scheduleReconnect() was already called by the close/error handler,
+    // so we just continue and return the network object.
+  }
 
   const connect = async (address, connectionContext) => {
     const { value: connectionNumber } = connectionNumbers.next();
