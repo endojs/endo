@@ -252,7 +252,12 @@ export const createSpacesGutter = ({
     } catch {
       // May not exist
     }
-    // The watcher will pick up the change and update spacesMap
+    // Eagerly remove from map and navigate home if this was the active space.
+    // The watcher will also fire, but handleSpaceRemoved no longer navigates
+    // (to avoid bouncing during edits).
+    spacesMap.delete(id);
+    handleActiveSpaceRemoved();
+    render();
   };
 
   /**
@@ -732,7 +737,12 @@ export const createSpacesGutter = ({
   };
 
   /**
-   * Handle a space being removed.
+   * Handle a space being removed by the watcher.
+   *
+   * Note: storeValue triggers a remove+add pair, so we must not navigate
+   * away from the active space here — that would cause edits to bounce
+   * the user back to home.  Navigation on true deletion is handled by
+   * removeSpace itself.
    *
    * @param {string} id
    */
@@ -746,7 +756,6 @@ export const createSpacesGutter = ({
       return;
     }
     spacesMap.delete(id);
-    handleActiveSpaceRemoved();
     render();
   };
 
