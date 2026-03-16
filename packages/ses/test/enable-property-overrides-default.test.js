@@ -10,6 +10,27 @@ lockdown({
 
 test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString', 'valueOf']);
+  // eslint-disable-next-line func-names, prefer-arrow-callback
+  overrideTester(t, 'Function', function () {}, [
+    'toString',
+    'constructor',
+    'bind',
+  ]);
+  overrideTester(t, 'Error', Error(), [
+    'name',
+    'stack',
+    'constructor',
+    'message',
+    'toString',
+  ]);
+  if (typeof Iterator !== 'undefined') {
+    overrideTester(t, 'Iterator', Object.create(Iterator.prototype), [
+      'toString',
+      'constructor',
+      Symbol.toStringTag,
+      Symbol.iterator,
+    ]);
+  }
   // We allow 'length' *not* because it is in enablements; it is not;
   // but because each array instance has its own.
   overrideTester(
@@ -18,19 +39,6 @@ test('enablePropertyOverrides - on', t => {
     [],
     ['toString', 'length', 'push', 'concat', Symbol.iterator],
   );
-  // eslint-disable-next-line func-names, prefer-arrow-callback
-  overrideTester(t, 'Function', function () {}, [
-    'constructor',
-    'bind',
-    'toString',
-  ]);
-  overrideTester(t, 'Error', Error(), [
-    'constructor',
-    'message',
-    'name',
-    'toString',
-    'stack',
-  ]);
   overrideTester(t, 'TypeError', TypeError(), [
     'constructor',
     'message',
@@ -39,9 +47,4 @@ test('enablePropertyOverrides - on', t => {
   // eslint-disable-next-line func-names, prefer-arrow-callback
   overrideTester(t, 'Promise', new Promise(function () {}), ['constructor']);
   overrideTester(t, 'JSON', JSON);
-  if (typeof Iterator !== 'undefined') {
-    overrideTester(t, 'Iterator', Object.create(Iterator.prototype), [
-      Symbol.iterator,
-    ]);
-  }
 });
