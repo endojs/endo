@@ -61,6 +61,32 @@ const defaultConfig = {
 };
 /** @typedef {typeof defaultConfig} Config */
 
+/**
+ * @param {Config} config
+ */
+const configToEnv = (config) => ({
+  ENDO_STATE_PATH: config.statePath,
+  ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
+  ENDO_SOCK_PATH: config.sockPath,
+  ENDO_CACHE_PATH: config.cachePath,
+});
+
+/**
+ * @param {{[key: string]: string|undefined}} env
+ * @returns {Config}
+ */
+const configFromEnv = (env) => {
+  const {
+    ENDO_STATE_PATH: statePath = defaultConfig.statePath,
+    ENDO_EPHEMERAL_STATE_PATH: ephemeralStatePath = defaultConfig.ephemeralStatePath,
+    ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
+    ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
+  } = env;
+  return {
+    statePath, ephemeralStatePath, sockPath, cachePath,
+  };
+};
+
 export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
   const { getBootstrap, closed } = await makeEndoClient(
@@ -146,11 +172,12 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
  * Start the engo (Go supervisor) binary, passing config paths via
  * environment variables, and wait for the daemon socket to become ready.
  *
- * @param {typeof defaultConfig} config
+ * @param {boolean} detached - if process should be detached from current stdio
+ * @param {Config} config
  * @param {Record<string, string>} [envOverrides]
- * @returns {Promise<void>}
+ * @returns {Promise<popen.ChildProcess>}
  */
-const startEngo = async (config, envOverrides) => {
+const runEngo = async (detached, config, envOverrides) => {
   const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
@@ -164,20 +191,15 @@ const startEngo = async (config, envOverrides) => {
   const env = {
     ...process.env,
     ...envOverrides,
-    ENDO_STATE_PATH: config.statePath,
-    ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
-    ENDO_SOCK_PATH: config.sockPath,
-    ENDO_CACHE_PATH: config.cachePath,
+    ...configToEnv(config),
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
 
   const child = popen.spawn(endoBin, ['daemon'], {
-    detached: true,
+    detached,
     env,
-    stdio: ['ignore', output, output],
+    stdio: detached ? ['ignore', output, output] : 'inherit',
   });
-
-  child.unref();
 
   // Wait for the socket to accept connections (fast).
   await waitForSocket(config.sockPath);
@@ -187,6 +209,8 @@ const startEngo = async (config, envOverrides) => {
   // Without this, tests that read the root file immediately may race.
   const rootPath = path.join(config.statePath, 'root');
   await waitForFile(rootPath);
+
+  return child;
 };
 
 /**
@@ -212,8 +236,11 @@ export const start = async (
   }
 
   await clean(config);
+
   if (process.env.ENDO_BIN) {
-    return startEngo(config, envOverrides);
+    child = await runEngo(true, config, envOverrides);
+    child.unref();
+    return;
   }
 
   await fs.promises.mkdir(config.statePath, {
@@ -262,9 +289,14 @@ export const start = async (
     process.exit(await childDone);
   }
 
+  const env = {
+    ...process.env, // TODO better form if we whitelist filter, say ENDO_* from process.env, rather than pass all
+    ...envOverrides,
+  };
+
   const child = popen.fork(daemonPath, daemonArgs, {
     detached: true,
-    env: { ...process.env, ...envOverrides },
+    env,
     stdio: ['ignore', output, output, 'ipc'],
   });
 
