@@ -95,19 +95,8 @@ export const moderateEnablements = {
   ...minEnablements,
 
   '%ObjectPrototype%': {
-    toString: true,
+    ...minEnablements['%ObjectPrototype%'],
     valueOf: true,
-  },
-
-  '%ArrayPrototype%': {
-    toString: true,
-    push: true, // set by "Google Analytics"
-    concat: true, // set by mobx generated code (old TS compiler?)
-    [iteratorSymbol]: true, // set by mobx generated code (old TS compiler?)
-  },
-
-  '%IteratorPrototype%': {
-    [iteratorSymbol]: true, // is sometimes used in custom iterators and generators implementations eg. @rive-app/canvas
   },
 
   // Function.prototype has no 'prototype' property to enable.
@@ -115,16 +104,28 @@ export const moderateEnablements = {
   // which are configurable and non-writable. Thus, they are already
   // non-assignable anyway.
   '%FunctionPrototype%': {
+    ...minEnablements['%FunctionPrototype%'],
     constructor: true, // set by "regenerator-runtime"
     bind: true, // set by "underscore", "express"
-    toString: true, // set by "rollup"
   },
 
   '%ErrorPrototype%': {
+    ...minEnablements['%ErrorPrototype%'],
     constructor: true, // set by "fast-json-patch", "node-fetch"
     message: true,
-    name: true, // set by "precond", "ava", "node-fetch", "node 14"
     toString: true, // set by "bluebird"
+  },
+
+  '%IteratorPrototype%': {
+    ...minEnablements['%IteratorPrototype%'],
+    [iteratorSymbol]: true, // is sometimes used in custom iterators and generators implementations eg. @rive-app/canvas
+  },
+
+  '%ArrayPrototype%': {
+    toString: true,
+    push: true, // set by "Google Analytics"
+    concat: true, // set by mobx generated code (old TS compiler?)
+    [iteratorSymbol]: true, // set by mobx generated code (old TS compiler?)
   },
 
   '%TypeErrorPrototype%': {
