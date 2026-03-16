@@ -2,7 +2,7 @@
 /* global process, setTimeout */
 
 import url from 'url';
-import { default as popen, spawn } from 'child_process';
+import popen from 'child_process';
 import fs from 'fs';
 import net from 'net';
 import path from 'path';
@@ -68,15 +68,15 @@ export const terminate = async (config = defaultConfig) => {
     config.sockPath,
     cancelled,
     undefined,
-    { onReject: () => {} },
+    { onReject: () => { } },
   );
   const bootstrap = getBootstrap();
   await E(bootstrap)
     .terminate()
-    .catch(() => {});
+    .catch(() => { });
   // @ts-expect-error zero-argument promise resolve
   cancel();
-  await closed.catch(() => {});
+  await closed.catch(() => { });
 };
 
 /**
@@ -241,7 +241,7 @@ export const start = async (
       daemonExe = process.execPath; // Use the current Node.js executable path
     }
 
-    const child = spawn(daemonExe, daemonArgs, {
+    const child = popen.spawn(daemonExe, daemonArgs, {
       stdio: 'inherit',
       detached: false,
     });
@@ -491,8 +491,11 @@ export const clean = async (config = defaultConfig) => {
   await fs.promises.rm(pidPath, { force: true }).catch(enoentOk);
 };
 
+/**
+ * @param {Config} config
+ */
 export const stop = async (config = defaultConfig) => {
-  await terminate(config).catch(() => {});
+  await terminate(config).catch(() => { });
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
   await clean(config);
@@ -508,7 +511,7 @@ export const restart = async (config = defaultConfig, options = {}) => {
 };
 
 export const purge = async (config = defaultConfig) => {
-  await terminate(config).catch(() => {});
+  await terminate(config).catch(() => { });
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config.ephemeralStatePath);
 
