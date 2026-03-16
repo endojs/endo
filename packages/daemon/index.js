@@ -169,6 +169,62 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
 };
 
 /**
+ * @param {popen.ChildProcess} proc
+ * @returns {Promise<popen.ChildProcess>} proc
+ */
+const waitForSpawn = async proc => {
+  return new Promise((resolve, reject) => {
+    proc.on('error', err => {
+      const [exe] = proc.spawnargs;
+      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
+    });
+    proc.on('spawn', () => resolve(proc));
+  });
+};
+
+/**
+ * @param {popen.ChildProcess} proc
+ * @returns {Promise<number>} proc exit code
+ */
+const waitForExit = async proc => {
+  return new Promise((resolve, reject) => {
+    proc.on('error', err => {
+      const [exe] = proc.spawnargs;
+      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
+    });
+    proc.on('exit', code => resolve(code || 0));
+  });
+};
+
+/**
+ * @param {popen.ChildProcess} child
+ * @returns {Promise<popen.Serializable>} message
+ */
+const waitForMessage = (child) => {
+  let done = false;
+  return new Promise((resolve, reject) => {
+    child.on('error', (/** @type {Error} */ cause) => {
+      if (!done) {
+        done = true;
+        reject(new Error(`Failed to spawn ${proc.spawnargs}`, { cause: err }));
+      }
+    });
+    child.on('exit', (/** @type {number?} */ code) => {
+      if (!done) {
+        done = true;
+        reject(new Error(`Process ${proc.spawnargs} exited ${code}`));
+      }
+    });
+    child.on('message', message => {
+      if (!done) {
+        done = true;
+        resolve(message);
+      }
+    });
+  });
+};
+
+/**
  * Start the engo (Go supervisor) binary, passing config paths via
  * environment variables, and wait for the daemon socket to become ready.
  *
@@ -214,6 +270,81 @@ const runEngo = async (detached, config, envOverrides) => {
 };
 
 /**
+ * Start the endo (Node.js supervisor), passing config paths via
+ * environment variables, and wait for the daemon socket to become ready.
+ *
+ * @param {boolean} detached - if process should be detached from current stdio
+ * @param {Config} config
+ * @param {Record<string, string>} [envOverrides]
+ * @returns {Promise<popen.ChildProcess>}
+ */
+const runEndo = async (detached, config, envOverrides) => {
+  await fs.promises.mkdir(config.statePath, {
+    recursive: true,
+  });
+  const logPath = path.join(config.statePath, 'endo.log');
+
+  const daemonPath =
+    process.env.ENDO_DAEMON_PATH ||
+    url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+
+  // TODO modify node-powers to just rely on ENDO_* passed like engo by configToEnv
+  const daemonArgs = [
+    config.sockPath,
+    config.statePath,
+    config.ephemeralStatePath,
+    config.cachePath,
+  ];
+
+  const env = {
+    ...process.env, // TODO better form if we whitelist filter, say ENDO_* from process.env, rather than pass all
+    ...envOverrides,
+    ...configToEnv(config),
+  };
+
+  const stdio = (() => {
+    if (detached) {
+      const output = fs.openSync(logPath, 'a');
+      return ['ignore', output, output, 'ipc'];
+    } else {
+      return ['inherit', 'inherit', 'inherit', 'ipc'];
+    }
+  })();
+
+  const child = popen.spawn(process.execPath, [daemonPath, ...daemonArgs], {
+    detached,
+    env,
+    stdio,
+  });
+
+  const message = await waitForMessage(child).catch(cause => {
+    throw Error(`Daemon failed to spawn ${cause.message}, see (${logPath})`);
+  });
+  child.disconnect();
+
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    'type' in message
+  ) {
+    if (message.type === 'ready') {
+      // This message corresponds to process.send({ type: 'ready' }) in
+      // src/daemon-node-powers.js and indicates the daemon is ready to receive
+      // clients.
+      console.debug('endo daemon ready', message);
+    } else if (
+      message.type === 'error' &&
+      'message' in message &&
+      typeof message.message === 'string'
+    ) {
+      throw new Error(message.message);
+    }
+  }
+
+  return child;
+};
+
+/**
  * @param {Config} [config]
  * @param {object} [options]
  * @param {Record<string, string>} [options.env] - overrides for process.env
@@ -226,7 +357,12 @@ const runEngo = async (detached, config, envOverrides) => {
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides = {}, feralErrors, foreground = false, gcEnabled } = {},
+  {
+    env: envOverrides = {},
+    feralErrors,
+    foreground = false,
+    gcEnabled
+  } = {},
 ) => {
   if (feralErrors) {
     envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';
@@ -237,107 +373,18 @@ export const start = async (
 
   await clean(config);
 
-  if (process.env.ENDO_BIN) {
-    child = await runEngo(true, config, envOverrides);
-    child.unref();
-    return;
-  }
+  // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
 
-  await fs.promises.mkdir(config.statePath, {
-    recursive: true,
-  });
-  const logPath = path.join(config.statePath, 'endo.log');
-  const output = fs.openSync(logPath, 'a');
-
-  const daemonPath =
-    process.env.ENDO_DAEMON_PATH ||
-    url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
-  const daemonArgs = [
-    config.sockPath,
-    config.statePath,
-    config.ephemeralStatePath,
-    config.cachePath,
-  ];
+  const detached = !foreground;
+  const child = await (process.env.ENDO_BIN
+    ? runEngo(detached, config, envOverrides)
+    : runEndo(detached, config, envOverrides);
 
   if (foreground) {
-    // NOTE ideally this would be execv replacement, but node does not ship a stdlib binding for that?
-
-    let daemonExe = daemonPath;
-    if (daemonPath.endsWith('.js')) {
-      daemonArgs.unshift(daemonPath);
-      daemonExe = process.execPath; // Use the current Node.js executable path
-    }
-
-    const child = popen.spawn(daemonExe, daemonArgs, {
-      stdio: 'inherit',
-      detached: false,
-    });
-
-    /** @type {Promise<number>} */
-    const childDone = new Promise(resolve => {
-      child.on('error', err => {
-        console.error(
-          'Failed to spawn daemon:',
-          [daemonExe, ...daemonArgs],
-          err,
-        );
-        resolve(1);
-      });
-      child.on('exit', code => resolve(code || 0));
-    });
-
-    process.exit(await childDone);
+    process.exit(await waitForExit(child)));
+  } else {
+    child.unref();
   }
-
-  const env = {
-    ...process.env, // TODO better form if we whitelist filter, say ENDO_* from process.env, rather than pass all
-    ...envOverrides,
-  };
-
-  const child = popen.fork(daemonPath, daemonArgs, {
-    detached: true,
-    env,
-    stdio: ['ignore', output, output, 'ipc'],
-  });
-
-  return new Promise((resolve, reject) => {
-    child.on('error', (/** @type {Error} */ cause) => {
-      reject(
-        Error(
-          `Daemon exited prematurely with error ${cause.message}, see (${logPath})`,
-        ),
-      );
-    });
-    child.on('exit', (/** @type {number?} */ code) => {
-      reject(
-        Error(
-          `Daemon exited prematurely with code (${code}), see (${logPath})`,
-        ),
-      );
-    });
-    child.on('message', message => {
-      child.disconnect();
-      child.unref();
-      if (
-        typeof message === 'object' &&
-        message !== null &&
-        'type' in message
-      ) {
-        if (message.type === 'ready') {
-          // This message corresponds to process.send({ type: 'ready' }) in
-          // src/daemon-node-powers.js and indicates the daemon is ready to receive
-          // clients.
-          resolve(undefined);
-        } else if (
-          message.type === 'error' &&
-          'message' in message &&
-          typeof message.message === 'string'
-        ) {
-          reject(new Error(message.message));
-        }
-      }
-    });
-  });
 };
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
