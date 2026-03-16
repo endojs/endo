@@ -206,13 +206,13 @@ const waitForMessage = (child) => {
     child.on('error', (/** @type {Error} */ cause) => {
       if (!done) {
         done = true;
-        reject(new Error(`Failed to spawn ${proc.spawnargs}`, { cause: err }));
+        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
       }
     });
     child.on('exit', (/** @type {number?} */ code) => {
       if (!done) {
         done = true;
-        reject(new Error(`Process ${proc.spawnargs} exited ${code}`));
+        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
       }
     });
     child.on('message', message => {
