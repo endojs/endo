@@ -788,19 +788,31 @@ export const main = async rawArgs => {
 
   program
     .command('start')
-    .description('start the endo daemon')
+    .description('start the endo daemon as a background service')
+    .action(async cmd => {
+      const {
+      } = cmd.opts();
+      const { start } = await import('@endo/daemon');
+      await start(undefined, {
+      });
+    });
+
+  program
+    .command('run-daemon')
+    .description('runs the endo daemon directly, no forking around')
     .option(
       '--feral-errors',
       'disable SES error taming (readable error traces)',
     )
-    .option('-f,--foreground', 'Run daemon in foreground, do not fork')
     .action(async cmd => {
-      const { feralErrors, foreground = false } = cmd.opts();
-      const { start } = await import('@endo/daemon');
-      await start(undefined, {
+      const {
         feralErrors,
-        foreground,
-      });
+      } = cmd.opts();
+      if (feralErrors) {
+        process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
+      }
+      const { main } = await import('@endo/daemon');
+      await main();
     });
 
   program

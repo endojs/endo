@@ -225,6 +225,20 @@ const waitForMessage = (child) => {
 };
 
 /**
+ * @param {string[]} _args
+ */
+export const main = async _args => {
+  // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
+  const config = configFromEnv(process.env);
+
+  const child =
+    process.env.ENDO_BIN
+      ? await runEngo(false, config)
+      : await runEndo(false, config);
+  process.exit(await waitForExit(child));
+};
+
+/**
  * Start the engo (Go supervisor) binary, passing config paths via
  * environment variables, and wait for the daemon socket to become ready.
  *
@@ -414,43 +428,22 @@ export const status = async (
  * @param {Config} [config]
  * @param {object} [options]
  * @param {Record<string, string>} [options.env] - overrides for process.env
- * @param {boolean} [options.feralErrors] - enable to turn off lockdown error stack trace sanitization
- * @param {boolean} [options.foreground] - if enabled, the daemon will be spawn-ed instead of fork-ed;
- *                                         the current process will wait for and then exit,
- *                                         behaving as if execv had been a thing that node could call;
- *                                         i.e. this causes `start()` to effectively never return
- * @param {boolean} [options.gcEnabled] - enable GC of TODO what exactly?
  */
 export const start = async (
   config = defaultConfig,
   {
     env: envOverrides = {},
-    feralErrors,
-    foreground = false,
-    gcEnabled
   } = {},
 ) => {
-  if (feralErrors) {
-    envOverrides.LOCKDOWN_ERROR_TAMING = 'unsafe';
-  }
-  if (gcEnabled === true) {
-    envOverrides.ENDO_GC = '1';
-  }
-
   await clean(config);
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
 
-  const detached = !foreground;
   const child = await (process.env.ENDO_BIN
-    ? runEngo(detached, config, envOverrides)
-    : runEndo(detached, config, envOverrides);
+    ? runEngo(true, config, envOverrides)
+    : runEndo(true, config, envOverrides));
 
-  if (foreground) {
-    process.exit(await waitForExit(child)));
-  } else {
-    child.unref();
-  }
+  child.unref();
 };
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
