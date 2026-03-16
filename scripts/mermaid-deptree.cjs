@@ -1,7 +1,13 @@
+/* eslint-env es2022, node */
 // @ts-check
 
 /**
- * This script generates Mermaid graph of a dependency tree from the root package.
+ * This script generates Mermaid top-down "flowchart" of a dependency tree from
+ * a root package.
+ *
+ * The output is wrapped in a Markdown fenced code block, and contains
+ * {@link https://mermaid.js.org/intro/syntax-reference.html#frontmatter-for-diagram-code configuration front matter}
+ * and a word-wrapping fix.
  *
  * Usage: `node mermaid-deptree.cjs [<entry_dir>] [<node_modules_dir>]`
  *
@@ -16,15 +22,37 @@ const path = require('node:path');
 const PACKAGE_JSON = 'package.json';
 
 /**
+ * Dependency type
+ *
+ * @typedef {'peer'|'production'|'dev'|'optional'|'optionalPeer'} DepType
+ */
+
+/**
+ * A node in a {@link DependencyGraph} containing minimal info needed to
+ * represent a dependency and relationships in a Mermaid graph
+ *
+ * @typedef Node
+ * @property {DepType} type - The type of dependency
+ * @property {string} name - The package name of the dependency; must correspond
+ * to a subdir of `node_modules`
+ */
+
+/**
+ * A flat graph mapping package names to their dependencies.
+ *
+ * @typedef {Record<string, Node[]>} DependencyGraph
+ */
+
+/**
  * Recursively reads all `package.json` files in the `node_modules` directory
  * and builds a dependency graph.
  *
- * @param {string} entry - The root package.
- * @param {string} nodeModulesPath - Path to the `node_modules` directory.
- * @returns {Promise<Record<string, string[]>>} - A dependency graph where keys are package names and values are arrays of dependencies.
+ * @param {string} entry The root package.
+ * @param {string} nodeModulesPath Path to the `node_modules` directory.
+ * @returns {Promise<DependencyGraph>} Dependency graph mapping package names to their dependencies.
  */
 async function buildDependencyGraph(entry, nodeModulesPath) {
-  /** @type {Record<string, string[]>} */
+  /** @type {DependencyGraph} */
   const graph = {};
   /** @type {Set<string>} */
   const seen = new Set();
@@ -37,22 +65,62 @@ async function buildDependencyGraph(entry, nodeModulesPath) {
     await null;
     if (!seen.has(directory)) {
       seen.add(directory);
+      const packageDirname = path.basename(directory);
+      console.error(`Reading package in ${packageDirname}…`);
       const packageJsonPath = path.join(directory, PACKAGE_JSON);
       const packageJson = JSON.parse(
         await fs.readFile(packageJsonPath, 'utf8'),
       );
-      const packageName = packageJson.name || path.basename(directory);
-      const dependencies = Object.keys({
-        ...packageJson.peerDependencies,
-        ...packageJson.devDependencies,
-        ...packageJson.dependencies,
-      });
-      graph[packageName] = dependencies;
+      let packageName = packageJson.name;
+      if (!packageName) {
+        console.warn(
+          `Warning: No package name found in for package in ${directory}; using relative directory name`,
+        );
+        packageName = packageDirname;
+      }
+
+      const prodDependencies = Object.keys(packageJson.dependencies ?? []).map(
+        dep => ({ type: 'production', name: dep }),
+      );
+
+      const devDependencies = Object.keys(
+        packageJson.devDependencies ?? {},
+      ).map(dep => ({ type: 'dev', name: dep }));
+
+      const optionalDependencies = Object.keys(
+        packageJson.optionalDependencies ?? {},
+      ).map(dep => ({ type: 'optional', name: dep }));
+
+      const peerDependencies = Object.keys(
+        packageJson.peerDependencies ?? {},
+      ).map(dep => ({ type: 'peer', name: dep }));
+
+      let optionalPeerDependencies = [];
+      if (packageJson.peerDependenciesMeta) {
+        optionalPeerDependencies = Object.entries(
+          packageJson.peerDependenciesMeta,
+        ).reduce((acc, [dep, meta]) => {
+          if (meta.optional) {
+            acc.push({ type: 'optionalPeer', name: dep });
+          }
+          return acc;
+        }, /** @type {Node[]} */ ([]));
+      }
+
+      /** @type {Node[]} */
+      const nodes = [
+        ...prodDependencies,
+        ...devDependencies,
+        ...optionalDependencies,
+        ...peerDependencies,
+        ...optionalPeerDependencies,
+      ];
+      graph[packageName] = nodes;
 
       // Traverse dependencies
       await Promise.all(
-        dependencies.map(async dependency => {
-          const dependencyPath = path.join(nodeModulesPath, dependency);
+        nodes.map(async node => {
+          const dependencyPath = path.join(nodeModulesPath, node.name);
           await assertIsDir(dependencyPath);
           return traverse(dependencyPath);
         }),
@@ -66,18 +134,51 @@ async function buildDependencyGraph(entry, nodeModulesPath) {
 }
 
 /**
- * Converts a dependency graph into a Mermaid graph definition.
+ * Converts a dependency graph into a top-down Mermaid flowchart graph, wrapped
+ * in a fenced code block.
  *
- * @param {Record<string, string[]>} graph - The dependency graph.
- * @returns {string} - A Mermaid graph definition.
+ * @param {DependencyGraph} graph The dependency graph.
+ * @returns {string} A Mermaid graph definition.
  */
 function generateMermaidGraph(graph) {
-  const lines = ['graph TD'];
+  const lines = [
+    '```mermaid',
+    `---
+config:
+  themeVariables:
+    fontFamily: "Fira Mono,Menlo,Consolas,Liberation Mono,monospace"
+---`,
+    'graph TD',
+  ];
   for (const [packageName, dependencies] of Object.entries(graph)) {
-    dependencies.forEach(dependency => {
-      lines.push(`    ${packageName} --> ${dependency}`);
+    dependencies.forEach(({ name, type }) => {
+      let line = `  ${packageName}`;
+      switch (type) {
+        case 'dev':
+          line += `-->`;
+          break;
+        case 'optional':
+          line += `-.->`;
+          break;
+        case 'production':
+          line += `==>`;
+          break;
+        case 'peer':
+          line += `---`;
+          break;
+        case 'optionalPeer':
+          line += `-.-`;
+          break;
+      }
+      if (type !== 'production') {
+        line += ` |"\`_${type}_\`"|`;
+      }
+      line += ` ${name}`;
+      lines.push(line);
     });
   }
+
+  lines.push('classDef default white-space:nowrap', '```');
   return lines.join('\n');
 }
 
@@ -119,13 +220,13 @@ const printUsage = () => {
   );
   await Promise.all([assertIsDir(entry), assertIsDir(nodeModulesPath)]);
 
-  console.error('Building dependency graph...');
+  console.error('Traversing dependencies…');
   const dependencyGraph = await buildDependencyGraph(entry, nodeModulesPath);
 
-  console.error('Generating Mermaid graph...');
+  console.error('Generating Mermaid graph…');
   const mermaidGraph = generateMermaidGraph(dependencyGraph);
 
-  console.error('Mermaid graph:\n');
+  console.error('Mermaid graph:\n\n');
   console.log(mermaidGraph);
 })().catch(err => {
   printUsage();
