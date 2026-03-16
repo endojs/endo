@@ -49,6 +49,34 @@ const info = {
   temp,
 };
 
+
+/**
+ * Used to filter ambient env when building background daemon env.
+ *
+ * @param {string} key
+ */
+const allowEnvPass = key => {
+  // TODO probably better to use a more restrictive whitelist
+  return (
+    key.startsWith('LOCKDOWN_')
+    || key.startsWith('ENDO_')
+    // || key.startsWith('XDG_') // NOTE should not be necessary, as these are already systemd-injected
+    // || key === 'ONLY_WELL_FORMED_STRINGS_PASSABLE' // TODO need?
+  );
+};
+
+/**
+ * Filters ambient environment ( aka process.env ) to only allowable daemon entries.
+ *
+ * @param {{[key: string]: string|undefined}} [env]
+ * @returns {Array<[key: string, value: string]>} filteredEntries
+ */
+const filterEnv = (env = process.env) => {
+  return Object.entries(env)
+    .filter(([key]) => allowEnvPass(key))
+    .map(([key, value = '']) => [key, value]);
+};
+
 const defaultConfig = {
   statePath: whereEndoState(process.platform, process.env, info),
   ephemeralStatePath: whereEndoEphemeralState(
@@ -228,13 +256,15 @@ const waitForMessage = (child) => {
  * @param {string[]} _args
  */
 export const main = async _args => {
-  // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
   const config = configFromEnv(process.env);
+  const envOverrides = Object.fromEntries(filterEnv());
+
+  // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
 
   const child =
     process.env.ENDO_BIN
-      ? await runEngo(false, config)
-      : await runEndo(false, config);
+      ? await runEngo(false, config, envOverrides)
+      : await runEndo(false, config, envOverrides);
   process.exit(await waitForExit(child));
 };
 
@@ -259,9 +289,8 @@ const runEngo = async (detached, config, envOverrides) => {
   );
 
   const env = {
-    ...process.env,
-    ...envOverrides,
     ...configToEnv(config),
+    ...envOverrides,
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
 
@@ -311,9 +340,8 @@ const runEndo = async (detached, config, envOverrides) => {
   ];
 
   const env = {
-    ...process.env, // TODO better form if we whitelist filter, say ENDO_* from process.env, rather than pass all
-    ...envOverrides,
     ...configToEnv(config),
+    ...envOverrides,
   };
 
   const stdio = (/** @returns {popen.StdioOptions} */() => {
