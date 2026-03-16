@@ -1,3 +1,4 @@
+// @ts-check
 /* global process, setTimeout, clearTimeout, setInterval, clearInterval, Buffer */
 /* eslint-disable no-await-in-loop */
 
@@ -10,6 +11,28 @@ import { makeEndoClient } from '@endo/daemon';
 import { whereEndoState, whereEndoSock } from '@endo/where';
 import { E } from '@endo/far';
 import { withInterrupt } from '../context.js';
+
+/**
+ * Check whether an executable exists on PATH.
+ *
+ * @param {string} prog
+ */
+const hasProgram = async prog => {
+  const pathEnv = process.env.PATH || '';
+  const isWin = process.platform === 'win32';
+  const pathDirs = pathEnv.split(isWin ? ';' : ':');
+  for (const dir of pathDirs) {
+    if (!dir) continue;
+    const candidate = path.join(dir, prog);
+    try {
+      const stats = await fs.promises.stat(candidate);
+      return isWin ? stats.isFile() : stats.mode & 0o111 !== 0;
+    } catch {
+      // not found in this dir
+    }
+  }
+  return false;
+};
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -306,15 +329,34 @@ export const log = async ({ follow, ping, all }) =>
         if (bootstrap === undefined) {
           return;
         }
-        for (;;) {
+        for (; ;) {
           await delay(logCheckIntervalMs, followCancelled);
           await E(bootstrap).ping();
         }
       })().catch(cancelFollower);
 
+      const { cmd, args } = await (
+        /** @returns {Promise<{cmd: string, args: string[]}>} */
+        async () => {
+          if (await hasProgram('journalctl')) {
+            // When the daemon runs under systemd, logs go to the journal
+            // rather than to the endo.log file.
+            const cmd = 'journalctl';
+            let args = ['--user-unit=endo-daemon', '--no-pager'];
+            if (follow) {
+              args.push('-f');
+            }
+            return { cmd, args };
+          } else {
+            return {
+              cmd: 'tail',
+              args: follow ? ['-f', logPath] : [logPath],
+            };
+          }
+        })();
+
       await new Promise((resolve, reject) => {
-        const args = follow ? ['-f'] : [];
-        const child = spawn('tail', [...args, logPath], {
+        const child = spawn(cmd, args, {
           stdio: ['inherit', 'inherit', 'inherit'],
         });
         child.on('error', reject);
