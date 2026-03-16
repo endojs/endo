@@ -113,3 +113,5 @@ test('errors reveal their stacks with errorTrapping: report', async t => {
     });
   });
 });
+
+// Vacuous comment for effectively testing master under CI
