@@ -150,6 +150,33 @@ const tryConnect = sockPath =>
   });
 
 /**
+ * @param {string} prog
+ * @returns {Promise<string|null>}
+ */
+async function whichProg(prog) {
+  const pathEnv = process.env.PATH || process.env.MPATH || '';
+  const pathDirs = pathEnv.split(process.platform === 'win32' ? ';' : ':');
+  for (const pathDir of pathDirs) {
+    if (!pathDir) continue;
+    const binaryPath = path.join(pathDir, prog);
+    // Check if path exists and is a file
+    const stats = await fs.promises.stat(binaryPath).catch(() => null);
+    if (!stats?.isFile()) {
+      continue;
+    }
+    // On Windows, we accept any file as executable
+    if (process.platform === 'win32') {
+      return binaryPath;
+    }
+    // On Unix-lie systems, check if executable
+    if ((stats.mode & 0o111) !== 0) {
+      return binaryPath;
+    }
+  }
+  return null;
+}
+
+/**
  * Poll until the daemon socket is accepting connections.
  *
  * @param {string} sockPath
@@ -253,6 +280,30 @@ const waitForMessage = (child) => {
 };
 
 /**
+ * Run a system command,
+ * wait for exit,
+ * resolve with exit code,
+ * or reject with span error.
+ *
+ * @param {string} prog - the binary ; may be a java-script, if so the current
+ * node binary is used instead, and prog becomes first arg
+ * @param {Array<string>} args
+ * @returns {Promise<number>} - child exit code
+ */
+const system = async (prog, ...args) => {
+  let exe = prog;
+  if (prog.endsWith('.js')) {
+    args.unshift(prog);
+    exe = process.execPath; // Use the current Node.js executable path
+  }
+  const child = popen.spawn(exe, args, {
+    stdio: 'inherit',
+    detached: false,
+  });
+  return waitForExit(child);
+};
+
+/**
  * @param {string[]} _args
  */
 export const main = async _args => {
@@ -282,7 +333,6 @@ const runEngo = async (detached, config, envOverrides) => {
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
   const logPath = path.join(config.statePath, 'endo.log');
-  const output = fs.openSync(logPath, 'a');
 
   const endoGoDaemonPath = url.fileURLToPath(
     new URL('src/daemon-go.js', import.meta.url),
@@ -294,10 +344,20 @@ const runEngo = async (detached, config, envOverrides) => {
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
 
+  const stdio = (/** @returns {popen.StdioOptions} */() => {
+    // TODO tee log file and stdout ... or teach `endo log` to just use journalctl on systemd
+    if (detached) {
+      const output = fs.openSync(logPath, 'a');
+      return ['ignore', output, output];
+    } else {
+      return ['inherit', 'inherit', 'inherit'];
+    }
+  })();
+
   const child = popen.spawn(endoBin, ['daemon'], {
     detached,
     env,
-    stdio: detached ? ['ignore', output, output] : 'inherit',
+    stdio,
   });
 
   // Wait for the socket to accept connections (fast).
@@ -345,6 +405,7 @@ const runEndo = async (detached, config, envOverrides) => {
   };
 
   const stdio = (/** @returns {popen.StdioOptions} */() => {
+    // TODO tee log file and stdout ... or teach `endo log` to just use journalctl on systemd
     if (detached) {
       const output = fs.openSync(logPath, 'a');
       return ['ignore', output, output, 'ipc'];
@@ -400,6 +461,20 @@ export const status = async (
   if (verbose > 0) {
     console.log('verbosity:', verbose);
     console.log('config:', config);
+  }
+
+  if (await whichProg('systemctl')) {
+    const statusCode = await system('systemctl', '--user', 'status', '--no-pager', 'endo-daemon');
+
+    if (
+      // 0 => ok
+      statusCode !== 0 &&
+      // 4 => `Unit endo-daemon.service could not be found.`
+      statusCode !== 4
+    ) {
+      console.log('wat', statusCode); // XXX
+      return;
+    }
   }
 
   const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
@@ -484,6 +559,57 @@ export const start = async (
   }
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
+
+  const cliPath = url.fileURLToPath(new URL('../cli/bin/endo.cjs', import.meta.url));
+  const selfExe = [
+    process.execPath,
+    cliPath, 'run-daemon',
+  ];
+
+  // TODO detect Windows, do crimes
+
+  // TODO detect MacOS, do crimes
+
+  if (await whichProg('systemd-run')) {
+    // TODO check for and prefer to use any defined user unit
+
+    // TODO failing that, initialize a persistent unit in $XDG_CONFIG_HOME/systemd/user/endo-daemon.service
+
+    const env = {
+      ...Object.fromEntries(filterEnv()),
+      ...configToEnv(config),
+      ...Object.entries(envOverrides),
+    };
+
+    // start in a transient user background service
+    const launchCmd = [
+      'systemd-run',
+      '--user',
+      '--slice=background.slice',
+      '--unit=endo-daemon',
+      '--service-type=simple',
+      '--collect',
+      ...Object.entries(env).map(([name, value]) => `--setenv=${name}=${value}`),
+      '--',
+      ...selfExe,
+    ];
+
+    if (dryRun) {
+      console.log(`would run ${launchCmd}`);
+    } else {
+      const statusCode = await system(launchCmd[0], ...launchCmd.slice(1));
+      if (
+        // 0 => ok
+        statusCode !== 0 &&
+        // 1 => 'Failed to start transient service unit: Unit endo-daemon.service was already loaded or has a fragment file.'
+        statusCode !== 1
+      ) {
+        console.log('wat', statusCode); // XXX
+      }
+      process.exit(statusCode);
+    }
+    return;
+  }
 
   if (dryRun) {
     console.log(`would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
@@ -727,8 +853,24 @@ export const clean = async (config = defaultConfig) => {
  */
 export const stop = async (config = defaultConfig) => {
   await terminate(config).catch(() => { });
-  await killDaemonProcess(config);
-  await killWorkersByPidFiles(config);
+
+  if (await whichProg('systemctl')) {
+    const statusCode = await system('systemctl', '--user', 'stop', 'endo-daemon');
+
+    if (
+      // 0 => ok ; stopped
+      statusCode !== 0 &&
+      // 5 => `Failed to stop endo-daemon.service: Unit endo-daemon.service not loaded.`
+      statusCode !== 5
+    ) {
+      console.log('wat', statusCode); // XXX
+    }
+
+  } else {
+    await killDaemonProcess(config);
+    await killWorkersByPidFiles(config);
+  }
+
   await clean(config);
 };
 
