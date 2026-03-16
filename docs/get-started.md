@@ -220,8 +220,8 @@ npm install @endo/patterns
 ```
 
 - `@endo/init` is a thin wrapper around `ses` that ensures that `lockdown` gets
-  as part of the initialization of this module, so every subsequent module can
-  use the HardenedJS base environment.
+  called as part of the initialization of this module, so every subsequent
+  module can use the HardenedJS base environment.
 - `@endo/captp` is our protocol, but is not coupled to a particular transport
   layer, so you can run it over `WebSocket`, `MessagePort`, or any other
   message framing protocol.
@@ -301,14 +301,14 @@ const AliceShape = M.interface('Alice', {
 This system eliminates the need for ad-hoc message protocols for the control
 plane between processes or in distributed systems and frees the developer to
 design secure protocols with _objects_ and _interfaces_, while retaining
-the expressivity of object oriented programming.
+the expressiveness of object oriented programming.
 The protocol naturally multiplexes messages from any process to any object.
 Additionally, OCapN enables us to introduce references to third-party
 capabilities, such that connections between peers are created and destroyed
 automatically, securely, and on-demand.
 
-We expect this programming model to enable JavaScript programs to more readilly
-harness local parallism and also compose much more easily and safely express
+We expect this programming model to enable JavaScript programs to more readily
+harness local parallelism and also compose much more easily and safely express
 policy in distributed systems.
 
 ## Use Cases
@@ -332,7 +332,7 @@ We hope for this to serve as a backbone for a rich capability ecosystem.
 Please join the conversation on our [Mailing List][SES Strategy Group] and
 [Matrix][].
 Open a [Discussion][], perhaps to solicit feedback on your design!
-Reach out if you would like an ivitation to our **meetings**:
+Reach out if you would like an invitation to our **meetings**:
 
 The Endo repository is [endojs/endo](https://github.com/endojs/endo) on Github.
 
