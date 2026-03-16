@@ -347,6 +347,72 @@ const runEndo = async (detached, config, envOverrides) => {
 /**
  * @param {Config} [config]
  * @param {object} [options]
+ * @param {number} [options.verbose] - verbosity level of status
+ */
+export const status = async (
+  config = defaultConfig,
+  {
+    verbose = 0,
+  } = {},
+) => {
+  if (verbose > 0) {
+    console.log('verbosity:', verbose);
+    console.log('config:', config);
+  }
+
+  const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
+  const pid = await readPidFile(pidPath);
+  console.log(`pid: ${pid || 'NOT RUNNING'}`);
+
+  // TODO interrogate process details if verbose > 0
+
+  /**
+   * @param {string} filePath
+   */
+  const describeFile = filePath => {
+    try {
+      const stats = fs.statSync(filePath);
+      if (verbose < 1) {
+        return '';
+      } else if (stats.isFIFO()) {
+        return 'FIFO';
+      } else if (stats.isSocket()) {
+        return 'Socket';
+      } else if (stats.isDirectory()) {
+        return 'Directory';
+      } else if (stats.isFile()) {
+        return `size:${stats.size}`;
+      } else {
+        return `Special(mode:o${stats.mode.toString(8)})`;
+      }
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return 'MISSING';
+      } else {
+        return `StatError:${err.message}`;
+      }
+    }
+  };
+
+  const showFiles = {
+    logPath: path.join(config.statePath, 'endo.log'),
+    rootPath: path.join(config.statePath, 'root'),
+    sockPath: config.sockPath,
+  };
+  for (const [name, filePath] of Object.entries(showFiles)) {
+    const fileDesc = describeFile(filePath);
+    if (fileDesc) {
+      console.log(`${name}: ${filePath} -- ${fileDesc}`);
+    }
+  }
+
+  // TODO we could run `du -csh ${cachePath}` if verbose > 1
+  // config.cachePath
+};
+
+/**
+ * @param {Config} [config]
+ * @param {object} [options]
  * @param {Record<string, string>} [options.env] - overrides for process.env
  * @param {boolean} [options.feralErrors] - enable to turn off lockdown error stack trace sanitization
  * @param {boolean} [options.foreground] - if enabled, the daemon will be spawn-ed instead of fork-ed;

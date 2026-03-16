@@ -711,7 +711,7 @@ export const main = async rawArgs => {
     .option('-j,--json', 'Output as JOSN rather than simple text')
     .description(
       'prints paths for state, logs, caches, socket, pids\n' +
-        'specify just one part, or none to get them all',
+      'specify just one part, or none to get them all',
     )
     .action(async cmd => {
       const { json: asJSON = false } = cmd.opts();
@@ -771,6 +771,19 @@ export const main = async rawArgs => {
     .action(async _cmd => {
       const { cachePath } = await import('./config.js');
       process.stdout.write(`${cachePath}\n`);
+    });
+
+  program
+    .command('status')
+    .description('query and print status of the endo daemon')
+    .option('-v, --verbose [level]', 'verbosity levle o status interrogation')
+    .action(async cmd => {
+      const opts = cmd.opts();
+      const verbose = Number(opts.verbose);
+      const { status } = await import('@endo/daemon');
+      await status(undefined, {
+        verbose: isNaN(verbose) ? 0 : verbose,
+      });
     });
 
   program
