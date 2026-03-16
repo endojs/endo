@@ -316,7 +316,7 @@ const runEndo = async (detached, config, envOverrides) => {
     ...configToEnv(config),
   };
 
-  const stdio = (() => {
+  const stdio = (/** @returns {popen.StdioOptions} */() => {
     if (detached) {
       const output = fs.openSync(logPath, 'a');
       return ['ignore', output, output, 'ipc'];
