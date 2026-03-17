@@ -1,5 +1,15 @@
 # ses
 
+## 1.16.0
+
+### Minor Changes
+
+- [#3129](https://github.com/endojs/endo/pull/3129) [`a675d8e`](https://github.com/endojs/endo/commit/a675d8ec9df34d69cef84da6dec7750180108b59) Thanks [@erights](https://github.com/erights)! - `overrideTaming: 'moderate'` includes `overrideTaming: 'min'`.
+
+  Previously `overrideTaming: 'min'` correctly enabled `Iterator.prototype.constructor` to be overridden by assignment, but due to an oversight, `overrideTaming: 'moderate'` did not. Now it does.
+
+  To make such mistakes less likely, this PR also adopts a style where all records within larger enablements triple-dot the corresponding record from a smaller enablement, if present.
+
 ## 1.15.0
 
 ### Minor Changes
