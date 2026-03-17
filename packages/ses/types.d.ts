@@ -238,6 +238,11 @@ export interface AssertMakeErrorOptions {
    * {@link sanitizeError}.
    */
   sanitize?: boolean;
+
+  /**
+   * The error code to assign to the error.
+   */
+  code?: string;
 }
 
 // TODO inline overloading
@@ -306,13 +311,18 @@ export type GenericErrorConstructor =
   | AggregateErrorConstructor;
 
 /**
+ * An `Error` with a `code` property.
+ */
+export type SesError = Error & { code?: string };
+
+/**
  * To make an `assert` which terminates some larger unit of computation
  * like a transaction, vat, or process, call `makeAssert` with a `Raise`
  * callback, where that callback actually performs that larger termination.
  * If possible, the callback should also report its `reason` parameter as
  * the alleged reason for the termination.
  */
-export type Raise = (reason: Error) => void;
+export type Raise = (reason: SesError) => void;
 
 /**
  * Makes and returns an `assert` function object that shares the
@@ -396,13 +406,13 @@ export interface AssertionUtilities {
     /** An optional alternate error constructor to use */
     errConstructor?: GenericErrorConstructor,
     options?: AssertMakeErrorOptions,
-  ): Error;
+  ): SesError;
 
   /**
    * Associate `details` with `error`, potentially to be logged by an associated
    * console for providing extra information about the error.
    */
-  note(error: Error, details: Details): void;
+  note(error: SesError, details: Details): void;
 
   /**
    * Use as a template literal tag to create an opaque {@link DetailsToken} for
