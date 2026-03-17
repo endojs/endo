@@ -62,7 +62,19 @@ export const makeNodeWriter = writer => {
         new Promise((resolve, reject) => {
           if (
             !writer.write(value, err => {
-              if (err) reject(err);
+              if (err) {
+                // EPIPE errors occur when the peer has already closed the
+                // connection, which is expected during graceful shutdown.
+                // We suppress these errors to prevent unhandled rejections.
+                const isPrematureClose = 'code' in err && (
+                  err.code === 'EPIPE' ||
+                  // TODO is this real? or just hallucinated?
+                  err.code === 'ERR_STREAM_PREMATURE_CLOSE'
+                );
+                if (!isPrematureClose) {
+                  reject(err);
+                }
+              }
             })
           ) {
             writer.once('drain', () => {
