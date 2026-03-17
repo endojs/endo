@@ -11,6 +11,8 @@ import url from 'url';
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
 
+import { isTerminalError } from './doe-normaal.js';
+
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
@@ -896,7 +898,13 @@ export const main = async rawArgs => {
     if (e && e.name === 'CommanderError') {
       return e.exitCode;
     }
-    throw e;
+
+    if (isTerminalError(e)) {
+      // TODO some terminal errors may warrant particular exit code
+      return 1;
+    } else {
+      throw e;
+    }
   }
   return 0;
 };
