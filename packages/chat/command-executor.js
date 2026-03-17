@@ -75,7 +75,7 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'dismiss-all': {
+        case 'clear': {
           await E(powers).dismissAll();
           return {
             success: true,

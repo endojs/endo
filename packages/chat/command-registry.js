@@ -84,9 +84,9 @@ export const COMMANDS = {
     ],
     submitLabel: 'Dismiss',
   },
-  'dismiss-all': {
-    name: 'dismiss-all',
-    label: 'Dismiss All',
+  'clear': {
+    name: 'clear',
+    label: 'Clear',
     description: 'Dismiss all messages',
     category: 'messaging',
     mode: 'immediate',

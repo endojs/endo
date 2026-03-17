@@ -161,7 +161,7 @@ test('execute dismiss command', async t => {
   t.deepEqual(ctx.calls[0].args, [42n]);
 });
 
-test('execute dismiss-all command', async t => {
+test('execute clear command', async t => {
   const ctx = createMockContext();
   const executor = createCommandExecutor({
     powers: ctx.powers,
@@ -170,7 +170,7 @@ test('execute dismiss-all command', async t => {
     showError: e => ctx.showErrorCalls.push(e),
   });
 
-  const result = await executor.execute('dismiss-all', {});
+  const result = await executor.execute('clear', {});
 
   t.true(result.success);
   t.is(result.message, 'All messages dismissed');
