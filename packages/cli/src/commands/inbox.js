@@ -15,14 +15,21 @@ export const inbox = async ({ follow, agentNames }) =>
     const messages = follow
       ? makeRefIterator(E(agent).followMessages())
       : await E(agent).listMessages();
+    const messageNumberById = new Map();
+    if (!follow) {
+      for (const message of messages) {
+        messageNumberById.set(message.messageId, message.number);
+      }
+    }
     for await (const message of messages) {
+      messageNumberById.set(message.messageId, message.number);
       const { number, type, from, to, date } = message;
 
       let verb = '';
       if (type === 'request') {
         verb = 'requested';
       } else if (type === 'package') {
-        verb = 'sent';
+        verb = message.replyTo === undefined ? 'sent' : 'replied to';
       } else {
         verb = 'sent an unrecognizable message';
       }
@@ -59,12 +66,20 @@ export const inbox = async ({ follow, agentNames }) =>
           )} at ${JSON.stringify(date)}`,
         );
       } else if (message.type === 'package') {
-        const { strings, names: edgeNames } = message;
+        const { strings, names: edgeNames, replyTo } = message;
+        let replyContext = '';
+        if (replyTo !== undefined) {
+          const replyNumber = messageNumberById.get(replyTo);
+          replyContext =
+            replyNumber === undefined
+              ? ' (in reply to unknown)'
+              : ` (in reply to ${replyNumber})`;
+        }
         console.log(
           `${number}. ${provenance}${formatMessage(
             strings,
             edgeNames,
-          )} at ${JSON.stringify(date)}`,
+          )}${replyContext} at ${JSON.stringify(date)}`,
         );
       } else {
         console.log(`${number}. ${provenance}, consider upgrading.`);

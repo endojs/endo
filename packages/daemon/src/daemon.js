@@ -132,6 +132,8 @@ const MESSAGE_FROM_NAME = 'FROM';
 const MESSAGE_TO_NAME = 'TO';
 const MESSAGE_DATE_NAME = 'DATE';
 const MESSAGE_TYPE_NAME = 'TYPE';
+const MESSAGE_ID_NAME = 'MESSAGE';
+const MESSAGE_REPLY_TO_NAME = 'REPLY';
 const MESSAGE_DESCRIPTION_NAME = 'DESCRIPTION';
 const MESSAGE_STRINGS_NAME = 'STRINGS';
 const MESSAGE_PROMISE_NAME = 'PROMISE';
@@ -938,6 +940,8 @@ const makeDaemonCore = async (
   const makeMessageHub = async (messageFormula, context) => {
     const {
       messageType,
+      messageId,
+      replyTo,
       from,
       to,
       date,
@@ -950,11 +954,16 @@ const makeDaemonCore = async (
     } = messageFormula;
 
     if (
+      typeof messageId !== 'string' ||
       typeof from !== 'string' ||
       typeof to !== 'string' ||
       typeof date !== 'string'
     ) {
       throw new Error('Message formula is incomplete');
+    }
+    assertFormulaNumber(messageId);
+    if (replyTo !== undefined) {
+      assertFormulaNumber(replyTo);
     }
 
     /** @type {Map<string, FormulaIdentifier>} */
@@ -987,6 +996,10 @@ const makeDaemonCore = async (
     registerName(MESSAGE_TO_NAME, to, undefined);
     registerName(MESSAGE_DATE_NAME, undefined, date);
     registerName(MESSAGE_TYPE_NAME, undefined, messageType);
+    registerName(MESSAGE_ID_NAME, undefined, messageId);
+    if (replyTo !== undefined) {
+      registerName(MESSAGE_REPLY_TO_NAME, undefined, replyTo);
+    }
 
     if (messageType === 'request') {
       if (
@@ -2540,6 +2553,7 @@ const makeDaemonCore = async (
     formulatePromise,
     formulateMessage,
     getFormulaForId,
+    randomHex512,
   });
 
   const makeGuest = makeGuestMaker({
