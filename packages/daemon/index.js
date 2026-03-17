@@ -492,19 +492,23 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
  * @param {Config} options.config
  * @param {string} options.workerId
  * @param {string} [options.workerRunDir]
+ * @param {string} [options.workerStateDir]
  */
 const runningWorker = ({
   config,
   workerId,
   workerRunDir = path.join(config.ephemeralStatePath, 'worker', workerId),
+  workerStateDir = path.join(config.statePath, 'worker', workerId),
 }) => {
   const pidPath = path.join(workerRunDir, 'worker.pid');
   return {
     get id() { return workerId },
 
     get runDir() { return workerRunDir },
+    get stateDir() { return workerStateDir },
 
     get pidPath() { return pidPath },
+    get logPath() { return path.join(workerStateDir, 'worker.log') },
 
     pid: (async () => {
       try {
