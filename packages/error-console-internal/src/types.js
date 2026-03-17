@@ -1,7 +1,5 @@
 // @ts-check
 
-/** @import {GenericErrorConstructor, AssertMakeErrorOptions, DetailsToken, Stringable} from '../../types.js' */
-
 /**
  * @typedef {object} VirtualConsole
  * @property {Console['debug']} debug

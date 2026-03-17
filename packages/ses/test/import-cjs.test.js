@@ -1,9 +1,9 @@
 // @ts-nocheck
 import test from 'ava';
+import { freeze, keys } from '@endo/error-console-internal/commons.js';
 import { ModuleSource } from '@endo/module-source';
 import { resolveNode } from './_node.js';
 import '../index.js';
-import { freeze, keys } from '../src/commons.js';
 
 function heuristicAnalysis(moduleSource) {
   const dependsUpon = {};

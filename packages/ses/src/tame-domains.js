@@ -5,7 +5,7 @@ import {
   globalThis,
   getOwnPropertyDescriptor,
   defineProperty,
-} from './commons.js';
+} from '@endo/error-console-internal/commons.js';
 
 export function tameDomains(domainTaming = 'safe') {
   if (domainTaming === 'unsafe') {
