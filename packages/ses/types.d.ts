@@ -242,6 +242,11 @@ export interface AssertMakeErrorOptions {
    * {@link sanitizeError}.
    */
   sanitize?: boolean;
+
+  /**
+   * The error code to assign to the error.
+   */
+  code?: string;
 }
 
 // TODO inline overloading

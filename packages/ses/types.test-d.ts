@@ -1,6 +1,6 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle */
-import { expectType } from 'tsd';
 import type { Assert } from 'ses';
+import { expectAssignable, expectType } from 'tsd';
 
 // Lockdown
 
@@ -221,6 +221,18 @@ expectType<Error>(makeError(X`details are ${stringable}`, TypeError));
 expectType<Error>(
   makeError(X`details are ${stringable}`, TypeError, {
     errorName: 'Nom de plum',
+  }),
+);
+
+expectType<AggregateError>(
+  makeError(X`details are ${stringable}`, AggregateError, {
+    errors: [new Error('error 1'), new Error('error 2')],
+  }),
+);
+
+expectAssignable<Error & { code?: string }>(
+  makeError(X`details are ${stringable}`, Error, {
+    code: '123',
   }),
 );
 
