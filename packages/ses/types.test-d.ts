@@ -1,6 +1,6 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle */
 import { expectType } from 'tsd';
-import type { Assert, SesError } from 'ses';
+import type { Assert, CodableError } from 'ses';
 
 // Lockdown
 
@@ -214,11 +214,11 @@ X`canst thou string?`.toString();
 
 const stringable = q(null);
 
-expectType<SesError>(makeError(X`details are ${q(stringable)}`));
+expectType<CodableError>(makeError(X`details are ${q(stringable)}`));
 
-expectType<SesError>(makeError(X`details are ${stringable}`, TypeError));
+expectType<CodableError>(makeError(X`details are ${stringable}`, TypeError));
 
-expectType<SesError>(
+expectType<CodableError>(
   makeError(X`details are ${stringable}`, TypeError, {
     errorName: 'Nom de plum',
   }),
