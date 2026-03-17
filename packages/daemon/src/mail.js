@@ -16,7 +16,7 @@ import {
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { makeSerialJobs } from './serial-jobs.js';
-import { formatLocator } from './locator.js';
+import { externalizeId } from './locator.js';
 
 import {
   EnvelopeInterface,
@@ -148,37 +148,39 @@ export const makeMailboxMaker = ({
   pinTransient = () => {},
   unpinTransient = () => {},
 }) => {
-  const externalizeForMessage = async (id) => {
-    const formulaType = await getTypeForId(id);
-    return formatLocator(id, formulaType);
-  };
-
-  const externalizeMessage = async (message) => {
-    const fromLocator = await externalizeForMessage(message.from);
-    const toLocator = await externalizeForMessage(message.to);
-    const base = { ...message, from: fromLocator, to: toLocator };
-    if (message.ids) {
-      const locators = await Promise.all(
-        message.ids.map(id => externalizeForMessage(id)),
-      );
-      return harden({ ...base, ids: locators });
-    }
-    if (message.promiseId) {
-      const promiseLocator = await externalizeForMessage(message.promiseId);
-      return harden({ ...base, promiseId: promiseLocator });
-    }
-    return harden(base);
-  };
-
   /**
     @type {MakeMailbox} */
   const makeMailbox = async ({
     selfId,
+    agentNodeNumber,
     petStore,
     mailboxStore,
     directory,
     context,
   }) => {
+    /** @param {import('./types.js').FormulaIdentifier} id */
+    const externalizeForMessage = async (id) => {
+      const formulaType = await getTypeForId(id);
+      return externalizeId(id, formulaType, agentNodeNumber);
+    };
+
+    const externalizeMessage = async (message) => {
+      const fromLocator = await externalizeForMessage(message.from);
+      const toLocator = await externalizeForMessage(message.to);
+      const base = { ...message, from: fromLocator, to: toLocator };
+      if (message.ids) {
+        const locators = await Promise.all(
+          message.ids.map(id => externalizeForMessage(id)),
+        );
+        return harden({ ...base, ids: locators });
+      }
+      if (message.promiseId) {
+        const promiseLocator = await externalizeForMessage(message.promiseId);
+        return harden({ ...base, promiseId: promiseLocator });
+      }
+      return harden(base);
+    };
+
     /** @type {Map<bigint, StampedMessage>} */
     const messages = new Map();
 

@@ -7,7 +7,7 @@ import {
   formatLocatorForSharing,
   idFromLocator,
   parseLocator,
-  NULL_NODE,
+  LOCAL_NODE,
   externalizeId,
   internalizeLocator,
 } from '../src/locator.js';
@@ -117,16 +117,16 @@ test('addressesFromLocator - plain locator returns empty', t => {
 });
 
 
-// --- NULL_NODE, externalizeId, internalizeLocator ---
+// --- LOCAL_NODE, externalizeId, internalizeLocator ---
 
-test('NULL_NODE is 64 zeros', t => {
-  t.is(NULL_NODE.length, 64);
-  t.is(NULL_NODE, '0'.repeat(64));
+test('LOCAL_NODE is 64 zeros', t => {
+  t.is(LOCAL_NODE.length, 64);
+  t.is(LOCAL_NODE, '0'.repeat(64));
 });
 
-test('externalizeId replaces NULL_NODE with agent key', t => {
+test('externalizeId replaces LOCAL_NODE with agent key', t => {
   const formulaNumber = validId;
-  const localId = formatId({ number: formulaNumber, node: NULL_NODE });
+  const localId = formatId({ number: formulaNumber, node: LOCAL_NODE });
   const locator = externalizeId(localId, validType, validNode);
   const parsed = parseLocator(locator);
   t.is(parsed.node, validNode, 'node should be the agent key');
@@ -145,7 +145,7 @@ test('externalizeId preserves remote node', t => {
   t.is(parsed.number, formulaNumber);
 });
 
-test('internalizeLocator preserves local key', t => {
+test('internalizeLocator normalizes local key to LOCAL_NODE', t => {
   const formulaNumber = validId;
   const locator = formatLocator(
     formatId({ number: formulaNumber, node: validNode }),
@@ -156,7 +156,7 @@ test('internalizeLocator preserves local key', t => {
   const { number, node } = /** @type {any} */ (
     result.id.match(/^(?<number>[0-9a-f]{64}):(?<node>[0-9a-f]{64})$/)
   ).groups;
-  t.is(node, validNode, 'local key should be preserved');
+  t.is(node, LOCAL_NODE, 'local key should be normalized to LOCAL_NODE');
   t.is(number, formulaNumber);
   t.is(result.formulaType, validType);
 });
@@ -177,14 +177,30 @@ test('internalizeLocator preserves remote node', t => {
   t.is(node, remoteNode, 'remote node should be preserved');
 });
 
-test('externalizeId / internalizeLocator round-trip', t => {
+test('externalizeId / internalizeLocator round-trip with LOCAL_NODE', t => {
   const formulaNumber = validId;
-  const localId = formatId({ number: formulaNumber, node: validNode });
-  const locator = externalizeId(localId, validType, validNode);
+  // Internal storage uses LOCAL_NODE
+  const internalId = formatId({ number: formulaNumber, node: LOCAL_NODE });
+  // Externalize replaces LOCAL_NODE with agent's key
+  const locator = externalizeId(internalId, validType, validNode);
+  const parsed = parseLocator(locator);
+  t.is(parsed.node, validNode, 'externalized locator should have agent key');
+  // Internalize replaces agent key back to LOCAL_NODE
   const isLocalKey = node => node === validNode;
   const result = internalizeLocator(locator, isLocalKey);
-  t.is(result.id, localId, 'round-trip should return original id');
+  t.is(result.id, internalId, 'round-trip should return original LOCAL_NODE id');
   t.is(result.formulaType, validType);
+});
+
+test('externalizeId / internalizeLocator round-trip preserves remote node', t => {
+  const formulaNumber = validId;
+  const remoteNode =
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  const remoteId = formatId({ number: formulaNumber, node: remoteNode });
+  const locator = externalizeId(remoteId, validType, validNode);
+  const isLocalKey = node => node === validNode;
+  const result = internalizeLocator(locator, isLocalKey);
+  t.is(result.id, remoteId, 'remote id should be preserved through round-trip');
 });
 
 test('internalizeLocator extracts connection hints', t => {

@@ -39,9 +39,7 @@ export const makeDirectoryMaker = ({
   unpinTransient,
 }) => {
   /** @type {MakeDirectoryNode} */
-  const makeDirectoryNode = (petStore, agentNodeNumber) => {
-    /** @param {string} node */
-    const isLocalKey = node => node === agentNodeNumber;
+  const makeDirectoryNode = (petStore, agentNodeNumber, isLocalKey) => {
 
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
@@ -340,27 +338,56 @@ export const makeDirectoryMaker = ({
    * @param {FormulaIdentifier} args.petStoreId
    * @param {Context} args.context
    * @param {string} args.agentNodeNumber
+   * @param {(node: string) => boolean} args.isLocalKey
    */
   const makeIdentifiedDirectory = async ({
     petStoreId,
     context,
     agentNodeNumber,
+    isLocalKey,
   }) => {
     // TODO thread context
 
     const petStore = await provide(petStoreId, 'pet-store');
-    const directory = makeDirectoryNode(petStore, agentNodeNumber);
+    const directory = makeDirectoryNode(petStore, agentNodeNumber, isLocalKey);
 
     const help = makeHelp(directoryHelp);
 
+    const {
+      has,
+      identify,
+      locate,
+      reverseLocate,
+      list,
+      listIdentifiers,
+      listLocators,
+      lookup,
+      reverseLookup,
+      remove,
+      move,
+      copy,
+      makeDirectory,
+    } = directory;
+
     return makeExo('EndoDirectory', DirectoryInterface, {
-      ...directory,
       help,
-      write: directory.writeLocator,
-      /** @param {string} locator */
+      has,
+      identify,
+      locate,
+      reverseLocate,
       followLocatorNameChanges: async locator =>
         makeIteratorRef(directory.followLocatorNameChanges(locator)),
+      list,
+      listIdentifiers,
+      listLocators,
       followNameChanges: async () => makeIteratorRef(directory.followNameChanges()),
+      lookup,
+      reverseLookup,
+      write: directory.writeLocator,
+      remove,
+      move,
+      copy,
+      makeDirectory,
     });
   };
 

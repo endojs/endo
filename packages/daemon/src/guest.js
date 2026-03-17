@@ -6,11 +6,10 @@ import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
-import { parseId } from './formula-identifier.js';
 import { internalizeLocator } from './locator.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
-/** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NodeNumber, NamesOrPaths, Provide } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 import { guestHelp, makeHelp } from './help-text.js';
 
@@ -21,6 +20,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
+ * @param {(node: string) => boolean} args.isLocalKey
  * @param {() => Promise<void>} [args.collectIfDirty]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
@@ -31,6 +31,7 @@ export const makeGuestMaker = ({
   getFormulaForId,
   makeMailbox,
   makeDirectoryNode,
+  isLocalKey,
   collectIfDirty = async () => {},
   pinTransient = /** @param {any} _id */ _id => {},
   unpinTransient = /** @param {any} _id */ _id => {},
@@ -39,6 +40,7 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier} guestId
    * @param {FormulaIdentifier} handleId
    * @param {FormulaIdentifier} keypairId
+   * @param {NodeNumber} agentNodeNumber
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
    * @param {FormulaIdentifier} petStoreId
@@ -51,6 +53,7 @@ export const makeGuestMaker = ({
     guestId,
     handleId,
     keypairId,
+    agentNodeNumber,
     hostAgentId,
     hostHandleId,
     petStoreId,
@@ -81,10 +84,10 @@ export const makeGuestMaker = ({
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const { node: localNodeNumber } = parseId(guestId);
-    const directory = makeDirectoryNode(specialStore, localNodeNumber);
+    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey);
     const mailbox = await makeMailbox({
       petStore: specialStore,
+      agentNodeNumber,
       mailboxStore,
       directory,
       selfId: handleId,
@@ -138,8 +141,6 @@ export const makeGuestMaker = ({
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
-
-    const isLocalKey = node => node === localNodeNumber;
 
     const writeLocator = async (petNamePath, locatorOrId) => {
       const namePath = namePathFrom(petNamePath);
@@ -255,6 +256,7 @@ export const makeGuestMaker = ({
       // Directory
       has,
       identify,
+      reverseIdentify,
       locate,
       reverseLocate,
       list,

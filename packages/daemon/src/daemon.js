@@ -23,7 +23,7 @@ import {
   assertPetName,
   namePathFrom,
 } from './pet-name.js';
-import { formatLocator, idFromLocator, externalizeId, NULL_NODE } from './locator.js';
+import { formatLocator, idFromLocator, externalizeId, LOCAL_NODE } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidId,
@@ -324,7 +324,7 @@ const makeDaemonCore = async (
   console.log('Node', localNodeNumber);
   const endoFormulaId = formatId({
     number: /** @type {FormulaNumber} */ (rootEntropy),
-    node: localNodeNumber,
+    node: LOCAL_NODE,
   });
 
   // We generate formulas for some entities that are presumed to exist
@@ -340,7 +340,7 @@ const makeDaemonCore = async (
     );
     const id = formatId({
       number: formulaNumber,
-      node: localNodeNumber,
+      node: LOCAL_NODE,
     });
     await persistencePowers.writeFormula(formulaNumber, formula);
     return { id, formulaNumber };
@@ -545,10 +545,42 @@ const makeDaemonCore = async (
    * @returns {FormulaIdentifier[]}
    */
   const extractDeps = formula =>
-    extractLabeledDeps(formula).map(([_label, id]) => id);
+    extractLabeledDeps(formula).map(([_label, id]) => normalizeId(id));
 
   /** @param {string} id */
-  const isLocalId = id => parseId(id).node === localNodeNumber;
+  const isLocalId = id => {
+    const { node } = parseId(id);
+    return node === LOCAL_NODE || node === localNodeNumber;
+  };
+
+  /** @type {Set<string>} */
+  const localKeys = new Set([localNodeNumber]);
+
+  /** @param {NodeNumber} node */
+  const isLocalKey = node => localKeys.has(node);
+
+  /**
+   * Register an agent's public key so that all agents recognize it as local.
+   * @param {NodeNumber} agentKey
+   */
+  const registerLocalKey = agentKey => {
+    localKeys.add(agentKey);
+  };
+
+  /**
+   * Normalize a formula identifier so that local keys become LOCAL_NODE.
+   * This allows the daemon to handle both old-format (localNodeNumber)
+   * and new-format (LOCAL_NODE) identifiers transparently.
+   * @param {FormulaIdentifier} id
+   * @returns {FormulaIdentifier}
+   */
+  const normalizeId = id => {
+    const { number, node } = parseId(id);
+    if (isLocalKey(node)) {
+      return formatId({ number, node: LOCAL_NODE });
+    }
+    return id;
+  };
 
   const formulaGraph = makeFormulaGraph({ extractDeps, isLocalId });
 
@@ -598,7 +630,8 @@ const makeDaemonCore = async (
   // The following are functions that manage that state.
 
   /** @param {FormulaIdentifier} id */
-  const getFormulaForId = async id => {
+  const getFormulaForId = async inputId => {
+    const id = normalizeId(inputId);
     // No synchronous preamble.
     await null;
 
@@ -616,8 +649,9 @@ const makeDaemonCore = async (
   };
 
   /** @param {FormulaIdentifier} id */
-  const getTypeForId = async id => {
-    if (parseId(id).node !== localNodeNumber && parseId(id).node !== NULL_NODE) {
+  const getTypeForId = async inputId => {
+    const id = normalizeId(inputId);
+    if (parseId(id).node !== LOCAL_NODE) {
       return 'remote';
     }
     const { type } = await getFormulaForId(id);
@@ -694,7 +728,7 @@ const makeDaemonCore = async (
         const formula = await persistencePowers.readFormula(formulaNumber);
         const id = formatId({
           number: formulaNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         return { id, formula };
       }),
@@ -727,6 +761,15 @@ const makeDaemonCore = async (
             ),
             assertValidName,
           );
+          // Repair: normalize old localNodeNumber-based IDs to LOCAL_NODE.
+          await petStore.repairIds(storedId => {
+            const { number: storedNumber, node: storedNode } =
+              parseId(storedId);
+            if (isLocalKey(storedNode)) {
+              return formatId({ number: storedNumber, node: LOCAL_NODE });
+            }
+            return storedId;
+          });
           const storedIds = petStore
             .list()
             .map(petName => petStore.identifyLocal(petName))
@@ -2123,6 +2166,11 @@ const makeDaemonCore = async (
       if (mailHubId === undefined) {
         throw new Error('Host formula missing mail hub');
       }
+      const keypairFormula = await getFormulaForId(keypairId);
+      const agentNodeNumber = /** @type {NodeNumber} */ (
+        keypairFormula.publicKey
+      );
+      registerLocalKey(agentNodeNumber);
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
@@ -2130,6 +2178,7 @@ const makeDaemonCore = async (
         handleId,
         hostHandleId,
         keypairId,
+        agentNodeNumber,
         petStoreId,
         mailboxStoreId,
         mailHubId,
@@ -2161,12 +2210,18 @@ const makeDaemonCore = async (
       if (mailHubId === undefined) {
         throw new Error('Guest formula missing mail hub');
       }
+      const keypairFormula = await getFormulaForId(keypairId);
+      const agentNodeNumber = /** @type {NodeNumber} */ (
+        keypairFormula.publicKey
+      );
+      registerLocalKey(agentNodeNumber);
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeGuest(
         id,
         handleId,
         keypairId,
+        agentNodeNumber,
         hostAgentId,
         hostHandleId,
         petStoreId,
@@ -2527,6 +2582,7 @@ const makeDaemonCore = async (
         petStoreId,
         context,
         agentNodeNumber: localNodeNumber,
+        isLocalKey,
       }),
     peer: (
       { networks: networksId, node: nodeId, addresses: addressesId },
@@ -2600,7 +2656,7 @@ const makeDaemonCore = async (
    */
   const evaluateFormulaForId = async (id, context) => {
     const { number: formulaNumber, node: formulaNode } = parseId(id);
-    const isRemote = formulaNode !== localNodeNumber && formulaNode !== NULL_NODE;
+    const isRemote = formulaNode !== LOCAL_NODE;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
       const peerId = await getPeerIdForNodeIdentifier(formulaNode);
@@ -2620,7 +2676,7 @@ const makeDaemonCore = async (
   const formulate = async (formulaNumber, formula) => {
     const id = formatId({
       number: formulaNumber,
-      node: localNodeNumber,
+      node: LOCAL_NODE,
     });
 
     // Persist to disk before the formula becomes visible in the graph.
@@ -2660,7 +2716,8 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['provideController']} */
-  const provideController = id => {
+  const provideController = inputId => {
+    const id = normalizeId(inputId);
     const existingController = controllerForId.get(id);
     if (existingController !== undefined) {
       return existingController;
@@ -2732,7 +2789,7 @@ const makeDaemonCore = async (
         await deferredTasks.execute({
           readableBlobId: formatId({
             number: formulaNumber,
-            node: localNodeNumber,
+            node: LOCAL_NODE,
           }),
         });
 
@@ -2766,7 +2823,7 @@ const makeDaemonCore = async (
         );
         const invitationId = formatId({
           number: invitationNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         await deferredTasks.execute({
           invitationId,
@@ -2815,15 +2872,15 @@ const makeDaemonCore = async (
 
         const messageStoreId = formatId({
           number: messageStoreNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         const memberStoreId = formatId({
           number: memberStoreNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         const channelId = formatId({
           number: channelNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
 
         await deferredTasks.execute({
@@ -2867,7 +2924,7 @@ const makeDaemonCore = async (
     await persistencePowers.writeFormula(formulaNumber, formula);
     const id = formatId({
       number: formulaNumber,
-      node: localNodeNumber,
+      node: LOCAL_NODE,
     });
     await withFormulaGraphLock(async () => {
       formulaForId.set(id, formula);
@@ -3016,7 +3073,7 @@ const makeDaemonCore = async (
       await deferredTasks.execute({
         workerId: formatId({
           number: formulaNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         }),
       });
 
@@ -3094,7 +3151,7 @@ const makeDaemonCore = async (
     );
     const hostId = formatId({
       number: hostFormulaNumber,
-      node: localNodeNumber,
+      node: LOCAL_NODE,
     });
 
     const handleId = pin(
@@ -3207,7 +3264,7 @@ const makeDaemonCore = async (
     );
     const guestId = formatId({
       number: guestFormulaNumber,
-      node: localNodeNumber,
+      node: LOCAL_NODE,
     });
     const handleId = pin(
       await formulateNumberedHandle(
@@ -3334,7 +3391,7 @@ const makeDaemonCore = async (
         );
         const ownId = formatId({
           number: ownFormulaNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         // Pin before formulate so the formula is protected from
         // collection even if the lock is bypassed via re-entrancy.
@@ -3418,7 +3475,7 @@ const makeDaemonCore = async (
       if (pin) {
         const messageId = formatId({
           number: formulaNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         pin(messageId);
       }
@@ -3445,7 +3502,7 @@ const makeDaemonCore = async (
         );
         const ownId = formatId({
           number: ownFormulaNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
         // Pin before formulate so the formula is protected from
         // collection even if the lock is bypassed via re-entrancy.
@@ -3569,7 +3626,7 @@ const makeDaemonCore = async (
       ),
       capletId: formatId({
         number: ownFormulaNumber,
-        node: localNodeNumber,
+        node: LOCAL_NODE,
       }),
       capletFormulaNumber: ownFormulaNumber,
       workerId: await provideWorkerId(specifiedWorkerId, trustedShims),
@@ -3710,7 +3767,7 @@ const makeDaemonCore = async (
         );
         const endoId = formatId({
           number: formulaNumber,
-          node: localNodeNumber,
+          node: LOCAL_NODE,
         });
 
         const { id: defaultHostWorkerId } = await formulateNumberedWorker(
@@ -3991,6 +4048,7 @@ const makeDaemonCore = async (
     getFormulaForId,
     makeMailbox,
     makeDirectoryNode,
+    isLocalKey,
     collectIfDirty,
     pinTransient,
     unpinTransient,
@@ -4080,6 +4138,7 @@ const makeDaemonCore = async (
     makeMailbox,
     makeDirectoryNode,
     localNodeNumber,
+    isLocalKey,
     getAgentIdForHandleId,
     collectIfDirty,
     pinTransient,

@@ -988,10 +988,13 @@ test('guest facet receives a message for host', async t => {
   const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
 
-  const guestLocator = await E(host).locate('guest');
-  const hostLocator = await E(host).locate('SELF');
+  // Each agent externalizes locators with its own keypair key.
+  const guestLocatorFromHost = await E(host).locate('guest');
+  const hostLocatorFromHost = await E(host).locate('SELF');
+  const guestLocatorFromGuest = await E(guest).locate('SELF');
+  const hostLocatorFromGuest = await E(guest).locate('HOST');
 
-  // Host should have received messages.
+  // Host should have received messages (externalized with host's key).
   const hostInbox = await E(host).listMessages();
   t.deepEqual(
     hostInbox.map(({ type, from, to }) => ({
@@ -1000,18 +1003,18 @@ test('guest facet receives a message for host', async t => {
       to,
     })),
     [
-      { type: 'request', from: guestLocator, to: hostLocator },
-      { type: 'package', from: guestLocator, to: hostLocator },
+      { type: 'request', from: guestLocatorFromHost, to: hostLocatorFromHost },
+      { type: 'package', from: guestLocatorFromHost, to: hostLocatorFromHost },
     ],
   );
 
-  // Guest should have own sent messages.
+  // Guest should have own sent messages (externalized with guest's key).
   const guestInbox = await E(guest).listMessages();
   t.deepEqual(
     guestInbox.map(({ type, from, to }) => ({ type, from, to })),
     [
-      { type: 'request', from: guestLocator, to: hostLocator },
-      { type: 'package', from: guestLocator, to: hostLocator },
+      { type: 'request', from: guestLocatorFromGuest, to: hostLocatorFromGuest },
+      { type: 'package', from: guestLocatorFromGuest, to: hostLocatorFromGuest },
     ],
   );
 });
@@ -2511,6 +2514,35 @@ test('locate local persisted value', async t => {
     const parsedLocator = parseLocator(tenLocator);
     t.is(parsedLocator.formulaType, 'marshal');
   }
+});
+
+test('host and guest present different locators for the same value', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // Store a value reachable by both agents.
+  await E(host).storeValue(42, 'answer');
+
+  // Give the guest access to the same value.
+  const hostLocator = await E(host).locate('answer');
+  await E(guest).write(['answer'], hostLocator);
+
+  // Both agents locate the same value.
+  const guestLocator = await E(guest).locate('answer');
+
+  // The underlying formula number must be the same.
+  const hostParsed = parseLocator(hostLocator);
+  const guestParsed = parseLocator(guestLocator);
+  t.is(hostParsed.number, guestParsed.number, 'same formula number');
+  t.is(hostParsed.formulaType, guestParsed.formulaType, 'same formula type');
+
+  // But the node (peer key) must differ because each agent has its own keypair.
+  t.not(
+    hostParsed.node,
+    guestParsed.node,
+    'host and guest present different peer keys',
+  );
 });
 
 test('locate remote value', async t => {
