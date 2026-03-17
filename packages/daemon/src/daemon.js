@@ -8,6 +8,7 @@ import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
+import { makeIteratorRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
@@ -22,7 +23,7 @@ import {
   assertPetName,
   namePathFrom,
 } from './pet-name.js';
-import { formatLocator, idFromLocator } from './locator.js';
+import { formatLocator, idFromLocator, externalizeId, NULL_NODE } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidId,
@@ -616,7 +617,7 @@ const makeDaemonCore = async (
 
   /** @param {FormulaIdentifier} id */
   const getTypeForId = async id => {
-    if (parseId(id).node !== localNodeNumber) {
+    if (parseId(id).node !== localNodeNumber && parseId(id).node !== NULL_NODE) {
       return 'remote';
     }
     const { type } = await getFormulaForId(id);
@@ -1066,7 +1067,7 @@ const makeDaemonCore = async (
   const provideRemoteControl = makeRemoteControlProvider(localNodeNumber);
 
   // Gateway is equivalent to E's "nonce locator".
-  // It provides a value for a formula identifier to a remote client.
+  // It provides a value for a locator to a remote client.
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
@@ -1660,6 +1661,26 @@ const makeDaemonCore = async (
       return harden(Array.from(identities).sort());
     };
 
+    const listLocators = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        const names = listMessageNames();
+        /** @type {Record<string, string>} */
+        const record = {};
+        await Promise.all(
+          names.map(async name => {
+            const locator = await locate(name);
+            if (locator !== undefined) {
+              record[name] = locator;
+            }
+          }),
+        );
+        return harden(record);
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).listLocators();
+    };
+
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
@@ -1704,10 +1725,13 @@ const makeDaemonCore = async (
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges,
+      followLocatorNameChanges: async locator =>
+        makeIteratorRef(followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
-      followNameChanges,
+      listLocators,
+      followNameChanges: async (...petNamePath) =>
+        makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
       reverseLookup,
       write: disallowedMutation,
@@ -1977,6 +2001,25 @@ const makeDaemonCore = async (
       return harden(Array.from(identities).sort());
     };
 
+    const listLocators = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        /** @type {Record<string, string>} */
+        const record = {};
+        await Promise.all(
+          orderedNames.map(async name => {
+            const locator = await locate(name);
+            if (locator !== undefined) {
+              record[name] = locator;
+            }
+          }),
+        );
+        return harden(record);
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).listLocators();
+    };
+
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
@@ -2017,10 +2060,13 @@ const makeDaemonCore = async (
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges,
+      followLocatorNameChanges: async locator =>
+        makeIteratorRef(followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
-      followNameChanges,
+      listLocators,
+      followNameChanges: async (...petNamePath) =>
+        makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
       reverseLookup,
       write: disallowedMutation,
@@ -2288,7 +2334,9 @@ const makeDaemonCore = async (
             followLocatorNameChanges: disallowedFn,
             list: disallowedFn,
             listIdentifiers: disallowedFn,
+            listLocators: disallowedFn,
             followNameChanges: disallowedFn,
+            followLocatorNameChanges: disallowedFn,
             lookup: disallowedFn,
             lookupById: disallowedFn,
             reverseLookup: disallowedFn,
@@ -2478,6 +2526,7 @@ const makeDaemonCore = async (
       makeIdentifiedDirectory({
         petStoreId,
         context,
+        agentNodeNumber: localNodeNumber,
       }),
     peer: (
       { networks: networksId, node: nodeId, addresses: addressesId },
@@ -2551,7 +2600,7 @@ const makeDaemonCore = async (
    */
   const evaluateFormulaForId = async (id, context) => {
     const { number: formulaNumber, node: formulaNode } = parseId(id);
-    const isRemote = formulaNode !== localNodeNumber;
+    const isRemote = formulaNode !== localNodeNumber && formulaNode !== NULL_NODE;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
       const peerId = await getPeerIdForNodeIdentifier(formulaNode);
@@ -3646,7 +3695,9 @@ const makeDaemonCore = async (
     const { id, value } = await formulateDirectory();
     // Make default networks.
     const { id: loopbackNetworkId } = await formulateLoopbackNetwork();
-    await E(value).write(/** @type {NamePath} */ (['loop']), loopbackNetworkId);
+    const loopbackType = await getTypeForId(loopbackNetworkId);
+    const loopbackLocator = externalizeId(loopbackNetworkId, loopbackType, localNodeNumber);
+    await E(value).write(/** @type {NamePath} */ (['loop']), loopbackLocator);
     return { id, value };
   };
 

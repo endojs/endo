@@ -11,7 +11,7 @@ const { stringify: q } = JSON;
 
 export const inbox = async ({ follow, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    const selfId = await E(agent).identify('SELF');
+    const selfLocator = await E(agent).locate('SELF');
     const messages = follow
       ? makeRefIterator(E(agent).followMessages())
       : await E(agent).listMessages();
@@ -48,23 +48,23 @@ export const inbox = async ({ follow, agentNames }) =>
       }
 
       let provenance = 'unrecognizable message';
-      if (from === selfId && to === selfId) {
+      if (from === selfLocator && to === selfLocator) {
         provenance = `you ${verb} yourself `;
-      } else if (from === selfId) {
-        const [toName] = await E(agent).reverseIdentify(to);
+      } else if (from === selfLocator) {
+        const [toName] = await E(agent).reverseLocate(to);
         if (toName === undefined) {
           continue;
         }
         provenance = `${verb} ${q(toName)} `;
-      } else if (to === selfId) {
-        const [fromName] = await E(agent).reverseIdentify(from);
+      } else if (to === selfLocator) {
+        const [fromName] = await E(agent).reverseLocate(from);
         if (fromName === undefined) {
           continue;
         }
         provenance = `${q(fromName)} ${verb} `;
       } else {
-        const [toName] = await E(agent).reverseIdentify(to);
-        const [fromName] = await E(agent).reverseIdentify(from);
+        const [toName] = await E(agent).reverseLocate(to);
+        const [fromName] = await E(agent).reverseLocate(from);
         if (fromName === undefined || toName === undefined) {
           continue;
         }

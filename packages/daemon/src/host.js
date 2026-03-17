@@ -22,7 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { formatLocatorForSharing, addressesFromLocator } from './locator.js';
+import { internalizeLocator, formatLocatorForSharing, addressesFromLocator } from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -169,7 +169,7 @@ export const makeHostMaker = ({
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore);
+    const directory = makeDirectoryNode(specialStore, localNodeNumber);
     const mailbox = await makeMailbox({
       petStore: specialStore,
       mailboxStore,
@@ -780,6 +780,9 @@ export const makeHostMaker = ({
       return peerInfo;
     };
 
+    /** @param {string} node */
+    const isLocalKey = node => node === localNodeNumber;
+
     /** @type {EndoHost['locateForSharing']} */
     const locateForSharing = async (...petNamePath) => {
       assertNames(petNamePath);
@@ -832,15 +835,26 @@ export const makeHostMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
+      listLocators,
       followNameChanges,
       followLocatorNameChanges,
       reverseLookup,
-      write,
       remove,
       move,
       copy,
       makeDirectory: makeDirectoryLocal,
     } = directory;
+
+    /** @type {EndoHost['write']} */
+    const writeLocator = async (petNamePath, locatorOrId) => {
+      const namePath = namePathFrom(petNamePath);
+      if (locatorOrId.startsWith('endo://')) {
+        const { id } = internalizeLocator(locatorOrId, isLocalKey);
+        return directory.write(namePath, id);
+      }
+      // FormulaIdentifier from internal callers through E(hub).write
+      return directory.write(namePath, locatorOrId);
+    };
     const makeDirectory = async petNameOrPath => {
       const namePath = namePathFrom(petNameOrPath);
       return makeDirectoryLocal(namePath);
@@ -1136,11 +1150,12 @@ export const makeHostMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
+      listLocators,
       followLocatorNameChanges,
       followNameChanges,
       lookup,
       reverseLookup,
-      write,
+      write: writeLocator,
       remove,
       move,
       copy,

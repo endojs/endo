@@ -6,6 +6,8 @@ import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
+import { parseId } from './formula-identifier.js';
+import { internalizeLocator } from './locator.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamesOrPaths, Provide } from './types.js' */
@@ -79,7 +81,8 @@ export const makeGuestMaker = ({
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore);
+    const { node: localNodeNumber } = parseId(guestId);
+    const directory = makeDirectoryNode(specialStore, localNodeNumber);
     const mailbox = await makeMailbox({
       petStore: specialStore,
       mailboxStore,
@@ -97,6 +100,7 @@ export const makeGuestMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
+      listLocators,
       followNameChanges,
       followLocatorNameChanges,
       lookup,
@@ -134,6 +138,18 @@ export const makeGuestMaker = ({
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
+
+    const isLocalKey = node => node === localNodeNumber;
+
+    const writeLocator = async (petNamePath, locatorOrId) => {
+      const namePath = namePathFrom(petNamePath);
+      if (locatorOrId.startsWith('endo://')) {
+        const { id } = internalizeLocator(locatorOrId, isLocalKey);
+        return directory.write(namePath, id);
+      }
+      // FormulaIdentifier from internal callers through E(hub).write
+      return directory.write(namePath, locatorOrId);
+    };
 
     /** @type {EndoGuest['requestEvaluation']} */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
@@ -239,17 +255,17 @@ export const makeGuestMaker = ({
       // Directory
       has,
       identify,
-      reverseIdentify,
       locate,
       reverseLocate,
       list,
       listIdentifiers,
+      listLocators,
       followLocatorNameChanges,
       followNameChanges,
       lookup,
       lookupById,
       reverseLookup,
-      write,
+      write: writeLocator,
       move,
       remove,
       copy,

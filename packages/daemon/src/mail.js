@@ -16,6 +16,7 @@ import {
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { makeSerialJobs } from './serial-jobs.js';
+import { formatLocator } from './locator.js';
 
 import {
   EnvelopeInterface,
@@ -147,6 +148,28 @@ export const makeMailboxMaker = ({
   pinTransient = () => {},
   unpinTransient = () => {},
 }) => {
+  const externalizeForMessage = async (id) => {
+    const formulaType = await getTypeForId(id);
+    return formatLocator(id, formulaType);
+  };
+
+  const externalizeMessage = async (message) => {
+    const fromLocator = await externalizeForMessage(message.from);
+    const toLocator = await externalizeForMessage(message.to);
+    const base = { ...message, from: fromLocator, to: toLocator };
+    if (message.ids) {
+      const locators = await Promise.all(
+        message.ids.map(id => externalizeForMessage(id)),
+      );
+      return harden({ ...base, ids: locators });
+    }
+    if (message.promiseId) {
+      const promiseLocator = await externalizeForMessage(message.promiseId);
+      return harden({ ...base, promiseId: promiseLocator });
+    }
+    return harden(base);
+  };
+
   /**
     @type {MakeMailbox} */
   const makeMailbox = async ({
@@ -168,13 +191,22 @@ export const makeMailboxMaker = ({
     let nextMessageNumber = 0n;
 
     /** @type {Mail['listMessages']} */
-    const listMessages = async () => harden(Array.from(messages.values()));
+    const listMessages = async () => {
+      const externalized = await Promise.all(
+        Array.from(messages.values()).map(externalizeMessage),
+      );
+      return harden(externalized);
+    };
 
     /** @type {Mail['followMessages']} */
     const followMessages = async function* currentAndSubsequentMessages() {
       const subsequentRequests = messagesTopic.subscribe();
-      yield* messages.values();
-      yield* subsequentRequests;
+      for (const message of messages.values()) {
+        yield await externalizeMessage(message);
+      }
+      for await (const message of subsequentRequests) {
+        yield await externalizeMessage(message);
+      }
     };
 
     /**

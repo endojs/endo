@@ -5,7 +5,10 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
-import { formatLocator, idFromLocator } from './locator.js';
+import {
+  externalizeId,
+  internalizeLocator,
+} from './locator.js';
 import {
   assertNamePath,
   assertNames,
@@ -36,7 +39,10 @@ export const makeDirectoryMaker = ({
   unpinTransient,
 }) => {
   /** @type {MakeDirectoryNode} */
-  const makeDirectoryNode = petStore => {
+  const makeDirectoryNode = (petStore, agentNodeNumber) => {
+    /** @param {string} node */
+    const isLocalKey = node => node === agentNodeNumber;
+
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
       const namePath = namePathFrom(petNamePath);
@@ -116,12 +122,12 @@ export const makeDirectoryMaker = ({
       const formulaType = await getTypeForId(
         /** @type {FormulaIdentifier} */ (id),
       );
-      return formatLocator(id, formulaType);
+      return externalizeId(id, formulaType, agentNodeNumber);
     };
 
     /** @type {EndoDirectory['reverseLocate']} */
     const reverseLocate = async locator => {
-      const id = idFromLocator(locator);
+      const { id } = internalizeLocator(locator, isLocalKey);
       return petStore.reverseIdentify(id);
     };
 
@@ -129,7 +135,7 @@ export const makeDirectoryMaker = ({
     const followLocatorNameChanges = async function* followLocatorNameChanges(
       locator,
     ) {
-      const id = idFromLocator(locator);
+      const { id } = internalizeLocator(locator, isLocalKey);
       for await (const idNameChange of petStore.followIdNameChanges(id)) {
         /** @type {any} */
         const locatorNameChange = {
@@ -167,6 +173,27 @@ export const makeDirectoryMaker = ({
         }),
       );
       return harden(Array.from(identities).sort());
+    };
+
+    /** @type {EndoDirectory['listLocators']} */
+    const listLocators = async (...petNamePath) => {
+      assertNames(petNamePath);
+      if (petNamePath.length === 0) {
+        const names = await petStore.list();
+        /** @type {Record<string, string>} */
+        const record = {};
+        await Promise.all(
+          names.map(async name => {
+            const locator = await locate(name);
+            if (locator !== undefined) {
+              record[name] = locator;
+            }
+          }),
+        );
+        return harden(record);
+      }
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+      return E(hub).listLocators();
     };
 
     /** @type {EndoDirectory['followNameChanges']} */
@@ -219,17 +246,14 @@ export const makeDirectoryMaker = ({
       }
 
       // Cross-hub move: copy then remove
-      // eslint-disable-next-line no-use-before-define
-      const id = await directory.identify(...fromPath);
+      const id = await identify(...fromPath);
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
       // First write to the "to" hub so that the original name is preserved on the
       // "from" hub in case of failure.
-      // eslint-disable-next-line no-use-before-define
-      await directory.write(toPath, id);
-      // eslint-disable-next-line no-use-before-define
-      await directory.remove(...fromPath);
+      await write(toPath, id);
+      await remove(...fromPath);
     };
 
     /** @type {EndoDirectory['copy']} */
@@ -243,8 +267,7 @@ export const makeDirectoryMaker = ({
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
-      // eslint-disable-next-line no-use-before-define
-      await directory.write(toPath, id);
+      await write(toPath, id);
     };
 
     /** @type {EndoDirectory['write']} */
@@ -259,6 +282,22 @@ export const makeDirectoryMaker = ({
       }
       const hub = /** @type {NameHub} */ (await lookup(prefixPath));
       await E(hub).write([petName], id);
+    };
+
+    /**
+     * Accepts either a locator string or a FormulaIdentifier, converts
+     * to an internal id, and delegates to write.
+     * @param {string | string[]} petNamePath
+     * @param {string} locatorOrId
+     */
+    const writeLocator = async (petNamePath, locatorOrId) => {
+      if (locatorOrId.startsWith('endo://')) {
+        const { id } = internalizeLocator(locatorOrId, isLocalKey);
+        await write(petNamePath, id);
+      } else {
+        // Already a FormulaIdentifier (internal caller through E(hub).write)
+        await write(petNamePath, locatorOrId);
+      }
     };
 
     /** @type {EndoDirectory['makeDirectory']} */
@@ -282,10 +321,12 @@ export const makeDirectoryMaker = ({
       followLocatorNameChanges,
       list,
       listIdentifiers,
+      listLocators,
       followNameChanges,
       lookup,
       reverseLookup,
       write,
+      writeLocator,
       move,
       remove,
       copy,
@@ -298,22 +339,28 @@ export const makeDirectoryMaker = ({
    * @param {object} args
    * @param {FormulaIdentifier} args.petStoreId
    * @param {Context} args.context
+   * @param {string} args.agentNodeNumber
    */
-  const makeIdentifiedDirectory = async ({ petStoreId, context }) => {
+  const makeIdentifiedDirectory = async ({
+    petStoreId,
+    context,
+    agentNodeNumber,
+  }) => {
     // TODO thread context
 
     const petStore = await provide(petStoreId, 'pet-store');
-    const directory = makeDirectoryNode(petStore);
+    const directory = makeDirectoryNode(petStore, agentNodeNumber);
 
     const help = makeHelp(directoryHelp);
 
     return makeExo('EndoDirectory', DirectoryInterface, {
       ...directory,
       help,
+      write: directory.writeLocator,
       /** @param {string} locator */
-      followLocatorNameChanges: locator =>
+      followLocatorNameChanges: async locator =>
         makeIteratorRef(directory.followLocatorNameChanges(locator)),
-      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+      followNameChanges: async () => makeIteratorRef(directory.followNameChanges()),
     });
   };
 

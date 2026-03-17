@@ -45,7 +45,7 @@ On restart, calling `provideGuest` with `introducedNames` on an already-existing
 ### Message types
 
 - `type: 'package'` messages work with `adopt()`.
-- `type: 'value'` messages (created by form submissions via `submit()`) have a `valueId`. Use `E(powers).lookupById(msg.valueId)` to resolve the value — `adopt()` will throw `"Message must be a package"`.
+- `type: 'value'` messages (created by form submissions via `submit()`) have a `valueId`. Use `E(powers).lookup(msg.valueId)` to resolve the value — `adopt()` will throw `"Message must be a package"`.
 
 ### Form flow
 
@@ -54,6 +54,11 @@ A guest sends a form to HOST via `E(powers).form('HOST', title, fields)`. The ho
 ## Gateway
 
 The gateway (`src/daemon.js` line ~851) rejects requests for non-local node IDs with `"Gateway can only provide local values"`. After a daemon restart, the node number changes, so any client holding a stale formula ID from a previous session will hit this error.
+
+## Merge Policy
+
+Never use `--ours` or `--theirs` strategies when merging. All conflicts must be resolved manually by understanding both sides of the change.
+
 
 ## Debugging
 

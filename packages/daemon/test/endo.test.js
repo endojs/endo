@@ -25,7 +25,7 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
-import { idFromLocator, parseLocator } from '../src/locator.js';
+import { formatLocator, parseLocator } from '../src/locator.js';
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
@@ -688,8 +688,8 @@ test('move renames value, for a single caplet name hub', async t => {
   });
 
   await E(host).storeValue(10, 'ten');
-  const tenId = await E(host).identify('ten');
-  await E(nameHub).write(['ten'], tenId);
+  const tenLocator = await E(host).locate('ten');
+  await E(nameHub).write(['ten'], tenLocator);
 
   t.true(await E(nameHub).has('ten'));
 
@@ -713,8 +713,8 @@ test('move moves value, between different caplet name hubs', async t => {
   });
 
   await E(host).storeValue(10, 'ten');
-  const tenId = await E(host).identify('ten');
-  await E(nameHub1).write(['ten'], tenId);
+  const tenLocator = await E(host).locate('ten');
+  await E(nameHub1).write(['ten'], tenLocator);
 
   t.true(await E(nameHub1).has('ten'));
 
@@ -857,7 +857,7 @@ test('persist unconfined services and their requests', async t => {
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number, from: fromId } = E.get(message);
-    const [fromName] = await E(host).reverseIdentify(await fromId);
+    const [fromName] = await E(host).reverseLocate(await fromId);
     t.is(await fromName, 'h1');
     await E(host).resolve(await number, 'grant');
   })();
@@ -924,7 +924,7 @@ test('persist confined services and their requests', async t => {
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number, from: fromId } = E.get(message);
-    const [fromName] = await E(host).reverseIdentify(await fromId);
+    const [fromName] = await E(host).reverseLocate(await fromId);
     t.is(await fromName, 'h1');
     await E(host).resolve(await number, 'grant');
   })();
@@ -988,8 +988,8 @@ test('guest facet receives a message for host', async t => {
   const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
 
-  const guestId = await E(host).identify('guest');
-  const hostId = await E(host).identify('SELF');
+  const guestLocator = await E(host).locate('guest');
+  const hostLocator = await E(host).locate('SELF');
 
   // Host should have received messages.
   const hostInbox = await E(host).listMessages();
@@ -1000,8 +1000,8 @@ test('guest facet receives a message for host', async t => {
       to,
     })),
     [
-      { type: 'request', from: guestId, to: hostId },
-      { type: 'package', from: guestId, to: hostId },
+      { type: 'request', from: guestLocator, to: hostLocator },
+      { type: 'package', from: guestLocator, to: hostLocator },
     ],
   );
 
@@ -1010,8 +1010,8 @@ test('guest facet receives a message for host', async t => {
   t.deepEqual(
     guestInbox.map(({ type, from, to }) => ({ type, from, to })),
     [
-      { type: 'request', from: guestId, to: hostId },
-      { type: 'package', from: guestId, to: hostId },
+      { type: 'request', from: guestLocator, to: hostLocator },
+      { type: 'package', from: guestLocator, to: hostLocator },
     ],
   );
 });
@@ -1215,8 +1215,8 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
   await E(host).storeValue(10, 'ten');
   await changesIterator.next();
 
-  const tenId = await E(host).identify('ten');
-  await E(host).write(['ten'], tenId);
+  const tenLocator = await E(host).locate('ten');
+  await E(host).write(['ten'], tenLocator);
 
   // Create a new value and observe its publication, proving that nothing was
   // published as as result of the redundant write.
@@ -1252,11 +1252,10 @@ test('followLocatorNameChanges first publishes existing special name', async t =
 test('followLocatorNameChanges first publishes existing pet and special names', async t => {
   const { host } = await prepareHost(t);
 
-  const selfId = await E(host).identify('SELF');
-  await E(host).write(['self1'], selfId);
-  await E(host).write(['self2'], selfId);
-
   const selfLocator = await E(host).locate('SELF');
+  await E(host).write(['self1'], selfLocator);
+  await E(host).write(['self2'], selfLocator);
+
   const selfLocatorSub = makeRefIterator(
     await E(host).followLocatorNameChanges(selfLocator),
   );
@@ -1275,7 +1274,7 @@ test('followLocatorNameChanges publishes added names', async t => {
     tenLocator,
   );
 
-  await E(host).write(['zehn'], idFromLocator(tenLocator));
+  await E(host).write(['zehn'], tenLocator);
 
   const { value } = await changesIterator.next();
   t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
@@ -1287,7 +1286,7 @@ test('followLocatorNameChanges publishes removed names', async t => {
   await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
-  await E(host).write(['zehn'], idFromLocator(tenLocator));
+  await E(host).write(['zehn'], tenLocator);
   const changesIterator = await prepareFollowLocatorNameChangesIterator(
     host,
     tenLocator,
@@ -1360,9 +1359,9 @@ test('followLocatorNameChanges does not notify of redundant pet store writes', a
   );
 
   // Rewrite the value's existing name.
-  await E(host).write(['ten'], idFromLocator(tenLocator));
+  await E(host).write(['ten'], tenLocator);
   // Write an actually different name for the value.
-  await E(host).write(['zehn'], idFromLocator(tenLocator));
+  await E(host).write(['zehn'], tenLocator);
 
   // Confirm that the redundant write is not observed.
   const { value } = await changesIterator.next();
@@ -2390,7 +2389,8 @@ test('read unknown node id', async t => {
   const nodeId = /** @type {NodeNumber} */ (node);
   const numberId = /** @type {FormulaNumber} */ (number);
   const id = formatId({ node: nodeId, number: numberId });
-  await E(host).write(['abc'], id);
+  const locator = formatLocator(id, 'eval');
+  await E(host).write(['abc'], locator);
 
   // observe reification failure
   await t.throwsAsync(() => E(host).lookup(['abc']), {
@@ -2407,10 +2407,10 @@ test('read remote value', async t => {
 
   // create value to share
   await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
-  const hostBValueIdentifier = await E(hostB).identify('salutations');
+  const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueIdentifier);
+  await E(hostA).write(['greetings'], hostBValueLocator);
 
   const hostAValue = await E(hostA).lookup(['greetings']);
   t.is(hostAValue, 'hello, world!');
@@ -2431,8 +2431,8 @@ test('round-trip remotable identity', async t => {
     [],
     ['echoer'],
   );
-  const echoerId = await E(hostB).identify('echoer');
-  await E(hostA).write(['echoer'], echoerId);
+  const echoerLocator = await E(hostB).locate('echoer');
+  await E(hostA).write(['echoer'], echoerLocator);
   const survivedEcho = await E(hostA).evaluate(
     'MAIN',
     `
@@ -2457,8 +2457,8 @@ test('hello from afar', async t => {
 
   // Induce B to connect to A
   await E(hostA).evaluate('MAIN', '42', [], [], ['ft']);
-  const ftId = await E(hostA).identify('ft');
-  await E(hostB).write(['ft'], ftId);
+  const ftLocator = await E(hostA).locate('ft');
+  await E(hostB).write(['ft'], ftLocator);
   const ft = await E(hostB).lookup(['ft']);
   t.is(ft, 42);
 
@@ -2469,8 +2469,8 @@ test('hello from afar', async t => {
     [],
     ['echoer'],
   );
-  const echoerId = await E(hostB).identify('echoer');
-  await E(hostA).write(['echoer'], echoerId);
+  const echoerLocator = await E(hostB).locate('echoer');
+  await E(hostA).write(['echoer'], echoerLocator);
   const survivedEcho = await E(hostA).evaluate(
     'MAIN',
     `
@@ -2523,10 +2523,10 @@ test('locate remote value', async t => {
 
   // create value to share
   await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
-  const hostBValueIdentifier = await E(hostB).identify('salutations');
+  const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueIdentifier);
+  await E(hostA).write(['greetings'], hostBValueLocator);
 
   const greetingsLocator = await E(hostA).locate('greetings');
   const parsedGreetingsLocator = parseLocator(greetingsLocator);
@@ -2543,18 +2543,23 @@ test('invite, accept, and send mail', async t => {
 
   // create value to share
   await E(hostA).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
-  const expectedSalutationsId = await E(hostA).identify('salutations');
+  const expectedSalutationsLocator = await E(hostA).locate('salutations');
   await E(hostA).send('bob', ['Hello'], ['salutations'], ['salutations']);
 
   const messages = await E(hostB).listMessages();
   const {
     strings: [hi],
     names: [salutationsName],
-    ids: [salutationsId],
+    ids: [salutationsLocator],
   } = messages.find(({ number }) => number === 1n);
   t.is(hi, 'Hello');
   t.is(salutationsName, 'salutations');
-  t.is(salutationsId, expectedSalutationsId);
+  // The locators share the same id but may differ in type (the sender
+  // knows the real type, while the receiver sees it as 'remote').
+  const expectedParsed = parseLocator(expectedSalutationsLocator);
+  const actualParsed = parseLocator(salutationsLocator);
+  t.is(actualParsed.number, expectedParsed.number);
+  t.is(actualParsed.node, expectedParsed.node);
 });
 
 test('reverse locate local value', async t => {
@@ -2595,10 +2600,10 @@ test('reverse locate remote value', async t => {
 
   // create value to share
   await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
-  const hostBValueIdentifier = await E(hostB).identify('salutations');
+  const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueIdentifier);
+  await E(hostA).write(['greetings'], hostBValueLocator);
 
   const greetingsLocator = await E(hostA).locate('greetings');
   const [reverseLocatedName] = await E(hostA).reverseLocate(greetingsLocator);

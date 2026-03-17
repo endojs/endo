@@ -1,10 +1,17 @@
 // @ts-check
 
-/** @import { FormulaNumber, NodeNumber } from './types.js' */
+/** @import { FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
 
 import { makeError, q } from '@endo/errors';
 import { formatId, isValidNumber, parseId } from './formula-identifier.js';
 import { isValidFormulaType } from './formula-type.js';
+
+/**
+ * Sentinel "null node" value for locally-stored formula keys.
+ * Analogous to 0.0.0.0 in networking — a "this host" placeholder.
+ * All-zeros is never a valid Ed25519 public key.
+ */
+export const NULL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
 
 /**
  * The endo locator format:
@@ -144,4 +151,35 @@ export const formatLocatorForSharing = (id, formulaType, addresses) => {
 export const addressesFromLocator = locator => {
   const url = new URL(locator);
   return url.searchParams.getAll('at');
+};
+
+
+/**
+ * Convert an internal formula identifier to a locator for agent consumption.
+ * Replaces NULL_NODE with the agent's public key.
+ *
+ * @param {FormulaIdentifier} id - Internal formula identifier.
+ * @param {string} formulaType - The type of the formula.
+ * @param {NodeNumber} agentNodeNumber - The agent's public key to use as peer key.
+ * @returns {string} A locator string.
+ */
+export const externalizeId = (id, formulaType, agentNodeNumber) => {
+  const { number, node } = parseId(id);
+  const peerKey = node === NULL_NODE ? agentNodeNumber : node;
+  return formatLocator(formatId({ number, node: peerKey }), formulaType);
+};
+
+/**
+ * Convert a locator from an agent back to an internal formula identifier.
+ * The node is preserved as-is (internal IDs use the real node number).
+ *
+ * @param {string} locator - A locator string from an agent.
+ * @param {(node: NodeNumber) => boolean} _isLocalKey - Predicate for known local keys (reserved for future use).
+ * @returns {{ id: FormulaIdentifier, formulaType: string, addresses: string[] }}
+ */
+export const internalizeLocator = (locator, _isLocalKey) => {
+  const { number, node, formulaType } = parseLocator(locator);
+  const addresses = addressesFromLocator(locator);
+  const id = formatId({ number, node });
+  return { id, formulaType, addresses };
 };

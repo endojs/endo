@@ -285,7 +285,7 @@ const numberFormatter = new Intl.NumberFormat();
 const inboxComponent = async ($parent, $end, powers) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
-  const selfId = await E(powers).identify('SELF');
+  const selfLocator = await E(powers).locate('SELF');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane.
@@ -299,7 +299,7 @@ const inboxComponent = async ($parent, $end, powers) => {
       }),
     );
 
-    const { number, type, from: fromId, to: toId, date, dismissed } = message;
+    const { number, type, from: fromLocator, to: toLocator, date, dismissed } = message;
 
     let verb = '';
     if (type === 'request') {
@@ -328,10 +328,10 @@ const inboxComponent = async ($parent, $end, powers) => {
     $number.innerText = `${number}. `;
     $message.appendChild($number);
 
-    if (fromId === selfId && toId === selfId) {
+    if (fromLocator === selfLocator && toLocator === selfLocator) {
       $message.appendChild($verb);
-    } else if (fromId === selfId) {
-      const toName = await E(powers).reverseIdentify(toId);
+    } else if (fromLocator === selfLocator) {
+      const toName = await E(powers).reverseLocate(toLocator);
       if (toName === undefined) {
         continue;
       }
@@ -339,8 +339,8 @@ const inboxComponent = async ($parent, $end, powers) => {
       $to.innerText = ` ${toName} `;
       $message.appendChild($verb);
       $message.appendChild($to);
-    } else if (toId === selfId) {
-      const fromName = await E(powers).reverseIdentify(fromId);
+    } else if (toLocator === selfLocator) {
+      const fromName = await E(powers).reverseLocate(fromLocator);
       if (fromName === undefined) {
         continue;
       }
@@ -350,7 +350,7 @@ const inboxComponent = async ($parent, $end, powers) => {
       $message.appendChild($verb);
     } else {
       const [fromName, toName] = await Promise.all(
-        [fromId, toId].map(id => E(powers).reverseIdentify(id)),
+        [fromLocator, toLocator].map(locator => E(powers).reverseLocate(locator)),
       );
       const $from = document.createElement('strong');
       $from.innerText = ` ${fromName} `;
