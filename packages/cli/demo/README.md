@@ -131,22 +131,47 @@ export const make = powers => {
 };
 ```
 
-The doubler receives a `powers` object: an interface granted by the host user
-through which it obtains all of its authority.
+The doubler receives a `powers` object:
+an interface granted by the host user through which it obtains all of its authority.
 In this example, the doubler requests another counter from the user.
 
 We make a doubler mostly the same way we made the counter.
+
 However, we must create a guest profile for the doubler.
-The guest has two facets: its handle and its agent powers.
-The handle appears in the "to" and "from" fields of messages exchanged with the
-guest and provides no other capabilities.
-The agent is a permission management broker that the doubler
-can use to request other capabilities, like the counter.
+
+The guest has two facets:
+1. its handle
+2. its agent powers
+
+> XXX(Josh) "handle"? is that "profile" below? why so many loose terms...
+
+The handle appears in the "to" and "from" fields of messages exchanged
+with the guest and provides no other capabilities.
+
+The agent is a permission management broker that
+the doubler can use to request other capabilities, like the counter.
+
+> XXX(Josh) the "agent"? is its "handle"? its "profile"? is a "guest"?
+>           ... argh ... are they all Same Picture or what ...
+>           Just. Use. One. Damn. Term. Or: Tell. Me. Why. Each. One. Matters.
+
+> XXX(Josh) "profile"? first use of term in demo readme...
+>            wtf is a "profile" mate, let alone a "guest" one of 'em?
+>            thought we were doing ocap things.... is a profile a caplet?
 
 ```
 > endo mkguest doubler-handle doubler-agent
-> endo make doubler.js --name doubler --powers doubler-agent
+Object [Alleged: EndoGuest] {}
 ```
+
+> XXX(Josh) ahh so... we are creating a "guest" and calling it a "-handle?" and also a "-agent" wat⁉️
+
+```
+> endo make doubler.js --name doubler --powers doubler-agent
+Object [Alleged: Doubler] {}
+```
+
+> XXX(Josh) we then make a... thing? named doubler? with the powers of its agent? okay......
 
 This creates a doubler, but the doubler cannot respond until we
 resolve its request for a counter.
@@ -154,11 +179,44 @@ resolve its request for a counter.
 ```
 > endo inbox
 0. "doubler-handle" requested "please give me a counter"
+```
+
+> XXX(Josh) why "-handle" tho.... why cannot just be lol "doubler"
+
+> FIXME(Josh) Nope; inbox empty, what do?
+>           - sure would be nice if that `Alleged: Doubler` that I "made" above...
+>           - ... somehow had a recourse for "why did creation fail? poke? buddy?"
+>
+> ( some minutes later ) Ahhh Found It!
+> ```endo log -a
+> ==> worker/f186f872 <==
+> Endo worker started on pid 2832924
+> CapTP Endo exception: Invalid name "myCounter" 
+> ```
+> Sure Would Be Nice if `endo make` fed back this sort of initialization error eh?
+>
+> Wow so that's some unexplained pedantry up to this point that we have
+> "special" names an "pet" names that are differentiated by mere capitalization
+> conventions:
+> ```
+> isName :=
+>   | isPetName ~= /^[a-z0-9][a-z0-9-]{0,127}$/
+>   | isSpecialName ~= /^[A-Z][A-Z0-9-]{0,127}$/
+>   | isMailSlotName ~= /^\d+$/
+> ```
+
+```
 > endo resolve 0 counter
 ```
 
 > Aside, `endo reject 0` would have rejected the request,
 > leaving the `doubler-agent` permanently broken.
+
+> XXX(Josh) so "-agent" is broken?
+>         - it's "-handle" rejected?
+>         - or could the user decide later to resolve it after all?
+>         - could the -agent re-request?
+>         - or does the user need to re-make?
 
 Now we can get a response from the doubler.
 
@@ -170,6 +228,22 @@ Now we can get a response from the doubler.
 > endo eval 'E(doubler).incr()' doubler
 12
 ```
+
+> FIXME(Josh) Nope; she hangs thos:
+> ```
+> ❯ endo eval 'E(doubler).incr()' doubler
+> 
+> 
+> ^CCapTP cli exception: (Error#1)
+> Error#1: SIGINT
+> 
+>   at process.<anonymous> (packages/cli/src/context.js:13:39)
+>   at Object.onceWrapper (node:events:634:26)
+>   at process.emit (node:events:519:28)
+> 
+> (Error#1)
+> (Error#1)
+> ```
 
 Also, in the optional second argument to `request`, `doubler.js` names the
 request `my-counter`.
