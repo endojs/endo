@@ -123,7 +123,18 @@ export const makeMessageCapTP = (
     isClosed = true;
     abort(reason);
     Promise.all([
-      writer.return(undefined).catch(() => {}),
+      writer
+        .return(undefined)
+        // .catch(e => {
+        //   // EPIPE errors occur when the peer has already closed the connection.
+        //   // This is expected during graceful shutdown and not an error condition.
+        //   const isPrematureClose =
+        //     e.code === 'EPIPE' || e.code === 'ERR_STREAM_PREMATURE_CLOSE';
+        //   if (!isPrematureClose) {
+        //     throw e;
+        //   }
+        // })
+        .catch(() => {}),
       drained.catch(() => {}),
     ]).then(() => {
       resolveClosed(undefined);
