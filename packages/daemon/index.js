@@ -405,6 +405,7 @@ export const status = async (
   const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
   const pid = await readPidFile(pidPath);
   console.log(`pid: ${pid || 'NOT RUNNING'}`);
+  const running = !!pid;
 
   // TODO interrogate process details if verbose > 0
 
@@ -450,6 +451,16 @@ export const status = async (
 
   // TODO we could run `du -csh ${cachePath}` if verbose > 1
   // config.cachePath
+
+  if (running) {
+    console.log('Running Workers:');
+    for await (const worker of runningWorkers(config)) {
+      const pid = await worker.pid;
+      if (pid !== null) {
+        console.log(`* id:${worker.id} pid:${pid}`);
+      }
+    }
+  }
 };
 
 /**
@@ -477,10 +488,42 @@ export const start = async (
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * @param {string} ephemeralStatePath
+ * @param {object} options
+ * @param {Config} options.config
+ * @param {string} options.workerId
+ * @param {string} [options.workerRunDir]
  */
-const killWorkersByPidFiles = async ephemeralStatePath => {
-  const workerDir = path.join(ephemeralStatePath, 'worker');
+const runningWorker = ({
+  config,
+  workerId,
+  workerRunDir = path.join(config.ephemeralStatePath, 'worker', workerId),
+}) => {
+  const pidPath = path.join(workerRunDir, 'worker.pid');
+  return {
+    get id() { return workerId },
+
+    get runDir() { return workerRunDir },
+
+    get pidPath() { return pidPath },
+
+    pid: (async () => {
+      try {
+        const pidText = await fs.promises.readFile(pidPath, 'utf-8');
+        const rawPid = Number(pidText);
+        if (Number.isFinite(rawPid) && rawPid > 0) {
+          return rawPid;
+        }
+      } catch { }
+      return null;
+    })(),
+  };
+};
+
+/**
+ * @param {Config} config
+ */
+const runningWorkers = async function*(config) {
+  const workerDir = path.join(config.ephemeralStatePath, 'worker');
   /** @type {string[]} */
   let workerIds;
   try {
@@ -488,22 +531,32 @@ const killWorkersByPidFiles = async ephemeralStatePath => {
   } catch {
     return;
   }
-  await Promise.all(
-    workerIds.map(async workerId => {
-      const pidPath = path.join(workerDir, workerId, 'worker.pid');
-      try {
-        const pidText = await fs.promises.readFile(pidPath, 'utf-8');
-        const workerPid = Number(pidText);
-        if (Number.isFinite(workerPid) && workerPid > 0) {
-          for await (const _ of politeEndProcess(workerPid)) {
-          }
+  for (const workerId of workerIds) {
+    yield runningWorker({
+      config,
+      workerId,
+      workerRunDir: path.join(workerDir, workerId),
+    });
+  }
+};
+
+/**
+ * @param {Config} config
+ */
+const killWorkersByPidFiles = async config => {
+  /** @type {Array<Promise<void>>} */
+  const pending = []
+  for await (const worker of runningWorkers(config)) {
+    pending.push((async () => {
+      const workerPid = await worker.pid;
+      if (workerPid !== null) {
+        for await (const _ of politeEndProcess(workerPid)) {
         }
-        await fs.promises.rm(pidPath, { force: true });
-      } catch {
-        /* no pid file */
       }
-    }),
-  );
+      await fs.promises.rm(worker.pidPath, { force: true }).catch(() => undefined);
+    })());
+  }
+  await Promise.all(pending);
 };
 
 /**
@@ -663,7 +716,7 @@ export const clean = async (config = defaultConfig) => {
 export const stop = async (config = defaultConfig) => {
   await terminate(config).catch(() => { });
   await killDaemonProcess(config);
-  await killWorkersByPidFiles(config.ephemeralStatePath);
+  await killWorkersByPidFiles(config);
   await clean(config);
 };
 
@@ -679,7 +732,7 @@ export const restart = async (config = defaultConfig, options = {}) => {
 export const purge = async (config = defaultConfig) => {
   await terminate(config).catch(() => { });
   await killDaemonProcess(config);
-  await killWorkersByPidFiles(config.ephemeralStatePath);
+  await killWorkersByPidFiles(config);
 
   await Promise.all([
     clean(config),
