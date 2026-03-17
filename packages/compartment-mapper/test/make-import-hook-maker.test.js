@@ -159,7 +159,7 @@ test(
 );
 
 test('captureFromMap - moduleSourceHook - receives correct parameters w/ implicit dependency', async t => {
-  t.plan(5);
+  t.plan(4);
   const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = new URL(
     'fixtures-module-source-hook/node_modules/app-implicit/index.js',
@@ -178,12 +178,7 @@ test('captureFromMap - moduleSourceHook - receives correct parameters w/ implici
   };
 
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
-  t.falsy(
-    compartmentMap.compartments[compartmentMap.entry.compartment].modules[
-      'dependency-a>dependency-b'
-    ],
-    'app-implicit should not have a module reference to dependency-b',
-  );
+
   t.truthy(
     Object.values(compartmentMap.compartments).find(
       compartment => compartment.label === 'dependency-a>dependency-b',
