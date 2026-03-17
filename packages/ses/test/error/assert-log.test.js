@@ -339,6 +339,13 @@ test('makeError named', t => {
   );
 });
 
+test('makeError code', t => {
+  const err = makeError(X`<${'bar'},${q('baz')}>`, URIError, {
+    code: 'FOO_ERR',
+  });
+  t.is(err.code, 'FOO_ERR');
+});
+
 test('assert.quote', t => {
   throwsAndLogs(t, () => Fail`<${'bar'},${q('baz')}>`, /<\(a string\),"baz">/, [
     ['log', 'Caught', Error],

@@ -305,6 +305,7 @@ export const sanitizeError = error => {
     errors: _errorsDesc = undefined,
     cause: _causeDesc = undefined,
     stack: _stackDesc = undefined,
+    code: _codeDesc = undefined,
     ...restDescs
   } = descs;
 
@@ -340,6 +341,7 @@ const makeError = (
     cause = undefined,
     errors = undefined,
     sanitize = true,
+    code = undefined,
   } = {},
 ) => {
   // Promote string-valued `optDetails` into a minimal DetailsParts
@@ -372,6 +374,14 @@ const makeError = (
         configurable: true,
       });
     }
+  }
+  if (code !== undefined && typeof code === 'string') {
+    defineProperty(error, 'code', {
+      value: code,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
   }
   weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
   if (errorName !== undefined) {
