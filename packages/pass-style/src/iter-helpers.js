@@ -13,8 +13,14 @@ import { Far } from './make-far.js';
  * @returns {Iterable<U>}
  */
 export const mapIterable = (baseIterable, func) =>
-  /** @type {Iterable<U>} */
-  Far('mapped iterable', {
+  /**
+   * An `Iterable` should not be a `Remotable` because it has a symbol-named
+   * method. That's why we use `harden` rather than, say, `Far`. However,
+   * an `Iterator` can be a `Remotable`.
+   *
+   * @type {Iterable<U>}
+   */
+  harden({
     [Symbol.iterator]: () => {
       const baseIterator = baseIterable[Symbol.iterator]();
       return Far('mapped iterator', {
@@ -40,8 +46,14 @@ harden(mapIterable);
  * @returns {Iterable<T>}
  */
 export const filterIterable = (baseIterable, pred) =>
-  /** @type {Iterable<U>} */
-  Far('filtered iterable', {
+  /**
+   * An `Iterable` should not be a `Remotable` because it has a symbol-named
+   * method. That's why we use `harden` rather than, say, `Far`. However,
+   * an `Iterator` can be a `Remotable`.
+   *
+   * @type {Iterable<U>}
+   */
+  harden({
     [Symbol.iterator]: () => {
       const baseIterator = baseIterable[Symbol.iterator]();
       return Far('filtered iterator', {
