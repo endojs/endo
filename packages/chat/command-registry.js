@@ -416,6 +416,24 @@ export const COMMANDS = {
     submitLabel: 'Create',
   },
 
+  locate: {
+    name: 'locate',
+    label: 'Locate',
+    description: 'Get the locator for a named value',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'pet-name',
+      },
+    ],
+    submitLabel: 'Locate',
+  },
+
   // ============ CONNECTIONS ============
   invite: {
     name: 'invite',
