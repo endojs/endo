@@ -313,7 +313,7 @@ export type GenericErrorConstructor =
 /**
  * An `Error` with a `code` property.
  */
-export type SesError = Error & { code?: string };
+export type CodableError = Error & { code?: string };
 
 /**
  * To make an `assert` which terminates some larger unit of computation
@@ -322,7 +322,7 @@ export type SesError = Error & { code?: string };
  * If possible, the callback should also report its `reason` parameter as
  * the alleged reason for the termination.
  */
-export type Raise = (reason: SesError) => void;
+export type Raise = (reason: CodableError) => void;
 
 /**
  * Makes and returns an `assert` function object that shares the
@@ -406,13 +406,13 @@ export interface AssertionUtilities {
     /** An optional alternate error constructor to use */
     errConstructor?: GenericErrorConstructor,
     options?: AssertMakeErrorOptions,
-  ): SesError;
+  ): CodableError;
 
   /**
    * Associate `details` with `error`, potentially to be logged by an associated
    * console for providing extra information about the error.
    */
-  note(error: SesError, details: Details): void;
+  note(error: CodableError, details: Details): void;
 
   /**
    * Use as a template literal tag to create an opaque {@link DetailsToken} for
