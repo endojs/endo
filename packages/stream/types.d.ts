@@ -14,13 +14,23 @@ export interface AsyncQueue<TSpringValue, TSinkValue = TSpringValue>
 // probably be identical to this definition of Stream.
 // Stream does not make the mistake of conflating the read and write return
 // types.
+//
+// The conditional type `undefined extends T ? [...] : [...]` makes next()
+// optionally callable without arguments when T includes undefined.
+// The operand order matters:
+// - `undefined extends T` asks "is undefined assignable to T?"
+// - For T=undefined: true (can omit arg)
+// - For T=Uint8Array: false (must provide arg)
+// - For T=unknown: true (can omit arg, matches AsyncGenerator's TNext=unknown)
 export interface Stream<
   TRead,
   TWrite = undefined,
   TReadReturn = undefined,
   TWriteReturn = undefined,
 > {
-  next(value: TWrite): Promise<IteratorResult<TRead, TReadReturn>>;
+  next(
+    ...args: undefined extends TWrite ? [] | [TWrite] : [TWrite]
+  ): Promise<IteratorResult<TRead, TReadReturn>>;
   return(value: TWriteReturn): Promise<IteratorResult<TRead, TReadReturn>>;
   throw(error: Error): Promise<IteratorResult<TRead, TReadReturn>>;
   [Symbol.asyncIterator](): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;

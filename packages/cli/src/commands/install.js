@@ -4,12 +4,14 @@ import os from 'os';
 
 import openWebPage from 'open';
 import { E } from '@endo/far';
-import { makeReaderRef } from '@endo/daemon';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import bundleSource from '@endo/bundle-source';
 
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
+
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 
 const textEncoder = new TextEncoder();
 
@@ -22,7 +24,7 @@ export const install = async ({
   programPath,
   doOpen,
 }) => {
-  /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
+  /** @type {PassableBytesReader | undefined} */
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;
@@ -38,7 +40,7 @@ export const install = async ({
     const bundle = await bundleSource(programPath);
     const bundleText = JSON.stringify(bundle);
     const bundleBytes = textEncoder.encode(bundleText);
-    bundleReaderRef = makeReaderRef([bundleBytes]);
+    bundleReaderRef = bytesReaderFromIterator([bundleBytes]);
   }
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
