@@ -55,16 +55,24 @@ test('legacy guard tolerance', async t => {
 
   t.deepEqual(getMethodGuardPayload(mg1), {
     callKind: 'async',
+    argsTemplate: undefined,
     argGuards: [77, aag],
+    optionalArgsTemplate: undefined,
     optionalArgGuards: undefined,
+    restArgTemplate: undefined,
     restArgGuard: undefined,
+    resultTemplate: undefined,
     returnGuard: M.any(),
   });
   t.deepEqual(getMethodGuardPayload(mg2), {
     callKind: 'async',
+    argsTemplate: undefined,
     argGuards: [77, laag],
+    optionalArgsTemplate: undefined,
     optionalArgGuards: undefined,
+    restArgTemplate: undefined,
     restArgGuard: undefined,
+    resultTemplate: undefined,
     returnGuard: M.any(),
   });
   // @ts-expect-error Legacy adaptor can be ill typed
