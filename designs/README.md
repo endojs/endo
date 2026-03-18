@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-17*
 
 ## Summary
 
@@ -26,6 +26,7 @@
 | [daemon-agent-tools](daemon-agent-tools.md) | 2026-03-02 | 2026-03-02 | Not Started |
 | [daemon-commands-as-messages](daemon-commands-as-messages.md) | 2026-03-11 | 2026-03-11 | Not Started |
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
+| [daemon-checkin-checkout](daemon-checkin-checkout.md) | 2026-03-17 | 2026-03-17 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-03-07 | Not Started |
@@ -69,7 +70,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 21 Complete/Implemented, 3 In Progress, 34 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 21 Complete/Implemented, 3 In Progress, 35 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -113,11 +114,13 @@ flowchart TD
         fweb[familiar-unified-weblet-server<br/><i>IN PROGRESS</i>]
         flhttp[familiar-localhttp-protocol<br/><i>IN PROGRESS</i>]
         fchat[familiar-chat-weblet-hosting]
+        dci[daemon-checkin-checkout]
         dapp[daemon-weblet-application]
         fbund --> fweb --> fchat
         fweb --> dapp
         fchat --> dapp
         flhttp --> fchat
+        dci --> dapp
     end
 
     subgraph Remote Access
@@ -266,6 +269,7 @@ automation.
 |--------|--------|-------|
 | familiar-unified-weblet-server | In Progress | Web-server restructuring |
 | familiar-chat-weblet-hosting | Not Started | Iframe hosting, guest profiles |
+| daemon-checkin-checkout | Not Started | `endo ci` / `endo co` for readable-tree ↔ filesystem |
 | daemon-weblet-application | Not Started | Readable trees, zip archives |
 | endoclaw-oauth | Not Started | Credential capability — agent uses service without seeing token |
 | endoclaw-proactive-messages | Not Started | Composes Timer + data caps + send() for briefings/reminders |
@@ -401,6 +405,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | ocapn-noise-network | L | 1.5-2 weeks | 2 | Full network + transport |
 | familiar-unified-weblet-server | M | 2-3 days | 3 | Web-server restructuring |
 | familiar-chat-weblet-hosting | M | 3-4 days | 3 | Iframe hosting, guest profiles |
+| daemon-checkin-checkout | S-M | 2-3 days | 3 | `endo ci`/`co`, readable-tree formula, zip support |
 | daemon-weblet-application | M | 3-4 days | 3 | Formula types, gateway serving |
 | endoclaw-oauth | S-M | 2-3 days | 3 | Credential proxy exo, token injection |
 | endoclaw-proactive-messages | S | 1 day | 3 | Pattern doc: Timer + data caps + send() |
