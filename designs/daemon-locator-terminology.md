@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-02-24 |
-| **Updated** | 2026-02-24 |
+| **Updated** | 2026-03-18 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -179,10 +179,11 @@ locator-with-hints operations.
 
 ### Motivation
 
-Each EndoAgent (Host, Guest) on a daemon shares the daemon's peer key
-(Ed25519 public key) as its node identifier. When formulas are stored
-internally, all local formula identifiers use a sentinel **LOCAL_NODE**
-(`0` × 64) in place of the real peer key. This ensures:
+Each EndoAgent (Host, Guest) on a daemon has its own Ed25519 keypair.
+When an agent produces a locator, it stamps the locator with its own
+public key as the node identifier. When formulas are stored internally,
+all local formula identifiers use a sentinel **LOCAL_NODE** (`0` × 64)
+in place of any agent's public key. This ensures:
 
 1. **One copy per formula**: Regardless of which agent created or views a
    formula, the internal identifier is the same.
@@ -200,9 +201,12 @@ const LOCAL_NODE = '0'.repeat(64);
 
 ### Local Keys Registry
 
-The daemon maintains a set of known local agent public keys. For a
-single-daemon deployment this is `{ localNodeNumber }`. The predicate
-`isLocalKey(node)` returns true for any key in this set.
+The daemon maintains a `localKeys` set of known local agent public keys,
+initialized with `localNodeNumber` (the daemon's root key) and extended
+with each agent's keypair public key as agents are incarnated. The
+predicate `isLocalKey(node)` returns true for any key in this set. All
+agents share the same predicate so that locators from sibling agents on
+the same daemon are correctly internalized to LOCAL_NODE.
 
 ### Internalization (ingesting a locator)
 
@@ -347,4 +351,5 @@ store formula keys, not locators.
   - Round-trip: remote id → externalize → internalize = original id
   - Message externalization uses agent's key for LOCAL_NODE replacement
   - Pet store repair normalizes old-format identifiers on startup
-  - Integration: messages show locators with the daemon's peer key
+  - Integration: host and guest present different locators for the same value
+  - Integration: cross-agent locator internalization (agent A's locator recognized as local by agent B)

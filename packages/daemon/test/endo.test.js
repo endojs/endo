@@ -25,7 +25,7 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
-import { formatLocator, parseLocator } from '../src/locator.js';
+import { formatLocator, parseLocator, addressesFromLocator } from '../src/locator.js';
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
@@ -2543,6 +2543,58 @@ test('host and guest present different locators for the same value', async t => 
     guestParsed.node,
     'host and guest present different peer keys',
   );
+});
+
+test('guest has its own NETS special name', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest');
+
+  // The guest should be able to look up NETS — it resolves to a directory.
+  const guestNetsNames = await E(guest).list('NETS');
+  t.true(Array.isArray(guestNetsNames), 'guest NETS is a directory');
+  // A newly created guest starts with an empty networks directory.
+  t.is(guestNetsNames.length, 0, 'guest NETS starts empty');
+
+  // The host also has NETS; verify their locators differ (different directories).
+  const hostNetsLocator = await E(host).locate('NETS');
+  const guestNetsLocator = await E(guest).locate('NETS');
+  t.truthy(hostNetsLocator, 'host has NETS');
+  t.truthy(guestNetsLocator, 'guest has NETS');
+  t.not(
+    hostNetsLocator,
+    guestNetsLocator,
+    'host and guest have different NETS directories',
+  );
+});
+
+test('locate produces locators with connection hints from agent NETS', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).storeValue(42, 'answer');
+
+  // Host NETS contains only loopback (empty addresses).
+  const hostLocator = await E(host).locate('answer');
+  t.truthy(hostLocator, 'host locator is defined');
+  const hostAddresses = addressesFromLocator(hostLocator);
+  // Loopback network advertises no addresses, so no at= params.
+  t.is(hostAddresses.length, 0, 'loopback-only NETS yields no at= params');
+
+  // Create a guest — its NETS starts empty.
+  const guest = await E(host).provideGuest('guest');
+  await E(guest).write(['answer'], hostLocator);
+
+  // Guest has empty NETS, so its locator should also have no at= params.
+  const guestLocator = await E(guest).locate('answer');
+  t.truthy(guestLocator, 'guest locator is defined');
+  const guestAddresses = addressesFromLocator(guestLocator);
+  t.is(guestAddresses.length, 0, 'empty NETS yields no at= params');
+
+  // Both locators point to the same formula but with different peer keys.
+  const hostParsed = parseLocator(hostLocator);
+  const guestParsed = parseLocator(guestLocator);
+  t.is(hostParsed.number, guestParsed.number, 'same formula number');
+  t.not(hostParsed.node, guestParsed.node, 'different peer keys');
 });
 
 test('locate remote value', async t => {

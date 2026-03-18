@@ -161,6 +161,7 @@ export type GuestFormula = {
   mailboxStore: FormulaIdentifier;
   mailHub: FormulaIdentifier;
   worker: FormulaIdentifier;
+  networks: FormulaIdentifier;
 };
 
 type LeastAuthorityFormula = {
@@ -778,7 +779,7 @@ export interface EndoDirectory extends NameHub {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
 }
 
-export type MakeDirectoryNode = (petStore: PetStore, agentNodeNumber: NodeNumber, isLocalKey: (node: string) => boolean) => EndoDirectory;
+export type MakeDirectoryNode = (petStore: PetStore, agentNodeNumber: NodeNumber, isLocalKey: (node: string) => boolean, getNetworkAddresses: () => Promise<string[]>) => EndoDirectory;
 
 export interface Mail {
   handle: () => Handle;

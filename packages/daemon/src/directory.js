@@ -39,7 +39,7 @@ export const makeDirectoryMaker = ({
   unpinTransient,
 }) => {
   /** @type {MakeDirectoryNode} */
-  const makeDirectoryNode = (petStore, agentNodeNumber, isLocalKey) => {
+  const makeDirectoryNode = (petStore, agentNodeNumber, isLocalKey, getNetworkAddresses) => {
 
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
@@ -120,7 +120,8 @@ export const makeDirectoryMaker = ({
       const formulaType = await getTypeForId(
         /** @type {FormulaIdentifier} */ (id),
       );
-      return externalizeId(id, formulaType, agentNodeNumber);
+      const addresses = await getNetworkAddresses();
+      return externalizeId(/** @type {FormulaIdentifier} */ (id), formulaType, agentNodeNumber, addresses);
     };
 
     /** @type {EndoDirectory['reverseLocate']} */
@@ -349,7 +350,8 @@ export const makeDirectoryMaker = ({
     // TODO thread context
 
     const petStore = await provide(petStoreId, 'pet-store');
-    const directory = makeDirectoryNode(petStore, agentNodeNumber, isLocalKey);
+    const noNetworkAddresses = async () => [];
+    const directory = makeDirectoryNode(petStore, agentNodeNumber, isLocalKey, noNetworkAddresses);
 
     const help = makeHelp(directoryHelp);
 

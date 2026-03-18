@@ -22,7 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { internalizeLocator, formatLocatorForSharing, addressesFromLocator } from './locator.js';
+import { addressesFromLocator } from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -173,7 +173,9 @@ export const makeHostMaker = ({
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey);
+    const getNetworkAddresses = () =>
+      getAllNetworkAddresses(networksDirectoryId);
+    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey, getNetworkAddresses);
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
@@ -787,16 +789,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['locateForSharing']} */
     const locateForSharing = async (...petNamePath) => {
-      assertNames(petNamePath);
-      const id = await E(directory).identify(...petNamePath);
-      if (id === undefined) {
-        return undefined;
-      }
-      const formulaType = await getTypeForId(
-        /** @type {FormulaIdentifier} */ (id),
-      );
-      const addresses = await getAllNetworkAddresses(networksDirectoryId);
-      return formatLocatorForSharing(id, formulaType, addresses);
+      return E(directory).locate(...petNamePath);
     };
 
     /** @type {EndoHost['adoptFromLocator']} */
@@ -845,18 +838,9 @@ export const makeHostMaker = ({
       move,
       copy,
       makeDirectory: makeDirectoryLocal,
+      writeLocator,
     } = directory;
 
-    /** @type {EndoHost['write']} */
-    const writeLocator = async (petNamePath, locatorOrId) => {
-      const namePath = namePathFrom(petNamePath);
-      if (locatorOrId.startsWith('endo://')) {
-        const { id } = internalizeLocator(locatorOrId, isLocalKey);
-        return directory.write(namePath, id);
-      }
-      // FormulaIdentifier from internal callers through E(hub).write
-      return directory.write(namePath, locatorOrId);
-    };
     const makeDirectory = async petNameOrPath => {
       const namePath = namePathFrom(petNameOrPath);
       return makeDirectoryLocal(namePath);

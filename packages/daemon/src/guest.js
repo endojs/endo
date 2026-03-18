@@ -6,7 +6,6 @@ import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
-import { internalizeLocator } from './locator.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NodeNumber, NamesOrPaths, Provide } from './types.js' */
@@ -18,6 +17,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {Provide} args.provide
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
+ * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {(node: string) => boolean} args.isLocalKey
@@ -29,6 +29,7 @@ export const makeGuestMaker = ({
   provide,
   formulateMarshalValue,
   getFormulaForId,
+  getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
   isLocalKey,
@@ -47,6 +48,7 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier} mailboxStoreId
    * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
+   * @param {FormulaIdentifier} networksDirectoryId
    * @param {Context} context
    */
   const makeGuest = async (
@@ -60,6 +62,7 @@ export const makeGuestMaker = ({
     mailboxStoreId,
     mailHubId,
     mainWorkerId,
+    networksDirectoryId,
     context,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
@@ -70,6 +73,7 @@ export const makeGuestMaker = ({
       context.thisDiesIfThatDies(mailHubId);
     }
     context.thisDiesIfThatDies(mainWorkerId);
+    context.thisDiesIfThatDies(networksDirectoryId);
 
     const basePetStore = await provide(petStoreId, 'pet-store');
     const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
@@ -82,9 +86,12 @@ export const makeGuestMaker = ({
     if (mailHubId !== undefined) {
       specialNames['@mail'] = mailHubId;
     }
+    specialNames['@nets'] = networksDirectoryId;
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey);
+    const getNetworkAddresses = () =>
+      getAllNetworkAddresses(networksDirectoryId);
+    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey, getNetworkAddresses);
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
@@ -109,6 +116,7 @@ export const makeGuestMaker = ({
       lookup,
       reverseLookup,
       write,
+      writeLocator,
       move,
       remove,
       copy,
@@ -141,16 +149,6 @@ export const makeGuestMaker = ({
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
-
-    const writeLocator = async (petNamePath, locatorOrId) => {
-      const namePath = namePathFrom(petNamePath);
-      if (locatorOrId.startsWith('endo://')) {
-        const { id } = internalizeLocator(locatorOrId, isLocalKey);
-        return directory.write(namePath, id);
-      }
-      // FormulaIdentifier from internal callers through E(hub).write
-      return directory.write(namePath, locatorOrId);
-    };
 
     /** @type {EndoGuest['requestEvaluation']} */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>

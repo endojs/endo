@@ -161,12 +161,17 @@ export const addressesFromLocator = locator => {
  * @param {FormulaIdentifier} id - Internal formula identifier.
  * @param {string} formulaType - The type of the formula.
  * @param {NodeNumber} agentNodeNumber - The agent's public key to use as peer key.
+ * @param {string[]} [addresses] - Optional network addresses (connection hints).
  * @returns {string} A locator string.
  */
-export const externalizeId = (id, formulaType, agentNodeNumber) => {
+export const externalizeId = (id, formulaType, agentNodeNumber, addresses = []) => {
   const { number, node } = parseId(id);
   const peerKey = node === LOCAL_NODE ? agentNodeNumber : node;
-  return formatLocator(formatId({ number, node: peerKey }), formulaType);
+  const externalId = formatId({ number, node: peerKey });
+  if (addresses.length > 0) {
+    return formatLocatorForSharing(externalId, formulaType, addresses);
+  }
+  return formatLocator(externalId, formulaType);
 };
 
 /**
