@@ -81,7 +81,7 @@ export const createCounterProposalForm = async ({
         </div>
         <div class="eval-option">
           <label for="counter-worker-name">Worker</label>
-          <input type="text" id="counter-worker-name" value="MAIN" />
+          <input type="text" id="counter-worker-name" value="@main" />
         </div>
       </div>
       <div class="eval-footer">

@@ -130,7 +130,7 @@ export const petNamePathsAutocomplete = (
 
     // Update placeholder
     $input.placeholder =
-      completedPaths.length === 0 ? 'name or path.to.name' : '';
+      completedPaths.length === 0 ? 'name or path/to/name' : '';
   };
 
   /**
@@ -236,8 +236,8 @@ export const petNamePathsAutocomplete = (
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
     $hint.innerHTML = finalizeOnSelect
-      ? '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>⇧Tab</kbd> go back · <kbd>Enter</kbd> submit'
-      : '<kbd>↑↓</kbd> navigate · <kbd>.</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit · <kbd>Esc</kbd> cancel';
+      ? '<kbd>↑↓</kbd> navigate · <kbd>/</kbd> drill down · <kbd>⇧Tab</kbd> go back · <kbd>Enter</kbd> submit'
+      : '<kbd>↑↓</kbd> navigate · <kbd>/</kbd> drill down · <kbd>Space</kbd> add · <kbd>Enter</kbd> submit · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
   };
 
@@ -280,7 +280,7 @@ export const petNamePathsAutocomplete = (
         setTimeout(() => updateSuggestions(), 0);
       }
     } else if (mode === 'drilldown') {
-      // Put full path in input with trailing dot for continued drilling
+      // Put full path in input with trailing slash for continued drilling
       $input.value = `${fullPath}/`;
       renderChips();
       notifyChange();
@@ -490,7 +490,7 @@ export const petNamePathsAutocomplete = (
         }
         break;
 
-      case '.':
+      case '/':
         // Select and drill down
         if (suggestions.length > 0) {
           e.preventDefault();

@@ -83,7 +83,7 @@ export const createEvalForm = async ({
         </div>
         <div class="eval-option">
           <label for="eval-worker-name">Worker</label>
-          <input type="text" id="eval-worker-name" value="MAIN" />
+          <input type="text" id="eval-worker-name" value="@main" />
         </div>
       </div>
       <div class="eval-footer">

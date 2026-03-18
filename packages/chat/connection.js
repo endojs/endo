@@ -10,7 +10,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 /**
  * @typedef {object} ConnectionOptions
  * @property {string} gateway - Gateway address (host:port)
- * @property {string} agent - AGENT formula identifier
+ * @property {string} agent - Agent formula identifier
  */
 
 /**

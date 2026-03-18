@@ -23,7 +23,8 @@ Tests the `@mention` autocomplete in contenteditable input:
 - `:` enters edge name mode (e.g., `@label:petname`)
 - Escape closes menu
 - Backspace at `@` closes menu
-- `@@` escape sequence for literal `@`
+- `@@` filters to `@`-prefixed special names (e.g., `@self`, `@agent`)
+- `@` then Escape for literal `@`
 - `getMessage()` correctly parses multiple tokens
 - Deleting tokens with Backspace
 

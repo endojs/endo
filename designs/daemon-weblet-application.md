@@ -654,7 +654,7 @@ endo mkweblet <zip-pet-name> [--as <weblet-name>] [--powers <level>]
 - `--as <weblet-name>` — pet name for the weblet (defaults to
   `<zip-pet-name>-weblet`).
 - `--powers <level>` — power level for the guest: `NONE` (default),
-  `ENDO`, `HOST`, or a comma-separated list of pet names to endow.
+  `@endo`, `@host`, or a comma-separated list of pet names to endow.
 
 **Chat command:**
 
@@ -976,7 +976,7 @@ this blob's pet name and extracts it into a `readable-tree`.
 - No existing formulas need migration. The new formula types only exist
   after a user explicitly creates them.
 
-- The `APPS` builtin formula may need updating if the weblet registration
+- The `@apps` builtin formula may need updating if the weblet registration
   mechanism requires new powers. This would be handled as part of the
   `familiar-unified-weblet-server` work.
 

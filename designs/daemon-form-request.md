@@ -236,7 +236,7 @@ as `fieldName:value` pairs, calls `E(agent).submit()`, which sends a
 Form messages are displayed in the inbox:
 
 ```
-3. "HOST" sent form "Configure settings" (fields: name, email) at "2026-02-25T..."
+3. "@host" sent form "Configure settings" (fields: name, email) at "2026-02-25T..."
 ```
 
 Field names are extracted from the array with `fields.map(f => f.name)`.
@@ -249,7 +249,7 @@ The end-to-end flow is functional via CLI and Chat UI.
 
 ```bash
 # Guest "fae" asks Host for configuration
-endo form HOST "Configure project settings" \
+endo form @host "Configure project settings" \
   --as fae \
   --field "projectName:Project name" \
   --field "apiKey:API key"
@@ -268,7 +268,7 @@ endo submit 0 \
 
 # The value message appears in the guest's inbox
 endo inbox --as fae
-# => 1. "HOST" sent value in reply to #0 at "..."
+# => 1. "@host" sent value in reply to #0 at "..."
 
 # Host can submit again with corrected values
 endo submit 0 \

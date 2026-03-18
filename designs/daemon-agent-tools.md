@@ -250,7 +250,7 @@ Building on [lal-fae-form-provisioning](lal-fae-form-provisioning.md),
 the manager agent can include capability grants in its provisioning form:
 
 ```js
-await E(powers).form('HOST', 'Configure agent workspace', [
+await E(powers).form('@host', 'Configure agent workspace', [
   { name: 'name', label: 'Agent name' },
   { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
   { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },

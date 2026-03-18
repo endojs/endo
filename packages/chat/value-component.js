@@ -32,7 +32,7 @@ const buildNameAction = (
   const $input = document.createElement('input');
   $input.type = 'text';
   $input.className = 'value-name-input';
-  $input.placeholder = 'pet.name.path';
+  $input.placeholder = 'pet/name/path';
   $input.value = defaultValue;
   $form.appendChild($input);
 
@@ -223,7 +223,7 @@ export const valueComponent = (
 
     if (id) {
       try {
-        const petNames = await E(powers).reverseIdentify(id);
+        const petNames = await E(powers).reverseLocate(id);
         uniquePetNames = Array.from(new Set(petNames));
         for (const petName of uniquePetNames) {
           const $token = document.createElement('span');

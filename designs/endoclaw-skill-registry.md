@@ -214,7 +214,7 @@ Because registries are just directories, federation is natural:
 The Familiar and Docker image can ship a built-in registry as a
 special name (`skills`), populated during daemon initialization with
 descriptors for bundled and recommended skills. This uses the same
-`Specials` mechanism as `APPS`, `LAL`, and `FAE`.
+`Specials` mechanism as `@apps`, `@lal`, and `@fae`.
 
 ## Endo Idiom
 

@@ -105,9 +105,15 @@ export const tokenAutocompleteComponent = (
   const updateFilter = () => {
     const filterText = getFilterText();
 
-    filteredNames = petNames.filter(name =>
-      name.toLowerCase().startsWith(filterText),
-    );
+    filteredNames = petNames.filter(name => {
+      const lower = name.toLowerCase();
+      if (lower.startsWith(filterText)) return true;
+      // Allow matching @-prefixed special names by the part after @
+      if (lower.startsWith('@') && lower.slice(1).startsWith(filterText)) {
+        return true;
+      }
+      return false;
+    });
 
     if (selectedIndex >= filteredNames.length) {
       selectedIndex = Math.max(0, filteredNames.length - 1);
@@ -134,11 +140,16 @@ export const tokenAutocompleteComponent = (
           $item.classList.add('selected');
         }
 
-        const $prefix = document.createElement('span');
-        $prefix.className = 'token-prefix';
-        $prefix.textContent = '@';
-        $item.appendChild($prefix);
-        $item.appendChild(document.createTextNode(name));
+        if (name.startsWith('@')) {
+          // Special names already include @ — display as-is
+          $item.appendChild(document.createTextNode(name));
+        } else {
+          const $prefix = document.createElement('span');
+          $prefix.className = 'token-prefix';
+          $prefix.textContent = '@';
+          $item.appendChild($prefix);
+          $item.appendChild(document.createTextNode(name));
+        }
 
         $item.addEventListener('mouseenter', () => {
           selectedIndex = index;
@@ -495,19 +506,6 @@ export const tokenAutocompleteComponent = (
       const cursorPos = range.startOffset;
 
       if (cursorPos <= triggerOffset || text[triggerOffset] !== '@') {
-        hideMenu();
-        return;
-      }
-
-      // Check for @@ escape
-      if (cursorPos > triggerOffset + 1 && text[triggerOffset + 1] === '@') {
-        // Remove one @
-        triggerNode.textContent =
-          text.slice(0, triggerOffset) + text.slice(triggerOffset + 1);
-        range.setStart(triggerNode, triggerOffset + 1);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
         hideMenu();
         return;
       }

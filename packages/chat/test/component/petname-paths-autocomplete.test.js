@@ -559,12 +559,12 @@ test('Shift+Tab goes back to edit previous chip', async t => {
   // updateSuggestions is async, wait longer
   await tick(100);
 
-  // Chip should be removed and path should be in input with trailing dot
+  // Chip should be removed and path should be in input with trailing slash
   t.is($container.querySelectorAll('.path-chip').length, 0);
   t.is(input.value, '@agent/');
   t.true(api.isMenuVisible());
 
-  // Should show AGENT's children
+  // Should show @agent's children
   const items = $menu.querySelectorAll('.token-menu-item');
   t.is(items.length, 2);
   t.is(items[0].textContent, 'child1');
@@ -669,7 +669,7 @@ test('setValue with path then focus shows nested suggestions', async t => {
   input.dispatchEvent(new Event('focus', { bubbles: true }));
   await tick(100);
 
-  // Should show children of AGENT
+  // Should show children of @agent
   t.true(api.isMenuVisible(), 'Menu should be visible');
   const items = $menu.querySelectorAll('.token-menu-item');
   t.is(items.length, 2, 'Should have 2 nested items');
@@ -721,7 +721,7 @@ test('clicking nested suggestion extends chip path', async t => {
   input.dispatchEvent(new Event('focus', { bubbles: true }));
   await tick(100);
 
-  // Menu should show children of AGENT
+  // Menu should show children of @agent
   t.true(api.isMenuVisible(), 'Menu should be visible');
   const menuItems = $menu.querySelectorAll('.token-menu-item');
   t.is(menuItems.length, 2, 'Should have 2 menu items');
@@ -732,7 +732,7 @@ test('clicking nested suggestion extends chip path', async t => {
   );
   await tick(50);
 
-  // Should have extended the AGENT chip to AGENT.child1
+  // Should have extended the @agent chip to @agent/child1
   const chips = $container.querySelectorAll('.path-chip');
   t.is(chips.length, 1, 'Should still have 1 chip');
   t.deepEqual(api.getValue(), ['@agent/child1'], 'Chip should be extended');
@@ -844,7 +844,7 @@ test('Space on nested suggestion extends the chip path', async t => {
   input.dispatchEvent(new Event('focus', { bubbles: true }));
   await tick(100);
 
-  // Press Space to select 'child1' - should extend AGENT chip to AGENT.child1
+  // Press Space to select 'child1' - should extend @agent chip to @agent/child1
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
   );

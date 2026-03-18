@@ -333,7 +333,7 @@ export const sendFormComponent = ({
         petNames.length > 0
           ? Promise.all(
               petNames.map(async petName => {
-                const petPath = petName.split('.');
+                const petPath = petName.split('/');
                 const id = await E(powers).identify(
                   .../** @type {[string, ...string[]]} */ (petPath),
                 );

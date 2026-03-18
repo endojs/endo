@@ -342,7 +342,7 @@ export const COMMANDS = {
         label: 'Names',
         type: 'petNamePaths',
         required: true,
-        placeholder: 'name1 name2 path.to.name',
+        placeholder: 'name1 name2 path/to/name',
       },
     ],
     submitLabel: 'Remove',

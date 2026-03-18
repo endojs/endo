@@ -11,7 +11,7 @@
 
 The [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) design
 migrated the daemon to 256-bit identifiers and gave every host and guest
-agent its own Ed25519 keypair (accessible via the `KEYPAIR` special name).
+agent its own Ed25519 keypair (accessible via the `@keypair` special name).
 The core migration is complete: keypairs are generated, stored as formulas,
 and available to agents.
 

@@ -1768,12 +1768,12 @@ const makeDaemonCore = async (
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges: async locator =>
+      followLocatorNameChanges: locator =>
         makeIteratorRef(followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
       listLocators,
-      followNameChanges: async (...petNamePath) =>
+      followNameChanges: (...petNamePath) =>
         makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
       reverseLookup,
@@ -2103,12 +2103,12 @@ const makeDaemonCore = async (
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges: async locator =>
+      followLocatorNameChanges: locator =>
         makeIteratorRef(followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
       listLocators,
-      followNameChanges: async (...petNamePath) =>
+      followNameChanges: (...petNamePath) =>
         makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
       reverseLookup,

@@ -171,7 +171,7 @@ export const createCommandExecutor = ({
             // Resolve pet names to formula IDs for the channel
             const resolvedIds = await Promise.all(
               petNames.map(async petName => {
-                const petPath = petName.split('.');
+                const petPath = petName.split('/');
                 const id = await E(powers).identify(
                   .../** @type {[string, ...string[]]} */ (petPath),
                 );
@@ -423,7 +423,7 @@ export const createCommandExecutor = ({
         case 'share': {
           const { petName } = params;
           const petNameStr = String(petName);
-          const pathParts = petNameStr.split('.');
+          const pathParts = petNameStr.split('/');
           console.log(
             `[Chat] Generating shareable locator for "${petNameStr}"...`,
           );

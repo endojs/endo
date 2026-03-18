@@ -31,8 +31,8 @@ const makeSpacesPowers = ({ storedValues = new Map() } = {}) => {
   /** @type {string[]} */
   const spaceIds = [];
   for (const key of storedValues.keys()) {
-    if (key.startsWith('spaces.')) {
-      spaceIds.push(key.slice('spaces.'.length));
+    if (key.startsWith('spaces/')) {
+      spaceIds.push(key.slice('spaces/'.length));
     }
   }
 
@@ -77,7 +77,7 @@ const makeSpacesPowers = ({ storedValues = new Map() } = {}) => {
         throw new Error(`Invalid path: ${pathOrFirst}`);
       }
       calls.push({ method: 'lookup', args: path });
-      const key = path.join('.');
+      const key = path.join('/');
       if (key === 'spaces') {
         return spacesDir;
       }
@@ -116,7 +116,7 @@ const makeSpacesPowers = ({ storedValues = new Map() } = {}) => {
     },
 
     storeValue(value, petNamePath) {
-      const key = petNamePath.join('.');
+      const key = petNamePath.join('/');
       calls.push({ method: 'storeValue', args: [value, petNamePath] });
       storedValues.set(key, value);
       const pathParts = petNamePath;
@@ -133,7 +133,7 @@ const makeSpacesPowers = ({ storedValues = new Map() } = {}) => {
 
     remove(dir, name) {
       calls.push({ method: 'remove', args: [dir, name] });
-      const key = `${dir}.${name}`;
+      const key = `${dir}/${name}`;
       storedValues.delete(key);
       const idx = spaceIds.indexOf(name);
       if (idx !== -1) {
@@ -226,7 +226,7 @@ test.serial('right-click home space shows Edit but not Delete', async t => {
 test.serial('right-click regular space shows both Edit and Delete', async t => {
   const storedValues = new Map();
   storedValues.set(
-    'spaces.1',
+    'spaces/1',
     harden({
       id: '1',
       name: 'Work',
@@ -351,7 +351,7 @@ test.serial(
 test.serial('home config loads stored icon/scheme from spaces.0', async t => {
   const storedValues = new Map();
   storedValues.set(
-    'spaces.0',
+    'spaces/0',
     harden({
       id: '0',
       name: 'Ignored',

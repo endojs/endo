@@ -427,11 +427,7 @@ const bodyComponent = (
           .locate(petName)
           .then(locator => {
             if (!locator) return;
-            const url = new URL(/** @type {string} */ (locator));
-            const formulaNumber = url.searchParams.get('id');
-            const nodeNumber = url.hostname;
-            const formulaId = `${formulaNumber}:${nodeNumber}`;
-            onConversationChange({ petName, id: formulaId });
+            onConversationChange({ petName, id: locator });
           })
           .catch(window.reportError);
       };
@@ -554,7 +550,7 @@ const bodyComponent = (
                 : channelComponent;
             channelViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
-              personaId: profilePath.join('.'),
+              personaId: profilePath.join('/'),
               ownMemberId,
               onReply: info => {
                 if (chatBarAPI) {
@@ -686,7 +682,7 @@ const bodyComponent = (
                 : channelComponent;
             switchViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
-              personaId: profilePath.join('.'),
+              personaId: profilePath.join('/'),
               ownMemberId: switchOwnMemberId,
               onReply: info => {
                 if (chatBarAPI) {
