@@ -56,3 +56,7 @@ This approximate emulation first logs a diagnostic on the `console`, if there is
 Because this `panic` ponyfill will, as a last resort, throw an error, users of this ponyfill on a platform where the first two strategies might fail, should cope with this possibility of the resumption of user-mode execution as best they can.
 
 If `panic` can immediately exit, then, if in an environment that distinguishes normal exit vs erroneous exit, `panic` always causes an erroneous exit. By contrast, we do not propose for there to be any similarly ambient form for normal non-erroneous exit, because that should be a privilege to be granted explicit by an object-capability. Historical note: Before this proposal, we had been treating the ability to erroneously exit as an explicit privilege as well. But we are not in a position to prevent user code from going into an infinite loop, which is at least as bad as an erronous exit. Thus, there is no further loss in security by providing an ambient `panic` operation.
+
+## License
+
+[Apache-2.0](./LICENSE)

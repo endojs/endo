@@ -111,3 +111,7 @@ const test = wrapTest(rawTest);
 
 that code will continue to work. But it should be upgraded to the above
 pattern if possible.
+
+## License
+
+[Apache-2.0](./LICENSE)

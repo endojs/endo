@@ -1,4 +1,4 @@
-# Parameterizing Modules with Environment Options
+# `@endo/env-options`
 
 JavaScript module semantics resist attempts to parameterize a module's
 initialization behavior. A module initializes in order according to
@@ -114,3 +114,7 @@ if (capturedEnvironmentOptionNames.length > 0) {
 
 To reduce cyclic dependencies, the tests of this module have been moved to
 @endo/ses-ava. Doing `yarn test` here currently does nothing.
+
+## License
+
+[Apache-2.0](./LICENSE)
