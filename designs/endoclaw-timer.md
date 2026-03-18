@@ -5,9 +5,55 @@
 | **Created** | 2026-03-03                 |
 | **Updated** | 2026-03-18                 |
 | **Author**  | Kris Kowal (prompted)      |
-| **Author**  | Joshua T Corbin (revamped) |
-| **Status**  | Not Started                |
+| **Author**  | Joshua T Corbin (evolving) |
+| **Status**  | In Progress                |
 | **Parent**  | [endoclaw](endoclaw.md)    |
+
+## Status
+
+Prototype implementation lives in `packages/genie/src/interval/`
+- only Phase 1 scope for now, pending review and progression
+- core scheduling logic is complete with 25 passing tests (allegedly)
+
+Going forward this facility can graduate out to a proper @endo/xxx package, or
+maybe just move into @endo/daemon more generally.
+
+### Implemented (in `@endo/genie`)
+
+- `scheduler.js` — `makeIntervalScheduler()` factory returning
+  `IntervalScheduler` / `IntervalControl` facet pair
+- `persistence.js` — atomic file persistence (write-then-rename)
+- `types.js` — JSDoc typedefs and constants
+- `index.js` — re-exports
+- Start-to-start tick scheduling via `setTimeout`
+- `resolve()` / `reschedule()` tick response with exponential backoff
+- Tick timeout with auto-resolve and warning
+- Startup recovery from persisted entries with missed-tick coalescing
+- Host-controlled limits (`maxActive`, `minPeriodMs`)
+- `pause()` / `resume()` / `revoke()` lifecycle
+- `cancel()` / `setPeriod()` per-interval management
+- `list()` / `listAll()` enumeration
+
+### Not yet implemented
+
+- Daemon integration (formula type, `extractDeps`, maker table) — Phase 1 remainder
+- Tick delivery as mail messages (uses `onTick` callback for now) — Phase 2
+- `TickResponse` as a proper exo with `M.interface()` guards — Phase 2
+- Host `makeIntervalScheduler()` method on `HostInterface` — Phase 4
+- CLI commands — Phase 4
+- Full SES/harden compatibility (currently uses `harden` as identity in tests) — deferred to daemon graduation
+
+### Deviations from design
+
+- **Tick delivery**: ticks are delivered via an `onTick` callback rather than
+  the daemon mail system. This is intentional for the genie-package prototype;
+  mail integration comes in Phase 2 when the code moves to `@endo/daemon`.
+- **No formula persistence**: the scheduler does not create daemon formulas.
+  Interval entries are persisted to a configurable directory. Formula
+  integration is deferred to daemon graduation.
+- **`harden` calls**: the implementation calls `harden()` throughout, but
+  in the genie package context `harden` may be the SES global or a no-op
+  polyfill depending on runtime.
 
 ## What is the Problem Being Solved?
 
