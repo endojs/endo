@@ -361,7 +361,7 @@ export const createCommandExecutor = ({
 
         case 'locate': {
           const { petName } = params;
-          const pathParts = String(petName).split('.');
+          const pathParts = String(petName).split('/');
           const locator = await E(powers).locate(
             .../** @type {[string, ...string[]]} */ (pathParts),
           );
