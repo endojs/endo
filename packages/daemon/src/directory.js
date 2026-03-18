@@ -6,9 +6,11 @@ import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import {
-  externalizeId,
+  LOCAL_NODE,
+  formatLocatorForSharing,
   internalizeLocator,
 } from './locator.js';
+import { formatId, parseId } from './formula-identifier.js';
 import {
   assertNamePath,
   assertNames,
@@ -39,7 +41,7 @@ export const makeDirectoryMaker = ({
   unpinTransient,
 }) => {
   /** @type {MakeDirectoryNode} */
-  const makeDirectoryNode = (petStore, agentNodeNumber, isLocalKey) => {
+  const makeDirectoryNode = (petStore, agentNodeNumber, isLocalKey, getNetworkAddresses) => {
 
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
@@ -120,7 +122,11 @@ export const makeDirectoryMaker = ({
       const formulaType = await getTypeForId(
         /** @type {FormulaIdentifier} */ (id),
       );
-      return externalizeId(id, formulaType, agentNodeNumber);
+      const { number, node } = parseId(id);
+      const peerKey = node === LOCAL_NODE ? agentNodeNumber : node;
+      const externalId = formatId({ number, node: peerKey });
+      const addresses = await getNetworkAddresses();
+      return formatLocatorForSharing(externalId, formulaType, addresses);
     };
 
     /** @type {EndoDirectory['reverseLocate']} */
@@ -349,7 +355,8 @@ export const makeDirectoryMaker = ({
     // TODO thread context
 
     const petStore = await provide(petStoreId, 'pet-store');
-    const directory = makeDirectoryNode(petStore, agentNodeNumber, isLocalKey);
+    const noNetworkAddresses = async () => [];
+    const directory = makeDirectoryNode(petStore, agentNodeNumber, isLocalKey, noNetworkAddresses);
 
     const help = makeHelp(directoryHelp);
 

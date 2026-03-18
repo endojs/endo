@@ -22,7 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { internalizeLocator, formatLocatorForSharing, addressesFromLocator } from './locator.js';
+import { internalizeLocator, addressesFromLocator } from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -173,7 +173,9 @@ export const makeHostMaker = ({
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey);
+    const getNetworkAddresses = () =>
+      getAllNetworkAddresses(networksDirectoryId);
+    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey, getNetworkAddresses);
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
@@ -787,16 +789,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['locateForSharing']} */
     const locateForSharing = async (...petNamePath) => {
-      assertNames(petNamePath);
-      const id = await E(directory).identify(...petNamePath);
-      if (id === undefined) {
-        return undefined;
-      }
-      const formulaType = await getTypeForId(
-        /** @type {FormulaIdentifier} */ (id),
-      );
-      const addresses = await getAllNetworkAddresses(networksDirectoryId);
-      return formatLocatorForSharing(id, formulaType, addresses);
+      return E(directory).locate(...petNamePath);
     };
 
     /** @type {EndoHost['adoptFromLocator']} */

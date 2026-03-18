@@ -18,6 +18,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {Provide} args.provide
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
+ * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {(node: string) => boolean} args.isLocalKey
@@ -29,6 +30,7 @@ export const makeGuestMaker = ({
   provide,
   formulateMarshalValue,
   getFormulaForId,
+  getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
   isLocalKey,
@@ -47,6 +49,7 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier} mailboxStoreId
    * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
+   * @param {FormulaIdentifier} networksDirectoryId
    * @param {Context} context
    */
   const makeGuest = async (
@@ -60,6 +63,7 @@ export const makeGuestMaker = ({
     mailboxStoreId,
     mailHubId,
     mainWorkerId,
+    networksDirectoryId,
     context,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
@@ -70,6 +74,7 @@ export const makeGuestMaker = ({
       context.thisDiesIfThatDies(mailHubId);
     }
     context.thisDiesIfThatDies(mainWorkerId);
+    context.thisDiesIfThatDies(networksDirectoryId);
 
     const basePetStore = await provide(petStoreId, 'pet-store');
     const mailboxStore = await provide(mailboxStoreId, 'mailbox-store');
@@ -82,9 +87,12 @@ export const makeGuestMaker = ({
     if (mailHubId !== undefined) {
       specialNames.MAIL = mailHubId;
     }
+    specialNames.NETS = networksDirectoryId;
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey);
+    const getNetworkAddresses = () =>
+      getAllNetworkAddresses(networksDirectoryId);
+    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey, getNetworkAddresses);
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,

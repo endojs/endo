@@ -464,6 +464,7 @@ const makeDaemonCore = async (
           ['mailbox', formula.mailboxStore],
           ['mailHub', formula.mailHub],
           ['worker', formula.worker],
+          ['networks', formula.networks],
         ];
       case 'marshal':
         return (formula.slots ?? []).map((s, i) => [`slot${i}`, s]);
@@ -2205,6 +2206,7 @@ const makeDaemonCore = async (
         mailboxStore: mailboxStoreId,
         mailHub: mailHubId,
         worker: workerId,
+        networks: networksDirectoryId,
       } = formula;
 
       if (mailHubId === undefined) {
@@ -2228,6 +2230,7 @@ const makeDaemonCore = async (
         mailboxStoreId,
         mailHubId,
         workerId,
+        networksDirectoryId,
         context,
       );
       const handle = /** @type {any} */ (agent).handle();
@@ -3303,6 +3306,9 @@ const makeDaemonCore = async (
         )
       ).id,
     );
+    // Each guest gets its own (initially empty) networks directory that
+    // controls which connection hints appear in locators it produces.
+    const networksDirectoryId = pin((await formulateDirectory()).id);
     return harden({
       guestFormulaNumber,
       guestId,
@@ -3314,6 +3320,7 @@ const makeDaemonCore = async (
       mailboxStoreId,
       mailHubId,
       workerId,
+      networksDirectoryId,
       pinned,
     });
   };
@@ -3331,6 +3338,7 @@ const makeDaemonCore = async (
       mailboxStore: identifiers.mailboxStoreId,
       mailHub: identifiers.mailHubId,
       worker: identifiers.workerId,
+      networks: identifiers.networksDirectoryId,
     };
 
     return /** @type {FormulateResult<EndoGuest>} */ (
@@ -4046,6 +4054,7 @@ const makeDaemonCore = async (
     provide,
     formulateMarshalValue,
     getFormulaForId,
+    getAllNetworkAddresses,
     makeMailbox,
     makeDirectoryNode,
     isLocalKey,
