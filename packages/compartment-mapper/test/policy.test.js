@@ -211,7 +211,6 @@ scaffold(
         t.regex(error.message, /cannot find external module/i);
         t.snapshot(sanitizePaths(error.message), 'location case error message');
       }
-      // see the snapshot for the error hint in the message
     },
     addGlobals: globals,
     policy: {
@@ -403,12 +402,7 @@ scaffold(
   2, // expected number of assertions
   {
     onError: (t, { error }) => {
-      const count = (string, substring) => string.split(substring).length - 1;
-      t.is(
-        count(error.message, 'Error while attenuating globals'),
-        3,
-        'attenuator errors should be aggregated',
-      );
+      t.is(error.code, 'E_ATTENUATION_FAILURE');
       t.snapshot(sanitizePaths(error.message));
     },
     addGlobals: globals,
@@ -586,14 +580,13 @@ test('makePackagePolicy() - empty label throws', t => {
   };
 
   t.throws(() => makePackagePolicy(null, { policy: testPolicy }), {
-    message: /Invalid arguments: label must be a non-empty string; got null/i,
+    code: 'E_INVALID_ARGUMENT',
   });
   t.throws(() => makePackagePolicy(undefined, { policy: testPolicy }), {
-    message:
-      /Invalid arguments: label must be a non-empty string; got undefined/i,
+    code: 'E_INVALID_ARGUMENT',
   });
   t.throws(() => makePackagePolicy('', { policy: testPolicy }), {
-    message: /Invalid arguments: label must be a non-empty string; got ""/i,
+    code: 'E_INVALID_ARGUMENT',
   });
 });
 

@@ -38,6 +38,7 @@ import {
   isExitModuleSource,
   isLocalModuleSource,
 } from './guards.js';
+import { createError, ErrorCodes } from './error.js';
 
 const { create, fromEntries, entries, keys, values } = Object;
 const { quote: q } = assert;
@@ -196,10 +197,12 @@ const translateCompartmentMap = (
               __createdBy: 'digest',
             };
           } else {
-            throw new TypeError(
+            throw createError(
               `Unexpected source type for compartment ${compartmentName} module ${name}: ${q(
                 source,
               )}`,
+              ErrorCodes.InvalidCompartmentDescriptor,
+              { error: TypeError },
             );
           }
         }
@@ -318,11 +321,12 @@ export const digestCompartmentMap = (
   try {
     assertDigestedCompartmentMap(digestCompartmentMap);
   } catch (err) {
-    throw new TypeError(
+    throw createError(
       `Invalid compartment map; ${JSON.stringify(
         digestCompartmentMap,
       )}:\n${err.message}`,
-      { cause: err },
+      ErrorCodes.InvalidCompartmentDescriptor,
+      { error: TypeError, cause: err },
     );
   }
 

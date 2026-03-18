@@ -24,6 +24,8 @@
  *} from './types.js'
  */
 
+import { createError, ErrorCodes } from './error.js';
+
 const { entries, keys, hasOwn } = Object;
 const { isArray } = Array;
 const q = JSON.stringify;
@@ -273,10 +275,12 @@ export const getAttenuatorFromDefinition = attenuationDefinition => {
     };
   }
 
-  throw TypeError(
+  throw createError(
     `Invalid attenuation ${q(
       attenuationDefinition,
     )}, must be an array of params for default attenuator or an object with an attenuator key`,
+    ErrorCodes.InvalidArgument,
+    { error: TypeError },
   );
 };
 

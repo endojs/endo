@@ -56,6 +56,7 @@ import { resolve } from './node-module-specifier.js';
 import { ATTENUATORS_COMPARTMENT, ENTRY_COMPARTMENT } from './policy-format.js';
 import { detectAttenuators } from './policy.js';
 import { unpackReadPowers } from './powers.js';
+import { createError, ErrorCodes } from './error.js';
 
 const { freeze, assign, create, keys, entries } = Object;
 const { quote: q } = assert;
@@ -171,8 +172,10 @@ const makePreloader = (
         ];
 
         if (!compartmentDescriptor) {
-          throw new ReferenceError(
+          throw createError(
             `Failed attempting to preload unknown compartment ${q(canonicalName)}`,
+            ErrorCodes.InvalidCompartmentDescriptor,
+            { error: ReferenceError },
           );
         }
 
@@ -204,8 +207,10 @@ const makePreloader = (
         } else {
           const compartment = compartments[compartmentName];
           if (!compartment) {
-            throw new ReferenceError(
+            throw createError(
               `No compartment found for ${q(canonicalName)}`,
+              ErrorCodes.InvalidCompartmentDescriptor,
+              { error: ReferenceError },
             );
           }
 

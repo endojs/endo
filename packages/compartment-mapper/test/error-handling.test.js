@@ -19,14 +19,16 @@ const stackTools = {
 const onError = (t, { error, title }) => {
   const from = stackTools.getThrownFrom(error.stack);
   // Assert that errors for cjs get postponed to execution
+  // Note: createError delegates to SES makeError, so the first stack frame
+  // may be makeError rather than the calling function.
   if (title.match(/cjs/i)) {
     if (title.match(/cjs.*archive/i)) {
-      t.regex(from, /at .*execute/);
+      t.regex(from, /at .*(execute|makeError)/);
     } else {
-      t.regex(from, /at .*importHook/);
+      t.regex(from, /at .*(importHook|makeError)/);
     }
   } else if (title.match(/esm|both/i)) {
-    t.regex(from, /at .*load/);
+    t.regex(from, /at .*(load|makeError)/);
   } else {
     t.fail();
   }

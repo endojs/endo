@@ -7,7 +7,10 @@
 /* eslint-disable no-use-before-define */
 
 import type {
+  AssertMakeErrorOptions,
+  CodableError,
   FinalStaticModuleType,
+  GenericErrorConstructor,
   StaticModuleType,
   ThirdPartyStaticModuleInterface,
   Transform,
@@ -787,3 +790,36 @@ export type CompartmentsRenameFn<
   OldName extends string = FileUrlString,
   NewName extends string = PackageCompartmentDescriptorName,
 > = (compartments: PackageCompartmentDescriptors) => Record<OldName, NewName>;
+
+export type CompartmentMapperError<T extends Error = Error> = Omit<
+  CodableError,
+  'code'
+> & { code: ErrorCode } & T;
+
+export type CompartmentMapperErrorOptions<
+  T extends GenericErrorConstructor = ErrorConstructor,
+> = AssertMakeErrorOptions & {
+  error?: T;
+};
+
+export type CompartmentMapperErrorOptionsWithCtor<
+  T extends GenericErrorConstructor,
+> = CompartmentMapperErrorOptions<T> & {
+  error: T;
+};
+
+export type ErrorCode =
+  | 'E_POLICY_VIOLATION'
+  | 'E_INSUFFICIENT_READ_POWERS'
+  | 'E_INCOMPATIBLE_PARSER'
+  | 'E_INVALID_COMPARTMENT_DESCRIPTOR'
+  | 'E_ATTENUATION_FAILURE'
+  | 'E_UNKNOWN_MODULE'
+  | 'E_INVALID_ARCHIVE'
+  | 'E_NO_PACKAGE_JSON'
+  | 'E_EXTRANEOUS_ARCHIVE_FILES'
+  | 'E_BUNDLE_FAILURE'
+  | 'E_INVALID_ARGUMENT'
+  | 'E_NOT_IMPLEMENTED'
+  | 'E_GRAPH_ERROR'
+  | 'E_MISSING_DEPENDENCY';

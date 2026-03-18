@@ -55,6 +55,7 @@ import {
 } from './policy.js';
 import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 import { unpackReadPowers } from './powers.js';
+import { createError, ErrorCodes } from './error.js';
 
 // q, as in quote, for quoting strings in error messages.
 const { quote: q } = assert;
@@ -183,7 +184,10 @@ const findRedirect = ({
         };
       }
 
-      throw new Error(`Could not import module: ${q(absoluteModuleSpecifier)}`);
+      throw createError(
+        `Could not import module: ${q(absoluteModuleSpecifier)}`,
+        ErrorCodes.UnknownModule,
+      );
     } else {
       // go up a directory
       const parentLocation = new URL('../', someLocation).href;
@@ -191,8 +195,9 @@ const findRedirect = ({
       // afaict this behavior is consistent across both windows and posix:
       // if this is true, we hit the filesystem root
       if (parentLocation === someLocation) {
-        throw new Error(
+        throw createError(
           `Could not import unknown module: ${q(absoluteModuleSpecifier)}`,
+          ErrorCodes.UnknownModule,
         );
       }
 
@@ -366,16 +371,18 @@ function* chooseModuleDescriptor(
         candidateModuleDescriptor;
       const candidateCompartment = compartments[candidateCompartmentName];
       if (candidateCompartment === undefined) {
-        throw Error(
+        throw createError(
           `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+          ErrorCodes.InvalidCompartmentDescriptor,
         );
       }
       // modify compartmentMap to include this redirect
       const candidateCompartmentDescriptor =
         compartmentDescriptors[candidateCompartmentName];
       if (candidateCompartmentDescriptor === undefined) {
-        throw Error(
+        throw createError(
           `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+          ErrorCodes.InvalidCompartmentDescriptor,
         );
       }
       candidateCompartmentDescriptor.modules[moduleSpecifier] =
@@ -686,10 +693,11 @@ export const makeImportHookMaker = (
               return attenuatedRecord;
             }
           }
-          throw Error(
+          throw createError(
             `Cannot find external module ${q(
               moduleSpecifier,
             )} in package ${packageLocation}`,
+            ErrorCodes.UnknownModule,
           );
         }
 
@@ -723,12 +731,13 @@ export const makeImportHookMaker = (
           return record;
         }
 
-        throw Error(
+        throw createError(
           `Cannot find file for internal module ${q(
             moduleSpecifier,
           )} (with candidates ${candidates
             .map(x => q(x))
             .join(', ')}) in package ${packageLocation}`,
+          ErrorCodes.UnknownModule,
         );
       } catch (error) {
         return deferError(moduleSpecifier, error);
@@ -825,24 +834,27 @@ export function makeImportNowHookMaker(
           });
           return exitRecord;
         }
-        throw Error(
+        throw createError(
           `Cannot find external module ${q(
             moduleSpecifier,
           )} in package at ${packageLocation}`,
+          ErrorCodes.UnknownModule,
         );
       } else {
-        throw Error(
+        throw createError(
           `Cannot find external module ${q(
             moduleSpecifier,
           )} from package at ${packageLocation}; try providing an importNowHook`,
+          ErrorCodes.UnknownModule,
         );
       }
     };
 
     if (!('isSyncParser' in parse)) {
       return function impossibleTransformImportNowHook() {
-        throw new Error(
+        throw createError(
           'Dynamic requires are only possible with synchronous parsers and no asynchronous module transforms in options',
+          ErrorCodes.IncompatibleParser,
         );
       };
     }

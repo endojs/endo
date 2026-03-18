@@ -45,6 +45,7 @@ import {
   isCompartmentModuleConfiguration,
   isExitModuleConfiguration,
 } from './guards.js';
+import { createError, createAggregateError, ErrorCodes } from './error.js';
 
 const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
@@ -147,10 +148,11 @@ const makeModuleMapHook = (
 
           const foreignCompartment = compartments[foreignCompartmentName];
           if (foreignCompartment === undefined) {
-            throw Error(
+            throw createError(
               `Cannot import from missing compartment ${q(
                 foreignCompartmentName,
               )}}`,
+              ErrorCodes.InvalidCompartmentDescriptor,
             );
           }
           // actual module descriptor
@@ -176,16 +178,18 @@ const makeModuleMapHook = (
       if (foreignModuleSpecifier !== undefined) {
         const { compartment: foreignCompartmentName } = scopeDescriptor;
         if (foreignCompartmentName === undefined) {
-          throw Error(
+          throw createError(
             `Cannot import from scope ${scopePrefix} due to missing "compartment" property`,
+            ErrorCodes.InvalidCompartmentDescriptor,
           );
         }
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
-          throw Error(
+          throw createError(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
             )}`,
+            ErrorCodes.InvalidCompartmentDescriptor,
           );
         }
 
@@ -232,7 +236,10 @@ const makeModuleMapHook = (
  */
 const impossibleImportNowHookMaker = () => {
   return function impossibleImportNowHook() {
-    throw new Error('Provided read powers do not support dynamic requires');
+    throw createError(
+      'Provided read powers do not support dynamic requires',
+      ErrorCodes.InsufficientReadPowers,
+    );
   };
 };
 
@@ -397,10 +404,11 @@ export const link = (
 
   const compartment = compartments[entryCompartmentName];
   if (compartment === undefined) {
-    throw Error(
+    throw createError(
       `Cannot assemble compartment graph because the root compartment named ${q(
         entryCompartmentName,
       )} is missing from the compartment map`,
+      ErrorCodes.InvalidCompartmentDescriptor,
     );
   }
   const attenuatorsCompartment = compartments[ATTENUATORS_COMPARTMENT];
@@ -418,10 +426,10 @@ export const link = (
               result.reason,
           );
         if (errors.length > 0) {
-          throw Error(
-            `Globals attenuation errors: ${errors
-              .map(error => error.message)
-              .join(', ')}`,
+          throw createAggregateError(
+            errors,
+            `Globals attenuation errors`,
+            ErrorCodes.AttenuationFailure,
           );
         }
       },

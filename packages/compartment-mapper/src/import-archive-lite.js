@@ -51,8 +51,9 @@ import {
   isErrorModuleConfiguration,
   isFileModuleConfiguration,
 } from './guards.js';
+import { createError, ErrorCodes } from './error.js';
 
-const { Fail, quote: q } = assert;
+const { quote: q, details: X } = assert;
 
 const textDecoder = new TextDecoder();
 
@@ -60,19 +61,18 @@ const { assign, create, freeze } = Object;
 
 /**
  * @param {string} errorMessage - error to throw on execute
+ * @param {import('./types/external.js').ErrorCode} [code] - error code
  * @returns {StaticModuleType}
  */
-const postponeErrorToExecute = errorMessage => {
-  // Return a place-holder that'd throw an error if executed
-  // This allows cjs parser to more eagerly find calls to require
-  // - if parser identified a require call that's a local function, execute will never be called
-  // - if actual required module is missing, the error will happen anyway - at execution time
-
+const postponeErrorToExecute = (
+  errorMessage,
+  code = ErrorCodes.UnknownModule,
+) => {
   const record = freeze({
     imports: [],
     exports: [],
     execute: () => {
-      throw Error(errorMessage);
+      throw createError(errorMessage, code);
     },
   });
 
@@ -156,31 +156,35 @@ const makeArchiveImportHookMaker = (
               `Cannot find external module ${q(moduleSpecifier)} in package ${q(
                 packageLocation,
               )} in archive ${q(archiveLocation)}`,
+              ErrorCodes.UnknownModule,
             );
           }
         }
-        throw Error(
+        throw createError(
           `Cannot find module ${q(moduleSpecifier)} in package ${q(
             packageLocation,
           )} in archive ${q(archiveLocation)}`,
+          ErrorCodes.UnknownModule,
         );
       }
       if (isErrorModuleConfiguration(module)) {
         return postponeErrorToExecute(module.deferredError);
       }
       if (!isFileModuleConfiguration(module)) {
-        throw Error(
+        throw createError(
           `Cannot parse module ${q(moduleSpecifier)} in package ${q(
             packageLocation,
           )} in archive ${q(archiveLocation)}; missing parser`,
+          ErrorCodes.IncompatibleParser,
         );
       }
       const parser = parserForLanguage[module.parser];
       if (parser === undefined) {
-        throw Error(
+        throw createError(
           `Cannot parse module ${q(
             moduleSpecifier,
           )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}; unknown parser (${q(module.parser)})`,
+          ErrorCodes.IncompatibleParser,
         );
       }
       const { parse } = parser;
@@ -190,12 +194,13 @@ const makeArchiveImportHookMaker = (
       if (computeSha512 !== undefined && module.sha512 !== undefined) {
         const sha512 = computeSha512(moduleBytes);
         if (sha512 !== module.sha512) {
-          throw Error(
+          throw createError(
             `Module ${q(module.location)} of package ${q(
               packageLocation,
             )} in archive ${q(
               archiveLocation,
             )} failed a SHA-512 integrity check`,
+            ErrorCodes.InvalidArchive,
           );
         }
       }
@@ -274,10 +279,14 @@ export const parseArchive = async (
 
   // Track all modules that get loaded, all files that are used.
   const unseen = new Set(archive.files.keys());
-  unseen.size >= 2 ||
-    Fail`Archive failed sanity check: should contain at least a compartment map file and one module file in ${q(
-      archiveLocation,
-    )}`;
+  if (unseen.size < 2) {
+    throw createError(
+      X`Archive failed sanity check: should contain at least a compartment map file and one module file in ${q(
+        archiveLocation,
+      )}`,
+      ErrorCodes.InvalidArchive,
+    );
+  }
 
   /**
    * @param {string} path
@@ -295,13 +304,15 @@ export const parseArchive = async (
   }
   if (expectedSha512 !== undefined) {
     if (sha512 === undefined) {
-      throw Error(
+      throw createError(
         `Cannot verify expectedSha512 without also providing computeSha512, for archive ${archiveLocation}`,
+        ErrorCodes.InvalidArchive,
       );
     }
     if (sha512 !== expectedSha512) {
-      throw Error(
+      throw createError(
         `Archive compartment map failed a SHA-512 integrity check, expected ${expectedSha512}, got ${sha512}, for archive ${archiveLocation}`,
+        ErrorCodes.InvalidArchive,
       );
     }
   }
@@ -356,10 +367,14 @@ export const parseArchive = async (
     await pendingJobsPromise;
 
     await compartment.load(entryModuleSpecifier);
-    unseen.size === 0 ||
-      Fail`Archive contains extraneous files: ${q([...unseen])} in ${q(
-        archiveLocation,
-      )}`;
+    if (unseen.size !== 0) {
+      throw createError(
+        X`Archive contains extraneous files: ${q([...unseen])} in ${q(
+          archiveLocation,
+        )}`,
+        ErrorCodes.ExtraneousArchiveFiles,
+      );
+    }
   }
 
   /** @type {ExecuteFn} */

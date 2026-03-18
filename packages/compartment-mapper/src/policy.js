@@ -31,6 +31,7 @@ import {
   policyLookupHelper,
   WILDCARD_POLICY_VALUE,
 } from './policy-format.js';
+import { createError, ErrorCodes } from './error.js';
 
 const {
   keys,
@@ -42,7 +43,7 @@ const {
   getOwnPropertyDescriptors,
 } = Object;
 const { ownKeys } = Reflect;
-const q = JSON.stringify;
+const { quote: q } = assert;
 
 /**
  * Copies properties (optionally limited to a specific list) from one object to another.
@@ -141,8 +142,10 @@ export const makePackagePolicy = (label, { policy } = {}) => {
   /** @type {SomePackagePolicy|undefined} */
   let packagePolicy;
   if (!label) {
-    throw new TypeError(
+    throw createError(
       `Invalid arguments: label must be a non-empty string; got ${q(label)}`,
+      ErrorCodes.InvalidArgument,
+      { error: TypeError },
     );
   }
   if (policy) {
@@ -195,15 +198,19 @@ const importAttenuatorForDefinition = async (
   attenuatorExportName,
 ) => {
   if (!attenuatorsProvider) {
-    throw Error(`attenuatorsProvider is required to import attenuators`);
+    throw createError(
+      `attenuatorsProvider is required to import attenuators`,
+      ErrorCodes.AttenuationFailure,
+    );
   }
   const { specifier, params, displayName } = getAttenuatorFromDefinition(
     attenuationDefinition,
   );
   const attenuator = await attenuatorsProvider.import(specifier);
   if (!attenuator[attenuatorExportName]) {
-    throw Error(
+    throw createError(
       `Attenuator ${q(displayName)} does not export ${q(attenuatorExportName)}`,
+      ErrorCodes.AttenuationFailure,
     );
   }
   // TODO: uncurry bind for security?
@@ -228,12 +235,16 @@ export const makeDeferredAttenuatorsProvider = (
   // Errors should be thrown when the provider is used.
   if (!compartmentDescriptors[ATTENUATORS_COMPARTMENT]) {
     importAttenuator = async () => {
-      throw Error(`No attenuators specified in policy`);
+      throw createError(
+        `No attenuators specified in policy`,
+        ErrorCodes.AttenuationFailure,
+      );
     };
   } else {
     if (!compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy) {
-      throw Error(
+      throw createError(
         `${q(ATTENUATORS_COMPARTMENT)} is missing the required policy; this is likely a bug`,
+        ErrorCodes.InvalidCompartmentDescriptor,
       );
     }
     defaultAttenuator =
@@ -250,7 +261,10 @@ export const makeDeferredAttenuatorsProvider = (
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
         if (!defaultAttenuator) {
-          throw Error(`No default attenuator specified in policy`);
+          throw createError(
+            `No default attenuator specified in policy`,
+            ErrorCodes.AttenuationFailure,
+          );
         }
         attenuatorSpecifier = defaultAttenuator;
       }
@@ -347,10 +361,11 @@ export const attenuateGlobals = (
       )
       .then(freezeGlobalThisUnlessOptedOut, error => {
         freezeGlobalThisUnlessOptedOut();
-        throw Error(
+        throw createError(
           `Error while attenuating globals for ${q(name)} with ${q(
             displayName,
           )}: ${q(error.message)}`, // TODO: consider an option to expose stacktrace for ease of debugging
+          ErrorCodes.AttenuationFailure,
         );
       });
     pendingJobs.push(attenuationPromise);
@@ -428,10 +443,11 @@ export const enforcePolicyByModule = (
 
   if (!exit) {
     if (!modules[specifier]) {
-      throw Error(
+      throw createError(
         policyEnforcementFailureMessage(specifier, compartmentDescriptor, {
           errorHint,
         }),
+        ErrorCodes.PolicyViolation,
       );
     }
 
@@ -439,11 +455,12 @@ export const enforcePolicyByModule = (
   }
 
   if (!policyLookupHelper(policy, 'builtins', specifier)) {
-    throw Error(
+    throw createError(
       policyEnforcementFailureMessage(specifier, compartmentDescriptor, {
         errorHint,
         policyField: 'builtins',
       }),
+      ErrorCodes.PolicyViolation,
     );
   }
 };
@@ -461,15 +478,16 @@ export const enforcePackagePolicyByCanonicalName = (
   { errorHint } = {},
 ) => {
   if (!hasPolicy(referrerCompartmentDescriptor)) {
-    throw new Error(
+    throw createError(
       `Cannot enforce policy via ${q(referrerCompartmentDescriptor.label)}: no package policy defined`,
+      ErrorCodes.PolicyViolation,
     );
   }
   const { policy: referrerPolicy } = referrerCompartmentDescriptor;
   const { label: resourceCanonicalName } = compartmentDescriptor;
 
   if (!policyLookupHelper(referrerPolicy, 'packages', resourceCanonicalName)) {
-    throw new Error(
+    throw createError(
       policyEnforcementFailureMessage(
         resourceCanonicalName,
         referrerCompartmentDescriptor,
@@ -478,6 +496,7 @@ export const enforcePackagePolicyByCanonicalName = (
           resourceCanonicalName,
         },
       ),
+      ErrorCodes.PolicyViolation,
     );
   }
 };
@@ -545,10 +564,11 @@ export const attenuateModuleHook = async (
   }
 
   if (!policyValue) {
-    throw Error(
+    throw createError(
       `Attenuation failed '${specifier}' was not in policy builtins:${q(
         policy.builtins,
       )}`,
+      ErrorCodes.AttenuationFailure,
     );
   }
   return attenuateModule({
