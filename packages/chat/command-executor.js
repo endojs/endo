@@ -381,9 +381,20 @@ export const createCommandExecutor = ({
 
         // ============ CONNECTIONS ============
         case 'invite': {
-          const { guestName } = params;
+          const { guestName, delivery = 'link' } = params;
           console.log(`[Chat] Creating invitation for "${guestName}"...`);
           const invitation = await E(powers).invite(String(guestName));
+
+          if (delivery === 'inventory') {
+            console.log(
+              `[Chat] Invitation stored in inventory as "${guestName}"`,
+            );
+            return {
+              success: true,
+              message: `Invitation for "${guestName}" stored in inventory. Send it via message or use /locate to get a link.`,
+            };
+          }
+
           const locator = await E(invitation).locate();
           console.log(`[Chat] Invitation locator generated`);
           showMessage(`Invitation locator for "${guestName}":`);

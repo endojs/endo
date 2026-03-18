@@ -468,6 +468,37 @@ export const createInlineCommandForm = ({
         break;
       }
 
+      case 'select': {
+        const $select = document.createElement('select');
+        $select.className = 'inline-field-input select-input';
+        $select.dataset.fieldName = field.name;
+        $select.dataset.formType = 'other';
+
+        if (field.options) {
+          for (const option of field.options) {
+            const $option = document.createElement('option');
+            $option.value = option;
+            $option.textContent = option;
+            if (option === field.defaultValue) {
+              $option.selected = true;
+            }
+            $select.appendChild($option);
+          }
+        }
+
+        $select.addEventListener('change', () => {
+          formData[field.name] = $select.value;
+          updateValidity();
+        });
+
+        formData[field.name] = field.defaultValue || '';
+        $wrapper.appendChild($select);
+        fieldElements.push(
+          /** @type {HTMLElement & HTMLInputElement} */ ($select),
+        );
+        break;
+      }
+
       case 'text':
       case 'locator': {
         const $input = document.createElement('input');

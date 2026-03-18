@@ -2,7 +2,7 @@
 
 /**
  * Field types for command parameters.
- * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'message' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
+ * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'message' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments' | 'select'} FieldType
  */
 
 /**
@@ -13,6 +13,7 @@
  * @property {boolean} [required] - Whether field is required
  * @property {string} [placeholder] - Placeholder text
  * @property {string} [defaultValue] - Default value
+ * @property {string[]} [options] - Options for select fields
  */
 
 /**
@@ -448,6 +449,14 @@ export const COMMANDS = {
         type: 'petNamePath',
         required: true,
         placeholder: 'guest-name',
+      },
+      {
+        name: 'delivery',
+        label: 'Delivery',
+        type: 'select',
+        required: true,
+        options: ['link', 'inventory'],
+        defaultValue: 'link',
       },
     ],
     submitLabel: 'Invite',
