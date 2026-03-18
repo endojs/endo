@@ -379,6 +379,20 @@ export const createCommandExecutor = ({
           return { success: true, message: `Directory "${petName}" created` };
         }
 
+        case 'dm': {
+          const { recipient, message } = params;
+          await E(powers).send(
+            String(recipient),
+            [String(message)],
+            [],
+            [],
+          );
+          return {
+            success: true,
+            message: `Direct message sent to "${recipient}"`,
+          };
+        }
+
         // ============ CONNECTIONS ============
         case 'invite': {
           const { guestName, delivery = 'link' } = params;

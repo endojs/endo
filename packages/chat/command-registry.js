@@ -435,6 +435,32 @@ export const COMMANDS = {
     submitLabel: 'Locate',
   },
 
+  dm: {
+    name: 'dm',
+    label: 'DM',
+    description: 'Send a direct message to someone',
+    category: 'messaging',
+    mode: 'inline',
+    context: 'channel',
+    fields: [
+      {
+        name: 'recipient',
+        label: 'To',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'recipient-name',
+      },
+      {
+        name: 'message',
+        label: 'Message',
+        type: 'text',
+        required: true,
+        placeholder: 'your message...',
+      },
+    ],
+    submitLabel: 'Send DM',
+  },
+
   // ============ CONNECTIONS ============
   invite: {
     name: 'invite',
