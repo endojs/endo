@@ -232,8 +232,8 @@ const prepareHostWithTestNetwork = async t => {
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
-  const network = E(host).makeUnconfined('MAIN', serviceLocation, {
-    powersName: 'AGENT',
+  const network = E(host).makeUnconfined('@main', serviceLocation, {
+    powersName: '@agent',
     resultName: 'test-network',
   });
 
@@ -246,7 +246,7 @@ const prepareHostWithTestNetwork = async t => {
 
   // move test network to network dir
   await network;
-  await E(host).move(['test-network'], ['NETS', 'tcp']);
+  await E(host).move(['test-network'], ['@nets', 'tcp']);
 
   return host;
 };
@@ -465,7 +465,7 @@ test('spawn and evaluate', async t => {
 test('anonymous spawn and evaluate', async t => {
   const { host } = await prepareHost(t);
 
-  const ten = await E(host).evaluate('MAIN', '10', [], []);
+  const ten = await E(host).evaluate('@main', '10', [], []);
   t.is(ten, 10);
 });
 
@@ -474,7 +474,7 @@ test('evaluate allows mixed-case code names', async t => {
 
   await E(host).storeValue(5, 'five');
   const six = await E(host).evaluate(
-    'MAIN',
+    '@main',
     'fooBar + 1',
     ['fooBar'],
     ['five'],
@@ -682,8 +682,8 @@ test('move renames value, for a single caplet name hub', async t => {
   const { host } = await prepareHost(t);
 
   const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
-  const nameHub = await E(host).makeUnconfined('MAIN', nameHubPath, {
-    powersName: 'NONE',
+  const nameHub = await E(host).makeUnconfined('@main', nameHubPath, {
+    powersName: '@none',
     resultName: 'name-hub',
   });
 
@@ -703,12 +703,12 @@ test('move moves value, between different caplet name hubs', async t => {
   const { host } = await prepareHost(t);
 
   const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
-  const nameHub1 = await E(host).makeUnconfined('MAIN', nameHubPath, {
-    powersName: 'NONE',
+  const nameHub1 = await E(host).makeUnconfined('@main', nameHubPath, {
+    powersName: '@none',
     resultName: 'name-hub1',
   });
-  const nameHub2 = await E(host).makeUnconfined('MAIN', nameHubPath, {
-    powersName: 'NONE',
+  const nameHub2 = await E(host).makeUnconfined('@main', nameHubPath, {
+    powersName: '@none',
     resultName: 'name-hub2',
   });
 
@@ -732,8 +732,8 @@ test('move preserves original name if writing to new name hub fails', async t =>
   t.true(await E(host).has('ten'));
 
   const failedHubPath = path.join(dirname, 'test', 'failed-hub.js');
-  await E(host).makeUnconfined('MAIN', failedHubPath, {
-    powersName: 'NONE',
+  await E(host).makeUnconfined('@main', failedHubPath, {
+    powersName: '@none',
     resultName: 'failed-hub',
   });
 
@@ -974,13 +974,13 @@ test('guest facet receives a message for host', async t => {
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
   const iteratorRef = E(host).followMessages();
-  const numberP = E(guest).request('HOST', 'a number', 'number');
+  const numberP = E(guest).request('@host', 'a number', 'number');
   const { value: message0 } = await E(iteratorRef).next();
   t.is(message0.number, 0n);
   await E(host).resolve(message0.number, 'ten1');
   await numberP;
 
-  await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
+  await E(guest).send('@host', ['Hello, World!'], ['gift'], ['number']);
 
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message1.number, 1n);
@@ -990,9 +990,9 @@ test('guest facet receives a message for host', async t => {
 
   // Each agent externalizes locators with its own keypair key.
   const guestLocatorFromHost = await E(host).locate('guest');
-  const hostLocatorFromHost = await E(host).locate('SELF');
-  const guestLocatorFromGuest = await E(guest).locate('SELF');
-  const hostLocatorFromGuest = await E(guest).locate('HOST');
+  const hostLocatorFromHost = await E(host).locate('@self');
+  const guestLocatorFromGuest = await E(guest).locate('@self');
+  const hostLocatorFromGuest = await E(guest).locate('@host');
 
   // Host should have received messages (externalized with host's key).
   const hostInbox = await E(host).listMessages();
@@ -1026,7 +1026,7 @@ test('reply links to parent message', async t => {
   const hostMessages = E(host).followMessages();
   const guestMessages = E(guest).followMessages();
 
-  await E(guest).send('HOST', ['hello'], [], []);
+  await E(guest).send('@host', ['hello'], [], []);
 
   const [{ value: hostMessage }, { value: sentMessage }] = await Promise.all([
     E(hostMessages).next(),
@@ -1050,21 +1050,21 @@ test('message hub avoids kebab-case reply metadata names', async t => {
   const guest = E(host).provideGuest('guest');
   const hostMessages = E(host).followMessages();
 
-  await E(guest).send('HOST', ['hello'], [], []);
+  await E(guest).send('@host', ['hello'], [], []);
   const { value: hostMessage } = await E(hostMessages).next();
   await E(host).reply(hostMessage.number, ['hi'], [], []);
   const { value: replyMessage } = await E(hostMessages).next();
 
-  const replyHub = await E(host).lookup(['MAIL', String(replyMessage.number)]);
+  const replyHub = await E(host).lookup(['@mail', String(replyMessage.number)]);
   const replyNames = await E(replyHub).list();
 
-  t.true(replyNames.includes('FROM'));
-  t.true(replyNames.includes('TO'));
-  t.true(replyNames.includes('DATE'));
-  t.true(replyNames.includes('TYPE'));
-  t.true(replyNames.includes('MESSAGE'));
-  t.true(replyNames.includes('REPLY'));
-  t.true(replyNames.includes('STRINGS'));
+  t.true(replyNames.includes('@from'));
+  t.true(replyNames.includes('@to'));
+  t.true(replyNames.includes('@date'));
+  t.true(replyNames.includes('@type'));
+  t.true(replyNames.includes('@message'));
+  t.true(replyNames.includes('@reply'));
+  t.true(replyNames.includes('@strings'));
 });
 
 test('mailboxes persist messages across restart', async t => {
@@ -1075,9 +1075,9 @@ test('mailboxes persist messages across restart', async t => {
 
   // Await delivery of the first message before sending the second to
   // guarantee deterministic message numbering.
-  E.sendOnly(guest).request('HOST', 'first request', 'response0');
+  E.sendOnly(guest).request('@host', 'first request', 'response0');
   const { value: message0 } = await E(iteratorRef).next();
-  E.sendOnly(guest).request('HOST', 'second request', 'response1');
+  E.sendOnly(guest).request('@host', 'second request', 'response1');
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
@@ -1100,7 +1100,7 @@ test('mailboxes persist messages across restart', async t => {
   );
 
   const guestAfter = await E(hostAfter).provideGuest('guest-after-restart');
-  await E(guestAfter).send('HOST', ['hello'], [], []);
+  await E(guestAfter).send('@host', ['hello'], [], []);
 
   const inboxAfterDelivery = await E(hostAfter).listMessages();
   t.deepEqual(
@@ -1120,7 +1120,7 @@ test('rehydrated requests can be resolved after restart', async t => {
   const guest = E(host).provideGuest('guest');
   const guestMessages = E(guest).followMessages();
 
-  E.sendOnly(guest).request('HOST', 'need a number');
+  E.sendOnly(guest).request('@host', 'need a number');
 
   const { value: guestMessage } = await E(guestMessages).next();
   const { promiseId: promiseIdP } = E.get(guestMessage);
@@ -1244,18 +1244,18 @@ test('followLocatorNameChanges first publishes existing pet name', async t => {
 test('followLocatorNameChanges first publishes existing special name', async t => {
   const { host } = await prepareHost(t);
 
-  const selfLocator = await E(host).locate('SELF');
+  const selfLocator = await E(host).locate('@self');
   const selfLocatorSub = makeRefIterator(
     await E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
-  t.deepEqual(value, { add: selfLocator, names: ['SELF'] });
+  t.deepEqual(value, { add: selfLocator, names: ['@self'] });
 });
 
 test('followLocatorNameChanges first publishes existing pet and special names', async t => {
   const { host } = await prepareHost(t);
 
-  const selfLocator = await E(host).locate('SELF');
+  const selfLocator = await E(host).locate('@self');
   await E(host).write(['self1'], selfLocator);
   await E(host).write(['self2'], selfLocator);
 
@@ -1263,7 +1263,7 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
     await E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
-  t.deepEqual(value, { add: selfLocator, names: ['SELF', 'self1', 'self2'] });
+  t.deepEqual(value, { add: selfLocator, names: ['@self', 'self1', 'self2'] });
 });
 
 test('followLocatorNameChanges publishes added names', async t => {
@@ -1377,7 +1377,7 @@ test('pins restored on restart', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     await E(host).evaluate(
-      'MAIN',
+      '@main',
       `
       let value = 0;
       makeExo(
@@ -1395,7 +1395,7 @@ test('pins restored on restart', async t => {
     );
 
     await E(host).evaluate(
-      'MAIN',
+      '@main',
       `E(counter).incr()`,
       ['counter'],
       ['counter'],
@@ -1413,8 +1413,8 @@ test('pins restored on restart', async t => {
     const counter = E(host).lookup('counter');
     t.is(await E(counter).get(), 0);
 
-    await E(host).move(['incr'], ['PINS', 'incr']);
-    t.deepEqual(await E(host).list('PINS'), ['incr']);
+    await E(host).move(['incr'], ['@pins', 'incr']);
+    t.deepEqual(await E(host).list('@pins'), ['incr']);
 
     await restart(config);
   }
@@ -1422,7 +1422,7 @@ test('pins restored on restart', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     const counter = E(host).lookup('counter');
-    // indicates that PINS.incr side-effect applied on restart
+    // indicates that @pins/incr side-effect applied on restart
     t.is(await E(counter).get(), 1);
   }
 });
@@ -1477,7 +1477,7 @@ testWorkerTermination(
       })
     `,
       ['host'],
-      ['AGENT'],
+      ['@agent'],
     );
 
     await E(host).remove('retained-host');
@@ -1517,7 +1517,7 @@ testWorkerTermination(
         })
     `,
       ['host'],
-      ['AGENT'],
+      ['@agent'],
     );
     const powersId = await E(host).identify('powers');
     const capletId = await E(host).identify('caplet');
@@ -1577,11 +1577,11 @@ test('recreates counter after collection resets state', async t => {
     'worker-a',
     `
       E(host)
-        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'NONE', resultName: 'counter' })
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: '@none', resultName: 'counter' })
         .then(() => 'ok')
     `,
     ['host'],
-    ['AGENT'],
+    ['@agent'],
   );
   t.is(
     1,
@@ -1606,11 +1606,11 @@ test('recreates counter after collection resets state', async t => {
     'worker-b',
     `
       E(host)
-        .makeUnconfined('worker-b', ${retainerLocationLiteral}, { powersName: 'NONE', resultName: 'retainer' })
+        .makeUnconfined('worker-b', ${retainerLocationLiteral}, { powersName: '@none', resultName: 'retainer' })
         .then(() => 'ok')
     `,
     ['host'],
-    ['AGENT'],
+    ['@agent'],
   );
 
   await E(host).evaluate(
@@ -1632,11 +1632,11 @@ test('recreates counter after collection resets state', async t => {
     'worker-a',
     `
       E(host)
-        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: 'NONE', resultName: 'counter' })
+        .makeUnconfined('worker-a', ${counterLocationLiteral}, { powersName: '@none', resultName: 'counter' })
         .then(() => 'ok')
     `,
     ['host'],
-    ['AGENT'],
+    ['@agent'],
   );
   t.is(
     1,
@@ -1649,13 +1649,13 @@ test('recreates counter after collection resets state', async t => {
   );
 });
 
-test('PINS values survive collection', async t => {
+test('@pins values survive collection', async t => {
   const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
-  // Create a counter via eval in MAIN
+  // Create a counter via eval in @main
   await E(host).evaluate(
-    'MAIN',
+    '@main',
     `
       (() => {
         let value = 0;
@@ -1681,14 +1681,14 @@ test('PINS values survive collection', async t => {
   // Get the formula ID before move
   const counterId = await E(host).identify('counter');
 
-  // Move counter to PINS — counter now only lives in PINS
-  await E(host).move(['counter'], ['PINS', 'my-counter']);
+  // Move counter to @pins — counter now only lives in @pins
+  await E(host).move(['counter'], ['@pins', 'my-counter']);
 
   // Verify formula file still exists after the move (collection ran in move's finally block)
   t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
 
-  // Look up counter through PINS
-  const pinnedCounter = await E(host).lookup(['PINS', 'my-counter']);
+  // Look up counter through @pins
+  const pinnedCounter = await E(host).lookup(['@pins', 'my-counter']);
 
   // Verify counter state preserved
   t.is(await E(pinnedCounter).get(), 1);
@@ -1697,15 +1697,15 @@ test('PINS values survive collection', async t => {
   t.is(await E(pinnedCounter).incr(), 2);
 });
 
-test('PINS values reincarnate after cancellation', async t => {
+test('@pins values reincarnate after cancellation', async t => {
   const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
   // Create a counter caplet
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('MAIN', counterLocation, {
-    powersName: 'NONE',
+  await E(host).makeUnconfined('@main', counterLocation, {
+    powersName: '@none',
     resultName: 'counter',
   });
 
@@ -1713,7 +1713,7 @@ test('PINS values reincarnate after cancellation', async t => {
   t.is(
     1,
     await E(host).evaluate(
-      'MAIN',
+      '@main',
       'E(counter).incr()',
       ['counter'],
       ['counter'],
@@ -1722,7 +1722,7 @@ test('PINS values reincarnate after cancellation', async t => {
   t.is(
     2,
     await E(host).evaluate(
-      'MAIN',
+      '@main',
       'E(counter).incr()',
       ['counter'],
       ['counter'],
@@ -1731,29 +1731,29 @@ test('PINS values reincarnate after cancellation', async t => {
   t.is(
     3,
     await E(host).evaluate(
-      'MAIN',
+      '@main',
       'E(counter).incr()',
       ['counter'],
       ['counter'],
     ),
   );
 
-  // Get counter ID and pin to PINS while keeping the host pet name for cancel
+  // Get counter ID and pin to @pins while keeping the host pet name for cancel
   const counterId = await E(host).identify('counter');
   await E(host).write(['counter-pin'], counterId);
-  await E(host).move(['counter-pin'], ['PINS', 'my-counter']);
+  await E(host).move(['counter-pin'], ['@pins', 'my-counter']);
 
-  // Cancel the counter — forces deincarnation even though retained by PINS
+  // Cancel the counter — forces deincarnation even though retained by @pins
   await E(host).cancel('counter');
 
-  // Remove the host pet name — now only PINS references the formula
+  // Remove the host pet name — now only @pins references the formula
   await E(host).remove('counter');
 
-  // Formula file should still exist (PINS protected it from collection)
+  // Formula file should still exist (@pins protected it from collection)
   t.true(await pathExists(formulaPathForId(config.statePath, counterId)));
 
-  // Look up through PINS — reincarnated with reset state
-  const reincarnated = await E(host).lookup(['PINS', 'my-counter']);
+  // Look up through @pins — reincarnated with reset state
+  const reincarnated = await E(host).lookup(['@pins', 'my-counter']);
   t.is(await E(reincarnated).incr(), 1);
   t.is(await E(reincarnated).incr(), 2);
 });
@@ -1828,8 +1828,8 @@ test('unnamed eval results are collected', async t => {
   const { cancelled, config } = await prepareConfig(t, { gcEnabled: true });
   const { host } = await makeHost(config, cancelled);
 
-  // Create a named eval to establish a baseline (ensures MAIN worker exists)
-  await E(host).evaluate('MAIN', '10', [], [], ['named']);
+  // Create a named eval to establish a baseline (ensures @main worker exists)
+  await E(host).evaluate('@main', '10', [], [], ['named']);
   const namedId = await E(host).identify('named');
   t.true(await pathExists(formulaPathForId(config.statePath, namedId)));
 
@@ -1844,7 +1844,7 @@ test('unnamed eval results are collected', async t => {
   const countBefore = await countFormulas();
 
   // Run an unnamed eval — returns 42 but has no pet name
-  const result = await E(host).evaluate('MAIN', '42', [], []);
+  const result = await E(host).evaluate('@main', '42', [], []);
   t.is(result, 42);
 
   // Count formula files again
@@ -1865,7 +1865,7 @@ test('direct cancellation', async t => {
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   await E(host).makeUnconfined('worker', counterLocation, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'counter',
   });
   t.is(
@@ -1935,7 +1935,7 @@ test('indirect cancellation via worker', async t => {
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   await E(host).makeUnconfined('worker', counterLocation, {
-    powersName: 'AGENT',
+    powersName: '@agent',
     resultName: 'counter',
   });
   t.is(
@@ -2006,7 +2006,7 @@ test('indirect cancellation via caplet', async t => {
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   await E(host).makeUnconfined('w1', counterLocation, {
-    powersName: 'AGENT',
+    powersName: '@agent',
     resultName: 'counter',
   });
 
@@ -2137,7 +2137,7 @@ test('unconfined service can respond to cancellation', async t => {
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   const capletLocation = url.pathToFileURL(capletPath).href;
   await E(host).makeUnconfined('worker', capletLocation, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'context-consumer',
   });
 
@@ -2159,7 +2159,7 @@ test('confined service can respond to cancellation', async t => {
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   await doMakeBundle(host, capletPath, bundleName =>
     E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
+      powersName: '@none',
       resultName: 'context-consumer',
     }),
   );
@@ -2190,7 +2190,7 @@ test('name and reuse inspector', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   await E(host).makeUnconfined('worker', counterPath, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'counter',
   });
 
@@ -2198,7 +2198,7 @@ test('name and reuse inspector', async t => {
     'worker',
     'E(INFO).lookup(["counter"])',
     ['INFO'],
-    ['INFO'],
+    ['@info'],
     ['inspector'],
   );
   t.regex(String(inspector), /Alleged: Inspector.+make-unconfined/u);
@@ -2220,7 +2220,7 @@ test('eval-mediated worker name', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   await E(host).makeUnconfined('worker', counterPath, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'counter',
   });
 
@@ -2240,7 +2240,7 @@ test('eval-mediated worker name', async t => {
     'worker',
     'E(E(INFO).lookup(["counter"])).lookup(["worker"])',
     ['INFO'],
-    ['INFO'],
+    ['@info'],
     ['counter-worker'],
   );
   t.regex(String(counterWorker), /Alleged: EndoWorker/u);
@@ -2264,10 +2264,10 @@ test('lookup with single petname', async t => {
   await E(host).storeValue(10, 'ten');
 
   const resolvedValue = await E(host).evaluate(
-    'MAIN',
+    '@main',
     'E(AGENT).lookup(["ten"])',
     ['AGENT'],
-    ['AGENT'],
+    ['@agent'],
   );
   t.is(resolvedValue, 10);
 });
@@ -2275,13 +2275,13 @@ test('lookup with single petname', async t => {
 test('lookup with petname path (inspector)', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
+  await E(host).evaluate('@main', '10', [], [], ['ten']);
 
   const resolvedValue = await E(host).evaluate(
-    'MAIN',
-    'E(AGENT).lookup(["INFO", "ten", "source"])',
+    '@main',
+    'E(AGENT).lookup(["@info", "ten", "source"])',
     ['AGENT'],
-    ['AGENT'],
+    ['@agent'],
   );
   t.is(resolvedValue, '10');
 });
@@ -2290,16 +2290,16 @@ test('lookup with petname path (caplet with lookup method)', async t => {
   const { host } = await prepareHost(t);
 
   const lookupPath = path.join(dirname, 'test', 'lookup.js');
-  await E(host).makeUnconfined('MAIN', lookupPath, {
-    powersName: 'NONE',
+  await E(host).makeUnconfined('@main', lookupPath, {
+    powersName: '@none',
     resultName: 'lookup',
   });
 
   const resolvedValue = await E(host).evaluate(
-    'MAIN',
+    '@main',
     'E(AGENT).lookup(["lookup", "name"])',
     ['AGENT'],
-    ['AGENT'],
+    ['@agent'],
   );
   t.is(resolvedValue, 'Looked up: name');
 });
@@ -2310,10 +2310,10 @@ test('lookup with petname path (value has no lookup method)', async t => {
   await E(host).storeValue(10, 'ten');
   await t.throwsAsync(
     E(host).evaluate(
-      'MAIN',
+      '@main',
       'E(AGENT).lookup(["ten", "some-name"])',
       ['AGENT'],
-      ['AGENT'],
+      ['@agent'],
     ),
     { message: 'target has no method "lookup", has []' },
   );
@@ -2322,13 +2322,13 @@ test('lookup with petname path (value has no lookup method)', async t => {
 test('evaluate name resolved by lookup path', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
+  await E(host).evaluate('@main', '10', [], [], ['ten']);
 
   const resolvedValue = await E(host).evaluate(
-    'MAIN',
+    '@main',
     'foo',
     ['foo'],
-    [['INFO', 'ten', 'source']],
+    [['@info', 'ten', 'source']],
   );
   t.is(resolvedValue, '10');
 });
@@ -2347,35 +2347,35 @@ test('list special names', async t => {
   // there's at least one for now.
   t.assert(names.length > 1);
   t.deepEqual(
-    names.filter(name => name.toUpperCase() !== name),
+    names.filter(name => !name.startsWith('@')),
     ['hello-text'],
   );
 });
 
-test('host exposes HOST special name', async t => {
+test('host exposes @host special name', async t => {
   const { host } = await prepareHost(t);
 
-  const selfId = await E(host).identify('SELF');
-  const hostId = await E(host).identify('HOST');
+  const selfId = await E(host).identify('@self');
+  const hostId = await E(host).identify('@host');
   t.is(hostId, selfId);
 });
 
-test('child host HOST points at parent handle', async t => {
+test('child host @host points at parent handle', async t => {
   const { host } = await prepareHost(t);
 
-  const parentHandleId = await E(host).identify('SELF');
+  const parentHandleId = await E(host).identify('@self');
   const childHost = await E(host).provideHost('child-host');
-  const childHostId = await E(childHost).identify('HOST');
+  const childHostId = await E(childHost).identify('@host');
 
   t.is(childHostId, parentHandleId);
-  t.not(childHostId, await E(childHost).identify('SELF'));
+  t.not(childHostId, await E(childHost).identify('@self'));
 });
 
 test('guest cannot access host methods', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const guestsHost = E(guest).lookup(['HOST']);
+  const guestsHost = E(guest).lookup(['@host']);
   await t.throwsAsync(() => E(guestsHost).lookup([]), {
     message: /target has no method "lookup"/u,
   });
@@ -2409,7 +2409,7 @@ test('read remote value', async t => {
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
+  await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
@@ -2428,7 +2428,7 @@ test('round-trip remotable identity', async t => {
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
   await E(hostB).evaluate(
-    'MAIN',
+    '@main',
     'Far("Echoer", { echo: value => value })',
     [],
     [],
@@ -2437,7 +2437,7 @@ test('round-trip remotable identity', async t => {
   const echoerLocator = await E(hostB).locate('echoer');
   await E(hostA).write(['echoer'], echoerLocator);
   const survivedEcho = await E(hostA).evaluate(
-    'MAIN',
+    '@main',
     `
       const token = Far('Token', {});
       E(echoer).echo(token).then(allegedlyIdenticalToken =>
@@ -2459,14 +2459,14 @@ test('hello from afar', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // Induce B to connect to A
-  await E(hostA).evaluate('MAIN', '42', [], [], ['ft']);
+  await E(hostA).evaluate('@main', '42', [], [], ['ft']);
   const ftLocator = await E(hostA).locate('ft');
   await E(hostB).write(['ft'], ftLocator);
   const ft = await E(hostB).lookup(['ft']);
   t.is(ft, 42);
 
   await E(hostB).evaluate(
-    'MAIN',
+    '@main',
     'Far("Echoer", { echo: value => value })',
     [],
     [],
@@ -2475,7 +2475,7 @@ test('hello from afar', async t => {
   const echoerLocator = await E(hostB).locate('echoer');
   await E(hostA).write(['echoer'], echoerLocator);
   const survivedEcho = await E(hostA).evaluate(
-    'MAIN',
+    '@main',
     `
       const token = Far('Token', {});
       E(echoer).echo(token).then(allegedlyIdenticalToken =>
@@ -2606,8 +2606,9 @@ test('locate remote value', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
+  await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
+
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueLocator);
@@ -2626,8 +2627,9 @@ test('invite, accept, and send mail', async t => {
   await E(hostB).accept(invitationLocator, 'alice');
 
   // create value to share
-  await E(hostA).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
+  await E(hostA).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const expectedSalutationsLocator = await E(hostA).locate('salutations');
+
   await E(hostA).send('bob', ['Hello'], ['salutations'], ['salutations']);
 
   const messages = await E(hostB).listMessages();
@@ -2683,8 +2685,9 @@ test('reverse locate remote value', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
+  await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
+
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueLocator);
@@ -2703,11 +2706,11 @@ test('bidirectional mail across nodes', async t => {
   await E(hostB).accept(invitationLocator, 'alice');
 
   // A sends mail to B
-  await E(hostA).evaluate('MAIN', '"value-from-a"', [], [], ['val-a']);
+  await E(hostA).evaluate('@main', '"value-from-a"', [], [], ['val-a']);
   await E(hostA).send('bob', ['Hi from A'], ['val-a'], ['val-a']);
 
   // B sends mail to A
-  await E(hostB).evaluate('MAIN', '"value-from-b"', [], [], ['val-b']);
+  await E(hostB).evaluate('@main', '"value-from-b"', [], [], ['val-b']);
   await E(hostB).send('alice', ['Hi from B'], ['val-b'], ['val-b']);
 
   const messagesB = await E(hostB).listMessages();
@@ -2733,7 +2736,7 @@ test('adopt from remote message', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  await E(hostA).evaluate('MAIN', '"shared-value"', [], [], ['shared']);
+  await E(hostA).evaluate('@main', '"shared-value"', [], [], ['shared']);
   const expectedId = await E(hostA).identify('shared');
   await E(hostA).send('bob', ['Take this'], ['shared'], ['shared']);
 
@@ -2764,7 +2767,7 @@ test('follow messages across nodes', async t => {
   );
   await drainIterator(iteratorRef, existingMessages.length);
 
-  await E(hostA).evaluate('MAIN', '"streamed"', [], [], ['stream-val']);
+  await E(hostA).evaluate('@main', '"streamed"', [], [], ['stream-val']);
   await E(hostA).send('bob', ['Stream test'], ['stream-val'], ['stream-val']);
 
   const { value: msg } = await E(iteratorRef).next();
@@ -2814,7 +2817,7 @@ test('request and resolve across nodes', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  await E(hostB).evaluate('MAIN', '42', [], [], ['answer']);
+  await E(hostB).evaluate('@main', '42', [], [], ['answer']);
 
   const iteratorB = E(hostB).followMessages();
   const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
@@ -2844,7 +2847,7 @@ test('cancel with pet name path', async t => {
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   await E(host).makeUnconfined('worker', counterLocation, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: ['subdir', 'counter'],
   });
 
@@ -2900,9 +2903,9 @@ test('send with pet name path for recipient and values', async t => {
   const answerId = await E(host).identify(...['values', 'the-answer']);
   await E(guest).write(['my-values', 'answer'], answerId);
 
-  // Guest sends to HOST using a path for the value
+  // Guest sends to @host using a path for the value
   await E(guest).send(
-    'HOST',
+    '@host',
     ['Here is the answer: '],
     ['gift'],
     [['my-values', 'answer']],
@@ -2935,7 +2938,7 @@ test('resolve with pet name path', async t => {
   const guest = E(host).provideGuest('guest');
 
   const iteratorRef = E(host).followMessages();
-  E.sendOnly(guest).request('HOST', 'a response');
+  E.sendOnly(guest).request('@host', 'a response');
   const { value: message } = await E(iteratorRef).next();
   t.is(message.number, 0n);
 
@@ -2957,7 +2960,7 @@ test('request with pet name path for response storage', async t => {
 
   // Have the guest make a request, storing response in a path within guest's directory
   const iteratorRef = E(host).followMessages();
-  const requestP = E(guest).request('HOST', 'give me something', [
+  const requestP = E(guest).request('@host', 'give me something', [
     'responses',
     'result',
   ]);
@@ -3113,7 +3116,7 @@ test('makeUnconfined passes env to caplet make function', async t => {
   const envEchoLocation = url.pathToFileURL(envEchoPath).href;
 
   const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'env-echo',
     env: {
       API_KEY: 'secret123',
@@ -3151,7 +3154,7 @@ test('makeUnconfined with empty env object', async t => {
   const envEchoLocation = url.pathToFileURL(envEchoPath).href;
 
   const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'env-echo',
     env: {},
   });
@@ -3169,7 +3172,7 @@ test('makeUnconfined without env option defaults to empty env', async t => {
   const envEchoLocation = url.pathToFileURL(envEchoPath).href;
 
   const envEcho = await E(host).makeUnconfined('worker', envEchoLocation, {
-    powersName: 'NONE',
+    powersName: '@none',
     resultName: 'env-echo',
   });
 
@@ -3185,7 +3188,7 @@ test('makeBundle passes env to caplet make function', async t => {
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
   const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
     E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
+      powersName: '@none',
       resultName: 'env-echo',
       env: {
         CONFIG_PATH: '/etc/app/config.json',
@@ -3213,7 +3216,7 @@ test('makeBundle with empty env object', async t => {
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
   const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
     E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
+      powersName: '@none',
       resultName: 'env-echo',
       env: {},
     }),
@@ -3231,7 +3234,7 @@ test('makeBundle without env option defaults to empty env', async t => {
   const envEchoPath = path.join(dirname, 'test', 'env-echo.js');
   const envEcho = await doMakeBundle(host, envEchoPath, bundleName =>
     E(host).makeBundle('worker', bundleName, {
-      powersName: 'NONE',
+      powersName: '@none',
       resultName: 'env-echo',
     }),
   );
@@ -3425,7 +3428,7 @@ testShim(
       const { host } = await makeHost(config, cancelled);
 
       const checker = await E(host).makeUnconfined(undefined, checkerLocation, {
-        powersName: 'NONE',
+        powersName: '@none',
         resultName: 'shim-checker',
         workerTrustedShims: [shimLocation],
       });
@@ -3463,7 +3466,7 @@ test('form happy path: guest sends form, host submits', async t => {
 
   // Guest sends a form to the host (fire-and-forget)
   await E(guest).form(
-    'HOST',
+    '@host',
     'Please configure',
     harden({
       name: { label: 'Your name' },
@@ -3499,7 +3502,7 @@ test('form submit rejects when a field is missing', async t => {
   const hostIteratorRef = E(host).followMessages();
 
   await E(guest).form(
-    'HOST',
+    '@host',
     'Need info',
     harden({
       name: { label: 'Name' },
@@ -3524,7 +3527,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
   const hostIteratorRef = E(host).followMessages();
 
   await E(guest).form(
-    'HOST',
+    '@host',
     'Typed form',
     harden({
       count: { label: 'Count', pattern: M.number() },
@@ -3548,7 +3551,7 @@ test('form submit with pattern validation accepts matching value', async t => {
   const hostIteratorRef = E(host).followMessages();
 
   await E(guest).form(
-    'HOST',
+    '@host',
     'Typed form',
     harden({
       count: { label: 'Count', pattern: M.number() },
@@ -3570,7 +3573,7 @@ test('form default pattern is M.string() — rejects non-string', async t => {
   const hostIteratorRef = E(host).followMessages();
 
   await E(guest).form(
-    'HOST',
+    '@host',
     'String form',
     harden({
       name: { label: 'Name' },
@@ -3595,7 +3598,7 @@ test('form multi-submission: same form submitted twice produces two value messag
   const guestIteratorRef = E(guest).followMessages();
 
   await E(guest).form(
-    'HOST',
+    '@host',
     'Multi-submit',
     harden({
       answer: { label: 'Answer' },
@@ -3628,7 +3631,7 @@ test('form returns void (fire-and-forget)', async t => {
   const guest = await E(host).provideGuest('guest');
 
   const result = await E(guest).form(
-    'HOST',
+    '@host',
     'Fire and forget',
     harden({
       field: { label: 'Field' },
@@ -3704,11 +3707,11 @@ test('sendValue replies to a message with a retained value', async t => {
   t.is(valueMsg.type, 'value');
   t.is(valueMsg.replyTo, pkgMsg.messageId);
 
-  // The value should be accessible via MAIL.N.VALUE
+  // The value should be accessible via @mail/N/@value
   const resultValue = await E(host).lookup([
-    'MAIL',
+    '@mail',
     String(valueMsg.number),
-    'VALUE',
+    '@value',
   ]);
   t.is(resultValue, 99);
 });
@@ -3743,7 +3746,7 @@ test('sendValue rejects invalid message number', async t => {
   });
 });
 
-test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
+test('form value message @value is addressable via @mail/N/@value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
@@ -3751,7 +3754,7 @@ test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
   const guestIteratorRef = E(guest).followMessages();
 
   await E(guest).form(
-    'HOST',
+    '@host',
     'Profile',
     harden({
       displayName: { label: 'Display Name' },
@@ -3770,17 +3773,17 @@ test('form value message VALUE is addressable via MAIL.N.VALUE', async t => {
   t.is(valueMsg.type, 'value');
 
   // Look up the value message hub
-  const messageHub = await E(guest).lookup(['MAIL', String(valueMsg.number)]);
+  const messageHub = await E(guest).lookup(['@mail', String(valueMsg.number)]);
   const names = await E(messageHub).list();
 
-  // The message hub should include the VALUE name
-  t.true(names.includes('VALUE'));
+  // The message hub should include the @value name
+  t.true(names.includes('@value'));
 
-  // VALUE should resolve to the submitted values
+  // @value should resolve to the submitted values
   const resultValue = await E(guest).lookup([
-    'MAIL',
+    '@mail',
     String(valueMsg.number),
-    'VALUE',
+    '@value',
   ]);
   t.deepEqual(resultValue, { displayName: 'Bob' });
 });

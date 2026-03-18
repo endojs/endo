@@ -161,7 +161,7 @@ test('execute dismiss command', async t => {
   t.deepEqual(ctx.calls[0].args, [42n]);
 });
 
-test('execute dismiss-all command', async t => {
+test('execute clear command', async t => {
   const ctx = createMockContext();
   const executor = createCommandExecutor({
     powers: ctx.powers,
@@ -170,7 +170,7 @@ test('execute dismiss-all command', async t => {
     showError: e => ctx.showErrorCalls.push(e),
   });
 
-  const result = await executor.execute('dismiss-all', {});
+  const result = await executor.execute('clear', {});
 
   t.true(result.success);
   t.is(result.message, 'All messages dismissed');
@@ -299,14 +299,14 @@ test('execute js command', async t => {
     source: '1 + 1',
     endowments: [{ codeName: 'x', petName: 'my-value' }],
     resultName: 'answer',
-    workerName: 'MAIN',
+    workerName: '@main',
   });
 
   t.true(result.success);
   t.is(result.message, 'Result saved as "answer"');
   t.is(result.value, 'eval-result');
   t.deepEqual(ctx.calls[0].args, [
-    'MAIN',
+    '@main',
     '1 + 1',
     ['x'],
     [['my-value']],
@@ -339,7 +339,7 @@ test('execute list command', async t => {
     showError: e => ctx.showErrorCalls.push(e),
   });
 
-  const result = await executor.execute('list', { path: 'my.dir' });
+  const result = await executor.execute('list', { path: 'my/dir' });
 
   t.true(result.success);
   t.deepEqual(result.value, ['item1', 'item2']);
@@ -371,7 +371,7 @@ test('execute show command', async t => {
     showError: e => ctx.showErrorCalls.push(e),
   });
 
-  const result = await executor.execute('show', { petName: 'my.value' });
+  const result = await executor.execute('show', { petName: 'my/value' });
 
   t.true(result.success);
   t.deepEqual(result.value, { looked: 'up' });
@@ -437,12 +437,12 @@ test('execute move command', async t => {
   });
 
   const result = await executor.execute('move', {
-    fromName: 'old.path',
-    toName: 'new.path',
+    fromName: 'old/path',
+    toName: 'new/path',
   });
 
   t.true(result.success);
-  t.is(result.message, '"old.path" moved to "new.path"');
+  t.is(result.message, '"old/path" moved to "new/path"');
   t.deepEqual(ctx.calls[0].args, [
     ['old', 'path'],
     ['new', 'path'],
@@ -541,7 +541,7 @@ test('execute mkhost command', async t => {
   });
 
   const result = await executor.execute('mkhost', {
-    handleName: 'SELF',
+    handleName: '@self',
     agentName: 'new-host',
   });
 
@@ -559,7 +559,7 @@ test('execute mkguest command', async t => {
   });
 
   const result = await executor.execute('mkguest', {
-    handleName: 'HOST',
+    handleName: '@host',
     agentName: 'new-guest',
   });
 
@@ -637,7 +637,7 @@ test('execute handles power errors', async t => {
   t.is(errors[0].message, 'Permission denied');
 });
 
-test('execute handles dot-path splitting', async t => {
+test('execute handles slash-path splitting', async t => {
   const ctx = createMockContext();
   const executor = createCommandExecutor({
     powers: ctx.powers,
@@ -646,7 +646,7 @@ test('execute handles dot-path splitting', async t => {
     showError: e => ctx.showErrorCalls.push(e),
   });
 
-  await executor.execute('show', { petName: 'a.b.c.d' });
+  await executor.execute('show', { petName: 'a/b/c/d' });
 
   t.deepEqual(ctx.calls[0].args, [['a', 'b', 'c', 'd']]);
 });

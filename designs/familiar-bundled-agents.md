@@ -11,7 +11,7 @@
 
 The Familiar (Electron shell) ships with a bundled Endo daemon but no AI agent
 caplets. Users who want Lal or Fae must install them from the monorepo source
-tree using `endo run --UNCONFINED setup.js --powers AGENT`. This has three
+tree using `endo run --UNCONFINED setup.js --powers @agent`. This has three
 problems:
 
 1. **Requires the source tree.** The Familiar is a self-contained Electron app.
@@ -72,15 +72,15 @@ Node.js resolves bare imports (`@anthropic-ai/sdk`, etc.) via standard
 `node_modules` lookup from the specifier's directory. In the monorepo this
 works because `node_modules` is present. In a packaged Familiar, it does not.
 
-### How the APPS formula works
+### How the @apps formula works
 
 The daemon accepts a `specials` parameter — a map of special formula names to
-factory functions. `daemon-node.js` uses this to register the APPS (gateway
+factory functions. `daemon-node.js` uses this to register the @apps (gateway
 web server) formula:
 
 ```js
 await makeDaemon(powers, daemonLabel, cancel, cancelled, {
-  APPS: ({ MAIN, ENDO }) => ({
+  '@apps': ({ '@main': MAIN, '@endo': ENDO }) => ({
     type: 'make-unconfined',
     worker: MAIN,
     powers: ENDO,
@@ -97,7 +97,7 @@ type Specials = {
 };
 ```
 
-The `Builtins` type provides `NONE`, `MAIN`, and `ENDO` formula identifiers.
+The `Builtins` type provides `@new`, `@main`, and `@endo` formula identifiers.
 Each special formula is `preformulate`d during daemon initialization and
 becomes available as a `platformName` in the root host's special names.
 
@@ -193,11 +193,11 @@ env: {
 },
 ```
 
-In `daemon-node.js`, these become special formulas alongside APPS:
+In `daemon-node.js`, these become special formulas alongside @apps:
 
 ```js
 await makeDaemon(powers, daemonLabel, cancel, cancelled, {
-  APPS: ({ MAIN, ENDO }) => ({
+  '@apps': ({ '@main': MAIN, '@endo': ENDO }) => ({
     type: 'make-unconfined',
     worker: MAIN,
     powers: ENDO,
@@ -205,7 +205,7 @@ await makeDaemon(powers, daemonLabel, cancel, cancelled, {
     env: { ENDO_ADDR: ... },
   }),
   ...(process.env.ENDO_LAL_PATH ? {
-    LAL: ({ MAIN, ENDO }) => ({
+    '@lal': ({ '@main': MAIN, '@endo': ENDO }) => ({
       type: 'make-unconfined',
       worker: MAIN,
       powers: ENDO,
@@ -214,7 +214,7 @@ await makeDaemon(powers, daemonLabel, cancel, cancelled, {
     }),
   } : {}),
   ...(process.env.ENDO_FAE_PATH ? {
-    FAE: ({ MAIN, ENDO }) => ({
+    '@fae': ({ '@main': MAIN, '@endo': ENDO }) => ({
       type: 'make-unconfined',
       worker: MAIN,
       powers: ENDO,
@@ -226,18 +226,18 @@ await makeDaemon(powers, daemonLabel, cancel, cancelled, {
 ```
 
 Wait — this does not work for agents that need a guest profile. The `powers`
-field in the formula determines what identity the agent runs under. APPS runs
-under `ENDO` (the root endo bootstrap), which gives it full daemon access.
+field in the formula determines what identity the agent runs under. @apps runs
+under `@endo` (the root endo bootstrap), which gives it full daemon access.
 Agents should run under their own guest profile.
 
 ### The Powers Problem
 
 The `Specials` mechanism maps a name to a formula that is `preformulate`d
 during daemon initialization — before the root host, pet stores, or guest
-profiles exist. Special formulas have access to `Builtins` (`NONE`, `MAIN`,
-`ENDO`) but not to host-level powers like `provideGuest`.
+profiles exist. Special formulas have access to `Builtins` (`@new`, `@main`,
+`@endo`) but not to host-level powers like `provideGuest`.
 
-The APPS formula works because the web server needs root-level access
+The @apps formula works because the web server needs root-level access
 (it serves all agents). Agent caplets, however, should run under a guest
 profile with limited authority.
 
@@ -245,7 +245,7 @@ profile with limited authority.
 
 #### Option A: Special formulas that provision themselves
 
-The agent's `make()` function receives `ENDO` powers (the full endo
+The agent's `make()` function receives `@endo` powers (the full endo
 bootstrap). Its first act is to create its own guest profile and then operate
 under that guest's powers:
 
@@ -267,13 +267,13 @@ voluntarily drops by delegating to a guest profile.
 sequence could accidentally exercise root powers.
 
 **Benefit:** Self-contained. No changes to the daemon's special formula
-mechanism. Follows the existing APPS pattern (APPS also runs with ENDO
+mechanism. Follows the existing @apps pattern (@apps also runs with @endo
 powers).
 
 #### Option B: Setup as a separate special formula
 
 Register two special formulas per agent: a one-shot setup formula and the
-agent formula. The setup formula runs with ENDO powers, creates the guest
+agent formula. The setup formula runs with @endo powers, creates the guest
 profile, and the agent formula runs with the guest profile as its powers.
 
 **Drawback:** Complex. Requires orchestrating formula dependencies between
@@ -284,20 +284,20 @@ dependencies (each formula is independent).
 
 Add guest provisioning logic to `daemon-node.js` (or `daemon.js`) that runs
 after the host is created but before signalling "ready". This is analogous
-to how `daemon-node.js` already checks for APPS and looks up its address.
+to how `daemon-node.js` already checks for @apps and looks up its address.
 
 ```js
 const host = await E(endoBootstrap).host();
-// ... existing APPS lookup ...
+// ... existing @apps lookup ...
 
 // Provision bundled agents
 if (process.env.ENDO_LAL_PATH) {
   if (!(await E(host).has('lal'))) {
     const guest = await E(host).provideGuest('lal', {
-      introducedNames: { AGENT: 'AGENT' },
+      introducedNames: { '@agent': '@agent' },
       agentName: 'profile-for-lal',
     });
-    await E(host).makeUnconfined('MAIN', process.env.ENDO_LAL_PATH, {
+    await E(host).makeUnconfined('@main', process.env.ENDO_LAL_PATH, {
       powersName: 'profile-for-lal',
       resultName: 'controller-for-lal',
     });
@@ -311,27 +311,27 @@ point.
 **Benefit:** The agent runs with proper guest-level authority from the start.
 The provisioning is idempotent (`provideGuest` returns existing guests).
 
-**Resolution: Option A.** The agent receives ENDO powers and provisions
-itself. This parallels APPS, keeps the daemon entry point clean, and matches
+**Resolution: Option A.** The agent receives @endo powers and provisions
+itself. This parallels @apps, keeps the daemon entry point clean, and matches
 the direction of [lal-fae-form-provisioning](lal-fae-form-provisioning.md)
-where the agent's first act is to send a configuration form to HOST — an
-operation that requires looking up HOST, which the agent can do from either
-ENDO or guest powers.
+where the agent's first act is to send a configuration form to @host — an
+operation that requires looking up @host, which the agent can do from either
+@endo or guest powers.
 
 The brief bootstrap window with full authority is acceptable because:
 1. The agent code is bundled and shipped by us, not user-provided.
-2. The APPS formula already has this pattern and has worked without issues.
+2. The @apps formula already has this pattern and has worked without issues.
 3. The agent voluntarily drops to guest-level authority immediately.
 
 ### Revised Special Formula Registration
 
 ```js
 const specials = {
-  APPS: ({ MAIN, ENDO }) => ({ ... }),
+  '@apps': ({ '@main': MAIN, '@endo': ENDO }) => ({ ... }),
 };
 
 if (process.env.ENDO_LAL_PATH) {
-  specials.LAL = ({ MAIN, ENDO }) => ({
+  specials['@lal'] = ({ '@main': MAIN, '@endo': ENDO }) => ({
     type: 'make-unconfined',
     worker: MAIN,
     powers: ENDO,
@@ -341,7 +341,7 @@ if (process.env.ENDO_LAL_PATH) {
 }
 
 if (process.env.ENDO_FAE_PATH) {
-  specials.FAE = ({ MAIN, ENDO }) => ({
+  specials['@fae'] = ({ '@main': MAIN, '@endo': ENDO }) => ({
     type: 'make-unconfined',
     worker: MAIN,
     powers: ENDO,
@@ -355,7 +355,7 @@ await makeDaemon(powers, daemonLabel, cancel, cancelled, specials);
 
 ### Agent Self-Provisioning
 
-The agent's `make()` function changes to handle both the bundled case (ENDO
+The agent's `make()` function changes to handle both the bundled case (@endo
 powers, no `env`) and the standalone case (guest powers, `env` with LLM
 config). Today, the signature is:
 
@@ -363,7 +363,7 @@ config). Today, the signature is:
 export const make = (guestPowers, context, { env }) => { ... };
 ```
 
-For the bundled case, the agent detects that it has ENDO powers (by checking
+For the bundled case, the agent detects that it has @endo powers (by checking
 for the `host()` method) and provisions itself:
 
 ```js
@@ -372,11 +372,11 @@ export const make = async (powers, context, options = {}) => {
 
   let guestPowers;
   if (typeof powers.host === 'function' || await hasHostMethod(powers)) {
-    // Running as a special formula with ENDO powers.
+    // Running as a special formula with @endo powers.
     // Self-provision: create guest profile and switch to guest powers.
     const host = await E(powers).host();
     const guest = await E(host).provideGuest('lal', {
-      introducedNames: { AGENT: 'AGENT' },
+      introducedNames: { '@agent': '@agent' },
       agentName: 'profile-for-lal',
     });
     guestPowers = guest;
@@ -399,7 +399,7 @@ source. With the form-based provisioning design
 always sends a configuration form regardless of how it's started — the only
 difference is the initial powers level.
 
-**Simpler approach:** The agent caplet always receives ENDO powers in the
+**Simpler approach:** The agent caplet always receives @endo powers in the
 bundled case. Its `make()` creates a guest, then proceeds with the
 manager/form flow from the form-provisioning design. The standalone
 `setup.js` path is retained for development (running from source without
@@ -450,16 +450,16 @@ no Forge config changes are needed.
 
 When the Familiar launches for the first time:
 
-1. The daemon starts with LAL and FAE special formulas.
-2. The LAL formula incarnates: the bundled `endo-lal.cjs` is `import()`ed
+1. The daemon starts with @lal and @fae special formulas.
+2. The @lal formula incarnates: the bundled `endo-lal.cjs` is `import()`ed
    in a worker.
 3. Lal's `make()` provisions itself as a guest, then sends a configuration
-   form to HOST.
+   form to @host.
 4. The form appears in the user's inbox in the Chat UI.
 5. The user fills in their API key and preferred model, submits.
 6. The agent creates a named persona and begins following its inbox.
 
-On subsequent launches, the daemon's formula store already has the LAL/FAE
+On subsequent launches, the daemon's formula store already has the @lal/@fae
 formulas persisted. `provideGuest` is idempotent — it returns the existing
 guest. The agent resumes its manager loop and respawns workers from persisted
 configs.
@@ -474,8 +474,8 @@ packaged Familiar.
 
 The two designs compose naturally:
 
-1. **Bundled agent** starts with ENDO powers, self-provisions as a guest,
-   sends configuration form to HOST.
+1. **Bundled agent** starts with @endo powers, self-provisions as a guest,
+   sends configuration form to @host.
 2. **Form-based provisioning** handles the configuration form, creates named
    agent personas, spawns worker loops.
 
@@ -491,37 +491,37 @@ When the daemon starts and processes special formulas, it calls
 later incarnates it via `provide()`. The incarnation calls `makeUnconfined`
 in the worker, which does `import(specifierUrl)` on the bundled CJS file.
 
-The daemon already incarnates APPS on startup — the root host checks
-`has('APPS')` and `lookup('APPS')` to get the gateway address. For LAL/FAE,
-the incarnation happens similarly: the host has `LAL` and `FAE` as platform
-names, and `lookup('LAL')` triggers the import and `make()` call.
+The daemon already incarnates @apps on startup — the root host checks
+`has('@apps')` and `lookup('@apps')` to get the gateway address. For @lal/@fae,
+the incarnation happens similarly: the host has `@lal` and `@fae` as platform
+names, and `lookup('@lal')` triggers the import and `make()` call.
 
-However, unlike APPS which the host explicitly looks up during startup, the
+However, unlike @apps which the host explicitly looks up during startup, the
 agent formulas should incarnate lazily — only when first accessed. The
 `preformulate` step writes the formula but does not eagerly incarnate it.
-The first `lookup('LAL')` (or the first message sent to LAL's inbox) triggers
+The first `lookup('@lal')` (or the first message sent to @lal's inbox) triggers
 incarnation.
 
-Actually, for the agent to send a form to HOST on startup, it needs to be
+Actually, for the agent to send a form to @host on startup, it needs to be
 incarnated. The question is: should the agent start automatically, or should
 the user trigger it?
 
 **Decision: Auto-incarnate on first start.** On fresh daemon state, after
-the host is created, the daemon checks for LAL/FAE formulas and looks them
+the host is created, the daemon checks for @lal/@fae formulas and looks them
 up (triggering incarnation). On subsequent starts, the formulas are already
 incarnated and their workers resume from persisted state.
 
 ```js
 // In daemon-node.js, after the host is ready:
-if (process.env.ENDO_LAL_PATH && await E(host).has('LAL')) {
-  await E(host).lookup('LAL');
+if (process.env.ENDO_LAL_PATH && await E(host).has('@lal')) {
+  await E(host).lookup('@lal');
 }
-if (process.env.ENDO_FAE_PATH && await E(host).has('FAE')) {
-  await E(host).lookup('FAE');
+if (process.env.ENDO_FAE_PATH && await E(host).has('@fae')) {
+  await E(host).lookup('@fae');
 }
 ```
 
-This mirrors the existing APPS pattern.
+This mirrors the existing @apps pattern.
 
 ## Implementation Phases
 
@@ -536,11 +536,11 @@ This mirrors the existing APPS pattern.
 
 - Add `endoLalPath` and `endoFaePath` to `src/resource-paths.js`.
 - Pass `ENDO_LAL_PATH` and `ENDO_FAE_PATH` from `src/daemon-manager.js`.
-- Add LAL/FAE special formulas to `daemon-node.js` (conditional on env vars).
+- Add @lal/@fae special formulas to `daemon-node.js` (conditional on env vars).
 
 ### Phase 3: Agent Self-Provisioning
 
-- Modify `packages/lal/agent.js` `make()` to detect ENDO-level powers and
+- Modify `packages/lal/agent.js` `make()` to detect @endo-level powers and
   self-provision as a guest.
 - Same for `packages/fae/agent.js`.
 - This overlaps with [lal-fae-form-provisioning](lal-fae-form-provisioning.md)
@@ -548,7 +548,7 @@ This mirrors the existing APPS pattern.
 
 ### Phase 4: Auto-Incarnation
 
-- Add LAL/FAE lookup to `daemon-node.js` startup sequence (after host
+- Add @lal/@fae lookup to `daemon-node.js` startup sequence (after host
   readiness check).
 - Test end-to-end: launch Familiar → agent form appears in inbox.
 
@@ -568,9 +568,9 @@ This mirrors the existing APPS pattern.
 | `packages/familiar/scripts/bundle.mjs` | Add `endo-lal.cjs` and `endo-fae.cjs` esbuild entries |
 | `packages/familiar/src/resource-paths.js` | Add `endoLalPath`, `endoFaePath` |
 | `packages/familiar/src/daemon-manager.js` | Pass `ENDO_LAL_PATH`, `ENDO_FAE_PATH` env vars |
-| `packages/daemon/src/daemon-node.js` | Register LAL/FAE special formulas; auto-incarnate on startup |
+| `packages/daemon/src/daemon-node.js` | Register @lal/@fae special formulas; auto-incarnate on startup |
 | `packages/daemon/src/types.d.ts` | No changes (Specials type is already generic) |
-| `packages/lal/agent.js` | Detect ENDO powers and self-provision (or coordinate with form-provisioning) |
+| `packages/lal/agent.js` | Detect @endo powers and self-provision (or coordinate with form-provisioning) |
 | `packages/fae/agent.js` | Same as lal/agent.js |
 
 ## Design Decisions
@@ -585,14 +585,14 @@ This mirrors the existing APPS pattern.
    cleanly without any native module concerns.
 
 3. **Special formulas via `Specials` mechanism.** Reuses the existing
-   pattern from APPS. No new daemon infrastructure needed.
+   pattern from @apps. No new daemon infrastructure needed.
 
-4. **ENDO powers with self-provisioning.** The agent receives full daemon
+4. **@endo powers with self-provisioning.** The agent receives full daemon
    access initially and voluntarily drops to guest-level authority. This
-   parallels APPS and avoids changes to the `Specials` mechanism. The
+   parallels @apps and avoids changes to the `Specials` mechanism. The
    bundled agent code is trusted (shipped by us).
 
-5. **Environment variable gating.** The LAL/FAE specials are only registered
+5. **Environment variable gating.** The @lal/@fae specials are only registered
    when `ENDO_LAL_PATH` / `ENDO_FAE_PATH` are set. In dev mode, agents are
    installed via the CLI as today. In packaged mode, they auto-register.
 

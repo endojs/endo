@@ -1,7 +1,7 @@
 /* global process */
 // @ts-check
 // endo run --UNCONFINED setup-with-tools.js \
-//   --powers AGENT \
+//   --powers @agent \
 //   -E PROVIDER_NAME=$PROVIDER_NAME \
 //   -E FACTORY_NAME=$FACTORY_NAME
 //
@@ -36,17 +36,17 @@ export const main = async agent => {
   const mathUrl = new URL('tools/math.js', import.meta.url).href;
   const timestampUrl = new URL('tools/timestamp.js', import.meta.url).href;
 
-  await E(agent).makeUnconfined('MAIN', greetUrl, {
+  await E(agent).makeUnconfined('@main', greetUrl, {
     resultName: 'greet-tool',
   });
   console.log('[setup] Created greet-tool');
 
-  await E(agent).makeUnconfined('MAIN', mathUrl, {
+  await E(agent).makeUnconfined('@main', mathUrl, {
     resultName: 'math-tool',
   });
   console.log('[setup] Created math-tool');
 
-  await E(agent).makeUnconfined('MAIN', timestampUrl, {
+  await E(agent).makeUnconfined('@main', timestampUrl, {
     resultName: 'timestamp-tool',
   });
   console.log('[setup] Created timestamp-tool');
@@ -57,11 +57,11 @@ export const main = async agent => {
   const hasProviderFactory = await E(agent).has(providerFactoryGuest);
   if (!hasProviderFactory) {
     await E(agent).provideGuest(providerFactoryGuest, {
-      introducedNames: harden({ AGENT: 'host-agent' }),
+      introducedNames: harden({ '@agent': 'host-agent' }),
       agentName: providerFactoryAgent,
     });
   }
-  await E(agent).makeUnconfined('MAIN', llmProviderFactorySpecifier, {
+  await E(agent).makeUnconfined('@main', llmProviderFactorySpecifier, {
     powersName: providerFactoryAgent,
     resultName: 'llm-provider-factory',
   });
@@ -80,7 +80,7 @@ export const main = async agent => {
     const hasFactory = await E(agent).has(factoryGuestName);
     if (!hasFactory) {
       await E(agent).provideGuest(factoryGuestName, {
-        introducedNames: harden({ AGENT: 'host-agent' }),
+        introducedNames: harden({ '@agent': 'host-agent' }),
         agentName: factoryAgent,
       });
     }
@@ -88,7 +88,7 @@ export const main = async agent => {
     const factoryPowers = await E(agent).lookup(factoryAgent);
     await E(factoryPowers).write('llm-provider', providerId);
 
-    await E(agent).makeUnconfined('MAIN', faeFactorySpecifier, {
+    await E(agent).makeUnconfined('@main', faeFactorySpecifier, {
       powersName: factoryAgent,
       resultName: factoryName,
     });

@@ -77,10 +77,10 @@ export const makePetSitter = (petStore, specialNames) => {
       .filter(([_, specialId]) => specialId === id)
       .map(([specialName, _]) => /** @type {SpecialName} */ (specialName));
     if (
-      idSpecialNames.includes(/** @type {SpecialName} */ ('SELF')) &&
-      idSpecialNames.includes(/** @type {SpecialName} */ ('HOST'))
+      idSpecialNames.includes(/** @type {SpecialName} */ ('@self')) &&
+      idSpecialNames.includes(/** @type {SpecialName} */ ('@host'))
     ) {
-      const filtered = idSpecialNames.filter(name => name !== 'HOST');
+      const filtered = idSpecialNames.filter(name => name !== '@host');
       idSpecialNames.length = 0;
       idSpecialNames.push(...filtered);
     }

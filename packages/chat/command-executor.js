@@ -52,9 +52,9 @@ export const createCommandExecutor = ({
         case 'request': {
           const { recipient, description, resultName } = params;
           // Split dot-notation names into paths for the request API
-          const recipientPath = String(recipient).split('.');
+          const recipientPath = String(recipient).split('/');
           const resultPath = resultName
-            ? String(resultName).split('.')
+            ? String(resultName).split('/')
             : undefined;
           await E(powers).request(
             recipientPath,
@@ -75,7 +75,7 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'dismiss-all': {
+        case 'clear': {
           await E(powers).dismissAll();
           return {
             success: true,
@@ -86,7 +86,7 @@ export const createCommandExecutor = ({
         case 'adopt': {
           const { messageNumber, edgeName, petName } = params;
           const targetNameStr = petName ? String(petName) : String(edgeName);
-          const targetNamePath = targetNameStr.split('.');
+          const targetNamePath = targetNameStr.split('/');
 
           // In channel mode, adopt from channel message by formula ID
           const channelRef = getChannelRef ? getChannelRef() : null;
@@ -171,7 +171,7 @@ export const createCommandExecutor = ({
             // Resolve pet names to formula IDs for the channel
             const resolvedIds = await Promise.all(
               petNames.map(async petName => {
-                const petPath = petName.split('.');
+                const petPath = petName.split('/');
                 const id = await E(powers).identify(
                   .../** @type {[string, ...string[]]} */ (petPath),
                 );
@@ -218,7 +218,7 @@ export const createCommandExecutor = ({
 
         case 'form': {
           const { recipient, description, fields: fieldDefs } = params;
-          const recipientPath = String(recipient).split('.');
+          const recipientPath = String(recipient).split('/');
           const fields = /** @type {Array<{name: string, label: string}>} */ (
             fieldDefs
           ).map(f => ({
@@ -263,7 +263,7 @@ export const createCommandExecutor = ({
             source,
             endowments = [],
             resultName,
-            workerName = 'MAIN',
+            workerName = '@main',
           } = params;
           const codeNames =
             /** @type {Array<{codeName: string, petName: string}>} */ (
@@ -273,9 +273,9 @@ export const createCommandExecutor = ({
           const petNamePaths =
             /** @type {Array<{codeName: string, petName: string}>} */ (
               endowments
-            ).map(e => e.petName.split('.'));
+            ).map(e => e.petName.split('/'));
           const resultPath = resultName
-            ? String(resultName).split('.')
+            ? String(resultName).split('/')
             : undefined;
 
           const result = await E(powers).evaluate(
@@ -300,7 +300,7 @@ export const createCommandExecutor = ({
         case 'ls':
         case 'list': {
           const { path } = params;
-          const pathParts = path ? String(path).split('.') : [];
+          const pathParts = path ? String(path).split('/') : [];
           const names = await E(powers).list(...pathParts);
           const sortedNames = harden([...names].sort());
           showValue(sortedNames, undefined, undefined, undefined);
@@ -309,7 +309,7 @@ export const createCommandExecutor = ({
 
         case 'show': {
           const { petName } = params;
-          const pathParts = String(petName).split('.');
+          const pathParts = String(petName).split('/');
           const value = await E(powers).lookup(pathParts);
           const id = await E(powers).identify(...pathParts);
           showValue(value, id, pathParts, undefined);
@@ -323,7 +323,7 @@ export const createCommandExecutor = ({
           const paths = /** @type {unknown[]} */ (petNames || [petName]);
           const results = await Promise.all(
             paths.map(async name => {
-              const pathParts = String(name).split('.');
+              const pathParts = String(name).split('/');
               await E(powers).remove(...pathParts);
               return name;
             }),
@@ -338,8 +338,8 @@ export const createCommandExecutor = ({
         case 'mv':
         case 'move': {
           const { fromName, toName } = params;
-          const fromPath = String(fromName).split('.');
-          const toPath = String(toName).split('.');
+          const fromPath = String(fromName).split('/');
+          const toPath = String(toName).split('/');
           await E(powers).move(fromPath, toPath);
           return {
             success: true,
@@ -350,8 +350,8 @@ export const createCommandExecutor = ({
         case 'cp':
         case 'copy': {
           const { fromName, toName } = params;
-          const fromPath = String(fromName).split('.');
-          const toPath = String(toName).split('.');
+          const fromPath = String(fromName).split('/');
+          const toPath = String(toName).split('/');
           await E(powers).copy(fromPath, toPath);
           return {
             success: true,
@@ -359,9 +359,22 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'locate': {
+          const { petName } = params;
+          const pathParts = String(petName).split('/');
+          const locator = await E(powers).locate(
+            .../** @type {[string, ...string[]]} */ (pathParts),
+          );
+          if (locator === undefined) {
+            throw new Error(`No value found for "${petName}"`);
+          }
+          showValue(locator, undefined, undefined, undefined);
+          return { success: true, value: locator };
+        }
+
         case 'mkdir': {
           const { petName } = params;
-          const pathParts = String(petName).split('.');
+          const pathParts = String(petName).split('/');
           await E(powers).makeDirectory(pathParts);
           return { success: true, message: `Directory "${petName}" created` };
         }
@@ -410,7 +423,7 @@ export const createCommandExecutor = ({
         case 'share': {
           const { petName } = params;
           const petNameStr = String(petName);
-          const pathParts = petNameStr.split('.');
+          const pathParts = petNameStr.split('/');
           console.log(
             `[Chat] Generating shareable locator for "${petNameStr}"...`,
           );
@@ -457,12 +470,12 @@ export const createCommandExecutor = ({
 
           await E(powers).storeValue(effectiveHostPort, 'tcp-listen-addr');
           console.log(`[Chat] /network: loading module ${effectiveModulePath}`);
-          await E(powers).makeUnconfined('MAIN', effectiveModulePath, {
-            powersName: 'AGENT',
+          await E(powers).makeUnconfined('@main', effectiveModulePath, {
+            powersName: '@agent',
             resultName: 'network-service',
           });
           console.log(`[Chat] /network: moving to NETS.tcp`);
-          await E(powers).move(['network-service'], ['NETS', 'tcp']);
+          await E(powers).move(['network-service'], ['@nets', 'tcp']);
           console.log(`[Chat] /network: TCP network ready`);
           return {
             success: true,
@@ -491,7 +504,7 @@ export const createCommandExecutor = ({
           // IPFS DHT and discovers relays automatically) so there is no
           // request/resolve step like the TCP network.
           await E(powers).makeUnconfined(undefined, effectiveModulePath, {
-            powersName: 'AGENT',
+            powersName: '@agent',
             resultName: 'network-service-libp2p',
             workerTrustedShims: [
               '@libp2p/webrtc',
@@ -499,7 +512,7 @@ export const createCommandExecutor = ({
             ],
           });
           console.log(`[Chat] /network-libp2p: moving to NETS.libp2p`);
-          await E(powers).move(['network-service-libp2p'], ['NETS', 'libp2p']);
+          await E(powers).move(['network-service-libp2p'], ['@nets', 'libp2p']);
           console.log(`[Chat] /network-libp2p: libp2p network ready`);
           return {
             success: true,
@@ -515,8 +528,7 @@ export const createCommandExecutor = ({
             (import.meta.env?.WS_RELAY_PATH ?? '');
           const relayUrl = String(params.relayUrl || '');
           const relayDomain =
-            String(params.relayDomain || '') ||
-            new URL(relayUrl).hostname;
+            String(params.relayDomain || '') || new URL(relayUrl).hostname;
 
           if (!relayUrl) {
             return {
@@ -537,17 +549,17 @@ export const createCommandExecutor = ({
             `[Chat] /network-ws-relay: connecting to relay ${relayUrl} (domain=${relayDomain})`,
           );
           await E(powers).makeUnconfined(undefined, effectiveModulePath, {
-            powersName: 'AGENT',
+            powersName: '@agent',
             resultName: 'network-service-ws-relay',
             env: {
               WS_RELAY_URL: relayUrl,
               WS_RELAY_DOMAIN: relayDomain,
             },
           });
-          console.log(`[Chat] /network-ws-relay: moving to NETS.ws-relay`);
+          console.log(`[Chat] /network-ws-relay: moving to @nets/ws-relay`);
           await E(powers).move(
             ['network-service-ws-relay'],
-            ['NETS', 'ws-relay'],
+            ['@nets', 'ws-relay'],
           );
           console.log(`[Chat] /network-ws-relay: relay network ready`);
           return {
@@ -559,7 +571,7 @@ export const createCommandExecutor = ({
         // ============ WORKERS ============
         case 'spawn': {
           const { workerName } = params;
-          const pathParts = String(workerName).split('.');
+          const pathParts = String(workerName).split('/');
           await E(powers).provideWorker(pathParts);
           return { success: true, message: `Worker "${workerName}" spawned` };
         }
@@ -586,7 +598,7 @@ export const createCommandExecutor = ({
         // ============ SYSTEM ============
         case 'cancel': {
           const { petName, reason } = params;
-          const pathParts = String(petName).split('.');
+          const pathParts = String(petName).split('/');
           const error = reason
             ? new Error(String(reason))
             : new Error('Cancelled');

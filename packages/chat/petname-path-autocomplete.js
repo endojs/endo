@@ -41,7 +41,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
    * @returns {{ pathPrefix: string[], partial: string }}
    */
   const parseValue = value => {
-    const parts = value.split('.');
+    const parts = value.split('/');
     if (parts.length === 1) {
       return { pathPrefix: [], partial: parts[0] };
     }
@@ -127,7 +127,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
     $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>.</kbd> drill down · <kbd>Esc</kbd> cancel';
+      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>/</kbd> drill down · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
   };
 
@@ -160,7 +160,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     const { pathPrefix } = parseValue($input.value);
 
     // Build the new value with the selected name
-    const newPath = [...pathPrefix, selected].join('.');
+    const newPath = [...pathPrefix, selected].join('/');
     $input.value = newPath;
 
     hideMenu();
@@ -338,7 +338,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
         hideMenu();
         break;
 
-      case '.':
+      case '/':
         // If there's an exact match selected, complete it first
         if (suggestions.length > 0) {
           const { partial } = parseValue($input.value);
@@ -346,7 +346,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
             s => s.toLowerCase() === partial.toLowerCase(),
           );
           if (exactMatch) {
-            // Let the dot be typed, then refresh
+            // Let the slash be typed, then refresh
             setTimeout(() => updateSuggestions(), 0);
           }
         }

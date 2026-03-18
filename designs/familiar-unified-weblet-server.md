@@ -184,5 +184,5 @@ After this change:
 
 - Existing weblets created before this change used per-port servers. They
   will need to be reinstalled after the daemon upgrades.
-- The `APPS` builtin formula may need versioning if the `makeWeblet` signature
+- The `@apps` builtin formula may need versioning if the `makeWeblet` signature
   changes.

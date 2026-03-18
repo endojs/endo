@@ -35,7 +35,7 @@ const createMockContext = () => {
     },
     identify: async (/** @type {string} */ ...path) => {
       calls.push({ method: 'identify', args: path });
-      return `id:${path.join('.')}`;
+      return `id:${path.join('/')}`;
     },
     list: async (/** @type {string} */ ...pathParts) => {
       calls.push({ method: 'list', args: pathParts });
@@ -309,7 +309,7 @@ test('adopt in channel mode fails when formula ID is missing', async t => {
   t.true(result.error?.message.includes('No formula ID'));
 });
 
-test('adopt in channel mode with dot-path pet name', async t => {
+test('adopt in channel mode with slash-path pet name', async t => {
   const ctx = createMockContext();
   const { channelRef } = createMockChannelRef([
     { number: 2n, names: ['doc'], ids: ['formula:doc1'] },
@@ -326,7 +326,7 @@ test('adopt in channel mode with dot-path pet name', async t => {
   const result = await executor.execute('adopt', {
     messageNumber: 2,
     edgeName: 'doc',
-    petName: 'my.docs.file',
+    petName: 'my/docs/file',
   });
 
   t.true(result.success);
@@ -421,7 +421,7 @@ test('reply in channel mode posts to channel with resolved IDs', async t => {
   t.falsy(replyCall);
 });
 
-test('reply in channel mode resolves dot-path pet names', async t => {
+test('reply in channel mode resolves slash-path pet names', async t => {
   const ctx = createMockContext();
   const { channelRef, calls: channelCalls } = createMockChannelRef();
 
@@ -438,18 +438,18 @@ test('reply in channel mode resolves dot-path pet names', async t => {
     message: {
       strings: ['Check out ', ''],
       edgeNames: ['my-doc'],
-      petNames: ['docs.shared.readme'],
+      petNames: ['docs/shared/readme'],
     },
   });
 
-  // Should resolve the dot-path via powers.identify
+  // Should resolve the slash-path via powers.identify
   const identifyCall = ctx.calls.find(c => c.method === 'identify');
   t.truthy(identifyCall);
   t.deepEqual(identifyCall?.args, ['docs', 'shared', 'readme']);
 
   // Channel post should get the resolved ID
   const postCall = channelCalls.find(c => c.method === 'post');
-  t.deepEqual(postCall?.args[4], ['id:docs.shared.readme']);
+  t.deepEqual(postCall?.args[4], ['id:docs/shared/readme']);
 });
 
 test('reply in channel mode with multiple references', async t => {

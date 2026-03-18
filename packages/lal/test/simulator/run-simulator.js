@@ -78,7 +78,7 @@ async function main() {
   const { powers, whenDismissed, sent } = makeMockPowers({
     initialMessage: {
       number: 1,
-      from: 'HOST',
+      from: '@host',
       to: 'lal-self-id',
       strings: [
         'Hello from the simulator. Reply with a short greeting, then dismiss this message (dismiss message 1).',

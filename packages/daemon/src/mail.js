@@ -93,17 +93,17 @@ const coerceMessageNumber = value => {
 };
 
 const MESSAGE_SPECIAL_NAMES = new Set([
-  'FROM',
-  'TO',
-  'DATE',
-  'TYPE',
-  'MESSAGE',
-  'REPLY',
-  'DESCRIPTION',
-  'STRINGS',
-  'PROMISE',
-  'RESOLVER',
-  'RESULT',
+  '@from',
+  '@to',
+  '@date',
+  '@type',
+  '@message',
+  '@reply',
+  '@description',
+  '@strings',
+  '@promise',
+  '@resolver',
+  '@result',
 ]);
 
 /**
@@ -1164,7 +1164,7 @@ export const makeMailboxMaker = ({
 
       const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toPath.join('.')}`);
+        throw new Error(`Unknown recipient ${toPath.join('/')}`);
       }
       assertValidId(toId);
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
@@ -1259,7 +1259,7 @@ export const makeMailboxMaker = ({
 
       const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toPath.join('.')}`);
+        throw new Error(`Unknown recipient ${toPath.join('/')}`);
       }
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
 
@@ -1320,9 +1320,11 @@ export const makeMailboxMaker = ({
     /** @type {Mail['define']} */
     const define = async (source, slots) => {
       await null;
-      const hostHandleId = petStore.identifyLocal(/** @type {Name} */ ('HOST'));
+      const hostHandleId = petStore.identifyLocal(
+        /** @type {Name} */ ('@host'),
+      );
       if (hostHandleId === undefined) {
-        throw new Error('No HOST found in namespace');
+        throw new Error('No @host found in namespace');
       }
       const hostHandle = await provideHandle(
         /** @type {FormulaIdentifier} */ (hostHandleId),
@@ -1357,7 +1359,7 @@ export const makeMailboxMaker = ({
 
       const toId = await E(directory).identify(...toPath);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toPath.join('.')}`);
+        throw new Error(`Unknown recipient ${toPath.join('/')}`);
       }
       assertValidId(toId);
       const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
@@ -1599,7 +1601,7 @@ export const makeMailboxMaker = ({
       // Wait for the response and provide the result
       const responseId = await responseIdP;
       if (resultName) {
-        const resultNamePath = namePathFrom(resultName.split('.'));
+        const resultNamePath = namePathFrom(resultName.split('/'));
         await E(directory).write(resultNamePath, responseId);
       }
       return provide(/** @type {FormulaIdentifier} */ (responseId));

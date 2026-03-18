@@ -14,13 +14,13 @@ const libp2pSpecifier = new URL('libp2p.js', import.meta.url).href;
  */
 export const main = async powers => {
   await E(powers).makeUnconfined(undefined, libp2pSpecifier, {
-    powersName: 'AGENT',
+    powersName: '@agent',
     resultName: 'network-service-libp2p',
     workerTrustedShims: ['@libp2p/webrtc', './shims/async-generator-return.js'],
   });
 
-  await E(powers).move(['network-service-libp2p'], ['NETS', 'libp2p']);
+  await E(powers).move(['network-service-libp2p'], ['@nets', 'libp2p']);
 
-  return 'libp2p network installed at NETS/libp2p';
+  return 'libp2p network installed at @nets/libp2p';
 };
 harden(main);

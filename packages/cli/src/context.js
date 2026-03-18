@@ -4,22 +4,29 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { E } from '@endo/far';
 import { whereEndoSock } from '@endo/where';
 import { provideEndoClient } from './client.js';
+import { isTerminalError } from './doe-normaal.js';
 import { parsePetNamePath } from './pet-name.js';
 
 export const withInterrupt = async callback => {
   await null;
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   cancelled.catch(() => {});
-  process.once('SIGINT', () => cancel(Error('SIGINT')));
+
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGQUIT']) {
+    process.once(signal, () => cancel(Error(signal)));
+  }
 
   try {
     await callback({ cancel, cancelled });
-    cancel(Error('normal termination'));
   } catch (error) {
-    console.error(error);
-    cancel(error);
-    throw error;
+    if (!isTerminalError(error)) {
+      console.error(error);
+      cancel(error);
+      throw error;
+    }
+    console.log(`\nExiting due to ${error?.message}`);
   }
+  cancel(Error('normal termination'));
 };
 
 export const withEndoBootstrap = (

@@ -1148,6 +1148,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/demo@workspace:packages/demo":
+  version: 0.0.0-use.local
+  resolution: "@endo/demo@workspace:packages/demo"
+  dependencies:
+    "@endo/captp": "workspace:^"
+    "@endo/cli": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/stream": "workspace:^"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/env-options@workspace:^, @endo/env-options@workspace:packages/env-options":
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"

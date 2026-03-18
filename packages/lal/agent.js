@@ -329,7 +329,7 @@ const tools = [
               { type: 'array', items: { type: 'string' } },
             ],
             description:
-              'The pet name of the recipient, e.g., "HOST" for your host.',
+              'The pet name of the recipient, e.g., "@host" for your host.',
           },
           description: {
             type: 'string',
@@ -360,12 +360,12 @@ The message is constructed from alternating text strings and value references:
 - petNames: Array of pet names providing the values (same length as edgeNames)
 
 Example: To send "Here is [counter] for you" where counter is a value:
-  send("HOST", ["Here is ", " for you"], ["counter"], ["my-counter"])
+  send("@host", ["Here is ", " for you"], ["counter"], ["my-counter"])
 
 The recipient sees: "Here is @counter for you" and can adopt @counter.
 
 IMPORTANT for code: When sending code, use a single string without edge names:
-  send("HOST", ["Here is the code:\\n\`\`\`javascript\\nconst x = 1;\\n\`\`\`"], [], [])
+  send("@host", ["Here is the code:\\n\`\`\`javascript\\nconst x = 1;\\n\`\`\`"], [], [])
 
 For multi-line content, include literal newlines in the string.`,
       parameters: {
@@ -377,7 +377,7 @@ For multi-line content, include literal newlines in the string.`,
               { type: 'array', items: { type: 'string' } },
             ],
             description:
-              'The pet name of the recipient, e.g., "HOST" for your host.',
+              'The pet name of the recipient, e.g., "@host" for your host.',
           },
           strings: {
             type: 'array',
@@ -467,7 +467,7 @@ Use send() only for initiating brand new conversations.`,
     function: {
       name: 'identify',
       description:
-        'Get the formula ID for a pet name. Use identify("SELF") to get your own ID, ' +
+        'Get the formula ID for a pet name. Use identify("@self") to get your own ID, ' +
         'which you can compare against the "from" field of messages to determine if you sent them.',
       parameters: {
         type: 'object',
@@ -476,7 +476,7 @@ Use send() only for initiating brand new conversations.`,
             type: 'array',
             items: { type: 'string' },
             description:
-              'The pet name path to identify, e.g., ["SELF"] or ["HOST"].',
+              'The pet name path to identify, e.g., ["@self"] or ["@host"].',
           },
         },
         required: ['petNamePath'],
@@ -514,17 +514,17 @@ Use send() only for initiating brand new conversations.`,
     function: {
       name: 'evaluate',
       description: `\
-Propose code for evaluation to your HOST for approval.
+Propose code for evaluation to your host for approval.
 
 IMPORTANT: This does NOT execute code directly. Instead, it sends an evaluation
-proposal to your HOST. The HOST can then:
+proposal to your host. The host can then:
 - Grant the proposal (execute the code)
 - Reject the proposal
 - Counter with a modified version
 
-Use this when you need to run code that requires capabilities from your HOST.
+Use this when you need to run code that requires capabilities from your host.
 
-You should ALWAYS specify resultName. The HOST stores the evaluation result under
+You should ALWAYS specify resultName. The host stores the evaluation result under
 this pet name in your directory when the proposal is granted. You can then
 lookup(resultName) or send it to the requester. If you omit resultName, you only
 get the result in the notification and have no stable name to reference or send.
@@ -537,7 +537,7 @@ Example: To run "E(counter).increment()" where counter is a value you have named
 and store the result as "increment-result":
   evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
 
-When the HOST grants the proposal, the result is stored at resultName and you will
+When the host grants the proposal, the result is stored at resultName and you will
 receive a notification. Use lookup(resultName) to get the value and send() to deliver it.`,
       parameters: {
         type: 'object',
@@ -569,7 +569,7 @@ receive a notification. Use lookup(resultName) to get the value and send() to de
               { type: 'array', items: { type: 'string' } },
             ],
             description:
-              'Pet name (or path) where the HOST will store the evaluation result. You should always specify this so you can lookup and send the result after the proposal is granted.',
+              'Pet name (or path) where the host will store the evaluation result. You should always specify this so you can lookup and send the result after the proposal is granted.',
           },
         },
         required: ['source', 'codeNames', 'edgeNames', 'resultName'],
@@ -592,8 +592,8 @@ You communicate entirely through tool calls - do not write prose responses.
 You exist in an object-capability (ocap) security environment where:
 - You have a set of named references (pet names) to capabilities
 - You can receive messages from other agents in your inbox
-- You can send messages to other agents (especially HOST)
-- You can request capabilities from your HOST
+- You can send messages to other agents (especially @host)
+- You can request capabilities from your host
 - Capabilities may implement a help() method for self-documentation
 
 ## Data Types (SmallCaps Encoding)
@@ -662,24 +662,24 @@ will appear in future listMessages() calls.
 - send(recipientName, strings, edgeNames, petNames) - Send a NEW message (only for initiating conversations)
 
 ### Identity
-- identify(petNamePath) - Get the formula ID for a pet name (e.g., identify(["SELF"]) returns your ID)
-- Compare message "from" field to your SELF ID to determine if you sent or received a message
+- identify(petNamePath) - Get the formula ID for a pet name (e.g., identify(["@self"]) returns your ID)
+- Compare message "from" field to your @self ID to determine if you sent or received a message
 
 ### Capability Inspection
 - inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
 
 ### Code Evaluation (Proposal)
-- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code for HOST approval. resultName is required.
+- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code for host approval. resultName is required.
 
 ## Code Evaluation Proposals
 
 When you need to run code that manipulates capabilities or performs computations,
-use the evaluate() tool to propose code to your HOST for approval.
+use the evaluate() tool to propose code to your host for approval.
 
-IMPORTANT: evaluate() does NOT run code directly. It sends a proposal to your HOST.
-The HOST must explicitly grant the proposal before the code executes.
+IMPORTANT: evaluate() does NOT run code directly. It sends a proposal to your host.
+The host must explicitly grant the proposal before the code executes.
 
-IMPORTANT: Always specify resultName. When the HOST grants the proposal, the result
+IMPORTANT: Always specify resultName. When the host grants the proposal, the result
 is stored under this pet name in your directory. You can then lookup(resultName) and
 send it to the requester. If you omit resultName, you only get the result in the
 notification and have no stable name to reference or send.
@@ -690,25 +690,25 @@ the result as "increment-result":
 
 The codeNames array lists variable names used in your source code.
 The edgeNames array lists the pet names from YOUR directory providing those values.
-When the HOST grants, the code runs and you receive the result in your notification.
+When the host grants, the code runs and you receive the result in your notification.
 
 ### Proposal Responses
 
-After you submit an eval-proposal, you will be notified when the HOST responds:
+After you submit an eval-proposal, you will be notified when the host responds:
 
-**GRANTED**: The HOST executed your code.
+**GRANTED**: The host executed your code.
 - The result is stored at the resultName you specified (e.g. lookup(resultName) to get it)
 - You will also receive the result value in the notification
 - You should: Use lookup(resultName) to get the value, then send() to deliver it back to the original requester
 
-**REJECTED**: The HOST declined your proposal.
+**REJECTED**: The host declined your proposal.
 - You will receive the rejection reason
 - You should:
   1. Send a follow-up message to the sender explaining the situation
   2. Ask clarifying questions if the task is still relevant
   3. Consider alternative approaches
 
-**COUNTER-PROPOSAL**: The HOST modified your code and sent it back.
+**COUNTER-PROPOSAL**: The host modified your code and sent it back.
 - You will receive the modified code as an eval-proposal message
 - Review the changes carefully
 - You can:
@@ -718,7 +718,7 @@ After you submit an eval-proposal, you will be notified when the HOST responds:
 
 ### Globals Available in Evaluated Code
 
-When your code executes (after HOST grants), these globals are available:
+When your code executes (after host grants), these globals are available:
 
 - **E(target)** - Eventual-send for remote method calls on capabilities
   Example: \`E(counter).increment()\` calls increment() on a remote counter
@@ -780,7 +780,7 @@ For replying with capability references:
   // They can adopt @result to get the value named "my-result"
 
 For initiating a NEW conversation (not a reply):
-  send("HOST", ["Hello, I have a question."], [], [])
+  send("@host", ["Hello, I have a question."], [], [])
 
 ## Quasi-Markdown Formatting
 
@@ -806,13 +806,13 @@ Messages support a markdown dialect for rich text formatting:
 - Code: \`\\\`const x = 1\\\`\` renders as inline code
 
 For multi-line code:
-  send("HOST", ["Here is the implementation:\\n\`\`\`javascript\\nfunction add(a, b) {\\n  return a + b;\\n}\\n\`\`\`"], [], [])
+  send("@host", ["Here is the implementation:\\n\`\`\`javascript\\nfunction add(a, b) {\\n  return a + b;\\n}\\n\`\`\`"], [], [])
 
 ## Special Pet Names
 
-- SELF: Your own handle
-- HOST: Your host agent (can grant you capabilities)
-- AGENT: Your formula identifier
+- @self: Your own handle
+- @host: Your host agent (can grant you capabilities)
+- @agent: Your formula identifier
 
 ## Response Protocol
 
@@ -820,11 +820,11 @@ IMPORTANT: You must ONLY respond with tool calls. Do not include any text conten
 When you need to communicate, use the send() tool to send messages.
 
 Workflow for processing messages:
-1. First, identify yourself: lookup("SELF") gives you a reference you can use with identify("SELF") to get your formula ID
+1. First, identify yourself: lookup("@self") gives you a reference you can use with identify("@self") to get your formula ID
 2. Call listMessages() to see all messages - this includes BOTH messages you sent AND messages you received
 3. For each message, check BOTH the "from" AND "to" fields:
-   - If "from" matches your SELF ID: this is a message YOU sent (you can skip or dismiss it)
-   - If "from" does NOT match your SELF ID: this is a message FROM someone else that you should process
+   - If "from" matches your @self ID: this is a message YOU sent (you can skip or dismiss it)
+   - If "from" does NOT match your @self ID: this is a message FROM someone else that you should process
 4. For received messages:
    - If the message contains values (non-empty names/ids arrays), ALWAYS adopt each
      value before doing anything else. Choose your own pet name for it, but remember
@@ -1305,7 +1305,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
             ? undefined
             : rawWorkerName;
 
-        // Send an eval-proposal to the HOST for approval
+        // Send an eval-proposal to the host for approval
         const proposalPromise = E(powers).evaluate(
           workerName,
           source,
@@ -1360,7 +1360,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         return {
           proposalId,
           status: 'pending',
-          message: `Proposal #${proposalId} sent to HOST for approval. You will be notified when the HOST responds.`,
+          message: `Proposal #${proposalId} sent to host for approval. You will be notified when the host responds.`,
           source,
         };
       }
@@ -1434,7 +1434,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         notification.result !== undefined
           ? `\nResult: ${passableAsJustin(notification.result, false)}`
           : '\nResult: (no return value)';
-      return `Your eval-proposal #${proposalId} was GRANTED by the HOST.
+      return `Your eval-proposal #${proposalId} was GRANTED by the host.
 Source: ${sourcePreview}${resultStr}
 
 The code was executed successfully. If you specified a resultName, the result is now stored there.
@@ -1443,14 +1443,14 @@ You should:
 2. If you were performing a task, report the outcome to the sender
 3. Continue with any follow-up actions as needed`;
     } else {
-      return `Your eval-proposal #${proposalId} was REJECTED by the HOST.
+      return `Your eval-proposal #${proposalId} was REJECTED by the host.
 Source: ${sourcePreview}
 Reason: ${notification.error || 'No reason given'}
 
-The HOST declined to execute your proposed code. You should:
+The host declined to execute your proposed code. You should:
 1. Send a follow-up message to the sender asking for clarification or explaining the situation
 2. Consider whether a different approach might work
-3. If appropriate, propose modified code that addresses the HOST's concerns`;
+3. If appropriate, propose modified code that addresses the host's concerns`;
     }
   };
 
@@ -1601,9 +1601,9 @@ The HOST declined to execute your proposed code. You should:
           ? `\nEndowments: ${codeNames.map((/** @type {string} */ cn, /** @type {number} */ i) => `${cn} <- ${edgeNames?.[i] || '?'}`).join(', ')}`
           : '\nNo endowments';
 
-      return `You received a COUNTER-PROPOSAL from your HOST (message #${number}).
+      return `You received a COUNTER-PROPOSAL from your host (message #${number}).
 
-The HOST has modified your proposed code and is suggesting this alternative:
+The host has modified your proposed code and is suggesting this alternative:
 
 \`\`\`javascript
 ${sourcePreview}
@@ -1659,10 +1659,10 @@ You should:
    */
   const runAgent = async () => {
     // Announce ourselves
-    await E(powers).send('HOST', ['Lal agent ready.'], [], []);
+    await E(powers).send('@host', ['Lal agent ready.'], [], []);
 
     /** @type {string | undefined} */
-    const selfId = await E(powers).identify('SELF');
+    const selfId = await E(powers).identify('@self');
     const cancelled = await getCancelled();
     const cancelledSignal = cancelled
       ? cancelled.then(
@@ -1799,7 +1799,7 @@ export const make = (guestPowers, _context) => {
   // Send the configuration form to HOST for adding agents.
   const runManager = async () => {
     await E(powers).form(
-      'HOST',
+      '@host',
       'Add an agent',
       harden([
         { name: 'name', label: 'Agent name' },
@@ -1819,7 +1819,7 @@ export const make = (guestPowers, _context) => {
 
     // Resolve the host agent reference for provideGuest calls.
     const agent = await E(powers).lookup('host-agent');
-    const selfId = await E(powers).identify('SELF');
+    const selfId = await E(powers).identify('@self');
     const activeWorkers = new Map();
 
     // Pre-scan existing messages to find our latest form messageId so that

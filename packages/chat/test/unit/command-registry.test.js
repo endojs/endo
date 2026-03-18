@@ -15,7 +15,7 @@ import {
 test('COMMANDS contains expected commands', t => {
   t.true('request' in COMMANDS);
   t.true('dismiss' in COMMANDS);
-  t.true('dismiss-all' in COMMANDS);
+  t.true('clear' in COMMANDS);
   t.true('js' in COMMANDS);
   t.true('list' in COMMANDS);
   t.true('show' in COMMANDS);
@@ -114,7 +114,7 @@ test('getCommandsByCategory returns commands in category', t => {
   const names = messaging.map(cmd => cmd.name);
   t.true(names.includes('request'));
   t.true(names.includes('dismiss'));
-  t.true(names.includes('dismiss-all'));
+  t.true(names.includes('clear'));
   t.true(names.includes('adopt'));
 });
 
@@ -182,7 +182,7 @@ test('inbox-only commands have context set to inbox', t => {
   const inboxOnly = [
     'request',
     'dismiss',
-    'dismiss-all',
+    'clear',
     'resolve',
     'reject',
     'grant',
@@ -244,7 +244,7 @@ test('filterCommands with channel context excludes inbox-only commands', t => {
   // Inbox-only commands should be excluded
   t.false(names.includes('request'));
   t.false(names.includes('dismiss'));
-  t.false(names.includes('dismiss-all'));
+  t.false(names.includes('clear'));
   t.false(names.includes('resolve'));
   t.false(names.includes('reject'));
   t.false(names.includes('grant'));

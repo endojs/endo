@@ -26,7 +26,7 @@ export const make = (guestPowers, _context) => {
 
   const runFactory = async () => {
     await E(powers).form(
-      'HOST',
+      '@host',
       'Create LLM Provider',
       harden([
         { name: 'name', label: 'Provider name', default: 'default' },
@@ -47,7 +47,7 @@ export const make = (guestPowers, _context) => {
     );
 
     const hostAgent = await E(powers).lookup('host-agent');
-    const selfId = await E(powers).identify('SELF');
+    const selfId = await E(powers).identify('@self');
 
     /** @type {string | undefined} */
     let formMessageId;

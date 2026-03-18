@@ -84,9 +84,9 @@ export const COMMANDS = {
     ],
     submitLabel: 'Dismiss',
   },
-  'dismiss-all': {
-    name: 'dismiss-all',
-    label: 'Dismiss All',
+  'clear': {
+    name: 'clear',
+    label: 'Clear',
     description: 'Dismiss all messages',
     category: 'messaging',
     mode: 'immediate',
@@ -342,7 +342,7 @@ export const COMMANDS = {
         label: 'Names',
         type: 'petNamePaths',
         required: true,
-        placeholder: 'name1 name2 path.to.name',
+        placeholder: 'name1 name2 path/to/name',
       },
     ],
     submitLabel: 'Remove',
@@ -414,6 +414,24 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Create',
+  },
+
+  locate: {
+    name: 'locate',
+    label: 'Locate',
+    description: 'Get the locator for a named value',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'pet-name',
+      },
+    ],
+    submitLabel: 'Locate',
   },
 
   // ============ CONNECTIONS ============
@@ -622,7 +640,7 @@ export const COMMANDS = {
         label: 'Handle',
         type: 'petNamePath',
         required: true,
-        placeholder: 'SELF',
+        placeholder: '@self',
       },
       {
         name: 'agentName',
@@ -647,7 +665,7 @@ export const COMMANDS = {
         label: 'Handle',
         type: 'petNamePath',
         required: true,
-        placeholder: 'HOST',
+        placeholder: '@host',
       },
       {
         name: 'agentName',

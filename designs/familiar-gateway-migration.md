@@ -11,8 +11,8 @@
 
 **Implemented.** The gateway is a built-in daemon service:
 
-- The `APPS` formula in `packages/daemon/src/daemon-node.js` launches
-  `web-server-node.js` as an unconfined guest with `ENDO` powers.
+- The `@apps` formula in `packages/daemon/src/daemon-node.js` launches
+  `web-server-node.js` as an unconfined guest with `@endo` powers.
 - The gateway listens on `ENDO_ADDR` (default `127.0.0.1:8920`).
 - It serves both HTTP (weblet virtual hosts) and WebSocket (CapTP sessions).
 - `packages/chat/scripts/gateway-server.js` is retained as a standalone

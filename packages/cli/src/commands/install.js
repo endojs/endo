@@ -50,12 +50,12 @@ export const install = async ({
 
     try {
       const weblet = E(agent).evaluate(
-        'MAIN',
+        '@main',
         `E(apps).makeWeblet(bundle, powers, ${JSON.stringify(
           requestedPort,
         )}, $id, $cancelled)`,
         ['apps', 'bundle', 'powers'],
-        ['APPS', bundleName, powersName],
+        ['@apps', bundleName, powersName],
         parsePetNamePath(webletName),
       );
       const webletLocation = await E(weblet).getLocation();

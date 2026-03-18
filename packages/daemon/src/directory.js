@@ -382,12 +382,12 @@ export const makeDirectoryMaker = ({
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges: async locator =>
+      followLocatorNameChanges: locator =>
         makeIteratorRef(directory.followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
       listLocators,
-      followNameChanges: async () => makeIteratorRef(directory.followNameChanges()),
+      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
       lookup,
       reverseLookup,
       write: directory.writeLocator,

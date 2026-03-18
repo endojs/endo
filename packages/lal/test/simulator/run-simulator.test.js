@@ -35,7 +35,7 @@ test('simulator: agent processes one message with real provider (env)', async t 
   const { powers, whenDismissed, sent } = makeMockPowers({
     initialMessage: {
       number: 1,
-      from: 'HOST',
+      from: '@host',
       to: 'lal-self-id',
       strings: [
         'Reply with exactly: OK then dismiss this message (dismiss message 1).',

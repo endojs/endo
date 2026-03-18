@@ -25,12 +25,16 @@ const createElements = doc => {
   doc.body.innerHTML = '';
   const { $input, $menu, $error } = createInputElements(doc);
   const $sendButton = createButton(doc, 'send-button');
+  const $chatBar = doc.createElement('div');
+  $chatBar.id = 'chat-bar';
+  doc.body.appendChild($chatBar);
 
   return {
     $input,
     $menu,
     $error,
     $sendButton,
+    $chatBar,
   };
 };
 
@@ -39,7 +43,8 @@ const createElements = doc => {
  * @param {string[]} [names]
  */
 const setup = (names = ['alice', 'bob', 'charlie']) => {
-  const { $input, $menu, $error, $sendButton } = createElements(testDocument);
+  const { $input, $menu, $error, $sendButton, $chatBar } =
+    createElements(testDocument);
 
   const { powers, sentMessages, addName, setValue } = makeMockPowers({ names });
 
@@ -51,6 +56,7 @@ const setup = (names = ['alice', 'bob', 'charlie']) => {
     $menu,
     $error,
     $sendButton,
+    $chatBar,
     E,
     makeRefIterator,
     powers,

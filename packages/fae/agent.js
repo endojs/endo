@@ -363,10 +363,10 @@ export const spawnWorkerLoop = async (
   const runAgent = async () => {
     await initializeIntroducedTools();
 
-    await E(powers).send('HOST', ['Fae agent ready.'], [], []);
+    await E(powers).send('@host', ['Fae agent ready.'], [], []);
 
     /** @type {string | undefined} */
-    const selfId = await E(powers).identify('SELF');
+    const selfId = await E(powers).identify('@self');
     const cancelled = await getCancelled();
     const cancelledSignal = cancelled
       ? cancelled.then(
@@ -565,7 +565,7 @@ export const make = async (guestPowers, _context) => {
       await E(driverGuest).write('agent', agentId);
 
       // 4. Launch the driver caplet.
-      await E(hostAgent).makeUnconfined('MAIN', driverSpecifier, {
+      await E(hostAgent).makeUnconfined('@main', driverSpecifier, {
         powersName: driverProfileName,
         resultName: driverResultName,
         env: harden({ FAE_SYSTEM_PROMPT: systemPrompt || '' }),
@@ -573,7 +573,10 @@ export const make = async (guestPowers, _context) => {
 
       // 5. Pin the driver so it auto-restarts on daemon reboot.
       if (pin) {
-        await E(hostAgent).copy([driverResultName], ['PINS', driverResultName]);
+        await E(hostAgent).copy(
+          [driverResultName],
+          ['@pins', driverResultName],
+        );
         console.log(`[fae-factory] Pinned driver "${driverResultName}"`);
       }
 

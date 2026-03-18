@@ -55,17 +55,36 @@ test.describe('Token Autocomplete', () => {
       await expect(menu).toBeVisible();
     });
 
-    test('typing @@ escapes to literal @', async ({ page }) => {
-      await setupPage(page);
+    test('typing @@ filters to @-prefixed special names', async ({ page }) => {
+      await setupPage(page, ['alice', 'bob', '@self', '@agent']);
       const input = getChatInput(page);
       await input.click();
       await input.type('@@');
 
-      // Menu should be hidden
+      // Menu should still be visible, filtered to special names
       const menu = getMenu(page);
+      await expect(menu).toBeVisible();
+
+      // Only @-prefixed names should appear
+      const items = menu.locator('.token-menu-item');
+      await expect(items).toHaveCount(2);
+      await expect(items.nth(0)).toHaveText('@agent');
+      await expect(items.nth(1)).toHaveText('@self');
+    });
+
+    test('typing @ then Escape leaves literal @', async ({ page }) => {
+      await setupPage(page);
+      const input = getChatInput(page);
+      await input.click();
+      await input.type('@');
+
+      const menu = getMenu(page);
+      await expect(menu).toBeVisible();
+
+      await page.keyboard.press('Escape');
       await expect(menu).not.toBeVisible();
 
-      // Input should contain single @
+      // Input should contain the literal @
       await expect(input).toHaveText('@');
     });
 

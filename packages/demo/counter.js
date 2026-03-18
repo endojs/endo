@@ -1,9 +1,8 @@
-import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 
-export const make = async powers => {
-  let counter = await E(powers).request('@host', 'starting number', 'start');
+export const make = () => {
+  let counter = 0;
   return makeExo(
     'Counter',
     M.interface('Counter', {}, { defaultGuards: 'passable' }),
@@ -12,6 +11,6 @@ export const make = async powers => {
         counter += 1;
         return counter;
       },
-    },
+    }
   );
 };

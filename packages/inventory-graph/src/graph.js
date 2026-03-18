@@ -958,7 +958,7 @@ export const renderGraph = (
       /** @type {string | undefined} */
       let agentId;
       try {
-        const locator = await E(powers).locate('AGENT');
+        const locator = await E(powers).locate('@agent');
         if (locator) {
           const url = new URL(/** @type {string} */ (locator));
           const num = url.searchParams.get('id');
