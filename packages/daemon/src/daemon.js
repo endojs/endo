@@ -3931,6 +3931,7 @@ const makeDaemonCore = async (
       const url = new URL('endo://');
       url.hostname = node;
       url.searchParams.set('id', number);
+      url.searchParams.set('type', 'invitation');
       url.searchParams.set('from', hostHandleNumber);
       for (const address of addresses) {
         url.searchParams.append('at', address);

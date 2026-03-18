@@ -6,11 +6,9 @@ import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import {
-  LOCAL_NODE,
-  formatLocatorForSharing,
+  externalizeId,
   internalizeLocator,
 } from './locator.js';
-import { formatId, parseId } from './formula-identifier.js';
 import {
   assertNamePath,
   assertNames,
@@ -122,11 +120,8 @@ export const makeDirectoryMaker = ({
       const formulaType = await getTypeForId(
         /** @type {FormulaIdentifier} */ (id),
       );
-      const { number, node } = parseId(id);
-      const peerKey = node === LOCAL_NODE ? agentNodeNumber : node;
-      const externalId = formatId({ number, node: peerKey });
       const addresses = await getNetworkAddresses();
-      return formatLocatorForSharing(externalId, formulaType, addresses);
+      return externalizeId(/** @type {FormulaIdentifier} */ (id), formulaType, agentNodeNumber, addresses);
     };
 
     /** @type {EndoDirectory['reverseLocate']} */

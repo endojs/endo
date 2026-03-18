@@ -22,7 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { internalizeLocator, addressesFromLocator } from './locator.js';
+import { addressesFromLocator } from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -838,18 +838,9 @@ export const makeHostMaker = ({
       move,
       copy,
       makeDirectory: makeDirectoryLocal,
+      writeLocator,
     } = directory;
 
-    /** @type {EndoHost['write']} */
-    const writeLocator = async (petNamePath, locatorOrId) => {
-      const namePath = namePathFrom(petNamePath);
-      if (locatorOrId.startsWith('endo://')) {
-        const { id } = internalizeLocator(locatorOrId, isLocalKey);
-        return directory.write(namePath, id);
-      }
-      // FormulaIdentifier from internal callers through E(hub).write
-      return directory.write(namePath, locatorOrId);
-    };
     const makeDirectory = async petNameOrPath => {
       const namePath = namePathFrom(petNameOrPath);
       return makeDirectoryLocal(namePath);

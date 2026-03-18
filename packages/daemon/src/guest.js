@@ -6,7 +6,6 @@ import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 import { assertNamePath, namePathFrom } from './pet-name.js';
-import { internalizeLocator } from './locator.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 /** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NodeNumber, NamesOrPaths, Provide } from './types.js' */
@@ -87,7 +86,7 @@ export const makeGuestMaker = ({
     if (mailHubId !== undefined) {
       specialNames['@mail'] = mailHubId;
     }
-    specialNames.NETS = networksDirectoryId;
+    specialNames['@nets'] = networksDirectoryId;
     const specialStore = makePetSitter(basePetStore, specialNames);
 
     const getNetworkAddresses = () =>
@@ -117,6 +116,7 @@ export const makeGuestMaker = ({
       lookup,
       reverseLookup,
       write,
+      writeLocator,
       move,
       remove,
       copy,
@@ -149,16 +149,6 @@ export const makeGuestMaker = ({
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
-
-    const writeLocator = async (petNamePath, locatorOrId) => {
-      const namePath = namePathFrom(petNamePath);
-      if (locatorOrId.startsWith('endo://')) {
-        const { id } = internalizeLocator(locatorOrId, isLocalKey);
-        return directory.write(namePath, id);
-      }
-      // FormulaIdentifier from internal callers through E(hub).write
-      return directory.write(namePath, locatorOrId);
-    };
 
     /** @type {EndoGuest['requestEvaluation']} */
     const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
