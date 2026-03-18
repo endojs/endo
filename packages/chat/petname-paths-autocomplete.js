@@ -65,7 +65,7 @@ export const petNamePathsAutocomplete = (
    * @returns {{ pathPrefix: string[], partial: string }}
    */
   const parseInput = value => {
-    const parts = value.split('.');
+    const parts = value.split('/');
     if (parts.length === 1) {
       return { pathPrefix: [], partial: parts[0] };
     }
@@ -261,11 +261,11 @@ export const petNamePathsAutocomplete = (
     let fullPath;
     if (extendingLastChip) {
       const lastPath = completedPaths[completedPaths.length - 1];
-      fullPath = `${lastPath}.${selected}`;
+      fullPath = `${lastPath}/${selected}`;
       // Remove the last chip since we're extending it
       completedPaths.pop();
     } else {
-      fullPath = [...pathPrefix, selected].join('.');
+      fullPath = [...pathPrefix, selected].join('/');
     }
 
     if (mode === 'space') {
@@ -281,7 +281,7 @@ export const petNamePathsAutocomplete = (
       }
     } else if (mode === 'drilldown') {
       // Put full path in input with trailing dot for continued drilling
-      $input.value = `${fullPath}.`;
+      $input.value = `${fullPath}/`;
       renderChips();
       notifyChange();
       // Fetch suggestions for the new prefix
@@ -307,7 +307,7 @@ export const petNamePathsAutocomplete = (
       let basePath = /** @type {string[]} */ ([]);
       if (completedPaths.length > 0) {
         const lastPath = completedPaths[completedPaths.length - 1];
-        basePath = lastPath.split('.');
+        basePath = lastPath.split('/');
       }
       const allNames = await fetchSuggestions(basePath);
       suggestions = allNames;
@@ -374,7 +374,7 @@ export const petNamePathsAutocomplete = (
       e.preventDefault();
       const lastPath = completedPaths.pop();
       // Put the path back in input with trailing dot for drilling
-      $input.value = `${lastPath}.`;
+      $input.value = `${lastPath}/`;
       renderChips();
       notifyChange();
       // Show suggestions for extending
@@ -522,7 +522,7 @@ export const petNamePathsAutocomplete = (
           if (suggestions.length > 0) {
             const { pathPrefix } = parseInput($input.value);
             const fullPath = [...pathPrefix, suggestions[selectedIndex]].join(
-              '.',
+              '/',
             );
             completedPaths.push(fullPath);
           } else {

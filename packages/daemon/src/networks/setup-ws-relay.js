@@ -30,7 +30,7 @@ export const main = async (powers, _context, { env = {} } = {}) => {
   const relayDomain = env.WS_RELAY_DOMAIN || new URL(relayUrl).hostname;
 
   await E(powers).makeUnconfined(undefined, wsRelaySpecifier, {
-    powersName: 'AGENT',
+    powersName: '@agent',
     resultName: 'network-service-ws-relay',
     env: {
       WS_RELAY_URL: relayUrl,
@@ -38,7 +38,7 @@ export const main = async (powers, _context, { env = {} } = {}) => {
     },
   });
 
-  await E(powers).move(['network-service-ws-relay'], ['NETS', 'ws-relay']);
+  await E(powers).move(['network-service-ws-relay'], ['@nets', 'ws-relay']);
 
   return `ws-relay network installed at NETS/ws-relay (relay: ${relayUrl})`;
 };

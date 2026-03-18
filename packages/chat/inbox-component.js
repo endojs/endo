@@ -36,7 +36,7 @@ export const inboxComponent = async (
   /** @type {Map<string, string>} */
   const formDescriptions = new Map();
 
-  const selfId = await E(powers).identify('SELF');
+  const selfId = await E(powers).identify('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane.
@@ -489,7 +489,7 @@ export const inboxComponent = async (
           }
           if (resultName) {
             const resultPath = /** @type {[string, ...string[]]} */ (
-              resultName.split('.')
+              resultName.split('/')
             );
             Promise.all([
               E(powers).identify(...resultPath),
@@ -556,7 +556,7 @@ export const inboxComponent = async (
               source,
               codeNames,
               edgeNames,
-              workerName: workerName || 'MAIN',
+              workerName: workerName || '@main',
               resultName: resultName || '',
             },
           });

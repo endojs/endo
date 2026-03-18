@@ -121,7 +121,7 @@ export const makeMockPowers = ({
       } else {
         throw new Error(`Invalid path: ${pathOrFirst}`);
       }
-      const key = path.join('.');
+      const key = path.join('/');
       if (!values.has(key)) {
         throw new Error(`Not found: ${key}`);
       }
@@ -134,7 +134,7 @@ export const makeMockPowers = ({
      * @returns {string | undefined}
      */
     identify(...path) {
-      const key = path.join('.');
+      const key = path.join('/');
       return ids.get(key);
     },
 
@@ -163,7 +163,7 @@ export const makeMockPowers = ({
      * @param {string[]} petNamePath
      */
     storeValue(value, petNamePath) {
-      const key = petNamePath.join('.');
+      const key = petNamePath.join('/');
       values.set(key, value);
       if (!names.includes(key)) {
         names.push(key);

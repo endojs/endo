@@ -174,7 +174,7 @@ export const valueComponent = (
 
   $enterProfile.addEventListener('click', async () => {
     if (!currentPetNamePath) return;
-    const hostName = currentPetNamePath.join('.');
+    const hostName = currentPetNamePath.join('/');
     clearValue();
     await enterProfile(hostName);
   });
@@ -247,7 +247,7 @@ export const valueComponent = (
     }
 
     if (!currentPetNamePath && uniquePetNames.length > 0) {
-      currentPetNamePath = uniquePetNames[0].split('.');
+      currentPetNamePath = uniquePetNames[0].split('/');
     }
 
     updateEnterProfileVisibility();
@@ -277,7 +277,7 @@ export const valueComponent = (
         messageContext.edgeName,
         'Adopt',
         async name => {
-          const targetPath = name.split('.');
+          const targetPath = name.split('/');
           await E(powers).adopt(
             messageContext.number,
             messageContext.edgeName,
@@ -290,11 +290,11 @@ export const valueComponent = (
       $focusTarget = buildNameAction(
         $actionsContainer,
         'Rename to:',
-        petNamePath.join('.'),
+        petNamePath.join('/'),
         'Rename',
         async newName => {
           const fromPath = /** @type {string[]} */ (currentPetNamePath);
-          const toPath = newName.split('.');
+          const toPath = newName.split('/');
           await E(powers).move(fromPath, toPath);
           clearValue();
         },
@@ -306,7 +306,7 @@ export const valueComponent = (
         '',
         'Save',
         async name => {
-          const targetPath = name.split('.');
+          const targetPath = name.split('/');
           await E(powers).storeValue(
             /** @type {import('@endo/pass-style').Passable} */ (currentValue),
             targetPath,

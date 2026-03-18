@@ -741,7 +741,7 @@ export const createAddSpaceModal = ({
     );
 
     // Set default path and focus
-    pathAutocomplete.setValue(['AGENT']);
+    pathAutocomplete.setValue(['@agent']);
     pathAutocomplete.focus();
   };
 
@@ -1717,7 +1717,7 @@ export const createAddSpaceModal = ({
 
     // Use the first path
     const pathString = paths[0];
-    const profilePath = pathString.split('.').filter(Boolean);
+    const profilePath = pathString.split('/').filter(Boolean);
 
     if (profilePath.length === 0) {
       error = 'Please select a valid profile path';

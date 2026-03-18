@@ -1,5 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED fae-factory-setup.js --powers AGENT \
+// endo run --UNCONFINED fae-factory-setup.js --powers @agent \
 //   -E PROVIDER_NAME=default -E FACTORY_NAME=fae
 
 import { E } from '@endo/eventual-send';
@@ -55,7 +55,7 @@ export const main = async agent => {
   const hasFactory = await E(agent).has(guestName);
   if (!hasFactory) {
     await E(agent).provideGuest(guestName, {
-      introducedNames: harden({ AGENT: 'host-agent' }),
+      introducedNames: harden({ '@agent': 'host-agent' }),
       agentName,
     });
   }
@@ -65,7 +65,7 @@ export const main = async agent => {
   await E(factoryPowers).write('llm-provider', providerId);
 
   // Launch the fae-factory caplet.
-  await E(agent).makeUnconfined('MAIN', faeFactorySpecifier, {
+  await E(agent).makeUnconfined('@main', faeFactorySpecifier, {
     powersName: agentName,
     resultName: factoryName,
   });

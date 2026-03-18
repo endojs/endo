@@ -35,7 +35,7 @@ import { hostHelp, makeHelp } from './help-text.js';
  * @returns {asserts name is Name}
  */
 const assertPowersName = name => {
-  ['NONE', 'AGENT', 'ENDO'].includes(name) || assertPetName(name);
+  ['@none', '@agent', '@endo'].includes(name) || assertPetName(name);
 };
 
 /**
@@ -157,19 +157,19 @@ export const makeHostMaker = ({
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
-      AGENT: hostId,
-      SELF: handleId,
-      HOST: hostHandleId ?? handleId,
-      KEYPAIR: keypairId,
-      MAIN: mainWorkerId,
-      ENDO: endoId,
-      NETS: networksDirectoryId,
-      PINS: pinsDirectoryId,
-      INFO: inspectorId,
-      NONE: leastAuthorityId,
+      '@agent': hostId,
+      '@self': handleId,
+      '@host': hostHandleId ?? handleId,
+      '@keypair': keypairId,
+      '@main': mainWorkerId,
+      '@endo': endoId,
+      '@nets': networksDirectoryId,
+      '@pins': pinsDirectoryId,
+      '@info': inspectorId,
+      '@none': leastAuthorityId,
     };
     if (mailHubId !== undefined) {
-      specialNames.MAIL = mailHubId;
+      specialNames['@mail'] = mailHubId;
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
@@ -351,7 +351,7 @@ export const makeHostMaker = ({
      */
     const prepareMakeCaplet = (workerName, options = {}) => {
       const {
-        powersName = 'NONE',
+        powersName = '@none',
         resultName,
         env = {},
         workerTrustedShims,
@@ -1101,11 +1101,11 @@ export const makeHostMaker = ({
 
       // Create edge names from the pet names (for display in the counter-proposal)
       const edgeNames = /** @type {import('./types.js').EdgeName[]} */ (
-        petNamePaths.map(path => (Array.isArray(path) ? path.join('.') : path))
+        petNamePaths.map(path => (Array.isArray(path) ? path.join('/') : path))
       );
 
       // Get optional result name and worker name as strings
-      const resultNameStr = resultName ? resultName.join('.') : undefined;
+      const resultNameStr = resultName ? resultName.join('/') : undefined;
       const workerNameStr = workerName || undefined;
 
       await mailboxCounterEvaluate(

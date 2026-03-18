@@ -299,14 +299,14 @@ test('execute js command', async t => {
     source: '1 + 1',
     endowments: [{ codeName: 'x', petName: 'my-value' }],
     resultName: 'answer',
-    workerName: 'MAIN',
+    workerName: '@main',
   });
 
   t.true(result.success);
   t.is(result.message, 'Result saved as "answer"');
   t.is(result.value, 'eval-result');
   t.deepEqual(ctx.calls[0].args, [
-    'MAIN',
+    '@main',
     '1 + 1',
     ['x'],
     [['my-value']],
@@ -541,7 +541,7 @@ test('execute mkhost command', async t => {
   });
 
   const result = await executor.execute('mkhost', {
-    handleName: 'SELF',
+    handleName: '@self',
     agentName: 'new-host',
   });
 
@@ -559,7 +559,7 @@ test('execute mkguest command', async t => {
   });
 
   const result = await executor.execute('mkguest', {
-    handleName: 'HOST',
+    handleName: '@host',
     agentName: 'new-guest',
   });
 

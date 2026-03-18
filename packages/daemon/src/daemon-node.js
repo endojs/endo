@@ -137,7 +137,7 @@ const main = async () => {
       cancelled,
       {
         /** @param {Builtins} builtins */
-        APPS: ({ MAIN, ENDO }) => ({
+        '@apps': ({ MAIN, ENDO }) => ({
           type: /** @type {const} */ ('make-unconfined'),
           worker: MAIN,
           powers: ENDO,
@@ -184,13 +184,13 @@ const main = async () => {
     await Promise.all(services.map(({ started }) => started));
 
     const host = await E(endoBootstrap).host();
-    const agentId = /** @type {string} */ (await E(host).identify('AGENT'));
+    const agentId = /** @type {string} */ (await E(host).identify('@agent'));
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
-    if (await E(host).has('APPS')) {
+    if (await E(host).has('@apps')) {
       const apps = /** @type {{ getAddress(): Promise<string> }} */ (
-        await E(host).lookup('APPS')
+        await E(host).lookup('@apps')
       );
       const address = await E(apps).getAddress();
       console.log(`Endo gateway listening on ${address}`);
@@ -201,11 +201,11 @@ const main = async () => {
     if (lalSpecifier && !(await E(host).has('controller-for-lal'))) {
       if (!(await E(host).has('lal'))) {
         await E(host).provideGuest('lal', {
-          introducedNames: harden({ AGENT: 'host-agent' }),
+          introducedNames: harden({ '@agent': 'host-agent' }),
           agentName: 'profile-for-lal',
         });
       }
-      await E(host).makeUnconfined('MAIN', lalSpecifier, {
+      await E(host).makeUnconfined('@main', lalSpecifier, {
         powersName: 'profile-for-lal',
         resultName: 'controller-for-lal',
       });
@@ -216,11 +216,11 @@ const main = async () => {
     if (faeSpecifier && !(await E(host).has('controller-for-fae'))) {
       if (!(await E(host).has('fae'))) {
         await E(host).provideGuest('fae', {
-          introducedNames: harden({ AGENT: 'host-agent' }),
+          introducedNames: harden({ '@agent': 'host-agent' }),
           agentName: 'profile-for-fae',
         });
       }
-      await E(host).makeUnconfined('MAIN', faeSpecifier, {
+      await E(host).makeUnconfined('@main', faeSpecifier, {
         powersName: 'profile-for-fae',
         resultName: 'controller-for-fae',
       });

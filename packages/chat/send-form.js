@@ -346,13 +346,7 @@ export const sendFormComponent = ({
 
       resolveIds
         .then(ids =>
-          E(channelRef).post(
-            messageStrings,
-            edgeNames,
-            petNames,
-            replyTo,
-            ids,
-          ),
+          E(channelRef).post(messageStrings, edgeNames, petNames, replyTo, ids),
         )
         .then(
           () => {
@@ -414,7 +408,7 @@ export const sendFormComponent = ({
       petNames.length === 1 && strings.every(part => !part.trim());
     if (onlyToken) {
       const [petName] = petNames;
-      const petNamePath = petName.split('.');
+      const petNamePath = petName.split('/');
       setSubmitting(true);
       Promise.all([
         E(powers).identify(
@@ -559,7 +553,11 @@ export const sendFormComponent = ({
     getLastRecipient: () => lastRecipient,
     getState,
     isSubmitting: () => submitting,
-    setReplyTo: (/** @type {string} */ number, /** @type {string} */ authorName, /** @type {string} */ preview) => {
+    setReplyTo: (
+      /** @type {string} */ number,
+      /** @type {string} */ authorName,
+      /** @type {string} */ preview,
+    ) => {
       replyContext = { number, authorName, preview };
       renderReplyContextBar();
       $input.focus();
@@ -568,7 +566,11 @@ export const sendFormComponent = ({
       replyContext = null;
       renderReplyContextBar();
     },
-    setDefaultReplyTo: (/** @type {string} */ number, /** @type {string} */ authorName, /** @type {string} */ preview) => {
+    setDefaultReplyTo: (
+      /** @type {string} */ number,
+      /** @type {string} */ authorName,
+      /** @type {string} */ preview,
+    ) => {
       defaultReplyContext = { number, authorName, preview };
       replyContext = defaultReplyContext;
       renderReplyContextBar();

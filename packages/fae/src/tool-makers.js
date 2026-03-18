@@ -81,7 +81,7 @@ export const makeEvaluateTool = host => {
           workerName: {
             type: 'string',
             description:
-              'Name of the worker to evaluate in. Defaults to "MAIN". ' +
+              'Name of the worker to evaluate in. Defaults to "@main". ' +
               'Use provideWorker first if you need a separate worker.',
           },
         },
@@ -99,7 +99,7 @@ export const makeEvaluateTool = host => {
         source,
         endowments = {},
         resultName,
-        workerName = 'MAIN',
+        workerName = '@main',
       } = /** @type {{ source: string, endowments?: Record<string, string>, resultName?: string, workerName?: string }} */ (
         args
       );
