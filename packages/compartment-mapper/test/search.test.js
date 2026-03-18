@@ -1,4 +1,5 @@
 // @ts-nocheck
+import 'ses';
 import test from 'ava';
 import { search } from '../src/search.js';
 

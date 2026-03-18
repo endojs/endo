@@ -32,7 +32,7 @@ scaffold(
     strict: true,
     shouldFailBeforeArchiveOperations: true,
     onError(t, { error }) {
-      t.true(error.message.includes('Cannot find dependency no-such-package'));
+      t.is(error.code, 'E_MISSING_DEPENDENCY');
     },
   },
 );

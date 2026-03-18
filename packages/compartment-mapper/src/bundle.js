@@ -117,6 +117,7 @@ import {
   isExitModuleSource,
   isLocalModuleSource,
 } from './guards.js';
+import { createError, ErrorCodes } from './error.js';
 
 const textEncoder = new TextEncoder();
 
@@ -198,15 +199,20 @@ const sortedModules = (
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
       if (isErrorModuleSource(source)) {
-        throw Error(
+        throw createError(
           `Cannot bundle: encountered deferredError ${source.deferredError}`,
+          ErrorCodes.BundleFailure,
         );
       }
       if (isExitModuleSource(source)) {
         return source.exit;
       }
       if (!isLocalModuleSource(source)) {
-        throw new TypeError(`Unexpected source type ${JSON.stringify(source)}`);
+        throw createError(
+          `Unexpected source type ${JSON.stringify(source)}`,
+          ErrorCodes.BundleFailure,
+          { error: TypeError },
+        );
       }
       const { record, parser, bytes, sourceDirname } = source;
       if (record) {
@@ -260,8 +266,9 @@ const sortedModules = (
       }
     }
 
-    throw Error(
+    throw createError(
       `Cannot bundle: cannot follow module import ${moduleSpecifier} in compartment ${compartmentName}`,
+      ErrorCodes.BundleFailure,
     );
   };
 
@@ -421,7 +428,9 @@ export const makeFunctorFromMap = async (
     if (module.exit !== undefined) {
       if (makeExitBundlerKit === undefined) {
         // makeExitBundlerKit must have been provided to makeImportHookMaker for any modules with an exit property to have been created.
-        throw TypeError('Unreachable');
+        throw createError('Unreachable', ErrorCodes.BundleFailure, {
+          error: TypeError,
+        });
       }
       module.bundlerKit = makeExitBundlerKit(module);
     } else {
@@ -435,10 +444,11 @@ export const makeFunctorFromMap = async (
           }
           const module = modulesByKey[key];
           if (module === undefined) {
-            throw new Error(
+            throw createError(
               `Unable to locate module for key ${q(key)} import specifier ${q(
                 importSpecifier,
               )}`,
+              ErrorCodes.BundleFailure,
             );
           }
           const { index } = module;

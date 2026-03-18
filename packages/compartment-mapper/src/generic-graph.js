@@ -13,6 +13,8 @@
  * @import {TraversalContext} from './types/generic-graph.js';
  */
 
+import { createError, ErrorCodes } from './error.js';
+
 const { quote: q } = assert;
 
 /**
@@ -228,8 +230,10 @@ export class GenericGraph {
   getEdgeWeight(source, target) {
     const weight = this.#edgeWeights.get(source)?.get(target);
     if (weight === undefined) {
-      throw new ReferenceError(
+      throw createError(
         `Edge weight from ${q(source)} to ${q(target)} is not set`,
+        ErrorCodes.GraphError,
+        { error: ReferenceError },
       );
     }
     return weight;

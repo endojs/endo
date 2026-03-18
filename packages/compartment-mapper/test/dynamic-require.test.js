@@ -269,8 +269,7 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
       },
     }),
     {
-      message:
-        /Synchronous readPowers required for dynamic import of ".+"; missing or invalid prop\(s\): maybeReadNow/,
+      code: 'E_INSUFFICIENT_READ_POWERS',
     },
   );
 });
@@ -301,8 +300,7 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
       },
     }),
     {
-      message:
-        /Synchronous readPowers required for dynamic import of ".+"; missing or invalid prop\(s\): fileURLToPath, isAbsolute/,
+      code: 'E_INSUFFICIENT_READ_POWERS',
     },
   );
 });
@@ -686,7 +684,7 @@ test('dynamic require of ancestor relative path within unknown compartment', asy
   ).href;
 
   await t.throwsAsync(importLocation(readPowers, fixture), {
-    message: /Could not import unknown module.+grabby-app\/macguffin/,
+    code: 'E_UNKNOWN_MODULE',
   });
 });
 
@@ -815,7 +813,7 @@ test('dynamic require of ancestor disallowed if policy omitted', async t => {
       importHook: defaultImportHook,
     }),
     {
-      message: /Could not import module.+webpackish-app\/pantspack\.config\.js/,
+      code: 'E_UNKNOWN_MODULE',
     },
   );
 });

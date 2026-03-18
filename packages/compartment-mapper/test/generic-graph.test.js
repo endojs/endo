@@ -83,6 +83,7 @@ test('GenericGraph.getEdgeWeight() - throws for missing edge', t => {
   graph.addNode('pippo');
   t.throws(() => graph.getEdgeWeight('app', 'pippo'), {
     instanceOf: ReferenceError,
+    code: 'E_GRAPH_ERROR',
   });
 });
 

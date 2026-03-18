@@ -27,6 +27,7 @@
 
 import { syncTrampoline, asyncTrampoline } from '@endo/trampoline';
 import { parseExtension } from './extension.js';
+import { createError, ErrorCodes } from './error.js';
 
 const { entries, fromEntries, keys, hasOwnProperty, values } = Object;
 const { apply } = Reflect;
@@ -212,8 +213,10 @@ const makeExtensionParser = (
       options,
     );
     if ('then' in result && typeof result.then === 'function') {
-      throw new TypeError(
+      throw createError(
         'Sync parser cannot return a Thenable; ensure parser is actually synchronous',
+        ErrorCodes.IncompatibleParser,
+        { error: TypeError },
       );
     }
     return result;

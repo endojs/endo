@@ -5,6 +5,7 @@ import {
   ATTENUATORS_COMPARTMENT,
   ENTRY_COMPARTMENT,
 } from './policy-format.js';
+import { createError, ErrorCodes } from './error.js';
 
 /**
  * @import {
@@ -363,8 +364,10 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
         break;
       }
       default:
-        throw new TypeError(
+        throw createError(
           `Unknown module descriptor kind ${q(kind)} in ${q(url)}`,
+          ErrorCodes.InvalidCompartmentDescriptor,
+          { error: TypeError },
         );
     }
   }

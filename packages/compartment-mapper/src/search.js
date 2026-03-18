@@ -21,6 +21,7 @@
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';
 import { unpackReadPowers } from './powers.js';
+import { createError, ErrorCodes } from './error.js';
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -75,7 +76,10 @@ export const searchDescriptor = async (
     }
     const parentDirectory = resolveLocation('../', directory);
     if (parentDirectory === directory) {
-      throw Error(`Cannot find package.json along path to ${q(location)}`);
+      throw createError(
+        `Cannot find package.json along path to ${q(location)}`,
+        ErrorCodes.NoPackageJson,
+      );
     }
     directory = parentDirectory;
   }
@@ -124,8 +128,9 @@ export const search = async (
     );
 
   if (!data) {
-    throw Error(
+    throw createError(
       `Cannot find package.json along path to module ${q(moduleLocation)}`,
+      ErrorCodes.NoPackageJson,
     );
   }
 

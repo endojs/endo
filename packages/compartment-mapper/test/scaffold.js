@@ -736,7 +736,7 @@ export function scaffold(
             parserForLanguage,
             ...additionalOptions,
           }),
-        { message: /compartment map failed a SHA-512 integrity check/ },
+        { code: 'E_INVALID_ARCHIVE' },
       );
     });
   }

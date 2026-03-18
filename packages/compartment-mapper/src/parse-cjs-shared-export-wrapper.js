@@ -9,6 +9,7 @@
 /** @import {ReadFn, ReadPowers} from './types.js' */
 
 import { findInvalidReadNowPowersProps, isReadNowPowers } from './powers.js';
+import { createError, ErrorCodes } from './error.js';
 
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
@@ -151,8 +152,9 @@ export const wrap = ({
         namespace = compartment.importNow(importSpecifier);
       } else {
         const invalidProps = findInvalidReadNowPowersProps(readPowers).sort();
-        throw new Error(
+        throw createError(
           `Synchronous readPowers required for dynamic import of ${assert.quote(importSpecifier)}; missing or invalid prop(s): ${invalidProps.join(', ')}`,
+          ErrorCodes.InsufficientReadPowers,
         );
       }
     } else {
@@ -191,7 +193,7 @@ export const wrap = ({
      * @returns {any}
      */
     (_module, _filename) => {
-      throw Error('Not implemented');
+      throw createError('Not implemented', ErrorCodes.NotImplemented);
     },
   );
   requireExtensions['.js'] = fail;

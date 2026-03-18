@@ -27,6 +27,7 @@ import { dependencyAllowedByPolicy, makePackagePolicy } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 import { GenericGraph, makeShortestPath } from './generic-graph.js';
+import { createError, ErrorCodes } from './error.js';
 
 /**
  * @import {
@@ -643,7 +644,10 @@ const graphPackage = async (
     if (targetIsRelative) continue;
     const targetLocation = dependencyLocations[target];
     if (targetLocation === undefined) {
-      throw Error(`Cannot find dependency ${target} for ${packageLocation}`);
+      throw createError(
+        `Cannot find dependency ${target} for ${packageLocation}`,
+        ErrorCodes.MissingDependency,
+      );
     }
     dependencyLocations[specifier] = targetLocation;
   }
@@ -698,7 +702,10 @@ const gatherDependency = async (
     if (optional || !strict) {
       return;
     }
-    throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
+    throw createError(
+      `Cannot find dependency ${name} for ${packageLocation}`,
+      ErrorCodes.MissingDependency,
+    );
   }
 
   dependencyLocations[name] = dependency.packageLocation;
@@ -777,8 +784,10 @@ const graphPackages = async (
   const allegedPackageDescriptor = await readDescriptor(packageLocation);
 
   if (allegedPackageDescriptor === undefined) {
-    throw TypeError(
+    throw createError(
       `Cannot find package.json for application at ${packageLocation}`,
+      ErrorCodes.NoPackageJson,
+      { error: TypeError },
     );
   }
 
@@ -797,8 +806,9 @@ const graphPackages = async (
   for (const [alias, dependencyName] of entries(commonDependencies)) {
     const spec = packageDescriptorDependencies[dependencyName];
     if (spec === undefined) {
-      throw Error(
+      throw createError(
         `Cannot find dependency ${dependencyName} for ${packageLocation} from common dependencies`,
+        ErrorCodes.MissingDependency,
       );
     }
     commonDependencyDescriptors[dependencyName] = {
@@ -969,7 +979,11 @@ const translateGraph = (
     /* c8 ignore next */
     if (policy && !packagePolicy) {
       // this should never happen
-      throw new TypeError('Unexpectedly falsy package policy');
+      throw createError(
+        'Unexpectedly falsy package policy',
+        ErrorCodes.PolicyViolation,
+        { error: TypeError },
+      );
     }
 
     let dependencyLocations = graph[dependeeLocation].dependencyLocations;
