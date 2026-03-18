@@ -81,23 +81,18 @@
 
 /** Default maximum number of active intervals per scheduler. */
 const DEFAULT_MAX_ACTIVE = 5;
-harden(DEFAULT_MAX_ACTIVE);
 
 /** Default minimum period in milliseconds. */
 const DEFAULT_MIN_PERIOD_MS = 30_000;
-harden(DEFAULT_MIN_PERIOD_MS);
 
 /** Absolute minimum period floor (1 second). */
 const ABSOLUTE_MIN_PERIOD_MS = 1_000;
-harden(ABSOLUTE_MIN_PERIOD_MS);
 
 /** Maximum allowed active intervals. */
 const MAX_ACTIVE_CEILING = 100;
-harden(MAX_ACTIVE_CEILING);
 
 /** Maximum allowed period (24 hours). */
 const MAX_PERIOD_MS = 86_400_000;
-harden(MAX_PERIOD_MS);
 
 export {
   DEFAULT_MAX_ACTIVE,
