@@ -26,16 +26,31 @@ const makeFormPowers = ({ selfId, message }) => {
   const powers = Far('MockPowers', {
     identify(...path) {
       calls.push({ method: 'identify', args: path });
-      if (path.length === 1 && path[0] === 'SELF') {
+      if (path.length === 1 && path[0] === '@self') {
         return selfId;
+      }
+      return undefined;
+    },
+
+    locate(...path) {
+      calls.push({ method: 'locate', args: path });
+      if (path.length === 1 && path[0] === '@self') {
+        return `endo://localhost/?id=${selfId}&type=handle`;
       }
       return undefined;
     },
 
     reverseIdentify(id) {
       calls.push({ method: 'reverseIdentify', args: [id] });
-      if (id === 'host-handle-id') return ['HOST'];
+      if (id === 'host-handle-id') return ['@host'];
       if (id === 'guest-handle-id') return ['alice'];
+      return [];
+    },
+
+    async reverseLocate(locator) {
+      calls.push({ method: 'reverseLocate', args: [locator] });
+      if (locator.includes('host-handle-id')) return ['@host'];
+      if (locator.includes('guest-handle-id')) return ['alice'];
       return [];
     },
 
@@ -107,8 +122,8 @@ test('form renders fields and Submit calls submit()', async t => {
     type: 'form',
     number: 1n,
     date: new Date().toISOString(),
-    from: 'host-handle-id',
-    to: 'guest-handle-id',
+    from: 'endo://localhost/?id=host-handle-id&type=handle',
+    to: 'endo://localhost/?id=guest-handle-id&type=handle',
     messageId: '42',
     dismissed: dismissedKit.promise,
     description: 'Survey',
@@ -179,8 +194,8 @@ test('form sender view shows input fields and submit button', async t => {
     type: 'form',
     number: 10n,
     date: new Date().toISOString(),
-    from: 'host-handle-id',
-    to: 'guest-handle-id',
+    from: 'endo://localhost/?id=host-handle-id&type=handle',
+    to: 'endo://localhost/?id=guest-handle-id&type=handle',
     messageId: '100',
     dismissed: dismissedKit.promise,
     description: 'Survey',
@@ -228,8 +243,8 @@ test('value message renders with Show Value button', async t => {
     type: 'value',
     number: 5n,
     date: new Date().toISOString(),
-    from: 'guest-handle-id',
-    to: 'host-handle-id',
+    from: 'endo://localhost/?id=guest-handle-id&type=handle',
+    to: 'endo://localhost/?id=host-handle-id&type=handle',
     messageId: '200',
     replyTo: '42',
     valueId: 'marshal-formula-id',

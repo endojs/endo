@@ -32,9 +32,9 @@ Group inventory items into collapsible sections:
 Each item should display a small type badge showing the formula type (e.g.,
 `eval`, `readable-blob`, `worker`).
 
-The "system" items (all-caps names like `SELF`, `AGENT`) that are currently
-hidden by default should remain in their respective type groups but with the
-existing toggle to show/hide them.
+The "system" items (`@`-prefixed special names like `@self`, `@agent`) that are
+currently hidden by default should remain in their respective type groups but
+with the existing toggle to show/hide them.
 
 ### Daemon API Changes
 

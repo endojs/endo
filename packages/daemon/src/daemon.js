@@ -167,16 +167,16 @@ const deriveId = (path, rootNonce, digester) => {
 };
 
 const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
-const MESSAGE_FROM_NAME = 'FROM';
-const MESSAGE_TO_NAME = 'TO';
-const MESSAGE_DATE_NAME = 'DATE';
-const MESSAGE_TYPE_NAME = 'TYPE';
-const MESSAGE_ID_NAME = 'MESSAGE';
-const MESSAGE_REPLY_TO_NAME = 'REPLY';
-const MESSAGE_DESCRIPTION_NAME = 'DESCRIPTION';
-const MESSAGE_STRINGS_NAME = 'STRINGS';
-const MESSAGE_PROMISE_NAME = 'PROMISE';
-const MESSAGE_RESOLVER_NAME = 'RESOLVER';
+const MESSAGE_FROM_NAME = '@from';
+const MESSAGE_TO_NAME = '@to';
+const MESSAGE_DATE_NAME = '@date';
+const MESSAGE_TYPE_NAME = '@type';
+const MESSAGE_ID_NAME = '@message';
+const MESSAGE_REPLY_TO_NAME = '@reply';
+const MESSAGE_DESCRIPTION_NAME = '@description';
+const MESSAGE_STRINGS_NAME = '@strings';
+const MESSAGE_PROMISE_NAME = '@promise';
+const MESSAGE_RESOLVER_NAME = '@resolver';
 
 /**
  * Checks if a string is a valid message number.
@@ -1115,8 +1115,8 @@ const makeDaemonCore = async (
     /** @param {string} requestedId */
     provide: async requestedId => {
       assertValidId(requestedId);
-      const { node } = parseId(requestedId);
-      if (node !== localNodeNumber) {
+      if (!isLocalId(requestedId)) {
+        const { node } = parseId(requestedId);
         throw new Error(
           `Gateway can only provide local values. Got request for node ${q(
             node,
@@ -1768,12 +1768,12 @@ const makeDaemonCore = async (
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges: async locator =>
+      followLocatorNameChanges: locator =>
         makeIteratorRef(followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
       listLocators,
-      followNameChanges: async (...petNamePath) =>
+      followNameChanges: (...petNamePath) =>
         makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
       reverseLookup,
@@ -1896,7 +1896,7 @@ const makeDaemonCore = async (
       if (valueId === undefined) {
         throw new Error('Value message formula is incomplete');
       }
-      registerName('VALUE', valueId, undefined);
+      registerName('@value', valueId, undefined);
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -1916,7 +1916,7 @@ const makeDaemonCore = async (
           if (headName === MESSAGE_PROMISE_NAME) {
             return provide(id, 'promise');
           }
-          if (headName === 'RESULT') {
+          if (headName === '@result') {
             // Follow the promise resolution to provide the underlying value.
             return Promise.resolve(provide(id, 'promise')).then(
               resolutionId => {
@@ -2103,12 +2103,12 @@ const makeDaemonCore = async (
       identify,
       locate,
       reverseLocate,
-      followLocatorNameChanges: async locator =>
+      followLocatorNameChanges: locator =>
         makeIteratorRef(followLocatorNameChanges(locator)),
       list,
       listIdentifiers,
       listLocators,
-      followNameChanges: async (...petNamePath) =>
+      followNameChanges: (...petNamePath) =>
         makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
       reverseLookup,

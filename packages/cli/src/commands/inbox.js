@@ -11,7 +11,7 @@ const { stringify: q } = JSON;
 
 export const inbox = async ({ follow, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    const selfLocator = await E(agent).locate('SELF');
+    const selfLocator = await E(agent).locate('@self');
     const messages = follow
       ? makeRefIterator(E(agent).followMessages())
       : await E(agent).listMessages();

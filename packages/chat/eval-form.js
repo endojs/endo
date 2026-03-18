@@ -59,7 +59,7 @@ export const createEvalForm = async ({
   /** @type {Endowment[]} */
   let endowments = [];
   let resultName = '';
-  let workerName = 'MAIN';
+  let workerName = '@main';
 
   // Create form HTML structure
   $container.innerHTML = `
@@ -83,7 +83,7 @@ export const createEvalForm = async ({
         </div>
         <div class="eval-option">
           <label for="eval-worker-name">Worker</label>
-          <input type="text" id="eval-worker-name" value="MAIN" />
+          <input type="text" id="eval-worker-name" value="@main" />
         </div>
       </div>
       <div class="eval-footer">
@@ -324,7 +324,7 @@ export const createEvalForm = async ({
         source,
         endowments: validEndowments,
         resultName: $resultNameInput.value.trim(),
-        workerName: $workerNameInput.value.trim() || 'MAIN',
+        workerName: $workerNameInput.value.trim() || '@main',
       });
 
       // Success - reset form and close
@@ -346,13 +346,13 @@ export const createEvalForm = async ({
     source = '';
     endowments = [];
     resultName = '';
-    workerName = 'MAIN';
+    workerName = '@main';
     isDirty = false;
 
     editor.setValue('');
     $endowmentsList.innerHTML = '';
     $resultNameInput.value = '';
-    $workerNameInput.value = 'MAIN';
+    $workerNameInput.value = '@main';
     clearError();
     updateSubmitButton();
   };

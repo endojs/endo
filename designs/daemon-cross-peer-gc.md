@@ -760,7 +760,7 @@ relationship exists.
 
 The grantee's agent can overlay `makePetSitter` on top of the synced store,
 just as it overlays special names today (guest.js:69-82).  This preserves
-the `SELF`, `HOST`, `AGENT`, `KEYPAIR`, and `MAIL` special names while
+the `@self`, `@host`, `@agent`, `@keypair`, and `@mail` special names while
 delegating regular name resolution to the synced store.
 
 ### Migration Path

@@ -81,7 +81,7 @@ export const createCounterProposalForm = async ({
         </div>
         <div class="eval-option">
           <label for="counter-worker-name">Worker</label>
-          <input type="text" id="counter-worker-name" value="MAIN" />
+          <input type="text" id="counter-worker-name" value="@main" />
         </div>
       </div>
       <div class="eval-footer">
@@ -298,7 +298,7 @@ export const createCounterProposalForm = async ({
         source,
         endowments: validEndowments,
         resultName: $resultNameInput.value.trim(),
-        workerName: $workerNameInput.value.trim() || 'MAIN',
+        workerName: $workerNameInput.value.trim() || '@main',
       });
 
       // Success - reset form and close
@@ -323,7 +323,7 @@ export const createCounterProposalForm = async ({
     editor.setValue('');
     $endowmentsList.innerHTML = '';
     $resultNameInput.value = '';
-    $workerNameInput.value = 'MAIN';
+    $workerNameInput.value = '@main';
     clearError();
     updateSubmitButton();
   };

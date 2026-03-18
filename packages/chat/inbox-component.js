@@ -36,7 +36,7 @@ export const inboxComponent = async (
   /** @type {Map<string, string>} */
   const formDescriptions = new Map();
 
-  const selfId = await E(powers).identify('SELF');
+  const selfLocator = await E(powers).locate('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane.
@@ -52,7 +52,7 @@ export const inboxComponent = async (
 
     const { number, from: fromId, to: toId, date, dismissed } = message;
 
-    const isSent = fromId === selfId;
+    const isSent = fromId === selfLocator;
 
     if (conversationId) {
       const otherPartyId = isSent ? toId : fromId;
@@ -61,7 +61,7 @@ export const inboxComponent = async (
         // (handles peer/remote/guest formula indirection)
         if (conversationPetName) {
           // eslint-disable-next-line no-await-in-loop
-          const names = await E(powers).reverseIdentify(otherPartyId);
+          const names = await E(powers).reverseLocate(otherPartyId);
           if (
             !Array.isArray(names) ||
             !names.includes(
@@ -174,14 +174,14 @@ export const inboxComponent = async (
     /** @type {HTMLElement | null} */
     let $senderChip = null;
     if (!isSent) {
-      const fromNames = await E(powers).reverseIdentify(fromId);
+      const fromNames = await E(powers).reverseLocate(fromId);
       const fromName = fromNames?.[0];
       if (fromName !== undefined) {
         $senderChip = document.createElement('b');
         $senderChip.innerText = `@${fromName}`;
       }
     } else {
-      const toNames = await E(powers).reverseIdentify(toId);
+      const toNames = await E(powers).reverseLocate(toId);
       const toName = toNames?.[0];
       if (toName !== undefined) {
         $senderChip = document.createElement('b');
@@ -302,7 +302,7 @@ export const inboxComponent = async (
           const id = message.ids?.[index];
           if (!id) return;
           try {
-            const petNames = await E(powers).reverseIdentify(id);
+            const petNames = await E(powers).reverseLocate(id);
             if (Array.isArray(petNames) && petNames.length > 0) {
               $token.title = petNames.join(', ');
             }
@@ -489,7 +489,7 @@ export const inboxComponent = async (
           }
           if (resultName) {
             const resultPath = /** @type {[string, ...string[]]} */ (
-              resultName.split('.')
+              resultName.split('/')
             );
             Promise.all([
               E(powers).identify(...resultPath),
@@ -556,7 +556,7 @@ export const inboxComponent = async (
               source,
               codeNames,
               edgeNames,
-              workerName: workerName || 'MAIN',
+              workerName: workerName || '@main',
               resultName: resultName || '',
             },
           });

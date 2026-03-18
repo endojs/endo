@@ -442,7 +442,7 @@ test('placeholder shown when no chips', t => {
   const input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input.chip-input')
   );
-  t.is(input.placeholder, 'name or path.to.name');
+  t.is(input.placeholder, 'name or path/to/name');
 
   api.dispose();
   cleanup();
@@ -471,10 +471,10 @@ test('chip text displays the path', t => {
 
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
 
-  api.setValue(['path.to.value']);
+  api.setValue(['path/to/value']);
 
   const chipText = $container.querySelector('.path-chip-text');
-  t.is(chipText?.textContent, 'path.to.value');
+  t.is(chipText?.textContent, 'path/to/value');
 
   api.dispose();
   cleanup();
@@ -516,7 +516,7 @@ test('finalizeOnSelect: selecting does not show more suggestions', async t => {
 test('Shift+Tab goes back to edit previous chip', async t => {
   const { $container, $menu, cleanup } = createElements();
 
-  // Create nested mock so that 'AGENT' has children
+  // Create nested mock so that '@agent' has children
   const { Far } = await import('@endo/far');
   const nestedDir = Far('NestedDir', {
     list() {
@@ -539,13 +539,13 @@ test('Shift+Tab goes back to edit previous chip', async t => {
     },
   });
 
-  const { powers, setValue } = makeMockPowers({ names: ['AGENT'] });
-  setValue('AGENT', nestedDir);
+  const { powers, setValue } = makeMockPowers({ names: ['@agent'] });
+  setValue('@agent', nestedDir);
 
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
 
   // Set up a chip
-  api.setValue(['AGENT']);
+  api.setValue(['@agent']);
   t.is($container.querySelectorAll('.path-chip').length, 1);
 
   const input = /** @type {HTMLInputElement} */ (
@@ -559,12 +559,12 @@ test('Shift+Tab goes back to edit previous chip', async t => {
   // updateSuggestions is async, wait longer
   await tick(100);
 
-  // Chip should be removed and path should be in input with trailing dot
+  // Chip should be removed and path should be in input with trailing slash
   t.is($container.querySelectorAll('.path-chip').length, 0);
-  t.is(input.value, 'AGENT.');
+  t.is(input.value, '@agent/');
   t.true(api.isMenuVisible());
 
-  // Should show AGENT's children
+  // Should show @agent's children
   const items = $menu.querySelectorAll('.token-menu-item');
   t.is(items.length, 2);
   t.is(items[0].textContent, 'child1');
@@ -655,13 +655,13 @@ test('setValue with path then focus shows nested suggestions', async t => {
     },
   });
 
-  const { powers, setValue } = makeMockPowers({ names: ['AGENT'] });
-  setValue('AGENT', nestedDir);
+  const { powers, setValue } = makeMockPowers({ names: ['@agent'] });
+  setValue('@agent', nestedDir);
 
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
 
   // Simulate modal usage: setValue with a path, then focus
-  api.setValue(['AGENT']);
+  api.setValue(['@agent']);
 
   const input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input.chip-input')
@@ -669,7 +669,7 @@ test('setValue with path then focus shows nested suggestions', async t => {
   input.dispatchEvent(new Event('focus', { bubbles: true }));
   await tick(100);
 
-  // Should show children of AGENT
+  // Should show children of @agent
   t.true(api.isMenuVisible(), 'Menu should be visible');
   const items = $menu.querySelectorAll('.token-menu-item');
   t.is(items.length, 2, 'Should have 2 nested items');
@@ -705,15 +705,15 @@ test('clicking nested suggestion extends chip path', async t => {
     },
   });
 
-  const { powers, setValue } = makeMockPowers({ names: ['AGENT'] });
-  setValue('AGENT', nestedDir);
+  const { powers, setValue } = makeMockPowers({ names: ['@agent'] });
+  setValue('@agent', nestedDir);
 
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
 
   // Set initial chip like the modal does
-  api.setValue(['AGENT']);
+  api.setValue(['@agent']);
   t.is($container.querySelectorAll('.path-chip').length, 1);
-  t.deepEqual(api.getValue(), ['AGENT']);
+  t.deepEqual(api.getValue(), ['@agent']);
 
   const input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input.chip-input')
@@ -721,7 +721,7 @@ test('clicking nested suggestion extends chip path', async t => {
   input.dispatchEvent(new Event('focus', { bubbles: true }));
   await tick(100);
 
-  // Menu should show children of AGENT
+  // Menu should show children of @agent
   t.true(api.isMenuVisible(), 'Menu should be visible');
   const menuItems = $menu.querySelectorAll('.token-menu-item');
   t.is(menuItems.length, 2, 'Should have 2 menu items');
@@ -732,10 +732,10 @@ test('clicking nested suggestion extends chip path', async t => {
   );
   await tick(50);
 
-  // Should have extended the AGENT chip to AGENT.child1
+  // Should have extended the @agent chip to @agent/child1
   const chips = $container.querySelectorAll('.path-chip');
   t.is(chips.length, 1, 'Should still have 1 chip');
-  t.deepEqual(api.getValue(), ['AGENT.child1'], 'Chip should be extended');
+  t.deepEqual(api.getValue(), ['@agent/child1'], 'Chip should be extended');
   t.is(input.value, '', 'Input should be empty');
 
   api.dispose();
@@ -767,12 +767,12 @@ test('ArrowDown works after setValue with existing chip', async t => {
     },
   });
 
-  const { powers, setValue } = makeMockPowers({ names: ['AGENT'] });
-  setValue('AGENT', nestedDir);
+  const { powers, setValue } = makeMockPowers({ names: ['@agent'] });
+  setValue('@agent', nestedDir);
 
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
 
-  api.setValue(['AGENT']);
+  api.setValue(['@agent']);
 
   const input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input.chip-input')
@@ -831,12 +831,12 @@ test('Space on nested suggestion extends the chip path', async t => {
     },
   });
 
-  const { powers, setValue } = makeMockPowers({ names: ['AGENT'] });
-  setValue('AGENT', nestedDir);
+  const { powers, setValue } = makeMockPowers({ names: ['@agent'] });
+  setValue('@agent', nestedDir);
 
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
 
-  api.setValue(['AGENT']);
+  api.setValue(['@agent']);
 
   const input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input.chip-input')
@@ -844,7 +844,7 @@ test('Space on nested suggestion extends the chip path', async t => {
   input.dispatchEvent(new Event('focus', { bubbles: true }));
   await tick(100);
 
-  // Press Space to select 'child1' - should extend AGENT chip to AGENT.child1
+  // Press Space to select 'child1' - should extend @agent chip to @agent/child1
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
   );
@@ -853,7 +853,7 @@ test('Space on nested suggestion extends the chip path', async t => {
   // Should now have one chip with extended path
   const chips = $container.querySelectorAll('.path-chip');
   t.is(chips.length, 1);
-  t.deepEqual(api.getValue(), ['AGENT.child1']);
+  t.deepEqual(api.getValue(), ['@agent/child1']);
   t.is(input.value, '');
 
   api.dispose();

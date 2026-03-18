@@ -239,27 +239,27 @@ The returned `keypairId` is included in `formulateHostDependencies` and
 #### Special Names
 
 Both `makeHost` and `makeGuest` accept a `keypairId` parameter and register it
-as the `KEYPAIR` special name, allowing agents to look up their own keypair:
+as the `@keypair` special name, allowing agents to look up their own keypair:
 
 ```js
 // host.js
 const specialNames = {
   ...platformNames,
-  AGENT: hostId,
-  SELF: handleId,
-  HOST: hostHandleId ?? handleId,
-  KEYPAIR: keypairId,
-  MAIN: mainWorkerId,
-  ENDO: endoId,
+  '@agent': hostId,
+  '@self': handleId,
+  '@host': hostHandleId ?? handleId,
+  '@keypair': keypairId,
+  '@main': mainWorkerId,
+  '@endo': endoId,
   // ...
 };
 
 // guest.js
 const specialNames = {
-  AGENT: guestId,
-  SELF: handleId,
-  HOST: hostHandleId,
-  KEYPAIR: keypairId,
+  '@agent': guestId,
+  '@self': handleId,
+  '@host': hostHandleId,
+  '@keypair': keypairId,
 };
 ```
 

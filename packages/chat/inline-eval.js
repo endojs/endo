@@ -44,7 +44,7 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  */
 const toJsIdentifier = petName => {
   // Get last segment of path
-  const parts = petName.split('.');
+  const parts = petName.split('/');
   let name = parts[parts.length - 1] || '';
 
   // Convert kebab-case to camelCase

@@ -22,13 +22,13 @@ reminders, and alerts.
 const setup = async (powers) => {
   const timer = await E(powers).lookup('timer');
   const gmail = await E(powers).lookup('gmail');
-  const host = await E(powers).lookup('HOST');
+  const host = await E(powers).lookup('@host');
 
   // Morning briefing at 08:00 every day
   await E(timer).schedule('0 8 * * *', async () => {
     const unread = await E(gmail).fetch('/messages?q=is:unread&maxResults=5');
     const summary = await summarizeWithLLM(unread);
-    await E(host).send('HOST', summary);
+    await E(host).send('@host', summary);
   });
 };
 ```

@@ -15,17 +15,17 @@ export const main = async agent => {
   const mathUrl = new URL('tools/math.js', import.meta.url).href;
   const timestampUrl = new URL('tools/timestamp.js', import.meta.url).href;
 
-  await E(agent).makeUnconfined('MAIN', greetUrl, {
+  await E(agent).makeUnconfined('@main', greetUrl, {
     resultName: 'greet-tool',
   });
   console.log('[setup-tools] Created greet-tool');
 
-  await E(agent).makeUnconfined('MAIN', mathUrl, {
+  await E(agent).makeUnconfined('@main', mathUrl, {
     resultName: 'math-tool',
   });
   console.log('[setup-tools] Created math-tool');
 
-  await E(agent).makeUnconfined('MAIN', timestampUrl, {
+  await E(agent).makeUnconfined('@main', timestampUrl, {
     resultName: 'timestamp-tool',
   });
   console.log('[setup-tools] Created timestamp-tool');

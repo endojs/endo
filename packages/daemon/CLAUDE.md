@@ -24,7 +24,7 @@ await withFormulaGraphLock(async () => {
 
 ### Special names
 
-`AGENT`, `SELF`, `HOST`, `KEYPAIR`, `MAIL` are reserved uppercase names managed by `makePetSitter` in `guest.js`. They match the pattern `/^[A-Z][A-Z0-9-]{0,127}$/` (see `isSpecialName` in `src/pet-name.js`). The daemon's `exports` map does not expose `src/pet-name.js` to external packages.
+`@agent`, `@self`, `@host`, `@keypair`, `@mail` are reserved `@`-prefixed names managed by `makePetSitter` in `guest.js`. They match the pattern `/^@[a-z][a-z0-9-]{0,127}$/` (see `isSpecialName` in `src/pet-name.js`). The daemon exports `src/pet-name.js` as `@endo/daemon/pet-name.js`.
 
 ## Guest Provisioning
 

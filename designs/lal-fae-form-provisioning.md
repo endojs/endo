@@ -43,7 +43,7 @@ The refactored lifecycle has three layers:
 
 1. **Setup script** — provisions a single "manager" guest profile with no LLM
    configuration. Launches the agent caplet under that profile.
-2. **Manager agent** — sends a configuration form to HOST on startup, then
+2. **Manager agent** — sends a configuration form to @host on startup, then
    watches for `value` message replies to that form. Each reply creates a new
    guest profile and spawns an agentic loop for it.
 3. **Worker loops** — each spawned loop follows a specific guest's inbox and
@@ -51,7 +51,7 @@ The refactored lifecycle has three layers:
 
 ```
                     ┌──────────┐
-                    │  HOST    │
+                    │  @host   │
                     │ (root)   │
                     └────┬─────┘
                          │ form: "Add an agent"
@@ -91,7 +91,7 @@ export const main = async agent => {
     agentName: 'profile-for-lal',
   });
 
-  await E(agent).makeUnconfined('MAIN', lalSpecifier, {
+  await E(agent).makeUnconfined('@main', lalSpecifier, {
     powersName: 'profile-for-lal',
     resultName: 'controller-for-lal',
   });
@@ -109,10 +109,10 @@ Fae's `setup.js` changes identically, substituting `fae` / `profile-for-fae` /
 ### Agent Startup: Sending the Configuration Form
 
 On startup, instead of creating a provider and immediately following the inbox,
-the agent sends a form to HOST:
+the agent sends a form to @host:
 
 ```js
-await E(powers).form('HOST', 'Add an agent', [
+await E(powers).form('@host', 'Add an agent', [
   { name: 'name', label: 'Agent name' },
   { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
   { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
@@ -148,11 +148,11 @@ configuration form. For each submission:
    to obtain `{ name, host, model, authToken }`.
 
 2. **Validate.** Assert that `name` is a non-empty string that is a valid pet
-   name (no path separators, no reserved names like `SELF` or `HOST`).
+   name (no path separators, no reserved names like `@self` or `@host`).
 
 3. **Check for duplicates.** If a guest with this name already exists (via
    `E(powers).has(name)` on the manager's pet store), skip creation and
-   report the conflict back to HOST.
+   report the conflict back to @host.
 
 4. **Create guest profile.** Call `provideGuest` on the host agent to create
    a new guest with the chosen name:
@@ -174,12 +174,12 @@ The `provideGuest` method is on the `EndoHost` interface, not `EndoGuest`.
 A guest caplet (which is what the manager agent is) cannot directly create
 new guest profiles.
 
-**Resolution:** The manager agent requests that HOST create the guest on its
+**Resolution:** The manager agent requests that @host create the guest on its
 behalf. There are two approaches:
 
 #### Option A: Evaluate Proposal
 
-The manager sends an `evaluate` proposal to HOST that calls `provideGuest`:
+The manager sends an `evaluate` proposal to @host that calls `provideGuest`:
 
 ```js
 await E(powers).evaluate(
@@ -189,42 +189,42 @@ await E(powers).evaluate(
     agentName: profileName,
   })`,
   ['name', 'profileName', 'AGENT'],            // codeNames
-  [nameValue, profileNameValue, 'AGENT'],       // edgeNames
+  [nameValue, profileNameValue, '@agent'],      // edgeNames
   guestPetName,                                 // resultName
 );
 ```
 
-This requires the HOST to review and grant the proposal. This is consistent
+This requires the @host to review and grant the proposal. This is consistent
 with Lal's existing eval-proposal workflow and provides explicit user consent
 for each new guest creation.
 
 **Drawback:** The user must grant every guest creation via eval-proposal
 approval, which adds friction to what should feel like a simple form fill.
 
-#### Option B: The Manager Asks HOST to Follow the Form
+#### Option B: The Manager Asks @host to Follow the Form
 
-Instead of the manager creating guests, the manager sends the form, and HOST
+Instead of the manager creating guests, the manager sends the form, and @host
 (the root user) submits the form. When the manager receives the `value`
-reply, it does not create the guest itself — it sends a `request` to HOST
+reply, it does not create the guest itself — it sends a `request` to @host
 asking for a guest with that name, or it uses a dedicated power.
 
 **Drawback:** Requires a new capability or a multi-step request/response flow.
 
 #### Option C: Grant the Manager a Host Power
 
-The setup script introduces the `AGENT` power (the host formula) to the
+The setup script introduces the `@agent` power (the host formula) to the
 manager guest. The manager can then call `E(agent).provideGuest(...)` using
 the host reference.
 
 This is already the pattern used in `setup.js` today — the setup script
-*is* an unconfined caplet running with `--powers AGENT`, and it calls
-`E(agent).provideGuest(...)`. The agent caplet itself could receive AGENT
+*is* an unconfined caplet running with `--powers @agent`, and it calls
+`E(agent).provideGuest(...)`. The agent caplet itself could receive @agent
 as an introduced name.
 
-**Resolution: Option C.** The setup script introduces AGENT to the manager
+**Resolution: Option C.** The setup script introduces @agent to the manager
 guest so it can create sub-guests. This is the simplest approach and
-follows the existing pattern. The form submission from HOST already serves
-as the consent mechanism — HOST chooses to submit the form, which triggers
+follows the existing pattern. The form submission from @host already serves
+as the consent mechanism — @host chooses to submit the form, which triggers
 guest creation.
 
 ### Revised Setup Script
@@ -236,11 +236,11 @@ const lalSpecifier = new URL('agent.js', import.meta.url).href;
 
 export const main = async agent => {
   await E(agent).provideGuest('lal', {
-    introducedNames: { AGENT: 'AGENT' },
+    introducedNames: { '@agent': '@agent' },
     agentName: 'profile-for-lal',
   });
 
-  await E(agent).makeUnconfined('MAIN', lalSpecifier, {
+  await E(agent).makeUnconfined('@main', lalSpecifier, {
     powersName: 'profile-for-lal',
     resultName: 'controller-for-lal',
   });
@@ -248,8 +248,8 @@ export const main = async agent => {
 harden(main);
 ```
 
-The `introducedNames: { AGENT: 'AGENT' }` line gives the manager guest a
-pet name `AGENT` that resolves to the host agent, enabling it to call
+The `introducedNames: { '@agent': '@agent' }` line gives the manager guest a
+pet name `@agent` that resolves to the host agent, enabling it to call
 `E(agent).provideGuest(...)`.
 
 ### Manager Agent: Full Lifecycle
@@ -258,8 +258,8 @@ pet name `AGENT` that resolves to the host agent, enabling it to call
 export const make = (guestPowers, context) => {
   const powers = guestPowers;
 
-  // 1. Send the configuration form to HOST.
-  const formSent = E(powers).form('HOST', 'Add an agent', [
+  // 1. Send the configuration form to @host.
+  const formSent = E(powers).form('@host', 'Add an agent', [
     { name: 'name', label: 'Agent name' },
     { name: 'host', label: 'API host', example: 'https://api.anthropic.com' },
     { name: 'model', label: 'Model name', example: 'claude-sonnet-4-6-20250514' },
@@ -267,7 +267,7 @@ export const make = (guestPowers, context) => {
   ]);
 
   // 2. Resolve the host agent reference for provideGuest calls.
-  const agentP = E(powers).lookup('AGENT');
+  const agentP = E(powers).lookup('@agent');
 
   // 3. Track the form's messageId so we can identify replies.
   //    We discover it by watching our own outbound messages.
@@ -279,7 +279,7 @@ export const make = (guestPowers, context) => {
   const runManager = async () => {
     await formSent;
     const agent = await agentP;
-    const selfId = await E(powers).identify('SELF');
+    const selfId = await E(powers).identify('@self');
 
     const messageIterator = makeRefIterator(E(powers).followMessages());
 
@@ -365,7 +365,7 @@ const spawnWorkerLoop = async (name, guest, config) => {
   const nodeCache = new Map();
   // ... getNode, putNode, assembleTranscript (same as today) ...
 
-  const selfId = await E(guest).identify('SELF');
+  const selfId = await E(guest).identify('@self');
   const messageIterator = makeRefIterator(E(guest).followMessages());
 
   while (true) {
@@ -405,13 +405,13 @@ const config = await E(powers).lookup(petName);
 
 Alternatively, if the `value` message carries a `resultName` hint and the
 daemon auto-retains it, the manager can look it up directly. But since the
-`resultName` is chosen by the sender (HOST) and may vary, `adopt` with an
+`resultName` is chosen by the sender (@host) and may vary, `adopt` with an
 explicit pet name is more reliable.
 
 ### Multiple Submissions: Adding More Agents
 
 Because the form uses fire-and-forget semantics with `value` message replies,
-HOST can submit the form any number of times. Each submission triggers a new
+@host can submit the form any number of times. Each submission triggers a new
 guest creation and worker loop. The manager maintains a `Map` of active
 workers to prevent duplicate names.
 
@@ -456,7 +456,7 @@ On restart (daemon reboot), the manager:
 3. For each persisted config, looks up the guest via `E(agent).provideGuest`
    (idempotent) and respawns the worker loop.
 
-This ensures workers survive daemon restarts without HOST needing to
+This ensures workers survive daemon restarts without @host needing to
 resubmit the form.
 
 ## Changes to `packages/lal`
@@ -465,7 +465,7 @@ resubmit the form.
 
 - Remove `readConfig()` and all `process.env` references.
 - Remove the `env` option from `makeUnconfined`.
-- Add `AGENT: 'AGENT'` to `introducedNames`.
+- Add `'@agent': '@agent'` to `introducedNames`.
 - Remove `storeValue(config, 'lal-config')`.
 
 ### `agent.js`
@@ -477,7 +477,7 @@ resubmit the form.
 
 - **New manager loop.** Replace the top-level `runAgent` with a manager loop
   that:
-  1. Sends the configuration form to HOST.
+  1. Sends the configuration form to @host.
   2. Follows the manager's inbox for value replies.
   3. On each reply, creates a guest and spawns a worker.
   4. Persists worker configs for restart recovery.
@@ -531,7 +531,7 @@ Fae's changes mirror Lal's exactly:
 
 - Remove `readConfig()` and `process.env` references.
 - Remove the `env` option from `makeUnconfined`.
-- Add `AGENT: 'AGENT'` to `introducedNames`.
+- Add `'@agent': '@agent'` to `introducedNames`.
 
 ### `agent.js`
 
@@ -563,7 +563,7 @@ Both are functional today via CLI (`endo form`, `endo submit`).
 
 ```bash
 # Install Lal (no environment variables needed)
-endo run --UNCONFINED packages/lal/setup.js --powers AGENT
+endo run --UNCONFINED packages/lal/setup.js --powers @agent
 
 # Check inbox — the form appears
 endo inbox
@@ -609,10 +609,10 @@ endo send bob "Can you summarize..."
    structured, validated, UI-renderable configuration flow. The form can be
    resubmitted any number of times to add more agents.
 
-3. **AGENT introduction.** The manager receives the `AGENT` power
+3. **@agent introduction.** The manager receives the `@agent` power
    (host reference) via `introducedNames` so it can call `provideGuest`.
    This follows the existing setup-script pattern and keeps the consent
-   boundary at the form submission — HOST chooses to submit.
+   boundary at the form submission — @host chooses to submit.
 
 4. **Per-worker provider.** Each worker creates its own LLM provider from the
    form submission's `host`/`model`/`authToken`. Different workers can use
@@ -620,7 +620,7 @@ endo send bob "Can you summarize..."
 
 5. **Persisted configs for restart recovery.** Worker configurations are
    stored in the manager's pet store so that on daemon restart, the manager
-   can respawn workers without requiring HOST to resubmit the form.
+   can respawn workers without requiring @host to resubmit the form.
 
 6. **No environment variables.** The setup script passes no `env` to the
    agent caplet. All configuration flows through the form. This eliminates
@@ -640,11 +640,11 @@ endo send bob "Can you summarize..."
 
 ### Phase 2: Manager Loop and Form — **Complete**
 
-- Manager sends configuration form to HOST on startup.
+- Manager sends configuration form to @host on startup.
 - Follows inbox for `value` replies to the form.
 - On each reply, extracts config, creates guest via
   `E(agent).provideGuest(name, ...)`, spawns worker loop.
-- Setup scripts introduce `AGENT` (as `host-agent`) and pass no `env`.
+- Setup scripts introduce `@agent` (as `host-agent`) and pass no `env`.
 
 ### Phase 3: Restart Recovery — **Complete**
 
@@ -671,12 +671,12 @@ configuration as an optional second path.
 
 ### Eval-Proposal for Guest Creation
 
-Instead of introducing `AGENT`, the manager sends eval-proposals for each
+Instead of introducing `@agent`, the manager sends eval-proposals for each
 `provideGuest` call.
 
-- More restrictive; HOST must approve each guest creation individually.
+- More restrictive; @host must approve each guest creation individually.
 - Adds friction for a common operation.
-- Rejected in favor of the simpler `AGENT` introduction, where the form
+- Rejected in favor of the simpler `@agent` introduction, where the form
   submission itself serves as the consent mechanism.
 
 ### Unconfined Worker Caplets
@@ -706,8 +706,8 @@ worker.
 
 | File | Change |
 |------|--------|
-| `packages/lal/setup.js` | Remove env vars, add `AGENT` introduction |
+| `packages/lal/setup.js` | Remove env vars, add `@agent` introduction |
 | `packages/lal/agent.js` | Extract worker loop, add manager logic, send form on startup |
 | `packages/lal/agent.types.d.ts` | Add `WorkerConfig`, remove `LalEnv` |
-| `packages/fae/setup.js` | Remove env vars, add `AGENT` introduction |
+| `packages/fae/setup.js` | Remove env vars, add `@agent` introduction |
 | `packages/fae/agent.js` | Extract worker loop, add manager logic, send form on startup |

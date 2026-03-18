@@ -7,6 +7,7 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import { isSpecialName } from '@endo/daemon/pet-name.js';
 import { makeRefIterator } from './ref-iterator.js';
 
 /**
@@ -285,13 +286,6 @@ export const inventoryComponent = async (
   const $names = new Map();
 
   /**
-   * Check if a name is "special" (all uppercase letters/numbers/hyphens).
-   * @param {string} name
-   * @returns {boolean}
-   */
-  const isSpecialName = name => /^[A-Z][A-Z0-9_-]*$/.test(name);
-
-  /**
    * Create an inventory item with disclosure triangle.
    * @param {string} name
    */
@@ -403,11 +397,8 @@ export const inventoryComponent = async (
           if (type && CONVERSABLE_TYPES.includes(type)) {
             $wrapper.classList.add('conversable');
             $name.title = 'Open conversation';
-            const formulaNumber = url.searchParams.get('id');
-            const nodeNumber = url.hostname;
-            const formulaId = `${formulaNumber}:${nodeNumber}`;
             $name.onclick = () => {
-              onSelectConversation(name, formulaId);
+              onSelectConversation(name, /** @type {string} */ (locator));
             };
             if (
               activeConversationPetName &&

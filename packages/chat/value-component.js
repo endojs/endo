@@ -32,7 +32,7 @@ const buildNameAction = (
   const $input = document.createElement('input');
   $input.type = 'text';
   $input.className = 'value-name-input';
-  $input.placeholder = 'pet.name.path';
+  $input.placeholder = 'pet/name/path';
   $input.value = defaultValue;
   $form.appendChild($input);
 
@@ -174,7 +174,7 @@ export const valueComponent = (
 
   $enterProfile.addEventListener('click', async () => {
     if (!currentPetNamePath) return;
-    const hostName = currentPetNamePath.join('.');
+    const hostName = currentPetNamePath.join('/');
     clearValue();
     await enterProfile(hostName);
   });
@@ -223,7 +223,7 @@ export const valueComponent = (
 
     if (id) {
       try {
-        const petNames = await E(powers).reverseIdentify(id);
+        const petNames = await E(powers).reverseLocate(id);
         uniquePetNames = Array.from(new Set(petNames));
         for (const petName of uniquePetNames) {
           const $token = document.createElement('span');
@@ -247,7 +247,7 @@ export const valueComponent = (
     }
 
     if (!currentPetNamePath && uniquePetNames.length > 0) {
-      currentPetNamePath = uniquePetNames[0].split('.');
+      currentPetNamePath = uniquePetNames[0].split('/');
     }
 
     updateEnterProfileVisibility();
@@ -277,7 +277,7 @@ export const valueComponent = (
         messageContext.edgeName,
         'Adopt',
         async name => {
-          const targetPath = name.split('.');
+          const targetPath = name.split('/');
           await E(powers).adopt(
             messageContext.number,
             messageContext.edgeName,
@@ -290,11 +290,11 @@ export const valueComponent = (
       $focusTarget = buildNameAction(
         $actionsContainer,
         'Rename to:',
-        petNamePath.join('.'),
+        petNamePath.join('/'),
         'Rename',
         async newName => {
           const fromPath = /** @type {string[]} */ (currentPetNamePath);
-          const toPath = newName.split('.');
+          const toPath = newName.split('/');
           await E(powers).move(fromPath, toPath);
           clearValue();
         },
@@ -306,7 +306,7 @@ export const valueComponent = (
         '',
         'Save',
         async name => {
-          const targetPath = name.split('.');
+          const targetPath = name.split('/');
           await E(powers).storeValue(
             /** @type {import('@endo/pass-style').Passable} */ (currentValue),
             targetPath,

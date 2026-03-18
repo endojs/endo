@@ -92,13 +92,13 @@ const prepareHostWithTestNetwork = async t => {
   // Install test network.
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
-  await E(host).makeUnconfined('MAIN', serviceLocation, {
-    powersName: 'AGENT',
+  await E(host).makeUnconfined('@main', serviceLocation, {
+    powersName: '@agent',
     resultName: 'test-network',
   });
 
   // Move test network to network dir.
-  await E(host).move(['test-network'], ['NETS', 'tcp']);
+  await E(host).move(['test-network'], ['@nets', 'tcp']);
 
   return { host, config, cancel, cancelled };
 };
@@ -364,11 +364,11 @@ test.serial('synced stores converge after offline changes', async t => {
     'tcp-netstring.js',
   );
   const serviceLocation2 = url.pathToFileURL(servicePath2).href;
-  await E(hostA2).makeUnconfined('MAIN', serviceLocation2, {
-    powersName: 'AGENT',
+  await E(hostA2).makeUnconfined('@main', serviceLocation2, {
+    powersName: '@agent',
     resultName: 'test-network-2',
   });
-  await E(hostA2).move(['test-network-2'], ['NETS', 'tcp']);
+  await E(hostA2).move(['test-network-2'], ['@nets', 'tcp']);
 
   // After restart, the synced store should still exist with persisted state.
   const aliceStore2 = await E(hostA2).lookup('bob');

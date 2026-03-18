@@ -106,8 +106,8 @@ Add an "Install Weblet" action (button or command). The flow:
 2. **Name the weblet**: User gives the weblet a pet name.
 3. **Configure powers**: A dialog shows available power levels:
    - `NONE` — no endowments (pure sandboxed UI).
-   - `ENDO` — access to the Endo network (can look up capabilities by name).
-   - `HOST` — full host powers (development/trusted apps only).
+   - `@endo` — access to the Endo network (can look up capabilities by name).
+   - `@host` — full host powers (development/trusted apps only).
    - Custom — select specific pet names to endow.
 4. **Create guest and install**: Chat calls the daemon API to create the guest
    and install the weblet in one operation.

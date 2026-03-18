@@ -165,7 +165,7 @@ test.afterEach.always(async t => {
 test.serial('gateway HTTP returns info page', async t => {
   const { host } = await prepareHost(t);
 
-  const apps = E(host).lookup('APPS');
+  const apps = E(host).lookup('@apps');
   const address = await E(apps).getAddress();
   t.is(typeof address, 'string');
   t.regex(address, /^http:\/\//);
@@ -179,12 +179,12 @@ test.serial('gateway WebSocket fetch(token)', async t => {
   const { host } = await prepareHost(t);
 
   // Store a value and get its formula identifier.
-  await E(host).evaluate('MAIN', '42', [], [], ['answer']);
+  await E(host).evaluate('@main', '42', [], [], ['answer']);
   const formulaId = await E(host).identify('answer');
   t.truthy(formulaId);
 
   // Discover the gateway address.
-  const apps = E(host).lookup('APPS');
+  const apps = E(host).lookup('@apps');
   const address = await E(apps).getAddress();
 
   // Connect WebSocket.
@@ -260,7 +260,7 @@ test.serial(
     t.truthy(channelFormulaId);
 
     // 2. Connect to the gateway via WebSocket (like the Electron chat UI does)
-    const apps = E(host).lookup('APPS');
+    const apps = E(host).lookup('@apps');
     const address = await E(apps).getAddress();
 
     const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
@@ -364,7 +364,7 @@ test.serial('weblet on unified server', async t => {
   const { host } = await prepareHost(t);
 
   // Discover the gateway address.
-  const apps = E(host).lookup('APPS');
+  const apps = E(host).lookup('@apps');
   const address = await E(apps).getAddress();
 
   // Create a weblet on the unified server (no dedicated port).
@@ -406,7 +406,7 @@ test.serial('weblet on unified server', async t => {
 test.serial('weblet on dedicated port', async t => {
   const { host } = await prepareHost(t);
 
-  const apps = E(host).lookup('APPS');
+  const apps = E(host).lookup('@apps');
 
   // Create a weblet with a dedicated port (port 0 = OS-assigned).
   const webletId = 'fedcba98765432100fedcba987654321extra';
@@ -443,11 +443,11 @@ test.serial('gateway allows connection when ENDO_GATEWAY=remote', async t => {
   process.env.ENDO_GATEWAY = 'remote';
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '99', [], [], ['val']);
+  await E(host).evaluate('@main', '99', [], [], ['val']);
   const formulaId = await E(host).identify('val');
   t.truthy(formulaId);
 
-  const apps = E(host).lookup('APPS');
+  const apps = E(host).lookup('@apps');
   const address = await E(apps).getAddress();
 
   const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
@@ -509,7 +509,7 @@ test.serial('gateway allows connection when ENDO_GATEWAY=remote', async t => {
   t.is(result, 99);
 });
 
-test.serial('daemon writes root file matching AGENT identifier', async t => {
+test.serial('daemon writes root file matching @agent identifier', async t => {
   const { config, host } = await prepareHost(t);
 
   // The daemon writes root before signaling ready, so the file
@@ -517,9 +517,9 @@ test.serial('daemon writes root file matching AGENT identifier', async t => {
   const agentIdPath = path.join(config.statePath, 'root');
   const agentIdFromFile = fs.readFileSync(agentIdPath, 'utf-8').trim();
 
-  // The identifier from the file should match what E(host).identify('AGENT')
+  // The identifier from the file should match what E(host).identify('@agent')
   // returns over CapTP.
-  const agentIdFromCapTP = await E(host).identify('AGENT');
+  const agentIdFromCapTP = await E(host).identify('@agent');
 
   t.is(typeof agentIdFromFile, 'string');
   t.truthy(agentIdFromFile.length > 0);

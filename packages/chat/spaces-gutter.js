@@ -220,10 +220,10 @@ export const createSpacesGutter = ({
       // Clear browser-side address book entries for this persona.
       // The channelComponent stores nicknames under keys like
       // "channel-names:<personaId>:<channelName>" where personaId is
-      // profilePath.join('.').  Without this cleanup, recreating a space
+      // profilePath.join('/').  Without this cleanup, recreating a space
       // with the same name would inherit the old persona's nicknames.
       try {
-        const personaId = config.profilePath.join('.');
+        const personaId = config.profilePath.join('/');
         const prefix = `channel-names:${personaId}:`;
         const keysToRemove = [];
         for (let i = 0; i < window.localStorage.length; i += 1) {

@@ -20,8 +20,8 @@ export const directoryHelp = {
 EndoDirectory - A naming hub for managing pet names and references.
 
 A directory maps pet names to formula identifiers (internal references).
-Pet names are lowercase strings like "my-worker" or "counter".
-Special names are uppercase like "SELF", "HOST", or "AGENT".
+Pet names are strings like "my-worker", "counter", or "index.html".
+Special names are @-prefixed like "@self", "@host", or "@agent".
 
 Use lookup() to get a value by name, list() to see available names,
 and write() to store new references.`,
@@ -178,8 +178,8 @@ Remove all messages from the inbox.`,
   request: `\
 request(recipientName, description, responseName?) -> Promise<any>
 Send a request to another agent asking for a capability.
-- request("HOST", "a counter") asks HOST for "a counter"
-- request("HOST", "a counter", "my-counter") also stores the response as "my-counter"
+- request("@host", "a counter") asks @host for "a counter"
+- request("@host", "a counter", "my-counter") also stores the response as "my-counter"
 The recipient sees your request and can resolve or reject it.`,
 
   send: `\
@@ -189,7 +189,7 @@ Send a package message with values to another agent.
 - edgeNames: Labels for the values being sent
 - petNames: Names of values to include
 
-Example: send("HOST", ["Here is ", " for you"], ["gift"], ["my-counter"])
+Example: send("@host", ["Here is ", " for you"], ["gift"], ["my-counter"])
   Sends: "Here is @gift for you" where @gift refers to "my-counter"`,
 
   storeValue: `\
@@ -223,9 +223,9 @@ A guest can:
 - Request capabilities from its host
 
 Special names available:
-- SELF: This guest's own handle
-- HOST: The host that created this guest
-- AGENT: This guest's formula identifier
+- @self: This guest's own handle
+- @host: The host that created this guest
+- @agent: This guest's formula identifier
 
 Use help("methodName") for details on specific methods.`,
 
@@ -244,7 +244,7 @@ Synchronous version of reverse lookup by identifier.`,
   requestEvaluation: `\
 requestEvaluation(source, codeNames, petNamePaths, resultName?) -> Promise<any>
 Request sandboxed evaluation of JavaScript code.
-The request is sent to HOST for review and approval.
+The request is sent to @host for review and approval.
 - source: JavaScript code to evaluate
 - codeNames: Names visible in the code (e.g., ["x", "y"])
 - petNamePaths: Pet names providing values for those names (e.g., ["my-x", "my-y"])
@@ -275,11 +275,11 @@ form(recipientName, description, fields) -> Promise<void>
 Send a structured form to another agent.
 The form appears in the recipient's inbox. They can submit values using submit().
 
-- recipientName: Pet name of the recipient (e.g., "HOST")
+- recipientName: Pet name of the recipient (e.g., "@host")
 - description: Human-readable description of the form
 - fields: Array of field definitions, e.g. [{ name: "email", label: "Your email" }]
 
-Example: form("HOST", "Configure settings", [{ name: "name", label: "Your name" }])`,
+Example: form("@host", "Configure settings", [{ name: "name", label: "Your name" }])`,
 
   storeValue: `\
 storeValue(value, petNameOrPath) -> Promise<void>
@@ -382,7 +382,7 @@ Load and instantiate an unconfined module (has access to Node.js APIs).
 - workerName: Worker to use (undefined for new worker)
 - specifier: Module path or URL
 - options: Optional object with:
-  - powersName: Pet name of the powers to grant (default: 'NONE')
+  - powersName: Pet name of the powers to grant (default: '@none')
   - resultName: Pet name or path to store the result
   - env: Environment variables as { KEY: "value" } record
 
@@ -394,7 +394,7 @@ Instantiate a pre-bundled module.
 - workerName: Worker to use (undefined for new worker)
 - bundleName: Pet name of the bundle
 - options: Optional object with:
-  - powersName: Pet name of the powers to grant (default: 'NONE')
+  - powersName: Pet name of the powers to grant (default: '@none')
   - resultName: Pet name or path to store the result
   - env: Environment variables as { KEY: "value" } record
 
@@ -480,7 +480,7 @@ The form appears in the recipient's inbox. They can submit values using submit()
 - description: Human-readable description of what the form is for
 - fields: Array of field definitions, e.g. [{ name: "email", label: "Your email" }]
 
-Example: form("HOST", "Configure settings", [{ name: "name", label: "Name" }, { name: "email", label: "Email" }])`,
+Example: form("@host", "Configure settings", [{ name: "name", label: "Name" }, { name: "email", label: "Email" }])`,
 
   submit: `\
 submit(messageNumber, values) -> Promise<void>

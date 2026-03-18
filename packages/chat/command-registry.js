@@ -342,7 +342,7 @@ export const COMMANDS = {
         label: 'Names',
         type: 'petNamePaths',
         required: true,
-        placeholder: 'name1 name2 path.to.name',
+        placeholder: 'name1 name2 path/to/name',
       },
     ],
     submitLabel: 'Remove',
@@ -640,7 +640,7 @@ export const COMMANDS = {
         label: 'Handle',
         type: 'petNamePath',
         required: true,
-        placeholder: 'SELF',
+        placeholder: '@self',
       },
       {
         name: 'agentName',
@@ -665,7 +665,7 @@ export const COMMANDS = {
         label: 'Handle',
         type: 'petNamePath',
         required: true,
-        placeholder: 'HOST',
+        placeholder: '@host',
       },
       {
         name: 'agentName',
