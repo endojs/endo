@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-13*
+*Last updated: 2026-03-14*
 
 ## Summary
 
@@ -40,7 +40,7 @@
 | [endoclaw-oauth](endoclaw-oauth.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-skill-registry](endoclaw-skill-registry.md) | 2026-03-03 | 2026-03-03 | Not Started |
-| [endoclaw-timer](endoclaw-timer.md) | 2026-03-03 | 2026-03-03 | Not Started |
+| [endoclaw-timer](endoclaw-timer.md) | 2026-03-03 | 2026-03-14 | Not Started |
 | [endoclaw-voice](endoclaw-voice.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-webhooks](endoclaw-webhooks.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
