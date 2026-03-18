@@ -21,6 +21,7 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {string[]} names
  * @property {string[]} ids
  * @property {string} [replyTo]
+ * @property {string} [replyType]
  */
 
 /**

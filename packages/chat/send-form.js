@@ -34,6 +34,8 @@ import { createHeatBar } from './heat-bar.js';
  * @property {() => boolean} isSubmitting - Check if a send is in progress
  * @property {(number: string, authorName: string, preview: string) => void} setReplyTo - Set reply context
  * @property {() => void} clearReplyTo - Clear reply context
+ * @property {(type: string | undefined) => void} setReplyType - Set reply type for next send
+ * @property {() => string | undefined} getReplyType - Get current reply type
  */
 
 /**
@@ -91,6 +93,10 @@ export const sendFormComponent = ({
   let heatEngineInitialized = false;
   /** Polling cancellation flag */
   let heatPollingStopped = false;
+
+  // --- Reply type (for outliner edit/deletion/etc) ---
+  /** @type {string | undefined} */
+  let pendingReplyType;
 
   // --- Reply context ---
   /** @type {ReplyContext | null} */
@@ -344,9 +350,10 @@ export const sendFormComponent = ({
 
       const replyTo = replyContext ? replyContext.number : undefined;
 
+      const sendReplyType = pendingReplyType;
       resolveIds
         .then(ids =>
-          E(channelRef).post(messageStrings, edgeNames, petNames, replyTo, ids),
+          E(channelRef).post(messageStrings, edgeNames, petNames, replyTo, ids, sendReplyType),
         )
         .then(
           () => {
@@ -361,6 +368,8 @@ export const sendFormComponent = ({
 
             tokenComponent.clear();
             clearError();
+            // Reset reply type after send
+            pendingReplyType = undefined;
             // Reset reply context: fall back to thread default if set
             replyContext = defaultReplyContext;
             renderReplyContextBar();
@@ -589,5 +598,9 @@ export const sendFormComponent = ({
       replyContext = null;
       renderReplyContextBar();
     },
+    setReplyType: (/** @type {string | undefined} */ type) => {
+      pendingReplyType = type;
+    },
+    getReplyType: () => pendingReplyType,
   };
 };

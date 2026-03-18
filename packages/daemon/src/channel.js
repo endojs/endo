@@ -129,6 +129,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
                   names: raw.edgeNames || raw.names || [],
                   ids: raw.ids || [],
                   replyTo: raw.replyTo,
+                  replyType: raw.replyType,
                 });
           messages.push(msg);
           if (msg.number >= nextMessageNumber) {
@@ -240,8 +241,16 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
      * @param {string[]} names
      * @param {FormulaIdentifier[]} ids
      * @param {string} [replyTo]
+     * @param {string} [replyType]
      */
-    const postInternal = async (memberId, strings, names, ids, replyTo) => {
+    const postInternal = async (
+      memberId,
+      strings,
+      names,
+      ids,
+      replyTo,
+      replyType,
+    ) => {
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1n;
 
@@ -258,6 +267,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         names,
         ids,
         replyTo,
+        replyType,
       });
 
       // Persist message to store for rehydration on restart
@@ -700,12 +710,12 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
 
       return makeExo('EndoChannelMember', ChannelMemberInterface, {
         help: makeHelp(channelMemberHelp),
-        post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds) => {
+        post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
           checkAccess();
           const now = Date.now();
           checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-          await postInternal(entry.memberId, strings, names, ids, replyTo);
+          await postInternal(entry.memberId, strings, names, ids, replyTo, replyType);
         },
         setProposedName: async newName => {
           checkAccess();
@@ -959,9 +969,9 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
     /** @type {EndoChannel} */
     const channelExo = makeExo('EndoChannel', ChannelInterface, {
       help: makeHelp(channelHelp),
-      post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds) => {
+      post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
         const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-        await postInternal(adminMemberId, strings, names, ids, replyTo);
+        await postInternal(adminMemberId, strings, names, ids, replyTo, replyType);
       },
       followMessages: async () => {
         const iterator = (async function* channelMessages() {

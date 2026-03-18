@@ -7,6 +7,7 @@
 import { E } from '@endo/far';
 import { channelComponent } from './channel-component.js';
 import { forumComponent } from './forum-component.js';
+import { outlinerComponent } from './outliner-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
@@ -547,7 +548,9 @@ const bodyComponent = (
             const channelViewFn =
               activeSpaceInfo.viewMode === 'forum'
                 ? forumComponent
-                : channelComponent;
+                : activeSpaceInfo.viewMode === 'outliner'
+                  ? outlinerComponent
+                  : channelComponent;
             channelViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -575,6 +578,7 @@ const bodyComponent = (
                   chatBarAPI.clearDefaultReplyTo();
                 }
               },
+              chatBarAPI: () => chatBarAPI,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -679,7 +683,9 @@ const bodyComponent = (
             const switchViewFn =
               activeSpaceInfo.viewMode === 'forum'
                 ? forumComponent
-                : channelComponent;
+                : activeSpaceInfo.viewMode === 'outliner'
+                  ? outlinerComponent
+                  : channelComponent;
             switchViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -707,6 +713,7 @@ const bodyComponent = (
                   chatBarAPI.clearDefaultReplyTo();
                 }
               },
+              chatBarAPI: () => chatBarAPI,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -783,7 +790,7 @@ const bodyComponent = (
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
- * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
  */
 
 /**

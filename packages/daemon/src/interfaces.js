@@ -382,7 +382,7 @@ export const HostInterface = M.interface('EndoHost', {
 export const ChannelInterface = M.interface('EndoChannel', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape))
+    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape), M.or(M.string(), M.undefined()))
     .returns(M.promise()),
   followMessages: M.call().returns(M.promise()),
   listMessages: M.call().returns(M.promise()),
@@ -402,7 +402,7 @@ export const ChannelInterface = M.interface('EndoChannel', {
 export const ChannelMemberInterface = M.interface('EndoChannelMember', {
   help: M.call().optional(M.string()).returns(M.string()),
   post: M.call(M.arrayOf(M.string()), EdgeNamesShape, NamesOrPathsShape)
-    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape))
+    .optional(M.or(M.string(), M.undefined()), M.arrayOf(IdShape), M.or(M.string(), M.undefined()))
     .returns(M.promise()),
   setProposedName: M.call(M.string()).returns(M.promise()),
   followMessages: M.call().returns(M.promise()),

@@ -5638,6 +5638,182 @@ button.btn-spinner::after {
 }
 
 /* ============================
+   Outliner View
+   ============================ */
+
+.outliner-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.outliner-node {
+  position: relative;
+  padding: 6px 12px;
+  transition: margin-left 150ms ease;
+}
+
+.outliner-node:hover {
+  background: var(--bg-hover);
+}
+
+.outliner-node.depth-0 {
+  margin-left: 0;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+}
+
+.outliner-node.depth-0:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.outliner-node.depth-1 {
+  margin-left: 24px;
+  border-left: 2px solid #6c8cff;
+  padding-left: 8px;
+}
+
+.outliner-node.depth-2 {
+  margin-left: 48px;
+  border-left: 2px solid #e06cff;
+  padding-left: 8px;
+}
+
+.outliner-node.depth-3 {
+  margin-left: 72px;
+  border-left: 2px solid #ff6c8c;
+  padding-left: 8px;
+}
+
+.outliner-node.depth-4 {
+  margin-left: 96px;
+  border-left: 2px solid #6cffb5;
+  padding-left: 8px;
+}
+
+.outliner-node.depth-5 {
+  margin-left: 120px;
+  border-left: 2px solid #ffc86c;
+  padding-left: 8px;
+}
+
+.outliner-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.outliner-badge-pro {
+  background: #d3f9d8;
+  color: #2b8a3e;
+}
+
+.outliner-badge-con {
+  background: #ffe3e3;
+  color: #c92a2a;
+}
+
+.outliner-badge-evidence {
+  background: #d0ebff;
+  color: #1864ab;
+}
+
+.outliner-badge-custom {
+  background: var(--bg-active);
+  color: var(--text-secondary);
+}
+
+.outliner-content {
+  margin: 2px 0;
+}
+
+.outliner-text {
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.outliner-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.outliner-author {
+  font-weight: 500;
+}
+
+.outliner-edited-by {
+  font-style: italic;
+  cursor: pointer;
+}
+
+.outliner-edited-by:hover {
+  text-decoration: underline;
+  color: var(--accent-primary);
+}
+
+.outliner-actions {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  display: none;
+  gap: 2px;
+}
+
+.outliner-node:hover .outliner-actions {
+  display: flex;
+}
+
+.outliner-action-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.outliner-action-btn:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.outliner-action-delete:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.outliner-collapse-handle {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  user-select: none;
+}
+
+.outliner-collapse-handle:hover {
+  background: rgba(108, 140, 255, 0.1);
+  text-decoration: underline;
+}
+
+/* ============================
    View Mode Selector (Add/Edit Space Modal)
    ============================ */
 

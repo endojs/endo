@@ -22,7 +22,7 @@ import { createSchemePicker } from './scheme-picker.js';
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {ColorScheme} scheme - Color scheme preference
- * @property {'chat' | 'forum'} [viewMode] - Channel view mode
+ * @property {'chat' | 'forum' | 'outliner'} [viewMode] - Channel view mode
  */
 
 /**
@@ -48,7 +48,7 @@ export const createEditSpaceModal = ({
   let useLetterIcon = false;
   /** @type {string} */
   let spaceName = '';
-  /** @type {'chat' | 'forum'} */
+  /** @type {'chat' | 'forum' | 'outliner'} */
   let viewMode = 'chat';
   /** @type {string | null} */
   let error = null;
@@ -96,6 +96,10 @@ export const createEditSpaceModal = ({
             <button type="button" class="view-mode-option ${viewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
               <span class="view-mode-label">Forum</span>
               <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
+            </button>
+            <button type="button" class="view-mode-option ${viewMode === 'outliner' ? 'selected' : ''}" data-view-mode="outliner">
+              <span class="view-mode-label">Outliner</span>
+              <span class="view-mode-desc">Collaborative document with edit history</span>
             </button>
           </div>
         </div>`
@@ -234,7 +238,7 @@ export const createEditSpaceModal = ({
     for (const $option of $viewModeOptions) {
       $option.addEventListener('click', () => {
         const vm = $option.getAttribute('data-view-mode');
-        if (vm === 'chat' || vm === 'forum') {
+        if (vm === 'chat' || vm === 'forum' || vm === 'outliner') {
           viewMode = vm;
           for (const $opt of $viewModeOptions) {
             $opt.classList.toggle(

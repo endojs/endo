@@ -351,6 +351,7 @@ export type ChannelMessage = {
   names: Name[];
   ids: FormulaIdentifier[];
   replyTo?: string;
+  replyType?: string;
 };
 
 type SyncedPetStoreFormula = {

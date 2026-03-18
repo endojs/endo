@@ -113,7 +113,7 @@ export const createAddSpaceModal = ({
   let channelPetName = '';
   /** @type {string} */
   let channelProposedName = '';
-  /** @type {'chat' | 'forum'} */
+  /** @type {'chat' | 'forum' | 'outliner'} */
   let channelViewMode = 'chat';
   /** @type {'new' | 'existing'} */
   let channelPersonaMode = 'new';
@@ -382,6 +382,10 @@ export const createAddSpaceModal = ({
             <button type="button" class="view-mode-option ${channelViewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
               <span class="view-mode-label">Forum</span>
               <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
+            </button>
+            <button type="button" class="view-mode-option ${channelViewMode === 'outliner' ? 'selected' : ''}" data-view-mode="outliner">
+              <span class="view-mode-label">Outliner</span>
+              <span class="view-mode-desc">Collaborative document with edit history</span>
             </button>
           </div>
         </div>
@@ -971,7 +975,7 @@ export const createAddSpaceModal = ({
     for (const $option of $viewModeOptions) {
       $option.addEventListener('click', () => {
         const vm = $option.getAttribute('data-view-mode');
-        if (vm === 'chat' || vm === 'forum') {
+        if (vm === 'chat' || vm === 'forum' || vm === 'outliner') {
           channelViewMode = vm;
           // Update selection visually
           for (const $opt of $viewModeOptions) {
