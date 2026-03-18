@@ -111,22 +111,22 @@ With multiple agent public keys, there is no single canonical
 any specific agent's public key would create an artificial dependency between
 formula storage and agent identity.
 
-**Sentinel Null Node:**
+**Sentinel Local Node:**
 
-Use 64 characters of `'0'` (`'0'.repeat(64)`) as a sentinel "null node" value
+Use 64 characters of `'0'` (`'0'.repeat(64)`) as a sentinel local node value
 in locally-stored formula keys. This is analogous to how `0.0.0.0` works in
 networking — a "this host" placeholder that is never a valid Ed25519 public key
 (since the all-zeros point is not on the curve).
 
 ```js
-const NULL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
+const LOCAL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
 ```
 
 **Formula key construction:**
 
 ```js
 // Local formula key (stored on disk)
-const localId = formatId({ number: formulaNumber, node: NULL_NODE });
+const localId = formatId({ number: formulaNumber, node: LOCAL_NODE });
 
 // Locator for external consumption (agent-specific)
 const locator = formatId({ number: formulaNumber, node: agentPublicKey });
@@ -139,31 +139,31 @@ const locator = formatId({ number: formulaNumber, node: agentPublicKey });
 const isLocalId = id => parseId(id).node === localNodeNumber;
 
 // Proposed
-const isLocalId = id => parseId(id).node === NULL_NODE;
+const isLocalId = id => parseId(id).node === LOCAL_NODE;
 ```
 
 **Inbound locator normalization:** When receiving a locator from the network
 and converting it to a formula key for local storage, the daemon replaces the
-agent's public key with `NULL_NODE`:
+agent's public key with `LOCAL_NODE`:
 
 ```js
 const normalizeInboundId = id => {
   const { number, node } = parseId(id);
   if (isKnownLocalKey(node)) {
-    return formatId({ number, node: NULL_NODE });
+    return formatId({ number, node: LOCAL_NODE });
   }
   return id; // remote formula, keep as-is
 };
 ```
 
 **Outbound locator construction:** When constructing a locator for external
-consumption, the daemon replaces `NULL_NODE` with the sharing agent's public
+consumption, the daemon replaces `LOCAL_NODE` with the sharing agent's public
 key:
 
 ```js
 const externalizeId = (id, agentPublicKey) => {
   const { number, node } = parseId(id);
-  if (node === NULL_NODE) {
+  if (node === LOCAL_NODE) {
     return formatId({ number, node: agentPublicKey });
   }
   return id; // remote formula, keep as-is
@@ -185,6 +185,6 @@ const externalizeId = (id, agentPublicKey) => {
 - [daemon-256-bit-identifiers](daemon-256-bit-identifiers.md) — parent design;
   this was originally the "Future Work" section of that document.
 - [daemon-locator-terminology](daemon-locator-terminology.md) — locator format
-  changes that interact with null-node normalization.
+  changes that interact with local-node normalization.
 - [ocapn-noise-network](ocapn-noise-network.md) — the OCapN-Noise protocol
   that uses Ed25519 keys for peer authentication.

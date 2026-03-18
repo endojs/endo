@@ -55,6 +55,8 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
+ * @property {'chat' | 'forum'} [viewMode] - Channel view mode (default: 'chat')
+ * @property {boolean} [ownedPersona] - Whether the space owns the persona (for cleanup)
  */
 
 /**
@@ -111,6 +113,12 @@ export const createAddSpaceModal = ({
   let channelPetName = '';
   /** @type {string} */
   let channelProposedName = '';
+  /** @type {'chat' | 'forum'} */
+  let channelViewMode = 'chat';
+  /** @type {'new' | 'existing'} */
+  let channelPersonaMode = 'new';
+  /** @type {PetNamePathsAutocompleteAPI | null} */
+  let channelPathAutocomplete = null;
   /** @type {string} */
   let connectLocator = '';
   /** @type {string} */
@@ -316,6 +324,37 @@ export const createAddSpaceModal = ({
         <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
       </div>
       <form class="add-space-form">
+        <div class="add-space-field">
+          <label>Persona</label>
+          <div class="connect-persona-choices">
+            <label class="connect-persona-option">
+              <input type="radio" name="channel-persona-mode" value="new"
+                     ${channelPersonaMode === 'new' ? 'checked' : ''} />
+              <span>Create new persona</span>
+            </label>
+            <label class="connect-persona-option">
+              <input type="radio" name="channel-persona-mode" value="existing"
+                     ${channelPersonaMode === 'existing' ? 'checked' : ''} />
+              <span>Use existing profile</span>
+            </label>
+          </div>
+        </div>
+
+        ${
+          channelPersonaMode === 'existing'
+            ? `
+          <div class="add-space-field">
+            <label>Profile Path</label>
+            <div class="petname-path-selector">
+              <div id="channel-profile-path-input" class="profile-path-input-container"></div>
+              <div id="channel-profile-path-menu" class="token-menu"></div>
+            </div>
+            <div class="field-hint">Use <kbd>.</kbd> to drill down, <kbd>Enter</kbd> to select</div>
+          </div>
+        `
+            : ''
+        }
+
         ${renderIconSelector({ selectedIcon, useLetterIcon })}
 
         <div class="add-space-field">
@@ -331,6 +370,20 @@ export const createAddSpaceModal = ({
           <input type="text" id="channel-proposed-name" placeholder="e.g., Alice, Admin"
                  value="${channelProposedName}" autocomplete="off" />
           <div class="field-hint">How others will see you in this channel</div>
+        </div>
+
+        <div class="add-space-field">
+          <label>Channel View</label>
+          <div class="view-mode-selector">
+            <button type="button" class="view-mode-option ${channelViewMode === 'chat' ? 'selected' : ''}" data-view-mode="chat">
+              <span class="view-mode-label">Traditional Chat</span>
+              <span class="view-mode-desc">Chronological messages with thread drill-downs</span>
+            </button>
+            <button type="button" class="view-mode-option ${channelViewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
+              <span class="view-mode-label">Forum</span>
+              <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
+            </button>
+          </div>
         </div>
 
         ${error ? `<div class="add-space-error">${error}</div>` : ''}
@@ -611,6 +664,9 @@ export const createAddSpaceModal = ({
     if (mode === 'existing' || mode === 'graph') {
       initPathAutocomplete();
     }
+    if (mode === 'new-channel' && channelPersonaMode === 'existing') {
+      initChannelPathAutocomplete();
+    }
 
     // Focus appropriate input
     if (mode === 'new-agent') {
@@ -690,6 +746,44 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Initialize the channel profile path autocomplete component.
+   */
+  const initChannelPathAutocomplete = () => {
+    const $inputContainer = $container.querySelector(
+      '#channel-profile-path-input',
+    );
+    const $menu = $container.querySelector('#channel-profile-path-menu');
+
+    if (!$inputContainer || !$menu) return;
+
+    // Dispose previous instance if any
+    if (channelPathAutocomplete) {
+      channelPathAutocomplete.dispose();
+    }
+
+    const typedPowers = /** @type {ERef<EndoHost>} */ (powers);
+    channelPathAutocomplete = petNamePathsAutocomplete(
+      /** @type {HTMLElement} */ ($inputContainer),
+      /** @type {HTMLElement} */ ($menu),
+      {
+        E,
+        powers: typedPowers,
+        onSubmit: () => {
+          // Trigger form submission
+          const $form = $container.querySelector('.add-space-form');
+          if ($form instanceof HTMLFormElement) {
+            $form.requestSubmit();
+          }
+        },
+        finalizeOnSelect: true,
+      },
+    );
+
+    channelPathAutocomplete.setValue(['AGENT']);
+    channelPathAutocomplete.focus();
+  };
+
+  /**
    * Attach event listeners to modal elements.
    */
   const attachEventListeners = () => {
@@ -760,6 +854,7 @@ export const createAddSpaceModal = ({
           mode = 'new-channel';
           selectedIcon = '📡';
           useLetterIcon = false;
+          channelPersonaMode = 'new';
           error = null;
           render();
         } else if (selectedMode === 'connect-channel') {
@@ -871,6 +966,38 @@ export const createAddSpaceModal = ({
       });
     }
 
+    // View mode selector
+    const $viewModeOptions = $container.querySelectorAll('.view-mode-option');
+    for (const $option of $viewModeOptions) {
+      $option.addEventListener('click', () => {
+        const vm = $option.getAttribute('data-view-mode');
+        if (vm === 'chat' || vm === 'forum') {
+          channelViewMode = vm;
+          // Update selection visually
+          for (const $opt of $viewModeOptions) {
+            $opt.classList.toggle(
+              'selected',
+              $opt.getAttribute('data-view-mode') === vm,
+            );
+          }
+        }
+      });
+    }
+
+    // Channel persona mode radios
+    const $channelPersonaModeRadios = $container.querySelectorAll(
+      'input[name="channel-persona-mode"]',
+    );
+    for (const $radio of $channelPersonaModeRadios) {
+      $radio.addEventListener('change', () => {
+        channelPersonaMode =
+          /** @type {HTMLInputElement} */ ($radio).value === 'existing'
+            ? 'existing'
+            : 'new';
+        render();
+      });
+    }
+
     // Whylip form inputs
     const $whylipNameInput = /** @type {HTMLInputElement | null} */ (
       $container.querySelector('#whylip-name')
@@ -964,6 +1091,9 @@ export const createAddSpaceModal = ({
       if (e.key === 'Escape' && visible) {
         // Don't close if autocomplete menu is visible
         if (pathAutocomplete && pathAutocomplete.isMenuVisible()) {
+          return;
+        }
+        if (channelPathAutocomplete && channelPathAutocomplete.isMenuVisible()) {
           return;
         }
         // If in a sub-mode, go back to choose
@@ -1074,41 +1204,117 @@ export const createAddSpaceModal = ({
       return;
     }
 
+    if (channelPersonaMode === 'existing') {
+      // Use an existing profile as the persona
+      if (!channelPathAutocomplete) return;
+
+      const paths = channelPathAutocomplete.getValue();
+      if (paths.length === 0) {
+        error = 'Please select a profile path';
+        render();
+        return;
+      }
+
+      const pathString = paths[0];
+      const selectedPath = pathString.split('.').filter(Boolean);
+      if (selectedPath.length === 0) {
+        error = 'Please select a valid profile path';
+        render();
+        return;
+      }
+
+      isSubmitting = true;
+      error = null;
+      render();
+
+      try {
+        // Resolve the existing persona's powers by walking the path
+        /** @type {unknown} */
+        let personaPowers = powers;
+        for (const segment of selectedPath) {
+          personaPowers = await E(
+            /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+              personaPowers
+            ),
+          ).lookup(segment);
+        }
+
+        // Create channel inside persona's store
+        await E(
+          /** @type {{ makeChannel: (petName: string, proposedName: string) => Promise<unknown> }} */ (
+            personaPowers
+          ),
+        ).makeChannel(spaceName, displayName);
+
+        // Space config with profilePath pointing to existing persona
+        await onSubmit({
+          name: spaceName,
+          icon: selectedIcon,
+          profilePath: selectedPath,
+          layout: 'channel',
+          channelPetName: spaceName,
+          proposedName: displayName,
+          viewMode: channelViewMode,
+          ownedPersona: false,
+        });
+
+        hide();
+        onClose();
+      } catch (err) {
+        console.error('[AddSpaceModal] Failed to create channel:', err);
+        let message;
+        if (err instanceof Error) {
+          message = err.message;
+        } else if (typeof err === 'string') {
+          message = err;
+        } else {
+          message = JSON.stringify(err);
+        }
+        error = `Failed to create channel: ${message || 'Unknown error'}`;
+        isSubmitting = false;
+        render();
+      }
+      return;
+    }
+
+    // New persona mode (current flow)
     isSubmitting = true;
     error = null;
     render();
 
     try {
       // 1. Create persona (host) — same pattern as New Profile
-      const agentName = `persona-for-${spaceName}`;
+      const newAgentName = `persona-for-${spaceName}`;
       await E(
         /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
           powers
         ),
-      ).provideHost(spaceName, { agentName });
+      ).provideHost(spaceName, { agentName: newAgentName });
 
       // 2. Get the persona's powers
       const personaPowers = await E(
         /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
           powers
         ),
-      ).lookup(agentName);
+      ).lookup(newAgentName);
 
       // 3. Create channel inside persona's store
       await E(
         /** @type {{ makeChannel: (petName: string, proposedName: string) => Promise<unknown> }} */ (
           personaPowers
         ),
-      ).makeChannel('general', displayName);
+      ).makeChannel(spaceName, displayName);
 
       // 4. Space config with profilePath pointing to persona
       await onSubmit({
         name: spaceName,
         icon: selectedIcon,
-        profilePath: [agentName],
+        profilePath: [newAgentName],
         layout: 'channel',
-        channelPetName: 'general',
+        channelPetName: spaceName,
         proposedName: displayName,
+        viewMode: channelViewMode,
+        ownedPersona: true,
       });
 
       hide();
@@ -1196,6 +1402,19 @@ export const createAddSpaceModal = ({
       render();
 
       try {
+        // 0. Register peer info from the locator's connection hints
+        //    so the daemon knows how to reach the remote node.
+        const locatorUrl = new URL(locator);
+        const nodeNumber = locatorUrl.host;
+        const addresses = locatorUrl.searchParams.getAll('at');
+        if (addresses.length > 0 && nodeNumber) {
+          await E(
+            /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
+              powers
+            ),
+          ).addPeerInfo({ node: nodeNumber, addresses });
+        }
+
         // 1. Create persona (host)
         const agentName = `persona-for-${spaceName}`;
         await E(
@@ -1251,6 +1470,18 @@ export const createAddSpaceModal = ({
       render();
 
       try {
+        // Register peer info from the locator's connection hints
+        const locatorUrl = new URL(locator);
+        const nodeNumber = locatorUrl.host;
+        const addresses = locatorUrl.searchParams.getAll('at');
+        if (addresses.length > 0 && nodeNumber) {
+          await E(
+            /** @type {{ addPeerInfo: (info: { node: string, addresses: string[] }) => Promise<void> }} */ (
+              powers
+            ),
+          ).addPeerInfo({ node: nodeNumber, addresses });
+        }
+
         const existingSpaces = getExistingChannelSpaces
           ? getExistingChannelSpaces()
           : [];
@@ -1546,6 +1777,7 @@ export const createAddSpaceModal = ({
     agentNameManuallyEdited = false;
     channelPetName = '';
     channelProposedName = '';
+    channelPersonaMode = 'new';
     connectLocator = '';
     connectSpaceName = '';
     connectProposedName = '';
@@ -1577,6 +1809,10 @@ export const createAddSpaceModal = ({
     if (pathAutocomplete) {
       pathAutocomplete.dispose();
       pathAutocomplete = null;
+    }
+    if (channelPathAutocomplete) {
+      channelPathAutocomplete.dispose();
+      channelPathAutocomplete = null;
     }
   };
 

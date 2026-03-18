@@ -6,6 +6,7 @@
 
 import { E } from '@endo/far';
 import { channelComponent } from './channel-component.js';
+import { forumComponent } from './forum-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
@@ -438,6 +439,28 @@ const bodyComponent = (
       /** @type {unknown} */
       let currentChannelRef = null;
 
+      // Wrap showValue so channel token clicks resolve the value
+      // via lookupById before displaying, matching inbox behavior.
+      const channelShowValue = async (
+        /** @type {unknown} */ value,
+        /** @type {string | undefined} */ id,
+        /** @type {string[] | undefined} */ petNamePath,
+      ) => {
+        if (value === undefined && id) {
+          try {
+            const resolved = await E(
+              /** @type {ERef<EndoHost>} */ (resolvedPowers),
+            ).lookupById(id);
+            showValue(resolved, id, petNamePath);
+          } catch {
+            // Fall back to showing with undefined value
+            showValue(value, id, petNamePath);
+          }
+        } else {
+          showValue(value, id, petNamePath);
+        }
+      };
+
       if (
         activeSpaceInfo &&
         activeSpaceInfo.mode === 'channel' &&
@@ -525,8 +548,12 @@ const bodyComponent = (
             // Pass personaId (derived from profile path) so the address book
             // localStorage key is scoped per-persona, preventing nickname
             // leakage between spaces viewing the same channel.
-            channelComponent($messages, $anchor, currentChannelRef, {
-              showValue,
+            const channelViewFn =
+              activeSpaceInfo.viewMode === 'forum'
+                ? forumComponent
+                : channelComponent;
+            channelViewFn($messages, $anchor, currentChannelRef, {
+              showValue: channelShowValue,
               personaId: profilePath.join('.'),
               ownMemberId,
               onReply: info => {
@@ -653,8 +680,12 @@ const bodyComponent = (
 
             // Start message stream from the current channel ref so access
             // controls are enforced on the iterator.
-            channelComponent($messages, $anchor, currentChannelRef, {
-              showValue,
+            const switchViewFn =
+              activeSpaceInfo.viewMode === 'forum'
+                ? forumComponent
+                : channelComponent;
+            switchViewFn($messages, $anchor, currentChannelRef, {
+              showValue: channelShowValue,
               personaId: profilePath.join('.'),
               ownMemberId: switchOwnMemberId,
               onReply: info => {
@@ -756,6 +787,7 @@ const bodyComponent = (
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
+ * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
  */
 
 /**

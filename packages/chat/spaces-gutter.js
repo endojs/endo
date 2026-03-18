@@ -30,6 +30,8 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
+ * @property {'chat' | 'forum'} [viewMode] - channel view mode (default: 'chat')
+ * @property {boolean} [ownedPersona] - whether the space owns the persona (for cleanup on delete)
  */
 
 /**
@@ -38,7 +40,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {(id: string) => void} selectSpace - Activate a space
  * @property {() => SpaceConfig[]} getSpaces - Get current space list
  * @property {(config: Omit<SpaceConfig, 'id'>) => Promise<string>} addSpace - Add a new space
- * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>) => Promise<void>} updateSpace - Update a space
+ * @property {(id: string, updates: Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>) => Promise<void>} updateSpace - Update a space
  * @property {(id: string) => Promise<void>} removeSpace - Remove a space
  * @property {() => string} getActiveSpaceId - Get currently active space ID
  */
@@ -84,7 +86,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -205,7 +207,12 @@ export const createSpacesGutter = ({
 
     // Look up the space config before removing it so we know what to clean up.
     const config = spacesMap.get(id);
-    if (config && config.mode === 'channel' && config.profilePath.length > 0) {
+    if (
+      config &&
+      config.mode === 'channel' &&
+      config.profilePath.length > 0 &&
+      config.ownedPersona !== false
+    ) {
       const agentPetName = config.profilePath[0];
       // config.name is the spaceName passed to provideHost (the handle pet name).
       const handlePetName = config.name;
@@ -251,14 +258,19 @@ export const createSpacesGutter = ({
     } catch {
       // May not exist
     }
-    // The watcher will pick up the change and update spacesMap
+    // Eagerly remove from map and navigate home if this was the active space.
+    // The watcher will also fire, but handleSpaceRemoved no longer navigates
+    // (to avoid bouncing during edits).
+    spacesMap.delete(id);
+    handleActiveSpaceRemoved();
+    render();
   };
 
   /**
    * Update an existing space's configuration.
    *
    * @param {string} id
-   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme'>>} updates
+   * @param {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} updates
    * @returns {Promise<void>}
    */
   const updateSpace = async (id, updates) => {
@@ -353,6 +365,7 @@ export const createSpacesGutter = ({
       channelPetName: space.channelPetName,
       proposedName: space.proposedName,
       whylipSystemPrompt: space.whylipSystemPrompt,
+      viewMode: space.viewMode,
     });
   };
 
@@ -564,6 +577,12 @@ export const createSpacesGutter = ({
       if (data.whylipSystemPrompt) {
         spaceConfig.whylipSystemPrompt = data.whylipSystemPrompt;
       }
+      if (data.viewMode) {
+        spaceConfig.viewMode = data.viewMode;
+      }
+      if (typeof data.ownedPersona === 'boolean') {
+        spaceConfig.ownedPersona = data.ownedPersona;
+      }
       await addSpace(spaceConfig);
     },
     onClose: () => {
@@ -589,11 +608,16 @@ export const createSpacesGutter = ({
   const editSpaceModal = createEditSpaceModal({
     $container: $modalContainer,
     onSubmit: async (id, data) => {
-      await updateSpace(id, {
+      /** @type {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} */
+      const updates = {
         name: data.name,
         icon: data.icon,
         scheme: data.scheme || 'auto',
-      });
+      };
+      if (data.viewMode) {
+        updates.viewMode = data.viewMode;
+      }
+      await updateSpace(id, updates);
     },
     onClose: () => {
       // Modal closed
@@ -667,6 +691,15 @@ export const createSpacesGutter = ({
     if (typeof obj.whylipSystemPrompt === 'string') {
       result.whylipSystemPrompt = obj.whylipSystemPrompt;
     }
+    if (
+      typeof obj.viewMode === 'string' &&
+      (obj.viewMode === 'chat' || obj.viewMode === 'forum')
+    ) {
+      result.viewMode = obj.viewMode;
+    }
+    if (typeof obj.ownedPersona === 'boolean') {
+      result.ownedPersona = obj.ownedPersona;
+    }
     return /** @type {SpaceConfig} */ (harden(result));
   };
 
@@ -716,7 +749,12 @@ export const createSpacesGutter = ({
   };
 
   /**
-   * Handle a space being removed.
+   * Handle a space being removed by the watcher.
+   *
+   * Note: storeValue triggers a remove+add pair, so we must not navigate
+   * away from the active space here — that would cause edits to bounce
+   * the user back to home.  Navigation on true deletion is handled by
+   * removeSpace itself.
    *
    * @param {string} id
    */
@@ -730,7 +768,6 @@ export const createSpacesGutter = ({
       return;
     }
     spacesMap.delete(id);
-    handleActiveSpaceRemoved();
     render();
   };
 

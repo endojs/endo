@@ -11,6 +11,8 @@ import url from 'url';
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
 
+import { isTerminalError } from './doe-normaal.js';
+
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
@@ -711,7 +713,7 @@ export const main = async rawArgs => {
     .option('-j,--json', 'Output as JOSN rather than simple text')
     .description(
       'prints paths for state, logs, caches, socket, pids\n' +
-        'specify just one part, or none to get them all',
+      'specify just one part, or none to get them all',
     )
     .action(async cmd => {
       const { json: asJSON = false } = cmd.opts();
@@ -774,20 +776,45 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('status')
+    .description('query and print status of the endo daemon')
+    .option('-v, --verbose [level]', 'verbosity levle o status interrogation')
+    .action(async cmd => {
+      const opts = cmd.opts();
+      const verbose = Number(opts.verbose);
+      const { status } = await import('@endo/daemon');
+      await status(undefined, {
+        verbose: isNaN(verbose) ? 0 : verbose,
+      });
+    });
+
+  program
     .command('start')
-    .description('start the endo daemon')
+    .description('start the endo daemon as a background service')
+    .action(async cmd => {
+      const {
+      } = cmd.opts();
+      const { start } = await import('@endo/daemon');
+      await start(undefined, {
+      });
+    });
+
+  program
+    .command('run-daemon')
+    .description('runs the endo daemon directly, no forking around')
     .option(
       '--feral-errors',
       'disable SES error taming (readable error traces)',
     )
-    .option('-f,--foreground', 'Run daemon in foreground, do not fork')
     .action(async cmd => {
-      const { feralErrors, foreground = false } = cmd.opts();
-      const { start } = await import('@endo/daemon');
-      await start(undefined, {
+      const {
         feralErrors,
-        foreground,
-      });
+      } = cmd.opts();
+      if (feralErrors) {
+        process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
+      }
+      const { main } = await import('@endo/daemon');
+      await main();
     });
 
   program
@@ -871,7 +898,13 @@ export const main = async rawArgs => {
     if (e && e.name === 'CommanderError') {
       return e.exitCode;
     }
-    throw e;
+
+    if (isTerminalError(e)) {
+      // TODO some terminal errors may warrant particular exit code
+      return 1;
+    } else {
+      throw e;
+    }
   }
   return 0;
 };

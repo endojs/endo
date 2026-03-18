@@ -5,7 +5,7 @@
 | **Created** | 2026-02-24 |
 | **Updated** | 2026-02-24 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
 
 ## Current State
 
@@ -175,6 +175,87 @@ locator-with-hints operations.
 
 ---
 
+## LOCAL_NODE Normalization
+
+### Motivation
+
+Each EndoAgent (Host, Guest) on a daemon shares the daemon's peer key
+(Ed25519 public key) as its node identifier. When formulas are stored
+internally, all local formula identifiers use a sentinel **LOCAL_NODE**
+(`0` × 64) in place of the real peer key. This ensures:
+
+1. **One copy per formula**: Regardless of which agent created or views a
+   formula, the internal identifier is the same.
+2. **Agent-independent storage**: Agents can come and go without creating
+   duplicate formula entries.
+3. **Per-agent externalization**: Each agent stamps outgoing locators with
+   its own public key, so recipients know which peer to contact.
+
+### LOCAL_NODE Sentinel
+
+```js
+// 64-char hex string of all zeros — never a valid Ed25519 public key
+const LOCAL_NODE = '0'.repeat(64);
+```
+
+### Local Keys Registry
+
+The daemon maintains a set of known local agent public keys. For a
+single-daemon deployment this is `{ localNodeNumber }`. The predicate
+`isLocalKey(node)` returns true for any key in this set.
+
+### Internalization (ingesting a locator)
+
+When an agent receives a locator (e.g., from a message or user input),
+`internalizeLocator` replaces any recognized local key with LOCAL_NODE:
+
+```js
+const internalizeLocator = (locator, isLocalKey) => {
+  const { number, node, formulaType } = parseLocator(locator);
+  const normalizedNode = isLocalKey(node) ? LOCAL_NODE : node;
+  const id = formatId({ number, node: normalizedNode });
+  return { id, formulaType, addresses: addressesFromLocator(locator) };
+};
+```
+
+### Externalization (producing a locator)
+
+When an agent produces a locator for sharing, `externalizeId` replaces
+LOCAL_NODE with the agent's public key:
+
+```js
+const externalizeId = (id, formulaType, agentNodeNumber) => {
+  const { number, node } = parseId(id);
+  const peerKey = node === LOCAL_NODE ? agentNodeNumber : node;
+  return formatLocator(formatId({ number, node: peerKey }), formulaType);
+};
+```
+
+### Round-trip Invariant
+
+For local formulas:
+
+```
+internalId  (abc:LOCAL_NODE)
+  → externalizeId(id, type, agentKey) → locator with agentKey
+  → internalizeLocator(locator, isLocalKey) → abc:LOCAL_NODE = internalId  ✓
+```
+
+For remote formulas, the node is preserved through both operations.
+
+### Database Repair
+
+On daemon startup, pet store entries created before the LOCAL_NODE
+migration may still contain `{number}:{localNodeNumber}` identifiers.
+The daemon runs a repair pass (`repairIds`) that normalizes these to
+`{number}:{LOCAL_NODE}`, updating both in-memory state and on-disk files.
+
+The `normalizeId` function in daemon.js also transparently handles
+old-format identifiers encountered in formula dependency references,
+ensuring backward compatibility without requiring formula file rewrites.
+
+---
+
 ## Dehydration and Hydration
 
 Locators carry both stable data (formula key) and ephemeral data (connection
@@ -257,3 +338,13 @@ store formula keys, not locators.
 - `locateWithHints` returns locator with current peer hints
 - Dehydration/hydration round-trip invariant
 - Integration: invitation creation and acceptance with new format
+- LOCAL_NODE normalization:
+  - `internalizeLocator` normalizes local keys to LOCAL_NODE
+  - `internalizeLocator` preserves remote node keys
+  - `externalizeId` replaces LOCAL_NODE with agent key
+  - `externalizeId` preserves remote node keys
+  - Round-trip: LOCAL_NODE id → externalize → internalize = original id
+  - Round-trip: remote id → externalize → internalize = original id
+  - Message externalization uses agent's key for LOCAL_NODE replacement
+  - Pet store repair normalizes old-format identifiers on startup
+  - Integration: messages show locators with the daemon's peer key

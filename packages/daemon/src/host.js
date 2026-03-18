@@ -22,7 +22,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { formatLocatorForSharing, addressesFromLocator } from './locator.js';
+import { internalizeLocator, formatLocatorForSharing, addressesFromLocator } from './locator.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -73,6 +73,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {NodeNumber} args.localNodeNumber
+ * @param {(node: string) => boolean} args.isLocalKey
  * @param {DaemonCore['getAgentIdForHandleId']} args.getAgentIdForHandleId
  * @param {() => Promise<void>} [args.collectIfDirty]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
@@ -100,6 +101,7 @@ export const makeHostMaker = ({
   makeMailbox,
   makeDirectoryNode,
   localNodeNumber,
+  isLocalKey,
   getAgentIdForHandleId,
   collectIfDirty = async () => {},
   pinTransient = /** @param {any} _id */ _id => {},
@@ -112,6 +114,7 @@ export const makeHostMaker = ({
    * @param {FormulaIdentifier} handleId
    * @param {FormulaIdentifier | undefined} hostHandleId
    * @param {FormulaIdentifier} keypairId
+   * @param {NodeNumber} agentNodeNumber
    * @param {FormulaIdentifier} storeId
    * @param {FormulaIdentifier} mailboxStoreId
    * @param {FormulaIdentifier | undefined} mailHubId
@@ -129,6 +132,7 @@ export const makeHostMaker = ({
     handleId,
     hostHandleId,
     keypairId,
+    agentNodeNumber,
     storeId,
     mailboxStoreId,
     mailHubId,
@@ -169,9 +173,10 @@ export const makeHostMaker = ({
     }
     const specialStore = makePetSitter(basePetStore, specialNames);
 
-    const directory = makeDirectoryNode(specialStore);
+    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey);
     const mailbox = await makeMailbox({
       petStore: specialStore,
+      agentNodeNumber,
       mailboxStore,
       directory,
       selfId: handleId,
@@ -693,7 +698,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { addresses: hostAddresses } = await getPeerInfo();
       const handleUrl = new URL('endo://');
-      handleUrl.hostname = localNodeNumber;
+      handleUrl.hostname = agentNodeNumber;
       handleUrl.searchParams.set('id', handleNumber);
       for (const address of hostAddresses) {
         handleUrl.searchParams.append('at', address);
@@ -774,7 +779,7 @@ export const makeHostMaker = ({
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
       const peerInfo = {
-        node: localNodeNumber,
+        node: agentNodeNumber,
         addresses,
       };
       return peerInfo;
@@ -832,15 +837,26 @@ export const makeHostMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
+      listLocators,
       followNameChanges,
       followLocatorNameChanges,
       reverseLookup,
-      write,
       remove,
       move,
       copy,
       makeDirectory: makeDirectoryLocal,
     } = directory;
+
+    /** @type {EndoHost['write']} */
+    const writeLocator = async (petNamePath, locatorOrId) => {
+      const namePath = namePathFrom(petNamePath);
+      if (locatorOrId.startsWith('endo://')) {
+        const { id } = internalizeLocator(locatorOrId, isLocalKey);
+        return directory.write(namePath, id);
+      }
+      // FormulaIdentifier from internal callers through E(hub).write
+      return directory.write(namePath, locatorOrId);
+    };
     const makeDirectory = async petNameOrPath => {
       const namePath = namePathFrom(petNameOrPath);
       return makeDirectoryLocal(namePath);
@@ -1136,11 +1152,12 @@ export const makeHostMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
+      listLocators,
       followLocatorNameChanges,
       followNameChanges,
       lookup,
       reverseLookup,
-      write,
+      write: writeLocator,
       remove,
       move,
       copy,

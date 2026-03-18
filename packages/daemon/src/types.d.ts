@@ -665,6 +665,12 @@ export interface PetStore {
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
    */
   reverseIdentify(id: string): Array<Name>;
+  /**
+   * Normalize all stored formula identifiers using the given function.
+   * If the normalizer returns a different ID, the on-disk and in-memory
+   * mappings are rewritten.
+   */
+  repairIds(normalizeId: (id: string) => string): Promise<void>;
 }
 
 // --- Synced Pet Store (CRDT) types ---
@@ -772,7 +778,7 @@ export interface EndoDirectory extends NameHub {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
 }
 
-export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
+export type MakeDirectoryNode = (petStore: PetStore, agentNodeNumber: NodeNumber, isLocalKey: (node: string) => boolean) => EndoDirectory;
 
 export interface Mail {
   handle: () => Handle;
@@ -884,6 +890,7 @@ export interface Mail {
 
 export type MakeMailbox = (args: {
   selfId: FormulaIdentifier;
+  agentNodeNumber: NodeNumber;
   petStore: PetStore;
   mailboxStore: PetStore;
   directory: EndoDirectory;

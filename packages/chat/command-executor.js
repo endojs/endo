@@ -75,7 +75,7 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'dismiss-all': {
+        case 'clear': {
           await E(powers).dismissAll();
           return {
             success: true,
@@ -357,6 +357,19 @@ export const createCommandExecutor = ({
             success: true,
             message: `"${fromName}" copied to "${toName}"`,
           };
+        }
+
+        case 'locate': {
+          const { petName } = params;
+          const pathParts = String(petName).split('.');
+          const locator = await E(powers).locate(
+            .../** @type {[string, ...string[]]} */ (pathParts),
+          );
+          if (locator === undefined) {
+            throw new Error(`No value found for "${petName}"`);
+          }
+          showValue(locator, undefined, undefined, undefined);
+          return { success: true, value: locator };
         }
 
         case 'mkdir': {

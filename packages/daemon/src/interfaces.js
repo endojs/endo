@@ -66,6 +66,7 @@ export const NameHubInterface = M.interface('EndoNameHub', {
   followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
+  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.remotable()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
@@ -114,6 +115,8 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
   list: M.call().rest(NamePathShape).returns(M.promise()),
   // List unique formula identifiers
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
+  // List locators for names
+  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   // Subscribe to name changes (returns iterator ref)
   followNameChanges: M.call().returns(M.remotable()),
   // Resolve a name path to a value
@@ -144,6 +147,7 @@ export const GuestInterface = M.interface('EndoGuest', {
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
+  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   lookupById: M.call(IdShape).returns(M.promise()),
@@ -241,6 +245,7 @@ export const HostInterface = M.interface('EndoHost', {
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
   list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
+  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   lookupById: M.call(IdShape).returns(M.promise()),

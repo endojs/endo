@@ -84,9 +84,9 @@ export const COMMANDS = {
     ],
     submitLabel: 'Dismiss',
   },
-  'dismiss-all': {
-    name: 'dismiss-all',
-    label: 'Dismiss All',
+  'clear': {
+    name: 'clear',
+    label: 'Clear',
     description: 'Dismiss all messages',
     category: 'messaging',
     mode: 'immediate',
@@ -414,6 +414,24 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Create',
+  },
+
+  locate: {
+    name: 'locate',
+    label: 'Locate',
+    description: 'Get the locator for a named value',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'pet-name',
+      },
+    ],
+    submitLabel: 'Locate',
   },
 
   // ============ CONNECTIONS ============

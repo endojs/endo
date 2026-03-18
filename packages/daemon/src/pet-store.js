@@ -255,6 +255,35 @@ export const makePetStoreMaker = (filePowers, config) => {
       return harden(names);
     };
 
+    /**
+     * Normalize all stored formula identifiers using the given function.
+     * If the normalizer returns a different ID, the on-disk and in-memory
+     * mappings are rewritten.
+     * @param {(id: string) => string} normalizeId
+     */
+    const repairIds = async normalizeId => {
+      const allNames = idsToPetNames.getAll();
+      await Promise.all(
+        allNames.map(async petName => {
+          const oldId = idsToPetNames.getKey(petName);
+          if (oldId === undefined) {
+            return;
+          }
+          const newId = normalizeId(oldId);
+          if (newId !== oldId) {
+            idsToPetNames.delete(oldId, petName);
+            idsToPetNames.add(newId, petName);
+            const petNamePath = filePowers.joinPath(
+              petNameDirectoryPath,
+              petName,
+            );
+            const petNameText = `${newId}\n`;
+            await filePowers.writeFileText(petNamePath, petNameText);
+          }
+        }),
+      );
+    };
+
     const petStore = {
       has,
       identifyLocal,
@@ -265,6 +294,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       write,
       remove,
       rename,
+      repairIds,
     };
 
     return petStore;
