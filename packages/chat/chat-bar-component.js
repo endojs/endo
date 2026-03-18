@@ -1630,5 +1630,9 @@ export const chatBarComponent = (
     clearReplyTo: sendForm.clearReplyTo,
     setDefaultReplyTo: sendForm.setDefaultReplyTo,
     clearDefaultReplyTo: sendForm.clearDefaultReplyTo,
+    setReplyType: sendForm.setReplyType,
+    getReplyType: sendForm.getReplyType,
+    setText: sendForm.setText,
+    focus: sendForm.focus,
   };
 };

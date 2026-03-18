@@ -26,6 +26,7 @@ import harden from '@endo/harden';
  * @property {string | undefined} editedByMessageKey
  * @property {EditQueueEntry[]} editQueue - full queue for display
  * @property {string[]} editorMemberIds - unique editors, chronological
+ * @property {boolean} deleted - whether the node itself is effectively deleted
  */
 
 /** Reply types that modify a node rather than appearing as children. */
@@ -119,10 +120,19 @@ export const computeNodeContent = (
       editedByMessageKey: undefined,
       editQueue: [],
       editorMemberIds: [],
+      deleted: false,
     });
   }
 
   const original = targetEntry.message;
+
+  // Check if the node itself is effectively deleted
+  const nodeDeleted = isEffectivelyDeleted(
+    targetKey,
+    messagesByKey,
+    replyChildren,
+    blockedMemberIds,
+  );
   const children = replyChildren.get(targetKey) || [];
 
   // Collect all edit-type replies targeting this node
@@ -220,6 +230,7 @@ export const computeNodeContent = (
       editedByMessageKey: winningEdit.messageKey,
       editQueue,
       editorMemberIds,
+      deleted: nodeDeleted,
     });
   }
 
@@ -233,6 +244,7 @@ export const computeNodeContent = (
     editedByMessageKey: undefined,
     editQueue,
     editorMemberIds,
+    deleted: nodeDeleted,
   });
 };
 harden(computeNodeContent);

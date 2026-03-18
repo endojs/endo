@@ -478,6 +478,7 @@ const bodyComponent = (
           onProfileChange(profilePath, {
             mode: 'channel',
             proposedName: activeSpaceInfo.proposedName,
+            viewMode: activeSpaceInfo.viewMode,
           });
         };
         $chatMessage.dataset.placeholder = 'Type a message...';

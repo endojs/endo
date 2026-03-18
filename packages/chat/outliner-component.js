@@ -127,12 +127,16 @@ export const outlinerComponent = async (
 
     const effective = effectiveContents.get(key);
     if (!effective) return [];
+    // Skip nodes that are effectively deleted
+    if (effective.deleted) return [];
 
-    // Gather visible children only
+    // Gather visible, non-deleted children only
     const allChildren = replyChildren.get(key) || [];
     const visibleChildren = allChildren.filter(childKey => {
       const childEntry = messageIndex.get(childKey);
-      return childEntry && isVisibleReplyType(childEntry.message.replyType);
+      if (!childEntry || !isVisibleReplyType(childEntry.message.replyType)) return false;
+      const childEffective = effectiveContents.get(childKey);
+      return !childEffective || !childEffective.deleted;
     });
 
     const isCollapsed =
@@ -172,24 +176,6 @@ export const outlinerComponent = async (
   };
 
   /**
-   * Count visible descendants of a node.
-   * @param {string} key
-   * @returns {number}
-   */
-  const countVisibleDescendants = key => {
-    const allChildren = replyChildren.get(key) || [];
-    let count = 0;
-    for (const childKey of allChildren) {
-      const childEntry = messageIndex.get(childKey);
-      if (childEntry && isVisibleReplyType(childEntry.message.replyType)) {
-        count += 1;
-        count += countVisibleDescendants(childKey);
-      }
-    }
-    return count;
-  };
-
-  /**
    * Build DOM nodes from collected entries.
    * @param {Array<{ key: string, depth: number, message: ChannelMessage, effective: NodeEffectiveContent, children: string[], isCollapsed: boolean }>} entries
    * @param {DocumentFragment} frag
@@ -202,6 +188,28 @@ export const outlinerComponent = async (
       $node.classList.add(`depth-${Math.min(depth, 5)}`);
       if (isCollapsed) $node.classList.add('collapsed');
       $node.dataset.msgKey = key;
+
+      // Collapse handle (left side, before content)
+      if (children.length > 0) {
+        const $handle = document.createElement('span');
+        $handle.className = 'outliner-collapse-handle';
+        $handle.textContent = isCollapsed ? '\u25B6' : '\u25BC';
+        $handle.addEventListener('click', e => {
+          e.stopPropagation();
+          if (collapsedNodes.has(key)) {
+            collapsedNodes.delete(key);
+          } else {
+            collapsedNodes.add(key);
+          }
+          renderOutliner();
+        });
+        $node.appendChild($handle);
+      } else {
+        // Spacer to keep content aligned with nodes that have handles
+        const $spacer = document.createElement('span');
+        $spacer.className = 'outliner-collapse-spacer';
+        $node.appendChild($spacer);
+      }
 
       // Type badge for pro/con/evidence
       const replyType = message.replyType;
@@ -288,55 +296,41 @@ export const outlinerComponent = async (
         e.stopPropagation();
         const api = chatBarAPI ? chatBarAPI() : null;
         if (api) {
+          const currentText = effective.strings.join('');
+          // Set type before reply context so the bar renders correctly
+          api.setReplyType('edit');
           api.setReplyTo(
             String(message.number),
             authorName,
-            effective.strings.join('').substring(0, 60),
+            currentText.substring(0, 60),
           );
-          api.setReplyType('edit');
+          api.setText(currentText);
           api.focus();
         }
       });
       $actions.appendChild($editBtn);
 
-      // Delete button
+      // Delete button — posts a deletion immediately (no compose step)
       const $deleteBtn = document.createElement('button');
       $deleteBtn.className = 'outliner-action-btn outliner-action-delete';
       $deleteBtn.title = 'Delete';
       $deleteBtn.textContent = '\u2715';
       $deleteBtn.addEventListener('click', e => {
         e.stopPropagation();
-        // Post a deletion reply targeting this node
-        E(channel).post([''], [], [], String(message.number), [], 'deletion')
-          .catch(/** @param {Error} err */ err => {
-            console.error('Failed to post deletion:', err);
-          });
+        E(channel).post(
+          [''],
+          [],
+          [],
+          String(message.number),
+          [],
+          'deletion',
+        ).catch(/** @param {Error} err */ err => {
+          console.error('Failed to post deletion:', err);
+        });
       });
       $actions.appendChild($deleteBtn);
 
       $node.appendChild($actions);
-
-      // Collapse handle
-      if (children.length > 0) {
-        const $handle = document.createElement('div');
-        $handle.className = 'outliner-collapse-handle';
-        const count = countVisibleDescendants(key);
-        if (isCollapsed) {
-          $handle.textContent = `${count} ${count === 1 ? 'reply' : 'replies'} \u25B6`;
-        } else {
-          $handle.textContent = `${count} ${count === 1 ? 'reply' : 'replies'} \u25BC`;
-        }
-        $handle.addEventListener('click', e => {
-          e.stopPropagation();
-          if (collapsedNodes.has(key)) {
-            collapsedNodes.delete(key);
-          } else {
-            collapsedNodes.add(key);
-          }
-          renderOutliner();
-        });
-        $node.appendChild($handle);
-      }
 
       frag.appendChild($node);
     }
