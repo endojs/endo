@@ -236,7 +236,7 @@ const makeIntervalScheduler = async (config = {}) => {
     const deadlineHandle = tickDeadlines.get(entry.id);
     if (deadlineHandle !== undefined) {
       clearTimeout(deadlineHandle);
-      tickDeadlines.delete(deadlineHandle);
+      tickDeadlines.delete(entry.id);
     }
 
     // Clean up reschedule state for this tick.
