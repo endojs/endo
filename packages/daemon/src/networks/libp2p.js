@@ -392,7 +392,9 @@ export const make = async (powers, context) => {
     return false;
   };
 
-  /** @type {import('@libp2p/interface').ComponentLogger} */
+  // ComponentLogger comes from @libp2p/interface which is not installed
+  // as a standalone package; the type is satisfied structurally.
+  /** @type {any} */
   const libp2pLogger = {
     forComponent: name => {
       const verbose = isVerboseComponent(name);
@@ -452,8 +454,8 @@ export const make = async (powers, context) => {
           peerInfoMapper: removePrivateAddressesMapper,
         })
       ),
-      autoNAT: autoNAT(),
-      dcutr: dcutr(),
+      autoNAT: /** @type {any} */ (autoNAT()),
+      dcutr: /** @type {any} */ (dcutr()),
       ping: ping(),
     },
   });

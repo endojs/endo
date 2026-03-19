@@ -23,6 +23,7 @@ import {
   makeCryptoPowers,
   makeDaemonicPersistencePowers,
 } from './daemon-node-powers.js';
+import { makeDaemonDatabase } from './daemon-database.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPowers, FilePowers, WorkerDaemonFacet } from './types.js' */
@@ -288,15 +289,17 @@ export const makeDaemonicGoControlPowers = (
 /**
  * @param {object} opts
  * @param {Config} opts.config
+ * @param {Promise<never>} opts.cancelled
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
  * @param {(handle: number, verb: string, payload?: Uint8Array, nonce?: number) => Promise<void>} opts.sendEnvelope
  * @param {import('stream').Readable} opts.envelopeReadStream
- * @returns {DaemonicPowers}
+ * @returns {Promise<DaemonicPowers>}
  */
-export const makeDaemonicGoPowers = ({
+export const makeDaemonicGoPowers = async ({
   config,
+  cancelled,
   url,
   filePowers,
   cryptoPowers,
@@ -305,8 +308,15 @@ export const makeDaemonicGoPowers = ({
 }) => {
   const { fileURLToPath } = url;
 
-  const petStorePowers = makePetStoreMaker(filePowers, config);
+  // Ensure state directory exists before opening database.
+  await filePowers.makePath(config.statePath);
+
+  const daemonDb = makeDaemonDatabase(config);
+  cancelled.catch(() => daemonDb.close());
+
+  const petStorePowers = makePetStoreMaker(daemonDb);
   const daemonicPersistencePowers = makeDaemonicPersistencePowers(
+    daemonDb,
     filePowers,
     cryptoPowers,
     config,

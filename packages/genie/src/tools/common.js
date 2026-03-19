@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /**
  * Tool Construction Utilities
@@ -51,7 +52,24 @@
 
 import { M, mustMatch, getMethodGuardPayload } from '@endo/patterns';
 
-/** @import { Tool, ToolSpec } from './types.js' */
+/** @import { InterfaceGuard, MethodGuard } from '@endo/patterns' */
+
+/**
+ * @typedef {object} ToolSpec
+ * @property {() => Iterable<string>} help
+ * @property {() => string} [desc]
+ * @property {MethodGuard} schema
+ * @property
+ */
+
+/**
+ * @typedef {object} Tool
+ * @property {() => string} help
+ * @property {() => string} [desc]
+ * @property {InterfaceGuard} schema
+ * @property {(args: any) => Promise<any>} execute
+ * @property
+ */
 
 /**
  * Create a hardened `Tool` from a name and specification.
@@ -68,10 +86,8 @@ export const makeTool = (name, { execute, ...spec }) => {
   const {
     help,
     desc = () => {
-      for (const part of help()) {
-        return part.split('\n')[0];
-      }
-      return '';
+      const [first] = help();
+      return first ? first.split('\n')[0] : '';
     },
     schema,
   } = spec;
@@ -100,25 +116,45 @@ export const makeTool = (name, { execute, ...spec }) => {
       execute: schema,
     }),
     async execute(args) {
-      try {
-        mustMatch(harden([args]), paramsPattern, `${name} args`);
-      } catch { }
-
-      // try to fixup by parsing nested JSON values
-      if (typeof args === 'object') {
-        args = Object.fromEntries(Object
-          .entries(/** @type {Record<string, any>} */(args))
-          .map(([key, val]) => {
-            if (typeof val === 'string') {
-              try {
-                val = JSON.parse(val);
-              } catch { }
+      let didUnJSON = false;
+      do {
+        try {
+          mustMatch(harden([args]), paramsPattern, `${name} args`);
+          break;
+        } catch (err) {
+          const message = `${err?.message}`;
+          if (typeof args === 'object') {
+            const null2undef = /args:.* ([^ ]+?)\?: null.*/.exec(message);
+            if (null2undef !== null) {
+              const key = null2undef[1];
+              if (Object.hasOwn(args, key) && args[key] === null) {
+                args = { ...args, ...{ [key]: undefined } };
+                continue;
+              }
             }
-            return [key, val]
-          }));
-      }
 
-      mustMatch(harden([args]), paramsPattern, `${name} args`);
+            // try to fixup by parsing nested JSON values
+            if (!didUnJSON) {
+              didUnJSON = true;
+              for (const [key, val] of Object.entries(
+                /** @type {Record<string, any>} */ (args),
+              )) {
+                if (typeof val === 'string') {
+                  try {
+                    args = { ...args, ...{ [key]: JSON.parse(val) } };
+                  } catch {
+                    continue;
+                  }
+                }
+              }
+              continue;
+            }
+          }
+
+          // fallthrough: no fixup, final throw to caller
+          throw err;
+        }
+      } while (true);
 
       return execute(args);
     },

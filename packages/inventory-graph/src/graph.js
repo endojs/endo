@@ -208,7 +208,10 @@ export const renderGraph = (
 
   // ── Coordinate helpers ──────────────────────────────────────
 
-  /** @param {number} sx  @param {number} sy */
+  /**
+   * @param {number} sx  @param {number} sy
+   * @param sy
+   */
   const screenToGraph = (sx, sy) => {
     const rect = $canvas.getBoundingClientRect();
     return {
@@ -217,7 +220,10 @@ export const renderGraph = (
     };
   };
 
-  /** @param {number} gx  @param {number} gy */
+  /**
+   * @param {number} gx  @param {number} gy
+   * @param gy
+   */
   const nodeAt = (gx, gy) => {
     for (let i = nodes.length - 1; i >= 0; i -= 1) {
       const n = nodes[i];
@@ -645,7 +651,9 @@ export const renderGraph = (
   /**
    * @param {CanvasRenderingContext2D} ctx
    * @param {number} fromX  @param {number} fromY
+   * @param fromY
    * @param {number} toX  @param {number} toY
+   * @param toY
    * @param {number} size
    */
   const drawArrow = (ctx, fromX, fromY, toX, toY, size) => {
@@ -667,6 +675,7 @@ export const renderGraph = (
   /**
    * @param {CanvasRenderingContext2D} ctx
    * @param {number} x  @param {number} y
+   * @param y
    * @param {number} s - half-size
    * @param {number} r - corner radius
    */
@@ -687,6 +696,8 @@ export const renderGraph = (
   /**
    * @param {CanvasRenderingContext2D} ctx
    * @param {number} x  @param {number} y  @param {number} s
+   * @param y
+   * @param s
    */
   const drawDiamond = (ctx, x, y, s) => {
     ctx.beginPath();

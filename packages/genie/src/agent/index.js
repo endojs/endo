@@ -1,4 +1,6 @@
 // @ts-check
+/* global process */
+/* eslint-disable no-continue, no-await-in-loop */
 /**
  * Genie Agent - Core agentic LLM calling harness
  *
@@ -18,16 +20,14 @@
 import { Agent as PiAgent } from '@mariozechner/pi-agent-core';
 import { getModel, getProviders } from '@mariozechner/pi-ai';
 
-import {
-  default as buildSystemPrompt,
-} from '../system/index.js';
-
+import { default as buildSystemPrompt } from '../system/index.js';
+import { estimateTokens } from '../utils/tokens.js';
 
 /**
  * @param {never} nope
  * @param {string} wat
  */
-function inconeivable(nope, wat) {
+function inconceivable(nope, wat) {
   throw new Error(`inconceivable ${wat}: ${nope}`);
 }
 
@@ -55,13 +55,12 @@ async function resolveModel(modelString) {
     return buildOllamaModel(modelId);
   }
   if (isKnownProvider(provider)) {
-    // TODO fix type error:
-    // > Argument of type 'string' is not assignable to parameter of type 'never'. typescript (2345)
+    // @ts-expect-error — KnownProvider generic overloads make modelId resolve to `never`
     return getModel(provider, modelId);
   }
   throw new Error(
     `Unknown model: provider=${provider}, modelId=${modelId}. ` +
-    `Pass a valid "provider/modelId" string (e.g. "${DEFAULT_MODEL_STRING}").`,
+      `Pass a valid "provider/modelId" string (e.g. "${DEFAULT_MODEL_STRING}").`,
   );
 }
 
@@ -94,7 +93,6 @@ harden(getOllamaApiKey);
  * @returns {Promise<Model<'openai-completions'>>} A Model object compatible with pi-agent-core
  */
 async function buildOllamaModel(id) {
-
   const api = 'openai-completions';
 
   // TODO discover this from ollama's model show endpoint
@@ -151,7 +149,7 @@ export function makeToolCallStart(toolName, args) {
  *
  * @param {string} toolName - Name of the tool that was called
  * @param {any} result - Result of the tool call
- * @param {Error|null} [error=null] - Error if tool failed, null otherwise
+ * @param {Error|null} [error] - Error if tool failed, null otherwise
  * @returns {ToolCallEnd}
  */
 export function makeToolCallEnd(toolName, result, error = null) {
@@ -237,9 +235,10 @@ harden(makeThinking);
 harden(makeUserMessage);
 harden(makeError);
 
-/** @typedef {object} ToolSpec
- * @prop {string} name
- * @prop {string} summary
+/**
+ * @typedef {object} ToolSpec
+ * @property {string} name
+ * @property {string} summary
  */
 
 /**
@@ -260,11 +259,11 @@ export const DEFAULT_MODEL_STRING = `${DEFAULT_PROVIDER}/${DEFAULT_MODEL_ID}`;
  * @returns {provider is KnownProvider}
  */
 function isKnownProvider(provider) {
-  return getProviders().some(p => p == provider);
+  return getProviders().some(p => p === provider);
 }
 
 /** @param {any} val */
-const mayJSONify = val => typeof val === 'string' ? val : JSON.stringify(val);
+const mayJSONify = val => (typeof val === 'string' ? val : JSON.stringify(val));
 
 /**
  * Convert a Genie ToolSpec + execTool into an AgentTool compatible with
@@ -313,6 +312,9 @@ function toAgentTool(spec, execTool) {
  * @param {boolean} [options.disablePolicy] - Disable policy section
  * @param {boolean} [options.strictPolicy] - Enable strict policy
  * @param {string} [options.securityNotes] - Custom security notes
+ * @param {string} [options.systemPrompt] - Complete system prompt override;
+ *   when provided the prompt-building options (hostname, currentTime, etc.)
+ *   are ignored.
  * @returns {Promise<PiAgent>}
  */
 export async function makePiAgent(options = {}) {
@@ -322,14 +324,18 @@ export async function makePiAgent(options = {}) {
     workspaceDir = process.cwd(),
     model = '',
     listTools = () => [],
-    execTool = (_name, _args) => Promise.reject(new Error(`unimplemented tool ${_name}`)),
+    execTool = (_name, _args) =>
+      Promise.reject(new Error(`unimplemented tool ${_name}`)),
     disableSuffix = false,
     disablePolicy = false,
     strictPolicy = false,
     securityNotes = '',
+    systemPrompt: systemPromptOpt,
   } = options;
 
-  const systemPromptConfig = {
+  // Use the caller-supplied prompt when provided; otherwise build one from
+  // the prompt-configuration options.
+  const systemPrompt = systemPromptOpt ?? Array.from(buildSystemPrompt({
     hostname,
     currentTime,
     workspaceDir,
@@ -338,14 +344,12 @@ export async function makePiAgent(options = {}) {
     disablePolicy,
     strictPolicy,
     securityNotes,
-  };
+  })).join('\n');
 
   // Resolve the pi-ai Model object — either from a pre-constructed object
   // or by looking up the model string in the pi-ai registry.
-  const resolvedModel = typeof model === 'object' ? model : await resolveModel(model);
-
-  // Build the system prompt once at agent creation time.
-  const systemPrompt = Array.from(buildSystemPrompt(systemPromptConfig)).join('\n');
+  const resolvedModel =
+    typeof model === 'object' ? model : await resolveModel(model);
 
   // Get tool list and convert to AgentTool format.
   const finalToolList = Array.from(listTools());
@@ -364,16 +368,97 @@ export async function makePiAgent(options = {}) {
       thinkingLevel: resolvedModel.reasoning ? 'medium' : 'off',
     },
     // Identity conversion - genie messages use standard roles
-    convertToLlm: msgs => msgs.filter(m =>
-      m.role === 'user' || m.role === 'assistant' || m.role === 'toolResult',
-    ),
+    convertToLlm: msgs =>
+      msgs.filter(
+        m =>
+          m.role === 'user' ||
+          m.role === 'assistant' ||
+          m.role === 'toolResult',
+      ),
     toolExecution: 'sequential',
-    ...(isOllama ? { getApiKey: async (_provider) => getOllamaApiKey() } : {}),
+    ...(isOllama ? { getApiKey: async _provider => getOllamaApiKey() } : {}),
   });
 
   return piAgent;
 }
 harden(makePiAgent);
+
+/**
+ * Serialize a single message's content to a plain string for token
+ * estimation.  Handles the various content shapes that pi-agent-core
+ * messages can take: plain strings, arrays of typed content blocks,
+ * and tool-call inputs.
+ *
+ * @param {any} message - A message from `piAgent.state.messages`.
+ * @returns {string}
+ */
+function serializeMessage(message) {
+  const parts = [];
+
+  if (message.role) {
+    parts.push(message.role);
+  }
+
+  const { content } = message;
+  if (typeof content === 'string') {
+    parts.push(content);
+  } else if (Array.isArray(content)) {
+    for (const block of content) {
+      if (block.type === 'text' && block.text) {
+        parts.push(block.text);
+      } else if (block.type === 'thinking' && block.thinking) {
+        parts.push(block.thinking);
+      } else if (block.type === 'toolCall') {
+        parts.push(block.name || '');
+        if (block.input !== undefined) {
+          parts.push(
+            typeof block.input === 'string'
+              ? block.input
+              : JSON.stringify(block.input),
+          );
+        }
+      } else if (block.type === 'toolResult') {
+        parts.push(
+          typeof block.result === 'string'
+            ? block.result
+            : JSON.stringify(block.result),
+        );
+      }
+    }
+  }
+
+  // toolResult messages store results at the top level too
+  if (message.result !== undefined && !Array.isArray(content)) {
+    parts.push(
+      typeof message.result === 'string'
+        ? message.result
+        : JSON.stringify(message.result),
+    );
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Return the estimated token count of the current message history
+ * held by a PiAgent instance.
+ *
+ * Uses the chars÷4 heuristic from `estimateTokens`.  This is
+ * intentionally approximate — accurate enough for the 30 k-token
+ * observer trigger threshold without pulling in a full tokenizer.
+ *
+ * @param {PiAgent} piAgent - A PiAgent instance from makePiAgent.
+ * @returns {number} Estimated token count across all messages.
+ */
+export function getMessageTokenCount(piAgent) {
+  const { messages } = piAgent.state;
+  let total = 0;
+  for (const msg of messages) {
+    total += estimateTokens(serializeMessage(msg));
+  }
+  return total;
+}
+harden(getMessageTokenCount);
 
 /**
  * Run a single chat round on an already-constructed PiAgent, yielding
@@ -395,7 +480,7 @@ export async function* runAgentRound(piAgent, prompt) {
   /** @type {((value?: any) => void) | null} */
   let resolveWaiting = null;
   /** @param {boolean} done */
-  const mayYield = (done) => {
+  const mayYield = done => {
     if (!agentDone) {
       agentDone = done;
       if (resolveWaiting) {
@@ -406,9 +491,10 @@ export async function* runAgentRound(piAgent, prompt) {
     }
   };
   /** @returns {Promise<void>} */
-  const forQueue = () => new Promise(resolve => {
-    resolveWaiting = resolve;
-  });
+  const forQueue = () =>
+    new Promise(resolve => {
+      resolveWaiting = resolve;
+    });
 
   piAgent.subscribe(event => {
     eventQueue.push(event);
@@ -416,7 +502,8 @@ export async function* runAgentRound(piAgent, prompt) {
   });
 
   // Start the prompt (non-blocking)
-  const promptDone = piAgent.prompt(prompt)
+  const promptDone = piAgent
+    .prompt(prompt)
     .then(() => {
       eventQueue.push({ type: 'agent_start' });
       mayYield(false);
@@ -426,7 +513,8 @@ export async function* runAgentRound(piAgent, prompt) {
       mayYield(true);
     });
 
-  piAgent.waitForIdle()
+  piAgent
+    .waitForIdle()
     .then(() => {
       eventQueue.push({ type: 'agent_end', messages: [] });
       mayYield(true);
@@ -462,8 +550,14 @@ export async function* runAgentRound(piAgent, prompt) {
       case 'tool_execution_end': {
         yield event.isError
           ? makeToolCallEnd(
-            event.toolName, null,
-            event.isError ? new Error(`Tool execution failed: ${mayJSONify(event.result)}`) : null)
+              event.toolName,
+              null,
+              event.isError
+                ? new Error(
+                    `Tool execution failed: ${mayJSONify(event.result)}`,
+                  )
+                : null,
+            )
           : makeToolCallEnd(event.toolName, event.result);
         break;
       }
@@ -485,7 +579,6 @@ export async function* runAgentRound(piAgent, prompt) {
 
             for (const part of content) {
               switch (part.type) {
-
                 // TODO necessary?
                 case 'text': {
                   fullAssistantText += part.text;
@@ -494,7 +587,11 @@ export async function* runAgentRound(piAgent, prompt) {
 
                 case 'thinking': {
                   if (part.thinking) {
-                    yield makeThinking('thinking', part.thinking, part.redacted);
+                    yield makeThinking(
+                      'thinking',
+                      part.thinking,
+                      part.redacted,
+                    );
                   }
                   break;
                 }
@@ -505,7 +602,7 @@ export async function* runAgentRound(piAgent, prompt) {
                 }
 
                 default: {
-                  inconeivable(part, 'pi agent message_start content part');
+                  inconceivable(part, 'pi agent message_start content part');
                 }
               }
             }
@@ -523,7 +620,7 @@ export async function* runAgentRound(piAgent, prompt) {
           }
 
           default: {
-            inconeivable(message, 'pi agent message_start');
+            inconceivable(message, 'pi agent message_start');
           }
         }
         break;
@@ -545,49 +642,58 @@ export async function* runAgentRound(piAgent, prompt) {
         break;
       }
 
-      case 'message_end': {
-        const { message } = event;
+      case 'message_end':
+        {
+          const { message } = event;
 
-        switch (message.role) {
-          case 'assistant': {
-            const { content, stopReason, errorMessage } = message;
+          switch (message.role) {
+            case 'assistant':
+              {
+                const { content, stopReason, errorMessage } = message;
 
-            if (stopReason === 'error') {
-              // TODO care to differentiate? StopReason = "stop" | "length" | "toolUse" | "error" | "aborted"
-              yield makeError('LLM call stopped', new Error(errorMessage));
-            }
+                if (stopReason === 'error') {
+                  // TODO care to differentiate? StopReason = "stop" | "length" | "toolUse" | "error" | "aborted"
+                  yield makeError('LLM call stopped', new Error(errorMessage));
+                }
 
-            // Extract final text from assistant messages
-            let text = '';
-            if (typeof content === 'string') {
-              text = content;
-            } else if (Array.isArray(content)) {
-              text = content
-                .filter(c => c.type === 'text')
-                .map(c => c.text)
-                .join('');
-            }
-            if (text) {
-              fullAssistantText = text;
-            }
-          } break;
+                // Extract final text from assistant messages
+                let text = '';
+                if (typeof content === 'string') {
+                  text = content;
+                } else if (Array.isArray(content)) {
+                  text = content
+                    .filter(c => c.type === 'text')
+                    .map(c => c.text)
+                    .join('');
+                }
+                if (text) {
+                  fullAssistantText = text;
+                }
+              }
+              break;
 
-          case 'user': {
-            const { content } = message;
-            const userContent = typeof content === 'string'
-              ? content
-              : Array.isArray(content)
-                ? content
-                  .filter(c => c.type === 'text')
-                  .map(c => c.text)
-                  .join('')
-                : '';
-            if (userContent) {
-              yield makeUserMessage(userContent);
-            }
-          } break;
+            case 'user':
+              {
+                const { content } = message;
+                const userContent =
+                  typeof content === 'string'
+                    ? content
+                    : Array.isArray(content)
+                      ? content
+                          .filter(c => c.type === 'text')
+                          .map(c => c.text)
+                          .join('')
+                      : '';
+                if (userContent) {
+                  yield makeUserMessage(userContent);
+                }
+              }
+              break;
+            default:
+              break;
+          }
         }
-      } break;
+        break;
 
       case 'agent_start': {
         // TODO care?
@@ -613,7 +719,8 @@ export async function* runAgentRound(piAgent, prompt) {
         break;
       }
 
-      default: inconeivable(event, 'pi agent event');
+      default:
+        inconceivable(event, 'pi agent event');
     }
   }
 

@@ -91,8 +91,8 @@ harden(zeroPad);
 // because we put the value in one side and then immediately take it out the
 // other; there is no actual state retained in the classic sense and thus no
 // re-entrancy issue.
-const asNumber = new Float64Array(1);
-const asBits = new BigUint64Array(asNumber.buffer);
+const { buffer: hiddenBuffer } = new BigUint64Array(1);
+const bufferView = new DataView(hiddenBuffer);
 
 // JavaScript numbers are encoded by outputting the base-16
 // representation of the binary value of the underlying IEEE floating point
@@ -104,23 +104,32 @@ const asBits = new BigUint64Array(asNumber.buffer);
 // encoding whose lexicographic sort order is the same as the numeric sort order
 // of the corresponding numbers.
 
-// TODO Choose the same canonical NaN encoding that cosmWasm and ewasm chose.
-const CanonicalNaNBits = 'fff8000000000000';
+// Because @endo/marshal does not depend on `ses`, it certainly cannot depend
+// on `lockdown()` being called. But the DataView methods are only tamed
+// to canonicalize NaNs by lockdown. Therefore we need to do our own
+// NaN canonicalization here.
+
+// See https://webidl.spec.whatwg.org/#js-unrestricted-double which implies
+// that this is the canonical NaN for web standards.
+// Casual googling stongly suggests that this is also the cosmWasm
+// canonical NaN. But I have not yet found an authoritative page stating this.
+const canonicalNaN = 0x7ff8000000000000n;
 
 /**
- * @param {number} n
+ * @param {number} f
  * @returns {string}
  */
-const encodeBinary64 = n => {
+const encodeBinary64 = f => {
   // Normalize -0 to 0 and NaN to a canonical encoding
-  if (is(n, -0)) {
-    n = 0;
-  } else if (is(n, NaN)) {
-    return `f${CanonicalNaNBits}`;
+  if (is(f, -0)) {
+    f = 0;
   }
-  asNumber[0] = n;
-  let bits = asBits[0];
-  if (n < 0) {
+  bufferView.setFloat64(0, f);
+  let bits = bufferView.getBigUint64(0);
+  if (is(f, NaN)) {
+    bits = canonicalNaN;
+  }
+  if (f < 0) {
     bits ^= 0xffffffffffffffffn;
   } else {
     bits ^= 0x8000000000000000n;
@@ -141,8 +150,8 @@ const decodeBinary64 = (encoded, skip = 0) => {
   } else {
     bits ^= 0x8000000000000000n;
   }
-  asBits[0] = bits;
-  const result = asNumber[0];
+  bufferView.setBigUint64(0, bits);
+  const result = bufferView.getFloat64(0);
   !is(result, -0) ||
     Fail`Unexpected negative zero: ${getSuffix(encoded, skip)}`;
   return result;
@@ -325,14 +334,14 @@ const decodeLegacyStringSuffix = encoded => encoded;
  * format, each terminated by a space (which is part of the escaped range in
  * "compactOrdered" encoded strings).
  *
- * @param {Passable[]} array
+ * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
 const encodeCompactArray = (array, encodePassable) => {
   const chars = ['^'];
   for (const element of array) {
-    const enc = encodePassable(element);
+    const enc = encodePassable(/** @type {Passable} */ (element));
     chars.push(enc, ' ');
   }
   return chars.join('');
@@ -400,14 +409,14 @@ const decodeCompactArray = (encoded, decodePassable, skip = 0) => {
  * This necessitated an undesirable amount of iteration and expansion; see
  * https://github.com/endojs/endo/pull/1260#discussion_r960369826
  *
- * @param {Passable[]} array
+ * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
 const encodeLegacyArray = (array, encodePassable) => {
   const chars = ['['];
   for (const element of array) {
-    const enc = encodePassable(element);
+    const enc = encodePassable(/** @type {Passable} */ (element));
     for (const c of enc) {
       if (c === '\u0000' || c === '\u0001') {
         chars.push('\u0001');
@@ -568,7 +577,7 @@ const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
 
 /**
  * @param {(str: string) => string} encodeStringSuffix
- * @param {(arr: unknown[], encodeRecur: (p: Passable) => string) => string} encodeArray
+ * @param {(arr: Passable[], encodeRecur: (p: Passable) => string) => string} encodeArray
  * @param {Required<EncodeOptions> & {verifyEncoding?: (encoded: string, label: string) => void}} options
  * @returns {(p: Passable) => string}
  */

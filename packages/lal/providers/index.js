@@ -62,7 +62,9 @@ export const createProvider = env => {
     const maxMessages = env.LAL_MAX_MESSAGES
       ? parseInt(env.LAL_MAX_MESSAGES, 10)
       : undefined;
-    console.log(`[LAL] Using Gemini provider at ${baseURL} with model: ${model}`);
+    console.log(
+      `[LAL] Using Gemini provider at ${baseURL} with model: ${model}`,
+    );
     return makeGeminiProvider({
       baseURL,
       model,

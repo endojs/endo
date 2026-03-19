@@ -59,10 +59,7 @@ export const universalPropertyNames = {
   Boolean: 'Boolean',
   DataView: 'DataView',
   EvalError: 'EvalError',
-  // https://github.com/tc39/proposal-float16array
-  Float16Array: 'Float16Array',
-  Float32Array: 'Float32Array',
-  Float64Array: 'Float64Array',
+
   Int8Array: 'Int8Array',
   Int16Array: 'Int16Array',
   Int32Array: 'Int32Array',
@@ -143,6 +140,18 @@ export const initialGlobalPropertyNames = {
   // *** Other Properties of the Global Object
 
   Math: '%InitialMath%',
+
+  // We move these from universalPropertyNames because the NaN side channel
+  // means that they are not quite harmless.
+  // We move them to initialGlobalPropertyNames so that they'll still be
+  // included in the primordials, repaired, and hardened. Thus, they
+  // can be endowed into compartments without hazard beyond the
+  // NaN side channel.
+  //
+  // // https://github.com/tc39/proposal-float16array
+  Float16Array: 'Float16Array',
+  Float32Array: 'Float32Array',
+  Float64Array: 'Float64Array',
 
   // ESNext
 

@@ -12,7 +12,6 @@ import {
   assertPetName,
   assertPetNamePath,
   assertName,
-  assertNames,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -22,7 +21,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { addressesFromLocator } from './locator.js';
+import { addressesFromLocator, formatLocator } from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -44,12 +43,15 @@ const assertPowersName = name => {
  * @param {MakeHostOrGuestOptions | undefined} opts
  * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
  */
-const normalizeHostOrGuestOptions = opts => ({
-  introducedNames: /** @type {Record<Name, PetName>} */ (
-    opts?.introducedNames ?? Object.create(null)
-  ),
-  agentName: /** @type {PetName | undefined} */ (opts?.agentName),
-});
+const normalizeHostOrGuestOptions = opts => {
+  const agentName = /** @type {PetName | undefined} */ (opts?.agentName);
+  return {
+    introducedNames: /** @type {Record<Name, PetName>} */ (
+      opts?.introducedNames ?? Object.create(null)
+    ),
+    ...(agentName !== undefined && { agentName }),
+  };
+};
 
 /**
  * @param {object} args
@@ -68,7 +70,6 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateMount']} args.formulateMount
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
- * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
  * @param {DaemonCore['formulateDirectoryForStore']} args.formulateDirectoryForStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
@@ -81,7 +82,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {NodeNumber} args.localNodeNumber
  * @param {(node: string) => boolean} args.isLocalKey
  * @param {DaemonCore['getAgentIdForHandleId']} args.getAgentIdForHandleId
- * @param {() => Promise<void>} [args.collectIfDirty]
+ * @param {(publicKey: string, daemonNode: string) => void} [args.writeRemoteAgentKey]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param {DaemonCore['getFormulaGraphSnapshot']} [args.getFormulaGraphSnapshot]
@@ -102,7 +103,6 @@ export const makeHostMaker = ({
   formulateMount,
   formulateScratchMount,
   formulateInvitation,
-  formulateSyncedPetStore,
   formulateDirectoryForStore,
   getPeerIdForNodeIdentifier,
   formulateChannel,
@@ -115,7 +115,10 @@ export const makeHostMaker = ({
   localNodeNumber,
   isLocalKey,
   getAgentIdForHandleId,
-  collectIfDirty = async () => {},
+  writeRemoteAgentKey = /** @param {string} _pk @param {string} _dn */ (
+    _pk,
+    _dn,
+  ) => {},
   pinTransient = /** @param {any} _id */ _id => {},
   unpinTransient = /** @param {any} _id */ _id => {},
   getFormulaGraphSnapshot = /** @param {any[]} _ids */ async _ids =>
@@ -125,7 +128,6 @@ export const makeHostMaker = ({
    * @param {FormulaIdentifier} hostId
    * @param {FormulaIdentifier} handleId
    * @param {FormulaIdentifier | undefined} hostHandleId
-   * @param {FormulaIdentifier} keypairId
    * @param {NodeNumber} agentNodeNumber
    * @param {(message: Uint8Array) => Uint8Array} agentSignBytes
    * @param {FormulaIdentifier} storeId
@@ -144,7 +146,6 @@ export const makeHostMaker = ({
     hostId,
     handleId,
     hostHandleId,
-    keypairId,
     agentNodeNumber,
     agentSignBytes,
     storeId,
@@ -168,13 +169,13 @@ export const makeHostMaker = ({
 
     const baseController = await provideStoreController(storeId);
     const mailboxController = await provideStoreController(mailboxStoreId);
+
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
       '@agent': hostId,
       '@self': handleId,
       '@host': hostHandleId ?? handleId,
-      '@keypair': keypairId,
       '@main': mainWorkerId,
       '@endo': endoId,
       '@nets': networksDirectoryId,
@@ -296,7 +297,7 @@ export const makeHostMaker = ({
       );
 
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
-      unpinTransient(id);
+      await unpinTransient(id);
     };
 
     /**
@@ -381,8 +382,13 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(workerName, tasks.push);
-      const workerLabel = explicitLabel ?? (resultName !== undefined ? `eval:${resultName}` : 'eval');
+      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(
+        workerName,
+        tasks.push,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (resultName !== undefined ? `eval:${resultName}` : 'eval');
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
@@ -418,11 +424,12 @@ export const makeHostMaker = ({
       if (resultName === undefined) {
         // Ephemeral eval: the formula was pinned inside formulateEval
         // (inside the lock) so concurrent collection can't reclaim it.
-        // Unpin after the value resolves.
+        // Unpin after the value resolves and drain any resulting
+        // collection cleanup (worker termination, etc.).
         try {
           return await value;
         } finally {
-          unpinTransient(id);
+          await unpinTransient(id);
         }
       }
       return value;
@@ -448,9 +455,14 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel } = prepareWorkerFormulation(
+        workerName,
+        tasks.push,
+      );
 
-      const powersId = /** @type {FormulaIdentifier | undefined} */ (petStore.identifyLocal(/** @type {Name} */ (powersName)));
+      const powersId = /** @type {FormulaIdentifier | undefined} */ (
+        petStore.identifyLocal(/** @type {Name} */ (powersName))
+      );
       if (powersId === undefined) {
         assertPetName(powersName);
         const powersPetName = powersName;
@@ -461,7 +473,10 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          E(directory).storeIdentifier(namePathFrom(resultName), identifiers.capletId),
+          E(directory).storeIdentifier(
+            namePathFrom(resultName),
+            identifiers.capletId,
+          ),
         );
       }
 
@@ -477,12 +492,22 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `unconfined:${specifier}`);
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `unconfined:${specifier}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -507,12 +532,22 @@ export const makeHostMaker = ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
-        prepareMakeCaplet(
-          /** @type {Name | undefined} */ (workerName),
-          options,
-        );
-      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `bundle:${bundleName}`);
+      const {
+        tasks,
+        workerId,
+        workerLabel: explicitLabel,
+        powersId,
+        env,
+        workerTrustedShims,
+      } = prepareMakeCaplet(
+        /** @type {Name | undefined} */ (workerName),
+        options,
+      );
+      const workerLabel =
+        explicitLabel ??
+        (options?.resultName !== undefined
+          ? `${options.resultName}`
+          : `bundle:${bundleName}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -608,7 +643,11 @@ export const makeHostMaker = ({
       let host = getNamedAgent(petName, 'host');
       await null;
       if (host === undefined) {
-        const hostLabel = agentName ? `host:${agentName}` : petName ? `host:${petName}` : 'host';
+        const hostLabel = agentName
+          ? `host:${agentName}`
+          : petName
+            ? `host:${petName}`
+            : 'host';
         const { value, id } =
           // Behold, recursion:
           await formulateHost(
@@ -662,7 +701,11 @@ export const makeHostMaker = ({
       let guest = getNamedAgent(handleName, 'guest');
       await null;
       if (guest === undefined) {
-        const guestLabel = agentName ? `guest:${agentName}` : handleName ? `guest:${handleName}` : 'guest';
+        const guestLabel = agentName
+          ? `guest:${agentName}`
+          : handleName
+            ? `guest:${handleName}`
+            : 'guest';
         const { value, id } =
           // Behold, recursion:
           await formulateGuest(
@@ -712,7 +755,9 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.timerId));
+      tasks.push(identifiers =>
+        petStore.storeIdentifier(petName, identifiers.timerId),
+      );
       const { value } = await formulateTimer(
         Number(intervalMs),
         label || petName,
@@ -730,7 +775,9 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.channelId));
+      tasks.push(identifiers =>
+        petStore.storeIdentifier(petName, identifiers.channelId),
+      );
       const { value } = await formulateChannel(
         hostId,
         handleId,
@@ -774,76 +821,102 @@ export const makeHostMaker = ({
     const accept = async (invitationLocator, guestName) => {
       assertPetName(guestName);
       const url = new URL(invitationLocator);
-      const nodeNumber = url.hostname;
+      const daemonNode = url.hostname;
       const invitationNumber = url.searchParams.get('id');
       const remoteHandleNumber = url.searchParams.get('from');
+      // The remote handle's node may differ from the daemon node when
+      // agent keys are used as formula nodes.
+      const remoteHandleNodeParam = url.searchParams.get('fromNode');
       const addresses = url.searchParams.getAll('at');
 
-      nodeNumber || assert.Fail`Invitation must have a hostname`;
+      daemonNode || assert.Fail`Invitation must have a hostname`;
       if (!remoteHandleNumber) {
         throw makeError(`Invitation must have a "from" parameter`);
       }
       if (invitationNumber === null) {
         throw makeError(`Invitation must have an "id" parameter`);
       }
-      assertNodeNumber(nodeNumber);
+      assertNodeNumber(daemonNode);
       assertFormulaNumber(remoteHandleNumber);
       assertFormulaNumber(invitationNumber);
 
       /** @type {PeerInfo} */
       const peerInfo = {
-        node: nodeNumber,
+        node: daemonNode,
         addresses,
       };
       // eslint-disable-next-line no-use-before-define
       await addPeerInfo(peerInfo);
 
+      // Register the remote agent key so we can route to its daemon.
+      if (remoteHandleNodeParam && remoteHandleNodeParam !== daemonNode) {
+        writeRemoteAgentKey(remoteHandleNodeParam, daemonNode);
+      }
+
       const invitationId = formatId({
         number: invitationNumber,
-        node: nodeNumber,
+        node: daemonNode,
       });
 
-      const { number: handleNumber } = parseId(handleId);
+      const { number: handleNumber, node: handleNode } = parseId(handleId);
       // eslint-disable-next-line no-use-before-define
       const { addresses: hostAddresses } = await getPeerInfo();
       const handleUrl = new URL('endo://');
-      handleUrl.hostname = agentNodeNumber;
+      handleUrl.hostname = localNodeNumber;
       handleUrl.searchParams.set('id', handleNumber);
+      // Include the handle's node if it differs from the daemon node
+      // (i.e. it uses an agent key).
+      if (handleNode !== localNodeNumber) {
+        handleUrl.searchParams.set('handleNode', handleNode);
+      }
       for (const address of hostAddresses) {
         handleUrl.searchParams.append('at', address);
       }
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      const acceptResult = await E(invitation).accept(
-        handleLocator,
-        guestName,
+      await E(invitation).accept(handleLocator, guestName);
+
+      // Create a local guest with a regular pet store.
+      // Pin the guest handle via deferred task to prevent premature
+      // collection, then store the durable name after the lock releases.
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
+      const guestTasks = makeDeferredTasks();
+      guestTasks.push(async identifiers => pinTransient(identifiers.handleId));
+      const { id: localGuestId } = await formulateGuest(
+        hostId,
+        handleId,
+        guestTasks,
+        `guest:${guestName}`,
       );
 
-      // The host's accept handler returns the synced store number.
-      const { syncedStoreNumber } =
-        /** @type {{ syncedStoreNumber: import('./types.js').FormulaNumber }} */ (
-          acceptResult
+      // Look up the local guest's handle from its formula so we can
+      // name it.  Incarnating the handle transitively incarnates the
+      // guest.
+      const localGuestFormula =
+        /** @type {import('./types.js').GuestFormula} */ (
+          await getFormulaForId(localGuestId)
         );
 
-      // Create a synced-pet-store (grantee role) paired with the host's store.
-      const peerId = await getPeerIdForNodeIdentifier(
-        /** @type {import('./types.js').NodeNumber} */ (nodeNumber),
+      // Store the durable name and release the transient pin.
+      await E(directory).storeIdentifier(
+        ['@pins', `guest-${guestName}`],
+        localGuestFormula.handle,
       );
-      const { id: syncedStoreId } = await formulateSyncedPetStore(
-        peerId,
-        'grantee',
-        /** @type {import('./types.js').FormulaNumber} */ (syncedStoreNumber),
-        peerId, // store dependency
-      );
+      await unpinTransient(localGuestFormula.handle);
 
-      // Wrap the synced store in a directory so it acts as a NameHub
-      // when resolved via multi-segment paths like "guestName.petName".
-      const { id: syncedDirectoryId } =
-        await formulateDirectoryForStore(syncedStoreId);
-
-      // Write the directory into the host's pet store under guestName.
-      await petStore.storeIdentifier(guestName, syncedDirectoryId);
+      // Store the remote handle under guestName for mail delivery.
+      // Use the handle's actual node (which may be an agent key) if
+      // provided, falling back to the daemon node.
+      const remoteHandleNode = remoteHandleNodeParam || daemonNode;
+      const remoteHandleId = formatId({
+        number: /** @type {import('./types.js').FormulaNumber} */ (
+          remoteHandleNumber
+        ),
+        node: /** @type {import('./types.js').NodeNumber} */ (remoteHandleNode),
+      });
+      const remoteHandleLocator = formatLocator(remoteHandleId, 'handle');
+      await E(directory).storeLocator([guestName], remoteHandleLocator);
     };
 
     /** @type {EndoHost['cancel']} */
@@ -895,7 +968,7 @@ export const makeHostMaker = ({
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
       const peerInfo = {
-        node: agentNodeNumber,
+        node: localNodeNumber,
         addresses,
       };
       return peerInfo;
@@ -988,54 +1061,6 @@ export const makeHostMaker = ({
      * @returns {Promise<unknown>} The value.
      */
     const lookupById = async id => provide(id);
-
-    /** @type {EndoHost['approveEvaluation']} */
-    const approveEvaluation = async (messageNumber, workerName) => {
-      if (workerName !== undefined) {
-        assertName(workerName);
-      }
-      const { source, codeNames, petNamePaths, resolverId, guestHandleId } =
-        mailbox.getEvalRequest(messageNumber);
-
-      assertNames(codeNames);
-
-      const guestAgentId = await getAgentIdForHandleId(
-        /** @type {FormulaIdentifier} */ (guestHandleId),
-      );
-      const guestAgent = await provide(guestAgentId, 'agent');
-
-      // Resolve endowments from the guest's namespace
-      /** @type {(FormulaIdentifier | NamePath)[]} */
-      const endowmentFormulaIdsOrPaths = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          if (petNamePath.length === 1) {
-            const id = await E(guestAgent).identify(petNamePath[0]);
-            if (id === undefined) {
-              throw new Error(
-                `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
-              );
-            }
-            return /** @type {FormulaIdentifier} */ (id);
-          }
-          return petNamePath;
-        }),
-      );
-
-      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
-
-      const { id: evalId } = await formulateEval(
-        guestAgentId,
-        source,
-        codeNames,
-        endowmentFormulaIdsOrPaths,
-        tasks,
-        workerId,
-      );
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(evalId);
-    };
 
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
@@ -1185,7 +1210,6 @@ export const makeHostMaker = ({
       makeTimer: makeTimerCmd,
       invite,
       accept,
-      approveEvaluation,
       endow,
       submit,
       sendValue,
@@ -1193,63 +1217,31 @@ export const makeHostMaker = ({
       getFormulaGraph,
     };
 
-    /** @param {Function} fn */
-    const withCollection =
-      fn =>
-      async (...args) => {
-        await null;
-        try {
-          return await fn(...args);
-        } finally {
-          await collectIfDirty();
-        }
-      };
-
-    // Methods that create formulas and resolve them through promise chains
-    // (E.sendOnly(resolver).resolveWithId) must NOT trigger collection on
-    // return, because the resolver runs asynchronously and hasn't written
-    // the formula ID to the pet store yet. Collection at this point would
-    // find the just-created formula unreachable and delete it.
-    const unwrappedMethods = new Set([
-      'handle',
-      'reverseIdentify',
-      'approveEvaluation',
-      'endow',
-      'submit',
-      'sendValue',
-    ]);
-    const wrappedHost = Object.fromEntries(
-      Object.entries(host).map(([name, fn]) => [
-        name,
-        unwrappedMethods.has(name) ? fn : withCollection(fn),
-      ]),
+    const hostExo = makeExo(
+      'EndoHost',
+      HostInterface,
+      /** @type {any} */ ({
+        help: makeHelp(hostHelp),
+        ...host,
+        /** @param {string} locator */
+        followLocatorNameChanges: async locator => {
+          const iterator = host.followLocatorNameChanges(locator);
+          return makeIteratorRef(iterator);
+        },
+        followMessages: async () => {
+          const iterator = host.followMessages();
+          return makeIteratorRef(iterator);
+        },
+        followNameChanges: async () => {
+          const iterator = host.followNameChanges();
+          return makeIteratorRef(iterator);
+        },
+        followPeerChanges: async () => {
+          const iterator = await host.followPeerChanges();
+          return makeIteratorRef(iterator);
+        },
+      }),
     );
-
-    const hostExo = makeExo('EndoHost', HostInterface, {
-      help: makeHelp(hostHelp),
-      ...wrappedHost,
-      /** @param {string} locator */
-      followLocatorNameChanges: async locator => {
-        const iterator = host.followLocatorNameChanges(locator);
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followMessages: async () => {
-        const iterator = host.followMessages();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followNameChanges: async () => {
-        const iterator = host.followNameChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-      followPeerChanges: async () => {
-        const iterator = await host.followPeerChanges();
-        await collectIfDirty();
-        return makeIteratorRef(iterator);
-      },
-    });
 
     await provide(mainWorkerId, 'worker');
 

@@ -1,5 +1,5 @@
 // @ts-check
-import '../setup.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { buildDocument } from '../../src/dom-parser/document.js';
@@ -19,17 +19,13 @@ test('querySelectorAll: class selector', t => {
 });
 
 test('querySelectorAll: tag selector', t => {
-  const doc = buildDocument(
-    '<div><span>A</span><span>B</span><p>C</p></div>',
-  );
+  const doc = buildDocument('<div><span>A</span><span>B</span><p>C</p></div>');
   const spans = doc.querySelectorAll('span');
   t.is(spans.length, 2);
 });
 
 test('querySelectorAll: id selector', t => {
-  const doc = buildDocument(
-    '<div><p id="unique">Found</p><p>Not</p></div>',
-  );
+  const doc = buildDocument('<div><p id="unique">Found</p><p>Not</p></div>');
   const results = doc.querySelectorAll('#unique');
   t.is(results.length, 1);
   t.is(results[0].textContent, 'Found');

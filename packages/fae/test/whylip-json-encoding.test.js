@@ -206,7 +206,7 @@ const simulatePipeline = (narrative, scene) => {
  *
  * @param {string} rawInnerJson
  * @param {{ useOriginal?: boolean }} [opts]
- * @returns {{ text: string, parsed: ReturnType<typeof parseResponse> }}
+ * @returns {{ text: string, parsed: ReturnType<typeof parseResponse> | ReturnType<typeof parseResponseOriginal> }}
  */
 const simulatePipelineRawLlmJson = (rawInnerJson, opts = {}) => {
   const anthropicInput = { messageNumber: 1, strings: [rawInnerJson] };

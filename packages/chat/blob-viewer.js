@@ -1,9 +1,9 @@
 // @ts-check
-/* global document */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+import { E } from '@endo/far';
 import { createMonacoEditor, colorize, detectTheme } from './monaco-wrapper.js';
 import { inferLanguage } from './language-detect.js';
 import { renderMarkdownToHtml, isMarkdown } from './markdown-preview.js';
@@ -22,12 +22,16 @@ import { keyCombo, modKey } from './platform-keys.js';
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element
  * @param {HTMLElement} options.$backdrop - Backdrop element
- * @param {typeof import('@endo/far').E} options.E - Eventual send
  * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {() => void} options.onClose - Called when the viewer is closed
  * @returns {BlobViewerAPI}
  */
-export const createBlobViewer = ({ $container, $backdrop, E, powers, onClose }) => {
+export const createBlobViewer = ({
+  $container,
+  $backdrop,
+  powers,
+  onClose,
+}) => {
   let visible = false;
   let dirty = false;
   /** @type {import('./monaco-wrapper.js').MonacoEditorAPI | null} */

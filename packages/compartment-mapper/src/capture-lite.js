@@ -112,7 +112,12 @@ const captureCompartmentMap = (
 const makePreloader = (
   compartmentMap,
   sources,
-  { log = noop, policy, _preload: preload = [] } = {},
+  {
+    log = noop,
+    policy,
+    _preload: preload = [],
+    _redundantPreloadHook: redundantPreloadHook = undefined,
+  } = {},
 ) => {
   const {
     entry: { module: entryModuleSpecifier },
@@ -173,10 +178,29 @@ const makePreloader = (
 
         const compartmentSources = sources[compartmentName];
 
-        if (keys(compartmentSources).length) {
+        // The default preload entry is the entry module as defined by the
+        // package itself. This corresponds to the `ModuleConfiguration` of `.`
+        // in the `CompartmentDescriptor`'s `modules` object. Since the key in
+        // `compartmentSources` is presumably a resolved relative path, we don't
+        // actually know which key to look for! Thus, we are assuming that the
+        // `Compartment`'s entry module has been loaded if _any_ sources are
+        // present.
+        const entryIsLoaded =
+          entry === DEFAULT_PRELOAD_ENTRY
+            ? keys(compartmentSources).length > 0
+            : entry in compartmentSources;
+
+        if (entryIsLoaded) {
           log(
-            `Refusing to preload Compartment ${q(canonicalName)}; already loaded`,
+            `Refusing to preload Compartment ${q(canonicalName)} entry ${q(entry)}; already loaded`,
           );
+          if (redundantPreloadHook) {
+            redundantPreloadHook({
+              canonicalName,
+              entry,
+              log,
+            });
+          }
         } else {
           const compartment = compartments[compartmentName];
           if (!compartment) {
@@ -274,6 +298,7 @@ export const captureFromMap = async (
     Compartment: CompartmentOption = DefaultCompartment,
     log = noop,
     _preload: preload = [],
+    _redundantPreloadHook: redundantPreloadHook = undefined,
     packageConnectionsHook,
     moduleSourceHook,
   } = options;
@@ -295,6 +320,7 @@ export const captureFromMap = async (
     log,
     policy,
     _preload: preload,
+    _redundantPreloadHook: redundantPreloadHook,
   });
 
   const consolidatedExitModuleImportHook = exitModuleImportHookMaker({

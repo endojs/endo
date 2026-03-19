@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Claw-like system prompt builder
  */
@@ -11,7 +13,7 @@
 /**
  * Build the full system prompt for the agent
  *
- * @param {Object} options - Configuration options
+ * @param {object} options - Configuration options
  * @param {string} [options.hostname] - Hostname (optional)
  * @param {string} [options.currentTime] - Current time string (optional)
  * @param {string} [options.workspaceDir] - Workspace directory path
@@ -24,7 +26,7 @@
  * @param {string} [options.securityNotes] - Custom security notes
  * @returns {Generator<string>} - Generates sections or lines of system prompt, caller should newline join to build a final string
  */
-export default function* buildSystemPrompt(options = {}) {
+function* buildSystemPrompt(options = {}) {
   const {
     hostname = 'unknown',
     currentTime = 'unknown',
@@ -124,13 +126,15 @@ export default function* buildSystemPrompt(options = {}) {
 function* breakBetween(brk, ...sections) {
   let some = false;
   for (const section of sections) {
-    const lines = section[Symbol.iterator]();
-    const first = lines.next();
+    const iter = /** @type {IterableIterator<string>} */ (
+      section[Symbol.iterator]()
+    );
+    const first = iter.next();
     if (!first.done) {
       if (some) yield brk;
       else some = true;
       yield first.value;
-      for (const line of lines) yield line;
+      for (const line of iter) yield line;
     }
   }
 }
@@ -217,6 +221,38 @@ function* tools(toolList) {
     ...toolList.map(({ name, summary }) => `- ${name}: ${summary}`),
   ]);
 
+  // Tool selection guide — helps small models pick the right tool.
+  const toolNames = new Set(toolList.map(({ name }) => name));
+  yield '';
+  yield* demarcatedSection(2, 'Tool Selection Guide', function* () {
+    yield 'Choose the right tool for the task:';
+    yield '';
+    if (toolNames.has('listDirectory') || toolNames.has('readFile')) {
+      yield '**See what is in a directory** → listDirectory (NOT readFile)';
+    }
+    if (toolNames.has('readFile')) {
+      yield '**Read a file\'s content** → readFile (only works on files, not directories)';
+    }
+    if (toolNames.has('stat')) {
+      yield '**Check if a path is a file or directory** → stat';
+    }
+    if (toolNames.has('writeFile')) {
+      yield '**Create a new file or fully rewrite** → writeFile';
+    }
+    if (toolNames.has('editFile')) {
+      yield '**Change part of an existing file** → editFile';
+    }
+    if (toolNames.has('bash')) {
+      yield '**Run a shell command (ls, grep, find, curl, etc.)** → bash';
+    }
+    if (toolNames.has('webSearch')) {
+      yield '**Search the internet** → webSearch';
+    }
+    if (toolNames.has('webFetch')) {
+      yield '**Download a specific URL** → webFetch';
+    }
+  });
+
   yield '';
   yield* demarcatedSection(2, 'Tool Call Style', [
     'Default: do not narrate routine, low-risk tool calls (just call the tool).',
@@ -259,6 +295,9 @@ function* heartbeat() {
   ]);
 }
 
+harden(buildSystemPrompt);
+export default buildSystemPrompt;
+
 /**
  * Memory recall guidance section
  *
@@ -277,17 +316,17 @@ function* memory(toolList) {
       'Sessions are auto-saved to memory/ when starting a new session.',
   ]);
 
-  if (toolList.some(({ name }) => name === 'memory_search')) {
+  if (toolList.some(({ name }) => name === 'memorySearch')) {
     yield '';
     yield* demarcatedSection(2, 'Memory Recall', [
       'Before answering questions about prior work, decisions, dates, people, preferences, ' +
-        'or todos: run memory_search on MEMORY.md + memory/*.md first.',
+        'or todos: run memorySearch on MEMORY.md + memory/*.md first.',
       'If low confidence after search, say you checked but found no relevant notes.',
     ]);
 
-    if (toolList.some(({ name }) => name === 'memory_get')) {
+    if (toolList.some(({ name }) => name === 'memoryGet')) {
       yield '';
-      yield 'Then use memory_get to pull only the needed lines and keep context small.';
+      yield 'Then use memoryGet to pull only the needed lines and keep context small.';
     }
   }
 }

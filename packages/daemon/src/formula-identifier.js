@@ -79,10 +79,11 @@ export const parseId = id => {
   const { number, node } = groups;
   const formulaNumber = /** @type {FormulaNumber} */ (number);
   const nodeNumber = /** @type {NodeNumber} */ (node);
+  const formulaId = /** @type {FormulaIdentifier} */ (id);
   return {
     number: formulaNumber,
     node: nodeNumber,
-    id,
+    id: formulaId,
   };
 };
 

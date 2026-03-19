@@ -45,7 +45,10 @@ export const discoverTools = async (host, localTools) => {
     maybeToolNames = [];
   }
   const names = (Array.isArray(maybeToolNames) ? maybeToolNames : []).filter(
-    /** @returns {x is string} */ x => typeof x === 'string',
+    /**
+     * @param x
+     * @returns {x is string}
+     */ x => typeof x === 'string',
   );
   await Promise.allSettled(
     names

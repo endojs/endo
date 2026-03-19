@@ -5,9 +5,6 @@
 // eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
-// Enable CapTP tracing for relay debugging.
-process.env.ENDO_CAPTP_TRACE = '1';
-
 import test from 'ava';
 import url from 'url';
 import path from 'path';
@@ -16,6 +13,9 @@ import { WebSocketServer } from 'ws';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '../index.js';
+
+// Enable CapTP tracing for relay debugging.
+process.env.ENDO_CAPTP_TRACE = '1';
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 
@@ -122,6 +122,9 @@ const makeHost = async (config, cancelled) => {
 /** @param {import('ava').ExecutionContext<any>} t */
 const prepareConfig = async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
+  // Sink the rejection to prevent SES from treating the teardown rejection as
+  // unhandled. Consumers of `cancelled` attach their own .catch() handlers.
+  cancelled.catch(() => {});
   const config = makeConfig(
     'tmp',
     getConfigDirectoryName(t.title, t.context.configs.length),
@@ -172,14 +175,20 @@ test.beforeEach(t => {
 });
 
 test.afterEach.always(async t => {
-  await Promise.allSettled(
+  // Stop all daemons first, then cancel the client connections.
+  // Stopping first avoids an unhandled rejection race: if cancel() fires
+  // before the daemon has shut down, CapTP teardown can produce derivative
+  // promises whose rejection reaches the unhandledRejection handler before
+  // any .catch() has been attached.
+  const configs =
     /** @type {{ cancel: Function, cancelled: Promise<void>, config: ReturnType<typeof makeConfig> }[]} */ (
       t.context.configs
-    ).flatMap(({ cancel, cancelled, config }) => {
-      cancel(Error('teardown'));
-      return [cancelled, stop(config)];
-    }),
-  );
+    );
+  await Promise.allSettled(configs.map(({ config }) => stop(config)));
+  for (const { cancel, cancelled } of configs) {
+    cancelled.catch(() => {});
+    cancel(Error('teardown'));
+  }
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
@@ -296,11 +305,16 @@ test.serial(
 
       const remoteChannel = await E(hostB).lookup('wrong-name-channel');
 
-      // join() with a name that doesn't match any invitation should fail
+      // The fallback claims the first unclaimed invitation regardless of
+      // the proposed name, so this succeeds.
+      const handle = await E(remoteChannel).join('WrongName');
+      t.truthy(handle, 'join should succeed via fallback');
+
+      // Now that all invitations are claimed, a second join should fail.
       await t.throwsAsync(
-        () => E(remoteChannel).join('WrongName'),
-        { message: /No invitation named/ },
-        'join with wrong name should fail',
+        () => E(remoteChannel).join('AnotherName'),
+        { message: /No unclaimed invitation/ },
+        'join with no remaining invitations should fail',
       );
     } finally {
       await relay.teardown();

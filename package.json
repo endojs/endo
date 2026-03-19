@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=16"
   },
-  "packageManager": "yarn@4.12.0",
+  "packageManager": "yarn@4.13.0",
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
@@ -84,13 +84,17 @@
   "dependenciesMeta": {
     "@ipshipyard/node-datachannel": {
       "built": true
+    },
+    "better-sqlite3": {
+      "built": true
     }
   },
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
       "lerna>nx": false,
-      "@ipshipyard/node-datachannel": true
+      "@ipshipyard/node-datachannel": true,
+      "better-sqlite3": true
     }
   }
 }

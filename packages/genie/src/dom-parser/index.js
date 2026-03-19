@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable class-methods-use-this */
 
 /**
  * DOMParser — Node.js-compatible HTML parser.

@@ -1,5 +1,6 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout, clearTimeout */
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 import fs from 'fs';
@@ -30,7 +31,7 @@ const withChildTimeout = async (child, p, t) => {
     }, t);
   });
   try {
-    return await Promise.race([timedOut, p])
+    return await Promise.race([timedOut, p]);
   } catch (e) {
     if (timer) {
       clearTimeout(timer);
@@ -61,7 +62,7 @@ export const system = async (prog, args, timeoutMs) => {
     stdio: 'inherit',
     detached: false,
   });
-  return await withChildTimeout(child, waitForExit(child), timeoutMs);
+  return withChildTimeout(child, waitForExit(child), timeoutMs);
 };
 harden(system);
 
@@ -127,6 +128,7 @@ export const whichProg = async prog => {
       return candidate;
     }
     // On Unix-like systems, check the executable bits.
+    // eslint-disable-next-line no-bitwise
     if ((stats.mode & 0o111) !== 0) {
       return candidate;
     }
@@ -215,18 +217,24 @@ harden(waitForSpawn);
 export const waitForMessage = child => {
   let done = false;
   return new Promise((resolve, reject) => {
-    child.on('error', /** @param {Error} cause */ cause => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
-      }
-    });
-    child.on('exit', /** @param {number?} code */ code => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
-      }
-    });
+    child.on(
+      'error',
+      /** @param {Error} cause */ cause => {
+        if (!done) {
+          done = true;
+          reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
+        }
+      },
+    );
+    child.on(
+      'exit',
+      /** @param {number?} code */ code => {
+        if (!done) {
+          done = true;
+          reject(new Error(`Process ${child.spawnargs} exited ${code}`));
+        }
+      },
+    );
     child.on('message', message => {
       if (!done) {
         done = true;

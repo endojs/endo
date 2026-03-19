@@ -1,4 +1,5 @@
 // @ts-nocheck - Component test with happy-dom
+/* global globalThis */
 
 import 'ses';
 import '@endo/eventual-send/shim.js';
@@ -47,9 +48,7 @@ const makeMockChannel = ({ name = 'test-microblog', memberDelay = 0 } = {}) => {
         return Promise.resolve({ value: messageQueue.shift(), done: false });
       }
       return new Promise(resolve => {
-        waitingResolvers.push(msg =>
-          resolve({ value: msg, done: false }),
-        );
+        waitingResolvers.push(msg => resolve({ value: msg, done: false }));
       });
     },
     return() {
@@ -180,7 +179,10 @@ test.serial('feed is inserted before anchor, not after', async t => {
   const children = [...$parent.childNodes];
   const feedIdx = children.indexOf($feed);
   const anchorIdx = children.indexOf($anchor);
-  t.true(feedIdx < anchorIdx, `feed (${feedIdx}) should be before anchor (${anchorIdx})`);
+  t.true(
+    feedIdx < anchorIdx,
+    `feed (${feedIdx}) should be before anchor (${anchorIdx})`,
+  );
 });
 
 test.serial('scrollTop is 0 after initial load', async t => {
@@ -292,7 +294,10 @@ test.serial('post has interaction bar with reply, share, fork', async t => {
   t.truthy($actions, 'should have interaction bar');
 
   const $buttons = $actions.querySelectorAll('.microblog-action-btn');
-  t.true($buttons.length >= 3, `should have at least 3 action buttons, got ${$buttons.length}`);
+  t.true(
+    $buttons.length >= 3,
+    `should have at least 3 action buttons, got ${$buttons.length}`,
+  );
 });
 
 test.serial('post shows author name', async t => {
@@ -410,30 +415,38 @@ test.serial('nested replies show expandable toggle', async t => {
   t.is($nestedCount.textContent, '1', 'should show count of 1 nested reply');
 });
 
-test.serial('comments have same action buttons as posts (reply, comments, share, fork)', async t => {
-  const { $parent, push } = await setup();
+test.serial(
+  'comments have same action buttons as posts (reply, comments, share, fork)',
+  async t => {
+    const { $parent, push } = await setup();
 
-  await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'A post'));
-  await push(makeMessage(2, 'A comment', { replyTo: 1 }));
+    await push(makeMessage(0, 'Bio'));
+    await push(makeMessage(1, 'A post'));
+    await push(makeMessage(2, 'A comment', { replyTo: 1 }));
 
-  // Expand comments
-  const $actionBtns = $parent.querySelectorAll('.microblog-action-btn');
-  const $commentsBtn = [...$actionBtns].find(
-    btn => btn.querySelector('.microblog-action-count') !== null,
-  );
-  t.truthy($commentsBtn, 'should have comments toggle');
-  $commentsBtn.click();
-  await tick(300);
+    // Expand comments
+    const $actionBtns = $parent.querySelectorAll('.microblog-action-btn');
+    const $commentsBtn = [...$actionBtns].find(
+      btn => btn.querySelector('.microblog-action-count') !== null,
+    );
+    t.truthy($commentsBtn, 'should have comments toggle');
+    $commentsBtn.click();
+    await tick(300);
 
-  // The comment's action bar should have the same buttons as the post
-  const $commentSection = $parent.querySelector('.microblog-comments-section');
-  t.truthy($commentSection, 'comments section should exist');
+    // The comment's action bar should have the same buttons as the post
+    const $commentSection = $parent.querySelector(
+      '.microblog-comments-section',
+    );
+    t.truthy($commentSection, 'comments section should exist');
 
-  const $commentActions = $commentSection.querySelector('.microblog-actions');
-  t.truthy($commentActions, 'comment should have action bar');
+    const $commentActions = $commentSection.querySelector('.microblog-actions');
+    t.truthy($commentActions, 'comment should have action bar');
 
-  const $btns = $commentActions.querySelectorAll('.microblog-action-btn');
-  // reply (↩), comments (💬), share (⇗), fork (⑂)
-  t.true($btns.length >= 4, `comment should have at least 4 action buttons, got ${$btns.length}`);
-});
+    const $btns = $commentActions.querySelectorAll('.microblog-action-btn');
+    // reply (↩), comments (💬), share (⇗), fork (⑂)
+    t.true(
+      $btns.length >= 4,
+      `comment should have at least 4 action buttons, got ${$btns.length}`,
+    );
+  },
+);

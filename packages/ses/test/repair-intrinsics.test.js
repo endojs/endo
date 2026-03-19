@@ -43,7 +43,7 @@ test('permitted prototypes - on', t => {
   t.truthy(globalThis.Function && Object.isFrozen(globalThis.Function));
   t.truthy(globalThis.Compartment && Object.isFrozen(globalThis.Compartment));
   for (const name of getOwnPropertyNames(initialGlobalPropertyNames)) {
-    t.assert(globalThis[name] && Object.isFrozen(globalThis[name]));
+    globalThis[name] && t.assert(Object.isFrozen(globalThis[name]));
   }
 
   t.is(globalThis.foo, 1);

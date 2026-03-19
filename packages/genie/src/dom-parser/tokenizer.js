@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 /**
  * HTML Tokenizer
@@ -118,7 +119,7 @@ const parseAttributes = attrStr => {
     if (i >= len) break;
 
     // Read attribute name.
-    let nameStart = i;
+    const nameStart = i;
     while (
       i < len &&
       !isWhitespace(attrStr[i]) &&
@@ -193,10 +194,7 @@ export const tokenize = html => {
       }
 
       // Doctype.
-      if (
-        html.startsWith('<!DOCTYPE', i) ||
-        html.startsWith('<!doctype', i)
-      ) {
+      if (html.startsWith('<!DOCTYPE', i) || html.startsWith('<!doctype', i)) {
         const endIdx = html.indexOf('>', i);
         i = endIdx === -1 ? len : endIdx + 1;
         continue;
@@ -216,7 +214,10 @@ export const tokenize = html => {
           i = len;
           continue;
         }
-        const tag = html.slice(i + 2, endIdx).trim().toLowerCase();
+        const tag = html
+          .slice(i + 2, endIdx)
+          .trim()
+          .toLowerCase();
         if (tag) {
           tokens.push(harden({ type: 'close', tag }));
         }
@@ -242,15 +243,15 @@ export const tokenize = html => {
       }
       if (j >= len) {
         // Malformed — treat rest as text.
-        tokens.push(harden({ type: 'text', data: decodeEntities(html.slice(i)) }));
+        tokens.push(
+          harden({ type: 'text', data: decodeEntities(html.slice(i)) }),
+        );
         break;
       }
 
       const tagContent = html.slice(i + 1, j); // everything between < and >
       const selfClosingSlash = tagContent.endsWith('/');
-      const content = selfClosingSlash
-        ? tagContent.slice(0, -1)
-        : tagContent;
+      const content = selfClosingSlash ? tagContent.slice(0, -1) : tagContent;
 
       // Extract tag name.
       let k = 0;

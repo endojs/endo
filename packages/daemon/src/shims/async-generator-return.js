@@ -61,7 +61,7 @@ if (desc && 'value' in desc && desc.configurable) {
   Object.defineProperty(AsyncGeneratorPrototype, 'return', {
     get: getter,
     set: setter,
-    enumerable: desc.enumerable,
-    configurable: desc.configurable,
+    enumerable: desc.enumerable ?? false,
+    configurable: desc.configurable ?? true,
   });
 }

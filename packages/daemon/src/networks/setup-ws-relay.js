@@ -7,6 +7,8 @@
 
 import { E } from '@endo/eventual-send';
 
+/** @import { ERef } from '@endo/eventual-send' */
+
 const wsRelaySpecifier = new URL('ws-relay.js', import.meta.url).href;
 
 /**
@@ -18,7 +20,7 @@ const wsRelaySpecifier = new URL('ws-relay.js', import.meta.url).href;
  * formula env so they survive reincarnation without a pet-store lookup
  * at boot time.
  *
- * @param {import('@endo/eventual-send').ERef<object>} powers - HOST powers
+ * @param {ERef<object>} powers - HOST powers
  * (requires `makeUnconfined`; use `--powers @agent`).
  * @param {object} [_context]
  * @param {object} [options]

@@ -8,6 +8,7 @@ import { FaeToolInterface } from '../src/fae-tool-interface.js';
  * Example tool caplet: current timestamp.
  * Demonstrates Node.js access from an unsandboxed tool caplet.
  * Run via `endo run --UNCONFINED tools/timestamp.js` to produce a FaeTool exo.
+ * @param _powers
  */
 export const make = _powers => {
   /** @type {import('../src/tool-makers.js').ToolSchema} */

@@ -7,6 +7,7 @@ import { FaeToolInterface } from '../src/fae-tool-interface.js';
 /**
  * Example tool caplet: safe arithmetic.
  * Run via `endo run --UNCONFINED tools/math.js` to produce a FaeTool exo.
+ * @param _powers
  */
 export const make = _powers => {
   /** @type {import('../src/tool-makers.js').ToolSchema} */
@@ -33,27 +34,45 @@ export const make = _powers => {
   });
 
   const ops = harden({
-    /** @param {number} a @param {number} b */
+    /**
+     * @param {number} a @param {number} b
+     * @param b
+     */
     add: (a, b) => a + b,
-    /** @param {number} a @param {number} b */
+    /**
+     * @param {number} a @param {number} b
+     * @param b
+     */
     subtract: (a, b) => a - b,
-    /** @param {number} a @param {number} b */
+    /**
+     * @param {number} a @param {number} b
+     * @param b
+     */
     multiply: (a, b) => a * b,
-    /** @param {number} a @param {number} b */
+    /**
+     * @param {number} a @param {number} b
+     * @param b
+     */
     divide: (a, b) => {
       if (b === 0) {
         throw new Error('Division by zero');
       }
       return a / b;
     },
-    /** @param {number} a @param {number} b */
+    /**
+     * @param {number} a @param {number} b
+     * @param b
+     */
     modulo: (a, b) => {
       if (b === 0) {
         throw new Error('Modulo by zero');
       }
       return a % b;
     },
-    /** @param {number} a @param {number} b */
+    /**
+     * @param {number} a @param {number} b
+     * @param b
+     */
     power: (a, b) => a ** b,
   });
 

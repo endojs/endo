@@ -52,12 +52,12 @@ export {
 } from './src/keys/merge-bag-operators.js';
 
 export {
-  M,
+  // M, matches, and mustMatch are re-exported from types-index.js
+  // so they get typed declarations (namespace merge, type-predicate,
+  // asserts signatures) that JSDoc cannot express.
   getRankCover,
   isPattern,
   assertPattern,
-  matches,
-  mustMatch,
   isAwaitArgGuard,
   assertAwaitArgGuard,
   isRawGuard,

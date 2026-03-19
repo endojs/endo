@@ -127,8 +127,7 @@ const processToolCalls = async (toolCalls, toolMap) => {
   /** @type {object[]} */
   const results = [];
   for (const toolCall of toolCalls) {
-    const { name, arguments: argsRaw } = /** @type {any} */ (toolCall)
-      .function;
+    const { name, arguments: argsRaw } = /** @type {any} */ (toolCall).function;
 
     const args = parseToolArgs(argsRaw);
 
@@ -264,8 +263,7 @@ const makeRequestPermissionTool = powers => {
         properties: {
           description: {
             type: 'string',
-            description:
-              'Human-readable description of what you need and why.',
+            description: 'Human-readable description of what you need and why.',
           },
           fields: {
             type: 'array',
@@ -299,13 +297,22 @@ const makeRequestPermissionTool = powers => {
       if (!description) {
         throw new Error('description is required');
       }
-      const formFields = fields.length > 0
-        ? fields.map(f => harden({
-            name: f.name,
-            label: f.label,
-            default: f.default || '',
-          }))
-        : [harden({ name: 'approved', label: 'Approve this request?', default: 'yes' })];
+      const formFields =
+        fields.length > 0
+          ? fields.map(f =>
+              harden({
+                name: f.name,
+                label: f.label,
+                default: f.default || '',
+              }),
+            )
+          : [
+              harden({
+                name: 'approved',
+                label: 'Approve this request?',
+                default: 'yes',
+              }),
+            ];
 
       await E(powers).form(
         '@host',
@@ -450,6 +457,7 @@ export const makeExecutor = (powers, provider, channelContext) => {
       }
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (toolCalls.length > 0) {
         // Detect repetitive tool calls (model stuck in a loop)
         const toolSig = toolCalls
@@ -465,7 +473,8 @@ export const makeExecutor = (powers, provider, channelContext) => {
               `[jaine][executor] Breaking: same tool call repeated ${MAX_REPEATS} times`,
             );
             lastContent =
-              rm.content || '(Stopped: repeated the same action without progress)';
+              rm.content ||
+              '(Stopped: repeated the same action without progress)';
             break;
           }
         } else {

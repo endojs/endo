@@ -37,6 +37,7 @@ export const daemonContext = {
       XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
       XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
       ENDO_SOCK: process.env.ENDO_SOCK,
+      ENDO_ADDR: process.env.ENDO_ADDR,
     };
 
     const stateHome = path.join(testRoot, 'state');
@@ -54,6 +55,9 @@ export const daemonContext = {
     process.env.XDG_CACHE_HOME = cacheHome;
     process.env.XDG_RUNTIME_DIR = runtimeDir;
     process.env.ENDO_SOCK = path.join(runtimeDir, 'endo.sock');
+    // Bind to an OS-assigned port to avoid conflicts with a running
+    // daemon or other tests on the default port 8920.
+    process.env.ENDO_ADDR = '127.0.0.1:0';
 
     await execa`endo purge -f`;
     await execa`endo start`;
@@ -67,6 +71,7 @@ export const daemonContext = {
       process.env.XDG_CACHE_HOME = prevEnv.XDG_CACHE_HOME;
       process.env.XDG_RUNTIME_DIR = prevEnv.XDG_RUNTIME_DIR;
       process.env.ENDO_SOCK = prevEnv.ENDO_SOCK;
+      process.env.ENDO_ADDR = prevEnv.ENDO_ADDR;
     }
     if (testRoot) {
       await fs.rm(testRoot, { recursive: true, force: true });

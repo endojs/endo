@@ -3,7 +3,6 @@
 
 /** @import { FilePowers } from './types.js' */
 
-import { decodeBase64 } from '@endo/base64';
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
 

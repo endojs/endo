@@ -1,15 +1,14 @@
 // @ts-check
 /* global process */
+/* eslint-disable no-continue */
 
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import { systemCapture } from '@endo/platform/proc';
 import { whereEndoState } from '@endo/where';
-import { time } from 'console';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,9 +29,6 @@ const wsRelayUrl = pathToFileURL(
 // Bootstrap specifiers for AI agent setup scripts
 const lalSetupUrl = pathToFileURL(
   path.join(repoRoot, 'packages/lal/setup.js'),
-).href;
-const faeSetupUrl = pathToFileURL(
-  path.join(repoRoot, 'packages/fae/setup.js'),
 ).href;
 const jaineSetupUrl = pathToFileURL(
   path.join(repoRoot, 'packages/jaine/setup.js'),
@@ -67,7 +63,8 @@ const loadDotenv = () => {
  * @param {string[]} args
  * @param {number} timeoutMs
  */
-const runEndoCli = (args, timeoutMs = 1_500) => systemCapture(endoCliPath, args, timeoutMs);
+const runEndoCli = (args, timeoutMs = 1_500) =>
+  systemCapture(endoCliPath, args, timeoutMs);
 
 // Set to 0 to disable thrashing when developing daemon
 const DAEMON_POLL_INTERVAL_MS = 5_000;
@@ -179,10 +176,10 @@ const makeEndoChecker = () => {
       failStarts = 0;
     } else {
       console.error('[Endo Plugin] Failed to start endo daemon');
-      for (const line of stderr.split("\n")) {
+      for (const line of stderr.split('\n')) {
         console.error(`[Endo Plugin]   ${line}`);
       }
-      failStarts++;
+      failStarts += 1;
     }
   };
 
@@ -192,13 +189,14 @@ const makeEndoChecker = () => {
     if (DAEMON_POLL_INTERVAL_MS) {
       // when start fails, backoff on retrying start up to how long we're
       // willing to wait for start to even succeed
-      const nextCheck = DAEMON_POLL_INTERVAL_MS * Math.min(
-        DAEMON_START_MAX_WAIT,
-        Math.pow(2, failStarts)
-      );
+      const nextCheck =
+        DAEMON_POLL_INTERVAL_MS *
+        Math.min(DAEMON_START_MAX_WAIT, 2 ** failStarts);
 
       if (!daemonHealthy) {
-        console.error(`[Endo Plugin] Daemon Unhealthy ; next check in ${nextCheck}`);
+        console.error(
+          `[Endo Plugin] Daemon Unhealthy ; next check in ${nextCheck}`,
+        );
       }
 
       setTimeout(checkAndRestart, nextCheck);
@@ -256,15 +254,17 @@ export const makeEndoPlugin = () => {
         loadDotenv();
         console.log('[Endo Plugin] Loaded .env from repo root');
 
-        // Set ENDO_EXTRA so the daemon auto-provisions lal/fae/jaine on startup.
+        // Set ENDO_EXTRA so the daemon auto-provisions lal/jaine on startup.
         if (!process.env.ENDO_EXTRA) {
-          process.env.ENDO_EXTRA = `${lalSetupUrl},${faeSetupUrl},${jaineSetupUrl}`;
+          process.env.ENDO_EXTRA = `${lalSetupUrl},${jaineSetupUrl}`;
         }
 
         await endoChecker.ensure();
 
         console.log(`[Endo Plugin] Gateway at ${gatewayAddress}`);
-        console.log(`[Endo Plugin] Agent: ${endoChecker.agentId.slice(0, 16)}...`);
+        console.log(
+          `[Endo Plugin] Agent: ${endoChecker.agentId.slice(0, 16)}...`,
+        );
       } catch (error) {
         console.error(`[Endo Plugin] Failed to start:`, error);
         throw error;

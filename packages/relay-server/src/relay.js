@@ -226,6 +226,8 @@ export const makeRelay = domain => {
     }
 
     // --- Authenticated phase ---
+    // In the authenticated phase, conn.nodeId is guaranteed non-null.
+    const authedNodeId = /** @type {Uint8Array} */ (conn.nodeId);
     switch (type) {
       case MSG_OPEN: {
         const { channelId, targetNodeId } = decodeOpen(payload);
@@ -251,7 +253,7 @@ export const makeRelay = domain => {
           bridges.set(bkA, bridgeEntry);
           bridges.set(bkB, bridgeEntry);
 
-          sendBinary(targetPeer.ws, encodeIncoming(serverChId, conn.nodeId));
+          sendBinary(targetPeer.ws, encodeIncoming(serverChId, authedNodeId));
           sendBinary(ws, encodeOpened(channelId));
         } else {
           if (!pendingOpens.has(targetHex)) {
@@ -262,7 +264,7 @@ export const makeRelay = domain => {
           ).push({
             ws,
             chId: channelId,
-            fromNodeId: conn.nodeId,
+            fromNodeId: authedNodeId,
           });
         }
         break;

@@ -1,16 +1,22 @@
 import type { CapTPOptions } from '@endo/captp';
 import type {
   Config,
-  EndoBootstrap,
+  DefineRequest,
   EndoAgent,
+  EndoBootstrap,
   EndoGuest,
   EndoHost,
+  Form,
+  Message,
   Name,
-  PetName,
-  SpecialName,
-  NamePath,
   NameOrPath,
+  NamePath,
+  Package,
+  PetName,
+  Request,
+  SpecialName,
   StampedMessage,
+  ValueMessage,
 } from './src/types.js';
 
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
@@ -18,15 +24,21 @@ export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
 
 export type {
   Config,
+  DefineRequest,
   EndoAgent,
   EndoGuest,
   EndoHost,
+  Form,
+  Message,
   Name,
+  Package,
   PetName,
+  Request,
   SpecialName,
   NamePath,
   NameOrPath,
   StampedMessage,
+  ValueMessage,
 };
 export function start(config?: Config): Promise<void>;
 export function stop(config?: Config): Promise<void>;

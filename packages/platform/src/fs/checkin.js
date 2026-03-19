@@ -22,6 +22,8 @@ const MAX_CHECKIN_DEPTH = 64;
 export const checkinTree = async (remoteTree, store, options = {}) => {
   const { maxDepth = MAX_CHECKIN_DEPTH } = options;
 
+  /** @import { SnapshotBlob, SnapshotTree } from './types.js' */
+
   /**
    * @param {unknown} remoteNode
    * @param {boolean} isTree
@@ -35,18 +37,25 @@ export const checkinTree = async (remoteTree, store, options = {}) => {
 
     if (!isTree) {
       // It's a blob — stream its content into the content store.
-      const readerRef = E(remoteNode).streamBase64();
-      const sha256 = await store.store(makeRefReader(readerRef));
+      const readerRef = E(
+        /** @type {SnapshotBlob} */ (remoteNode),
+      ).streamBase64();
+      const sha256 = await store.store(
+        makeRefReader(/** @type {any} */ (readerRef)),
+      );
       return { type: 'blob', sha256 };
     }
 
     // It's a tree — enumerate children and recurse.
-    const names = await E(remoteNode).list();
+    const names = await E(/** @type {SnapshotTree} */ (remoteNode)).list();
     /** @type {Array<[string, string, string]>} */
     const treeEntries = [];
 
     for (const name of names) {
-      const child = await E(remoteNode).lookup(name);
+      /** @type {any} */
+      const child = await E(/** @type {SnapshotTree} */ (remoteNode)).lookup(
+        name,
+      );
       // Use __getMethodNames__ (available on Exos and conforming Far objects)
       // to detect the node type without calling a method that may not exist,
       // which would cause CapTP to log a noisy error.

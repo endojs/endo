@@ -1,20 +1,24 @@
 /// <reference types="ses"/>
 
 import type { Rejector } from '@endo/errors/rejector.js';
-import type { Passable } from '@endo/pass-style';
+import type { CopyArray, Passable } from '@endo/pass-style';
 import type {
   MatcherNamespace,
   Pattern,
   GetRankCover,
   Kind,
+  CopyBag,
+  CopySet,
 } from '../types.js';
 
 /**
  * This factors out only the parts specific to each kind of Matcher. It is
  * encapsulated, and its methods can make the stated unchecked assumptions
  * enforced by the common calling logic.
+ *
+ * @template {Passable} [P=Passable] - the specific payload type for this matcher
  */
-export type MatchHelper = {
+export type MatchHelper<P extends Passable = Passable> = {
   /**
    * Reports whether `allegedPayload` is valid as the payload of a CopyTagged
    * whose tag corresponds with this MatchHelper's Matchers.
@@ -27,7 +31,7 @@ export type MatchHelper = {
    */
   confirmMatches: (
     specimen: Passable,
-    matcherPayload: Passable,
+    matcherPayload: P,
     reject: Rejector,
   ) => boolean;
 
@@ -45,9 +49,15 @@ export type MatchHelper = {
 export type PatternKit = {
   confirmMatches: (
     specimen: any,
-    patt: Passable,
+    patt: Pattern,
     reject: Rejector,
     label?: string | number,
+  ) => boolean;
+  confirmLabeledMatches: (
+    specimen: any,
+    patt: Pattern,
+    prefix: string | number,
+    reject: Rejector,
   ) => boolean;
   matches: (specimen: any, patt: Pattern) => boolean;
   mustMatch: (specimen: any, patt: Pattern, label?: string | number) => void;
@@ -56,4 +66,17 @@ export type PatternKit = {
   getRankCover: GetRankCover;
   M: MatcherNamespace;
   kindOf: (specimen: Passable) => Kind | undefined;
+  containerHasSplit: (
+    specimen: Passable,
+    elementPatt: Pattern,
+    bound: bigint,
+    reject: Rejector,
+    needInResults?: boolean,
+    needOutResults?: boolean,
+  ) =>
+    | [
+        matches: CopyArray | CopySet | CopyBag | undefined,
+        discards: CopyArray | CopySet | CopyBag | undefined,
+      ]
+    | false;
 };

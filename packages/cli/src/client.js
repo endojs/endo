@@ -14,7 +14,7 @@ const onReject = err => {
   }
 };
 
-/** @type {import('@endo/captp').CapTPOptions} */
+/** @type {{ onReject?: (err: any) => void }} */
 const capTpOptions = harden({ onReject });
 
 /**

@@ -35,69 +35,73 @@ export const makeLocalTree = (dirPath, options = {}) => {
       );
     }
 
-    return makeExo('LocalTree', ReadableTreeInterface, {
-      /**
-       * @param {...string} names
-       * @returns {Promise<boolean>}
-       */
-      has: async (...names) => {
-        if (names.length === 0) return true;
-        const [head] = names;
-        const fullPath = path.join(currentPath, head);
-        try {
-          await fs.promises.access(fullPath);
-          return true;
-        } catch (_e) {
-          return false;
-        }
-      },
-      /** @returns {Promise<string[]>} */
-      list: async () => {
-        const dirEntries = await fs.promises.readdir(currentPath, {
-          withFileTypes: true,
-        });
-        return dirEntries
-          .filter(
-            entry =>
-              !ignored.has(entry.name) &&
-              !entry.isSymbolicLink() &&
-              (entry.isFile() || entry.isDirectory()),
-          )
-          .map(entry => entry.name)
-          .sort();
-      },
-      /**
-       * @param {string | string[]} petNamePath
-       */
-      lookup: async petNamePath => {
-        const namePath =
-          typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
-        const [head, ...tail] = namePath;
-        const fullPath = path.join(currentPath, head);
-        const stat = await fs.promises.stat(fullPath);
+    return makeExo(
+      'LocalTree',
+      ReadableTreeInterface,
+      /** @type {any} */ ({
+        /**
+         * @param {...string} names
+         * @returns {Promise<boolean>}
+         */
+        has: async (...names) => {
+          if (names.length === 0) return true;
+          const [head] = names;
+          const fullPath = path.join(currentPath, head);
+          try {
+            await fs.promises.access(fullPath);
+            return true;
+          } catch (_e) {
+            return false;
+          }
+        },
+        /** @returns {Promise<string[]>} */
+        list: async () => {
+          const dirEntries = await fs.promises.readdir(currentPath, {
+            withFileTypes: true,
+          });
+          return dirEntries
+            .filter(
+              entry =>
+                !ignored.has(entry.name) &&
+                !entry.isSymbolicLink() &&
+                (entry.isFile() || entry.isDirectory()),
+            )
+            .map(entry => entry.name)
+            .sort();
+        },
+        /**
+         * @param {string | string[]} petNamePath
+         */
+        lookup: async petNamePath => {
+          const namePath =
+            typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
+          const [head, ...tail] = namePath;
+          const fullPath = path.join(currentPath, head);
+          const stat = await fs.promises.stat(fullPath);
 
-        /** @type {any} */
-        let child;
-        if (stat.isDirectory()) {
-          child = makeTree(fullPath, depth + 1);
-        } else {
-          if (onFile) onFile();
-          child = makeLocalBlob(fullPath);
-        }
+          /** @type {any} */
+          let child;
+          if (stat.isDirectory()) {
+            child = makeTree(fullPath, depth + 1);
+          } else {
+            if (onFile) onFile();
+            child = makeLocalBlob(fullPath);
+          }
 
-        if (tail.length === 0) {
-          return child;
-        }
-        // Recursive path traversal via E() would require @endo/far import.
-        // For local trees we can resolve directly since children are local.
-        /** @type {any} */
-        let current = child;
-        for (const name of tail) {
-          current = await current.lookup(name);
-        }
-        return current;
-      },
-    });
+          if (tail.length === 0) {
+            return child;
+          }
+          // Recursive path traversal via E() would require @endo/far import.
+          // For local trees we can resolve directly since children are local.
+          /** @type {any} */
+          let current = child;
+          for (const name of tail) {
+            current = await current.lookup(name);
+          }
+          return current;
+        },
+      }),
+    );
   };
 
   return makeTree(dirPath, 0);

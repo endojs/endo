@@ -1,4 +1,5 @@
 // @ts-check
+/* global fetch */
 
 /**
  * webSearch Tool
@@ -19,7 +20,7 @@ const forbiddenPatterns = harden([
 ]);
 
 export const webSearch = makeTool('webSearch', {
-  help: function*() {
+  *help() {
     yield 'Searches the web using a text query. Returns titles, URLs, and snippets.';
     yield '';
     yield 'Use webSearch to find information online. To download a specific URL, use webFetch.';

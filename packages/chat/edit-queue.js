@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 
@@ -30,7 +31,13 @@ import harden from '@endo/harden';
  */
 
 /** Reply types that modify a node rather than appearing as children. */
-const MODIFIER_REPLY_TYPES = harden(new Set(['edit', 'deletion', 'move', 'react', 'redact-react']));
+const MODIFIER_REPLY_TYPES = new Set([
+  'edit',
+  'deletion',
+  'move',
+  'react',
+  'redact-react',
+]);
 
 /**
  * Set of reply types that render as visible child nodes.

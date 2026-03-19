@@ -5,6 +5,18 @@
 
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
+import { playChime } from './chime.js';
+import {
+  prepareTextWithPlaceholders,
+  renderMarkdown,
+} from './markdown-render.js';
+import { colorize } from './monaco-wrapper.js';
+import {
+  dateFormatter,
+  timeFormatter,
+  relativeTime,
+} from './time-formatters.js';
+import { render as renderValue } from './value-render.js';
 
 /**
  * Compare two locator URLs by identity (node + id), ignoring address
@@ -28,18 +40,6 @@ const locatorsMatch = (a, b) => {
     return false;
   }
 };
-import { playChime } from './chime.js';
-import {
-  prepareTextWithPlaceholders,
-  renderMarkdown,
-  highlightCode,
-} from './markdown-render.js';
-import {
-  dateFormatter,
-  timeFormatter,
-  relativeTime,
-} from './time-formatters.js';
-import { render as renderValue } from './value-render.js';
 
 /**
  * @param {HTMLElement} $parent
@@ -65,6 +65,7 @@ export const inboxComponent = async (
   // The existing message backlog arrives rapidly via the iterator; this
   // timer fires once the initial batch has been rendered, ensuring the
   // user lands at the latest message when switching to the inbox.
+  // eslint-disable-next-line no-unused-vars
   let initialScrollTimer = setTimeout(() => {
     $parent.scrollTo(0, $parent.scrollHeight);
     initialScrollTimer = 0;
@@ -81,9 +82,7 @@ export const inboxComponent = async (
         const endScrollTop = /** @type {number} */ (
           $parent.scrollHeight - $parent.clientHeight
         );
-        resolve(
-          endScrollTop - scrollTop < 80,
-        );
+        resolve(endScrollTop - scrollTop < 80);
       }),
     );
 
@@ -296,8 +295,10 @@ export const inboxComponent = async (
 
       // Prepare text with placeholders for markdown rendering
       const textWithPlaceholders = prepareTextWithPlaceholders(strings);
-      const { fragment, insertionPoints } =
-        renderMarkdown(textWithPlaceholders);
+      const { fragment, insertionPoints, highlight } = renderMarkdown(
+        textWithPlaceholders,
+        { colorize },
+      );
 
       // Inject sender chip into the first paragraph or heading
       // But NOT into code fence wrappers or lists - prepend a new paragraph instead
@@ -332,6 +333,9 @@ export const inboxComponent = async (
 
       // Append the rendered markdown
       $body.appendChild(fragment);
+
+      // Asynchronously apply Monaco syntax highlighting to code fences
+      highlight();
 
       // Create token chips for each insertion point
       for (
@@ -426,7 +430,15 @@ export const inboxComponent = async (
       const $code = document.createElement('code');
       $code.className = 'language-javascript';
       $code.dataset.language = 'javascript';
-      $code.appendChild(highlightCode(source, 'javascript'));
+      $code.textContent = source;
+      colorize(source, 'javascript').then(
+        html => {
+          $code.innerHTML = html;
+        },
+        () => {
+          // colorize failed — keep plain text
+        },
+      );
       $pre.appendChild($code);
       $codeWrapper.appendChild($pre);
       $definition.appendChild($codeWrapper);

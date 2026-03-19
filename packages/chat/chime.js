@@ -1,4 +1,5 @@
 // @ts-check
+/* global globalThis */
 
 import harden from '@endo/harden';
 
@@ -113,10 +114,7 @@ export const playChime = () => {
     noise.buffer = noiseBuf;
     const noiseGain = ctx.createGain();
     noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(
-      0.02 + brightness * 0.03,
-      attackEnd,
-    );
+    noiseGain.gain.linearRampToValueAtTime(0.02 + brightness * 0.03, attackEnd);
     noiseGain.gain.exponentialRampToValueAtTime(0.001, end);
     const noiseFilt = ctx.createBiquadFilter();
     noiseFilt.type = 'bandpass';

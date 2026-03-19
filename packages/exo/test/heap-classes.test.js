@@ -20,6 +20,7 @@ test('what happens with extra arguments', t => {
       t.is(x, undefined);
     },
   });
+  // TS sees foo(x: any) from the impl, so this is valid to TS. Runtime guard rejects it.
   t.throws(() => exo.foo('an extra arg'), {
     message:
       '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
@@ -32,7 +33,7 @@ const OptionalArrayI = M.interface('OptionalArray', {
 
 test('callWhen-guarded method called without optional array argument', async t => {
   const exo = makeExo('WithNoOption', OptionalArrayI, {
-    async foo(arr) {
+    async foo(arr = undefined) {
       t.is(arr, undefined);
     },
   });
@@ -139,7 +140,7 @@ test('test defineExoClassKit', t => {
     message:
       'In "decr" method of (Counter down): arg 0?: string "foo" - Must be a number',
   });
-  // @ts-expect-error bad arg
+  // @ts-expect-error 'decr' is only on the down facet
   t.throws(() => upCounter.decr(3), {
     message: 'upCounter.decr is not a function',
   });
@@ -204,16 +205,11 @@ test('sloppy option', t => {
 
   t.throws(
     () =>
-      makeExo(
-        'greeter',
-        // @ts-expect-error missing guard
-        EmptyGreeterI,
-        {
-          sayHello() {
-            return 'hello';
-          },
+      makeExo('greeter', EmptyGreeterI, {
+        sayHello() {
+          return 'hello';
         },
-      ),
+      }),
     { message: 'methods ["sayHello"] not guarded by "greeter"' },
   );
 });
@@ -290,7 +286,7 @@ test('raw guards', t => {
       // Object is implicitly frozen by harden as a side-effect of passing to
       // an M.any guard, or unfrozen because harden is fake, but isFrozen lies.
       t.true(Object.isFrozen(obj));
-      return { ...obj };
+      return { .../** @type {Record<string, any>} */ (obj) };
     },
     passthrough(obj) {
       // The object is not frozen, but isFrozen lies when hardenTaming is
@@ -324,9 +320,11 @@ test('raw guards', t => {
   t.is(Object.isFrozen({}), Object.isFrozen(greeter2.passthrough({})));
 
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
+  // @ts-expect-error impl has 4 required params; guard makes last 2 optional at runtime
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
+    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous(makeBehavior(), {}, {}),
     {
       message:
@@ -335,6 +333,7 @@ test('raw guards', t => {
     'passable behavior not allowed',
   );
   t.notThrows(
+    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous({}, makeBehavior(), {}),
     'raw behavior allowed',
   );
@@ -384,30 +383,28 @@ test.skip('types', () => {
   unguarded.notInBehavior;
 
   const guarded = makeExo('upCounter', UpCounterI, {
-    /** @param {number} val */
-    incr(val) {
+    incr(val = 1) {
       return val;
     },
   });
-  // @ts-expect-error invalid args
+  // Guard makes the arg optional; default value makes TS accept 0 args
   guarded.incr();
-  // @ts-expect-error not defined
+  // @ts-expect-error not defined on the guarded type
   guarded.notInBehavior;
 
-  makeExo(
-    'upCounter',
-    // @ts-expect-error Property 'notInInterface' is missing from UpCounterI
-    UpCounterI,
-    {
-      /** @param {number} val */
-      incr(val) {
-        return val;
-      },
-      notInInterface() {
-        return 0;
-      },
+  // Runtime error: 'notInInterface' not in guard.
+  // TS limitation: excess property checking does not apply in generic
+  // contexts, so TS cannot reject extra methods here. If TS gains
+  // exact-type checking for object literals in generics, this could
+  // become a compile-time error.
+  makeExo('upCounter', UpCounterI, {
+    incr(val = 1) {
+      return val;
     },
-  );
+    notInInterface() {
+      return 0;
+    },
+  });
 
   const sloppy = makeExo(
     'upCounter',
@@ -429,10 +426,107 @@ test.skip('types', () => {
     },
   );
   sloppy.incr(1);
-  // @ts-expect-error invalid args
+  // @ts-expect-error impl has required param from JSDoc; guard makes it optional at runtime
   sloppy.incr();
   // allowed because sloppy:true
   sloppy.notInInterface() === 0;
-  // @ts-expect-error TS infers it's literally 0
   sloppy.notInInterface() === 1;
+});
+
+// ===== defineExoClassKit with typed InterfaceGuardKit =====
+
+const ReaderI = M.interface('Reader', {
+  read: M.call().returns(M.string()),
+});
+
+const WriterI = M.interface('Writer', {
+  write: M.call(M.string()).returns(M.undefined()),
+});
+
+test('defineExoClassKit infers facet types from guard kit', t => {
+  const makeRW = defineExoClassKit(
+    'ReadWriter',
+    { reader: ReaderI, writer: WriterI },
+    /** @param {string} initial */
+    initial => ({ data: initial }),
+    {
+      reader: {
+        read() {
+          const { state } = this;
+          return state.data;
+        },
+      },
+      writer: {
+        write(text) {
+          const { state } = this;
+          state.data = text;
+        },
+      },
+    },
+  );
+
+  const rw = makeRW('hello');
+  // reader facet
+  t.is(rw.reader.read(), 'hello');
+  // writer facet
+  rw.writer.write('world');
+  t.is(rw.reader.read(), 'world');
+});
+
+const SelfRefI = M.interface('SelfRef', {
+  get: M.call().returns(M.string()),
+  getViaSelf: M.call().returns(M.string()),
+});
+
+test('this.self is typed correctly in exo methods', t => {
+  const selfRef = makeExo('SelfRef', SelfRefI, {
+    get() {
+      return 'direct';
+    },
+    getViaSelf() {
+      // this.self should have the same type as the exo object
+      return this.self.get();
+    },
+  });
+  t.is(selfRef.get(), 'direct');
+  t.is(selfRef.getViaSelf(), 'direct');
+});
+
+const KitReaderI = M.interface('KitReader', {
+  read: M.call().returns(M.string()),
+  readViaFacets: M.call().returns(M.string()),
+});
+
+const KitWriterI = M.interface('KitWriter', {
+  write: M.call(M.string()).returns(M.undefined()),
+});
+
+test('this.facets is typed correctly in kit methods', t => {
+  const makeKit = defineExoClassKit(
+    'Kit',
+    { reader: KitReaderI, writer: KitWriterI },
+    /** @param {string} data */
+    data => ({ data }),
+    {
+      reader: {
+        read() {
+          return this.state.data;
+        },
+        readViaFacets() {
+          // this.facets.reader has the reader facet type
+          return this.facets.reader.read();
+        },
+      },
+      writer: {
+        write(text) {
+          this.state.data = text;
+        },
+      },
+    },
+  );
+  const kit = makeKit('hello');
+  t.is(kit.reader.read(), 'hello');
+  t.is(kit.reader.readViaFacets(), 'hello');
+  kit.writer.write('world');
+  t.is(kit.reader.read(), 'world');
 });

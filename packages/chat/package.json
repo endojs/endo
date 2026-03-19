@@ -35,12 +35,13 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
-    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
-    "prepack": "tsc --build tsconfig.build.json",
+    "prepack": "exit 0",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:e2e": "playwright test",
-    "test:xs": "exit 0"
+    "test:xs": "exit 0",
+    "setup-lal": "endo run --UNCONFINED setup-lal.js --powers @agent",
+    "setup-llm-provider": "endo run --UNCONFINED setup-llm-provider.js --powers @agent"
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
@@ -51,6 +52,7 @@
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/inventory-graph": "workspace:^",
+    "@endo/markmdown": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/platform": "workspace:^",

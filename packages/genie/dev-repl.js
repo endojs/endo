@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+/* global process */
 /* eslint-disable no-await-in-loop */
 
 /**
@@ -13,7 +14,7 @@
  * a readline-based interactive loop.
  *
  * Usage:
- *   node dev-repl.js [-m provider/modelId] [-w /path] [--no-tools] [-v]
+ *   node dev-repl.js [-m provider/modelId] [-w /path] [--no-tools] [-v] [-s substring|fts5]
  *   node dev-repl.js -c "prompt text" [-m provider/modelId] [-w /path]
  *
  * Environment:
@@ -22,25 +23,43 @@
 
 // SES harden polyfill — must come before any @endo imports.
 // Imported as a side-effect module so it runs before ES module graph evaluation.
-import './dev-harden-polyfill.js';
+import '@endo/init/debug.js';
 
 import { createInterface } from 'readline';
-import { makePiAgent, runAgentRound, DEFAULT_MODEL_STRING } from '@endo/genie';
+// eslint-disable-next-line import/no-unresolved
+import {
+  buildHeartbeatPrompt,
+  isHeartbeatOk,
+  makePiAgent,
+  runAgentRound,
+  makeObserver,
+  makeReflector,
+  DEFAULT_MODEL_STRING,
+} from '@endo/genie';
+/** @import { Observer } from './src/observer/index.js' */
+/** @import { Reflector } from './src/reflector/index.js' */
+
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
-/** @import { Tool } from './src/tools/types.js' */
-import { bash, makeCommandTool } from './src/tools/command.js';
+/** @import {ChatEvent} from './src/agent/index.js' */
+/** @import { Tool } from './src/tools/common.js' */
+import { bash, exec, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
+import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
+import { initWorkspace, isWorkspace } from './src/workspace/init.js';
+
+import { promises as fs } from 'fs';
+import { join } from 'path';
 
 /**
  * @param {never} nope
  * @param {string} wat
  */
-function inconeivable(nope, wat) {
+function inconceivable(nope, wat) {
   throw new Error(`inconceivable ${wat}: ${nope}`);
 }
 
@@ -60,6 +79,25 @@ const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether a directory is a git repository.
+ *
+ * @param {string} dir
+ * @returns {Promise<boolean>}
+ */
+const isGitRepo = async dir => {
+  try {
+    await fs.access(join(dir, '.git'));
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -91,7 +129,9 @@ function getFlag(args, longFlag, shortFlag) {
  * @returns {boolean}
  */
 function hasFlag(args, longFlag, shortFlag) {
-  return args.includes(longFlag) || (shortFlag ? args.includes(shortFlag) : false);
+  return (
+    args.includes(longFlag) || (shortFlag ? args.includes(shortFlag) : false)
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -99,35 +139,31 @@ function hasFlag(args, longFlag, shortFlag) {
 // ---------------------------------------------------------------------------
 
 /**
- * Run a single prompt through the agent, yielding output chunks as strings.
- * The caller is responsible for writing yielded chunks to the desired output.
+ * Render a stream of ChatEvent objects into ANSI-formatted output chunks.
  *
- * Mutates `messages` as a side-effect, appending the user prompt
- * and the assistant's final reply.
+ * Pure rendering: takes an async iterable of events and yields display
+ * strings.  Returns the assistant's final text reply (empty string when
+ * no assistant message was received).
  *
- * @param {PiAgent} piAgent
- * @param {string} prompt
+ * @param {AsyncIterable<ChatEvent>} events
  * @param {object} [options]
- * @param {Array<{ role: string, content: string }>} [options.messages]
  * @param {boolean} [options.verbose]
  * @param {boolean} [options.echoUser]
  * @returns {AsyncGenerator<string, string>} Yields output chunks; returns
  *   the assistant's final text reply (empty string on error).
  */
-async function* runPrompt(piAgent, prompt, {
-  messages = [],
-  verbose = false,
-  echoUser = false,
-} = {}) {
+async function* runAgentEvents(
+  events,
+  { verbose = false, echoUser = false } = {},
+) {
   let assistantText = '';
   let streamStarted = false;
   let thinkingStarted = false;
 
-  for await (const event of runAgentRound(piAgent, prompt)) {
+  for await (const event of events) {
     switch (event.type) {
       case 'UserMessage': {
         const { content } = event;
-        messages.push({ role: 'user', content });
         if (echoUser) {
           yield `${BOLD}${GREEN}you>${RESET} ${content}\n`;
         }
@@ -163,7 +199,8 @@ async function* runPrompt(piAgent, prompt, {
             const { result } = event;
             if (result) {
               try {
-                const s = typeof result === 'string' ? result : JSON.stringify(result);
+                const s =
+                  typeof result === 'string' ? result : JSON.stringify(result);
                 preview = ` ${DIM}${s.length > 200 ? `${s.slice(0, 200)}...` : s}${RESET}`;
               } catch (err) {
                 preview = ` ${RED}Failed to format result: ${err.message} (type: ${typeof event.result}) ${RESET}`;
@@ -246,7 +283,7 @@ async function* runPrompt(piAgent, prompt, {
       }
 
       default: {
-        inconeivable(event, 'agent chat event');
+        inconceivable(event, 'agent chat event');
       }
     }
   }
@@ -257,6 +294,52 @@ async function* runPrompt(piAgent, prompt, {
   if (streamStarted) {
     yield `${RESET}\n`;
   }
+
+  return assistantText;
+}
+
+/**
+ * Run a single prompt through the agent, yielding output chunks as strings.
+ * The caller is responsible for writing yielded chunks to the desired output.
+ *
+ * Mutates `messages` as a side-effect, appending the user prompt
+ * and the assistant's final reply.
+ *
+ * @param {PiAgent} piAgent
+ * @param {string} prompt
+ * @param {object} [options]
+ * @param {Array<{ role: string, content: string }>} [options.messages]
+ * @param {boolean} [options.verbose]
+ * @param {boolean} [options.echoUser]
+ * @returns {AsyncGenerator<string, string>} Yields output chunks; returns
+ *   the assistant's final text reply (empty string on error).
+ */
+async function* runPrompt(
+  piAgent,
+  prompt,
+  { messages = [], verbose = false, echoUser = false } = {},
+) {
+  const events = runAgentRound(piAgent, prompt);
+
+  /**
+   * Tap the event stream to collect messages as a side-effect.
+   *
+   * @param {AsyncIterable<ChatEvent>} source
+   */
+  async function* collectMessages(source) {
+    for await (const event of source) {
+      if (event.type === 'UserMessage') {
+        const { content } = event;
+        messages.push({ role: 'user', content });
+      }
+      yield event;
+    }
+  }
+
+  const assistantText = yield* runAgentEvents(collectMessages(events), {
+    verbose,
+    echoUser,
+  });
 
   if (assistantText) {
     messages.push({ role: 'assistant', content: assistantText });
@@ -281,37 +364,43 @@ async function* runPrompt(piAgent, prompt, {
  * @param {PiAgent} options.piAgent
  * @param {Record<string, Tool>} options.tools
  * @param {boolean} options.verbose - Enable debug output.
+ * @param {string} options.workspaceDir - Workspace directory path.
  * @param {Array<{ role: string, content: string }>} [options.messages]
  * @param {AsyncIterable<string>} options.prompts - Async iterable of user prompts for REPL mode. Ignored in one-shot (command) mode.
+ * @param {Observer} [options.observer] - Observer instance for .observe command.
+ * @param {Reflector} [options.reflector] - Reflector instance for .reflect command.
  * @returns {AsyncGenerator<string>}
  */
 async function* runAgent({
   piAgent,
   tools,
   verbose,
+  workspaceDir,
   prompts,
   messages = [],
+  observer,
+  reflector,
 }) {
   for await (const prompt of prompts) {
     if (prompt === '.exit' || prompt === '.quit') {
       yield `${DIM}Goodbye.${RESET}\n`;
       break;
-    }
 
-    else if (prompt === '.help') {
+    } else if (prompt === '.help') {
       yield `${DIM}Commands:${RESET}\n`;
-      yield `${DIM}  .exit   — quit the REPL${RESET}\n`;
-      yield `${DIM}  .clear  — clear conversation history${RESET}\n`;
-      yield `${DIM}  .tools  — list available tools${RESET}\n`;
-      yield `${DIM}  .help   — show this help${RESET}\n`;
-    }
+      yield `${DIM}  .exit      — quit the REPL${RESET}\n`;
+      yield `${DIM}  .clear     — clear conversation history${RESET}\n`;
+      yield `${DIM}  .tools     — list available tools${RESET}\n`;
+      yield `${DIM}  .help      — show this help${RESET}\n`;
+      yield `${DIM}  .heartbeat — run a heartbeat cycle${RESET}\n`;
+      yield `${DIM}  .observe   — run an observation cycle${RESET}\n`;
+      yield `${DIM}  .reflect   — run a reflection cycle${RESET}\n`;
 
-    else if (prompt === '.clear') {
+    } else if (prompt === '.clear') {
       messages.length = 0;
       yield `${DIM}Conversation history cleared.${RESET}\n`;
-    }
 
-    else if (prompt === '.tools') {
+    } else if (prompt === '.tools') {
       const toolNames = Object.keys(tools);
       if (!toolNames.length) {
         yield `${DIM}-- No Tools --${RESET}\n`;
@@ -320,9 +409,75 @@ async function* runAgent({
           yield `${DIM}  • ${name}${RESET}\n`;
         }
       }
-    }
 
-    else {
+    } else if (prompt === '.heartbeat') {
+      // ─── Dot command .heartbeat ──────────────────────
+      yield `${DIM}Running heartbeat cycle...${RESET}\n`;
+      try {
+        const workspaceIsGit = await isGitRepo(workspaceDir);
+        const heartbeatPrompt = buildHeartbeatPrompt(workspaceIsGit);
+        const result = yield* runPrompt(piAgent, heartbeatPrompt, {
+          messages,
+          verbose,
+          echoUser: true,
+        });
+        if (isHeartbeatOk(result)) {
+          yield `${GREEN}✓ Heartbeat OK.${RESET}\n`;
+        } else {
+          yield `${YELLOW}⚠ Heartbeat completed but response did not indicate OK.${RESET}\n`;
+        }
+      } catch (err) {
+        yield `${RED}Heartbeat failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+      }
+
+    } else if (prompt === '.observe') {
+      // ─── Dot command .observe ────────────────────────
+      if (!observer) {
+        yield `${RED}Observer not available (memory tools required).${RESET}\n`;
+      } else if (observer.isRunning()) {
+        yield `${YELLOW}Observation is already in progress.${RESET}\n`;
+      } else {
+        yield `${DIM}Running observation cycle...${RESET}\n`;
+        try {
+          observer.check(piAgent);
+          // If check didn't trigger (below threshold), force via onIdle.
+          if (!observer.isRunning()) {
+            observer.onIdle(piAgent);
+          }
+          // Wait briefly for the fire-and-forget observation to start.
+          if (observer.isRunning()) {
+            yield `${GREEN}✓ Observation triggered (running in background).${RESET}\n`;
+          } else {
+            yield `${DIM}No unobserved messages to process.${RESET}\n`;
+          }
+        } catch (err) {
+          yield `${RED}Observation failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+        }
+      }
+
+    } else if (prompt === '.reflect') {
+      // ─── Dot command .reflect ────────────────────────
+      if (!reflector) {
+        yield `${RED}Reflector not available (memory tools required).${RESET}\n`;
+      } else if (reflector.isRunning()) {
+        yield `${YELLOW}Reflection is already in progress.${RESET}\n`;
+      } else {
+        yield `${DIM}Running reflection cycle...${RESET}\n`;
+        try {
+          await reflector.run();
+          yield `${GREEN}✓ Reflection cycle complete.${RESET}\n`;
+        } catch (err) {
+          yield `${RED}Reflection failed: ${/** @type {Error} */ (err).message}${RESET}\n`;
+        }
+      }
+
+
+    } else if (prompt.startsWith('.')) {
+      // ─── Unknown dot command ────────────────────────
+      yield `${RED}Unknown command: ${prompt}${RESET}\n`;
+      yield `${DIM}Type .help for a list of commands.${RESET}\n`;
+
+    } else {
       try {
         yield* runPrompt(piAgent, prompt, { messages, verbose });
       } catch (err) {
@@ -348,22 +503,41 @@ async function* readPrompts() {
     prompt: `${BOLD}${GREEN}you>${RESET} `,
   });
 
-  /** @returns {Promise<string|null>} */
-  const nextPrompt = () => new Promise(resolve => {
-    rl.prompt();
-
-    rl.once('line', async line => {
-      const prompt = line.trim();
-      if (!prompt) {
-        return nextPrompt();
-      }
-      resolve(prompt);
-    });
-
-    rl.on('close', () => {
-      resolve(null);
-    });
+  let closed = false;
+  rl.once('close', () => {
+    closed = true;
   });
+
+  /** @returns {Promise<string|null>} */
+  const nextPrompt = () =>
+    new Promise(resolve => {
+      if (closed) {
+        resolve(null);
+        return;
+      }
+
+      rl.prompt();
+
+      /** @param {string} line */
+      const onLine = line => {
+        rl.removeListener('close', onClose);
+        const prompt = line.trim();
+        if (!prompt) {
+          resolve(nextPrompt());
+          return;
+        }
+        resolve(prompt);
+      };
+
+      const onClose = () => {
+        rl.removeListener('line', onLine);
+        closed = true;
+        resolve(null);
+      };
+
+      rl.once('line', onLine);
+      rl.once('close', onClose);
+    });
 
   for (; ;) {
     const prompt = await nextPrompt();
@@ -376,7 +550,6 @@ async function* readPrompts() {
     yield prompt;
     rl.resume();
   }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -385,17 +558,52 @@ async function* readPrompts() {
 
 /** @param {string[]} args */
 async function* runMain(args) {
-
   const command = getFlag(args, '--command', '-c');
   const modelArg = getFlag(args, '--model', '-m');
   const noTools = hasFlag(args, '--no-tools');
   const verbose = hasFlag(args, '--verbose', '-v');
-  const workspaceArg = getFlag(args, '--workspace', '-w') || process.cwd();
+  const searchArg = getFlag(args, '--search', '-s') || 'substring';
 
-  const fileTools = makeFileTools({ root: workspaceArg });
-  const memoryTools = makeMemoryTools({ root: workspaceArg });
+  // Stabilise workspaceArg => workspaceDir,
+  // but reject implicit uninitialized cwd.
+  let workspaceArg = getFlag(args, '--workspace', '-w');
+  if (!workspaceArg) {
+    workspaceArg = process.cwd();
+    if (! await isWorkspace(workspaceArg)) {
+      yield `! Implicit workspace from cwd:${workspaceArg} is not a genie workspace`;
+      yield `! Pass \`--workspace "${workspaceArg}"\` if this was intentional`;
+      return;
+    }
+  }
+  const workspaceDir = workspaceArg;
 
-  // example of targeted command execution, rather than full bash
+  // Seed the workspace from the shipped template on first run.
+  if (await initWorkspace(workspaceDir)) {
+    yield `Initialized genie workspace in ${workspaceDir}`;
+  }
+
+  /** @type {import('./src/tools/memory.js').SearchBackend | undefined} */
+  let searchBackend;
+  if (searchArg === 'fts5') {
+    searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
+  } else if (searchArg === 'substring') {
+    searchBackend = undefined; // uses default substring backend
+  } else {
+    throw new Error(
+      `Unknown search backend: ${searchArg} (expected "substring" or "fts5")`,
+    );
+  }
+
+  const fileTools = makeFileTools({ root: workspaceDir });
+  const {
+    indexing: memoryIndexing,
+    ...memoryTools
+  } = makeMemoryTools({
+    root: workspaceDir,
+    searchBackend,
+  });
+
+  // example of targeted command execution, rather than wide-open "any system command" (aka the exec tool)
   const git = makeCommandTool({
     name: 'git',
     program: 'git',
@@ -403,13 +611,14 @@ async function* runMain(args) {
       'Runs git version control commands (status, log, diff, commit, etc.).',
     allowPath: true,
     policies: [
+      // eslint-disable-next-line no-shadow
       args => {
         const first = args.filter(arg => !arg.startsWith('-'))[0];
         return !(
           // ban network touching commands ; TODO moar
-          first && ['push', 'pull', 'fetch'].includes(first)
+          (first && ['push', 'pull', 'fetch'].includes(first))
         );
-      }
+      },
     ],
   });
 
@@ -420,6 +629,7 @@ async function* runMain(args) {
     ? {}
     : {
       bash,
+      exec,
       git,
       ...fileTools,
       ...memoryTools,
@@ -431,7 +641,7 @@ async function* runMain(args) {
   const piAgent = await makePiAgent({
     hostname: 'dev-repl',
     currentTime: new Date().toISOString(),
-    workspaceDir: workspaceArg,
+    workspaceDir,
     model: modelArg,
 
     /**
@@ -462,13 +672,48 @@ async function* runMain(args) {
     },
   });
 
+  // ── Observer / Reflector (memory sub-agents) ──────────────────────
+  // Created only when memory tools are available (i.e. --no-tools is not set).
+  /** @type {import('./src/observer/index.js').Observer | undefined} */
+  let observer;
+  /** @type {import('./src/reflector/index.js').Reflector | undefined} */
+  let reflector;
+  if (!noTools) {
+
+    // TODO we need observability so that background work can be printed for debugging
+    // - the observer's sub-agent should be able to provide a ChatEvent stream, which we could consume here
+    observer = makeObserver({
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      searchBackend,
+      workspaceDir: workspaceArg,
+    });
+
+    // TODO we need observability so that background work can be printed for debugging
+    // - the reflector's sub-agent should be able to provide a ChatEvent stream, which we could consume here
+    reflector = makeReflector({
+      memoryGet: memoryTools.memoryGet,
+      memorySet: memoryTools.memorySet,
+      memorySearch: memoryTools.memorySearch,
+      searchBackend,
+      workspaceDir: workspaceArg,
+    });
+  }
+
   function* describe() {
     const modelName = modelArg || `default (${DEFAULT_MODEL_STRING})`;
     const toolNames = Object.keys(tools);
     yield `${DIM}Model:     ${modelName}${RESET}\n`;
-    yield `${DIM}Workspace: ${workspaceArg}${RESET}\n`;
-    const toolSummary = toolNames.length < 1 ? '-- No Tools --' : toolNames.join(', ');
+    yield `${DIM}Workspace: ${workspaceDir}${RESET}\n`;
+    yield `${DIM}Search:    ${searchArg}${RESET}\n`;
+    const toolSummary =
+      toolNames.length < 1 ? '-- No Tools --' : toolNames.join(', ');
     yield `${DIM}Tools:     ${toolSummary}${RESET}\n`;
+  }
+
+  async function* settle() {
+    yield `${DIM}Waiting for memory index to settle...${RESET}\n`;
+    await memoryIndexing;
   }
 
   /** @type {Array<{ role: string, content: string }>} */
@@ -480,22 +725,33 @@ async function* runMain(args) {
     if (verbose) {
       yield* describe();
     }
+    yield* settle();
     yield* runPrompt(piAgent, command, { messages, verbose, echoUser: true });
   } else {
-    yield `${BOLD}${CYAN}╔══════════════════════════════════════╗${RESET}\n`;
-    yield `${BOLD}${CYAN}║       Genie Dev REPL  v0.0.1         ║${RESET}\n`;
-    yield `${BOLD}${CYAN}╚══════════════════════════════════════╝${RESET}\n`;
+    const title = `Genie Dev REPL  v0.0.1`; // TODO lol version whence?
+    const bannerMinWidth = 40;
+    const ruleWidth = Math.max(title.length + 2, bannerMinWidth - 2);
+    const rule = '═'.repeat(ruleWidth);
+    const titlePad = (ruleWidth - title.length) / 2;
+    const head = `${' '.repeat(Math.floor(titlePad))}${title}${' '.repeat(Math.ceil(titlePad))}`;
+    yield `${BOLD}${CYAN}╔${rule}╗${RESET}\n`;
+    yield `${BOLD}${CYAN}║${head}║${RESET}\n`;
+    yield `${BOLD}${CYAN}╚${rule}╝${RESET}\n`;
     yield '\n';
     yield* describe();
     yield '\n';
+    yield* settle();
     yield `${DIM}Type your message and press Enter. Use Ctrl-C or type ".exit" to quit.${RESET}\n`;
     yield '\n';
     yield* runAgent({
       piAgent,
       tools,
       verbose,
+      workspaceDir,
       prompts: readPrompts(),
       messages,
+      observer,
+      reflector,
     });
   }
 }
@@ -513,5 +769,5 @@ process.exit(
     process.stdout.write(`${RED}Main Error: ${err.message}${RESET}`);
     console.error(err);
     return 1;
-  })
+  }),
 );

@@ -30,8 +30,6 @@ export const inbox = async ({ follow, agentNames }) =>
         verb = 'requested';
       } else if (type === 'package') {
         verb = message.replyTo === undefined ? 'sent' : 'replied to';
-      } else if (type === 'eval-request') {
-        verb = 'requested evaluation of';
       } else if (type === 'definition') {
         verb = 'proposed definition';
       } else if (type === 'form') {
@@ -88,16 +86,6 @@ export const inbox = async ({ follow, agentNames }) =>
             strings,
             edgeNames,
           )}${replyContext} at ${JSON.stringify(date)}`,
-        );
-      } else if (message.type === 'eval-request') {
-        const { source, codeNames } = message;
-        const codeNameList = /** @type {string[]} */ (codeNames);
-        const endowments =
-          codeNameList.length > 0
-            ? ` with endowments: ${codeNameList.join(', ')}`
-            : '';
-        console.log(
-          `${number}. ${provenance}${q(source)}${endowments} at ${q(date)}`,
         );
       } else if (message.type === 'definition') {
         const { source, slots } = message;

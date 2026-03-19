@@ -147,6 +147,9 @@ export const INTERFACE_TO_TYPE = {
   Handle: 'handle',
   Invitation: 'invitation',
   EndoReadable: 'readable',
+  EndoBlob: 'readable',
+  ReadableBlob: 'readable',
+  SnapshotBlob: 'readable',
   AsyncIterator: 'readable',
 };
 

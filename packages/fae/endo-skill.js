@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
-/* global process */
+/* global process, setTimeout */
+/* eslint-disable no-continue, @endo/restrict-comparison-operands */
 
 /**
  * Endo daemon CLI skill for Claude Code.
@@ -50,7 +51,6 @@ const makeRefIterator = iteratorRef => {
   return iterator;
 };
 
-
 /** Resolve the daemon socket path (same logic as @endo/where). */
 const getEndoSockPath = () => {
   if (process.env.ENDO_SOCK) return process.env.ENDO_SOCK;
@@ -66,7 +66,11 @@ const getEndoSockPath = () => {
   if (process.env.XDG_RUNTIME_DIR) {
     return path.join(process.env.XDG_RUNTIME_DIR, 'endo', 'captp0.sock');
   }
-  return path.join(os.tmpdir(), `endo-${os.userInfo().username}`, 'captp0.sock');
+  return path.join(
+    os.tmpdir(),
+    `endo-${os.userInfo().username}`,
+    'captp0.sock',
+  );
 };
 
 const SOCK_PATH = getEndoSockPath();
@@ -103,7 +107,7 @@ const formatMessage = msg => {
   if (msg.type === 'package' && Array.isArray(msg.strings)) {
     const text = [];
     const names = Array.isArray(msg.names) ? msg.names : [];
-    for (let i = 0; i < msg.strings.length; i++) {
+    for (let i = 0; i < msg.strings.length; i += 1) {
       text.push(msg.strings[i]);
       if (i < names.length) text.push(`@${names[i]}`);
     }
@@ -156,7 +160,7 @@ const commands = {
     }
   },
 
-  async 'read-message'(host, args) {
+  'read-message': async function (host, args) {
     const num = args[0];
     if (!num) {
       console.error('Usage: read-message <number>');
@@ -213,6 +217,7 @@ const commands = {
     const value = await E(target).lookup(name);
     // Try to get method names for introspection
     try {
+      // eslint-disable-next-line no-underscore-dangle
       const methods = await E(value).__getMethodNames__();
       console.log(`${name} methods: ${methods.join(', ')}`);
     } catch {
@@ -224,7 +229,7 @@ const commands = {
     }
   },
 
-  async 'channel-messages'(host, args) {
+  'channel-messages': async function (host, args) {
     const [channelName, countStr] = args;
     if (!channelName) {
       console.error('Usage: channel-messages <name> [count]');
@@ -264,7 +269,7 @@ const commands = {
     }
   },
 
-  async 'channel-members'(host, args) {
+  'channel-members': async function (host, args) {
     const [channelName] = args;
     if (!channelName) {
       console.error('Usage: channel-members <name>');
@@ -295,7 +300,7 @@ const commands = {
     }
   },
 
-  async 'channel-post'(host, args) {
+  'channel-post': async function (host, args) {
     const [channelName, ...textParts] = args;
     const replyToIdx = textParts.indexOf('--reply-to');
     const asIdx = textParts.indexOf('--as');
@@ -313,9 +318,7 @@ const commands = {
       flagIndices.add(asIdx);
       flagIndices.add(asIdx + 1);
     }
-    const text = textParts
-      .filter((_, i) => !flagIndices.has(i))
-      .join(' ');
+    const text = textParts.filter((_, i) => !flagIndices.has(i)).join(' ');
     if (!channelName || !text) {
       console.error(
         'Usage: channel-post <name> <text> [--reply-to <n>] [--as <member>]',
@@ -330,10 +333,12 @@ const commands = {
       await E(channel).post([text], [], [], replyTo);
     }
     const asLabel = asMember ? ` as ${asMember}` : '';
-    console.log(`Posted to ${channelName}${asLabel}${replyTo ? ` (reply to ${replyTo})` : ''}: ${text}`);
+    console.log(
+      `Posted to ${channelName}${asLabel}${replyTo ? ` (reply to ${replyTo})` : ''}: ${text}`,
+    );
   },
 
-  async 'channel-move'(host, args) {
+  'channel-move': async function (host, args) {
     const [channelName, msgNumber, newParent, sortOrder] = args;
     if (!channelName || !msgNumber || !newParent) {
       console.error(
@@ -350,7 +355,7 @@ const commands = {
     );
   },
 
-  async 'agent-send'(host, args) {
+  'agent-send': async function (host, args) {
     const [agentName, ...textParts] = args;
     const text = textParts.join(' ');
     if (!agentName || !text) {
@@ -361,16 +366,14 @@ const commands = {
     console.log(`Sent to ${agentName}: ${text}`);
   },
 
-  async 'agent-inbox'(host, args) {
+  'agent-inbox': async function (host, args) {
     const [agentName, countStr] = args;
     if (!agentName) {
       console.error('Usage: agent-inbox <agent-profile-name> [count]');
       process.exit(1);
     }
     const agentPowers = await E(host).lookup(agentName);
-    const messages = /** @type {any[]} */ (
-      await E(agentPowers).listMessages()
-    );
+    const messages = /** @type {any[]} */ (await E(agentPowers).listMessages());
     const count = countStr ? parseInt(countStr, 10) : messages.length;
     const shown = messages.slice(-count);
     if (shown.length === 0) {
@@ -382,7 +385,7 @@ const commands = {
     }
   },
 
-  async 'channel-watch'(host, args) {
+  'channel-watch': async function (host, args) {
     const [channelName, ...filterParts] = args;
     if (!channelName) {
       console.error('Usage: channel-watch <name> [--skip-from <member>]');
@@ -426,8 +429,7 @@ const commands = {
       seen += 1;
       if (seen <= existingCount) continue;
 
-      const author =
-        (memberNames.get(msg.memberId)) || msg.memberId || '?';
+      const author = memberNames.get(msg.memberId) || msg.memberId || '?';
       // Skip messages from the filtered member
       if (skipFrom && author === skipFrom) continue;
 
@@ -436,7 +438,7 @@ const commands = {
     }
   },
 
-  async 'inbox-watch'(host, _args) {
+  'inbox-watch': async function (host, _args) {
     const existing = /** @type {any[]} */ (await E(host).listMessages());
     const existingCount = existing.length;
     console.error(
@@ -452,7 +454,6 @@ const commands = {
       console.log(formatMessage(msg));
     }
   },
-
 
   async help() {
     console.log(`Endo Daemon Skill — Claude Code interface

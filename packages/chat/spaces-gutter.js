@@ -698,7 +698,10 @@ export const createSpacesGutter = ({
     }
     if (
       typeof obj.viewMode === 'string' &&
-      (obj.viewMode === 'chat' || obj.viewMode === 'forum' || obj.viewMode === 'outliner' || obj.viewMode === 'microblog')
+      (obj.viewMode === 'chat' ||
+        obj.viewMode === 'forum' ||
+        obj.viewMode === 'outliner' ||
+        obj.viewMode === 'microblog')
     ) {
       result.viewMode = obj.viewMode;
     }

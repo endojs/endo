@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 
@@ -474,6 +475,9 @@ export const inventoryComponent = async (
         if (!locator) {
           $remove.disabled = true;
           $remove.title = 'Cannot remove (immutable)';
+          // Still allow clicking the name to inspect the value
+          $name.classList.add('selectable');
+          $name.onclick = inspectItem;
           return;
         }
         const url = new URL(/** @type {string} */ (locator));
@@ -511,9 +515,7 @@ export const inventoryComponent = async (
             $menuBtn.addEventListener('click', menuE => {
               menuE.stopPropagation();
               // Remove any existing sidebar menus
-              const $existing = document.querySelector(
-                '.channel-sidebar-menu',
-              );
+              const $existing = document.querySelector('.channel-sidebar-menu');
               if ($existing) $existing.remove();
 
               const $menu = document.createElement('div');
@@ -560,10 +562,9 @@ export const inventoryComponent = async (
           if (channelOrder) {
             const orderIdx = channelOrder.indexOf(name);
             if (orderIdx >= 0) {
-              const existingItems =
-                /** @type {NodeListOf<HTMLElement>} */ (
-                  $list.querySelectorAll('.channel-item[data-name]')
-                );
+              const existingItems = /** @type {NodeListOf<HTMLElement>} */ (
+                $list.querySelectorAll('.channel-item[data-name]')
+              );
               let reinserted = false;
               for (const item of existingItems) {
                 if (item === $wrapper) continue;
@@ -673,6 +674,10 @@ export const inventoryComponent = async (
             ) {
               $wrapper.classList.add('active-conversation');
             }
+          } else {
+            // Non-conversable: clicking the name opens the Show Value modal
+            $name.classList.add('selectable');
+            $name.onclick = inspectItem;
           }
         }
       })
@@ -766,7 +771,10 @@ export const inventoryComponent = async (
             $children.classList.add('expanded');
 
             const wrappedOnSelectConversation = onSelectConversation
-              ? (/** @type {string | string[]} */ leafName, /** @type {string} */ locator) => {
+              ? (
+                  /** @type {string | string[]} */ leafName,
+                  /** @type {string} */ locator,
+                ) => {
                   const leafPath =
                     typeof leafName === 'string' ? [leafName] : leafName;
                   onSelectConversation([...itemPath, ...leafPath], locator);
@@ -904,7 +912,12 @@ export const inventoryComponent = async (
           ),
         ]
           .map(el => el.dataset.name)
-          .filter(/** @returns {n is string} */ n => typeof n === 'string');
+          .filter(
+            /**
+             * @param n
+             * @returns {n is string}
+             */ n => typeof n === 'string',
+          );
         onChannelReorder(orderedNames);
       }
     });
