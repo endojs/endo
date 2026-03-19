@@ -482,9 +482,76 @@ Hosts:
 ## Formula
 
 A JSON spec for an object constructor:
-- a readable blob is one of the most primitive types
+- a readable blob is one of the most primitive types (like `ReadableStream`, or other binary/large data structures)
 - notably program source code gets stored in a blob
 - evaluating a JS string in the presence of various dependencies
+
+### Formula Use Cases
+
+**1. Dynamic Code Loading**
+Formulas enable dynamic code loading in sandboxed environments:
+```json
+{
+  "dependencies": ["@endo/compartment-utils"],
+  "source": "const {E} = require('@endo/compartment-utils'); export const init = async () => { ... }",
+  "params": { "config": { "key": "value" } }
+}
+```
+- Dependencies are resolved and included at formula evaluation time
+- Source code is isolated in its own compartment
+- Parameters are passed to the formula constructor
+
+**2. Encapsulated Caplets**
+Formulas encapsulate entire capabilities in a single, portable unit:
+```json
+{
+  "constructor": "caplet",
+  "dependencies": ["@endo/caplet", "@endo/promise"],
+  "source": "export const make = (powers) => { const api = powers; return { ... } }",
+  "params": { }
+}
+```
+
+**3. Interop Between JS, WASM, and Other Modules**
+Formulas can evaluate code in the presence of multiple module systems:
+- ES modules (`import`, `export`)
+- CommonJS (`require`, `module.exports`)
+- WASM modules
+- Other plugin architectures
+
+**4. On-demand Evaluation**
+Formulas enable lazy evaluation and script execution:
+- Delay runtime code execution until dependencies are available
+- Execute code in a controlled sandbox environment
+- Cache compiled modules for reuse
+- Handle versioning and dependency resolution
+
+**Comparison: Blob vs String**
+- **Blob**: Used for binary data, large files, or when memory mapping is preferred
+- **String**: Used for human-readable code (JavaScript, JSON, configuration)
+- Both can represent "program source", but they serve different use cases and have different memory characteristics
+
+### Formula Security Principles
+
+**1. Isolation**
+- Each formula is evaluated in its own compartment
+- No access to the formula-evaluating environment's global state
+- Clean slate for dependencies (no prototype pollution)
+
+**2. Controlled Dependencies**
+- Dependencies are specified in JSON, not inline code
+- Version constraints ensure consistent behavior
+- Access to ambient authority is explicitly controlled
+
+**3. Version Resolution**
+- Formula JSON includes dependency specifications
+- A dependency manager resolves versions at runtime
+- Resolutions are cached and predictable
+
+**4. Error Isolation**
+- Failures in one formula don't crash the evaluator
+- Errors are caught and returned as standardized error objects
+- Failure modes are predictable and recoverable
 
 # System Internals
 
@@ -496,38 +563,82 @@ Design tensions with timely revocation. Need to ensure that:
 
 **What "going rogue" looks like:**
 
-In a capability-based system, "going rogue" means a program that breaks isolation expectations:
+In a capability-based system, "going rogue" means an agent or program that breaks isolation expectations:
 
-1. **Escaped Capabilities**: A worker or guest uses a capability it shouldn't have access to,
-   such as accessing the daemon's internal state or another guest's data through an unintended reference.
+1. **Escaped Capabilities**: 
+   - A worker/guest uses a capability it shouldn't have, such as accessing the daemon's internal state
+   - Example: A guest accesses the daemon's log filesystem, despite being designed to have no write access
 
-2. **Bypassed Revocation**: A capability remains active even after the original holder has explicitly
-   given it up or revoked their permission. The program continues to use the capability beyond its
-   intended lifetime.
+2. **Bypassed Revocation**: 
+   - A capability remains active even after the original holder has explicitly given it up
+   - Example: A database connection that was supposed to close when processing a request continues
+     open for hours, consuming resources
 
-3. **Time-Based Exploits**: A capability could be used after the intended revocation time or scenario,
-   exploiting a "hole" in the revocation mechanism.
+3. **Time-Based Exploits**: 
+   - A capability is used after the intended revocation time
+   - Example: A token that should expire after 5 minutes is used 6 minutes later
 
-4. **Unsanctioned Communication**: A guest sends messages to other guests or the daemon at times
-   when it shouldn't have network access or messaging privileges.
+4. **Unsanctioned Communication**: 
+   - A guest sends messages at times when it shouldn't have access
+   - Example: A guest that should only send events during user interaction instead sends
+     unsolicited events in the background
+
+5. **Resource Exhaustion**: 
+   - A program consuming excessive resources (CPU, memory, network) when it should be idle
+   - Example: A worker that's supposed to process one request at a time spins up extra threads
 
 **What the "hole" looks like:**
 
-The "hole" represents a security vulnerability in how references are managed:
+The "hole" represents a security vulnerability in how references and capabilities are managed:
 
-1. **Dangling Reference**: A reference to a formula or object exists in memory or code, but the
-   underlying resource (e.g., the formula JSON file) has been deleted or invalidated.
-   When accessed, this causes a `ReferenceError("No reference exists at path...")`.
+1. **Dangling Reference**: 
+   - A reference to a formula or object exists, but the underlying resource doesn't (path was deleted)
+   - Access triggers `ReferenceError("No reference exists at path...")`
 
-2. **Reference Leak**: A capability that should have been garbage collected remains valid,
-   allowing a program to continue using resources it shouldn't have.
+2. **Reference Leak**: 
+   - A capability that should be GC'd remains valid
+   - Example: An event handler never unregistered, keeping a reference to a callback alive
 
-3. **Missing Revocation Signal**: A mechanism that should notify programs when a capability
-   is revoked does not function correctly, leaving a time-based hole.
+3. **Missing Revocation Signal**: 
+   - A mechanism should notify programs when a capability is revoked, but doesn't
+   - Example: When a user navigates away, the page doesn't receive the cleanup signal
 
-4. **Path-Based Leaks**: A reference may be identified by a filesystem path (formulaPath). When
-   the corresponding file doesn't exist on disk, we have a "hole" where the reference doesn't
-   match reality.
+4. **Path-Based Leaks**: 
+   - A reference identified by a filesystem path (formulaPath) doesn't match reality
+   - Example: A formula deleted from disk remains referenced by a cached entry
+
+5. **Time-of-Check to Time-of-Use (TOCTOU)**: 
+   - The timing of capability checks doesn't align with the timing of capability use
+   - Example: A capability is checked when a file exists, but the file is deleted between check and use
+
+**Prevention Strategies**:
+
+To prevent "holes" and "rogue" behavior:
+
+1. **Explicit Revoke API**: Provide clear APIs for revocation
+   - `revoke(capability)` - Remove access
+   - `close(connection)` - Close resources
+   - `exit()` - Graceful shutdown
+
+2. **Event-Driven Graceful Shutdown**: Use signals, cleanup callbacks, and cancellation tokens
+   - `process.on('SIGTERM', shutdown)`
+   - `ctx.cancel()` - For async cancellation
+   - `signal.addEventListener('abort', handler)`
+
+3. **Weak References**: Use weak references to prevent accidental reference leaks
+   - Keep GC-friendly references in caches
+   - Unregister from listeners when not needed
+
+4. **Resource Quotas**: Enforce limits on all resource types
+   - Memory caps for workers
+   - Time limits for operations
+   - Network bandwidth limits
+
+5. **Audit Trails**: Log revocation actions and capability changes for debugging
+
+6. **Timeouts**: Mandatory timeouts for all long-running operations
+   - `Promise.race([op(), timeout])`
+   - Background tasks with forced cancellation
 
 **Security Implications:**
 
