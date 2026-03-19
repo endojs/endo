@@ -11,6 +11,7 @@ import {
   evadeTemplates,
   evadeDecrementGreater,
   evadeRegexpLiteral,
+  evadeClassMethod,
 } from './transform-code.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
@@ -36,6 +37,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @typedef TransformAstOptionsWithoutSourceMap
  * @property {boolean} [elideComments]
  * @property {boolean} [onlyComments]
+ * @property {(path: import('@babel/traverse').NodePath) => void} [customVisitor] - A visitor function to be called on each node, in addition to the standard transforms. Receives the same path argument as a normal Babel visitor.
  */
 
 /**
@@ -50,7 +52,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  */
 export function transformAst(
   ast,
-  { elideComments = false, onlyComments = false } = {},
+  { elideComments = false, onlyComments = false, customVisitor } = {},
 ) {
   const transformComment = elideComments ? elideComment : evadeComment;
   traverse(ast, {
@@ -71,7 +73,11 @@ export function transformAst(
         evadeStrings(p);
         evadeTemplates(p);
         evadeRegexpLiteral(p);
+        evadeClassMethod(p);
         evadeDecrementGreater(p);
+        if (customVisitor) {
+          customVisitor(p);
+        }
       }
     },
   });
