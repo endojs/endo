@@ -3,7 +3,7 @@
 |             |                       |
 |-------------|-----------------------|
 | **Created** | 2026-02-15            |
-| **Updated** | 2026-02-24            |
+| **Updated** | 2026-03-19            |
 | **Author**  | Kris Kowal (prompted) |
 | **Status**  | Not Started           |
 
@@ -20,21 +20,32 @@ A plugin that can describe a set of OS-level endowments (filesystem paths,
 network access, device access, IPC) and then execute programs within a
 sandbox enforcing exactly those endowments would let Endo extend its
 principle of least authority to native processes.  macOS provides
-`sandbox-exec` with SBPL profiles, and Linux provides `bubblewrap`
-(combining namespaces, bind mounts, and seccomp-bpf).  Both can be driven
-programmatically by generating configuration and spawning a child process.
+`sandbox-exec` with SBPL profiles, and Linux provides several
+complementary confinement mechanisms: `bubblewrap` (combining user
+namespaces, bind mounts, and seccomp-bpf), Landlock (a stackable LSM for
+unprivileged filesystem and network scoping, available since Linux 5.13
+with network rules since 6.3), and container runtimes.  Both macOS SBPL
+and the Linux tooling can be driven programmatically by generating
+configuration and spawning a child process.
 
-NOTE(Josh): not sure exactly what "bubblewrap" is but most other such project's
-around right now say "Landlock" in the same breath before "seccomp-bpf"
+The initial implementation targets bubblewrap on Linux and `sandbox-exec`
+on macOS, but the backend abstraction is deliberately general enough to
+accommodate stronger isolation mechanisms in the future:
 
-NOTE(Josh): this could be extended to other forms of isolation:
-- containers on Linux: LXC (Incus), Podman, systemd-nspawn, Docker
-- lightweight VMs: Incus, Firecracker, etc
-- there's no need to spec this to just be syscall-intercepting attenuators that
-  run in demi-userspace
-- e.g. anything on Linux that provide a separate "network namespace" should be
-  able to do any degree of net filtering we want; all of the container solution
-  above establish a separate namespace afaik
+- **Landlock** — Can be layered on top of bubblewrap to add
+  filesystem-scope and network-scope restrictions enforceable without
+  root, complementing namespace-based isolation.
+- **Container runtimes** (Podman, LXC/Incus, systemd-nspawn, Docker) —
+  Provide full namespace isolation including a separate network namespace,
+  which enables fine-grained network filtering that bubblewrap alone
+  cannot achieve.
+- **Lightweight VMs** (Firecracker, Incus VMs) — Offer hardware-assisted
+  isolation for the strongest confinement guarantees, at the cost of
+  higher startup latency.
+
+Any backend that can establish a separate network namespace (all container
+runtimes and VMs do) can enforce per-connection network filtering rules
+without the limitations of the initial bubblewrap-only approach.
 
 ## Description of the Design
 
@@ -124,13 +135,15 @@ const FsEndowmentShape = M.splitRecord(
   { mountAt: M.string() },
 );
 
+const NetRuleShape = M.splitRecord(
+  { cidr: M.string(), port: M.number() },
+);
+
 const NetEndowmentShape = M.splitRecord(
   {},
   {
-    outbound: M.boolean(),
-    inbound: M.boolean(),
-    allowHosts: M.arrayOf(M.string()),
-    allowPorts: M.arrayOf(M.number()),
+    allowOutbound: M.arrayOf(NetRuleShape),
+    allowInbound: M.arrayOf(NetRuleShape),
   },
 );
 
@@ -224,8 +237,8 @@ Mapping from endowments to SBPL operations:
 |---|---|
 | `fs[].mode === 'read'` | `(allow file-read* (subpath "<path>"))` |
 | `fs[].mode === 'read-write'` | `(allow file-read* file-write* (subpath "<path>"))` |
-| `net.outbound` | `(allow network-outbound)` with optional ip/port filters |
-| `net.inbound` | `(allow network-inbound network-bind)` |
+| `net.allowOutbound` | `(allow network-outbound)` with SBPL ip/port filters per rule |
+| `net.allowInbound` | `(allow network-inbound network-bind)` with SBPL ip/port filters per rule |
 | `exec.allowPaths` | `(allow process-exec (subpath "<path>"))` plus `(allow process-fork)` |
 | `devices.camera` | `(allow device-camera)` |
 | `devices.microphone` | `(allow device-microphone)` |
@@ -266,7 +279,7 @@ Mapping from endowments to bwrap flags:
 |---|---|
 | `fs[].mode === 'read'` | `--ro-bind <path> <mountAt>` |
 | `fs[].mode === 'read-write'` | `--bind <path> <mountAt>` |
-| `net.outbound \|\| net.inbound` | `--share-net` (default is `--unshare-net`) |
+| `net.allowOutbound \|\| net.allowInbound` | `--share-net` (default is `--unshare-net`); per-rule CIDR/port filtering requires a network namespace with nftables — see Limitations |
 | `exec.allowPaths` | Included via bind mounts; no additional flag |
 | `env` | `--setenv <key> <value>` for each entry; `--clearenv` first |
 
@@ -291,6 +304,13 @@ bwrap \
 An optional seccomp filter (compiled via a bundled BPF generator or an
 exported filter file) can further restrict dangerous syscalls (`ptrace`,
 `mount`, `unshare`, `bpf`, `io_uring_setup`).
+
+When the kernel supports Landlock (≥ 5.13), the backend can layer
+Landlock rulesets on top of bubblewrap to enforce filesystem path
+scoping and (on ≥ 6.3) network port restrictions without requiring
+root or a separate network namespace.  This complements bubblewrap's
+namespace-based isolation and enables per-rule network filtering that
+bubblewrap alone cannot provide.
 
 ### Plugin entry point
 
@@ -361,8 +381,8 @@ Methods:
     endowments: {
       fs?: Array<{ path: string, mode: 'read' | 'read-write', mountAt?: string }>
         Filesystem paths to expose inside the sandbox.
-      net?: { outbound?: boolean, inbound?: boolean,
-              allowHosts?: string[], allowPorts?: number[] }
+      net?: { allowOutbound?: Array<{ cidr, port }>,
+              allowInbound?: Array<{ cidr, port }> }
         Network access grants. Default is no network.
       exec?: { allowPaths: string[] }
         Directories from which executables may be run.
@@ -395,6 +415,8 @@ harden(make);
 
 - bubblewrap (`bwrap`) must be installed on Linux hosts.
 - `sandbox-exec` must be available on macOS hosts (ships with macOS).
+- Landlock support (Linux ≥ 5.13, network rules ≥ 6.3) is optional but
+  recommended for finer-grained filesystem and network restrictions.
 - No dependency on other design work items.
 
 ## Security Considerations
@@ -415,11 +437,17 @@ harden(make);
   containing `..` segments or symlinks that resolve outside the declared
   scope.  On macOS, SBPL `subpath` handles this at the kernel level; on
   Linux, `bwrap` bind mounts achieve the same effect.
-- **Network filtering granularity.**  macOS SBPL can filter outbound
-  connections by host/port.  Linux `bwrap` can only toggle network
-  namespace sharing (all-or-nothing); finer-grained network filtering on
-  Linux would require additional tooling (e.g., nftables rules in the
-  network namespace) and is out of scope for the initial implementation.
+- **Network filtering granularity.**  macOS SBPL can filter connections
+  by CIDR and port natively via ip-filter rules.  Linux `bwrap` alone
+  can only toggle network namespace sharing (all-or-nothing).  To enforce
+  the per-rule CIDR/port restrictions expressed in `allowOutbound` and
+  `allowInbound` on Linux, the backend must either set up nftables rules
+  inside a network namespace, use Landlock network scoping (Linux ≥ 6.3),
+  or delegate to a container runtime that provides its own network
+  namespace.  The initial Linux implementation falls back to
+  all-or-nothing network sharing when fine-grained rules cannot be
+  enforced and logs a warning.  Future backends (containers, VMs) will
+  naturally support full per-rule filtering.
 - **`sandbox-exec` deprecation.**  Apple has marked `sandbox-exec` as
   deprecated.  The design isolates the macOS backend so it can be
   replaced without affecting the capability interface.
@@ -472,6 +500,9 @@ harden(make);
 - bubblewrap requires Linux kernel ≥ 3.18 with user namespace support
   enabled.  Some distributions disable unprivileged user namespaces by
   default.
+- Landlock filesystem scoping requires kernel ≥ 5.13; network scoping
+  requires ≥ 6.3.  The backend detects availability at runtime and falls
+  back gracefully.
 
 ## Upgrade Considerations
 
