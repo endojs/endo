@@ -4,10 +4,14 @@
 /** @import { GenieAgents } from './agents.js' */
 /** @import { HeartbeatEvent } from '../heartbeat/index.js' */
 /** @import { SpecialHandler } from './specials.js' */
+/** @import { PrimordialState } from '../primordial/index.js' */
+/** @import { ProviderCredentialSpec } from '../primordial/providers.js' */
+/** @import { ModelHandlerPersistence } from '../primordial/model-handler.js' */
 
 import harden from '@endo/harden';
 
 import { runHeartbeat, HeartbeatStatus } from '../heartbeat/index.js';
+import { makeModelHandler } from '../primordial/model-handler.js';
 
 /**
  * @template Chunk
@@ -57,6 +61,20 @@ import { runHeartbeat, HeartbeatStatus } from '../heartbeat/index.js';
  * @property {SpecialsIO<Chunk>} io
  *   - Rendering / side-effect surface that adapts built-in behaviour to the
  *     host deployment.
+ * @property {PrimordialState} [state]
+ *   - Shared primordial-state handle used by the `/model` subcommand
+ *     family.  Absent in deployments that do not mount `/model` (e.g.
+ *     dev-repl, which manages its own model via the `-m` flag); in that
+ *     case the returned `model` handler yields a "not available" warning
+ *     instead of mutating state.
+ * @property {Readonly<Record<string, ProviderCredentialSpec>>} [providerSpec]
+ *   - Override for the `/model` provider catalog.  Defaults to the
+ *     authoritative `PROVIDER_CREDENTIAL_SPEC` table; tests inject a
+ *     stub to exercise edge cases without touching the real catalog.
+ * @property {ModelHandlerPersistence} [persistence]
+ *   - Optional persistence hook for `/model commit`.  Supplied by
+ *     sub-task 96 once the filesystem-backed loader lands.  Until then
+ *     `/model commit` replies with a labelled stub note.
  */
 
 /**
@@ -90,13 +108,34 @@ async function* collectIt(capture, source) {
  *
  * @template Chunk
  * @param {BuiltinSpecialsOptions<Chunk>} options
- * @returns {Record<'heartbeat'|'observe'|'reflect'|'help'|'tools'|'clear'|'exit', SpecialHandler<Chunk>>}
+ * @returns {Record<'heartbeat'|'observe'|'reflect'|'help'|'tools'|'clear'|'exit'|'model', SpecialHandler<Chunk>>}
  */
-export const makeBuiltinSpecials = ({ agents, io, workspaceDir }) => {
-  const { piAgent, heartbeatAgent, observer, reflector } = agents;
+export const makeBuiltinSpecials = ({
+  agents,
+  io,
+  workspaceDir,
+  state,
+  providerSpec,
+  persistence,
+}) => {
+  // Note: `agents` is intentionally NOT destructured at construction.  Each
+  // handler reads `agents.piAgent` / `agents.heartbeatAgent` / etc. lazily at
+  // invocation time so deployments that flip the agent pack post-construction
+  // (e.g. main.js's primordial → piAgent hand-off in sub-task 97 of
+  // TODO/92_genie_primordial.md) see the freshly-populated values.  The shape
+  // of `agents` itself can therefore be either a plain object (dev-repl, where
+  // the pack is fully built before construction) or a getter-backed view
+  // (main.js, where the pack arrives via `activatePiAgent`).
 
   /** @type {SpecialHandler<Chunk>} */
   const heartbeat = async function* heartbeatHandler(_tail) {
+    const { heartbeatAgent } = agents;
+    if (!heartbeatAgent) {
+      yield io.error(
+        'Heartbeat agent not available (no model configured yet?).',
+      );
+      return;
+    }
     yield io.notice('Running heartbeat cycle...');
     /** @type {HeartbeatEvent|null} */
     let heartbeatEvent = null;
@@ -128,6 +167,7 @@ export const makeBuiltinSpecials = ({ agents, io, workspaceDir }) => {
 
   /** @type {SpecialHandler<Chunk>} */
   const observe = async function* observeHandler(_tail) {
+    const { observer, piAgent } = agents;
     if (!observer) {
       yield io.error('Observer not available (memory tools required).');
       return;
@@ -157,6 +197,7 @@ export const makeBuiltinSpecials = ({ agents, io, workspaceDir }) => {
 
   /** @type {SpecialHandler<Chunk>} */
   const reflect = async function* reflectHandler(_tail) {
+    const { reflector } = agents;
     if (!reflector) {
       yield io.error('Reflector not available (memory tools required).');
       return;
@@ -223,7 +264,37 @@ export const makeBuiltinSpecials = ({ agents, io, workspaceDir }) => {
     if (io.requestExit) io.requestExit();
   };
 
-  return harden({ heartbeat, observe, reflect, help, tools, clear, exit });
+  // `/model` delegates to the shared factory in `primordial/model-handler.js`.
+  // The handler requires a `state` handle (so `/model set` can stage a draft
+  // that `/model test` / `/model commit` later consume) — deployments that do
+  // not thread a primordial state through (e.g. dev-repl, which manages its
+  // model via the `-m` flag) get a "not available" stub instead of a hard
+  // failure at construction time.
+  /** @type {SpecialHandler<Chunk>} */
+  const model = state
+    ? makeModelHandler({
+        workspaceDir,
+        state,
+        io,
+        ...(providerSpec ? { providerSpec } : {}),
+        ...(persistence ? { persistence } : {}),
+      })
+    : async function* modelStub(_tail) {
+        yield io.warn(
+          '/model is not available in this deployment (no primordial state wired).',
+        );
+      };
+
+  return harden({
+    heartbeat,
+    observe,
+    reflect,
+    help,
+    tools,
+    clear,
+    exit,
+    model,
+  });
 };
 harden(makeBuiltinSpecials);
 
@@ -245,6 +316,7 @@ export const BUILTIN_HELP_DESCRIPTIONS = harden({
   tools: 'list available tools',
   clear: 'clear conversation history',
   exit: 'quit the REPL',
+  model: 'list / stage / test / commit the active model (see /model help)',
 });
 
 /**

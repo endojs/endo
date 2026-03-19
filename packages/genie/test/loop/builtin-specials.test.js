@@ -21,7 +21,11 @@
  * `PLAN/genie_loop_architecture.md` § "Specials dispatcher".
  */
 
-import '@endo/harden';
+// `makeBuiltinSpecials` transitively pulls in `src/primordial/providers.js`,
+// which freezes its catalog at module load via the global `harden`.  The
+// shared `../setup.js` runs SES lockdown so that global is installed
+// before the import graph resolves regardless of which driver started us.
+import '../setup.js';
 
 import test from 'ava';
 
@@ -144,6 +148,7 @@ test('makeBuiltinSpecials — returns every documented handler', t => {
     'tools',
     'clear',
     'exit',
+    'model',
   ]) {
     t.is(typeof handlers[name], 'function', `handler ${name}`);
   }
@@ -403,4 +408,130 @@ test('exit — silently no-ops requestExit when unset', async t => {
   t.deepEqual(out, ['info:Goodbye.']);
   // No throw and no further assertions — requestExit was not supplied,
   // so the handler silently skips that side-effect.
+});
+
+// ---------------------------------------------------------------------------
+// model — sub-task 95 of TODO/92_genie_primordial.md
+// ---------------------------------------------------------------------------
+//
+// The full subcommand surface is exercised in
+// `test/primordial/model-handler.test.js`; here we only check the
+// integration points that `makeBuiltinSpecials` is responsible for —
+// namely, that the entry exists, that it dispatches into
+// `makeModelHandler` when `state` is supplied, and that it falls back
+// to a "not available" warning when no primordial state is threaded
+// through (matching the dev-repl deployment shape).
+
+test('model — yields a "not available" stub when no state is threaded through', async t => {
+  const { io } = makeIo();
+  const handlers = makeBuiltinSpecials({
+    agents: makeAgents(),
+    workspaceDir: '/w',
+    io,
+    // state intentionally omitted
+  });
+  const out = await drain(handlers.model([]));
+  t.is(out.length, 1);
+  t.regex(
+    out[0],
+    /^warn:\/model is not available/u,
+    'absent state must surface a friendly stub instead of throwing',
+  );
+});
+
+test('model — dispatches into the real /model handler when state is wired', async t => {
+  const { io } = makeIo();
+  /** @type {import('../../src/primordial/index.js').PrimordialState} */
+  const state = {
+    mode: 'primordial',
+    activate: async () => {},
+  };
+  const handlers = makeBuiltinSpecials({
+    agents: makeAgents(),
+    workspaceDir: '/w',
+    io,
+    state,
+  });
+  // `/model list` is a side-effect-free probe that exercises the
+  // dispatcher hand-off without touching disk or the network.
+  const out = await drain(handlers.model(['list']));
+  t.true(
+    out.length >= 2,
+    `expected provider catalog listing; got ${JSON.stringify(out)}`,
+  );
+  t.is(out[0], 'info:Providers:');
+  t.true(
+    out.some(line => /ollama/u.test(line)),
+    'list output must mention ollama from the real catalog',
+  );
+});
+
+test('model — accepts an injected providerSpec override', async t => {
+  const { io } = makeIo();
+  /** @type {import('../../src/primordial/index.js').PrimordialState} */
+  const state = {
+    mode: 'primordial',
+    activate: async () => {},
+  };
+  const providerSpec =
+    /** @type {Readonly<Record<string, import('../../src/primordial/providers.js').ProviderCredentialSpec>>} */ ({
+      stubco: {
+        api: 'openai-completions',
+        requiredCreds: [],
+        optionalOptions: [],
+        notes: 'Stubbed provider used only by this test.',
+      },
+    });
+  const handlers = makeBuiltinSpecials({
+    agents: makeAgents(),
+    workspaceDir: '/w',
+    io,
+    state,
+    providerSpec,
+  });
+  const out = await drain(handlers.model(['list']));
+  t.true(
+    out.some(line => /stubco/u.test(line)),
+    'override providerSpec must surface in /model list output',
+  );
+  t.false(
+    out.some(line => /ollama/u.test(line)),
+    'override providerSpec must replace, not extend, the default catalog',
+  );
+});
+
+test('model — passes the persistence hook through to the underlying handler', async t => {
+  const { io } = makeIo();
+  /** @type {import('../../src/primordial/index.js').PrimordialState} */
+  const state = {
+    mode: 'primordial',
+    activate: async () => {},
+  };
+  /** @type {Array<import('../../src/primordial/index.js').ModelDraft>} */
+  const saved = [];
+  const persistence = {
+    /** @param {import('../../src/primordial/index.js').ModelDraft} draft */
+    saveConfig: async draft => {
+      saved.push(draft);
+    },
+  };
+  const handlers = makeBuiltinSpecials({
+    agents: makeAgents(),
+    workspaceDir: '/w',
+    io,
+    state,
+    persistence,
+  });
+  // Stage a draft with the real catalog so /model commit has something
+  // to save.  ollama needs no credentials, so the set step is short.
+  await drain(handlers.model(['set', 'ollama', 'llama3.2']));
+  t.truthy(state.draft);
+  await drain(handlers.model(['commit']));
+  t.is(
+    saved.length,
+    1,
+    'persistence.saveConfig must run when /model commit succeeds',
+  );
+  t.is(saved[0].provider, 'ollama');
+  t.is(saved[0].modelId, 'llama3.2');
 });

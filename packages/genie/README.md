@@ -103,7 +103,99 @@ const runner = new HeartbeatRunner({ heartbeatPath: './HEARTBEAT.md' });
 const result = await runner.run();
 ```
 
+## Boot model
+
+The genie runs as the daemon's root agent.
+`scripts/bottle.sh invoke` starts an Endo daemon, then launches
+`setup.js` via `endo run --UNCONFINED setup.js --powers @agent`.
+`setup.js` calls
+`E(hostAgent).makeUnconfined('@main', main.js, { powersName: '@agent',
+resultName: 'main-genie', env: … })`,
+which spawns the genie worker directly on the daemon's host agent —
+there is no intermediate guest and no configuration form.
+The worker's inbox is `@self` and `@agent`;
+both names refer to the same root agent.
+
+Configuration is sourced from `GENIE_*` environment variables at the
+moment `makeUnconfined` forwards them;
+`main.js` reads them from the `env` argument it receives and fails
+fast if required values are missing.
+See `main.js` for the authoritative list of variables.
+
+The stable pet name for the root worker is `main-genie`.
+`setup.js` is idempotent: repeated `bottle.sh invoke` calls short-circuit
+once `main-genie` exists, and restarting the daemon reincarnates the
+worker from the stored formula without re-running `setup.js`.
+
+## Sandboxed workspace
+
+When `bottle.sh invoke` boots the genie on a host with a working
+sandbox backend (`bwrap` on Linux today; `podman` once Phase 2 lands
+on the operator's host), `setup.js` provisions a workspace `Mount`
+over `GENIE_WORKSPACE` and registers the `@endo/sandbox` plugin under
+`sandbox-factory`.
+`main.js` then mints a persistent slice (`main-genie-sandbox`) with
+the workspace mount installed at `/workspace` and `network: 'private'`,
+and threads the resulting `SandboxHandle` into the tool registry so
+that `bash` / `exec` / `git` spawn through `E(slice).spawn(...)`
+instead of the host `child_process.spawn`.
+
+The slice receives exactly **one** filesystem endowment beyond the
+host-bind rootfs: the operator-supplied `workspace-mount` `Mount`
+capability, installed read-write at `/workspace`.
+Inside the slice, tools see only this view of the workspace; outside
+the slice (the launcher and the host-side worker), `GENIE_WORKSPACE`
+remains the absolute host path so the worker's own MEMORY.md /
+HEARTBEAT.md / `.genie/` reads keep working unchanged.
+See
+[`packages/genie/CLAUDE.md`](CLAUDE.md) § "Boot shape" → "Host vs
+slice `GENIE_WORKSPACE`" for the call-site audit and the
+in-process-rewrite rationale.
+
+The `network: 'private'` profile drops RFC 1918 ranges, host loopback,
+and known VPN ranges from any tool-spawned process, so a tool cannot
+reach the host's daemon port, the operator's LAN, or VPN-side
+services even when given a public-internet route.
+
+When no sandbox backend is available on the host (no `bwrap`, no
+`podman`), `setup.js` still pins the `workspace-mount` and
+`sandbox-factory` capabilities, but `main.js`'s `makePersistent` call
+fails on first deref and falls back to host `child_process.spawn` for
+tools.
+Operators see a clear warning in the worker log; the agent surface
+itself is unchanged either way.
+
+### Residual exposure (the 3.5a shape)
+
+Phase 3.5a confines **only** the tool spawn chokepoint at
+[`packages/genie/src/tools/command.js`](src/tools/command.js) — i.e.
+`bash`, `exec`, and `git`.
+The `main-genie` Node worker itself still runs on the host filesystem:
+`makeUnconfined` invokes `module.main(powers, context, { env })` via
+in-process `import()` inside the daemon's worker process, and that
+worker has not been wrapped by `bwrap` / `podman` yet.
+
+Concretely, the slice does **not** confine:
+
+- An LLM-misled `eval` / dynamic-`import` path inside `main.js`'s tool
+  or specials surface — Node and the daemon code on the host
+  filesystem remain reachable from the worker's address space.
+- Direct `fs` / `child_process` calls written into a tool implementation
+  that bypasses the `command.js` chokepoint.
+  New tool implementations that need to touch the workspace should
+  route through the slice (or the workspace `Mount`) rather than
+  reach for `node:fs` directly.
+
+The `network: 'private'` egress filter still applies to everything
+**spawned through the slice**, but the worker process itself retains
+host network access by virtue of running on the host.
+
+The planned closure of this gap — pushing the entire `main-genie`
+worker process inside the slice — is tracked in
+[`TADA/24_endo_posix_sandbox_phase3_5a_worker_inside_slice.md`](../../TADA/24_endo_posix_sandbox_phase3_5a_worker_inside_slice.md).
+
 ## Documentation
 
 - [Design Document](DESIGN.md) - Complete architecture and implementation details
 - [Tool Schema](src/tools/) - Tool definitions and schemas
+- [Agent Development Guide](CLAUDE.md) - Boot model, identity, env-var config

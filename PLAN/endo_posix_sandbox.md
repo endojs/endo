@@ -483,8 +483,155 @@ asked to compose it.)
   implementation, returning a structured error if the kernel
   refuses nesting.
 
-Exit criteria: a sandboxed genie can spawn a child genie in its own
-sub-slice, on Linux, under both the bwrap and podman drivers.
+Exit criteria: on Linux, under both the bwrap and podman drivers,
+`SandboxHandle.fork()` mints a sub-slice that
+
+- inherits the parent's mount view (and only that view),
+- runs at a network profile no broader than the parent's,
+- is torn down before the parent is, and
+- on a kernel that refuses nesting, fails with a structured probe
+  error rather than a silent partial setup.
+
+The acceptance test exercises both drivers and both the
+"successful nest" and "kernel refused" paths.
+No genie code is touched in this phase — the genie integration is
+Phase 3.5.
+
+### Phase 3.5 — genie integration
+
+(New phase; written 2026-04-29 after the Phase 0 + Phase 1 (genie as
+`@self`) + Phase 2 (primordial genie + `/model` builtin) work landed
+on the genie side.
+See [`PLAN/genie_in_bottle.md`](./genie_in_bottle.md) for the bottle
+deployment shape and `packages/genie/CLAUDE.md` for the current root
+genie identity model.)
+
+This phase wires the sandbox plugin into `@endo/genie` as the first
+real consumer of `SandboxHandle.fork()`.
+It has two distinct surfaces, addressing two different deployment
+shapes that the bottle work has split out since the original PLAN
+was drafted.
+
+#### 3.5a — root-genie workspace slice
+
+**Landed** (2026-04 / 2026-05): the integration shipped against the
+"tools spawn through the slice; worker stays on the host" intermediate
+shape called out in the "Open" note below.
+See
+[`TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md`](../TADA/22_endo_posix_sandbox_phase3_5a_genie_workspace.md)
+for the consolidated decision record (slice minted main-side, slice
+formula owned by `packages/sandbox`) and sub-tasks
+[`TADA/31_…workspace_mount`](../TADA/31_endo_genie_sandbox_workspace_mount.md),
+[`TADA/32_…factory_register`](../TADA/32_endo_genie_sandbox_factory_register.md),
+[`TADA/33_…persist_slice`](../TADA/33_endo_genie_sandbox_persist_slice.md),
+[`TADA/34_…main_wiring`](../TADA/34_endo_genie_sandbox_main_wiring.md),
+[`TADA/35_…tool_spawn`](../TADA/35_endo_genie_sandbox_tool_spawn.md),
+[`TADA/36_…workspace_path`](../TADA/36_endo_genie_sandbox_workspace_path.md),
+and
+[`TADA/37_…host_worker_residual`](../TADA/37_endo_genie_sandbox_host_worker_residual.md)
+for the per-deliverable landing notes.
+The worker-inside-slice variant — the harder closure of the residual
+host-side `eval` exposure — is filed as a follow-up under
+[`TADA/24_…worker_inside_slice`](../TADA/24_endo_posix_sandbox_phase3_5a_worker_inside_slice.md).
+
+The "genie-as-workspace" integration originally sketched in
+[§ Genie integration shape](#genie-integration-shape) was written
+when the genie booted via a daemon-side configuration form into a
+provisioned guest.
+Phase 1 (genie self) collapsed that into a `makeUnconfined`
+launcher: `setup.js` materialises `main.js` as the daemon's
+`@self` worker directly via
+`E(hostAgent).makeUnconfined('@main', main.js, { powersName:
+'@agent', resultName: 'main-genie', env })`.
+There is no intermediate guest, no form submission, no
+`provideGuest` call on the boot path.
+
+The workspace-slice integration therefore now lands as a
+`setup.js` revision (or its successor, see "open" below):
+
+- Before calling `makeUnconfined`, the launcher mints a
+  `SandboxHandle` with the operator-granted workspace `Mount`,
+  `network: 'private'`, and the operator's chosen extras.
+- The handle is pinned in the host pet store under a stable name
+  (e.g. `main-genie-sandbox`) so the daemon can reincarnate the
+  slice on restart from the same spec, mirroring the existing
+  `Mount` / `ScratchMount` formula pattern.
+- `makeUnconfined` is then issued **inside** the slice (via a new
+  `slice.makeUnconfined` or by passing the slice handle through to
+  the launcher and routing the spawn through `SandboxHandle.spawn`
+  — exact shape to be decided when this lands).
+- The genie's existing `bash` / `exec` / `git` tools spawn through
+  the slice unchanged externally; what changes is the daemon-side
+  spawn channel.
+- The bottle script (`bottle.sh invoke`) calls the new launcher
+  unmodified — slice construction is invisible to the operator.
+
+Open: `setup.js` / `main.js` today own the daemon's `@self`, so
+making the worker itself live inside a slice requires the slice
+handle to wrap the worker spawn — the simpler "tools spawn through
+the slice but the worker stays on the host" shape may be a useful
+intermediate step.
+Decide during the Phase 3.5a sub-task.
+
+#### 3.5b — sub-agent sandboxing (revives `provideGuest`)
+
+The `spawnAgent`, `removeChildAgent`, and `listChildAgents` helpers
+in `packages/genie/main.js` are retained but dormant — see
+`packages/genie/CLAUDE.md` § "Sub-agent spawning (deferred)".
+The `provideGuest`-backed boot path they used was removed in commit
+`140c44122` (`feat(genie) embody the main agent, full @self ; RIP
+provideGuest`), which collapsed the form-driven launcher chain
+when the root genie became `@self`.
+The helpers stayed in the tree on the explicit understanding that
+a future capability would spawn child agents — and Phase 3.5b is
+that future capability.
+
+With Phase 3 in hand, child agents take their natural shape:
+
+- The parent agent calls `SandboxHandle.fork(opts)` on its own
+  slice to mint a child slice.
+  The fork's mount attenuation expresses the child's workspace
+  policy: a child sharing the parent's workspace mounts at a
+  sub-path is a "scoped within parent" agent;
+  a child whose only mount is a freshly-granted standalone
+  `Mount` is a "wholly separate workspace" agent.
+- The parent then re-introduces the dormant helper, but routed
+  through the sandbox: `provideGuest(name, { introducedNames })`
+  on the parent's host agent provisions the child's identity, and
+  `slice.makeUnconfined` (or equivalent) lands `main.js` inside
+  the forked slice under that identity.
+- `agentDirectory` tracking (the parent records the child's
+  locator under `<dir>/<name>` so siblings and external observers
+  can discover via the pet namespace) is preserved verbatim from
+  the dormant helper.
+- The parent exposes the spawn surface as a CapTP method on the
+  root genie's exo (or as a `/spawn` builtin in the specials
+  dispatcher — decide at task-authoring time).
+- Removal (`removeChildAgent`) tears down the sub-slice via the
+  slice handle's GC pin, then removes the host-level guest;
+  parent disposal cascades to children via Phase 3's GC ordering.
+
+The two attenuation modes — "share parent's workspace" vs.
+"wholly separate" — mirror the way fork's mount inheritance works:
+the parent's mount view is the **upper bound**; what the parent
+hands to the child is a (possibly empty) attenuation of that view
+plus any newly-granted external `Mount` capabilities.
+A child can never see a host path the parent does not.
+
+Exit criteria: a Phase 3.5a-sandboxed root genie can
+
+- accept a CapTP request to spawn a named sub-agent inside a
+  forked sub-slice with operator-specified mount attenuation,
+- run that sub-agent's `main.js` inside the sub-slice with its own
+  guest identity, agent-directory entry, and reachable workspace,
+- enumerate live sub-agents via the existing `listChildAgents`
+  helper exposed as a CapTP method, and
+- cleanly remove a sub-agent (sub-slice torn down, guest removed,
+  directory entry cleared).
+
+The acceptance test runs under both bwrap and podman, exercises
+both attenuation modes, and asserts that a sub-agent cannot
+escape into a parent-only mount.
 
 ### Phase 4 — macOS via lima and apple containerization
 

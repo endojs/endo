@@ -153,8 +153,15 @@ test('__getMethodNames__() round-trips the documented capability surface', async
   const userMethods = [...methods].filter(m => !m.startsWith('__')).sort();
   t.deepEqual(
     userMethods,
-    ['help', 'listBackends', 'make'],
-    'factory advertises help / listBackends / make',
+    [
+      'forgetPersistent',
+      'help',
+      'listBackends',
+      'listPersistent',
+      'make',
+      'makePersistent',
+    ],
+    'factory advertises help / listBackends / make + persistent-slice surface',
   );
 });
 

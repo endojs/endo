@@ -36,10 +36,20 @@ Mints confined POSIX slices via a registered backend driver
 (bwrap, podman, lima, …). Phase 1 ships the bwrap driver on Linux.
 
 Methods:
-  help([methodName])    Documentation for the factory or a method.
-  listBackends()        Probe every registered driver and return the
-                        list of { name, available, reason?, version? }.
-  make(opts)            Mint a new sandbox slice. See SandboxMakeOpts.
+  help([methodName])         Documentation for the factory or a method.
+  listBackends()             Probe every registered driver and return
+                             the list of
+                             { name, available, reason?, version? }.
+  make(opts)                 Mint a new sandbox slice.
+                             See SandboxMakeOpts.
+  makePersistent(name, opts) Mint and pin a slice under a stable name;
+                             idempotent within a factory instance and
+                             records the resolved spec on disk so a
+                             daemon restart can re-mint with the same
+                             shape.
+  listPersistent()           List currently-pinned persistent slice
+                             names.
+  forgetPersistent(name)     Drop a persistent pin (disposes the slice).
 `;
 
 const METHOD_HELP = harden({
@@ -49,6 +59,17 @@ const METHOD_HELP = harden({
   make:
     'make(opts) — mint a new SandboxHandle. opts.rootfs is required; ' +
     'opts.network defaults to "none"; opts.backend defaults to "auto".',
+  makePersistent:
+    'makePersistent(name, opts) — mint a SandboxHandle pinned under ' +
+    'name, recording the resolved spec on disk so a daemon restart ' +
+    'reincarnates the slice from the same shape. Idempotent in-memory: ' +
+    'a second call with the same name returns the same handle.',
+  listPersistent:
+    'listPersistent() — list { name, network, backend } for every ' +
+    'currently-pinned persistent slice.',
+  forgetPersistent:
+    'forgetPersistent(name) — drop a persistent pin and dispose the ' +
+    'underlying slice. Returns true when an entry was forgotten.',
 });
 
 const HANDLE_HELP_BASE = `\
@@ -684,6 +705,61 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
   };
 
   /**
+   * Build a `SandboxHandle` from an already-resolved assembly produced
+   * by `assembleSliceFromMakeOpts`.  Shared between `make()` and
+   * `makePersistent()` so the resolution work (cap-to-host-path,
+   * scratch acquisition, limits merge) happens once even when the
+   * caller wants both a handle and a recorded spec.
+   *
+   * @param {{ sliceSpec: SliceSpec, mountRecords: FactorySliceContext['mountRecords'], rootfsRecord: RootfsRecord, driver: SandboxDriver }} assembly
+   * @returns {Promise<SandboxHandle>}
+   */
+  const buildHandleFromAssembly = async assembly => {
+    const { sliceSpec, mountRecords, rootfsRecord, driver } = assembly;
+    const driverSlice = await driver.prepareSlice(sliceSpec);
+
+    // Run the nesting probe eagerly so `help()` can render the
+    // `nesting:` line without an await.  The result is cached on the
+    // context for any later `fork()` call.
+    /** @type {NestingProbe} */
+    let probeSnapshot;
+    try {
+      const driverFloor = await driver.probeNestedSlice(driverSlice);
+      probeSnapshot = await nestingProbe.probe(driverFloor);
+    } catch (e) {
+      probeSnapshot = harden({
+        available: false,
+        reason: `probe failed: ${/** @type {Error} */ (e).message}`,
+      });
+    }
+
+    /** @type {FactorySliceContext} */
+    const ctx = {
+      driver,
+      driverSlice,
+      sliceSpec,
+      mountRecords,
+      rootfsRecord,
+      parent: null,
+      children: new Set(),
+      disposeFn: async () => {},
+      nestingProbeResult: Promise.resolve(probeSnapshot),
+      cachedNestingProbe: probeSnapshot,
+      disposed: false,
+    };
+    return buildSliceHandle(ctx);
+  };
+
+  /**
+   * @param {SandboxMakeOpts} opts
+   * @returns {Promise<SandboxHandle>}
+   */
+  const make = async opts => {
+    const assembly = await assembleSliceFromMakeOpts(opts);
+    return buildHandleFromAssembly(assembly);
+  };
+
+  /**
    * @param {string} [methodName]
    * @returns {string}
    */
@@ -697,12 +773,250 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
     return text;
   };
 
+  // ---------------------------------------------------------------------
+  // Persistent slice tracking (Decision 3 of TADA/22).
+  //
+  // The factory's own reincarnation hook is its `make-unconfined`
+  // formula in the host pet store; the daemon brings the factory back
+  // up across restart, but the factory's in-memory map of pinned
+  // slices does NOT survive.  `makePersistent(name, opts)` therefore
+  // does two things:
+  //
+  //   1. Idempotency-within-a-session: the first call mints + caches;
+  //      every subsequent call with the same `name` returns the same
+  //      handle without re-running the driver's `prepareSlice`.  This
+  //      matches the daemon's `provideMount` / `provideScratchMount`
+  //      idiom — the caller's idempotent boot path is the single
+  //      source of truth for the spec.
+  //
+  //   2. On-disk record-keeping: the resolved `SliceSpec` (post
+  //      cap-to-host-path resolution) is written as JSON to a
+  //      daemon-managed scratch directory keyed by `name`.  The
+  //      record captures host paths, network profile, backend
+  //      selector, and seccomp policy — Mount caps themselves are
+  //      NOT serialised (capabilities do not survive a process
+  //      restart on their own), but the resolved host paths give a
+  //      future audit / drift-detection step a stable reference to
+  //      compare against the caller's freshly-supplied opts.
+  //
+  // The pet-name validation matches the daemon's `assertPetNamePath`
+  // shape (`/^[a-z0-9][a-z0-9-]{0,127}$/`) so future daemon-side
+  // wiring can plumb the same `name` into the host pet store without
+  // an extra escaping pass.
+  // ---------------------------------------------------------------------
+
+  /**
+   * @typedef {object} PersistentEntry
+   * @property {SandboxHandle} handle
+   * @property {string} backend
+   * @property {NetworkProfile} network
+   * @property {SliceSpec} resolvedSpec
+   * @property {object | null} recordCap   Scratch mount cap holding
+   *                                       the on-disk spec record.
+   *                                       `null` when the daemon's
+   *                                       scratch power was
+   *                                       unavailable at mint time.
+   */
+
+  /** @type {Map<string, PersistentEntry>} */
+  const persistentSlices = new Map();
+
+  // Mirrors `packages/daemon/src/pet-name.js`'s shape for "ordinary"
+  // pet names — leading [a-z0-9], followed by up to 127 of
+  // [a-z0-9-].  Special names (`@self`, `@mail`, …) are reserved by
+  // the daemon and not valid persistent-slice names.
+  const PERSISTENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,127}$/;
+
+  /**
+   * @param {unknown} name
+   * @returns {string}
+   */
+  const assertPersistentName = name => {
+    if (typeof name !== 'string' || !PERSISTENT_NAME_RE.test(name)) {
+      throw makeError(
+        X`makePersistent: name must match ${q('/^[a-z0-9][a-z0-9-]{0,127}$/')}, got ${q(name)}`,
+      );
+    }
+    return name;
+  };
+  harden(assertPersistentName);
+
+  /**
+   * Build the on-disk record fragment from a resolved `SliceSpec`.
+   * Only fields that survive JSON marshalling are captured; the
+   * caller's original Mount caps are recorded by their resolved
+   * host path so a future audit can match them against the opts
+   * they re-supply on the next boot.
+   *
+   * @param {string} name
+   * @param {SliceSpec} sliceSpec
+   * @param {SandboxMakeOpts['backend']} backend
+   * @returns {object}
+   */
+  const renderPersistentRecord = (name, sliceSpec, backend) => {
+    const seccompField =
+      typeof sliceSpec.seccomp === 'string'
+        ? sliceSpec.seccomp
+        : 'profile';
+    return harden({
+      schemaVersion: 1,
+      name,
+      rootfs: sliceSpec.rootfs,
+      mounts: sliceSpec.mounts.map(m =>
+        harden({
+          hostPath: m.hostPath,
+          innerPath: m.innerPath,
+          mode: m.mode,
+        }),
+      ),
+      network: sliceSpec.network,
+      backend: backend ?? 'auto',
+      seccomp: seccompField,
+      cwd: sliceSpec.cwd,
+      env: sliceSpec.env,
+      limits: sliceSpec.limits,
+    });
+  };
+  harden(renderPersistentRecord);
+
+  /**
+   * @param {string} name
+   * @param {SandboxMakeOpts} opts
+   * @returns {Promise<SandboxHandle>}
+   */
+  const makePersistent = async (name, opts) => {
+    assertPersistentName(name);
+
+    // Idempotent within a factory instance: a second call with the
+    // same name returns the same handle without re-resolving opts or
+    // re-spawning a slice.  Disposed entries are evicted by
+    // `forgetPersistent`, so a stale entry never leaks past a
+    // forget+remint cycle.
+    const cached = persistentSlices.get(name);
+    if (cached !== undefined) {
+      return cached.handle;
+    }
+
+    // Resolve opts ahead of slice construction so the spec record we
+    // write to disk reflects the same shape the driver receives.
+    const assembly = await assembleSliceFromMakeOpts(opts);
+
+    // Acquire a daemon-managed scratch mount under a stable petName so
+    // a future deref (or the same-session second call) lands at the
+    // same directory and can re-read the previous record.  The daemon's
+    // scratch service is responsible for keeping the directory across
+    // restart; the factory does not own its lifecycle directly.
+    /** @type {object | null} */
+    let recordCap = null;
+    try {
+      recordCap = /** @type {object} */ (
+        await E(scratchProvider).provideScratchMount(
+          `sandbox-persistent-${name}`,
+        )
+      );
+    } catch (e) {
+      // Persistence is best-effort: the factory's primary contract is
+      // to mint a working slice.  When the powers don't ship a
+      // scratch-mount service (Phase 0 stub, certain test fixtures)
+      // we fall back to in-memory tracking only.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `@endo/sandbox: makePersistent(${q(name)}): scratch unavailable, skipping on-disk record (${/** @type {Error} */ (e).message})`,
+      );
+    }
+
+    if (recordCap !== null) {
+      const record = renderPersistentRecord(
+        name,
+        assembly.sliceSpec,
+        opts.backend,
+      );
+      try {
+        await E(/** @type {any} */ (recordCap)).writeText(
+          'spec.json',
+          JSON.stringify(record, null, 2),
+        );
+      } catch (e) {
+        // The Mount surface may not implement writeText (test stubs in
+        // the bwrap suite, for instance, only expose `hostPath`).  Log
+        // and continue — the in-memory pin is still authoritative for
+        // the same-session contract.
+        // eslint-disable-next-line no-console
+        console.warn(
+          `@endo/sandbox: makePersistent(${q(name)}): record write failed (${/** @type {Error} */ (e).message})`,
+        );
+      }
+    }
+
+    // Build the handle from the already-resolved assembly so we don't
+    // pay for cap resolution twice.
+    const handle = await buildHandleFromAssembly(assembly);
+
+    /** @type {PersistentEntry} */
+    const entry = harden({
+      handle,
+      backend: opts.backend ?? 'auto',
+      network: assembly.sliceSpec.network,
+      resolvedSpec: assembly.sliceSpec,
+      recordCap,
+    });
+    persistentSlices.set(name, entry);
+    return handle;
+  };
+
+  /**
+   * @returns {Promise<ReadonlyArray<{ name: string, network: NetworkProfile, backend: string }>>}
+   */
+  const listPersistent = async () => {
+    await null;
+    /** @type {Array<{ name: string, network: NetworkProfile, backend: string }>} */
+    const out = [];
+    for (const [name, entry] of persistentSlices) {
+      out.push(
+        harden({
+          name,
+          network: entry.network,
+          backend: entry.backend,
+        }),
+      );
+    }
+    // Stable name-ordered listing keeps test assertions readable.
+    out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    return harden(out);
+  };
+
+  /**
+   * @param {string} name
+   * @returns {Promise<boolean>}
+   */
+  const forgetPersistent = async name => {
+    await null;
+    assertPersistentName(name);
+    const entry = persistentSlices.get(name);
+    if (entry === undefined) return false;
+    persistentSlices.delete(name);
+    try {
+      await E(entry.handle).dispose();
+    } catch (e) {
+      // Disposal is best-effort during forget — the in-memory entry is
+      // already gone, so a partial teardown leaves no dangling pin.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `@endo/sandbox: forgetPersistent(${q(name)}): dispose failed (${/** @type {Error} */ (e).message})`,
+      );
+    }
+    return true;
+  };
+
   return /** @type {SandboxFactory} */ (
     /** @type {unknown} */ (
       makeExo('SandboxFactory', SandboxFactoryInterface, {
         help,
         listBackends,
         make,
+        makePersistent,
+        listPersistent,
+        forgetPersistent,
       })
     )
   );
