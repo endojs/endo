@@ -1,3 +1,4 @@
+// @ts-check
 /* global process, setTimeout, clearTimeout, setInterval, clearInterval, Buffer */
 /* eslint-disable no-await-in-loop */
 
@@ -7,6 +8,8 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
+import { hasProgram } from '@endo/daemon/which.js';
+import { waitForExitOrCancel } from '@endo/daemon/child-process.js';
 import { whereEndoState, whereEndoSock } from '@endo/where';
 import { E } from '@endo/far';
 import { withInterrupt } from '../context.js';
@@ -306,23 +309,36 @@ export const log = async ({ follow, ping, all }) =>
         if (bootstrap === undefined) {
           return;
         }
-        for (;;) {
+        for (; ;) {
           await delay(logCheckIntervalMs, followCancelled);
           await E(bootstrap).ping();
         }
       })().catch(cancelFollower);
 
-      await new Promise((resolve, reject) => {
-        const args = follow ? ['-f'] : [];
-        const child = spawn('tail', [...args, logPath], {
-          stdio: ['inherit', 'inherit', 'inherit'],
-        });
-        child.on('error', reject);
-        child.on('exit', resolve);
-        followCancelled.catch(() => {
-          child.kill();
-        });
+      const { cmd, args } = await (
+        /** @returns {Promise<{cmd: string, args: string[]}>} */
+        async () => {
+          if (await hasProgram('journalctl')) {
+            // When the daemon runs under systemd, logs go to the journal
+            // rather than to the endo.log file.
+            const cmd = 'journalctl';
+            let args = ['--user-unit=endo-daemon', '--no-pager'];
+            if (follow) {
+              args.push('-f');
+            }
+            return { cmd, args };
+          } else {
+            return {
+              cmd: 'tail',
+              args: follow ? ['-f', logPath] : [logPath],
+            };
+          }
+        })();
+
+      const child = spawn(cmd, args, {
+        stdio: ['inherit', 'inherit', 'inherit'],
       });
+      await waitForExitOrCancel(child, followCancelled);
 
       if (follow) {
         await delay(logCheckIntervalMs, cancelled);

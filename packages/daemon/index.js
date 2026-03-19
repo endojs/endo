@@ -17,11 +17,24 @@ import {
   whereEndoCache,
 } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
+import { whichProg } from './src/which.js';
+import {
+  waitForExit,
+  waitForSpawn,
+  waitForMessage,
+} from './src/child-process.js';
 
 // Reexports:
 export { makeEndoClient } from './src/client.js';
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
 export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
+export { whichProg, hasProgram } from './src/which.js';
+export {
+  waitForExit,
+  waitForExitOrCancel,
+  waitForSpawn,
+  waitForMessage,
+} from './src/child-process.js';
 
 const removePath = async removalPath => {
   return fs.promises
@@ -159,6 +172,7 @@ const tryConnect = sockPath =>
     conn.on('error', () => resolve(false));
   });
 
+
 /**
  * Poll until the daemon socket is accepting connections.
  *
@@ -207,59 +221,27 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
 };
 
 /**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<popen.ChildProcess>} proc
+ * Run a system command,
+ * wait for exit,
+ * resolve with exit code,
+ * or reject with span error.
+ *
+ * @param {string} prog - the binary ; may be a java-script, if so the current
+ * node binary is used instead, and prog becomes first arg
+ * @param {Array<string>} args
+ * @returns {Promise<number>} - child exit code
  */
-const waitForSpawn = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('spawn', () => resolve(proc));
+const system = async (prog, ...args) => {
+  let exe = prog;
+  if (prog.endsWith('.js')) {
+    args.unshift(prog);
+    exe = process.execPath; // Use the current Node.js executable path
+  }
+  const child = popen.spawn(exe, args, {
+    stdio: 'inherit',
+    detached: false,
   });
-};
-
-/**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<number>} proc exit code
- */
-const waitForExit = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('exit', code => resolve(code || 0));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} child
- * @returns {Promise<popen.Serializable>} message
- */
-const waitForMessage = child => {
-  let done = false;
-  return new Promise((resolve, reject) => {
-    child.on('error', (/** @type {Error} */ cause) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
-      }
-    });
-    child.on('exit', (/** @type {number?} */ code) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
-      }
-    });
-    child.on('message', message => {
-      if (!done) {
-        done = true;
-        resolve(message);
-      }
-    });
-  });
+  return waitForExit(child);
 };
 
 /**
@@ -289,7 +271,6 @@ const runEngo = async (detached, config) => {
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
   const logPath = path.join(config.statePath, 'endo.log');
-  const output = fs.openSync(logPath, 'a');
 
   const endoGoDaemonPath = url.fileURLToPath(
     new URL('src/daemon-go.js', import.meta.url),
@@ -303,10 +284,21 @@ const runEngo = async (detached, config) => {
     PATH: process.env.PATH || '',
   };
 
+  /** @type {popen.StdioOptions} */
+  const stdio = () => {
+    // TODO tee log file and stdout ... or teach `endo log` to just use journalctl on systemd
+    if (detached) {
+      const output = fs.openSync(logPath, 'a');
+      return ['ignore', output, output];
+    } else {
+      return ['inherit', 'inherit', 'inherit'];
+    }
+  }();
+
   const child = popen.spawn(endoBin, ['daemon'], {
     detached,
     env,
-    stdio: detached ? ['ignore', output, output] : 'inherit',
+    stdio,
   });
   await waitForSpawn(child);
 
@@ -353,14 +345,16 @@ const runEndo = async (detached, config) => {
     ...Object.fromEntries(filterEnv()),
   };
 
-  const stdio = /** @returns {popen.StdioOptions} */ (() => {
+  /** @type {popen.StdioOptions} */
+  const stdio = () => {
+    // TODO tee log file and stdout ... or teach `endo log` to just use journalctl on systemd
     if (detached) {
       const output = fs.openSync(logPath, 'a');
       return ['ignore', output, output, 'ipc'];
     } else {
       return ['inherit', 'inherit', 'inherit', 'ipc'];
     }
-  })();
+  }();
 
   const child = popen.spawn(process.execPath, [daemonPath, ...daemonArgs], {
     detached,
@@ -402,6 +396,20 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
   if (verbose > 0) {
     console.log('verbosity:', verbose);
     console.log('config:', config);
+  }
+
+  if (await whichProg('systemctl')) {
+    const statusCode = await system('systemctl', '--user', 'status', '--no-pager', 'endo-daemon');
+
+    if (
+      // 0 => ok
+      statusCode !== 0 &&
+      // 4 => `Unit endo-daemon.service could not be found.`
+      statusCode !== 4
+    ) {
+      console.log('wat', statusCode); // XXX
+      return;
+    }
   }
 
   const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
@@ -484,6 +492,57 @@ export const start = async (
   }
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
+
+  const cliPath = url.fileURLToPath(new URL('../cli/bin/endo.cjs', import.meta.url));
+  const selfExe = [
+    process.execPath,
+    cliPath, 'run-daemon',
+  ];
+
+  // TODO detect Windows, do crimes
+
+  // TODO detect MacOS, do crimes
+
+  if (await whichProg('systemd-run')) {
+    // TODO check for and prefer to use any defined user unit
+
+    // TODO failing that, initialize a persistent unit in $XDG_CONFIG_HOME/systemd/user/endo-daemon.service
+
+    const env = {
+      ...Object.fromEntries(filterEnv()),
+      ...configToEnv(config),
+      ...Object.entries(envOverrides),
+    };
+
+    // start in a transient user background service
+    const launchCmd = [
+      'systemd-run',
+      '--user',
+      '--slice=background.slice',
+      '--unit=endo-daemon',
+      '--service-type=simple',
+      '--collect',
+      ...Object.entries(env).map(([name, value]) => `--setenv=${name}=${value}`),
+      '--',
+      ...selfExe,
+    ];
+
+    if (dryRun) {
+      console.log(`would run ${launchCmd}`);
+    } else {
+      const statusCode = await system(launchCmd[0], ...launchCmd.slice(1));
+      if (
+        // 0 => ok
+        statusCode !== 0 &&
+        // 1 => 'Failed to start transient service unit: Unit endo-daemon.service was already loaded or has a fragment file.'
+        statusCode !== 1
+      ) {
+        console.log('wat', statusCode); // XXX
+      }
+      process.exit(statusCode);
+    }
+    return;
+  }
 
   if (dryRun) {
     console.log(`would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
@@ -736,8 +795,24 @@ export const clean = async (config = defaultConfig) => {
  */
 export const stop = async (config = defaultConfig) => {
   await terminate(config).catch(() => {});
-  await killDaemonProcess(config);
-  await killWorkersByPidFiles(config);
+
+  if (await whichProg('systemctl')) {
+    const statusCode = await system('systemctl', '--user', 'stop', 'endo-daemon');
+
+    if (
+      // 0 => ok ; stopped
+      statusCode !== 0 &&
+      // 5 => `Failed to stop endo-daemon.service: Unit endo-daemon.service not loaded.`
+      statusCode !== 5
+    ) {
+      console.log('wat', statusCode); // XXX
+    }
+
+  } else {
+    await killDaemonProcess(config);
+    await killWorkersByPidFiles(config);
+  }
+
   await clean(config);
 };
 
