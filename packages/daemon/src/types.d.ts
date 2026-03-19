@@ -494,6 +494,7 @@ export type FormField = {
   name: string;
   label: string;
   example?: string;
+  default?: unknown;
   pattern?: unknown;
   secret?: boolean;
 };

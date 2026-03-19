@@ -23,6 +23,7 @@
     "build": "exit 0",
     "setup": "endo run --UNCONFINED setup.js --powers @agent GENIE_HOME=$GENIE_HOME",
     "test": "ava",
+    "test:integration": "bash test/integration.sh -E GENIE_MODEL=ollama/llama3.2 -E GENIE_TEST=test/scenarios/workspace-tool.sh",
     "repl": "node dev-repl.js",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
@@ -34,11 +35,13 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
+    "@endo/init": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@mariozechner/pi-agent-core": "^0.60.0",
-    "@mariozechner/pi-ai": "^0.60.0"
+    "@mariozechner/pi-ai": "^0.60.0",
+    "better-sqlite3": "^11.0.0"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",

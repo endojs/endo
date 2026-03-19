@@ -17,3 +17,15 @@ export {
 export {
   default as buildSystemPrompt
 } from './system/index.js';
+
+export {
+  makeIntervalScheduler
+} from './interval/index.js';
+
+export {
+  makeHeartbeatRunner,
+  HeartbeatStatus,
+  makeHeartbeatEvent,
+  buildHeartbeatPrompt,
+  isHeartbeatOk,
+} from './heartbeat/index.js';
