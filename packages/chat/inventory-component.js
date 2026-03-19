@@ -297,6 +297,10 @@ export const inventoryComponent = async (
     if (isSpecialName(name)) {
       $wrapper.classList.add('special');
     }
+    // In channel mode, hide items until we confirm they are channels
+    if (channelMode) {
+      $wrapper.style.display = 'none';
+    }
 
     const $row = document.createElement('div');
     $row.className = 'pet-item-row';
@@ -375,8 +379,9 @@ export const inventoryComponent = async (
           $disclosure.classList.add('hidden');
         }
 
-        // Channel mode: make channel items selectable
+        // Channel mode: make channel items selectable, hide non-channels
         if (channelMode && type === 'channel' && onSelectChannel) {
+          $wrapper.style.display = '';
           $wrapper.classList.add('channel-item');
           $name.title = 'Switch to this channel';
           $name.classList.add('selectable');

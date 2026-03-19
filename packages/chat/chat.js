@@ -564,6 +564,62 @@ const bodyComponent = (
               delete $chatBar.dataset.viewMode;
             }
 
+            /**
+             * Fork a message's heritage chain into a new channel
+             * within the current persona, then navigate to it.
+             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {string} previewText
+             */
+            const handleFork = async (heritageChain, previewText) => {
+              const channelName = `note-${Date.now()}`;
+              const forkDisplayName =
+                activeSpaceInfo.proposedName || previewText;
+
+              await null; // safe-await-separator
+
+              // Create channel under current persona
+              await E(
+                /** @type {{ makeChannel: (petName: string, proposedName: string) => Promise<unknown> }} */ (
+                  resolvedPowers
+                ),
+              ).makeChannel(channelName, forkDisplayName);
+
+              // Look up the new channel to post heritage
+              const newChannelRef = await E(
+                /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+                  resolvedPowers
+                ),
+              ).lookup(channelName);
+
+              // Re-post heritage messages in order
+              for (let i = 0; i < heritageChain.length; i += 1) {
+                const msg = heritageChain[i];
+                const replyTo = i > 0 ? String(i - 1) : undefined;
+                // eslint-disable-next-line no-await-in-loop
+                await E(newChannelRef).post(
+                  msg.strings,
+                  msg.names,
+                  [],
+                  replyTo,
+                  msg.ids,
+                );
+              }
+
+              // Post fork indicator in original channel
+              const lastMsg = heritageChain[heritageChain.length - 1];
+              await E(currentChannelRef).post(
+                [`Forked to ${channelName}`],
+                [],
+                [],
+                String(lastMsg.number),
+                [],
+                'fork',
+              );
+
+              // Navigate to the new channel in-place
+              switchChannel(channelName);
+            };
+
             channelViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -593,6 +649,7 @@ const bodyComponent = (
                 }
               },
               chatBarAPI: () => chatBarAPI,
+              onFork: handleFork,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -709,6 +766,56 @@ const bodyComponent = (
                 : activeSpaceInfo.viewMode === 'outliner'
                   ? outlinerComponent
                   : channelComponent;
+            /**
+             * Fork handler for switched channels.
+             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {string} previewText
+             */
+            const handleSwitchFork = async (heritageChain, previewText) => {
+              const channelName = `note-${Date.now()}`;
+              const forkDisplayName =
+                activeSpaceInfo.proposedName || previewText;
+
+              await null; // safe-await-separator
+
+              await E(
+                /** @type {{ makeChannel: (petName: string, proposedName: string) => Promise<unknown> }} */ (
+                  resolvedPowers
+                ),
+              ).makeChannel(channelName, forkDisplayName);
+
+              const newChannelRef = await E(
+                /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+                  resolvedPowers
+                ),
+              ).lookup(channelName);
+
+              for (let i = 0; i < heritageChain.length; i += 1) {
+                const msg = heritageChain[i];
+                const replyTo = i > 0 ? String(i - 1) : undefined;
+                // eslint-disable-next-line no-await-in-loop
+                await E(newChannelRef).post(
+                  msg.strings,
+                  msg.names,
+                  [],
+                  replyTo,
+                  msg.ids,
+                );
+              }
+
+              const lastMsg = heritageChain[heritageChain.length - 1];
+              await E(currentChannelRef).post(
+                [`Forked to ${channelName}`],
+                [],
+                [],
+                String(lastMsg.number),
+                [],
+                'fork',
+              );
+
+              switchChannel(channelName);
+            };
+
             switchViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -738,6 +845,7 @@ const bodyComponent = (
                 }
               },
               chatBarAPI: () => chatBarAPI,
+              onFork: handleSwitchFork,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -757,6 +865,25 @@ const bodyComponent = (
 
       const isChannelMode =
         activeSpaceInfo && activeSpaceInfo.mode === 'channel';
+
+      // Meta-J: quick note creation within the current outliner space.
+      // Creates a new channel under the current persona and navigates to it.
+      if (isChannelMode && activeSpaceInfo.viewMode === 'outliner') {
+        document.addEventListener('keydown', e => {
+          if (!((e.metaKey || e.ctrlKey) && e.key === 'j')) return;
+          e.preventDefault();
+          const channelName = `note-${Date.now()}`;
+          const displayName = activeSpaceInfo.proposedName || 'Untitled';
+          E(
+            /** @type {{ makeChannel: (petName: string, proposedName: string) => Promise<unknown> }} */ (
+              resolvedPowers
+            ),
+          )
+            .makeChannel(channelName, displayName)
+            .then(() => switchChannel(channelName))
+            .catch(window.reportError);
+        });
+      }
 
       inventoryComponent(
         $pets,

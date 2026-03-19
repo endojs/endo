@@ -28,6 +28,7 @@ const REPLY_TYPE_BADGES = harden({
   pro: { label: 'Pro', className: 'outliner-badge-pro' },
   con: { label: 'Con', className: 'outliner-badge-con' },
   evidence: { label: 'Evidence', className: 'outliner-badge-evidence' },
+  fork: { label: 'Fork', className: 'outliner-badge-fork' },
 });
 
 /**
@@ -36,7 +37,18 @@ const REPLY_TYPE_BADGES = harden({
  * @property {string} text
  * @property {string | undefined} parentKey
  * @property {string | undefined} afterKey
+ * @property {string | undefined} replyType
  */
+
+/**
+ * Slash command definitions for the outliner.
+ * @type {ReadonlyArray<{ command: string, label: string, replyType: string, description: string }>}
+ */
+const SLASH_COMMANDS = harden([
+  { command: 'pro', label: 'Pro', replyType: 'pro', description: 'Supporting argument' },
+  { command: 'con', label: 'Con', replyType: 'con', description: 'Opposing argument' },
+  { command: 'evidence', label: 'Evidence', replyType: 'evidence', description: 'Supporting evidence' },
+]);
 
 /**
  * Render the outliner (structured document) view with interactive
@@ -59,6 +71,7 @@ const REPLY_TYPE_BADGES = harden({
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
  * @param {() => void} [options.onThreadClose]
  * @param {() => import('./send-form.js').SendFormAPI | null} [options.chatBarAPI]
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork a message's heritage into a new channel
  */
 export const outlinerComponent = async (
   $parent,
@@ -73,6 +86,7 @@ export const outlinerComponent = async (
     onThreadOpen,
     onThreadClose,
     chatBarAPI,
+    onFork,
   },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -416,6 +430,27 @@ export const outlinerComponent = async (
       });
   };
 
+  // ---- Heritage chain utility ----
+
+  /**
+   * Walk up the replyTo chain to build the full ancestry of a message.
+   * Returns messages in root-first order.
+   * @param {string} key
+   * @returns {ChannelMessage[]}
+   */
+  const getHeritageChain = key => {
+    /** @type {ChannelMessage[]} */
+    const chain = [];
+    let current = /** @type {string | undefined} */ (key);
+    while (current) {
+      const entry = messageIndex.get(current);
+      if (!entry) break;
+      chain.unshift(entry.message);
+      current = entry.message.replyTo;
+    }
+    return chain;
+  };
+
   // ---- Committed node edit handling ----
 
   /**
@@ -518,6 +553,7 @@ export const outlinerComponent = async (
           parsed.petNames,
           draft.parentKey,
           ids,
+          draft.replyType,
         ),
       )
       .catch(/** @param {Error} err */ err => {
@@ -812,6 +848,188 @@ export const outlinerComponent = async (
     });
   };
 
+  // ---- Slash command menu ----
+
+  /** @type {HTMLElement | null} */
+  let activeSlashMenu = null;
+  /** @type {number} */
+  let slashMenuSelectedIndex = 0;
+  /** @type {string | null} */
+  let slashMenuDraftId = null;
+
+  /**
+   * Hide the active slash command menu.
+   */
+  const hideSlashMenu = () => {
+    if (activeSlashMenu) {
+      activeSlashMenu.remove();
+      activeSlashMenu = null;
+      slashMenuDraftId = null;
+    }
+  };
+
+  /**
+   * Apply a slash command to a draft: set replyType, clear the slash text,
+   * and add a badge to the row.
+   * @param {string} draftId
+   * @param {typeof SLASH_COMMANDS[number]} cmd
+   * @param {HTMLElement} $text
+   */
+  const applySlashCommand = (draftId, cmd, $text) => {
+    const draft = drafts.get(draftId);
+    if (!draft) return;
+
+    draft.replyType = cmd.replyType;
+
+    // Remove the slash text from the content
+    $text.textContent = '';
+
+    // Add badge to the row
+    const $row = $text.closest('.outliner-node-row');
+    if ($row) {
+      // Remove any existing slash badge
+      const existing = $row.querySelector('.outliner-badge');
+      if (existing) existing.remove();
+      const badgeInfo = REPLY_TYPE_BADGES[cmd.replyType];
+      if (badgeInfo) {
+        const $badge = document.createElement('span');
+        $badge.className = `outliner-badge ${badgeInfo.className}`;
+        $badge.textContent = badgeInfo.label;
+        // Insert badge after bullet, before text
+        $row.insertBefore($badge, $text);
+      }
+    }
+
+    hideSlashMenu();
+    $text.focus();
+  };
+
+  /**
+   * Render the slash command menu filtered by current input.
+   * @param {string} draftId
+   * @param {HTMLElement} $text
+   * @param {string} query - text after the `/`
+   */
+  const showSlashMenu = (draftId, $text, query) => {
+    const filtered = SLASH_COMMANDS.filter(cmd =>
+      cmd.command.startsWith(query.toLowerCase()),
+    );
+
+    if (filtered.length === 0) {
+      hideSlashMenu();
+      return;
+    }
+
+    // Clamp selection
+    if (slashMenuSelectedIndex >= filtered.length) {
+      slashMenuSelectedIndex = filtered.length - 1;
+    }
+
+    // Create or reuse menu
+    if (!activeSlashMenu) {
+      activeSlashMenu = document.createElement('div');
+      activeSlashMenu.className = 'outliner-slash-menu';
+      const $node = $text.closest('.outliner-node');
+      if ($node) {
+        $node.appendChild(activeSlashMenu);
+      }
+    }
+    slashMenuDraftId = draftId;
+
+    activeSlashMenu.innerHTML = '';
+    filtered.forEach((cmd, i) => {
+      const $item = document.createElement('div');
+      $item.className = 'outliner-slash-item';
+      if (i === slashMenuSelectedIndex) {
+        $item.classList.add('selected');
+      }
+      const badgeInfo = REPLY_TYPE_BADGES[cmd.replyType];
+      if (badgeInfo) {
+        const $badge = document.createElement('span');
+        $badge.className = `outliner-badge ${badgeInfo.className}`;
+        $badge.textContent = badgeInfo.label;
+        $item.appendChild($badge);
+      }
+      const $desc = document.createElement('span');
+      $desc.className = 'outliner-slash-desc';
+      $desc.textContent = cmd.description;
+      $item.appendChild($desc);
+      $item.addEventListener('mousedown', e => {
+        e.preventDefault();
+        applySlashCommand(draftId, cmd, $text);
+      });
+      activeSlashMenu.appendChild($item);
+    });
+  };
+
+  /**
+   * Check if the slash menu is visible and handling keys.
+   * @returns {boolean}
+   */
+  const isSlashMenuVisible = () => activeSlashMenu !== null;
+
+  /**
+   * Handle keydown events for slash menu navigation.
+   * @param {KeyboardEvent} e
+   * @param {string} draftId
+   * @param {HTMLElement} $text
+   * @returns {boolean} true if the event was consumed
+   */
+  const handleSlashMenuKeydown = (e, draftId, $text) => {
+    if (!isSlashMenuVisible() || slashMenuDraftId !== draftId) return false;
+
+    const text = ($text.textContent || '').trimStart();
+    const query = text.startsWith('/') ? text.slice(1).toLowerCase() : '';
+    const filtered = SLASH_COMMANDS.filter(cmd =>
+      cmd.command.startsWith(query),
+    );
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      slashMenuSelectedIndex = Math.min(
+        slashMenuSelectedIndex + 1,
+        filtered.length - 1,
+      );
+      showSlashMenu(draftId, $text, query);
+      return true;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      slashMenuSelectedIndex = Math.max(slashMenuSelectedIndex - 1, 0);
+      showSlashMenu(draftId, $text, query);
+      return true;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      if (filtered[slashMenuSelectedIndex]) {
+        applySlashCommand(draftId, filtered[slashMenuSelectedIndex], $text);
+      }
+      return true;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      hideSlashMenu();
+      return true;
+    }
+    return false;
+  };
+
+  /**
+   * Check draft text on input and show/hide slash menu.
+   * @param {string} draftId
+   * @param {HTMLElement} $text
+   */
+  const checkSlashTrigger = (draftId, $text) => {
+    const text = ($text.textContent || '').trimStart();
+    if (text.startsWith('/')) {
+      const query = text.slice(1);
+      slashMenuSelectedIndex = 0;
+      showSlashMenu(draftId, $text, query);
+    } else {
+      hideSlashMenu();
+    }
+  };
+
   // ---- Event handlers ----
 
   /**
@@ -933,11 +1151,13 @@ export const outlinerComponent = async (
       if (draft) {
         draft.text = $text.textContent || '';
       }
+      checkSlashTrigger(draftId, $text);
     });
 
     $text.addEventListener('blur', () => {
       setTimeout(() => {
         if (document.activeElement !== $text) {
+          hideSlashMenu();
           commitDraft(draftId);
         }
       }, 150);
@@ -946,6 +1166,9 @@ export const outlinerComponent = async (
     $text.addEventListener('keydown', e => {
       // Let token autocomplete handle keys when its menu is open
       if (activeTokenComponent && activeTokenComponent.isMenuVisible()) return;
+
+      // Let slash menu handle navigation keys when visible
+      if (handleSlashMenuKeydown(e, draftId, $text)) return;
 
       // Cmd/Ctrl+A: select all within this block only
       if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
@@ -1163,6 +1386,23 @@ export const outlinerComponent = async (
     setupCommittedEvents($text, key);
     $row.appendChild($text);
 
+    // Fork button (visible on hover)
+    if (onFork) {
+      const $forkBtn = document.createElement('button');
+      $forkBtn.className = 'outliner-fork-button';
+      $forkBtn.title = 'Fork to new channel';
+      $forkBtn.type = 'button';
+      $forkBtn.textContent = '\u2442';
+      $forkBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const chain = getHeritageChain(key);
+        const preview =
+          effective.strings.join('').slice(0, 40) || 'Forked note';
+        onFork(chain, preview).catch(window.reportError);
+      });
+      $row.appendChild($forkBtn);
+    }
+
     $node.appendChild($row);
 
     const $meta = createMetaEl(effective);
@@ -1199,7 +1439,7 @@ export const outlinerComponent = async (
     draftCounter += 1;
     const draftId = `draft-${draftCounter}`;
     /** @type {DraftNode} */
-    const draft = { draftId, text: '', parentKey, afterKey };
+    const draft = { draftId, text: '', parentKey, afterKey, replyType: undefined };
     drafts.set(draftId, draft);
 
     const depth = parentKey ? getNodeDepth(parentKey) + 1 : 0;
@@ -1479,6 +1719,15 @@ export const outlinerComponent = async (
     renderFull();
     initialLoadComplete = true;
     batchTimer = 0;
+    // Auto-create title draft if empty channel
+    if (rootKeys.length === 0) {
+      const draftId = createDraft(undefined, undefined);
+      const draftEl = draftEls.get(draftId);
+      if (draftEl) {
+        draftEl.$node.classList.add('outliner-title-draft');
+        requestAnimationFrame(() => focusTextNode(draftEl.$text));
+      }
+    }
   }, 200);
 
   for await (const message of messageIterator) {

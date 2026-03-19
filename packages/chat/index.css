@@ -5989,6 +5989,103 @@ button.btn-spinner::after {
   z-index: 300;
 }
 
+/* Slash command menu */
+.outliner-slash-menu {
+  position: absolute;
+  left: 24px;
+  top: 100%;
+  min-width: 200px;
+  max-width: 300px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 300;
+  padding: 4px 0;
+  margin-top: 2px;
+}
+
+.outliner-slash-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.outliner-slash-item:hover,
+.outliner-slash-item.selected {
+  background: var(--bg-hover);
+}
+
+.outliner-slash-desc {
+  color: var(--text-secondary);
+}
+
+/* Title node: first root in outliner gets subtle emphasis */
+.outliner-view > .outliner-node:first-child > .outliner-node-row > .outliner-text {
+  font-size: 1.15em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Title draft: first draft when channel is empty */
+.outliner-title-draft .outliner-text {
+  font-size: 1.15em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Fork button on outliner nodes */
+.outliner-fork-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.outliner-node-row:hover .outliner-fork-button {
+  display: inline-flex;
+}
+
+.outliner-fork-button:hover {
+  opacity: 1;
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* Fork badge: styled as a subtle link indicator */
+.outliner-badge-fork {
+  background: var(--accent-light);
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  line-height: 1.5em;
+}
+
+.outliner-badge-fork:hover {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
 /* ============================
    View Mode Selector (Add/Edit Space Modal)
    ============================ */
