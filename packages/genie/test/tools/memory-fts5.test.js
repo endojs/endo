@@ -20,7 +20,7 @@ const setup = async (t, root = '/workspace') => {
       await searchBackend.sync();
     }
   });
-  const vfs = makeMemoryVFS();
+  const vfs = makeMemoryVFS(root);
   await vfs.mkdir(root, { recursive: true });
   const tools = makeMemoryTools({ root, vfs, searchBackend });
   return { ...tools, vfs };
@@ -353,4 +353,96 @@ test('null bytes in path are rejected', async t => {
   );
   t.truthy(err);
   t.true(/** @type {Error} */ (err).message.includes('null bytes'));
+});
+
+// ---------------------------------------------------------------------------
+// Startup indexing — pre-existing files
+// ---------------------------------------------------------------------------
+
+test('pre-existing MEMORY.md is indexed on startup', async t => {
+  const searchBackend = makeFTS5Backend();
+  t.teardown(async () => {
+    if (searchBackend.sync) {
+      await searchBackend.sync();
+    }
+  });
+  const root = '/workspace';
+  const vfs = makeMemoryVFS(root);
+  await vfs.mkdir(root, { recursive: true });
+  await vfs.writeFile(`${root}/MEMORY.md`, 'startup note about cats\n');
+
+  const { memorySearch, indexing } = makeMemoryTools({
+    root,
+    vfs,
+    searchBackend,
+  });
+  await indexing;
+
+  const result = await memorySearch.execute({
+    query: 'cats',
+    waitForIndex: false,
+  });
+  t.true(result.success);
+  t.is(result.results.length, 1);
+  t.true(result.results[0].content.includes('cats'));
+});
+
+test('pre-existing files in memory/ dir are indexed on startup', async t => {
+  const searchBackend = makeFTS5Backend();
+  t.teardown(async () => {
+    if (searchBackend.sync) {
+      await searchBackend.sync();
+    }
+  });
+  const root = '/workspace';
+  const vfs = makeMemoryVFS(root);
+  await vfs.mkdir(`${root}/memory`, { recursive: true });
+  await vfs.writeFile(`${root}/memory/notes.md`, 'important decision\n');
+  await vfs.writeFile(`${root}/memory/prefs.md`, 'theme: dark\n');
+
+  const { memorySearch, indexing } = makeMemoryTools({
+    root,
+    vfs,
+    searchBackend,
+  });
+  await indexing;
+
+  const result = await memorySearch.execute({
+    query: 'decision',
+    waitForIndex: false,
+  });
+  t.true(result.success);
+  t.is(result.results.length, 1);
+  t.is(result.results[0].file, 'memory/notes.md');
+});
+
+test('stale entries are pruned on startup', async t => {
+  const searchBackend = makeFTS5Backend();
+  t.teardown(async () => {
+    if (searchBackend.sync) {
+      await searchBackend.sync();
+    }
+  });
+
+  // Pre-populate the backend with a file that no longer exists.
+  await searchBackend.index('MEMORY.md', 'ghost content\n');
+
+  const root = '/workspace';
+  const vfs = makeMemoryVFS(root);
+  await vfs.mkdir(root, { recursive: true });
+  // MEMORY.md does NOT exist on disk.
+
+  const { memorySearch, indexing } = makeMemoryTools({
+    root,
+    vfs,
+    searchBackend,
+  });
+  await indexing;
+
+  const result = await memorySearch.execute({
+    query: 'ghost',
+    waitForIndex: false,
+  });
+  t.true(result.success);
+  t.is(result.results.length, 0, 'stale entry should be pruned');
 });

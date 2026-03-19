@@ -66,7 +66,7 @@ At prompt assembly time, genie loads memory in this order
 - [Context injection details](genie_memory_context_injection.md)
 - [Implementation roadmap](genie_memory_implementation.md)
 
-## Upststream Sources
+## Upstream Sources
 
 - the [PARA method](https://fortelabs.com/blog/para/) itself is separate from AI memory systems per-se
   - we noticed it as used by paperclipsai:

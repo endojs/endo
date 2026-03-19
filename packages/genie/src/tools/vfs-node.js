@@ -17,7 +17,12 @@
 
 import { createReadStream as nodeCreateReadStream } from 'fs';
 import fs from 'fs/promises';
-import { resolve, relative } from 'path';
+import {
+  resolve as nodeResolve,
+  relative as nodeRelative,
+  join as nodeJoin,
+  sep as nodeSep,
+} from 'path';
 
 /**
  * @import {
@@ -44,9 +49,47 @@ harden(entryType);
 /**
  * Create a Node.js-backed VFS.
  *
+ * @param {string} [rootDir] - Optional limiting root directory.
+ *   When provided, {@link VFS.resolve} enforces that the result
+ *   stays under this root and throws on traversal escape.
  * @returns {VFS}
  */
-const makeNodeVFS = () => {
+const makeNodeVFS = (rootDir) => {
+  /** @type {string | undefined} */
+  const resolvedRoot = rootDir ? nodeResolve(rootDir) : undefined;
+
+  const sep = nodeSep;
+
+  /** @type {VFS['join']} */
+  const join = (...parts) => nodeJoin(...parts);
+
+  /** @type {VFS['relative']} */
+  const relative = (from, to) => nodeRelative(from, to);
+
+  /**
+   * Resolve a sequence of paths into an absolute path.
+   *
+   * When a limiting root was supplied at creation, the resolution
+   * base is that root and the result is checked to remain under it.
+   * Without a root the method delegates directly to Node's
+   * `path.resolve`.
+   *
+   * @type {VFS['resolve']}
+   */
+  const resolve = (...paths) => {
+    if (resolvedRoot !== undefined) {
+      const resolved = nodeResolve(resolvedRoot, ...paths);
+      const rel = nodeRelative(resolvedRoot, resolved);
+      if (rel.startsWith('..') || nodeResolve(rel) === rel) {
+        throw new Error(
+          `Invalid path: must resolve under root (${resolvedRoot})`,
+        );
+      }
+      return resolved;
+    }
+    return nodeResolve(...paths);
+  };
+
   /** @type {VFS['stat']} */
   const stat = async path => {
     const stats = await fs.stat(path);
@@ -116,14 +159,14 @@ const makeNodeVFS = () => {
         for (const dirent of dirents) {
           const entryName =
             dirent.parentPath && dirent.parentPath !== path
-              ? relative(path, resolve(dirent.parentPath, dirent.name))
+              ? nodeRelative(path, nodeResolve(dirent.parentPath, dirent.name))
               : dirent.name;
 
           let size = 0;
           if (dirent.isFile()) {
             try {
               const st = await fs.stat(
-                resolve(dirent.parentPath || path, dirent.name),
+                nodeResolve(dirent.parentPath || path, dirent.name),
               );
               size = st.size;
             } catch (_e) {
@@ -151,6 +194,10 @@ const makeNodeVFS = () => {
     rmdir,
     rm,
     readdir,
+    sep,
+    join,
+    relative,
+    resolve,
   });
 };
 harden(makeNodeVFS);

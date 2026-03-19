@@ -54,18 +54,19 @@ reality.
 
 ### Tasks
 
-- [ ] Implement search index initialization in `makeMemoryTools`
-  (the TODO at memory.js:145): traverse `watchPaths`, index each
-  file, prune stale entries, expose an `indexing` promise.
-- [ ] Add a token estimation utility.
-  Start with a simple `estimateTokens(text)` function (chars ÷ 4).
-  This is needed for the observer trigger threshold and later for
-  context budget management.
-- [ ] Expose message history length/token count from the PiAgent
-  wrapper so the observer trigger can read it.
-  Options: (a) wrap PiAgent and track cumulative token count on
-  each `prompt()` return, or (b) read `piAgent.state.messages`
-  directly and estimate.
+See individual TADA files for status:
+
+- [x] `TADA/63_genie_search_index_init.md` — Implement search index
+  initialization in `makeMemoryTools` (the TODO at memory.js:145):
+  traverse `watchPaths`, index each file, prune stale entries,
+  expose an `indexing` promise.
+- [x] `TADA/64_genie_token_estimation.md` — Add a token estimation
+  utility (`estimateTokens(text)`, chars ÷ 4).
+  Needed for the observer trigger threshold and later for context
+  budget management.
+- [x] `TADA/65_genie_expose_message_token_count.md` — Expose message
+  history length/token count from the PiAgent wrapper so the
+  observer trigger can read it.
 
 ## Phase 1 — Session layer (OM)
 
@@ -74,45 +75,24 @@ Lowest complexity, highest immediate value.
 
 ### Tasks
 
-- [ ] Add `observations.md`, `reflections.md`, `profile.md` to `memory/`.
-- [ ] Implement observer module:
-  - **Separate PiAgent instance** — created via `makePiAgent()` with:
-    - a focused system prompt (observation extraction only)
-    - a minimal tool set: only `memoryGet` and `memorySet`
-    - potentially a different (faster/cheaper) model
-  - `makePiAgent()` already supports all of these via its options;
-    no factory changes are needed, just different arguments.
-  - Trigger on unobserved token threshold (default 30k).
-  - Also trigger on idle timer during conversational pauses.
-  - Read new messages + existing observations.
-  - Extract facts, decisions, preferences, current task.
-  - Append new observations with emoji priority + timestamp.
-  - Advance high-water mark for observed messages.
-  - **Concurrency:** observer runs in the background while the main
-    agent continues serving chat.
-    This is safe because observer only writes to `observations.md`
-    (via `memorySet`) and the main agent does not read it
-    mid-conversation — it is injected at prompt assembly time.
-- [ ] Implement reflector module:
-  - **Separate PiAgent instance** — same pattern as observer, but:
-    - broader tool set (may include `memorySearch` for entity lookup)
-    - potentially a *more capable* model than the chat model
-      (reasoning model recommended — see model notes below)
-  - Add `reflect` task to `HEARTBEAT.md`.
-  - Merge related observations, remove stale 🟢 entries > 7 days.
-  - Promote durable facts to `reflections.md`.
-  - Regenerate `profile.md` when identity facts change.
-- [ ] Rebuild FTS5 index after each observe/reflect cycle.
-  - **Resolution:** the `SearchBackend.index()` method already exists
-    and `memorySet` calls it on every write.
-    So if observer/reflector use `memorySet`, the index stays in sync
-    automatically.
-    Add a `SearchBackend.sync()` call at the end of each cycle as a
-    safety net (FTS5 backend already implements `sync()` as a no-op,
-    but a future backend may need it).
-- [ ] Start with main model for observer/reflector; benchmark cost.
-  - Provide options for alternate `observerModel` and
-    `reflectorModel` (note: was misspelled as "refelectorModel").
+See individual TADA files for status:
+
+- [x] `TADA/67_genie_observer_module.md` — Implement observer module:
+  separate PiAgent instance with focused system prompt, minimal
+  tool set (`memoryGet`, `memorySet`), token threshold trigger
+  (default 30k), idle timer trigger, background concurrency.
+- [x] `TADA/68_genie_reflector_module.md` — Implement reflector module:
+  separate PiAgent instance with broader tool set, daily heartbeat
+  trigger, observation consolidation, entity extraction bridging,
+  `profile.md` regeneration.
+- [x] `TADA/69_genie_fts5_sync_after_cycles.md` — Add
+  `SearchBackend.sync()` call at end of each observe/reflect cycle
+  as a safety net (index already stays in sync via `memorySet`).
+- [x] `TADA/70_genie_observer_reflector_model_options.md` — Provide
+  configurable `observerModel` and `reflectorModel` options.
+  Start with main model; benchmark cost.
+- [x] `TADA/70_genie_memory_session_files.md` — Add `observations.md`,
+  `reflections.md`, `profile.md` to `memory/`.
 
 See `PLAN/genie_memory_session_layer.md` for observer/reflector details.
 
@@ -224,6 +204,24 @@ See `PLAN/genie_memory_context_injection.md` for prompt assembly strategy.
 - **Separate PiAgent instances:** ✅ Confirmed feasible. `makePiAgent`
   already accepts all the knobs needed (model, tools, system prompt).
   No factory changes required — just different arguments.
+
+## Phase 1 review notes (2026-04-07)
+
+Phase 1 code has been reviewed and audited against this plan.
+All tasks are complete.  See `TODO/62_genie_memory_phase1_review.md`
+for detailed findings.
+
+Bugs fixed during review:
+- System prompt tool name mismatch (`memory_search` → `memorySearch`).
+- Token test ceil-rounding failure.
+- Missing `searchBackend` and `scheduleIdle` in observer/reflector
+  typedefs.
+
+Remaining design notes carried forward:
+- System prompt override via `state.systemPrompt` mutation is
+  fragile; consider adding a `systemPrompt` param to `makePiAgent`.
+- Heartbeat → reflector wiring not yet implemented; reflector can
+  only be triggered via `run()` or `checkAndRun()` currently.
 
 ## Open questions
 

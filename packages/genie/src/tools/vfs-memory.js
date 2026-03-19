@@ -123,11 +123,66 @@ const segments = p => {
 };
 
 /**
+ * Normalize a POSIX-style absolute path by resolving `.` and `..`
+ * segments and collapsing redundant separators.
+ *
+ * @param {string} p - An absolute path (must start with `/`).
+ * @returns {string} The normalized absolute path.
+ */
+const normalizePosix = (p) => {
+  const parts = p.split('/');
+  /** @type {string[]} */
+  const resolved = [];
+  for (const part of parts) {
+    if (part === '' || part === '.') {
+      // skip
+    } else if (part === '..') {
+      resolved.pop();
+    } else {
+      resolved.push(part);
+    }
+  }
+  return `/${resolved.join('/')}`;
+};
+
+/**
+ * Compute the relative POSIX path from `from` to `to`.
+ *
+ * Both paths must be absolute (start with `/`).
+ *
+ * @param {string} from
+ * @param {string} to
+ * @returns {string}
+ */
+const posixRelative = (from, to) => {
+  const fromParts = normalizePosix(from).split('/').filter(Boolean);
+  const toParts = normalizePosix(to).split('/').filter(Boolean);
+
+  // Find the common prefix length.
+  let common = 0;
+  while (
+    common < fromParts.length &&
+    common < toParts.length &&
+    fromParts[common] === toParts[common]
+  ) {
+    common += 1;
+  }
+
+  const ups = fromParts.length - common;
+  const tail = toParts.slice(common);
+  const result = [...Array(ups).fill('..'), ...tail];
+  return result.join('/') || '.';
+};
+
+/**
  * Create an in-memory VFS.
  *
+ * @param {string} [rootDir] - Optional limiting root directory.
+ *   When provided, {@link VFS.resolve} enforces that results stay
+ *   under this root.  Defaults to `'/'`.
  * @returns {VFS}
  */
-const makeMemoryVFS = () => {
+const makeMemoryVFS = (rootDir = '/') => {
   const now = () => new Date().toISOString();
 
   /** @type {MemDir} */
@@ -175,6 +230,41 @@ const makeMemoryVFS = () => {
     }
     if (node.type !== 'directory') throw enotdir(path);
     return { parent: node, name };
+  };
+
+  // ---- Path utilities -----------------------------------------------------
+
+  const normalizedRoot = normalizePosix(rootDir);
+
+  const sep = '/';
+
+  /** @type {VFS['join']} */
+  const join = (...parts) => {
+    const joined = parts.join('/');
+    return joined.replace(/\/+/g, '/');
+  };
+
+  /** @type {VFS['relative']} */
+  const relative = (from, to) => posixRelative(from, to);
+
+  /** @type {VFS['resolve']} */
+  const resolve = (...paths) => {
+    let current = normalizedRoot;
+    for (const p of paths) {
+      if (p.startsWith('/')) {
+        current = p;
+      } else {
+        current = `${current}/${p}`;
+      }
+    }
+    const resolved = normalizePosix(current);
+    const rel = posixRelative(normalizedRoot, resolved);
+    if (rel.startsWith('..')) {
+      throw new Error(
+        `Invalid path: must resolve under root (${normalizedRoot})`,
+      );
+    }
+    return resolved;
   };
 
   // ---- VFS methods --------------------------------------------------------
@@ -349,6 +439,10 @@ const makeMemoryVFS = () => {
     rmdir,
     rm,
     readdir,
+    sep,
+    join,
+    relative,
+    resolve,
   });
 };
 harden(makeMemoryVFS);

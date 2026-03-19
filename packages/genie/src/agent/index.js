@@ -20,7 +20,8 @@
 import { Agent as PiAgent } from '@mariozechner/pi-agent-core';
 import { getModel, getProviders } from '@mariozechner/pi-ai';
 
-import buildSystemPrompt from '../system/index.js';
+import { default as buildSystemPrompt } from '../system/index.js';
+import { estimateTokens } from '../utils/tokens.js';
 
 /**
  * @param {never} nope
@@ -238,7 +239,6 @@ harden(makeError);
  * @typedef {object} ToolSpec
  * @property {string} name
  * @property {string} summary
- * @property
  */
 
 /**
@@ -312,6 +312,9 @@ function toAgentTool(spec, execTool) {
  * @param {boolean} [options.disablePolicy] - Disable policy section
  * @param {boolean} [options.strictPolicy] - Enable strict policy
  * @param {string} [options.securityNotes] - Custom security notes
+ * @param {string} [options.systemPrompt] - Complete system prompt override;
+ *   when provided the prompt-building options (hostname, currentTime, etc.)
+ *   are ignored.
  * @returns {Promise<PiAgent>}
  */
 export async function makePiAgent(options = {}) {
@@ -327,9 +330,12 @@ export async function makePiAgent(options = {}) {
     disablePolicy = false,
     strictPolicy = false,
     securityNotes = '',
+    systemPrompt: systemPromptOpt,
   } = options;
 
-  const systemPromptConfig = {
+  // Use the caller-supplied prompt when provided; otherwise build one from
+  // the prompt-configuration options.
+  const systemPrompt = systemPromptOpt ?? Array.from(buildSystemPrompt({
     hostname,
     currentTime,
     workspaceDir,
@@ -338,17 +344,12 @@ export async function makePiAgent(options = {}) {
     disablePolicy,
     strictPolicy,
     securityNotes,
-  };
+  })).join('\n');
 
   // Resolve the pi-ai Model object — either from a pre-constructed object
   // or by looking up the model string in the pi-ai registry.
   const resolvedModel =
     typeof model === 'object' ? model : await resolveModel(model);
-
-  // Build the system prompt once at agent creation time.
-  const systemPrompt = Array.from(buildSystemPrompt(systemPromptConfig)).join(
-    '\n',
-  );
 
   // Get tool list and convert to AgentTool format.
   const finalToolList = Array.from(listTools());
@@ -383,6 +384,83 @@ export async function makePiAgent(options = {}) {
 harden(makePiAgent);
 
 /**
+ * Serialize a single message's content to a plain string for token
+ * estimation.  Handles the various content shapes that pi-agent-core
+ * messages can take: plain strings, arrays of typed content blocks,
+ * and tool-call inputs.
+ *
+ * @param {any} message - A message from `piAgent.state.messages`.
+ * @returns {string}
+ */
+function serializeMessage(message) {
+  const parts = [];
+
+  if (message.role) {
+    parts.push(message.role);
+  }
+
+  const { content } = message;
+  if (typeof content === 'string') {
+    parts.push(content);
+  } else if (Array.isArray(content)) {
+    for (const block of content) {
+      if (block.type === 'text' && block.text) {
+        parts.push(block.text);
+      } else if (block.type === 'thinking' && block.thinking) {
+        parts.push(block.thinking);
+      } else if (block.type === 'toolCall') {
+        parts.push(block.name || '');
+        if (block.input !== undefined) {
+          parts.push(
+            typeof block.input === 'string'
+              ? block.input
+              : JSON.stringify(block.input),
+          );
+        }
+      } else if (block.type === 'toolResult') {
+        parts.push(
+          typeof block.result === 'string'
+            ? block.result
+            : JSON.stringify(block.result),
+        );
+      }
+    }
+  }
+
+  // toolResult messages store results at the top level too
+  if (message.result !== undefined && !Array.isArray(content)) {
+    parts.push(
+      typeof message.result === 'string'
+        ? message.result
+        : JSON.stringify(message.result),
+    );
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Return the estimated token count of the current message history
+ * held by a PiAgent instance.
+ *
+ * Uses the chars÷4 heuristic from `estimateTokens`.  This is
+ * intentionally approximate — accurate enough for the 30 k-token
+ * observer trigger threshold without pulling in a full tokenizer.
+ *
+ * @param {PiAgent} piAgent - A PiAgent instance from makePiAgent.
+ * @returns {number} Estimated token count across all messages.
+ */
+export function getMessageTokenCount(piAgent) {
+  const { messages } = piAgent.state;
+  let total = 0;
+  for (const msg of messages) {
+    total += estimateTokens(serializeMessage(msg));
+  }
+  return total;
+}
+harden(getMessageTokenCount);
+
+/**
  * Run a single chat round on an already-constructed PiAgent, yielding
  * ChatEvent objects as they arrive.
  *
@@ -396,13 +474,28 @@ harden(makePiAgent);
 export async function* runAgentRound(piAgent, prompt) {
   // Collect events via subscription for progressive yielding
   let agentDone = false;
-  /** @type {Array<AgentEvent|{type: 'error', error: any}>} */
+  /**
+   * @typedef {AgentEvent|{type: 'error', error: any}} QueueEvent
+   * @type {Array<QueueEvent>}
+   */
   const eventQueue = [];
 
   /** @type {((value?: any) => void) | null} */
   let resolveWaiting = null;
-  /** @param {boolean} done */
-  const mayYield = done => {
+
+  /** @returns {Promise<void>} */
+  const forQueue = () => {
+    return new Promise(resolve => {
+      resolveWaiting = resolve;
+    });
+  };
+
+  /**
+   * @param {QueueEvent} event
+   * @param {boolean} [done]
+   */
+  const giveQueue = (event, done = false) => {
+    eventQueue.push(event);
     if (!agentDone) {
       agentDone = done;
       if (resolveWaiting) {
@@ -412,39 +505,25 @@ export async function* runAgentRound(piAgent, prompt) {
       }
     }
   };
-  /** @returns {Promise<void>} */
-  const forQueue = () =>
-    new Promise(resolve => {
-      resolveWaiting = resolve;
-    });
 
-  piAgent.subscribe(event => {
-    eventQueue.push(event);
-    mayYield(false);
-  });
+  piAgent.subscribe(event => giveQueue(event));
 
   // Start the prompt (non-blocking)
   const promptDone = piAgent
     .prompt(prompt)
-    .then(() => {
-      eventQueue.push({ type: 'agent_start' });
-      mayYield(false);
-    })
-    .catch(err => {
-      eventQueue.push({ type: 'error', error: err });
-      mayYield(true);
-    });
+    .then(
+      () => giveQueue({ type: 'agent_start' }),
+      (err) => giveQueue({ type: 'error', error: err }, true),
+    )
+    .catch(err => giveQueue({ type: 'error', error: err }, true));
 
   piAgent
     .waitForIdle()
-    .then(() => {
-      eventQueue.push({ type: 'agent_end', messages: [] });
-      mayYield(true);
-    })
-    .catch(err => {
-      eventQueue.push({ type: 'error', error: err });
-      mayYield(true);
-    });
+    .then(
+      () => giveQueue({ type: 'agent_end', messages: [] }, true),
+      (err) => giveQueue({ type: 'error', error: err }, true),
+    )
+    .catch(err => giveQueue({ type: 'error', error: err }, true));
 
   // Process events as they arrive, yielding Genie events
   let fullAssistantText = '';
