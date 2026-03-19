@@ -133,6 +133,46 @@ Endo workers are *not* the same as JavaScript Workers. An Endo worker cannot be 
 
 Neither caplet nor runlet is a Worker.
 
+### Co-Tenancy: Running Multiple Guests Safely
+
+**What is co-tenancy?**
+Co-tenancy refers to the practice of running multiple guests (computation contexts) in the same isolated runtime environment. This is particularly relevant when:
+- Multiple applications share a single worker process
+- Workers share a HardenedJS lockdown environment
+- Memory or resources are shared efficiently across guests
+
+**How Co-Tenancy Works in Endo**
+
+1. **Shared Runtime**: Multiple guests can share a HardenedJS-managed runtime
+2. **Compartment Maps**: Each guest gets its own compartment with limited authorities
+3. **Isolation Guarantees**: Compartment maps ensure that each compartment cannot access another's intrinsics or state
+4. **Shared Intrinsics**: Only frozen, safe intrinsics (like `Array`, `Object`, `Function`) are shared, maintaining identity across compartments
+
+**Benefits of Co-Tenancy**
+- **Resource Efficiency**: Single process handles multiple guests
+- **Memory Sharing**: Intrinsics shared, reducing memory overhead
+- **Deployment Simplification**: Fewer processes to manage
+
+**Limitations and Risks**
+- **Complexity**: Requires careful compartment map construction
+- **Inter-guest Communication**: Must use safe message-passing instead of direct state access
+- **State Isolation**: Each guest must manage its own persistent state carefully
+- **Timeouts**: Long-lived computations in one guest can affect others
+
+**Co-Tenancy is Safe When:**
+- Each guest's compartment is properly isolated via compartment maps
+- No guest can affect another's intrinsics
+- Communication uses only authorized, defined interfaces
+
+**Co-Tenancy is Risky When:**
+- Compartment maps are weak or incorrect
+- Guests share mutable resources directly
+- Timeouts aren't implemented properly
+
+Co-tenancy represents an advanced topic in distributed systems design. It balances efficiency with isolation - a hallmark of robust systems architectures.
+
+> See also: [[HardenedJS details and co-tenancy]](#hardenedjs-details-and-co-tenancy)
+
 ### Why use workers?
 
 **Workers** are separate JavaScript runtime processes that provide:
@@ -230,12 +270,155 @@ While HardenedJS provides strong security guarantees, there are practical consid
 - [Lockdown Documentation](../../packages/ses/docs/guide.md) — How to lock down a JavaScript environment
 - [@endo/ses](../../packages/ses) — SES implementation package
 
+## Understanding "HardenedJS" and "Co-Tenancy"
+
+**What is HardenedJS?**
+
+HardenedJS is a security-focused JavaScript environment based on SES (Secure ECMAScript). It provides foundations for capability-based security and supply chain attack resistance.
+
+### HardenedJS Core Concepts
+
+- **Lockdown**: A process that freezes the JavaScript runtime, making it tamper-resistant
+- **Compartments**: Isolated execution contexts with their own global scope, sharing only
+  a frozen set of intrinsics (arrays, objects, built-ins) to maintain identity
+- **Hardened Objects**: Objects that cannot be modified once frozen, serving as capabilities
+- **Principle of Least Authority**: Components only have the capabilities they explicitly need
+
+### HardenedJS Security Model
+
+1. **No Ambient Authority**: By default, compartments have no built-in capabilities like
+   `fetch`, `http`, or `fs`. They must accept only the specific powers they require.
+
+2. **Tamper Resistance**: Once `lockdown()` is called, the runtime cannot be reconfigured
+   or altered. Modifications to prototypes, globals, or intrinsics are detected and throw errors.
+
+3. **Capability-Based Security**: Capabilities are objects with methods that can only be
+   invoked. They cannot be forged, as a useful object cannot be created unless explicitly
+   provided to the compartment.
+
+4. **Interoperable Intrinsics**: By freezing and sharing intrinsics like `Array`, `Object`,
+   and `Function`, programs running in different compartments can recognize instances of
+   the same JavaScript types, maintaining identity and compatibility.
+
+### What is Co-Tenancy?
+
+Co-tenancy refers to the practice of running multiple guests (computation contexts) in the same isolated runtime environment.
+
+#### How Co-Tenancy Works in Endo
+
+1. **Shared Runtime**: Multiple guests can share a HardenedJS-managed runtime
+2. **Compartment Maps**: Each guest gets its own compartment with limited authorities
+3. **Isolation Guarantees**: Compartment maps ensure that each compartment cannot access another's intrinsics or state
+4. **Shared Intrinsics**: Only frozen, safe intrinsics (like `Array`, `Object`, `Function`) are shared, maintaining identity across compartments
+
+#### Benefits of Co-Tenancy
+- **Resource Efficiency**: Single process handles multiple guests
+- **Memory Sharing**: Intrinsics shared, reducing memory overhead
+- **Deployment Simplification**: Fewer processes to manage
+
+#### Limitations and Risks
+- **Complexity**: Requires careful compartment map construction
+- **Inter-guest Communication**: Must use safe message-passing instead of direct state access
+- **State Isolation**: Each guest must manage its own persistent state carefully
+- **Timeouts**: Long-lived computations in one guest can affect others
+
+#### When is Co-Tenancy Safe?
+Co-tenancy is safe when:
+- Each guest's compartment is properly isolated via compartment maps
+- No guest can affect another's intrinsics
+- Communication uses only authorized, defined interfaces
+
+#### When is Co-Tenancy Risky?
+Co-tenancy is risky when:
+- Compartment maps are weak or incorrect
+- Guests share mutable resources directly
+- Timeouts aren't implemented properly
+
+### Why HardenedJS Matters in Endo
+
+1. **Supply Chain Attack Mitigation**: Third-party plugins and dependencies cannot silently
+   modify the runtime to compromise the host. Every modification is detected and blocked.
+
+2. **Isolation for Guests**: When running user code in a worker, HardenedJS ensures that
+   the guest cannot:
+   - Read or modify the daemon's internal state
+   - Use capabilities it wasn't provided
+   - Access sensitive APIs or private data
+
+3. **Secure Co-Tenancy**: Workers can share a HardenedJS runtime, but with careful
+   compartment setup to prevent cross-guest attacks.
+
+4. **Compliance with Modern Standards**: HardenedJS is based on SES, an ECMAScript proposal
+   for secure JavaScript execution with strict standards compliance.
+
+### How Endo Uses HardenedJS
+
+- **Workers**: Each daemon worker uses HardenedJS to isolate guest computations
+- **Compartment Maps**: Endo builds compartment maps for Node.js applications, creating
+  separate compartments for each dependency with minimal necessary authorities
+- **Bundle System**: Endo's bundler includes HardenedJS as a core dependency, ensuring
+  execution in a locked-down runtime
+
+### Limitations and Trade-offs
+
+While HardenedJS provides strong security guarantees, there are practical considerations:
+
+- **Performance Overhead**: Lockdown and compartment creation add some runtime cost
+- **Prototype Pollution Prevention**: Many common JavaScript patterns that mutate
+  prototypes are rejected
+- **Compatibility**: Some existing libraries may not work without modification
+- **Learning Curve**: Developers must think in capability terms rather than
+  relying on global state
+
+### Why HardenedJS Not "Bullet-Proof" for Passable Proxies?
+
+This is a known area where additional research is needed. The challenge is maintaining security guarantees when:
+- Proxies must serialize and deserialize
+- Interface guards must still validate invocations across process boundaries
+- The complexity of co-tenancy makes it harder to prove isolation
+
+Mark Miller's thesis (Robust Composition) and later ENDO documentation discuss these trade-offs in depth.
+
+### See Also
+- [SES README](../../packages/ses/README.md) — Complete SES specification and usage
+- [Lockdown Documentation](../../packages/ses/docs/guide.md) — How to lock down a JavaScript environment
+- [@endo/ses](../../packages/ses) — SES implementation package
+- [Mark Miller's Thesis: Robust Composition](../../docs/mark_miller_thesis.md)
+
 ## worklet
 
 A caplet that is intended to run in a Worker.
 
 **Note:** Workers can be co-tenant but YMMV what with availability and
-HardenedJS not being quite bullet-proof for passable proxies.
+HardenedJS not being quite bullet-proof for passable proxies. This is an active area of research.
+
+## Understanding "Passable Proxies"
+
+**What are passable proxies?**
+
+Passable proxies are a fundamental concept in capability-based systems. A proxy is a special object that:
+1. **Adopts Behavior**: Implements the same interface as the referenced object
+2. **Delegates Invocations**: Forwards method calls to the underlying object
+3. **Preserves Identity**: Maintains the capability relationship with the original object
+
+**Why passable in distributed systems?**
+In CapTP-style distributed communication, passable proxies allow capabilities to:
+- Be serialized and sent across process boundaries
+- Remain functional and authoritative in the receiving process
+- Maintain their security properties (interface guard protected authorization)
+
+**How they work in Endo**
+- A `Far()` call creates a proxy with an interface guard that validates calls
+- When sent to another process, the proxy is serialized
+- On receipt, CapTP reconstructs the proxy, re-applying the interface guard
+- The remote invocation proceeds with all security guarantees intact
+
+**Security Implications**
+- Only objects with properly defined interface guards become passable proxies
+- The proxy cannot reveal implementation details
+- Access control is enforced at the proxy, not the implementation
+
+> See also: [[HardenedJS details and co-tenancy]](#hardenedjs-details-and-co-tenancy) | [Mark Miller's Thesis](../../docs/mark_miller_thesis.md)?
 
 ## weblet
 
