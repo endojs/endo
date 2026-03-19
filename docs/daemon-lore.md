@@ -74,9 +74,40 @@ methods.
 
 A program that exports `main(powers)`, and is not expected to return anything,
 and consequently, is not intended to exceed the life of the main. Whether to
-wait for IO handles to close is debatable still.
+wait for IO handles to close is debatable still—this consideration stems from the
+fact that workers have their own isolated heap and can continue executing after the
+external reference is revoked, whereas in-thread code would be cut off. This
+debate relates to the live-ref garbage collection problem where external references
+can keep code alive indefinitely, making it unclear when and how to safely terminate
+a worker.
 
 Neither caplet nor runlet is a Worker.
+
+### Why use workers?
+
+**Workers** are separate JavaScript runtime processes that provide:
+
+- **Isolation and Fault Containment**: Each guest runs in its own worker. If a guest
+  crashes, it only affects that worker, not the main daemon or other guests
+- **Security Boundary**: Workers operate under lockdown with separate compartments,
+  preventing a compromised guest from accessing the daemon's internals
+- **Concurrent Execution**: Multiple guests can compute simultaneously by running
+  their workers in parallel
+- **Resource Management**: Workers can be started, stopped, and scaled independently
+  of the main daemon process
+- **Guest Lifecycle Persistence**: Each worker can continue running past the main
+  computation's lifetime, waiting to receive new requests or clean up resources
+
+The daemon manages these workers through a formula lifecycle where each worker
+has its own environment, network access, and storage namespace. Workers have their
+own process, memory, and event loop, providing true isolation.
+
+#### Worker Types
+
+- **General Worker**: A standalone process hosting one or more guest computations
+- **Isolated Worker**: A worker with restricted capabilities for security-critical
+  operations
+- **Shared Worker**: Workers that can communicate with each other via CapTP (rarely used)
 
 ## worklet
 
