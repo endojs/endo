@@ -615,6 +615,7 @@ export const makeDaemonicControlPowers = (
    * @param {Promise<never>} forceCancelled - rejects to force shutdown (SIGKILL)
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [trustedShims]
+   * @param {string} [label] TODO audit callers, make sure they all pass labels
    */
   const makeWorker = async (
     workerId,
@@ -623,6 +624,7 @@ export const makeDaemonicControlPowers = (
     forceCancelled,
     capTpConnectionRegistrar = undefined,
     trustedShims = undefined,
+    label = '<untitled>',
   ) => {
     const { statePath, ephemeralStatePath } = config;
 
@@ -673,6 +675,13 @@ export const makeDaemonicControlPowers = (
     });
 
     await filePowers.writeFileText(pidPath, `${child.pid}\n`);
+
+    const metaPath = filePowers.joinPath(workerStatePath, 'worker.meta.json');
+    const meta = JSON.stringify({
+      createdAt: new Date().toISOString(),
+      label,
+    });
+    await filePowers.writeFileText(metaPath, `${meta}\n`);
 
     workerClosed.then(() => filePowers.removePath(pidPath).catch(() => {}));
 

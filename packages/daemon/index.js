@@ -532,7 +532,8 @@ export const status = async (
     for await (const worker of runningWorkers(config)) {
       const pid = await worker.pid;
       if (pid !== null) {
-        console.log(`* id:${worker.id} pid:${pid}`);
+        const label = await worker.label();
+        console.log(`* id:${worker.id} name:${label} pid:${pid}`);
       }
     }
   }
@@ -630,19 +631,30 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
  * @param {Config} options.config
  * @param {string} options.workerId
  * @param {string} [options.workerRunDir]
+ * @param {string} [options.workerStateDir]
  */
 const runningWorker = ({
   config,
   workerId,
   workerRunDir = path.join(config.ephemeralStatePath, 'worker', workerId),
+  workerStateDir = path.join(config.statePath, 'worker', workerId),
 }) => {
   const pidPath = path.join(workerRunDir, 'worker.pid');
+
+  const metaPath = path.join(workerStateDir, 'worker.meta.json');
+  const metaText = fs.promises.readFile(metaPath, 'utf-8');
+  const metaData = metaText
+    .then(text => JSON.parse(text))
+    .catch(() => null);
+
   return {
     get id() { return workerId },
 
     get runDir() { return workerRunDir },
+    get stateDir() { return workerStateDir },
 
     get pidPath() { return pidPath },
+    get logPath() { return path.join(workerStateDir, 'worker.log') },
 
     pid: (async () => {
       try {
@@ -654,6 +666,15 @@ const runningWorker = ({
       } catch { }
       return null;
     })(),
+
+    async label() {
+      // TODO use M?
+      const meta = await metaData;
+      if (typeof meta !== 'object') return '';
+      if (!('label' in meta)) return '';
+      const { label } = meta;
+      return `${label}`;
+    },
   };
 };
 
