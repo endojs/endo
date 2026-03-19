@@ -481,6 +481,10 @@ Hosts:
 - Gateway provides demi-secure port hosting
 - Familiar is more secure via `localhttp://`
 
+> TODO is this about the instance <-> WebView locking questioned above?
+
+> TODO does a gateway hosted weblet have any presence when not loaded in a live browser dom?
+
 ## Formula
 
 A JSON spec for an object constructor:
