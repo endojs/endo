@@ -839,6 +839,19 @@ export const outlinerComponent = async (
       // Let token autocomplete handle keys when its menu is open
       if (activeTokenComponent && activeTokenComponent.isMenuVisible()) return;
 
+      // Cmd/Ctrl+A: select all within this block only
+      if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.selectNodeContents($text);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        return;
+      }
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         // Commit pending edit, then create sibling draft below
@@ -933,6 +946,20 @@ export const outlinerComponent = async (
     $text.addEventListener('keydown', e => {
       // Let token autocomplete handle keys when its menu is open
       if (activeTokenComponent && activeTokenComponent.isMenuVisible()) return;
+
+      // Cmd/Ctrl+A: select all within this block only
+      if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.selectNodeContents($text);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        return;
+      }
+
       const draft = drafts.get(draftId);
       if (!draft) return;
 
