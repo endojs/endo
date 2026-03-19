@@ -938,8 +938,41 @@ export const outlinerComponent = async (
 
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
+        const text = ($text.textContent || '').trim();
+
+        // Empty draft with a parent: dedent instead of committing
+        if (!text && draft.parentKey) {
+          const parentEntry = messageIndex.get(draft.parentKey);
+          const grandparentKey = parentEntry?.message.replyTo;
+          const oldParentKey = draft.parentKey;
+
+          draft.parentKey = grandparentKey;
+          draft.afterKey = oldParentKey;
+
+          const els = draftEls.get(draftId);
+          if (!els) return;
+          els.$node.remove();
+
+          const newDepth = grandparentKey
+            ? getNodeDepth(grandparentKey) + 1
+            : 0;
+          els.$node.dataset.depth = String(newDepth);
+
+          const newContainer = getChildrenContainer(grandparentKey);
+          const $after = newContainer.querySelector(
+            `:scope > [data-key="${oldParentKey}"]`,
+          );
+          if ($after && $after.nextSibling) {
+            newContainer.insertBefore(els.$node, $after.nextSibling);
+          } else {
+            newContainer.appendChild(els.$node);
+          }
+          focusTextNode(els.$text);
+          return;
+        }
+
         // Commit current draft, create new sibling
-        draft.text = $text.textContent || '';
+        draft.text = text;
         commitDraft(draftId);
         const newDraftId = createDraft(draft.parentKey, draftId);
         const newEls = draftEls.get(newDraftId);
@@ -1323,7 +1356,15 @@ export const outlinerComponent = async (
         }
       }
       if (!inserted) {
-        $container.appendChild(els.$node);
+        // Insert before any draft nodes so committed content stays above drafts
+        const $firstDraft = $container.querySelector(
+          ':scope > .outliner-draft',
+        );
+        if ($firstDraft) {
+          $container.insertBefore(els.$node, $firstDraft);
+        } else {
+          $container.appendChild(els.$node);
+        }
       }
 
       // Expand parent and update its bullet
