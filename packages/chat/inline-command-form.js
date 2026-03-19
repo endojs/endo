@@ -37,6 +37,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(data: import('./inline-eval.js').ParsedEval) => void} [options.onExpandEval] - Called to expand eval to modal
  * @param {(messageNumber: number) => Promise<string[]>} [options.getMessageEdgeNames] - Get edge names for a message
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
+ * @param {() => 'inbox' | 'channel' | undefined} [options.getContext] - Returns current UI context
  * @returns {InlineCommandFormAPI}
  */
 export const createInlineCommandForm = ({
@@ -50,6 +51,7 @@ export const createInlineCommandForm = ({
   onExpandEval,
   getMessageEdgeNames,
   makeRefIterator,
+  getContext,
 }) => {
   /** @type {string | null} */
   let currentCommand = null;
@@ -545,8 +547,18 @@ export const createInlineCommandForm = ({
     const command = getCommand(currentCommand);
     if (!command) return false;
 
+    const validationContext = getContext ? getContext() : undefined;
+    /** @param {import('./command-registry.js').CommandField} field */
+    const isFieldVisible = field => {
+      if (!field.showWhen) return true;
+      const [condKey, condValue] = field.showWhen.split(':');
+      if (condKey === 'context') return validationContext === condValue;
+      return true;
+    };
     for (const field of command.fields) {
-      if (field.required) {
+      if (!isFieldVisible(field)) {
+        // Field is hidden — skip validation
+      } else if (field.required) {
         const value = formData[field.name];
         if (value === undefined || value === null || value === '') {
           return false;
@@ -636,10 +648,19 @@ export const createInlineCommandForm = ({
       return;
     }
 
-    // Only render inline fields (not source/endowments)
-    const inlineFields = command.fields.filter(
-      f => f.type !== 'source' && f.type !== 'endowments',
-    );
+    // Filter out fields that don't match showWhen conditions or are non-inline
+    const context = getContext ? getContext() : undefined;
+    const inlineFields = command.fields.filter(f => {
+      if (f.type === 'source' || f.type === 'endowments') return false;
+      if (f.showWhen) {
+        const [condKey, condValue] = f.showWhen.split(':');
+        if (condKey === 'context') {
+          return context === condValue;
+        }
+        // Field-value conditions are checked dynamically elsewhere
+      }
+      return true;
+    });
 
     if (inlineFields.length === 0) {
       $container.innerHTML = '';

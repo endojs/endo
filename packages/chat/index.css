@@ -5966,13 +5966,8 @@ button.btn-spinner::after {
   display: none;
 }
 
-/* Hide chat bar in outliner mode */
-#chat-bar[data-view-mode="outliner"] {
-  display: none;
-}
-
+/* Outliner mode: flow content from top instead of bottom */
 #messages[data-view-mode="outliner"] {
-  bottom: 0;
   padding-top: 20px;
 }
 

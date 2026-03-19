@@ -535,6 +535,7 @@ export const chatBarComponent = (
     E,
     powers,
     makeRefIterator,
+    getContext: getCommandContext,
     onSubmit: async (commandName, data) => {
       if (commandSubmitting) return;
       await executeWithSpinner(commandName, data);

@@ -14,6 +14,7 @@
  * @property {string} [placeholder] - Placeholder text
  * @property {string} [defaultValue] - Default value
  * @property {string[]} [options] - Options for select fields
+ * @property {string} [showWhen] - Conditional visibility: 'context:channel', 'fieldName:value', etc.
  */
 
 /**
@@ -483,6 +484,24 @@ export const COMMANDS = {
         required: true,
         options: ['link', 'inventory'],
         defaultValue: 'link',
+      },
+      {
+        name: 'accessLevel',
+        label: 'Access',
+        type: 'select',
+        required: false,
+        options: ['read-and-write', 'read-only'],
+        defaultValue: 'read-and-write',
+        showWhen: 'context:channel',
+      },
+      {
+        name: 'rateLimit',
+        label: 'Rate limit',
+        type: 'select',
+        required: false,
+        options: ['none', 'relaxed', 'moderate', 'strict'],
+        defaultValue: 'none',
+        showWhen: 'context:channel',
       },
     ],
     submitLabel: 'Invite',

@@ -395,7 +395,83 @@ export const createCommandExecutor = ({
 
         // ============ CONNECTIONS ============
         case 'invite': {
-          const { guestName, delivery = 'link' } = params;
+          const {
+            guestName,
+            delivery = 'link',
+            accessLevel = 'read-and-write',
+            rateLimit = 'none',
+          } = params;
+          const channelRef = getChannelRef ? getChannelRef() : null;
+
+          if (channelRef) {
+            // Channel mode: use createInvitation for channel-specific invites
+            console.log(
+              `[Chat] Creating channel invitation for "${guestName}"...`,
+            );
+            const [invitation, attenuator] = await E(
+              channelRef,
+            ).createInvitation(String(guestName));
+
+            // Apply access level
+            if (accessLevel === 'read-only') {
+              // Disable posting by setting validity to false after creation,
+              // then re-enable with a strict heat config that blocks all posts
+              await E(attenuator).setHeatConfig(
+                harden({
+                  burstLimit: 0,
+                  sustainedRate: 0,
+                  lockoutDurationMs: 0,
+                  postLockoutPct: 100,
+                }),
+              );
+            }
+
+            // Apply rate limiting (only if not read-only)
+            if (accessLevel !== 'read-only' && rateLimit !== 'none') {
+              /** @type {Record<string, { burstLimit: number, sustainedRate: number, lockoutDurationMs: number, postLockoutPct: number }>} */
+              const rateLimitPresets = {
+                relaxed: {
+                  burstLimit: 20,
+                  sustainedRate: 30,
+                  lockoutDurationMs: 30000,
+                  postLockoutPct: 50,
+                },
+                moderate: {
+                  burstLimit: 10,
+                  sustainedRate: 10,
+                  lockoutDurationMs: 60000,
+                  postLockoutPct: 50,
+                },
+                strict: {
+                  burstLimit: 5,
+                  sustainedRate: 3,
+                  lockoutDurationMs: 120000,
+                  postLockoutPct: 70,
+                },
+              };
+              const heatConfig = rateLimitPresets[String(rateLimit)];
+              if (heatConfig) {
+                await E(attenuator).setHeatConfig(harden(heatConfig));
+              }
+            }
+
+            const accessLabel =
+              accessLevel === 'read-only' ? ' (read-only)' : '';
+            const rateLimitLabel =
+              rateLimit !== 'none' ? `, rate limit: ${rateLimit}` : '';
+
+            showMessage(
+              `Channel invitation created for "${guestName}"${accessLabel}${rateLimitLabel}. Share the channel with them so they can join.`,
+            );
+            showValue(invitation, undefined, undefined, undefined);
+            return {
+              success: true,
+              value: invitation,
+              message: `Channel invitation created for "${guestName}"`,
+            };
+          }
+
+          // Inbox mode: use host invite
           console.log(`[Chat] Creating invitation for "${guestName}"...`);
           const invitation = await E(powers).invite(String(guestName));
 
