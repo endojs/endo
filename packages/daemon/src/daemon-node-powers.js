@@ -615,7 +615,7 @@ export const makeDaemonicControlPowers = (
    * @param {Promise<never>} forceCancelled - rejects to force shutdown (SIGKILL)
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [trustedShims]
-   * @param {string} [label]
+   * @param {string} [label] TODO audit callers, make sure they all pass labels
    */
   const makeWorker = async (
     workerId,

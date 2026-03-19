@@ -236,6 +236,7 @@ export const makeHostMaker = ({
       tasks.push(identifiers =>
         E(directory).write(namePath, identifiers.workerId),
       );
+      // TODO is this sufficient? should we mabye just use the full path? or some simplified ("/"-replaced) derivative of it?
       const workerLabel = namePath[namePath.length - 1];
       const { value } = await formulateWorker(tasks, undefined, workerLabel);
       return value;
