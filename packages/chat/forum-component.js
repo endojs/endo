@@ -331,9 +331,18 @@ export const forumComponent = async (
   /* eslint-enable no-use-before-define */
 
   // Expose a control API matching channelComponent's interface.
-  /** @type {{ closeThread: () => boolean }} */
+  let disposed = false;
+  /** @type {AsyncIterableIterator<unknown> | null} */
+  let activeIterator = null;
+  /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => false,
+    dispose: () => {
+      disposed = true;
+      if (activeIterator) {
+        activeIterator.return();
+      }
+    },
   });
   /** @type {any} */ ($parent).channelAPI = channelAPI;
 
@@ -355,6 +364,7 @@ export const forumComponent = async (
     throw err;
   }
   const messageIterator = makeRefIterator(messagesRef);
+  activeIterator = messageIterator;
 
   /** Batch incoming messages during initial load. */
   let batchTimer = 0;
@@ -366,6 +376,7 @@ export const forumComponent = async (
   }, 200);
 
   for await (const message of messageIterator) {
+    if (disposed) break;
     const typedMessage = /** @type {ChannelMessage} */ (message);
     const msgKey = String(typedMessage.number);
 

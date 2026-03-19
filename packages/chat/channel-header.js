@@ -34,6 +34,8 @@ import { deriveConstants, formatDuration } from './heat-engine.js';
  * @param {unknown} options.channel - Channel or ChannelMember reference
  * @param {unknown} options.powers - Host powers for locator generation
  * @param {string} [options.channelPetName] - Pet name of the channel
+ * @param {'chat' | 'forum' | 'outliner'} [options.viewMode] - Current view mode
+ * @param {(mode: 'chat' | 'forum' | 'outliner') => void} [options.onViewModeChange] - Callback when view mode changes
  * @returns {ChannelHeaderAPI}
  */
 export const createChannelHeader = ({
@@ -41,6 +43,8 @@ export const createChannelHeader = ({
   channel,
   powers,
   channelPetName,
+  viewMode = 'chat',
+  onViewModeChange,
 }) => {
   let menuVisible = false;
   let manageMembersVisible = false;
@@ -57,6 +61,19 @@ export const createChannelHeader = ({
 
   const renderMenu = () => `
     <div class="channel-menu">
+      <div class="channel-menu-section">
+        <div class="channel-menu-label">View as</div>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'chat' ? 'active' : ''}" data-action="view-chat">
+          Chat
+        </button>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'forum' ? 'active' : ''}" data-action="view-forum">
+          Forum
+        </button>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'outliner' ? 'active' : ''}" data-action="view-outliner">
+          Outliner
+        </button>
+      </div>
+      <div class="channel-menu-divider"></div>
       <button type="button" class="channel-menu-item" data-action="invite">
         Create Invitation
       </button>
@@ -93,6 +110,19 @@ export const createChannelHeader = ({
           } else {
             render();
           }
+        } else if (
+          action === 'view-chat' ||
+          action === 'view-forum' ||
+          action === 'view-outliner'
+        ) {
+          const newMode = /** @type {'chat' | 'forum' | 'outliner'} */ (
+            action.replace('view-', '')
+          );
+          if (newMode !== viewMode && onViewModeChange) {
+            viewMode = newMode;
+            onViewModeChange(newMode);
+          }
+          render();
         }
       });
     }
@@ -121,11 +151,17 @@ export const createChannelHeader = ({
       // Generate a locator with connection hints for sharing
       if (powers && channelPetName) {
         try {
-          const locator = await E(
+          const rawLocator = await E(
             /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
               powers
             ),
           ).locateForSharing(channelPetName);
+          // Include the current view mode so the invitee defaults
+          // to the same view as the inviter.
+          const locator =
+            viewMode && viewMode !== 'chat'
+              ? `${rawLocator}&view=${viewMode}`
+              : rawLocator;
           window.prompt(
             'Share this locator with the invitee (includes connection hints):',
             /** @type {string} */ (locator),

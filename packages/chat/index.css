@@ -4267,6 +4267,43 @@ button.btn-spinner::after {
   border-top: 1px solid var(--border-light);
 }
 
+.channel-menu-section {
+  padding: 0;
+}
+
+.channel-menu-label {
+  padding: 6px 16px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.channel-menu-section .channel-menu-item {
+  padding: 6px 16px 6px 28px;
+  font-size: 13px;
+  position: relative;
+}
+
+.channel-menu-section .channel-menu-item + .channel-menu-item {
+  border-top: none;
+}
+
+.channel-menu-section .channel-menu-item.active::before {
+  content: '\2713';
+  position: absolute;
+  left: 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.channel-menu-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
+}
+
 /* Members panel — dropdown below the menu button */
 .channel-members-panel {
   position: absolute;

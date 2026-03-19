@@ -171,6 +171,12 @@ export const outlinerComponent = async (
 
   // ---- Token autocomplete state ----
 
+  // Disposal flag — set by channelAPI.dispose() to stop all iterators
+  // when the view is switched.
+  let disposed = false;
+  /** @type {AsyncIterableIterator<unknown> | null} */
+  let activeIterator = null;
+
   /** @type {string[]} Shared pet names for all token autocomplete instances */
   const sharedPetNames = [];
 
@@ -180,6 +186,7 @@ export const outlinerComponent = async (
       for await (const change of makeRefIterator(
         E(/** @type {ERef<EndoHost>} */ (powers)).followNameChanges(),
       )) {
+        if (disposed) break;
         if ('add' in /** @type {object} */ (change)) {
           sharedPetNames.push(/** @type {{ add: string }} */ (change).add);
           sharedPetNames.sort();
@@ -2151,9 +2158,15 @@ export const outlinerComponent = async (
 
   // ---- Channel API ----
 
-  /** @type {{ closeThread: () => boolean }} */
+  /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => false,
+    dispose: () => {
+      disposed = true;
+      if (activeIterator) {
+        activeIterator.return();
+      }
+    },
   });
   /** @type {any} */ ($parent).channelAPI = channelAPI;
 
@@ -2176,6 +2189,7 @@ export const outlinerComponent = async (
     throw err;
   }
   const messageIterator = makeRefIterator(messagesRef);
+  activeIterator = messageIterator;
 
   /** Batch incoming messages during initial load. */
   let batchTimer = 0;
@@ -2196,6 +2210,7 @@ export const outlinerComponent = async (
   }, 200);
 
   for await (const message of messageIterator) {
+    if (disposed) break;
     const typedMessage = /** @type {ChannelMessage} */ (message);
     const msgKey = String(typedMessage.number);
 

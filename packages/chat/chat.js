@@ -346,7 +346,7 @@ const bodyComponent = (
   resizeHandleComponent($parent);
 
   // Set up spaces gutter for quick navigation
-  createSpacesGutter({
+  const spacesGutterAPI = createSpacesGutter({
     $container: $spacesGutter,
     $modalContainer: $addSpaceModal,
     powers: /** @type {ERef<EndoHost>} */ (rootPowers),
@@ -527,6 +527,15 @@ const bodyComponent = (
               channel: currentChannelRef,
               powers: resolvedPowers,
               channelPetName: activeSpaceInfo.channelPetName,
+              viewMode: activeSpaceInfo.viewMode || 'chat',
+              onViewModeChange: newMode => {
+                activeSpaceInfo.viewMode = newMode;
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                spacesGutterAPI
+                  .updateSpace(spaceId, { viewMode: newMode })
+                  .catch(window.reportError);
+                switchChannel(activeSpaceInfo.channelPetName);
+              },
             });
 
             // Get our own memberId for highlighting own messages.
@@ -674,9 +683,12 @@ const bodyComponent = (
           return;
         }
 
-        // Close any open thread before tearing down.
+        // Dispose the old view component to stop its message iterator.
         if (/** @type {any} */ ($messages).channelAPI) {
           /** @type {any} */ ($messages).channelAPI.closeThread();
+          if (/** @type {any} */ ($messages).channelAPI.dispose) {
+            /** @type {any} */ ($messages).channelAPI.dispose();
+          }
         }
 
         // Clear messages (keep anchor)
@@ -722,6 +734,15 @@ const bodyComponent = (
               channel: currentChannelRef,
               powers: resolvedPowers,
               channelPetName,
+              viewMode: activeSpaceInfo.viewMode || 'chat',
+              onViewModeChange: newMode => {
+                activeSpaceInfo.viewMode = newMode;
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                spacesGutterAPI
+                  .updateSpace(spaceId, { viewMode: newMode })
+                  .catch(window.reportError);
+                switchChannel(activeSpaceInfo.channelPetName);
+              },
             });
 
             // Get our own memberId for highlighting own messages.

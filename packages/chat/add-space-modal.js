@@ -1442,6 +1442,13 @@ export const createAddSpaceModal = ({
         ).write('general', formulaId);
 
         // 4. Create space config
+        // Use the view mode from the locator if provided, else default chat.
+        const recommendedView = locatorUrl.searchParams.get('view');
+        /** @type {'chat' | 'forum' | 'outliner' | undefined} */
+        const connectViewMode =
+          recommendedView === 'forum' || recommendedView === 'outliner'
+            ? recommendedView
+            : undefined;
         await onSubmit({
           name: spaceName,
           icon: selectedIcon,
@@ -1449,6 +1456,7 @@ export const createAddSpaceModal = ({
           layout: 'channel',
           channelPetName: 'general',
           proposedName: displayName,
+          viewMode: connectViewMode,
         });
 
         hide();

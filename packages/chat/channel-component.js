@@ -705,7 +705,10 @@ export const channelComponent = async (
 
   // Expose a control API on the parent element so chat.js can
   // programmatically close the thread (e.g. from #conversation-back).
-  /** @type {{ closeThread: () => boolean }} */
+  let disposed = false;
+  /** @type {AsyncIterableIterator<unknown> | null} */
+  let activeIterator = null;
+  /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => {
       if ($parent.classList.contains('thread-active')) {
@@ -713,6 +716,12 @@ export const channelComponent = async (
         return true;
       }
       return false;
+    },
+    dispose: () => {
+      disposed = true;
+      if (activeIterator) {
+        activeIterator.return();
+      }
     },
   });
   /** @type {any} */ ($parent).channelAPI = channelAPI;
@@ -757,6 +766,7 @@ export const channelComponent = async (
     throw err;
   }
   const messageIterator = makeRefIterator(messagesRef);
+  activeIterator = messageIterator;
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.
   // The existing message backlog arrives rapidly via the iterator; this
@@ -768,6 +778,7 @@ export const channelComponent = async (
   }, 150);
 
   for await (const message of messageIterator) {
+    if (disposed) break;
     const typedMessage = /** @type {ChannelMessage} */ (message);
     const $msg = await createMessageElement(typedMessage);
     if ($end) {
