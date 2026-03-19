@@ -13,6 +13,10 @@ You test before you finish.
 4. Run existing tests before AND after code changes
 5. Update the task file at session end, even if only to ask clarifying questions.
 
+**Always Commit To Git** between task steps, and
+**Always Commit To Git** at session end —
+**DO NOT** leave dirty changes in the git worktree.
+
 ## Constraints
 
 - Never overwrite files without showing a diff first
