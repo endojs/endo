@@ -241,8 +241,47 @@ HardenedJS not being quite bullet-proof for passable proxies.
 
 A caplet that runs in a `WebView`.
 
-Web views are not safely co-tenant.
-They rely on same origin isolation.
+**WebView clarification**: A WebView is NOT an iframe component inside the browser DOM. Instead, it's a **separate, self-contained browser instance**—like a mini-browser window embedded in an application. In Endo, WebViews are used to execute weblets that need browser UI, with each view running its own isolated browser context independent of the main browser window.
+
+Examples of WebView implementations:
+- **Electron BrowserView**: A separate browser instance within Electron desktop apps (outside main DOM)
+- **Chrome DevTools**: Embedded browser component for inspecting web pages
+- **System WebViews**: Platform-specific APIs like iOS WKWebView or Android WebView
+- **Embeddable browsers**: Standalone browser engines (Chromium, WebKit) embedded in other applications
+
+> Read more: [WebView - Wikipedia](https://en.wikipedia.org/wiki/WebView)
+
+Web views are **not safely co-tenant** when there's no isolation between them. In Endo's implementation, each WebView provides independent separation from main browsers and other WebViews, which is why they can run weblets in parallel.
+
+**Co-Tenancy Considerations**:
+Like workers, webviews have limited co-tenant capabilities. While they are isolated from the main browser and each other, they share certain JavaScript runtime aspects. The isolation is not as strong as the process isolation provided by daemon workers. Co-tenancy here means:
+- Multiple webviews can run concurrently, each with its own isolated JavaScript context
+- Each webview maintains separate state and session data
+- Access between webviews requires explicit, controlled communication
+
+**Content Security Policy (CSP) Importance**:
+CSP is a critical security mechanism for webviews and browsers. It defines:
+- **Allowed Sources**: Where scripts can come from (e.g., `script-src 'self'`)
+- **Execution Policies**: Allowed MIME types and script types
+- **Inline Restrictions**: Preventing inline script execution (preventing `eval()`, `onclick` handlers)
+- **Mixed Content**: Enforcing HTTP/HTTPS separation
+
+In the Endo ecosystem:
+- CSP is enforced at the WebView configuration level
+- Each weblet in a webview gets its own CSP policy appropriate to its security profile
+- CSP violations are captured and reported, not silently allowed
+
+**WebView Lifecycle and Identity**:
+- **Window Ownership**: The "window" belongs to the webview instance, not the browser tab
+- **Persistent Identity**: A weblet retains its identity even after browser restarts, persisting through:
+  - Memory state
+  - Local storage
+  - IndexedDB stores
+  - Session information
+- **Enlivenment**: A weblet "comes alive" when loaded in a webview, maintaining its capability contract
+- **Scoped Persistence**: A weblet's capabilities and state are scoped to its WebView container
+
+> **Identity Principle**: A weblet in a webview maintains stable, persistent identity separate from the particular browser window that hosts it. When a weblet is instantiated, it becomes a distinct, isolated agent with specific capabilities that are preserved across view loadings, view closures, and browser sessions.
 
 They persist only so long as the window is open.
 
