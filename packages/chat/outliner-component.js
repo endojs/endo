@@ -203,6 +203,24 @@ export const outlinerComponent = async (
   let draftCounter = 0;
   let initialLoadComplete = false;
 
+  /** @type {Set<string>} Selected committed node keys */
+  const selectedNodes = new Set();
+
+  /** @type {string | null} Last clicked key for shift-click range */
+  let lastSelectedKey = null;
+
+  /** @type {Map<string, number>} Move overrides: committed node key → effective sort order */
+  const moveOverrides = new Map();
+
+  /** @type {string[] | null} Keys currently being dragged */
+  let draggedKeys = null;
+
+  /** @type {HTMLElement | null} Drop indicator line */
+  let $dropIndicator = null;
+
+  /** @type {boolean} Flag to prevent click handler after rubber-band */
+  let rubberBandJustFinished = false;
+
   /* eslint-disable no-use-before-define */
 
   // ---- Depth & container helpers ----
@@ -222,6 +240,19 @@ export const outlinerComponent = async (
       depth += 1;
     }
     return depth;
+  };
+
+  /**
+   * Get the effective sort order for a committed node.
+   * Returns the move override if present, otherwise the message number.
+   * @param {string} key
+   * @returns {number}
+   */
+  const getEffectiveSortOrder = key => {
+    const override = moveOverrides.get(key);
+    if (override !== undefined) return override;
+    const entry = messageIndex.get(key);
+    return entry ? Number(entry.message.number) : 0;
   };
 
   /**
@@ -420,14 +451,7 @@ export const outlinerComponent = async (
           : getEffective(k);
         return eff && !eff.deleted;
       })
-      .sort((a, b) => {
-        const ea = messageIndex.get(a);
-        const eb = messageIndex.get(b);
-        if (!ea || !eb) return 0;
-        if (ea.message.number < eb.message.number) return -1;
-        if (ea.message.number > eb.message.number) return 1;
-        return 0;
-      });
+      .sort((a, b) => getEffectiveSortOrder(a) - getEffectiveSortOrder(b));
   };
 
   // ---- Heritage chain utility ----
@@ -449,6 +473,294 @@ export const outlinerComponent = async (
       current = entry.message.replyTo;
     }
     return chain;
+  };
+
+  // ---- Selection system ----
+
+  /**
+   * Clear all node selection.
+   */
+  const clearSelection = () => {
+    for (const key of selectedNodes) {
+      const els = nodeEls.get(key);
+      if (els) els.$node.classList.remove('outliner-selected');
+    }
+    selectedNodes.clear();
+  };
+
+  /**
+   * Set or clear selection on a single node.
+   * @param {string} key
+   * @param {boolean} selected
+   */
+  const setNodeSelected = (key, selected) => {
+    const els = nodeEls.get(key);
+    if (!els) return;
+    if (selected) {
+      selectedNodes.add(key);
+      els.$node.classList.add('outliner-selected');
+    } else {
+      selectedNodes.delete(key);
+      els.$node.classList.remove('outliner-selected');
+    }
+  };
+
+  /**
+   * Get all visible committed node keys in document order.
+   * @returns {string[]}
+   */
+  const getVisibleCommittedKeys = () => {
+    const allText = getAllVisibleTextNodes();
+    /** @type {string[]} */
+    const keys = [];
+    for (const $t of allText) {
+      const $node = /** @type {HTMLElement | null} */ ($t.closest('.outliner-node'));
+      if ($node) {
+        const key = $node.dataset.key;
+        if (key && !key.startsWith('draft-')) {
+          keys.push(key);
+        }
+      }
+    }
+    return keys;
+  };
+
+  /**
+   * Select a range of visible committed nodes between two keys (inclusive).
+   * @param {string} fromKey
+   * @param {string} toKey
+   */
+  const selectRange = (fromKey, toKey) => {
+    const allKeys = getVisibleCommittedKeys();
+    const fromIdx = allKeys.indexOf(fromKey);
+    const toIdx = allKeys.indexOf(toKey);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const start = Math.min(fromIdx, toIdx);
+    const end = Math.max(fromIdx, toIdx);
+    clearSelection();
+    for (let i = start; i <= end; i += 1) {
+      setNodeSelected(allKeys[i], true);
+    }
+  };
+
+  /**
+   * Handle mousedown on a committed node row (not on text content).
+   * @param {string} key
+   * @param {MouseEvent} e
+   */
+  const handleNodeMouseDown = (key, e) => {
+    if (e.shiftKey && lastSelectedKey) {
+      e.preventDefault();
+      selectRange(lastSelectedKey, key);
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      if (selectedNodes.has(key)) {
+        setNodeSelected(key, false);
+      } else {
+        setNodeSelected(key, true);
+      }
+      lastSelectedKey = key;
+      return;
+    }
+    // Normal click: select only this node
+    clearSelection();
+    setNodeSelected(key, true);
+    lastSelectedKey = key;
+  };
+
+  // ---- Drag and drop ----
+
+  /**
+   * Handle dragstart from a node's bullet.
+   * @param {string} key
+   * @param {DragEvent} e
+   */
+  const handleDragStart = (key, e) => {
+    if (!e.dataTransfer) return;
+    // If dragged node is in selection, drag all selected; otherwise just this one
+    if (selectedNodes.has(key) && selectedNodes.size > 1) {
+      draggedKeys = [...selectedNodes];
+    } else {
+      clearSelection();
+      setNodeSelected(key, true);
+      draggedKeys = [key];
+    }
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggedKeys.join(','));
+    for (const k of draggedKeys) {
+      const els = nodeEls.get(k);
+      if (els) els.$node.classList.add('outliner-dragging');
+    }
+  };
+
+  /**
+   * Clean up drag state.
+   */
+  const handleDragEnd = () => {
+    if (draggedKeys) {
+      for (const k of draggedKeys) {
+        const els = nodeEls.get(k);
+        if (els) els.$node.classList.remove('outliner-dragging');
+      }
+    }
+    draggedKeys = null;
+    if ($dropIndicator) {
+      $dropIndicator.remove();
+      $dropIndicator = null;
+    }
+  };
+
+  /**
+   * Find the drop position among siblings of the dragged node's parent.
+   * @param {DragEvent} e
+   * @returns {{ afterKey: string | undefined, y: number } | null}
+   */
+  const findDropPosition = e => {
+    if (!draggedKeys || draggedKeys.length === 0) return null;
+    const firstEntry = messageIndex.get(draggedKeys[0]);
+    if (!firstEntry) return null;
+    const parentKey = firstEntry.message.replyTo;
+    const siblings = getSortedVisibleChildren(parentKey).filter(
+      k => !(/** @type {string[]} */ (draggedKeys)).includes(k),
+    );
+    const mouseY = e.clientY;
+    /** @type {{ afterKey: string | undefined, y: number } | null} */
+    let bestGap = null;
+    let bestDist = Infinity;
+    // Gap before first sibling
+    if (siblings.length > 0) {
+      const firstEls = nodeEls.get(siblings[0]);
+      if (firstEls) {
+        const rect = firstEls.$node.getBoundingClientRect();
+        const gapY = rect.top;
+        const dist = Math.abs(mouseY - gapY);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestGap = { afterKey: undefined, y: gapY };
+        }
+      }
+    }
+    // Gap after each sibling
+    for (let i = 0; i < siblings.length; i += 1) {
+      const els = nodeEls.get(siblings[i]);
+      if (els) {
+        const rect = els.$node.getBoundingClientRect();
+        const gapY = rect.bottom;
+        const dist = Math.abs(mouseY - gapY);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestGap = { afterKey: siblings[i], y: gapY };
+        }
+      }
+    }
+    if (!bestGap) {
+      const containerRect = $outlinerView.getBoundingClientRect();
+      bestGap = { afterKey: undefined, y: containerRect.top };
+    }
+    return bestGap;
+  };
+
+  /**
+   * Show or reposition the drop indicator.
+   * @param {number} clientY - Y coordinate in viewport pixels
+   */
+  const showDropIndicator = clientY => {
+    if (!$dropIndicator) {
+      $dropIndicator = document.createElement('div');
+      $dropIndicator.className = 'outliner-drop-indicator';
+      $outlinerView.appendChild($dropIndicator);
+    }
+    const viewRect = $outlinerView.getBoundingClientRect();
+    $dropIndicator.style.top = `${clientY - viewRect.top}px`;
+  };
+
+  /**
+   * Hide the drop indicator.
+   */
+  const hideDropIndicator = () => {
+    if ($dropIndicator) {
+      $dropIndicator.remove();
+      $dropIndicator = null;
+    }
+  };
+
+  /**
+   * Re-order DOM children of a parent container to match current sort order.
+   * @param {string | undefined} parentKey
+   */
+  const reorderChildren = parentKey => {
+    const $container = getChildrenContainer(parentKey);
+    const sorted = getSortedVisibleChildren(parentKey);
+    for (const key of sorted) {
+      const els = nodeEls.get(key);
+      if (els) $container.appendChild(els.$node);
+    }
+    // Re-append draft nodes at the end
+    const draftNodes = $container.querySelectorAll(':scope > .outliner-draft');
+    for (const $draft of draftNodes) {
+      $container.appendChild($draft);
+    }
+  };
+
+  /**
+   * Execute a drop: compute sort orders and post move messages.
+   * @param {{ afterKey: string | undefined }} pos
+   */
+  const handleDrop = pos => {
+    if (!draggedKeys || draggedKeys.length === 0) return;
+    const firstEntry = messageIndex.get(draggedKeys[0]);
+    if (!firstEntry) return;
+    const parentKey = firstEntry.message.replyTo;
+    const siblings = getSortedVisibleChildren(parentKey).filter(
+      k => !(/** @type {string[]} */ (draggedKeys)).includes(k),
+    );
+    // Find insert index
+    let insertIdx = 0;
+    if (pos.afterKey) {
+      const idx = siblings.indexOf(pos.afterKey);
+      if (idx !== -1) insertIdx = idx + 1;
+    }
+    // Compute boundary sort orders
+    let beforeOrder;
+    if (insertIdx > 0) {
+      beforeOrder = getEffectiveSortOrder(siblings[insertIdx - 1]);
+    } else if (siblings.length > 0) {
+      beforeOrder =
+        getEffectiveSortOrder(siblings[0]) - draggedKeys.length - 1;
+    } else {
+      beforeOrder = 0;
+    }
+    const afterOrder =
+      insertIdx < siblings.length
+        ? getEffectiveSortOrder(siblings[insertIdx])
+        : beforeOrder + draggedKeys.length + 1;
+    const step = (afterOrder - beforeOrder) / (draggedKeys.length + 1);
+    // Sort dragged keys by their current order to preserve relative order
+    const sortedDragged = [...draggedKeys].sort(
+      (a, b) => getEffectiveSortOrder(a) - getEffectiveSortOrder(b),
+    );
+    for (let i = 0; i < sortedDragged.length; i += 1) {
+      const newOrder = beforeOrder + step * (i + 1);
+      const entry = messageIndex.get(sortedDragged[i]);
+      if (entry) {
+        moveOverrides.set(sortedDragged[i], newOrder);
+        E(channel)
+          .post(
+            [String(newOrder)],
+            [],
+            [],
+            String(entry.message.number),
+            [],
+            'move',
+          )
+          .catch(/** @param {Error} err */ err => {
+            console.error('Failed to post move:', err);
+          });
+      }
+    }
+    reorderChildren(parentKey);
   };
 
   // ---- Committed node edit handling ----
@@ -1041,6 +1353,10 @@ export const outlinerComponent = async (
     attachTokenAutocompleteOnFocus($text);
     attachTokenAutocompleteOnBlur($text);
 
+    $text.addEventListener('focus', () => {
+      clearSelection();
+    });
+
     $text.addEventListener('input', () => {
       dirtyNodes.add(key);
     });
@@ -1403,6 +1719,19 @@ export const outlinerComponent = async (
       $row.appendChild($forkBtn);
     }
 
+    // Make bullet a drag handle
+    $bullet.draggable = true;
+    $bullet.addEventListener('dragstart', dragE => handleDragStart(key, dragE));
+    $bullet.addEventListener('dragend', () => handleDragEnd());
+
+    // Selection on non-text row click
+    $row.addEventListener('mousedown', mouseE => {
+      if ($text.contains(/** @type {Node} */ (mouseE.target))) return;
+      const btn = /** @type {HTMLElement} */ (mouseE.target).closest('button');
+      if (btn) return;
+      handleNodeMouseDown(key, mouseE);
+    });
+
     $node.appendChild($row);
 
     const $meta = createMetaEl(effective);
@@ -1667,6 +1996,17 @@ export const outlinerComponent = async (
         renderNodeContent(els.$text, effective);
         updateMetaContent(els.$meta, effective);
       }
+    } else if (message.replyType === 'move') {
+      const targetKey = message.replyTo;
+      if (!targetKey) return;
+      const sortOrder = parseFloat(message.strings[0]);
+      if (Number.isNaN(sortOrder)) return;
+      moveOverrides.set(targetKey, sortOrder);
+      // Re-sort the affected parent's children in the DOM
+      const targetEntry = messageIndex.get(targetKey);
+      if (targetEntry) {
+        reorderChildren(targetEntry.message.replyTo);
+      }
     }
   };
 
@@ -1676,11 +2016,136 @@ export const outlinerComponent = async (
 
   // Clicking empty space in the outliner creates a root draft
   $outlinerView.addEventListener('click', e => {
+    if (rubberBandJustFinished) return;
     if (e.target !== $outlinerView) return;
     const draftId = createDraft(undefined, undefined);
     const draftEl = draftEls.get(draftId);
     if (draftEl) {
       requestAnimationFrame(() => focusTextNode(draftEl.$text));
+    }
+  });
+
+  // ---- Drag and drop on outliner view ----
+
+  $outlinerView.addEventListener('dragover', e => {
+    if (!draggedKeys || !e.dataTransfer) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const pos = findDropPosition(e);
+    if (pos) {
+      showDropIndicator(pos.y);
+    }
+  });
+
+  $outlinerView.addEventListener('dragleave', e => {
+    if (
+      !$outlinerView.contains(/** @type {Node | null} */ (e.relatedTarget))
+    ) {
+      hideDropIndicator();
+    }
+  });
+
+  $outlinerView.addEventListener('drop', e => {
+    e.preventDefault();
+    hideDropIndicator();
+    if (!draggedKeys) return;
+    const pos = findDropPosition(e);
+    if (pos) {
+      handleDrop(pos);
+    }
+    handleDragEnd();
+  });
+
+  // ---- Rubber-band selection ----
+
+  /** @type {boolean} */
+  let isRubberBanding = false;
+  /** @type {number} */
+  let rbStartX = 0;
+  /** @type {number} */
+  let rbStartY = 0;
+  /** @type {HTMLElement | null} */
+  let $rbRect = null;
+
+  $outlinerView.addEventListener('mousedown', e => {
+    // Only start on background (outliner-view or children container)
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (
+      target !== $outlinerView &&
+      !target.classList.contains('outliner-children')
+    ) {
+      return;
+    }
+    if (e.button !== 0) return;
+
+    rbStartX = e.clientX;
+    rbStartY = e.clientY;
+    isRubberBanding = false;
+
+    /** @param {MouseEvent} me */
+    const onMouseMove = me => {
+      const dx = me.clientX - rbStartX;
+      const dy = me.clientY - rbStartY;
+      if (!isRubberBanding && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        isRubberBanding = true;
+        $rbRect = document.createElement('div');
+        $rbRect.className = 'outliner-selection-rect';
+        $outlinerView.appendChild($rbRect);
+      }
+      if (isRubberBanding && $rbRect) {
+        const viewRect = $outlinerView.getBoundingClientRect();
+        const left = Math.min(rbStartX, me.clientX) - viewRect.left;
+        const top = Math.min(rbStartY, me.clientY) - viewRect.top;
+        $rbRect.style.left = `${left}px`;
+        $rbRect.style.top = `${top}px`;
+        $rbRect.style.width = `${Math.abs(dx)}px`;
+        $rbRect.style.height = `${Math.abs(dy)}px`;
+
+        // Compute intersecting nodes
+        const selLeft = Math.min(rbStartX, me.clientX);
+        const selTop = Math.min(rbStartY, me.clientY);
+        const selRight = Math.max(rbStartX, me.clientX);
+        const selBottom = Math.max(rbStartY, me.clientY);
+
+        clearSelection();
+        for (const [key, els] of nodeEls) {
+          const rowRect = els.$row.getBoundingClientRect();
+          if (
+            rowRect.bottom > selTop &&
+            rowRect.top < selBottom &&
+            rowRect.right > selLeft &&
+            rowRect.left < selRight
+          ) {
+            setNodeSelected(key, true);
+          }
+        }
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      if ($rbRect) {
+        $rbRect.remove();
+        $rbRect = null;
+      }
+      if (isRubberBanding) {
+        rubberBandJustFinished = true;
+        setTimeout(() => {
+          rubberBandJustFinished = false;
+        }, 0);
+      }
+      isRubberBanding = false;
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  // Escape clears selection
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && selectedNodes.size > 0) {
+      clearSelection();
     }
   });
 
@@ -1750,6 +2215,14 @@ export const outlinerComponent = async (
       /** @type {string[]} */ (replyChildren.get(parentKey)).push(msgKey);
     } else if (isVisibleReplyType(typedMessage.replyType)) {
       rootKeys.push(msgKey);
+    }
+
+    // Track move overrides
+    if (typedMessage.replyType === 'move' && typedMessage.replyTo) {
+      const sortOrder = parseFloat(typedMessage.strings[0]);
+      if (!Number.isNaN(sortOrder)) {
+        moveOverrides.set(typedMessage.replyTo, sortOrder);
+      }
     }
 
     // Render strategy: batch during initial load, incremental after

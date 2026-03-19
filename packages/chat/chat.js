@@ -605,17 +605,6 @@ const bodyComponent = (
                 );
               }
 
-              // Post fork indicator in original channel
-              const lastMsg = heritageChain[heritageChain.length - 1];
-              await E(currentChannelRef).post(
-                [`Forked to ${channelName}`],
-                [],
-                [],
-                String(lastMsg.number),
-                [],
-                'fork',
-              );
-
               // Navigate to the new channel in-place
               switchChannel(channelName);
             };
@@ -802,16 +791,6 @@ const bodyComponent = (
                   msg.ids,
                 );
               }
-
-              const lastMsg = heritageChain[heritageChain.length - 1];
-              await E(currentChannelRef).post(
-                [`Forked to ${channelName}`],
-                [],
-                [],
-                String(lastMsg.number),
-                [],
-                'fork',
-              );
 
               switchChannel(channelName);
             };

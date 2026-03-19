@@ -285,6 +285,12 @@ export const inventoryComponent = async (
   /** @type {Map<string, { $wrapper: HTMLElement, cleanup?: () => void }>} */
   const $names = new Map();
 
+  // Drag state for channel list reordering
+  /** @type {HTMLElement | null} */
+  let draggedChannelWrapper = null;
+  /** @type {HTMLElement | null} */
+  let $channelDropIndicator = null;
+
   /**
    * Create an inventory item with disclosure triangle.
    * @param {string} name
@@ -347,7 +353,12 @@ export const inventoryComponent = async (
     $children.className = 'pet-children';
     $wrapper.appendChild($children);
 
-    $list.appendChild($wrapper);
+    if (channelMode) {
+      // Newest channels at top
+      $list.prepend($wrapper);
+    } else {
+      $list.appendChild($wrapper);
+    }
 
     const inspectItem = () => {
       const idP = E(powers).identify(
@@ -395,6 +406,24 @@ export const inventoryComponent = async (
           ) {
             $wrapper.classList.add('active-channel');
           }
+
+          // Make channel items draggable for reordering
+          $row.draggable = true;
+          $row.addEventListener('dragstart', dragE => {
+            if (!dragE.dataTransfer) return;
+            dragE.dataTransfer.effectAllowed = 'move';
+            dragE.dataTransfer.setData('text/plain', name);
+            draggedChannelWrapper = $wrapper;
+            $wrapper.classList.add('channel-dragging');
+          });
+          $row.addEventListener('dragend', () => {
+            $wrapper.classList.remove('channel-dragging');
+            draggedChannelWrapper = null;
+            if ($channelDropIndicator) {
+              $channelDropIndicator.remove();
+              $channelDropIndicator = null;
+            }
+          });
         }
 
         // Non-channel mode: detect conversable items
@@ -519,6 +548,99 @@ export const inventoryComponent = async (
 
     return { $wrapper, cleanup: () => childCleanup?.() };
   };
+
+  // ---- Channel list drag-and-drop reordering ----
+
+  if (channelMode) {
+    $list.style.position = 'relative';
+
+    $list.addEventListener('dragover', e => {
+      if (!draggedChannelWrapper || !e.dataTransfer) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      const items = [
+        .../** @type {NodeListOf<HTMLElement>} */ (
+          $list.querySelectorAll('.channel-item:not(.channel-dragging)')
+        ),
+      ];
+      const mouseY = e.clientY;
+      let bestY = 0;
+      let bestDist = Infinity;
+
+      // Gap before first item
+      if (items.length > 0) {
+        const rect = items[0].getBoundingClientRect();
+        const dist = Math.abs(mouseY - rect.top);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestY = rect.top;
+        }
+      }
+      // Gap after each item
+      for (const item of items) {
+        const rect = item.getBoundingClientRect();
+        const dist = Math.abs(mouseY - rect.bottom);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestY = rect.bottom;
+        }
+      }
+
+      if (!$channelDropIndicator) {
+        $channelDropIndicator = document.createElement('div');
+        $channelDropIndicator.className = 'channel-drop-indicator';
+        $list.appendChild($channelDropIndicator);
+      }
+      const listRect = $list.getBoundingClientRect();
+      $channelDropIndicator.style.top = `${bestY - listRect.top}px`;
+    });
+
+    $list.addEventListener('dragleave', e => {
+      if (!$list.contains(/** @type {Node | null} */ (e.relatedTarget))) {
+        if ($channelDropIndicator) {
+          $channelDropIndicator.remove();
+          $channelDropIndicator = null;
+        }
+      }
+    });
+
+    $list.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!draggedChannelWrapper) return;
+
+      const items = [
+        .../** @type {NodeListOf<HTMLElement>} */ (
+          $list.querySelectorAll('.channel-item:not(.channel-dragging)')
+        ),
+      ];
+      const mouseY = e.clientY;
+      /** @type {Element | null} */
+      let insertBefore = null;
+
+      for (const item of items) {
+        const rect = item.getBoundingClientRect();
+        const midY = (rect.top + rect.bottom) / 2;
+        if (Number(mouseY) < Number(midY)) {
+          insertBefore = item;
+          break;
+        }
+      }
+
+      if (insertBefore) {
+        $list.insertBefore(draggedChannelWrapper, insertBefore);
+      } else {
+        $list.appendChild(draggedChannelWrapper);
+      }
+
+      draggedChannelWrapper.classList.remove('channel-dragging');
+      draggedChannelWrapper = null;
+      if ($channelDropIndicator) {
+        $channelDropIndicator.remove();
+        $channelDropIndicator = null;
+      }
+    });
+  }
 
   for await (const change of makeRefIterator(E(powers).followNameChanges())) {
     if ('add' in change) {

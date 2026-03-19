@@ -387,7 +387,7 @@ export const chatBarComponent = (
    */
   const renderCommandPopover = () => {
     const categories = getCategories();
-    const context = getCommandContext();
+    const context = getCommandContext(); // eslint-disable-line no-use-before-define
     let html = '<div class="command-popover-header">Commands</div>';
 
     for (const category of categories) {
@@ -535,7 +535,7 @@ export const chatBarComponent = (
     E,
     powers,
     makeRefIterator,
-    getContext: getCommandContext,
+    getContext: () => getCommandContext(), // eslint-disable-line no-use-before-define
     onSubmit: async (commandName, data) => {
       if (commandSubmitting) return;
       await executeWithSpinner(commandName, data);
