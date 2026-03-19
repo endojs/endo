@@ -74,9 +74,90 @@ methods.
 
 A program that exports `main(powers)`, and is not expected to return anything,
 and consequently, is not intended to exceed the life of the main. Whether to
-wait for IO handles to close is debatable still.
+wait for IO handles to close is debatable still—this consideration stems from the
+fact that workers have their own isolated heap and can continue executing after the
+external reference is revoked, whereas in-thread code would be cut off. This
+debate relates to the live-ref garbage collection problem where external references
+can keep code alive indefinitely, making it unclear when and how to safely terminate
+a worker.
+
+**Clarification: Worker Concept**
+
+"Worker" has different meanings depending on the context:
+
+### JavaScript Worker (Standard API)
+
+**JavaScript Workers** are a browser/sandbox API for off-main-thread JavaScript execution:
+
+- **Implementation**: Workers are *threads* (lightweight OS processes) that share the same memory space as the main thread
+- **API**: Created via `new Worker('worker.js')` using the browser/Worker API
+- **Communication**: Uses `postMessage()` with Transferable objects for efficient copying
+- **Context**: Runs in a separate global scope (`DedicatedWorkerGlobalScope` with `self`)
+- **Isolation**: Limited isolation - workers share memory but cannot access DOM directly
+
+> Read more: [Web Workers - MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
+
+### Agoric/Endo Worker
+
+**Endo Workers** are separate *OS process* runtimes managed by the daemon:
+
+- **Implementation**: Each worker is its own process with independent memory, file system access, and OS identity
+- **Management**: Daemon manages worker lifecycle via formula-based configuration
+- **Communication**: Uses CapTP (Capability Transport Protocol) for cross-process message passing
+- **Environment**: Workers run in a HardenedJS lockdown environment with compartment isolation
+- **Isolation**: True isolation - compromised workers cannot affect the daemon or other workers
+
+**Key Differences:**
+
+| Aspect | JavaScript Worker | Endo Worker |
+|--------|-------------------|--------------|
+| **Isolation** | Thread-level (shared memory) | Process-level (separate memory, file system, network) |
+| **Communication** | `postMessage()` with Transferables | CapTP with passable proxies |
+| **Lifecycle** | Created on-demand, GC'd automatically | Formula-managed, daemon controls termination |
+| **Security** | Browser sandbox (CSP, DOM restrictions) | HardenedJS lockdown, compartment maps |
+| **Use Case** | UI/UX, long-running computations | Guest computation isolation, secure sandboxing |
+
+### When to Use Each
+
+- **JavaScript Worker**: Use for UI responsiveness, complex client-side computations that don't require deep isolation or external resources
+- **Endo Worker**: Use for guest computations requiring:
+  - Complete process isolation
+  - Access to external resources (files, network)
+  - HardenedJS security guarantees
+  - Capability-based access control
+
+**Interoperability**:
+Endo workers are *not* the same as JavaScript Workers. An Endo worker cannot be instantiated via the standard `new Worker()` API because they are separate process types managed by the daemon, not browser APIs. However, Endo can potentially spawn JavaScript Workers within a Worker process for specific use cases (requiring careful isolation analysis).
+
+> See also: [[HardenedJS details and co-tenancy]](#hardenedjs-details-and-co-tenancy)
 
 Neither caplet nor runlet is a Worker.
+
+### Why use workers?
+
+**Workers** are separate JavaScript runtime processes that provide:
+
+- **Isolation and Fault Containment**: Each guest runs in its own worker. If a guest
+  crashes, it only affects that worker, not the main daemon or other guests
+- **Security Boundary**: Workers operate under lockdown with separate compartments,
+  preventing a compromised guest from accessing the daemon's internals
+- **Concurrent Execution**: Multiple guests can compute simultaneously by running
+  their workers in parallel
+- **Resource Management**: Workers can be started, stopped, and scaled independently
+  of the main daemon process
+- **Guest Lifecycle Persistence**: Each worker can continue running past the main
+  computation's lifetime, waiting to receive new requests or clean up resources
+
+The daemon manages these workers through a formula lifecycle where each worker
+has its own environment, network access, and storage namespace. Workers have their
+own process, memory, and event loop, providing true isolation.
+
+#### Worker Types
+
+- **General Worker**: A standalone process hosting one or more guest computations
+- **Isolated Worker**: A worker with restricted capabilities for security-critical
+  operations
+- **Shared Worker**: Workers that can communicate with each other via CapTP (rarely used)
 
 ## worklet
 
