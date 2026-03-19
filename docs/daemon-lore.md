@@ -436,7 +436,35 @@ Examples of WebView implementations:
 
 Web views are **not safely co-tenant** when there's no isolation between them. In Endo's implementation, each WebView provides independent separation from main browsers and other WebViews, which is why they can run weblets in parallel.
 
-They rely on same origin isolation.
+**Co-Tenancy Considerations**:
+Like workers, webviews have limited co-tenant capabilities. While they are isolated from the main browser and each other, they share certain JavaScript runtime aspects. The isolation is not as strong as the process isolation provided by daemon workers. Co-tenancy here means:
+- Multiple webviews can run concurrently, each with its own isolated JavaScript context
+- Each webview maintains separate state and session data
+- Access between webviews requires explicit, controlled communication
+
+**Content Security Policy (CSP) Importance**:
+CSP is a critical security mechanism for webviews and browsers. It defines:
+- **Allowed Sources**: Where scripts can come from (e.g., `script-src 'self'`)
+- **Execution Policies**: Allowed MIME types and script types
+- **Inline Restrictions**: Preventing inline script execution (preventing `eval()`, `onclick` handlers)
+- **Mixed Content**: Enforcing HTTP/HTTPS separation
+
+In the Endo ecosystem:
+- CSP is enforced at the WebView configuration level
+- Each weblet in a webview gets its own CSP policy appropriate to its security profile
+- CSP violations are captured and reported, not silently allowed
+
+**WebView Lifecycle and Identity**:
+- **Window Ownership**: The "window" belongs to the webview instance, not the browser tab
+- **Persistent Identity**: A weblet retains its identity even after browser restarts, persisting through:
+  - Memory state
+  - Local storage
+  - IndexedDB stores
+  - Session information
+- **Enlivenment**: A weblet "comes alive" when loaded in a webview, maintaining its capability contract
+- **Scoped Persistence**: A weblet's capabilities and state are scoped to its WebView container
+
+> **Identity Principle**: A weblet in a webview maintains stable, persistent identity separate from the particular browser window that hosts it. When a weblet is instantiated, it becomes a distinct, isolated agent with specific capabilities that are preserved across view loadings, view closures, and browser sessions.
 
 They persist only so long as the window is open.
 
