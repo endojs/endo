@@ -468,6 +468,8 @@ In the Endo ecosystem:
 
 They persist only so long as the window is open.
 
+> TODO whose window? is that relevant? is each window-ified instance a separate "weblet" per-se? does "weblet" have stable identity separate from being enlivend thusly?
+
 ## Gateway
 
 Hosts:
