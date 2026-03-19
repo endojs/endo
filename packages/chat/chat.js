@@ -315,6 +315,9 @@ const bodyComponent = (
   const $channelHeaderActions = /** @type {HTMLElement} */ (
     $parent.querySelector('#channel-header-actions')
   );
+  const $chatBar = /** @type {HTMLElement} */ (
+    $parent.querySelector('#chat-bar')
+  );
   const $chatMessage = /** @type {HTMLElement} */ (
     $parent.querySelector('#chat-message')
   );
@@ -552,10 +555,20 @@ const bodyComponent = (
                 : activeSpaceInfo.viewMode === 'outliner'
                   ? outlinerComponent
                   : channelComponent;
+            // Set view-mode attributes for outliner mode
+            if (activeSpaceInfo.viewMode === 'outliner') {
+              $messages.dataset.viewMode = 'outliner';
+              $chatBar.dataset.viewMode = 'outliner';
+            } else {
+              delete $messages.dataset.viewMode;
+              delete $chatBar.dataset.viewMode;
+            }
+
             channelViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
               ownMemberId,
+              powers: resolvedPowers,
               onReply: info => {
                 if (chatBarAPI) {
                   chatBarAPI.setReplyTo(
@@ -679,6 +692,15 @@ const bodyComponent = (
               // getMemberId not available on this channel/member ref
             }
 
+            // Set view-mode attributes for outliner mode
+            if (activeSpaceInfo.viewMode === 'outliner') {
+              $messages.dataset.viewMode = 'outliner';
+              $chatBar.dataset.viewMode = 'outliner';
+            } else {
+              delete $messages.dataset.viewMode;
+              delete $chatBar.dataset.viewMode;
+            }
+
             // Start message stream from the current channel ref so access
             // controls are enforced on the iterator.
             const switchViewFn =
@@ -691,6 +713,7 @@ const bodyComponent = (
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
               ownMemberId: switchOwnMemberId,
+              powers: resolvedPowers,
               onReply: info => {
                 if (chatBarAPI) {
                   chatBarAPI.setReplyTo(

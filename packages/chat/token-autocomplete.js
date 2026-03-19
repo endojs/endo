@@ -29,16 +29,17 @@
  * @param {typeof import('@endo/far').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object for following name changes
+ * @param {string[]} [options.externalPetNames] - Pre-managed pet names array (skips followNameChanges subscription)
  * @returns {TokenAutocompleteAPI}
  */
 export const tokenAutocompleteComponent = (
   $input,
   $menu,
-  { E, makeRefIterator, powers },
+  { E, makeRefIterator, powers, externalPetNames },
 ) => {
   /** @type {string[]} */
   // eslint-disable-next-line prefer-const
-  let petNames = [];
+  let petNames = externalPetNames || [];
   /** @type {string[]} */
   let filteredNames = [];
   let selectedIndex = 0;
@@ -52,25 +53,29 @@ export const tokenAutocompleteComponent = (
   /** @type {(() => void) | undefined} */
   let doUpdateFilter;
 
-  // Subscribe to inventory changes
-  (async () => {
-    for await (const change of makeRefIterator(E(powers).followNameChanges())) {
-      if ('add' in /** @type {object} */ (change)) {
-        petNames.push(/** @type {{ add: string }} */ (change).add);
-        petNames.sort();
-      } else if ('remove' in /** @type {object} */ (change)) {
-        const idx = petNames.indexOf(
-          /** @type {{ remove: string }} */ (change).remove,
-        );
-        if (idx !== -1) {
-          petNames.splice(idx, 1);
+  // Subscribe to inventory changes (skip if external names are provided)
+  if (!externalPetNames) {
+    (async () => {
+      for await (const change of makeRefIterator(
+        E(powers).followNameChanges(),
+      )) {
+        if ('add' in /** @type {object} */ (change)) {
+          petNames.push(/** @type {{ add: string }} */ (change).add);
+          petNames.sort();
+        } else if ('remove' in /** @type {object} */ (change)) {
+          const idx = petNames.indexOf(
+            /** @type {{ remove: string }} */ (change).remove,
+          );
+          if (idx !== -1) {
+            petNames.splice(idx, 1);
+          }
+        }
+        if (isMenuVisible && doUpdateFilter) {
+          doUpdateFilter();
         }
       }
-      if (isMenuVisible && doUpdateFilter) {
-        doUpdateFilter();
-      }
-    }
-  })().catch(window.reportError);
+    })().catch(window.reportError);
+  }
 
   const showMenu = () => {
     isMenuVisible = true;
