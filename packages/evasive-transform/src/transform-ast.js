@@ -36,6 +36,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @typedef TransformAstOptionsWithoutSourceMap
  * @property {boolean} [elideComments]
  * @property {boolean} [onlyComments]
+ * @property {(path: import('@babel/traverse').NodePath) => void} [customVisitor] - A visitor function to be called on each node, in addition to the standard transforms. Receives the same path argument as a normal Babel visitor.
  */
 
 /**
@@ -50,7 +51,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  */
 export function transformAst(
   ast,
-  { elideComments = false, onlyComments = false } = {},
+  { elideComments = false, onlyComments = false, customVisitor } = {},
 ) {
   const transformComment = elideComments ? elideComment : evadeComment;
   traverse(ast, {
@@ -72,6 +73,9 @@ export function transformAst(
         evadeTemplates(p);
         evadeRegexpLiteral(p);
         evadeDecrementGreater(p);
+        if(customVisitor) {
+          customVisitor(p);
+        }
       }
     },
   });
