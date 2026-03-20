@@ -4671,7 +4671,7 @@ export const makeDaemon = async (
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {PromiseKit<never>} */ (makePromiseKit());
 
-  // TODO thread through command arguments.
+  // TODO move this into options above
   const gracePeriodMs = 2000;
 
   /** @type {Promise<never>} */
