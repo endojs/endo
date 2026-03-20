@@ -18,10 +18,13 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "exports": {
-    "./package.json": "./package.json",
-    ".": "./src/no-shim.js",
+    ".": {
+      "types": "./src/exports.d.ts",
+      "deafult": "./src/no-shim.js"
+    },
     "./shim.js": "./shim.js",
-    "./utils.js": "./utils.js"
+    "./utils.js": "./utils.js",
+    "./package.json": "./package.json"
   },
   "repository": {
     "type": "git",
