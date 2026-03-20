@@ -44,6 +44,7 @@
     "@endo/lockdown": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
