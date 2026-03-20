@@ -142,6 +142,64 @@ between clearance levels).
 hostname-based isolation ensures weblets cannot access each other's CapTP sessions.
 SES lockdown + compartments provide the loader-level isolation.
 
+### 12. Vats and Temporal Isolation (§14.1)
+
+A **vat** is the combination of a stack, a pending-delivery queue, and the heap of objects
+they operate on. Each E object lives in exactly one vat; a vat may host many objects.
+A vat is the minimum unit of persistence, migration, partial failure, resource control,
+preemptive termination/deallocation, and defense from denial of service.
+
+Within a vat, E provides two ways to postpone plans:
+- **Immediately** (`.` operator): Conventional call-return — postpone the rest of the current
+  plan, execute the sub-plan, then resume.
+- **Eventually** (`<-` operator): Queue a pending delivery on the to-do list — the sub-plan
+  executes in a later **turn**.
+
+A **turn** is E's unit of operation: dequeue a pending delivery, deliver its message, process
+all resulting immediate calls to completion. Because each turn runs to completion before
+the next is serviced, plans within a turn are **temporally isolated**.
+
+**Key invariant**: A running turn has mutually exclusive access to everything it can
+synchronously reach. Only eventual references cross vat boundaries, so concurrent turns
+in different vats cannot interfere — they can only enqueue pending deliveries for each other.
+
+**Endo mapping:** The daemon's event loop and each worker's event loop are vats. Eventual
+sends via `E()` correspond to E's `<-` operator. A weblet's CapTP session maps a browser
+turn onto the daemon's pending-delivery queue.
+
+### 13. Communicating Event-Loops (§14.2)
+
+When objects span vats (e.g., account on VatA, spreadsheet on VatS), only **eventual
+references** cross the boundary. An eventual-send from VatA to VatS serializes the pending
+delivery onto an encrypted, order-preserving byte stream. VatS unserializes and queues it
+on its own pending-delivery queue.
+
+Because only eventual references span vats, a turn in VatS cannot affect a turn
+already in progress in VatA — VatA only queues the incoming pending delivery. Any actual
+multi-vat computation is equivalent to some fully ordered interleaving of turns.
+
+**Endo mapping:** CapTP over WebSocket between daemon and browser is the
+encrypted, order-preserving byte stream. Each CapTP message becomes a pending delivery
+in the receiving vat's queue.
+
+### 14. Promise Pipelining (§16)
+
+The return value of an eventual-send is a **promise** for the eventual result. A promise
+starts as an eventual reference, so messages can be eventually-sent to it before resolution.
+These messages are buffered in FIFO order and forwarded to the resolution once known.
+
+**Pipelining** exploits this: if Alice sends `(bob <- x()) <- z(dave <- y())` and bob and
+dave are both on VatB, all three requests are streamed to VatB immediately with no round
+trip. This reduces the impact of network latency — pipes can be made wider but not shorter.
+
+**Datalock** is the eventual-send analogue of deadlock: a circular dependency where a
+promise can only be resolved by delivering a message buffered in that same promise.
+Unlike deadlock, datalock bugs manifest reproducibly and are anecdotally very rare.
+
+**Endo mapping:** `E(ref).method()` returns a promise; chaining `E(E(ref).x()).y()`
+pipelines both sends. The daemon's CapTP implementation forwards buffered messages
+on promise resolution, achieving the same latency reduction described by Miller.
+
 ---
 
 ## Research Notes
@@ -154,7 +212,8 @@ uses a non-standard numbering scheme). Key chapters for further extraction:
 2. **Chapter 7**: Distributed objects, pointer safety, CapTP bootstrapping
 3. **Chapters 8–9**: Permission, authority, designation
 4. **Chapter 11**: Confinement, overt isolation
-5. **Chapters 16–17**: Promises, far references, persistence
+5. **Chapter 14**: Vats, temporal isolation, communicating event-loops
+6. **Chapters 16–17**: Promises, promise pipelining, far references, persistence
 
 ---
 
@@ -168,5 +227,5 @@ uses a non-standard numbering scheme). Key chapters for further extraction:
 ---
 
 **Status:** Substantive content extracted from thesis PDF
-**Date:** 2026-03-19
-**Progress:** Key concepts (§2.1, §7.2–7.4, §8.1–8.2, §11) summarized with Endo mappings
+**Date:** 2026-03-20
+**Progress:** Key concepts (§2.1, §7.2–7.4, §8.1–8.2, §11, §14.1–14.2, §16) summarized with Endo mappings

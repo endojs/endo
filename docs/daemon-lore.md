@@ -454,36 +454,48 @@ In the Endo ecosystem:
 - Each weblet in a webview gets its own CSP policy appropriate to its security profile
 - CSP violations are captured and reported, not silently allowed
 
-**WebView Lifecycle and Identity**:
-- **Window Ownership**: The "window" belongs to the webview instance, not the browser tab
-- **Persistent Identity**: A weblet retains its identity even after browser restarts, persisting through:
-  - Memory state
-  - Local storage
-  - IndexedDB stores
-  - Session information
-- **Enlivenment**: A weblet "comes alive" when loaded in a webview, maintaining its capability contract
-- **Scoped Persistence**: A weblet's capabilities and state are scoped to its WebView container
+**WebView Lifecycle and Identity — "Whose Window?"**
 
-> **Identity Principle**: A weblet in a webview maintains stable, persistent identity separate from the particular browser window that hosts it. When a weblet is instantiated, it becomes a distinct, isolated agent with specific capabilities that are preserved across view loadings, view closures, and browser sessions.
+A weblet's "window" is owned at three distinct layers, each with different
+responsibilities and lifetimes:
 
-The weblet's UI state persists only so long as the window is open; closing the window
-loses all DOM/local-storage/IndexedDB state unless the weblet explicitly saves it via
-Endo capabilities.
+| Layer | Owner | Lifetime | Responsibilities |
+|-------|-------|----------|------------------|
+| **Visual window** | Electron `BrowserWindow` (or standalone browser tab) | Ephemeral — opens and closes with user action | Renders DOM, runs the web-page JavaScript, owns browser-side state (DOM, localStorage, IndexedDB) |
+| **HTTP handler** | Daemon gateway (`web-server-node.js`) | Registered at `makeWeblet()`, deleted when `webletCancelled` fires | Serves the weblet's HTML bundle, establishes per-connection CapTP sessions, enforces CSP |
+| **Formula identity** | Daemon formula graph | Persistent — survives browser closes and daemon restarts | Stores the weblet's `webletId`, its bundle, its granted powers, and its pet-store entry |
 
-**Weblet identity is a formula-graph concept, not a window concept.** In the daemon,
-a weblet is created by calling `makeWeblet(bundle, powers, requestedPort, webletId,
-webletCancelled)` on the `@apps` WebletService. The resulting weblet formula is stored
-persistently in the daemon's formula graph and addressed by its `webletId` token. Each
-browser window that loads the weblet URL opens an independent CapTP session; the
-gateway does not track or restrict how many concurrent windows connect to the same
-weblet. Therefore:
+**Key consequence:** Closing the browser window destroys only the visual layer. The
+daemon's HTTP handler remains registered and ready to serve new connections, and the
+formula identity is never lost. Reopening the URL starts a fresh CapTP session on the
+same persistent weblet identity.
 
-- The daemon's formula gives the weblet **stable identity** across browser opens/closes.
-- Each window/WebView is a **separate ephemeral incarnation** — analogous to
-  Miller's "incarnation of a vat" (thesis §7.2). The weblet maintains its identity and
-  persistent capabilities as it passes through a sequence of browser sessions.
+- **No daemon-side DOM state**: The daemon stores no browser/UI state. Memory, localStorage,
+  and IndexedDB all belong to the browser process and are lost when the window closes — unless
+  the weblet explicitly saves data through Endo capabilities (e.g., writing to a pet-store value).
+- **Enlivenment**: A weblet "comes alive" when a browser loads its URL and the resulting
+  CapTP session connects to the daemon. This is an ephemeral incarnation of the persistent
+  formula, not a durable activation.
+
+> **Identity Principle**: Weblet identity is a **formula-graph concept, not a window
+> concept**. The daemon creates a weblet by calling `makeWeblet(bundle, powers,
+> requestedPort, webletId, webletCancelled)` on the `@apps` WebletService. The
+> resulting formula is stored persistently and addressed by its `webletId` token.
+> Each browser window that loads the weblet URL opens an **independent CapTP session**;
+> the gateway does not track or restrict how many concurrent windows connect to the
+> same weblet.
+
+This maps directly to Miller's vat model (thesis §7.2, §14.1):
+
+- The daemon's formula gives the weblet **stable identity** across browser opens/closes —
+  analogous to a vat maintaining its identity across incarnations.
+- Each window/WebView is a **separate ephemeral incarnation** of that vat. The weblet
+  keeps its identity and persistent capabilities as it passes through a sequence of browser
+  sessions, just as "a vat maintains its identity and state as it passes serially through a
+  sequence of incarnations" (thesis §7.2).
 - Multiple windows can load the same weblet URL simultaneously; each gets its own
-  independent CapTP session with no shared browser state.
+  independent CapTP session with no shared browser state — analogous to multiple
+  connections to the same vat via different CapTP pipes.
 
 ## Gateway
 
@@ -873,6 +885,13 @@ Kris
 >   co-tenant. They rely on same origin isolation. They persist only so long as
 >   the window is open.
 
-- [ ] TODO find and research these:
-  - [ ] Mark Miller chapter 14/16 invariants
-  - [ ] Mark's paper on distributed confinement
+- [x] TODO find and research these:
+  - [x] Mark Miller chapter 14/16 invariants — Chapter 14 ("Two Ways to Postpone Plans")
+    introduces vats, event loops, and temporal isolation. The key invariant: a running turn
+    has mutually exclusive access to everything it can synchronously reach, because only
+    eventual references cross vat boundaries. Chapter 16 ("Promise Pipelining") extends this
+    with promises, pipelining, and datalock. See `docs/mark_miller_thesis_summary.md` §12–§14.
+  - [x] Mark's paper on distributed confinement — Thesis §11 ("Confinement") covers
+    factory-based confinement using loader isolation. Key idea: if Max and Cassie share
+    a common TCB that provides loader isolation, Max can supply code that Cassie can
+    verify is confined (cannot leak references). See `docs/mark_miller_thesis_summary.md` §11.
