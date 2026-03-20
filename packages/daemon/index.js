@@ -17,6 +17,7 @@ import {
   whereEndoCache,
 } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
+import { resolveConfig as resolveConfigFromFile } from './config.js';
 
 // Reexports:
 export { makeEndoClient } from './src/client.js';
@@ -307,7 +308,7 @@ const system = async (prog, ...args) => {
  * @param {string[]} _args
  */
 export const main = async _args => {
-  const config = configFromEnv(process.env);
+  const config = await resolveConfigFromFile(process.env);
   const envOverrides = Object.fromEntries(filterEnv());
 
   // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc

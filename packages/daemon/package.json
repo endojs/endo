@@ -27,6 +27,7 @@
       "types": "./types.d.ts",
       "default": "./index.js"
     },
+    "./config.js": "./config.js",
     "./ref-reader.js": "./ref-reader.js",
     "./reader-ref.js": "./reader-ref.js",
     "./pet-name.js": "./src/pet-name.js",
