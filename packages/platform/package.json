@@ -1,0 +1,87 @@
+{
+  "name": "@endo/platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Platform filesystem types and adapters for Endo",
+  "keywords": [
+    "endo",
+    "platform",
+    "filesystem"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/platform#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/platform"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./fs": {
+      "node": {
+        "types": "./src/fs-node/types.d.ts",
+        "default": "./src/fs-node/index.js"
+      }
+    },
+    "./fs/lite": {
+      "types": "./src/fs/types.d.ts",
+      "default": "./src/fs/index.js"
+    },
+    "./fs/node": {
+      "types": "./src/fs-node/types.d.ts",
+      "default": "./src/fs-node/index.js"
+    },
+    "./exo-fs": "./src/exo-fs.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@endo/base64": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/stream": "workspace:^",
+    "@endo/stream-node": "workspace:^"
+  },
+  "devDependencies": {
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev",
+    "typescript": "~5.9.2"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}

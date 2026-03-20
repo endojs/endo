@@ -1017,6 +1017,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/stream": "workspace:^"
     "@endo/stream-node": "workspace:^"
@@ -1120,6 +1121,7 @@ __metadata:
     "@endo/netstring": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/relay-server": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -1686,6 +1688,25 @@ __metadata:
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
     tsd: "npm:^0.31.2"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/platform@workspace:^, @endo/platform@workspace:packages/platform":
+  version: 0.0.0-use.local
+  resolution: "@endo/platform@workspace:packages/platform"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/stream": "workspace:^"
+    "@endo/stream-node": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
