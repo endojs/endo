@@ -3,10 +3,14 @@
  */
 
 export {
-  default as makeAgent,
+  makePiAgent,
+  runAgentRound,
+  DEFAULT_MODEL_STRING,
   makeToolCallStart,
   makeToolCallEnd,
   makeMessage,
+  makeThinking,
+  makeUserMessage,
   makeError,
 } from './agent/index.js';
 

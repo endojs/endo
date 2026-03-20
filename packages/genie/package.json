@@ -23,6 +23,7 @@
     "build": "exit 0",
     "setup": "endo run --UNCONFINED setup.js --powers @agent GENIE_HOME=$GENIE_HOME",
     "test": "ava",
+    "repl": "node dev-repl.js",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"

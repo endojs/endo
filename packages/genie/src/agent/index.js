@@ -13,19 +13,129 @@
  */
 
 /** @import { AgentTool, AgentToolResult, AgentEvent } from '@mariozechner/pi-agent-core' */
+/** @import { KnownProvider, Model, Provider } from '@mariozechner/pi-ai' */
 
-import { Agent } from '@mariozechner/pi-agent-core';
-import { getModel } from '@mariozechner/pi-ai';
+import { Agent as PiAgent } from '@mariozechner/pi-agent-core';
+import { getModel, getProviders } from '@mariozechner/pi-ai';
 
 import {
   default as buildSystemPrompt,
 } from '../system/index.js';
 
+
+/**
+ * @param {never} nope
+ * @param {string} wat
+ */
+function inconeivable(nope, wat) {
+  throw new Error(`inconceivable ${wat}: ${nope}`);
+}
+
+/**
+ * Resolve a model argument into a pi-ai Model object.
+ * For the "ollama" provider we construct a custom model object; for known
+ * providers we look it up via getModel().
+ *
+ * @param {string | undefined} modelString
+ * @returns {Promise<Model<'openai-completions'>>}
+ */
+async function resolveModel(modelString) {
+  let provider = DEFAULT_PROVIDER;
+  let modelId = DEFAULT_MODEL_ID;
+  if (modelString) {
+    modelId = modelString;
+    const parts = modelString.split('/');
+    if (parts.length >= 2) {
+      provider = parts[0];
+      modelId = parts.slice(1).join('/');
+    }
+  }
+
+  if (provider === 'ollama') {
+    return buildOllamaModel(modelId);
+  }
+  if (isKnownProvider(provider)) {
+    // TODO fix type error:
+    // > Argument of type 'string' is not assignable to parameter of type 'never'. typescript (2345)
+    return getModel(provider, modelId);
+  }
+  throw new Error(
+    `Unknown model: provider=${provider}, modelId=${modelId}. ` +
+    `Pass a valid "provider/modelId" string (e.g. "${DEFAULT_MODEL_STRING}").`,
+  );
+}
+
+/**
+ * Resolve the API key for an Ollama model.
+ *
+ * Ollama itself does not require an API key, but the pi-ai openai-completions
+ * provider rejects requests when no key is available.  We check
+ * `OLLAMA_API_KEY` first (in case the user has set one for a remote Ollama
+ * instance), then fall back to a harmless default so that local usage Just
+ * Works™ without polluting `OPENAI_API_KEY`.
+ *
+ * @returns {string}
+ */
+function getOllamaApiKey() {
+  return process.env.OLLAMA_API_KEY || 'ollama';
+}
+harden(getOllamaApiKey);
+
+/**
+ * Build a pi-ai–compatible Model object for a local Ollama model.
+ * Ollama exposes an OpenAI-compatible /v1/chat/completions endpoint,
+ * so we masquerade as the "openai" provider with a custom baseUrl.
+ *
+ * The API key is resolved via {@link getOllamaApiKey} and passed to
+ * pi-agent-core through its `getApiKey` callback, avoiding mutation of
+ * `process.env.OPENAI_API_KEY`.
+ *
+ * @param {string} id - The ollama model name (e.g. "glm-4.7-flash")
+ * @returns {Promise<Model<'openai-completions'>>} A Model object compatible with pi-agent-core
+ */
+async function buildOllamaModel(id) {
+
+  const api = 'openai-completions';
+
+  // TODO discover this from ollama's model show endpoint
+  const contextWindow = 32768;
+
+  // TODO determine this based on a "reserved for response" proportion of the context window.
+  const maxTokens = 8192;
+
+  const ollamaHost = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+  const baseUrl = `${ollamaHost}/v1`;
+
+  // TODO detect this from model capabilities from show response
+  const reasoning = false;
+
+  // TODO detect image capability from show response
+  /** @type {Array<'text'|'image'>} */
+  const input = ['text'];
+
+  return {
+    id,
+    name: `ollama/${id}`,
+    api,
+    // provider: 'ollama',
+    provider: 'openai',
+    baseUrl,
+    reasoning,
+    input,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow,
+    maxTokens,
+  };
+}
+
 /**
  * ToolCallStart - Event emitted when starting a tool call
  *
+ * @typedef {{ type: 'ToolCallStart', toolName: string, args: any }} ToolCallStart
+ *
  * @param {string} toolName - Name of the tool being called
  * @param {any} args - Arguments passed to the tool
+ * @returns {ToolCallStart}
  */
 export function makeToolCallStart(toolName, args) {
   return harden({ type: 'ToolCallStart', toolName, args });
@@ -34,37 +144,97 @@ export function makeToolCallStart(toolName, args) {
 /**
  * ToolCallEnd - Event emitted after a tool call completes
  *
+ * @typedef {(
+ * | { type: 'ToolCallEnd', toolName: string, error: Error }
+ * | { type: 'ToolCallEnd', toolName: string, result: any }
+ * )} ToolCallEnd
+ *
  * @param {string} toolName - Name of the tool that was called
  * @param {any} result - Result of the tool call
  * @param {Error|null} [error=null] - Error if tool failed, null otherwise
+ * @returns {ToolCallEnd}
  */
 export function makeToolCallEnd(toolName, result, error = null) {
-  return harden({ type: 'ToolCallEnd', toolName, result, error });
+  return error
+    ? harden({ type: 'ToolCallEnd', toolName, error })
+    : harden({ type: 'ToolCallEnd', toolName, result });
 }
 
 /**
  * Message - Standard text-based response from the agent
  *
- * @param {string} role - 'user', 'assistant', or 'tool'
+ * @typedef {{ type: 'Message', role: string, content: string }} AgentMessage
+ *
+ * @param {string} role - 'user', 'assistant', 'assistant_delta', or 'tool'
  * @param {string} content - Message content
+ * @returns {AgentMessage}
  */
 export function makeMessage(role, content) {
   return harden({ type: 'Message', role, content });
 }
 
 /**
+ * AgentThinking - Reasoning/thinking content from the model
+ *
+ * Emitted when the model produces chain-of-thought reasoning (e.g. Anthropic
+ * extended thinking, OpenAI reasoning tokens).  The `role` distinguishes
+ * between a complete thinking block (`'thinking'`) and an incremental
+ * streaming delta (`'thinking_delta'`).
+ *
+ * @typedef {{ type: 'Thinking', role: 'thinking' | 'thinking_delta', content: string, redacted?: boolean }} AgentThinking
+ *
+ * @param {'thinking' | 'thinking_delta'} role
+ * @param {string} content - Thinking text (or delta fragment)
+ * @param {boolean} [redacted] - True when the content was redacted by safety filters
+ * @returns {AgentThinking}
+ */
+export function makeThinking(role, content, redacted = false) {
+  return redacted
+    ? harden({ type: 'Thinking', role, content, redacted })
+    : harden({ type: 'Thinking', role, content });
+}
+
+/**
+ * UserMessage - Event emitted when the user's prompt is echoed back
+ *
+ * @typedef {{ type: 'UserMessage', content: string }} UserMessage
+ *
+ * @param {string} content - The user's message content
+ * @returns {UserMessage}
+ */
+export function makeUserMessage(content) {
+  return harden({ type: 'UserMessage', content });
+}
+
+/**
  * Error - Error event (for error handling in the stream)
+ *
+ * @typedef {{ type: 'Error', message: string, cause: Error }} AgentError
  *
  * @param {string} message - Error message
  * @param {Error} cause - Underlying error
+ * @returns {AgentError}
  */
 export function makeError(message, cause) {
   return harden({ type: 'Error', message, cause });
 }
 
+/**
+ * @typedef {(
+ * | AgentError
+ * | AgentMessage
+ * | AgentThinking
+ * | UserMessage
+ * | ToolCallStart
+ * | ToolCallEnd
+ * )} ChatEvent
+ */
+
 harden(makeToolCallStart);
 harden(makeToolCallEnd);
 harden(makeMessage);
+harden(makeThinking);
+harden(makeUserMessage);
 harden(makeError);
 
 /** @typedef {object} ToolSpec
@@ -75,33 +245,26 @@ harden(makeError);
 /**
  * Default model provider and model ID.
  * Can be overridden by passing a model string in the format "provider/modelId"
- * or just "modelId" (defaults to 'anthropic' provider).
+ * or just "modelId" (defaults to 'ollama' provider).
  */
-const DEFAULT_PROVIDER = 'anthropic';
-const DEFAULT_MODEL_ID = 'claude-sonnet-4-20250514';
+
+/** @type {Provider} */
+const DEFAULT_PROVIDER = 'ollama'; // XXX 'openai' ?
+
+const DEFAULT_MODEL_ID = 'llama3.2';
+
+export const DEFAULT_MODEL_STRING = `${DEFAULT_PROVIDER}/${DEFAULT_MODEL_ID}`;
 
 /**
- * Parse a model string into { provider, modelId }.
- *
- * Accepts:
- * - "provider/modelId" (e.g. "anthropic/claude-sonnet-4-20250514")
- * - "modelId" alone (uses DEFAULT_PROVIDER)
- * - "" or undefined (uses defaults)
- *
- * @param {string} [modelStr]
- * @returns {{ provider: string, modelId: string }}
+ * @param {Provider} provider
+ * @returns {provider is KnownProvider}
  */
-function parseModelString(modelStr) {
-  if (!modelStr) {
-    return { provider: DEFAULT_PROVIDER, modelId: DEFAULT_MODEL_ID };
-  }
-  const parts = modelStr.split('/');
-  if (parts.length >= 2) {
-    return { provider: parts[0], modelId: parts.slice(1).join('/') };
-  }
-  return { provider: DEFAULT_PROVIDER, modelId: modelStr };
+function isKnownProvider(provider) {
+  return getProviders().some(p => p == provider);
 }
-harden(parseModelString);
+
+/** @param {any} val */
+const mayJSONify = val => typeof val === 'string' ? val : JSON.stringify(val);
 
 /**
  * Convert a Genie ToolSpec + execTool into an AgentTool compatible with
@@ -125,7 +288,7 @@ function toAgentTool(spec, execTool) {
       const result = await execTool(spec.name, params);
       /** @type {AgentToolResult<any>} */
       const toolResult = {
-        content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result) }],
+        content: [{ type: 'text', text: mayJSONify(result) }],
         details: result,
       };
       return toolResult;
@@ -134,24 +297,25 @@ function toAgentTool(spec, execTool) {
 }
 
 /**
- * Create a Genie Agent instance
+ * Create a PiAgent instance configured with the given options.
+ *
+ * This handles model resolution, system prompt construction, and tool
+ * conversion — all the one-time setup that does not change per chat round.
  *
  * @param {object} options - Agent configuration
  * @param {string} [options.hostname] - Hostname for system prompt
  * @param {string} [options.currentTime] - Current time string
  * @param {string} [options.workspaceDir] - Workspace directory path
- * @param {string} [options.model] - Model identifier ("provider/modelId" or just "modelId")
+ * @param {string|Model<'openai-completions'>} [options.model] - Model identifier ("provider/modelId" or just "modelId")
  * @param {() => Array<ToolSpec>} [options.listTools] - List of available tools with name and execute function
  * @param {(name: string, args: any) => Promise<any>} [options.execTool] - Function to execute a tool by name
  * @param {boolean} [options.disableSuffix] - Disable security suffix
  * @param {boolean} [options.disablePolicy] - Disable policy section
  * @param {boolean} [options.strictPolicy] - Enable strict policy
  * @param {string} [options.securityNotes] - Custom security notes
- * @param {(message: string) => string} [options.beforeSend] - Async callback before sending prompt to LLM
- * @param {(message: string) => string} [options.afterSend] - Async callback after LLM response
- * @returns {object} Agent instance
+ * @returns {Promise<PiAgent>}
  */
-export default function makeAgent(options = {}) {
+export async function makePiAgent(options = {}) {
   const {
     hostname = 'unknown',
     currentTime = 'unknown',
@@ -163,14 +327,6 @@ export default function makeAgent(options = {}) {
     disablePolicy = false,
     strictPolicy = false,
     securityNotes = '',
-    beforeSend = async (prompt) => {
-      console.info('[Agent] Sending prompt to LLM:', prompt.substring(0, 200) + '...');
-      return prompt;
-    },
-    afterSend = async (response) => {
-      console.info('[Agent] Received LLM response:', response.substring(0, 200) + '...');
-      return response;
-    },
   } = options;
 
   const systemPromptConfig = {
@@ -184,173 +340,224 @@ export default function makeAgent(options = {}) {
     securityNotes,
   };
 
-  // Resolve the pi-ai Model object from the model string
-  const { provider, modelId } = parseModelString(model);
-  const resolvedModel = getModel(provider, modelId);
-  if (!resolvedModel) {
-    throw new Error(
-      `Unknown model: provider=${provider}, modelId=${modelId}. ` +
-      `Pass a valid "provider/modelId" string (e.g. "anthropic/claude-sonnet-4-20250514").`,
-    );
-  }
+  // Resolve the pi-ai Model object — either from a pre-constructed object
+  // or by looking up the model string in the pi-ai registry.
+  const resolvedModel = typeof model === 'object' ? model : await resolveModel(model);
 
-  // ============================================================================
-  // AGENT INTERFACE
-  // ============================================================================
+  // Build the system prompt once at agent creation time.
+  const systemPrompt = Array.from(buildSystemPrompt(systemPromptConfig)).join('\n');
 
-  /**
-   * Execute a single chat round
-   *
-   * This method handles:
-   * 1. User prompt -> LLM via pi-agent-core
-   * 2. Tool calls dispatched and executed by pi-agent-core
-   * 3. Streaming events yielded progressively
-   * 4. Final assistant response
-   *
-   * Returns an AsyncIterator that yields events:
-   * - ToolCallStart: When starting a tool call
-   * - ToolCallEnd: When a tool call completes
-   * - Message: Assistant responses or user messages (including streaming deltas)
-   * - Error: Error events if something fails
-   *
-   * @param {object} input - Input parameters
-   * @param {string} input.prompt - User prompt
-   * @param {Array} [input.messages] - Previous message history (optional, for conversation)
-   * @param {object} [input.tools] - Override tools for this call (optional)
-   * @param {boolean} [input.disableMemory] - Disable memory integration (optional, default false)
-   * @returns {AsyncGenerator} AsyncGenerator yielding events
-   */
-  async function* chatRound(input) {
-    const {
-      prompt,
-      messages = [],
-    } = input;
+  // Get tool list and convert to AgentTool format.
+  const finalToolList = Array.from(listTools());
+  const agentTools = finalToolList.map(spec => toAgentTool(spec, execTool));
 
-    // Validate input
-    if (!prompt || typeof prompt !== 'string') {
-      yield makeError('prompt is required', new Error('Invalid input'));
-      return;
-    }
+  // When using an Ollama model, supply a getApiKey callback so that
+  // pi-agent-core receives the key without us mutating OPENAI_API_KEY.
+  const isOllama = resolvedModel.name?.startsWith('ollama/');
 
-    // Build the system prompt
-    const systemPrompt = Array.from(buildSystemPrompt(systemPromptConfig)).join('\n');
+  const piAgent = new PiAgent({
+    initialState: {
+      systemPrompt,
+      model: resolvedModel,
+      tools: agentTools,
+      messages: [],
+      thinkingLevel: resolvedModel.reasoning ? 'medium' : 'off',
+    },
+    // Identity conversion - genie messages use standard roles
+    convertToLlm: msgs => msgs.filter(m =>
+      m.role === 'user' || m.role === 'assistant' || m.role === 'toolResult',
+    ),
+    toolExecution: 'sequential',
+    ...(isOllama ? { getApiKey: async (_provider) => getOllamaApiKey() } : {}),
+  });
 
-    // Get final tool list and convert to AgentTool format
-    const finalToolList = Array.from(listTools());
-    const agentTools = finalToolList.map(spec => toAgentTool(spec, execTool));
+  return piAgent;
+}
+harden(makePiAgent);
 
-    // Convert existing messages to pi-agent-core format
-    // pi-agent-core expects { role, content, timestamp } messages
-    const piMessages = messages.map(msg => ({
-      ...msg,
-      timestamp: msg.timestamp || Date.now(),
-    }));
+/**
+ * Run a single chat round on an already-constructed PiAgent, yielding
+ * ChatEvent objects as they arrive.
+ *
+ * The caller is responsible for any pre/post-processing of the prompt
+ * and final assistant text (the old beforeSend/afterSend hooks).
+ *
+ * @param {PiAgent} piAgent - A PiAgent instance from makePiAgent
+ * @param {string} prompt - User prompt
+ * @returns {AsyncGenerator<ChatEvent>}
+ */
+export async function* runAgentRound(piAgent, prompt) {
+  // Collect events via subscription for progressive yielding
+  let agentDone = false;
+  /** @type {Array<AgentEvent|{type: 'error', error: any}>} */
+  const eventQueue = [];
 
-    // Run beforeSend callback with the prompt
-    let processedPrompt;
-    try {
-      processedPrompt = await beforeSend(prompt);
-    } catch (err) {
-      yield makeError('beforeSend callback failed', /** @type {Error} */(err));
-      return;
-    }
-
-    // Create a pi-agent-core Agent instance for this round
-    const piAgent = new Agent({
-      initialState: {
-        systemPrompt,
-        model: resolvedModel,
-        tools: agentTools,
-        messages: piMessages,
-        thinkingLevel: 'off',
-      },
-      // Identity conversion - genie messages use standard roles
-      convertToLlm: msgs => msgs.filter(m =>
-        m.role === 'user' || m.role === 'assistant' || m.role === 'toolResult',
-      ),
-      toolExecution: 'sequential',
-    });
-
-    // Collect events via subscription for progressive yielding
-    /** @type {Array<AgentEvent|{type: 'error', error: any}>} */
-    const eventQueue = [];
-    let resolveWaiting = /** @type {((value?: any) => void) | null} */ (null);
-    let agentDone = false;
-
-    piAgent.subscribe(event => {
-      eventQueue.push(event);
+  /** @type {((value?: any) => void) | null} */
+  let resolveWaiting = null;
+  /** @param {boolean} done */
+  const mayYield = (done) => {
+    if (!agentDone) {
+      agentDone = done;
       if (resolveWaiting) {
         const resolve = resolveWaiting;
         resolveWaiting = null;
         resolve();
       }
+    }
+  };
+  /** @returns {Promise<void>} */
+  const forQueue = () => new Promise(resolve => {
+    resolveWaiting = resolve;
+  });
+
+  piAgent.subscribe(event => {
+    eventQueue.push(event);
+    mayYield(false);
+  });
+
+  // Start the prompt (non-blocking)
+  const promptDone = piAgent.prompt(prompt)
+    .then(() => {
+      eventQueue.push({ type: 'agent_start' });
+      mayYield(false);
+    })
+    .catch(err => {
+      eventQueue.push({ type: 'error', error: err });
+      mayYield(true);
     });
 
-    // Start the prompt (non-blocking)
-    const promptDone = piAgent.prompt(processedPrompt).then(
-      () => {
-        agentDone = true;
-        if (resolveWaiting) {
-          const resolve = resolveWaiting;
-          resolveWaiting = null;
-          resolve();
-        }
-      },
-      err => {
-        agentDone = true;
-        eventQueue.push({ type: 'agent_end', messages: [] });
-        if (resolveWaiting) {
-          const resolve = resolveWaiting;
-          resolveWaiting = null;
-          resolve();
-        }
-        // Push a synthetic error for the generator to pick up
-        eventQueue.push({ type: 'error', error: err });
-      },
-    );
+  piAgent.waitForIdle()
+    .then(() => {
+      eventQueue.push({ type: 'agent_end', messages: [] });
+      mayYield(true);
+    })
+    .catch(err => {
+      eventQueue.push({ type: 'error', error: err });
+      mayYield(true);
+    });
 
-    // Process events as they arrive, yielding Genie events
-    let fullAssistantText = '';
+  // Process events as they arrive, yielding Genie events
+  let fullAssistantText = '';
 
-    while (!agentDone || eventQueue.length > 0) {
-      if (eventQueue.length === 0) {
-        // Wait for next event
-        await new Promise(resolve => {
-          resolveWaiting = resolve;
-        });
-        continue;
+  while (eventQueue.length > 0 || !agentDone) {
+    if (eventQueue.length === 0) {
+      await forQueue();
+      continue;
+    }
+
+    const event = eventQueue.shift();
+    if (!event) continue;
+
+    switch (event.type) {
+      case 'error': {
+        yield makeError('LLM call failed', event.error);
+        break;
       }
 
-      const event = eventQueue.shift();
-      if (!event) continue;
+      case 'tool_execution_start': {
+        yield makeToolCallStart(event.toolName, event.args);
+        break;
+      }
 
-      switch (event.type) {
-        case 'tool_execution_start':
-          yield makeToolCallStart(event.toolName, event.args);
-          break;
+      case 'tool_execution_end': {
+        yield event.isError
+          ? makeToolCallEnd(
+            event.toolName, null,
+            event.isError ? new Error(`Tool execution failed: ${mayJSONify(event.result)}`) : null)
+          : makeToolCallEnd(event.toolName, event.result);
+        break;
+      }
 
-        case 'tool_execution_end':
-          yield makeToolCallEnd(
-            event.toolName,
-            event.result,
-            event.isError ? new Error('Tool execution failed') : null,
-          );
-          break;
+      case 'tool_execution_update': {
+        // TODO care?
+        break;
+      }
 
-        case 'message_update':
-          // Stream text deltas as progressive Message events
-          if (event.assistantMessageEvent &&
-            event.assistantMessageEvent.type === 'text_delta') {
-            const delta = event.assistantMessageEvent.delta;
-            fullAssistantText += delta;
-            yield makeMessage('assistant_delta', delta);
+      case 'message_start': {
+        const { message } = event;
+
+        switch (message.role) {
+          case 'assistant': {
+            const {
+              // timestamp, TODO care?
+              content,
+            } = message;
+
+            for (const part of content) {
+              switch (part.type) {
+
+                // TODO necessary?
+                case 'text': {
+                  fullAssistantText += part.text;
+                  break;
+                }
+
+                case 'thinking': {
+                  if (part.thinking) {
+                    yield makeThinking('thinking', part.thinking, part.redacted);
+                  }
+                  break;
+                }
+
+                case 'toolCall': {
+                  // TODO redundant with 'tool_execution_start'?
+                  break;
+                }
+
+                default: {
+                  inconeivable(part, 'pi agent message_start content part');
+                }
+              }
+            }
+            break;
           }
-          break;
 
-        case 'message_end':
-          // Extract final text from assistant messages
-          if (event.message && event.message.role === 'assistant') {
-            const content = event.message.content;
+          case 'user': {
+            // TODO care?
+            break;
+          }
+
+          case 'toolResult': {
+            // TODO care?
+            break;
+          }
+
+          default: {
+            inconeivable(message, 'pi agent message_start');
+          }
+        }
+        break;
+      }
+
+      case 'message_update': {
+        if (event.assistantMessageEvent) {
+          const ame = event.assistantMessageEvent;
+          // Stream text deltas as progressive Message events
+          if (ame.type === 'text_delta') {
+            fullAssistantText += ame.delta;
+            yield makeMessage('assistant_delta', ame.delta);
+          }
+          // Stream thinking deltas as progressive Thinking events
+          if (ame.type === 'thinking_delta') {
+            yield makeThinking('thinking_delta', ame.delta);
+          }
+        }
+        break;
+      }
+
+      case 'message_end': {
+        const { message } = event;
+
+        switch (message.role) {
+          case 'assistant': {
+            const { content, stopReason, errorMessage } = message;
+
+            if (stopReason === 'error') {
+              // TODO care to differentiate? StopReason = "stop" | "length" | "toolUse" | "error" | "aborted"
+              yield makeError('LLM call stopped', new Error(errorMessage));
+            }
+
+            // Extract final text from assistant messages
             let text = '';
             if (typeof content === 'string') {
               text = content;
@@ -363,41 +570,59 @@ export default function makeAgent(options = {}) {
             if (text) {
               fullAssistantText = text;
             }
-          }
-          break;
+          } break;
 
-        default:
-          // Handle synthetic error events
-          if (/** @type {any} */ (event).type === '_genie_error') {
-            yield makeError(
-              'LLM call failed',
-              /** @type {any} */(event).error,
-            );
-          }
-          break;
+          case 'user': {
+            const { content } = message;
+            const userContent = typeof content === 'string'
+              ? content
+              : Array.isArray(content)
+                ? content
+                  .filter(c => c.type === 'text')
+                  .map(c => c.text)
+                  .join('')
+                : '';
+            if (userContent) {
+              yield makeUserMessage(userContent);
+            }
+          } break;
+        }
+      } break;
+
+      case 'agent_start': {
+        // TODO care?
+        break;
       }
-    }
 
-    // Wait for prompt to fully complete
-    await promptDone;
+      case 'agent_end': {
+        // TODO care?
+        //
+        // TODO we could just reach in and pluck any final fullAssistantText
+        // from event.messages rather than do our own accumulate?
 
-    // Run afterSend callback
-    try {
-      await afterSend(fullAssistantText);
-    } catch (_err) {
-      // afterSend errors are non-fatal
-    }
+        break;
+      }
 
-    // Yield the final assembled assistant message
-    if (fullAssistantText) {
-      yield makeMessage('assistant', fullAssistantText);
+      case 'turn_start': {
+        // TODO care?
+        break;
+      }
+
+      case 'turn_end': {
+        // TODO care?
+        break;
+      }
+
+      default: inconeivable(event, 'pi agent event');
     }
   }
 
-  // Return agent interface
-  return harden({
-    chatRound,
-  });
-}
+  // Wait for prompt to fully complete
+  await promptDone;
 
-harden(makeAgent);
+  // Yield the final assembled assistant message
+  if (fullAssistantText) {
+    yield makeMessage('assistant', fullAssistantText);
+  }
+}
+harden(runAgentRound);
