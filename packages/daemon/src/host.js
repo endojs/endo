@@ -429,11 +429,12 @@ export const makeHostMaker = ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, workerLabel, powersId, env, workerTrustedShims } =
+      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
         prepareMakeCaplet(
           /** @type {Name | undefined} */ (workerName),
           options,
         );
+      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `bundle:${bundleName}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
