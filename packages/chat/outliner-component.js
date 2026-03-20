@@ -219,6 +219,9 @@ export const outlinerComponent = async (
   /** @type {Map<string, number>} Move overrides: committed node key → effective sort order */
   const moveOverrides = new Map();
 
+  /** @type {Map<string, string | undefined>} Parent overrides: committed node key → new parent key (undefined = root) */
+  const parentOverrides = new Map();
+
   /** @type {string[] | null} Keys currently being dragged */
   let draggedKeys = null;
 
@@ -233,7 +236,18 @@ export const outlinerComponent = async (
   // ---- Depth & container helpers ----
 
   /**
-   * Walk up replyTo chain to determine committed node depth.
+   * Get the effective parent key for a node, considering reparent overrides.
+   * @param {string} key
+   * @returns {string | undefined}
+   */
+  const getEffectiveParent = key => {
+    if (parentOverrides.has(key)) return parentOverrides.get(key);
+    const entry = messageIndex.get(key);
+    return entry ? entry.message.replyTo : undefined;
+  };
+
+  /**
+   * Walk up effective parent chain to determine committed node depth.
    * @param {string} key
    * @returns {number}
    */
@@ -241,9 +255,9 @@ export const outlinerComponent = async (
     let depth = 0;
     let current = key;
     while (current) {
-      const entry = messageIndex.get(current);
-      if (!entry || !entry.message.replyTo) break;
-      current = entry.message.replyTo;
+      const parent = getEffectiveParent(current);
+      if (!parent) break;
+      current = parent;
       depth += 1;
     }
     return depth;
@@ -446,8 +460,21 @@ export const outlinerComponent = async (
    * @returns {string[]}
    */
   const getSortedVisibleChildren = (parentKey, effectiveContents) => {
-    const keys = parentKey ? replyChildren.get(parentKey) || [] : rootKeys;
-    return [...keys]
+    // Start with natural children, filtering out those reparented away
+    const naturalKeys = parentKey
+      ? replyChildren.get(parentKey) || []
+      : rootKeys;
+    const keys = naturalKeys.filter(k => {
+      if (parentOverrides.has(k)) return parentOverrides.get(k) === parentKey;
+      return true;
+    });
+    // Add nodes reparented INTO this parent from elsewhere
+    for (const [k, p] of parentOverrides.entries()) {
+      if (p === parentKey && !keys.includes(k)) {
+        keys.push(k);
+      }
+    }
+    return keys
       .filter(k => {
         const entry = messageIndex.get(k);
         if (!entry || !isVisibleReplyType(entry.message.replyType)) {
@@ -620,77 +647,189 @@ export const outlinerComponent = async (
   };
 
   /**
-   * Find the drop position among siblings of the dragged node's parent.
+   * Collect all visible committed node rows in DOM order, skipping
+   * dragged nodes and nodes inside collapsed containers.
+   * @returns {Array<{ key: string, $row: HTMLElement }>}
+   */
+  const getVisibleNodeRows = () => {
+    /** @type {Array<{ key: string, $row: HTMLElement }>} */
+    const rows = [];
+    const allNodes = $outlinerView.querySelectorAll('.outliner-node');
+    for (const $node of allNodes) {
+      const key = /** @type {HTMLElement} */ ($node).dataset.key;
+      if (!key || !nodeEls.has(key)) {
+        // skip drafts and unknown nodes
+      } else if (
+        draggedKeys &&
+        /** @type {string[]} */ (draggedKeys).includes(key)
+      ) {
+        // skip dragged nodes
+      } else {
+        // skip nodes inside collapsed containers
+        let hidden = false;
+        let ancestor = /** @type {HTMLElement | null} */ ($node.parentElement);
+        while (ancestor && ancestor !== $outlinerView) {
+          if (ancestor.classList.contains('outliner-children-collapsed')) {
+            hidden = true;
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
+        if (!hidden) {
+          const $row = /** @type {HTMLElement | null} */ (
+            $node.querySelector(':scope > .outliner-node-row')
+          );
+          if ($row) rows.push({ key, $row });
+        }
+      }
+    }
+    return rows;
+  };
+
+  /**
+   * Check if targetKey is a descendant of any of the given ancestor keys.
+   * @param {string} targetKey
+   * @param {string[]} ancestorKeys
+   * @returns {boolean}
+   */
+  const isDescendantOf = (targetKey, ancestorKeys) => {
+    let current = targetKey;
+    while (current) {
+      if (ancestorKeys.includes(current)) return true;
+      const parent = getEffectiveParent(current);
+      if (!parent) break;
+      current = parent;
+    }
+    return false;
+  };
+
+  /**
+   * Find the drop position closest to the mouse.
+   * Scans all visible committed node rows (not just siblings) to allow
+   * cross-parent drops and reparenting.
    * @param {DragEvent} e
-   * @returns {{ afterKey: string | undefined, y: number } | null}
+   * @returns {{ parentKey: string | undefined, afterKey: string | undefined, y: number, onto: boolean } | null}
    */
   const findDropPosition = e => {
     if (!draggedKeys || draggedKeys.length === 0) return null;
-    const firstEntry = messageIndex.get(draggedKeys[0]);
-    if (!firstEntry) return null;
-    const parentKey = firstEntry.message.replyTo;
-    const siblings = getSortedVisibleChildren(parentKey).filter(
-      k => !(/** @type {string[]} */ (draggedKeys)).includes(k),
-    );
+    const rows = getVisibleNodeRows();
+    if (rows.length === 0) {
+      const containerRect = $outlinerView.getBoundingClientRect();
+      return {
+        parentKey: undefined,
+        afterKey: undefined,
+        y: containerRect.top,
+        onto: false,
+      };
+    }
+
     const mouseY = e.clientY;
-    /** @type {{ afterKey: string | undefined, y: number } | null} */
+    const ROW_CENTER_ZONE = 0.3;
+
+    // Check if cursor is over a row's center zone → drop as child of that node
+    for (const { key, $row } of rows) {
+      const rect = $row.getBoundingClientRect();
+      const centerStart = rect.top + rect.height * ROW_CENTER_ZONE;
+      const centerEnd = rect.bottom - rect.height * ROW_CENTER_ZONE;
+      if (mouseY >= centerStart && mouseY <= centerEnd) {
+        // Don't allow dropping onto a descendant of the dragged node
+        if (isDescendantOf(key, /** @type {string[]} */ (draggedKeys))) {
+          return null;
+        }
+        return {
+          parentKey: key,
+          afterKey: undefined,
+          y: (rect.top + rect.bottom) / 2,
+          onto: true,
+        };
+      }
+    }
+
+    // Find the nearest gap between rows
+    /** @type {{ parentKey: string | undefined, afterKey: string | undefined, y: number, onto: boolean } | null} */
     let bestGap = null;
     let bestDist = Infinity;
-    // Gap before first sibling
-    if (siblings.length > 0) {
-      const firstEls = nodeEls.get(siblings[0]);
-      if (firstEls) {
-        const rect = firstEls.$node.getBoundingClientRect();
-        const gapY = rect.top;
-        const dist = Math.abs(mouseY - gapY);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestGap = { afterKey: undefined, y: gapY };
-        }
-      }
+
+    // Gap before first row
+    const firstRect = rows[0].$row.getBoundingClientRect();
+    const firstGapY = firstRect.top;
+    let dist = Math.abs(mouseY - firstGapY);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestGap = {
+        parentKey: getEffectiveParent(rows[0].key),
+        afterKey: undefined,
+        y: firstGapY,
+        onto: false,
+      };
     }
-    // Gap after each sibling
-    for (let i = 0; i < siblings.length; i += 1) {
-      const els = nodeEls.get(siblings[i]);
-      if (els) {
-        const rect = els.$node.getBoundingClientRect();
-        const gapY = rect.bottom;
-        const dist = Math.abs(mouseY - gapY);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestGap = { afterKey: siblings[i], y: gapY };
-        }
+
+    // Gap after each row
+    for (let i = 0; i < rows.length; i += 1) {
+      const rect = rows[i].$row.getBoundingClientRect();
+      const gapY = rect.bottom;
+      dist = Math.abs(mouseY - gapY);
+      if (dist < bestDist) {
+        bestDist = dist;
+        const nextParent =
+          i + 1 < rows.length
+            ? getEffectiveParent(rows[i + 1].key)
+            : getEffectiveParent(rows[i].key);
+        bestGap = {
+          parentKey: nextParent,
+          afterKey: rows[i].key,
+          y: gapY,
+          onto: false,
+        };
       }
-    }
-    if (!bestGap) {
-      const containerRect = $outlinerView.getBoundingClientRect();
-      bestGap = { afterKey: undefined, y: containerRect.top };
     }
     return bestGap;
   };
 
   /**
    * Show or reposition the drop indicator.
+   * For "between" drops, shows a horizontal line.
+   * For "onto" drops, highlights the target node row.
    * @param {number} clientY - Y coordinate in viewport pixels
+   * @param {boolean} [onto] - Whether this is an "onto" drop
+   * @param {string} [targetKey] - The target node key for "onto" drops
    */
-  const showDropIndicator = clientY => {
-    if (!$dropIndicator) {
-      $dropIndicator = document.createElement('div');
-      $dropIndicator.className = 'outliner-drop-indicator';
-      $outlinerView.appendChild($dropIndicator);
+  const showDropIndicator = (clientY, onto, targetKey) => {
+    // Clear previous "onto" highlight
+    const prevHighlight = $outlinerView.querySelector('.outliner-drop-target');
+    if (prevHighlight) prevHighlight.classList.remove('outliner-drop-target');
+
+    if (onto && targetKey) {
+      // Highlight the target row instead of showing a line
+      if ($dropIndicator) {
+        $dropIndicator.remove();
+        $dropIndicator = null;
+      }
+      const targetEls = nodeEls.get(targetKey);
+      if (targetEls) {
+        targetEls.$node.classList.add('outliner-drop-target');
+      }
+    } else {
+      if (!$dropIndicator) {
+        $dropIndicator = document.createElement('div');
+        $dropIndicator.className = 'outliner-drop-indicator';
+        $outlinerView.appendChild($dropIndicator);
+      }
+      const viewRect = $outlinerView.getBoundingClientRect();
+      $dropIndicator.style.top = `${clientY - viewRect.top}px`;
     }
-    const viewRect = $outlinerView.getBoundingClientRect();
-    $dropIndicator.style.top = `${clientY - viewRect.top}px`;
   };
 
   /**
-   * Hide the drop indicator.
+   * Hide the drop indicator and clear any "onto" highlight.
    */
   const hideDropIndicator = () => {
     if ($dropIndicator) {
       $dropIndicator.remove();
       $dropIndicator = null;
     }
+    const prevHighlight = $outlinerView.querySelector('.outliner-drop-target');
+    if (prevHighlight) prevHighlight.classList.remove('outliner-drop-target');
   };
 
   /**
@@ -713,22 +852,33 @@ export const outlinerComponent = async (
 
   /**
    * Execute a drop: compute sort orders and post move messages.
-   * @param {{ afterKey: string | undefined }} pos
+   * Supports cross-parent drops (reparenting).
+   * @param {{ parentKey: string | undefined, afterKey: string | undefined, onto: boolean }} pos
    */
   const handleDrop = pos => {
     if (!draggedKeys || draggedKeys.length === 0) return;
-    const firstEntry = messageIndex.get(draggedKeys[0]);
-    if (!firstEntry) return;
-    const parentKey = firstEntry.message.replyTo;
-    const siblings = getSortedVisibleChildren(parentKey).filter(
+    const newParentKey = pos.parentKey;
+
+    // Get siblings under the target parent, excluding the dragged keys
+    const siblings = getSortedVisibleChildren(newParentKey).filter(
       k => !(/** @type {string[]} */ (draggedKeys)).includes(k),
     );
-    // Find insert index
+
+    // For "onto" drops, insert at the end of the target's children.
+    // For "between" drops, find the insert position from afterKey.
     let insertIdx = 0;
-    if (pos.afterKey) {
+    if (pos.onto) {
+      insertIdx = siblings.length;
+    } else if (pos.afterKey) {
       const idx = siblings.indexOf(pos.afterKey);
-      if (idx !== -1) insertIdx = idx + 1;
+      if (idx !== -1) {
+        insertIdx = idx + 1;
+      } else {
+        // afterKey is from a different parent group — insert at end
+        insertIdx = siblings.length;
+      }
     }
+
     // Compute boundary sort orders
     let beforeOrder;
     if (insertIdx > 0) {
@@ -744,30 +894,77 @@ export const outlinerComponent = async (
         ? getEffectiveSortOrder(siblings[insertIdx])
         : beforeOrder + draggedKeys.length + 1;
     const step = (afterOrder - beforeOrder) / (draggedKeys.length + 1);
+
     // Sort dragged keys by their current order to preserve relative order
     const sortedDragged = [...draggedKeys].sort(
       (a, b) => getEffectiveSortOrder(a) - getEffectiveSortOrder(b),
     );
+
+    // Collect old parents for DOM cleanup
+    const oldParents = new Set();
+    for (const k of sortedDragged) {
+      oldParents.add(getEffectiveParent(k));
+    }
+
     for (let i = 0; i < sortedDragged.length; i += 1) {
       const newOrder = beforeOrder + step * (i + 1);
       const entry = messageIndex.get(sortedDragged[i]);
       if (entry) {
+        const oldParent = getEffectiveParent(sortedDragged[i]);
         moveOverrides.set(sortedDragged[i], newOrder);
+
+        // Build move message strings: [sortOrder, newParentKey?]
+        const moveStrings = [String(newOrder)];
+        if (oldParent !== newParentKey) {
+          // Include new parent: '' for root, message number for specific parent
+          moveStrings.push(newParentKey === undefined ? '' : newParentKey);
+          parentOverrides.set(sortedDragged[i], newParentKey);
+
+          // Move DOM node to the new parent container
+          const els = nodeEls.get(sortedDragged[i]);
+          if (els) {
+            const $newContainer = getChildrenContainer(newParentKey);
+            $newContainer.appendChild(els.$node);
+            // Update depth CSS variable for the moved node and descendants
+            updateNodeDepths(sortedDragged[i]);
+          }
+        }
+
         E(channel)
-          .post(
-            [String(newOrder)],
-            [],
-            [],
-            String(entry.message.number),
-            [],
-            'move',
-          )
+          .post(moveStrings, [], [], String(entry.message.number), [], 'move')
           .catch(/** @param {Error} err */ err => {
             console.error('Failed to post move:', err);
           });
       }
     }
-    reorderChildren(parentKey);
+
+    // Reorder within the new parent
+    reorderChildren(newParentKey);
+    // Reorder old parents to clean up gaps
+    for (const oldP of oldParents) {
+      if (oldP !== newParentKey) {
+        reorderChildren(oldP);
+        // Update bullet/collapse handle on old parent
+        if (oldP) updateBullet(oldP);
+      }
+    }
+    // Update bullet/collapse handle on new parent
+    if (newParentKey) updateBullet(newParentKey);
+  };
+
+  /**
+   * Recursively update the --depth CSS variable for a node and its descendants.
+   * @param {string} key
+   */
+  const updateNodeDepths = key => {
+    const els = nodeEls.get(key);
+    if (!els) return;
+    const depth = getNodeDepth(key);
+    els.$node.style.setProperty('--depth', String(depth));
+    const children = getSortedVisibleChildren(key);
+    for (const childKey of children) {
+      updateNodeDepths(childKey);
+    }
   };
 
   // ---- Committed node edit handling ----
@@ -1878,14 +2075,7 @@ export const outlinerComponent = async (
       blockedMemberIds,
     );
 
-    const sortedRoots = [...rootKeys].sort((a, b) => {
-      const ea = messageIndex.get(a);
-      const eb = messageIndex.get(b);
-      if (!ea || !eb) return 0;
-      if (ea.message.number < eb.message.number) return -1;
-      if (ea.message.number > eb.message.number) return 1;
-      return 0;
-    });
+    const sortedRoots = getSortedVisibleChildren(undefined, effectiveContents);
 
     const frag = document.createDocumentFragment();
     for (const rootKey of sortedRoots) {
@@ -2008,11 +2198,33 @@ export const outlinerComponent = async (
       if (!targetKey) return;
       const sortOrder = parseFloat(message.strings[0]);
       if (Number.isNaN(sortOrder)) return;
+      const oldParent = getEffectiveParent(targetKey);
       moveOverrides.set(targetKey, sortOrder);
-      // Re-sort the affected parent's children in the DOM
+
+      // Handle reparenting if strings[1] is present
+      if (message.strings.length > 1) {
+        const newParent =
+          message.strings[1] === '' ? undefined : message.strings[1];
+        parentOverrides.set(targetKey, newParent);
+        if (newParent !== oldParent) {
+          const els = nodeEls.get(targetKey);
+          if (els) {
+            const $newContainer = getChildrenContainer(newParent);
+            $newContainer.appendChild(els.$node);
+            updateNodeDepths(targetKey);
+          }
+          // Update bullets on old and new parent
+          if (oldParent) updateBullet(oldParent);
+          if (newParent) updateBullet(newParent);
+          reorderChildren(newParent);
+          reorderChildren(oldParent);
+          return;
+        }
+      }
+      // Same-parent reorder
       const targetEntry = messageIndex.get(targetKey);
       if (targetEntry) {
-        reorderChildren(targetEntry.message.replyTo);
+        reorderChildren(getEffectiveParent(targetKey));
       }
     }
   };
@@ -2040,7 +2252,7 @@ export const outlinerComponent = async (
     e.dataTransfer.dropEffect = 'move';
     const pos = findDropPosition(e);
     if (pos) {
-      showDropIndicator(pos.y);
+      showDropIndicator(pos.y, pos.onto, pos.parentKey);
     }
   });
 
@@ -2232,11 +2444,16 @@ export const outlinerComponent = async (
       rootKeys.push(msgKey);
     }
 
-    // Track move overrides
+    // Track move and parent overrides
     if (typedMessage.replyType === 'move' && typedMessage.replyTo) {
       const sortOrder = parseFloat(typedMessage.strings[0]);
       if (!Number.isNaN(sortOrder)) {
         moveOverrides.set(typedMessage.replyTo, sortOrder);
+      }
+      if (typedMessage.strings.length > 1) {
+        const newParent =
+          typedMessage.strings[1] === '' ? undefined : typedMessage.strings[1];
+        parentOverrides.set(typedMessage.replyTo, newParent);
       }
     }
 

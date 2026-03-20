@@ -6208,6 +6208,14 @@ button.btn-spinner::after {
   background: var(--accent-primary);
 }
 
+/* Drop target highlight — shown when dropping onto a node to reparent */
+.outliner-drop-target > .outliner-node-row {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+  background: rgba(34, 139, 230, 0.08);
+}
+
 /* Rubber-band selection rectangle */
 .outliner-selection-rect {
   position: absolute;
