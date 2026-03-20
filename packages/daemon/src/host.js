@@ -312,17 +312,19 @@ export const makeHostMaker = ({
       tasks.push(identifiers =>
         E(directory).storeIdentifier(namePath, identifiers.workerId),
       );
-      const { value } = await formulateWorker(tasks);
+      const workerLabel = namePath[namePath.length - 1];
+      const { value } = await formulateWorker(tasks, undefined, workerLabel);
       return value;
     };
 
     /**
      * @param {Name | undefined} workerName
      * @param {DeferredTasks<WorkerDeferredTaskParams>['push']} deferTask
+     * @returns {{ workerId: FormulaIdentifier | undefined, workerLabel: string | undefined }}
      */
     const prepareWorkerFormulation = (workerName, deferTask) => {
       if (workerName === undefined) {
-        return undefined;
+        return { workerId: undefined, workerLabel: undefined };
       }
       const workerId = /** @type {FormulaIdentifier | undefined} */ (
         petStore.identifyLocal(workerName)
@@ -333,9 +335,9 @@ export const makeHostMaker = ({
         deferTask(identifiers => {
           return petStore.storeIdentifier(petName, identifiers.workerId);
         });
-        return undefined;
+        return { workerId: undefined, workerLabel: petName };
       }
-      return workerId;
+      return { workerId, workerLabel: /** @type {string} */ (workerName) };
     };
 
     /**
@@ -375,7 +377,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
@@ -406,6 +408,7 @@ export const makeHostMaker = ({
         tasks,
         workerId,
         resultName === undefined ? pinTransient : undefined,
+        workerLabel,
       );
       if (resultName === undefined) {
         // Ephemeral eval: the formula was pinned inside formulateEval
@@ -440,7 +443,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
 
       const powersId = petStore.identifyLocal(/** @type {Name} */ (powersName));
       if (powersId === undefined) {
@@ -460,6 +463,7 @@ export const makeHostMaker = ({
       return {
         tasks,
         workerId,
+        workerLabel,
         powersId,
         env,
         workerTrustedShims,
@@ -468,7 +472,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, powersId, env, workerTrustedShims } =
+      const { tasks, workerId, workerLabel, powersId, env, workerTrustedShims } =
         prepareMakeCaplet(
           /** @type {Name | undefined} */ (workerName),
           options,
@@ -485,6 +489,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
+        workerLabel,
       );
       return value;
     };
@@ -496,7 +501,7 @@ export const makeHostMaker = ({
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerId, powersId, env, workerTrustedShims } =
+      const { tasks, workerId, workerLabel, powersId, env, workerTrustedShims } =
         prepareMakeCaplet(
           /** @type {Name | undefined} */ (workerName),
           options,
@@ -513,6 +518,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
+        workerLabel,
       );
       return value;
     };
@@ -978,7 +984,7 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
 
       const { id: evalId } = await formulateEval(
         guestAgentId,
@@ -1029,7 +1035,7 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
 
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);

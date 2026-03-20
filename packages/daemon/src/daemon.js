@@ -1188,11 +1188,13 @@ const makeDaemonCore = async (
    * @param {string} workerId512
    * @param {Context} context
    * @param {string[]} [trustedShims]
+   * @param {string} [label]
    */
   const makeIdentifiedWorker = async (
     workerId512,
     context,
     trustedShims = undefined,
+    label = undefined,
   ) => {
     const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
@@ -1210,6 +1212,7 @@ const makeDaemonCore = async (
         Promise.race([forceCancelled, gracePeriodElapsed]),
         capTpConnectionRegistrar,
         trustedShims,
+        label,
       );
 
     const terminateWorker = async (_reason = undefined) => {
@@ -2262,7 +2265,7 @@ const makeDaemonCore = async (
         context,
       ),
     worker: (formula, context, _id, formulaNumber) =>
-      makeIdentifiedWorker(formulaNumber, context, formula.trustedShims),
+      makeIdentifiedWorker(formulaNumber, context, formula.trustedShims, formula.label),
     'make-unconfined': (
       { worker: workerId, powers: powersId, specifier, env = {} },
       context,
@@ -3271,12 +3274,14 @@ const makeDaemonCore = async (
    *
    * @param {FormulaNumber} formulaNumber - The worker formula number.
    * @param {string[]} [trustedShims] - Module specifiers imported before lockdown.
+   * @param {string} [label] - Human-readable label for status reporting.
    * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
-  const formulateNumberedWorker = (formulaNumber, trustedShims = undefined) => {
+  const formulateNumberedWorker = (formulaNumber, trustedShims = undefined, label = '<untitled>') => {
     /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
+      label,
       ...(trustedShims && trustedShims.length > 0
         ? { trustedShims }
         : undefined),
@@ -3290,7 +3295,7 @@ const makeDaemonCore = async (
   /**
    * @type {DaemonCore['formulateWorker']}
    */
-  const formulateWorker = async (deferredTasks, trustedShims = undefined) => {
+  const formulateWorker = async (deferredTasks, trustedShims = undefined, label = undefined) => {
     return withFormulaGraphLock(async () => {
       const formulaNumber = /** @type {FormulaNumber} */ (await randomHex256());
 
@@ -3301,7 +3306,7 @@ const makeDaemonCore = async (
         }),
       });
 
-      return formulateNumberedWorker(formulaNumber, trustedShims);
+      return formulateNumberedWorker(formulaNumber, trustedShims, label);
     });
   };
 
@@ -3591,10 +3596,12 @@ const makeDaemonCore = async (
   /**
    * @param {FormulaIdentifier} [specifiedWorkerId]
    * @param {string[]} [trustedShims]
+   * @param {string} [label]
    */
   const provideWorkerId = async (
     specifiedWorkerId,
     trustedShims = undefined,
+    label = undefined,
   ) => {
     await null;
     if (typeof specifiedWorkerId === 'string') {
@@ -3607,6 +3614,7 @@ const makeDaemonCore = async (
     const workerFormulation = await formulateNumberedWorker(
       workerFormulaNumber,
       trustedShims,
+      label,
     );
     return workerFormulation.id;
   };
@@ -3723,6 +3731,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
     pin,
+    workerLabel = undefined,
   ) => {
     return /** @type {FormulateResult<unknown>} */ (
       withFormulaGraphLock(async () => {
@@ -3740,7 +3749,7 @@ const makeDaemonCore = async (
         }
 
         const identifiers = harden({
-          workerId: await provideWorkerId(specifiedWorkerId),
+          workerId: await provideWorkerId(specifiedWorkerId, undefined, workerLabel),
           endowmentIds: await Promise.all(
             endowmentIdsOrPaths.map(async formulaIdOrPath => {
               if (typeof formulaIdOrPath === 'string') {
@@ -3835,6 +3844,7 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} [specifiedWorkerId]
    * @param {FormulaIdentifier} [specifiedPowersId]
    * @param {string[]} [trustedShims]
+   * @param {string} [workerLabel]
    */
   const formulateCapletDependencies = async (
     hostAgentId,
@@ -3843,6 +3853,7 @@ const makeDaemonCore = async (
     specifiedWorkerId,
     specifiedPowersId,
     trustedShims = undefined,
+    workerLabel = undefined,
   ) => {
     const ownFormulaNumber = /** @type {FormulaNumber} */ (
       await randomHex256()
@@ -3858,7 +3869,7 @@ const makeDaemonCore = async (
         node: LOCAL_NODE,
       }),
       capletFormulaNumber: ownFormulaNumber,
-      workerId: await provideWorkerId(specifiedWorkerId, trustedShims),
+      workerId: await provideWorkerId(specifiedWorkerId, trustedShims, workerLabel),
     });
     await deferredTasks.execute(identifiers);
     return identifiers;
@@ -3874,6 +3885,7 @@ const makeDaemonCore = async (
     specifiedPowersId,
     env = {},
     trustedShims = undefined,
+    workerLabel = undefined,
   ) => {
     return withFormulaGraphLock(async () => {
       const { powersId, capletFormulaNumber, workerId } =
@@ -3884,6 +3896,7 @@ const makeDaemonCore = async (
           specifiedWorkerId,
           specifiedPowersId,
           trustedShims,
+          workerLabel,
         );
 
       /** @type {MakeUnconfinedFormula} */
@@ -3908,6 +3921,7 @@ const makeDaemonCore = async (
     specifiedPowersId,
     env = {},
     trustedShims = undefined,
+    workerLabel = undefined,
   ) => {
     return withFormulaGraphLock(async () => {
       const { powersId, capletFormulaNumber, workerId } =
@@ -3918,6 +3932,7 @@ const makeDaemonCore = async (
           specifiedWorkerId,
           specifiedPowersId,
           trustedShims,
+          workerLabel,
         );
 
       /** @type {MakeBundleFormula} */

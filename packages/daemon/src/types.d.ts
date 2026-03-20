@@ -121,6 +121,7 @@ type LoopbackNetworkFormula = {
 
 type WorkerFormula = {
   type: 'worker';
+  label?: string;
   trustedShims?: string[];
 };
 
@@ -1375,6 +1376,7 @@ export type DaemonicControlPowers = {
     forceCancelled: Promise<never>,
     capTpConnectionRegistrar?: CapTpConnectionRegistrar,
     trustedShims?: string[],
+    label?: string,
   ) => Promise<{
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;
@@ -1496,6 +1498,7 @@ export interface DaemonCore {
     specifiedPowersId?: FormulaIdentifier,
     env?: Record<string, string>,
     trustedShims?: string[],
+    workerLabel?: string,
   ) => FormulateResult<unknown>;
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
@@ -1644,11 +1647,13 @@ export interface DaemonCore {
     specifiedPowersId?: FormulaIdentifier,
     env?: Record<string, string>,
     trustedShims?: string[],
+    workerLabel?: string,
   ) => FormulateResult<unknown>;
 
   formulateWorker: (
     deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
     trustedShims?: string[],
+    label?: string,
   ) => FormulateResult<EndoWorker>;
 
   getAllNetworkAddresses: (
