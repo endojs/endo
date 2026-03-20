@@ -466,24 +466,71 @@ In the Endo ecosystem:
 
 > **Identity Principle**: A weblet in a webview maintains stable, persistent identity separate from the particular browser window that hosts it. When a weblet is instantiated, it becomes a distinct, isolated agent with specific capabilities that are preserved across view loadings, view closures, and browser sessions.
 
-They persist only so long as the window is open.
+The weblet's UI state persists only so long as the window is open; closing the window
+loses all DOM/local-storage/IndexedDB state unless the weblet explicitly saves it via
+Endo capabilities.
 
-> TODO whose window? is that relevant? is each window-ified instance a separate "weblet" per-se? does "weblet" have stable identity separate from being enlivend thusly?
+**Weblet identity is a formula-graph concept, not a window concept.** In the daemon,
+a weblet is created by calling `makeWeblet(bundle, powers, requestedPort, webletId,
+webletCancelled)` on the `@apps` WebletService. The resulting weblet formula is stored
+persistently in the daemon's formula graph and addressed by its `webletId` token. Each
+browser window that loads the weblet URL opens an independent CapTP session; the
+gateway does not track or restrict how many concurrent windows connect to the same
+weblet. Therefore:
+
+- The daemon's formula gives the weblet **stable identity** across browser opens/closes.
+- Each window/WebView is a **separate ephemeral incarnation** — analogous to
+  Miller's "incarnation of a vat" (thesis §7.2). The weblet maintains its identity and
+  persistent capabilities as it passes through a sequence of browser sessions.
+- Multiple windows can load the same weblet URL simultaneously; each gets its own
+  independent CapTP session with no shared browser state.
 
 ## Gateway
 
-Hosts:
-- Weblets of HTTP
-- CapTP over WS
-- `localhttp://` in familiar mode
+The gateway (`web-server-node.js`, formulated as `@apps`) is the daemon's HTTP/WebSocket
+front-end. It serves two purposes:
 
-**Weblet 2 modes:**
-- Gateway provides demi-secure port hosting
-- Familiar is more secure via `localhttp://`
+1. **HTTP hosting for weblets** — serves the weblet's HTML bundle and injects CSP headers.
+2. **CapTP over WebSocket** — establishes CapTP sessions so browser-side code can call
+   into daemon capabilities via `E()`.
 
-> TODO is this about the instance <-> WebView locking questioned above?
+The gateway runs as an **unconfined** caplet in the daemon's MAIN worker, receiving
+full ENDO powers. It creates a `localGateway` Far object whose `provide(token)` method
+resolves formula IDs to live references, rate-limited per source IP.
 
-> TODO does a gateway hosted weblet have any presence when not loaded in a live browser dom?
+**Two hosting modes:**
+
+| Mode | Isolation mechanism | URL shape | Use case |
+|---|---|---|---|
+| **Unified server** (default) | Host header / hostname | `localhttp://<accessToken>` | Familiar (Electron) — more secure because `localhttp://` is a custom protocol that cannot be navigated to by external pages |
+| **Dedicated port** | URL path prefix | `http://127.0.0.1:<port>/<accessToken>/` | Standalone / CLI — demi-secure because the port is reachable by any local process |
+
+In unified mode, Electron's custom `localhttp://` protocol handler
+(`packages/familiar/src/protocol-handler.js`) proxies requests to the daemon's gateway
+port, setting the weblet's access token as the `Host` header. The gateway routes
+incoming requests by matching the hostname against its `webletHandlers` Map.
+
+**No instance ↔ WebView locking:** The gateway has zero concept of WebView instances.
+It authenticates connections by network address (CIDR allowlist) and Host header
+matching, not by WebView identity. Multiple independent WebSocket/CapTP connections
+to the same weblet are accepted concurrently. This is analogous to Miller's vat model
+(thesis §7.3): identity is cryptographic (the access token acts as a Swiss number), not
+tied to a particular process or window.
+
+**Weblet presence without a live browser:**
+
+- **Formula level (persistent):** The weblet's formula remains in the daemon's formula graph
+  and pet store. It can be looked up by ID and re-instantiated at any time.
+- **HTTP handler (ephemeral):** The weblet's handler in `webletHandlers` is registered when
+  `makeWeblet()` is called and deleted when the weblet's cancellation promise fires
+  (`cancelled.catch(() => webletHandlers.delete(accessToken))`). While registered, the
+  handler is ready to serve requests even if no browser is currently connected.
+- **No daemon-side DOM state:** The daemon stores no browser/UI state. A fresh CapTP
+  session is opened on each page load.
+
+So a gateway-hosted weblet has a **persistent formula identity** and a **registered HTTP
+handler** even when no browser window is open — but it has no live computation or DOM
+state on the daemon side.
 
 ## Formula
 

@@ -67,21 +67,94 @@ This thesis contains the foundational concepts referenced throughout the current
 
 ---
 
+## Key Technical Concepts (from thesis content)
+
+### 6. Object-Capability Model (§2.1)
+
+The object-capability model restricts inter-object causality to flow only via messages sent
+on references. Bob's authority is limited by the references he holds: if Bob cannot interact
+with Carol unless he holds a reference to Carol, then the reference graph *is* the access
+graph. When references can only be transmitted and acquired by the rules of the object
+programming model, this yields the object-capability model.
+
+A direct reference provides **unattenuated** authority: perpetual and unconditional ability
+to invoke the target's public operations. Authority can be **attenuated** by interposing
+intermediaries (facets, membranes) that restrict or transform the operations.
+
+### 7. Vats and Distributed Objects (§7.2)
+
+Objects are aggregated into **vats**. Each object exists in exactly one vat; a vat hosts many
+objects. A vat is a platform and central point of failure for its objects.
+
+> "A good first approximation is to think of a vat as a process full of objects — an address
+> space full of objects plus a thread of control."
+
+A process running a vat is an **incarnation** of that vat. The vat maintains its identity and
+state as it passes serially through a sequence of incarnations (persistence across restarts).
+
+**Endo mapping:** Daemon workers are vats. Weblets are vat-hosted objects whose identity
+persists via the formula graph across browser session incarnations.
+
+### 8. Distributed Pointer Safety (§7.3)
+
+Each vat generates a public/private key pair on creation. The fingerprint of the public key
+is the **VatID**. When VatC first exports a reference to Carol across the vat boundary, it
+generates an unguessable random number — a **Swiss number** — to represent Carol.
+
+To introduce Bob to Carol, VatA tells VatB a triple: VatC's VatID, VatC's search path,
+and Carol's Swiss number. VatB authenticates VatC via key exchange, then reveals the Swiss
+number over the secure pipe.
+
+**Endo mapping:** The weblet's access token (first 32 chars of webletId) functions as a
+Swiss number — unguessable, knowledge-grants-access. CapTP over WebSocket is the
+authenticated pipe.
+
+### 9. Bootstrapping Initial Connectivity (§7.4)
+
+A newly launched vat has no online connections. It can generate a `captp://` URI string
+encoding the VatID + search path + Swiss number triple. This string, conveyed securely
+out-of-band, is an **offline capability** that bootstraps the first connection.
+
+**Endo mapping:** `localhttp://<accessToken>` URLs are offline capabilities — conveyed
+from daemon to browser to establish the initial CapTP session.
+
+### 10. Permission vs Authority (§8.1–8.2)
+
+**Permission** is a direct access right: a subject can invoke the behavior of an object.
+**Authority** includes indirect effects: Bob may have no direct permission to write
+`/etc/passwd`, but if he can ask Alice (who does have permission) to write arbitrary text
+there, Bob has *authority* to write it. Authority derives from the structure of permissions
+and the behavior of subjects on permitted causal pathways.
+
+The **protection state** of a system is the topology of the access graph at an instant.
+Whether Bob currently has permission depends only on this topology. Whether Bob has
+authority depends also on the behavior of all reachable subjects.
+
+### 11. Confinement (§11)
+
+Object-capability confinement addresses the "overt" subset of Lampson's confinement
+problem: cooperatively isolating an untrusted subsystem. Using abstraction, object-capability
+practitioners solve selective revocation (withdrawing previously granted rights), overt
+confinement (isolating untrusted code), and the *-properties (one-way communication
+between clearance levels).
+
+**Endo mapping:** Weblets are confined by the capabilities granted to them. The gateway's
+hostname-based isolation ensures weblets cannot access each other's CapTP sessions.
+SES lockdown + compartments provide the loader-level isolation.
+
+---
+
 ## Research Notes
 
-The full content of the thesis requires manual downloading due to network timeouts. Future extraction should focus on:
+The full thesis text is now available in `docs/mark_miller_thesis.md`. The chapter
+structure in the thesis does not align perfectly with the section numbering above (the thesis
+uses a non-standard numbering scheme). Key chapters for further extraction:
 
-1. **Chapter 1-3**: Foundation concepts about capabilities and composition
-2. **Chapter 4-6**: Technical details of the E language and its distribution mechanisms
-3. **Chapter 7-8**: Concurrency control and safety guarantees
-4. **Chapter 9-10**: Practical applications and implementation details
-
-Key technical terms to research:
-- **VAT (Virtualized Atom)**: The basic isolation unit in distributed systems
-- **CapTP (Capability Transport Protocol)**: The communication protocol
-- **Formula**: The mechanism for specifying code behavior
-- **Event Loop**: The concurrency model
-- **Live Refs**: How references are managed across lifetimes
+1. **Chapters 1–3**: Foundation — composition problem, object paradigm, access control
+2. **Chapter 7**: Distributed objects, pointer safety, CapTP bootstrapping
+3. **Chapters 8–9**: Permission, authority, designation
+4. **Chapter 11**: Confinement, overt isolation
+5. **Chapters 16–17**: Promises, far references, persistence
 
 ---
 
@@ -90,10 +163,10 @@ Key technical terms to research:
 - Mark Miller, "Distributed Confinement" (2002)
 - Mark Miller, "Object Capabilities" (various presentations)
 - E Language documentation and tutorials
-- ENDO project on GitHub (related to implementation)
+- Endo project on GitHub (implementation of these concepts)
 
 ---
 
-**Status:** Partially documented - full content requires manual PDF download
-**Date:** 2025-06-20
-**Progress:** Basic metadata and navigation links added, detailed content extraction pending
+**Status:** Substantive content extracted from thesis PDF
+**Date:** 2026-03-19
+**Progress:** Key concepts (§2.1, §7.2–7.4, §8.1–8.2, §11) summarized with Endo mappings
