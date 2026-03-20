@@ -191,6 +191,7 @@ const main = async () => {
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
     if (await E(host).has('@apps')) {
+      // TODO use M to verify interface?
       const apps = /** @type {{ getAddress(): Promise<string> }} */ (
         await E(host).lookup('@apps')
       );
