@@ -9,9 +9,13 @@ import { M } from '@endo/patterns';
 
 export const readFile = {
   schema: M.interface('readFile', {
-    path: M.string(),
-    offset: M.opt(M.number()),
-    limit: M.opt(M.number()),
+    execute: M.call(M.recordOf(M.string(), {
+      path: M.string(),
+      offset: M.opt(M.number()),
+      limit: M.opt(M.number()),
+    })).returns(
+      // TODO sync this with the @returns below
+    ),
   }),
 
   help: () => `
@@ -30,12 +34,14 @@ readFile({ path: "README.md", offset: 0, limit: 100 })
 \`\`\`
   `.trim(),
 
+  /**
+   * @param {object} options
+   * @param {string} options.path
+   * @param {number} [options.offset]
+   * @param {number} [options.limit]
+   * @returns {Promise<unknown>} TODO
+   */
   async execute({ path, offset = 0, limit }) {
-    // Security: Validate path
-    if (!path || typeof path !== 'string') {
-      throw new Error('path is required and must be a string');
-    }
-
     // Security: Prevent directory traversal
     if (path.includes('..') || path.startsWith('/')) {
       throw new Error('Invalid path: directory traversal not allowed');
