@@ -15,6 +15,8 @@ import { withInterrupt } from '../context.js';
 /**
  * Check whether an executable exists on PATH.
  *
+ * TODO unify this with `whichProg` in `packages/daemon/index.js` — at least copy this code into daemon since it's more platfrom agnostic
+ *
  * @param {string} prog
  */
 const hasProgram = async prog => {
@@ -355,6 +357,7 @@ export const log = async ({ follow, ping, all }) =>
           }
         })();
 
+      // TODO unify this with `waitForExit` from `packages/daemon/index.js` — at least copy its utility to this file, and extend with cancellation support, rather than do this inline promise conversion
       await new Promise((resolve, reject) => {
         const child = spawn(cmd, args, {
           stdio: ['inherit', 'inherit', 'inherit'],
