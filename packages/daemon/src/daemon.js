@@ -3402,7 +3402,7 @@ const makeDaemonCore = async (
         )
       ).id,
     );
-    const workerId = pin(await provideWorkerId(specifiedWorkerId));
+    const workerId = pin(await provideWorkerId(specifiedWorkerId, undefined, 'host'));
     /* eslint-enable no-use-before-define */
 
     return harden({
@@ -3529,6 +3529,8 @@ const makeDaemonCore = async (
       (
         await formulateNumberedWorker(
           /** @type {FormulaNumber} */ (await randomHex256()),
+          undefined,
+          'guest',
         )
       ).id,
     );
@@ -4020,6 +4022,8 @@ const makeDaemonCore = async (
 
         const { id: defaultHostWorkerId } = await formulateNumberedWorker(
           /** @type {FormulaNumber} */ (await randomHex256()),
+          undefined,
+          'host',
         );
         const { id: networksDirectoryId } = await formulateNetworksDirectory();
         const { id: pinsDirectoryId } = await formulateDirectory();
