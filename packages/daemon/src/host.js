@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -63,6 +63,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateUnconfined']} args.formulateUnconfined
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
+ * @param {DaemonCore['checkinTree']} args.checkinTree
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
@@ -91,6 +92,7 @@ export const makeHostMaker = ({
   formulateUnconfined,
   formulateBundle,
   formulateReadableBlob,
+  checkinTree,
   formulateInvitation,
   formulateSyncedPetStore,
   getPeerIdForNodeIdentifier,
@@ -199,6 +201,24 @@ export const makeHostMaker = ({
       );
 
       const { value } = await formulateReadableBlob(readerRef, tasks);
+      return value;
+    };
+
+    /**
+     * Check in a remote readable-tree Exo, storing it content-addressed.
+     * @param {unknown} remoteTree - Remote Exo providing the readable-tree interface.
+     * @param {NameOrPath} petName
+     */
+    const storeTree = async (remoteTree, petName) => {
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+
+      /** @type {DeferredTasks<ReadableTreeDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).write(namePath, identifiers.readableTreeId),
+      );
+
+      const { value } = await checkinTree(remoteTree, tasks);
       return value;
     };
 
@@ -1178,6 +1198,7 @@ export const makeHostMaker = ({
       // Host
       storeBlob,
       storeValue,
+      storeTree,
       provideGuest,
       provideHost,
       provideWorker,

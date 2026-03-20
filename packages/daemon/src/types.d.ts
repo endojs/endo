@@ -202,6 +202,15 @@ export type ReadableBlobDeferredTaskParams = {
   readableBlobId: FormulaIdentifier;
 };
 
+type ReadableTreeFormula = {
+  type: 'readable-tree';
+  content: string;
+};
+
+export type ReadableTreeDeferredTaskParams = {
+  readableTreeId: FormulaIdentifier;
+};
+
 type LookupFormula = {
   type: 'lookup';
 
@@ -386,6 +395,7 @@ export type Formula =
   | MarshalFormula
   | EvalFormula
   | ReadableBlobFormula
+  | ReadableTreeFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
@@ -1347,10 +1357,7 @@ export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
   provideRootNonce: () => Promise<RootNonceDescriptor>;
   provideRootKeypair: () => Promise<RootKeypairDescriptor>;
-  makeContentSha256Store: () => {
-    store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
-    fetch: (sha256: string) => EndoReadable;
-  };
+  makeContentStore: () => import('@endo/platform/fs/lite').SnapshotStore;
   readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
   writeFormula: (
     formulaNumber: FormulaNumber,
@@ -1626,6 +1633,11 @@ export interface DaemonCore {
     readerRef: ERef<AsyncIterableIterator<string>>,
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
   ) => FormulateResult<FarRef<EndoReadable>>;
+
+  checkinTree: (
+    remoteTree: unknown,
+    deferredTasks: DeferredTasks<ReadableTreeDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,

@@ -291,6 +291,8 @@ export const HostInterface = M.interface('EndoHost', {
     .returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
+  // Check in a remote readable-tree Exo, storing content-addressed
+  storeTree: M.call(M.remotable(), NameOrPathShape).returns(M.promise()),
   // Provide a guest
   provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a host
@@ -453,6 +455,13 @@ export const BlobInterface = M.interface('EndoBlob', {
   streamBase64: M.call().returns(M.remotable()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
+});
+
+export const ReadableTreeInterface = M.interface('EndoReadableTree', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  has: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+  list: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+  lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(M.promise()),
 });
 
 export const DaemonFacetForWorkerInterface = M.interface(
