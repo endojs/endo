@@ -772,6 +772,37 @@ export const main = async rawArgs => {
       process.stdout.write(`${cachePath}\n`);
     });
 
+  const config = program
+    .command('config [key] [value]')
+    .description(
+      'view or change daemon configuration\n' +
+      'endo config          — list all effective settings\n' +
+      'endo config <key>    — get a single setting\n' +
+      'endo config <key> <value> — set a single setting',
+    )
+    .option('-j,--json', 'Output as JSON')
+    .action(async (key, value, cmd) => {
+      const { json } = cmd.opts();
+      if (key === undefined) {
+        const { listConfig } = await import('./commands/config.js');
+        return listConfig({ json });
+      } else if (value === undefined) {
+        const { getConfig } = await import('./commands/config.js');
+        return getConfig({ key });
+      } else {
+        const { setConfig } = await import('./commands/config.js');
+        return setConfig({ key, value });
+      }
+    });
+
+  config
+    .command('file')
+    .description('show config file path and contents')
+    .action(async _cmd => {
+      const { showConfigFile } = await import('./commands/config.js');
+      return showConfigFile();
+    });
+
   program
     .command('status')
     .description('query and print status of the endo daemon')
