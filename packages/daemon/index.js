@@ -457,7 +457,8 @@ export const status = async (
     for await (const worker of runningWorkers(config)) {
       const pid = await worker.pid;
       if (pid !== null) {
-        console.log(`* id:${worker.id} pid:${pid}`);
+        const label = await worker.label();
+        console.log(`* id:${worker.id} name:${label} pid:${pid}`);
       }
     }
   }
