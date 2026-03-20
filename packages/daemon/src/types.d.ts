@@ -412,8 +412,10 @@ export type Builtins = {
   ENDO: FormulaIdentifier;
 };
 
+export type Special = (builtins: Builtins) => Formula;
+
 export type Specials = {
-  [specialName: string]: (builtins: Builtins) => Formula;
+  [specialName: string]: Special
 };
 
 export interface Responder {
