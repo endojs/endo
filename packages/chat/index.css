@@ -5449,6 +5449,82 @@ button.btn-spinner::after {
   color: var(--text-primary);
 }
 
+/* Three-dot message menu */
+.message-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.message-menu-trigger {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.message-menu-trigger:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.message-menu-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-menu-dropdown.open {
+  display: flex;
+  flex-direction: column;
+}
+
+.message-menu-dropdown.above {
+  top: auto;
+  bottom: 100%;
+}
+
+.message-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.message-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.message-menu-item-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
 /* Highlight flash when scrolling to a replied-to message */
 @keyframes reply-highlight-pulse {
   0% {
@@ -6146,33 +6222,28 @@ button.btn-spinner::after {
   letter-spacing: -0.01em;
 }
 
-/* Fork button on outliner nodes */
-.outliner-fork-button {
+/* Three-dot menu on outliner nodes (hover-reveal) */
+.outliner-node-menu {
   display: none;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
   margin-left: 4px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  opacity: 0.5;
   flex-shrink: 0;
 }
 
-.outliner-node-row:hover .outliner-fork-button {
+.outliner-node-row:hover .outliner-node-menu {
   display: inline-flex;
 }
 
-.outliner-fork-button:hover {
+.outliner-node-menu .message-menu-trigger {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+.outliner-node-menu .message-menu-trigger:hover {
   opacity: 1;
   background: var(--bg-active);
-  color: var(--text-primary);
 }
 
 /* Fork badge: styled as a subtle link indicator */

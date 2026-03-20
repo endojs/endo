@@ -12,6 +12,7 @@ import {
 } from './markdown-render.js';
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
+import { createMessageMenu } from './channel-utils.js';
 
 /**
  * @typedef {object} ChannelMessage
@@ -40,12 +41,13 @@ import { createProfilePopup } from './profile-popup.js';
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply] - Called when user clicks reply on a message
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen] - Called when a thread view is opened
  * @param {() => void} [options.onThreadClose] - Called when the thread view is closed
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
  */
 export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose },
+  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -514,26 +516,58 @@ export const channelComponent = async (
     $msg.appendChild($body);
 
     // Hover action buttons
-    if (onReply) {
+    {
       const $actions = document.createElement('div');
       $actions.className = 'message-actions';
 
-      const $replyBtn = document.createElement('button');
-      $replyBtn.className = 'message-action-btn';
-      $replyBtn.title = 'Reply';
-      $replyBtn.textContent = '\u21A9';
-      $replyBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const preview = message.strings.join('').substring(0, 60);
-        onReply({
-          number: message.number,
-          memberId: message.memberId,
-          authorName: authorProposedName,
-          preview,
+      if (onReply) {
+        const $replyBtn = document.createElement('button');
+        $replyBtn.className = 'message-action-btn';
+        $replyBtn.title = 'Reply';
+        $replyBtn.textContent = '\u21A9';
+        $replyBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const preview = message.strings.join('').substring(0, 60);
+          onReply({
+            number: message.number,
+            memberId: message.memberId,
+            authorName: authorProposedName,
+            preview,
+          });
         });
-      });
-      $actions.appendChild($replyBtn);
-      $msg.appendChild($actions);
+        $actions.appendChild($replyBtn);
+      }
+
+      // Three-dot menu
+      /** @type {Array<{label: string, icon: string, handler: () => void}>} */
+      const menuItems = [];
+      if (onFork) {
+        const key = String(message.number);
+        menuItems.push({
+          label: 'Fork to Channel',
+          icon: '\u2442',
+          handler: () => {
+            const chain = [];
+            let current = key;
+            while (current) {
+              const entry = messageIndex.get(current);
+              if (!entry) break;
+              chain.unshift(entry.message);
+              current = entry.message.replyTo;
+            }
+            const preview =
+              message.strings.join('').substring(0, 40) || 'Forked note';
+            onFork(chain, preview).catch(window.reportError);
+          },
+        });
+      }
+      if (menuItems.length > 0) {
+        $actions.appendChild(createMessageMenu(menuItems));
+      }
+
+      if ($actions.childNodes.length > 0) {
+        $msg.appendChild($actions);
+      }
     }
 
     // Mark edit-type messages with a visual label

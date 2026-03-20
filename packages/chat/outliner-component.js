@@ -4,7 +4,7 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
-import { createChannelState } from './channel-utils.js';
+import { createChannelState, createMessageMenu } from './channel-utils.js';
 import {
   isVisibleReplyType,
   computeNodeContent,
@@ -2100,21 +2100,29 @@ export const outlinerComponent = async (
     setupCommittedEvents($text, key);
     $row.appendChild($text);
 
-    // Fork button (visible on hover)
-    if (onFork) {
-      const $forkBtn = document.createElement('button');
-      $forkBtn.className = 'outliner-fork-button';
-      $forkBtn.title = 'Fork to new channel';
-      $forkBtn.type = 'button';
-      $forkBtn.textContent = '\u2442';
-      $forkBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const chain = getHeritageChain(key);
-        const preview =
-          effective.strings.join('').slice(0, 40) || 'Forked note';
-        onFork(chain, preview).catch(window.reportError);
-      });
-      $row.appendChild($forkBtn);
+    // Three-dot menu (visible on hover)
+    {
+      /** @type {Array<{label: string, icon: string, handler: () => void}>} */
+      const menuItems = [];
+      if (onFork) {
+        menuItems.push({
+          label: 'Fork to Channel',
+          icon: '\u2442',
+          handler: () => {
+            const chain = getHeritageChain(key);
+            const preview =
+              effective.strings.join('').slice(0, 40) || 'Forked note';
+            onFork(chain, preview).catch(window.reportError);
+          },
+        });
+      }
+      // Share stub — will be wired up in the share flow phase
+      // menuItems.push({ label: 'Share\u2026', icon: '\u21D7', handler: () => {} });
+      if (menuItems.length > 0) {
+        const $menu = createMessageMenu(menuItems);
+        $menu.classList.add('outliner-node-menu');
+        $row.appendChild($menu);
+      }
     }
 
     // Make bullet a drag handle

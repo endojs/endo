@@ -48,7 +48,88 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [onReply]
  * @property {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} showValue
  * @property {boolean} [skipReplyIndicator] - If true, omit the reply indicator bar
+ * @property {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [onFork] - Fork heritage chain to new channel
+ * @property {() => void} [onShare] - Open share flow for this message
  */
+
+/**
+ * @typedef {object} MessageMenuItem
+ * @property {string} label
+ * @property {string} icon
+ * @property {() => void} handler
+ */
+
+/**
+ * Create a three-dot (⋮) menu button with a dropdown for message actions.
+ *
+ * @param {MessageMenuItem[]} items - Menu items to display
+ * @returns {HTMLElement} The menu button element
+ */
+const createMessageMenu = items => {
+  const $menu = document.createElement('div');
+  $menu.className = 'message-menu';
+
+  const $trigger = document.createElement('button');
+  $trigger.className = 'message-menu-trigger';
+  $trigger.type = 'button';
+  $trigger.title = 'More actions';
+  $trigger.textContent = '\u22EE'; // vertical ellipsis ⋮
+  $menu.appendChild($trigger);
+
+  const $dropdown = document.createElement('div');
+  $dropdown.className = 'message-menu-dropdown';
+
+  for (const item of items) {
+    const $item = document.createElement('button');
+    $item.className = 'message-menu-item';
+    $item.type = 'button';
+
+    const $icon = document.createElement('span');
+    $icon.className = 'message-menu-item-icon';
+    $icon.textContent = item.icon;
+    $item.appendChild($icon);
+
+    const $label = document.createElement('span');
+    $label.textContent = item.label;
+    $item.appendChild($label);
+
+    $item.addEventListener('click', e => {
+      e.stopPropagation();
+      $dropdown.classList.remove('open');
+      item.handler();
+    });
+
+    $dropdown.appendChild($item);
+  }
+
+  $menu.appendChild($dropdown);
+
+  $trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = $dropdown.classList.toggle('open');
+    if (isOpen) {
+      // Position dropdown above if near bottom of viewport
+      const rect = $trigger.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 120) {
+        $dropdown.classList.add('above');
+      } else {
+        $dropdown.classList.remove('above');
+      }
+      // Close on outside click
+      const close = () => {
+        $dropdown.classList.remove('open');
+        document.removeEventListener('click', close);
+      };
+      // Defer so this click doesn't immediately close
+      requestAnimationFrame(() => {
+        document.addEventListener('click', close);
+      });
+    }
+  });
+
+  return $menu;
+};
 
 /**
  * Create shared channel state and utilities.
@@ -256,8 +337,14 @@ export const createChannelState = async (channel, opts) => {
    * @returns {Promise<HTMLElement>}
    */
   const createMessageElement = async (message, options) => {
-    const { ownMemberId: ownId, onReply, showValue, skipReplyIndicator } =
-      options;
+    const {
+      ownMemberId: ownId,
+      onReply,
+      showValue,
+      skipReplyIndicator,
+      onFork,
+      onShare,
+    } = options;
 
     const $wrapper = document.createElement('div');
     $wrapper.className = 'message-wrapper';
@@ -416,26 +503,65 @@ export const createChannelState = async (channel, opts) => {
     $msg.appendChild($body);
 
     // Hover action buttons
-    if (onReply) {
+    {
       const $actions = document.createElement('div');
       $actions.className = 'message-actions';
 
-      const $replyBtn = document.createElement('button');
-      $replyBtn.className = 'message-action-btn';
-      $replyBtn.title = 'Reply';
-      $replyBtn.textContent = '\u21A9';
-      $replyBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const preview = message.strings.join('').substring(0, 60);
-        onReply({
-          number: message.number,
-          memberId: message.memberId,
-          authorName: authorProposedName,
-          preview,
+      if (onReply) {
+        const $replyBtn = document.createElement('button');
+        $replyBtn.className = 'message-action-btn';
+        $replyBtn.title = 'Reply';
+        $replyBtn.textContent = '\u21A9';
+        $replyBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const preview = message.strings.join('').substring(0, 60);
+          onReply({
+            number: message.number,
+            memberId: message.memberId,
+            authorName: authorProposedName,
+            preview,
+          });
         });
-      });
-      $actions.appendChild($replyBtn);
-      $msg.appendChild($actions);
+        $actions.appendChild($replyBtn);
+      }
+
+      // Three-dot menu
+      /** @type {MessageMenuItem[]} */
+      const menuItems = [];
+      if (onFork) {
+        const key = String(message.number);
+        menuItems.push({
+          label: 'Fork to Channel',
+          icon: '\u2442',
+          handler: () => {
+            const chain = [];
+            let current = key;
+            while (current) {
+              const entry = messageIndex.get(current);
+              if (!entry) break;
+              chain.unshift(entry.message);
+              current = entry.message.replyTo;
+            }
+            const preview =
+              message.strings.join('').substring(0, 40) || 'Forked note';
+            onFork(chain, preview).catch(window.reportError);
+          },
+        });
+      }
+      if (onShare) {
+        menuItems.push({
+          label: 'Share\u2026',
+          icon: '\u21D7',
+          handler: onShare,
+        });
+      }
+      if (menuItems.length > 0) {
+        $actions.appendChild(createMessageMenu(menuItems));
+      }
+
+      if ($actions.childNodes.length > 0) {
+        $msg.appendChild($actions);
+      }
     }
 
     $wrapper.appendChild($msg);
@@ -460,3 +586,6 @@ export const createChannelState = async (channel, opts) => {
   });
 };
 harden(createChannelState);
+
+export { createMessageMenu };
+harden(createMessageMenu);
