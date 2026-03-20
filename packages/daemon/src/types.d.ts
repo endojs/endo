@@ -1563,6 +1563,7 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: FormulaIdentifier,
     pin?: (id: FormulaIdentifier) => void,
+    workerLabel?: string,
   ) => FormulateResult<unknown>;
 
   formulateGuest: (
