@@ -399,11 +399,12 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (workerName, specifier, options) => {
-      const { tasks, workerId, workerLabel, powersId, env, workerTrustedShims } =
+      const { tasks, workerId, workerLabel: explicitLabel, powersId, env, workerTrustedShims } =
         prepareMakeCaplet(
           /** @type {Name | undefined} */ (workerName),
           options,
         );
+      const workerLabel = explicitLabel ?? (options?.resultName !== undefined ? `${options.resultName}` : `unconfined:${specifier}`);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
