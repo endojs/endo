@@ -5375,6 +5375,28 @@ button.btn-spinner::after {
   opacity: 0.7;
 }
 
+/* Edit-type reply indicator */
+.reply-indicator-edit {
+  color: var(--text-muted);
+  border-left: 2px solid var(--text-muted);
+}
+
+/* Edit badge on messages in chat mode */
+.message-edit-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
 /* Reply count badge on messages that have replies */
 .reply-count {
   display: inline-flex;
@@ -5772,6 +5794,15 @@ button.btn-spinner::after {
   text-decoration: underline;
 }
 
+/* "edited by" attribution on forum nodes */
+.forum-edited-by {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px 12px;
+  cursor: default;
+  font-style: italic;
+}
+
 /* ============================
    Outliner View
    ============================ */
@@ -5779,8 +5810,9 @@ button.btn-spinner::after {
 .outliner-view {
   display: flex;
   flex-direction: column;
-  padding: 8px 0;
+  padding: 8px 0 60px;
   position: relative;
+  min-height: 120px;
 }
 
 .outliner-node {
@@ -5928,6 +5960,10 @@ button.btn-spinner::after {
 
 .outliner-author {
   font-weight: 500;
+  cursor: pointer;
+}
+.outliner-author:hover {
+  text-decoration: underline;
 }
 
 .outliner-edited-by {

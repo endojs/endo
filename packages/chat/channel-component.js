@@ -24,6 +24,7 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {string[]} names
  * @property {string[]} ids
  * @property {string} [replyTo]
+ * @property {string} [replyType]
  */
 
 /**
@@ -360,9 +361,11 @@ export const channelComponent = async (
           : parentMsg.memberId;
         const parentPreview = parentMsg.strings.join('').substring(0, 60);
 
+        const isEdit = message.replyType === 'edit';
+
         const $icon = document.createElement('span');
         $icon.className = 'reply-indicator-icon';
-        $icon.textContent = '\u21A9';
+        $icon.textContent = isEdit ? '\u270E' : '\u21A9';
         $replyBar.appendChild($icon);
 
         const $author = document.createElement('span');
@@ -374,6 +377,10 @@ export const channelComponent = async (
         $preview.className = 'reply-indicator-preview';
         $preview.textContent = parentPreview;
         $replyBar.appendChild($preview);
+
+        if (isEdit) {
+          $replyBar.classList.add('reply-indicator-edit');
+        }
 
         $replyBar.addEventListener('click', () => {
           const rootKey = findThreadRoot(message.replyTo);
@@ -527,6 +534,15 @@ export const channelComponent = async (
       });
       $actions.appendChild($replyBtn);
       $msg.appendChild($actions);
+    }
+
+    // Mark edit-type messages with a visual label
+    if (message.replyType === 'edit') {
+      $wrapper.classList.add('message-edit');
+      const $editBadge = document.createElement('span');
+      $editBadge.className = 'message-edit-badge';
+      $editBadge.textContent = 'Edit';
+      $msg.insertBefore($editBadge, $body);
     }
 
     $wrapper.appendChild($msg);
@@ -780,6 +796,23 @@ export const channelComponent = async (
   for await (const message of messageIterator) {
     if (disposed) break;
     const typedMessage = /** @type {ChannelMessage} */ (message);
+    const msgKey = String(typedMessage.number);
+
+    // Skip operational messages (move/deletion) — they have no
+    // conversational content. Index them but don't render or count.
+    if (
+      typedMessage.replyType === 'move' ||
+      typedMessage.replyType === 'deletion'
+    ) {
+      const $placeholder = document.createElement('div');
+      messageIndex.set(msgKey, {
+        message: typedMessage,
+        $element: $placeholder,
+      });
+      continue; // eslint-disable-line no-continue
+    }
+
+    // eslint-disable-next-line no-await-in-loop
     const $msg = await createMessageElement(typedMessage);
     if ($end) {
       $parent.insertBefore($msg, $end);
@@ -788,7 +821,6 @@ export const channelComponent = async (
     }
 
     // Register in thread index (store the inner .message element, not the wrapper)
-    const msgKey = String(typedMessage.number);
     const $innerMsg = /** @type {HTMLElement} */ (
       $msg.querySelector('.message') || $msg
     );

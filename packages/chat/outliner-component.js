@@ -121,7 +121,15 @@ export const outlinerComponent = async (
     $parent,
   });
 
-  const { messageIndex, replyChildren, nameMap } = state;
+  const {
+    messageIndex,
+    replyChildren,
+    nameMap,
+    saveNameMap,
+    getMemberInfo,
+    updateAuthorChips: stateUpdateAuthorChips,
+    profilePopup,
+  } = state;
 
   /** @type {Set<string>} Collapsed node keys */
   const collapsedNodes = new Set();
@@ -774,7 +782,7 @@ export const outlinerComponent = async (
         const nextParent =
           i + 1 < rows.length
             ? getEffectiveParent(rows[i + 1].key)
-            : getEffectiveParent(rows[i].key);
+            : undefined; // Below all rows → root level
         bestGap = {
           parentKey: nextParent,
           afterKey: rows[i].key,
@@ -1202,10 +1210,11 @@ export const outlinerComponent = async (
 
       const $entryMeta = document.createElement('div');
       $entryMeta.className = 'outliner-edit-history-meta';
-      const editorName =
-        nameMap.get(entry.memberId) || `Member ${entry.memberId}`;
+      $entryMeta.appendChild(createAuthorSpan(entry.memberId));
       const date = new Date(entry.date);
-      $entryMeta.textContent = `${editorName} \u00B7 ${relativeTime(date)}`;
+      $entryMeta.appendChild(
+        document.createTextNode(` \u00B7 ${relativeTime(date)}`),
+      );
       if (entry.deleted) {
         const $tag = document.createElement('span');
         $tag.className = 'outliner-edit-history-deleted-tag';
@@ -1261,18 +1270,91 @@ export const outlinerComponent = async (
    * @returns {HTMLElement}
    */
   const createEditedByEl = effective => {
-    const editorName =
-      nameMap.get(/** @type {string} */ (effective.editedByMemberId)) ||
-      `Member ${effective.editedByMemberId}`;
+    const editorId = /** @type {string} */ (effective.editedByMemberId);
     const $edited = document.createElement('span');
     $edited.className = 'outliner-edited-by';
-    $edited.textContent = `Edited by ${editorName}`;
+    $edited.appendChild(document.createTextNode('Edited by '));
+    $edited.appendChild(createAuthorSpan(editorId));
     $edited.title = `Edit queue: ${effective.editQueue.length} edit(s)`;
     $edited.addEventListener('click', e => {
       e.stopPropagation();
       showEditHistory(effective.editQueue, $edited);
     });
     return $edited;
+  };
+
+  /**
+   * Create an author span with profile popup click handler.
+   * Fetches member info asynchronously to populate pedigree data.
+   * @param {string} memberId
+   * @returns {HTMLElement}
+   */
+  const createAuthorSpan = memberId => {
+    const $author = document.createElement('span');
+    $author.className = 'outliner-author';
+    $author.dataset.memberId = memberId;
+    const assignedName = nameMap.get(memberId);
+    if (assignedName) {
+      $author.textContent = assignedName;
+      $author.classList.add('named');
+    } else {
+      // Show memberId as placeholder; async fetch fills proposed name
+      $author.textContent = `Member ${memberId}`;
+    }
+
+    // Fetch member info asynchronously for proposed name and pedigree
+    getMemberInfo(memberId).then(info => {
+      if (!info) return;
+      const currentAssigned = nameMap.get(memberId);
+      if (!currentAssigned) {
+        $author.textContent = `\u201C${info.proposedName}\u201D`;
+      }
+      $author.dataset.proposedName = info.proposedName;
+
+      $author.addEventListener('click', e => {
+        e.stopPropagation();
+        profilePopup.show({
+          proposedName: info.proposedName,
+          pedigree: info.pedigree,
+          pedigreeMemberIds: info.pedigreeMemberIds,
+          nameMap,
+          yourName: nameMap.get(memberId),
+          onAssignName: name => {
+            nameMap.set(memberId, name);
+            saveNameMap();
+            stateUpdateAuthorChips(memberId);
+            // Also update outliner-specific author spans
+            updateOutlinerAuthorChips(memberId);
+          },
+          anchorElement: $author,
+        });
+      });
+    });
+
+    return $author;
+  };
+
+  /**
+   * Update all outliner author chips for a given memberId after name change.
+   * @param {string} memberId
+   */
+  const updateOutlinerAuthorChips = memberId => {
+    const assignedName = nameMap.get(memberId);
+    const authors = $outlinerView.querySelectorAll(
+      `.outliner-author[data-member-id="${memberId}"]`,
+    );
+    for (const $el of authors) {
+      if (assignedName) {
+        $el.textContent = assignedName;
+        $el.classList.add('named');
+      } else {
+        const proposed = /** @type {HTMLElement} */ ($el).dataset.proposedName;
+        $el.textContent = proposed
+          ? `\u201C${proposed}\u201D`
+          : `Member ${memberId}`;
+        $el.classList.remove('named');
+      }
+    }
   };
 
   /**
@@ -1283,13 +1365,7 @@ export const outlinerComponent = async (
   const createMetaEl = effective => {
     const $meta = document.createElement('div');
     $meta.className = 'outliner-meta';
-    const authorName =
-      nameMap.get(effective.authorMemberId) ||
-      `Member ${effective.authorMemberId}`;
-    const $author = document.createElement('span');
-    $author.className = 'outliner-author';
-    $author.textContent = authorName;
-    $meta.appendChild($author);
+    $meta.appendChild(createAuthorSpan(effective.authorMemberId));
     if (effective.editedByMemberId) {
       $meta.appendChild(createEditedByEl(effective));
     }
@@ -1303,13 +1379,7 @@ export const outlinerComponent = async (
    */
   const updateMetaContent = ($meta, effective) => {
     $meta.innerHTML = '';
-    const authorName =
-      nameMap.get(effective.authorMemberId) ||
-      `Member ${effective.authorMemberId}`;
-    const $author = document.createElement('span');
-    $author.className = 'outliner-author';
-    $author.textContent = authorName;
-    $meta.appendChild($author);
+    $meta.appendChild(createAuthorSpan(effective.authorMemberId));
     if (effective.editedByMemberId) {
       $meta.appendChild(createEditedByEl(effective));
     }
@@ -1653,7 +1723,131 @@ export const outlinerComponent = async (
           if (idx < allNodes.length - 1) focusTextNode(allNodes[idx + 1]);
         }
       }
-      // Tab/Shift-Tab on committed nodes deferred to Phase B
+      // Tab: indent committed node under its previous sibling
+      if (e.key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        const currentParent = getEffectiveParent(key);
+        const siblings = getSortedVisibleChildren(currentParent);
+        const idx = siblings.indexOf(key);
+        if (idx <= 0) return; // no previous sibling to nest under
+        const prevKey = siblings[idx - 1];
+
+        // Compute sort order: insert at end of prevKey's children
+        const prevChildren = getSortedVisibleChildren(prevKey);
+        const newOrder =
+          prevChildren.length > 0
+            ? getEffectiveSortOrder(prevChildren[prevChildren.length - 1]) + 1
+            : 1;
+        moveOverrides.set(key, newOrder);
+        parentOverrides.set(key, prevKey);
+
+        // Post move message with reparenting
+        const entry = messageIndex.get(key);
+        if (entry) {
+          E(channel)
+            .post(
+              [String(newOrder), prevKey],
+              [],
+              [],
+              String(entry.message.number),
+              [],
+              'move',
+            )
+            .catch(/** @param {Error} err */ err => {
+              console.error('Failed to post move:', err);
+            });
+        }
+
+        // Expand previous sibling if collapsed
+        if (collapsedNodes.has(prevKey)) {
+          collapsedNodes.delete(prevKey);
+          const prevEls = nodeEls.get(prevKey);
+          if (prevEls) {
+            prevEls.$children.classList.remove('outliner-children-collapsed');
+          }
+        }
+
+        // Move DOM node
+        const els = nodeEls.get(key);
+        if (els) {
+          const $newContainer = getChildrenContainer(prevKey);
+          $newContainer.appendChild(els.$node);
+          updateNodeDepths(key);
+        }
+        reorderChildren(prevKey);
+        reorderChildren(currentParent);
+        updateBullet(prevKey);
+        if (currentParent) updateBullet(currentParent);
+        // Re-focus without changing cursor/selection — same DOM node, just reparented
+        $text.focus();
+        return;
+      }
+
+      // Shift-Tab: dedent committed node to parent's level
+      if (e.key === 'Tab' && e.shiftKey) {
+        e.preventDefault();
+        const currentParent = getEffectiveParent(key);
+        if (!currentParent) return; // already at root
+
+        const grandparent = getEffectiveParent(currentParent);
+
+        // Compute sort order: insert right after currentParent among grandparent's children
+        const gpChildren = getSortedVisibleChildren(grandparent);
+        const parentIdx = gpChildren.indexOf(currentParent);
+        let newOrder;
+        if (parentIdx < gpChildren.length - 1) {
+          // Between parent and next sibling
+          const parentOrder = getEffectiveSortOrder(currentParent);
+          const nextOrder = getEffectiveSortOrder(gpChildren[parentIdx + 1]);
+          newOrder = (parentOrder + nextOrder) / 2;
+        } else {
+          // After the last sibling
+          newOrder = getEffectiveSortOrder(currentParent) + 1;
+        }
+
+        moveOverrides.set(key, newOrder);
+        parentOverrides.set(key, grandparent);
+
+        // Post move message with reparenting
+        const entry = messageIndex.get(key);
+        if (entry) {
+          const newParentStr =
+            grandparent === undefined ? '' : grandparent;
+          E(channel)
+            .post(
+              [String(newOrder), newParentStr],
+              [],
+              [],
+              String(entry.message.number),
+              [],
+              'move',
+            )
+            .catch(/** @param {Error} err */ err => {
+              console.error('Failed to post move:', err);
+            });
+        }
+
+        // Move DOM node
+        const els = nodeEls.get(key);
+        if (els) {
+          const $newContainer = getChildrenContainer(grandparent);
+          const $after = $newContainer.querySelector(
+            `:scope > [data-key="${currentParent}"]`,
+          );
+          if ($after && $after.nextSibling) {
+            $newContainer.insertBefore(els.$node, $after.nextSibling);
+          } else {
+            $newContainer.appendChild(els.$node);
+          }
+          updateNodeDepths(key);
+        }
+        reorderChildren(grandparent);
+        reorderChildren(currentParent);
+        updateBullet(currentParent);
+        if (grandparent) updateBullet(grandparent);
+        // Re-focus without changing cursor/selection — same DOM node, just reparented
+        $text.focus();
+      }
     });
   };
 
@@ -1788,7 +1982,7 @@ export const outlinerComponent = async (
 
         const newContainer = getChildrenContainer(prevKey);
         newContainer.appendChild(els.$node);
-        focusTextNode(els.$text, true);
+        els.$text.focus();
         return;
       }
 
@@ -1821,7 +2015,7 @@ export const outlinerComponent = async (
         } else {
           newContainer.appendChild(els.$node);
         }
-        focusTextNode(els.$text, true);
+        els.$text.focus();
         return;
       }
 

@@ -160,11 +160,12 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
     /**
      * @typedef {object} MemberEntry
      * @property {string} proposedName - Current display name (may be changed by the member)
-     * @property {string} invitedAs - Original name given by the inviter
+     * @property {string} invitedAs - Original name given by the inviter (bookkeeping only)
      * @property {string} memberId - Stable identifier for this member
      * @property {string} inviterMemberId - memberId of the member who created this invitation
      * @property {string[]} pedigree - Invitation chain
      * @property {boolean} valid - true = active, false = disabled
+     * @property {boolean} joined - true = invitation has been claimed via join()
      * @property {HeatConfig | null} heatConfig - Heat-based rate limiting config, null = unrestricted
      * @property {number} temporaryBanUntil - epoch ms, 0 = no ban
      */
@@ -207,6 +208,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         inviterMemberId: entry.inviterMemberId,
         pedigree: [...entry.pedigree],
         valid: entry.valid,
+        joined: entry.joined,
         heatConfig: entry.heatConfig,
         temporaryBanUntil: entry.temporaryBanUntil,
       });
@@ -668,6 +670,8 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
               return joinedHandle;
             }
             entry.proposedName = memberProposedName;
+            entry.joined = true;
+            await persistMemberEntry(entry);
 
             const checkAccess = () => {
               parentCheckAccess();
@@ -745,6 +749,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
             inviterMemberId: entry.memberId,
             pedigree: subPedigree,
             valid: true,
+            joined: false,
             heatConfig: /** @type {HeatConfig | null} */ (null),
             temporaryBanUntil: 0,
           };
@@ -845,6 +850,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       inviterMemberId: '',
       pedigree: /** @type {string[]} */ ([]),
       valid: true,
+      joined: true,
       heatConfig: /** @type {HeatConfig | null} */ (null),
       temporaryBanUntil: 0,
     };
@@ -898,6 +904,9 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
               inviterMemberId: data.inviterMemberId,
               pedigree: [...data.pedigree],
               valid: data.valid,
+              // Default to true for backward compat: old entries without
+              // this field were likely already claimed.
+              joined: data.joined !== undefined ? data.joined : true,
               heatConfig,
               temporaryBanUntil: data.temporaryBanUntil,
             });
@@ -997,6 +1006,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
           inviterMemberId: adminMemberId,
           pedigree,
           valid: true,
+          joined: false,
           heatConfig: /** @type {HeatConfig | null} */ (null),
           temporaryBanUntil: 0,
         };
@@ -1033,20 +1043,27 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         return harden([invitation, attenuator]);
       },
       join: async memberProposedName => {
-        // First check admin-level invitations
+        // Try exact name match first (invitedAs matches proposed name)
         const adminKey = `${adminMemberId}:${memberProposedName}`;
         const adminRec = invitationRegistry.get(adminKey);
         if (adminRec) {
           return adminRec.invitation.join(memberProposedName);
         }
-        // Search all invitations (member may have been invited by a non-admin)
         for (const [, rec] of invitationRegistry) {
           if (rec.entry.invitedAs === memberProposedName) {
             return rec.invitation.join(memberProposedName);
           }
         }
+        // Fallback: claim the first unclaimed invitation.
+        // The inviter's name for the invitation is just bookkeeping —
+        // the joiner chooses their own display name.
+        for (const [, rec] of invitationRegistry) {
+          if (!rec.entry.joined) {
+            return rec.invitation.join(memberProposedName);
+          }
+        }
         throw new Error(
-          `No invitation named ${q(memberProposedName)} exists — call createInvitation first`,
+          `No unclaimed invitation exists — ask the channel admin to create one`,
         );
       },
       getMembers: async () => {
