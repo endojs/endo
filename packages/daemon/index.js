@@ -511,6 +511,13 @@ const runningWorker = ({
   workerStateDir = path.join(config.statePath, 'worker', workerId),
 }) => {
   const pidPath = path.join(workerRunDir, 'worker.pid');
+
+  const metaPath = path.join(workerStateDir, 'worker.meta.json');
+  const metaText = fs.promises.readFile(metaPath, 'utf-8');
+  const metaData = metaText
+    .then(text => JSON.parse(text))
+    .catch(() => null);
+
   return {
     get id() {
       return workerId;
@@ -543,6 +550,15 @@ const runningWorker = ({
       }
       return null;
     })(),
+
+    async label() {
+      // TODO use M?
+      const meta = await metaData;
+      if (typeof meta !== 'object') return '';
+      if (!('label' in meta)) return '';
+      const { label } = meta;
+      return `${label}`;
+    },
   };
 };
 
