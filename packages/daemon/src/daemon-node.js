@@ -22,7 +22,7 @@ import {
 } from './daemon-node-powers.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Config, Builtins } from './types.js' */
+/** @import { Config, Special } from './types.js' */
 
 const args = process.argv.slice(2);
 if (args.length < 4) {
@@ -119,6 +119,24 @@ const killStaleWorkers = async () => {
   );
 };
 
+/** @type {Special} */
+const formGateway = ({ MAIN, ENDO }) => ({
+  type: /** @type {const} */ ('make-unconfined'),
+  worker: MAIN,
+  powers: ENDO,
+  specifier:
+    process.env.ENDO_WORKER_PATH ||
+    new URL('web-server-node.js', import.meta.url).href,
+  env: {
+    ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
+    ENDO_WEB_PAGE_BUNDLE_PATH:
+      process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
+    ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
+    ENDO_GATEWAY_ALLOWED_CIDRS:
+      process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
+  },
+});
+
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
@@ -136,23 +154,7 @@ const main = async () => {
       cancel,
       cancelled,
       {
-        /** @param {Builtins} builtins */
-        '@apps': ({ MAIN, ENDO }) => ({
-          type: /** @type {const} */ ('make-unconfined'),
-          worker: MAIN,
-          powers: ENDO,
-          specifier:
-            process.env.ENDO_WORKER_PATH ||
-            new URL('web-server-node.js', import.meta.url).href,
-          env: {
-            ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
-            ENDO_WEB_PAGE_BUNDLE_PATH:
-              process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
-            ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
-            ENDO_GATEWAY_ALLOWED_CIDRS:
-              process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
-          },
-        }),
+        '@apps': formGateway,
       },
       {
         gcEnabled,
