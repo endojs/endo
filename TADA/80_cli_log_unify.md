@@ -1,0 +1,4 @@
+Implement the TODO notes in `packages/cli/src/commands/log.js` about unifying with `packages/daemon/index.js`:
+
+1. [x] line 35 circa `hasProgram` — extracted unified `whichProg`/`hasProgram` into `packages/daemon/src/which.js`, exported from `@endo/daemon/which.js`, and updated both daemon/index.js and cli/log.js to use the shared implementation. Also fixed operator-precedence bug in the original CLI `hasProgram` (`stats.mode & 0o111 !== 0` → `(stats.mode & 0o111) !== 0`).
+2. [x] line 44 circa child spawn promise — extracted `waitForExit`, `waitForExitOrCancel`, `waitForSpawn`, `waitForMessage` into `packages/daemon/src/child-process.js`, exported from `@endo/daemon/child-process.js`. CLI log.js now uses `waitForExitOrCancel` which extends `waitForExit` with cancellation support (kills child on cancel).
