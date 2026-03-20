@@ -489,16 +489,19 @@ export type EvalProposalBase = {
   edgeNames: Array<string>;
   ids: Array<string>;
   workerName?: string;
-  settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<string | undefined>;
-  result: Promise<unknown>;
 };
 
 export type EvalProposalReviewer = EvalProposalBase & {
   type: 'eval-proposal-reviewer';
   responder: ERef<Responder>;
+  settled: Promise<'fulfilled' | 'rejected'>;
+  resultId: Promise<string | undefined>;
+  result: Promise<unknown>;
 };
 
+// The proposer message is a sent receipt. It intentionally omits
+// settled, resultId, and result so the sender cannot observe the
+// reviewer's endowments or actions.
 export type EvalProposalProposer = EvalProposalBase & {
   type: 'eval-proposal-proposer';
   resultName?: string;
@@ -779,7 +782,12 @@ export interface EndoDirectory extends NameHub {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
 }
 
-export type MakeDirectoryNode = (petStore: PetStore, agentNodeNumber: NodeNumber, isLocalKey: (node: string) => boolean, getNetworkAddresses: () => Promise<string[]>) => EndoDirectory;
+export type MakeDirectoryNode = (
+  petStore: PetStore,
+  agentNodeNumber: NodeNumber,
+  isLocalKey: (node: string) => boolean,
+  getNetworkAddresses: () => Promise<string[]>,
+) => EndoDirectory;
 
 export interface Mail {
   handle: () => Handle;
@@ -844,6 +852,7 @@ export interface Mail {
     slots: Record<string, { label: string; pattern?: unknown }>;
     resolverId: FormulaIdentifier;
     guestHandleId: string;
+    messageId: FormulaNumber;
   };
   getForm(messageNumber: bigint): {
     description: string;

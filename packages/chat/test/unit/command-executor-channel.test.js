@@ -24,13 +24,28 @@ const createMockContext = () => {
   const showErrorCalls = [];
 
   const powers = Far('MockPowers', {
-    adopt: async (/** @type {bigint} */ number, /** @type {string} */ edgeName, /** @type {string[]} */ petName) => {
+    adopt: async (
+      /** @type {bigint} */ number,
+      /** @type {string} */ edgeName,
+      /** @type {string[]} */ petName,
+    ) => {
       calls.push({ method: 'adopt', args: [number, edgeName, petName] });
     },
-    reply: async (/** @type {bigint} */ number, /** @type {string[]} */ strings, /** @type {string[]} */ edgeNames, /** @type {string[]} */ petNames) => {
-      calls.push({ method: 'reply', args: [number, strings, edgeNames, petNames] });
+    reply: async (
+      /** @type {bigint} */ number,
+      /** @type {string[]} */ strings,
+      /** @type {string[]} */ edgeNames,
+      /** @type {string[]} */ petNames,
+    ) => {
+      calls.push({
+        method: 'reply',
+        args: [number, strings, edgeNames, petNames],
+      });
     },
-    write: async (/** @type {string[]} */ targetNamePath, /** @type {string} */ formulaId) => {
+    write: async (
+      /** @type {string[]} */ targetNamePath,
+      /** @type {string} */ formulaId,
+    ) => {
       calls.push({ method: 'write', args: [targetNamePath, formulaId] });
     },
     identify: async (/** @type {string} */ ...path) => {
@@ -41,18 +56,29 @@ const createMockContext = () => {
       calls.push({ method: 'list', args: pathParts });
       return ['item1', 'item2'];
     },
-    lookup: async (/** @type {string | string[]} */ pathOrFirst, /** @type {string} */ ...rest) => {
-      const args = Array.isArray(pathOrFirst) ? pathOrFirst : [pathOrFirst, ...rest];
+    lookup: async (
+      /** @type {string | string[]} */ pathOrFirst,
+      /** @type {string} */ ...rest
+    ) => {
+      const args = Array.isArray(pathOrFirst)
+        ? pathOrFirst
+        : [pathOrFirst, ...rest];
       calls.push({ method: 'lookup', args: [args] });
       return { looked: 'up' };
     },
     remove: async (/** @type {string} */ ...pathParts) => {
       calls.push({ method: 'remove', args: pathParts });
     },
-    move: async (/** @type {string[]} */ fromPath, /** @type {string[]} */ toPath) => {
+    move: async (
+      /** @type {string[]} */ fromPath,
+      /** @type {string[]} */ toPath,
+    ) => {
       calls.push({ method: 'move', args: [fromPath, toPath] });
     },
-    copy: async (/** @type {string[]} */ fromPath, /** @type {string[]} */ toPath) => {
+    copy: async (
+      /** @type {string[]} */ fromPath,
+      /** @type {string[]} */ toPath,
+    ) => {
       calls.push({ method: 'copy', args: [fromPath, toPath] });
     },
     makeDirectory: async (/** @type {string[]} */ ...pathParts) => {
@@ -77,19 +103,31 @@ const createMockContext = () => {
         locate: async () => 'endo://invitation',
       });
     },
-    accept: async (/** @type {string} */ locator, /** @type {string} */ guestName) => {
+    accept: async (
+      /** @type {string} */ locator,
+      /** @type {string} */ guestName,
+    ) => {
       calls.push({ method: 'accept', args: [locator, guestName] });
     },
     provideWorker: async (/** @type {string[]} */ pathParts) => {
       calls.push({ method: 'provideWorker', args: [pathParts] });
     },
-    provideHost: async (/** @type {string} */ handleName, /** @type {object} */ options) => {
+    provideHost: async (
+      /** @type {string} */ handleName,
+      /** @type {object} */ options,
+    ) => {
       calls.push({ method: 'provideHost', args: [handleName, options] });
     },
-    provideGuest: async (/** @type {string} */ handleName, /** @type {object} */ options) => {
+    provideGuest: async (
+      /** @type {string} */ handleName,
+      /** @type {object} */ options,
+    ) => {
       calls.push({ method: 'provideGuest', args: [handleName, options] });
     },
-    cancel: async (/** @type {string[]} */ pathParts, /** @type {Error} */ error) => {
+    cancel: async (
+      /** @type {string[]} */ pathParts,
+      /** @type {Error} */ error,
+    ) => {
       calls.push({ method: 'cancel', args: [pathParts, error] });
     },
   });
@@ -281,9 +319,7 @@ test('adopt in channel mode fails when edge name not found in message', async t 
   });
 
   t.false(result.success);
-  t.true(
-    result.error?.message.includes('No edge named "nonexistent-edge"'),
-  );
+  t.true(result.error?.message.includes('No edge named "nonexistent-edge"'));
 });
 
 test('adopt in channel mode fails when formula ID is missing', async t => {

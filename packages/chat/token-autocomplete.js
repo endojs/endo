@@ -52,6 +52,13 @@ export const tokenAutocompleteComponent = (
   /** @type {(() => void) | undefined} */
   let doUpdateFilter;
 
+  // Path drilling state: when the user presses / in the menu, we lock in
+  // the selected name as a path prefix and fetch sub-directory names.
+  /** @type {string[]} */
+  let pathPrefix = [];
+  /** @type {string[] | null} */
+  let directoryNames = null;
+
   // Subscribe to inventory changes
   (async () => {
     for await (const change of makeRefIterator(E(powers).followNameChanges())) {
@@ -85,6 +92,8 @@ export const tokenAutocompleteComponent = (
     selectedIndex = 0;
     enteringEdgeName = false;
     pendingToken = null;
+    pathPrefix = [];
+    directoryNames = null;
   };
 
   /**
@@ -102,10 +111,21 @@ export const tokenAutocompleteComponent = (
     return fullText.slice(triggerOffset + 1, range.startOffset).toLowerCase();
   };
 
-  const updateFilter = () => {
-    const filterText = getFilterText();
+  /**
+   * Get the partial text after the last `/` (or after `@` if no path).
+   * @returns {string}
+   */
+  const getPartialFilter = () => {
+    const full = getFilterText();
+    const slashIdx = full.lastIndexOf('/');
+    return slashIdx === -1 ? full : full.slice(slashIdx + 1);
+  };
 
-    filteredNames = petNames.filter(name => {
+  const updateFilter = () => {
+    const filterText = getPartialFilter();
+    const names = directoryNames || petNames;
+
+    filteredNames = names.filter(name => {
       const lower = name.toLowerCase();
       if (lower.startsWith(filterText)) return true;
       // Allow matching @-prefixed special names by the part after @
@@ -168,7 +188,7 @@ export const tokenAutocompleteComponent = (
     const $hint = document.createElement('div');
     $hint.className = 'token-menu-hint';
     $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd>/<kbd>Enter</kbd> select · <kbd>:</kbd> add label · <kbd>Esc</kbd> cancel';
+      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd>/<kbd>Enter</kbd> select · <kbd>/</kbd> drill down · <kbd>:</kbd> add label · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
   };
 
@@ -201,11 +221,69 @@ export const tokenAutocompleteComponent = (
   };
 
   /**
+   * Drill into a directory: accept the selected name, extend the path prefix,
+   * replace the trigger text with the path so far, and fetch sub-directory
+   * names for the next level of completion.
+   *
+   * @param {string} selectedName
+   */
+  const drillDown = async selectedName => {
+    pathPrefix = [...pathPrefix, selectedName];
+
+    // Replace the filter text with the confirmed path + trailing /
+    if (!triggerNode) return;
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+
+    const range = sel.getRangeAt(0);
+    const fullText = triggerNode.textContent || '';
+    const cursorOffset = range.startOffset;
+
+    const beforeTrigger = fullText.slice(0, triggerOffset + 1); // includes @
+    const afterCursor = fullText.slice(cursorOffset);
+    const confirmedPath = `${pathPrefix.join('/')}/`;
+    const newText = `${beforeTrigger}${confirmedPath}${afterCursor}`;
+
+    triggerNode.textContent = newText;
+
+    // Position cursor right after the trailing /
+    const newCursorPos = triggerOffset + 1 + confirmedPath.length;
+    const newRange = document.createRange();
+    newRange.setStart(triggerNode, newCursorPos);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    // Fetch sub-directory names
+    try {
+      const target = E(powers).lookup(...pathPrefix);
+      const names = await E(target).list();
+      /** @type {string[]} */
+      const result = [];
+      for await (const name of /** @type {AsyncIterable<string>} */ (names)) {
+        result.push(name);
+      }
+      directoryNames = result.sort();
+    } catch {
+      directoryNames = [];
+    }
+
+    selectedIndex = 0;
+    updateFilter();
+  };
+
+  /**
    * Insert a token at the current trigger position.
    * @param {string} petName
    * @param {string} edgeName
    */
   const insertToken = (petName, edgeName) => {
+    // Build the full path pet name when drilling into directories.
+    const fullPetName =
+      pathPrefix.length > 0
+        ? `${pathPrefix.join('/')}/${petName}`
+        : petName;
+
     if (!triggerNode) {
       hideMenu();
       return;
@@ -227,7 +305,7 @@ export const tokenAutocompleteComponent = (
     const afterText = fullText.slice(cursorOffset);
 
     // Create token element
-    const $token = createTokenElement(petName, edgeName || petName);
+    const $token = createTokenElement(fullPetName, edgeName || fullPetName);
 
     // Split the text node and insert token
     // Add a space after the token for easy continuation
@@ -258,6 +336,12 @@ export const tokenAutocompleteComponent = (
    * @param {string} petName
    */
   const startEdgeNameEntry = petName => {
+    // Build the full path pet name when drilling into directories.
+    const fullPetName =
+      pathPrefix.length > 0
+        ? `${pathPrefix.join('/')}/${petName}`
+        : petName;
+
     if (!triggerNode) return;
 
     const sel = window.getSelection();
@@ -267,15 +351,15 @@ export const tokenAutocompleteComponent = (
     const fullText = triggerNode.textContent || '';
     const cursorOffset = range.startOffset;
 
-    // Replace @filter with @petName: in the text
+    // Replace @filter with @fullPetName: in the text
     const beforeText = fullText.slice(0, triggerOffset);
     const afterText = fullText.slice(cursorOffset);
-    const newText = `${beforeText}@${petName}:${afterText}`;
+    const newText = `${beforeText}@${fullPetName}:${afterText}`;
 
     triggerNode.textContent = newText;
 
     // Position cursor after the colon
-    const newCursorPos = triggerOffset + petName.length + 2; // +2 for @ and :
+    const newCursorPos = triggerOffset + fullPetName.length + 2; // +2 for @ and :
     const newRange = document.createRange();
     newRange.setStart(triggerNode, newCursorPos);
     newRange.collapse(true);
@@ -289,7 +373,7 @@ export const tokenAutocompleteComponent = (
     triggerNode = savedTriggerNode;
     triggerOffset = savedTriggerOffset;
     enteringEdgeName = true;
-    pendingToken = { petName, edgeName: '' };
+    pendingToken = { petName: fullPetName, edgeName: '' };
   };
 
   /**
@@ -665,6 +749,13 @@ export const tokenAutocompleteComponent = (
         if (filteredNames.length > 0) {
           e.preventDefault();
           insertToken(filteredNames[selectedIndex], '');
+        }
+        break;
+
+      case '/':
+        if (filteredNames.length > 0) {
+          e.preventDefault();
+          drillDown(filteredNames[selectedIndex]);
         }
         break;
 

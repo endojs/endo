@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "setup": "endo run --UNCONFINED setup.js --powers AGENT -E LAL_HOST=$LAL_HOST -E LAL_MODEL=$LAL_MODEL -E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN",
+    "setup": "endo run --UNCONFINED setup.js --powers @host -E LAL_HOST=$LAL_HOST -E LAL_MODEL=$LAL_MODEL -E LAL_AUTH_TOKEN=$LAL_AUTH_TOKEN -E LAL_NAME=${LAL_NAME:-lal}",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",

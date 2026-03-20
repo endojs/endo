@@ -116,7 +116,6 @@ test('addressesFromLocator - plain locator returns empty', t => {
   t.deepEqual(addressesFromLocator(makeLocator()), []);
 });
 
-
 // --- LOCAL_NODE, externalizeId, internalizeLocator ---
 
 test('LOCAL_NODE is 64 zeros', t => {
@@ -188,7 +187,11 @@ test('externalizeId / internalizeLocator round-trip with LOCAL_NODE', t => {
   // Internalize replaces agent key back to LOCAL_NODE
   const isLocalKey = node => node === validNode;
   const result = internalizeLocator(locator, isLocalKey);
-  t.is(result.id, internalId, 'round-trip should return original LOCAL_NODE id');
+  t.is(
+    result.id,
+    internalId,
+    'round-trip should return original LOCAL_NODE id',
+  );
   t.is(result.formulaType, validType);
 });
 

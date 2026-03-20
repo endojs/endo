@@ -299,7 +299,14 @@ const inboxComponent = async ($parent, $end, powers) => {
       }),
     );
 
-    const { number, type, from: fromLocator, to: toLocator, date, dismissed } = message;
+    const {
+      number,
+      type,
+      from: fromLocator,
+      to: toLocator,
+      date,
+      dismissed,
+    } = message;
 
     let verb = '';
     if (type === 'request') {
@@ -350,7 +357,9 @@ const inboxComponent = async ($parent, $end, powers) => {
       $message.appendChild($verb);
     } else {
       const [fromName, toName] = await Promise.all(
-        [fromLocator, toLocator].map(locator => E(powers).reverseLocate(locator)),
+        [fromLocator, toLocator].map(locator =>
+          E(powers).reverseLocate(locator),
+        ),
       );
       const $from = document.createElement('strong');
       $from.innerText = ` ${fromName} `;

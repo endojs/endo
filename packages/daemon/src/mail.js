@@ -159,12 +159,12 @@ export const makeMailboxMaker = ({
     context,
   }) => {
     /** @param {import('./types.js').FormulaIdentifier} id */
-    const externalizeForMessage = async (id) => {
+    const externalizeForMessage = async id => {
       const formulaType = await getTypeForId(id);
       return externalizeId(id, formulaType, agentNodeNumber);
     };
 
-    const externalizeMessage = async (message) => {
+    const externalizeMessage = async message => {
       const fromLocator = await externalizeForMessage(message.from);
       const toLocator = await externalizeForMessage(message.to);
       const base = { ...message, from: fromLocator, to: toLocator };
@@ -1395,6 +1395,7 @@ export const makeMailboxMaker = ({
         slots: defReq.slots,
         resolverId: defReq.resolverId,
         guestHandleId: defReq.from,
+        messageId: defReq.messageId,
       });
     };
 
@@ -1580,9 +1581,9 @@ export const makeMailboxMaker = ({
         ids,
         workerName,
         resultName,
-        settled,
-        resultId,
-        result,
+        // The proposer message intentionally omits settled, resultId,
+        // and result so the sender cannot observe the reviewer's
+        // endowments or actions.
         from: /** @type {FormulaIdentifier} */ (selfId),
         to: /** @type {FormulaIdentifier} */ (toId),
       });
@@ -1718,9 +1719,8 @@ export const makeMailboxMaker = ({
         ids,
         workerName,
         resultName,
-        settled,
-        resultId,
-        result,
+        // Omit settled, resultId, result — proposer must not observe
+        // the reviewer's endowments or actions.
         from: /** @type {FormulaIdentifier} */ (selfId),
         to: /** @type {FormulaIdentifier} */ (originalSenderId),
       });

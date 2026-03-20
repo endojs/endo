@@ -23,7 +23,12 @@ import {
   assertPetName,
   namePathFrom,
 } from './pet-name.js';
-import { formatLocator, idFromLocator, externalizeId, LOCAL_NODE } from './locator.js';
+import {
+  formatLocator,
+  idFromLocator,
+  externalizeId,
+  LOCAL_NODE,
+} from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidId,
@@ -1807,6 +1812,10 @@ const makeDaemonCore = async (
       strings,
       names,
       ids,
+      source,
+      slots,
+      codeNames,
+      petNamePaths,
     } = formula;
 
     if (
@@ -1898,6 +1907,53 @@ const makeDaemonCore = async (
         throw new Error('Value message formula is incomplete');
       }
       registerName('@value', valueId, undefined);
+    } else if (messageType === 'definition') {
+      if (
+        typeof source !== 'string' ||
+        slots === undefined ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Definition message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      registerName('@slots', undefined, slots);
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+    } else if (messageType === 'eval-request') {
+      if (
+        typeof source !== 'string' ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Eval-request message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      if (codeNames !== undefined) {
+        registerName('@codeNames', undefined, harden(codeNames));
+      }
+      if (petNamePaths !== undefined) {
+        registerName('@petNamePaths', undefined, harden(petNamePaths));
+      }
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+    } else if (
+      messageType === 'eval-proposal-reviewer' ||
+      messageType === 'eval-proposal-proposer'
+    ) {
+      if (typeof source !== 'string') {
+        throw new Error('Eval-proposal message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      if (codeNames !== undefined) {
+        registerName('@codeNames', undefined, harden(codeNames));
+      }
+      if (petNamePaths !== undefined) {
+        registerName('@petNamePaths', undefined, harden(petNamePaths));
+      }
+      if (ids !== undefined) {
+        registerName('@ids', undefined, harden(ids));
+      }
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -1936,7 +1992,7 @@ const makeDaemonCore = async (
           return provide(id);
         }
         if (valueByName.has(headName)) {
-          return valueByName.get(headName);
+          return Promise.resolve(valueByName.get(headName));
         }
         throw new TypeError(`Unknown message name: ${q(headName)}`);
       }
@@ -3761,7 +3817,11 @@ const makeDaemonCore = async (
     // Make default networks.
     const { id: loopbackNetworkId } = await formulateLoopbackNetwork();
     const loopbackType = await getTypeForId(loopbackNetworkId);
-    const loopbackLocator = externalizeId(loopbackNetworkId, loopbackType, localNodeNumber);
+    const loopbackLocator = externalizeId(
+      loopbackNetworkId,
+      loopbackType,
+      localNodeNumber,
+    );
     await E(value).write(/** @type {NamePath} */ (['loop']), loopbackLocator);
     return { id, value };
   };

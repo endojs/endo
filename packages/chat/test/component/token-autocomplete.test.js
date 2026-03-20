@@ -156,12 +156,7 @@ test.serial('Escape closes menu and leaves literal @', async t => {
 test.serial(
   'typing @@ filters menu to @-prefixed special names only',
   async t => {
-    const { $input, $menu } = await setup([
-      'alice',
-      'bob',
-      '@self',
-      '@agent',
-    ]);
+    const { $input, $menu } = await setup(['alice', 'bob', '@self', '@agent']);
 
     // Type @ to open menu
     typeInto($input, '@');
@@ -226,28 +221,22 @@ test.serial('@-prefixed names match when typed without @@', async t => {
 
 // ── Special name display ──
 
-test.serial(
-  '@-prefixed names do not get double @ prefix in menu',
-  async t => {
-    const { $input, $menu } = await setup(['@self', 'alice']);
+test.serial('@-prefixed names do not get double @ prefix in menu', async t => {
+  const { $input, $menu } = await setup(['@self', 'alice']);
 
-    typeInto($input, '@');
-    await tick(10);
+  typeInto($input, '@');
+  await tick(10);
 
-    const items = $menu.querySelectorAll('.token-menu-item');
-    t.is(items.length, 2, 'both names shown');
+  const items = $menu.querySelectorAll('.token-menu-item');
+  t.is(items.length, 2, 'both names shown');
 
-    // Find the @self item — it should show "@self" not "@@self"
-    const selfItem = [...items].find(el => el.textContent.includes('self'));
-    t.truthy(selfItem, '@self item exists');
-    t.false(selfItem.textContent.includes('@@'), 'no double @@ prefix');
+  // Find the @self item — it should show "@self" not "@@self"
+  const selfItem = [...items].find(el => el.textContent.includes('self'));
+  t.truthy(selfItem, '@self item exists');
+  t.false(selfItem.textContent.includes('@@'), 'no double @@ prefix');
 
-    // The alice item should have the @ prefix from the token-prefix span
-    const aliceItem = [...items].find(el => el.textContent.includes('alice'));
-    t.truthy(aliceItem, 'alice item exists');
-    t.true(
-      aliceItem.textContent.includes('@'),
-      'alice has @ prefix from span',
-    );
-  },
-);
+  // The alice item should have the @ prefix from the token-prefix span
+  const aliceItem = [...items].find(el => el.textContent.includes('alice'));
+  t.truthy(aliceItem, 'alice item exists');
+  t.true(aliceItem.textContent.includes('@'), 'alice has @ prefix from span');
+});

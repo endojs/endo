@@ -11,12 +11,7 @@ import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import {
-  start,
-  stop,
-  purge,
-  makeEndoClient,
-} from '../index.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 
@@ -151,12 +146,7 @@ const prepareHost = async t => {
 const prepareHostWithWsRelay = async (t, relayUrl, relayDomain) => {
   const { host } = await prepareHost(t);
 
-  const servicePath = path.join(
-    dirname,
-    'src',
-    'networks',
-    'ws-relay.js',
-  );
+  const servicePath = path.join(dirname, 'src', 'networks', 'ws-relay.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
 
   await E(host).makeUnconfined('MAIN', serviceLocation, {
@@ -281,9 +271,9 @@ test.serial(
 
       // Host A creates channel and invitation
       await E(hostA).makeChannel('test-channel', 'Alice');
-      await E(hostA).lookup('test-channel').then(ch =>
-        E(ch).createInvitation('Carol'),
-      );
+      await E(hostA)
+        .lookup('test-channel')
+        .then(ch => E(ch).createInvitation('Carol'));
 
       // Generate locator
       const locator = await E(hostA).locateForSharing('test-channel');

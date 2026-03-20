@@ -713,7 +713,7 @@ export const main = async rawArgs => {
     .option('-j,--json', 'Output as JOSN rather than simple text')
     .description(
       'prints paths for state, logs, caches, socket, pids\n' +
-      'specify just one part, or none to get them all',
+        'specify just one part, or none to get them all',
     )
     .action(async cmd => {
       const { json: asJSON = false } = cmd.opts();
@@ -792,11 +792,9 @@ export const main = async rawArgs => {
     .command('start')
     .description('start the endo daemon as a background service')
     .action(async cmd => {
-      const {
-      } = cmd.opts();
+      const {} = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start(undefined, {
-      });
+      await start(undefined, {});
     });
 
   program
@@ -807,9 +805,7 @@ export const main = async rawArgs => {
       'disable SES error taming (readable error traces)',
     )
     .action(async cmd => {
-      const {
-        feralErrors,
-      } = cmd.opts();
+      const { feralErrors } = cmd.opts();
       if (feralErrors) {
         process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
       }

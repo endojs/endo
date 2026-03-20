@@ -1093,7 +1093,10 @@ export const createAddSpaceModal = ({
         if (pathAutocomplete && pathAutocomplete.isMenuVisible()) {
           return;
         }
-        if (channelPathAutocomplete && channelPathAutocomplete.isMenuVisible()) {
+        if (
+          channelPathAutocomplete &&
+          channelPathAutocomplete.isMenuVisible()
+        ) {
           return;
         }
         // If in a sub-mode, go back to choose

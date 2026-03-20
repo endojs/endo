@@ -191,11 +191,7 @@ test('inbox-only commands have context set to inbox', t => {
     'approve-eval',
   ];
   for (const name of inboxOnly) {
-    t.is(
-      COMMANDS[name].context,
-      'inbox',
-      `${name} should be inbox-only`,
-    );
+    t.is(COMMANDS[name].context, 'inbox', `${name} should be inbox-only`);
   }
 });
 

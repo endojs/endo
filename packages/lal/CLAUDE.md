@@ -6,9 +6,10 @@ Lal is an AI agent manager that runs as an unconfined guest caplet. It sends a c
 
 ### Setup script (`setup.js`)
 
-- Run via `endo run --UNCONFINED setup.js --powers AGENT` or auto-provisioned via `ENDO_EXTRA`.
-- Uses `introducedNames: harden({ AGENT: 'host-agent' })` to give the guest a reference to the host agent (as a lowercase pet name, not the uppercase builtin).
+- Run via `endo run --UNCONFINED setup.js --powers @host` or `yarn setup`.
+- Uses `introducedNames: harden({ '@agent': 'host-agent' })` to give the guest a reference to the host agent under the `@agent` special name.
 - Guards `provideGuest` with `E(agent).has(name)` to avoid crashes on restart (the handle formula lacks `write` on reincarnation).
+- LLM provider configuration (host, model, auth token) is received via forms at runtime, not environment variables.
 
 ### Agent entry point (`agent.js`)
 
@@ -20,5 +21,5 @@ Lal is an AI agent manager that runs as an unconfined guest caplet. It sends a c
 ## Common Pitfalls
 
 - `Object.create(null)` produces a null-prototype object that SES serializes as a Remotable, not a copyRecord. Use `{}` for plain data objects.
-- Guest special names (`AGENT`, `SELF`, `HOST`, etc.) are uppercase and cannot be used as pet names or child names in `introducedNames`.
+- Guest special names (`@agent`, `@self`, `@host`, etc.) are `@`-prefixed lowercase and follow the pattern `/^@[a-z][a-z0-9-]{0,127}$/`.
 - `E(powers).lookup(name)` searches the guest's own namespace. To find a pet name written in the host's namespace, use `E(agent).lookup(name)` where `agent` is the host agent reference.

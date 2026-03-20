@@ -29,7 +29,9 @@
   font-size: 1.2rem;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   line-height: 1;
 }
 
@@ -46,7 +48,9 @@
   font-size: 1.1rem;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .peers-refresh:hover {
@@ -132,7 +136,9 @@
   font-size: 0.9rem;
   padding: 2px 4px;
   border-radius: 3px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   line-height: 1;
 }
 

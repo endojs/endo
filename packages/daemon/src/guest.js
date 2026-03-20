@@ -91,7 +91,12 @@ export const makeGuestMaker = ({
 
     const getNetworkAddresses = () =>
       getAllNetworkAddresses(networksDirectoryId);
-    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey, getNetworkAddresses);
+    const directory = makeDirectoryNode(
+      specialStore,
+      agentNodeNumber,
+      isLocalKey,
+      getNetworkAddresses,
+    );
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,

@@ -15,12 +15,10 @@ export const isShutdownSignal = err =>
  *
  * @param {any} err
  */
-export const isTerminalError = err => (
+export const isTerminalError = err =>
   // some captp-internal form of normalcy
   err?.message === 'normal termination' ||
-
   // normal "user got impatient and killed us"
-  isShutdownSignal(err)
-);
+  isShutdownSignal(err);
 // TODO or EPIPE, or EOF, or, ... other "boring" aka "normal" reasons that
 // should not provoke a full stack trace

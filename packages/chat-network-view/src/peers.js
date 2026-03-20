@@ -57,8 +57,7 @@ const escapeHtml = str =>
  * @param {string} str
  * @returns {string}
  */
-const escapeAttr = str =>
-  str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+const escapeAttr = str => str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
 /**
  * @param {string} addr
@@ -96,9 +95,10 @@ const renderAddress = addr =>
  * @returns {() => void} cleanup function
  */
 export const renderPeers = ($root, { powers, onProfileChange }) => {
-  const host = /** @type {ERef<{ listKnownPeers(): Promise<PeerEntry[]>, getPeerInfo(): Promise<SelfInfo>, followPeerChanges(): unknown }>} */ (
-    powers
-  );
+  const host =
+    /** @type {ERef<{ listKnownPeers(): Promise<PeerEntry[]>, getPeerInfo(): Promise<SelfInfo>, followPeerChanges(): unknown }>} */ (
+      powers
+    );
 
   const $container = document.createElement('div');
   $container.className = 'peers-container';
@@ -275,7 +275,9 @@ export const renderPeers = ($root, { powers, onProfileChange }) => {
     }
   };
 
-  loadPeers().then(() => watchPeers()).catch(window.reportError);
+  loadPeers()
+    .then(() => watchPeers())
+    .catch(window.reportError);
 
   return () => {
     disposed = true;

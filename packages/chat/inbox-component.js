@@ -352,10 +352,12 @@ export const inboxComponent = async (
         codeNames,
         edgeNames,
         workerName,
-        settled,
-        resultId,
-        result,
       } = message;
+      // settled, resultId, and result are only present on reviewer
+      // messages; the proposer's sent receipt omits them.
+      const settled = 'settled' in message ? message.settled : undefined;
+      const resultId = 'resultId' in message ? message.resultId : undefined;
+      const result = 'result' in message ? message.result : undefined;
       const resultName = /** @type {string | undefined} */ (
         'resultName' in message ? message.resultName : undefined
       );
@@ -517,19 +519,17 @@ export const inboxComponent = async (
       };
 
       if (isSent) {
-        // Sender view - show status/result after receiver acts
-        settled.then(status => {
-          $actions.innerHTML = '';
-          if (status === 'fulfilled') {
-            $actions.appendChild(makeShowResultButton());
-          } else {
-            const $status = document.createElement('span');
-            $status.className = 'eval-proposal-status';
-            $status.classList.add('status-rejected');
-            $status.textContent = 'Rejected';
-            $actions.appendChild($status);
-          }
-        });
+        // Sender view — the proposer's sent receipt does not include
+        // settled/result promises, so show a static label.  If the
+        // proposer specified a resultName, the result is written to
+        // their directory once the reviewer grants.
+        const $status = document.createElement('span');
+        $status.className = 'eval-proposal-status';
+        $status.textContent = 'Proposed';
+        $actions.appendChild($status);
+        if (resultName) {
+          $actions.appendChild(makeShowResultButton());
+        }
       } else {
         // Receiver view - show Grant and Counter-proposal buttons
         const $grant = document.createElement('button');
@@ -583,8 +583,8 @@ export const inboxComponent = async (
         };
         $actions.appendChild($reject);
 
-        // Replace buttons with status when settled
-        settled.then(status => {
+        // Replace buttons with status when settled (reviewer messages only)
+        if (settled) settled.then(status => {
           // Capture reason before clearing (only available if we rejected it)
           const rejectionReason = $rejectReason.value.trim();
 
@@ -620,6 +620,173 @@ export const inboxComponent = async (
 
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
+    } else if (message.type === 'definition') {
+      const { source, slots, settled } = message;
+      assert(typeof source === 'string');
+
+      const $definition = document.createElement('div');
+      $definition.className = 'eval-proposal-message';
+
+      // Sender chip
+      if ($senderChip) {
+        const $chipLine = document.createElement('div');
+        $chipLine.className = 'eval-proposal-from';
+        $chipLine.appendChild($senderChip);
+        $chipLine.appendChild(
+          document.createTextNode(' proposes to define:'),
+        );
+        $definition.appendChild($chipLine);
+      }
+
+      // Source code
+      const $codeWrapper = document.createElement('div');
+      $codeWrapper.className = 'md-paragraph md-code-fence-wrapper';
+      const $pre = document.createElement('pre');
+      $pre.className = 'md-code-fence';
+      const $label = document.createElement('span');
+      $label.className = 'md-code-fence-language';
+      $label.textContent = 'javascript';
+      $pre.appendChild($label);
+      const $code = document.createElement('code');
+      $code.className = 'language-javascript';
+      $code.dataset.language = 'javascript';
+      $code.appendChild(highlightCode(source, 'javascript'));
+      $pre.appendChild($code);
+      $codeWrapper.appendChild($pre);
+      $definition.appendChild($codeWrapper);
+
+      // Slot bindings
+      const slotEntries = Object.entries(
+        /** @type {Record<string, { label: string }>} */ (slots),
+      );
+      /** @type {Record<string, HTMLInputElement>} */
+      const slotInputs = {};
+
+      if (slotEntries.length > 0) {
+        const $slotsSection = document.createElement('div');
+        $slotsSection.className = 'eval-proposal-endowments';
+
+        const $slotsLabel = document.createElement('div');
+        $slotsLabel.className = 'eval-proposal-endowments-label';
+        $slotsLabel.textContent = 'Slots to fill:';
+        $slotsSection.appendChild($slotsLabel);
+
+        const $slotsList = document.createElement('div');
+        $slotsList.className = 'eval-proposal-endowments-list';
+
+        for (const [codeName, { label }] of slotEntries) {
+          const $row = document.createElement('div');
+          $row.className = 'eval-proposal-mapping';
+
+          const $codeName = document.createElement('code');
+          $codeName.textContent = codeName;
+          $row.appendChild($codeName);
+
+          const $arrow = document.createElement('span');
+          $arrow.textContent = ' ← ';
+          $row.appendChild($arrow);
+
+          const $input = document.createElement('input');
+          $input.type = 'text';
+          $input.className = 'eval-proposal-reject-reason';
+          $input.placeholder = label;
+          $row.appendChild($input);
+          slotInputs[codeName] = $input;
+
+          $slotsList.appendChild($row);
+        }
+        $slotsSection.appendChild($slotsList);
+        $definition.appendChild($slotsSection);
+      }
+
+      // Actions
+      const $actions = document.createElement('div');
+      $actions.className = 'eval-proposal-actions';
+
+      if (isSent) {
+        if (settled) {
+          settled.then(status => {
+            $actions.innerHTML = '';
+            const $status = document.createElement('span');
+            $status.className = 'eval-proposal-status';
+            if (status === 'fulfilled') {
+              $status.classList.add('status-granted');
+              $status.textContent = 'Endowed';
+            } else {
+              $status.classList.add('status-rejected');
+              $status.textContent = 'Rejected';
+            }
+            $actions.appendChild($status);
+          });
+        }
+      } else {
+        const $endow = document.createElement('button');
+        $endow.className = 'eval-proposal-grant';
+        $endow.textContent = 'Endow';
+        $endow.onclick = () => {
+          /** @type {Record<string, string>} */
+          const bindings = {};
+          for (const [codeName, $input] of Object.entries(slotInputs)) {
+            const val = $input.value.trim();
+            if (!val) {
+              $error.innerText = ` Missing binding for ${codeName}`;
+              return;
+            }
+            bindings[codeName] = val;
+          }
+          E(powers)
+            .endow(number, bindings)
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $actions.appendChild($endow);
+
+        const $rejectReason = document.createElement('input');
+        $rejectReason.className = 'eval-proposal-reject-reason';
+        $rejectReason.type = 'text';
+        $rejectReason.placeholder = 'Reason (optional)';
+        $actions.appendChild($rejectReason);
+
+        const $reject = document.createElement('button');
+        $reject.className = 'eval-proposal-reject';
+        $reject.textContent = 'Reject';
+        $reject.onclick = () => {
+          const reason = $rejectReason.value.trim() || undefined;
+          E(powers)
+            .reject(number, reason)
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+        $actions.appendChild($reject);
+
+        if (settled) {
+          settled.then(status => {
+            const rejectionReason = $rejectReason.value.trim();
+            $actions.innerHTML = '';
+            const $status = document.createElement('span');
+            $status.className = 'eval-proposal-status';
+            if (status === 'fulfilled') {
+              $status.classList.add('status-granted');
+              $status.textContent = 'Endowed';
+            } else {
+              $status.classList.add('status-rejected');
+              $status.textContent = 'Rejected';
+            }
+            $actions.appendChild($status);
+            if (status === 'rejected' && rejectionReason) {
+              const $reason = document.createElement('span');
+              $reason.className = 'eval-proposal-rejection-reason';
+              $reason.textContent = `: ${rejectionReason}`;
+              $actions.appendChild($reason);
+            }
+          });
+        }
+      }
+
+      $definition.appendChild($actions);
+      $body.appendChild($definition);
     } else if (message.type === 'form') {
       const { description, fields, messageId: formMsgId } = message;
       formDescriptions.set(String(formMsgId), String(description));

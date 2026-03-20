@@ -11,12 +11,7 @@ import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import {
-  start,
-  stop,
-  purge,
-  makeEndoClient,
-} from '../index.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 
@@ -153,7 +148,9 @@ const prepareConfig = async t => {
     getConfigDirectoryName(t.title, t.context.configs.length),
   );
   await purge(config);
-  await start(config, { env: { ENDO_ADDR: '127.0.0.1:0', ENDO_CAPTP_TRACE: '1' } });
+  await start(config, {
+    env: { ENDO_ADDR: '127.0.0.1:0', ENDO_CAPTP_TRACE: '1' },
+  });
   t.context.configs.push({ cancel, cancelled, config });
   return { cancel, cancelled, config };
 };
@@ -175,12 +172,7 @@ const prepareHost = async t => {
 const prepareHostWithWsRelay = async (t, relayUrl, relayDomain) => {
   const { host } = await prepareHost(t);
 
-  const servicePath = path.join(
-    dirname,
-    'src',
-    'networks',
-    'ws-relay.js',
-  );
+  const servicePath = path.join(dirname, 'src', 'networks', 'ws-relay.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
 
   await E(host).makeUnconfined('MAIN', serviceLocation, {
@@ -215,35 +207,54 @@ test.afterEach.always(async t => {
 
 // ── Tests ───────────────────────────────────────────────────────────
 
-test.serial('two daemons connect and read a remote value over ws-relay', async t => {
-  const relay = await provideRelay();
-  try {
-    const hostA = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
-    const hostB = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
+test.serial(
+  'two daemons connect and read a remote value over ws-relay',
+  async t => {
+    const relay = await provideRelay();
+    try {
+      const hostA = await prepareHostWithWsRelay(
+        t,
+        relay.relayUrl,
+        relay.relayDomain,
+      );
+      const hostB = await prepareHostWithWsRelay(
+        t,
+        relay.relayUrl,
+        relay.relayDomain,
+      );
 
-    // Introduce A to B so A knows how to reach B
-    await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+      // Introduce A to B so A knows how to reach B
+      await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
-    // Create a value on B
-    await E(hostB).evaluate('MAIN', '"hello from B"', [], [], ['greeting']);
-    const greetingId = await E(hostB).identify('greeting');
+      // Create a value on B
+      await E(hostB).evaluate('MAIN', '"hello from B"', [], [], ['greeting']);
+      const greetingId = await E(hostB).identify('greeting');
 
-    // Write the identifier into A's namespace (out-of-band introduction)
-    await E(hostA).write(['remote-greeting'], greetingId);
+      // Write the identifier into A's namespace (out-of-band introduction)
+      await E(hostA).write(['remote-greeting'], greetingId);
 
-    // A looks up the value — this triggers a connection through the relay
-    const value = await E(hostA).lookup(['remote-greeting']);
-    t.is(value, 'hello from B');
-  } finally {
-    await relay.teardown();
-  }
-});
+      // A looks up the value — this triggers a connection through the relay
+      const value = await E(hostA).lookup(['remote-greeting']);
+      t.is(value, 'hello from B');
+    } finally {
+      await relay.teardown();
+    }
+  },
+);
 
 test.serial('round-trip remotable identity over ws-relay', async t => {
   const relay = await provideRelay();
   try {
-    const hostA = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
-    const hostB = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
+    const hostA = await prepareHostWithWsRelay(
+      t,
+      relay.relayUrl,
+      relay.relayDomain,
+    );
+    const hostB = await prepareHostWithWsRelay(
+      t,
+      relay.relayUrl,
+      relay.relayDomain,
+    );
 
     await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
@@ -279,8 +290,16 @@ test.serial('round-trip remotable identity over ws-relay', async t => {
 test.serial('bidirectional connection over ws-relay', async t => {
   const relay = await provideRelay();
   try {
-    const hostA = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
-    const hostB = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
+    const hostA = await prepareHostWithWsRelay(
+      t,
+      relay.relayUrl,
+      relay.relayDomain,
+    );
+    const hostB = await prepareHostWithWsRelay(
+      t,
+      relay.relayUrl,
+      relay.relayDomain,
+    );
 
     // B introduces itself to A (so B initiates)
     await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
@@ -304,40 +323,50 @@ test.serial('bidirectional connection over ws-relay', async t => {
   }
 });
 
-test.serial('connect fails gracefully when peer is unknown to relay', async t => {
-  const relay = await provideRelay();
-  try {
-    const hostA = await prepareHostWithWsRelay(t, relay.relayUrl, relay.relayDomain);
+test.serial(
+  'connect fails gracefully when peer is unknown to relay',
+  async t => {
+    const relay = await provideRelay();
+    try {
+      const hostA = await prepareHostWithWsRelay(
+        t,
+        relay.relayUrl,
+        relay.relayDomain,
+      );
 
-    // Fabricate a peer info with a bogus node ID that is not connected
-    // to the relay. A should not hang — it should eventually fail.
-    const bogusNodeId = '0'.repeat(64);
-    const bogusAddress = `ws-relay+captp0://${bogusNodeId}?relay=${encodeURIComponent(relay.relayUrl)}`;
-    await E(hostA).addPeerInfo({
-      node: bogusNodeId,
-      addresses: [bogusAddress],
-    });
+      // Fabricate a peer info with a bogus node ID that is not connected
+      // to the relay. A should not hang — it should eventually fail.
+      const bogusNodeId = '0'.repeat(64);
+      const bogusAddress = `ws-relay+captp0://${bogusNodeId}?relay=${encodeURIComponent(relay.relayUrl)}`;
+      await E(hostA).addPeerInfo({
+        node: bogusNodeId,
+        addresses: [bogusAddress],
+      });
 
-    await E(hostA).evaluate('MAIN', '1', [], [], ['one']);
-    const oneId = await E(hostA).identify('one');
-    // Rewrite the locator to point at the bogus node
-    const bogusId = oneId.replace(/^[^:]+/, bogusNodeId);
-    await E(hostA).write(['bogus'], bogusId);
+      await E(hostA).evaluate('MAIN', '1', [], [], ['one']);
+      const oneId = await E(hostA).identify('one');
+      // Rewrite the locator to point at the bogus node
+      const bogusId = oneId.replace(/^[^:]+/, bogusNodeId);
+      await E(hostA).write(['bogus'], bogusId);
 
-    // The lookup should reject, not hang indefinitely.
-    // We race against a timeout to catch infinite hangs.
-    const timeout = new Promise((_resolve, reject) => {
-      setTimeout(() => reject(new Error('Timed out waiting for failure')), 30_000);
-    });
+      // The lookup should reject, not hang indefinitely.
+      // We race against a timeout to catch infinite hangs.
+      const timeout = new Promise((_resolve, reject) => {
+        setTimeout(
+          () => reject(new Error('Timed out waiting for failure')),
+          30_000,
+        );
+      });
 
-    await t.throwsAsync(
-      () => Promise.race([E(hostA).lookup(['bogus']), timeout]),
-      { message: /.*/ },
-    );
-  } finally {
-    await relay.teardown();
-  }
-});
+      await t.throwsAsync(
+        () => Promise.race([E(hostA).lookup(['bogus']), timeout]),
+        { message: /.*/ },
+      );
+    } finally {
+      await relay.teardown();
+    }
+  },
+);
 
 test.serial('relay server health endpoint works', async t => {
   const relay = await provideRelay();

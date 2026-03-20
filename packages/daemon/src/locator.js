@@ -153,7 +153,6 @@ export const addressesFromLocator = locator => {
   return url.searchParams.getAll('at');
 };
 
-
 /**
  * Convert an internal formula identifier to a locator for agent consumption.
  * Replaces LOCAL_NODE with the agent's public key.
@@ -164,7 +163,12 @@ export const addressesFromLocator = locator => {
  * @param {string[]} [addresses] - Optional network addresses (connection hints).
  * @returns {string} A locator string.
  */
-export const externalizeId = (id, formulaType, agentNodeNumber, addresses = []) => {
+export const externalizeId = (
+  id,
+  formulaType,
+  agentNodeNumber,
+  addresses = [],
+) => {
   const { number, node } = parseId(id);
   const peerKey = node === LOCAL_NODE ? agentNodeNumber : node;
   const externalId = formatId({ number, node: peerKey });

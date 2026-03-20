@@ -25,7 +25,11 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
-import { formatLocator, parseLocator, addressesFromLocator } from '../src/locator.js';
+import {
+  formatLocator,
+  parseLocator,
+  addressesFromLocator,
+} from '../src/locator.js';
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
@@ -1013,8 +1017,16 @@ test('guest facet receives a message for host', async t => {
   t.deepEqual(
     guestInbox.map(({ type, from, to }) => ({ type, from, to })),
     [
-      { type: 'request', from: guestLocatorFromGuest, to: hostLocatorFromGuest },
-      { type: 'package', from: guestLocatorFromGuest, to: hostLocatorFromGuest },
+      {
+        type: 'request',
+        from: guestLocatorFromGuest,
+        to: hostLocatorFromGuest,
+      },
+      {
+        type: 'package',
+        from: guestLocatorFromGuest,
+        to: hostLocatorFromGuest,
+      },
     ],
   );
 });
@@ -2609,7 +2621,6 @@ test('locate remote value', async t => {
   await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
 
-
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueLocator);
 
@@ -2687,7 +2698,6 @@ test('reverse locate remote value', async t => {
   // create value to share
   await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
-
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueLocator);

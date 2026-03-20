@@ -261,6 +261,16 @@ export function makeMockPowers(options = {}) {
       );
     },
 
+    locate(...petNamePath) {
+      const key = petNamePath.join('/');
+      const v = directory.get(key);
+      return Promise.resolve(
+        v !== undefined
+          ? `endo://localhost/?id=${/** @type {string} */ (v)}&type=handle`
+          : undefined,
+      );
+    },
+
     followMessages() {
       return followMessages();
     },

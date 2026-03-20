@@ -84,7 +84,7 @@ export const COMMANDS = {
     ],
     submitLabel: 'Dismiss',
   },
-  'clear': {
+  clear: {
     name: 'clear',
     label: 'Clear',
     description: 'Dismiss all messages',

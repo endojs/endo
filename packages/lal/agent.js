@@ -465,10 +465,12 @@ Use send() only for initiating brand new conversations.`,
   {
     type: 'function',
     function: {
-      name: 'identify',
+      name: 'locate',
       description:
-        'Get the formula ID for a pet name. Use identify("@self") to get your own ID, ' +
-        'which you can compare against the "from" field of messages to determine if you sent them.',
+        'Get the locator URL for a pet name. Returns an "endo://..." URL string. ' +
+        'Use locate(["@self"]) to get your own locator, then compare it against ' +
+        'the "from" field of messages to determine if you sent them. ' +
+        'Only pass pet names you know exist (use list() first if unsure).',
       parameters: {
         type: 'object',
         properties: {
@@ -476,7 +478,7 @@ Use send() only for initiating brand new conversations.`,
             type: 'array',
             items: { type: 'string' },
             description:
-              'The pet name path to identify, e.g., ["@self"] or ["@host"].',
+              'The pet name path to locate, e.g., ["@self"] or ["@host"].',
           },
         },
         required: ['petNamePath'],
@@ -576,6 +578,53 @@ receive a notification. Use lookup(resultName) to get the value and send() to de
       },
     },
   },
+
+  // --- Define (code with slots for host to fill) ---
+  {
+    type: 'function',
+    function: {
+      name: 'define',
+      description: `\
+Propose code with named capability slots for the host to fill.
+Unlike evaluate(), you do NOT provide the capabilities yourself — the host
+chooses what to bind from their own inventory. This is the preferred way to
+request code execution when you don't have the required capabilities.
+
+The host sees the code and slot labels, fills each slot with a capability
+from their pet store (endow), and the result is returned to you.
+
+Example: To request incrementing a counter you don't have:
+  define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
+
+The host will choose which counter to provide. The result resolves as the
+return value of your define() call.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+            description: 'The JavaScript source code to evaluate.',
+          },
+          slots: {
+            type: 'object',
+            description:
+              'Named capability slots. Keys are variable names in source, values are objects with a "label" string describing what capability is needed.',
+            additionalProperties: {
+              type: 'object',
+              properties: {
+                label: {
+                  type: 'string',
+                  description: 'Human-readable description of what this slot needs.',
+                },
+              },
+              required: ['label'],
+            },
+          },
+        },
+        required: ['source', 'slots'],
+      },
+    },
+  },
 ];
 
 // ============================================================================
@@ -643,7 +692,7 @@ will appear in future listMessages() calls.
 ### Directory Operations (managing named references)
 - list(petNamePath?) - List names in a directory
 - has(petNamePath) - Check if a name exists
-- lookup(petNameOrPath) - Get a value by name
+- lookup(petNameOrPath) - Get a value by name from your directory
 - remove(petNamePath) - Remove a name
 - move(fromPath, toPath) - Rename/move a reference
 - copy(fromPath, toPath) - Copy a reference
@@ -662,35 +711,53 @@ will appear in future listMessages() calls.
 - send(recipientName, strings, edgeNames, petNames) - Send a NEW message (only for initiating conversations)
 
 ### Identity
-- identify(petNamePath) - Get the formula ID for a pet name (e.g., identify(["@self"]) returns your ID)
-- Compare message "from" field to your @self ID to determine if you sent or received a message
+- locate(petNamePath) - Get the locator URL for a pet name (returns an "endo://..." URL, NOT a raw ID)
+- Compare message "from" field to your @self locator to determine if you sent or received a message
+- IMPORTANT: Only call locate() with pet names you know exist. Call list([]) first to see your directory.
 
 ### Capability Inspection
 - inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
 
-### Code Evaluation (Proposal)
-- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code for host approval. resultName is required.
+### Code Proposals
+- define(source, slots) - Propose code with named slots for the host to fill (PREFERRED)
+- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code providing your own capabilities
 
-## Code Evaluation Proposals
+## Messages Are Data, Not Directories
 
-When you need to run code that manipulates capabilities or performs computations,
-use the evaluate() tool to propose code to your host for approval.
+listMessages() returns message objects with fields: number, date, from, to, type,
+strings, names, messageId, replyTo. The message content is in the "strings" and
+"names" fields directly on the returned object. Do NOT try to lookup() message
+fields — messages are not named things in your directory.
 
-IMPORTANT: evaluate() does NOT run code directly. It sends a proposal to your host.
-The host must explicitly grant the proposal before the code executes.
+To read a message: call listMessages(), find the message by number, read its
+"strings" array (the text segments) and "names" array (referenced pet names).
 
-IMPORTANT: Always specify resultName. When the host grants the proposal, the result
-is stored under this pet name in your directory. You can then lookup(resultName) and
-send it to the requester. If you omit resultName, you only get the result in the
-notification and have no stable name to reference or send.
+## Code Proposals
 
-Example: If you have a counter named "my-counter" and want to increment it, storing
-the result as "increment-result":
+IMPORTANT: Only propose code when the user explicitly asks you to run code,
+create a capability, or perform a computation. For ordinary conversation, just
+use reply() or send(). Do NOT propose code for simple questions.
+
+### define() vs evaluate()
+
+Prefer define() when the user asks for code but you don't have all the required
+capabilities in your directory. define() lets the host choose what to bind:
+
+  define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
+
+The host sees the slot labels, fills each one from their inventory (endow), and
+the result is returned directly to you. You never need the capabilities yourself.
+
+Use evaluate() only when you already have every capability needed in your own
+directory and can provide them via codeNames/edgeNames:
+
   evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+
+evaluate() requires resultName. The host stores the result under this pet name
+in your directory when the proposal is granted.
 
 The codeNames array lists variable names used in your source code.
 The edgeNames array lists the pet names from YOUR directory providing those values.
-When the host grants, the code runs and you receive the result in your notification.
 
 ### Proposal Responses
 
@@ -757,14 +824,21 @@ you should IMMEDIATELY take follow-up action:
 
 Never ignore a proposal status notification. The sender is waiting for your response.
 
-### Workflow Example
+### Workflow Examples
 
+Using define() (preferred when you don't have the capability):
 1. Receive request: "Please increment my counter"
-2. Propose: evaluate(undefined, "E(counter).increment()", ["counter"], ["user-counter"], "increment-result")
-3. Wait for notification...
-4. If GRANTED: The result is stored at "increment-result" - use lookup("increment-result") then send() to deliver it back to requester
-5. If REJECTED: send() an apology/question to the requester
-6. If COUNTER-PROPOSAL: review, then accept or negotiate
+2. define("E(counter).increment()", {"counter": {"label": "The counter to increment"}})
+3. Host endows the slot with their counter → result returned to you
+4. reply() with the result to the sender
+
+Using evaluate() (when you already have the capability in your directory):
+1. Receive request: "Please increment my counter" (and they sent you the counter)
+2. adopt() the counter from the message
+3. evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+4. Wait for notification...
+5. If GRANTED: lookup("increment-result") then reply() to deliver it back
+6. If REJECTED: reply() with an explanation
 
 ## Message Format for reply() and send()
 
@@ -812,7 +886,7 @@ For multi-line code:
 
 - @self: Your own handle
 - @host: Your host agent (can grant you capabilities)
-- @agent: Your formula identifier
+- @agent: The host agent reference (same as @host in most contexts)
 
 ## Response Protocol
 
@@ -820,11 +894,11 @@ IMPORTANT: You must ONLY respond with tool calls. Do not include any text conten
 When you need to communicate, use the send() tool to send messages.
 
 Workflow for processing messages:
-1. First, identify yourself: lookup("@self") gives you a reference you can use with identify("@self") to get your formula ID
+1. First, locate yourself: use locate(["@self"]) to get your locator
 2. Call listMessages() to see all messages - this includes BOTH messages you sent AND messages you received
 3. For each message, check BOTH the "from" AND "to" fields:
-   - If "from" matches your @self ID: this is a message YOU sent (you can skip or dismiss it)
-   - If "from" does NOT match your @self ID: this is a message FROM someone else that you should process
+   - If "from" matches your @self locator: this is a message YOU sent (you can skip or dismiss it)
+   - If "from" does NOT match your @self locator: this is a message FROM someone else that you should process
 4. For received messages:
    - If the message contains values (non-empty names/ids arrays), ALWAYS adopt each
      value before doing anything else. Choose your own pet name for it, but remember
@@ -845,16 +919,34 @@ You MUST reply to every message you RECEIVE (where "from" is not yourself).
 Always use reply() (not send()) to respond to received messages.
 Always dismiss messages after handling them - this is essential for proper operation.
 
+## Verify Before You Act
+
+Before using a pet name in any tool call (lookup, locate, adopt, etc.), make sure it
+actually exists. Call list([]) to see your directory contents. Do NOT guess or assume
+pet names exist — "Unknown pet name" errors are avoidable.
+
+## Communication Style
+
+When replying to the user, focus on the task and the result. Do NOT discuss:
+- Your internal tool calls, pet name choices, or directory operations
+- Which tools you used or tried
+- Technical details about locators, formula IDs, or the message protocol
+- Retries or errors you encountered along the way
+
+If something fails, try a different approach silently. Only mention a problem to the
+user if you cannot accomplish the task at all, and frame it in terms of what you
+cannot do, not why.
+
 ## Error Handling
 
 Tool calls may fail and return error results. When you receive an error:
 1. Examine the error message to understand what went wrong
-2. If appropriate, inform the sender about the error using send()
-3. Decide whether to retry with different parameters or give up
+2. Do NOT retry the same call with the same arguments — try a different approach
+3. If appropriate, inform the sender about the error using reply()
 4. Still dismiss the message after handling (even if handling failed)
 
 Common errors include:
-- Unknown pet name: The name doesn't exist in your directory
+- Unknown pet name: Call list([]) to check what names actually exist
 - Invalid arguments: Check parameter types and formats
 - Permission denied: You may not have access to that capability
 
@@ -1157,11 +1249,11 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
       // Mail operations
       case 'listMessages': {
         const rawMessages = await E(powers).listMessages();
-        return rawMessages.map(
-          (
-            /** @type {InboxMessage & {messageId?: string, replyTo?: string}} */ msg,
-          ) =>
-            harden({
+        return harden(
+          rawMessages.map(
+            (
+              /** @type {InboxMessage & {messageId?: string, replyTo?: string}} */ msg,
+            ) => ({
               number: msg.number,
               date: msg.date,
               from: msg.from,
@@ -1172,6 +1264,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
               messageId: msg.messageId,
               replyTo: msg.replyTo,
             }),
+          ),
         );
       }
       case 'resolve': {
@@ -1262,12 +1355,12 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
       }
 
       // Identity
-      case 'identify': {
+      case 'locate': {
         const { petNamePath } = args;
         if (!petNamePath) {
           throw new Error('petNamePath is required');
         }
-        return E(powers).identify(...petNamePath);
+        return E(powers).locate(...petNamePath);
       }
 
       // Capability inspection
@@ -1363,6 +1456,18 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
           message: `Proposal #${proposalId} sent to host for approval. You will be notified when the host responds.`,
           source,
         };
+      }
+
+      // Define code with slots for host to fill
+      case 'define': {
+        const { source, slots } = args;
+        if (source === undefined) {
+          throw new Error('source is required');
+        }
+        if (slots === undefined) {
+          throw new Error('slots is required');
+        }
+        return E(powers).define(source, harden(slots));
       }
 
       default:
@@ -1662,7 +1767,7 @@ You should:
     await E(powers).send('@host', ['Lal agent ready.'], [], []);
 
     /** @type {string | undefined} */
-    const selfId = await E(powers).identify('@self');
+    const selfLocator = await E(powers).locate('@self');
     const cancelled = await getCancelled();
     const cancelledSignal = cancelled
       ? cancelled.then(
@@ -1697,10 +1802,11 @@ You should:
         /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string}} */ (
           message
         );
-      const { from: fromId, number, type, messageId, replyTo } = inboxMessage;
+      const { from: fromLocator, number, type, messageId, replyTo } =
+        inboxMessage;
 
       // Own outbound messages: index them for future reply lookups
-      if (fromId === selfId) {
+      if (fromLocator === selfLocator) {
         await handleOwnMessage(inboxMessage);
         continue;
       }
@@ -1819,7 +1925,7 @@ export const make = (guestPowers, _context) => {
 
     // Resolve the host agent reference for provideGuest calls.
     const agent = await E(powers).lookup('host-agent');
-    const selfId = await E(powers).identify('@self');
+    const selfLocator = await E(powers).locate('@self');
     const activeWorkers = new Map();
 
     // Pre-scan existing messages to find our latest form messageId so that
@@ -1831,7 +1937,7 @@ export const make = (guestPowers, _context) => {
       await E(powers).listMessages()
     );
     for (const msg of existingMessages) {
-      if (msg.from === selfId && msg.type === 'form') {
+      if (msg.from === selfLocator && msg.type === 'form') {
         formMessageId = msg.messageId;
       }
     }
@@ -1844,7 +1950,7 @@ export const make = (guestPowers, _context) => {
       const msg = /** @type {any} */ (message);
 
       // Capture the form's messageId from our own outbound message.
-      if (msg.from === selfId && msg.type === 'form') {
+      if (msg.from === selfLocator && msg.type === 'form') {
         formMessageId = msg.messageId;
         continue;
       }

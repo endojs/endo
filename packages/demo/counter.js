@@ -11,6 +11,6 @@ export const make = () => {
         counter += 1;
         return counter;
       },
-    }
+    },
   );
 };

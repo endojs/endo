@@ -175,7 +175,12 @@ export const makeHostMaker = ({
 
     const getNetworkAddresses = () =>
       getAllNetworkAddresses(networksDirectoryId);
-    const directory = makeDirectoryNode(specialStore, agentNodeNumber, isLocalKey, getNetworkAddresses);
+    const directory = makeDirectoryNode(
+      specialStore,
+      agentNodeNumber,
+      isLocalKey,
+      getNetworkAddresses,
+    );
     const mailbox = await makeMailbox({
       petStore: specialStore,
       agentNodeNumber,
@@ -978,6 +983,11 @@ export const makeHostMaker = ({
       );
       const resolver = await provide(resolverId, 'resolver');
       E.sendOnly(resolver).resolveWithId(evalId);
+
+      // Send a value reply so the result appears in the conversation thread.
+      if (resultName !== undefined) {
+        await sendValue(messageNumber, resultName);
+      }
     };
 
     /**

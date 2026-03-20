@@ -255,8 +255,12 @@ export const createChannelState = async (channel, opts) => {
    * @returns {Promise<HTMLElement>}
    */
   const createMessageElement = async (message, options) => {
-    const { ownMemberId: ownId, onReply, showValue, skipReplyIndicator } =
-      options;
+    const {
+      ownMemberId: ownId,
+      onReply,
+      showValue,
+      skipReplyIndicator,
+    } = options;
 
     const $wrapper = document.createElement('div');
     $wrapper.className = 'message-wrapper';
