@@ -17,11 +17,24 @@ import {
   whereEndoCache,
 } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
+import { whichProg } from './src/which.js';
+import {
+  waitForExit,
+  waitForSpawn,
+  waitForMessage,
+} from './src/child-process.js';
 
 // Reexports:
 export { makeEndoClient } from './src/client.js';
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
 export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
+export { whichProg, hasProgram } from './src/which.js';
+export {
+  waitForExit,
+  waitForExitOrCancel,
+  waitForSpawn,
+  waitForMessage,
+} from './src/child-process.js';
 
 const removePath = async removalPath => {
   return fs.promises
@@ -159,32 +172,6 @@ const tryConnect = sockPath =>
     conn.on('error', () => resolve(false));
   });
 
-/**
- * @param {string} prog
- * @returns {Promise<string|null>}
- */
-async function whichProg(prog) {
-  const pathEnv = process.env.PATH || process.env.MPATH || '';
-  const pathDirs = pathEnv.split(process.platform === 'win32' ? ';' : ':');
-  for (const pathDir of pathDirs) {
-    if (!pathDir) continue;
-    const binaryPath = path.join(pathDir, prog);
-    // Check if path exists and is a file
-    const stats = await fs.promises.stat(binaryPath).catch(() => null);
-    if (!stats?.isFile()) {
-      continue;
-    }
-    // On Windows, we accept any file as executable
-    if (process.platform === 'win32') {
-      return binaryPath;
-    }
-    // On Unix-lie systems, check if executable
-    if ((stats.mode & 0o111) !== 0) {
-      return binaryPath;
-    }
-  }
-  return null;
-}
 
 /**
  * Poll until the daemon socket is accepting connections.
@@ -231,62 +218,6 @@ const waitForFile = async (filePath, timeoutMs = 10_000) => {
     });
   }
   throw Error(`File ${filePath} not found within ${timeoutMs}ms`);
-};
-
-/**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<popen.ChildProcess>} proc
- */
-const waitForSpawn = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('spawn', () => resolve(proc));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} proc
- * @returns {Promise<number>} proc exit code
- */
-const waitForExit = async proc => {
-  return new Promise((resolve, reject) => {
-    proc.on('error', err => {
-      const [exe] = proc.spawnargs;
-      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
-    });
-    proc.on('exit', code => resolve(code || 0));
-  });
-};
-
-/**
- * @param {popen.ChildProcess} child
- * @returns {Promise<popen.Serializable>} message
- */
-const waitForMessage = child => {
-  let done = false;
-  return new Promise((resolve, reject) => {
-    child.on('error', (/** @type {Error} */ cause) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
-      }
-    });
-    child.on('exit', (/** @type {number?} */ code) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
-      }
-    });
-    child.on('message', message => {
-      if (!done) {
-        done = true;
-        resolve(message);
-      }
-    });
-  });
 };
 
 /**

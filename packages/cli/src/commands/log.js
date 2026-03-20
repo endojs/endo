@@ -8,31 +8,11 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
+import { hasProgram } from '@endo/daemon/which.js';
+import { waitForExitOrCancel } from '@endo/daemon/child-process.js';
 import { whereEndoState, whereEndoSock } from '@endo/where';
 import { E } from '@endo/far';
 import { withInterrupt } from '../context.js';
-
-/**
- * Check whether an executable exists on PATH.
- *
- * @param {string} prog
- */
-const hasProgram = async prog => {
-  const pathEnv = process.env.PATH || '';
-  const isWin = process.platform === 'win32';
-  const pathDirs = pathEnv.split(isWin ? ';' : ':');
-  for (const dir of pathDirs) {
-    if (!dir) continue;
-    const candidate = path.join(dir, prog);
-    try {
-      const stats = await fs.promises.stat(candidate);
-      return isWin ? stats.isFile() : stats.mode & 0o111 !== 0;
-    } catch {
-      // not found in this dir
-    }
-  }
-  return false;
-};
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -355,16 +335,10 @@ export const log = async ({ follow, ping, all }) =>
           }
         })();
 
-      await new Promise((resolve, reject) => {
-        const child = spawn(cmd, args, {
-          stdio: ['inherit', 'inherit', 'inherit'],
-        });
-        child.on('error', reject);
-        child.on('exit', resolve);
-        followCancelled.catch(() => {
-          child.kill();
-        });
+      const child = spawn(cmd, args, {
+        stdio: ['inherit', 'inherit', 'inherit'],
       });
+      await waitForExitOrCancel(child, followCancelled);
 
       if (follow) {
         await delay(logCheckIntervalMs, cancelled);
