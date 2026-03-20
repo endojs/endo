@@ -303,7 +303,8 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel } = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(workerName, tasks.push);
+      const workerLabel = explicitLabel ?? (resultName !== undefined ? `eval:${resultName}` : 'eval');
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(petNameOrPath => {
