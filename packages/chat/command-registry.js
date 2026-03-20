@@ -2,7 +2,7 @@
 
 /**
  * Field types for command parameters.
- * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'message' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments'} FieldType
+ * @typedef {'petNamePath' | 'petNamePaths' | 'messageNumber' | 'message' | 'text' | 'edgeName' | 'locator' | 'source' | 'endowments' | 'select'} FieldType
  */
 
 /**
@@ -13,6 +13,7 @@
  * @property {boolean} [required] - Whether field is required
  * @property {string} [placeholder] - Placeholder text
  * @property {string} [defaultValue] - Default value
+ * @property {string[]} [options] - Options for select fields
  */
 
 /**
@@ -434,6 +435,32 @@ export const COMMANDS = {
     submitLabel: 'Locate',
   },
 
+  dm: {
+    name: 'dm',
+    label: 'DM',
+    description: 'Send a direct message to someone',
+    category: 'messaging',
+    mode: 'inline',
+    context: 'channel',
+    fields: [
+      {
+        name: 'recipient',
+        label: 'To',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'recipient-name',
+      },
+      {
+        name: 'message',
+        label: 'Message',
+        type: 'text',
+        required: true,
+        placeholder: 'your message...',
+      },
+    ],
+    submitLabel: 'Send DM',
+  },
+
   // ============ CONNECTIONS ============
   invite: {
     name: 'invite',
@@ -448,6 +475,14 @@ export const COMMANDS = {
         type: 'petNamePath',
         required: true,
         placeholder: 'guest-name',
+      },
+      {
+        name: 'delivery',
+        label: 'Delivery',
+        type: 'select',
+        required: true,
+        options: ['link', 'inventory'],
+        defaultValue: 'link',
       },
     ],
     submitLabel: 'Invite',

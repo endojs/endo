@@ -350,6 +350,15 @@ export const sendFormComponent = ({
         )
         .then(
           () => {
+            // Send inbox notifications to @-mentioned members
+            for (const petName of petNames) {
+              E(powers)
+                .send(petName, messageStrings, edgeNames, petNames)
+                .catch(() => {
+                  // Silently ignore — non-person values can't receive messages
+                });
+            }
+
             tokenComponent.clear();
             clearError();
             // Reset reply context: fall back to thread default if set
