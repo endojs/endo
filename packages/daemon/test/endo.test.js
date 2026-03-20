@@ -9,7 +9,7 @@ import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
-import { E } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -3770,4 +3770,135 @@ test.serial('formula write failure does not leak into graph', async t => {
   await E(host).provideGuest('healthy-guest');
   const namesWithGuest = await E(host).list();
   t.true(namesWithGuest.includes('healthy-guest'));
+});
+
+// readable-tree tests
+
+/**
+ * Helper: create a Far blob Exo from a string.
+ * @param {string} content
+ */
+const makeFarBlob = content => {
+  const bytes = new TextEncoder().encode(content);
+  return Far('TestBlob', {
+    streamBase64: () => makeReaderRef([bytes]),
+  });
+};
+
+/**
+ * Helper: create a Far tree Exo from an entries object.
+ * Entries map name → Far blob or Far tree.
+ * @param {Record<string, object>} children
+ */
+const makeFarTree = children => {
+  const sortedNames = Object.keys(children).sort();
+  return Far('TestTree', {
+    list: async () => sortedNames,
+    lookup: async (/** @type {string} */ name) => {
+      if (!Object.hasOwn(children, name)) {
+        throw new TypeError(`Unknown name: ${JSON.stringify(name)}`);
+      }
+      return children[name];
+    },
+    has: async (/** @type {string} */ name) => Object.hasOwn(children, name),
+  });
+};
+
+test('store readable tree with blobs', async t => {
+  const { host } = await prepareHost(t);
+
+  // Build a Far tree with two blobs.
+  const remoteTree = makeFarTree({
+    'hello.txt': makeFarBlob('hello'),
+    'world.txt': makeFarBlob('world'),
+  });
+
+  await E(host).storeTree(remoteTree, 'my-tree');
+
+  // Verify the tree.
+  const tree = await E(host).lookup(['my-tree']);
+  const names = await E(tree).list();
+  t.deepEqual(names, ['hello.txt', 'world.txt']);
+
+  // Verify has().
+  t.true(await E(tree).has('hello.txt'));
+  t.true(await E(tree).has('world.txt'));
+  t.false(await E(tree).has('missing.txt'));
+
+  // Verify lookup() returns readable blobs.
+  const blob1 = await E(tree).lookup('hello.txt');
+  const text1 = await E(blob1).text();
+  t.is(text1, 'hello');
+
+  const blob2 = await E(tree).lookup('world.txt');
+  const text2 = await E(blob2).text();
+  t.is(text2, 'world');
+});
+
+test('readable tree lookup with array path', async t => {
+  const { host } = await prepareHost(t);
+
+  // Build a nested Far tree.
+  const remoteTree = makeFarTree({
+    subdir: makeFarTree({
+      'file.txt': makeFarBlob('nested content'),
+    }),
+  });
+
+  await E(host).storeTree(remoteTree, 'root-tree');
+
+  // Navigate with array path.
+  const tree = await E(host).lookup(['root-tree']);
+  const file = await E(tree).lookup(['subdir', 'file.txt']);
+  const text = await E(file).text();
+  t.is(text, 'nested content');
+
+  // has() with multi-segment path.
+  t.true(await E(tree).has('subdir', 'file.txt'));
+  t.false(await E(tree).has('subdir', 'missing.txt'));
+});
+
+test('readable tree persists across restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const remoteTree = makeFarTree({
+      'data.txt': makeFarBlob('persisted'),
+    });
+    await E(host).storeTree(remoteTree, 'persist-tree');
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const tree = await E(host).lookup(['persist-tree']);
+    const names = await E(tree).list();
+    t.deepEqual(names, ['data.txt']);
+    const blob = await E(tree).lookup('data.txt');
+    const text = await E(blob).text();
+    t.is(text, 'persisted');
+  }
+});
+
+test('readable tree empty entries', async t => {
+  const { host } = await prepareHost(t);
+
+  const remoteTree = makeFarTree({});
+  await E(host).storeTree(remoteTree, 'empty-tree');
+  const tree = await E(host).lookup(['empty-tree']);
+  const names = await E(tree).list();
+  t.deepEqual(names, []);
+});
+
+test('readable tree lookup unknown name throws', async t => {
+  const { host } = await prepareHost(t);
+
+  const remoteTree = makeFarTree({});
+  await E(host).storeTree(remoteTree, 'empty-tree2');
+  const tree = await E(host).lookup(['empty-tree2']);
+  await t.throwsAsync(E(tree).lookup('missing'), {
+    message: /Unknown name/,
+  });
 });
