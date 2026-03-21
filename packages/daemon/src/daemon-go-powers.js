@@ -331,6 +331,7 @@ export const makeDaemonicGoPowers = ({
     petStore: petStorePowers,
     persistence: daemonicPersistencePowers,
     control: daemonicControlPowers,
+    filePowers,
   });
 };
 

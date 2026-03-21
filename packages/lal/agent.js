@@ -800,6 +800,16 @@ After you submit an eval-proposal, you will be notified when the host responds:
   2. Reject if the changes don't meet your needs
   3. Send a message explaining why you disagree
 
+### Evaluated Code Is Synchronous
+
+evaluate() and define() accept **synchronous** programs. Top-level \`await\` is
+not supported. The program's completion value (the value of its last expression)
+becomes the result. If you need an async result, return a promise:
+
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+
+Here \`E(counter).increment()\` returns a promise, which becomes the result.
+
 ### Globals Available in Evaluated Code
 
 When your code executes (after host grants), these globals are available:

@@ -256,6 +256,29 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
 
   const joinPath = (...components) => fspath.join(...components);
 
+  /** @param {string} path */
+  const realPath = async path => fs.promises.realpath(path);
+
+  /** @param {string} path */
+  const isDirectory = async path => {
+    try {
+      const stat = await fs.promises.stat(path);
+      return stat.isDirectory();
+    } catch {
+      return false;
+    }
+  };
+
+  /** @param {string} path */
+  const exists = async path => {
+    try {
+      await fs.promises.access(path);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   return harden({
     makeFileReader,
     makeFileWriter,
@@ -267,6 +290,9 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     joinPath,
     removePath,
     renamePath,
+    realPath,
+    isDirectory,
+    exists,
   });
 };
 
@@ -587,6 +613,7 @@ export const makeDaemonicPersistencePowers = (
   };
 
   return harden({
+    statePath: config.statePath,
     initializePersistence,
     provideRootNonce,
     provideRootKeypair,
@@ -768,5 +795,6 @@ export const makeDaemonicPowers = ({
     petStore: petStorePowers,
     persistence: daemonicPersistencePowers,
     control: daemonicControlPowers,
+    filePowers,
   });
 };

@@ -415,24 +415,48 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Create',
-    aliases: ['scratch'],
   },
   mount: {
     name: 'mount',
     label: 'Mount',
-    description: 'Mount a local directory as a readable tree',
+    description: 'Mount a daemon filesystem directory',
     category: 'storage',
     mode: 'inline',
     fields: [
+      {
+        name: 'path',
+        label: 'Path',
+        type: 'text',
+        required: true,
+        placeholder: '/path/on/daemon',
+      },
       {
         name: 'petName',
         label: 'Save as',
         type: 'petNamePath',
         required: true,
-        placeholder: 'tree-name',
+        placeholder: 'mount-name',
       },
     ],
     submitLabel: 'Mount',
+  },
+  mkscratch: {
+    name: 'mkscratch',
+    label: 'Make Scratch',
+    description: 'Create a daemon-managed scratch mount',
+    category: 'storage',
+    mode: 'inline',
+    aliases: ['scratch'],
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'scratch-name',
+      },
+    ],
+    submitLabel: 'Create',
   },
 
   locate: {

@@ -23,6 +23,7 @@ const formulaTypes = new Set([
   'make-unconfined',
   'marshal',
   'message',
+  'mount',
   'peer',
   'pet-inspector',
   'pet-store',
@@ -30,6 +31,7 @@ const formulaTypes = new Set([
   'readable-blob',
   'readable-tree',
   'resolver',
+  'scratch-mount',
   'synced-pet-store',
   'worker',
 ]);

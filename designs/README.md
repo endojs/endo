@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-18*
+*Last updated: 2026-03-20*
 
 ## Summary
 
@@ -28,6 +28,8 @@
 | [daemon-capability-bank](daemon-capability-bank.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | 2026-03-17 | 2026-03-17 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
+| [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-03-20 | Not Started |
+| [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-03-20 | In Progress |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-03-18 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-03-07 | Not Started |
@@ -71,7 +73,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 21 Complete/Implemented, 4 In Progress, 35 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 21 Complete/Implemented, 5 In Progress, 36 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -173,11 +175,16 @@ flowchart TD
         dsand[daemon-os-sandbox-plugin]
         pfs[platform-fs]
         dfs[daemon-capability-filesystem]
+        dmount[daemon-mount<br/><i>IN PROGRESS</i>]
+        dcsgc[daemon-content-store-gc]
         dpers[daemon-capability-persona]
         dbank[daemon-capability-bank]
         icancel[inventory-cancel-and-liveness]
         pfs --> dfs
+        pfs --> dmount
         pfs --> dci
+        dmount --> dtools
+        dmount --> dcsgc
         dsand --> dbank
         dfs --> dbank
         dpers --> dbank
@@ -226,6 +233,8 @@ capabilities available to agents.
 | daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
 | platform-fs | In Progress | `@endo/platform/fs` — shared types, content store, tree adapters |
 | daemon-capability-filesystem | Not Started | `Dir`/`File` capabilities for structural filesystem confinement |
+| daemon-content-store-gc | Not Started | Content-store pruning and scratch-mount directory cleanup at GC time |
+| daemon-mount | In Progress | Phases 1-3, 5 implemented; symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) and Phase 6 (CLI) remaining |
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | endoclaw-timer | Not Started | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. |
 | endoclaw-network-fetch | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. |
@@ -401,6 +410,8 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | daemon-agent-tools | M-L | 1-1.5 weeks | 1 | Shell, git, fs tool wrappers |
 | platform-fs | S-M | 2-3 days | 1 | Shared types, content store extraction, tree adapters |
 | daemon-capability-filesystem | L | 1-2 weeks | 1 | Dir/File exos, physical backend |
+| daemon-content-store-gc | S | 1 day | 1 | Sweep-time ref count for store-sha256, scratch-mount dir removal |
+| daemon-mount | M-L | 1-1.5 weeks | 1 | Mount exo, symlink confinement, scratch lifecycle, host methods |
 | daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
 | endoclaw-timer | S-M | 2-3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
 | endoclaw-network-fetch | S-M | 2-3 days | 1 | HttpClient with origin allowlist, rate/size limits |
@@ -439,12 +450,12 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | Milestone | Items | Total Estimate (1 dev, serial) |
 |-----------|-------|-------------------------------|
 | M0: AI Agent Experience | 0 remaining | **Complete** |
-| M1: Remote Access & Tools | 8 remaining | 5-6 weeks |
+| M1: Remote Access & Tools | 10 remaining | 6-7 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
 | M4: UX & Tooling | 8 | 5-7 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **35** | **~25-35 weeks** |
+| **Total remaining** | **36** | **~26-36 weeks** |
 
 ### Timeline
 
@@ -495,7 +506,7 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-18:** 21 of 65 designs complete/implemented. M0 complete.
+**Progress as of 2026-03-20:** 21 of 67 designs complete/implemented, 5 in progress. M0 complete.
 18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
 (128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,

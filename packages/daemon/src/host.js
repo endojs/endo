@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -64,6 +64,8 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['checkinTree']} args.checkinTree
+ * @param {DaemonCore['formulateMount']} args.formulateMount
+ * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
@@ -93,6 +95,8 @@ export const makeHostMaker = ({
   formulateBundle,
   formulateReadableBlob,
   checkinTree,
+  formulateMount,
+  formulateScratchMount,
   formulateInvitation,
   formulateSyncedPetStore,
   getPeerIdForNodeIdentifier,
@@ -226,6 +230,49 @@ export const makeHostMaker = ({
       );
 
       const { value } = await checkinTree(remoteTree, tasks);
+      return value;
+    };
+
+    /**
+     * Mount an external filesystem directory.
+     *
+     * @param {string} mountPath - Absolute path to the directory.
+     * @param {NameOrPath} petName
+     * @param {object} [options]
+     * @param {boolean} [options.readOnly]
+     */
+    const provideMount = async (mountPath, petName, options = {}) => {
+      const { readOnly = false } = options;
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+
+      /** @type {DeferredTasks<MountDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).write(namePath, identifiers.mountId),
+      );
+
+      const { value } = await formulateMount(mountPath, readOnly, tasks);
+      return value;
+    };
+
+    /**
+     * Create a daemon-managed scratch mount.
+     *
+     * @param {NameOrPath} petName
+     * @param {object} [options]
+     * @param {boolean} [options.readOnly]
+     */
+    const provideScratchMount = async (petName, options = {}) => {
+      const { readOnly = false } = options;
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+
+      /** @type {DeferredTasks<ScratchMountDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).write(namePath, identifiers.scratchMountId),
+      );
+
+      const { value } = await formulateScratchMount(readOnly, tasks);
       return value;
     };
 
@@ -1192,6 +1239,8 @@ export const makeHostMaker = ({
       storeBlob,
       storeValue,
       storeTree,
+      provideMount,
+      provideScratchMount,
       provideGuest,
       provideHost,
       provideWorker,

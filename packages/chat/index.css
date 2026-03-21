@@ -314,11 +314,9 @@ body {
   width: var(--sidebar-width);
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-bottom: 40px;
 }
 
 /* Resize handle (shifted for gutter) */
@@ -342,10 +340,7 @@ body {
 
 /* Profile breadcrumbs */
 #profile-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   padding: 8px 12px;
   background: var(--bg-hover);
   border-top: 1px solid var(--border-color);
@@ -398,6 +393,7 @@ body.resizing * {
 }
 
 .inventory-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -563,6 +559,10 @@ body.resizing * {
   flex-direction: column;
   padding: 0 8px 8px;
   gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .pet-buttons {

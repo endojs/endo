@@ -210,6 +210,7 @@ test('commands without context are available in both modes', t => {
     'checkin',
     'checkout',
     'mount',
+    'mkscratch',
     'invite',
     'accept',
     'spawn',
@@ -342,24 +343,28 @@ test('checkin, checkout, and mount appear in storage category', t => {
   t.true(names.includes('mount'));
 });
 
-test('getCommand resolves scratch alias to mkdir', t => {
+test('getCommand resolves scratch alias to mkscratch', t => {
   const cmd = getCommand('scratch');
   t.truthy(cmd);
-  t.is(cmd?.name, 'mkdir');
+  t.is(cmd?.name, 'mkscratch');
 });
 
-test('mount command has correct properties', t => {
+test('mount command has path and petName fields', t => {
   const cmd = COMMANDS.mount;
   t.is(cmd.name, 'mount');
   t.is(cmd.category, 'storage');
   t.is(cmd.mode, 'inline');
-  t.is(cmd.fields.length, 1);
-  t.is(cmd.fields[0].name, 'petName');
+  t.is(cmd.fields.length, 2);
+  t.is(cmd.fields[0].name, 'path');
+  t.is(cmd.fields[1].name, 'petName');
   t.true(cmd.fields[0].required);
+  t.true(cmd.fields[1].required);
 });
 
-test('mkdir command has scratch alias', t => {
-  const cmd = COMMANDS.mkdir;
+test('mkscratch command has correct properties', t => {
+  const cmd = COMMANDS.mkscratch;
+  t.is(cmd.name, 'mkscratch');
+  t.is(cmd.category, 'storage');
   t.deepEqual(cmd.aliases, ['scratch']);
 });
 

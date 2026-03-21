@@ -212,6 +212,25 @@ export type ReadableTreeDeferredTaskParams = {
   readableTreeId: FormulaIdentifier;
 };
 
+type MountFormula = {
+  type: 'mount';
+  path: string;
+  readOnly: boolean;
+};
+
+type ScratchMountFormula = {
+  type: 'scratch-mount';
+  readOnly: boolean;
+};
+
+export type MountDeferredTaskParams = {
+  mountId: FormulaIdentifier;
+};
+
+export type ScratchMountDeferredTaskParams = {
+  scratchMountId: FormulaIdentifier;
+};
+
 type LookupFormula = {
   type: 'lookup';
 
@@ -397,6 +416,8 @@ export type Formula =
   | EvalFormula
   | ReadableBlobFormula
   | ReadableTreeFormula
+  | MountFormula
+  | ScratchMountFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
@@ -1301,6 +1322,9 @@ export type FilePowers = {
   joinPath: (...components: Array<string>) => string;
   removePath: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
+  realPath: (path: string) => Promise<string>;
+  isDirectory: (path: string) => Promise<boolean>;
+  exists: (path: string) => Promise<boolean>;
 };
 
 export type AssertValidNameFn = (name: string) => void;
@@ -1370,6 +1394,7 @@ export type RootKeypairDescriptor = {
 };
 
 export type DaemonicPersistencePowers = {
+  statePath: string;
   initializePersistence: () => Promise<void>;
   provideRootNonce: () => Promise<RootNonceDescriptor>;
   provideRootKeypair: () => Promise<RootKeypairDescriptor>;
@@ -1425,6 +1450,7 @@ export type DaemonicPowers = {
   petStore: PetStorePowers;
   persistence: DaemonicPersistencePowers;
   control: DaemonicControlPowers;
+  filePowers: FilePowers;
 };
 
 type FormulateResult<T> = Promise<{
@@ -1653,6 +1679,17 @@ export interface DaemonCore {
   checkinTree: (
     remoteTree: unknown,
     deferredTasks: DeferredTasks<ReadableTreeDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
+
+  formulateMount: (
+    mountPath: string,
+    readOnly: boolean,
+    deferredTasks: DeferredTasks<MountDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
+
+  formulateScratchMount: (
+    readOnly: boolean,
+    deferredTasks: DeferredTasks<ScratchMountDeferredTaskParams>,
   ) => FormulateResult<unknown>;
 
   formulateInvitation: (

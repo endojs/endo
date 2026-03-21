@@ -916,7 +916,6 @@ export const makeMailboxMaker = ({
       E.sendOnly(resolver).resolveWithId(id);
     };
 
-    // TODO test reject
     /** @type {Mail['reject']} */
     const reject = async (messageNumber, reason = 'Declined') => {
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'request');
@@ -924,18 +923,29 @@ export const makeMailboxMaker = ({
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
-      if (message.type === 'definition') {
+      if (
+        message.type === 'definition' ||
+        message.type === 'eval-proposal-proposer'
+      ) {
         throw new Error(
-          `Cannot reject a definition (message ${q(messageNumber)}); definitions are reusable programs`,
+          `Cannot reject message ${q(messageNumber)} (type ${q(message.type)})`,
         );
       }
-      const req = /** @type {Request} */ (message);
-      const resolver = /** @type {ERef<Responder>} */ (
-        provide(req.resolverId, 'resolver')
-      );
-      E.sendOnly(resolver).resolveWithId(
-        harden(Promise.reject(harden(new Error(reason)))),
-      );
+      const rejection = harden(Promise.reject(harden(new Error(reason))));
+      if (message.type === 'eval-proposal-reviewer') {
+        // Eval-proposal reviewer messages hold a live responder reference
+        // rather than a persisted resolverId.
+        const proposal =
+          /** @type {import('./types.js').EvalProposalReviewer} */ (message);
+        E.sendOnly(proposal.responder).resolveWithId(rejection);
+      } else {
+        // request / eval-request messages use a persisted resolver formula.
+        const req = /** @type {Request} */ (message);
+        const resolver = /** @type {ERef<Responder>} */ (
+          provide(req.resolverId, 'resolver')
+        );
+        E.sendOnly(resolver).resolveWithId(rejection);
+      }
     };
 
     /** @type {Mail['send']} */

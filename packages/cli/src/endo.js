@@ -604,16 +604,32 @@ export const main = async rawArgs => {
 
   program
     .command('mount <path>')
-    .description('mounts a local directory as a readable tree')
+    .description('mounts an external filesystem directory')
     .option(...commonOptions.as)
     .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
     .action(async (sourcePath, cmd) => {
-      const { name, as: agentNames } = cmd.opts();
+      const { name, as: agentNames, readOnly } = cmd.opts();
       if (!name) {
         throw new Error('--name is required for mount');
       }
-      const { checkin } = await import('./commands/checkin.js');
-      return checkin({ sourcePath, name, agentNames });
+      const { mount: mountCmd } = await import('./commands/mount.js');
+      return mountCmd({ sourcePath, name, agentNames, readOnly });
+    });
+
+  program
+    .command('mkscratch')
+    .description('creates a daemon-managed scratch mount')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async cmd => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mkscratch');
+      }
+      const { mkscratch } = await import('./commands/mkscratch.js');
+      return mkscratch({ name, agentNames, readOnly });
     });
 
   program
@@ -713,7 +729,6 @@ export const main = async rawArgs => {
 
   program
     .command('mkdir <path>')
-    .alias('scratch')
     .option(...commonOptions.as)
     .description('makes a directory (pet store, name hub)')
     .action(async (directoryPath, cmd) => {
@@ -957,6 +972,7 @@ export const main = async rawArgs => {
         'checkin',
         'checkout',
         'mount',
+        'mkscratch',
         'locate',
         'remove',
         'move',

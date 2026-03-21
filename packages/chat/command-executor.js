@@ -374,7 +374,6 @@ export const createCommandExecutor = ({
           return { success: true, value: locator };
         }
 
-        case 'scratch':
         case 'mkdir': {
           const { petName } = params;
           const pathParts = String(petName).split('/');
@@ -383,24 +382,27 @@ export const createCommandExecutor = ({
         }
 
         case 'mount': {
-          const { petName } = params;
+          const { path: mountPath, petName } = params;
           const petNamePath = String(petName).split('/');
-          if (typeof globalThis.showDirectoryPicker !== 'function') {
-            throw new Error('Directory picker not available in this browser');
-          }
-          const dirHandle = await globalThis.showDirectoryPicker({
-            mode: 'read',
-          });
-          const progress = { files: 0 };
-          const tree = makeBrowserTree(dirHandle, {
-            onFile: () => {
-              progress.files += 1;
-            },
-          });
-          await E(powers).storeTree(tree, petNamePath);
+          await E(powers).provideMount(
+            String(mountPath),
+            petNamePath,
+            harden({ readOnly: false }),
+          );
           return {
             success: true,
-            message: `Mounted ${progress.files} files as "${petName}"`,
+            message: `Mounted "${mountPath}" as "${petName}"`,
+          };
+        }
+
+        case 'scratch':
+        case 'mkscratch': {
+          const { petName } = params;
+          const petNamePath = String(petName).split('/');
+          await E(powers).provideScratchMount(petNamePath);
+          return {
+            success: true,
+            message: `Scratch mount "${petName}" created`,
           };
         }
 
