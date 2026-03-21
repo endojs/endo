@@ -637,6 +637,293 @@ test('execute handles power errors', async t => {
   t.is(errors[0].message, 'Permission denied');
 });
 
+// ============ CHECKIN / CHECKOUT TESTS ============
+
+test('execute checkin command calls storeTree with browser tree', async t => {
+  /** @type {Array<{method: string, args: unknown[]}>} */
+  const calls = [];
+
+  const powers = Far('MockPowers', {
+    storeTree: async (tree, petNamePath) => {
+      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    },
+  });
+
+  // Mock showDirectoryPicker
+  const originalPicker = globalThis.showDirectoryPicker;
+  globalThis.showDirectoryPicker = async () =>
+    /** @type {any} */ ({
+      kind: 'directory',
+      name: 'test-dir',
+      keys: async function* () {
+        yield 'file.txt';
+      },
+      getFileHandle: async () => ({
+        kind: 'file',
+        getFile: async () => new Blob(['hello']),
+      }),
+      getDirectoryHandle: async () => {
+        throw new Error('Not found');
+      },
+    });
+
+  try {
+    const executor = createCommandExecutor({
+      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      showValue: () => {},
+      showMessage: () => {},
+      showError: () => {},
+    });
+
+    const result = await executor.execute('checkin', { petName: 'my-tree' });
+
+    t.true(result.success);
+    t.true(result.message?.includes('my-tree'));
+    t.is(calls.length, 1);
+    t.is(calls[0].method, 'storeTree');
+    t.deepEqual(calls[0].args[1], ['my-tree']);
+    // The first arg should be a remotable tree object
+    t.truthy(calls[0].args[0]);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    } else {
+      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+    }
+  }
+});
+
+test('execute ci alias works like checkin', async t => {
+  const calls = [];
+
+  const powers = Far('MockPowers', {
+    storeTree: async (tree, petNamePath) => {
+      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    },
+  });
+
+  const originalPicker = globalThis.showDirectoryPicker;
+  globalThis.showDirectoryPicker = async () =>
+    /** @type {any} */ ({
+      kind: 'directory',
+      name: 'test-dir',
+      keys: async function* () {},
+      getFileHandle: async () => {
+        throw new Error('Not found');
+      },
+      getDirectoryHandle: async () => {
+        throw new Error('Not found');
+      },
+    });
+
+  try {
+    const executor = createCommandExecutor({
+      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      showValue: () => {},
+      showMessage: () => {},
+      showError: () => {},
+    });
+
+    const result = await executor.execute('ci', { petName: 'tree-alias' });
+
+    t.true(result.success);
+    t.is(calls[0].method, 'storeTree');
+    t.deepEqual(calls[0].args[1], ['tree-alias']);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    } else {
+      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+    }
+  }
+});
+
+test('execute checkout command looks up tree and writes to directory', async t => {
+  const calls = [];
+
+  // Mock a remote tree that the daemon would return
+  const mockRemoteTree = Far('MockTree', {
+    list: async () => ['hello.txt'],
+    lookup: async () =>
+      Far('MockBlob', {
+        list: async () => {
+          throw new Error('not a tree');
+        },
+        streamBase64: () =>
+          Far('MockIterator', {
+            async next() {
+              return { value: undefined, done: true };
+            },
+            async return() {
+              return { value: undefined, done: true };
+            },
+            async throw() {
+              return { value: undefined, done: true };
+            },
+          }),
+      }),
+  });
+
+  const powers = Far('MockPowers', {
+    lookup: async pathParts => {
+      calls.push({ method: 'lookup', args: [pathParts] });
+      return mockRemoteTree;
+    },
+  });
+
+  /** @type {Array<{name: string, content: Uint8Array[]}>} */
+  const writtenFiles = [];
+
+  const originalPicker = globalThis.showDirectoryPicker;
+  globalThis.showDirectoryPicker = async () =>
+    /** @type {any} */ ({
+      kind: 'directory',
+      getDirectoryHandle: async () => {
+        throw new Error('Not found');
+      },
+      getFileHandle: async (/** @type {string} */ name, /** @type {any} */ _opts) => ({
+        createWritable: async () => {
+          /** @type {Uint8Array[]} */
+          const chunks = [];
+          return {
+            write: async (/** @type {Uint8Array} */ chunk) => {
+              chunks.push(chunk);
+            },
+            close: async () => {
+              writtenFiles.push({ name, content: chunks });
+            },
+          };
+        },
+      }),
+    });
+
+  try {
+    const executor = createCommandExecutor({
+      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      showValue: () => {},
+      showMessage: () => {},
+      showError: () => {},
+    });
+
+    const result = await executor.execute('checkout', {
+      petName: 'my-tree',
+    });
+
+    t.true(result.success);
+    t.true(result.message?.includes('my-tree'));
+    t.is(calls[0].method, 'lookup');
+    t.deepEqual(calls[0].args[0], ['my-tree']);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    } else {
+      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+    }
+  }
+});
+
+test('execute checkin fails when showDirectoryPicker unavailable', async t => {
+  // Ensure showDirectoryPicker is not defined
+  const originalPicker = globalThis.showDirectoryPicker;
+  delete /** @type {any} */ (globalThis).showDirectoryPicker;
+
+  /** @type {Error[]} */
+  const errors = [];
+
+  try {
+    const ctx = createMockContext();
+    const executor = createCommandExecutor({
+      powers: ctx.powers,
+      showValue: () => {},
+      showMessage: () => {},
+      showError: e => errors.push(e),
+    });
+
+    const result = await executor.execute('checkin', { petName: 'test' });
+
+    t.false(result.success);
+    t.truthy(result.error);
+    t.true(result.error?.message.includes('Directory picker not available'));
+    t.is(errors.length, 1);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    }
+  }
+});
+
+test('execute checkout fails when showDirectoryPicker unavailable', async t => {
+  const originalPicker = globalThis.showDirectoryPicker;
+  delete /** @type {any} */ (globalThis).showDirectoryPicker;
+
+  /** @type {Error[]} */
+  const errors = [];
+
+  try {
+    const ctx = createMockContext();
+    const executor = createCommandExecutor({
+      powers: ctx.powers,
+      showValue: () => {},
+      showMessage: () => {},
+      showError: e => errors.push(e),
+    });
+
+    const result = await executor.execute('checkout', { petName: 'test' });
+
+    t.false(result.success);
+    t.truthy(result.error);
+    t.true(result.error?.message.includes('Directory picker not available'));
+    t.is(errors.length, 1);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    }
+  }
+});
+
+test('execute checkin splits pet name path on slashes', async t => {
+  const calls = [];
+
+  const powers = Far('MockPowers', {
+    storeTree: async (tree, petNamePath) => {
+      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    },
+  });
+
+  const originalPicker = globalThis.showDirectoryPicker;
+  globalThis.showDirectoryPicker = async () =>
+    /** @type {any} */ ({
+      kind: 'directory',
+      name: 'test-dir',
+      keys: async function* () {},
+      getFileHandle: async () => {
+        throw new Error('Not found');
+      },
+      getDirectoryHandle: async () => {
+        throw new Error('Not found');
+      },
+    });
+
+  try {
+    const executor = createCommandExecutor({
+      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      showValue: () => {},
+      showMessage: () => {},
+      showError: () => {},
+    });
+
+    await executor.execute('checkin', { petName: 'trees/my-project' });
+
+    t.deepEqual(calls[0].args[1], ['trees', 'my-project']);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    } else {
+      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+    }
+  }
+});
+
 test('execute handles slash-path splitting', async t => {
   const ctx = createMockContext();
   const executor = createCommandExecutor({

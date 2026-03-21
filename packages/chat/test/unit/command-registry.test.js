@@ -157,6 +157,7 @@ test('command fields have required properties', t => {
         'locator',
         'source',
         'endowments',
+        'select',
       ];
       t.true(
         validTypes.includes(field.type),
@@ -206,6 +207,8 @@ test('commands without context are available in both modes', t => {
     'move',
     'copy',
     'mkdir',
+    'checkin',
+    'checkout',
     'invite',
     'accept',
     'spawn',
@@ -278,6 +281,63 @@ test('filterCommands with inbox context and prefix includes inbox commands', t =
   t.true(names.includes('reject'));
   t.true(names.includes('remove'));
   t.true(names.includes('reply'));
+});
+
+// ============ CHECKIN / CHECKOUT TESTS ============
+
+test('COMMANDS contains checkin and checkout', t => {
+  t.true('checkin' in COMMANDS);
+  t.true('checkout' in COMMANDS);
+});
+
+test('checkin command has correct properties', t => {
+  const cmd = COMMANDS.checkin;
+  t.is(cmd.name, 'checkin');
+  t.is(cmd.category, 'storage');
+  t.is(cmd.mode, 'inline');
+  t.deepEqual(cmd.aliases, ['ci']);
+  t.is(cmd.fields.length, 1);
+  t.is(cmd.fields[0].name, 'petName');
+  t.is(cmd.fields[0].type, 'petNamePath');
+  t.true(cmd.fields[0].required);
+});
+
+test('checkout command has correct properties', t => {
+  const cmd = COMMANDS.checkout;
+  t.is(cmd.name, 'checkout');
+  t.is(cmd.category, 'storage');
+  t.is(cmd.mode, 'inline');
+  t.deepEqual(cmd.aliases, ['co']);
+  t.is(cmd.fields.length, 1);
+  t.is(cmd.fields[0].name, 'petName');
+  t.is(cmd.fields[0].type, 'petNamePath');
+  t.true(cmd.fields[0].required);
+});
+
+test('getCommand resolves ci alias to checkin', t => {
+  const cmd = getCommand('ci');
+  t.truthy(cmd);
+  t.is(cmd?.name, 'checkin');
+});
+
+test('getCommand resolves co alias to checkout', t => {
+  const cmd = getCommand('co');
+  t.truthy(cmd);
+  t.is(cmd?.name, 'checkout');
+});
+
+test('filterCommands matches checkin by prefix', t => {
+  const results = filterCommands('check');
+  const names = results.map(cmd => cmd.name);
+  t.true(names.includes('checkin'));
+  t.true(names.includes('checkout'));
+});
+
+test('checkin and checkout appear in storage category', t => {
+  const storage = getCommandsByCategory('storage');
+  const names = storage.map(cmd => cmd.name);
+  t.true(names.includes('checkin'));
+  t.true(names.includes('checkout'));
 });
 
 test('getCommandsByCategory respects context filter', t => {
