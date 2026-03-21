@@ -46,14 +46,11 @@ export const checkinTree = async (remoteTree, store, options = {}) => {
 
     for (const name of names) {
       const child = await E(remoteNode).lookup(name);
-      // Duck-type: try list() to distinguish tree from blob.
-      let childIsTree = false;
-      try {
-        await E(child).list();
-        childIsTree = true;
-      } catch (_e) {
-        childIsTree = false;
-      }
+      // Use __getMethodNames__ (available on Exos and conforming Far objects)
+      // to detect the node type without calling a method that may not exist,
+      // which would cause CapTP to log a noisy error.
+      const methods = await E(child).__getMethodNames__();
+      const childIsTree = methods.includes('list');
       const result = await checkinNode(child, childIsTree, depth + 1);
       treeEntries.push([name, result.type, result.sha256]);
     }

@@ -1,13 +1,38 @@
 // @ts-check
 /* global showDirectoryPicker */
 
-import { Far } from '@endo/far';
-import { E } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
+import { M } from '@endo/patterns';
 
 /**
  * @import { FarRef } from '@endo/eventual-send'
  */
+
+// Interface guards for browser-side Exos, matching the daemon's
+// ReadableBlob / ReadableTree / AsyncIterator protocols.
+
+const BrowserBlobInterface = M.interface('ReadableBlob', {
+  streamBase64: M.call().returns(M.remotable()),
+  text: M.call().returns(M.promise()),
+  json: M.call().returns(M.promise()),
+});
+harden(BrowserBlobInterface);
+
+const BrowserTreeInterface = M.interface('ReadableTree', {
+  has: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+  list: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
+  lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(M.promise()),
+});
+harden(BrowserTreeInterface);
+
+const BrowserAsyncIteratorInterface = M.interface('AsyncIterator', {
+  next: M.call().returns(M.promise()),
+  return: M.call().optional(M.any()).returns(M.promise()),
+  throw: M.call().optional(M.any()).returns(M.promise()),
+});
+harden(BrowserAsyncIteratorInterface);
 
 /**
  * Encode a Uint8Array to a base64 string using the browser's built-in APIs.
@@ -39,14 +64,14 @@ const fromBase64 = base64 => {
 };
 
 /**
- * Wrap a browser FileSystemFileHandle as a Far ReadableBlob.
+ * Wrap a browser FileSystemFileHandle as an Exo ReadableBlob.
  * The daemon calls `streamBase64()` over CapTP to read file content.
  *
  * @param {FileSystemFileHandle} fileHandle
  * @returns {FarRef<unknown>}
  */
 const makeBrowserBlob = fileHandle =>
-  Far('ReadableBlob', {
+  makeExo('ReadableBlob', BrowserBlobInterface, {
     streamBase64() {
       /** @type {ReadableStreamDefaultReader<Uint8Array> | undefined} */
       let reader;
@@ -57,7 +82,7 @@ const makeBrowserBlob = fileHandle =>
         }
         return reader;
       };
-      return Far('AsyncIterator', {
+      return makeExo('AsyncIterator', BrowserAsyncIteratorInterface, {
         async next() {
           const r = await getReader();
           const { value, done } = await r.read();
@@ -88,7 +113,7 @@ const makeBrowserBlob = fileHandle =>
   });
 
 /**
- * Wrap a browser FileSystemDirectoryHandle as a Far ReadableTree.
+ * Wrap a browser FileSystemDirectoryHandle as an Exo ReadableTree.
  * Implements the ReadableTree interface that `storeTree` expects:
  * `has(...names)`, `list(...names)`, `lookup(nameOrPath)`.
  *
@@ -113,7 +138,7 @@ export const makeBrowserTree = (dirHandle, options = {}) => {
     return current;
   };
 
-  return Far('ReadableTree', {
+  return makeExo('ReadableTree', BrowserTreeInterface, {
     /**
      * @param  {string[]} names
      * @returns {Promise<boolean>}
@@ -198,14 +223,10 @@ export const checkoutToDirectory = async (tree, rootHandle, options = {}) => {
     const names = await E(node).list();
     for (const name of names) {
       const child = await E(node).lookup(name);
-      // Duck-type: try list() to distinguish tree from blob.
-      let isTree = false;
-      try {
-        await E(child).list();
-        isTree = true;
-      } catch {
-        isTree = false;
-      }
+      // Use __getMethodNames__ to detect the node type without calling
+      // a method that may not exist (which causes CapTP error logging).
+      const methods = await E(child).__getMethodNames__();
+      const isTree = methods.includes('list');
       if (isTree) {
         const childDir = await parentHandle.getDirectoryHandle(name, {
           create: true,

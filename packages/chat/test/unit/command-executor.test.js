@@ -808,12 +808,11 @@ test('execute checkout command looks up tree and writes to directory', async t =
 
   // Mock a remote tree that the daemon would return
   const mockRemoteTree = Far('MockTree', {
+    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
     list: async () => ['hello.txt'],
     lookup: async () =>
       Far('MockBlob', {
-        list: async () => {
-          throw new Error('not a tree');
-        },
+        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
         streamBase64: () =>
           Far('MockIterator', {
             async next() {

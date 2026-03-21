@@ -28,14 +28,10 @@ export const checkoutTree = async (tree, writer, options = {}) => {
     for (const name of names) {
       const child = await E(node).lookup(name);
       const childPath = [...pathSegments, name];
-      // Duck-type: try list() to distinguish tree from blob.
-      let isTree = false;
-      try {
-        await E(child).list();
-        isTree = true;
-      } catch (_e) {
-        isTree = false;
-      }
+      // Use __getMethodNames__ to detect the node type without calling
+      // a method that may not exist (which causes CapTP error logging).
+      const methods = await E(child).__getMethodNames__();
+      const isTree = methods.includes('list');
       if (isTree) {
         await walk(child, childPath);
       } else {

@@ -200,14 +200,13 @@ test('makeBrowserTree blob streamBase64 throw() terminates iterator', async t =>
 test('checkoutToDirectory writes files from a remote tree', async t => {
   // Create a mock remote tree (as the daemon would provide)
   const mockTree = Far('MockTree', {
+    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
     list: async () => ['greeting.txt'],
     /** @param {string} name */
     lookup: async name => {
       t.is(name, 'greeting.txt');
       return Far('MockBlob', {
-        list: async () => {
-          throw new Error('not a tree');
-        },
+        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
         streamBase64: () => {
           let called = false;
           return Far('MockIterator', {
@@ -279,13 +278,12 @@ test('checkoutToDirectory writes files from a remote tree', async t => {
 
 test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
   const mockSubTree = Far('MockSubTree', {
+    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
     list: async () => ['inner.txt'],
     /** @param {string} _name */
     lookup: async _name =>
       Far('MockBlob', {
-        list: async () => {
-          throw new Error('not a tree');
-        },
+        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
         streamBase64: () => {
           let called = false;
           return Far('MockIterator', {
@@ -308,6 +306,7 @@ test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
   });
 
   const mockTree = Far('MockTree', {
+    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
     list: async () => ['subdir'],
     /** @param {string} _name */
     lookup: async _name => mockSubTree,
@@ -347,13 +346,12 @@ test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
 
 test('checkoutToDirectory onFile callback fires for each file', async t => {
   const mockTree = Far('MockTree', {
+    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
     list: async () => ['a.txt', 'b.txt'],
     /** @param {string} _name */
     lookup: async _name =>
       Far('MockBlob', {
-        list: async () => {
-          throw new Error('not a tree');
-        },
+        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
         streamBase64: () =>
           Far('MockIterator', {
             async next() {
@@ -394,6 +392,7 @@ test('checkoutToDirectory onFile callback fires for each file', async t => {
 
 test('checkoutToDirectory handles empty tree', async t => {
   const mockTree = Far('MockTree', {
+    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
     list: async () => [],
     lookup: async () => {
       throw new Error('no children');
