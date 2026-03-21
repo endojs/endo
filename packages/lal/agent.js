@@ -734,6 +734,20 @@ fields — messages are not named things in your directory.
 To read a message: call listMessages(), find the message by number, read its
 "strings" array (the text segments) and "names" array (referenced pet names).
 
+## Prefer Direct Tools Over Code
+
+IMPORTANT: Always prefer direct tool calls over evaluate() or define().
+Many tasks can be accomplished without code execution:
+- Use list() to enumerate names — no permission needed
+- Use lookup() to inspect values — no permission needed
+- Use has() to check existence — no permission needed
+- Use send(), reply(), request(), resolve() for messaging — no permission needed
+- Use adopt(), move(), copy(), remove() for managing references — no permission needed
+
+evaluate() and define() require explicit host approval, which blocks your
+workflow until the user grants permission. Only propose code when the task
+genuinely requires computation that cannot be done with the other tools.
+
 ## Code Proposals
 
 IMPORTANT: Only propose code when the user explicitly asks you to run code,
