@@ -6516,7 +6516,8 @@ button.btn-spinner::after {
 }
 
 /* Outliner mode: flow content from top instead of bottom */
-#messages[data-view-mode="outliner"] {
+#messages[data-view-mode="outliner"],
+#messages[data-view-mode="microblog"] {
   padding-top: 20px;
 }
 
@@ -6586,10 +6587,38 @@ button.btn-spinner::after {
   letter-spacing: -0.01em;
 }
 
-/* Three-dot menu on outliner nodes (hover-reveal) */
+/* Reply button + three-dot menu on outliner nodes (hover-reveal) */
+.outliner-reply-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.outliner-node-row:hover .outliner-reply-button {
+  display: inline-flex;
+}
+
+.outliner-reply-button:hover {
+  opacity: 1;
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
 .outliner-node-menu {
   display: none;
-  margin-left: 4px;
+  margin-left: 2px;
   flex-shrink: 0;
 }
 
@@ -6707,90 +6736,134 @@ button.btn-spinner::after {
   padding: 16px;
 }
 
+/* Profile header */
 .microblog-header {
-  margin-bottom: 24px;
+  margin-bottom: 8px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-light);
 }
 
-.microblog-header .message-wrapper {
-  margin: 0;
+.microblog-header-author {
+  margin-bottom: 6px;
 }
 
-.microblog-header .message {
-  background: none;
-  border: none;
-  padding: 0;
-}
-
-.microblog-header .message-body {
-  font-size: 1.1em;
-  line-height: 1.6;
-}
-
-.microblog-header .channel-author {
-  font-size: 1.15em;
+.microblog-header-author .channel-author {
+  font-size: 1.3em;
   font-weight: 600;
 }
 
+.microblog-header-bio {
+  font-size: 0.95em;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* Posts feed */
 .microblog-posts {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .microblog-post {
+  padding: 14px 0;
   border-bottom: 1px solid var(--border-light);
-  padding-bottom: 4px;
 }
 
-.microblog-post .message-wrapper {
-  margin: 0;
+/* Post header: author · time */
+.microblog-post-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
 }
 
-.microblog-post .message {
-  border: none;
-  background: none;
-  padding: 12px 0;
+.microblog-post-head .channel-author {
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.microblog-comments-section {
-  padding: 0 0 8px 32px;
-}
-
-.microblog-comments-toggle {
-  background: none;
-  border: none;
-  color: var(--accent-primary);
-  cursor: pointer;
+.microblog-post-sep {
+  color: var(--text-muted);
   font-size: 12px;
-  padding: 4px 0;
-  border-radius: 4px;
 }
 
-.microblog-comments-toggle:hover {
-  text-decoration: underline;
+.microblog-post-time {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.microblog-comment-list {
+/* Post body */
+.microblog-body {
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+/* Interaction bar */
+.microblog-actions {
+  display: flex;
+  gap: 16px;
   margin-top: 8px;
-  padding-left: 12px;
+}
+
+.microblog-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.microblog-action-btn:hover {
+  color: var(--accent-primary);
+  background: rgba(108, 140, 255, 0.08);
+}
+
+.microblog-action-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.microblog-action-count {
+  font-size: 12px;
+}
+
+/* Comments section */
+.microblog-comments-section {
+  margin-top: 10px;
+  padding: 8px 0 0 16px;
   border-left: 2px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
-.microblog-comment .message {
-  padding: 6px 0;
-  border: none;
-  background: none;
+.microblog-comment {
+  padding: 4px 0;
 }
 
-.microblog-comment .message-body {
+.microblog-comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.microblog-comment-head .channel-author {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.microblog-comment .microblog-body {
   font-size: 0.93em;
 }
 
+/* Empty state */
 .microblog-empty {
   text-align: center;
   padding: 48px 16px;

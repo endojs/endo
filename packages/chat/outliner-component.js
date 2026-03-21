@@ -2102,8 +2102,31 @@ export const outlinerComponent = async (
     setupCommittedEvents($text, key);
     $row.appendChild($text);
 
-    // Three-dot menu (visible on hover)
+    // Reply button + three-dot menu (visible on hover)
     {
+      if (onReply) {
+        const $replyBtn = document.createElement('button');
+        $replyBtn.className = 'outliner-reply-button';
+        $replyBtn.title = 'Reply';
+        $replyBtn.type = 'button';
+        $replyBtn.textContent = '\u21A9';
+        $replyBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const preview =
+            effective.strings.join('').slice(0, 60);
+          getMemberInfo(message.memberId).then(info => {
+            const authorName = info ? info.proposedName : message.memberId;
+            onReply({
+              number: message.number,
+              memberId: message.memberId,
+              authorName,
+              preview,
+            });
+          }).catch(() => {});
+        });
+        $row.appendChild($replyBtn);
+      }
+
       /** @type {Array<{label: string, icon: string, handler: () => void}>} */
       const menuItems = [];
       if (onFork) {
