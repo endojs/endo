@@ -35,6 +35,8 @@ export const inboxComponent = async (
   /** Map from form messageId to its description, for value message rendering. */
   /** @type {Map<string, string>} */
   const formDescriptions = new Map();
+  /** @type {Map<string, Array<{name: string, secret: boolean}>>} */
+  const formFieldMeta = new Map();
 
   const selfLocator = await E(powers).locate('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
@@ -57,9 +59,23 @@ export const inboxComponent = async (
     if (conversationId) {
       const otherPartyId = isSent ? toId : fromId;
       if (otherPartyId !== conversationId) {
-        // ID didn't match directly — try matching by pet name
-        // (handles peer/remote/guest formula indirection)
-        if (conversationPetName) {
+        // Self-to-self messages (e.g. endow result delivery) belong to a
+        // conversation when their replyTo references a message already in
+        // this conversation thread.
+        const replyTo =
+          'replyTo' in message ? /** @type {string} */ (message.replyTo) : undefined;
+        if (
+          fromId === selfLocator &&
+          toId === selfLocator &&
+          replyTo &&
+          $parent.querySelector(
+            `.message-envelope[data-message-id="${CSS.escape(replyTo)}"]`,
+          )
+        ) {
+          // falls through — include in this conversation
+        } else if (conversationPetName) {
+          // ID didn't match directly — try matching by pet name
+          // (handles peer/remote/guest formula indirection)
           // eslint-disable-next-line no-await-in-loop
           const names = await E(powers).reverseLocate(otherPartyId);
           if (
@@ -703,6 +719,20 @@ export const inboxComponent = async (
       const $actions = document.createElement('div');
       $actions.className = 'eval-proposal-actions';
 
+      // Enter key in any slot input submits the Endow form
+      const submitEndow = () => {
+        const $endowBtn = $actions.querySelector('.eval-proposal-grant');
+        if ($endowBtn) $endowBtn.click();
+      };
+      for (const $input of Object.values(slotInputs)) {
+        $input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            submitEndow();
+          }
+        });
+      }
+
       if (isSent) {
         if (settled) {
           settled.then(status => {
@@ -790,6 +820,13 @@ export const inboxComponent = async (
     } else if (message.type === 'form') {
       const { description, fields, messageId: formMsgId } = message;
       formDescriptions.set(String(formMsgId), String(description));
+      formFieldMeta.set(
+        String(formMsgId),
+        fields.map(f => ({
+          name: /** @type {{name: string}} */ (f).name,
+          secret: /** @type {{secret?: boolean}} */ (f).secret === true,
+        })),
+      );
 
       const $form = document.createElement('div');
       $form.className = 'form-request-message';
@@ -813,7 +850,7 @@ export const inboxComponent = async (
       $fieldsContainer.className = 'form-request-fields';
 
       const fieldArray =
-        /** @type {Array<{name: string, label: string, example?: string, default?: string}>} */ (
+        /** @type {Array<{name: string, label: string, example?: string, default?: string, secret?: boolean}>} */ (
           fields
         );
 
@@ -828,7 +865,7 @@ export const inboxComponent = async (
         $label.textContent = field.label || field.name;
 
         const $input = document.createElement('input');
-        $input.type = 'text';
+        $input.type = field.secret ? 'password' : 'text';
         $input.className = 'form-request-field-input';
         $input.placeholder = field.example || field.name;
         if (field.default) {
@@ -840,7 +877,40 @@ export const inboxComponent = async (
 
         fieldInputs[field.name] = $input;
         $row.appendChild($label);
-        $row.appendChild($input);
+
+        if (field.secret) {
+          const $group = document.createElement('div');
+          $group.className = 'form-field-input-group';
+          $group.appendChild($input);
+
+          const $toggle = document.createElement('button');
+          $toggle.type = 'button';
+          $toggle.className = 'form-field-toggle';
+          $toggle.textContent = 'Show';
+          $toggle.onclick = () => {
+            const hidden = $input.type === 'password';
+            $input.type = hidden ? 'text' : 'password';
+            $toggle.textContent = hidden ? 'Hide' : 'Show';
+          };
+          $group.appendChild($toggle);
+
+          const $copy = document.createElement('button');
+          $copy.type = 'button';
+          $copy.className = 'form-field-copy';
+          $copy.textContent = 'Copy';
+          $copy.onclick = () => {
+            navigator.clipboard.writeText($input.value);
+            $copy.textContent = 'Copied';
+            setTimeout(() => {
+              $copy.textContent = 'Copy';
+            }, 1500);
+          };
+          $group.appendChild($copy);
+
+          $row.appendChild($group);
+        } else {
+          $row.appendChild($input);
+        }
         $fieldsContainer.appendChild($row);
       }
       $form.appendChild($fieldsContainer);
@@ -910,11 +980,85 @@ export const inboxComponent = async (
       const $inlineValue = document.createElement('div');
       $inlineValue.className = 'form-request-inline-value';
       $valueMsg.appendChild($inlineValue);
+
+      const fieldMeta =
+        valueReplyTo !== undefined
+          ? formFieldMeta.get(String(valueReplyTo))
+          : undefined;
+      const secretFieldNames = new Set(
+        (fieldMeta || [])
+          .filter(f => f.secret)
+          .map(f => f.name),
+      );
+
       E(powers)
         .lookupById(valueId)
         .then(
           value => {
-            $inlineValue.appendChild(renderValue(value));
+            if (
+              secretFieldNames.size > 0 &&
+              value !== null &&
+              typeof value === 'object'
+            ) {
+              const record = /** @type {Record<string, unknown>} */ (value);
+              const $fields = document.createElement('div');
+              $fields.className = 'form-request-fields';
+              for (const key of Object.keys(record)) {
+                const $row = document.createElement('div');
+                $row.className = 'form-request-field-row';
+
+                const $label = document.createElement('span');
+                $label.className = 'form-request-field-label';
+                $label.textContent = key;
+                $row.appendChild($label);
+
+                if (secretFieldNames.has(key)) {
+                  const $group = document.createElement('div');
+                  $group.className = 'form-field-input-group';
+
+                  const $masked = document.createElement('span');
+                  $masked.className = 'form-value-secret';
+                  $masked.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                  $group.appendChild($masked);
+
+                  const realValue = String(record[key]);
+
+                  const $toggle = document.createElement('button');
+                  $toggle.type = 'button';
+                  $toggle.className = 'form-field-toggle';
+                  $toggle.textContent = 'Show';
+                  $toggle.onclick = () => {
+                    const isHidden = $masked.textContent !== realValue;
+                    $masked.textContent = isHidden
+                      ? realValue
+                      : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                    $toggle.textContent = isHidden ? 'Hide' : 'Show';
+                  };
+                  $group.appendChild($toggle);
+
+                  const $copy = document.createElement('button');
+                  $copy.type = 'button';
+                  $copy.className = 'form-field-copy';
+                  $copy.textContent = 'Copy';
+                  $copy.onclick = () => {
+                    navigator.clipboard.writeText(realValue);
+                    $copy.textContent = 'Copied';
+                    setTimeout(() => {
+                      $copy.textContent = 'Copy';
+                    }, 1500);
+                  };
+                  $group.appendChild($copy);
+
+                  $row.appendChild($group);
+                } else {
+                  $row.appendChild(renderValue(record[key]));
+                }
+                $fields.appendChild($row);
+              }
+              $inlineValue.appendChild($fields);
+            } else {
+              $inlineValue.appendChild(renderValue(value));
+            }
           },
           (/** @type {Error} */ err) => {
             $inlineValue.innerText = `Error: ${err.message}`;

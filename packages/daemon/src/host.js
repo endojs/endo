@@ -870,6 +870,7 @@ export const makeHostMaker = ({
       form,
       submit,
       sendValue,
+      deliverValueById,
     } = mailbox;
 
     /**
@@ -981,13 +982,25 @@ export const makeHostMaker = ({
         tasks,
         workerId,
       );
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(evalId);
 
-      // Send a value reply so the result appears in the conversation thread.
-      if (resultName !== undefined) {
-        await sendValue(messageNumber, resultName);
-      }
+      // Resolve the definition promise with a neutral receipt so the
+      // proposer's define() call completes but does NOT receive the eval
+      // result.  The host keeps the result private.
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const receiptTasks = makeDeferredTasks();
+      const { id: receiptId } = await formulateMarshalValue(
+        harden({ status: 'endowed' }),
+        receiptTasks,
+        pinTransient,
+      );
+      const resolver = await provide(resolverId, 'resolver');
+      E.sendOnly(resolver).resolveWithId(receiptId);
+      unpinTransient(receiptId);
+
+      // Deliver the eval result to the host's own inbox only.
+      // Using deliverValueById (not sendValue/post) ensures the value
+      // message does NOT appear in the proposer's inbox.
+      await mailbox.deliverValueById(messageNumber, evalId);
     };
 
     /**

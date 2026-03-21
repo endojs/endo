@@ -465,6 +465,7 @@ export type FormField = {
   label: string;
   example?: string;
   pattern?: unknown;
+  secret?: boolean;
 };
 
 export type Form = MessageBase & {
@@ -864,6 +865,15 @@ export interface Mail {
   sendValue(
     messageNumber: bigint,
     petNameOrPath: string | string[],
+  ): Promise<void>;
+  /**
+   * Deliver a value message to the local inbox only, bypassing the remote
+   * recipient.  Used by endow() so the eval result appears in the host's
+   * conversation thread without leaking to the proposer.
+   */
+  deliverValueById(
+    messageNumber: bigint,
+    valueId: FormulaIdentifier,
   ): Promise<void>;
   // Eval-proposal workflow
   evaluate(

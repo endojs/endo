@@ -3517,6 +3517,40 @@ button.btn-spinner::after {
   background: var(--bg-secondary);
 }
 
+.form-field-input-group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-field-input-group .form-request-field-input {
+  flex: 1;
+}
+
+.form-field-toggle,
+.form-field-copy {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.form-field-toggle:hover,
+.form-field-copy:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+  color: var(--text-primary);
+}
+
+.form-value-secret {
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
 .form-request-actions {
   display: flex;
   gap: 8px;

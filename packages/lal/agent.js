@@ -591,13 +591,15 @@ chooses what to bind from their own inventory. This is the preferred way to
 request code execution when you don't have the required capabilities.
 
 The host sees the code and slot labels, fills each slot with a capability
-from their pet store (endow), and the result is returned to you.
+from their pet store (endow), and the code is executed. You receive a
+receipt confirming endowment, not the eval result directly. The host sees
+the result in their inbox and may share it with you via reply().
 
 Example: To request incrementing a counter you don't have:
   define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
 
-The host will choose which counter to provide. The result resolves as the
-return value of your define() call.`,
+The host will choose which counter to provide. After endowment, wait for
+the host to share the result with you.`,
       parameters: {
         type: 'object',
         properties: {
@@ -746,7 +748,8 @@ capabilities in your directory. define() lets the host choose what to bind:
   define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
 
 The host sees the slot labels, fills each one from their inventory (endow), and
-the result is returned directly to you. You never need the capabilities yourself.
+the code executes. You receive a receipt, not the result. The host sees the
+result in their inbox and may share it with you via reply().
 
 Use evaluate() only when you already have every capability needed in your own
 directory and can provide them via codeNames/edgeNames:
@@ -829,8 +832,8 @@ Never ignore a proposal status notification. The sender is waiting for your resp
 Using define() (preferred when you don't have the capability):
 1. Receive request: "Please increment my counter"
 2. define("E(counter).increment()", {"counter": {"label": "The counter to increment"}})
-3. Host endows the slot with their counter → result returned to you
-4. reply() with the result to the sender
+3. Host endows the slot with their counter → you receive a receipt (not the result)
+4. Wait for the host to share the result via a reply message, then reply() to the original sender
 
 Using evaluate() (when you already have the capability in your directory):
 1. Receive request: "Please increment my counter" (and they sent you the counter)
@@ -1450,12 +1453,12 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         );
 
         // Return immediately - the LLM will be notified when the proposal settles
-        return {
+        return harden({
           proposalId,
           status: 'pending',
           message: `Proposal #${proposalId} sent to host for approval. You will be notified when the host responds.`,
           source,
-        };
+        });
       }
 
       // Define code with slots for host to fill
@@ -1919,7 +1922,7 @@ export const make = (guestPowers, _context) => {
           label: 'Model name',
           example: 'claude-sonnet-4-6-20250514',
         },
-        { name: 'authToken', label: 'API auth token' },
+        { name: 'authToken', label: 'API auth token', secret: true },
       ]),
     );
 

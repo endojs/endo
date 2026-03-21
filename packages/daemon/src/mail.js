@@ -1513,6 +1513,42 @@ export const makeMailboxMaker = ({
     };
 
     /**
+     * Deliver a value message to the local inbox only (not to any remote
+     * recipient).  This is used when the host endows a definition: the eval
+     * result should appear in the host's conversation thread but must NOT be
+     * visible to the proposer.
+     *
+     * @type {Mail['deliverValueById']}
+     */
+    const deliverValueById = async (messageNumber, valueId) => {
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      const parent = messages.get(normalizedMessageNumber);
+      if (parent === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (typeof parent.messageId !== 'string') {
+        throw new Error(`Message ${q(messageNumber)} has no messageId`);
+      }
+      assertValidId(valueId);
+
+      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
+        await randomHex256()
+      );
+
+      /** @type {import('./types.js').ValueMessage & { from: FormulaIdentifier, to: FormulaIdentifier }} */
+      const message = harden({
+        type: /** @type {const} */ ('value'),
+        from: /** @type {FormulaIdentifier} */ (selfId),
+        to: /** @type {FormulaIdentifier} */ (selfId),
+        messageId,
+        replyTo: parent.messageId,
+        valueId: /** @type {FormulaIdentifier} */ (valueId),
+      });
+
+      await deliver(message);
+    };
+
+    /**
      * Send an eval-proposal to a recipient.
      * @type {Mail['evaluate']}
      */
@@ -1765,6 +1801,7 @@ export const makeMailboxMaker = ({
       getForm,
       submit,
       sendValue,
+      deliverValueById,
       evaluate,
       grantEvaluate,
       counterEvaluate,
