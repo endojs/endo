@@ -34,8 +34,8 @@ import { deriveConstants, formatDuration } from './heat-engine.js';
  * @param {unknown} options.channel - Channel or ChannelMember reference
  * @param {unknown} options.powers - Host powers for locator generation
  * @param {string} [options.channelPetName] - Pet name of the channel
- * @param {'chat' | 'forum' | 'outliner'} [options.viewMode] - Current view mode
- * @param {(mode: 'chat' | 'forum' | 'outliner') => void} [options.onViewModeChange] - Callback when view mode changes
+ * @param {'chat' | 'forum' | 'outliner' | 'microblog'} [options.viewMode] - Current view mode
+ * @param {(mode: 'chat' | 'forum' | 'outliner' | 'microblog') => void} [options.onViewModeChange] - Callback when view mode changes
  * @returns {ChannelHeaderAPI}
  */
 export const createChannelHeader = ({
@@ -48,6 +48,7 @@ export const createChannelHeader = ({
 }) => {
   let menuVisible = false;
   let manageMembersVisible = false;
+  let inventoryVisible = false;
   /** @type {string | null} */
   let attenuatorModalMember = null;
 
@@ -83,6 +84,10 @@ export const createChannelHeader = ({
       <button type="button" class="channel-menu-item" data-action="members">
         Manage Members
       </button>
+      <div class="channel-menu-divider"></div>
+      <button type="button" class="channel-menu-item" data-action="inventory">
+        Inventory
+      </button>
     </div>
   `;
 
@@ -93,6 +98,7 @@ export const createChannelHeader = ({
         e.stopPropagation();
         menuVisible = !menuVisible;
         manageMembersVisible = false;
+        inventoryVisible = false;
         render();
       });
     }
@@ -110,6 +116,13 @@ export const createChannelHeader = ({
           manageMembersVisible = !manageMembersVisible;
           if (manageMembersVisible) {
             await showMembers();
+          } else {
+            render();
+          }
+        } else if (action === 'inventory') {
+          inventoryVisible = !inventoryVisible;
+          if (inventoryVisible) {
+            await showInventory();
           } else {
             render();
           }
@@ -194,6 +207,161 @@ export const createChannelHeader = ({
     } catch (err) {
       console.error('[ChannelHeader] Failed to get members:', err);
       render();
+    }
+  };
+
+  const showInventory = async () => {
+    try {
+      /** @type {string[]} */
+      const petNames = [];
+      const names = await E(
+        /** @type {{ list: () => AsyncIterable<string> }} */ (powers),
+      ).list();
+      for await (const name of names) {
+        petNames.push(/** @type {string} */ (name));
+      }
+
+      /** @type {Array<{ number: bigint, type: string, strings?: string[], names?: string[] }>} */
+      let inboxMessages = [];
+      try {
+        const rawMessages = await E(
+          /** @type {{ listMessages: () => Promise<unknown[]> }} */ (powers),
+        ).listMessages();
+        inboxMessages =
+          /** @type {Array<{ number: bigint, type: string, strings?: string[], names?: string[] }>} */ (
+            rawMessages
+          );
+      } catch {
+        // listMessages may not be available
+      }
+
+      renderInventoryPanel(petNames, inboxMessages);
+    } catch (err) {
+      console.error('[ChannelHeader] Failed to get inventory:', err);
+      render();
+    }
+  };
+
+  /**
+   * @param {string[]} petNames
+   * @param {Array<{ number: bigint, type: string, strings?: string[], names?: string[] }>} inboxMessages
+   */
+  const renderInventoryPanel = (petNames, inboxMessages) => {
+    const messagesWithValues = inboxMessages.filter(
+      m => m.type === 'package' && m.names && m.names.length > 0,
+    );
+
+    const petNameHtml =
+      petNames.length > 0
+        ? petNames
+            .map(
+              name => `
+          <div class="inventory-item">
+            <span class="inventory-name">${name}</span>
+          </div>
+        `,
+            )
+            .join('')
+        : '<p class="inventory-empty">No items in inventory.</p>';
+
+    const inboxHtml =
+      messagesWithValues.length > 0
+        ? messagesWithValues
+            .map(m => {
+              const text = m.strings ? m.strings.join('') : '';
+              const valueButtons = (m.names || [])
+                .map(
+                  name => `
+              <button class="inbox-adopt-btn" data-msg-number="${m.number}" data-edge-name="${CSS.escape(name)}">
+                Adopt \u201C${name}\u201D
+              </button>
+            `,
+                )
+                .join('');
+              return `
+            <div class="inbox-message-entry">
+              <div class="inbox-message-text">${text}</div>
+              <div class="inbox-message-values">${valueButtons}</div>
+            </div>
+          `;
+            })
+            .join('')
+        : '';
+
+    $container.innerHTML = `
+      <button type="button" class="channel-menu-btn" title="Channel actions">\u22EE</button>
+      <div class="channel-inventory-panel">
+        <div class="channel-inventory-header">
+          <h3>Persona Inventory</h3>
+          <button type="button" class="channel-inventory-close" title="Close">&times;</button>
+        </div>
+        <div class="channel-inventory-body">
+          <div class="inventory-section">
+            <h4>Pet Names</h4>
+            ${petNameHtml}
+          </div>
+          ${
+            messagesWithValues.length > 0
+              ? `
+            <div class="inventory-section">
+              <h4>Inbox (objects to adopt)</h4>
+              ${inboxHtml}
+            </div>
+          `
+              : ''
+          }
+        </div>
+      </div>
+    `;
+
+    // Re-attach menu button listener
+    const $menuBtn = $container.querySelector('.channel-menu-btn');
+    if ($menuBtn) {
+      $menuBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        inventoryVisible = false;
+        menuVisible = !menuVisible;
+        render();
+      });
+    }
+
+    const $close = $container.querySelector('.channel-inventory-close');
+    if ($close) {
+      $close.addEventListener('click', () => {
+        inventoryVisible = false;
+        render();
+      });
+    }
+
+    // Adopt buttons
+    const $adoptBtns = $container.querySelectorAll('.inbox-adopt-btn');
+    for (const $btn of $adoptBtns) {
+      $btn.addEventListener('click', async () => {
+        const msgNumber = BigInt(
+          /** @type {HTMLElement} */ ($btn).dataset.msgNumber || '0',
+        );
+        const edgeName =
+          /** @type {HTMLElement} */ ($btn).dataset.edgeName || '';
+        const petName = window.prompt(
+          `Adopt \u201C${edgeName}\u201D as:`,
+          edgeName,
+        );
+        if (!petName) return;
+        try {
+          await E(
+            /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
+              powers
+            ),
+          ).adopt(msgNumber, edgeName, petName);
+          window.alert(`Adopted \u201C${edgeName}\u201D as \u201C${petName}\u201D`);
+          // Refresh
+          await showInventory();
+        } catch (err) {
+          window.alert(
+            `Failed to adopt: ${/** @type {Error} */ (err).message}`,
+          );
+        }
+      });
     }
   };
 
