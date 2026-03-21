@@ -53,6 +53,7 @@ import {
   makeHelp,
   readableTreeHelp,
 } from './help-text.js';
+import { makeMount } from './mount.js';
 
 // Sorted:
 import {
@@ -293,6 +294,7 @@ const makeDaemonCore = async (
     petStore: petStorePowers,
     persistence: persistencePowers,
     control: controlPowers,
+    filePowers,
   } = powers;
   const { randomHex256, generateEd25519Keypair } = cryptoPowers;
   const contentStore = persistencePowers.makeContentStore();
@@ -528,6 +530,10 @@ const makeDaemonCore = async (
       case 'resolver':
         return [['store', formula.store]];
       case 'readable-tree':
+        return [];
+      case 'mount':
+        return [];
+      case 'scratch-mount':
         return [];
       case 'pet-inspector':
         return [['petStore', formula.petStore]];
@@ -2144,6 +2150,27 @@ const makeDaemonCore = async (
     keypair: ({ publicKey }) => harden({ publicKey }),
     'readable-blob': ({ content }) => makeReadableBlob(content),
     'readable-tree': ({ content }) => makeReadableTree(content),
+    'mount': async ({ path: mountPath, readOnly }) => {
+      // Verify the mount path exists.
+      const pathExists = await filePowers.exists(mountPath);
+      if (!pathExists) {
+        throw new Error(`Mount path does not exist: ${q(mountPath)}`);
+      }
+      const isDir = await filePowers.isDirectory(mountPath);
+      if (!isDir) {
+        throw new Error(`Mount path is not a directory: ${q(mountPath)}`);
+      }
+      return makeMount({ rootPath: mountPath, readOnly, filePowers });
+    },
+    'scratch-mount': async ({ readOnly }, _context, _id, formulaNumber) => {
+      const rootPath = filePowers.joinPath(
+        persistencePowers.statePath,
+        'mounts',
+        /** @type {string} */ (formulaNumber),
+      );
+      await filePowers.makePath(rootPath);
+      return makeMount({ rootPath, readOnly, filePowers });
+    },
     lookup: ({ hub, path }, context) =>
       makeLookup(
         hub,
@@ -2810,6 +2837,61 @@ const makeDaemonCore = async (
           type: 'readable-blob',
           content: contentSha256,
         };
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateMount']} */
+  const formulateMount = async (mountPath, readOnly, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          mountId: formatId({
+            number: formulaNumber,
+            node: LOCAL_NODE,
+          }),
+        });
+
+        /** @type {import('./types.js').MountFormula} */
+        const formula = harden({
+          type: 'mount',
+          path: mountPath,
+          readOnly,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateScratchMount']} */
+  const formulateScratchMount = async (readOnly, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          scratchMountId: formatId({
+            number: formulaNumber,
+            node: LOCAL_NODE,
+          }),
+        });
+
+        /** @type {import('./types.js').ScratchMountFormula} */
+        const formula = harden({
+          type: 'scratch-mount',
+          readOnly,
+        });
 
         return formulate(formulaNumber, formula);
       })
@@ -4175,6 +4257,8 @@ const makeDaemonCore = async (
     formulateBundle,
     formulateReadableBlob,
     checkinTree,
+    formulateMount,
+    formulateScratchMount,
     formulateInvitation,
     formulateSyncedPetStore,
     getPeerIdForNodeIdentifier,

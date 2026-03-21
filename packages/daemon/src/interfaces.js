@@ -293,6 +293,14 @@ export const HostInterface = M.interface('EndoHost', {
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Check in a remote readable-tree Exo, storing content-addressed
   storeTree: M.call(M.remotable(), NameOrPathShape).returns(M.promise()),
+  // Mount an external directory
+  provideMount: M.call(M.string(), NameOrPathShape)
+    .optional(M.splitRecord({}, { readOnly: M.boolean() }))
+    .returns(M.promise()),
+  // Create a daemon-managed scratch mount
+  provideScratchMount: M.call(NameOrPathShape)
+    .optional(M.splitRecord({}, { readOnly: M.boolean() }))
+    .returns(M.promise()),
   // Provide a guest
   provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a host
@@ -455,6 +463,36 @@ export const BlobInterface = M.interface('EndoBlob', {
   streamBase64: M.call().returns(M.remotable()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
+});
+
+const PathSegmentsShape = M.arrayOf(M.string());
+
+export const MountInterface = M.interface('EndoMount', {
+  // ReadableTree-compatible surface
+  has: M.call().rest(PathSegmentsShape).returns(M.promise()),
+  list: M.call().rest(PathSegmentsShape).returns(M.promise()),
+  lookup: M.call(M.or(M.string(), PathSegmentsShape)).returns(M.promise()),
+  // Mutation
+  write: M.call(PathSegmentsShape, M.any()).returns(M.promise()),
+  remove: M.call(PathSegmentsShape).returns(M.promise()),
+  move: M.call(PathSegmentsShape, PathSegmentsShape).returns(M.promise()),
+  makeDirectory: M.call(PathSegmentsShape).returns(M.promise()),
+  // Attenuation
+  readOnly: M.call().returns(M.remotable()),
+  // Snapshot
+  snapshot: M.call().returns(M.promise()),
+  // Discoverability
+  help: M.call().returns(M.string()),
+});
+
+export const MountFileInterface = M.interface('EndoMountFile', {
+  text: M.call().returns(M.promise()),
+  streamBase64: M.call().returns(M.remotable()),
+  json: M.call().returns(M.promise()),
+  writeText: M.call(M.string()).returns(M.promise()),
+  writeBytes: M.call(M.remotable()).returns(M.promise()),
+  readOnly: M.call().returns(M.remotable()),
+  help: M.call().returns(M.string()),
 });
 
 export const ReadableTreeInterface = M.interface('EndoReadableTree', {

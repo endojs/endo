@@ -602,6 +602,36 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('mount <path>')
+    .description('mounts an external filesystem directory')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mount');
+      }
+      const { mount: mountCmd } = await import('./commands/mount.js');
+      return mountCmd({ sourcePath, name, agentNames, readOnly });
+    });
+
+  program
+    .command('mkscratch')
+    .description('creates a daemon-managed scratch mount')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async cmd => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mkscratch');
+      }
+      const { mkscratch } = await import('./commands/mkscratch.js');
+      return mkscratch({ name, agentNames, readOnly });
+    });
+
+  program
     .command('eval <source> [names...]')
     .description('creates a value')
     .option(...commonOptions.as)
