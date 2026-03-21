@@ -23,12 +23,12 @@
   },
   "scripts": {
     "build": "exit 0",
-    "setup": "endo run --UNCONFINED setup.js --powers AGENT",
+    "setup": "endo run --UNCONFINED setup.js --powers @agent",
     "create-provider": "./provider-setup.sh",
-    "setup-factory": "endo run --UNCONFINED fae-factory-setup.js --powers AGENT -E PROVIDER_NAME=${PROVIDER_NAME:-default} -E FACTORY_NAME=${FACTORY_NAME:-fae-factory}",
-    "setup-tools": "endo run --UNCONFINED setup-tools.js --powers AGENT",
-    "setup-with-tools": "endo run --UNCONFINED setup-with-tools.js --powers AGENT -E PROVIDER_NAME=${PROVIDER_NAME:-default} -E FACTORY_NAME=${FACTORY_NAME:-fae-factory}",
-    "setup-fs-tools": "endo run --UNCONFINED setup-fs-tools.js --powers AGENT",
+    "setup-factory": "endo run --UNCONFINED fae-factory-setup.js --powers @agent -E PROVIDER_NAME=${PROVIDER_NAME:-default} -E FACTORY_NAME=${FACTORY_NAME:-fae-factory}",
+    "setup-tools": "endo run --UNCONFINED setup-tools.js --powers @agent",
+    "setup-with-tools": "endo run --UNCONFINED setup-with-tools.js --powers @agent -E PROVIDER_NAME=${PROVIDER_NAME:-default} -E FACTORY_NAME=${FACTORY_NAME:-fae-factory}",
+    "setup-fs-tools": "endo run --UNCONFINED setup-fs-tools.js --powers @agent",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"

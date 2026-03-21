@@ -1,5 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED setup-tools.js --powers AGENT
+// endo run --UNCONFINED setup-tools.js --powers @agent
 //
 // Creates example tool caplets in the host's inventory.
 // These can later be sent to a fae agent via mail, or introduced

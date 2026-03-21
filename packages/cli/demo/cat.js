@@ -4,7 +4,7 @@
 // This command will set up the cat page, create a URL,
 // and open it.
 //
-// > endo install cat.js --powers AGENT --listen 8920 --name cat
+// > endo install cat.js --powers @agent --listen 8920 --name cat
 //
 // Thereafter,
 //

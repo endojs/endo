@@ -138,7 +138,7 @@ export const main = async rawArgs => {
     )
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
+      'Endowment to give the worklet (a name, @none, @agent, or @endo)',
     )
     .option(
       '-E,--env <key=value>',
@@ -913,7 +913,8 @@ export const main = async rawArgs => {
     });
 
   // Group commands by topic in the help screen.
-  installGroupedHelp(program,
+  installGroupedHelp(
+    program,
 
     {
       title: 'Daemon',
@@ -949,15 +950,7 @@ export const main = async rawArgs => {
 
     {
       title: 'Execution',
-      commands: [
-        'run',
-        'make',
-        'eval',
-        'spawn',
-        'bundle',
-        'install',
-        'open',
-      ],
+      commands: ['run', 'make', 'eval', 'spawn', 'bundle', 'install', 'open'],
     },
 
     {
@@ -983,21 +976,13 @@ export const main = async rawArgs => {
 
     {
       title: 'Agents',
-      commands: [
-        'mkhost',
-        'mkguest',
-        'invite',
-        'accept',
-      ],
+      commands: ['mkhost', 'mkguest', 'invite', 'accept'],
     },
 
     {
       title: 'Configuration',
-      commands: [
-        'where',
-      ],
+      commands: ['where'],
     },
-
   );
 
   // Throw an error instead of exiting directly.

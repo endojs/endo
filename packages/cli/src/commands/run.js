@@ -56,7 +56,7 @@ export const run = async ({
       let powersP;
       if (powersName === '@none') {
         powersP = E(bootstrap).leastAuthority();
-      } else if (powersName === '@host') {
+      } else if (powersName === '@agent') {
         powersP = agent;
       } else if (powersName === '@endo') {
         powersP = bootstrap;

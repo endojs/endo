@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "setup": "endo run --UNCONFINED setup.js --powers AGENT GENIE_HOME=$GENIE_HOME",
+    "setup": "endo run --UNCONFINED setup.js --powers @agent GENIE_HOME=$GENIE_HOME",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"

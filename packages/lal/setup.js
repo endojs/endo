@@ -1,6 +1,6 @@
 // @ts-check
 /* global process */
-// endo run --UNCONFINED setup.js --powers @host
+// endo run --UNCONFINED setup.js --powers @agent
 //   -E LAL_HOST=https://api.anthropic.com
 //   -E LAL_MODEL=claude-sonnet-4-6-20250514
 //   -E LAL_AUTH_TOKEN=sk-ant-...

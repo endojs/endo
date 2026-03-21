@@ -1,6 +1,6 @@
 /* global process */
 // @ts-check
-// endo run --UNCONFINED setup-fs-tools.js --powers AGENT
+// endo run --UNCONFINED setup-fs-tools.js --powers @agent
 // Optional: FAE_CWD=/path/to/root endo run ... to set root directory (default: process.cwd())
 //
 // Creates filesystem tool caplets in the host's inventory. Each tool's root
