@@ -939,6 +939,8 @@ export const main = async rawArgs => {
         'cat',
         'follow',
         'store',
+        'checkin',
+        'checkout',
         'locate',
         'remove',
         'move',
