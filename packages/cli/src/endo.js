@@ -12,6 +12,7 @@ import { Command } from 'commander';
 import { prompt } from './prompt.js';
 
 import { isTerminalError } from './doe-normaal.js';
+import installGroupedHelp from './grouped-help.js';
 
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
@@ -888,6 +889,94 @@ export const main = async rawArgs => {
       const { ping } = await import('./commands/ping.js');
       await ping();
     });
+
+  // Group commands by topic in the help screen.
+  installGroupedHelp(program,
+
+    {
+      title: 'Daemon',
+      commands: [
+        'start',
+        'stop',
+        'restart',
+        'run-daemon',
+        'status',
+        'clean',
+        'purge',
+        'log',
+        'ping',
+      ],
+    },
+
+    {
+      title: 'Storage',
+      commands: [
+        'list',
+        'show',
+        'cat',
+        'follow',
+        'store',
+        'locate',
+        'remove',
+        'move',
+        'copy',
+        'mkdir',
+        'cancel',
+      ],
+    },
+
+    {
+      title: 'Execution',
+      commands: [
+        'run',
+        'make',
+        'eval',
+        'spawn',
+        'bundle',
+        'install',
+        'open',
+      ],
+    },
+
+    {
+      title: 'Messaging',
+      commands: [
+        'inbox',
+        'send',
+        'reply',
+        'send-value',
+        'dismiss',
+        'dismiss-all',
+        'request',
+        'resolve',
+        'reject',
+        'adopt',
+        'approve-eval',
+        'define',
+        'endow',
+        'form',
+        'submit',
+      ],
+    },
+
+    {
+      title: 'Agents',
+      commands: [
+        'mkhost',
+        'mkguest',
+        'invite',
+        'accept',
+      ],
+    },
+
+    {
+      title: 'Configuration',
+      commands: [
+        'where',
+      ],
+    },
+
+  );
 
   // Throw an error instead of exiting directly.
   program.exitOverride();

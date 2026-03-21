@@ -1,274 +1,384 @@
-# EndoClaw: Timer / Scheduler Capability
+# EndoClaw: Core Heartbeat Scheduler
 
-| | |
-|---|---|
-| **Created** | 2026-03-03 |
-| **Updated** | 2026-03-13 |
-| **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
-| **Parent** | [endoclaw](endoclaw.md) |
+|             |                            |
+|-------------|----------------------------|
+| **Created** | 2026-03-03                 |
+| **Updated** | 2026-03-18                 |
+| **Author**  | Kris Kowal (prompted)      |
+| **Author**  | Joshua T Corbin (revamped) |
+| **Status**  | Not Started                |
+| **Parent**  | [endoclaw](endoclaw.md)    |
 
 ## What is the Problem Being Solved?
 
 SES lockdown removes `setTimeout` and `setInterval` from the global scope.
 An agent running inside a locked-down worker has **no mechanism** for
-scheduling future execution.  Without a timer capability, agents are purely
-reactive — they can only respond to messages they receive.
+scheduling future execution.  Without a heartbeat capability, agents are
+purely reactive — they can only respond to messages they receive.
 
-Proactive agent behavior requires scheduled execution:
+The heartbeat is the core "there" that makes an agent tick. 
+A claw needs a consistent, reliable pulse so it can:
 
-- **Morning briefings:** Gather data and compose a summary at 8 AM daily.
-- **Reminders:** Alert the user at a specific future time.
-- **Monitoring:** Check an external service every 15 minutes and report
-  anomalies.
-- **Retry/backoff:** Re-attempt a failed operation after a delay.
+- **Drive its main loop:** Check for pending work, run housekeeping, and
+  advance its internal state on a regular cadence.
+- **Power downstream scheduling:** Higher-level scheduling policies
+  (daily briefings, reminders, monitoring intervals) are implemented
+  *by the agent* on top of its heartbeat — the heartbeat itself carries
+  no cron or policy semantics.
+- **Retry transient failures:** Re-attempt an operation after a backoff
+  delay without blocking the main loop.
 
-The Timer capability is the **only** way to restore scheduled execution
-under SES, making timer authority explicit, auditable, and revocable.
+This design provides a core interval/ticker facility — similar to Go's
+`time.Ticker` or Tokio's `time::Interval` — that delivers consistent
+start-to-start wakeups as messages.  It is **not** a general-purpose cron
+scheduler.  Any policy decisions about "when to run what" are the agent's
+concern, not the scheduler's.
 
 ## Design
 
 ### Capability Shape
 
-The Timer capability follows the caretaker pattern: a `Timer` facet
-granted to the agent (the guest facet) and a `TimerControl` facet
-retained by the host (the control facet).  Both are facets of a single
-`timer-service` exo.
+The `IntervalScheduler` follows the caretaker pattern:
+- the agent holds the scheduler facet
+- the host retains the `IntervalControl` facet.
+
+Both are facets of a single `interval-scheduler` exo.
+
+Each tick delivers a `TickResponse` capability that the agent uses to
+signal completion or request a retry.
 
 ```ts
-interface Timer {
-  schedule(cron: string, label: string): Promise<TimerHandle>;
-  delay(ms: number, label: string): Promise<TimerHandle>;
-  list(): Promise<TimerEntry[]>;
+interface IntervalScheduler {
+  makeInterval(
+    label: string,
+    periodMs: number,
+    opts?: {
+      firstDelayMs?: number;   // default 0 (immediate first tick)
+      tickTimeoutMs?: number;  // default periodMs / 2
+    },
+  ): Promise<Interval>;
+  list(): Promise<IntervalEntry[]>;
   help(): string;
 }
 
-interface TimerHandle {
+interface Interval {
+  label(): string;
+  period(): number;            // current periodMs
+  setPeriod(periodMs: number): Promise<void>;
   cancel(): Promise<void>;
-  info(): TimerEntry;
+  info(): IntervalEntry;
+  help(): string;
 }
 
-interface TimerControl {
+interface IntervalControl {
   setMaxActive(n: number): void;
-  setMinIntervalMs(ms: number): void;
+  setMinPeriodMs(ms: number): void;
   pause(): void;
   resume(): void;
   revoke(): void;
-  listAll(): Promise<TimerEntry[]>;
+  listAll(): Promise<IntervalEntry[]>;
   help(): string;
 }
 
-type TimerEntry = {
+interface TickResponse {
+  resolve(): void;
+  reschedule(): void;
+}
+
+type IntervalEntry = {
   id: string;
   label: string;
-  kind: 'cron' | 'delay';
-  cron: string | undefined;
-  fireAt: number;          // epoch ms of next (or only) fire
-  createdAt: number;       // epoch ms when scheduled
-  firedCount: number;      // times this timer has fired
-  status: 'active' | 'paused' | 'cancelled' | 'completed';
+  periodMs: number;
+  firstDelayMs: number;
+  tickTimeoutMs: number;
+  nextTickAt: number;        // epoch ms of next scheduled tick
+  createdAt: number;         // epoch ms when created
+  tickCount: number;         // total ticks fired
+  status: 'active' | 'paused' | 'cancelled';
 };
 ```
 
 ### Interface Guards
 
 ```js
-const TimerEntryShape = harden({
+const IntervalEntryShape = harden({
   id: M.string(),
   label: M.string(),
-  kind: M.or('cron', 'delay'),
-  cron: M.or(M.string(), M.undefined()),
-  fireAt: M.number(),
+  periodMs: M.number(),
+  firstDelayMs: M.number(),
+  tickTimeoutMs: M.number(),
+  nextTickAt: M.number(),
   createdAt: M.number(),
-  firedCount: M.number(),
-  status: M.or('active', 'paused', 'cancelled', 'completed'),
+  tickCount: M.number(),
+  status: M.or('active', 'paused', 'cancelled'),
 });
 
-export const TimerInterface = M.interface('EndoTimer', {
-  schedule: M.callWhen(M.string(), M.string())
-    .returns(M.remotable('TimerHandle')),
-  delay: M.callWhen(M.number(), M.string())
-    .returns(M.remotable('TimerHandle')),
-  list: M.callWhen().returns(M.arrayOf(TimerEntryShape)),
+export const IntervalSchedulerInterface = M.interface('EndoIntervalScheduler', {
+  makeInterval: M.callWhen(
+    M.string(),
+    M.number(),
+    M.opt(M.splitRecord({}, {
+      firstDelayMs: M.number(),
+      tickTimeoutMs: M.number(),
+    })),
+  ).returns(M.remotable('Interval')),
+  list: M.callWhen().returns(M.arrayOf(IntervalEntryShape)),
   help: M.call().returns(M.string()),
 });
 
-export const TimerHandleInterface = M.interface('EndoTimerHandle', {
+export const IntervalInterface = M.interface('EndoInterval', {
+  label: M.call().returns(M.string()),
+  period: M.call().returns(M.number()),
+  setPeriod: M.callWhen(M.number()).returns(M.undefined()),
   cancel: M.callWhen().returns(M.undefined()),
-  info: M.call().returns(TimerEntryShape),
+  info: M.call().returns(IntervalEntryShape),
+  help: M.call().returns(M.string()),
 });
 
-export const TimerControlInterface = M.interface('EndoTimerControl', {
+export const IntervalControlInterface = M.interface('EndoIntervalControl', {
   setMaxActive: M.call(M.number()).returns(M.undefined()),
-  setMinIntervalMs: M.call(M.number()).returns(M.undefined()),
+  setMinPeriodMs: M.call(M.number()).returns(M.undefined()),
   pause: M.call().returns(M.undefined()),
   resume: M.call().returns(M.undefined()),
   revoke: M.call().returns(M.undefined()),
-  listAll: M.callWhen().returns(M.arrayOf(TimerEntryShape)),
+  listAll: M.callWhen().returns(M.arrayOf(IntervalEntryShape)),
   help: M.call().returns(M.string()),
+});
+
+export const TickResponseInterface = M.interface('EndoTickResponse', {
+  resolve: M.call().returns(M.undefined()),
+  reschedule: M.call().returns(M.undefined()),
 });
 ```
 
 ### How It Works
 
-1. **Host creates the capability pair.**  The host calls a maker function
-   (e.g., `E(host).makeTimer(agentName, options)`) which formulates a
-   `timer-service` formula and returns the `Timer` / `TimerControl` pair.
-   The host grants the `Timer` facet to the agent and retains
-   `TimerControl`.
+1. **Host creates the capability pair.**  The host calls
+   `E(host).makeIntervalScheduler(agentName, options)` which formulates
+   an `interval-scheduler` formula and returns the
+   `IntervalScheduler` / `IntervalControl` pair.  The host grants the
+   `IntervalScheduler` facet to the agent and retains `IntervalControl`.
 
-2. **Agent schedules a timer.**  The agent calls
-   `E(timer).schedule('0 8 * * *', 'morning-briefing')` or
-   `E(timer).delay(300000, 'retry-upload')`.  The `Timer` exo validates
-   the request against the host's limits, persists the timer entry to
-   disk, arms a Node.js `setTimeout` for the next fire time, and returns
-   a `TimerHandle`.
+2. **Agent creates an interval.**  The agent calls
+   `E(scheduler).makeInterval('heartbeat', 30 * 60 * 1_000) // 30m heartbeat example`.
+   The scheduler:
+   - validates the request against the host's limits
+   - persists the interval entry to disk
+   - arms a `setTimeout` for the first tick
+   - with the default `firstDelayMs: 0`, the first tick fires immediately
 
-3. **Timer fires.**  When the `setTimeout` callback runs, the daemon
-   delivers a `timer-fire` message to the agent's handle.  The agent
-   receives it through `followMessages()` alongside all other messages.
-   For cron timers, the daemon computes the next fire time and re-arms
-   the `setTimeout`.
+3. **Tick fires.**  When the `setTimeout` callback runs
+   - the daemon creates a `TickResponse` capability (a one-shot exo) and
+     delivers an `interval-tick` message to the agent's inbox
+   - the message carries a reference to the `TickResponse`
+   - the scheduler immediately arms a timeout (`tickTimeoutMs`) for the tick's
+     deadline.
 
-4. **Agent processes the event.**  The agent's message loop sees the
-   `timer-fire` message, which contains the timer's label and entry
-   metadata.  The agent executes its scheduled logic (gather data,
-   compose a response, send messages).
+4. **Agent processes the tick.**  The agent's message loop sees the
+   `interval-tick` message through `followMessages()`.  It executes its
+   heartbeat logic and then calls either:
+   - `E(tickResponse).resolve()` — the tick succeeded (or failed
+     terminally).  The scheduler advances `nextTickAt` to the next
+     period boundary and arms the next `setTimeout`.
+   - `E(tickResponse).reschedule()` — the tick failed transiently.
+     The scheduler re-fires after an exponential backoff delay (see
+     [Resolve/Reschedule Semantics](#resolveschedule-semantics)).
 
-5. **Daemon restarts.**  On startup, the daemon reads all persisted timer
-   entries.  For each active timer, it computes the next fire time
-   relative to now and arms a `setTimeout`.  Timers that should have
-   fired during downtime fire immediately (or once, with a
-   `missedFirings` count in the message).
+5. **Tick times out.**  If the agent neither resolves nor reschedules
+   before `tickTimeoutMs` elapses:
+   - the scheduler auto-resolves the tick, logs a warning, and advances to the
+     next period
+   - the `TickResponse` becomes inert — subsequent calls are no-ops
 
-### Timer Fire as a Message
+6. **Daemon restarts.**  On startup, the daemon
+   - reads all persisted interval entries
+   - computes any missed ticks
+   - for any missed ticks, delivers a single catch-up message
+   - arms all active intervals (see [Startup Recovery](#startup-recovery)).
 
-Timer events are delivered through the existing mail system rather than a
+### Tick Delivery as a Message
+
+Tick events are delivered through the existing mail system rather than a
 new delivery mechanism.  This provides:
 
-- **Persistence:** Fired events are persisted in the agent's mailbox and
-  survive restarts.  If the agent crashes during processing, the message
-  is still in `followMessages()` on the next incarnation.
-- **Ordering:** Timer events interleave naturally with other messages in
-  arrival order.
-- **Replay:** The `followMessages()` replay on restart includes timer
-  events, so agents with inbox-replay recovery (like Fae) handle timer
-  events identically to user messages.
+- **Persistence:**
+  - Tick messages are persisted in the agent's mailbox and survive restarts.
+  - If the agent crashes during processing, the message is still in
+    `followMessages()` on the next incarnation.
+- **Ordering:**
+  - Tick events interleave naturally with other messages in arrival order
+- **Replay:**
+  - The `followMessages()` replay on restart includes tick events, so agents
+    with inbox-replay recovery handle tick events identically to user messages.
 
 #### Message Shape
 
 ```ts
-type TimerFireMessage = {
-  type: 'timer-fire';
+type IntervalTickMessage = {
+  type: 'interval-tick';
   messageId: FormulaIdentifier;
-  from: FormulaIdentifier;     // the timer-service's handle
-  to: FormulaIdentifier;       // the agent's handle
-  timerId: string;
+  from: FormulaIdentifier;       // the interval-scheduler's handle
+  to: FormulaIdentifier;         // the agent's handle
+  intervalId: string;
   label: string;
-  kind: 'cron' | 'delay';
-  fireAt: number;              // scheduled fire time (epoch ms)
-  actualAt: number;            // actual fire time (epoch ms)
-  firedCount: number;          // 1-indexed count for this timer
-  missedFirings: number;       // firings missed during downtime (0 if on time)
+  periodMs: number;
+  tickNumber: number;            // 1-indexed count for this interval
+  scheduledAt: number;           // intended fire time (epoch ms)
+  actualAt: number;              // actual fire time (epoch ms)
+  missedTicks: number;           // ticks missed during downtime (0 normally)
+  tickResponseId: FormulaIdentifier;  // ref to TickResponse capability
 };
 ```
 
-The `missedFirings` field tells the agent how many firings occurred during
-daemon downtime.  For a daily cron that fires at 8 AM, if the daemon was
-down for 3 days, the agent receives a single `timer-fire` message with
-`missedFirings: 2` on restart.  The agent can decide whether to run its
-logic once (idempotent) or compensate for the missed firings.
+The `missedTicks` field tells the agent how many ticks were skipped during
+daemon downtime.  For an interval with a 60-second period, if the daemon
+was down for 5 minutes, the agent receives a single `interval-tick`
+message with `missedTicks: 4` on restart.  The agent decides whether to
+compensate or simply continue.
+
+### Resolve/Reschedule Semantics
+
+Each tick fires with a deadline of `tickTimeoutMs` from the actual fire
+time.  The agent must respond before the deadline by calling one of:
+
+#### `resolve()`
+
+The tick is done.  The scheduler advances to the next period boundary:
+
+```
+nextTickAt = scheduledAt + periodMs
+```
+
+This is **start-to-start** timing:
+- the next tick fires at a fixed offset from when *this* tick was scheduled to
+  fire, not from when it was resolved
+- this keeps the cadence consistent regardless of how long the agent takes to
+  process each tick
+
+If processing took longer than one full period (i.e., `nextTickAt` is
+already in the past), the scheduler fires the next tick immediately with
+`missedTicks` reflecting how many periods were consumed.
+
+#### `reschedule()`
+
+The tick failed transiently. 
+The agent declines this wakeup but wants to try again soon.
+The scheduler implements exponential backoff:
+
+```
+baseBackoff = min(1000, periodMs / 10)
+backoffDelay = min(baseBackoff * 2^(rescheduleCount - 1), tickTimeoutMs)
+retryAt = min(now + backoffDelay, scheduledAt + tickTimeoutMs)
+```
+
+The scheduler increments a per-tick `rescheduleCount` and arms a new
+`setTimeout` for `retryAt`.  The retry delivers a fresh `interval-tick`
+message with a fresh `TickResponse` capability (same `tickNumber`,
+incremented internal retry counter).
+
+If the backoff delay would push the retry past the tick deadline, the
+scheduler auto-resolves and advances to the next period instead.
+
+#### Timeout (no response)
+
+If the agent neither resolves nor reschedules within `tickTimeoutMs`,
+the scheduler treats this as an implicit resolve:
+
+- The `TickResponse` capability becomes inert (both methods are no-ops).
+- The scheduler logs a warning: `Interval ${label} tick ${tickNumber} timed out after ${tickTimeoutMs}ms`.
+- The scheduler advances `nextTickAt` to the next period boundary and
+  arms the next tick.
+
+This prevents a crashed or stuck agent from permanently stalling its
+heartbeat.
+
+### Start-to-Start Timing
+
+The scheduler enforces **consistent start-to-start** timing.  Each tick
+is scheduled relative to the previous tick's *scheduled* time, not its
+actual completion time:
+
+```
+tick 1 scheduled at: createdAt + firstDelayMs
+tick 2 scheduled at: tick1.scheduledAt + periodMs
+tick 3 scheduled at: tick2.scheduledAt + periodMs
+...
+```
+
+If processing a tick takes longer than `periodMs`, the next tick fires
+immediately when the current tick resolves (the scheduled time has
+already passed).  This avoids drift while also avoiding overlapping
+ticks — each tick must resolve or time out before the next one fires.
 
 ### Formula Type
 
 ```ts
-type TimerServiceFormula = {
-  type: 'timer-service';
-  /** The agent this timer service is bound to. */
+type IntervalSchedulerFormula = {
+  type: 'interval-scheduler';
+  /** The agent this scheduler is bound to. */
   agent: FormulaIdentifier;
-  /** The handle used by the timer service to deliver fire messages. */
+  /** The handle used by the scheduler to deliver tick messages. */
   handle: FormulaIdentifier;
+  /** Maximum number of active intervals (default 5). */
+  maxActive: number;
+  /** Minimum allowed period in ms (default 30_000). */
+  minPeriodMs: number;
+  /** Whether all intervals are paused (default false). */
+  paused: boolean;
 };
 ```
 
-The formula stores the agent and handle references.  Timer entries,
-limits, and pause state are stored in a dedicated directory on disk (not
-in the formula itself), because they change frequently and independently.
+The formula stores the agent and handle references along with limits
+(`maxActive`, `minPeriodMs`) and `paused` state.  Interval entries are
+stored as files in a dedicated directory on disk (see
+[Persistence](#persistence)).
 
 **Dependency edges for GC:**
-- `agent` — strong.  The timer service is alive as long as its agent is.
-- `handle` — strong.  The timer service's own handle must be alive to
+- `agent` — strong.  The scheduler is alive as long as its agent is.
+- `handle` — strong.  The scheduler's own handle must be alive to
   deliver messages.
 
-The timer service is formulated with a `DeferredTasks` that writes its
-formula ID into the agent's pet store (e.g., under the name `TIMER`),
+The scheduler is formulated with a `DeferredTasks` that writes its
+formula ID into the agent's pet store (e.g., under the name `SCHEDULER`),
 making it accessible to the agent.
 
 ### Persistence
 
 #### Directory Layout
 
-Each `timer-service` instance is backed by a directory on disk:
+Each `interval-scheduler` instance is backed by a directory on disk:
 
 ```
 state/
-  timer-service/
+  interval-scheduler/
     ab/
-      cdef0123…/              ← one timer-service instance
-        entries/               ← one file per timer entry
+      cdef0123…/                ← one scheduler instance
+        intervals/              ← one file per interval
           a1b2c3d4.json
           e5f6g7h8.json
-        config.json            ← limits and pause state
 ```
 
 This follows the established pattern from `pet-store` and
 `synced-pet-store` (one directory per formula, one file per entry).
 
-#### Entry File Format
+#### Interval Entry File Format
 
 ```json
 {
   "id": "a1b2c3d4",
-  "label": "morning-briefing",
-  "kind": "cron",
-  "cron": "0 8 * * *",
-  "fireAt": 1741852800000,
-  "createdAt": 1741766400000,
-  "firedCount": 3,
+  "label": "heartbeat",
+  "periodMs": 60000,
+  "firstDelayMs": 0,
+  "tickTimeoutMs": 30000,
+  "nextTickAt": 1741852860000,
+  "createdAt": 1741852800000,
+  "tickCount": 42,
   "status": "active"
 }
 ```
 
-For one-shot delays:
-
-```json
-{
-  "id": "e5f6g7h8",
-  "label": "retry-upload",
-  "kind": "delay",
-  "fireAt": 1741767300000,
-  "createdAt": 1741767000000,
-  "firedCount": 0,
-  "status": "active"
-}
-```
-
-One-shot delays store the **absolute** fire time, not the relative delay.
-This allows the daemon to determine on restart whether the delay has
-elapsed (fire immediately) or how much time remains (re-arm with the
-remainder).
-
-#### Config File Format
-
-```json
-{
-  "maxActive": 5,
-  "minIntervalMs": 60000,
-  "paused": false
-}
-```
-
-Defaults are applied if the file does not exist.
+`nextTickAt` is the absolute time of the next scheduled tick.  This makes
+restart recovery trivial: compare to `Date.now()` and fire or re-arm.
 
 #### Atomic Writes
 
@@ -287,241 +397,280 @@ async function atomicWriteJSON(filePowers, targetDir, fileName, value):
 ### Arming and Disarming
 
 The daemon maintains an in-memory `Map<string, NodeJS.Timeout>` from
-timer entry ID to active `setTimeout` handle.  This map is not
+interval entry ID to active `setTimeout` handle.  This map is not
 persisted — it is rebuilt from disk on startup.
 
-#### Arming a Timer
+#### Arming an Interval
 
 ```
-function armTimer(entry):
+function armInterval(entry):
     const now = Date.now()
-    const delay = Math.max(0, entry.fireAt - now)
-    const handle = setTimeout(() => onTimerFire(entry.id), delay)
+    const delay = Math.max(0, entry.nextTickAt - now)
+    const handle = setTimeout(() => onIntervalTick(entry.id), delay)
     activeTimeouts.set(entry.id, handle)
 ```
 
-For cron timers, `fireAt` is the next occurrence computed from the cron
-expression.  For one-shot delays, `fireAt` is the absolute target time.
-
-#### On Timer Fire
+#### On Interval Tick
 
 ```
-async function onTimerFire(entryId):
+async function onIntervalTick(entryId):
     const entry = await readEntry(entryId)
     if entry.status !== 'active':
         return   // cancelled or paused during delay
 
-    // Deliver the timer-fire message
-    entry.firedCount += 1
-    await deliverTimerFireMessage(entry)
+    const now = Date.now()
+    entry.tickCount += 1
 
-    if entry.kind === 'cron':
-        // Compute next fire time and re-arm
-        entry.fireAt = nextCronOccurrence(entry.cron, entry.fireAt)
-        entry.status = 'active'
-        await persistEntry(entry)
-        armTimer(entry)
-    else:
-        // One-shot: mark completed
-        entry.status = 'completed'
-        await persistEntry(entry)
-        activeTimeouts.delete(entryId)
+    // Create a one-shot TickResponse capability
+    const tickResponse = makeTickResponse(entry, now)
+
+    // Deliver the interval-tick message
+    await deliverIntervalTickMessage(entry, tickResponse, now)
+
+    // Arm the tick timeout
+    const deadlineHandle = setTimeout(
+        () => onTickTimeout(entry.id, entry.tickCount),
+        entry.tickTimeoutMs,
+    )
+    tickDeadlines.set(entryId, deadlineHandle)
+```
+
+When `resolve()` is called on the `TickResponse`:
+
+```
+function onTickResolved(entry):
+    // Cancel the deadline timeout
+    clearTimeout(tickDeadlines.get(entry.id))
+    tickDeadlines.delete(entry.id)
+
+    // Advance to next period (start-to-start)
+    entry.nextTickAt = entry.nextTickAt + entry.periodMs
+    await persistEntry(entry)
+
+    // If next tick is already past, fire immediately
+    armInterval(entry)
+```
+
+When `reschedule()` is called:
+
+```
+function onTickRescheduled(entry, rescheduleCount):
+    const baseBackoff = Math.min(1000, entry.periodMs / 10)
+    const backoffDelay = Math.min(
+        baseBackoff * Math.pow(2, rescheduleCount - 1),
+        entry.tickTimeoutMs,
+    )
+    const retryAt = Date.now() + backoffDelay
+    const deadline = entry.nextTickAt + entry.tickTimeoutMs
+
+    if retryAt >= deadline:
+        // Backoff would exceed deadline; auto-resolve instead
+        onTickResolved(entry)
+        return
+
+    // Arm retry
+    const handle = setTimeout(() => onIntervalTick(entry.id), backoffDelay)
+    activeTimeouts.set(entry.id, handle)
 ```
 
 #### Disarming
 
 ```
-function disarmTimer(entryId):
+function disarmInterval(entryId):
     const handle = activeTimeouts.get(entryId)
     if handle !== undefined:
         clearTimeout(handle)
         activeTimeouts.delete(entryId)
+    const deadlineHandle = tickDeadlines.get(entryId)
+    if deadlineHandle !== undefined:
+        clearTimeout(deadlineHandle)
+        tickDeadlines.delete(entryId)
 ```
 
 ### Startup Recovery
 
 On daemon restart, `seedFormulaGraphFromPersistence()` loads all formulas
-including `timer-service` formulas.  When a `timer-service` is
+including `interval-scheduler` formulas.  When an `interval-scheduler` is
 incarnated:
 
-1. Read all entry files from the `entries/` directory.
-2. Read `config.json` for limits and pause state.
+1. Read all entry files from the `intervals/` directory.
+2. Read limits and pause state from the formula.
 3. For each entry with `status: 'active'`:
-   a. If `config.paused` is true, skip arming (entries remain active but
+   a. If `formula.paused` is true, skip arming (entries remain active but
       unarmed until `resume()`).
-   b. Compute the delay: `Math.max(0, entry.fireAt - Date.now())`.
-   c. If `delay === 0` (fire time has passed):
-      - For cron timers: compute how many firings were missed, deliver a
-        single `timer-fire` message with `missedFirings` count, advance
-        `fireAt` to the next future occurrence, persist, and arm.
-      - For one-shot delays: deliver the `timer-fire` message, mark
-        `status: 'completed'`, persist.
-   d. If `delay > 0`: arm normally.
+   b. Compute how many periods were missed:
+      `missedTicks = Math.max(0, Math.floor((now - entry.nextTickAt) / entry.periodMs))`.
+   c. If `entry.nextTickAt <= now` (fire time has passed):
+      - Advance `nextTickAt` to the next future period boundary:
+        `entry.nextTickAt += (missedTicks + 1) * entry.periodMs`.
+      - Deliver a single catch-up `interval-tick` message with
+        `missedTicks` count.
+      - Persist the updated entry.
+      - Arm for the next tick.
+   d. If `entry.nextTickAt > now`: arm normally.
 
-This ensures no scheduled work is silently lost during downtime.
-
-### Cron Parsing
-
-The design requires a cron expression parser that can:
-
-1. Validate a cron expression string.
-2. Compute the next occurrence after a given time.
-3. Compute the number of occurrences in a time range (for
-   `missedFirings`).
-
-**Library choice:** `cron-parser` (npm) is a well-maintained, pure-JS
-library with no native dependencies.  It supports standard 5-field cron
-syntax (`minute hour day-of-month month day-of-week`) and optional
-6-field syntax with seconds.
-
-**SES compatibility:** The library must be evaluated inside a
-Compartment (or imported normally in the daemon's node process, which
-runs under SES lockdown).  If `cron-parser` uses frozen-incompatible
-patterns (e.g., mutating `Date.prototype`), a thin wrapper or a
-purpose-built parser may be needed.  Testing under `@endo/init` is
-required before committing to the dependency.
-
-**Restricted expressions:** The `minIntervalMs` limit from
-`TimerControl` is enforced at schedule time.  If the cron expression
-would fire more frequently than `minIntervalMs`, the `schedule()` call
-throws.  The check computes the two nearest future occurrences and
-verifies their gap meets the minimum.
+This ensures no scheduled work is silently lost during downtime, while
+avoiding a storm of catch-up messages.
 
 ### Host-Controlled Limits
 
-| Limit | Default | Range | Enforced At |
-|-------|---------|-------|-------------|
-| `maxActive` | 5 | 1–100 | `schedule()` and `delay()` — throws if limit reached |
-| `minIntervalMs` | 60000 (1 min) | 1000–86400000 | `schedule()` — throws if cron fires too frequently |
+| Limit         | Default     | Range              | Enforced At                                                     |
+|---------------|-------------|--------------------|-----------------------------------------------------------------|
+| `maxActive`   | 5           | 1     – 100        | `makeInterval()` — throws if limit reached                      |
+| `minPeriodMs` | 3_000 (30s) | 1_000 – 86_400_000 | `makeInterval()` and `setPeriod()` — throws if period too short |
 
-Limits are persisted in `config.json` and take effect immediately when
-changed via `TimerControl`.  Changing `maxActive` downward does not
-cancel existing timers — it prevents new ones until active count drops
-below the new limit.  Changing `minIntervalMs` does not retroactively
-invalidate existing cron timers.
+These limits are **per-scheduler** (and therefore per-agent, since each
+agent has its own scheduler — see design decision #9).  The host sets
+limits when creating the scheduler via `makeIntervalScheduler()` and can
+adjust them at any time through `IntervalControl`.
+
+Limits and pause state are stored as fields on the formula itself (see
+[Formula Type](#formula-type)), not in a separate config file.
+
+Changing `maxActive` downward does not cancel existing intervals — it prevents
+new ones until active count drops below the new limit.  Changing `minPeriodMs`
+does not retroactively invalidate existing intervals.
 
 ### Pause and Resume
 
-`TimerControl.pause()` disarms all active `setTimeout` handles without
-changing entry status.  Entries remain `status: 'active'` on disk but
-are not armed.  `config.paused` is set to `true` and persisted.
+`IntervalControl.pause()`:
+- disarms all active `setTimeout` and deadline handles without changing entry status
+- entries remain `status: 'active'` on disk but are not armed
+- sets `paused` to `true` on the formula and persists
 
-`TimerControl.resume()` re-reads all active entries, re-computes fire
-times relative to now, and re-arms them.  `config.paused` is set to
-`false` and persisted.
+`IntervalControl.resume()`:
+- re-reads all active entries
+- re-computes `nextTickAt` relative to now
+- re-arms timers for each active
+- sets `paused` to `false` on the formula and persists
 
 During a pause, if the daemon restarts, the startup recovery sees
-`config.paused === true` and does not arm any timers.  No `timer-fire`
-messages are delivered for firings that would have occurred during the
-pause.  This is intentional: pause is a deliberate suppression, not a
-deferral.  The host can inspect `listAll()` to see what was suppressed.
+`formula.paused === true` and does not arm any intervals.
+No tick messages are delivered for ticks that would have occurred during the
+pause.
+This is intentional: pause is a deliberate suppression, not a deferral. The
+host can inspect `listAll()` to see what was suppressed.
 
 ### Revocation
 
-`TimerControl.revoke()`:
+`IntervalControl.revoke()`:
 
-1. Disarms all active `setTimeout` handles.
+1. Disarms all active `setTimeout` and deadline handles.
 2. Sets all entries to `status: 'cancelled'` and persists.
 3. Sets a `revoked` flag on the in-memory exo state.
-4. All subsequent calls to `Timer.schedule()`, `Timer.delay()`, and
-   `Timer.list()` throw `Error('Timer capability has been revoked')`.
-5. Existing `TimerHandle` references become inert — `cancel()` is a
+4. All subsequent calls to `IntervalScheduler.makeInterval()` and
+   `IntervalScheduler.list()` throw
+   `Error('Interval scheduler has been revoked')`.
+5. Existing `Interval` references become inert — `cancel()` is a
    no-op, `info()` returns the entry with `status: 'cancelled'`.
+6. Any outstanding `TickResponse` capabilities become inert.
 
-Revocation is **permanent**.  To restore timer access, the host must
-create a new `Timer` / `TimerControl` pair.
+Revocation is **permanent**.  To restore interval access, the host must
+create a new `IntervalScheduler` / `IntervalControl` pair.
 
 ### Cancellation Context Integration
 
-The `timer-service` exo registers an `onCancel` hook with its context:
+The `interval-scheduler` exo registers an `onCancel` hook with its
+context:
 
 ```js
 context.onCancel(() => {
-  // Disarm all active timeouts
-  for (const [entryId, handle] of activeTimeouts) {
+  // Disarm all active timeouts and deadlines
+  for (const [, handle] of activeTimeouts) {
     clearTimeout(handle);
   }
   activeTimeouts.clear();
+  for (const [, handle] of tickDeadlines) {
+    clearTimeout(handle);
+  }
+  tickDeadlines.clear();
 });
 ```
 
-This ensures that if the timer service's formula is cancelled (e.g.,
-because the agent is collected by GC), all `setTimeout` handles are
-cleaned up and no orphan timers continue firing.
+This ensures that if the scheduler's formula is cancelled (e.g., because
+the agent is collected by GC), all `setTimeout` handles are cleaned up
+and no orphan intervals continue ticking.
 
-The timer service also calls `context.thisDiesIfThatDies(agentId)` so
-that if the agent is cancelled, the timer service is cancelled too.
+The scheduler also calls `context.thisDiesIfThatDies(agentId)` so that
+if the agent is cancelled, the scheduler is cancelled too.
 
 ### Security Considerations
 
-#### Timer Bomb Prevention
+#### Interval Bomb Prevention
 
-An agent cannot create unbounded timers because `maxActive` limits the
-total.  An agent cannot create high-frequency timers because
-`minIntervalMs` enforces a floor.  These limits are host-controlled and
+An agent cannot create unbounded intervals because `maxActive` limits the
+total.  An agent cannot create high-frequency intervals because
+`minPeriodMs` enforces a floor.  These limits are host-controlled and
 cannot be modified by the agent.
 
 #### No Ambient Scheduling
 
-The `Timer` capability is the only scheduling mechanism.  An agent
-without a `Timer` capability cannot schedule future execution by any
-means.  There is no `Promise.delay`, no `queueMicrotask` with delay, and
-no busy-wait loop (the event loop is not exposed).
+The `IntervalScheduler` capability is the only scheduling mechanism.  An
+agent without a scheduler capability cannot schedule future execution by
+any means.  There is no `Promise.delay`, no `queueMicrotask` with delay,
+and no busy-wait loop (the event loop is not exposed).
 
-#### Fire-and-Forget Abuse
+#### TickResponse Abuse
 
-A malicious agent could schedule a timer and then ignore the fire
-messages, accumulating unprocessed messages in its mailbox.  This is
-bounded by `maxActive` (at most N timers, each producing at most one
-message per `minIntervalMs`).  Mailbox size limits (if implemented
-separately) provide an additional bound.
+A malicious agent could call `reschedule()` repeatedly to generate rapid
+retries.  This is bounded by the exponential backoff (each successive
+retry doubles the delay) and capped by the tick deadline (`tickTimeoutMs`).
+At most `log2(tickTimeoutMs / baseBackoff)` retries can occur per tick.
+
+#### Fire-and-Forget
+
+An agent could ignore tick messages, letting them accumulate in its
+mailbox and timing out.  This is bounded by `maxActive` (at most N
+intervals, each producing one tick per period) and the timeout
+auto-resolve prevents resource leaks in the scheduler.  Mailbox size
+limits (if implemented separately) provide an additional bound.
 
 #### Clock Manipulation
 
 The daemon uses `Date.now()` for fire time computation.  If the system
-clock jumps forward (e.g., NTP correction), timers may fire early.  If
-the clock jumps backward, timers may fire late.  This is acceptable for
-the intended use cases (briefings, reminders) where second-level
-precision is not required.  The `actualAt` field in the fire message
-records the actual fire time for auditing.
+clock jumps forward (e.g., NTP correction), ticks may fire early.  If
+the clock jumps backward, ticks may fire late.  This is acceptable for
+the intended use cases where second-level precision is not required.
+The `actualAt` field in the tick message records the actual fire time
+for auditing.
 
 ### Maker Function
 
-The host creates timer services through a new method on the host
+The host creates interval schedulers through a new method on the host
 interface:
 
 ```ts
 // Added to HostInterface
-makeTimer: M.callWhen(
+makeIntervalScheduler: M.callWhen(
   M.string(),                    // agentName — pet name of the agent
   M.opt({
     maxActive: M.opt(M.number()),
-    minIntervalMs: M.opt(M.number()),
+    minPeriodMs: M.opt(M.number()),
   }),
-).returns(M.record()),           // { timer, timerControl }
+).returns(M.record()),           // { scheduler, schedulerControl }
 ```
 
 The maker:
 
 1. Resolves `agentName` to the agent's formula ID.
-2. Creates a new handle for the timer service (so it has its own identity
-   in the mail system).
-3. Formulates a `timer-service` formula with `{ agent, handle }`.
-4. Creates the `Timer` and `TimerControl` exo facets.
-5. Writes the timer capability into the agent's pet store under the name
-   `TIMER` (or a host-chosen name).
-6. Returns `{ timer, timerControl }` to the host.
+2. Creates a new handle for the scheduler (so it has its own identity in
+   the mail system).
+3. Formulates an `interval-scheduler` formula with `{ agent, handle }`.
+4. Creates the `IntervalScheduler` and `IntervalControl` exo facets.
+5. Writes the scheduler capability into the agent's pet store under the
+   name `SCHEDULER` (or a host-chosen name).
+6. Returns `{ scheduler, schedulerControl }` to the host.
 
-The host can then grant `timer` to the agent (it is already written
-into the agent's namespace) and retain `timerControl` for management.
+The host can then grant `scheduler` to the agent (it is already written
+into the agent's namespace) and retain `schedulerControl` for management.
 
 ### `extractDeps` Integration
 
-The `extractDeps` function in `daemon.js` must be extended to handle
-the new formula type:
+The `extractDeps` function in `daemon.js` must be extended to handle the
+new formula type:
 
 ```js
-case 'timer-service':
+case 'interval-scheduler':
   return [formula.agent, formula.handle];
 ```
 
@@ -529,116 +678,114 @@ Both are local formula IDs, so they create strong GC edges.
 
 ## Dependencies
 
-| Design | Relationship |
-|--------|-------------|
-| [endoclaw](endoclaw.md) | Parent capability taxonomy |
-| [daemon-capability-bank](daemon-capability-bank.md) | Lists Timer in the capability taxonomy |
-| [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | **Depends on this design.** Composes Timer + data capabilities + `send()` for scheduled briefings |
+| Design                                                        | Relationship                                                                                          |
+|---------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| [endoclaw](endoclaw.md)                                       | Parent capability taxonomy                                                                            |
+| [daemon-capability-bank](daemon-capability-bank.md)           | Lists Timer/scheduling in the capability taxonomy                                                     |
+| [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | **Depends on this design.** Composes heartbeat + data capabilities + `send()` for scheduled briefings |
 
 ## Implementation Phases
 
-### Phase 1: Core Timer Exo (S)
+### Phase 1: Core Interval Exo (S)
 
-- Define `TimerServiceFormula` in `types.d.ts`.
-- Add `timer-service` to the `Formula` discriminated union.
-- Implement `makeTimerService()` factory returning `Timer` /
-  `TimerControl` facets with interface guards.
-- Add `timer-service` maker to the `makers` table in `daemon.js`.
-- Add `extractDeps` case for `timer-service`.
-- Persistence: entry files and `config.json` in the timer service
-  directory.
-- `schedule()` and `delay()` create entries, persist, and arm
-  `setTimeout`.
-- `cancel()` disarms and marks completed/cancelled.
-- Limit enforcement: `maxActive`, `minIntervalMs`.
+- Define `IntervalSchedulerFormula` in `types.d.ts`.
+- Add `interval-scheduler` to the `Formula` discriminated union.
+- Implement `makeIntervalScheduler()` factory returning
+  `IntervalScheduler` / `IntervalControl` facets with interface guards.
+- Add `interval-scheduler` maker to the `makers` table in `daemon.js`.
+- Add `extractDeps` case for `interval-scheduler`.
+- Persistence: entry files in the scheduler directory; limits and pause state on the formula.
+- `makeInterval()` creates entries, persists, and arms `setTimeout`.
+- `cancel()` disarms and marks cancelled.
+- Limit enforcement: `maxActive`, `minPeriodMs`.
 - Cancellation context integration.
 
-### Phase 2: Timer Fire Delivery (S)
+### Phase 2: Tick Delivery and Response (S)
 
-- Add `timer-fire` to the `MessageFormula` type union.
-- Implement `deliverTimerFireMessage()` using the existing `post()`
+- Add `interval-tick` to the `MessageFormula` type union.
+- Implement `deliverIntervalTickMessage()` using the existing `post()`
   pathway in `mail.js`.
-- Create a handle for the timer service (so fire messages have a valid
-  `from` identity).
-- On fire: construct the `TimerFireMessage`, post to the agent's handle.
-- Cron re-arm after fire.
-- One-shot completion after fire.
+- Create a handle for the scheduler (so tick messages have a valid `from`
+  identity).
+- Implement the `TickResponse` one-shot exo with `resolve()` /
+  `reschedule()`.
+- Implement tick timeout with auto-resolve.
+- Implement exponential backoff on `reschedule()`.
 
 ### Phase 3: Startup Recovery (S)
 
-- In `seedFormulaGraphFromPersistence()`, when a `timer-service` formula
-  is loaded, read its entry files and re-arm active timers.
-- Compute `missedFirings` for cron timers that should have fired during
+- In `seedFormulaGraphFromPersistence()`, when an `interval-scheduler`
+  formula is loaded, read its entry files and re-arm active intervals.
+- Compute `missedTicks` for intervals that should have ticked during
   downtime.
-- Deliver catch-up `timer-fire` messages with `missedFirings > 0`.
+- Deliver catch-up `interval-tick` messages with `missedTicks > 0`.
 
 ### Phase 4: Host Integration (S)
 
-- Add `makeTimer()` to `HostInterface` and implement in `host.js`.
-- `makeTimer()` formulates the timer service and writes the `Timer`
-  capability into the agent's pet store.
-- Add `pause()` / `resume()` / `revoke()` to `TimerControl`.
-- CLI: `endo timer list <agent>`, `endo timer pause <agent>`,
-  `endo timer resume <agent>`.
-
-### Phase 5: Cron Library Integration (S)
-
-- Evaluate `cron-parser` under SES lockdown (`@endo/init`).
-- If compatible: add as dependency.  If not: implement a minimal
-  5-field cron parser (the grammar is small and well-specified).
-- Wire cron parsing into `schedule()` and startup recovery.
+- Add `makeIntervalScheduler()` to `HostInterface` and implement in
+  `host.js`.
+- Add `pause()` / `resume()` / `revoke()` to `IntervalControl`.
+- CLI: `endo interval list <agent>`, `endo interval pause <agent>`,
+  `endo interval resume <agent>`.
 
 ## Design Decisions
 
-1. **Timer fires are messages, not direct worker calls.**  Delivering
-   through the mail system gives persistence, ordering, and replay for
-   free.  The alternative (a direct `E(worker).onTimerFire()` call)
-   would require a new delivery mechanism, would not survive restarts,
-   and would not interleave naturally with other agent work.
+1. **Tick events are messages, not iterator values.**  Delivering through
+   the mail system gives persistence, ordering, and replay for free.  An
+   `AsyncIterator<Tick>` interface would require a new delivery
+   mechanism, would not survive restarts without additional work, and
+   would not interleave naturally with other agent messages.
 
-2. **One timer-service per agent, not per timer.**  Individual timer
-   entries are stored as files within the service directory, not as
-   separate formulas.  This avoids formula explosion (an agent with 5
-   timers would otherwise create 5 formulas, each with GC edges).  The
-   service is the unit of GC — when the agent dies, the entire service
-   (and all its timers) is collected.
+2. **Start-to-start timing, not end-to-start.**  Each tick is scheduled
+   at a fixed offset from the previous tick's *scheduled* time.  This
+   keeps the cadence consistent: a 60-second interval fires 60 times
+   per hour regardless of processing time.  End-to-start timing would
+   drift — a tick that takes 5 seconds would push the cadence to 65
+   seconds.
 
-3. **Absolute fire times, not relative delays.**  Storing
-   `fireAt: 1741767300000` instead of `delayMs: 300000` makes restart
-   recovery trivial: compare `fireAt` to `Date.now()` and fire or
-   re-arm.  Relative delays would require storing the creation time and
-   recomputing, which is equivalent but less direct.
+3. **Resolve/reschedule, not fire-and-forget.**  Each tick requires an
+   explicit response from the agent.  This gives the scheduler
+   visibility into whether the agent is healthy and allows transient
+   failures to be retried with backoff within the current period.  The
+   timeout auto-resolve prevents a stuck agent from stalling the
+   heartbeat.
 
-4. **Missed firings are coalesced, not replayed.**  A cron timer that
-   missed 3 firings during downtime delivers **one** message with
-   `missedFirings: 2`, not 3 separate messages.  This prevents message
+4. **Immediate first tick by default.**  `firstDelayMs` defaults to 0 so
+   the agent gets an initial wakeup as soon as the interval is created.
+   This is critical for startup: the agent's first heartbeat should fire
+   immediately to initialize state, not after an arbitrary delay.
+
+5. **No cron semantics.**  The interval scheduler knows only about
+   periods (milliseconds between ticks).  Any higher-level scheduling
+   policy — "run at 8 AM daily," "run every weekday," etc. — is
+   implemented by the agent in its tick handler.  This keeps the
+   scheduler simple and pushes policy decisions to the agent, where they
+   belong.
+
+6. **Missed ticks are coalesced, not replayed.**  An interval that
+   missed 4 ticks during downtime delivers **one** message with
+   `missedTicks: 4`, not 5 separate messages.  This prevents message
    storms on restart and lets the agent decide whether to compensate.
-   The alternative (replay all missed firings) could overwhelm an agent
-   that sends external messages on each fire.
 
-5. **Pause suppresses, not defers.**  Firings that would have occurred
+7. **Pause suppresses, not defers.**  Ticks that would have occurred
    during a pause are **lost**, not queued.  This matches the intent of
    pause (the host wants the agent to stop doing scheduled work) and
    avoids a burst of suppressed events on resume.  The host can inspect
    `listAll()` to audit what was suppressed.
 
-6. **Revocation is permanent.**  Once `revoke()` is called, the `Timer`
-   capability is dead.  The host must create a new timer service to
-   restore access.  This matches the caretaker pattern used throughout
-   EndoClaw: revocation is final, not togglable.
+8. **Revocation is permanent.**  Once `revoke()` is called, the
+   `IntervalScheduler` capability is dead.  The host must create a new
+   scheduler to restore access.  This matches the caretaker pattern used
+   throughout EndoClaw.
 
-7. **No sub-second timers.**  The `minIntervalMs` floor is 1000ms
-   (1 second).  Sub-second scheduling is not useful for the intended
-   agent use cases and would create unnecessary load.  The host can set
-   the floor higher (the default is 60 seconds).
+9. **One scheduler per agent, not per interval.**  Individual interval
+   entries are stored as files within the scheduler directory, not as
+   separate formulas.  This avoids formula explosion (an agent with 5
+   intervals would otherwise create 5 formulas, each with GC edges).
+   The scheduler is the unit of GC — when the agent dies, the entire
+   scheduler (and all its intervals) is collected.
 
-## Prompt
-
-> Expand the endoclaw-timer stub design into a full design document.
-> Cover: formula type, persistence format, startup recovery, timer fire
-> delivery through the mail system, host-controlled limits, pause/resume,
-> revocation, cancellation context integration, security considerations,
-> interface guards, maker function, GC integration, cron parsing, and
-> implementation phases.  Follow the conventions of existing daemon
-> designs (daemon-cross-peer-gc, daemon-value-message) and EndoClaw
-> capability conventions (endoclaw.md, daemon-capability-bank.md).
+10. **No sub-second intervals.**  The `minPeriodMs` floor is 1000ms
+    (1 second).  Sub-second heartbeats are not useful for the intended
+    agent use cases and would create unnecessary load.  The host can set
+    the floor higher (the default is 60 seconds).
