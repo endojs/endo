@@ -7,6 +7,10 @@ import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
+import {
+  checkinTree as platformCheckinTree,
+  snapshotTreeMethods,
+} from '@endo/platform/fs/lite';
 import { makeRefReader } from './ref-reader.js';
 import { makeIteratorRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
@@ -52,6 +56,7 @@ import {
   endoHelp,
   guestHelp,
   makeHelp,
+  readableTreeHelp,
 } from './help-text.js';
 
 // Sorted:
@@ -65,6 +70,7 @@ import {
   WorkerInterface,
   DirectoryInterface,
   BlobInterface,
+  ReadableTreeInterface,
   EndoInterface,
 } from './interfaces.js';
 
@@ -294,7 +300,7 @@ const makeDaemonCore = async (
     control: controlPowers,
   } = powers;
   const { randomHex256, generateEd25519Keypair } = cryptoPowers;
-  const contentStore = persistencePowers.makeContentSha256Store();
+  const contentStore = persistencePowers.makeContentStore();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
   /** @type {Map<string, (reason?: Error) => Promise<void>>} */
@@ -527,6 +533,8 @@ const makeDaemonCore = async (
       case 'promise':
       case 'resolver':
         return [['store', formula.store]];
+      case 'readable-tree':
+        return [];
       case 'pet-inspector':
         return [['petStore', formula.petStore]];
       case 'directory':
@@ -1245,22 +1253,25 @@ const makeDaemonCore = async (
   /**
    * @param {string} sha256
    */
-  const makeReadableBlob = sha256 => {
-    const { text, json, streamBase64 } = contentStore.fetch(sha256);
-    const help = makeHelp(blobHelp);
-    /** @type {FarRef<EndoReadable>} */
-    return makeExo(
+  const makeReadableBlob = sha256 =>
+    makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
       {
-        help,
         sha256: () => sha256,
-        streamBase64,
-        text,
-        json,
+        ...contentStore.fetch(sha256),
+        help: makeHelp(blobHelp),
       },
     );
-  };
+
+  /**
+   * @param {string} sha256
+   */
+  const makeReadableTree = sha256 =>
+    makeExo('ReadableTree', ReadableTreeInterface, {
+      ...snapshotTreeMethods(contentStore, sha256),
+      help: makeHelp(readableTreeHelp),
+    });
 
   /**
    * @param {FormulaIdentifier} workerId
@@ -2189,6 +2200,7 @@ const makeDaemonCore = async (
       makeEval(worker, source, names, values, context),
     keypair: ({ publicKey }) => harden({ publicKey }),
     'readable-blob': ({ content }) => makeReadableBlob(content),
+    'readable-tree': ({ content }) => makeReadableTree(content),
     lookup: ({ hub, path }, context) =>
       makeLookup(
         hub,
@@ -2856,6 +2868,40 @@ const makeDaemonCore = async (
         const formula = {
           type: 'readable-blob',
           content: contentSha256,
+        };
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['checkinTree']} */
+  const checkinTree = async (remoteTree, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+
+        // Walk the remote tree and store all content via the platform adapter.
+        const { sha256: treeSha256 } = await platformCheckinTree(
+          remoteTree,
+          contentStore,
+        );
+
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          readableTreeId: formatId({
+            number: formulaNumber,
+            node: LOCAL_NODE,
+          }),
+        });
+
+        /** @type {import('./types.js').ReadableTreeFormula} */
+        const formula = {
+          type: 'readable-tree',
+          content: treeSha256,
         };
 
         return formulate(formulaNumber, formula);
@@ -4198,6 +4244,7 @@ const makeDaemonCore = async (
     formulateUnconfined,
     formulateBundle,
     formulateReadableBlob,
+    checkinTree,
     formulateInvitation,
     formulateSyncedPetStore,
     getPeerIdForNodeIdentifier,

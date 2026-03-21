@@ -7,6 +7,8 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { q } from '@endo/errors';
+import { makeSnapshotStore } from '@endo/platform/fs/lite';
+
 import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
@@ -424,11 +426,12 @@ export const makeDaemonicPersistencePowers = (
     }
   };
 
-  const makeContentSha256Store = () => {
+  const makeContentStore = () => {
     const { statePath } = config;
     const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha256');
 
-    return harden({
+    /** @type {import('@endo/platform/fs/lite').ContentStore} */
+    const rawStore = harden({
       /**
        * @param {AsyncIterable<Uint8Array>} readable
        * @returns {Promise<string>}
@@ -459,7 +462,6 @@ export const makeDaemonicPersistencePowers = (
       },
       /**
        * @param {string} sha256
-       * @returns {EndoReadable}
        */
       fetch(sha256) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
@@ -474,14 +476,24 @@ export const makeDaemonicPersistencePowers = (
           const jsonSrc = await text();
           return JSON.parse(jsonSrc);
         };
-        return harden({
-          sha256: () => sha256,
-          streamBase64,
-          text,
-          json,
-        });
+        return harden({ streamBase64, text, json });
+      },
+      /**
+       * @param {string} sha256
+       * @returns {Promise<boolean>}
+       */
+      async has(sha256) {
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
+        try {
+          await filePowers.readFileText(storagePath);
+          return true;
+        } catch (_e) {
+          return false;
+        }
       },
     });
+
+    return makeSnapshotStore(rawStore);
   };
 
   /**
@@ -578,7 +590,7 @@ export const makeDaemonicPersistencePowers = (
     initializePersistence,
     provideRootNonce,
     provideRootKeypair,
-    makeContentSha256Store,
+    makeContentStore,
     readFormula,
     writeFormula,
     deleteFormula,

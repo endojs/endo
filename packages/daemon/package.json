@@ -62,6 +62,7 @@
     "@endo/marshal": "workspace:^",
     "@endo/netstring": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/relay-server": "workspace:^",
     "@endo/stream": "workspace:^",

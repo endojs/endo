@@ -577,6 +577,32 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('checkin <path>')
+    .alias('ci')
+    .description('checks in a local directory as a readable tree')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for checkin');
+      }
+      const { checkin } = await import('./commands/checkin.js');
+      return checkin({ sourcePath, name, agentNames });
+    });
+
+  program
+    .command('checkout <name> <path>')
+    .alias('co')
+    .description('checks out a readable tree to a local directory')
+    .option(...commonOptions.as)
+    .action(async (treeName, destPath, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { checkout } = await import('./commands/checkout.js');
+      return checkout({ treeName, destPath, agentNames });
+    });
+
+  program
     .command('eval <source> [names...]')
     .description('creates a value')
     .option(...commonOptions.as)
