@@ -17,6 +17,7 @@ import { createSpacesGutter } from './spaces-gutter.js';
 import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
+import { createShareModal } from './share-modal.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -119,6 +120,7 @@ const template = `
 
 <div id="help-modal-container"></div>
 <div id="add-space-modal-container"></div>
+<div id="share-modal-container"></div>
 `;
 
 /**
@@ -355,6 +357,12 @@ const bodyComponent = (
       onProfileChange(newPath, spaceInfo);
     },
   });
+
+  // Set up share modal
+  const $shareModalContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#share-modal-container')
+  );
+  const shareModal = createShareModal($shareModalContainer);
 
   // Resolve powers for the current profile path
   const resolvePowers = async () => {
@@ -618,6 +626,31 @@ const bodyComponent = (
               switchChannel(channelName);
             };
 
+            /**
+             * Open the share modal for a message's heritage chain.
+             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {string} previewText
+             */
+            const handleShare = (heritageChain, previewText) => {
+              const targets = spacesGutterAPI
+                .getSpaces()
+                .filter(s => s.mode === 'channel' && s.channelPetName)
+                .map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  icon: s.icon,
+                  profilePath: s.profilePath,
+                  channelPetName: s.channelPetName,
+                }));
+              shareModal.show({
+                heritageChain,
+                previewText,
+                powers: resolvedPowers,
+                targets,
+                onNavigate: switchChannel,
+              });
+            };
+
             channelViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -648,6 +681,7 @@ const bodyComponent = (
               },
               chatBarAPI: () => chatBarAPI,
               onFork: handleFork,
+              onShare: handleShare,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -816,6 +850,31 @@ const bodyComponent = (
               switchChannel(channelName);
             };
 
+            /**
+             * Share handler for switched channels.
+             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {string} previewText
+             */
+            const handleSwitchShare = (heritageChain, previewText) => {
+              const targets = spacesGutterAPI
+                .getSpaces()
+                .filter(s => s.mode === 'channel' && s.channelPetName)
+                .map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  icon: s.icon,
+                  profilePath: s.profilePath,
+                  channelPetName: s.channelPetName,
+                }));
+              shareModal.show({
+                heritageChain,
+                previewText,
+                powers: resolvedPowers,
+                targets,
+                onNavigate: switchChannel,
+              });
+            };
+
             switchViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -846,6 +905,7 @@ const bodyComponent = (
               },
               chatBarAPI: () => chatBarAPI,
               onFork: handleSwitchFork,
+              onShare: handleSwitchShare,
             }).catch(window.reportError);
           })
           .catch(err => {

@@ -42,12 +42,13 @@ import { createMessageMenu } from './channel-utils.js';
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen] - Called when a thread view is opened
  * @param {() => void} [options.onThreadClose] - Called when the thread view is closed
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  */
 export const channelComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork },
+  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -558,6 +559,26 @@ export const channelComponent = async (
             const preview =
               message.strings.join('').substring(0, 40) || 'Forked note';
             onFork(chain, preview).catch(window.reportError);
+          },
+        });
+      }
+      if (onShare) {
+        const shareKey = String(message.number);
+        menuItems.push({
+          label: 'Share\u2026',
+          icon: '\u21D7',
+          handler: () => {
+            const chain = [];
+            let cur = shareKey;
+            while (cur) {
+              const ent = messageIndex.get(cur);
+              if (!ent) break;
+              chain.unshift(ent.message);
+              cur = ent.message.replyTo;
+            }
+            const preview =
+              message.strings.join('').substring(0, 60) || 'Shared message';
+            onShare(chain, preview);
           },
         });
       }

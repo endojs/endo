@@ -49,7 +49,7 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {(value: unknown, id?: string, petNamePath?: string[]) => void | Promise<void>} showValue
  * @property {boolean} [skipReplyIndicator] - If true, omit the reply indicator bar
  * @property {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [onFork] - Fork heritage chain to new channel
- * @property {() => void} [onShare] - Open share flow for this message
+ * @property {(heritageChain: ChannelMessage[], previewText: string) => void} [onShare] - Open share modal for this message
  */
 
 /**
@@ -549,10 +549,23 @@ export const createChannelState = async (channel, opts) => {
         });
       }
       if (onShare) {
+        const shareKey = String(message.number);
         menuItems.push({
           label: 'Share\u2026',
           icon: '\u21D7',
-          handler: onShare,
+          handler: () => {
+            const chain = [];
+            let cur = shareKey;
+            while (cur) {
+              const ent = messageIndex.get(cur);
+              if (!ent) break;
+              chain.unshift(ent.message);
+              cur = ent.message.replyTo;
+            }
+            const preview =
+              message.strings.join('').substring(0, 60) || 'Shared message';
+            onShare(chain, preview);
+          },
         });
       }
       if (menuItems.length > 0) {

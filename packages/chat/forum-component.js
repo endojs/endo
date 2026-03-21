@@ -37,12 +37,13 @@ import {
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
  * @param {() => void} [options.onThreadClose]
  * @param {(heritageChain: import('./channel-utils.js').ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
+ * @param {(heritageChain: import('./channel-utils.js').ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  */
 export const forumComponent = async (
   $parent,
   $end,
   channel,
-  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork },
+  { showValue, personaId, ownMemberId, onReply, onThreadOpen, onThreadClose, onFork, onShare },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
@@ -237,7 +238,7 @@ export const forumComponent = async (
   }
 
   /** @type {import('./channel-utils.js').CreateMessageOptions} */
-  const msgOpts = { ownMemberId, onReply, showValue, onFork };
+  const msgOpts = { ownMemberId, onReply, showValue, onFork, onShare };
 
   /* eslint-disable no-use-before-define */
 

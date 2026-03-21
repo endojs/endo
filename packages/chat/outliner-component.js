@@ -72,6 +72,7 @@ const SLASH_COMMANDS = harden([
  * @param {() => void} [options.onThreadClose]
  * @param {() => import('./send-form.js').SendFormAPI | null} [options.chatBarAPI]
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork a message's heritage into a new channel
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  */
 export const outlinerComponent = async (
   $parent,
@@ -87,6 +88,7 @@ export const outlinerComponent = async (
     onThreadClose,
     chatBarAPI,
     onFork,
+    onShare,
   },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -2116,8 +2118,18 @@ export const outlinerComponent = async (
           },
         });
       }
-      // Share stub — will be wired up in the share flow phase
-      // menuItems.push({ label: 'Share\u2026', icon: '\u21D7', handler: () => {} });
+      if (onShare) {
+        menuItems.push({
+          label: 'Share\u2026',
+          icon: '\u21D7',
+          handler: () => {
+            const chain = getHeritageChain(key);
+            const preview =
+              effective.strings.join('').slice(0, 60) || 'Shared note';
+            onShare(chain, preview);
+          },
+        });
+      }
       if (menuItems.length > 0) {
         const $menu = createMessageMenu(menuItems);
         $menu.classList.add('outliner-node-menu');
