@@ -4129,6 +4129,15 @@ button.btn-spinner::after {
   color: var(--text-secondary);
 }
 
+.edit-space-persona {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  background: var(--bg-secondary, rgba(128,128,128,0.1));
+  border-radius: var(--radius-sm);
+}
+
 .add-space-field input[type='text'] {
   padding: 10px 12px;
   font-size: 14px;

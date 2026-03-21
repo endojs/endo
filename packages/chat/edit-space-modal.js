@@ -71,6 +71,14 @@ export const createEditSpaceModal = ({
       </div>
       <form class="add-space-form">
         ${
+          editingSpace && editingSpace.profilePath && editingSpace.profilePath.length > 0
+            ? `<div class="add-space-field">
+          <label>Persona</label>
+          <div class="edit-space-persona">${editingSpace.profilePath.join(' \u203A ')}</div>
+        </div>`
+            : ''
+        }
+        ${
           showName
             ? `<div class="add-space-field">
           <label for="edit-space-name">Name</label>
