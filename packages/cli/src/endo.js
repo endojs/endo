@@ -441,8 +441,8 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('dismiss-all')
-    .description('delete all messages')
+    .command('clear')
+    .description('dismiss all messages')
     .option(...commonOptions.as)
     .action(async cmd => {
       const { as: agentNames } = cmd.opts();
@@ -963,7 +963,7 @@ export const main = async rawArgs => {
         'reply',
         'send-value',
         'dismiss',
-        'dismiss-all',
+        'clear',
         'request',
         'resolve',
         'reject',
