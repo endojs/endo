@@ -72,6 +72,9 @@ export const createChannelHeader = ({
         <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'outliner' ? 'active' : ''}" data-action="view-outliner">
           Outliner
         </button>
+        <button type="button" class="channel-menu-item view-mode-item ${viewMode === 'microblog' ? 'active' : ''}" data-action="view-microblog">
+          Microblog
+        </button>
       </div>
       <div class="channel-menu-divider"></div>
       <button type="button" class="channel-menu-item" data-action="invite">
@@ -113,9 +116,10 @@ export const createChannelHeader = ({
         } else if (
           action === 'view-chat' ||
           action === 'view-forum' ||
-          action === 'view-outliner'
+          action === 'view-outliner' ||
+          action === 'view-microblog'
         ) {
-          const newMode = /** @type {'chat' | 'forum' | 'outliner'} */ (
+          const newMode = /** @type {'chat' | 'forum' | 'outliner' | 'microblog'} */ (
             action.replace('view-', '')
           );
           if (newMode !== viewMode && onViewModeChange) {

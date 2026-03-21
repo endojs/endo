@@ -387,6 +387,10 @@ export const createAddSpaceModal = ({
               <span class="view-mode-label">Outliner</span>
               <span class="view-mode-desc">Collaborative document with edit history</span>
             </button>
+            <button type="button" class="view-mode-option ${channelViewMode === 'microblog' ? 'selected' : ''}" data-view-mode="microblog">
+              <span class="view-mode-label">Microblog</span>
+              <span class="view-mode-desc">Reverse-chronological feed with profile header</span>
+            </button>
           </div>
         </div>
 
@@ -975,7 +979,7 @@ export const createAddSpaceModal = ({
     for (const $option of $viewModeOptions) {
       $option.addEventListener('click', () => {
         const vm = $option.getAttribute('data-view-mode');
-        if (vm === 'chat' || vm === 'forum' || vm === 'outliner') {
+        if (vm === 'chat' || vm === 'forum' || vm === 'outliner' || vm === 'microblog') {
           channelViewMode = vm;
           // Update selection visually
           for (const $opt of $viewModeOptions) {

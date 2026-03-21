@@ -18,6 +18,7 @@ import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
 import { createShareModal } from './share-modal.js';
+import { microblogComponent } from './microblog-component.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -571,11 +572,13 @@ const bodyComponent = (
                 ? forumComponent
                 : activeSpaceInfo.viewMode === 'outliner'
                   ? outlinerComponent
-                  : channelComponent;
-            // Set view-mode attributes for outliner mode
-            if (activeSpaceInfo.viewMode === 'outliner') {
-              $messages.dataset.viewMode = 'outliner';
-              $chatBar.dataset.viewMode = 'outliner';
+                  : activeSpaceInfo.viewMode === 'microblog'
+                    ? microblogComponent
+                    : channelComponent;
+            // Set view-mode attributes for special modes
+            if (activeSpaceInfo.viewMode === 'outliner' || activeSpaceInfo.viewMode === 'microblog') {
+              $messages.dataset.viewMode = activeSpaceInfo.viewMode;
+              $chatBar.dataset.viewMode = activeSpaceInfo.viewMode;
             } else {
               delete $messages.dataset.viewMode;
               delete $chatBar.dataset.viewMode;
@@ -646,6 +649,7 @@ const bodyComponent = (
                 heritageChain,
                 previewText,
                 powers: resolvedPowers,
+                rootPowers,
                 targets,
                 onNavigate: switchChannel,
               });
@@ -793,10 +797,10 @@ const bodyComponent = (
               // getMemberId not available on this channel/member ref
             }
 
-            // Set view-mode attributes for outliner mode
-            if (activeSpaceInfo.viewMode === 'outliner') {
-              $messages.dataset.viewMode = 'outliner';
-              $chatBar.dataset.viewMode = 'outliner';
+            // Set view-mode attributes for special modes
+            if (activeSpaceInfo.viewMode === 'outliner' || activeSpaceInfo.viewMode === 'microblog') {
+              $messages.dataset.viewMode = activeSpaceInfo.viewMode;
+              $chatBar.dataset.viewMode = activeSpaceInfo.viewMode;
             } else {
               delete $messages.dataset.viewMode;
               delete $chatBar.dataset.viewMode;
@@ -809,7 +813,9 @@ const bodyComponent = (
                 ? forumComponent
                 : activeSpaceInfo.viewMode === 'outliner'
                   ? outlinerComponent
-                  : channelComponent;
+                  : activeSpaceInfo.viewMode === 'microblog'
+                    ? microblogComponent
+                    : channelComponent;
             /**
              * Fork handler for switched channels.
              * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
@@ -870,6 +876,7 @@ const bodyComponent = (
                 heritageChain,
                 previewText,
                 powers: resolvedPowers,
+                rootPowers,
                 targets,
                 onNavigate: switchChannel,
               });

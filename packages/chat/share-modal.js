@@ -3,7 +3,6 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
 
 /** @import { ChannelMessage } from './channel-utils.js' */
 
@@ -27,9 +26,47 @@ import { makeRefIterator } from './ref-iterator.js';
  * @property {ChannelMessage[]} heritageChain - Messages to share (root-first)
  * @property {string} previewText - Short preview of the message being shared
  * @property {unknown} powers - Current persona powers for channel creation
- * @property {ShareTarget[]} targets - Available channels to share to
+ * @property {unknown} rootPowers - Root powers for resolving other personas
+ * @property {ShareTarget[]} targets - Available channel spaces to share to
  * @property {(channelName: string) => void} [onNavigate] - Navigate to new channel
  */
+
+/**
+ * Resolve powers for a given profile path from root.
+ * @param {unknown} rootPowers
+ * @param {string[]} profilePath
+ * @returns {Promise<unknown>}
+ */
+const resolvePersonaPowers = async (rootPowers, profilePath) => {
+  /** @type {unknown} */
+  let powers = rootPowers;
+  for (const name of profilePath) {
+    powers = E(/** @type {any} */ (powers)).lookup(name);
+  }
+  return powers;
+};
+
+/**
+ * Fetch pet names from a persona's namespace.
+ * @param {unknown} personaPowers
+ * @returns {Promise<string[]>}
+ */
+const listPetNames = async personaPowers => {
+  try {
+    const names =
+      await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
+        E(personaPowers)
+      ).list();
+    /** @type {string[]} */
+    const result = [];
+    for await (const name of names) {
+      result.push(name);
+    }
+    return result.sort();
+  } catch {
+    return [];
+  }
+};
 
 /**
  * Create the share modal component.
@@ -42,10 +79,13 @@ export const createShareModal = $container => {
   let currentOpts = null;
   /** @type {string | null} */
   let selectedTargetId = null;
+  /** @type {string | null} */
+  let selectedChannelPetName = null;
 
   const hide = () => {
     currentOpts = null;
     selectedTargetId = null;
+    selectedChannelPetName = null;
     $container.style.display = 'none';
     $container.innerHTML = '';
   };
@@ -55,12 +95,13 @@ export const createShareModal = $container => {
    * then post a reference in the target channel.
    *
    * @param {string} shareName - Pet name for the shared channel
-   * @param {string} policy - 'view' or 'comment'
-   * @param {ShareTarget} target - Target channel to share into
+   * @param {{ canEdit: boolean, canComment: boolean }} policy - Access policy
+   * @param {ShareTarget} target - Target space
+   * @param {string} targetChannelPetName - Specific channel pet name within the target space
    */
-  const executeShare = async (shareName, policy, target) => {
+  const executeShare = async (shareName, policy, target, targetChannelPetName) => {
     if (!currentOpts) return;
-    const { heritageChain, powers } = currentOpts;
+    const { heritageChain, powers, rootPowers } = currentOpts;
 
     // 1. Create a new channel with the heritage chain
     const channelPetName = shareName;
@@ -93,24 +134,26 @@ export const createShareModal = $container => {
     }
 
     // 3. Post a reference message in the target channel
-    if (target.channelPetName) {
-      try {
-        const targetChannelRef = await E(
-          /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
-            powers
-          ),
-        ).lookup(target.channelPetName);
+    try {
+      const targetPersonaPowers = await resolvePersonaPowers(
+        rootPowers,
+        target.profilePath,
+      );
+      const targetChannelRef = await E(
+        /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
+          targetPersonaPowers
+        ),
+      ).lookup(targetChannelPetName);
 
-        await E(targetChannelRef).post(
-          ['Shared thread: ', ''],
-          [channelPetName],
-          [channelPetName],
-          undefined,
-          [],
-        );
-      } catch (err) {
-        window.reportError(err);
-      }
+      await E(targetChannelRef).post(
+        ['Shared thread: ', ''],
+        [channelPetName],
+        [channelPetName],
+        undefined,
+        [],
+      );
+    } catch (err) {
+      window.reportError(err);
     }
 
     hide();
@@ -127,10 +170,29 @@ export const createShareModal = $container => {
   const show = opts => {
     currentOpts = opts;
     selectedTargetId = null;
+    selectedChannelPetName = null;
 
     const channelTargets = opts.targets.filter(
       t => t.channelPetName !== undefined,
     );
+
+    // Group targets by profilePath to deduplicate personas
+    /** @type {Map<string, { profilePath: string[], icon: string, name: string, channels: ShareTarget[] }>} */
+    const spaceGroups = new Map();
+    for (const t of channelTargets) {
+      const pathKey = t.profilePath.join('/');
+      const group = spaceGroups.get(pathKey);
+      if (group) {
+        group.channels.push(t);
+      } else {
+        spaceGroups.set(pathKey, {
+          profilePath: t.profilePath,
+          icon: t.icon,
+          name: t.name,
+          channels: [t],
+        });
+      }
+    }
 
     // Build modal DOM
     const $backdrop = document.createElement('div');
@@ -176,12 +238,12 @@ export const createShareModal = $container => {
     $nameInput.type = 'text';
     $nameInput.placeholder = 'thread-name';
     $nameInput.pattern = '[a-z0-9][a-z0-9-]*';
-    // Auto-generate a default name from preview
-    const defaultName = opts.previewText
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 30) || `shared-${Date.now()}`;
+    const defaultName =
+      opts.previewText
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 30) || `shared-${Date.now()}`;
     $nameInput.value = defaultName;
     const $nameHint = document.createElement('span');
     $nameHint.className = 'share-hint';
@@ -191,7 +253,7 @@ export const createShareModal = $container => {
     $nameField.appendChild($nameHint);
     $form.appendChild($nameField);
 
-    // Policy field
+    // Access policy field — checkboxes, both off by default (view-only)
     const $policyField = document.createElement('div');
     $policyField.className = 'share-field';
     const $policyLabel = document.createElement('label');
@@ -202,28 +264,34 @@ export const createShareModal = $container => {
     const $policyOptions = document.createElement('div');
     $policyOptions.className = 'share-policy-options';
 
-    const policies = [
-      { value: 'view', label: 'View only', icon: '\uD83D\uDD12' },
-      { value: 'comment', label: 'View & comment', icon: '\uD83D\uDCAC' },
+    const $editCheck = document.createElement('input');
+    $editCheck.type = 'checkbox';
+    $editCheck.id = 'share-policy-edit';
+    $editCheck.name = 'share-policy-edit';
+
+    const $commentCheck = document.createElement('input');
+    $commentCheck.type = 'checkbox';
+    $commentCheck.id = 'share-policy-comment';
+    $commentCheck.name = 'share-policy-comment';
+
+    const policyChecks = [
+      { $input: $editCheck, label: 'Can edit', icon: '\u270E' },
+      { $input: $commentCheck, label: 'Can comment', icon: '\uD83D\uDCAC' },
     ];
-    for (const p of policies) {
+    for (const pc of policyChecks) {
       const $opt = document.createElement('label');
       $opt.className = 'share-policy-option';
-      const $radio = document.createElement('input');
-      $radio.type = 'radio';
-      $radio.name = 'share-policy';
-      $radio.value = p.value;
-      if (p.value === 'view') $radio.checked = true;
       const $text = document.createElement('span');
-      $text.textContent = `${p.icon} ${p.label}`;
-      $opt.appendChild($radio);
+      $text.textContent = `${pc.icon} ${pc.label}`;
+      $opt.appendChild(pc.$input);
       $opt.appendChild($text);
       $policyOptions.appendChild($opt);
     }
     $policyField.appendChild($policyOptions);
     $form.appendChild($policyField);
 
-    // Target selection
+    // ---- Miller Columns target selection ----
+
     const $targetField = document.createElement('div');
     $targetField.className = 'share-field';
     const $targetLabel = document.createElement('label');
@@ -231,51 +299,173 @@ export const createShareModal = $container => {
     $targetLabel.textContent = 'Share to';
     $targetField.appendChild($targetLabel);
 
-    const $targetList = document.createElement('div');
-    $targetList.className = 'share-target-list';
+    const $miller = document.createElement('div');
+    $miller.className = 'share-miller';
 
-    if (channelTargets.length === 0) {
+    // Column 1: Spaces
+    const $spacesCol = document.createElement('div');
+    $spacesCol.className = 'share-miller-col';
+
+    // Column 2: Channels within selected space (hidden initially)
+    const $channelsCol = document.createElement('div');
+    $channelsCol.className = 'share-miller-col share-miller-col-hidden';
+
+    /**
+     * Enable the submit button if a channel is selected.
+     */
+    const updateSubmitState = () => {
+      const $submit = $form.querySelector('.share-submit');
+      if ($submit) {
+        /** @type {HTMLButtonElement} */ ($submit).disabled =
+          !selectedChannelPetName;
+      }
+    };
+
+    /**
+     * Show the channels column for a space group.
+     * @param {ShareTarget} representativeTarget
+     * @param {ShareTarget[]} knownChannels
+     */
+    const showChannelsColumn = async (representativeTarget, knownChannels) => {
+      $channelsCol.innerHTML = '';
+      $channelsCol.classList.remove('share-miller-col-hidden');
+
+      // Back button header
+      const $backRow = document.createElement('div');
+      $backRow.className = 'share-miller-back';
+      const $backBtn = document.createElement('button');
+      $backBtn.type = 'button';
+      $backBtn.className = 'share-miller-back-btn';
+      $backBtn.textContent = '\u2190'; // ←
+      $backBtn.title = 'Back to spaces';
+      $backBtn.addEventListener('click', () => {
+        $channelsCol.classList.add('share-miller-col-hidden');
+        selectedChannelPetName = null;
+        updateSubmitState();
+        // Deselect space highlight
+        const $allSel = $spacesCol.querySelectorAll('.share-target-selected');
+        for (const $s of $allSel) $s.classList.remove('share-target-selected');
+      });
+      const $colTitle = document.createElement('span');
+      $colTitle.className = 'share-miller-col-title';
+      $colTitle.textContent = representativeTarget.name;
+      $backRow.appendChild($backBtn);
+      $backRow.appendChild($colTitle);
+      $channelsCol.appendChild($backRow);
+
+      // Loading indicator
+      const $loading = document.createElement('div');
+      $loading.className = 'share-channel-loading';
+      $loading.textContent = 'Loading\u2026';
+      $channelsCol.appendChild($loading);
+
+      // Fetch pet names
+      const personaPowers = await resolvePersonaPowers(
+        opts.rootPowers,
+        representativeTarget.profilePath,
+      );
+      const petNames = await listPetNames(personaPowers);
+
+      // Remove loading
+      $loading.remove();
+
+      /** @type {Set<string>} */
+      const knownSet = new Set();
+      for (const ch of knownChannels) {
+        if (ch.channelPetName) knownSet.add(ch.channelPetName);
+      }
+
+      const $list = document.createElement('div');
+      $list.className = 'share-miller-list';
+
+      if (petNames.length === 0) {
+        const $empty = document.createElement('div');
+        $empty.className = 'share-target-empty';
+        $empty.textContent = 'No items found';
+        $list.appendChild($empty);
+      }
+
+      for (const petName of petNames) {
+        const $ch = document.createElement('button');
+        $ch.className = 'share-channel-item';
+        $ch.type = 'button';
+        if (knownSet.has(petName)) {
+          $ch.classList.add('share-channel-known');
+        }
+
+        const $chName = document.createElement('span');
+        $chName.className = 'share-channel-name';
+        $chName.textContent = petName;
+        $ch.appendChild($chName);
+
+        $ch.addEventListener('click', () => {
+          // Deselect all in this column
+          const $allSel = $list.querySelectorAll('.share-target-selected');
+          for (const $s of $allSel) $s.classList.remove('share-target-selected');
+          $ch.classList.add('share-target-selected');
+          selectedTargetId = representativeTarget.id;
+          selectedChannelPetName = petName;
+          updateSubmitState();
+        });
+
+        $list.appendChild($ch);
+      }
+
+      $channelsCol.appendChild($list);
+    };
+
+    // Populate spaces column
+    if (spaceGroups.size === 0) {
       const $empty = document.createElement('div');
       $empty.className = 'share-target-empty';
-      $empty.textContent = 'No channels available';
-      $targetList.appendChild($empty);
+      $empty.textContent = 'No spaces available';
+      $spacesCol.appendChild($empty);
     }
 
-    for (const target of channelTargets) {
+    for (const [, group] of spaceGroups) {
+      const representative = group.channels[0];
+
       const $item = document.createElement('button');
       $item.className = 'share-target-item';
       $item.type = 'button';
-      $item.dataset.targetId = target.id;
 
       const $icon = document.createElement('span');
       $icon.className = 'share-target-icon';
-      $icon.textContent = target.icon;
+      $icon.textContent = group.icon;
 
       const $name = document.createElement('span');
       $name.className = 'share-target-name';
-      $name.textContent = target.name;
+      $name.textContent = group.name;
+
+      const $chevron = document.createElement('span');
+      $chevron.className = 'share-target-chevron';
+      $chevron.textContent = '\u203A'; // ›
 
       $item.appendChild($icon);
       $item.appendChild($name);
+      $item.appendChild($chevron);
 
       $item.addEventListener('click', () => {
-        // Deselect previous
-        const $prev = $targetList.querySelector('.share-target-selected');
-        if ($prev) $prev.classList.remove('share-target-selected');
-        // Select this one
+        // Highlight selected space
+        const $allSel = $spacesCol.querySelectorAll('.share-target-selected');
+        for (const $s of $allSel) $s.classList.remove('share-target-selected');
         $item.classList.add('share-target-selected');
-        selectedTargetId = target.id;
-        // Enable submit
-        const $submit = $form.querySelector('.share-submit');
-        if ($submit) {
-          /** @type {HTMLButtonElement} */ ($submit).disabled = false;
-        }
+
+        // Clear channel selection until user picks one
+        selectedChannelPetName = null;
+        updateSubmitState();
+
+        showChannelsColumn(representative, group.channels).catch(
+          window.reportError,
+        );
       });
 
-      $targetList.appendChild($item);
+      $spacesCol.appendChild($item);
     }
 
-    $targetField.appendChild($targetList);
+    $miller.appendChild($spacesCol);
+    $miller.appendChild($channelsCol);
+    $targetField.appendChild($miller);
     $form.appendChild($targetField);
 
     // Actions
@@ -306,13 +496,12 @@ export const createShareModal = $container => {
         .replace(/[^a-z0-9-]/g, '-')
         .replace(/^-|-$/g, '');
       if (!name) return;
+      if (!selectedChannelPetName) return;
 
-      const policyInput = $form.querySelector(
-        'input[name="share-policy"]:checked',
-      );
-      const policy = policyInput
-        ? /** @type {HTMLInputElement} */ (policyInput).value
-        : 'view';
+      const policy = {
+        canEdit: $editCheck.checked,
+        canComment: $commentCheck.checked,
+      };
 
       const target = channelTargets.find(t => t.id === selectedTargetId);
       if (!target) return;
@@ -320,7 +509,7 @@ export const createShareModal = $container => {
       $submit.disabled = true;
       $submit.textContent = 'Sharing\u2026';
 
-      executeShare(name, policy, target).catch(err => {
+      executeShare(name, policy, target, selectedChannelPetName).catch(err => {
         $submit.disabled = false;
         $submit.textContent = 'Share';
         window.reportError(err);

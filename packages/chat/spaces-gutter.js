@@ -30,7 +30,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
  * @property {string} [whylipSystemPrompt] - optional system prompt override (for whylip mode)
- * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - channel view mode (default: 'chat')
  * @property {boolean} [ownedPersona] - whether the space owns the persona (for cleanup on delete)
  */
 
@@ -693,7 +693,7 @@ export const createSpacesGutter = ({
     }
     if (
       typeof obj.viewMode === 'string' &&
-      (obj.viewMode === 'chat' || obj.viewMode === 'forum' || obj.viewMode === 'outliner')
+      (obj.viewMode === 'chat' || obj.viewMode === 'forum' || obj.viewMode === 'outliner' || obj.viewMode === 'microblog')
     ) {
       result.viewMode = obj.viewMode;
     }

@@ -3746,16 +3746,9 @@ button.btn-spinner::after {
   background: rgba(108, 140, 255, 0.08);
 }
 
-.share-policy-option input[type="radio"] {
+.share-policy-option input[type="checkbox"] {
   accent-color: var(--accent-primary);
   margin: 0;
-}
-
-.share-target-list {
-  max-height: 180px;
-  overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
 }
 
 .share-target-item {
@@ -3802,11 +3795,141 @@ button.btn-spinner::after {
   white-space: nowrap;
 }
 
+.share-target-chevron {
+  margin-left: auto;
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
 .share-target-empty {
   padding: 16px;
   text-align: center;
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* Miller Columns layout for target selection */
+.share-miller {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  height: 200px;
+  overflow: hidden;
+}
+
+.share-miller-col {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-light);
+}
+
+.share-miller-col:last-child {
+  border-right: none;
+}
+
+.share-miller-col-hidden {
+  display: none;
+}
+
+.share-miller-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.share-miller-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.share-miller-back-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.share-miller-col-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-miller-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Space items in left column */
+.share-miller .share-target-item {
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 0;
+}
+
+.share-miller .share-target-item:last-child {
+  border-bottom: none;
+}
+
+/* Channel items in right column */
+.share-channel-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.share-channel-item:last-child {
+  border-bottom: none;
+}
+
+.share-channel-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.share-channel-item.share-target-selected {
+  background: rgba(108, 140, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.share-channel-known {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.share-channel-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-channel-loading {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
 }
 
 .share-actions {
@@ -6572,6 +6695,107 @@ button.btn-spinner::after {
   pointer-events: none;
   z-index: 5;
   border-radius: 2px;
+}
+
+/* ============================
+   Microblog View
+   ============================ */
+
+.microblog-feed {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.microblog-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.microblog-header .message-wrapper {
+  margin: 0;
+}
+
+.microblog-header .message {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.microblog-header .message-body {
+  font-size: 1.1em;
+  line-height: 1.6;
+}
+
+.microblog-header .channel-author {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.microblog-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.microblog-post {
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 4px;
+}
+
+.microblog-post .message-wrapper {
+  margin: 0;
+}
+
+.microblog-post .message {
+  border: none;
+  background: none;
+  padding: 12px 0;
+}
+
+.microblog-comments-section {
+  padding: 0 0 8px 32px;
+}
+
+.microblog-comments-toggle {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 0;
+  border-radius: 4px;
+}
+
+.microblog-comments-toggle:hover {
+  text-decoration: underline;
+}
+
+.microblog-comment-list {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.microblog-comment .message {
+  padding: 6px 0;
+  border: none;
+  background: none;
+}
+
+.microblog-comment .message-body {
+  font-size: 0.93em;
+}
+
+.microblog-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 /* ============================
