@@ -435,6 +435,43 @@ export const COMMANDS = {
     submitLabel: 'Locate',
   },
 
+  checkin: {
+    name: 'checkin',
+    label: 'Check In',
+    description: 'Check in a local directory as a readable tree',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Save as',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'tree-name',
+      },
+    ],
+    submitLabel: 'Check In',
+    aliases: ['ci'],
+  },
+  checkout: {
+    name: 'checkout',
+    label: 'Check Out',
+    description: 'Check out a readable tree to a local directory',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Tree name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'tree-name',
+      },
+    ],
+    submitLabel: 'Check Out',
+    aliases: ['co'],
+  },
+
   dm: {
     name: 'dm',
     label: 'DM',

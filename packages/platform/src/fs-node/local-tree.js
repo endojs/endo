@@ -21,11 +21,7 @@ const MAX_DEPTH = 64;
  * @param {{ maxDepth?: number, ignored?: Set<string>, onFile?: () => void }} [options]
  */
 export const makeLocalTree = (dirPath, options = {}) => {
-  const {
-    maxDepth = MAX_DEPTH,
-    ignored = ALWAYS_IGNORED,
-    onFile,
-  } = options;
+  const { maxDepth = MAX_DEPTH, ignored = ALWAYS_IGNORED, onFile } = options;
 
   /**
    * @param {string} currentPath
