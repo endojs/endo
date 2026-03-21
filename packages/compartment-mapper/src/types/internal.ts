@@ -41,6 +41,7 @@ import type {
   Sources,
   SyncModuleTransforms,
   CompartmentsRenameFn,
+  RedundantPreloadHook,
 } from './external.js';
 import type { PackageDescriptor } from './node-modules.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
