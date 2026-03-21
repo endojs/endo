@@ -415,6 +415,24 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Create',
+    aliases: ['scratch'],
+  },
+  mount: {
+    name: 'mount',
+    label: 'Mount',
+    description: 'Mount a local directory as a readable tree',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Save as',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'tree-name',
+      },
+    ],
+    submitLabel: 'Mount',
   },
 
   locate: {

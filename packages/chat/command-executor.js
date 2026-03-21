@@ -374,11 +374,34 @@ export const createCommandExecutor = ({
           return { success: true, value: locator };
         }
 
+        case 'scratch':
         case 'mkdir': {
           const { petName } = params;
           const pathParts = String(petName).split('/');
           await E(powers).makeDirectory(pathParts);
           return { success: true, message: `Directory "${petName}" created` };
+        }
+
+        case 'mount': {
+          const { petName } = params;
+          const petNamePath = String(petName).split('/');
+          if (typeof globalThis.showDirectoryPicker !== 'function') {
+            throw new Error('Directory picker not available in this browser');
+          }
+          const dirHandle = await globalThis.showDirectoryPicker({
+            mode: 'read',
+          });
+          const progress = { files: 0 };
+          const tree = makeBrowserTree(dirHandle, {
+            onFile: () => {
+              progress.files += 1;
+            },
+          });
+          await E(powers).storeTree(tree, petNamePath);
+          return {
+            success: true,
+            message: `Mounted ${progress.files} files as "${petName}"`,
+          };
         }
 
         case 'dm': {

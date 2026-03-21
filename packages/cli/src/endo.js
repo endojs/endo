@@ -603,6 +603,20 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('mount <path>')
+    .description('mounts a local directory as a readable tree')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mount');
+      }
+      const { checkin } = await import('./commands/checkin.js');
+      return checkin({ sourcePath, name, agentNames });
+    });
+
+  program
     .command('eval <source> [names...]')
     .description('creates a value')
     .option(...commonOptions.as)
@@ -699,6 +713,7 @@ export const main = async rawArgs => {
 
   program
     .command('mkdir <path>')
+    .alias('scratch')
     .option(...commonOptions.as)
     .description('makes a directory (pet store, name hub)')
     .action(async (directoryPath, cmd) => {
@@ -941,6 +956,7 @@ export const main = async rawArgs => {
         'store',
         'checkin',
         'checkout',
+        'mount',
         'locate',
         'remove',
         'move',

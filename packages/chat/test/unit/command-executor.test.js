@@ -482,6 +482,71 @@ test('execute mkdir command', async t => {
   t.is(result.message, 'Directory "new-dir" created');
 });
 
+test('execute scratch command (alias for mkdir)', async t => {
+  const ctx = createMockContext();
+  const executor = createCommandExecutor({
+    powers: ctx.powers,
+    showValue: v => ctx.showValueCalls.push(v),
+    showMessage: m => ctx.showMessageCalls.push(m),
+    showError: e => ctx.showErrorCalls.push(e),
+  });
+
+  const result = await executor.execute('scratch', {
+    petName: 'my-workspace',
+  });
+
+  t.true(result.success);
+  t.is(result.message, 'Directory "my-workspace" created');
+  t.is(ctx.calls[0].method, 'makeDirectory');
+});
+
+test('execute mount command calls storeTree', async t => {
+  /** @type {Array<{method: string, args: unknown[]}>} */
+  const calls = [];
+
+  const powers = Far('MockPowers', {
+    storeTree: async (tree, petNamePath) => {
+      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    },
+  });
+
+  const originalPicker = globalThis.showDirectoryPicker;
+  globalThis.showDirectoryPicker = async () =>
+    /** @type {any} */ ({
+      kind: 'directory',
+      name: 'test-dir',
+      keys: async function* () {},
+      getFileHandle: async () => {
+        throw new Error('Not found');
+      },
+      getDirectoryHandle: async () => {
+        throw new Error('Not found');
+      },
+    });
+
+  try {
+    const executor = createCommandExecutor({
+      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      showValue: () => {},
+      showMessage: () => {},
+      showError: () => {},
+    });
+
+    const result = await executor.execute('mount', { petName: 'my-tree' });
+
+    t.true(result.success);
+    t.true(result.message?.includes('my-tree'));
+    t.is(calls[0].method, 'storeTree');
+    t.deepEqual(calls[0].args[1], ['my-tree']);
+  } finally {
+    if (originalPicker) {
+      globalThis.showDirectoryPicker = originalPicker;
+    } else {
+      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+    }
+  }
+});
+
 test('execute invite command', async t => {
   const ctx = createMockContext();
   const executor = createCommandExecutor({

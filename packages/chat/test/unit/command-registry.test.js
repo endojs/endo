@@ -209,6 +209,7 @@ test('commands without context are available in both modes', t => {
     'mkdir',
     'checkin',
     'checkout',
+    'mount',
     'invite',
     'accept',
     'spawn',
@@ -333,11 +334,33 @@ test('filterCommands matches checkin by prefix', t => {
   t.true(names.includes('checkout'));
 });
 
-test('checkin and checkout appear in storage category', t => {
+test('checkin, checkout, and mount appear in storage category', t => {
   const storage = getCommandsByCategory('storage');
   const names = storage.map(cmd => cmd.name);
   t.true(names.includes('checkin'));
   t.true(names.includes('checkout'));
+  t.true(names.includes('mount'));
+});
+
+test('getCommand resolves scratch alias to mkdir', t => {
+  const cmd = getCommand('scratch');
+  t.truthy(cmd);
+  t.is(cmd?.name, 'mkdir');
+});
+
+test('mount command has correct properties', t => {
+  const cmd = COMMANDS.mount;
+  t.is(cmd.name, 'mount');
+  t.is(cmd.category, 'storage');
+  t.is(cmd.mode, 'inline');
+  t.is(cmd.fields.length, 1);
+  t.is(cmd.fields[0].name, 'petName');
+  t.true(cmd.fields[0].required);
+});
+
+test('mkdir command has scratch alias', t => {
+  const cmd = COMMANDS.mkdir;
+  t.deepEqual(cmd.aliases, ['scratch']);
 });
 
 test('getCommandsByCategory respects context filter', t => {
