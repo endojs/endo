@@ -42,7 +42,12 @@ export const make = (guestPowers, _context) => {
           default: 'claude-sonnet-4-6-20250514',
           example: 'qwen3 for Ollama',
         },
-        { name: 'authToken', label: 'API auth token', example: 'sk-ant-...', secret: true },
+        {
+          name: 'authToken',
+          label: 'API auth token',
+          example: 'sk-ant-...',
+          secret: true,
+        },
       ]),
     );
 

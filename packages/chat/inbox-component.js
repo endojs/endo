@@ -63,7 +63,9 @@ export const inboxComponent = async (
         // conversation when their replyTo references a message already in
         // this conversation thread.
         const replyTo =
-          'replyTo' in message ? /** @type {string} */ (message.replyTo) : undefined;
+          'replyTo' in message
+            ? /** @type {string} */ (message.replyTo)
+            : undefined;
         if (
           fromId === selfLocator &&
           toId === selfLocator &&
@@ -363,12 +365,7 @@ export const inboxComponent = async (
       message.type === 'eval-proposal-reviewer' ||
       message.type === 'eval-proposal-proposer'
     ) {
-      const {
-        source,
-        codeNames,
-        edgeNames,
-        workerName,
-      } = message;
+      const { source, codeNames, edgeNames, workerName } = message;
       // settled, resultId, and result are only present on reviewer
       // messages; the proposer's sent receipt omits them.
       const settled = 'settled' in message ? message.settled : undefined;
@@ -600,44 +597,45 @@ export const inboxComponent = async (
         $actions.appendChild($reject);
 
         // Replace buttons with status when settled (reviewer messages only)
-        if (settled) settled.then(status => {
-          // Capture reason before clearing (only available if we rejected it)
-          const rejectionReason = $rejectReason.value.trim();
+        if (settled)
+          settled.then(status => {
+            // Capture reason before clearing (only available if we rejected it)
+            const rejectionReason = $rejectReason.value.trim();
 
-          // Clear existing buttons
-          $actions.innerHTML = '';
+            // Clear existing buttons
+            $actions.innerHTML = '';
 
-          const $status = document.createElement('span');
-          $status.className = 'eval-proposal-status';
+            const $status = document.createElement('span');
+            $status.className = 'eval-proposal-status';
 
-          if (status === 'fulfilled') {
-            $status.classList.add('status-granted');
-            $status.textContent = 'Granted';
-          } else {
-            $status.classList.add('status-rejected');
-            $status.textContent = 'Rejected';
-          }
+            if (status === 'fulfilled') {
+              $status.classList.add('status-granted');
+              $status.textContent = 'Granted';
+            } else {
+              $status.classList.add('status-rejected');
+              $status.textContent = 'Rejected';
+            }
 
-          $actions.appendChild($status);
+            $actions.appendChild($status);
 
-          // Show rejection reason if available
-          if (status === 'rejected' && rejectionReason) {
-            const $reason = document.createElement('span');
-            $reason.className = 'eval-proposal-rejection-reason';
-            $reason.textContent = `: ${rejectionReason}`;
-            $actions.appendChild($reason);
-          }
+            // Show rejection reason if available
+            if (status === 'rejected' && rejectionReason) {
+              const $reason = document.createElement('span');
+              $reason.className = 'eval-proposal-rejection-reason';
+              $reason.textContent = `: ${rejectionReason}`;
+              $actions.appendChild($reason);
+            }
 
-          if (status === 'fulfilled') {
-            $actions.appendChild(makeShowResultButton());
-          }
-        });
+            if (status === 'fulfilled') {
+              $actions.appendChild(makeShowResultButton());
+            }
+          });
       }
 
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
     } else if (message.type === 'definition') {
-      const { source, slots, settled } = message;
+      const { source, slots } = message;
       assert(typeof source === 'string');
 
       const $definition = document.createElement('div');
@@ -648,9 +646,7 @@ export const inboxComponent = async (
         const $chipLine = document.createElement('div');
         $chipLine.className = 'eval-proposal-from';
         $chipLine.appendChild($senderChip);
-        $chipLine.appendChild(
-          document.createTextNode(' proposes to define:'),
-        );
+        $chipLine.appendChild(document.createTextNode(' proposes to define:'));
         $definition.appendChild($chipLine);
       }
 
@@ -719,41 +715,8 @@ export const inboxComponent = async (
       const $actions = document.createElement('div');
       $actions.className = 'eval-proposal-actions';
 
-      // Enter key in any slot input submits the Endow form
-      const submitEndow = () => {
-        const $endowBtn = $actions.querySelector('.eval-proposal-grant');
-        if ($endowBtn) $endowBtn.click();
-      };
-      for (const $input of Object.values(slotInputs)) {
-        $input.addEventListener('keydown', e => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            submitEndow();
-          }
-        });
-      }
-
-      if (isSent) {
-        if (settled) {
-          settled.then(status => {
-            $actions.innerHTML = '';
-            const $status = document.createElement('span');
-            $status.className = 'eval-proposal-status';
-            if (status === 'fulfilled') {
-              $status.classList.add('status-granted');
-              $status.textContent = 'Endowed';
-            } else {
-              $status.classList.add('status-rejected');
-              $status.textContent = 'Rejected';
-            }
-            $actions.appendChild($status);
-          });
-        }
-      } else {
-        const $endow = document.createElement('button');
-        $endow.className = 'eval-proposal-grant';
-        $endow.textContent = 'Endow';
-        $endow.onclick = () => {
+      if (!isSent) {
+        const doSubmit = () => {
           /** @type {Record<string, string>} */
           const bindings = {};
           for (const [codeName, $input] of Object.entries(slotInputs)) {
@@ -764,55 +727,29 @@ export const inboxComponent = async (
             }
             bindings[codeName] = val;
           }
+          $error.innerText = '';
           E(powers)
             .endow(number, bindings)
             .catch(error => {
               $error.innerText = ` ${error.message}`;
             });
         };
-        $actions.appendChild($endow);
 
-        const $rejectReason = document.createElement('input');
-        $rejectReason.className = 'eval-proposal-reject-reason';
-        $rejectReason.type = 'text';
-        $rejectReason.placeholder = 'Reason (optional)';
-        $actions.appendChild($rejectReason);
-
-        const $reject = document.createElement('button');
-        $reject.className = 'eval-proposal-reject';
-        $reject.textContent = 'Reject';
-        $reject.onclick = () => {
-          const reason = $rejectReason.value.trim() || undefined;
-          E(powers)
-            .reject(number, reason)
-            .catch(error => {
-              $error.innerText = ` ${error.message}`;
-            });
-        };
-        $actions.appendChild($reject);
-
-        if (settled) {
-          settled.then(status => {
-            const rejectionReason = $rejectReason.value.trim();
-            $actions.innerHTML = '';
-            const $status = document.createElement('span');
-            $status.className = 'eval-proposal-status';
-            if (status === 'fulfilled') {
-              $status.classList.add('status-granted');
-              $status.textContent = 'Endowed';
-            } else {
-              $status.classList.add('status-rejected');
-              $status.textContent = 'Rejected';
-            }
-            $actions.appendChild($status);
-            if (status === 'rejected' && rejectionReason) {
-              const $reason = document.createElement('span');
-              $reason.className = 'eval-proposal-rejection-reason';
-              $reason.textContent = `: ${rejectionReason}`;
-              $actions.appendChild($reason);
+        // Enter key in any slot input submits the form
+        for (const $input of Object.values(slotInputs)) {
+          $input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              doSubmit();
             }
           });
         }
+
+        const $submit = document.createElement('button');
+        $submit.className = 'eval-proposal-grant';
+        $submit.textContent = 'Submit';
+        $submit.onclick = doSubmit;
+        $actions.appendChild($submit);
       }
 
       $definition.appendChild($actions);
@@ -986,9 +923,7 @@ export const inboxComponent = async (
           ? formFieldMeta.get(String(valueReplyTo))
           : undefined;
       const secretFieldNames = new Set(
-        (fieldMeta || [])
-          .filter(f => f.secret)
-          .map(f => f.name),
+        (fieldMeta || []).filter(f => f.secret).map(f => f.name),
       );
 
       E(powers)
@@ -1018,7 +953,8 @@ export const inboxComponent = async (
 
                   const $masked = document.createElement('span');
                   $masked.className = 'form-value-secret';
-                  $masked.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                  $masked.textContent =
+                    '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
                   $group.appendChild($masked);
 
                   const realValue = String(record[key]);
@@ -1079,7 +1015,7 @@ export const inboxComponent = async (
             value => {
               showValue(value, valueId, undefined, {
                 number,
-                edgeName: 'VALUE',
+                edgeName: 'value',
               });
             },
             (/** @type {Error} */ err) => {

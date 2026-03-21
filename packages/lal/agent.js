@@ -585,21 +585,20 @@ receive a notification. Use lookup(resultName) to get the value and send() to de
     function: {
       name: 'define',
       description: `\
-Propose code with named capability slots for the host to fill.
+Propose a reusable program with named capability slots for the host to fill.
 Unlike evaluate(), you do NOT provide the capabilities yourself — the host
 chooses what to bind from their own inventory. This is the preferred way to
 request code execution when you don't have the required capabilities.
 
 The host sees the code and slot labels, fills each slot with a capability
-from their pet store (endow), and the code is executed. You receive a
-receipt confirming endowment, not the eval result directly. The host sees
-the result in their inbox and may share it with you via reply().
+from their pet store, and the code is executed. The host can submit the
+program multiple times with different bindings. You do not receive any
+notification when the program is submitted — the result is private to the host.
 
 Example: To request incrementing a counter you don't have:
   define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
 
-The host will choose which counter to provide. After endowment, wait for
-the host to share the result with you.`,
+The host will choose which counter to provide.`,
       parameters: {
         type: 'object',
         properties: {
@@ -616,7 +615,8 @@ the host to share the result with you.`,
               properties: {
                 label: {
                   type: 'string',
-                  description: 'Human-readable description of what this slot needs.',
+                  description:
+                    'Human-readable description of what this slot needs.',
                 },
               },
               required: ['label'],
@@ -1805,8 +1805,13 @@ You should:
         /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string}} */ (
           message
         );
-      const { from: fromLocator, number, type, messageId, replyTo } =
-        inboxMessage;
+      const {
+        from: fromLocator,
+        number,
+        type,
+        messageId,
+        replyTo,
+      } = inboxMessage;
 
       // Own outbound messages: index them for future reply lookups
       if (fromLocator === selfLocator) {

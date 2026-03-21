@@ -285,24 +285,14 @@ export const makeMailboxMaker = ({
       const messageId = /** @type {import('./types.js').FormulaNumber} */ (
         await randomHex256()
       );
-      const { promiseId, resolverId } = await formulatePromise(pinTransient);
-      const resolutionIdP = provide(promiseId);
-      const settled = resolutionIdP.then(
-        () => /** @type {const} */ ('fulfilled'),
-        () => /** @type {const} */ ('rejected'),
-      );
-      const request = harden({
+      return harden({
         type: /** @type {const} */ ('definition'),
         from: fromId,
         to: toId,
         messageId,
         source,
         slots,
-        promiseId,
-        resolverId,
-        settled,
       });
-      return harden({ request, response: resolutionIdP });
     };
 
     /**
@@ -378,8 +368,6 @@ export const makeMailboxMaker = ({
           ...envelopeRecord,
           source: envelope.source,
           slots: envelope.slots,
-          promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
-          resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
         });
       }
 
@@ -657,29 +645,15 @@ export const makeMailboxMaker = ({
       }
 
       if (formula.messageType === 'definition') {
-        if (
-          formula.source === undefined ||
-          formula.slots === undefined ||
-          formula.promiseId === undefined ||
-          formula.resolverId === undefined
-        ) {
+        if (formula.source === undefined || formula.slots === undefined) {
           throw new Error('Definition message formula is incomplete');
         }
-        const resolutionIdP = provide(formula.promiseId);
-        /** @type {Promise<'fulfilled' | 'rejected'>} */
-        const settled = resolutionIdP.then(
-          () => /** @type {const} */ ('fulfilled'),
-          () => /** @type {const} */ ('rejected'),
-        );
         return harden({
           type: formula.messageType,
           from: formula.from,
           to: formula.to,
           source: formula.source,
           slots: formula.slots,
-          promiseId: formula.promiseId,
-          resolverId: formula.resolverId,
-          settled,
           messageId: formula.messageId,
           replyTo: formula.replyTo,
           number: messageNumber,
@@ -947,16 +921,21 @@ export const makeMailboxMaker = ({
     const reject = async (messageNumber, reason = 'Declined') => {
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'request');
       const message = messages.get(normalizedMessageNumber);
-      if (message !== undefined) {
-        // TODO verify that the message is a request.
-        const req = /** @type {Request} */ (message);
-        const resolver = /** @type {ERef<Responder>} */ (
-          provide(req.resolverId, 'resolver')
-        );
-        E.sendOnly(resolver).resolveWithId(
-          harden(Promise.reject(harden(new Error(reason)))),
+      if (message === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (message.type === 'definition') {
+        throw new Error(
+          `Cannot reject a definition (message ${q(messageNumber)}); definitions are reusable programs`,
         );
       }
+      const req = /** @type {Request} */ (message);
+      const resolver = /** @type {ERef<Responder>} */ (
+        provide(req.resolverId, 'resolver')
+      );
+      E.sendOnly(resolver).resolveWithId(
+        harden(Promise.reject(harden(new Error(reason)))),
+      );
     };
 
     /** @type {Mail['send']} */
@@ -1128,8 +1107,21 @@ export const makeMailboxMaker = ({
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
+      if (message.type === 'value') {
+        if (edgeName !== 'value') {
+          throw new Error(
+            `Value messages only have a "value" edge, not ${q(edgeName)}`,
+          );
+        }
+        const id = /** @type {FormulaIdentifier} */ (message.valueId);
+        context.thisDiesIfThatDies(id);
+        await E(directory).write(petNamePath, id);
+        return;
+      }
       if (message.type !== 'package') {
-        throw new Error(`Message must be a package ${q(messageNumber)}`);
+        throw new Error(
+          `Message must be a package or value ${q(messageNumber)}`,
+        );
       }
       const index = message.names.lastIndexOf(edgeName);
       if (index === -1) {
@@ -1330,26 +1322,14 @@ export const makeMailboxMaker = ({
         /** @type {FormulaIdentifier} */ (hostHandleId),
       );
 
-      const { request: req, response: resolutionIdP } = await makeDefineRequest(
+      const req = await makeDefineRequest(
         source,
         slots,
         selfId,
         /** @type {FormulaIdentifier} */ (hostHandleId),
       );
 
-      try {
-        await post(hostHandle, req);
-      } finally {
-        unpinTransient(req.promiseId);
-        unpinTransient(req.resolverId);
-      }
-
-      const resolutionId = /** @type {FormulaIdentifier} */ (
-        await resolutionIdP
-      );
-      assertValidId(resolutionId);
-      context.thisDiesIfThatDies(resolutionId);
-      return provide(resolutionId);
+      await post(hostHandle, req);
     };
 
     /** @type {Mail['form']} */
@@ -1387,13 +1367,10 @@ export const makeMailboxMaker = ({
         );
       }
       const defReq =
-        /** @type {DefineRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
-          message
-        );
+        /** @type {DefineRequest & { from: FormulaIdentifier }} */ (message);
       return harden({
         source: defReq.source,
         slots: defReq.slots,
-        resolverId: defReq.resolverId,
         guestHandleId: defReq.from,
         messageId: defReq.messageId,
       });

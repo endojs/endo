@@ -280,9 +280,7 @@ export const tokenAutocompleteComponent = (
   const insertToken = (petName, edgeName) => {
     // Build the full path pet name when drilling into directories.
     const fullPetName =
-      pathPrefix.length > 0
-        ? `${pathPrefix.join('/')}/${petName}`
-        : petName;
+      pathPrefix.length > 0 ? `${pathPrefix.join('/')}/${petName}` : petName;
 
     if (!triggerNode) {
       hideMenu();
@@ -338,9 +336,7 @@ export const tokenAutocompleteComponent = (
   const startEdgeNameEntry = petName => {
     // Build the full path pet name when drilling into directories.
     const fullPetName =
-      pathPrefix.length > 0
-        ? `${pathPrefix.join('/')}/${petName}`
-        : petName;
+      pathPrefix.length > 0 ? `${pathPrefix.join('/')}/${petName}` : petName;
 
     if (!triggerNode) return;
 

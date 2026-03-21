@@ -465,9 +465,6 @@ export type DefineRequest = MessageBase & {
   replyTo?: FormulaNumber;
   source: string;
   slots: Record<string, { label: string; pattern?: unknown }>;
-  promiseId: FormulaIdentifier;
-  resolverId: FormulaIdentifier;
-  settled: Promise<'fulfilled' | 'rejected'>;
 };
 
 export type FormField = {
@@ -852,7 +849,7 @@ export interface Mail {
   define(
     source: string,
     slots: Record<string, { label: string; pattern?: unknown }>,
-  ): Promise<unknown>;
+  ): Promise<void>;
   form(
     recipientNameOrPath: string | string[],
     description: string,
@@ -861,7 +858,6 @@ export interface Mail {
   getDefineRequest(messageNumber: bigint): {
     source: string;
     slots: Record<string, { label: string; pattern?: unknown }>;
-    resolverId: FormulaIdentifier;
     guestHandleId: string;
     messageId: FormulaNumber;
   };
@@ -1027,7 +1023,7 @@ export interface EndoGuest extends EndoAgent {
   define(
     source: string,
     slots: Record<string, { label: string; pattern?: unknown }>,
-  ): Promise<unknown>;
+  ): Promise<void>;
   form(
     recipientNameOrPath: string | string[],
     description: string,

@@ -953,7 +953,7 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
-      const { source, slots, resolverId, guestHandleId } =
+      const { source, slots, guestHandleId } =
         mailbox.getDefineRequest(messageNumber);
 
       // Validate bindings cover every slot
@@ -1002,20 +1002,6 @@ export const makeHostMaker = ({
         tasks,
         workerId,
       );
-
-      // Resolve the definition promise with a neutral receipt so the
-      // proposer's define() call completes but does NOT receive the eval
-      // result.  The host keeps the result private.
-      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
-      const receiptTasks = makeDeferredTasks();
-      const { id: receiptId } = await formulateMarshalValue(
-        harden({ status: 'endowed' }),
-        receiptTasks,
-        pinTransient,
-      );
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(receiptId);
-      unpinTransient(receiptId);
 
       // Deliver the eval result to the host's own inbox only.
       // Using deliverValueById (not sendValue/post) ensures the value
