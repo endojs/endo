@@ -281,6 +281,17 @@ export const inferExportsAndAliases = (
 const hasWildcard = (key, value) => key.includes('*') || value.includes('*');
 
 /**
+ * Determines if a key or value contains a globstar pattern.
+ * Node.js silently ignores globstar patterns in exports/imports.
+ *
+ * @param {string} key
+ * @param {string} value
+ * @returns {boolean}
+ */
+const hasGlobstar = (key, value) =>
+  key.includes('**') || value.includes('**');
+
+/**
  * Infers exports, internal aliases, and wildcard patterns from a package descriptor.
  * This extends `inferExportsAndAliases` by also extracting wildcard patterns
  * from the `exports` and `imports` fields.
@@ -302,12 +313,17 @@ export const inferExportsAliasesAndPatterns = (
 ) => {
   const { name, type, main, module, exports, imports, browser } = descriptor;
 
-  // Process exports field - separate wildcards from concrete exports
+  // Process exports field - separate wildcards from concrete exports.
+  // Globstar patterns are silently ignored, matching Node.js behavior.
   for (const [key, value] of inferExportsEntries(
     descriptor,
     conditions,
     types,
   )) {
+    if (hasGlobstar(key, value)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     if (hasWildcard(key, value)) {
       assertMatchingWildcardCount(key, value);
       patterns.push({ from: key, to: value });
@@ -316,9 +332,14 @@ export const inferExportsAliasesAndPatterns = (
     }
   }
 
-  // Process imports field (package self-referencing)
+  // Process imports field (package self-referencing).
+  // Globstar patterns are silently ignored, matching Node.js behavior.
   if (imports !== undefined) {
     for (const [key, value] of interpretImports(name, imports, conditions)) {
+      if (hasGlobstar(key, value)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       if (hasWildcard(key, value)) {
         assertMatchingWildcardCount(key, value);
         patterns.push({ from: key, to: value });

@@ -17,8 +17,9 @@ test('subpath patterns - node parity', async t => {
   const ns = await import(new URL('main.js', fixtureBase).href);
   t.is(ns.alpha, 'alpha');
   t.is(ns.betaGamma, 'beta-gamma');
-  t.is(ns.exact, 'beta-gamma');
+  t.is(ns.exact, 'exact-match');
   t.is(ns.helper, 'helper');
+  t.is(ns.specificity, 'specific');
 });
 
 test('multi-star patterns are not resolved by Node.js', async t => {
@@ -39,6 +40,30 @@ test('multi-star patterns are not resolved by Node.js', async t => {
   // The multi-star subpath pattern should NOT resolve.
   await t.throwsAsync(
     () => import(new URL('app/multi-star-import.js', fixtureDir).href),
+    {
+      code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
+    },
+  );
+});
+
+test('globstar patterns are not resolved by Node.js', async t => {
+  // Node.js does not support globstar (**) in subpath patterns.
+  // Entries with ** are silently ignored (never match).
+  // This test will fail if Node.js begins to support globstar patterns,
+  // signaling that we should revisit our implementation.
+  const fixtureDir = new URL(
+    'fixtures-subpath-patterns/node_modules/',
+    import.meta.url,
+  );
+  // The main export (no wildcards) should still work.
+  const main = await import(
+    new URL('globstar-lib/src/main.js', fixtureDir).href
+  );
+  t.is(main.main, 'main');
+
+  // The globstar subpath pattern should NOT resolve.
+  await t.throwsAsync(
+    () => import(new URL('app/globstar-import.js', fixtureDir).href),
     {
       code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
     },

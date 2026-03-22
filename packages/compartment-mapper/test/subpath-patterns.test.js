@@ -17,7 +17,7 @@ const fixture = new URL(
   import.meta.url,
 ).toString();
 
-const fixtureAssertionCount = 4;
+const fixtureAssertionCount = 5;
 
 /**
  * @param {import('ava').ExecutionContext} t
@@ -26,8 +26,9 @@ const fixtureAssertionCount = 4;
 const assertFixture = (t, { namespace }) => {
   t.is(namespace.alpha, 'alpha');
   t.is(namespace.betaGamma, 'beta-gamma');
-  t.is(namespace.exact, 'beta-gamma');
+  t.is(namespace.exact, 'exact-match');
   t.is(namespace.helper, 'helper');
+  t.is(namespace.specificity, 'specific');
 };
 
 scaffold(
