@@ -68,7 +68,6 @@ type TFLeafMap<Payload> = {
   bigint: Payload;
   nat: Payload;
   symbol: Payload;
-  remotable: Payload;
   scalar: ScalarKey;
   key: Key;
   pattern: Pattern;
@@ -162,7 +161,9 @@ type TFStructural<K extends string, Payload> =
                                 Passable
                               >
                             : CopyTagged
-                          : Passable;
+                          : K extends 'remotable'
+                            ? TFRemotable<Payload>
+                            : Passable;
 
 /** Union of inferred types from a tuple of patterns. */
 type TFOr<T extends readonly any[]> =
@@ -206,6 +207,24 @@ type TFOptionalTuple<T extends readonly any[]> =
   T extends readonly [infer H, ...infer R]
     ? [TypeFromPattern<H> | undefined, ...TFOptionalTuple<R>]
     : [];
+
+/**
+ * Resolve a remotable matcher's payload.
+ *
+ * When `M.remotable<typeof SomeInterfaceGuard>()` is used, the Payload
+ * carries the InterfaceGuard type.  We resolve it to the interface's
+ * methods with remotable branding, giving facet-isolated return types.
+ *
+ * When unparameterized (`M.remotable()`), Payload defaults to
+ * `RemotableObject | RemotableBrand<any, any>` which passes through as-is.
+ */
+type TFRemotable<Payload> =
+  Payload extends InterfaceGuard<infer MG>
+    ? Simplify<
+        { [K in keyof MG]: TypeFromMethodGuard<MG[K]> } & RemotableObject &
+          RemotableBrand<{}, any>
+      >
+    : Payload;
 
 // ===== Method and Interface Guard inference =====
 

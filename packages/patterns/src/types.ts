@@ -364,6 +364,18 @@ export type PatternMatchers = {
    * Matches a far object or its remote presence.
    * The optional `label` is purely for diagnostic purposes and does not
    * add any constraints.
+   *
+   * For facet-isolated return types in exo kits, pass an InterfaceGuard
+   * as the type parameter:
+   * ```ts
+   * const PublicI = M.interface('Public', {
+   *   getData: M.call().returns(M.string()),
+   * });
+   * const AdminI = M.interface('Admin', {
+   *   getPublic: M.call().returns(M.remotable<typeof PublicI>('Public')),
+   * });
+   * // TypeFromMethodGuard of getPublic → () => { getData: () => string } & RemotableObject
+   * ```
    */
   remotable: <
     T extends Passable = RemotableObject | RemotableBrand<any, any>,
