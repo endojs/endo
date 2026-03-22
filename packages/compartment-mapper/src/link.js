@@ -118,14 +118,7 @@ const makeModuleMapHook = (
   // @ts-expect-error patterns may exist on PackageCompartmentDescriptor
   const { patterns } = compartmentDescriptor;
   const matchPattern =
-    patterns && patterns.length > 0
-      ? makeMultiSubpathReplacer(
-          patterns.map((/** @type {{ from: string, to: string }} */ p) => [
-            p.from,
-            p.to,
-          ]),
-        )
-      : null;
+    patterns && patterns.length > 0 ? makeMultiSubpathReplacer(patterns) : null;
 
   /**
    * @type {ModuleMapHook}
@@ -177,10 +170,15 @@ const makeModuleMapHook = (
     }
 
     // Check patterns for wildcard matches (before scopes).
-    // Patterns resolve within the same compartment only.
+    // Patterns may resolve within the same compartment (internal patterns)
+    // or to a foreign compartment (dependency export patterns).
     if (matchPattern) {
-      const resolvedPath = matchPattern(moduleSpecifier);
-      if (resolvedPath !== null) {
+      const match = matchPattern(moduleSpecifier);
+      if (match !== null) {
+        const { result: resolvedPath, compartment: foreignCompartmentName } =
+          match;
+        const targetCompartmentName = foreignCompartmentName || compartmentName;
+
         // Policy enforcement for pattern-matched modules
         enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
           exit: false,
@@ -191,20 +189,19 @@ const makeModuleMapHook = (
         // This allows the expanded pattern to be captured in archives.
         moduleDescriptors[moduleSpecifier] = {
           retained: true,
-          compartment: compartmentName,
+          compartment: targetCompartmentName,
           module: resolvedPath,
           __createdBy: 'link-pattern',
         };
 
-        // Same-compartment resolution
-        const compartment = compartments[compartmentName];
-        if (compartment === undefined) {
+        const targetCompartment = compartments[targetCompartmentName];
+        if (targetCompartment === undefined) {
           throw Error(
-            `Cannot import from missing compartment ${q(compartmentName)}`,
+            `Cannot import from missing compartment ${q(targetCompartmentName)}`,
           );
         }
         return {
-          compartment,
+          compartment: targetCompartment,
           namespace: resolvedPath,
         };
       }

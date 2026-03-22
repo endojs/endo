@@ -1,34 +1,22 @@
 /**
- * Provides prefix-tree-based pattern matching for Node.js-style subpath exports.
- * Patterns use `*` as a wildcard that matches any string within a single
- * path segment (does not match across `/`).
+ * Provides pattern matching for Node.js-style subpath exports and imports.
+ * Patterns use `*` as a wildcard that matches any string, including across
+ * `/` path separators, matching Node.js semantics.
  *
  * @module
  */
 
 /**
  * @import {
- *   SubpathParts,
- *   PrefixTreeNode,
- *   PrefixTree,
  *   SubpathReplacer,
+ *   SubpathReplacerResult,
  *   SubpathMapping,
  *   PatternDescriptor,
  * } from './types/pattern-replacement.js'
  */
 
-const { hasOwn, create, entries } = Object;
+const { entries } = Object;
 const { isArray } = Array;
-
-/**
- * Path wildcard character - matches any string within a segment
- */
-const WILDCARD = '*';
-
-/**
- * Path separator; Win32-style paths unsupported
- */
-const PATH_SEP = '/';
 
 /**
  * Greedy magic globstar; unsupported
@@ -36,219 +24,8 @@ const PATH_SEP = '/';
 const GLOBSTAR = '**';
 
 /**
- * Checks if a segment contains a wildcard.
- *
- * @param {string} segment
- * @returns {boolean}
- */
-const hasWildcard = segment => segment.includes(WILDCARD);
-
-/**
- * Attempts to match a specifier segment against a pattern segment.
- * Returns the captured wildcard value if matched, or null if no match.
- *
- * @param {string} patternSegment - Pattern segment (may contain '*')
- * @param {string} specifierSegment - Actual segment to match
- * @returns {string | null} The captured wildcard value, or null if no match
- */
-const matchSegment = (patternSegment, specifierSegment) => {
-  if (!hasWildcard(patternSegment)) {
-    // Exact match required
-    return patternSegment === specifierSegment ? '' : null;
-  }
-
-  const wildcardIndex = patternSegment.indexOf(WILDCARD);
-  const prefix = patternSegment.slice(0, wildcardIndex);
-  const suffix = patternSegment.slice(wildcardIndex + 1);
-
-  // Check prefix and suffix match
-  if (!specifierSegment.startsWith(prefix)) {
-    return null;
-  }
-  if (!specifierSegment.endsWith(suffix)) {
-    return null;
-  }
-
-  // Ensure the captured part doesn't overlap
-  const capturedLength =
-    specifierSegment.length - prefix.length - suffix.length;
-  if (capturedLength < 0) {
-    return null;
-  }
-
-  return specifierSegment.slice(prefix.length, specifierSegment.length - suffix.length);
-};
-
-/**
- * Substitutes a captured value into a replacement segment.
- *
- * @param {string} replacementSegment - Replacement segment (may contain '*')
- * @param {string} captured - The captured wildcard value
- * @returns {string} The substituted segment
- */
-const substituteSegment = (replacementSegment, captured) => {
-  if (!hasWildcard(replacementSegment)) {
-    return replacementSegment;
-  }
-  return replacementSegment.replace(WILDCARD, captured);
-};
-
-/**
- * Node in the pattern prefix tree. Each node represents a path segment.
- *
- * @implements {PrefixTreeNode}
- */
-export class PathPrefixTreeNode {
-  /**
-   * The value stored at this node, if this node represents
-   * the end of a complete pattern.
-   *
-   * @type {SubpathParts | null}
-   */
-  value = null;
-
-  /**
-   * Mapping of path segments to child nodes.
-   * Segments containing wildcards are stored as-is (e.g., "*.js").
-   *
-   * @type {Record<string, PathPrefixTreeNode>}
-   */
-  children = create(null);
-
-  /**
-   * Sets the pattern/replacement value at this node.
-   *
-   * @param {string[]} patternParts
-   * @param {string[]} replacementParts
-   */
-  setValue(patternParts, replacementParts) {
-    this.value = { patternParts, replacementParts };
-  }
-
-  /**
-   * Gets or creates a child node for the given path segment.
-   *
-   * @param {string} part - Path segment (may contain '*')
-   * @returns {PathPrefixTreeNode} The child node
-   */
-  appendChild(part) {
-    if (!hasOwn(this.children, part)) {
-      this.children[part] = new PathPrefixTreeNode();
-    }
-    return this.children[part];
-  }
-}
-
-/**
- * Prefix tree data structure for efficient pattern matching.
- * Patterns are split by '/' and stored as a tree where each node
- * represents a path segment. Segments with wildcards are matched
- * using prefix/suffix matching.
- *
- * @implements {PrefixTree}
- */
-export class PathPrefixTree {
-  /**
-   * Root node of the prefix tree.
-   *
-   * @type {PathPrefixTreeNode}
-   */
-  root = new PathPrefixTreeNode();
-
-  /**
-   * Insert a pattern/replacement pair into the prefix tree.
-   *
-   * @param {string} pattern - Source pattern, e.g., "./lib/*.js"
-   * @param {string} replacement - Target pattern, e.g., "./src/*.mjs"
-   */
-  insert(pattern, replacement) {
-    let node = this.root;
-    const patternParts = pattern.split(PATH_SEP);
-    const replacementParts = replacement.split(PATH_SEP);
-
-    for (const part of patternParts) {
-      node = node.appendChild(part);
-    }
-    node.setValue(patternParts, replacementParts);
-  }
-
-  /**
-   * Search for a matching pattern. Returns match result with captured
-   * wildcard values if found.
-   *
-   * @param {string} specifier - Module specifier to match
-   * @returns {{ patternParts: string[], replacementParts: string[], captures: string[] } | null}
-   */
-  search(specifier) {
-    /** @type {string[]} */
-    const captures = [];
-    const result = this.#search(
-      this.root,
-      specifier.split(PATH_SEP),
-      0,
-      captures,
-    );
-    if (result) {
-      return { ...result, captures };
-    }
-    return null;
-  }
-
-  /**
-   * Recursive search implementation with capture tracking.
-   *
-   * @param {PathPrefixTreeNode} node - Current node
-   * @param {string[]} parts - Specifier split into segments
-   * @param {number} offset - Current position in parts array
-   * @param {string[]} captures - Array to collect captured wildcard values
-   * @returns {SubpathParts | null}
-   */
-  #search(node, parts, offset, captures) {
-    // If we've consumed all parts, check if this node has a value
-    if (offset === parts.length) {
-      return node.value;
-    }
-
-    const part = parts[offset];
-
-    // Try exact match first (more specific patterns take precedence)
-    if (hasOwn(node.children, part)) {
-      const result = this.#search(
-        node.children[part],
-        parts,
-        offset + 1,
-        captures,
-      );
-      if (result) {
-        return result;
-      }
-    }
-
-    // Try wildcard segment matches
-    for (const [childKey, childNode] of entries(node.children)) {
-      if (hasWildcard(childKey)) {
-        const captured = matchSegment(childKey, part);
-        if (captured !== null) {
-          const captureIndex = captures.length;
-          captures.push(captured);
-          const result = this.#search(childNode, parts, offset + 1, captures);
-          if (result) {
-            return result;
-          }
-          // Backtrack: remove the capture if this path didn't work
-          captures.length = captureIndex;
-        }
-      }
-    }
-
-    return null;
-  }
-}
-
-/**
  * Validates that the pattern and replacement have the same number of wildcards.
- * This is required because each wildcard in the pattern corresponds to a
- * captured value that must be substituted in the replacement.
+ * Node.js restricts subpath patterns to exactly one `*` on each side.
  *
  * @param {string} pattern - Source pattern
  * @param {string} replacement - Target pattern
@@ -265,17 +42,53 @@ export const assertMatchingWildcardCount = (pattern, replacement) => {
 };
 
 /**
- * Creates a multi-pattern replacer using a prefix tree for efficient lookup.
- * Patterns are matched in order of specificity (exact matches before wildcards).
+ * @typedef {object} ResolvedPattern
+ * @property {string} prefix - The part of the pattern before `*`
+ * @property {string} suffix - The part of the pattern after `*`
+ * @property {string} replacementPrefix - The part of the replacement before `*`
+ * @property {string} replacementSuffix - The part of the replacement after `*`
+ * @property {string} [compartment] - Optional compartment for cross-compartment patterns
+ */
+
+/**
+ * Creates a multi-pattern replacer for Node.js-style subpath patterns.
  *
- * @param {SubpathMapping} mapping - Pattern to replacement mapping
+ * Patterns are matched by specificity: the pattern with the longest matching
+ * prefix before the `*` wins. Exact entries (no `*`) take precedence over
+ * all wildcard patterns.
+ *
+ * The `*` wildcard matches any substring, including substrings that contain
+ * `/`, matching Node.js semantics.
+ *
+ * @param {PatternDescriptor[] | SubpathMapping} mapping - Pattern to replacement mapping
  * @returns {SubpathReplacer} Function that matches a specifier and returns the replacement
  */
 export const makeMultiSubpathReplacer = mapping => {
-  const prefixTree = new PathPrefixTree();
+  /** @type {Map<string, { replacement: string, compartment?: string }>} */
+  const exactEntries = new Map();
+  /** @type {ResolvedPattern[]} */
+  const wildcardEntries = [];
 
-  const mappingEntries = isArray(mapping) ? mapping : entries(mapping);
-  for (const [pattern, replacement] of mappingEntries) {
+  /** @type {Array<[string, string, string | undefined]>} */
+  let normalizedEntries;
+  if (isArray(mapping)) {
+    normalizedEntries = mapping.map(entry => {
+      if (isArray(entry)) {
+        // [pattern, replacement] tuple
+        return [entry[0], entry[1], undefined];
+      }
+      // PatternDescriptor { from, to, compartment? }
+      return [entry.from, entry.to, entry.compartment];
+    });
+  } else {
+    normalizedEntries = entries(mapping).map(([pattern, replacement]) => [
+      pattern,
+      replacement,
+      undefined,
+    ]);
+  }
+
+  for (const [pattern, replacement, compartment] of normalizedEntries) {
     if (pattern.includes(GLOBSTAR)) {
       throw new TypeError(
         `Globstar (**) patterns are not supported in pattern: "${pattern}"`,
@@ -287,28 +100,54 @@ export const makeMultiSubpathReplacer = mapping => {
       );
     }
     assertMatchingWildcardCount(pattern, replacement);
-    prefixTree.insert(pattern, replacement);
+
+    const wildcardIndex = pattern.indexOf('*');
+    if (wildcardIndex === -1) {
+      // Exact entry, no wildcard
+      exactEntries.set(pattern, { replacement, compartment });
+    } else {
+      const prefix = pattern.slice(0, wildcardIndex);
+      const suffix = pattern.slice(wildcardIndex + 1);
+      const replacementWildcardIndex = replacement.indexOf('*');
+      const replacementPrefix = replacement.slice(0, replacementWildcardIndex);
+      const replacementSuffix = replacement.slice(replacementWildcardIndex + 1);
+      wildcardEntries.push({
+        prefix,
+        suffix,
+        replacementPrefix,
+        replacementSuffix,
+        compartment,
+      });
+    }
   }
 
+  // Sort wildcard entries by prefix length descending for specificity.
+  // Node.js selects the pattern with the longest matching prefix.
+  wildcardEntries.sort((a, b) => b.prefix.length - a.prefix.length);
+
   return specifier => {
-    const result = prefixTree.search(specifier);
-    if (!result) {
-      return null;
+    // Exact entries take precedence
+    const exact = exactEntries.get(specifier);
+    if (exact) {
+      return { result: exact.replacement, compartment: exact.compartment };
     }
 
-    const { replacementParts, captures } = result;
-
-    // Substitute captured values into replacement segments
-    let captureIndex = 0;
-    const outputParts = replacementParts.map(segment => {
-      if (hasWildcard(segment)) {
-        const output = substituteSegment(segment, captures[captureIndex]);
-        captureIndex += 1;
-        return output;
+    // Try wildcard patterns in specificity order
+    for (const entry of wildcardEntries) {
+      if (
+        specifier.startsWith(entry.prefix) &&
+        specifier.endsWith(entry.suffix) &&
+        specifier.length >= entry.prefix.length + entry.suffix.length
+      ) {
+        const captured = specifier.slice(
+          entry.prefix.length,
+          specifier.length - entry.suffix.length,
+        );
+        const result = `${entry.replacementPrefix}${captured}${entry.replacementSuffix}`;
+        return { result, compartment: entry.compartment };
       }
-      return segment;
-    });
+    }
 
-    return outputParts.join(PATH_SEP);
+    return null;
   };
 };

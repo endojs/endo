@@ -303,7 +303,11 @@ export const inferExportsAliasesAndPatterns = (
   const { name, type, main, module, exports, imports, browser } = descriptor;
 
   // Process exports field - separate wildcards from concrete exports
-  for (const [key, value] of inferExportsEntries(descriptor, conditions, types)) {
+  for (const [key, value] of inferExportsEntries(
+    descriptor,
+    conditions,
+    types,
+  )) {
     if (hasWildcard(key, value)) {
       assertMatchingWildcardCount(key, value);
       patterns.push({ from: key, to: value });

@@ -988,7 +988,11 @@ const translateGraph = (
      * @param {PackageCompartmentDescriptorName} packageLocation
      */
     const digestExternalAliases = (dependencyName, packageLocation) => {
-      const { externalAliases, explicitExports } = graph[packageLocation];
+      const {
+        externalAliases,
+        explicitExports,
+        patterns: dependencyPatterns,
+      } = graph[packageLocation];
       for (const exportPath of keys(externalAliases).sort()) {
         const targetPath = externalAliases[exportPath];
         // dependency name may be different from package's name,
@@ -1000,6 +1004,24 @@ const translateGraph = (
           compartment: packageLocation,
           module: targetPath,
         };
+      }
+      // Propagate export patterns from dependencies.
+      // Each dependency pattern like "./features/*.js" -> "./src/features/*.js"
+      // becomes "dep/features/*.js" -> "./src/features/*.js" on the dependee,
+      // resolving within the dependency's compartment.
+      if (dependencyPatterns) {
+        for (const { from, to } of dependencyPatterns) {
+          // Only propagate export patterns (starting with "./"), not
+          // import patterns (starting with "#") which are internal.
+          if (from.startsWith('./') || from === '.') {
+            const externalFrom = join(dependencyName, from);
+            patterns.push({
+              from: externalFrom,
+              to,
+              compartment: packageLocation,
+            });
+          }
+        }
       }
       // if the exports field is not present, then all modules must be accessible
       if (!explicitExports) {
