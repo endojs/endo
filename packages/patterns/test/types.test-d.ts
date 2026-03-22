@@ -804,6 +804,57 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<{ x: bigint; y: bigint }>(value);
 }
 
+// ===== M.remotable with InterfaceGuard type parameter =====
+
+// Default M.remotable() → broad remotable union (unchanged)
+{
+  const p = M.remotable();
+  type T = TypeFromPattern<typeof p>;
+  expectType<RemotableObject | RemotableBrand<any, any>>(null as unknown as T);
+}
+
+// M.remotable<typeof Guard>() → facet-isolated remotable type
+{
+  const PublicI = M.interface('Public', {
+    getData: M.call().returns(M.string()),
+    getCount: M.call().returns(M.nat()),
+  });
+  const p = M.remotable<typeof PublicI>('Public');
+  type T = TypeFromPattern<typeof p>;
+  // Should resolve to the interface's methods + remotable branding
+  expectAssignable<{ getData: () => string; getCount: () => bigint }>(
+    null as unknown as T,
+  );
+  expectAssignable<RemotableObject>(null as unknown as T);
+}
+
+// Kit guard: admin facet returns the public facet with type isolation
+{
+  const PublicI = M.interface('Public', {
+    getData: M.call().returns(M.string()),
+  });
+  const AdminI = M.interface('Admin', {
+    getPublic: M.call().returns(M.remotable<typeof PublicI>('Public')),
+  });
+  type AdminMethods = TypeFromInterfaceGuard<typeof AdminI>;
+  // getPublic returns a remotable with getData method, not a generic RemotableObject
+  type PublicFacet = ReturnType<AdminMethods['getPublic']>;
+  expectAssignable<{ getData: () => string }>(null as unknown as PublicFacet);
+  expectAssignable<RemotableObject>(null as unknown as PublicFacet);
+}
+
+// TypeFromMethodGuard resolves remotable return guard
+{
+  const FooI = M.interface('Foo', {
+    bar: M.call().returns(M.string()),
+  });
+  const mg = M.call().returns(M.remotable<typeof FooI>('Foo'));
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  type Ret = ReturnType<Fn>;
+  expectAssignable<{ bar: () => string }>(null as unknown as Ret);
+  expectAssignable<RemotableObject>(null as unknown as Ret);
+}
+
 // ===== M.interface with sloppy/defaultGuards options =====
 
 // M.interface with no options → typed InterfaceGuard

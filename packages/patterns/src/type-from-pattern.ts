@@ -58,7 +58,7 @@ type TFTuple<T extends readonly any[]> = T extends readonly [
 
 /**
  * Leaf matcher lookup table.
- * These matchers return their Payload directly or a fixed type, with no
+ * These matcher types return their Payload type directly or a fixed type, with no
  * recursion into sub-patterns.  Using a mapped-type lookup keeps the
  * conditional-branch count low and avoids TS instantiation-depth limits
  * when TypeFromPattern recurses through mapped types (e.g. splitRecord).
@@ -70,12 +70,11 @@ type TFLeafMap<Payload> = {
   bigint: Payload;
   nat: Payload;
   symbol: Payload;
-  remotable: Payload;
   scalar: ScalarKey;
   key: Key;
   pattern: Pattern;
   not: Passable;
-  // Comparison matchers — can only narrow to Key
+  // Comparison matchers — the operand type is not preserved; can only widen to Key
   lt: Key;
   lte: Key;
   eq: Key;
@@ -96,7 +95,7 @@ type TFKindMap = {
   bigint: bigint;
   string: string;
   symbol: symbol;
-  byteArray: ArrayBuffer;
+  byteArray: ArrayBuffer; // TODO: update to Uint8Array when @endo/pass-style changes the byteArray type
   copyRecord: CopyRecord;
   copyArray: CopyArray;
   copySet: CopySet;
@@ -144,13 +143,17 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                   >
                 : CopyMap
               : K extends 'splitRecord'
-                ? Payload extends readonly [infer Req, infer Opt]
-                  ? TFSplitRecord<Req, Opt>
-                  : CopyRecord
+                ? Payload extends readonly [infer Req, infer Opt, infer Rest]
+                  ? TFSplitRecord<Req, Opt, Rest>
+                  : Payload extends readonly [infer Req, infer Opt]
+                    ? TFSplitRecord<Req, Opt>
+                    : CopyRecord
                 : K extends 'splitArray'
-                  ? Payload extends readonly [infer Req, infer Opt]
-                    ? TFSplitArray<Req, Opt>
-                    : CopyArray
+                  ? Payload extends readonly [infer Req, infer Opt, infer Rest]
+                    ? TFSplitArray<Req, Opt, Rest>
+                    : Payload extends readonly [infer Req, infer Opt]
+                      ? TFSplitArray<Req, Opt>
+                      : CopyArray
                   : K extends 'setOf'
                     ? CopySet<TypeFromPattern<Payload> & Key>
                     : K extends 'bagOf'
@@ -159,7 +162,9 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                         ? Payload extends readonly [infer TP, any]
                           ? CopyTagged<TypeFromPattern<TP> & string, Passable>
                           : CopyTagged
-                        : Passable;
+                        : K extends 'remotable'
+                          ? TFRemotable<Payload>
+                          : Passable;
 
 /** Union of inferred types from a tuple of patterns. */
 type TFOr<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
@@ -171,20 +176,23 @@ type TFAnd<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
   ? TypeFromPattern<H> & TFAnd<R>
   : unknown;
 
-/** Infer a split record: required fields + optional fields. */
-type TFSplitRecord<Req, Opt> = Simplify<
+/** Infer a split record: required fields + optional fields + rest (index signature). */
+type TFSplitRecord<Req, Opt, Rest = never> = Simplify<
   (Req extends CopyRecord<any>
     ? { [K in keyof Req]: TypeFromPattern<Req[K]> }
     : {}) &
     (Opt extends CopyRecord<any>
       ? { [K in keyof Opt]?: TypeFromPattern<Opt[K]> }
-      : {})
+      : {}) &
+    ([Rest] extends [never] ? {} : { [key: string]: TypeFromPattern<Rest> })
 >;
 
-/** Infer a split array: required tuple + optional trailing elements. */
-type TFSplitArray<Req, Opt> = Req extends readonly any[]
+/** Infer a split array: required tuple + optional trailing elements + rest. */
+type TFSplitArray<Req, Opt, Rest = never> = Req extends readonly any[]
   ? Opt extends readonly any[]
-    ? [...TFTuple<Req>, ...TFOptionalTuple<Opt>]
+    ? [Rest] extends [never]
+      ? [...TFTuple<Req>, ...TFOptionalTuple<Opt>]
+      : [...TFTuple<Req>, ...TFOptionalTuple<Opt>, ...TypeFromPattern<Rest>[]]
     : TFTuple<Req>
   : any[];
 
@@ -203,6 +211,24 @@ type TFOptionalTuple<T extends readonly any[]> = T extends readonly [
 ]
   ? [TypeFromPattern<H> | undefined, ...TFOptionalTuple<R>]
   : [];
+
+/**
+ * Resolve a remotable matcher's payload.
+ *
+ * When `M.remotable<typeof SomeInterfaceGuard>()` is used, the Payload
+ * carries the InterfaceGuard type.  We resolve it to the interface's
+ * methods with remotable branding, giving facet-isolated return types.
+ *
+ * When unparameterized (`M.remotable()`), Payload defaults to
+ * `RemotableObject | RemotableBrand<any, any>` which passes through as-is.
+ */
+type TFRemotable<Payload> =
+  Payload extends InterfaceGuard<infer MG>
+    ? Simplify<
+        { [K in keyof MG]: TypeFromMethodGuard<MG[K]> } & RemotableObject &
+          RemotableBrand<{}, any>
+      >
+    : Payload;
 
 // ===== Method and Interface Guard inference =====
 
@@ -295,9 +321,14 @@ export type TypeFromInterfaceGuard<G> =
 // - matches: type predicate for narrowing in if-blocks
 // - mustMatch: asserts signature for narrowing after call
 //
-// The runtime implementations live in patternMatchers.js and are
-// re-exported by types-index.js.  These declarations overlay the
-// runtime types so that consumers get type-narrowing for free.
+// The runtime implementations live in patternMatchers.js (which uses
+// @ts-nocheck and cannot be directly type-checked) and are re-exported
+// by types-index.js.  These declarations overlay the runtime types so
+// that consumers get type-narrowing for free.
+//
+// Invariant: each declared type must be a subtype of the runtime
+// implementation's actual type.  This is verified in types-index.js via
+// an assignment check against the non-predicate base signatures.
 
 /** The `M` pattern-matcher namespace value. */
 // eslint-disable-next-line import/export
@@ -306,6 +337,12 @@ export declare const M: MatcherNamespace;
 /**
  * Namespace merged with the `M` value export so users can write
  * `M.infer<typeof pattern>`, analogous to Zod's `z.infer<typeof schema>`.
+ *
+ * TypeScript allows value + namespace declaration merging (const + namespace
+ * share the same identifier).  The namespace adds only the type-level
+ * `infer<P>` member and no runtime-accessible properties, so there is no
+ * collision with the runtime `M` value.  Generic type parameters also named
+ * `M` (e.g. `<M extends Methods>`) are locally scoped and do not conflict.
  */
 // eslint-disable-next-line @typescript-eslint/no-namespace, no-redeclare, import/export
 export namespace M {
@@ -324,6 +361,11 @@ export namespace M {
 
 /**
  * Type-narrowing `matches`: narrows `specimen` in if-blocks.
+ *
+ * This declaration overlays the runtime `matches` from `patternMatchers.js`
+ * with a type-predicate signature.  The base runtime signature
+ * `(specimen: unknown, patt: Pattern) => boolean` is verified as a supertype
+ * in `types-index.js`.
  *
  * @param specimen - The value to test.
  * @param patt - The pattern to match against.

@@ -363,6 +363,18 @@ export type PatternMatchers = {
    * Matches a far object or its remote presence.
    * The optional `label` is purely for diagnostic purposes and does not
    * add any constraints.
+   *
+   * For facet-isolated return types in exo kits, pass an InterfaceGuard
+   * as the type parameter:
+   * ```ts
+   * const PublicI = M.interface('Public', {
+   *   getData: M.call().returns(M.string()),
+   * });
+   * const AdminI = M.interface('Admin', {
+   *   getPublic: M.call().returns(M.remotable<typeof PublicI>('Public')),
+   * });
+   * // TypeFromMethodGuard of getPublic → () => { getData: () => string } & RemotableObject
+   * ```
    */
   remotable: <T extends Passable = RemotableObject | RemotableBrand<any, any>>(
     label?: string,
@@ -380,6 +392,8 @@ export type PatternMatchers = {
    * Promises are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
+  // TODO: add `label?: string` to align with `M.remotable` — requires a matching
+  // runtime change in patternMatchers.js.  Tracked separately from this type-only PR.
   promise: <T extends Passable = any>() => MatcherOf<'promise', T>;
 
   /**
@@ -401,35 +415,35 @@ export type PatternMatchers = {
   /**
    * Matches any value that compareKeys reports as less than rightOperand.
    */
-  lt: (rightOperand: Key) => MatcherOf<'lt'>;
+  lt: (rightOperand: Key) => MatcherOf<'lt', Key>;
 
   /**
    * Matches any value that compareKeys reports as less than or equal to
    * rightOperand.
    */
-  lte: (rightOperand: Key) => MatcherOf<'lte'>;
+  lte: (rightOperand: Key) => MatcherOf<'lte', Key>;
 
   /**
    * Matches any value that is equal to key.
    */
-  eq: (key: Key) => MatcherOf<'eq'>;
+  eq: (key: Key) => MatcherOf<'eq', Key>;
 
   /**
    * Matches any value that is not equal to key.
    */
-  neq: (key: Key) => MatcherOf<'neq'>;
+  neq: (key: Key) => MatcherOf<'neq', Key>;
 
   /**
    * Matches any value that compareKeys reports as greater than or equal
    * to rightOperand.
    */
-  gte: (rightOperand: Key) => MatcherOf<'gte'>;
+  gte: (rightOperand: Key) => MatcherOf<'gte', Key>;
 
   /**
    * Matches any value that compareKeys reports as greater than
    * rightOperand.
    */
-  gt: (rightOperand: Key) => MatcherOf<'gt'>;
+  gt: (rightOperand: Key) => MatcherOf<'gt', Key>;
 
   /**
    * Matches any CopyArray whose elements are all matched by `subPatt`
@@ -506,11 +520,15 @@ export type PatternMatchers = {
    * Any array elements beyond the summed length of `required` and `optional`
    * are collected and matched against `rest`.
    */
-  splitArray: <Req extends Pattern[], Opt extends Pattern[] = []>(
+  splitArray: <
+    Req extends Pattern[] = Pattern[], // widest: any patterns (not [] — that would mean "no required")
+    Opt extends Pattern[] = [], // narrowest: no optional elements when omitted
+    Rest extends Pattern = never, // narrowest: no rest matching when omitted
+  >(
     required: [...Req],
     optional?: [...Opt],
-    rest?: Pattern,
-  ) => MatcherOf<'splitArray', [Req, Opt]>;
+    rest?: Rest,
+  ) => MatcherOf<'splitArray', [Req, Opt, Rest]>;
 
   /**
    * Matches any CopyRecord that can be split into component CopyRecords
@@ -527,13 +545,14 @@ export type PatternMatchers = {
    * but may omit properties that appear on `optional`.
    */
   splitRecord: <
-    Req extends CopyRecord<Pattern>,
+    Req extends CopyRecord<Pattern> = CopyRecord<Pattern>,
     Opt extends CopyRecord<Pattern> = {},
+    Rest extends Pattern = never,
   >(
     required: Req,
     optional?: Opt,
-    rest?: Pattern,
-  ) => MatcherOf<'splitRecord', [Req, Opt]>;
+    rest?: Rest,
+  ) => MatcherOf<'splitRecord', [Req, Opt, Rest]>;
 
   /**
    * An array or record is split into the first part that is matched by
