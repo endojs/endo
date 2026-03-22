@@ -69,10 +69,9 @@ const LegacyAwaitArgGuardShape = harden({
  */
 export const getAwaitArgGuardPayload = awaitArgGuard => {
   if (matches(awaitArgGuard, LegacyAwaitArgGuardShape)) {
-    // @ts-expect-error Legacy adaptor can be ill typed
-    const { klass: _, ...payload } = awaitArgGuard;
-    // @ts-expect-error Legacy adaptor can be ill typed
-    return payload;
+    const legacy = /** @type {any} */ (awaitArgGuard);
+    const { klass: _, ...payload } = legacy;
+    return /** @type {AwaitArgGuardPayload} */ (payload);
   }
   assertAwaitArgGuard(awaitArgGuard);
   return awaitArgGuard.payload;
@@ -135,7 +134,7 @@ const LegacyMethodGuardShape = M.or(
 
 const adaptLegacyArgGuard = argGuard =>
   matches(argGuard, LegacyAwaitArgGuardShape)
-    ? M.await(getAwaitArgGuardPayload(argGuard).argGuard)
+    ? M.await(getAwaitArgGuardPayload(/** @type {any} */ (argGuard)).argGuard)
     : argGuard;
 
 /**
@@ -156,22 +155,9 @@ export const getMethodGuardPayload = methodGuard => {
     return methodGuard.payload;
   }
   mustMatch(methodGuard, LegacyMethodGuardShape, 'legacyMethodGuard');
-  const {
-    // @ts-expect-error Legacy adaptor can be ill typed
-    klass: _,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    callKind,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    returnGuard,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    restArgGuard,
-  } = methodGuard;
-  let {
-    // @ts-expect-error Legacy adaptor can be ill typed
-    argGuards,
-    // @ts-expect-error Legacy adaptor can be ill typed
-    optionalArgGuards,
-  } = methodGuard;
+  const legacy = /** @type {any} */ (methodGuard);
+  const { klass: _, callKind, returnGuard, restArgGuard } = legacy;
+  let { argGuards, optionalArgGuards } = legacy;
   if (callKind === 'async') {
     argGuards = argGuards.map(adaptLegacyArgGuard);
     optionalArgGuards =
@@ -220,9 +206,11 @@ const adaptMethodGuard = methodGuard => {
       optionalArgGuards = [],
       restArgGuard = M.any(),
       returnGuard,
-    } = getMethodGuardPayload(methodGuard);
-    const mCall = callKind === 'sync' ? M.call : M.callWhen;
-    return mCall(...argGuards)
+    } = getMethodGuardPayload(/** @type {any} */ (methodGuard));
+    const makeGuard = /** @type {(...args: any[]) => any} */ (
+      callKind === 'sync' ? M.call : M.callWhen
+    );
+    return makeGuard(...argGuards)
       .optional(...optionalArgGuards)
       .rest(restArgGuard)
       .returns(returnGuard);
@@ -249,9 +237,9 @@ export const getInterfaceGuardPayload = interfaceGuard => {
     return interfaceGuard.payload;
   }
   mustMatch(interfaceGuard, LegacyInterfaceGuardShape, 'legacyInterfaceGuard');
-  // @ts-expect-error Legacy adaptor can be ill typed
+  const legacy = /** @type {any} */ (interfaceGuard);
   // eslint-disable-next-line prefer-const
-  let { klass: _, interfaceName, methodGuards, ...rest } = interfaceGuard;
+  let { klass: _, interfaceName, methodGuards, ...rest } = legacy;
   methodGuards = objectMap(methodGuards, adaptMethodGuard);
   const payload = harden({
     interfaceName,
