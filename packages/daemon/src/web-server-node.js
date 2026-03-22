@@ -363,17 +363,20 @@ export const make = async (powers, context, { env = {} } = {}) => {
     });
   });
 
-  started.then(address => {
-    console.log(
-      `Endo unified server listening on ${address} at ${new Date().toISOString()}`,
-    );
-    if (allowRemote) {
-      console.warn(
-        '[Gateway] Remote mode active. Ensure TLS termination (reverse proxy) ' +
-          'is configured — bearer tokens are transmitted over the WebSocket connection.',
+  started.then(
+    address => {
+      console.log(
+        `Endo unified server listening on ${address} at ${new Date().toISOString()}`,
       );
-    }
-  });
+      if (allowRemote) {
+        console.warn(
+          '[Gateway] Remote mode active. Ensure TLS termination (reverse proxy) ' +
+            'is configured — bearer tokens are transmitted over the WebSocket connection.',
+        );
+      }
+    },
+    () => {},
+  );
 
   // --- Weblet registration ---
 
@@ -524,6 +527,8 @@ export const make = async (powers, context, { env = {} } = {}) => {
       return `localhttp://${accessToken}`;
     });
   };
+
+  await started;
 
   return Far('WebletService', {
     makeWeblet,
