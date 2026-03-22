@@ -33,14 +33,37 @@
 ### Modules and exports
 
 - Unconfined guest modules export `make(powers)` as their entry point.
-- Use `makeExo()` with an `M.interface()` guard definition for exo objects.
-- Use `Far()` for far-reference objects.
-- The `help()` method is conventional on capabilities and should return a descriptive string.
+- Prefer `makeExo()` with an `M.interface()` guard over `Far()` for
+  remotable objects.
+  `makeExo` automatically provides `__getMethodNames__()`, which CapTP
+  introspection relies on, and enforces method guards at the boundary.
+  `Far()` is still appropriate for lightweight one-off remotables that
+  do not need runtime type checking.
+- The `help()` method is conventional on capabilities and should return
+  a descriptive string.
 
 ### Eventual send
 
-- Always use `E(ref).method()` for remote/eventual calls, never direct invocation.
+- Always use `E(ref).method()` for remote/eventual calls, never direct
+  invocation.
 - `E()` calls return promises; chain with `await` or further `E()` sends.
+
+### CapTP introspection
+
+- Use `E(ref).__getMethodNames__()` to discover a remote object's
+  interface rather than duck-typing by calling individual methods.
+  Duck-typing generates noisy failed CapTP calls for each method that
+  does not exist on the target.
+- `makeExo` objects provide `__getMethodNames__()` automatically.
+
+```js
+const methods = await E(ref).__getMethodNames__();
+if (methods.includes('followNameChanges')) {
+  // NameHub — live registry
+} else if (methods.includes('list')) {
+  // ReadableTree — immutable snapshot
+}
+```
 
 ## ESLint
 
@@ -73,6 +96,12 @@
 - Unconfined plugins (e.g., `web-server-node.js`) run inside an already-locked-down worker and must **not** import `ses` or `@endo/init` themselves; doing so causes double-lockdown errors.
 - Electron Forge requires `electron` in `devDependencies` to detect the version. If it's only in `dependencies`, packaging fails with "Could not find any Electron packages in devDependencies".
 - Port 0 (OS-assigned) is falsy in JavaScript. Use `port !== '' ? Number(port) : default` instead of `Number(port) || default`.
+
+## Markdown Style
+
+- Wrap lines at 80 to 100 columns.
+- Start each sentence on a new line so that diffs are per-sentence.
+- See `CONTRIBUTING.md` § "Markdown Style Guide" for full details.
 
 ## Package Structure
 
