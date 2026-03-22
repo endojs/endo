@@ -131,8 +131,6 @@ export type GetRankCover = (
  */
 export type Pattern = Exclude<Passable, Error | Promise<any>>;
 
-// TODO parameterize CopyTagged to support these refinements
-
 /**
  * A Passable collection of Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by {@link keyEQ}.
@@ -162,12 +160,20 @@ export type CopyMap<
  */
 export type KeyCollection = CopySet | CopyBag | CopyMap;
 
-// TODO: enumerate Matcher tag values?
 /**
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
  */
 export type Matcher = CopyTagged<`match:${string}`, Passable>;
+
+/**
+ * A Matcher with a specific tag and payload type, for type-level inference.
+ * `MatcherOf<'string', T>` represents a string matcher carrying type hint `T`.
+ */
+export type MatcherOf<
+  Tag extends string,
+  Payload extends Passable = any,
+> = CopyTagged<`match:${Tag}`, Payload>;
 
 /**
  * The result of a `KeyCompare` function that defines a meaningful
@@ -225,43 +231,43 @@ export type PatternMatchers = {
   /**
    * Matches any Passable.
    */
-  any: () => Matcher;
+  any: () => MatcherOf<'any'>;
 
   /**
    * Matches against the intersection of all sub-Patterns.
    */
-  and: (...subPatts: Pattern[]) => Matcher;
+  and: <P extends Pattern[]>(...subPatts: P) => MatcherOf<'and', P>;
 
   /**
    * Matches against the union of all sub-Patterns
    * (requiring a successful match against at least one).
    */
-  or: (...subPatts: Pattern[]) => Matcher;
+  or: <P extends Pattern[]>(...subPatts: P) => MatcherOf<'or', P>;
 
   /**
    * Matches against the negation of the sub-Pattern.
    */
-  not: (subPatt: Pattern) => Matcher;
+  not: (subPatt: Pattern) => MatcherOf<'not'>;
 
   /**
    * Matches any Passable primitive value or Remotable.
    * All matched values are Keys.
    */
-  scalar: () => Matcher;
+  scalar: () => MatcherOf<'scalar'>;
 
   /**
    * Matches any value that can be a key in a CopyMap
    * or an element in a CopySet or CopyBag.
    * All matched values are also valid Patterns that match only themselves.
    */
-  key: () => Matcher;
+  key: () => MatcherOf<'key'>;
 
   /**
    * Matches any Pattern that can be used to characterize Passables.
    * A Pattern cannot contain promises or errors,
    * as these are not stable enough to usefully match.
    */
-  pattern: () => Matcher;
+  pattern: () => MatcherOf<'pattern'>;
 
   /**
    * When `kind` specifies a PassStyle other than "tagged",
@@ -272,7 +278,7 @@ export type PatternMatchers = {
    * Otherwise, does not match any value.
    * TODO: Reject attempts to create a kind matcher with unknown `kind`?
    */
-  kind: (kind: PassStyle | string) => Matcher;
+  kind: <K extends string>(kind: K) => MatcherOf<'kind', K>;
 
   /**
    * For matching an arbitrary Passable Tagged object, whether it has a
@@ -285,85 +291,93 @@ export type PatternMatchers = {
   /**
    * Matches `true` or `false`.
    */
-  boolean: () => Matcher;
+  boolean: () => MatcherOf<'kind', 'boolean'>;
 
   /**
    * Matches any floating point number,
    * including `NaN` and either signed Infinity.
    */
-  number: () => Matcher;
+  number: <T extends number = number>() => MatcherOf<'number', T>;
 
   /**
    * Matches any bigint, subject to limits.
    */
-  bigint: (limits?: Limits) => Matcher;
+  bigint: <T extends bigint = bigint>(
+    limits?: Limits,
+  ) => MatcherOf<'bigint', T>;
 
   /**
    * Matches any non-negative bigint, subject to limits.
    */
-  nat: (limits?: Limits) => Matcher;
+  nat: <T extends bigint = bigint>(limits?: Limits) => MatcherOf<'nat', T>;
 
   /**
    * Matches any string, subject to limits.
    */
-  string: (limits?: Limits) => Matcher;
+  string: <T extends string = string>(
+    limits?: Limits,
+  ) => MatcherOf<'string', T>;
 
   /**
    * Matches any registered or well-known symbol,
    * subject to limits.
    */
-  symbol: (limits?: Limits) => Matcher;
+  symbol: <T extends symbol = symbol>(
+    limits?: Limits,
+  ) => MatcherOf<'symbol', T>;
 
   /**
    * Matches any CopyRecord, subject to limits.
    */
-  record: (limits?: Limits) => Matcher;
+  record: (limits?: Limits) => MatcherOf<'kind', 'copyRecord'>;
 
   /**
    * Matches any CopyArray, subject to limits.
    */
-  array: (limits?: Limits) => Matcher;
+  array: (limits?: Limits) => MatcherOf<'kind', 'copyArray'>;
 
   /**
    * Matches any ByteArray, subject to limits.
    */
-  byteArray: (limits?: Limits) => Matcher;
+  byteArray: (limits?: Limits) => MatcherOf<'kind', 'byteArray'>;
 
   /**
    * Matches any CopySet, subject to limits.
    */
-  set: (limits?: Limits) => Matcher;
+  set: (limits?: Limits) => MatcherOf<'kind', 'copySet'>;
 
   /**
    * Matches any CopyBag, subject to limits.
    */
-  bag: (limits?: Limits) => Matcher;
+  bag: (limits?: Limits) => MatcherOf<'kind', 'copyBag'>;
 
   /**
    * Matches any CopyMap, subject to limits.
    */
-  map: (limits?: Limits) => Matcher;
+  map: (limits?: Limits) => MatcherOf<'kind', 'copyMap'>;
 
   /**
    * Matches a far object or its remote presence.
    * The optional `label` is purely for diagnostic purposes and does not
    * add any constraints.
    */
-  remotable: (label?: string) => Matcher;
+  remotable: <T extends Passable = RemotableObject | RemotableBrand<any, any>>(
+    label?: string,
+  ) => MatcherOf<'remotable', T>;
 
   /**
    * Matches any error object.
    * Error objects are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  error: () => Matcher;
+  error: () => MatcherOf<'kind', 'error'>;
 
   /**
    * Matches any promise object.
    * Promises are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  promise: () => Matcher;
+  promise: <T extends Passable = any>() => MatcherOf<'promise', T>;
 
   /**
    * Matches the exact value `undefined`.
@@ -374,7 +388,7 @@ export type PatternMatchers = {
    * Thus, when a passed Pattern does not also need to be a Key,
    * we recommend passing `M.undefined()` rather than `undefined`.
    */
-  undefined: () => Matcher;
+  undefined: () => MatcherOf<'kind', 'undefined'>;
 
   /**
    * Returns `null`, which matches only itself.
@@ -418,18 +432,21 @@ export type PatternMatchers = {
    * Matches any CopyArray whose elements are all matched by `subPatt`
    * if defined, subject to limits.
    */
-  arrayOf: (subPatt?: Pattern, limits?: Limits) => Matcher;
+  arrayOf: <P extends Pattern = Pattern>(
+    subPatt?: P,
+    limits?: Limits,
+  ) => MatcherOf<'arrayOf', P>;
 
   /**
    * Matches any CopyRecord whose keys are all matched by `keyPatt`
    * if defined and values are all matched by `valuePatt` if defined,
    * subject to limits.
    */
-  recordOf: (
-    keyPatt?: Pattern,
-    valuePatt?: Pattern,
+  recordOf: <KP extends Pattern = Pattern, VP extends Pattern = Pattern>(
+    keyPatt?: KP,
+    valuePatt?: VP,
     limits?: Limits,
-  ) => Matcher;
+  ) => MatcherOf<'recordOf', [KP, VP]>;
 
   /**
    * Matches any CopySet whose elements are all matched by `keyPatt`
@@ -461,7 +478,11 @@ export type PatternMatchers = {
    * and values are all matched by `valuePatt` if defined,
    * subject to limits.
    */
-  mapOf: (keyPatt?: Pattern, valuePatt?: Pattern, limits?: Limits) => Matcher;
+  mapOf: <KP extends Pattern = Pattern, VP extends Pattern = Pattern>(
+    keyPatt?: KP,
+    valuePatt?: VP,
+    limits?: Limits,
+  ) => MatcherOf<'mapOf', [KP, VP]>;
 
   /**
    * Matches any array --- typically an arguments list --- consisting of
@@ -475,11 +496,11 @@ export type PatternMatchers = {
    * Any array elements beyond the summed length of `required` and `optional`
    * are collected and matched against `rest`.
    */
-  splitArray: (
-    required: Pattern[],
-    optional?: Pattern[],
+  splitArray: <Req extends Pattern[], Opt extends Pattern[] = []>(
+    required: [...Req],
+    optional?: [...Opt],
     rest?: Pattern,
-  ) => Matcher;
+  ) => MatcherOf<'splitArray', [Req, Opt]>;
 
   /**
    * Matches any CopyRecord that can be split into component CopyRecords
@@ -495,11 +516,14 @@ export type PatternMatchers = {
    * The CopyRecord must have all properties that appear on `required`,
    * but may omit properties that appear on `optional`.
    */
-  splitRecord: (
-    required: CopyRecord<Pattern>,
-    optional?: CopyRecord<Pattern>,
+  splitRecord: <
+    Req extends CopyRecord<Pattern>,
+    Opt extends CopyRecord<Pattern> = {},
+  >(
+    required: Req,
+    optional?: Opt,
     rest?: Pattern,
-  ) => Matcher;
+  ) => MatcherOf<'splitRecord', [Req, Opt]>;
 
   /**
    * An array or record is split into the first part that is matched by
@@ -538,12 +562,18 @@ export type PatternMatchers = {
    * if necessary) while the latter bypasses such checks when the relevant argument
    * is a promise.
    */
-  eref: (subPatt: Pattern) => Pattern;
+  eref: <P extends Pattern>(
+    subPatt: P,
+  ) => MatcherOf<'or', [P, MatcherOf<'promise'>]>;
 
   /**
    * Matches any Passable that is matched by `subPatt` or is the exact value `undefined`.
    */
-  opt: (subPatt: Pattern) => Pattern;
+  // opt(P) desugars to M.or(P, M.undefined()), i.e. "P | undefined".
+  // MatcherOf<'kind', 'undefined'> is the internal form of M.undefined().
+  opt: <P extends Pattern>(
+    subPatt: P,
+  ) => MatcherOf<'or', [P, MatcherOf<'kind', 'undefined'>]>;
 };
 
 /**
@@ -621,13 +651,17 @@ export type GuardMakers = {
    * Guard a synchronous call. Arguments not guarded by `M.raw()` are
    * automatically hardened and must be at least Passable.
    */
-  call: (...argPatterns: SyncValueGuard[]) => MethodGuardMaker;
+  call: <A extends SyncValueGuard[]>(
+    ...argPatterns: A
+  ) => MethodGuardMaker<'sync', A>;
 
   /**
    * Guard an async call. Arguments not guarded by `M.raw()` are automatically
    * hardened and must be at least Passable.
    */
-  callWhen: (...argGuards: ArgGuard[]) => MethodGuardMaker;
+  callWhen: <A extends ArgGuard[]>(
+    ...argGuards: A
+  ) => MethodGuardMaker<'async', A>;
 
   /**
    * Guard a positional parameter in `M.callWhen`, awaiting it and matching its
@@ -645,7 +679,7 @@ export type GuardMakers = {
    * Any `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
    * only a top-level single parameter pattern.
    */
-  await: (argPattern: Pattern) => AwaitArgGuard;
+  await: <P extends Pattern>(argPattern: P) => AwaitArgGuard<P>;
 
   /**
    * In parameter position, pass this argument through without any hardening or checking.
@@ -729,69 +763,6 @@ export type InterfaceGuard<
  * }
  * ```
  */
-export type MethodGuardMaker = MethodGuardOptional & MethodGuardRestReturns;
-
-/**
- * Arguments have been specified, now finish by creating a `MethodGuard`.
- * If the return guard is not `M.raw()`, the return value is automatically
- * hardened and must be Passable.
- */
-export type MethodGuardReturns = {
-  returns: (returnGuard?: SyncValueGuard) => MethodGuard;
-};
-
-/**
- * If the rest argument guard is not `M.raw()`, all rest arguments are
- * automatically hardened and must be Passable.
- */
-export type MethodGuardRest = {
-  rest: (restArgGuard: SyncValueGuard) => MethodGuardReturns;
-};
-
-/**
- * Mandatory and optional arguments have been specified, now specify `rest`, or
- * finish with `returns`.
- */
-export type MethodGuardRestReturns = MethodGuardRest & MethodGuardReturns;
-
-/**
- * Optional arguments not guarded with `M.raw()` are automatically hardened and
- * must be Passable.
- */
-export type MethodGuardOptional = {
-  optional: (...optArgGuards: ArgGuard[]) => MethodGuardRestReturns;
-};
-
-export type MethodGuardPayload = {
-  callKind: 'sync' | 'async';
-  argGuards: ArgGuard[];
-  optionalArgGuards?: ArgGuard[];
-  restArgGuard?: SyncValueGuard;
-  returnGuard: SyncValueGuard;
-};
-
-export type CopyTaggedMethodGuard = CopyTagged<
-  'guard:methodGuard',
-  MethodGuardPayload
->;
-
-/**
- * Guard for a method's call signature and return type.
- */
-export type MethodGuard = CopyTagged<'guard:methodGuard', MethodGuardPayload>;
-
-export type AwaitArgGuardPayload = {
-  argGuard: Pattern;
-};
-
-/**
- * Guard that awaits a positional argument (for async calls).
- */
-export type AwaitArgGuard = CopyTagged<
-  'guard:awaitArgGuard',
-  AwaitArgGuardPayload
->;
-
 export type RawGuardPayload = {};
 
 /**
@@ -802,5 +773,118 @@ export type RawGuard = CopyTagged<'guard:rawGuard', RawGuardPayload>;
 /** Guard for a synchronous value position (raw or Pattern). */
 export type SyncValueGuard = RawGuard | Pattern;
 
+export type AwaitArgGuardPayload<P extends Pattern = Pattern> = {
+  argGuard: P;
+};
+
+/**
+ * Guard that awaits a positional argument (for async calls).
+ */
+export type AwaitArgGuard<P extends Pattern = Pattern> = CopyTagged<
+  'guard:awaitArgGuard',
+  AwaitArgGuardPayload<P>
+>;
+
 /** Guard for any argument position (await, raw, or Pattern). */
 export type ArgGuard = AwaitArgGuard | RawGuard | Pattern;
+
+export type MethodGuardPayload<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+  OptArgs extends ArgGuard[] = ArgGuard[],
+  RetGuard extends SyncValueGuard = SyncValueGuard,
+> = {
+  callKind: CK;
+  argGuards: Args;
+  optionalArgGuards?: OptArgs;
+  restArgGuard?: SyncValueGuard;
+  returnGuard: RetGuard;
+};
+
+export type CopyTaggedMethodGuard = CopyTagged<
+  'guard:methodGuard',
+  MethodGuardPayload
+>;
+
+/**
+ * Guard for a method's call signature and return type.
+ * Generic parameters carry type-level information for inference via
+ * `TypeFromMethodGuard`.
+ */
+export type MethodGuard<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+  OptArgs extends ArgGuard[] = ArgGuard[],
+  RetGuard extends SyncValueGuard = SyncValueGuard,
+> = CopyTagged<
+  'guard:methodGuard',
+  MethodGuardPayload<CK, Args, OptArgs, RetGuard>
+>;
+
+/**
+ * Arguments have been specified, now finish by creating a `MethodGuard`.
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
+ */
+export type MethodGuardReturns<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+  OptArgs extends ArgGuard[] = ArgGuard[],
+> = {
+  returns: <RG extends SyncValueGuard = MatcherOf<'any'>>(
+    returnGuard?: RG,
+  ) => MethodGuard<CK, Args, OptArgs, RG>;
+};
+
+/**
+ * If the rest argument guard is not `M.raw()`, all rest arguments are
+ * automatically hardened and must be Passable.
+ */
+export type MethodGuardRest<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+  OptArgs extends ArgGuard[] = ArgGuard[],
+> = {
+  rest: (restArgGuard: SyncValueGuard) => MethodGuardReturns<CK, Args, OptArgs>;
+};
+
+/**
+ * Mandatory and optional arguments have been specified, now specify `rest`, or
+ * finish with `returns`.
+ */
+export type MethodGuardRestReturns<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+  OptArgs extends ArgGuard[] = ArgGuard[],
+> = MethodGuardRest<CK, Args, OptArgs> & MethodGuardReturns<CK, Args, OptArgs>;
+
+/**
+ * Optional arguments not guarded with `M.raw()` are automatically hardened and
+ * must be Passable.
+ */
+export type MethodGuardOptional<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+> = {
+  optional: <OA extends ArgGuard[]>(
+    ...optArgGuards: OA
+  ) => MethodGuardRestReturns<CK, Args, OA>;
+};
+
+/**
+ * A method name and parameter/return signature like:
+ * ```js
+ *   foo(a, b, c = d, ...e) => f
+ * ```
+ * should be guarded by something like:
+ * ```js
+ * {
+ *   ...otherMethodGuards,
+ *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
+ * }
+ * ```
+ */
+export type MethodGuardMaker<
+  CK extends 'sync' | 'async' = 'sync' | 'async',
+  Args extends ArgGuard[] = ArgGuard[],
+> = MethodGuardOptional<CK, Args> & MethodGuardRestReturns<CK, Args>;
