@@ -14,30 +14,35 @@ import type {
  * the InterfaceGuard at compile time.
  *
  * When a typed InterfaceGuard is provided (built with `M.call(...).returns(...)`),
- * the `methods` parameter must satisfy the inferred method signatures.
- * The return type preserves the concrete method types from `methods`.
+ * the `methods` parameter is constrained to match the guard's inferred method
+ * signatures at compile time.  The return type is derived from the concrete
+ * `methods` argument (not the guard), so narrower implementations are preserved.
  *
  * ```ts
  * const FooI = M.interface('Foo', {
  *   bar: M.call(M.string()).returns(M.nat()),
  * });
  * const foo = makeExo('Foo', FooI, {
- *   bar(name) { // name: string
- *     return 0n; // must return bigint
+ *   bar(name) { // name: string — inferred from guard
+ *     return 0n; // must return bigint — enforced by guard
  *   },
  * });
  * ```
  */
-// TS limitation: When the guard is `InterfaceGuard<any>` (e.g., from
-// sloppy mode with `defaultGuards: 'passable'`), TypeFromInterfaceGuard
-// produces a broad index-signature type, and M is inferred from the
-// methods parameter.  Guard-driven enforcement only works when the
-// guard carries specific MethodGuard type parameters.
+// Expected behavior: When the guard uses `defaultGuards: 'passable'` (or is
+// `InterfaceGuard<any>`), `TypeFromInterfaceGuard` produces a broad
+// index-signature type.  Guard-driven enforcement is intentionally disabled
+// in this case — `M` is inferred purely from the `methods` argument.
+// This is not a TS limitation but the correct semantic: sloppy guards allow
+// any method.
 //
-// TS limitation: Excess property checking does not apply in generic
-// contexts, so passing extra methods not in the guard is not a
-// compile-time error.  If TS adds exact types for generics, this
-// could be tightened.
+// TODO: If TypeScript gains exact types for generic object literals, the
+// strict overload could be tightened to reject extra methods not listed in
+// the guard.  For now, extra methods are silently allowed because excess
+// property checking does not apply in generic contexts.
+// Also: if `defaultGuards: 'passable'` is detected, extra methods must be
+// allowed — so tightening would require the type to be cognizant of the
+// defaultGuards option.
 export declare function makeExo<
   G extends InterfaceGuard,
   M extends TypeFromInterfaceGuard<G> & Methods,
@@ -48,6 +53,10 @@ export declare function makeExo<
   options?: FarClassOptions<ClassContext<{}, M>>,
 ): Guarded<M>;
 
+// Note: `makeExo(tag, undefined, methods)` is runtime-equivalent to
+// `makeExo(tag, M.interface(x, {}, { defaultGuards: 'passable' }), methods)`.
+// Both allow any methods without guard enforcement.  The typed overload above
+// applies only when a specific InterfaceGuard is provided.
 export declare function makeExo<M extends Methods>(
   tag: string,
   interfaceGuard: undefined,
@@ -100,11 +109,12 @@ export declare function defineExoClassKit<
   tag: string,
   interfaceGuardKit: GK,
   init: I,
-  methodsKit: F & {
-    [K in keyof F]: ThisType<{
-      facets: GuardedKit<F>;
-      state: ReturnType<I>;
-    }>;
+  methodsKit: {
+    [K in keyof F]: F[K] &
+      ThisType<{
+        facets: GuardedKit<F>;
+        state: ReturnType<I>;
+      }>;
   },
   options?: FarClassOptions<
     KitContext<ReturnType<I>, GuardedKit<F>>,
@@ -121,11 +131,12 @@ export declare function defineExoClassKit<
   tag: string,
   interfaceGuardKit: Record<FacetName, InterfaceGuard> | undefined,
   init: I,
-  methodsKit: F & {
-    [K in keyof F]: ThisType<{
-      facets: GuardedKit<F>;
-      state: ReturnType<I>;
-    }>;
+  methodsKit: {
+    [K in keyof F]: F[K] &
+      ThisType<{
+        facets: GuardedKit<F>;
+        state: ReturnType<I>;
+      }>;
   },
   options?: FarClassOptions<
     KitContext<ReturnType<I>, GuardedKit<F>>,

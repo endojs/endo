@@ -477,3 +477,61 @@ test('defineExoClassKit infers facet types from guard kit', t => {
   rw.writer.write('world');
   t.is(rw.reader.read(), 'world');
 });
+
+const SelfRefI = M.interface('SelfRef', {
+  get: M.call().returns(M.string()),
+  getViaSelf: M.call().returns(M.string()),
+});
+
+test('this.self is typed correctly in exo methods', t => {
+  const selfRef = makeExo('SelfRef', SelfRefI, {
+    get() {
+      return 'direct';
+    },
+    getViaSelf() {
+      // this.self should have the same type as the exo object
+      return this.self.get();
+    },
+  });
+  t.is(selfRef.get(), 'direct');
+  t.is(selfRef.getViaSelf(), 'direct');
+});
+
+const KitReaderI = M.interface('KitReader', {
+  read: M.call().returns(M.string()),
+  readViaFacets: M.call().returns(M.string()),
+});
+
+const KitWriterI = M.interface('KitWriter', {
+  write: M.call(M.string()).returns(M.undefined()),
+});
+
+test('this.facets is typed correctly in kit methods', t => {
+  const makeKit = defineExoClassKit(
+    'Kit',
+    { reader: KitReaderI, writer: KitWriterI },
+    /** @param {string} data */
+    data => ({ data }),
+    {
+      reader: {
+        read() {
+          return this.state.data;
+        },
+        readViaFacets() {
+          // this.facets.reader has the reader facet type
+          return this.facets.reader.read();
+        },
+      },
+      writer: {
+        write(text) {
+          this.state.data = text;
+        },
+      },
+    },
+  );
+  const kit = makeKit('hello');
+  t.is(kit.reader.read(), 'hello');
+  t.is(kit.reader.readViaFacets(), 'hello');
+  kit.writer.write('world');
+  t.is(kit.reader.read(), 'world');
+});
