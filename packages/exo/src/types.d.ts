@@ -12,10 +12,39 @@ export type MatchConfig = {
 };
 export type FacetName = string;
 export type Methods = Record<RemotableMethodName, CallableFunction>;
+/**
+ * The `this` context for methods of a single-facet exo (makeExo, defineExoClass).
+ *
+ * - `this.state` — the sealed object returned by `init()`. For
+ *   `defineExoClass`, `S` is `ReturnType<init>` (typically a plain
+ *   object like `{ count: number }`). For `makeExo` (which has no
+ *   `init`), `S` is `{}` — an empty object with no accessible state.
+ * - `this.self` — the exo instance itself (the object whose methods you're
+ *   implementing). Useful for passing "yourself" to other code.
+ *
+ * **Not available on kits.** Multi-facet exos use {@link KitContext} instead,
+ * which provides `this.facets` (the record of all facet instances in the
+ * cohort) rather than `this.self`.
+ */
 export type ClassContext<S = any, M extends Methods = any> = {
   state: S;
   self: M;
 };
+
+/**
+ * The `this` context for methods of a multi-facet exo kit (defineExoClassKit).
+ *
+ * - `this.state` — the sealed object returned by `init()`.
+ *   `S` is `ReturnType<init>`, typically a plain object.
+ * - `this.facets` — the record of all facet instances in this cohort,
+ *   keyed by facet name.  Use `this.facets.myFacet` to access sibling
+ *   facets.
+ *
+ * **No `this.self` on kits.** A kit method belongs to one facet, and
+ * there is no single "self" — instead, each facet is a separate remotable
+ * object.  Use `this.facets.foo` to get the specific facet you need.
+ * For single-facet exos, see {@link ClassContext} which provides `this.self`.
+ */
 export type KitContext<S = any, F extends Record<string, Methods> = any> = {
   state: S;
   facets: F;

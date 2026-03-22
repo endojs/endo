@@ -59,6 +59,24 @@ Use `/** @import */` JSDoc comments to import types without runtime module loadi
 /** @import { Pattern, MatcherNamespace } from './types.js' */
 ```
 
+## Exo `this` context
+
+Exo methods receive a `this` context (via `ThisType<>`) that differs between single-facet and multi-facet exos:
+
+| API | `this.self` | `this.facets` | `this.state` |
+|-----|-------------|---------------|--------------|
+| `makeExo` | ✅ the exo instance | ❌ | ❌ (always `{}`) |
+| `defineExoClass` | ✅ the exo instance | ❌ | ✅ from `init()` |
+| `defineExoClassKit` | ❌ | ✅ all facets in cohort | ✅ from `init()` |
+
+**Why no `self` on kits?** A kit has multiple facets (e.g. `public`, `admin`), each a separate remotable object. There is no single "self". Use `this.facets.facetName` to access any facet in the cohort.
+
+When writing `ThisType<>` annotations in `types-index.d.ts`:
+- Single-facet: `ThisType<{ self: Guarded<M>; state: S }>`
+- Multi-facet: `ThisType<{ facets: GuardedKit<F>; state: S }>`
+
+Never mix `self` and `facets` in the same context type.
+
 ## Testing
 
 - Runtime tests: `yarn test` (uses `ava`)
