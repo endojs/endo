@@ -2,6 +2,7 @@ import type {
   Passable,
   CopyRecord,
   CopyArray,
+  CopyTagged,
   RemotableObject,
 } from '@endo/pass-style';
 import type { RemotableBrand } from '@endo/eventual-send';
@@ -679,6 +680,85 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   const p = M.recordOf();
   type T = TypeFromPattern<typeof p>;
   expectAssignable<Record<string, any>>(null as unknown as T);
+}
+
+// ===== Comparison matchers → Key =====
+
+{
+  const p = M.lt(42);
+  type T = TypeFromPattern<typeof p>;
+  expectType<Key>(null as unknown as T);
+}
+{
+  const p = M.lte('foo');
+  type T = TypeFromPattern<typeof p>;
+  expectType<Key>(null as unknown as T);
+}
+{
+  const p = M.eq(100n);
+  type T = TypeFromPattern<typeof p>;
+  expectType<Key>(null as unknown as T);
+}
+{
+  const p = M.neq(true);
+  type T = TypeFromPattern<typeof p>;
+  expectType<Key>(null as unknown as T);
+}
+{
+  const p = M.gte(0);
+  type T = TypeFromPattern<typeof p>;
+  expectType<Key>(null as unknown as T);
+}
+{
+  const p = M.gt(-1);
+  type T = TypeFromPattern<typeof p>;
+  expectType<Key>(null as unknown as T);
+}
+
+// ===== setOf / bagOf / tagged / containerHas =====
+
+// setOf with element pattern
+{
+  const p = M.setOf(M.string());
+  type T = TypeFromPattern<typeof p>;
+  expectType<CopySet<string>>(null as unknown as T);
+}
+
+// bagOf with element pattern
+{
+  const p = M.bagOf(M.nat());
+  type T = TypeFromPattern<typeof p>;
+  expectType<CopyBag<bigint>>(null as unknown as T);
+}
+
+// tagged with tag pattern
+{
+  const p = M.tagged(M.string());
+  type T = TypeFromPattern<typeof p>;
+  expectType<CopyTagged<string, Passable>>(null as unknown as T);
+}
+
+// containerHas → Passable
+{
+  const p = M.containerHas(M.string());
+  type T = TypeFromPattern<typeof p>;
+  expectType<Passable>(null as unknown as T);
+}
+
+// ===== M.eref and M.opt =====
+
+// eref infers T | Promise<any>
+{
+  const p = M.eref(M.string());
+  type T = TypeFromPattern<typeof p>;
+  expectType<string | Promise<any>>(null as unknown as T);
+}
+
+// opt infers T | undefined
+{
+  const p = M.opt(M.nat());
+  type T = TypeFromPattern<typeof p>;
+  expectType<bigint | undefined>(null as unknown as T);
 }
 
 // ===== matches type guard (narrows in if-blocks) =====

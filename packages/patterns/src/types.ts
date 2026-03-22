@@ -286,7 +286,10 @@ export type PatternMatchers = {
    * `M.string()`. If `payloadPatt` is omitted, it defaults to
    * `M.any()`.
    */
-  tagged: (tagPatt?: Pattern, payloadPatt?: Pattern) => Matcher;
+  tagged: <TP extends Pattern = Pattern, PP extends Pattern = Pattern>(
+    tagPatt?: TP,
+    payloadPatt?: PP,
+  ) => MatcherOf<'tagged', [TP, PP]>;
 
   /**
    * Matches `true` or `false`.
@@ -398,35 +401,35 @@ export type PatternMatchers = {
   /**
    * Matches any value that compareKeys reports as less than rightOperand.
    */
-  lt: (rightOperand: Key) => Matcher;
+  lt: (rightOperand: Key) => MatcherOf<'lt'>;
 
   /**
    * Matches any value that compareKeys reports as less than or equal to
    * rightOperand.
    */
-  lte: (rightOperand: Key) => Matcher;
+  lte: (rightOperand: Key) => MatcherOf<'lte'>;
 
   /**
    * Matches any value that is equal to key.
    */
-  eq: (key: Key) => Matcher;
+  eq: (key: Key) => MatcherOf<'eq'>;
 
   /**
    * Matches any value that is not equal to key.
    */
-  neq: (key: Key) => Matcher;
+  neq: (key: Key) => MatcherOf<'neq'>;
 
   /**
    * Matches any value that compareKeys reports as greater than or equal
    * to rightOperand.
    */
-  gte: (rightOperand: Key) => Matcher;
+  gte: (rightOperand: Key) => MatcherOf<'gte'>;
 
   /**
    * Matches any value that compareKeys reports as greater than
    * rightOperand.
    */
-  gt: (rightOperand: Key) => Matcher;
+  gt: (rightOperand: Key) => MatcherOf<'gt'>;
 
   /**
    * Matches any CopyArray whose elements are all matched by `subPatt`
@@ -452,7 +455,10 @@ export type PatternMatchers = {
    * Matches any CopySet whose elements are all matched by `keyPatt`
    * if defined, subject to limits.
    */
-  setOf: (keyPatt?: Pattern, limits?: Limits) => Matcher;
+  setOf: <KP extends Pattern = Pattern>(
+    keyPatt?: KP,
+    limits?: Limits,
+  ) => MatcherOf<'setOf', KP>;
 
   /**
    * Matches any CopyBag whose elements are all matched by `keyPatt`
@@ -461,7 +467,11 @@ export type PatternMatchers = {
    * `countPatt` is expected to rarely be useful,
    * but is provided to minimize surprise.
    */
-  bagOf: (keyPatt?: Pattern, countPatt?: Pattern, limits?: Limits) => Matcher;
+  bagOf: <KP extends Pattern = Pattern>(
+    keyPatt?: KP,
+    countPatt?: Pattern,
+    limits?: Limits,
+  ) => MatcherOf<'bagOf', KP>;
 
   /**
    * Matches any array, CopySet, or CopyBag in which the bigint number of
@@ -471,7 +481,7 @@ export type PatternMatchers = {
     elementPatt?: Pattern,
     bound?: bigint,
     limits?: Limits,
-  ) => Matcher;
+  ) => MatcherOf<'containerHas'>;
 
   /**
    * Matches any CopyMap whose keys are all matched by `keyPatt` if defined

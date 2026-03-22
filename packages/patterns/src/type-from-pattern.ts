@@ -75,6 +75,15 @@ type TFLeafMap<Payload> = {
   key: Key;
   pattern: Pattern;
   not: Passable;
+  // Comparison matchers — can only narrow to Key
+  lt: Key;
+  lte: Key;
+  eq: Key;
+  neq: Key;
+  gte: Key;
+  gt: Key;
+  // Container matchers
+  containerHas: Passable;
 };
 
 /** Maps PassStyle / Kind strings to their TypeScript value types. */
@@ -142,7 +151,15 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                   ? Payload extends readonly [infer Req, infer Opt]
                     ? TFSplitArray<Req, Opt>
                     : CopyArray
-                  : Passable;
+                  : K extends 'setOf'
+                    ? CopySet<TypeFromPattern<Payload> & Key>
+                    : K extends 'bagOf'
+                      ? CopyBag<TypeFromPattern<Payload> & Key>
+                      : K extends 'tagged'
+                        ? Payload extends readonly [infer TP, any]
+                          ? CopyTagged<TypeFromPattern<TP> & string, Passable>
+                          : CopyTagged
+                        : Passable;
 
 /** Union of inferred types from a tuple of patterns. */
 type TFOr<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
