@@ -1,5 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED setup.js --powers @agent
+// endo run --UNCONFINED setup.js --powers AGENT
 
 import { E } from '@endo/eventual-send';
 

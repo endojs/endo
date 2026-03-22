@@ -1,5 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED fae-factory-setup.js --powers @agent \
+// endo run --UNCONFINED fae-factory-setup.js --powers AGENT \
 //   -E PROVIDER_NAME=default -E FACTORY_NAME=fae
 
 import { E } from '@endo/eventual-send';
