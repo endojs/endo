@@ -913,10 +913,12 @@ test('collection contents rankOrder tie insensitivity', t => {
     [r1, 1],
     [r2, 2],
   ]);
-  const map2 = makeCopyMap([
-    [r2, M.gte(2)],
-    [r1, M.lte(1)],
-  ]);
+  const map2 = makeCopyMap(
+    /** @type {[any, any][]} */ ([
+      [r2, M.gte(2)],
+      [r1, M.lte(1)],
+    ]),
+  );
   t.notDeepEqual(
     getCopyMapKeys(map1),
     getCopyMapKeys(map2),
