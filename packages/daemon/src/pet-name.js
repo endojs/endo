@@ -2,18 +2,33 @@
 
 /// <reference types="./types.d.ts" />
 
-/** @import { Name, NamePath, PetName, SpecialName } from './types.js' */
+/** @import { EdgeName, Name, NamePath, PetName, SpecialName } from './types.js' */
 
 import { q } from '@endo/errors';
 
-const validPetNamePattern = /^[a-z0-9][a-z0-9-]{0,127}$/;
-const validSpecialNamePattern = /^[A-Z][A-Z0-9-]{0,127}$/;
+/**
+ * A valid name is 1–255 chars, contains no `/`, `\0`, or `@`, and is not `.`
+ * or `..`.
+ * @param {string} name
+ * @returns {boolean}
+ */
+export const isValidName = name =>
+  typeof name === 'string' &&
+  name.length > 0 &&
+  name.length <= 255 &&
+  !name.includes('/') &&
+  !name.includes('\0') &&
+  !name.includes('@') &&
+  name !== '.' &&
+  name !== '..';
+
+const validSpecialNamePattern = /^@[a-z][a-z0-9-]{0,127}$/;
 
 /**
  * @param {string} petName
  * @returns {petName is PetName}
  */
-export const isPetName = petName => validPetNamePattern.test(petName);
+export const isPetName = petName => isValidName(petName);
 
 /**
  * @param {string} name
@@ -54,6 +69,17 @@ export const assertSpecialName = name => {
 export const assertName = name => {
   if (typeof name !== 'string' || !isName(name)) {
     throw new Error(`Invalid name ${q(name)}`);
+  }
+};
+
+/**
+ * Edge names can be either regular pet names or special names.
+ * @param {string} edgeName
+ * @returns {asserts edgeName is EdgeName}
+ */
+export const assertEdgeName = edgeName => {
+  if (typeof edgeName !== 'string' || !isName(edgeName)) {
+    throw new Error(`Invalid edge name ${q(edgeName)}`);
   }
 };
 

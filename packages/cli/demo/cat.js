@@ -4,7 +4,7 @@
 // This command will set up the cat page, create a URL,
 // and open it.
 //
-// > endo install cat.js --powers AGENT --listen 8920 --name cat
+// > endo install cat.js --powers @agent --listen 8920 --name cat
 //
 // Thereafter,
 //
@@ -285,7 +285,7 @@ const numberFormatter = new Intl.NumberFormat();
 const inboxComponent = async ($parent, $end, powers) => {
   $parent.scrollTo(0, $parent.scrollHeight);
 
-  const selfId = await E(powers).identify('SELF');
+  const selfLocator = await E(powers).locate('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
     // of the messages pane.
@@ -299,13 +299,20 @@ const inboxComponent = async ($parent, $end, powers) => {
       }),
     );
 
-    const { number, type, from: fromId, to: toId, date, dismissed } = message;
+    const {
+      number,
+      type,
+      from: fromLocator,
+      to: toLocator,
+      date,
+      dismissed,
+    } = message;
 
     let verb = '';
     if (type === 'request') {
       verb = 'requested';
     } else if (type === 'package') {
-      verb = 'sent';
+      verb = message.replyTo === undefined ? 'sent' : 'replied to';
     } else {
       verb = 'sent an unrecognizable message';
     }
@@ -328,10 +335,10 @@ const inboxComponent = async ($parent, $end, powers) => {
     $number.innerText = `${number}. `;
     $message.appendChild($number);
 
-    if (fromId === selfId && toId === selfId) {
+    if (fromLocator === selfLocator && toLocator === selfLocator) {
       $message.appendChild($verb);
-    } else if (fromId === selfId) {
-      const toName = await E(powers).reverseIdentify(toId);
+    } else if (fromLocator === selfLocator) {
+      const toName = await E(powers).reverseLocate(toLocator);
       if (toName === undefined) {
         continue;
       }
@@ -339,8 +346,8 @@ const inboxComponent = async ($parent, $end, powers) => {
       $to.innerText = ` ${toName} `;
       $message.appendChild($verb);
       $message.appendChild($to);
-    } else if (toId === selfId) {
-      const fromName = await E(powers).reverseIdentify(fromId);
+    } else if (toLocator === selfLocator) {
+      const fromName = await E(powers).reverseLocate(fromLocator);
       if (fromName === undefined) {
         continue;
       }
@@ -350,7 +357,9 @@ const inboxComponent = async ($parent, $end, powers) => {
       $message.appendChild($verb);
     } else {
       const [fromName, toName] = await Promise.all(
-        [fromId, toId].map(id => E(powers).reverseIdentify(id)),
+        [fromLocator, toLocator].map(locator =>
+          E(powers).reverseLocate(locator),
+        ),
       );
       const $from = document.createElement('strong');
       $from.innerText = ` ${fromName} `;
@@ -434,6 +443,13 @@ const inboxComponent = async ($parent, $end, powers) => {
       const $date = document.createElement('i');
       $date.innerText = dateFormatter.format(Date.parse(date));
       $message.appendChild($date);
+
+      if (message.replyTo !== undefined) {
+        $message.appendChild(document.createTextNode(' '));
+        const $reply = document.createElement('span');
+        $reply.innerText = `(in reply to ${message.replyTo})`;
+        $message.appendChild($reply);
+      }
 
       $message.appendChild(document.createTextNode(' '));
 
@@ -945,7 +961,7 @@ const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
 
   const handleEval = () => {
     const source = $source.value;
-    const workerName = 'MAIN';
+    const workerName = '@main';
     const names = Array.from($endowments.values(), $endowment => {
       const $codeName = $endowment.querySelector('.code-name');
       const $petName = $endowment.querySelector('.pet-name');

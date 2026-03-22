@@ -1,13 +1,29 @@
 // @ts-check
 
 import { makeCapTP } from '@endo/captp';
+import { makePromiseKit } from '@endo/promise-kit';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
 
 /** @import { Stream, Reader, Writer } from '@endo/stream' */
+/** @import { CapTpConnectionRegistrar } from './types.js' */
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
+
+/**
+ * @param {CapTpConnectionRegistrar | undefined} registrar
+ * @param {string} name
+ * @param {(reason?: Error) => Promise<void>} close
+ * @param {Promise<void>} closed
+ * @returns {import('@endo/captp').CapTPOptions}
+ */
+const registerCapTpConnection = (registrar, name, close, closed) => {
+  if (registrar === undefined) {
+    return {};
+  }
+  return registrar({ name, close, closed });
+};
 
 /**
  * @template TBootstrap
@@ -16,6 +32,8 @@ const textDecoder = new TextDecoder();
  * @param {Stream<any, undefined, undefined, undefined>} reader
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
+ * @param {import('@endo/captp').CapTPOptions} [capTpOptions]
+ * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
  */
 export const makeMessageCapTP = (
   name,
@@ -23,28 +41,104 @@ export const makeMessageCapTP = (
   reader,
   cancelled,
   bootstrap,
+  capTpOptions = undefined,
+  capTpConnectionRegistrar = undefined,
 ) => {
+  // eslint-disable-next-line no-undef
+  const traceCapTP =
+    typeof process !== 'undefined' && process.env.ENDO_CAPTP_TRACE;
+
   /** @param {any} message */
   const send = message => {
-    return writer.next(message);
+    if (traceCapTP) {
+      console.log(
+        `[captp:${name}] SEND`,
+        JSON.stringify(message).slice(0, 200),
+      );
+    }
+    try {
+      return writer.next(message);
+    } catch (sendError) {
+      return Promise.reject(sendError);
+    }
   };
 
-  const { dispatch, getBootstrap, abort } = makeCapTP(name, send, bootstrap);
+  const { promise: closedPromise, resolve: resolveClosed } = makePromiseKit();
+
+  // The registrar receives `close` before CapTP is initialized, but
+  // it only stashes it for later use — it never calls it synchronously.
+  // We rely on this invariant to define `close` as a forward reference
+  // that captures `abort` and `drained` from the CapTP setup below.
+  /** @type {(reason?: Error) => Promise<void>} */
+  let close;
+
+  const registrarOptions = registerCapTpConnection(
+    capTpConnectionRegistrar,
+    name,
+    reason => close(reason),
+    closedPromise,
+  );
+  const defaultOnReject = err => {
+    console.error(
+      `CapTP ${name} exception:`,
+      err?.message || err,
+      err?.stack || '',
+    );
+  };
+  const mergedOptions = {
+    onReject: defaultOnReject,
+    ...registrarOptions,
+    ...capTpOptions,
+  };
+  const { dispatch, getBootstrap, abort } = makeCapTP(
+    name,
+    send,
+    bootstrap,
+    mergedOptions,
+  );
 
   const drained = (async () => {
     for await (const message of reader) {
+      if (traceCapTP) {
+        console.log(
+          `[captp:${name}] RECV`,
+          JSON.stringify(message).slice(0, 200),
+        );
+      }
       dispatch(message);
     }
   })();
 
-  const closed = cancelled.catch(async () => {
-    abort();
-    await Promise.all([writer.return(undefined), drained]);
+  drained.then(
+    () => close(new Error('Connection stream ended')),
+    error => close(error),
+  );
+
+  let isClosed = false;
+  close = reason => {
+    if (isClosed) {
+      return closedPromise;
+    }
+    isClosed = true;
+    abort(reason);
+    Promise.all([
+      writer.return(undefined).catch(() => {}),
+      drained.catch(() => {}),
+    ]).then(() => {
+      resolveClosed(undefined);
+    });
+    return closedPromise;
+  };
+
+  const closedP = cancelled.catch(error => {
+    close(error);
   });
+  const closedRace = Promise.race([closedP, closedPromise]);
 
   return {
     getBootstrap,
-    closed,
+    closed: closedRace,
+    close,
   };
 };
 
@@ -71,6 +165,8 @@ export const bytesToMessage = bytes => {
  * @param {Reader<Uint8Array>} bytesReader
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
+ * @param {import('@endo/captp').CapTPOptions} [capTpOptions]
+ * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
  */
 export const makeNetstringCapTP = (
   name,
@@ -78,6 +174,8 @@ export const makeNetstringCapTP = (
   bytesReader,
   cancelled,
   bootstrap,
+  capTpOptions = undefined,
+  capTpConnectionRegistrar = undefined,
 ) => {
   const messageWriter = mapWriter(
     makeNetstringWriter(bytesWriter, { chunked: true }),
@@ -93,5 +191,7 @@ export const makeNetstringCapTP = (
     messageReader,
     cancelled,
     bootstrap,
+    capTpOptions,
+    capTpConnectionRegistrar,
   );
 };

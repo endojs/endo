@@ -1,9 +1,10 @@
 // @ts-check
-/* global process */
+/* global process, setTimeout */
 
 import url from 'url';
 import popen from 'child_process';
 import fs from 'fs';
+import net from 'net';
 import path from 'path';
 import os from 'os';
 
@@ -33,12 +34,45 @@ const removePath = async removalPath => {
     });
 };
 
+const enoentOk = error => {
+  if (error.code === 'ENOENT') {
+    return;
+  }
+  throw error;
+};
+
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
 const info = {
   user: username,
   home: homedir,
   temp,
+};
+
+/**
+ * Used to filter ambient env when building background daemon env.
+ *
+ * @param {string} key
+ */
+const allowEnvPass = key => {
+  // TODO probably better to use a more restrictive whitelist
+  return (
+    key.startsWith('LOCKDOWN_') || key.startsWith('ENDO_')
+    // || key.startsWith('XDG_') // NOTE should not be necessary, as these are already systemd-injected
+    // || key === 'ONLY_WELL_FORMED_STRINGS_PASSABLE' // TODO need?
+  );
+};
+
+/**
+ * Filters ambient environment ( aka process.env ) to only allowable daemon entries.
+ *
+ * @param {{[key: string]: string|undefined}} [env]
+ * @returns {Array<[key: string, value: string]>} filteredEntries
+ */
+const filterEnv = (env = process.env) => {
+  return Object.entries(env)
+    .filter(([key]) => allowEnvPass(key))
+    .map(([key, value = '']) => [key, value]);
 };
 
 const defaultConfig = {
@@ -51,10 +85,37 @@ const defaultConfig = {
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
 };
+/** @typedef {typeof defaultConfig} Config */
 
-const endoDaemonPath = url.fileURLToPath(
-  new URL('src/daemon-node.js', import.meta.url),
-);
+/**
+ * @param {Config} config
+ */
+const configToEnv = config => ({
+  ENDO_STATE_PATH: config.statePath,
+  ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
+  ENDO_SOCK_PATH: config.sockPath,
+  ENDO_CACHE_PATH: config.cachePath,
+});
+
+/**
+ * @param {{[key: string]: string|undefined}} env
+ * @returns {Config}
+ */
+const configFromEnv = env => {
+  const {
+    ENDO_STATE_PATH: statePath = defaultConfig.statePath,
+    ENDO_EPHEMERAL_STATE_PATH:
+      ephemeralStatePath = defaultConfig.ephemeralStatePath,
+    ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
+    ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
+  } = env;
+  return {
+    statePath,
+    ephemeralStatePath,
+    sockPath,
+    cachePath,
+  };
+};
 
 export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
@@ -62,6 +123,8 @@ export const terminate = async (config = defaultConfig) => {
     'harbinger',
     config.sockPath,
     cancelled,
+    undefined,
+    { onReject: () => {} },
   );
   const bootstrap = getBootstrap();
   await E(bootstrap)
@@ -72,75 +135,572 @@ export const terminate = async (config = defaultConfig) => {
   await closed.catch(() => {});
 };
 
-export const start = async (config = defaultConfig) => {
-  await fs.promises.mkdir(config.statePath, {
-    recursive: true,
+/**
+ * Attempt to connect to a Unix socket. Resolves to `true` if the
+ * connection succeeds, `false` otherwise.
+ *
+ * @param {string} sockPath
+ * @returns {Promise<boolean>}
+ */
+const tryConnect = sockPath =>
+  new Promise(resolve => {
+    const conn = net.createConnection(sockPath, () => {
+      conn.destroy();
+      resolve(true);
+    });
+    conn.on('error', () => resolve(false));
   });
-  const logPath = path.join(config.statePath, 'endo.log');
-  const output = fs.openSync(logPath, 'a');
 
-  const env = { ...process.env };
+/**
+ * Poll until the daemon socket is accepting connections.
+ *
+ * @param {string} sockPath
+ * @param {number} timeoutMs
+ * @returns {Promise<void>}
+ */
+const waitForSocket = async (sockPath, timeoutMs = 10_000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await tryConnect(sockPath)) {
+      return;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => {
+      setTimeout(resolve, 50);
+    });
+  }
+  throw Error(`Socket ${sockPath} not ready within ${timeoutMs}ms`);
+};
 
-  const child = popen.fork(
-    endoDaemonPath,
-    [
-      config.sockPath,
-      config.statePath,
-      config.ephemeralStatePath,
-      config.cachePath,
-    ],
-    {
-      detached: true,
-      env,
-      stdio: ['ignore', output, output, 'ipc'],
-    },
-  );
+/**
+ * Poll until a file exists on disk.
+ *
+ * @param {string} filePath
+ * @param {number} timeoutMs
+ * @returns {Promise<void>}
+ */
+const waitForFile = async (filePath, timeoutMs = 10_000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await fs.promises.access(filePath);
+      return;
+    } catch {
+      // File does not exist yet.
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => {
+      setTimeout(resolve, 50);
+    });
+  }
+  throw Error(`File ${filePath} not found within ${timeoutMs}ms`);
+};
 
+/**
+ * @param {popen.ChildProcess} proc
+ * @returns {Promise<popen.ChildProcess>} proc
+ */
+const waitForSpawn = async proc => {
+  return new Promise((resolve, reject) => {
+    proc.on('error', err => {
+      const [exe] = proc.spawnargs;
+      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
+    });
+    proc.on('spawn', () => resolve(proc));
+  });
+};
+
+/**
+ * @param {popen.ChildProcess} proc
+ * @returns {Promise<number>} proc exit code
+ */
+const waitForExit = async proc => {
+  return new Promise((resolve, reject) => {
+    proc.on('error', err => {
+      const [exe] = proc.spawnargs;
+      reject(new Error(`Failed to spawn ${exe}`, { cause: err }));
+    });
+    proc.on('exit', code => resolve(code || 0));
+  });
+};
+
+/**
+ * @param {popen.ChildProcess} child
+ * @returns {Promise<popen.Serializable>} message
+ */
+const waitForMessage = child => {
+  let done = false;
   return new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
-      reject(
-        Error(
-          `Daemon exited prematurely with error ${cause.message}, see (${logPath})`,
-        ),
-      );
+      if (!done) {
+        done = true;
+        reject(new Error(`Failed to spawn ${child.spawnargs}`, { cause }));
+      }
     });
     child.on('exit', (/** @type {number?} */ code) => {
-      reject(
-        Error(
-          `Daemon exited prematurely with code (${code}), see (${logPath})`,
-        ),
-      );
+      if (!done) {
+        done = true;
+        reject(new Error(`Process ${child.spawnargs} exited ${code}`));
+      }
     });
     child.on('message', message => {
-      child.disconnect();
-      child.unref();
-      if (
-        typeof message === 'object' &&
-        message !== null &&
-        'type' in message
-      ) {
-        if (message.type === 'ready') {
-          // This message corresponds to process.send({ type: 'ready' }) in
-          // src/daemon-node-powers.js and indicates the daemon is ready to receive
-          // clients.
-          resolve(undefined);
-        } else if (
-          message.type === 'error' &&
-          'message' in message &&
-          typeof message.message === 'string'
-        ) {
-          reject(new Error(message.message));
-        }
+      if (!done) {
+        done = true;
+        resolve(message);
       }
     });
   });
 };
 
-const enoentOk = error => {
-  if (error.code === 'ENOENT') {
+/**
+ * @param {string[]} _args
+ */
+export const main = async _args => {
+  const config = configFromEnv(process.env);
+  const envOverrides = Object.fromEntries(filterEnv());
+
+  // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
+
+  const child = process.env.ENDO_BIN
+    ? await runEngo(false, config, envOverrides)
+    : await runEndo(false, config, envOverrides);
+  process.exit(await waitForExit(child));
+};
+
+/**
+ * Start the engo (Go supervisor) binary, passing config paths via
+ * environment variables, and wait for the daemon socket to become ready.
+ *
+ * @param {boolean} detached - if process should be detached from current stdio
+ * @param {Config} config
+ * @param {Record<string, string>} [envOverrides]
+ * @returns {Promise<popen.ChildProcess>}
+ */
+const runEngo = async (detached, config, envOverrides) => {
+  const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
+
+  await fs.promises.mkdir(config.statePath, { recursive: true });
+  const logPath = path.join(config.statePath, 'endo.log');
+  const output = fs.openSync(logPath, 'a');
+
+  const endoGoDaemonPath = url.fileURLToPath(
+    new URL('src/daemon-go.js', import.meta.url),
+  );
+
+  const env = {
+    ...configToEnv(config),
+    ...Object.fromEntries(filterEnv()),
+    ...envOverrides,
+    ENDO_DAEMON_PATH: endoGoDaemonPath,
+  };
+
+  const child = popen.spawn(endoBin, ['daemon'], {
+    detached,
+    env,
+    stdio: detached ? ['ignore', output, output] : 'inherit',
+  });
+
+  // Wait for the socket to accept connections (fast).
+  await waitForSocket(config.sockPath);
+
+  // Also wait for the root file to be written. The daemon writes this
+  // after the socket is open but before sending the "ready" envelope.
+  // Without this, tests that read the root file immediately may race.
+  const rootPath = path.join(config.statePath, 'root');
+  await waitForFile(rootPath);
+
+  return child;
+};
+
+/**
+ * Start the endo (Node.js supervisor), passing config paths via
+ * environment variables, and wait for the daemon socket to become ready.
+ *
+ * @param {boolean} detached - if process should be detached from current stdio
+ * @param {Config} config
+ * @param {Record<string, string>} [envOverrides]
+ * @returns {Promise<popen.ChildProcess>}
+ */
+const runEndo = async (detached, config, envOverrides) => {
+  await fs.promises.mkdir(config.statePath, {
+    recursive: true,
+  });
+  const logPath = path.join(config.statePath, 'endo.log');
+
+  const daemonPath =
+    process.env.ENDO_DAEMON_PATH ||
+    url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+
+  // TODO modify node-powers to just rely on ENDO_* passed like engo by configToEnv
+  const daemonArgs = [
+    config.sockPath,
+    config.statePath,
+    config.ephemeralStatePath,
+    config.cachePath,
+  ];
+
+  const env = {
+    ...configToEnv(config),
+    ...Object.fromEntries(filterEnv()),
+    ...envOverrides,
+  };
+
+  const stdio = /** @returns {popen.StdioOptions} */ (() => {
+    if (detached) {
+      const output = fs.openSync(logPath, 'a');
+      return ['ignore', output, output, 'ipc'];
+    } else {
+      return ['inherit', 'inherit', 'inherit', 'ipc'];
+    }
+  })();
+
+  const child = popen.spawn(process.execPath, [daemonPath, ...daemonArgs], {
+    detached,
+    env,
+    stdio,
+  });
+
+  const message = await waitForMessage(child).catch(cause => {
+    throw Error(`Daemon failed to spawn ${cause.message}, see (${logPath})`);
+  });
+  child.disconnect();
+
+  if (typeof message === 'object' && message !== null && 'type' in message) {
+    if (message.type === 'ready') {
+      // This message corresponds to process.send({ type: 'ready' }) in
+      // src/daemon-node-powers.js and indicates the daemon is ready to receive
+      // clients.
+      console.debug('endo daemon ready', message);
+    } else if (
+      message.type === 'error' &&
+      'message' in message &&
+      typeof message.message === 'string'
+    ) {
+      throw new Error(message.message);
+    }
+  }
+
+  return child;
+};
+
+/**
+ * @param {Config} [config]
+ * @param {object} [options]
+ * @param {number} [options.verbose] - verbosity level of status
+ */
+export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
+  if (verbose > 0) {
+    console.log('verbosity:', verbose);
+    console.log('config:', config);
+  }
+
+  const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
+  const pid = await readPidFile(pidPath);
+  console.log(`pid: ${pid || 'NOT RUNNING'}`);
+  const running = !!pid;
+
+  // TODO interrogate process details if verbose > 0
+
+  /**
+   * @param {string} filePath
+   */
+  const describeFile = filePath => {
+    try {
+      const stats = fs.statSync(filePath);
+      if (verbose < 1) {
+        return '';
+      } else if (stats.isFIFO()) {
+        return 'FIFO';
+      } else if (stats.isSocket()) {
+        return 'Socket';
+      } else if (stats.isDirectory()) {
+        return 'Directory';
+      } else if (stats.isFile()) {
+        return `size:${stats.size}`;
+      } else {
+        return `Special(mode:o${stats.mode.toString(8)})`;
+      }
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return 'MISSING';
+      } else {
+        return `StatError:${err.message}`;
+      }
+    }
+  };
+
+  const showFiles = {
+    logPath: path.join(config.statePath, 'endo.log'),
+    rootPath: path.join(config.statePath, 'root'),
+    sockPath: config.sockPath,
+  };
+  for (const [name, filePath] of Object.entries(showFiles)) {
+    const fileDesc = describeFile(filePath);
+    if (fileDesc) {
+      console.log(`${name}: ${filePath} -- ${fileDesc}`);
+    }
+  }
+
+  // TODO we could run `du -csh ${cachePath}` if verbose > 1
+  // config.cachePath
+
+  if (running) {
+    console.log('Running Workers:');
+    for await (const worker of runningWorkers(config)) {
+      const pid = await worker.pid;
+      if (pid !== null) {
+        console.log(`* id:${worker.id} pid:${pid}`);
+      }
+    }
+  }
+};
+
+/**
+ * @param {Config} [config]
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] - overrides for process.env
+ */
+export const start = async (
+  config = defaultConfig,
+  { env: envOverrides = {} } = {},
+) => {
+  await clean(config);
+
+  // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
+
+  const child = await (process.env.ENDO_BIN
+    ? runEngo(true, config, envOverrides)
+    : runEndo(true, config, envOverrides));
+
+  child.unref();
+};
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * @param {object} options
+ * @param {Config} options.config
+ * @param {string} options.workerId
+ * @param {string} [options.workerRunDir]
+ */
+const runningWorker = ({
+  config,
+  workerId,
+  workerRunDir = path.join(config.ephemeralStatePath, 'worker', workerId),
+}) => {
+  const pidPath = path.join(workerRunDir, 'worker.pid');
+  return {
+    get id() {
+      return workerId;
+    },
+
+    get runDir() {
+      return workerRunDir;
+    },
+
+    get pidPath() {
+      return pidPath;
+    },
+
+    pid: (async () => {
+      try {
+        const pidText = await fs.promises.readFile(pidPath, 'utf-8');
+        const rawPid = Number(pidText);
+        if (Number.isFinite(rawPid) && rawPid > 0) {
+          return rawPid;
+        }
+      } catch {}
+      return null;
+    })(),
+  };
+};
+
+/**
+ * @param {Config} config
+ */
+const runningWorkers = async function* (config) {
+  const workerDir = path.join(config.ephemeralStatePath, 'worker');
+  /** @type {string[]} */
+  let workerIds;
+  try {
+    workerIds = await fs.promises.readdir(workerDir);
+  } catch {
     return;
   }
-  throw error;
+  for (const workerId of workerIds) {
+    yield runningWorker({
+      config,
+      workerId,
+      workerRunDir: path.join(workerDir, workerId),
+    });
+  }
+};
+
+/**
+ * @param {Config} config
+ */
+const killWorkersByPidFiles = async config => {
+  /** @type {Array<Promise<void>>} */
+  const pending = [];
+  for await (const worker of runningWorkers(config)) {
+    pending.push(
+      (async () => {
+        const workerPid = await worker.pid;
+        if (workerPid !== null) {
+          for await (const _ of politeEndProcess(workerPid)) {
+          }
+        }
+        await fs.promises
+          .rm(worker.pidPath, { force: true })
+          .catch(() => undefined);
+      })(),
+    );
+  }
+  await Promise.all(pending);
+};
+
+/**
+ * Read the PID from endo.pid. Returns 0 if the file is missing or
+ * unreadable.
+ *
+ * @param {string} pidPath
+ * @returns {Promise<number>}
+ */
+const readPidFile = async pidPath => {
+  try {
+    const pidText = await fs.promises.readFile(pidPath, 'utf-8');
+    const pid = Number(pidText.trim());
+    return pid > 0 ? pid : 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * @typedef {{kill: string}} KillStep
+ * @typedef {{wait: number}} WaitStep
+ * @typedef {{notify: 'throw'|'error'|'warn'}} NotifyStep
+ * @typedef {KillStep|WaitStep|NotifyStep} EndProcStep
+ * @typedef {Array<EndProcStep>} EndProcPolicy
+ */
+
+/** @type {EndProcPolicy} */
+const defaultEndProcPolicy = harden([
+  { kill: 'SIGTERM' },
+  { wait: 2_000 }, // try SIGTERM for 2s
+  { kill: 'SIGKILL' },
+  { wait: 400 }, // try SIGKILL for 0.4s
+  { notify: 'warn' }, // or warn of zombie remnant
+]);
+
+/**
+ * Process a sequence of steps to gracefully stop a process.
+ *
+ * Each step is either wait for a duration or send a signal to kill the process.
+ *
+ * @param {number} pid - Process ID to stop
+ * @param {object} options
+ * @param {number} [options.waitBefore] - convenience for an initial wait before following process end steps;
+ *                                        equivalent to passing `steps: [ { wait: NNN }, ...defaultEndProcPolicy ]`
+ * @param {EndProcPolicy} [options.steps=defaultEndProcPolicy] - sequence of signals and wait-for-exit timeouts to follow
+ * @param {number} [options.pollInterval] - how long to sleep between wait-for-exit checks (within per-step timeout)
+ * @param {boolean} [options.verbose=true] - whether to log signals sent
+ */
+export async function* politeEndProcess(
+  pid,
+  {
+    waitBefore,
+    steps = defaultEndProcPolicy,
+    pollInterval = 100,
+    verbose = true,
+  } = {},
+) {
+  if (typeof waitBefore === 'number') {
+    steps = [{ wait: waitBefore }, ...steps];
+  }
+
+  const isAlive = () => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  /** @param {number} deadline */
+  async function* waitForExit(deadline) {
+    while (Date.now() < deadline) {
+      if (!isAlive()) {
+        return;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => {
+        setTimeout(resolve, pollInterval);
+      });
+    }
+  }
+
+  for (const step of steps) {
+    if (!isAlive()) {
+      return;
+    }
+
+    if ('kill' in step) {
+      const signal = step.kill || 'SIGTERM';
+      if (verbose) {
+        console.info(`kill ${pid} ${signal}`);
+      }
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // Already dead
+        return;
+      }
+    } else if ('wait' in step) {
+      yield* waitForExit(Date.now() + step.wait);
+    } else if ('notify' in step) {
+      const { notify } = step;
+      const message = `Zombie process ${pid} remains after SIGKILL`;
+      switch (notify) {
+        case 'error':
+          console.error(message);
+          return;
+        case 'warn':
+          console.warn(message);
+          return;
+        case 'throw':
+          throw new Error(message);
+        default:
+          throw new Error(`unknown notify:${notify}`);
+      }
+    }
+  }
+}
+
+/**
+ * Ensure the daemon process is dead, using endo.pid as a fallback when
+ * graceful CapTP termination has already been attempted. Waits for the
+ * process to exit on its own first (giving graceful shutdown time),
+ * then escalates to SIGTERM and SIGKILL. Works for both the node-only
+ * and engo daemon paths.
+ *
+ * @param {typeof defaultConfig} config
+ */
+const killDaemonProcess = async config => {
+  const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
+  const pid = await readPidFile(pidPath);
+  if (pid === 0) {
+    return;
+  }
+  for await (const _ of politeEndProcess(pid, {
+    // Wait up to 5s for the process to exit on its own
+    // (graceful shutdown from a prior terminate() call).
+    waitBefore: 5_000,
+  })) {
+  }
 };
 
 export const clean = async (config = defaultConfig) => {
@@ -148,31 +708,38 @@ export const clean = async (config = defaultConfig) => {
   if (process.platform !== 'win32') {
     await removePath(config.sockPath).catch(enoentOk);
   }
+  const pidPath = path.join(config.ephemeralStatePath, 'endo.pid');
+  await fs.promises.rm(pidPath, { force: true }).catch(enoentOk);
 };
 
+/**
+ * @param {Config} config
+ */
 export const stop = async (config = defaultConfig) => {
   await terminate(config).catch(() => {});
+  await killDaemonProcess(config);
+  await killWorkersByPidFiles(config);
   await clean(config);
 };
 
-export const restart = async (config = defaultConfig) => {
+/**
+ * @param {typeof defaultConfig} [config]
+ * @param {{ env?: Record<string, string>, gcEnabled?: boolean, feralErrors?: boolean }} [options]
+ */
+export const restart = async (config = defaultConfig, options = {}) => {
   await stop(config);
-  return start(config);
+  return start(config, options);
 };
 
 export const purge = async (config = defaultConfig) => {
   await terminate(config).catch(() => {});
+  await killDaemonProcess(config);
+  await killWorkersByPidFiles(config);
 
-  const cleanedUp = clean(config);
-  const removedState = removePath(config.statePath).catch(enoentOk);
-  const removedEphemeralState = removePath(config.ephemeralStatePath).catch(
-    enoentOk,
-  );
-  const removedCache = removePath(config.cachePath).catch(enoentOk);
   await Promise.all([
-    cleanedUp,
-    removedState,
-    removedEphemeralState,
-    removedCache,
+    clean(config),
+    removePath(config.statePath).catch(enoentOk),
+    removePath(config.ephemeralStatePath).catch(enoentOk),
+    removePath(config.cachePath).catch(enoentOk),
   ]);
 };

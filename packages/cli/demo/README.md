@@ -271,7 +271,7 @@ _Familiar Chat_ is an example application that provides a web app for
 interacting with your pet daemon.
 
 ```
-> endo install cat.js --listen 8920 --powers AGENT --name familiar-chat
+> endo install cat.js --listen 8920 --powers @agent --name familiar-chat
 ```
 
 This command creates a web page named familiar-chat and endows it with the
