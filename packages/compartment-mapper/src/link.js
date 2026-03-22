@@ -31,6 +31,7 @@
  *   FileModuleConfiguration,
  *   MakeModuleMapHookOptions,
  * } from './types.js'
+ * @import {SubpathReplacer} from './types/pattern-replacement.js'
  */
 
 import { makeMapParsers } from './map-parser.js';
@@ -45,6 +46,7 @@ import {
   isCompartmentModuleConfiguration,
   isExitModuleConfiguration,
 } from './guards.js';
+import { makeMultiSubpathReplacer } from './pattern-replacement.js';
 
 const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
@@ -113,6 +115,15 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
 ) => {
+  // Build pattern matcher once per compartment if patterns exist.
+  // @ts-expect-error patterns may exist on PackageCompartmentDescriptor
+  const { patterns } = compartmentDescriptor;
+  /** @type {SubpathReplacer | null} */
+  const matchPattern =
+    patterns && Array.isArray(patterns) && patterns.length > 0
+      ? makeMultiSubpathReplacer(patterns)
+      : null;
+
   /**
    * @type {ModuleMapHook}
    */
@@ -159,6 +170,48 @@ const makeModuleMapHook = (
             namespace: foreignModuleSpecifier,
           };
         }
+      }
+    }
+
+    // Check patterns for wildcard matches (before scopes).
+    // Patterns may resolve within the same compartment (internal patterns)
+    // or to a foreign compartment (dependency export patterns).
+    if (matchPattern) {
+      const match = matchPattern(moduleSpecifier);
+      if (match !== null) {
+        const { result: resolvedPath, compartment: foreignCompartmentName } =
+          match;
+        const targetCompartmentName =
+          /** @type {typeof compartmentName} */
+          (foreignCompartmentName || compartmentName);
+
+        // Policy enforcement for pattern-matched modules
+        enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
+          exit: false,
+          errorHint: `Pattern matched: ${q(moduleSpecifier)} -> ${q(resolvedPath)}`,
+        });
+
+        // Write back to moduleDescriptors for caching and archival.
+        // This allows the expanded pattern to be captured in archives.
+        moduleDescriptors[moduleSpecifier] = {
+          retained: true,
+          compartment:
+            /** @type {FileUrlString} */
+            (targetCompartmentName),
+          module: resolvedPath,
+          __createdBy: 'link-pattern',
+        };
+
+        const targetCompartment = compartments[targetCompartmentName];
+        if (targetCompartment === undefined) {
+          throw Error(
+            `Cannot import from missing compartment ${q(targetCompartmentName)}`,
+          );
+        }
+        return {
+          compartment: targetCompartment,
+          namespace: resolvedPath,
+        };
       }
     }
 
