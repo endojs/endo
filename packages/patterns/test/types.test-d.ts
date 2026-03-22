@@ -804,6 +804,44 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   expectType<{ x: bigint; y: bigint }>(value);
 }
 
+// ===== M.interface with sloppy/defaultGuards options =====
+
+// M.interface with no options → typed InterfaceGuard
+{
+  const FooI = M.interface('Foo', {
+    bar: M.call(M.string()).returns(M.nat()),
+  });
+  type Methods = TypeFromInterfaceGuard<typeof FooI>;
+  expectType<{ bar: (arg0: string) => bigint }>(null as unknown as Methods);
+}
+
+// M.interface with explicit strict options → typed InterfaceGuard
+{
+  const FooI = M.interface(
+    'Foo',
+    { bar: M.call(M.string()).returns(M.nat()) },
+    { defaultGuards: undefined },
+  );
+  type Methods = TypeFromInterfaceGuard<typeof FooI>;
+  expectType<{ bar: (arg0: string) => bigint }>(null as unknown as Methods);
+}
+
+// M.interface with defaultGuards: 'passable' → InterfaceGuard<any>
+// (sloppy mode: method guards become any, so methods are unconstrained)
+{
+  const FooI = M.interface(
+    'Foo',
+    { bar: M.call(M.string()).returns(M.nat()) },
+    { defaultGuards: 'passable' },
+  );
+  type Methods = TypeFromInterfaceGuard<typeof FooI>;
+  // With sloppy/defaultGuards, the guard is InterfaceGuard<any>,
+  // so TypeFromInterfaceGuard produces the broad fallback type
+  expectAssignable<Record<string, (...args: any[]) => any>>(
+    null as unknown as Methods,
+  );
+}
+
 // ===== M.infer (via namespace import) =====
 {
   const shape = M.splitRecord({ x: M.nat() });
