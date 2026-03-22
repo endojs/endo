@@ -16,6 +16,7 @@
 | [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-03 | Proposed |
 | [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
+| [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | Deprecated |
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
@@ -74,7 +75,7 @@
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 
-**Totals:** 21 Complete/Implemented, 5 In Progress, 37 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
+**Totals:** 21 Complete/Implemented, 5 In Progress, 38 Not Started, 2 Proposed, 1 Active, 1 Reference, 1 Deprecated
 
 ## Roadmap
 
@@ -168,7 +169,9 @@ flowchart TD
 
     subgraph Chat UX
         cpend[chat-pending-commands]
+        cvedit[chat-view-edit-commands]
         dcmd --> cpend
+        dmount --> cvedit
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
         chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
@@ -320,6 +323,7 @@ webhook events.
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
 | formula-inspector | Not Started | New panel, daemon API exposure |
 | workers-panel | Not Started | Metrics, sparklines |
+| chat-view-edit-commands | Not Started | `/view` and `/edit` for blobs; Monaco editor, Markdown split preview |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
 
 **Exit criterion:** Chat UI feature-complete for current design scope.
@@ -444,6 +448,7 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | inventory-drag-and-drop | S-M | 2-3 days | 4 | HTML5 DnD |
 | formula-inspector | M | 3-4 days | 4 | New panel, daemon API |
 | workers-panel | M | 3-5 days | 4 | Metrics, sparklines |
+| chat-view-edit-commands | M | 3-5 days | 4 | `/view`, `/edit` modal, Monaco reuse, Markdown split preview (Phase 4) |
 | lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
 | daemon-os-sandbox-plugin | L-XL | 2-3 weeks | 5 | Platform-specific |
 | daemon-capability-persona | S-M | 2-3 days | 5 | Handle extension, epithet tracking |
@@ -460,9 +465,9 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 | M1: Remote Access & Tools | 11 remaining | 6-7 weeks |
 | M2: Networking | 5 | 3-4 weeks |
 | M3: Weblets & Integrations | 8 | 4-6 weeks |
-| M4: UX & Tooling | 8 | 5-7 weeks |
+| M4: UX & Tooling | 9 | 5-7 weeks |
 | M5: Confinement & Ecosystem | 6 | 8-12 weeks |
-| **Total remaining** | **37** | **~26-36 weeks** |
+| **Total remaining** | **38** | **~26-36 weeks** |
 
 ### Timeline
 
@@ -513,7 +518,7 @@ because they are foundational rather than features:
 | endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
 | endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
 
-**Progress as of 2026-03-21:** 21 of 68 designs complete/implemented, 5 in progress. M0 complete.
+**Progress as of 2026-03-21:** 21 of 69 designs complete/implemented, 5 in progress. M0 complete.
 18 active work days elapsed (Feb 15 – Mar 5), primarily 1 developer
 (128 of 201 commits). Observed throughput: ~9 commits/day, ~500-2500 LOC/day.
 `daemon-form-request` and `daemon-value-message` complete (value type,
