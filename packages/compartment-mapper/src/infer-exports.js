@@ -122,7 +122,8 @@ function* interpretExports(name, exports, conditions, types) {
  * The imports field provides self-referencing subpath patterns that
  * can be used to create private internal mappings.
  *
- * @param {string} _name - the name of the package (unused, but kept for consistency)
+ * @param {string} _name - the name of the package (unused, kept for signature
+ * parity with `interpretExports` and `interpretBrowserField`)
  * @param {object} imports - the `imports` field from a package.json.
  * @param {Set<string>} conditions - build conditions about the target environment
  * @yields {[string, string]}
@@ -288,8 +289,7 @@ const hasWildcard = (key, value) => key.includes('*') || value.includes('*');
  * @param {string} value
  * @returns {boolean}
  */
-const hasGlobstar = (key, value) =>
-  key.includes('**') || value.includes('**');
+const hasGlobstar = (key, value) => key.includes('**') || value.includes('**');
 
 /**
  * Infers exports, internal aliases, and wildcard patterns from a package descriptor.

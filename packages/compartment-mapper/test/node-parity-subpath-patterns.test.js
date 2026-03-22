@@ -15,11 +15,13 @@ const fixtureBase = new URL(
 
 test('subpath patterns - node parity', async t => {
   const ns = await import(new URL('main.js', fixtureBase).href);
-  t.is(ns.alpha, 'alpha');
-  t.is(ns.betaGamma, 'beta-gamma');
-  t.is(ns.exact, 'exact-match');
-  t.is(ns.helper, 'helper');
-  t.is(ns.specificity, 'specific');
+  t.like(ns, {
+    alpha: 'alpha',
+    betaGamma: 'beta-gamma',
+    exact: 'exact-match',
+    helper: 'helper',
+    specificity: 'specific',
+  });
 });
 
 test('multi-star patterns are not resolved by Node.js', async t => {

@@ -1,21 +1,25 @@
+/** @import {ExecutionContext} from 'ava' */
+
 import 'ses';
 import test from 'ava';
-import { scaffold, moduleify } from './scaffold.js';
+import { scaffold } from './scaffold.js';
 
 const fixture = new URL(
   'fixtures-export-patterns/node_modules/app/main.js',
   import.meta.url,
 ).toString();
 
-const fixtureAssertionCount = 2;
+const fixtureAssertionCount = 1;
 
 /**
- * @param {import('ava').ExecutionContext} t
+ * @param {ExecutionContext} t
  * @param {{namespace: object}} result
  */
 const assertFixture = (t, { namespace }) => {
-  t.is(namespace.value, 'foobar');
-  t.is(namespace.helper, 'utility');
+  t.like(namespace, {
+    value: 'foobar',
+    helper: 'utility',
+  });
 };
 
 scaffold(

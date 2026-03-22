@@ -31,6 +31,7 @@
  *   FileModuleConfiguration,
  *   MakeModuleMapHookOptions,
  * } from './types.js'
+ * @import {SubpathReplacer} from './types/pattern-replacement.js'
  */
 
 import { makeMapParsers } from './map-parser.js';
@@ -114,11 +115,14 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
 ) => {
-  // Build prefix-tree-based pattern matcher once per compartment if patterns exist.
+  // Build pattern matcher once per compartment if patterns exist.
   // @ts-expect-error patterns may exist on PackageCompartmentDescriptor
   const { patterns } = compartmentDescriptor;
+  /** @type {SubpathReplacer | null} */
   const matchPattern =
-    patterns && patterns.length > 0 ? makeMultiSubpathReplacer(patterns) : null;
+    patterns && Array.isArray(patterns) && patterns.length > 0
+      ? makeMultiSubpathReplacer(patterns)
+      : null;
 
   /**
    * @type {ModuleMapHook}
@@ -177,7 +181,9 @@ const makeModuleMapHook = (
       if (match !== null) {
         const { result: resolvedPath, compartment: foreignCompartmentName } =
           match;
-        const targetCompartmentName = foreignCompartmentName || compartmentName;
+        const targetCompartmentName =
+          /** @type {typeof compartmentName} */
+          (foreignCompartmentName || compartmentName);
 
         // Policy enforcement for pattern-matched modules
         enforcePolicyByModule(moduleSpecifier, compartmentDescriptor, {
@@ -189,7 +195,9 @@ const makeModuleMapHook = (
         // This allows the expanded pattern to be captured in archives.
         moduleDescriptors[moduleSpecifier] = {
           retained: true,
-          compartment: targetCompartmentName,
+          compartment:
+            /** @type {FileUrlString} */
+            (targetCompartmentName),
           module: resolvedPath,
           __createdBy: 'link-pattern',
         };

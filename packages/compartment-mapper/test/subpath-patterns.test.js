@@ -8,6 +8,8 @@
  * so if both tests pass, the Compartment Mapper has parity with Node.js for
  * these cases.
  */
+/** @import {ExecutionContext} from 'ava' */
+
 import 'ses';
 import test from 'ava';
 import { scaffold } from './scaffold.js';
@@ -17,18 +19,20 @@ const fixture = new URL(
   import.meta.url,
 ).toString();
 
-const fixtureAssertionCount = 5;
+const fixtureAssertionCount = 1;
 
 /**
- * @param {import('ava').ExecutionContext} t
+ * @param {ExecutionContext} t
  * @param {{namespace: object}} result
  */
 const assertFixture = (t, { namespace }) => {
-  t.is(namespace.alpha, 'alpha');
-  t.is(namespace.betaGamma, 'beta-gamma');
-  t.is(namespace.exact, 'exact-match');
-  t.is(namespace.helper, 'helper');
-  t.is(namespace.specificity, 'specific');
+  t.like(namespace, {
+    alpha: 'alpha',
+    betaGamma: 'beta-gamma',
+    exact: 'exact-match',
+    helper: 'helper',
+    specificity: 'specific',
+  });
 };
 
 scaffold(

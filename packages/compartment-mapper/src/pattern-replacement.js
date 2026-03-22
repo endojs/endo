@@ -72,20 +72,28 @@ export const makeMultiSubpathReplacer = mapping => {
   /** @type {Array<[string, string, string | undefined]>} */
   let normalizedEntries;
   if (isArray(mapping)) {
-    normalizedEntries = mapping.map(entry => {
-      if (isArray(entry)) {
-        // [pattern, replacement] tuple
-        return [entry[0], entry[1], undefined];
-      }
-      // PatternDescriptor { from, to, compartment? }
-      return [entry.from, entry.to, entry.compartment];
-    });
+    normalizedEntries = mapping.map(
+      /**
+       * @param {PatternDescriptor | [string, string]} entry
+       * @returns {[string, string, string | undefined]}
+       */
+      entry => {
+        if (isArray(entry)) {
+          // [pattern, replacement] tuple
+          return [entry[0], entry[1], undefined];
+        }
+        // PatternDescriptor { from, to, compartment? }
+        return [entry.from, entry.to, entry.compartment];
+      },
+    );
   } else {
-    normalizedEntries = entries(mapping).map(([pattern, replacement]) => [
-      pattern,
-      replacement,
-      undefined,
-    ]);
+    normalizedEntries = entries(mapping).map(
+      /**
+       * @param {[string, string]} entry
+       * @returns {[string, string, string | undefined]}
+       */
+      ([pattern, replacement]) => [pattern, replacement, undefined],
+    );
   }
 
   for (const [pattern, replacement, compartment] of normalizedEntries) {
