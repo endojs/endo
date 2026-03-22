@@ -102,11 +102,12 @@ export declare function defineExoClassKit<
   tag: string,
   interfaceGuardKit: GK,
   init: I,
-  methodsKit: F & {
-    [K in keyof F]: ThisType<{
-      facets: GuardedKit<F>;
-      state: ReturnType<I>;
-    }>;
+  methodsKit: {
+    [K in keyof F]: F[K] &
+      ThisType<{
+        facets: GuardedKit<F>;
+        state: ReturnType<I>;
+      }>;
   },
   options?: FarClassOptions<
     KitContext<ReturnType<I>, GuardedKit<F>>,
@@ -121,11 +122,12 @@ export declare function defineExoClassKit<
   tag: string,
   interfaceGuardKit: Record<FacetName, InterfaceGuard> | undefined,
   init: I,
-  methodsKit: F & {
-    [K in keyof F]: ThisType<{
-      facets: GuardedKit<F>;
-      state: ReturnType<I>;
-    }>;
+  methodsKit: {
+    [K in keyof F]: F[K] &
+      ThisType<{
+        facets: GuardedKit<F>;
+        state: ReturnType<I>;
+      }>;
   },
   options?: FarClassOptions<
     KitContext<ReturnType<I>, GuardedKit<F>>,
