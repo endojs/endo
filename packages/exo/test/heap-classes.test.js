@@ -141,8 +141,10 @@ test('test defineExoClassKit', t => {
     message:
       'In "decr" method of (Counter down): arg 0?: string "foo" - Must be a number',
   });
-  // @ts-expect-error bad arg
-  t.throws(() => upCounter.decr(3), {
+  // TS limitation: Guarded<M> extends Methods which has an index signature
+  // (Record<PropertyKey, CallableFunction>), so upCounter.decr is not a
+  // type error even though 'decr' is only on the down facet.
+  t.throws(() => /** @type {any} */ (upCounter).decr(3), {
     message: 'upCounter.decr is not a function',
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
@@ -434,4 +436,44 @@ test.skip('types', () => {
   // allowed because sloppy:true
   sloppy.notInInterface() === 0;
   sloppy.notInInterface() === 1;
+});
+
+// ===== defineExoClassKit with typed InterfaceGuardKit =====
+
+const ReaderI = M.interface('Reader', {
+  read: M.call().returns(M.string()),
+});
+
+const WriterI = M.interface('Writer', {
+  write: M.call(M.string()).returns(M.undefined()),
+});
+
+test('defineExoClassKit infers facet types from guard kit', t => {
+  const makeRW = defineExoClassKit(
+    'ReadWriter',
+    { reader: ReaderI, writer: WriterI },
+    /** @param {string} initial */
+    initial => ({ data: initial }),
+    {
+      reader: {
+        read() {
+          const { state } = this;
+          return state.data;
+        },
+      },
+      writer: {
+        write(text) {
+          const { state } = this;
+          state.data = text;
+        },
+      },
+    },
+  );
+
+  const rw = makeRW('hello');
+  // reader facet
+  t.is(rw.reader.read(), 'hello');
+  // writer facet
+  rw.writer.write('world');
+  t.is(rw.reader.read(), 'world');
 });

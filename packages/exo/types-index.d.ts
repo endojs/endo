@@ -1,7 +1,4 @@
-import type {
-  InterfaceGuard,
-  TypeFromInterfaceGuard,
-} from '@endo/patterns';
+import type { InterfaceGuard, TypeFromInterfaceGuard } from '@endo/patterns';
 import type {
   Methods,
   Guarded,
@@ -69,8 +66,7 @@ export declare function defineExoClass<
   tag: string,
   interfaceGuard: G,
   init: I,
-  methods: M &
-    ThisType<{ self: Guarded<M>; state: ReturnType<I> }>,
+  methods: M & ThisType<{ self: Guarded<M>; state: ReturnType<I> }>,
   options?: FarClassOptions<ClassContext<ReturnType<I>, M>>,
 ): (...args: Parameters<I>) => Guarded<M>;
 
@@ -90,13 +86,40 @@ export declare function defineExoClass<
 /**
  * Define an exo class kit whose facet methods are type-checked against
  * the InterfaceGuardKit.
+ *
+ * When the guard kit carries typed InterfaceGuards, each facet's methods
+ * are constrained to match the corresponding guard's inferred signatures.
  */
 export declare function defineExoClassKit<
-  I extends (...args: any[]) => any,
+  GK extends Record<FacetName, InterfaceGuard>,
+  I extends (...args: readonly any[]) => any,
+  F extends {
+    [K in keyof GK]: TypeFromInterfaceGuard<GK[K]> & Methods;
+  },
+>(
+  tag: string,
+  interfaceGuardKit: GK,
+  init: I,
+  methodsKit: F & {
+    [K in keyof F]: ThisType<{
+      facets: GuardedKit<F>;
+      state: ReturnType<I>;
+    }>;
+  },
+  options?: FarClassOptions<
+    KitContext<ReturnType<I>, GuardedKit<F>>,
+    GuardedKit<F>
+  >,
+): (...args: Parameters<I>) => GuardedKit<F>;
+
+// Passing `undefined` is runtime-equivalent to passing a guard kit where every
+// facet uses `{ defaultGuards: 'passable' }` — no guard enforcement.
+export declare function defineExoClassKit<
+  I extends (...args: readonly any[]) => any,
   F extends Record<FacetName, Methods>,
 >(
   tag: string,
-  interfaceGuardKit: { [K in keyof F]: InterfaceGuard } | undefined,
+  interfaceGuardKit: Record<FacetName, InterfaceGuard> | undefined,
   init: I,
   methodsKit: F & {
     [K in keyof F]: ThisType<{
