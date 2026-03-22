@@ -20,6 +20,7 @@ test('what happens with extra arguments', t => {
       t.is(x, undefined);
     },
   });
+  // TS sees foo(x: any) from the impl, so this is valid to TS. Runtime guard rejects it.
   t.throws(() => exo.foo('an extra arg'), {
     message:
       '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
@@ -36,6 +37,7 @@ test('callWhen-guarded method called without optional array argument', async t =
       t.is(arr, undefined);
     },
   });
+  // @ts-expect-error TS infers foo(arr) as required from the impl, but guard makes it optional at runtime
   await t.notThrowsAsync(() => exo.foo());
 });
 
@@ -204,16 +206,11 @@ test('sloppy option', t => {
 
   t.throws(
     () =>
-      makeExo(
-        'greeter',
-        // @ts-expect-error missing guard
-        EmptyGreeterI,
-        {
-          sayHello() {
-            return 'hello';
-          },
+      makeExo('greeter', EmptyGreeterI, {
+        sayHello() {
+          return 'hello';
         },
-      ),
+      }),
     { message: 'methods ["sayHello"] not guarded by "greeter"' },
   );
 });
@@ -290,7 +287,7 @@ test('raw guards', t => {
       // Object is implicitly frozen by harden as a side-effect of passing to
       // an M.any guard, or unfrozen because harden is fake, but isFrozen lies.
       t.true(Object.isFrozen(obj));
-      return { ...obj };
+      return { .../** @type {Record<string, any>} */ (obj) };
     },
     passthrough(obj) {
       // The object is not frozen, but isFrozen lies when hardenTaming is
@@ -324,9 +321,11 @@ test('raw guards', t => {
   t.is(Object.isFrozen({}), Object.isFrozen(greeter2.passthrough({})));
 
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
+  // @ts-expect-error TS infers 4 required params from impl, guard makes last 2 optional at runtime
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
+    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous(makeBehavior(), {}, {}),
     {
       message:
@@ -335,6 +334,7 @@ test('raw guards', t => {
     'passable behavior not allowed',
   );
   t.notThrows(
+    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous({}, makeBehavior(), {}),
     'raw behavior allowed',
   );
@@ -389,25 +389,25 @@ test.skip('types', () => {
       return val;
     },
   });
-  // @ts-expect-error invalid args
+  // @ts-expect-error TS infers incr(val: number) as required from JSDoc, guard makes it optional at runtime
   guarded.incr();
-  // @ts-expect-error not defined
+  // @ts-expect-error not defined on the guarded type
   guarded.notInBehavior;
 
-  makeExo(
-    'upCounter',
-    // @ts-expect-error Property 'notInInterface' is missing from UpCounterI
-    UpCounterI,
-    {
-      /** @param {number} val */
-      incr(val) {
-        return val;
-      },
-      notInInterface() {
-        return 0;
-      },
+  // Runtime error: 'notInInterface' not in guard.
+  // TS limitation: excess property checking does not apply in generic
+  // contexts, so TS cannot reject extra methods here. If TS gains
+  // exact-type checking for object literals in generics, this could
+  // become a compile-time error.
+  makeExo('upCounter', UpCounterI, {
+    /** @param {number} val */
+    incr(val) {
+      return val;
     },
-  );
+    notInInterface() {
+      return 0;
+    },
+  });
 
   const sloppy = makeExo(
     'upCounter',
@@ -429,10 +429,9 @@ test.skip('types', () => {
     },
   );
   sloppy.incr(1);
-  // @ts-expect-error invalid args
+  // @ts-expect-error TS infers incr(val: number) as required from JSDoc, guard makes it optional at runtime
   sloppy.incr();
   // allowed because sloppy:true
   sloppy.notInInterface() === 0;
-  // @ts-expect-error TS infers it's literally 0
   sloppy.notInInterface() === 1;
 });
