@@ -12,10 +12,7 @@ const {
   // eslint-disable-next-line no-restricted-globals
 } = globalThis;
 
-const {
-  defineProperty,
-  setPrototypeOf,
-} = Object;
+const { defineProperty, setPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
