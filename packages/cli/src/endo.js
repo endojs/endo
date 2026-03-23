@@ -138,7 +138,7 @@ export const main = async rawArgs => {
     )
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
+      'Endowment to give the worklet (a name, @none, @agent, or @endo)',
     )
     .option(
       '-E,--env <key=value>',
@@ -441,8 +441,8 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('dismiss-all')
-    .description('delete all messages')
+    .command('clear')
+    .description('dismiss all messages')
     .option(...commonOptions.as)
     .action(async cmd => {
       const { as: agentNames } = cmd.opts();
@@ -574,6 +574,62 @@ export const main = async rawArgs => {
         name,
         agentNames,
       });
+    });
+
+  program
+    .command('checkin <path>')
+    .alias('ci')
+    .description('checks in a local directory as a readable tree')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for checkin');
+      }
+      const { checkin } = await import('./commands/checkin.js');
+      return checkin({ sourcePath, name, agentNames });
+    });
+
+  program
+    .command('checkout <name> <path>')
+    .alias('co')
+    .description('checks out a readable tree to a local directory')
+    .option(...commonOptions.as)
+    .action(async (treeName, destPath, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { checkout } = await import('./commands/checkout.js');
+      return checkout({ treeName, destPath, agentNames });
+    });
+
+  program
+    .command('mount <path>')
+    .description('mounts an external filesystem directory')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async (sourcePath, cmd) => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mount');
+      }
+      const { mount: mountCmd } = await import('./commands/mount.js');
+      return mountCmd({ sourcePath, name, agentNames, readOnly });
+    });
+
+  program
+    .command('mkscratch')
+    .description('creates a daemon-managed scratch mount')
+    .option(...commonOptions.as)
+    .option(...commonOptions.requiredName)
+    .option('--read-only', 'mount as read-only')
+    .action(async cmd => {
+      const { name, as: agentNames, readOnly } = cmd.opts();
+      if (!name) {
+        throw new Error('--name is required for mkscratch');
+      }
+      const { mkscratch } = await import('./commands/mkscratch.js');
+      return mkscratch({ name, agentNames, readOnly });
     });
 
   program
@@ -714,7 +770,7 @@ export const main = async rawArgs => {
     .option('-j,--json', 'Output as JOSN rather than simple text')
     .description(
       'prints paths for state, logs, caches, socket, pids\n' +
-      'specify just one part, or none to get them all',
+        'specify just one part, or none to get them all',
     )
     .action(async cmd => {
       const { json: asJSON = false } = cmd.opts();
@@ -793,11 +849,9 @@ export const main = async rawArgs => {
     .command('start')
     .description('start the endo daemon as a background service')
     .action(async cmd => {
-      const {
-      } = cmd.opts();
+      const {} = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start(undefined, {
-      });
+      await start(undefined, {});
     });
 
   program
@@ -808,9 +862,7 @@ export const main = async rawArgs => {
       'disable SES error taming (readable error traces)',
     )
     .action(async cmd => {
-      const {
-        feralErrors,
-      } = cmd.opts();
+      const { feralErrors } = cmd.opts();
       if (feralErrors) {
         process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
       }
@@ -891,7 +943,8 @@ export const main = async rawArgs => {
     });
 
   // Group commands by topic in the help screen.
-  installGroupedHelp(program,
+  installGroupedHelp(
+    program,
 
     {
       title: 'Daemon',
@@ -916,6 +969,10 @@ export const main = async rawArgs => {
         'cat',
         'follow',
         'store',
+        'checkin',
+        'checkout',
+        'mount',
+        'mkscratch',
         'locate',
         'remove',
         'move',
@@ -927,15 +984,7 @@ export const main = async rawArgs => {
 
     {
       title: 'Execution',
-      commands: [
-        'run',
-        'make',
-        'eval',
-        'spawn',
-        'bundle',
-        'install',
-        'open',
-      ],
+      commands: ['run', 'make', 'eval', 'spawn', 'bundle', 'install', 'open'],
     },
 
     {
@@ -946,7 +995,7 @@ export const main = async rawArgs => {
         'reply',
         'send-value',
         'dismiss',
-        'dismiss-all',
+        'clear',
         'request',
         'resolve',
         'reject',
@@ -961,21 +1010,13 @@ export const main = async rawArgs => {
 
     {
       title: 'Agents',
-      commands: [
-        'mkhost',
-        'mkguest',
-        'invite',
-        'accept',
-      ],
+      commands: ['mkhost', 'mkguest', 'invite', 'accept'],
     },
 
     {
       title: 'Configuration',
-      commands: [
-        'where',
-      ],
+      commands: ['where'],
     },
-
   );
 
   // Throw an error instead of exiting directly.

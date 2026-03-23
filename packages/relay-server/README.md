@@ -51,8 +51,8 @@ Use the `/network-ws-relay` slash command:
 
 ```sh
 # Install the network caplet (uses the default relay wss://endo-relay.fly.dev).
-# --powers HOST is required because the setup script calls makeUnconfined().
-endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers HOST
+# --powers @agent is required because the setup script calls makeUnconfined().
+endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers @agent
 ```
 
 ### Programmatically

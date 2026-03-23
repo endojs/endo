@@ -250,10 +250,7 @@ export const makeRelay = domain => {
           bridges.set(bkA, bridgeEntry);
           bridges.set(bkB, bridgeEntry);
 
-          sendBinary(
-            targetPeer.ws,
-            encodeIncoming(serverChId, conn.nodeId),
-          );
+          sendBinary(targetPeer.ws, encodeIncoming(serverChId, conn.nodeId));
           sendBinary(ws, encodeOpened(channelId));
         } else {
           if (!pendingOpens.has(targetHex)) {
@@ -339,7 +336,11 @@ export const makeRelay = domain => {
       const data =
         rawData instanceof ArrayBuffer
           ? new Uint8Array(rawData)
-          : new Uint8Array(/** @type {Buffer} */ (rawData).buffer, /** @type {Buffer} */ (rawData).byteOffset, /** @type {Buffer} */ (rawData).length);
+          : new Uint8Array(
+              /** @type {Buffer} */ (rawData).buffer,
+              /** @type {Buffer} */ (rawData).byteOffset,
+              /** @type {Buffer} */ (rawData).length,
+            );
       handleMessage(ws, data);
     });
 

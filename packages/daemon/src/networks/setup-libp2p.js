@@ -1,6 +1,6 @@
 /* global harden */
 // @ts-check
-// endo run --UNCONFINED packages/daemon/src/networks/setup-libp2p.js --powers HOST
+// endo run --UNCONFINED packages/daemon/src/networks/setup-libp2p.js --powers @agent
 
 import { E } from '@endo/eventual-send';
 

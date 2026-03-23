@@ -664,11 +664,12 @@ export const createSpacesGutter = ({
     if (!Array.isArray(obj.profilePath)) return null;
     if (!obj.profilePath.every(p => typeof p === 'string')) return null;
     // Mode is optional, default to 'inbox'
-    const mode = /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} */ (
-      typeof obj.mode === 'string' && KNOWN_MODES.has(obj.mode)
-        ? obj.mode
-        : 'inbox'
-    );
+    const mode =
+      /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} */ (
+        typeof obj.mode === 'string' && KNOWN_MODES.has(obj.mode)
+          ? obj.mode
+          : 'inbox'
+      );
     // Scheme is optional, default to 'auto'
     const scheme =
       typeof obj.scheme === 'string' && validSchemes.includes(obj.scheme)

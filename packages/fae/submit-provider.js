@@ -1,5 +1,5 @@
 // @ts-check
-// endo run --UNCONFINED submit-provider.js --powers AGENT \
+// endo run --UNCONFINED submit-provider.js --powers @agent \
 //   -E PROVIDER_NAME=default \
 //   -E LAL_HOST=https://api.anthropic.com \
 //   -E LAL_MODEL=claude-sonnet-4-6-20250514 \

@@ -41,7 +41,6 @@ async function makeAlice(fromBob, toBob) {
  * @param {Stream<undefined, any>} toAlice
  */
 async function makeBob(fromAlice, toAlice) {
-
   // Bob's CapTP message pump.
   const send = toAlice.next.bind(toAlice);
 
@@ -66,12 +65,8 @@ async function makeBob(fromAlice, toAlice) {
     await new Promise(resolve => setTimeout(resolve, 1_000));
   };
 
-  await Promise.allSettled([
-    serve(),
-    doCrimes(),
-  ]);
+  await Promise.allSettled([serve(), doCrimes()]);
 }
-
 
 (async () => {
   // Construct a fake duplex connection

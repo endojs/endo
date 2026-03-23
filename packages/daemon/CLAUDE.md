@@ -49,7 +49,50 @@ On restart, calling `provideGuest` with `introducedNames` on an already-existing
 
 ### Form flow
 
-A guest sends a form to HOST via `E(powers).form('HOST', title, fields)`. The host user submits via `E(agent).submit(messageNumber, values)`, which creates a `type: 'value'` message in the guest's inbox with `replyTo` pointing to the form's `messageId`.
+A guest sends a form to HOST via `E(powers).form('HOST', title, fields)`.
+The host user submits via `E(agent).submit(messageNumber, values)`,
+which creates a `type: 'value'` message in the guest's inbox with
+`replyTo` pointing to the form's `messageId`.
+
+### Resolve and reject
+
+Messages have different shapes per type.
+Code that resolves or rejects must branch on `message.type` before
+accessing type-specific fields:
+
+- `request` messages have a `resolverId` field — a persisted formula
+  identifier.
+  Look up the resolver via `provide()`.
+- `eval-proposal-reviewer` messages have a `responder` field — a live
+  `ERef<Responder>`, not persisted.
+- `definition` and `eval-proposal-proposer` messages cannot be
+  rejected or resolved.
+
+Blindly casting all messages to `Request` is a common source of bugs
+in `mail.js`.
+
+## Storage Concepts
+
+### ReadableTree
+
+Immutable, content-addressed snapshot created by `checkin`.
+Has `has()`, `list()`, `lookup()` methods.
+Formula type: `readable-tree`.
+
+### Mount
+
+Live, mutable daemon-side filesystem access created by
+`provideMount(path, petName, opts)`.
+Implemented in `src/mount.js`.
+Provides the NameHub interface (`followNameChanges`, `write`,
+`remove`, etc.) plus `snapshot()` and `readOnly()`.
+
+### ScratchMount
+
+Daemon-managed scratch directory via
+`provideScratchMount(petName)`.
+Same interface as Mount but the filesystem path is managed by the
+daemon rather than supplied by the user.
 
 ## Gateway
 

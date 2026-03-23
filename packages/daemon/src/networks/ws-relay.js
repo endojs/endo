@@ -131,8 +131,7 @@ export const make = async (
   let reconnectTimer = null;
   let stopped = false;
 
-  const { promise: stoppedPromise, resolve: resolveStopped } =
-    makePromiseKit();
+  const { promise: stoppedPromise, resolve: resolveStopped } = makePromiseKit();
 
   /**
    * @param {number} channelId
@@ -173,8 +172,11 @@ export const make = async (
       `Endo daemon accepted relay connection ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
     );
 
-    const { reader, writer, sink, closed, resolveClosed } =
-      makeChannelStreams(sendData, sendClose, channelId);
+    const { reader, writer, sink, closed, resolveClosed } = makeChannelStreams(
+      sendData,
+      sendClose,
+      channelId,
+    );
 
     channels.set(channelId, { sink, resolveClosed });
 
@@ -255,7 +257,7 @@ export const make = async (
   /**
    * @param {Uint8Array} data
    */
-  const dispatchFrame = (data) => {
+  const dispatchFrame = data => {
     const { type, payload } = decodeFrame(data);
     switch (type) {
       case MSG_INCOMING:
@@ -392,9 +394,7 @@ export const make = async (
 
   try {
     await connectToRelay();
-    console.log(
-      `Endo daemon started local ${protocol} network device`,
-    );
+    console.log(`Endo daemon started local ${protocol} network device`);
   } catch (err) {
     console.warn(
       `Endo daemon initial relay connection failed (will retry): ${/** @type {Error} */ (err).message}`,
@@ -422,8 +422,11 @@ export const make = async (
     const channelId = nextChannelId;
     nextChannelId += 1;
 
-    const { reader, writer, sink, closed, resolveClosed } =
-      makeChannelStreams(sendData, sendClose, channelId);
+    const { reader, writer, sink, closed, resolveClosed } = makeChannelStreams(
+      sendData,
+      sendClose,
+      channelId,
+    );
 
     channels.set(channelId, { sink, resolveClosed });
 
@@ -446,13 +449,7 @@ export const make = async (
       closed: capTpClosed,
       getBootstrap,
       close: closeCapTp,
-    } = makeNetstringCapTP(
-      'Endo',
-      writer,
-      reader,
-      cancelled,
-      localGateway,
-    );
+    } = makeNetstringCapTP('Endo', writer, reader, cancelled, localGateway);
 
     closed.then(
       () => closeCapTp(new Error('Relay channel closed')),

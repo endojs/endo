@@ -35,6 +35,8 @@ export const inboxComponent = async (
   /** Map from form messageId to its description, for value message rendering. */
   /** @type {Map<string, string>} */
   const formDescriptions = new Map();
+  /** @type {Map<string, Array<{name: string, secret: boolean}>>} */
+  const formFieldMeta = new Map();
 
   const selfLocator = await E(powers).locate('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
@@ -57,9 +59,25 @@ export const inboxComponent = async (
     if (conversationId) {
       const otherPartyId = isSent ? toId : fromId;
       if (otherPartyId !== conversationId) {
-        // ID didn't match directly — try matching by pet name
-        // (handles peer/remote/guest formula indirection)
-        if (conversationPetName) {
+        // Self-to-self messages (e.g. endow result delivery) belong to a
+        // conversation when their replyTo references a message already in
+        // this conversation thread.
+        const replyTo =
+          'replyTo' in message
+            ? /** @type {string} */ (message.replyTo)
+            : undefined;
+        if (
+          fromId === selfLocator &&
+          toId === selfLocator &&
+          replyTo &&
+          $parent.querySelector(
+            `.message-envelope[data-message-id="${CSS.escape(replyTo)}"]`,
+          )
+        ) {
+          // falls through — include in this conversation
+        } else if (conversationPetName) {
+          // ID didn't match directly — try matching by pet name
+          // (handles peer/remote/guest formula indirection)
           // eslint-disable-next-line no-await-in-loop
           const names = await E(powers).reverseLocate(otherPartyId);
           if (
@@ -347,15 +365,12 @@ export const inboxComponent = async (
       message.type === 'eval-proposal-reviewer' ||
       message.type === 'eval-proposal-proposer'
     ) {
-      const {
-        source,
-        codeNames,
-        edgeNames,
-        workerName,
-        settled,
-        resultId,
-        result,
-      } = message;
+      const { source, codeNames, edgeNames, workerName } = message;
+      // settled, resultId, and result are only present on reviewer
+      // messages; the proposer's sent receipt omits them.
+      const settled = 'settled' in message ? message.settled : undefined;
+      const resultId = 'resultId' in message ? message.resultId : undefined;
+      const result = 'result' in message ? message.result : undefined;
       const resultName = /** @type {string | undefined} */ (
         'resultName' in message ? message.resultName : undefined
       );
@@ -517,19 +532,17 @@ export const inboxComponent = async (
       };
 
       if (isSent) {
-        // Sender view - show status/result after receiver acts
-        settled.then(status => {
-          $actions.innerHTML = '';
-          if (status === 'fulfilled') {
-            $actions.appendChild(makeShowResultButton());
-          } else {
-            const $status = document.createElement('span');
-            $status.className = 'eval-proposal-status';
-            $status.classList.add('status-rejected');
-            $status.textContent = 'Rejected';
-            $actions.appendChild($status);
-          }
-        });
+        // Sender view — the proposer's sent receipt does not include
+        // settled/result promises, so show a static label.  If the
+        // proposer specified a resultName, the result is written to
+        // their directory once the reviewer grants.
+        const $status = document.createElement('span');
+        $status.className = 'eval-proposal-status';
+        $status.textContent = 'Proposed';
+        $actions.appendChild($status);
+        if (resultName) {
+          $actions.appendChild(makeShowResultButton());
+        }
       } else {
         // Receiver view - show Grant and Counter-proposal buttons
         const $grant = document.createElement('button');
@@ -583,46 +596,174 @@ export const inboxComponent = async (
         };
         $actions.appendChild($reject);
 
-        // Replace buttons with status when settled
-        settled.then(status => {
-          // Capture reason before clearing (only available if we rejected it)
-          const rejectionReason = $rejectReason.value.trim();
+        // Replace buttons with status when settled (reviewer messages only)
+        if (settled)
+          settled.then(status => {
+            // Capture reason before clearing (only available if we rejected it)
+            const rejectionReason = $rejectReason.value.trim();
 
-          // Clear existing buttons
-          $actions.innerHTML = '';
+            // Clear existing buttons
+            $actions.innerHTML = '';
 
-          const $status = document.createElement('span');
-          $status.className = 'eval-proposal-status';
+            const $status = document.createElement('span');
+            $status.className = 'eval-proposal-status';
 
-          if (status === 'fulfilled') {
-            $status.classList.add('status-granted');
-            $status.textContent = 'Granted';
-          } else {
-            $status.classList.add('status-rejected');
-            $status.textContent = 'Rejected';
-          }
+            if (status === 'fulfilled') {
+              $status.classList.add('status-granted');
+              $status.textContent = 'Granted';
+            } else {
+              $status.classList.add('status-rejected');
+              $status.textContent = 'Rejected';
+            }
 
-          $actions.appendChild($status);
+            $actions.appendChild($status);
 
-          // Show rejection reason if available
-          if (status === 'rejected' && rejectionReason) {
-            const $reason = document.createElement('span');
-            $reason.className = 'eval-proposal-rejection-reason';
-            $reason.textContent = `: ${rejectionReason}`;
-            $actions.appendChild($reason);
-          }
+            // Show rejection reason if available
+            if (status === 'rejected' && rejectionReason) {
+              const $reason = document.createElement('span');
+              $reason.className = 'eval-proposal-rejection-reason';
+              $reason.textContent = `: ${rejectionReason}`;
+              $actions.appendChild($reason);
+            }
 
-          if (status === 'fulfilled') {
-            $actions.appendChild(makeShowResultButton());
-          }
-        });
+            if (status === 'fulfilled') {
+              $actions.appendChild(makeShowResultButton());
+            }
+          });
       }
 
       $proposal.appendChild($actions);
       $body.appendChild($proposal);
+    } else if (message.type === 'definition') {
+      const { source, slots } = message;
+      assert(typeof source === 'string');
+
+      const $definition = document.createElement('div');
+      $definition.className = 'eval-proposal-message';
+
+      // Sender chip
+      if ($senderChip) {
+        const $chipLine = document.createElement('div');
+        $chipLine.className = 'eval-proposal-from';
+        $chipLine.appendChild($senderChip);
+        $chipLine.appendChild(document.createTextNode(' proposes to define:'));
+        $definition.appendChild($chipLine);
+      }
+
+      // Source code
+      const $codeWrapper = document.createElement('div');
+      $codeWrapper.className = 'md-paragraph md-code-fence-wrapper';
+      const $pre = document.createElement('pre');
+      $pre.className = 'md-code-fence';
+      const $label = document.createElement('span');
+      $label.className = 'md-code-fence-language';
+      $label.textContent = 'javascript';
+      $pre.appendChild($label);
+      const $code = document.createElement('code');
+      $code.className = 'language-javascript';
+      $code.dataset.language = 'javascript';
+      $code.appendChild(highlightCode(source, 'javascript'));
+      $pre.appendChild($code);
+      $codeWrapper.appendChild($pre);
+      $definition.appendChild($codeWrapper);
+
+      // Slot bindings
+      const slotEntries = Object.entries(
+        /** @type {Record<string, { label: string }>} */ (slots),
+      );
+      /** @type {Record<string, HTMLInputElement>} */
+      const slotInputs = {};
+
+      if (slotEntries.length > 0) {
+        const $slotsSection = document.createElement('div');
+        $slotsSection.className = 'eval-proposal-endowments';
+
+        const $slotsLabel = document.createElement('div');
+        $slotsLabel.className = 'eval-proposal-endowments-label';
+        $slotsLabel.textContent = 'Slots to fill:';
+        $slotsSection.appendChild($slotsLabel);
+
+        const $slotsList = document.createElement('div');
+        $slotsList.className = 'eval-proposal-endowments-list';
+
+        for (const [codeName, { label }] of slotEntries) {
+          const $row = document.createElement('div');
+          $row.className = 'eval-proposal-mapping';
+
+          const $codeName = document.createElement('code');
+          $codeName.textContent = codeName;
+          $row.appendChild($codeName);
+
+          const $arrow = document.createElement('span');
+          $arrow.textContent = ' ← ';
+          $row.appendChild($arrow);
+
+          const $input = document.createElement('input');
+          $input.type = 'text';
+          $input.className = 'eval-proposal-reject-reason';
+          $input.placeholder = label;
+          $row.appendChild($input);
+          slotInputs[codeName] = $input;
+
+          $slotsList.appendChild($row);
+        }
+        $slotsSection.appendChild($slotsList);
+        $definition.appendChild($slotsSection);
+      }
+
+      // Actions
+      const $actions = document.createElement('div');
+      $actions.className = 'eval-proposal-actions';
+
+      if (!isSent) {
+        const doSubmit = () => {
+          /** @type {Record<string, string>} */
+          const bindings = {};
+          for (const [codeName, $input] of Object.entries(slotInputs)) {
+            const val = $input.value.trim();
+            if (!val) {
+              $error.innerText = ` Missing binding for ${codeName}`;
+              return;
+            }
+            bindings[codeName] = val;
+          }
+          $error.innerText = '';
+          E(powers)
+            .endow(number, bindings)
+            .catch(error => {
+              $error.innerText = ` ${error.message}`;
+            });
+        };
+
+        // Enter key in any slot input submits the form
+        for (const $input of Object.values(slotInputs)) {
+          $input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              doSubmit();
+            }
+          });
+        }
+
+        const $submit = document.createElement('button');
+        $submit.className = 'eval-proposal-grant';
+        $submit.textContent = 'Submit';
+        $submit.onclick = doSubmit;
+        $actions.appendChild($submit);
+      }
+
+      $definition.appendChild($actions);
+      $body.appendChild($definition);
     } else if (message.type === 'form') {
       const { description, fields, messageId: formMsgId } = message;
       formDescriptions.set(String(formMsgId), String(description));
+      formFieldMeta.set(
+        String(formMsgId),
+        fields.map(f => ({
+          name: /** @type {{name: string}} */ (f).name,
+          secret: /** @type {{secret?: boolean}} */ (f).secret === true,
+        })),
+      );
 
       const $form = document.createElement('div');
       $form.className = 'form-request-message';
@@ -646,7 +787,7 @@ export const inboxComponent = async (
       $fieldsContainer.className = 'form-request-fields';
 
       const fieldArray =
-        /** @type {Array<{name: string, label: string, example?: string, default?: string}>} */ (
+        /** @type {Array<{name: string, label: string, example?: string, default?: string, secret?: boolean}>} */ (
           fields
         );
 
@@ -661,7 +802,7 @@ export const inboxComponent = async (
         $label.textContent = field.label || field.name;
 
         const $input = document.createElement('input');
-        $input.type = 'text';
+        $input.type = field.secret ? 'password' : 'text';
         $input.className = 'form-request-field-input';
         $input.placeholder = field.example || field.name;
         if (field.default) {
@@ -673,7 +814,40 @@ export const inboxComponent = async (
 
         fieldInputs[field.name] = $input;
         $row.appendChild($label);
-        $row.appendChild($input);
+
+        if (field.secret) {
+          const $group = document.createElement('div');
+          $group.className = 'form-field-input-group';
+          $group.appendChild($input);
+
+          const $toggle = document.createElement('button');
+          $toggle.type = 'button';
+          $toggle.className = 'form-field-toggle';
+          $toggle.textContent = 'Show';
+          $toggle.onclick = () => {
+            const hidden = $input.type === 'password';
+            $input.type = hidden ? 'text' : 'password';
+            $toggle.textContent = hidden ? 'Hide' : 'Show';
+          };
+          $group.appendChild($toggle);
+
+          const $copy = document.createElement('button');
+          $copy.type = 'button';
+          $copy.className = 'form-field-copy';
+          $copy.textContent = 'Copy';
+          $copy.onclick = () => {
+            navigator.clipboard.writeText($input.value);
+            $copy.textContent = 'Copied';
+            setTimeout(() => {
+              $copy.textContent = 'Copy';
+            }, 1500);
+          };
+          $group.appendChild($copy);
+
+          $row.appendChild($group);
+        } else {
+          $row.appendChild($input);
+        }
         $fieldsContainer.appendChild($row);
       }
       $form.appendChild($fieldsContainer);
@@ -743,11 +917,84 @@ export const inboxComponent = async (
       const $inlineValue = document.createElement('div');
       $inlineValue.className = 'form-request-inline-value';
       $valueMsg.appendChild($inlineValue);
+
+      const fieldMeta =
+        valueReplyTo !== undefined
+          ? formFieldMeta.get(String(valueReplyTo))
+          : undefined;
+      const secretFieldNames = new Set(
+        (fieldMeta || []).filter(f => f.secret).map(f => f.name),
+      );
+
       E(powers)
         .lookupById(valueId)
         .then(
           value => {
-            $inlineValue.appendChild(renderValue(value));
+            if (
+              secretFieldNames.size > 0 &&
+              value !== null &&
+              typeof value === 'object'
+            ) {
+              const record = /** @type {Record<string, unknown>} */ (value);
+              const $fields = document.createElement('div');
+              $fields.className = 'form-request-fields';
+              for (const key of Object.keys(record)) {
+                const $row = document.createElement('div');
+                $row.className = 'form-request-field-row';
+
+                const $label = document.createElement('span');
+                $label.className = 'form-request-field-label';
+                $label.textContent = key;
+                $row.appendChild($label);
+
+                if (secretFieldNames.has(key)) {
+                  const $group = document.createElement('div');
+                  $group.className = 'form-field-input-group';
+
+                  const $masked = document.createElement('span');
+                  $masked.className = 'form-value-secret';
+                  $masked.textContent =
+                    '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                  $group.appendChild($masked);
+
+                  const realValue = String(record[key]);
+
+                  const $toggle = document.createElement('button');
+                  $toggle.type = 'button';
+                  $toggle.className = 'form-field-toggle';
+                  $toggle.textContent = 'Show';
+                  $toggle.onclick = () => {
+                    const isHidden = $masked.textContent !== realValue;
+                    $masked.textContent = isHidden
+                      ? realValue
+                      : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                    $toggle.textContent = isHidden ? 'Hide' : 'Show';
+                  };
+                  $group.appendChild($toggle);
+
+                  const $copy = document.createElement('button');
+                  $copy.type = 'button';
+                  $copy.className = 'form-field-copy';
+                  $copy.textContent = 'Copy';
+                  $copy.onclick = () => {
+                    navigator.clipboard.writeText(realValue);
+                    $copy.textContent = 'Copied';
+                    setTimeout(() => {
+                      $copy.textContent = 'Copy';
+                    }, 1500);
+                  };
+                  $group.appendChild($copy);
+
+                  $row.appendChild($group);
+                } else {
+                  $row.appendChild(renderValue(record[key]));
+                }
+                $fields.appendChild($row);
+              }
+              $inlineValue.appendChild($fields);
+            } else {
+              $inlineValue.appendChild(renderValue(value));
+            }
           },
           (/** @type {Error} */ err) => {
             $inlineValue.innerText = `Error: ${err.message}`;
@@ -768,7 +1015,7 @@ export const inboxComponent = async (
             value => {
               showValue(value, valueId, undefined, {
                 number,
-                edgeName: 'VALUE',
+                edgeName: 'value',
               });
             },
             (/** @type {Error} */ err) => {

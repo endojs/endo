@@ -203,6 +203,34 @@ export type ReadableBlobDeferredTaskParams = {
   readableBlobId: FormulaIdentifier;
 };
 
+type ReadableTreeFormula = {
+  type: 'readable-tree';
+  content: string;
+};
+
+export type ReadableTreeDeferredTaskParams = {
+  readableTreeId: FormulaIdentifier;
+};
+
+type MountFormula = {
+  type: 'mount';
+  path: string;
+  readOnly: boolean;
+};
+
+type ScratchMountFormula = {
+  type: 'scratch-mount';
+  readOnly: boolean;
+};
+
+export type MountDeferredTaskParams = {
+  mountId: FormulaIdentifier;
+};
+
+export type ScratchMountDeferredTaskParams = {
+  scratchMountId: FormulaIdentifier;
+};
+
 type LookupFormula = {
   type: 'lookup';
 
@@ -388,6 +416,9 @@ export type Formula =
   | MarshalFormula
   | EvalFormula
   | ReadableBlobFormula
+  | ReadableTreeFormula
+  | MountFormula
+  | ScratchMountFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
@@ -456,9 +487,6 @@ export type DefineRequest = MessageBase & {
   replyTo?: FormulaNumber;
   source: string;
   slots: Record<string, { label: string; pattern?: unknown }>;
-  promiseId: FormulaIdentifier;
-  resolverId: FormulaIdentifier;
-  settled: Promise<'fulfilled' | 'rejected'>;
 };
 
 export type FormField = {
@@ -466,6 +494,7 @@ export type FormField = {
   label: string;
   example?: string;
   pattern?: unknown;
+  secret?: boolean;
 };
 
 export type Form = MessageBase & {
@@ -490,16 +519,19 @@ export type EvalProposalBase = {
   edgeNames: Array<string>;
   ids: Array<string>;
   workerName?: string;
-  settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<string | undefined>;
-  result: Promise<unknown>;
 };
 
 export type EvalProposalReviewer = EvalProposalBase & {
   type: 'eval-proposal-reviewer';
   responder: ERef<Responder>;
+  settled: Promise<'fulfilled' | 'rejected'>;
+  resultId: Promise<string | undefined>;
+  result: Promise<unknown>;
 };
 
+// The proposer message is a sent receipt. It intentionally omits
+// settled, resultId, and result so the sender cannot observe the
+// reviewer's endowments or actions.
 export type EvalProposalProposer = EvalProposalBase & {
   type: 'eval-proposal-proposer';
   resultName?: string;
@@ -780,7 +812,12 @@ export interface EndoDirectory extends NameHub {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
 }
 
-export type MakeDirectoryNode = (petStore: PetStore, agentNodeNumber: NodeNumber, isLocalKey: (node: string) => boolean, getNetworkAddresses: () => Promise<string[]>) => EndoDirectory;
+export type MakeDirectoryNode = (
+  petStore: PetStore,
+  agentNodeNumber: NodeNumber,
+  isLocalKey: (node: string) => boolean,
+  getNetworkAddresses: () => Promise<string[]>,
+) => EndoDirectory;
 
 export interface Mail {
   handle: () => Handle;
@@ -834,7 +871,7 @@ export interface Mail {
   define(
     source: string,
     slots: Record<string, { label: string; pattern?: unknown }>,
-  ): Promise<unknown>;
+  ): Promise<void>;
   form(
     recipientNameOrPath: string | string[],
     description: string,
@@ -843,8 +880,8 @@ export interface Mail {
   getDefineRequest(messageNumber: bigint): {
     source: string;
     slots: Record<string, { label: string; pattern?: unknown }>;
-    resolverId: FormulaIdentifier;
     guestHandleId: string;
+    messageId: FormulaNumber;
   };
   getForm(messageNumber: bigint): {
     description: string;
@@ -856,6 +893,15 @@ export interface Mail {
   sendValue(
     messageNumber: bigint,
     petNameOrPath: string | string[],
+  ): Promise<void>;
+  /**
+   * Deliver a value message to the local inbox only, bypassing the remote
+   * recipient.  Used by endow() so the eval result appears in the host's
+   * conversation thread without leaking to the proposer.
+   */
+  deliverValueById(
+    messageNumber: bigint,
+    valueId: FormulaIdentifier,
   ): Promise<void>;
   // Eval-proposal workflow
   evaluate(
@@ -999,7 +1045,7 @@ export interface EndoGuest extends EndoAgent {
   define(
     source: string,
     slots: Record<string, { label: string; pattern?: unknown }>,
-  ): Promise<unknown>;
+  ): Promise<void>;
   form(
     recipientNameOrPath: string | string[],
     description: string,
@@ -1277,6 +1323,9 @@ export type FilePowers = {
   joinPath: (...components: Array<string>) => string;
   removePath: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
+  realPath: (path: string) => Promise<string>;
+  isDirectory: (path: string) => Promise<boolean>;
+  exists: (path: string) => Promise<boolean>;
 };
 
 export type AssertValidNameFn = (name: string) => void;
@@ -1346,13 +1395,11 @@ export type RootKeypairDescriptor = {
 };
 
 export type DaemonicPersistencePowers = {
+  statePath: string;
   initializePersistence: () => Promise<void>;
   provideRootNonce: () => Promise<RootNonceDescriptor>;
   provideRootKeypair: () => Promise<RootKeypairDescriptor>;
-  makeContentSha256Store: () => {
-    store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
-    fetch: (sha256: string) => EndoReadable;
-  };
+  makeContentStore: () => import('@endo/platform/fs/lite').SnapshotStore;
   readFormula: (formulaNumber: FormulaNumber) => Promise<Formula>;
   writeFormula: (
     formulaNumber: FormulaNumber,
@@ -1404,6 +1451,7 @@ export type DaemonicPowers = {
   petStore: PetStorePowers;
   persistence: DaemonicPersistencePowers;
   control: DaemonicControlPowers;
+  filePowers: FilePowers;
 };
 
 type FormulateResult<T> = Promise<{
@@ -1628,6 +1676,22 @@ export interface DaemonCore {
     readerRef: ERef<AsyncIterableIterator<string>>,
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
   ) => FormulateResult<FarRef<EndoReadable>>;
+
+  checkinTree: (
+    remoteTree: unknown,
+    deferredTasks: DeferredTasks<ReadableTreeDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
+
+  formulateMount: (
+    mountPath: string,
+    readOnly: boolean,
+    deferredTasks: DeferredTasks<MountDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
+
+  formulateScratchMount: (
+    readOnly: boolean,
+    deferredTasks: DeferredTasks<ScratchMountDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,

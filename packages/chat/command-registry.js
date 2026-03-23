@@ -86,7 +86,7 @@ export const COMMANDS = {
     ],
     submitLabel: 'Dismiss',
   },
-  'clear': {
+  clear: {
     name: 'clear',
     label: 'Clear',
     description: 'Dismiss all messages',
@@ -417,6 +417,48 @@ export const COMMANDS = {
     ],
     submitLabel: 'Create',
   },
+  mount: {
+    name: 'mount',
+    label: 'Mount',
+    description: 'Mount a daemon filesystem directory',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'path',
+        label: 'Path',
+        type: 'text',
+        required: true,
+        placeholder: '/path/on/daemon',
+      },
+      {
+        name: 'petName',
+        label: 'Save as',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'mount-name',
+      },
+    ],
+    submitLabel: 'Mount',
+  },
+  mkscratch: {
+    name: 'mkscratch',
+    label: 'Make Scratch',
+    description: 'Create a daemon-managed scratch mount',
+    category: 'storage',
+    mode: 'inline',
+    aliases: ['scratch'],
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'scratch-name',
+      },
+    ],
+    submitLabel: 'Create',
+  },
 
   locate: {
     name: 'locate',
@@ -434,6 +476,43 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Locate',
+  },
+
+  checkin: {
+    name: 'checkin',
+    label: 'Check In',
+    description: 'Check in a local directory as a readable tree',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Save as',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'tree-name',
+      },
+    ],
+    submitLabel: 'Check In',
+    aliases: ['ci'],
+  },
+  checkout: {
+    name: 'checkout',
+    label: 'Check Out',
+    description: 'Check out a readable tree to a local directory',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Tree name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'tree-name',
+      },
+    ],
+    submitLabel: 'Check Out',
+    aliases: ['co'],
   },
 
   dm: {

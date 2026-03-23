@@ -366,7 +366,7 @@ export const spawnWorkerLoop = async (
     await E(powers).send('@host', ['Fae agent ready.'], [], []);
 
     /** @type {string | undefined} */
-    const selfId = await E(powers).identify('@self');
+    const selfLocator = await E(powers).locate('@self');
     const cancelled = await getCancelled();
     const cancelledSignal = cancelled
       ? cancelled.then(
@@ -409,7 +409,7 @@ export const spawnWorkerLoop = async (
         names,
       } = /** @type {any} */ (message);
 
-      if (fromId === selfId) {
+      if (fromId === selfLocator) {
         continue;
       }
 
@@ -558,11 +558,11 @@ export const make = async (guestPowers, _context) => {
       });
 
       // 3. Write capability references into the driver's namespace.
-      const providerId = await E(powers).identify('llm-provider');
-      await E(driverGuest).write('llm-provider', providerId);
+      const providerLocator = await E(powers).locate('llm-provider');
+      await E(driverGuest).write('llm-provider', providerLocator);
 
-      const agentId = await E(hostAgent).identify(profileName);
-      await E(driverGuest).write('agent', agentId);
+      const agentLocator = await E(hostAgent).locate(profileName);
+      await E(driverGuest).write('agent', agentLocator);
 
       // 4. Launch the driver caplet.
       await E(hostAgent).makeUnconfined('@main', driverSpecifier, {

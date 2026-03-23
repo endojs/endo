@@ -632,10 +632,47 @@ export const makeHelp = (helpText, fallbacks = []) => {
   };
   return help;
 };
+/** @type {HelpText} */
+export const readableTreeHelp = {
+  '': `\
+ReadableTree - A read-only tree of files and subdirectories.
+
+An immutable directory: entries cannot be added, removed, or modified.
+lookup() returns EndoReadable values for files and nested ReadableTree
+values for subdirectories.`,
+
+  help: `\
+help(methodName?) -> string
+Get documentation for this interface or a specific method.`,
+
+  has: `\
+has(...names) -> Promise<boolean>
+Check if an entry exists at the given path.
+names: string[] - Path segments.
+Example: has("index.html") → true
+Example: has("assets", "style.css") → true`,
+
+  list: `\
+list(...names) -> Promise<string[]>
+List entry names at the given path (or root).
+names: string[] - Path segments (optional, defaults to root).
+Example: list() → ["index.html", "app.js", "assets"]
+Example: list("assets") → ["style.css", "logo.png"]`,
+
+  lookup: `\
+lookup(nameOrPath) -> Promise<EndoReadable | ReadableTree>
+Get the value at a name or path.
+nameOrPath: string | string[] - Name or path segments.
+Returns EndoReadable for files, ReadableTree for subdirectories.
+Example: lookup("index.html") → EndoReadable
+Example: lookup(["assets", "style.css"]) → EndoReadable`,
+};
+
 harden(directoryHelp);
 harden(mailHelp);
 harden(guestHelp);
 harden(hostHelp);
 harden(blobHelp);
+harden(readableTreeHelp);
 harden(endoHelp);
 harden(makeHelp);

@@ -9,7 +9,7 @@ import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
-import { E } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -25,7 +25,11 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
-import { formatLocator, parseLocator, addressesFromLocator } from '../src/locator.js';
+import {
+  formatLocator,
+  parseLocator,
+  addressesFromLocator,
+} from '../src/locator.js';
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
@@ -1013,8 +1017,16 @@ test('guest facet receives a message for host', async t => {
   t.deepEqual(
     guestInbox.map(({ type, from, to }) => ({ type, from, to })),
     [
-      { type: 'request', from: guestLocatorFromGuest, to: hostLocatorFromGuest },
-      { type: 'package', from: guestLocatorFromGuest, to: hostLocatorFromGuest },
+      {
+        type: 'request',
+        from: guestLocatorFromGuest,
+        to: hostLocatorFromGuest,
+      },
+      {
+        type: 'package',
+        from: guestLocatorFromGuest,
+        to: hostLocatorFromGuest,
+      },
     ],
   );
 });
@@ -2609,7 +2621,6 @@ test('locate remote value', async t => {
   await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
 
-
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueLocator);
 
@@ -2687,7 +2698,6 @@ test('reverse locate remote value', async t => {
   // create value to share
   await E(hostB).evaluate('@main', '"hello, world!"', [], [], ['salutations']);
   const hostBValueLocator = await E(hostB).locate('salutations');
-
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueLocator);
@@ -3822,4 +3832,733 @@ test.serial('formula write failure does not leak into graph', async t => {
   await E(host).provideGuest('healthy-guest');
   const namesWithGuest = await E(host).list();
   t.true(namesWithGuest.includes('healthy-guest'));
+});
+
+// readable-tree tests
+
+/**
+ * Helper: create a Far blob Exo from a string.
+ * @param {string} content
+ */
+const makeFarBlob = content => {
+  const bytes = new TextEncoder().encode(content);
+  return Far('TestBlob', {
+    streamBase64: () => makeReaderRef([bytes]),
+  });
+};
+
+/**
+ * Helper: create a Far tree Exo from an entries object.
+ * Entries map name → Far blob or Far tree.
+ * @param {Record<string, object>} children
+ */
+const makeFarTree = children => {
+  const sortedNames = Object.keys(children).sort();
+  return Far('TestTree', {
+    list: async () => sortedNames,
+    lookup: async (/** @type {string} */ name) => {
+      if (!Object.hasOwn(children, name)) {
+        throw new TypeError(`Unknown name: ${JSON.stringify(name)}`);
+      }
+      return children[name];
+    },
+    has: async (/** @type {string} */ name) => Object.hasOwn(children, name),
+  });
+};
+
+test('store readable tree with blobs', async t => {
+  const { host } = await prepareHost(t);
+
+  // Build a Far tree with two blobs.
+  const remoteTree = makeFarTree({
+    'hello.txt': makeFarBlob('hello'),
+    'world.txt': makeFarBlob('world'),
+  });
+
+  await E(host).storeTree(remoteTree, 'my-tree');
+
+  // Verify the tree.
+  const tree = await E(host).lookup(['my-tree']);
+  const names = await E(tree).list();
+  t.deepEqual(names, ['hello.txt', 'world.txt']);
+
+  // Verify has().
+  t.true(await E(tree).has('hello.txt'));
+  t.true(await E(tree).has('world.txt'));
+  t.false(await E(tree).has('missing.txt'));
+
+  // Verify lookup() returns readable blobs.
+  const blob1 = await E(tree).lookup('hello.txt');
+  const text1 = await E(blob1).text();
+  t.is(text1, 'hello');
+
+  const blob2 = await E(tree).lookup('world.txt');
+  const text2 = await E(blob2).text();
+  t.is(text2, 'world');
+});
+
+test('readable tree lookup with array path', async t => {
+  const { host } = await prepareHost(t);
+
+  // Build a nested Far tree.
+  const remoteTree = makeFarTree({
+    subdir: makeFarTree({
+      'file.txt': makeFarBlob('nested content'),
+    }),
+  });
+
+  await E(host).storeTree(remoteTree, 'root-tree');
+
+  // Navigate with array path.
+  const tree = await E(host).lookup(['root-tree']);
+  const file = await E(tree).lookup(['subdir', 'file.txt']);
+  const text = await E(file).text();
+  t.is(text, 'nested content');
+
+  // has() with multi-segment path.
+  t.true(await E(tree).has('subdir', 'file.txt'));
+  t.false(await E(tree).has('subdir', 'missing.txt'));
+});
+
+test('readable tree persists across restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const remoteTree = makeFarTree({
+      'data.txt': makeFarBlob('persisted'),
+    });
+    await E(host).storeTree(remoteTree, 'persist-tree');
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const tree = await E(host).lookup(['persist-tree']);
+    const names = await E(tree).list();
+    t.deepEqual(names, ['data.txt']);
+    const blob = await E(tree).lookup('data.txt');
+    const text = await E(blob).text();
+    t.is(text, 'persisted');
+  }
+});
+
+test('readable tree empty entries', async t => {
+  const { host } = await prepareHost(t);
+
+  const remoteTree = makeFarTree({});
+  await E(host).storeTree(remoteTree, 'empty-tree');
+  const tree = await E(host).lookup(['empty-tree']);
+  const names = await E(tree).list();
+  t.deepEqual(names, []);
+});
+
+test('readable tree lookup unknown name throws', async t => {
+  const { host } = await prepareHost(t);
+
+  const remoteTree = makeFarTree({});
+  await E(host).storeTree(remoteTree, 'empty-tree2');
+  const tree = await E(host).lookup(['empty-tree2']);
+  await t.throwsAsync(E(tree).lookup('missing'), {
+    message: /Unknown name/,
+  });
+});
+
+// mount tests
+
+/**
+ * Helper: create a temporary directory with files for mount tests.
+ *
+ * @param {string} basePath
+ * @param {Record<string, string>} files - Map of relative path to content.
+ */
+const createMountFixture = async (basePath, files) => {
+  await fs.promises.mkdir(basePath, { recursive: true });
+  for (const [relPath, content] of Object.entries(files)) {
+    const fullPath = path.join(basePath, relPath);
+    const dir = path.dirname(fullPath);
+    await fs.promises.mkdir(dir, { recursive: true });
+    await fs.promises.writeFile(fullPath, content, 'utf-8');
+  }
+};
+
+test('mount external directory - list and has', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-list');
+  await createMountFixture(mountPath, {
+    'hello.txt': 'hello world',
+    'data.json': '{"key": "value"}',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount');
+  const mount = await E(host).lookup(['test-mount']);
+
+  // has() returns true for root.
+  t.true(await E(mount).has());
+
+  // list() returns sorted entries.
+  const entries = await E(mount).list();
+  t.deepEqual(entries, ['data.json', 'hello.txt']);
+
+  // has() works for specific files.
+  t.true(await E(mount).has('hello.txt'));
+  t.false(await E(mount).has('missing.txt'));
+
+  // Cross-reference: exo list matches actual filesystem.
+  const actualEntries = await fs.promises.readdir(mountPath);
+  t.deepEqual(actualEntries.sort(), entries);
+});
+
+test('mount external directory - lookup file', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-lookup');
+  await createMountFixture(mountPath, {
+    'greeting.txt': 'hello from mount',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-lookup');
+  const mount = await E(host).lookup(['test-mount-lookup']);
+
+  const file = await E(mount).lookup('greeting.txt');
+  const text = await E(file).text();
+  t.is(text, 'hello from mount');
+
+  // Cross-reference: exo text matches actual file on disk.
+  const actual = await fs.promises.readFile(
+    path.join(mountPath, 'greeting.txt'),
+    'utf-8',
+  );
+  t.is(actual, text);
+});
+
+test('mount external directory - lookup subdirectory', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-subdir');
+  await createMountFixture(mountPath, {
+    'src/index.js': 'console.log("hi")',
+    'src/utils.js': 'export default {}',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-subdir');
+  const mount = await E(host).lookup(['test-mount-subdir']);
+
+  const srcDir = await E(mount).lookup('src');
+  const srcEntries = await E(srcDir).list();
+  t.deepEqual(srcEntries, ['index.js', 'utils.js']);
+
+  const indexFile = await E(srcDir).lookup('index.js');
+  const indexText = await E(indexFile).text();
+  t.is(indexText, 'console.log("hi")');
+});
+
+test('mount external directory - write and remove', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-write');
+  await createMountFixture(mountPath, {});
+
+  await E(host).provideMount(mountPath, 'test-mount-write');
+  const mount = await E(host).lookup(['test-mount-write']);
+
+  // Write a file.
+  await E(mount).write(['new-file.txt'], 'new content');
+  t.true(await E(mount).has('new-file.txt'));
+
+  const file = await E(mount).lookup('new-file.txt');
+  const text = await E(file).text();
+  t.is(text, 'new content');
+
+  // Cross-reference: written content exists on actual filesystem.
+  const actualWrite = await fs.promises.readFile(
+    path.join(mountPath, 'new-file.txt'),
+    'utf-8',
+  );
+  t.is(actualWrite, 'new content');
+
+  // Remove the file.
+  await E(mount).remove(['new-file.txt']);
+  t.false(await E(mount).has('new-file.txt'));
+
+  // Cross-reference: file is actually gone from disk.
+  await t.throwsAsync(
+    fs.promises.access(path.join(mountPath, 'new-file.txt')),
+  );
+});
+
+test('mount external directory - write creates parent directories', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-mkparents');
+  await createMountFixture(mountPath, {});
+
+  await E(host).provideMount(mountPath, 'test-mount-mkparents');
+  const mount = await E(host).lookup(['test-mount-mkparents']);
+
+  await E(mount).write(['a', 'b', 'c.txt'], 'deep content');
+  t.true(await E(mount).has('a'));
+  t.true(await E(mount).has('a', 'b'));
+  t.true(await E(mount).has('a', 'b', 'c.txt'));
+
+  const file = await E(mount).lookup(['a', 'b', 'c.txt']);
+  const text = await E(file).text();
+  t.is(text, 'deep content');
+
+  // Cross-reference: parent directories and file exist on disk.
+  const deepStat = await fs.promises.stat(
+    path.join(mountPath, 'a', 'b', 'c.txt'),
+  );
+  t.true(deepStat.isFile());
+  const parentStat = await fs.promises.stat(path.join(mountPath, 'a', 'b'));
+  t.true(parentStat.isDirectory());
+  const actualDeep = await fs.promises.readFile(
+    path.join(mountPath, 'a', 'b', 'c.txt'),
+    'utf-8',
+  );
+  t.is(actualDeep, 'deep content');
+});
+
+test('mount external directory - move', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-move');
+  await createMountFixture(mountPath, {
+    'original.txt': 'move me',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-move');
+  const mount = await E(host).lookup(['test-mount-move']);
+
+  await E(mount).move(['original.txt'], ['renamed.txt']);
+  t.false(await E(mount).has('original.txt'));
+  t.true(await E(mount).has('renamed.txt'));
+
+  const file = await E(mount).lookup('renamed.txt');
+  const text = await E(file).text();
+  t.is(text, 'move me');
+
+  // Cross-reference: old path gone, new path exists on disk.
+  await t.throwsAsync(
+    fs.promises.access(path.join(mountPath, 'original.txt')),
+  );
+  const actualRenamed = await fs.promises.readFile(
+    path.join(mountPath, 'renamed.txt'),
+    'utf-8',
+  );
+  t.is(actualRenamed, 'move me');
+});
+
+test('mount external directory - makeDirectory', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-mkdir');
+  await createMountFixture(mountPath, {});
+
+  await E(host).provideMount(mountPath, 'test-mount-mkdir');
+  const mount = await E(host).lookup(['test-mount-mkdir']);
+
+  await E(mount).makeDirectory(['sub', 'deep']);
+  t.true(await E(mount).has('sub'));
+  t.true(await E(mount).has('sub', 'deep'));
+
+  // Cross-reference: directories actually exist on disk.
+  const subStat = await fs.promises.stat(path.join(mountPath, 'sub'));
+  t.true(subStat.isDirectory());
+  const deepStat = await fs.promises.stat(path.join(mountPath, 'sub', 'deep'));
+  t.true(deepStat.isDirectory());
+});
+
+test('mount read-only rejects writes', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-ro');
+  await createMountFixture(mountPath, {
+    'existing.txt': 'do not modify',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-ro', { readOnly: true });
+  const mount = await E(host).lookup(['test-mount-ro']);
+
+  // Reading should work.
+  const entries = await E(mount).list();
+  t.deepEqual(entries, ['existing.txt']);
+
+  // Writing should throw.
+  await t.throwsAsync(E(mount).write(['new.txt'], 'fail'), {
+    message: /read-only/,
+  });
+  await t.throwsAsync(E(mount).remove(['existing.txt']), {
+    message: /read-only/,
+  });
+  await t.throwsAsync(E(mount).makeDirectory(['nope']), {
+    message: /read-only/,
+  });
+
+  // Cross-reference: filesystem unchanged after rejected writes.
+  const actualEntries = await fs.promises.readdir(mountPath);
+  t.deepEqual(actualEntries, ['existing.txt']);
+});
+
+test('mount readOnly() attenuation', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-attenuate');
+  await createMountFixture(mountPath, {
+    'file.txt': 'content',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-attenuate');
+  const mount = await E(host).lookup(['test-mount-attenuate']);
+
+  const roMount = await E(mount).readOnly();
+
+  // Reading should work through attenuated view.
+  const entries = await E(roMount).list();
+  t.deepEqual(entries, ['file.txt']);
+
+  // Writing should fail through attenuated view.
+  await t.throwsAsync(E(roMount).write(['new.txt'], 'fail'), {
+    message: /read-only/,
+  });
+});
+
+test('mount dot-dot navigation clamped at root', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-dotdot');
+  await createMountFixture(mountPath, {
+    'inside.txt': 'safe',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-dotdot');
+  const mount = await E(host).lookup(['test-mount-dotdot']);
+
+  // Navigating with .. should be clamped at root.
+  t.true(await E(mount).has('..', 'inside.txt'));
+
+  // has() on path that would escape should return false.
+  // (.. is clamped, so '..' from root stays at root)
+  const entries = await E(mount).list('..');
+  t.deepEqual(entries, ['inside.txt']);
+});
+
+test('scratch mount - create and use', async t => {
+  const { host, config } = await prepareHost(t);
+
+  await E(host).provideScratchMount('test-scratch');
+  const scratch = await E(host).lookup(['test-scratch']);
+
+  // Initially empty.
+  const entries = await E(scratch).list();
+  t.deepEqual(entries, []);
+
+  // Write a file.
+  await E(scratch).write(['notes.txt'], 'scratch content');
+  t.true(await E(scratch).has('notes.txt'));
+
+  const file = await E(scratch).lookup('notes.txt');
+  const text = await E(file).text();
+  t.is(text, 'scratch content');
+
+  // Cross-reference: scratch backing directory exists under statePath/mounts/.
+  const mountsDir = path.join(config.statePath, 'mounts');
+  const mountsDirEntries = await fs.promises.readdir(mountsDir);
+  t.true(mountsDirEntries.length > 0, 'scratch backing dir was created');
+});
+
+test('scratch mount persists across restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).provideScratchMount('persist-scratch');
+    const scratch = await E(host).lookup(['persist-scratch']);
+    await E(scratch).write(['data.txt'], 'survives restart');
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const scratch = await E(host).lookup(['persist-scratch']);
+    const entries = await E(scratch).list();
+    t.deepEqual(entries, ['data.txt']);
+    const file = await E(scratch).lookup('data.txt');
+    const text = await E(file).text();
+    t.is(text, 'survives restart');
+  }
+});
+
+test('mount file writeText and json', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-filemethods');
+  await createMountFixture(mountPath, {
+    'config.json': '{"version": 1}',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-fm');
+  const mount = await E(host).lookup(['test-mount-fm']);
+
+  // json() method.
+  const configFile = await E(mount).lookup('config.json');
+  const jsonValue = await E(configFile).json();
+  t.deepEqual(jsonValue, { version: 1 });
+
+  // writeText() method.
+  await E(configFile).writeText('{"version": 2}');
+  const updated = await E(configFile).json();
+  t.deepEqual(updated, { version: 2 });
+
+  // Cross-reference: actual file on disk matches updated content.
+  const actualContent = await fs.promises.readFile(
+    path.join(mountPath, 'config.json'),
+    'utf-8',
+  );
+  t.is(actualContent, '{"version": 2}');
+});
+
+// symlink confinement tests
+
+/**
+ * Helper: create a mount fixture with symlinks for confinement testing.
+ *
+ * Layout:
+ *   mountRoot/
+ *     real-file.txt          — regular file
+ *     subdir/
+ *       nested.txt           — regular file
+ *     internal-abs           — absolute symlink -> mountRoot/subdir (internal)
+ *     internal-rel           — relative symlink -> subdir (internal)
+ *     escape-abs             — absolute symlink -> outsideDir (external)
+ *     escape-rel             — relative symlink -> ../outside (external)
+ *     escape-file-abs        — absolute symlink -> outsideDir/secret.txt (external file)
+ *     escape-file-rel        — relative symlink -> ../outside/secret.txt (external file)
+ *   outsideDir/
+ *     secret.txt             — file that should be unreachable
+ *
+ * @param {string} basePath
+ */
+const createSymlinkFixture = async basePath => {
+  const mountRoot = path.join(basePath, 'mount-root');
+  const outsideDir = path.join(basePath, 'outside');
+
+  await fs.promises.mkdir(path.join(mountRoot, 'subdir'), { recursive: true });
+  await fs.promises.mkdir(outsideDir, { recursive: true });
+
+  await fs.promises.writeFile(
+    path.join(mountRoot, 'real-file.txt'),
+    'real content',
+  );
+  await fs.promises.writeFile(
+    path.join(mountRoot, 'subdir', 'nested.txt'),
+    'nested content',
+  );
+  await fs.promises.writeFile(
+    path.join(outsideDir, 'secret.txt'),
+    'you should not see this',
+  );
+
+  // Internal symlinks (should be visible and usable).
+  await fs.promises.symlink(
+    path.join(mountRoot, 'subdir'),
+    path.join(mountRoot, 'internal-abs'),
+  );
+  await fs.promises.symlink('subdir', path.join(mountRoot, 'internal-rel'));
+
+  // External symlinks (should be visible in readdir but rejected on use).
+  await fs.promises.symlink(
+    outsideDir,
+    path.join(mountRoot, 'escape-abs'),
+  );
+  await fs.promises.symlink(
+    '../outside',
+    path.join(mountRoot, 'escape-rel'),
+  );
+  await fs.promises.symlink(
+    path.join(outsideDir, 'secret.txt'),
+    path.join(mountRoot, 'escape-file-abs'),
+  );
+  await fs.promises.symlink(
+    '../outside/secret.txt',
+    path.join(mountRoot, 'escape-file-rel'),
+  );
+
+  return { mountRoot, outsideDir };
+};
+
+test('mount symlink - internal absolute symlink is visible and usable', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-int-abs');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-int-abs');
+  const mount = await E(host).lookup(['sym-int-abs']);
+
+  // Internal absolute symlink should appear in list.
+  const entries = await E(mount).list();
+  t.true(entries.includes('internal-abs'));
+
+  // has() should return true.
+  t.true(await E(mount).has('internal-abs'));
+
+  // lookup() should work — it's a directory symlink to subdir.
+  const linked = await E(mount).lookup('internal-abs');
+  const linkedEntries = await E(linked).list();
+  t.deepEqual(linkedEntries, ['nested.txt']);
+
+  // Reading a file through the symlinked directory should work.
+  const nestedFile = await E(linked).lookup('nested.txt');
+  const text = await E(nestedFile).text();
+  t.is(text, 'nested content');
+});
+
+test('mount symlink - internal relative symlink is visible and usable', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-int-rel');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-int-rel');
+  const mount = await E(host).lookup(['sym-int-rel']);
+
+  // Internal relative symlink should appear in list.
+  const entries = await E(mount).list();
+  t.true(entries.includes('internal-rel'));
+
+  // has() should return true.
+  t.true(await E(mount).has('internal-rel'));
+
+  // lookup() should work.
+  const linked = await E(mount).lookup('internal-rel');
+  const linkedEntries = await E(linked).list();
+  t.deepEqual(linkedEntries, ['nested.txt']);
+
+  // Reading through the symlink should work.
+  const nestedFile = await E(linked).lookup('nested.txt');
+  const text = await E(nestedFile).text();
+  t.is(text, 'nested content');
+});
+
+test('mount symlink - escaping absolute dir symlink hidden from list, rejected on use', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-abs');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-esc-abs');
+  const mount = await E(host).lookup(['sym-esc-abs']);
+
+  // Escaping absolute symlink should be filtered from list().
+  const entries = await E(mount).list();
+  t.false(entries.includes('escape-abs'));
+
+  // has() should return false.
+  t.false(await E(mount).has('escape-abs'));
+
+  // lookup() should reject.
+  await t.throwsAsync(E(mount).lookup('escape-abs'), {
+    message: /escapes mount root/,
+  });
+});
+
+test('mount symlink - escaping relative dir symlink hidden from list, rejected on use', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-rel');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-esc-rel');
+  const mount = await E(host).lookup(['sym-esc-rel']);
+
+  // Escaping relative symlink should be filtered from list().
+  const entries = await E(mount).list();
+  t.false(entries.includes('escape-rel'));
+
+  // has() should return false.
+  t.false(await E(mount).has('escape-rel'));
+
+  // lookup() should reject.
+  await t.throwsAsync(E(mount).lookup('escape-rel'), {
+    message: /escapes mount root/,
+  });
+});
+
+test('mount symlink - escaping absolute file symlink hidden and rejected', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-file-abs');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-esc-file-abs');
+  const mount = await E(host).lookup(['sym-esc-file-abs']);
+
+  // Escaping file symlink should be filtered from list().
+  const entries = await E(mount).list();
+  t.false(entries.includes('escape-file-abs'));
+
+  // has() should return false.
+  t.false(await E(mount).has('escape-file-abs'));
+
+  // lookup() should reject.
+  await t.throwsAsync(E(mount).lookup('escape-file-abs'), {
+    message: /escapes mount root/,
+  });
+});
+
+test('mount symlink - escaping relative file symlink hidden and rejected', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-file-rel');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-esc-file-rel');
+  const mount = await E(host).lookup(['sym-esc-file-rel']);
+
+  // Escaping file symlink should be filtered from list().
+  const entries = await E(mount).list();
+  t.false(entries.includes('escape-file-rel'));
+
+  // has() should return false.
+  t.false(await E(mount).has('escape-file-rel'));
+
+  // lookup() should reject.
+  await t.throwsAsync(E(mount).lookup('escape-file-rel'), {
+    message: /escapes mount root/,
+  });
+});
+
+test('mount symlink - all symlink types together in one listing', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-all');
+  const { mountRoot } = await createSymlinkFixture(basePath);
+
+  await E(host).provideMount(mountRoot, 'sym-all');
+  const mount = await E(host).lookup(['sym-all']);
+
+  const entries = await E(mount).list();
+
+  // Internal symlinks (both abs and rel) should be listed.
+  t.true(entries.includes('internal-abs'));
+  t.true(entries.includes('internal-rel'));
+
+  // Real entries should be listed.
+  t.true(entries.includes('real-file.txt'));
+  t.true(entries.includes('subdir'));
+
+  // Escaping symlinks (all four) should be excluded.
+  t.false(entries.includes('escape-abs'));
+  t.false(entries.includes('escape-rel'));
+  t.false(entries.includes('escape-file-abs'));
+  t.false(entries.includes('escape-file-rel'));
+
+  // Cross-reference: raw readdir sees all 8 entries, mount sees only 4.
+  const rawEntries = await fs.promises.readdir(mountRoot);
+  t.is(rawEntries.length, 8); // 2 real + 2 internal + 4 escaping
+  t.is(entries.length, 4); // 2 real + 2 internal
 });

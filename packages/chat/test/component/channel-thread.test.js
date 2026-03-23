@@ -49,9 +49,7 @@ const makeMockChannel = ({ name = 'test-channel', memberDelay = 0 } = {}) => {
         return Promise.resolve({ value: messageQueue.shift(), done: false });
       }
       return new Promise(resolve => {
-        waitingResolvers.push(msg =>
-          resolve({ value: msg, done: false }),
-        );
+        waitingResolvers.push(msg => resolve({ value: msg, done: false }));
       });
     },
     return() {
@@ -157,7 +155,14 @@ const setup = async ({ memberDelay = 0 } = {}) => {
     await tick(ms);
   };
 
-  return { $parent, $end, push, replyCallbacks, threadOpenCallbacks, threadCloseCallbacks };
+  return {
+    $parent,
+    $end,
+    push,
+    replyCallbacks,
+    threadOpenCallbacks,
+    threadCloseCallbacks,
+  };
 };
 
 test.afterEach(() => {
@@ -245,20 +250,23 @@ test.serial('clicking reply count opens thread view', async t => {
   );
 });
 
-test.serial('thread view contains root and reply with correct depth', async t => {
-  const { $parent, push } = await setup();
+test.serial(
+  'thread view contains root and reply with correct depth',
+  async t => {
+    const { $parent, push } = await setup();
 
-  await push(makeMessage(1, 'Root'));
-  await push(makeMessage(2, 'Reply', { replyTo: 1 }));
+    await push(makeMessage(1, 'Root'));
+    await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
-  $parent.querySelector('.reply-count').click();
-  await tick(100);
+    $parent.querySelector('.reply-count').click();
+    await tick(100);
 
-  const threadMsgs = $parent.querySelectorAll('.thread-message');
-  t.is(threadMsgs.length, 2, 'thread should contain root and reply');
-  t.true(threadMsgs[0].classList.contains('depth-0'));
-  t.true(threadMsgs[1].classList.contains('depth-1'));
-});
+    const threadMsgs = $parent.querySelectorAll('.thread-message');
+    t.is(threadMsgs.length, 2, 'thread should contain root and reply');
+    t.true(threadMsgs[0].classList.contains('depth-0'));
+    t.true(threadMsgs[1].classList.contains('depth-1'));
+  },
+);
 
 test.serial('back button closes thread view', async t => {
   const { $parent, push } = await setup();
@@ -482,21 +490,28 @@ test.serial('onThreadClose fires when Escape closes thread', async t => {
   t.is(threadCloseCallbacks.length, 1, 'onThreadClose should fire on Escape');
 });
 
-test.serial('onThreadClose fires when Channel breadcrumb closes thread', async t => {
-  const { $parent, push, threadCloseCallbacks } = await setup();
+test.serial(
+  'onThreadClose fires when Channel breadcrumb closes thread',
+  async t => {
+    const { $parent, push, threadCloseCallbacks } = await setup();
 
-  await push(makeMessage(1, 'Root'));
-  await push(makeMessage(2, 'Reply', { replyTo: 1 }));
+    await push(makeMessage(1, 'Root'));
+    await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
-  $parent.querySelector('.reply-count').click();
-  await tick(100);
+    $parent.querySelector('.reply-count').click();
+    await tick(100);
 
-  const crumbs = $parent.querySelectorAll('.thread-crumb');
-  crumbs[0].click(); // "Channel" crumb
-  await tick(50);
+    const crumbs = $parent.querySelectorAll('.thread-crumb');
+    crumbs[0].click(); // "Channel" crumb
+    await tick(50);
 
-  t.is(threadCloseCallbacks.length, 1, 'onThreadClose should fire on breadcrumb click');
-});
+    t.is(
+      threadCloseCallbacks.length,
+      1,
+      'onThreadClose should fire on breadcrumb click',
+    );
+  },
+);
 
 // ---- Reply indicator opens full thread from root ----
 
@@ -528,8 +543,14 @@ test.serial(
     const threadMsgs = $parent.querySelectorAll('.thread-message');
     t.is(threadMsgs.length, 3, 'thread should contain entire chain from root');
     t.true(threadMsgs[0].classList.contains('depth-0'), 'root at depth 0');
-    t.true(threadMsgs[1].classList.contains('depth-1'), 'first reply at depth 1');
-    t.true(threadMsgs[2].classList.contains('depth-2'), 'second reply at depth 2');
+    t.true(
+      threadMsgs[1].classList.contains('depth-1'),
+      'first reply at depth 1',
+    );
+    t.true(
+      threadMsgs[2].classList.contains('depth-2'),
+      'second reply at depth 2',
+    );
 
     // Breadcrumb should reference the root message
     const crumbs = $parent.querySelectorAll('.thread-crumb');

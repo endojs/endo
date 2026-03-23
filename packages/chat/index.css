@@ -314,11 +314,9 @@ body {
   width: var(--sidebar-width);
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-bottom: 40px;
 }
 
 /* Resize handle (shifted for gutter) */
@@ -342,10 +340,7 @@ body {
 
 /* Profile breadcrumbs */
 #profile-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   padding: 8px 12px;
   background: var(--bg-hover);
   border-top: 1px solid var(--border-color);
@@ -398,6 +393,7 @@ body.resizing * {
 }
 
 .inventory-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -598,6 +594,10 @@ body.resizing * {
   flex-direction: column;
   padding: 0 8px 8px;
   gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .pet-buttons {
@@ -3550,6 +3550,40 @@ button.btn-spinner::after {
 .form-request-field-input:disabled {
   opacity: 0.6;
   background: var(--bg-secondary);
+}
+
+.form-field-input-group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-field-input-group .form-request-field-input {
+  flex: 1;
+}
+
+.form-field-toggle,
+.form-field-copy {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.form-field-toggle:hover,
+.form-field-copy:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+  color: var(--text-primary);
+}
+
+.form-value-secret {
+  font-family: monospace;
+  color: var(--text-secondary);
 }
 
 .form-request-actions {
@@ -7287,4 +7321,3 @@ button.btn-spinner::after {
     calc(2ex + 2px) 50%,
     6ex top;
 }
-

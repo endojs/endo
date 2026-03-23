@@ -16,7 +16,7 @@ export const make = powers => {
   const myCounter = E(powers).request(
     'HOST',
     'a counter, suitable for doubling',
-    'my-counter'
+    'my-counter',
   );
   console.log('made request'); // 🤡
 
@@ -43,7 +43,7 @@ export const make = powers => {
 
         return m;
       },
-    }
+    },
   );
 
   console.log('return exo'); // 🤡

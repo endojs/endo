@@ -739,8 +739,7 @@ export const channelComponent = async (
             : rootData.message.memberId;
           onThreadOpen({
             number: rootKey,
-            authorName:
-              nameMap.get(rootData.message.memberId) || rootAuthor,
+            authorName: nameMap.get(rootData.message.memberId) || rootAuthor,
             preview: rootData.message.strings.join('').substring(0, 60),
           });
         }
@@ -802,10 +801,7 @@ export const channelComponent = async (
   document.addEventListener(
     'keydown',
     e => {
-      if (
-        e.key === 'Escape' &&
-        $parent.classList.contains('thread-active')
-      ) {
+      if (e.key === 'Escape' && $parent.classList.contains('thread-active')) {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (threadStack.length > 1) {
@@ -898,7 +894,9 @@ export const channelComponent = async (
         try {
           await showThreadView(currentRoot);
           // Scroll thread messages to show the new message
-          const $tm = $currentThreadView && $currentThreadView.querySelector('.thread-messages');
+          const $tm =
+            $currentThreadView &&
+            $currentThreadView.querySelector('.thread-messages');
           if ($tm) {
             $tm.scrollTop = $tm.scrollHeight;
           }

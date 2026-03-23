@@ -32,7 +32,85 @@ const CONVERSABLE_TYPES = harden(['handle', 'peer', 'remote']);
  * Non-expandable formula types — these items have no children and should not
  * show a disclosure triangle.
  */
-const NON_EXPANDABLE_TYPES = harden(['channel']);
+const NON_EXPANDABLE_TYPES = harden([
+  'channel',
+  'readable-blob',
+  'worker',
+  'eval',
+  'web-bundle',
+]);
+
+/**
+ * Create a synthetic async iterator that yields `{add: name}` for each name
+ * in the array, then hangs until `return()` is called. This allows static
+ * name lists (from ReadableTree.list()) to drive the same inventoryComponent
+ * that normally consumes a live `followNameChanges()` stream.
+ *
+ * @param {string[]} names
+ * @returns {AsyncIterator<{ add: string }, undefined>}
+ */
+const makeStaticNameIterator = names => {
+  let index = 0;
+  /** @type {((result: IteratorResult<{ add: string }, undefined>) => void) | undefined} */
+  let resolveHang;
+  return harden({
+    async next() {
+      if (index < names.length) {
+        const name = names[index];
+        index += 1;
+        return harden({ value: harden({ add: name }), done: false });
+      }
+      // All names yielded — hang until return() is called on collapse.
+      return new Promise(resolve => {
+        resolveHang = resolve;
+      });
+    },
+    async return() {
+      if (resolveHang)
+        resolveHang(harden({ value: undefined, done: true }));
+      return harden({ value: undefined, done: true });
+    },
+    async throw() {
+      if (resolveHang)
+        resolveHang(harden({ value: undefined, done: true }));
+      return harden({ value: undefined, done: true });
+    },
+  });
+};
+
+/**
+ * Wrap a static tree-like object (ReadableTree, etc.) as a powers proxy
+ * suitable for `inventoryComponent`. Tree children don't have formula IDs
+ * or locators, so `identify` and `locate` return undefined and `remove`
+ * is unsupported.
+ *
+ * @param {unknown} tree - The tree-like object with list() and lookup().
+ * @param {string[]} names - The names returned by tree.list().
+ * @returns {ERef<EndoHost>}
+ */
+const makeStaticTreePowers = (tree, names) => {
+  const iterator = makeStaticNameIterator(names);
+  return /** @type {ERef<EndoHost>} */ (
+    /** @type {unknown} */ ({
+      /** @param {string | string[]} subPathOrName */
+      lookup: subPathOrName => {
+        const subPath =
+          typeof subPathOrName === 'string'
+            ? [subPathOrName]
+            : subPathOrName;
+        // Chain through the tree's own lookup
+        return subPath.reduce(
+          (node, segment) => E(node).lookup(segment),
+          /** @type {unknown} */ (tree),
+        );
+      },
+      remove: () => Promise.reject(new Error('Cannot remove from immutable tree')),
+      identify: () => Promise.resolve(undefined),
+      locate: () => Promise.resolve(undefined),
+      followNameChanges: () => iterator,
+    })
+  );
+};
 
 /**
  * @param {HTMLElement} $parent
@@ -377,11 +455,17 @@ export const inventoryComponent = async (
         .remove(.../** @type {[string, ...string[]]} */ (itemPath))
         .catch(window.reportError);
 
-    // Probe the formula type to detect conversable items and non-expandable types
+    // Probe the formula type to detect conversable items and non-expandable types.
+    // Items without a locator (e.g. children of an immutable ReadableTree) get
+    // their remove button disabled since they cannot be individually removed.
     E(powers)
       .locate(.../** @type {[string, ...string[]]} */ (itemPath))
       .then(locator => {
-        if (!locator) return;
+        if (!locator) {
+          $remove.disabled = true;
+          $remove.title = 'Cannot remove (immutable)';
+          return;
+        }
         const url = new URL(/** @type {string} */ (locator));
         const type = url.searchParams.get('type');
 
@@ -472,74 +556,89 @@ export const inventoryComponent = async (
         $disclosure.classList.add('loading');
         try {
           const target = await E(powers).lookup(itemPath);
-          // Check if it has followNameChanges (is a name hub)
-          // We probe by trying to get the async iterator
-          const changesIterator = E(
-            /** @type {import('@endo/far').ERef<EndoHost>} */ (target),
-          ).followNameChanges();
-          // If we get here without error, it's expandable
-          isExpanded = true;
-          $disclosure.classList.remove('loading');
-          $disclosure.classList.add('expanded');
-          $disclosure.title = 'Collapse';
-          $children.classList.add('expanded');
+          // Use __getMethodNames__ to detect the target's capabilities
+          // without probing methods that may not exist (avoids CapTP noise).
+          const methods = await E(target).__getMethodNames__();
 
-          // Start nested inventory watching the nested target
-          // Pass empty path since target is now the root for this subtree
-          // But we need to wrap operations to use the full path from root powers
-          const nestedPowers = /** @type {ERef<EndoHost>} */ (
-            /** @type {unknown} */ ({
-              /** @param {string | string[]} subPathOrName */
-              lookup: subPathOrName => {
-                const subPath =
-                  typeof subPathOrName === 'string'
-                    ? [subPathOrName]
-                    : subPathOrName;
-                return E(powers).lookup([...itemPath, ...subPath]);
-              },
-              /** @param {string[]} subPath */
-              remove: (...subPath) => {
-                const fullPath = [...itemPath, ...subPath];
-                return E(powers).remove(
-                  .../** @type {[string, ...string[]]} */ (fullPath),
-                );
-              },
-              /** @param {string[]} subPath */
-              identify: (...subPath) => {
-                const fullPath = [...itemPath, ...subPath];
-                return E(powers).identify(
-                  .../** @type {[string, ...string[]]} */ (fullPath),
-                );
-              },
-              /** @param {string[]} subPath */
-              locate: (...subPath) => {
-                const fullPath = [...itemPath, ...subPath];
-                return E(powers).locate(
-                  .../** @type {[string, ...string[]]} */ (fullPath),
-                );
-              },
-              followNameChanges: () => changesIterator,
-            })
-          );
+          /** @type {ERef<EndoHost> | undefined} */
+          let nestedPowers;
 
-          inventoryComponent(
-            $children,
-            null,
-            nestedPowers,
-            {
-              showValue,
-              onSelectConversation,
-              activeConversationPetName,
-              channelMode,
-              onSelectChannel,
-              activeChannelPetName,
-            },
-            [], // Reset path since nestedPowers handles the prefix
-          ).catch(() => {
-            // Silently handle errors (e.g., if the item is removed)
-          });
+          if (methods.includes('followNameChanges')) {
+            // NameHub (directory, host, guest): use live subscription
+            const changesIterator = E(
+              /** @type {import('@endo/far').ERef<EndoHost>} */ (target),
+            ).followNameChanges();
+
+            nestedPowers = /** @type {ERef<EndoHost>} */ (
+              /** @type {unknown} */ ({
+                /** @param {string | string[]} subPathOrName */
+                lookup: subPathOrName => {
+                  const subPath =
+                    typeof subPathOrName === 'string'
+                      ? [subPathOrName]
+                      : subPathOrName;
+                  return E(powers).lookup([...itemPath, ...subPath]);
+                },
+                /** @param {string[]} subPath */
+                remove: (...subPath) => {
+                  const fullPath = [...itemPath, ...subPath];
+                  return E(powers).remove(
+                    .../** @type {[string, ...string[]]} */ (fullPath),
+                  );
+                },
+                /** @param {string[]} subPath */
+                identify: (...subPath) => {
+                  const fullPath = [...itemPath, ...subPath];
+                  return E(powers).identify(
+                    .../** @type {[string, ...string[]]} */ (fullPath),
+                  );
+                },
+                /** @param {string[]} subPath */
+                locate: (...subPath) => {
+                  const fullPath = [...itemPath, ...subPath];
+                  return E(powers).locate(
+                    .../** @type {[string, ...string[]]} */ (fullPath),
+                  );
+                },
+                followNameChanges: () => changesIterator,
+              })
+            );
+          } else if (methods.includes('list')) {
+            // Static tree (ReadableTree, etc.): populate from list()
+            const names = await E(target).list();
+            nestedPowers = makeStaticTreePowers(target, names);
+          }
+
+          if (nestedPowers) {
+            isExpanded = true;
+            $disclosure.classList.remove('loading');
+            $disclosure.classList.add('expanded');
+            $disclosure.title = 'Collapse';
+            $children.classList.add('expanded');
+
+            inventoryComponent(
+              $children,
+              null,
+              nestedPowers,
+              {
+                showValue,
+                onSelectConversation,
+                activeConversationPetName,
+                channelMode,
+                onSelectChannel,
+                activeChannelPetName,
+              },
+              [], // Reset path since nestedPowers handles the prefix
+            ).catch(() => {
+              // Silently handle errors (e.g., if the item is removed)
+            });
+          } else {
+            // Not expandable (no list or followNameChanges)
+            $disclosure.classList.remove('loading');
+            $disclosure.classList.add('hidden');
+          }
         } catch {
-          // Not expandable (no followNameChanges method or error)
+          // Lookup or introspection failed
           $disclosure.classList.remove('loading');
           $disclosure.classList.add('hidden');
         }

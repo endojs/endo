@@ -8,6 +8,8 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 
+import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
+
 /**
  * @typedef {object} CommandResult
  * @property {boolean} success - Whether the command succeeded
@@ -379,17 +381,83 @@ export const createCommandExecutor = ({
           return { success: true, message: `Directory "${petName}" created` };
         }
 
-        case 'dm': {
-          const { recipient, message } = params;
-          await E(powers).send(
-            String(recipient),
-            [String(message)],
-            [],
-            [],
+        case 'mount': {
+          const { path: mountPath, petName } = params;
+          const petNamePath = String(petName).split('/');
+          await E(powers).provideMount(
+            String(mountPath),
+            petNamePath,
+            harden({ readOnly: false }),
           );
           return {
             success: true,
+            message: `Mounted "${mountPath}" as "${petName}"`,
+          };
+        }
+
+        case 'scratch':
+        case 'mkscratch': {
+          const { petName } = params;
+          const petNamePath = String(petName).split('/');
+          await E(powers).provideScratchMount(petNamePath);
+          return {
+            success: true,
+            message: `Scratch mount "${petName}" created`,
+          };
+        }
+
+        case 'dm': {
+          const { recipient, message } = params;
+          await E(powers).send(String(recipient), [String(message)], [], []);
+          return {
+            success: true,
             message: `Direct message sent to "${recipient}"`,
+          };
+        }
+
+        case 'ci':
+        case 'checkin': {
+          const { petName } = params;
+          const petNamePath = String(petName).split('/');
+          if (typeof globalThis.showDirectoryPicker !== 'function') {
+            throw new Error('Directory picker not available in this browser');
+          }
+          const dirHandle = await globalThis.showDirectoryPicker({
+            mode: 'read',
+          });
+          const progress = { files: 0 };
+          const tree = makeBrowserTree(dirHandle, {
+            onFile: () => {
+              progress.files += 1;
+            },
+          });
+          await E(powers).storeTree(tree, petNamePath);
+          return {
+            success: true,
+            message: `Checked in ${progress.files} files as "${petName}"`,
+          };
+        }
+
+        case 'co':
+        case 'checkout': {
+          const { petName } = params;
+          const petNamePath = String(petName).split('/');
+          if (typeof globalThis.showDirectoryPicker !== 'function') {
+            throw new Error('Directory picker not available in this browser');
+          }
+          const tree = await E(powers).lookup(petNamePath);
+          const destHandle = await globalThis.showDirectoryPicker({
+            mode: 'readwrite',
+          });
+          const progress = { files: 0 };
+          await checkoutToDirectory(tree, destHandle, {
+            onFile: () => {
+              progress.files += 1;
+            },
+          });
+          return {
+            success: true,
+            message: `Checked out ${progress.files} files from "${petName}"`,
           };
         }
 

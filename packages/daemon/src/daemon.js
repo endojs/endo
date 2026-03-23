@@ -7,6 +7,10 @@ import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
+import {
+  checkinTree as platformCheckinTree,
+  snapshotTreeMethods,
+} from '@endo/platform/fs/lite';
 import { makeRefReader } from './ref-reader.js';
 import { makeIteratorRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
@@ -23,7 +27,12 @@ import {
   assertPetName,
   namePathFrom,
 } from './pet-name.js';
-import { formatLocator, idFromLocator, externalizeId, LOCAL_NODE } from './locator.js';
+import {
+  formatLocator,
+  idFromLocator,
+  externalizeId,
+  LOCAL_NODE,
+} from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
   assertValidId,
@@ -47,7 +56,9 @@ import {
   endoHelp,
   guestHelp,
   makeHelp,
+  readableTreeHelp,
 } from './help-text.js';
+import { makeMount } from './mount.js';
 
 // Sorted:
 import {
@@ -60,6 +71,7 @@ import {
   WorkerInterface,
   DirectoryInterface,
   BlobInterface,
+  ReadableTreeInterface,
   EndoInterface,
 } from './interfaces.js';
 
@@ -287,9 +299,10 @@ const makeDaemonCore = async (
     petStore: petStorePowers,
     persistence: persistencePowers,
     control: controlPowers,
+    filePowers,
   } = powers;
   const { randomHex256, generateEd25519Keypair } = cryptoPowers;
-  const contentStore = persistencePowers.makeContentSha256Store();
+  const contentStore = persistencePowers.makeContentStore();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
   /** @type {Map<string, (reason?: Error) => Promise<void>>} */
@@ -522,6 +535,12 @@ const makeDaemonCore = async (
       case 'promise':
       case 'resolver':
         return [['store', formula.store]];
+      case 'readable-tree':
+        return [];
+      case 'mount':
+        return [];
+      case 'scratch-mount':
+        return [];
       case 'pet-inspector':
         return [['petStore', formula.petStore]];
       case 'directory':
@@ -1240,22 +1259,25 @@ const makeDaemonCore = async (
   /**
    * @param {string} sha256
    */
-  const makeReadableBlob = sha256 => {
-    const { text, json, streamBase64 } = contentStore.fetch(sha256);
-    const help = makeHelp(blobHelp);
-    /** @type {FarRef<EndoReadable>} */
-    return makeExo(
+  const makeReadableBlob = sha256 =>
+    makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
       {
-        help,
         sha256: () => sha256,
-        streamBase64,
-        text,
-        json,
+        ...contentStore.fetch(sha256),
+        help: makeHelp(blobHelp),
       },
     );
-  };
+
+  /**
+   * @param {string} sha256
+   */
+  const makeReadableTree = sha256 =>
+    makeExo('ReadableTree', ReadableTreeInterface, {
+      ...snapshotTreeMethods(contentStore, sha256),
+      help: makeHelp(readableTreeHelp),
+    });
 
   /**
    * @param {FormulaIdentifier} workerId
@@ -1807,6 +1829,10 @@ const makeDaemonCore = async (
       strings,
       names,
       ids,
+      source,
+      slots,
+      codeNames,
+      petNamePaths,
     } = formula;
 
     if (
@@ -1898,6 +1924,53 @@ const makeDaemonCore = async (
         throw new Error('Value message formula is incomplete');
       }
       registerName('@value', valueId, undefined);
+    } else if (messageType === 'definition') {
+      if (
+        typeof source !== 'string' ||
+        slots === undefined ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Definition message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      registerName('@slots', undefined, slots);
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+    } else if (messageType === 'eval-request') {
+      if (
+        typeof source !== 'string' ||
+        promiseId === undefined ||
+        resolverId === undefined
+      ) {
+        throw new Error('Eval-request message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      if (codeNames !== undefined) {
+        registerName('@codeNames', undefined, harden(codeNames));
+      }
+      if (petNamePaths !== undefined) {
+        registerName('@petNamePaths', undefined, harden(petNamePaths));
+      }
+      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
+      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
+    } else if (
+      messageType === 'eval-proposal-reviewer' ||
+      messageType === 'eval-proposal-proposer'
+    ) {
+      if (typeof source !== 'string') {
+        throw new Error('Eval-proposal message formula is incomplete');
+      }
+      registerName('@source', undefined, source);
+      if (codeNames !== undefined) {
+        registerName('@codeNames', undefined, harden(codeNames));
+      }
+      if (petNamePaths !== undefined) {
+        registerName('@petNamePaths', undefined, harden(petNamePaths));
+      }
+      if (ids !== undefined) {
+        registerName('@ids', undefined, harden(ids));
+      }
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -1936,7 +2009,7 @@ const makeDaemonCore = async (
           return provide(id);
         }
         if (valueByName.has(headName)) {
-          return valueByName.get(headName);
+          return Promise.resolve(valueByName.get(headName));
         }
         throw new TypeError(`Unknown message name: ${q(headName)}`);
       }
@@ -2133,6 +2206,28 @@ const makeDaemonCore = async (
       makeEval(worker, source, names, values, context),
     keypair: ({ publicKey }) => harden({ publicKey }),
     'readable-blob': ({ content }) => makeReadableBlob(content),
+    'readable-tree': ({ content }) => makeReadableTree(content),
+    'mount': async ({ path: mountPath, readOnly }) => {
+      // Verify the mount path exists.
+      const pathExists = await filePowers.exists(mountPath);
+      if (!pathExists) {
+        throw new Error(`Mount path does not exist: ${q(mountPath)}`);
+      }
+      const isDir = await filePowers.isDirectory(mountPath);
+      if (!isDir) {
+        throw new Error(`Mount path is not a directory: ${q(mountPath)}`);
+      }
+      return makeMount({ rootPath: mountPath, readOnly, filePowers });
+    },
+    'scratch-mount': async ({ readOnly }, _context, _id, formulaNumber) => {
+      const rootPath = filePowers.joinPath(
+        persistencePowers.statePath,
+        'mounts',
+        /** @type {string} */ (formulaNumber),
+      );
+      await filePowers.makePath(rootPath);
+      return makeMount({ rootPath, readOnly, filePowers });
+    },
     lookup: ({ hub, path }, context) =>
       makeLookup(
         hub,
@@ -2800,6 +2895,95 @@ const makeDaemonCore = async (
         const formula = {
           type: 'readable-blob',
           content: contentSha256,
+        };
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateMount']} */
+  const formulateMount = async (mountPath, readOnly, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          mountId: formatId({
+            number: formulaNumber,
+            node: LOCAL_NODE,
+          }),
+        });
+
+        /** @type {import('./types.js').MountFormula} */
+        const formula = harden({
+          type: 'mount',
+          path: mountPath,
+          readOnly,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateScratchMount']} */
+  const formulateScratchMount = async (readOnly, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          scratchMountId: formatId({
+            number: formulaNumber,
+            node: LOCAL_NODE,
+          }),
+        });
+
+        /** @type {import('./types.js').ScratchMountFormula} */
+        const formula = harden({
+          type: 'scratch-mount',
+          readOnly,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['checkinTree']} */
+  const checkinTree = async (remoteTree, deferredTasks) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+
+        // Walk the remote tree and store all content via the platform adapter.
+        const { sha256: treeSha256 } = await platformCheckinTree(
+          remoteTree,
+          contentStore,
+        );
+
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          readableTreeId: formatId({
+            number: formulaNumber,
+            node: LOCAL_NODE,
+          }),
+        });
+
+        /** @type {import('./types.js').ReadableTreeFormula} */
+        const formula = {
+          type: 'readable-tree',
+          content: treeSha256,
         };
 
         return formulate(formulaNumber, formula);
@@ -3761,7 +3945,11 @@ const makeDaemonCore = async (
     // Make default networks.
     const { id: loopbackNetworkId } = await formulateLoopbackNetwork();
     const loopbackType = await getTypeForId(loopbackNetworkId);
-    const loopbackLocator = externalizeId(loopbackNetworkId, loopbackType, localNodeNumber);
+    const loopbackLocator = externalizeId(
+      loopbackNetworkId,
+      loopbackType,
+      localNodeNumber,
+    );
     await E(value).write(/** @type {NamePath} */ (['loop']), loopbackLocator);
     return { id, value };
   };
@@ -4138,6 +4326,9 @@ const makeDaemonCore = async (
     formulateUnconfined,
     formulateBundle,
     formulateReadableBlob,
+    checkinTree,
+    formulateMount,
+    formulateScratchMount,
     formulateInvitation,
     formulateSyncedPetStore,
     getPeerIdForNodeIdentifier,

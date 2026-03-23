@@ -116,7 +116,7 @@ daemon discovers it as an active transport.
 yarn exec endo store --text "127.0.0.1:8940" --name tcp-listen-addr
 
 # Install the network as an unconfined module (needs Node.js access for `net`)
-yarn exec endo make --UNCONFINED packages/daemon/src/networks/tcp-netstring.js --powers AGENT --name network-service
+yarn exec endo make --UNCONFINED packages/daemon/src/networks/tcp-netstring.js --powers @agent --name network-service
 
 # Move to the networks directory
 yarn exec endo mv network-service NETS.tcp
@@ -156,7 +156,7 @@ address or relay configuration is needed.
 
 ```bash
 # Install the libp2p network (self-configures via public DHT, registers at NETS/libp2p)
-yarn exec endo run --UNCONFINED packages/daemon/src/networks/setup-libp2p.js --powers HOST
+yarn exec endo run --UNCONFINED packages/daemon/src/networks/setup-libp2p.js --powers @agent
 ```
 
 After this step, each daemon has a libp2p peer ID and is reachable via

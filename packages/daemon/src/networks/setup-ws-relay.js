@@ -1,9 +1,9 @@
 /* global harden */
 // @ts-check
 // Usage (installs the ws-relay network caplet at NETS/ws-relay):
-//   endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers HOST
+//   endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers @agent
 //
-// Requires --powers HOST because the script calls makeUnconfined().
+// Requires --powers @agent because the script calls makeUnconfined().
 // Edit the defaults below to target a different relay server.
 
 import { E } from '@endo/eventual-send';
@@ -20,7 +20,7 @@ const wsRelaySpecifier = new URL('ws-relay.js', import.meta.url).href;
  * at boot time.
  *
  * @param {import('@endo/eventual-send').ERef<object>} powers - HOST powers
- * (requires `makeUnconfined`; use `--powers HOST`).
+ * (requires `makeUnconfined`; use `--powers @agent`).
  * @param {object} [_context]
  * @param {object} [options]
  * @param {Record<string, string>} [options.env]

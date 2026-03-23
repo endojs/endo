@@ -157,6 +157,7 @@ test('command fields have required properties', t => {
         'locator',
         'source',
         'endowments',
+        'select',
       ];
       t.true(
         validTypes.includes(field.type),
@@ -191,11 +192,7 @@ test('inbox-only commands have context set to inbox', t => {
     'approve-eval',
   ];
   for (const name of inboxOnly) {
-    t.is(
-      COMMANDS[name].context,
-      'inbox',
-      `${name} should be inbox-only`,
-    );
+    t.is(COMMANDS[name].context, 'inbox', `${name} should be inbox-only`);
   }
 });
 
@@ -210,6 +207,10 @@ test('commands without context are available in both modes', t => {
     'move',
     'copy',
     'mkdir',
+    'checkin',
+    'checkout',
+    'mount',
+    'mkscratch',
     'invite',
     'accept',
     'spawn',
@@ -282,6 +283,89 @@ test('filterCommands with inbox context and prefix includes inbox commands', t =
   t.true(names.includes('reject'));
   t.true(names.includes('remove'));
   t.true(names.includes('reply'));
+});
+
+// ============ CHECKIN / CHECKOUT TESTS ============
+
+test('COMMANDS contains checkin and checkout', t => {
+  t.true('checkin' in COMMANDS);
+  t.true('checkout' in COMMANDS);
+});
+
+test('checkin command has correct properties', t => {
+  const cmd = COMMANDS.checkin;
+  t.is(cmd.name, 'checkin');
+  t.is(cmd.category, 'storage');
+  t.is(cmd.mode, 'inline');
+  t.deepEqual(cmd.aliases, ['ci']);
+  t.is(cmd.fields.length, 1);
+  t.is(cmd.fields[0].name, 'petName');
+  t.is(cmd.fields[0].type, 'petNamePath');
+  t.true(cmd.fields[0].required);
+});
+
+test('checkout command has correct properties', t => {
+  const cmd = COMMANDS.checkout;
+  t.is(cmd.name, 'checkout');
+  t.is(cmd.category, 'storage');
+  t.is(cmd.mode, 'inline');
+  t.deepEqual(cmd.aliases, ['co']);
+  t.is(cmd.fields.length, 1);
+  t.is(cmd.fields[0].name, 'petName');
+  t.is(cmd.fields[0].type, 'petNamePath');
+  t.true(cmd.fields[0].required);
+});
+
+test('getCommand resolves ci alias to checkin', t => {
+  const cmd = getCommand('ci');
+  t.truthy(cmd);
+  t.is(cmd?.name, 'checkin');
+});
+
+test('getCommand resolves co alias to checkout', t => {
+  const cmd = getCommand('co');
+  t.truthy(cmd);
+  t.is(cmd?.name, 'checkout');
+});
+
+test('filterCommands matches checkin by prefix', t => {
+  const results = filterCommands('check');
+  const names = results.map(cmd => cmd.name);
+  t.true(names.includes('checkin'));
+  t.true(names.includes('checkout'));
+});
+
+test('checkin, checkout, and mount appear in storage category', t => {
+  const storage = getCommandsByCategory('storage');
+  const names = storage.map(cmd => cmd.name);
+  t.true(names.includes('checkin'));
+  t.true(names.includes('checkout'));
+  t.true(names.includes('mount'));
+});
+
+test('getCommand resolves scratch alias to mkscratch', t => {
+  const cmd = getCommand('scratch');
+  t.truthy(cmd);
+  t.is(cmd?.name, 'mkscratch');
+});
+
+test('mount command has path and petName fields', t => {
+  const cmd = COMMANDS.mount;
+  t.is(cmd.name, 'mount');
+  t.is(cmd.category, 'storage');
+  t.is(cmd.mode, 'inline');
+  t.is(cmd.fields.length, 2);
+  t.is(cmd.fields[0].name, 'path');
+  t.is(cmd.fields[1].name, 'petName');
+  t.true(cmd.fields[0].required);
+  t.true(cmd.fields[1].required);
+});
+
+test('mkscratch command has correct properties', t => {
+  const cmd = COMMANDS.mkscratch;
+  t.is(cmd.name, 'mkscratch');
+  t.is(cmd.category, 'storage');
+  t.deepEqual(cmd.aliases, ['scratch']);
 });
 
 test('getCommandsByCategory respects context filter', t => {

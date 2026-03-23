@@ -49,7 +49,6 @@ const info = {
   temp,
 };
 
-
 /**
  * Used to filter ambient env when building background daemon env.
  *
@@ -58,8 +57,7 @@ const info = {
 const allowEnvPass = key => {
   // TODO probably better to use a more restrictive whitelist
   return (
-    key.startsWith('LOCKDOWN_')
-    || key.startsWith('ENDO_')
+    key.startsWith('LOCKDOWN_') || key.startsWith('ENDO_')
     // || key.startsWith('XDG_') // NOTE should not be necessary, as these are already systemd-injected
     // || key === 'ONLY_WELL_FORMED_STRINGS_PASSABLE' // TODO need?
   );
@@ -92,7 +90,7 @@ const defaultConfig = {
 /**
  * @param {Config} config
  */
-const configToEnv = (config) => ({
+const configToEnv = config => ({
   ENDO_STATE_PATH: config.statePath,
   ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
   ENDO_SOCK_PATH: config.sockPath,
@@ -103,15 +101,19 @@ const configToEnv = (config) => ({
  * @param {{[key: string]: string|undefined}} env
  * @returns {Config}
  */
-const configFromEnv = (env) => {
+const configFromEnv = env => {
   const {
     ENDO_STATE_PATH: statePath = defaultConfig.statePath,
-    ENDO_EPHEMERAL_STATE_PATH: ephemeralStatePath = defaultConfig.ephemeralStatePath,
+    ENDO_EPHEMERAL_STATE_PATH:
+      ephemeralStatePath = defaultConfig.ephemeralStatePath,
     ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
     ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
   } = env;
   return {
-    statePath, ephemeralStatePath, sockPath, cachePath,
+    statePath,
+    ephemeralStatePath,
+    sockPath,
+    cachePath,
   };
 };
 
@@ -122,15 +124,15 @@ export const terminate = async (config = defaultConfig) => {
     config.sockPath,
     cancelled,
     undefined,
-    { onReject: () => { } },
+    { onReject: () => {} },
   );
   const bootstrap = getBootstrap();
   await E(bootstrap)
     .terminate()
-    .catch(() => { });
+    .catch(() => {});
   // @ts-expect-error zero-argument promise resolve
   cancel();
-  await closed.catch(() => { });
+  await closed.catch(() => {});
 };
 
 /**
@@ -228,7 +230,7 @@ const waitForExit = async proc => {
  * @param {popen.ChildProcess} child
  * @returns {Promise<popen.Serializable>} message
  */
-const waitForMessage = (child) => {
+const waitForMessage = child => {
   let done = false;
   return new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
@@ -261,10 +263,9 @@ export const main = async _args => {
 
   // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
 
-  const child =
-    process.env.ENDO_BIN
-      ? await runEngo(false, config, envOverrides)
-      : await runEndo(false, config, envOverrides);
+  const child = process.env.ENDO_BIN
+    ? await runEngo(false, config, envOverrides)
+    : await runEndo(false, config, envOverrides);
   process.exit(await waitForExit(child));
 };
 
@@ -290,6 +291,7 @@ const runEngo = async (detached, config, envOverrides) => {
 
   const env = {
     ...configToEnv(config),
+    ...Object.fromEntries(filterEnv()),
     ...envOverrides,
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
@@ -341,10 +343,11 @@ const runEndo = async (detached, config, envOverrides) => {
 
   const env = {
     ...configToEnv(config),
+    ...Object.fromEntries(filterEnv()),
     ...envOverrides,
   };
 
-  const stdio = (/** @returns {popen.StdioOptions} */() => {
+  const stdio = /** @returns {popen.StdioOptions} */ (() => {
     if (detached) {
       const output = fs.openSync(logPath, 'a');
       return ['ignore', output, output, 'ipc'];
@@ -364,11 +367,7 @@ const runEndo = async (detached, config, envOverrides) => {
   });
   child.disconnect();
 
-  if (
-    typeof message === 'object' &&
-    message !== null &&
-    'type' in message
-  ) {
+  if (typeof message === 'object' && message !== null && 'type' in message) {
     if (message.type === 'ready') {
       // This message corresponds to process.send({ type: 'ready' }) in
       // src/daemon-node-powers.js and indicates the daemon is ready to receive
@@ -391,12 +390,7 @@ const runEndo = async (detached, config, envOverrides) => {
  * @param {object} [options]
  * @param {number} [options.verbose] - verbosity level of status
  */
-export const status = async (
-  config = defaultConfig,
-  {
-    verbose = 0,
-  } = {},
-) => {
+export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
   if (verbose > 0) {
     console.log('verbosity:', verbose);
     console.log('config:', config);
@@ -470,9 +464,7 @@ export const status = async (
  */
 export const start = async (
   config = defaultConfig,
-  {
-    env: envOverrides = {},
-  } = {},
+  { env: envOverrides = {} } = {},
 ) => {
   await clean(config);
 
@@ -500,11 +492,17 @@ const runningWorker = ({
 }) => {
   const pidPath = path.join(workerRunDir, 'worker.pid');
   return {
-    get id() { return workerId },
+    get id() {
+      return workerId;
+    },
 
-    get runDir() { return workerRunDir },
+    get runDir() {
+      return workerRunDir;
+    },
 
-    get pidPath() { return pidPath },
+    get pidPath() {
+      return pidPath;
+    },
 
     pid: (async () => {
       try {
@@ -513,7 +511,7 @@ const runningWorker = ({
         if (Number.isFinite(rawPid) && rawPid > 0) {
           return rawPid;
         }
-      } catch { }
+      } catch {}
       return null;
     })(),
   };
@@ -522,7 +520,7 @@ const runningWorker = ({
 /**
  * @param {Config} config
  */
-const runningWorkers = async function*(config) {
+const runningWorkers = async function* (config) {
   const workerDir = path.join(config.ephemeralStatePath, 'worker');
   /** @type {string[]} */
   let workerIds;
@@ -545,16 +543,20 @@ const runningWorkers = async function*(config) {
  */
 const killWorkersByPidFiles = async config => {
   /** @type {Array<Promise<void>>} */
-  const pending = []
+  const pending = [];
   for await (const worker of runningWorkers(config)) {
-    pending.push((async () => {
-      const workerPid = await worker.pid;
-      if (workerPid !== null) {
-        for await (const _ of politeEndProcess(workerPid)) {
+    pending.push(
+      (async () => {
+        const workerPid = await worker.pid;
+        if (workerPid !== null) {
+          for await (const _ of politeEndProcess(workerPid)) {
+          }
         }
-      }
-      await fs.promises.rm(worker.pidPath, { force: true }).catch(() => undefined);
-    })());
+        await fs.promises
+          .rm(worker.pidPath, { force: true })
+          .catch(() => undefined);
+      })(),
+    );
   }
   await Promise.all(pending);
 };
@@ -714,7 +716,7 @@ export const clean = async (config = defaultConfig) => {
  * @param {Config} config
  */
 export const stop = async (config = defaultConfig) => {
-  await terminate(config).catch(() => { });
+  await terminate(config).catch(() => {});
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config);
   await clean(config);
@@ -730,7 +732,7 @@ export const restart = async (config = defaultConfig, options = {}) => {
 };
 
 export const purge = async (config = defaultConfig) => {
-  await terminate(config).catch(() => { });
+  await terminate(config).catch(() => {});
   await killDaemonProcess(config);
   await killWorkersByPidFiles(config);
 
