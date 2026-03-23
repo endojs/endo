@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-disable max-classes-per-file */
 /* eslint-disable class-methods-use-this */
 import test from '@endo/ses-ava/test.js';
@@ -18,6 +17,9 @@ const DoublerI = M.interface('Doubler', {
   double: M.call(M.lte(10)).returns(M.number()),
 });
 
+// @ts-expect-error XXX makeExo expects a string index signature for the methods
+// argument, but we are passing a class prototype which is an object with method
+// names as keys.
 const doubler = makeExo('doubler', DoublerI, DoublerBehaviorClass.prototype);
 
 test('exo doubler using js classes', t => {
@@ -39,7 +41,9 @@ test('exo doubler using js classes', t => {
 class DoubleAdderBehaviorClass extends DoublerBehaviorClass {
   doubleAddSelfCall(x) {
     const {
+      // @ts-expect-error no `state`
       state: { y },
+      // @ts-expect-error no `self`
       self,
     } = this;
     return self.double(x) + y;
@@ -47,6 +51,7 @@ class DoubleAdderBehaviorClass extends DoublerBehaviorClass {
 
   doubleAddSuperCall(x) {
     const {
+      // @ts-expect-error no `state`
       state: { y },
     } = this;
     return super.double(x) + y;
@@ -63,6 +68,7 @@ const makeDoubleAdder = defineExoClass(
   'doubleAdderClass',
   DoubleAdderI,
   y => ({ y }),
+  // @ts-expect-error no `state`
   DoubleAdderBehaviorClass.prototype,
 );
 
