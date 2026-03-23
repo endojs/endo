@@ -52,6 +52,9 @@ export const tokenAutocompleteComponent = (
   let pendingToken = null;
   /** @type {(() => void) | undefined} */
   let doUpdateFilter;
+  // When true, mouseenter on menu items is suppressed to avoid resetting
+  // the keyboard-driven selectedIndex during DOM rebuilds.
+  let keyboardNav = false;
 
   // Path drilling state: when the user presses / in the menu, we lock in
   // the selected name as a path prefix and fetch sub-directory names.
@@ -177,6 +180,7 @@ export const tokenAutocompleteComponent = (
         }
 
         $item.addEventListener('mouseenter', () => {
+          if (keyboardNav) return;
           selectedIndex = index;
           renderMenu(filterText);
         });
@@ -195,7 +199,18 @@ export const tokenAutocompleteComponent = (
     $hint.innerHTML =
       '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd>/<kbd>Enter</kbd> select · <kbd>/</kbd> drill down · <kbd>:</kbd> add label · <kbd>Esc</kbd> cancel';
     $menu.appendChild($hint);
+
+    // Scroll the selected item into view
+    const $selected = $menu.querySelector('.token-menu-item.selected');
+    if ($selected) {
+      $selected.scrollIntoView({ block: 'nearest' });
+    }
   };
+
+  // Clear keyboard navigation flag on actual mouse movement
+  $menu.addEventListener('mousemove', () => {
+    keyboardNav = false;
+  });
 
   /**
    * Create a token element.
@@ -668,6 +683,7 @@ export const tokenAutocompleteComponent = (
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex = (selectedIndex + 1) % filteredNames.length;
           updateFilter();
@@ -676,6 +692,7 @@ export const tokenAutocompleteComponent = (
 
       case 'ArrowUp':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex =
             (selectedIndex - 1 + filteredNames.length) % filteredNames.length;
@@ -685,6 +702,7 @@ export const tokenAutocompleteComponent = (
 
       case 'Home':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex = 0;
           updateFilter();
@@ -693,6 +711,7 @@ export const tokenAutocompleteComponent = (
 
       case 'End':
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           selectedIndex = filteredNames.length - 1;
           updateFilter();
@@ -701,6 +720,7 @@ export const tokenAutocompleteComponent = (
 
       case 'PageDown': {
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           const first = /** @type {HTMLElement | null} */ (
             $menu.querySelector('.token-menu-item')
@@ -722,6 +742,7 @@ export const tokenAutocompleteComponent = (
 
       case 'PageUp': {
         e.preventDefault();
+        keyboardNav = true;
         if (filteredNames.length > 0) {
           const first = /** @type {HTMLElement | null} */ (
             $menu.querySelector('.token-menu-item')

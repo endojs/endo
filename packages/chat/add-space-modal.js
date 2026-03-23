@@ -116,7 +116,7 @@ export const createAddSpaceModal = ({
   /** @type {'chat' | 'forum' | 'outliner'} */
   let channelViewMode = 'chat';
   /** @type {'new' | 'existing'} */
-  let channelPersonaMode = 'new';
+  let channelPersonaMode = 'existing';
   let channelIntroducedNames = '';
   /** @type {PetNamePathsAutocompleteAPI | null} */
   let channelPathAutocomplete = null;
@@ -877,7 +877,7 @@ export const createAddSpaceModal = ({
           mode = 'new-channel';
           selectedIcon = '📡';
           useLetterIcon = false;
-          channelPersonaMode = 'new';
+          channelPersonaMode = 'existing';
           error = null;
           render();
         } else if (selectedMode === 'connect-channel') {
@@ -1851,7 +1851,7 @@ export const createAddSpaceModal = ({
     agentNameManuallyEdited = false;
     channelPetName = '';
     channelProposedName = '';
-    channelPersonaMode = 'new';
+    channelPersonaMode = 'existing';
     connectLocator = '';
     connectSpaceName = '';
     connectProposedName = '';
