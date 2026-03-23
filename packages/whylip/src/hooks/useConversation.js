@@ -246,7 +246,7 @@ export const useConversation = powers => {
 
     const init = async () => {
       try {
-        const selfId = await E(/** @type {any} */ (powers)).identify('@self');
+        const selfId = await E(/** @type {any} */ (powers)).locate('@self');
 
         const messages = /** @type {any[]} */ (
           await E(/** @type {any} */ (powers)).listMessages()
