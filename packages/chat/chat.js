@@ -973,6 +973,121 @@ const bodyComponent = (
             : null,
         },
       ).catch(window.reportError);
+
+      // Add collapsible inbox section to sidebar when in channel mode
+      if (isChannelMode) {
+        const $inboxSection = document.createElement('div');
+        $inboxSection.className = 'sidebar-inbox-section';
+
+        const $inboxHeader = document.createElement('div');
+        $inboxHeader.className = 'sidebar-inbox-header';
+        $inboxHeader.innerHTML =
+          '<span class="sidebar-inbox-toggle">\u25B6</span> <span>Inbox</span>';
+
+        const $inboxBody = document.createElement('div');
+        $inboxBody.className = 'sidebar-inbox-body';
+
+        $inboxSection.appendChild($inboxHeader);
+        $inboxSection.appendChild($inboxBody);
+        $pets.insertBefore($inboxSection, $profileBar);
+
+        let inboxExpanded = false;
+        let inboxLoaded = false;
+
+        const loadInbox = async () => {
+          $inboxBody.textContent = 'Loading\u2026';
+          try {
+            const rawMessages = await E(
+              /** @type {{ listMessages: () => Promise<unknown[]> }} */ (
+                resolvedPowers
+              ),
+            ).listMessages();
+            const messages =
+              /** @type {Array<{ number: bigint, type: string, strings?: string[], names?: string[] }>} */ (
+                rawMessages
+              );
+            const withValues = messages.filter(
+              m =>
+                m.type === 'package' && m.names && m.names.length > 0,
+            );
+            $inboxBody.innerHTML = '';
+            if (withValues.length === 0 && messages.length === 0) {
+              $inboxBody.innerHTML =
+                '<div class="sidebar-inbox-empty">No messages yet.</div>';
+              return;
+            }
+            if (withValues.length === 0) {
+              $inboxBody.innerHTML =
+                '<div class="sidebar-inbox-empty">No adoptable values.</div>';
+              return;
+            }
+            for (const msg of withValues) {
+              const $entry = document.createElement('div');
+              $entry.className = 'sidebar-inbox-entry';
+
+              const text = msg.strings ? msg.strings.join('') : '';
+              if (text) {
+                const $text = document.createElement('div');
+                $text.className = 'sidebar-inbox-text';
+                $text.textContent = text;
+                $entry.appendChild($text);
+              }
+
+              for (const name of msg.names || []) {
+                const $btn = document.createElement('button');
+                $btn.className = 'inbox-adopt-btn';
+                $btn.textContent = `Adopt \u201C${name}\u201D`;
+                $btn.addEventListener('click', async () => {
+                  const petName = window.prompt(
+                    `Adopt \u201C${name}\u201D as:`,
+                    name,
+                  );
+                  if (!petName) return;
+                  try {
+                    await E(
+                      /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
+                        resolvedPowers
+                      ),
+                    ).adopt(msg.number, name, petName);
+                    window.alert(
+                      `Adopted \u201C${name}\u201D as \u201C${petName}\u201D`,
+                    );
+                    inboxLoaded = false;
+                    await loadInbox();
+                  } catch (err) {
+                    window.alert(
+                      `Failed to adopt: ${/** @type {Error} */ (err).message}`,
+                    );
+                  }
+                });
+                $entry.appendChild($btn);
+              }
+              $inboxBody.appendChild($entry);
+            }
+          } catch {
+            $inboxBody.textContent = 'Unable to load inbox.';
+          }
+          inboxLoaded = true;
+        };
+
+        $inboxHeader.addEventListener('click', () => {
+          inboxExpanded = !inboxExpanded;
+          $inboxBody.style.display = inboxExpanded ? '' : 'none';
+          const $toggle = $inboxHeader.querySelector(
+            '.sidebar-inbox-toggle',
+          );
+          if ($toggle) {
+            $toggle.textContent = inboxExpanded ? '\u25BC' : '\u25B6';
+          }
+          if (inboxExpanded && !inboxLoaded) {
+            loadInbox().catch(window.reportError);
+          }
+        });
+
+        // Start collapsed
+        $inboxBody.style.display = 'none';
+      }
+
       const chatBarAPI = chatBarComponent(
         $parent,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
