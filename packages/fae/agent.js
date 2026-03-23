@@ -25,6 +25,8 @@ import {
   makeReplyTool,
   makeListMessagesTool,
   makeDismissTool,
+  makeExecTool,
+  makeReadChannelTool,
 } from './src/tool-makers.js';
 import { extractToolCallsFromContent } from './src/extract-tool-calls.js';
 
@@ -44,57 +46,35 @@ const FaeFactoryInterface = M.interface('FaeFactory', {
 });
 
 const guestSystemPrompt = `\
-You are Fae, an autonomous LLM agent running inside the Endo daemon as a guest \
-caplet. You communicate with other agents and the HOST via messages.
+You are Fae, an autonomous agent inside the Endo daemon.
 
-Your tools are dynamic capabilities. Built-in tools for directory management and \
-mail are always available, and new tools can appear at any time — for example, \
-when you adopt a tool capability from an incoming mail message using \`adoptTool\`.
+## Rules
+1. When a message contains code to run, use exec() to run it. Copy the code \
+from the message — do not rewrite or add to it.
+2. Channel notifications include ready-to-use exec code. Run it with ONLY \
+your conversational reply as the post content. Never post internal \
+reasoning, steps, logs, or recaps to a channel.
+3. reply() sends a PRIVATE inbox message. It does NOT post to channels.
+4. References labeled "(author)" are attributions — do not adopt them.
+5. Keep channel posts concise and conversational — one or two sentences.
 
-## Communication
+## Tools
+- **exec** — Run JavaScript with powers, E, harden. Use for multi-step tasks.
+- **reply** — Private inbox reply to sender by message number.
+- **adopt** — Store a message reference under a pet name.
+- **list/lookup/store/remove** — Manage your pet name directory.
+- **send** — Send unsolicited inbox message to a named agent.
+- **adoptTool** — Install a FaeTool capability from a message.
+- **dismiss** — Dismiss a handled message.
 
-You receive messages from other agents and the HOST. Use these tools to interact:
-
-- **reply** — Reply to a message by number. The reply is automatically routed \
-to the original sender. **Always prefer reply over send** when responding to \
-an incoming message.
-- **send** — Send a new (unsolicited) message to a named agent (e.g., "HOST")
-- **listMessages** — List your inbox messages
-- **dismiss** — Acknowledge and dismiss a message
-- **adoptTool** — Adopt a capability from a message into your tools/ directory
-
-## Petname Directory
-
-You have a persistent directory of named references (petnames):
-
-- **list** — See all stored petnames
-- **lookup** — Retrieve a value by petname
-- **store** — Persist a JSON value under a petname
-- **remove** — Delete a petname
-
-## Adopting Values from Messages
-
-When you receive a message that contains values (the @name references in the \
-message text), you should ALWAYS adopt each value before doing anything else. \
-Choose your own pet name for it, but remember the edge name the sender used — \
-that is how the sender refers to it in the message text.
-
-For tool capabilities, use \`adoptTool\` to install them into your tools/ \
-directory. Once adopted, the tool is immediately available — try it right away.
-
-For other values, use the \`adopt\` tool to store them under a pet name in your \
-directory. You can then use \`lookup\` to retrieve them later.
-
-Example: if a message says "Here is @counter for you", adopt it:
-  adopt(messageNumber, "counter", "my-counter")
-
-## Response Guidelines
-
-- Use tools to accomplish requests. Do not fabricate results.
-- For multi-step tasks, break them down and execute step by step.
-- If a tool call fails, read the error and try a different approach.
-- When done, use **reply** (not send) to respond to the sender with a concise summary.
-- Always dismiss messages after handling them.
+## Channel Mentions
+When mentioned in a channel, the notification includes exec() code. \
+Run it exactly as given, replacing YOUR_REPLY with your response and \
+YOUR_NAME with "fae". Example:
+  exec({ code: "const ch = await E(powers).lookup('channel-name');\\n\
+const me = await E(ch).join('fae');\\n\
+await E(me).post(['Hello!'], [], [], '42');\\n\
+return 'done';" })
 `;
 
 /**
@@ -144,13 +124,26 @@ export const spawnWorkerLoop = async (
 
   /**
    * Find or create the root node that carries the system prompt.
+   * If the system prompt has changed since the last root was created,
+   * start a fresh conversation tree so old messages with stale
+   * instructions don't confuse the LLM.
    *
    * @returns {Promise<string>} rootNodeId
    */
   const getOrCreateRoot = async () => {
     const roots = await tree.getRoots();
     if (roots.length > 0) {
-      return roots[0].id;
+      const existingRoot = await tree.getNode(roots[0].id);
+      if (existingRoot) {
+        const rootMsg = existingRoot.messages[0];
+        if (rootMsg && rootMsg.content === effectivePrompt) {
+          return roots[0].id;
+        }
+        // System prompt changed — start fresh
+        console.log(
+          '[fae] System prompt changed, creating fresh conversation tree',
+        );
+      }
     }
     const root = await tree.addNode(null, [
       { role: 'system', content: effectivePrompt },
@@ -188,6 +181,8 @@ export const spawnWorkerLoop = async (
   );
   localTools.set('listMessages', makeListMessagesTool(powers));
   localTools.set('dismiss', makeDismissTool(powers));
+  localTools.set('exec', makeExecTool(powers));
+  localTools.set('readChannel', makeReadChannelTool(powers));
 
   /**
    * Process tool calls from the LLM response.
@@ -212,10 +207,18 @@ export const spawnWorkerLoop = async (
           typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
         args = decodeSmallcaps(jsonString);
       } catch {
-        args = {};
+        // Smallcaps decoding failed — try plain JSON parse
+        try {
+          const jsonString =
+            typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
+          args = JSON.parse(jsonString);
+        } catch {
+          args = {};
+        }
       }
 
       console.log(`[tool] ${name}(${passableAsJustin(harden(args), false)})`);
+      replyTracker.anyToolCalled = true;
 
       let result;
       try {
@@ -426,9 +429,9 @@ export const spawnWorkerLoop = async (
       );
 
       let textContent;
+      const namesArray = Array.isArray(names) ? names : [];
       if (type === 'package' && Array.isArray(strings)) {
         const parts = [];
-        const namesArray = Array.isArray(names) ? names : [];
         for (let i = 0; i < strings.length; i += 1) {
           parts.push(strings[i]);
           if (i < namesArray.length) {
@@ -451,12 +454,22 @@ export const spawnWorkerLoop = async (
         }
       }
 
+      // Detect channel mention notifications — these include exec
+      // code that the agent should run directly.
+      const isChannelMention =
+        textContent.includes('You were mentioned in ') &&
+        textContent.includes('exec');
+      const footer = isChannelMention
+        ? `\n\nRun the exec() code above with your reply. ` +
+          `Replace YOUR_REPLY and YOUR_NAME.`
+        : `\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`;
+
       const userNode = await tree.addNode(
         parentId,
         [
           {
             role: 'user',
-            content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
+            content: `[Inbox message #${number}] ${textContent}${footer}`,
           },
         ],
         { messageId },
@@ -464,18 +477,133 @@ export const spawnWorkerLoop = async (
 
       try {
         replyTracker.sent = false;
+        replyTracker.anyToolCalled = false;
         lastLeafId = await runAgenticLoop(toolSchemas, toolMap, userNode.id);
 
-        // If the LLM produced a final response without calling the reply
-        // tool, send the content as a fallback reply so the sender
-        // (e.g. a Whylip UI) actually receives it.
-        if (!replyTracker.sent) {
+        // If the LLM produced a final response without calling any
+        // tools, send the content as a fallback. If tools WERE called
+        // (e.g. exec posted to a channel), skip the fallback to avoid
+        // double-posting.
+        if (!replyTracker.sent && !replyTracker.anyToolCalled) {
           const finalNode = await tree.getNode(lastLeafId);
           if (finalNode) {
             const lastMsg = finalNode.messages[finalNode.messages.length - 1];
             if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
-              console.log('[fae] No reply tool called, sending fallback reply');
-              await E(powers).reply(number, [lastMsg.content], [], []);
+              // Strip <think> blocks, tool call fragments, and
+              // reasoning text from the content.
+              let fallbackContent = lastMsg.content
+                .replace(/<think>[\s\S]*?<\/think>/g, '')
+                .replace(/<think>[\s\S]*/g, '')
+                .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+                .replace(/<function=[^>]*>[\s\S]*?(?:<\/function>|$)/g, '')
+                .trim();
+
+              // For channel posts, strip reasoning that the model
+              // outputs as plain text (not inside <think> tags).
+              // Keep only lines that look like direct communication.
+              if (isChannelMention && fallbackContent) {
+                // Strip residual HTML-like tags
+                fallbackContent = fallbackContent
+                  .replace(/<\/?think>/g, '')
+                  .trim();
+
+                const lines = fallbackContent.split('\n');
+                /* eslint-disable prettier/prettier */
+                const reasoningRe =
+                  /^([-•*] (Adopt|Look|Join|Post|Sen[dt]|Return|Perform|Call)|Thus|So |But |However|The (user|instruction|message|content|question|adopt|edge|tool|error)|We (need|should|have|can|could|attempt|perform)|Given |In (previous|earlier|the|that|this)|For (consistency|message|each|the|safety)|Now |Maybe |Possibly|Perhaps|Actually|Let('s|)|Looking|They |That (suggests|means|likely|seems)|This (suggests|means|is)|I('m| think| need| will| should| see|'ve (adopted|joined|posted))|Not sure|After adopt|Proceed|Since |Wait|Hmm|OK |Ok |The (phrase|question|safe)|Step |Recap|All steps|```)/;
+                /* eslint-enable prettier/prettier */
+                /** @type {string[]} */
+                const kept = [];
+                for (const line of lines) {
+                  const trimmedLine = line.trim();
+                  if (!trimmedLine) {
+                    // eslint-disable-next-line no-continue
+                    continue;
+                  }
+                  if (!reasoningRe.test(trimmedLine)) {
+                    kept.push(trimmedLine);
+                  }
+                }
+                fallbackContent = kept.join('\n').trim();
+                // If everything was reasoning, use a brief
+                // acknowledgment instead of posting nothing.
+                if (!fallbackContent) {
+                  fallbackContent =
+                    'Got it! I see the mention. What would you like me to help with?';
+                }
+                // Cap length for channel posts — if still long,
+                // take only the last paragraph.
+                if (fallbackContent.length > 400) {
+                  const paragraphs = fallbackContent.split(/\n\n+/);
+                  fallbackContent =
+                    paragraphs[paragraphs.length - 1].trim();
+                }
+                // Final length cap
+                if (fallbackContent.length > 500) {
+                  fallbackContent = `${fallbackContent.slice(0, 497)}...`;
+                }
+              }
+
+              if (fallbackContent && isChannelMention && namesArray.length > 0) {
+                // For channel mentions, post to the channel instead
+                // of sending an inbox reply. Adopt the channel ref
+                // from this message, then look it up and post.
+                const channelEdge = namesArray[0];
+                const channelPetName = `channel-${channelEdge}`;
+                console.log(
+                  `[fae] Channel mention fallback: posting to ${channelEdge}`,
+                );
+                try {
+                  // Adopt the channel reference (idempotent if
+                  // already adopted under this name)
+                  try {
+                    await E(powers).adopt(
+                      number,
+                      channelEdge,
+                      channelPetName,
+                    );
+                  } catch {
+                    // Already adopted — fine
+                  }
+                  const channelRef = await E(powers).lookup(channelPetName);
+                  // Always join to get our own member ref — posting
+                  // via the admin ref would attribute the message to
+                  // the admin, not to fae. join() is idempotent.
+                  const memberRef = await E(channelRef).join('fae');
+                  await E(memberRef).post(
+                    [fallbackContent],
+                    [],
+                    [],
+                  );
+                  console.log('[fae] Posted to channel as fae');
+                } catch (channelErr) {
+                  console.error(
+                    '[fae] Channel post failed, falling back to inbox reply:',
+                    channelErr,
+                  );
+                  await E(powers).reply(
+                    number,
+                    [fallbackContent],
+                    [],
+                    [],
+                  );
+                }
+              } else if (fallbackContent) {
+                console.log(
+                  '[fae] No reply tool called, sending fallback reply',
+                );
+                await E(powers).reply(
+                  number,
+                  [fallbackContent],
+                  [],
+                  [],
+                );
+              } else {
+                console.log(
+                  '[fae] No reply tool called and content was only ' +
+                    'internal reasoning — skipping fallback reply',
+                );
+              }
             }
           }
         }

@@ -38,6 +38,15 @@ export const inboxComponent = async (
   /** @type {Map<string, Array<{name: string, secret: boolean}>>} */
   const formFieldMeta = new Map();
 
+  // Schedule a hard scroll-to-bottom shortly after messages start arriving.
+  // The existing message backlog arrives rapidly via the iterator; this
+  // timer fires once the initial batch has been rendered, ensuring the
+  // user lands at the latest message when switching to the inbox.
+  let initialScrollTimer = setTimeout(() => {
+    $parent.scrollTo(0, $parent.scrollHeight);
+    initialScrollTimer = 0;
+  }, 150);
+
   const selfLocator = await E(powers).locate('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
@@ -1032,7 +1041,15 @@ export const inboxComponent = async (
     $envelope.appendChild($message);
     $parent.insertBefore($envelope, $end);
 
-    if (wasAtEnd) {
+    // During the initial batch, reschedule the hard scroll so it fires
+    // after the last message in the backlog rather than mid-batch.
+    if (initialScrollTimer) {
+      clearTimeout(initialScrollTimer);
+      initialScrollTimer = setTimeout(() => {
+        $parent.scrollTo(0, $parent.scrollHeight);
+        initialScrollTimer = 0;
+      }, 50);
+    } else if (wasAtEnd) {
       $parent.scrollTo(0, $parent.scrollHeight);
     }
   }

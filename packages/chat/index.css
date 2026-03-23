@@ -4880,6 +4880,166 @@ button.btn-spinner::after {
   color: white;
 }
 
+.inbox-btn-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.inbox-join-channel-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--success);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--success);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.inbox-join-channel-btn:hover {
+  background: var(--success);
+  color: white;
+}
+
+.inbox-join-channel-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Mention notification prompts */
+.mention-notify-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mention-notify-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--accent-light);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.mention-notify-text {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.mention-notify-sent {
+  color: var(--success);
+}
+
+.mention-notify-yes {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: var(--accent-primary);
+  color: white;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.mention-notify-yes:hover {
+  background: var(--accent-hover);
+}
+
+.mention-notify-yes:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mention-notify-no {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mention-notify-no:hover {
+  background: var(--bg-hover);
+}
+
+/* Invite delivery modal */
+.invite-delivery-modal {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 280px;
+  padding: 16px;
+}
+
+.invite-delivery-content h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.invite-delivery-content p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.invite-delivery-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.invite-delivery-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.invite-delivery-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.invite-delivery-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.invite-delivery-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.invite-delivery-close:hover {
+  color: var(--text-primary);
+}
+
 /* Attenuator modal — dropdown for managing a single member */
 .channel-attenuator-modal {
   position: absolute;

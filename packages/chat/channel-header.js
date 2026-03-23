@@ -152,30 +152,97 @@ export const createChannelHeader = ({
     try {
       await E(channel).createInvitation(inviteeName);
 
-      // Generate a locator with connection hints for sharing
+      // Ask how to deliver the invitation
       if (powers && channelPetName) {
-        try {
-          const rawLocator = await E(
-            /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
-              powers
-            ),
-          ).locateForSharing(channelPetName);
-          // Include the current view mode so the invitee defaults
-          // to the same view as the inviter.
-          const locator =
-            viewMode && viewMode !== 'chat'
-              ? `${rawLocator}&view=${viewMode}`
-              : rawLocator;
-          window.prompt(
-            'Share this locator with the invitee (includes connection hints):',
-            /** @type {string} */ (locator),
+        // Show delivery options
+        const $modal = document.createElement('div');
+        $modal.className = 'invite-delivery-modal';
+        $modal.innerHTML = `
+          <div class="invite-delivery-content">
+            <h3>Invitation created for \u201C${inviteeName}\u201D</h3>
+            <p>How would you like to share it?</p>
+            <div class="invite-delivery-actions">
+              <button type="button" class="invite-delivery-btn" data-action="link">Copy Link</button>
+              <button type="button" class="invite-delivery-btn" data-action="contact">Send to Contact</button>
+            </div>
+            <button type="button" class="invite-delivery-close">&times;</button>
+          </div>
+        `;
+        $container.appendChild($modal);
+
+        const $linkBtn = /** @type {HTMLButtonElement} */ (
+          $modal.querySelector('[data-action="link"]')
+        );
+        const $contactBtn = /** @type {HTMLButtonElement} */ (
+          $modal.querySelector('[data-action="contact"]')
+        );
+        const $closeBtn = /** @type {HTMLButtonElement} */ (
+          $modal.querySelector('.invite-delivery-close')
+        );
+
+        const closeModal = () => $modal.remove();
+
+        $closeBtn.addEventListener('click', closeModal);
+
+        $linkBtn.addEventListener('click', async () => {
+          closeModal();
+          try {
+            const rawLocator = await E(
+              /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
+                powers
+              ),
+            ).locateForSharing(channelPetName);
+            const locator =
+              viewMode && viewMode !== 'chat'
+                ? `${rawLocator}&view=${viewMode}`
+                : rawLocator;
+            window.prompt(
+              'Share this locator with the invitee:',
+              /** @type {string} */ (locator),
+            );
+          } catch {
+            window.alert(
+              `Invitation created for "${inviteeName}". Share the channel locator directly.`,
+            );
+          }
+        });
+
+        $contactBtn.addEventListener('click', async () => {
+          const contactName = window.prompt(
+            'Pet name of the contact to send invitation to:',
           );
-        } catch {
-          // Locator generation optional
-          window.alert(
-            `Invitation created for "${inviteeName}". Share the channel locator directly.`,
-          );
-        }
+          if (!contactName) {
+            closeModal();
+            return;
+          }
+          $contactBtn.disabled = true;
+          $contactBtn.textContent = 'Sending\u2026';
+          try {
+            // Send channel reference to the contact's inbox
+            const edgeName = channelPetName;
+            await E(
+              /** @type {{ send: (to: string, strings: string[], edgeNames: string[], petNames: string[]) => Promise<void> }} */ (
+                powers
+              ),
+            ).send(
+              contactName,
+              [
+                `You\u2019ve been invited to join `,
+                `. Join the channel to participate.`,
+              ],
+              [edgeName],
+              [channelPetName],
+            );
+            closeModal();
+            window.alert(`Invitation sent to @${contactName}.`);
+          } catch (err) {
+            $contactBtn.disabled = false;
+            $contactBtn.textContent = 'Send to Contact';
+            window.alert(
+              `Failed to send: ${/** @type {Error} */ (err).message}`,
+            );
+          }
+        });
       }
     } catch (err) {
       window.alert(

@@ -1034,6 +1034,9 @@ const bodyComponent = (
               }
 
               for (const name of msg.names || []) {
+                const $btnRow = document.createElement('div');
+                $btnRow.className = 'inbox-btn-row';
+
                 const $btn = document.createElement('button');
                 $btn.className = 'inbox-adopt-btn';
                 $btn.textContent = `Adopt \u201C${name}\u201D`;
@@ -1060,7 +1063,68 @@ const bodyComponent = (
                     );
                   }
                 });
-                $entry.appendChild($btn);
+                $btnRow.appendChild($btn);
+
+                // "Join as Channel" button
+                const $joinBtn = document.createElement('button');
+                $joinBtn.className = 'inbox-join-channel-btn';
+                $joinBtn.textContent = 'Join as Channel';
+                $joinBtn.addEventListener('click', async () => {
+                  const localName = window.prompt(
+                    `Local name for this channel:`,
+                    name,
+                  );
+                  if (!localName) return;
+                  $joinBtn.disabled = true;
+                  $joinBtn.textContent = 'Joining\u2026';
+                  try {
+                    // Adopt the channel reference
+                    await E(
+                      /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
+                        resolvedPowers
+                      ),
+                    ).adopt(msg.number, name, localName);
+
+                    // Look up and join the channel
+                    const channelRef = await E(
+                      /** @type {ERef<EndoHost>} */ (resolvedPowers),
+                    ).lookup(localName);
+                    const displayName =
+                      window.prompt(
+                        'Your display name in this channel:',
+                        'Guest',
+                      ) || 'Guest';
+                    await E(channelRef).join(displayName);
+
+                    // Create a space config for this channel
+                    const spaceId = String(Date.now());
+                    const spaceIcon = '\uD83D\uDCE8'; // 📨
+                    const spaceName = localName;
+                    await spacesGutterAPI.addSpace({
+                      name: spaceName,
+                      icon: spaceIcon,
+                      profilePath,
+                      mode: 'channel',
+                      channelPetName: localName,
+                      proposedName: displayName,
+                      viewMode: 'chat',
+                    });
+                    window.alert(
+                      `Joined channel as \u201C${displayName}\u201D. Check the spaces gutter.`,
+                    );
+                    inboxLoaded = false;
+                    await loadInbox();
+                  } catch (err) {
+                    $joinBtn.disabled = false;
+                    $joinBtn.textContent = 'Join as Channel';
+                    window.alert(
+                      `Failed to join channel: ${/** @type {Error} */ (err).message}`,
+                    );
+                  }
+                });
+                $btnRow.appendChild($joinBtn);
+
+                $entry.appendChild($btnRow);
               }
               $inboxBody.appendChild($entry);
             }
@@ -1088,6 +1152,352 @@ const bodyComponent = (
         $inboxBody.style.display = 'none';
       }
 
+      // --- Mention notification area ---
+      const $mentionNotifyArea = document.createElement('div');
+      $mentionNotifyArea.className = 'mention-notify-area';
+      $chatBar.insertBefore($mentionNotifyArea, $chatBar.firstChild);
+
+      /**
+       * Build a thread recap by walking the replyTo chain from a message
+       * to the root. Returns interleaved strings/edgeNames/petNames so
+       * that member references are embedded as adoptable values in the
+       * inbox message.
+       *
+       * @param {Array<{ number: bigint, strings?: string[], names?: string[], replyTo?: string, memberId?: string }>} allMessages
+       * @param {string | undefined} fromKey - message number (as string) to start from
+       * @param {Map<string, { petName: string, edgeName: string }>} memberIdToRef - maps memberId to pet name (for resolution) and edge name (proposed name for recipient)
+       * @returns {{ strings: string[], edgeNames: string[], petNames: string[] }}
+       */
+      const buildThreadRecap = (allMessages, fromKey, memberIdToRef) => {
+        const empty = { strings: [], edgeNames: [], petNames: [] };
+        if (!fromKey) return empty;
+
+        /** @type {Map<string, { strings?: string[], names?: string[], replyTo?: string, memberId?: string }>} */
+        const byNumber = new Map();
+        for (const m of allMessages) {
+          byNumber.set(String(m.number), m);
+        }
+
+        // Walk up from fromKey to root
+        /** @type {Array<{ text: string, memberId: string | undefined }>} */
+        const chain = [];
+        let current = fromKey;
+        while (current) {
+          const msg = byNumber.get(current);
+          if (!msg) break;
+          const text = msg.strings ? msg.strings.join('') : '';
+          chain.unshift({ text, memberId: msg.memberId });
+          current = msg.replyTo;
+        }
+
+        if (chain.length === 0) return empty;
+
+        // Build interleaved arrays following the send() protocol:
+        //   strings[0] ref[0] strings[1] ref[1] ... strings[n]
+        // where strings.length === edgeNames.length + 1.
+        //
+        // Edge names must be unique per message, so each author is
+        // embedded as a reference only on their first appearance.
+        // Subsequent messages by the same author use plain text.
+        /** @type {string[]} */
+        const strings = [''];
+        /** @type {string[]} */
+        const edgeNames = [];
+        /** @type {string[]} */
+        const petNames = [];
+        /** @type {Set<string>} */
+        const embeddedAuthors = new Set();
+
+        for (let i = 0; i < chain.length; i++) {
+          const entry = chain[i];
+          const indent = '  '.repeat(i);
+          const preview =
+            entry.text.length > 120
+              ? `${entry.text.slice(0, 120)}\u2026`
+              : entry.text;
+          const separator = i > 0 ? '\n' : '';
+          const authorRef = entry.memberId
+            ? memberIdToRef.get(entry.memberId)
+            : undefined;
+
+          if (
+            authorRef &&
+            !embeddedAuthors.has(authorRef.edgeName)
+          ) {
+            // First appearance — embed the author as a reference.
+            // Suffix "(author)" in the preceding text so agents
+            // know this is attribution, not an actionable ref.
+            embeddedAuthors.add(authorRef.edgeName);
+            strings[strings.length - 1] += `${separator}${indent}`;
+            edgeNames.push(authorRef.edgeName);
+            petNames.push(authorRef.petName);
+            strings.push(` (author): ${preview}`);
+          } else {
+            // Repeat author or no resolvable author — plain text
+            const authorLabel =
+              (authorRef && authorRef.edgeName) ||
+              entry.memberId ||
+              '?';
+            strings[strings.length - 1] +=
+              `${separator}${indent}${authorLabel}: ${preview}`;
+          }
+        }
+
+        return { strings, edgeNames, petNames };
+      };
+
+      /**
+       * Handle @-mention notifications after a channel post.
+       * Shows a prompt per valid recipient.
+       * @param {{ petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }} info
+       */
+      const handleMentionNotify = async info => {
+        if (
+          !activeSpaceInfo ||
+          activeSpaceInfo.mode !== 'channel' ||
+          !activeSpaceInfo.channelPetName
+        ) {
+          return;
+        }
+        const { channelPetName } = activeSpaceInfo;
+
+        // For each mentioned pet name, validate and show prompt
+        for (const petName of info.petNames) {
+          // Check if the pet name resolves to something
+          let isValid = false;
+          try {
+            const id = await E(
+              /** @type {ERef<EndoHost>} */ (resolvedPowers),
+            ).identify(petName);
+            isValid = Boolean(id);
+          } catch {
+            // Not a valid pet name
+          }
+          if (!isValid) {
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+
+          // Create a prompt for this recipient
+          const $prompt = document.createElement('div');
+          $prompt.className = 'mention-notify-prompt';
+          $prompt.innerHTML = `
+            <span class="mention-notify-text">\uD83D\uDCE8 Notify <strong>@${petName}</strong>?</span>
+            <button type="button" class="mention-notify-yes">Yes, notify</button>
+            <button type="button" class="mention-notify-no">No</button>
+          `;
+          $mentionNotifyArea.appendChild($prompt);
+
+          const $yes = /** @type {HTMLButtonElement} */ (
+            $prompt.querySelector('.mention-notify-yes')
+          );
+          const $no = /** @type {HTMLButtonElement} */ (
+            $prompt.querySelector('.mention-notify-no')
+          );
+
+          $no.addEventListener('click', () => {
+            $prompt.remove();
+          });
+
+          $yes.addEventListener('click', async () => {
+            $yes.disabled = true;
+            $yes.textContent = 'Sending\u2026';
+            try {
+              const channelRef = currentChannelRef;
+              if (!channelRef) throw new Error('No channel connection');
+
+              // Check if an invitation already exists for this name
+              let alreadyInvited = false;
+              try {
+                const members = /** @type {Array<{ invitedAs: string }>} */ (
+                  await E(channelRef).getMembers()
+                );
+                alreadyInvited = members.some(
+                  m => m.invitedAs === petName,
+                );
+              } catch {
+                // getMembers not available — try creating anyway
+              }
+
+              if (!alreadyInvited) {
+                // Create a new invitation
+                const displayName =
+                  window.prompt(
+                    `Display name for ${petName} in this channel:`,
+                    petName,
+                  ) || petName;
+                await E(channelRef).createInvitation(displayName);
+              }
+
+              // Build thread recap from the channel's messages
+              const rawMessages = await E(channelRef).listMessages();
+              const channelMessages =
+                /** @type {Array<{ number: bigint, strings?: string[], names?: string[], replyTo?: string, memberId?: string }>} */ (
+                  rawMessages
+                );
+
+              // Build memberId → { petName, edgeName } map.
+              // petName resolves in sender's namespace to a formula ID.
+              // edgeName is proposed to the recipient for adoption.
+              /** @type {Map<string, { petName: string, edgeName: string }>} */
+              const memberIdToRef = new Map();
+
+              // Map our own memberId: @self resolves to our identity.
+              // Use the channel's proposedName as the edge name so the
+              // recipient sees a readable author name.
+              try {
+                const ownMid = await E(
+                  /** @type {{ getMemberId: () => string }} */ (
+                    channelRef
+                  ),
+                ).getMemberId();
+                if (ownMid) {
+                  const ownName = await E(
+                    /** @type {{ getProposedName: () => string }} */ (
+                      channelRef
+                    ),
+                  ).getProposedName();
+                  // Sanitize proposedName to a valid edge name
+                  const safeName = ownName
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/g, '-')
+                    .replace(/^[^a-z]/, 'u')
+                    .slice(0, 128);
+                  memberIdToRef.set(ownMid, {
+                    petName: '@self',
+                    edgeName: safeName || 'sender',
+                  });
+                }
+              } catch {
+                // getMemberId/getProposedName not available
+              }
+
+              // Map invited members: invitedAs is the pet name we used
+              // to create the invitation, and also a valid edge name.
+              try {
+                const memberList =
+                  /** @type {Array<{ memberId: string, invitedAs: string }>} */ (
+                    await E(channelRef).getMembers()
+                  );
+                for (const m of memberList) {
+                  try {
+                    const mid = await E(
+                      /** @type {ERef<EndoHost>} */ (resolvedPowers),
+                    ).identify(m.invitedAs);
+                    if (mid) {
+                      memberIdToRef.set(m.memberId, {
+                        petName: m.invitedAs,
+                        edgeName: m.invitedAs,
+                      });
+                    }
+                  } catch {
+                    // Not in our namespace — skip
+                  }
+                }
+              } catch {
+                // getMembers not available
+              }
+
+              // The most recent message is the one that triggered the mention
+              const lastMsg =
+                channelMessages[channelMessages.length - 1];
+              const lastMsgKey = lastMsg
+                ? String(lastMsg.number)
+                : undefined;
+              const recap = buildThreadRecap(
+                channelMessages,
+                lastMsgKey,
+                memberIdToRef,
+              );
+
+              // Include the channel message number so the agent can
+              // reply to the specific thread, not just post to root.
+              const replyToNum = lastMsgKey || '0';
+
+              // Choose instructions based on whether the recipient
+              // is already a channel member or needs to adopt/join.
+              const instructions = alreadyInvited
+                ? `\n\nReply to channel message #${replyToNum}. ` +
+                  `Use exec() with this code:\n` +
+                  `const ch = await E(powers).lookup("${channelPetName}");\n` +
+                  `const me = await E(ch).join("YOUR_NAME");\n` +
+                  `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
+                  `Do NOT post internal steps or reasoning to the channel.`
+                : `\n\nReply to channel message #${replyToNum}. ` +
+                  `Use exec() with this code:\n` +
+                  `await E(powers).adopt(MSG_NUM, "${edgeName}", "ch-ref");\n` +
+                  `const ch = await E(powers).lookup("ch-ref");\n` +
+                  `const me = await E(ch).join("YOUR_NAME");\n` +
+                  `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
+                  `Do NOT post internal steps or reasoning to the channel.`;
+
+              // Assemble the final send() arrays.
+              // Structure: "You were mentioned in " [channel] ":\n\n"
+              //   [author1] ": msg1\n  " [author2] ": msg2\n\n..."
+              // The channel is always the first embedded reference.
+              const edgeName = channelPetName;
+              /** @type {string[]} */
+              const sendStrings = [`You were mentioned in `];
+              /** @type {string[]} */
+              const sendEdgeNames = [edgeName];
+              /** @type {string[]} */
+              const sendPetNames = [channelPetName];
+
+              if (recap.edgeNames.length > 0) {
+                // String after the channel ref: separator + recap
+                // lead-in. recap.strings is interleaved as:
+                //   strings[0] ref[0] strings[1] ref[1] ... strings[n]
+                sendStrings.push(`:\n\n${recap.strings[0]}`);
+                const usedEdgeNames = new Set([edgeName]);
+                for (let ri = 0; ri < recap.edgeNames.length; ri++) {
+                  // Ensure edge name uniqueness across the message
+                  let recapEdge = recap.edgeNames[ri];
+                  if (usedEdgeNames.has(recapEdge)) {
+                    recapEdge = `${recapEdge}-author`;
+                  }
+                  usedEdgeNames.add(recapEdge);
+                  sendEdgeNames.push(recapEdge);
+                  sendPetNames.push(recap.petNames[ri]);
+                  sendStrings.push(recap.strings[ri + 1] || '');
+                }
+                sendStrings[sendStrings.length - 1] += instructions;
+              } else if (
+                recap.strings.length > 0 &&
+                recap.strings[0]
+              ) {
+                // Recap text but no embedded refs
+                sendStrings.push(
+                  `:\n\n${recap.strings[0]}${instructions}`,
+                );
+              } else {
+                sendStrings.push(instructions);
+              }
+
+              await E(
+                /** @type {ERef<EndoHost>} */ (resolvedPowers),
+              ).send(
+                petName,
+                sendStrings,
+                sendEdgeNames,
+                sendPetNames,
+              );
+
+              $prompt.innerHTML =
+                '<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@' +
+                petName +
+                '</strong></span>';
+              setTimeout(() => $prompt.remove(), 3000);
+            } catch (err) {
+              $yes.disabled = false;
+              $yes.textContent = 'Yes, notify';
+              window.alert(
+                `Failed to send notification: ${/** @type {Error} */ (err).message}`,
+              );
+            }
+          });
+        }
+      };
+
       const chatBarAPI = chatBarComponent(
         $parent,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
@@ -1100,6 +1510,7 @@ const bodyComponent = (
           exitConversation: () => onConversationChange(null),
           navigateToConversation,
           getChannelRef: () => currentChannelRef,
+          onMentionNotify: isChannelMode ? handleMentionNotify : undefined,
         },
       );
       const { focusValue, blurValue } = valueComponent(

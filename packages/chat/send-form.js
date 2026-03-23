@@ -57,6 +57,7 @@ import { createHeatBar } from './heat-bar.js';
  * @param {() => string | null} [options.getConversationPetName] - Returns active conversation pet name
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions instead of silent send
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -74,6 +75,7 @@ export const sendFormComponent = ({
   getConversationPetName,
   navigateToConversation,
   getChannelRef,
+  onMentionNotify,
 }) => {
   const clearError = () => {
     $error.textContent = '';
@@ -423,13 +425,14 @@ export const sendFormComponent = ({
         )
         .then(
           () => {
-            // Send inbox notifications to @-mentioned members
-            for (const petName of petNames) {
-              E(powers)
-                .send(petName, messageStrings, edgeNames, petNames)
-                .catch(() => {
-                  // Silently ignore — non-person values can't receive messages
-                });
+            // Notify caller about @-mentions for invitation prompts
+            if (petNames.length > 0 && onMentionNotify) {
+              onMentionNotify({
+                petNames,
+                edgeNames,
+                messageStrings,
+                replyTo,
+              });
             }
 
             tokenComponent.clear();

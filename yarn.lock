@@ -1276,7 +1276,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/fae@workspace:packages/fae":
+"@endo/fae@workspace:^, @endo/fae@workspace:packages/fae":
   version: 0.0.0-use.local
   resolution: "@endo/fae@workspace:packages/fae"
   dependencies:
@@ -1287,6 +1287,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
     "@endo/lal": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/patterns": "workspace:^"
@@ -1416,6 +1417,26 @@ __metadata:
   dependencies:
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/jaine@workspace:packages/jaine":
+  version: 0.0.0-use.local
+  resolution: "@endo/jaine@workspace:packages/jaine"
+  dependencies:
+    "@endo/cli": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/fae": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lal": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
     eslint: "catalog:dev"
   languageName: unknown
   linkType: soft

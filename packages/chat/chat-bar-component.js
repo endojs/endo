@@ -34,6 +34,7 @@ import { kbd, modKey } from './platform-keys.js';
  * @param {() => void} [options.exitConversation] - Exit the current conversation view
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions
  */
 export const chatBarComponent = (
   $parent,
@@ -47,6 +48,7 @@ export const chatBarComponent = (
     exitConversation,
     navigateToConversation,
     getChannelRef,
+    onMentionNotify,
   },
 ) => {
   const $chatBar = /** @type {HTMLElement} */ (
@@ -188,6 +190,7 @@ export const chatBarComponent = (
     getConversationPetName,
     navigateToConversation,
     getChannelRef,
+    onMentionNotify,
   });
 
   // Initialize command executor
