@@ -79,6 +79,37 @@ import type { Guarded, GuardedKit } from '../src/types.js';
   });
 }
 
+// Guard-driven: narrowed type parameter wins over wide implementation
+// M.string<`agoric1${string}`>() narrows the arg to a template literal type.
+// The guard type flows into the implementation via contextual typing,
+// and callers see the narrowed type on the returned exo.
+{
+  const AddrI = M.interface('Addr', {
+    setAddr: M.call(M.string<`agoric1${string}`>()).returns(),
+    getAddr: M.call().returns(M.string<`agoric1${string}`>()),
+  });
+  const makeAddr = defineExoClass(
+    'Addr',
+    AddrI,
+    () => ({ addr: '' as string }),
+    {
+      setAddr(a) {
+        expectType<`agoric1${string}`>(a);
+        this.state.addr = a;
+      },
+      getAddr() {
+        return this.state.addr as `agoric1${string}`;
+      },
+    },
+  );
+  const addr = makeAddr();
+  // Caller sees the narrowed guard types
+  addr.setAddr('agoric1abc');
+  // @ts-expect-error -- wide string is not assignable to `agoric1${string}`
+  addr.setAddr('cosmos1xyz');
+  expectType<() => `agoric1${string}`>(addr.getAddr);
+}
+
 // Return type is Guarded<M>, which is Passable and has the methods
 {
   const FooI = M.interface('Foo', {
@@ -168,6 +199,37 @@ import type { Guarded, GuardedKit } from '../src/types.js';
     },
   });
 }
+
+// Guard-driven: wrong argument type in defineExoClass is a compile error
+{
+  const FooI = M.interface('Foo', {
+    set: M.call(M.string()).returns(),
+  });
+  // @ts-expect-error -- arg must be string, not number
+  defineExoClass('Foo', FooI, () => ({}), {
+    set(val: number) {},
+  });
+}
+
+// Guard-driven: missing method in defineExoClass is a compile error
+{
+  const FooI = M.interface('Foo', {
+    get: M.call().returns(M.string()),
+    set: M.call(M.string()).returns(),
+  });
+  // @ts-expect-error -- 'set' method is missing
+  defineExoClass('Foo', FooI, () => ({}), {
+    get() {
+      return 'hi';
+    },
+  });
+}
+
+// NOTE: defineExoClassKit guard enforcement is NOT tested here because of
+// a known TS limitation: when the typed overload's constraint fails,
+// TypeScript silently falls through to the fallback overload which does
+// not enforce method types against the guard.  See the "TS limitation"
+// comment in the defineExoClassKit section below.
 
 // .returns() with no args: TypeFromMethodGuard produces () => undefined
 {

@@ -159,7 +159,7 @@ export type Farable<M extends Methods> = M &
  *   `{ incr: ... } & Methods`), strip the index signature and keep only
  *   the concrete keys.
  */
-type StripIndexCore<T> = {
+export type StripIndexCore<T> = {
   [K in keyof T as string extends K
     ? never
     : number extends K

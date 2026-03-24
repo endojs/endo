@@ -20,7 +20,7 @@ test('what happens with extra arguments', t => {
       t.is(x, undefined);
     },
   });
-  // TS sees foo(x: any) from the impl, so this is valid to TS. Runtime guard rejects it.
+  // @ts-expect-error guard declares 0 args, passing 1 is a type error
   t.throws(() => exo.foo('an extra arg'), {
     message:
       '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
@@ -33,11 +33,13 @@ const OptionalArrayI = M.interface('OptionalArray', {
 
 test('callWhen-guarded method called without optional array argument', async t => {
   const exo = makeExo('WithNoOption', OptionalArrayI, {
+    /**
+     * @param {string[]} [arr]
+     */
     async foo(arr) {
       t.is(arr, undefined);
     },
   });
-  // @ts-expect-error TS infers foo(arr) as required from the impl, but guard makes it optional at runtime
   await t.notThrowsAsync(() => exo.foo());
 });
 
@@ -321,11 +323,9 @@ test('raw guards', t => {
   t.is(Object.isFrozen({}), Object.isFrozen(greeter2.passthrough({})));
 
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
-  // @ts-expect-error TS infers 4 required params from impl, guard makes last 2 optional at runtime
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
-    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous(makeBehavior(), {}, {}),
     {
       message:
@@ -334,7 +334,6 @@ test('raw guards', t => {
     'passable behavior not allowed',
   );
   t.notThrows(
-    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous({}, makeBehavior(), {}),
     'raw behavior allowed',
   );
@@ -389,7 +388,7 @@ test.skip('types', () => {
       return val;
     },
   });
-  // @ts-expect-error TS infers incr(val: number) as required from JSDoc, guard makes it optional at runtime
+  // Guard makes the arg optional, so calling with 0 args is valid
   guarded.incr();
   // @ts-expect-error not defined on the guarded type
   guarded.notInBehavior;
@@ -429,7 +428,7 @@ test.skip('types', () => {
     },
   );
   sloppy.incr(1);
-  // @ts-expect-error TS infers incr(val: number) as required from JSDoc, guard makes it optional at runtime
+  // @ts-expect-error sloppy:true → InterfaceGuard<any> → falls back to impl types where val is required
   sloppy.incr();
   // allowed because sloppy:true
   sloppy.notInInterface() === 0;
