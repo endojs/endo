@@ -860,7 +860,7 @@ export type MethodGuardReturns<
   Args extends ArgGuard[] = ArgGuard[],
   OptArgs extends ArgGuard[] = ArgGuard[],
 > = {
-  returns: <RG extends SyncValueGuard = MatcherOf<'any'>>(
+  returns: <RG extends SyncValueGuard = MatcherOf<'kind', 'undefined'>>(
     returnGuard?: RG,
   ) => MethodGuard<CK, Args, OptArgs, RG>;
 };

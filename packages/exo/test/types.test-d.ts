@@ -169,6 +169,86 @@ import type { Guarded, GuardedKit } from '../src/types.js';
   });
 }
 
+// .returns() with no args: TypeFromMethodGuard produces () => undefined
+{
+  const mg = M.call().returns();
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<() => undefined>(null as unknown as Fn);
+}
+
+// .returns() with no args defaults to undefined return type
+{
+  const FooI = M.interface('Foo', {
+    doSomething: M.call().returns(),
+    getName: M.call().returns(M.string()),
+  });
+  const makeFoo = defineExoClass('Foo', FooI, () => ({}), {
+    doSomething() {},
+    getName() {
+      return 'foo';
+    },
+  });
+  const foo = makeFoo();
+  // Implementation returns void; Guarded<M> preserves the inferred impl type.
+  // TypeFromMethodGuard correctly resolves .returns() to () => undefined
+  // (see test above), but defineExoClass infers M from the implementation.
+  expectType<() => void>(foo.doSomething);
+  expectType<() => string>(foo.getName);
+}
+
+// .returns() on callWhen defaults to Promise<undefined>
+{
+  const AsyncI = M.interface('Async', {
+    fire: M.callWhen(M.await(M.string())).returns(),
+    fetch: M.callWhen().returns(M.string()),
+  });
+  const exo = makeExo('Async', AsyncI, {
+    async fire(_s) {},
+    async fetch() {
+      return 'data';
+    },
+  });
+  // async void impl → Promise<void>, not Promise<undefined>
+  expectType<(s: string) => Promise<void>>(exo.fire);
+  expectType<() => Promise<string>>(exo.fetch);
+}
+
+// Complex guard similar to ChainStorageNode
+{
+  const StorageNodeI = M.interface('StorageNode', {
+    setValue: M.callWhen(M.string()).returns(),
+    getPath: M.call().returns(M.string()),
+    getStoreKey: M.callWhen().returns(M.record()),
+    makeChildNode: M.call(M.string())
+      .optional(M.splitRecord({}, { sequence: M.boolean() }, {}))
+      .returns(M.remotable('StorageNode')),
+  });
+  const makeNode = defineExoClass(
+    'StorageNode',
+    StorageNodeI,
+    (path: string) => ({ path, data: '' }),
+    {
+      async setValue(val) {
+        expectType<string>(val);
+        this.state.data = val;
+      },
+      getPath() {
+        return this.state.path;
+      },
+      async getStoreKey() {
+        return { storeName: 'test', storeSubkey: this.state.path } as any;
+      },
+      makeChildNode(name, _opts?) {
+        expectType<string>(name);
+        return undefined as any;
+      },
+    },
+  );
+  const node = makeNode('/root');
+  expectType<(val: string) => Promise<void>>(node.setValue);
+  expectType<() => string>(node.getPath);
+}
+
 // ===== defineExoClassKit (no guard) =====
 
 // Kit has distinct facets; each is Passable; this.facets (not this.self)
