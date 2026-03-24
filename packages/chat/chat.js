@@ -75,9 +75,6 @@ const template = `
 <div id="eval-form-backdrop"></div>
 <div id="eval-form-container"></div>
 
-<div id="counter-proposal-backdrop"></div>
-<div id="counter-proposal-container"></div>
-
 <div id="form-builder-backdrop"></div>
 <div id="form-builder-container"></div>
 

@@ -314,8 +314,6 @@ type MessageFormula = {
     | 'definition'
     | 'form'
     | 'value'
-    | 'eval-proposal-reviewer'
-    | 'eval-proposal-proposer';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -509,42 +507,13 @@ export type ValueMessage = MessageBase & {
   valueId: FormulaIdentifier;
 };
 
-export type EvalProposalBase = {
-  messageId: FormulaNumber;
-  replyTo?: FormulaNumber;
-  source: string;
-  codeNames: Array<string>;
-  petNamePaths?: Array<NamePath>;
-  edgeNames: Array<string>;
-  ids: Array<string>;
-  workerName?: string;
-};
-
-export type EvalProposalReviewer = EvalProposalBase & {
-  type: 'eval-proposal-reviewer';
-  responder: ERef<Responder>;
-  settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<string | undefined>;
-  result: Promise<unknown>;
-};
-
-// The proposer message is a sent receipt. It intentionally omits
-// settled, resultId, and result so the sender cannot observe the
-// reviewer's endowments or actions.
-export type EvalProposalProposer = EvalProposalBase & {
-  type: 'eval-proposal-proposer';
-  resultName?: string;
-};
-
 export type Message =
   | Request
   | Package
   | EvalRequest
   | DefineRequest
   | Form
-  | ValueMessage
-  | EvalProposalReviewer
-  | EvalProposalProposer;
+  | ValueMessage;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -902,37 +871,6 @@ export interface Mail {
     messageNumber: bigint,
     valueId: FormulaIdentifier,
   ): Promise<void>;
-  // Eval-proposal workflow
-  evaluate(
-    toId: string,
-    source: string,
-    codeNames: Array<string>,
-    petNamePaths: Array<NamePath>,
-    edgeNames: Array<string>,
-    ids: Array<string>,
-    workerName?: string,
-    resultName?: string,
-  ): Promise<unknown>;
-  grantEvaluate(
-    messageNumber: bigint,
-    executeEval: (
-      source: string,
-      codeNames: string[],
-      ids: string[],
-      workerName: string | undefined,
-      proposal: EvalProposalReviewer,
-    ) => Promise<{ id: string; value: unknown }>,
-  ): Promise<unknown>;
-  counterEvaluate(
-    messageNumber: bigint,
-    source: string,
-    codeNames: Array<string>,
-    petNamePaths: Array<NamePath>,
-    edgeNames: Array<string>,
-    ids: Array<string>,
-    workerName?: string,
-    resultName?: string,
-  ): Promise<void>;
 }
 
 export type MakeMailbox = (args: {
@@ -1033,7 +971,7 @@ export interface EndoGuest extends EndoAgent {
     petNamePaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
-  /** Propose code evaluation to host with full eval-proposal workflow */
+  /** Evaluate code directly in a worker, constrained by reachable capabilities. */
   evaluate(
     workerPetName: string | undefined,
     source: string,
@@ -1120,17 +1058,6 @@ export interface EndoHost extends EndoAgent {
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
-  /** Grant an eval-proposal by executing the proposed code. */
-  grantEvaluate(messageNumber: bigint): Promise<unknown>;
-  /** Send a counter-proposal with modified code and/or bindings. */
-  counterEvaluate(
-    messageNumber: bigint,
-    source: string,
-    codeNames: Array<string>,
-    petNamesOrPaths: Array<string | string[]>,
-    workerName?: string,
-    resultName?: string | string[],
-  ): Promise<unknown>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,

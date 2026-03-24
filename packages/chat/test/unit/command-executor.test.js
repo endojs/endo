@@ -46,9 +46,6 @@ const createMockContext = () => {
     reject: async (number, reason) => {
       calls.push({ method: 'reject', args: [number, reason] });
     },
-    grantEvaluate: async number => {
-      calls.push({ method: 'grantEvaluate', args: [number] });
-    },
     evaluate: async (
       workerName,
       source,
@@ -253,37 +250,6 @@ test('execute reject command', async t => {
   t.true(result.success);
   t.is(result.message, 'Request #10 rejected');
   t.deepEqual(ctx.calls[0].args, [10n, 'Not available']);
-});
-
-test('execute grant command', async t => {
-  const ctx = createMockContext();
-  const executor = createCommandExecutor({
-    powers: ctx.powers,
-    showValue: v => ctx.showValueCalls.push(v),
-    showMessage: m => ctx.showMessageCalls.push(m),
-    showError: e => ctx.showErrorCalls.push(e),
-  });
-
-  const result = await executor.execute('grant', { messageNumber: 7 });
-
-  t.true(result.success);
-  t.is(result.message, 'Eval-proposal #7 granted');
-  t.is(ctx.calls[0].method, 'grantEvaluate');
-});
-
-test('execute allow command (alias for grant)', async t => {
-  const ctx = createMockContext();
-  const executor = createCommandExecutor({
-    powers: ctx.powers,
-    showValue: v => ctx.showValueCalls.push(v),
-    showMessage: m => ctx.showMessageCalls.push(m),
-    showError: e => ctx.showErrorCalls.push(e),
-  });
-
-  const result = await executor.execute('allow', { messageNumber: 7 });
-
-  t.true(result.success);
-  t.is(ctx.calls[0].method, 'grantEvaluate');
 });
 
 test('execute js command', async t => {

@@ -336,8 +336,6 @@ export const makeHostMaker = ({
 
     /**
      * Evaluate code directly in a worker.
-     * Note: This is the Host's evaluate, which executes code immediately.
-     * Guest.evaluate instead sends an eval-proposal to the Host for approval.
      * @param {Name | undefined} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
@@ -929,11 +927,6 @@ export const makeHostMaker = ({
       request,
       send,
       deliver,
-      // Note: We intentionally do not extract `evaluate` from mailbox.
-      // Host has its own `evaluate` method that executes code directly,
-      // whereas mailbox.evaluate sends an eval-proposal (used by Guest).
-      grantEvaluate: mailboxGrantEvaluate,
-      counterEvaluate: mailboxCounterEvaluate,
       form,
       submit,
       sendValue,
@@ -1057,130 +1050,6 @@ export const makeHostMaker = ({
     };
 
     /**
-     * Grant an eval-proposal by executing the proposed code.
-     * @param {bigint} messageNumber - The message number of the eval-proposal
-     */
-    const grantEvaluate = async messageNumber => {
-      // Create an executor callback that uses formulateEval
-      const executeEval = async (
-        source,
-        codeNames,
-        ids,
-        workerName,
-        proposal,
-      ) => {
-        /** @type {DeferredTasks<EvalDeferredTaskParams>} */
-        const tasks = makeDeferredTasks();
-
-        const workerId = prepareWorkerFormulation(workerName, tasks.push);
-
-        let nameHubId = hostId;
-        let endowmentIdsOrPaths = ids;
-
-        if (proposal?.from) {
-          const guestAgentId = await getAgentIdForHandleId(proposal.from);
-          nameHubId = guestAgentId;
-
-          if (proposal.petNamePaths) {
-            if (proposal.petNamePaths.length !== codeNames.length) {
-              throw new Error(
-                `Eval proposal must have one pet name path for each code name`,
-              );
-            }
-
-            const guestAgent = await provide(guestAgentId, 'agent');
-
-            // Resolve endowments from the guest's namespace
-            endowmentIdsOrPaths = await Promise.all(
-              proposal.petNamePaths.map(async petNamePath => {
-                if (petNamePath.length === 1) {
-                  const id = await E(guestAgent).identify(petNamePath[0]);
-                  if (id === undefined) {
-                    throw new Error(
-                      `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
-                    );
-                  }
-                  return /** @type {FormulaIdentifier} */ (id);
-                }
-                return petNamePath;
-              }),
-            );
-          }
-        }
-
-        const { id, value } = await formulateEval(
-          nameHubId,
-          source,
-          codeNames,
-          endowmentIdsOrPaths,
-          tasks,
-          workerId,
-        );
-        return { id, value };
-      };
-
-      return mailboxGrantEvaluate(messageNumber, executeEval);
-    };
-
-    /**
-     * Send a counter-proposal back to the original proposer.
-     * @param {bigint} messageNumber - The message number of the original eval-proposal
-     * @param {string} source - Modified JavaScript source code
-     * @param {string[]} codeNames - Variable names used in source
-     * @param {(string | string[])[]} petNamesOrPaths - Pet names for values (host's namespace)
-     * @param {string} [workerName] - Worker to execute on
-     * @param {string[]} [resultName] - Where to store result
-     */
-    const counterEvaluate = async (
-      messageNumber,
-      source,
-      codeNames,
-      petNamesOrPaths,
-      workerName,
-      resultName,
-    ) => {
-      const petNamePaths = petNamesOrPaths.map(namePathFrom);
-      if (petNamePaths.length !== codeNames.length) {
-        throw new Error(
-          `Counter must have the same number of code names (${q(
-            codeNames.length,
-          )}) as pet names (${q(petNamePaths.length)})`,
-        );
-      }
-
-      // Resolve all pet names to formula IDs from host's namespace
-      const ids = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          const id = await E(directory).identify(...petNamePath);
-          if (id === undefined) {
-            throw new Error(`Unknown pet name ${q(petNamePath)}`);
-          }
-          return id;
-        }),
-      );
-
-      // Create edge names from the pet names (for display in the counter-proposal)
-      const edgeNames = /** @type {import('./types.js').EdgeName[]} */ (
-        petNamePaths.map(path => (Array.isArray(path) ? path.join('/') : path))
-      );
-
-      // Get optional result name and worker name as strings
-      const resultNameStr = resultName ? resultName.join('/') : undefined;
-      const workerNameStr = workerName || undefined;
-
-      await mailboxCounterEvaluate(
-        messageNumber,
-        source,
-        codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerNameStr,
-        resultNameStr,
-      );
-    };
-
-    /**
      * Returns a snapshot of the formula dependency graph for all formulas
      * reachable from this agent's pet store entries.
      */
@@ -1262,9 +1131,6 @@ export const makeHostMaker = ({
       invite,
       accept,
       approveEvaluation,
-      // Eval-proposal handling
-      grantEvaluate,
-      counterEvaluate,
       endow,
       submit,
       sendValue,
@@ -1294,7 +1160,6 @@ export const makeHostMaker = ({
       'reverseIdentify',
       'approveEvaluation',
       'endow',
-      'grantEvaluate',
       'submit',
       'sendValue',
     ]);

@@ -5,16 +5,22 @@ import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
-import { assertNamePath, namePathFrom } from './pet-name.js';
+import {
+  assertName,
+  assertNamePath,
+  assertPetName,
+  namePathFrom,
+} from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
-/** @import { Context, DaemonCore, DeferredTasks, EdgeName, EndoGuest, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NodeNumber, NamesOrPaths, Provide } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, EvalDeferredTaskParams, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, NamesOrPaths, Provide, WorkerDeferredTaskParams } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 import { guestHelp, makeHelp } from './help-text.js';
 
 /**
  * @param {object} args
  * @param {Provide} args.provide
+ * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
@@ -27,6 +33,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  */
 export const makeGuestMaker = ({
   provide,
+  formulateEval,
   formulateMarshalValue,
   getFormulaForId,
   getAllNetworkAddresses,
@@ -147,7 +154,6 @@ export const makeGuestMaker = ({
       request,
       send,
       deliver,
-      evaluate: mailboxEvaluate,
       requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
@@ -166,64 +172,106 @@ export const makeGuestMaker = ({
       );
 
     /**
-     * Propose code evaluation to the host.
-     * Same signature as Host.evaluate() - returns promise that resolves when Host grants.
-     * @param {Name | undefined} workerPetName
+     * @param {Name | undefined} workerName
+     * @param {DeferredTasks<WorkerDeferredTaskParams>['push']} deferTask
+     */
+    const prepareWorkerFormulation = (workerName, deferTask) => {
+      if (workerName === undefined) {
+        return undefined;
+      }
+      const workerId = /** @type {FormulaIdentifier | undefined} */ (
+        specialStore.identifyLocal(workerName)
+      );
+      if (workerId === undefined) {
+        assertPetName(workerName);
+        const petName = workerName;
+        deferTask(identifiers => {
+          return specialStore.write(petName, identifiers.workerId);
+        });
+        return undefined;
+      }
+      return workerId;
+    };
+
+    /**
+     * Evaluate code directly in a worker, constrained only by reachable
+     * capabilities in the guest's namespace.
+     * @param {Name | undefined} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
      * @param {NamesOrPaths} petNamesOrPaths
-     * @param {NameOrPath} [resultNameOrPath]
-     * @returns {Promise<unknown>} - Resolves with evaluation result when Host grants
+     * @param {NameOrPath} [resultName]
+     * @returns {Promise<unknown>}
      */
     const evaluate = async (
-      workerPetName,
+      workerName,
       source,
       codeNames,
       petNamesOrPaths,
-      resultNameOrPath,
+      resultName,
     ) => {
-      const petNamePaths = petNamesOrPaths.map(namePathFrom);
-      if (petNamePaths.length !== codeNames.length) {
-        throw new Error(
-          `Evaluation must have the same number of code names (${q(
-            codeNames.length,
-          )}) as pet names (${q(petNamePaths.length)})`,
+      if (workerName !== undefined) {
+        assertName(workerName);
+      }
+      if (!Array.isArray(codeNames)) {
+        throw new Error('Evaluator requires an array of code names');
+      }
+      for (const codeName of codeNames) {
+        if (typeof codeName !== 'string') {
+          throw new Error(`Invalid endowment name: ${q(codeName)}`);
+        }
+      }
+      if (resultName !== undefined) {
+        const resultNamePath = namePathFrom(resultName);
+        assertNamePath(resultNamePath);
+      }
+      if (petNamesOrPaths.length !== codeNames.length) {
+        throw new Error('Evaluator requires one pet name for each code name');
+      }
+
+      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+
+      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+
+      /** @type {(FormulaIdentifier | NamePath)[]} */
+      const endowmentFormulaIdsOrPaths = petNamesOrPaths.map(petNameOrPath => {
+        const petNamePath = namePathFrom(petNameOrPath);
+        if (petNamePath.length === 1) {
+          const id = specialStore.identifyLocal(petNamePath[0]);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
+          }
+          return /** @type {FormulaIdentifier} */ (id);
+        }
+
+        return petNamePath;
+      });
+
+      if (resultName !== undefined) {
+        const resultNamePath = namePathFrom(resultName);
+        tasks.push(identifiers =>
+          E(directory).write(resultNamePath, identifiers.evalId),
         );
       }
 
-      // Resolve all pet names to formula IDs from guest's namespace
-      const ids = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          const id = await E(directory).identify(...petNamePath);
-          if (id === undefined) {
-            throw new Error(`Unknown pet name ${q(petNamePath)}`);
-          }
-          return id;
-        }),
-      );
-
-      // Create edge names from the pet names (for display in the proposal)
-      const edgeNames = /** @type {EdgeName[]} */ (
-        petNamePaths.map(path => (Array.isArray(path) ? path.join('/') : path))
-      );
-
-      // Get optional result name and worker name as strings
-      const resultName = resultNameOrPath
-        ? namePathFrom(resultNameOrPath).join('/')
-        : undefined;
-      const workerName = workerPetName || undefined;
-
-      // Send proposal to host and wait for grant
-      return mailboxEvaluate(
-        hostHandleId,
+      const { id, value } = await formulateEval(
+        guestId,
         source,
         codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerName,
-        resultName,
+        endowmentFormulaIdsOrPaths,
+        tasks,
+        workerId,
+        resultName === undefined ? pinTransient : undefined,
       );
+      if (resultName === undefined) {
+        try {
+          return await value;
+        } finally {
+          unpinTransient(id);
+        }
+      }
+      return value;
     };
 
     /** @type {EndoGuest['define']} */
@@ -288,7 +336,6 @@ export const makeGuestMaker = ({
       request,
       send,
       deliver,
-      // Guest-specific: propose evaluation to host
       evaluate,
       // Eval/Define/Form
       requestEvaluation,

@@ -3404,19 +3404,19 @@ button.btn-spinner::after {
   margin: 0 2px;
 }
 
-/* Eval Proposal Message */
-.eval-proposal-message {
+/* Definition message styles */
+.definition-message {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.eval-proposal-from {
+.definition-from {
   font-size: 13px;
   color: var(--bubble-muted, var(--text-secondary));
 }
 
-.eval-proposal-from b {
+.definition-from b {
   background: var(--bubble-chip-bg, var(--msg-chip-bg));
   color: var(--bubble-chip-fg, var(--msg-chip-fg));
   padding: 2px 6px;
@@ -3424,36 +3424,30 @@ button.btn-spinner::after {
   font-weight: 500;
 }
 
-.eval-proposal-endowments {
+.definition-slots {
   font-size: 13px;
 }
 
-.eval-proposal-endowments-label {
+.definition-slots-label {
   font-weight: 500;
   color: var(--bubble-muted, var(--text-secondary));
   margin-bottom: 4px;
 }
 
-.eval-proposal-endowments-list {
+.definition-slots-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding-left: 12px;
 }
 
-.eval-proposal-no-endowments {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.eval-proposal-mapping {
+.definition-slot-row {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.eval-proposal-mapping code {
+.definition-slot-row code {
   font-family: var(--font-mono);
   font-size: 12px;
   background: var(--bubble-code-inline-bg, var(--bg-tertiary));
@@ -3462,89 +3456,34 @@ button.btn-spinner::after {
   border-radius: var(--radius-sm);
 }
 
-.eval-proposal-mapping .token b {
-  background: var(--bubble-chip-bg, var(--accent-bg));
-  color: var(--bubble-chip-fg, var(--accent-primary));
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-}
-
-.eval-proposal-options {
-  font-size: 12px;
-  color: var(--bubble-muted, var(--text-muted));
-  padding: 8px 12px;
-  background: var(--bubble-code-inline-bg, var(--bg-tertiary));
-  border-radius: var(--radius-sm);
-}
-
-.eval-proposal-actions {
+.definition-actions {
   display: flex;
   gap: 8px;
   margin-top: 4px;
 }
 
-.eval-proposal-grant,
-.eval-proposal-counter,
-.eval-proposal-reject,
-.eval-proposal-show-result {
+.definition-submit {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
-}
-
-.eval-proposal-grant {
   background: var(--success-color);
   color: white;
   border: none;
 }
 
-.eval-proposal-grant:hover:not(:disabled) {
+.definition-submit:hover:not(:disabled) {
   background: var(--success);
 }
 
-.eval-proposal-counter {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-
-.eval-proposal-counter:hover:not(:disabled) {
-  background: var(--bg-tertiary);
-}
-
-.eval-proposal-reject {
-  background: var(--danger);
-  color: white;
-  border: none;
-}
-
-.eval-proposal-reject:hover:not(:disabled) {
-  background: var(--danger-hover);
-}
-
-.eval-proposal-show-result {
-  background: var(--accent-primary);
-  color: white;
-  border: none;
-}
-
-.eval-proposal-show-result:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.eval-proposal-grant:disabled,
-.eval-proposal-counter:disabled,
-.eval-proposal-reject:disabled,
-.eval-proposal-show-result:disabled {
+.definition-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.eval-proposal-reject-reason {
+.definition-slot-input {
   padding: 6px 10px;
   font-size: 12px;
   border: 1px solid var(--border-color);
@@ -3554,95 +3493,14 @@ button.btn-spinner::after {
   width: 160px;
 }
 
-.eval-proposal-reject-reason::placeholder {
+.definition-slot-input::placeholder {
   color: var(--text-muted);
 }
 
-.eval-proposal-reject-reason:focus {
+.definition-slot-input:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px var(--accent-light);
-}
-
-.eval-proposal-status {
-  display: inline-block;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-}
-
-.eval-proposal-status.status-granted {
-  background: var(--success);
-  color: #ffffff;
-}
-
-.eval-proposal-status.status-rejected {
-  background: var(--danger);
-  color: #ffffff;
-}
-
-.eval-proposal-rejection-reason {
-  color: var(--danger);
-  font-size: 12px;
-  margin-left: 8px;
-}
-
-/* Sent message variant - overrides not covered by bubble variables */
-.message.sent .eval-proposal-no-endowments {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.message.sent .eval-proposal-status.status-granted {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-}
-
-.message.sent .eval-proposal-status.status-rejected {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-}
-
-.message.sent .eval-proposal-reject-reason {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-}
-
-.message.sent .eval-proposal-reject-reason::placeholder {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.message.sent .eval-proposal-rejection-reason {
-  color: var(--danger-muted);
-}
-
-/* Counter-proposal form backdrop */
-#counter-proposal-backdrop {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--backdrop);
-  z-index: 999;
-}
-
-#counter-proposal-container {
-  display: none;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90%;
-  max-width: 700px;
-  max-height: 90vh;
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  z-index: 1000;
-  overflow: hidden;
 }
 
 /* Form Builder Modal */

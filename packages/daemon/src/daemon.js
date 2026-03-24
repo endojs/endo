@@ -1954,23 +1954,6 @@ const makeDaemonCore = async (
       }
       registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
       registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
-    } else if (
-      messageType === 'eval-proposal-reviewer' ||
-      messageType === 'eval-proposal-proposer'
-    ) {
-      if (typeof source !== 'string') {
-        throw new Error('Eval-proposal message formula is incomplete');
-      }
-      registerName('@source', undefined, source);
-      if (codeNames !== undefined) {
-        registerName('@codeNames', undefined, harden(codeNames));
-      }
-      if (petNamePaths !== undefined) {
-        registerName('@petNamePaths', undefined, harden(petNamePaths));
-      }
-      if (ids !== undefined) {
-        registerName('@ids', undefined, harden(ids));
-      }
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -4241,6 +4224,7 @@ const makeDaemonCore = async (
 
   const makeGuest = makeGuestMaker({
     provide,
+    formulateEval,
     formulateMarshalValue,
     getFormulaForId,
     getAllNetworkAddresses,

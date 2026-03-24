@@ -10,7 +10,7 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification, LalContext } from './agent.types' */
+/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, LalContext } from './agent.types' */
 
 // ============================================================================
 // Interface Definition
@@ -510,26 +510,17 @@ Use send() only for initiating brand new conversations.`,
     },
   },
 
-  // --- Code evaluation proposal ---
+  // --- Code evaluation ---
   {
     type: 'function',
     function: {
       name: 'evaluate',
       description: `\
-Propose code for evaluation to your host for approval.
+Evaluate JavaScript code directly.
 
-IMPORTANT: This does NOT execute code directly. Instead, it sends an evaluation
-proposal to your host. The host can then:
-- Grant the proposal (execute the code)
-- Reject the proposal
-- Counter with a modified version
-
-Use this when you need to run code that requires capabilities from your host.
-
-You should ALWAYS specify resultName. The host stores the evaluation result under
-this pet name in your directory when the proposal is granted. You can then
-lookup(resultName) or send it to the requester. If you omit resultName, you only
-get the result in the notification and have no stable name to reference or send.
+The code executes immediately and returns the result. The result is stored under
+the pet name you specify as resultName. You can then lookup(resultName) or send
+it to the requester.
 
 The code can reference values from your directory using the codeNames/edgeNames mapping:
 - codeNames: Variable names that will be available in your source code
@@ -537,10 +528,7 @@ The code can reference values from your directory using the codeNames/edgeNames 
 
 Example: To run "E(counter).increment()" where counter is a value you have named "my-counter",
 and store the result as "increment-result":
-  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
-
-When the host grants the proposal, the result is stored at resultName and you will
-receive a notification. Use lookup(resultName) to get the value and send() to deliver it.`,
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")`,
       parameters: {
         type: 'object',
         properties: {
@@ -571,7 +559,7 @@ receive a notification. Use lookup(resultName) to get the value and send() to de
               { type: 'array', items: { type: 'string' } },
             ],
             description:
-              'Pet name (or path) where the host will store the evaluation result. You should always specify this so you can lookup and send the result after the proposal is granted.',
+              'Pet name (or path) where the evaluation result will be stored. You can then lookup and send the result.',
           },
         },
         required: ['source', 'codeNames', 'edgeNames', 'resultName'],
@@ -720,9 +708,9 @@ will appear in future listMessages() calls.
 ### Capability Inspection
 - inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
 
-### Code Proposals
+### Code Evaluation
 - define(source, slots) - Propose code with named slots for the host to fill (PREFERRED)
-- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code providing your own capabilities
+- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Evaluate code directly using your own capabilities
 
 ## Messages Are Data, Not Directories
 
@@ -744,15 +732,15 @@ Many tasks can be accomplished without code execution:
 - Use send(), reply(), request(), resolve() for messaging — no permission needed
 - Use adopt(), move(), copy(), remove() for managing references — no permission needed
 
-evaluate() and define() require explicit host approval, which blocks your
-workflow until the user grants permission. Only propose code when the task
+evaluate() executes code directly. define() sends code to the host with
+capability slots for them to fill. Only use code evaluation when the task
 genuinely requires computation that cannot be done with the other tools.
 
-## Code Proposals
+## Code Evaluation
 
-IMPORTANT: Only propose code when the user explicitly asks you to run code,
+IMPORTANT: Only use code evaluation when the user explicitly asks you to run code,
 create a capability, or perform a computation. For ordinary conversation, just
-use reply() or send(). Do NOT propose code for simple questions.
+use reply() or send(). Do NOT evaluate code for simple questions.
 
 ### define() vs evaluate()
 
@@ -765,40 +753,16 @@ The host sees the slot labels, fills each one from their inventory (endow), and
 the code executes. You receive a receipt, not the result. The host sees the
 result in their inbox and may share it with you via reply().
 
-Use evaluate() only when you already have every capability needed in your own
+Use evaluate() when you already have every capability needed in your own
 directory and can provide them via codeNames/edgeNames:
 
   evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
 
-evaluate() requires resultName. The host stores the result under this pet name
-in your directory when the proposal is granted.
+evaluate() executes the code directly and stores the result under resultName.
+You can then lookup(resultName) to get the value and send it to the requester.
 
 The codeNames array lists variable names used in your source code.
 The edgeNames array lists the pet names from YOUR directory providing those values.
-
-### Proposal Responses
-
-After you submit an eval-proposal, you will be notified when the host responds:
-
-**GRANTED**: The host executed your code.
-- The result is stored at the resultName you specified (e.g. lookup(resultName) to get it)
-- You will also receive the result value in the notification
-- You should: Use lookup(resultName) to get the value, then send() to deliver it back to the original requester
-
-**REJECTED**: The host declined your proposal.
-- You will receive the rejection reason
-- You should:
-  1. Send a follow-up message to the sender explaining the situation
-  2. Ask clarifying questions if the task is still relevant
-  3. Consider alternative approaches
-
-**COUNTER-PROPOSAL**: The host modified your code and sent it back.
-- You will receive the modified code as an eval-proposal message
-- Review the changes carefully
-- You can:
-  1. Accept by submitting a new evaluate() with the suggested code
-  2. Reject if the changes don't meet your needs
-  3. Send a message explaining why you disagree
 
 ### Evaluated Code Is Synchronous
 
@@ -839,18 +803,6 @@ Use these to:
 - Create new capabilities to send back to requesters
 - Define type-safe interfaces for your created objects
 
-### Responding to Proposal Status Changes
-
-CRITICAL: You MUST respond to every proposal status notification you receive.
-When you are notified that your proposal was granted, rejected, or counter-proposed,
-you should IMMEDIATELY take follow-up action:
-
-**On GRANTED**: Use send() to deliver results or report success to the original requester
-**On REJECTED**: Use send() to explain the situation and ask clarifying questions
-**On COUNTER-PROPOSAL**: Review and either accept, reject, or negotiate via send()
-
-Never ignore a proposal status notification. The sender is waiting for your response.
-
 ### Workflow Examples
 
 Using define() (preferred when you don't have the capability):
@@ -863,9 +815,7 @@ Using evaluate() (when you already have the capability in your directory):
 1. Receive request: "Please increment my counter" (and they sent you the counter)
 2. adopt() the counter from the message
 3. evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
-4. Wait for notification...
-5. If GRANTED: lookup("increment-result") then reply() to deliver it back
-6. If REJECTED: reply() with an explanation
+4. lookup("increment-result") then reply() to deliver it back
 
 ## Message Format for reply() and send()
 
@@ -1118,23 +1068,6 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const makeRootNodeId = () => {
     nextRootId += 1;
     return `root-${Date.now()}-${nextRootId}`;
-  };
-
-  // ---- Eval Proposal Tracking ----
-
-  /** @type {Map<number, PendingProposal>} */
-  const pendingProposals = new Map();
-  let nextProposalId = 1;
-
-  /** @type {ProposalNotification[]} */
-  const notificationQueue = [];
-
-  /**
-   * Inject a notification about a proposal response into the transcript.
-   * @param {ProposalNotification} notification
-   */
-  const injectProposalNotification = notification => {
-    notificationQueue.push(notification);
   };
 
   // SmallCaps marshal for decoding LLM tool call arguments
@@ -1404,7 +1337,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         }
       }
 
-      // Code evaluation proposal
+      // Code evaluation
       case 'evaluate': {
         const {
           workerName: rawWorkerName,
@@ -1425,64 +1358,14 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
             ? undefined
             : rawWorkerName;
 
-        // Send an eval-proposal to the host for approval
-        const proposalPromise = E(powers).evaluate(
+        // Execute code directly
+        return E(powers).evaluate(
           workerName,
           source,
           harden(codeNames),
           harden(edgeNames),
           resultName,
         );
-
-        // Track this proposal
-        const proposalId = nextProposalId;
-        nextProposalId += 1;
-
-        pendingProposals.set(proposalId, {
-          proposalId,
-          source,
-          codeNames,
-          edgeNames,
-          workerName,
-          promise: proposalPromise,
-        });
-
-        // Watch for the proposal to settle
-        proposalPromise.then(
-          result => {
-            console.log(
-              `[proposal] #${proposalId} granted with result:`,
-              result,
-            );
-            pendingProposals.delete(proposalId);
-            injectProposalNotification({
-              status: 'granted',
-              proposalId,
-              source,
-              result,
-            });
-          },
-          error => {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            console.log(`[proposal] #${proposalId} rejected:`, errorMessage);
-            pendingProposals.delete(proposalId);
-            injectProposalNotification({
-              status: 'rejected',
-              proposalId,
-              source,
-              error: errorMessage,
-            });
-          },
-        );
-
-        // Return immediately - the LLM will be notified when the proposal settles
-        return harden({
-          proposalId,
-          status: 'pending',
-          message: `Proposal #${proposalId} sent to host for approval. You will be notified when the host responds.`,
-          source,
-        });
       }
 
       // Define code with slots for host to fill
@@ -1551,68 +1434,6 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   };
 
   /**
-   * Format a proposal notification as a user message for the LLM.
-   * @param {ProposalNotification} notification
-   * @returns {string}
-   */
-  const formatProposalNotification = notification => {
-    const { status, proposalId, source } = notification;
-    const sourceText = String(source);
-    const sourcePreview =
-      sourceText.length > 100 ? `${sourceText.slice(0, 100)}...` : sourceText;
-
-    if (status === 'granted') {
-      const resultStr =
-        notification.result !== undefined
-          ? `\nResult: ${passableAsJustin(notification.result, false)}`
-          : '\nResult: (no return value)';
-      return `Your eval-proposal #${proposalId} was GRANTED by the host.
-Source: ${sourcePreview}${resultStr}
-
-The code was executed successfully. If you specified a resultName, the result is now stored there.
-You should:
-1. If you have a capability to send back, use send() to deliver it to the original requester
-2. If you were performing a task, report the outcome to the sender
-3. Continue with any follow-up actions as needed`;
-    } else {
-      return `Your eval-proposal #${proposalId} was REJECTED by the host.
-Source: ${sourcePreview}
-Reason: ${notification.error || 'No reason given'}
-
-The host declined to execute your proposed code. You should:
-1. Send a follow-up message to the sender asking for clarification or explaining the situation
-2. Consider whether a different approach might work
-3. If appropriate, propose modified code that addresses the host's concerns`;
-    }
-  };
-
-  /**
-   * Process any pending notifications and add them to a transcript node.
-   * @param {TranscriptNode} node - The current leaf node to append notifications to
-   * @returns {boolean} True if notifications were processed
-   */
-  const processNotifications = node => {
-    if (notificationQueue.length === 0) {
-      return false;
-    }
-
-    while (notificationQueue.length > 0) {
-      const notification = notificationQueue.shift();
-      if (notification) {
-        const message = formatProposalNotification(notification);
-        console.log(
-          `[notification] Proposal #${notification.proposalId} ${notification.status}`,
-        );
-        node.messages.push({
-          role: 'user',
-          content: message,
-        });
-      }
-    }
-    return true;
-  };
-
-  /**
    * Run the agentic loop for a specific transcript node.
    * @param {TranscriptNode} leafNode - The leaf node of the transcript chain
    * @returns {Promise<void>}
@@ -1621,9 +1442,6 @@ The host declined to execute your proposed code. You should:
     activeLeafNode = leafNode;
     let continueLoop = true;
     while (continueLoop) {
-      // Check for pending notifications before each LLM call
-      processNotifications(leafNode);
-
       // Assemble the full transcript from the chain
       const transcript = await assembleTranscript(leafNode.messageId);
 
@@ -1668,36 +1486,8 @@ The host declined to execute your proposed code. You should:
         );
         leafNode.messages.push(...toolResults);
         await putNode(leafNode);
-
-        // After processing tools, check if we have new notifications
-        // This allows the loop to continue if proposals settled
-        if (notificationQueue.length > 0) {
-          continue;
-        }
       } else {
-        // No more tool calls - but check if we have notifications to process
-        if (notificationQueue.length > 0) {
-          continue;
-        }
-
-        // Check if we have pending proposals - wait for them to settle
-        if (pendingProposals.size > 0) {
-          console.log(
-            `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
-          );
-          // Wait for any pending proposal to settle
-          const pendingPromises = [...pendingProposals.values()].map(p =>
-            p.promise.then(
-              () => {},
-              () => {},
-            ),
-          );
-          await Promise.race(pendingPromises);
-          // Continue the loop to process the notification
-          continue;
-        }
-
-        // Really done
+        // No more tool calls — done
         continueLoop = false;
         await putNode(leafNode);
         activeLeafNode = null;
@@ -1715,43 +1505,7 @@ The host declined to execute your proposed code. You should:
    * @param {InboxMessage & {type?: string}} message
    * @returns {string}
    */
-  const formatInboundMessage = message => {
-    const { number, type } = message;
-
-    if (
-      type === 'eval-proposal-reviewer' ||
-      type === 'eval-proposal-proposer'
-    ) {
-      const { source, codeNames, edgeNames, workerName, resultName } =
-        /** @type {any} */ (message);
-      assert.typeof(source, 'string');
-      const sourcePreview =
-        source.length > 200 ? `${source.slice(0, 200)}...` : source;
-
-      const endowmentsDesc =
-        Array.isArray(codeNames) && codeNames.length > 0
-          ? `\nEndowments: ${codeNames.map((/** @type {string} */ cn, /** @type {number} */ i) => `${cn} <- ${edgeNames?.[i] || '?'}`).join(', ')}`
-          : '\nNo endowments';
-
-      return `You received a COUNTER-PROPOSAL from your host (message #${number}).
-
-The host has modified your proposed code and is suggesting this alternative:
-
-\`\`\`javascript
-${sourcePreview}
-\`\`\`
-${endowmentsDesc}
-${workerName ? `Worker: ${workerName}` : ''}
-${resultName ? `Result will be stored as: ${resultName}` : ''}
-
-You should:
-1. Review the counter-proposal carefully
-2. If it meets your needs, you can submit a new eval-proposal with the suggested code
-3. If you disagree, you can reject this counter-proposal and explain why, or propose different code
-4. After deciding, dismiss message #${number}`;
-    }
-
-    // Regular message (package or request)
+  const formatInboundMessage = _message => {
     return 'You have new mail. Check your messages and respond appropriately.';
   };
 

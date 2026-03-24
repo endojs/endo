@@ -199,26 +199,6 @@ export const COMMANDS = {
     ],
     submitLabel: 'Reply',
   },
-  grant: {
-    name: 'grant',
-    label: 'Grant',
-    description: 'Grant an eval-proposal',
-    category: 'messaging',
-    mode: 'inline',
-    context: 'inbox',
-    fields: [
-      {
-        name: 'messageNumber',
-        label: 'Message #',
-        type: 'messageNumber',
-        required: true,
-        placeholder: '#',
-      },
-    ],
-    submitLabel: 'Grant',
-    aliases: ['allow'],
-  },
-
   form: {
     name: 'form',
     label: 'Send Form',
