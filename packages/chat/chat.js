@@ -1260,11 +1260,13 @@ const bodyComponent = (
        * @param {string} petName - recipient pet name
        * @param {string} channelPetName - pet name of the channel
        * @param {boolean} alreadyInvited - whether recipient is already a member
+       * @param {string} [threadKey] - message key where the mention was posted (or its parent); recap walks up from here
        */
       const sendMentionNotification = async (
         petName,
         channelPetName,
         alreadyInvited,
+        threadKey,
       ) => {
         const channelRef = currentChannelRef;
         if (!channelRef) throw new Error('No channel connection');
@@ -1348,38 +1350,44 @@ const bodyComponent = (
           // getMembers not available
         }
 
-        // The most recent message is the one that triggered the mention
-        const lastMsg = channelMessages[channelMessages.length - 1];
-        const lastMsgKey = lastMsg
-          ? String(lastMsg.number)
-          : undefined;
+        // Find the mention message: when threadKey is the parent,
+        // the mention message is the newest message whose replyTo
+        // matches threadKey. The agent replies to the mention message
+        // and the recap shows the thread leading to it.
+        let mentionMsgKey;
+        if (threadKey) {
+          // Look for the newest message that is a reply to threadKey
+          for (let i = channelMessages.length - 1; i >= 0; i -= 1) {
+            if (String(channelMessages[i].replyTo) === threadKey) {
+              mentionMsgKey = String(channelMessages[i].number);
+              break;
+            }
+          }
+        }
+        // fromKey: the mention message if found, else threadKey, else last message
+        const fromKey =
+          mentionMsgKey ||
+          threadKey ||
+          (channelMessages.length > 0
+            ? String(channelMessages[channelMessages.length - 1].number)
+            : undefined);
         const recap = buildThreadRecap(
           channelMessages,
-          lastMsgKey,
+          fromKey,
           memberIdToRef,
         );
 
-        // Include the channel message number so the agent can
-        // reply to the specific thread, not just post to root.
-        const replyToNum = lastMsgKey || '0';
+        // The agent replies to the mention message (as a child).
+        const replyToNum = fromKey || '0';
 
-        // Choose instructions based on whether the recipient
-        // is already a channel member or needs to adopt/join.
+        // Machine-readable metadata for the agent loop to parse.
+        // The agent creates a pre-bound channelReply tool from this,
+        // so the LLM only needs to produce reply text — no exec code.
         const edgeName = channelPetName;
-        const instructions = alreadyInvited
-          ? `\n\nReply to channel message #${replyToNum}. ` +
-            `Use exec() with this code:\n` +
-            `const ch = await E(powers).lookup("${channelPetName}");\n` +
-            `const me = await E(ch).join("YOUR_NAME");\n` +
-            `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
-            `Do NOT post internal steps or reasoning to the channel.`
-          : `\n\nReply to channel message #${replyToNum}. ` +
-            `Use exec() with this code:\n` +
-            `await E(powers).adopt(MSG_NUM, "${edgeName}", "ch-ref");\n` +
-            `const ch = await E(powers).lookup("ch-ref");\n` +
-            `const me = await E(ch).join("YOUR_NAME");\n` +
-            `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
-            `Do NOT post internal steps or reasoning to the channel.`;
+        const instructions =
+          `\n\n[channel-reply-info: edge=${edgeName} ` +
+          `join=${petName} replyTo=${replyToNum}]\n` +
+          `Use channelReply to respond.`;
 
         // Assemble the final send() arrays.
         // Structure: "You were mentioned in " [channel] ":\n\n"
@@ -1492,6 +1500,7 @@ const bodyComponent = (
               petName,
               channelPetName,
               true,
+              info.replyTo,
             ).catch(err => {
               $toast.innerHTML = `<span class="mention-notify-text">\u2717 Failed to notify <strong>@${petName}</strong></span>`;
               console.error('Auto-notify failed:', err);
@@ -1527,6 +1536,7 @@ const bodyComponent = (
                   petName,
                   channelPetName,
                   false,
+                  info.replyTo,
                 );
                 $prompt.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@${petName}</strong></span>`;
                 setTimeout(() => $prompt.remove(), 3000);

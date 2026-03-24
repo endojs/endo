@@ -35,33 +35,40 @@ const JaineFactoryInterface = M.interface('JaineFactory', {
 });
 
 // ---------------------------------------------------------------------------
-// System prompt — concise, prescriptive, no room for analysis paralysis
+// System prompts
 // ---------------------------------------------------------------------------
 
+/** Minimal prompt for the common mention-reply case. */
+const mentionSystemPrompt = `\
+You are Jaine, a channel agent. Someone mentioned you in a thread.
+Call channelReply with your response. Keep it concise and conversational.
+If you need more context, use readChannel first.`;
+
+/** Full prompt for general inbox messages. */
 const defaultSystemPrompt = `\
-You are Jaine, a stateless channel agent. Each message you receive is \
-independent — you have no memory of prior messages.
+You are Jaine, a stateless channel agent. Each message is independent.
+When a message includes exec() code, run it. Replace placeholders.
+reply() is for private inbox responses. exec() is for code execution.`;
 
-## Rules
-1. When a message includes exec() code, run it exactly as given. Replace \
-YOUR_REPLY with a concise, conversational response. Replace YOUR_NAME \
-with "jaine".
-2. ONLY post your conversational reply to channels. Never post reasoning, \
-steps, logs, recaps, or code.
-3. reply() is for private inbox responses. exec() is for channel posts.
-4. References labeled "(author)" are attributions — do not adopt them.
-5. Use readChannel to see channel history with message IDs if you need context.
+// ---------------------------------------------------------------------------
+// Mention detection — parse the structured metadata from notifications
+// ---------------------------------------------------------------------------
 
-## Tools
-- **exec** — Run JavaScript with powers, E, harden. For channel posts.
-- **readChannel** — Read channel transcript with message IDs and authors.
-- **reply** — Private inbox reply by message number.
-- **adopt** — Store a message reference under a pet name.
-- **lookup** — Retrieve a value by pet name.
-- **list** — List stored pet names.
-- **send** — Send unsolicited inbox message.
-- **dismiss** — Dismiss a handled message.
-`;
+/**
+ * Parse channel-reply-info from a mention notification.
+ * Returns null if the message is not a mention notification.
+ *
+ * @param {string} text
+ * @returns {{ edge: string, join: string, replyTo: string } | null}
+ */
+const parseMentionInfo = text => {
+  const match = text.match(
+    /\[channel-reply-info:\s*edge=(\S+)\s+join=(\S+)\s+replyTo=(\S+)\]/,
+  );
+  if (!match) return null;
+  return harden({ edge: match[1], join: match[2], replyTo: match[3] });
+};
+harden(parseMentionInfo);
 
 // ---------------------------------------------------------------------------
 // Worker loop — stateless per-message
@@ -103,19 +110,59 @@ export const spawnWorkerLoop = async (
   });
 
   const chat = (messages, toolSchemas) => provider.chat(messages, toolSchemas);
-  const effectivePrompt = systemPrompt || defaultSystemPrompt;
 
-  // Built-in tools — only the essentials
+  // Built-in tools — full set for general messages
   /** @type {Map<string, object>} */
-  const localTools = new Map();
-  localTools.set('list', makeListPetnamesTool(powers));
-  localTools.set('lookup', makeLookupTool(powers));
-  localTools.set('adopt', makeAdoptTool(powers));
-  localTools.set('exec', makeExecTool(powers));
-  localTools.set('readChannel', makeReadChannelTool(powers));
-  localTools.set('send', makeSendTool(powers));
-  localTools.set('reply', makeReplyTool(powers));
-  localTools.set('dismiss', makeDismissTool(powers));
+  const allTools = new Map();
+  allTools.set('list', makeListPetnamesTool(powers));
+  allTools.set('lookup', makeLookupTool(powers));
+  allTools.set('adopt', makeAdoptTool(powers));
+  allTools.set('exec', makeExecTool(powers));
+  allTools.set('readChannel', makeReadChannelTool(powers));
+  allTools.set('send', makeSendTool(powers));
+  allTools.set('reply', makeReplyTool(powers));
+  allTools.set('dismiss', makeDismissTool(powers));
+
+  /**
+   * Create a pre-bound channelReply tool for a specific mention.
+   * The channel reference must already be adopted under chRefName.
+   *
+   * @param {string} chRefName - pet name of the pre-adopted channel ref
+   * @param {string} joinName - invitedAs name for join()
+   * @param {string} replyTo - channel message number to reply to
+   * @returns {{ schema: () => object, execute: (args: Record<string, unknown>) => Promise<string> }}
+   */
+  const makeChannelReplyTool = (chRefName, joinName, replyTo) => {
+    const schema = harden({
+      type: 'function',
+      function: {
+        name: 'channelReply',
+        description: 'Post your reply to the channel thread.',
+        parameters: {
+          type: 'object',
+          properties: {
+            text: {
+              type: 'string',
+              description: 'Your reply text.',
+            },
+          },
+          required: ['text'],
+        },
+      },
+    });
+
+    const execute = async args => {
+      const text = String(args.text || '');
+      if (!text) return 'Error: empty reply';
+
+      const ch = await E(powers).lookup(chRefName);
+      const me = await E(ch).join(joinName);
+      await E(me).post([text], [], [], replyTo);
+      return `Posted to channel (reply to #${replyTo})`;
+    };
+
+    return harden({ schema: () => schema, execute });
+  };
 
   /**
    * Process tool calls from LLM response.
@@ -171,13 +218,12 @@ export const spawnWorkerLoop = async (
 
   /**
    * Handle a single message with a fresh LLM context.
-   * Runs an agentic loop (tool calls may iterate) but starts
-   * from scratch each time — no prior conversation history.
    *
    * @param {string} textContent - formatted message text
    * @param {bigint} messageNumber - inbox message number
    * @param {object[]} toolSchemas
    * @param {Map<string, object>} toolMap
+   * @param {string} prompt - system prompt to use
    * @returns {Promise<void>}
    */
   const handleMessage = async (
@@ -185,14 +231,17 @@ export const spawnWorkerLoop = async (
     messageNumber,
     toolSchemas,
     toolMap,
+    prompt,
   ) => {
     /** @type {object[]} */
     const conversation = [
-      { role: 'system', content: effectivePrompt },
+      { role: 'system', content: prompt },
       { role: 'user', content: textContent },
     ];
 
     let toolWasCalled = false;
+    /** @type {string[]} */
+    const thinkingParts = [];
     const maxIterations = 5;
     for (let i = 0; i < maxIterations; i += 1) {
       console.log(
@@ -213,6 +262,11 @@ export const spawnWorkerLoop = async (
         }
       }
 
+      // Collect text content for DM visibility
+      if (rm.content) {
+        thinkingParts.push(rm.content);
+      }
+
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
       if (toolCalls.length > 0) {
         toolWasCalled = true;
@@ -231,10 +285,28 @@ export const spawnWorkerLoop = async (
       }
     }
 
-    // If no tool was called, the LLM just produced text.
-    // Don't auto-reply — jaine is tool-driven.
-    if (!toolWasCalled) {
-      console.log('[jaine] No tools called, skipping auto-reply');
+    // Send thinking/reasoning to the DM so the user has visibility.
+    // Strip <think>...</think> tags and truncate to keep DMs readable.
+    const maxThinkingLen = 500;
+    let thinkingText = thinkingParts
+      .join('\n\n')
+      .replace(/<\/?think>/g, '')
+      .trim();
+    if (thinkingText.length > maxThinkingLen) {
+      thinkingText = `${thinkingText.slice(0, maxThinkingLen)}…`;
+    }
+    if (thinkingText) {
+      try {
+        await E(powers).reply(messageNumber, [thinkingText], [], []);
+        console.log(`[jaine] Replied to #${messageNumber} with thinking`);
+      } catch (replyErr) {
+        console.error(
+          `[jaine] Failed to reply with thinking:`,
+          replyErr instanceof Error ? replyErr.message : String(replyErr),
+        );
+      }
+    } else if (!toolWasCalled) {
+      console.log('[jaine] No tools called and no text, skipping reply');
     }
   };
 
@@ -251,6 +323,8 @@ export const spawnWorkerLoop = async (
 
   await E(powers).send('@host', ['Jaine agent ready.'], [], []);
 
+  /** @type {Set<bigint>} */
+  const processedMessages = new Set();
   const messageIterator = makeRefIterator(E(powers).followMessages());
   while (true) {
     const nextMessage = messageIterator.next();
@@ -279,8 +353,14 @@ export const spawnWorkerLoop = async (
       names,
     } = /** @type {any} */ (message);
 
-    // Skip own messages
+    // Skip own messages and already-processed messages
     if (fromId === selfLocator) continue;
+    const msgNum = BigInt(number);
+    if (processedMessages.has(msgNum)) {
+      console.log(`[jaine] Skipping duplicate message #${number}`);
+      continue;
+    }
+    processedMessages.add(msgNum);
 
     console.log(`[jaine] Message #${number} from ${fromId}`);
 
@@ -300,14 +380,69 @@ export const spawnWorkerLoop = async (
       textContent = `(${type || 'unknown'} message)`;
     }
 
-    // Discover tools
-    const { schemas: toolSchemas, toolMap } = await discoverTools(
-      powers,
-      localTools,
-    );
+    // Detect mention notifications and use streamlined flow
+    const mentionInfo = parseMentionInfo(textContent);
+
+    /** @type {object[]} */
+    let toolSchemas;
+    /** @type {Map<string, object>} */
+    let toolMap;
+    /** @type {string} */
+    let prompt;
+
+    if (mentionInfo) {
+      // Mention notification — minimal tools for fast reply
+      console.log(`[jaine] Mention detected: reply to #${mentionInfo.replyTo}`);
+
+      // Pre-adopt the channel reference NOW, before the LLM runs
+      // and before auto-dismiss removes the message.
+      const chRefName = `ch-${number}`;
+      try {
+        await E(powers).adopt(msgNum, mentionInfo.edge, chRefName);
+        console.log(`[jaine] Pre-adopted channel as ${chRefName}`);
+      } catch (adoptErr) {
+        console.error(
+          `[jaine] Pre-adopt failed:`,
+          adoptErr instanceof Error ? adoptErr.message : String(adoptErr),
+        );
+      }
+
+      // Strip the metadata line from the text the LLM sees
+      textContent = textContent
+        .replace(/\[channel-reply-info:[^\]]+\]\n?/, '')
+        .replace(/Use channelReply to respond\.\s*/, '')
+        .trim();
+
+      const replyTool = makeChannelReplyTool(
+        chRefName,
+        mentionInfo.join,
+        mentionInfo.replyTo,
+      );
+      const readChannelTool = allTools.get('readChannel');
+
+      toolMap = new Map();
+      toolMap.set('channelReply', replyTool);
+      if (readChannelTool) {
+        toolMap.set('readChannel', readChannelTool);
+      }
+
+      toolSchemas = [replyTool.schema()];
+      if (readChannelTool) {
+        toolSchemas.push(readChannelTool.schema());
+      }
+
+      prompt = systemPrompt || mentionSystemPrompt;
+    } else {
+      // General message — full toolset
+      textContent = `[Inbox message #${number}]\n\n${textContent}`;
+      const discovered = await discoverTools(powers, allTools);
+      toolSchemas = discovered.schemas;
+      toolMap = discovered.toolMap;
+      prompt = systemPrompt || defaultSystemPrompt;
+    }
 
     try {
-      await handleMessage(textContent, number, toolSchemas, toolMap);
+      await handleMessage(textContent, number, toolSchemas, toolMap, prompt);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -317,6 +452,13 @@ export const spawnWorkerLoop = async (
       } catch {
         // best effort
       }
+    }
+
+    // Auto-dismiss so the message isn't replayed on restart
+    try {
+      await E(powers).dismiss(number);
+    } catch {
+      // best effort — dismiss may fail if already dismissed
     }
   }
 };
