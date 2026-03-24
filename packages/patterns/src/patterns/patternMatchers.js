@@ -1,4 +1,3 @@
-// @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
 /* eslint-disable no-continue */
 import harden from '@endo/harden';
@@ -58,7 +57,7 @@ import { generateCollectionPairEntries } from '../keys/keycollection-operators.j
 const { entries, values, hasOwn } = Object;
 const { ownKeys } = Reflect;
 
-/** @type {WeakSet<Pattern>} */
+/** @type {WeakSet<Pattern & object>} */
 const patternMemo = new WeakSet();
 
 // /////////////////////// Match Helpers Helpers /////////////////////////////
@@ -166,10 +165,10 @@ const confirmDecimalDigitsLimit = (specimen, decimalDigitsLimit, reject) => {
 const makePatternKit = () => {
   /**
    * If this is a recognized match tag, return the MatchHelper.
-   * Otherwise result undefined.
+   * Otherwise return undefined.
    *
    * @param {string} tag
-   * @returns {MatchHelper | undefined}
+   * @returns {MatchHelper<any> | undefined}
    */
   const maybeMatchHelper = tag =>
     // eslint-disable-next-line no-use-before-define
@@ -204,7 +203,7 @@ const makePatternKit = () => {
    * Checks only recognized tags, and only if the tagged
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} tagged
+   * @param {CopyTagged<any, any>} tagged
    * @param {Kind} tag
    * @param {Rejector} reject
    * @returns {boolean}
@@ -258,9 +257,9 @@ const makePatternKit = () => {
     // as a tagged record, which is defined at the marshal level of abstraction,
     // since `passStyleOf` checks those invariants.
     if (tagMemo.has(specimen)) {
-      return tagMemo.get(specimen);
+      return /** @type {Kind} */ (tagMemo.get(specimen));
     }
-    const tag = getTag(specimen);
+    const tag = /** @type {Kind} */ (getTag(specimen));
     if (confirmTagged(specimen, tag, reject)) {
       tagMemo.set(specimen, tag);
       return tag;
@@ -290,7 +289,11 @@ const makePatternKit = () => {
     // check null and undefined as Keys
     if (singletonKinds.has(kind)) {
       // eslint-disable-next-line no-use-before-define
-      return confirmAsKeyPatt(specimen, singletonKinds.get(kind), reject);
+      return confirmAsKeyPatt(
+        specimen,
+        /** @type {Key} */ (singletonKinds.get(kind)),
+        reject,
+      );
     }
 
     const realKind = confirmKindOf(specimen, reject);
@@ -299,7 +302,10 @@ const makePatternKit = () => {
     }
     // `kind` and `realKind` can be embedded without quotes
     // because they are drawn from the enumerated collection of known Kinds.
-    return reject && reject`${b(realKind)} ${specimen} - Must be a ${b(kind)}`;
+    return (
+      reject &&
+      reject`${b(realKind ?? 'unknown')} ${specimen} - Must be a ${b(kind)}`
+    );
   };
 
   /**
@@ -350,13 +356,13 @@ const makePatternKit = () => {
       // is only concerned with non-key patterns.
       return true;
     }
-    if (patternMemo.has(patt)) {
+    if (patternMemo.has(/** @type {any} */ (patt))) {
       return true;
     }
     // eslint-disable-next-line no-use-before-define
     const result = confirmPatternInternal(patt, reject);
     if (result) {
-      patternMemo.add(patt);
+      patternMemo.add(/** @type {any} */ (patt));
     }
     return result;
   };
@@ -381,18 +387,24 @@ const makePatternKit = () => {
       case 'copyRecord': {
         // A copyRecord is a pattern iff all its children are
         // patterns
-        return values(patt).every(checkIt);
+        return values(/** @type {CopyRecord<Passable>} */ (patt)).every(
+          checkIt,
+        );
       }
       case 'copyArray': {
         // A copyArray is a pattern iff all its children are
         // patterns
-        return patt.every(checkIt);
+        return /** @type {CopyArray<Passable>} */ (patt).every(checkIt);
       }
       case 'copyMap': {
         // A copyMap's keys are keys and therefore already known to be
         // patterns.
         // A copyMap is a pattern if its values are patterns.
-        return confirmPattern(patt.values, reject);
+        return confirmPattern(
+          /** @type {CopyTagged<string, {keys: any[], values: any[]}>} */ (patt)
+            .payload.values,
+          reject,
+        );
       }
       case 'error':
       case 'promise': {
@@ -470,13 +482,13 @@ const makePatternKit = () => {
       case 'copyBag':
       case 'remotable': {
         // These kinds are necessarily keys
-        return confirmAsKeyPatt(specimen, patt, reject);
+        return confirmAsKeyPatt(specimen, /** @type {Key} */ (patt), reject);
       }
       case 'copyArray': {
         if (isKey(patt)) {
           // Takes care of patterns which are keys, so the rest of this
           // logic can assume patterns that are not keys.
-          return confirmAsKeyPatt(specimen, patt, reject);
+          return confirmAsKeyPatt(specimen, /** @type {Key} */ (patt), reject);
         }
         if (specimenKind !== 'copyArray') {
           return (
@@ -486,7 +498,8 @@ const makePatternKit = () => {
             )}`
           );
         }
-        const { length } = patt;
+        const pattArray = /** @type {CopyArray<Pattern>} */ (patt);
+        const { length } = pattArray;
         if (specimen.length !== length) {
           return (
             reject &&
@@ -495,7 +508,7 @@ const makePatternKit = () => {
             )}`
           );
         }
-        return patt.every((p, i) =>
+        return pattArray.every((p, i) =>
           // eslint-disable-next-line no-use-before-define
           confirmNestedMatches(specimen[i], p, i, reject),
         );
@@ -514,13 +527,14 @@ const makePatternKit = () => {
             )}`
           );
         }
+        const pattRecord = /** @type {CopyRecord<Pattern>} */ (patt);
         // TODO Detect and accumulate difference in one pass.
         // Rather than using two calls to `listDifference` to detect and
         // report if and how these lists differ, since they are already
         // in sorted order, we should instead use an algorithm like
         // `iterDisjointUnion` from merge-sort-operators.js
         const specimenNames = recordNames(specimen);
-        const pattNames = recordNames(patt);
+        const pattNames = recordNames(pattRecord);
         const missing = listDifference(pattNames, specimenNames);
         if (missing.length >= 1) {
           return (
@@ -538,7 +552,7 @@ const makePatternKit = () => {
           );
         }
         const specimenValues = recordValues(specimen, specimenNames);
-        const pattValues = recordValues(patt, pattNames);
+        const pattValues = recordValues(pattRecord, pattNames);
         return pattNames.every((label, i) =>
           // eslint-disable-next-line no-use-before-define
           confirmNestedMatches(specimenValues[i], pattValues[i], label, reject),
@@ -558,8 +572,10 @@ const makePatternKit = () => {
             )}`
           );
         }
+        const pattMap =
+          /** @type {import('../types.js').CopyMap<Key, Pattern>} */ (patt);
         // Compare keys as copySets
-        const pattKeySet = copyMapKeySet(patt);
+        const pattKeySet = copyMapKeySet(pattMap);
         const specimenKeySet = copyMapKeySet(specimen);
         if (!confirmMatches(specimenKeySet, pattKeySet, reject)) {
           return false;
@@ -570,7 +586,7 @@ const makePatternKit = () => {
         const pattValues = [];
         const specimenValues = [];
         const entryPairs = generateCollectionPairEntries(
-          patt,
+          pattMap,
           specimen,
           getCopyMapEntryArray,
           undefined,
@@ -588,7 +604,11 @@ const makePatternKit = () => {
       default: {
         const matchHelper = maybeMatchHelper(patternKind);
         if (matchHelper) {
-          return matchHelper.confirmMatches(specimen, patt.payload, reject);
+          return matchHelper.confirmMatches(
+            specimen,
+            /** @type {CopyTagged<string, Passable>} */ (patt).payload,
+            reject,
+          );
         }
         throw Fail`internal: should have recognized ${q(patternKind)} `;
       }
@@ -630,7 +650,12 @@ const makePatternKit = () => {
       innerError = er;
     }
     // should only throw
-    confirmNestedMatches(specimen, patt, label, Fail);
+    confirmNestedMatches(
+      specimen,
+      patt,
+      /** @type {string | number | undefined} */ (label),
+      Fail,
+    );
     const outerError = makeError(
       X`internal: ${label}: inconsistent pattern match: ${qp(patt)}`,
     );
@@ -680,12 +705,15 @@ const makePatternKit = () => {
         break;
       }
       case 'tagged': {
-        const tag = getTag(patt);
+        const tag = getTag(/** @type {CopyTagged<string, Passable>} */ (patt));
         const matchHelper = maybeMatchHelper(tag);
         if (matchHelper) {
           // Buried here is the important case, where we process
           // the various patternNodes
-          return matchHelper.getRankCover(patt.payload, encodePassable);
+          return matchHelper.getRankCover(
+            /** @type {CopyTagged<string, Passable>} */ (patt).payload,
+            encodePassable,
+          );
         }
         switch (tag) {
           case 'copySet': {
@@ -771,7 +799,7 @@ const makePatternKit = () => {
 
   // /////////////////////// Match Helpers /////////////////////////////////////
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchAnyHelper = Far('match:any helper', {
     confirmMatches: (_specimen, _matcherPayload, _reject) => true,
 
@@ -783,7 +811,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['', '{'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<CopyArray<Pattern>>} */
   const matchAndHelper = Far('match:and helper', {
     confirmMatches: (specimen, patts, reject) => {
       return patts.every(patt => confirmMatches(specimen, patt, reject));
@@ -795,18 +823,20 @@ const makePatternKit = () => {
         (passStyleOf(allegedPatts) === 'copyArray' ||
           (reject &&
             reject`Needs array of sub-patterns: ${qp(allegedPatts)}`)) &&
-        allegedPatts.every(checkIt)
+        /** @type {CopyArray<Passable>} */ (allegedPatts).every(checkIt)
       );
     },
 
     getRankCover: (patts, encodePassable) =>
       intersectRankCovers(
         compareRank,
-        patts.map(p => getRankCover(p, encodePassable)),
+        /** @type {CopyArray<Passable>} */ (patts).map(p =>
+          getRankCover(p, encodePassable),
+        ),
       ),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<CopyArray<Pattern>>} */
   const matchOrHelper = Far('match:or helper', {
     confirmMatches: (specimen, patts, reject) => {
       const { length } = patts;
@@ -839,11 +869,13 @@ const makePatternKit = () => {
     getRankCover: (patts, encodePassable) =>
       unionRankCovers(
         compareRank,
-        patts.map(p => getRankCover(p, encodePassable)),
+        /** @type {CopyArray<Passable>} */ (patts).map(p =>
+          getRankCover(p, encodePassable),
+        ),
       ),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Pattern>} */
   const matchNotHelper = Far('match:not helper', {
     confirmMatches: (specimen, patt, reject) => {
       if (matches(specimen, patt)) {
@@ -860,7 +892,7 @@ const makePatternKit = () => {
     getRankCover: (_patt, _encodePassable) => ['', '{'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchScalarHelper = Far('match:scalar helper', {
     confirmMatches: (specimen, _matcherPayload, reject) =>
       confirmScalarKey(specimen, reject),
@@ -870,7 +902,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchKeyHelper = Far('match:key helper', {
     confirmMatches: (specimen, _matcherPayload, reject) =>
       confirmKey(specimen, reject),
@@ -880,7 +912,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<undefined>} */
   const matchPatternHelper = Far('match:pattern helper', {
     confirmMatches: (specimen, _matcherPayload, reject) =>
       confirmPattern(specimen, reject),
@@ -890,7 +922,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<string>} */
   const matchKindHelper = Far('match:kind helper', {
     confirmMatches: confirmKind,
 
@@ -900,6 +932,7 @@ const makePatternKit = () => {
         reject`match:kind: payload: ${allegedKeyKind} - A kind name must be a string`),
 
     getRankCover: (kind, _encodePassable) => {
+      /** @type {import('@endo/pass-style').PassStyle} */
       let style;
       switch (kind) {
         case 'copySet':
@@ -908,7 +941,7 @@ const makePatternKit = () => {
           break;
         }
         default: {
-          style = kind;
+          style = /** @type {import('@endo/pass-style').PassStyle} */ (kind);
           break;
         }
       }
@@ -916,7 +949,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern]>} */
   const matchTaggedHelper = Far('match:tagged helper', {
     confirmMatches: (specimen, [tagPatt, payloadPatt], reject) => {
       if (passStyleOf(specimen) !== 'tagged') {
@@ -928,8 +961,18 @@ const makePatternKit = () => {
         );
       }
       return (
-        confirmNestedMatches(getTag(specimen), tagPatt, 'tag', reject) &&
-        confirmNestedMatches(specimen.payload, payloadPatt, 'payload', reject)
+        confirmNestedMatches(
+          getTag(/** @type {CopyTagged<string, Passable>} */ (specimen)),
+          tagPatt,
+          'tag',
+          reject,
+        ) &&
+        confirmNestedMatches(
+          /** @type {CopyTagged<string, Passable>} */ (specimen).payload,
+          payloadPatt,
+          'payload',
+          reject,
+        )
       );
     },
 
@@ -944,7 +987,7 @@ const makePatternKit = () => {
     getRankCover: (_kind, _encodePassable) => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchBigintHelper = Far('match:bigint helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -966,7 +1009,7 @@ const makePatternKit = () => {
       getPassStyleCover('bigint'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchNatHelper = Far('match:nat helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -992,7 +1035,7 @@ const makePatternKit = () => {
       getPassStyleCover('bigint'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchStringHelper = Far('match:string helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { stringLengthLimit } = limit(limits);
@@ -1017,14 +1060,16 @@ const makePatternKit = () => {
       getPassStyleCover('string'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchSymbolHelper = Far('match:symbol helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { symbolNameLengthLimit } = limit(limits);
       if (!confirmKind(specimen, 'symbol', reject)) {
         return false;
       }
-      const symbolName = nameForPassableSymbol(specimen);
+      const symbolName = nameForPassableSymbol(
+        /** @type {symbol} */ (specimen),
+      );
 
       if (typeof symbolName !== 'string') {
         throw Fail`internal: Passable symbol ${specimen} must have a passable name`;
@@ -1050,7 +1095,7 @@ const makePatternKit = () => {
       getPassStyleCover('symbol'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<{label: string}>} */
   const matchRemotableHelper = Far('match:remotable helper', {
     confirmMatches: (specimen, remotableDesc, reject) => {
       if (isKind(specimen, 'remotable')) {
@@ -1067,7 +1112,7 @@ const makePatternKit = () => {
             b(passStyle)
           : // Tag must be quoted because it is potentially attacker-controlled
             // (unlike `kindOf`, this does not reject unrecognized tags).
-            q(getTag(specimen));
+            q(getTag(/** @type {CopyTagged<string, Passable>} */ (specimen)));
       return (
         reject &&
         reject`${specimen} - Must be a remotable ${b(label)}, not ${kindDetails}`
@@ -1086,7 +1131,7 @@ const makePatternKit = () => {
       getPassStyleCover('remotable'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchLTEHelper = Far('match:lte helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyLTE(specimen, rightOperand) ||
@@ -1100,7 +1145,7 @@ const makePatternKit = () => {
       // to be `let`
       // eslint-disable-next-line prefer-const
       let [leftBound, rightBound] = getPassStyleCover(passStyle);
-      const newRightBound = `${encodePassable(rightOperand)}~`;
+      const newRightBound = `${encodePassable(/** @type {Key} */ (rightOperand))}~`;
       if (newRightBound !== undefined) {
         rightBound = newRightBound;
       }
@@ -1108,7 +1153,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchLTHelper = Far('match:lt helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyLT(specimen, rightOperand) ||
@@ -1119,7 +1164,7 @@ const makePatternKit = () => {
     getRankCover: matchLTEHelper.getRankCover,
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchGTEHelper = Far('match:gte helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyGTE(specimen, rightOperand) ||
@@ -1133,7 +1178,7 @@ const makePatternKit = () => {
       // to be `let`
       // eslint-disable-next-line prefer-const
       let [leftBound, rightBound] = getPassStyleCover(passStyle);
-      const newLeftBound = encodePassable(rightOperand);
+      const newLeftBound = encodePassable(/** @type {Key} */ (rightOperand));
       if (newLeftBound !== undefined) {
         leftBound = newLeftBound;
       }
@@ -1141,7 +1186,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<Key>} */
   const matchGTHelper = Far('match:gt helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
       keyGT(specimen, rightOperand) ||
@@ -1152,7 +1197,7 @@ const makePatternKit = () => {
     getRankCover: matchGTEHelper.getRankCover,
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern, Limits?]>} */
   const matchRecordOfHelper = Far('match:recordOf helper', {
     confirmMatches: (
       specimen,
@@ -1162,12 +1207,13 @@ const makePatternKit = () => {
       const { numPropertiesLimit, propertyNameLengthLimit } = limit(limits);
       return (
         confirmKind(specimen, 'copyRecord', reject) &&
-        (ownKeys(specimen).length <= numPropertiesLimit ||
+        (ownKeys(/** @type {object} */ (specimen)).length <=
+          numPropertiesLimit ||
           (reject &&
             reject`Must not have more than ${q(
               numPropertiesLimit,
             )} properties: ${specimen}`)) &&
-        entries(specimen).every(
+        entries(/** @type {object} */ (specimen)).every(
           ([key, value]) =>
             (key.length <= propertyNameLengthLimit ||
               (reject &&
@@ -1200,7 +1246,7 @@ const makePatternKit = () => {
     getRankCover: _entryPatt => getPassStyleCover('copyRecord'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Limits?]>} */
   const matchArrayOfHelper = Far('match:arrayOf helper', {
     confirmMatches: (specimen, [subPatt, limits = undefined], reject) => {
       const { arrayLengthLimit } = limit(limits);
@@ -1208,8 +1254,8 @@ const makePatternKit = () => {
       return (
         confirmKind(specimen, 'copyArray', reject) &&
         (/** @type {Array} */ (specimen).length <= arrayLengthLimit ||
-          reject && reject`Array length ${specimen.length} must be <= limit ${arrayLengthLimit}`) &&
-        confirmArrayEveryMatchPattern(specimen, subPatt, '', reject)
+          reject && reject`Array length ${/** @type {any} */ (specimen).length} must be <= limit ${arrayLengthLimit}`) &&
+        confirmArrayEveryMatchPattern(/** @type {any} */ (specimen), subPatt, '', reject)
       );
     },
 
@@ -1224,7 +1270,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('copyArray'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Limits?]>} */
   const matchByteArrayHelper = Far('match:byteArray helper', {
     confirmMatches: (specimen, [limits = undefined], reject) => {
       const { byteLengthLimit } = limit(limits);
@@ -1248,20 +1294,22 @@ const makePatternKit = () => {
       getPassStyleCover('byteArray'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Limits?]>} */
   const matchSetOfHelper = Far('match:setOf helper', {
     confirmMatches: (specimen, [keyPatt, limits = undefined], reject) => {
       const { numSetElementsLimit } = limit(limits);
+      const specimenSet = /** @type {import('../types.js').CopySet} */ (
+        specimen
+      );
       return (
         ((confirmKind(specimen, 'copySet', reject) &&
-          /** @type {Array} */ (specimen.payload).length <
-            numSetElementsLimit) ||
+          specimenSet.payload.length < numSetElementsLimit) ||
           (reject &&
             reject`Set must not have more than ${q(numSetElementsLimit)} elements: ${
-              specimen.payload.length
+              specimenSet.payload.length
             }`)) &&
         confirmArrayEveryMatchPattern(
-          specimen.payload,
+          specimenSet.payload,
           keyPatt,
           'set elements',
           reject,
@@ -1280,7 +1328,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern, Limits?]>} */
   const matchBagOfHelper = Far('match:bagOf helper', {
     confirmMatches: (
       specimen,
@@ -1288,15 +1336,17 @@ const makePatternKit = () => {
       reject,
     ) => {
       const { numUniqueBagElementsLimit, decimalDigitsLimit } = limit(limits);
+      const specimenBag = /** @type {import('../types.js').CopyBag} */ (
+        specimen
+      );
       return (
         ((confirmKind(specimen, 'copyBag', reject) &&
-          /** @type {Array} */ (specimen.payload).length <=
-            numUniqueBagElementsLimit) ||
+          specimenBag.payload.length <= numUniqueBagElementsLimit) ||
           (reject &&
             reject`Bag must not have more than ${q(
               numUniqueBagElementsLimit,
             )} unique elements: ${specimen}`)) &&
-        specimen.payload.every(
+        specimenBag.payload.every(
           ([key, count], i) =>
             confirmNestedMatches(key, keyPatt, `bag keys[${i}]`, reject) &&
             applyLabelingError(
@@ -1447,7 +1497,7 @@ const makePatternKit = () => {
       case 'copyArray': {
         return (
           confirmElementsHasSplit(
-            specimen,
+            /** @type {CopyArray<Passable>} */ (specimen),
             elementPatt,
             bound,
             reject,
@@ -1460,7 +1510,7 @@ const makePatternKit = () => {
       case 'copySet': {
         return (
           confirmElementsHasSplit(
-            specimen.payload,
+            /** @type {import('../types.js').CopySet} */ (specimen).payload,
             elementPatt,
             bound,
             reject,
@@ -1477,7 +1527,7 @@ const makePatternKit = () => {
       case 'copyBag': {
         return (
           pairsHasSplit(
-            specimen.payload,
+            /** @type {import('../types.js').CopyBag} */ (specimen).payload,
             elementPatt,
             bound,
             reject,
@@ -1496,7 +1546,7 @@ const makePatternKit = () => {
     }
   };
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, bigint, Limits?]>} */
   const matchContainerHasHelper = Far('M.containerHas helper', {
     /**
      * @param {CopyArray | CopySet | CopyBag} specimen
@@ -1533,7 +1583,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern, Pattern, Limits?]>} */
   const matchMapOfHelper = Far('match:mapOf helper', {
     confirmMatches: (
       specimen,
@@ -1541,22 +1591,25 @@ const makePatternKit = () => {
       reject,
     ) => {
       const { numMapEntriesLimit } = limit(limits);
+      const specimenMap = /** @type {import('../types.js').CopyMap} */ (
+        specimen
+      );
       return (
         confirmKind(specimen, 'copyMap', reject) &&
         // eslint-disable-next-line @endo/restrict-comparison-operands
-        (specimen.payload.keys.length <= numMapEntriesLimit ||
+        (specimenMap.payload.keys.length <= numMapEntriesLimit ||
           (reject &&
             reject`CopyMap must have no more than ${q(
               numMapEntriesLimit,
             )} entries: ${specimen}`)) &&
         confirmArrayEveryMatchPattern(
-          specimen.payload.keys,
+          specimenMap.payload.keys,
           keyPatt,
           'map keys',
           reject,
         ) &&
         confirmArrayEveryMatchPattern(
-          specimen.payload.values,
+          specimenMap.payload.values,
           valuePatt,
           'map values',
           reject,
@@ -1609,7 +1662,7 @@ const makePatternKit = () => {
   const adaptArrayPattern = (optionalPatt, length) =>
     harden(optionalPatt.slice(0, length).map(patt => MM.opt(patt)));
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[Pattern[], (Pattern[] | undefined)?, (Pattern | undefined)?]>} */
   const matchSplitArrayHelper = Far('match:splitArray helper', {
     confirmMatches: (
       specimen,
@@ -1620,7 +1673,11 @@ const makePatternKit = () => {
         return false;
       }
       const { requiredSpecimen, optionalSpecimen, restSpecimen } =
-        splitArrayParts(specimen, requiredPatt, optionalPatt);
+        splitArrayParts(
+          /** @type {Passable[]} */ (specimen),
+          requiredPatt,
+          optionalPatt,
+        );
       const partialPatt = adaptArrayPattern(
         optionalPatt,
         optionalSpecimen.length,
@@ -1737,7 +1794,7 @@ const makePatternKit = () => {
   const adaptRecordPattern = (optionalPatt, names) =>
     fromUniqueEntries(names.map(name => [name, MM.opt(optionalPatt[name])]));
 
-  /** @type {MatchHelper} */
+  /** @type {MatchHelper<[CopyRecord<Pattern>, (CopyRecord<Pattern> | undefined)?, (Pattern | undefined)?]>} */
   const matchSplitRecordHelper = Far('match:splitRecord helper', {
     confirmMatches: (
       specimen,
@@ -1748,7 +1805,11 @@ const makePatternKit = () => {
         return false;
       }
       const { requiredSpecimen, optionalSpecimen, restSpecimen } =
-        splitRecordParts(specimen, requiredPatt, optionalPatt);
+        splitRecordParts(
+          /** @type {CopyRecord<Passable>} */ (specimen),
+          requiredPatt,
+          optionalPatt,
+        );
 
       const partialNames = /** @type {string[]} */ (ownKeys(optionalSpecimen));
       const partialPatt = adaptRecordPattern(optionalPatt, partialNames);
@@ -1803,7 +1864,7 @@ const makePatternKit = () => {
     ]) => getPassStyleCover(passStyleOf(requiredPatt)),
   });
 
-  /** @type {Record<string, MatchHelper>} */
+  /** @type {Record<string, MatchHelper<any>>} */
   const HelpersByMatchTag = harden({
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
@@ -1912,136 +1973,145 @@ const makePatternKit = () => {
   // //////////////////
 
   /** @type {MatcherNamespace} */
-  const M = harden({
-    any: () => AnyShape,
-    and: (...patts) => makeMatcher('match:and', patts),
-    or: (...patts) => makeMatcher('match:or', patts),
-    not: subPatt => makeMatcher('match:not', subPatt),
+  const M = /** @type {any} */ (
+    harden({
+      any: () => AnyShape,
+      and: (...patts) => makeMatcher('match:and', patts),
+      or: (...patts) => makeMatcher('match:or', patts),
+      not: subPatt => makeMatcher('match:not', subPatt),
 
-    scalar: () => ScalarShape,
-    key: () => KeyShape,
-    pattern: () => PatternShape,
-    kind: makeKindMatcher,
-    tagged: (tagPatt = M.string(), payloadPatt = M.any()) =>
-      makeMatcher('match:tagged', harden([tagPatt, payloadPatt])),
-    boolean: () => BooleanShape,
-    number: () => NumberShape,
-    bigint: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:bigint', [limits]) : BigIntShape,
-    nat: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
-    string: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
-    symbol: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
-    record: (limits = undefined) =>
-      limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
-    // struct: A pattern that matches CopyRecords with a fixed quantity of
-    // entries where the values match patterns for corresponding keys is merely
-    // a hardened object with patterns in the places of values for
-    // corresponding keys.
-    // For example, a pattern that matches CopyRecords that have a string value
-    // for the key 'x' and a number for the key 'y' is:
-    // harden({ x: M.string(), y: M.number() }).
-    array: (limits = undefined) =>
-      limits ? M.arrayOf(M.any(), limits) : ArrayShape,
-    // tuple: A pattern that matches CopyArrays with a fixed quantity of values
-    // that match a heterogeneous array of patterns is merely a hardened array
-    // of the respective patterns.
-    // For example, a pattern that matches CopyArrays of length 2 that have a
-    // string at index 0 and a number at index 1 is:
-    // harden([ M.string(), M.number() ]).
-    byteArray: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:byteArray', [limits]) : ByteArrayShape,
-    set: (limits = undefined) => (limits ? M.setOf(M.any(), limits) : SetShape),
-    bag: (limits = undefined) =>
-      limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
-    map: (limits = undefined) =>
-      limits ? M.mapOf(M.any(), M.any(), limits) : MapShape,
-    // heterogeneous map: A pattern that matches CopyMaps with a fixed quantity
-    // of entries where the value for each key matches a corresponding pattern
-    // is merely a (hardened) CopyMap with patterns instead of values for the
-    // corresponding keys.
-    // For example, a pattern that matches CopyMaps where the value for the key
-    // 'x' is a number and the value for the key 'y' is a string is:
-    // makeCopyMap([['x', M.number()], ['y', M.string()]]).
-    remotable: makeRemotableMatcher,
-    error: () => ErrorShape,
-    promise: () => PromiseShape,
-    undefined: () => UndefinedShape,
-    null: () => null,
+      scalar: () => ScalarShape,
+      key: () => KeyShape,
+      pattern: () => PatternShape,
+      kind: makeKindMatcher,
+      tagged: (tagPatt = M.string(), payloadPatt = M.any()) =>
+        makeMatcher('match:tagged', harden([tagPatt, payloadPatt])),
+      boolean: () => BooleanShape,
+      number: () => NumberShape,
+      bigint: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:bigint', [limits]) : BigIntShape,
+      nat: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
+      string: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
+      symbol: (limits = undefined) =>
+        limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
+      record: (limits = undefined) =>
+        limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
+      // struct: A pattern that matches CopyRecords with a fixed quantity of
+      // entries where the values match patterns for corresponding keys is merely
+      // a hardened object with patterns in the places of values for
+      // corresponding keys.
+      // For example, a pattern that matches CopyRecords that have a string value
+      // for the key 'x' and a number for the key 'y' is:
+      // harden({ x: M.string(), y: M.number() }).
+      array: (limits = undefined) =>
+        limits ? M.arrayOf(M.any(), limits) : ArrayShape,
+      // tuple: A pattern that matches CopyArrays with a fixed quantity of values
+      // that match a heterogeneous array of patterns is merely a hardened array
+      // of the respective patterns.
+      // For example, a pattern that matches CopyArrays of length 2 that have a
+      // string at index 0 and a number at index 1 is:
+      // harden([ M.string(), M.number() ]).
+      byteArray: (limits = undefined) =>
+        limits
+          ? makeLimitsMatcher('match:byteArray', [limits])
+          : ByteArrayShape,
+      set: (limits = undefined) =>
+        limits ? M.setOf(M.any(), limits) : SetShape,
+      bag: (limits = undefined) =>
+        limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
+      map: (limits = undefined) =>
+        limits ? M.mapOf(M.any(), M.any(), limits) : MapShape,
+      // heterogeneous map: A pattern that matches CopyMaps with a fixed quantity
+      // of entries where the value for each key matches a corresponding pattern
+      // is merely a (hardened) CopyMap with patterns instead of values for the
+      // corresponding keys.
+      // For example, a pattern that matches CopyMaps where the value for the key
+      // 'x' is a number and the value for the key 'y' is a string is:
+      // makeCopyMap([['x', M.number()], ['y', M.string()]]).
+      remotable: makeRemotableMatcher,
+      error: () => ErrorShape,
+      promise: () => PromiseShape,
+      undefined: () => UndefinedShape,
+      null: () => null,
 
-    lt: rightOperand => makeMatcher('match:lt', rightOperand),
-    lte: rightOperand => makeMatcher('match:lte', rightOperand),
-    eq: key => {
-      assertKey(key);
-      return key === undefined ? M.undefined() : key;
-    },
-    neq: key => M.not(M.eq(key)),
-    gte: rightOperand => makeMatcher('match:gte', rightOperand),
-    gt: rightOperand => makeMatcher('match:gt', rightOperand),
+      lt: rightOperand => makeMatcher('match:lt', rightOperand),
+      lte: rightOperand => makeMatcher('match:lte', rightOperand),
+      eq: key => {
+        assertKey(key);
+        return key === undefined ? M.undefined() : key;
+      },
+      neq: key => M.not(M.eq(key)),
+      gte: rightOperand => makeMatcher('match:gte', rightOperand),
+      gt: rightOperand => makeMatcher('match:gt', rightOperand),
 
-    recordOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:recordOf', [keyPatt, valuePatt, limits]),
-    arrayOf: (subPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:arrayOf', [subPatt, limits]),
-    setOf: (keyPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:setOf', [keyPatt, limits]),
-    bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
-    containerHas: (elementPatt = M.any(), countPatt = 1n, limits = undefined) =>
-      makeLimitsMatcher('match:containerHas', [elementPatt, countPatt, limits]),
-    mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
-    splitArray: (base, optional = undefined, rest = undefined) =>
-      makeMatcher(
-        'match:splitArray',
-        makeSplitPayload([], base, optional, rest),
-      ),
-    splitRecord: (base, optional = undefined, rest = undefined) =>
-      makeMatcher(
-        'match:splitRecord',
-        makeSplitPayload({}, base, optional, rest),
-      ),
-    split: (base, rest = undefined) => {
-      if (passStyleOf(harden(base)) === 'copyArray') {
-        // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-expect-error We know it should be an array
-        return M.splitArray(base, rest && [], rest);
-      } else {
-        return M.splitRecord(base, rest && {}, rest);
-      }
-    },
-    partial: (base, rest = undefined) => {
-      if (passStyleOf(harden(base)) === 'copyArray') {
-        // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-expect-error We know it should be an array
-        return M.splitArray([], base, rest);
-      } else {
-        return M.splitRecord({}, base, rest);
-      }
-    },
+      recordOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:recordOf', [keyPatt, valuePatt, limits]),
+      arrayOf: (subPatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:arrayOf', [subPatt, limits]),
+      setOf: (keyPatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:setOf', [keyPatt, limits]),
+      bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
+      containerHas: (
+        elementPatt = M.any(),
+        countPatt = 1n,
+        limits = undefined,
+      ) =>
+        makeLimitsMatcher('match:containerHas', [
+          elementPatt,
+          countPatt,
+          limits,
+        ]),
+      mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
+        makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
+      splitArray: (base, optional = undefined, rest = undefined) =>
+        makeMatcher(
+          'match:splitArray',
+          makeSplitPayload([], base, optional, rest),
+        ),
+      splitRecord: (base, optional = undefined, rest = undefined) =>
+        makeMatcher(
+          'match:splitRecord',
+          makeSplitPayload({}, base, optional, rest),
+        ),
+      split: (base, rest = undefined) => {
+        if (passStyleOf(harden(base)) === 'copyArray') {
+          return M.splitArray(/** @type {any} */ (base), rest && [], rest);
+        } else {
+          return M.splitRecord(base, rest && {}, rest);
+        }
+      },
+      partial: (base, rest = undefined) => {
+        if (passStyleOf(harden(base)) === 'copyArray') {
+          return M.splitArray([], /** @type {any} */ (base), rest);
+        } else {
+          return M.splitRecord({}, base, rest);
+        }
+      },
 
-    eref: t => M.or(t, M.promise()),
-    opt: t => M.or(M.undefined(), t),
+      eref: t => M.or(t, M.promise()),
+      opt: t => M.or(M.undefined(), t),
 
-    interface: (interfaceName, methodGuards, options) =>
-      // eslint-disable-next-line no-use-before-define
-      makeInterfaceGuard(interfaceName, methodGuards, options),
-    call: (...argPatterns) =>
-      // eslint-disable-next-line no-use-before-define
-      makeMethodGuardMaker('sync', argPatterns),
-    callWhen: (...argGuards) =>
-      // eslint-disable-next-line no-use-before-define
-      makeMethodGuardMaker('async', argGuards),
+      interface: (interfaceName, methodGuards, options) =>
+        // eslint-disable-next-line no-use-before-define
+        makeInterfaceGuard(interfaceName, methodGuards, options),
+      call: (...argPatterns) =>
+        // eslint-disable-next-line no-use-before-define
+        makeMethodGuardMaker('sync', argPatterns),
+      callWhen: (...argGuards) =>
+        // eslint-disable-next-line no-use-before-define
+        makeMethodGuardMaker('async', argGuards),
 
-    await: argPattern =>
-      // eslint-disable-next-line no-use-before-define
-      makeAwaitArgGuard(argPattern),
-    raw: () =>
-      // eslint-disable-next-line no-use-before-define
-      makeRawGuard(),
-  });
+      await: argPattern =>
+        // eslint-disable-next-line no-use-before-define
+        makeAwaitArgGuard(argPattern),
+      raw: () =>
+        // eslint-disable-next-line no-use-before-define
+        makeRawGuard(),
+    })
+  );
 
   return harden({
     confirmMatches,
@@ -2188,36 +2258,38 @@ const makeMethodGuardMaker = (
   optionalArgGuards = undefined,
   restArgGuard = undefined,
 ) =>
-  harden({
-    optional: (...optArgGuards) => {
-      optionalArgGuards === undefined ||
-        Fail`Can only have one set of optional guards`;
-      restArgGuard === undefined ||
-        Fail`optional arg guards must come before rest arg`;
-      return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
-    },
-    rest: rArgGuard => {
-      restArgGuard === undefined || Fail`Can only have one rest arg`;
-      return makeMethodGuardMaker(
-        callKind,
-        argGuards,
-        optionalArgGuards,
-        rArgGuard,
-      );
-    },
-    returns: (returnGuard = M.undefined()) => {
-      /** @type {MethodGuard} */
-      const result = makeTagged('guard:methodGuard', {
-        callKind,
-        argGuards,
-        optionalArgGuards,
-        restArgGuard,
-        returnGuard,
-      });
-      assertMethodGuard(result);
-      return result;
-    },
-  });
+  /** @type {MethodGuardMaker} */ (
+    harden({
+      optional: (...optArgGuards) => {
+        optionalArgGuards === undefined ||
+          Fail`Can only have one set of optional guards`;
+        restArgGuard === undefined ||
+          Fail`optional arg guards must come before rest arg`;
+        return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
+      },
+      rest: rArgGuard => {
+        restArgGuard === undefined || Fail`Can only have one rest arg`;
+        return makeMethodGuardMaker(
+          callKind,
+          argGuards,
+          optionalArgGuards,
+          rArgGuard,
+        );
+      },
+      returns: (returnGuard = /** @type {any} */ (M.undefined())) => {
+        /** @type {MethodGuard} */
+        const result = makeTagged('guard:methodGuard', {
+          callKind,
+          argGuards,
+          optionalArgGuards,
+          restArgGuard,
+          returnGuard,
+        });
+        assertMethodGuard(result);
+        return result;
+      },
+    })
+  );
 
 export const InterfaceGuardPayloadShape = M.splitRecord(
   {
