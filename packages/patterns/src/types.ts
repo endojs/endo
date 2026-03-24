@@ -332,32 +332,32 @@ export type PatternMatchers = {
   /**
    * Matches any CopyRecord, subject to limits.
    */
-  record: (limits?: Limits) => MatcherOf<'kind', 'copyRecord'>;
+  record: (limits?: Limits) => MatcherOf<'recordOf'>;
 
   /**
    * Matches any CopyArray, subject to limits.
    */
-  array: (limits?: Limits) => MatcherOf<'kind', 'copyArray'>;
+  array: (limits?: Limits) => MatcherOf<'arrayOf'>;
 
   /**
    * Matches any ByteArray, subject to limits.
    */
-  byteArray: (limits?: Limits) => MatcherOf<'kind', 'byteArray'>;
+  byteArray: (limits?: Limits) => MatcherOf<'byteArray'>;
 
   /**
    * Matches any CopySet, subject to limits.
    */
-  set: (limits?: Limits) => MatcherOf<'kind', 'copySet'>;
+  set: (limits?: Limits) => MatcherOf<'setOf'>;
 
   /**
    * Matches any CopyBag, subject to limits.
    */
-  bag: (limits?: Limits) => MatcherOf<'kind', 'copyBag'>;
+  bag: (limits?: Limits) => MatcherOf<'bagOf'>;
 
   /**
    * Matches any CopyMap, subject to limits.
    */
-  map: (limits?: Limits) => MatcherOf<'kind', 'copyMap'>;
+  map: (limits?: Limits) => MatcherOf<'mapOf'>;
 
   /**
    * Matches a far object or its remote presence.
