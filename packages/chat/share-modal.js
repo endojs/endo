@@ -152,6 +152,26 @@ export const createShareModal = $container => {
         undefined,
         [],
       );
+
+      // If sharing to an agent's space, also send an inbox message
+      // so the agent is notified about the shared content.
+      if (target.profilePath.length > 0) {
+        const agentPetName = target.profilePath[0];
+        try {
+          await E(
+            /** @type {{ send: (...args: unknown[]) => Promise<void> }} */ (
+              rootPowers
+            ),
+          ).send(
+            agentPetName,
+            ['A thread was shared with you: ', ''],
+            [channelPetName],
+            [channelPetName],
+          );
+        } catch {
+          // Agent inbox notification is best-effort
+        }
+      }
     } catch (err) {
       window.reportError(err);
     }
@@ -290,7 +310,7 @@ export const createShareModal = $container => {
     $policyField.appendChild($policyOptions);
     $form.appendChild($policyField);
 
-    // ---- Miller Columns target selection ----
+    // ---- Inventory selector + breadcrumbs ----
 
     const $targetField = document.createElement('div');
     $targetField.className = 'share-field';
@@ -299,19 +319,39 @@ export const createShareModal = $container => {
     $targetLabel.textContent = 'Share to';
     $targetField.appendChild($targetLabel);
 
-    const $miller = document.createElement('div');
-    $miller.className = 'share-miller';
+    const $navigator = document.createElement('div');
+    $navigator.className = 'share-navigator';
 
-    // Column 1: Spaces
-    const $spacesCol = document.createElement('div');
-    $spacesCol.className = 'share-miller-col';
+    // Breadcrumb bar
+    const $navBreadcrumb = document.createElement('div');
+    $navBreadcrumb.className = 'share-nav-breadcrumb';
+    $navigator.appendChild($navBreadcrumb);
 
-    // Column 2: Channels within selected space (hidden initially)
-    const $channelsCol = document.createElement('div');
-    $channelsCol.className = 'share-miller-col share-miller-col-hidden';
+    // Single item list
+    const $navList = document.createElement('div');
+    $navList.className = 'share-nav-list';
+    $navigator.appendChild($navList);
 
     /**
-     * Enable the submit button if a channel is selected.
+     * Navigation state: the path of pet names we've drilled into,
+     * plus the profilePath prefix from the root space.
+     * @type {{ label: string, profilePath: string[], petName?: string }[]}
+     */
+    const navPath = [];
+
+    /**
+     * Currently selected item name (at the current navigation level).
+     * @type {string | null}
+     */
+    let navSelectedName = null;
+
+    // Forward-declare for mutual references in click handlers.
+    /** @type {() => Promise<void>} */
+    // eslint-disable-next-line prefer-const
+    let renderNavLevel;
+
+    /**
+     * Enable the submit button if a target is selected.
      */
     const updateSubmitState = () => {
       const $submit = $form.querySelector('.share-submit');
@@ -322,150 +362,221 @@ export const createShareModal = $container => {
     };
 
     /**
-     * Show the channels column for a space group.
-     * @param {ShareTarget} representativeTarget
-     * @param {ShareTarget[]} knownChannels
+     * Render the breadcrumb bar from navPath.
      */
-    const showChannelsColumn = async (representativeTarget, knownChannels) => {
-      $channelsCol.innerHTML = '';
-      $channelsCol.classList.remove('share-miller-col-hidden');
+    const renderNavBreadcrumb = () => {
+      $navBreadcrumb.innerHTML = '';
 
-      // Back button header
-      const $backRow = document.createElement('div');
-      $backRow.className = 'share-miller-back';
-      const $backBtn = document.createElement('button');
-      $backBtn.type = 'button';
-      $backBtn.className = 'share-miller-back-btn';
-      $backBtn.textContent = '\u2190'; // ←
-      $backBtn.title = 'Back to spaces';
-      $backBtn.addEventListener('click', () => {
-        $channelsCol.classList.add('share-miller-col-hidden');
+      // Root crumb
+      const $root = document.createElement('button');
+      $root.className = 'share-nav-crumb';
+      $root.type = 'button';
+      $root.textContent = '\u2302 Spaces'; // ⌂ Spaces
+      $root.addEventListener('click', () => {
+        navPath.length = 0;
+        navSelectedName = null;
+        selectedTargetId = null;
         selectedChannelPetName = null;
         updateSubmitState();
-        // Deselect space highlight
-        const $allSel = $spacesCol.querySelectorAll('.share-target-selected');
-        for (const $s of $allSel) $s.classList.remove('share-target-selected');
+        renderNavLevel().catch(window.reportError);
       });
-      const $colTitle = document.createElement('span');
-      $colTitle.className = 'share-miller-col-title';
-      $colTitle.textContent = representativeTarget.name;
-      $backRow.appendChild($backBtn);
-      $backRow.appendChild($colTitle);
-      $channelsCol.appendChild($backRow);
+      $navBreadcrumb.appendChild($root);
 
-      // Loading indicator
+      // Path crumbs
+      for (let i = 0; i < navPath.length; i += 1) {
+        const sep = document.createElement('span');
+        sep.className = 'share-nav-sep';
+        sep.textContent = ' \u203A '; // ›
+        $navBreadcrumb.appendChild(sep);
+
+        const segment = navPath[i];
+        if (i < navPath.length - 1) {
+          // Clickable ancestor
+          const idx = i;
+          const $crumb = document.createElement('button');
+          $crumb.className = 'share-nav-crumb';
+          $crumb.type = 'button';
+          $crumb.textContent = segment.label;
+          $crumb.addEventListener('click', () => {
+            navPath.length = idx + 1;
+            navSelectedName = null;
+            selectedChannelPetName = null;
+            updateSubmitState();
+            renderNavLevel().catch(window.reportError);
+          });
+          $navBreadcrumb.appendChild($crumb);
+        } else {
+          // Current level label
+          const $current = document.createElement('span');
+          $current.className = 'share-nav-crumb-current';
+          $current.textContent = segment.label;
+          $navBreadcrumb.appendChild($current);
+        }
+      }
+    };
+
+    /**
+     * Render the item list for the current navigation level.
+     */
+    renderNavLevel = async () => {
+      $navList.innerHTML = '';
+      renderNavBreadcrumb();
+
+      if (navPath.length === 0) {
+        // Root level: show space groups
+        if (spaceGroups.size === 0) {
+          const $empty = document.createElement('div');
+          $empty.className = 'share-target-empty';
+          $empty.textContent = 'No spaces available';
+          $navList.appendChild($empty);
+          return;
+        }
+
+        for (const [, group] of spaceGroups) {
+          const representative = group.channels[0];
+          const $item = document.createElement('button');
+          $item.className = 'share-nav-item';
+          $item.type = 'button';
+
+          const $icon = document.createElement('span');
+          $icon.className = 'share-nav-item-icon';
+          $icon.textContent = group.icon;
+
+          const $name = document.createElement('span');
+          $name.className = 'share-nav-item-name';
+          $name.textContent = group.name;
+
+          const $chevron = document.createElement('span');
+          $chevron.className = 'share-nav-item-chevron';
+          $chevron.textContent = '\u203A'; // ›
+
+          $item.appendChild($icon);
+          $item.appendChild($name);
+          $item.appendChild($chevron);
+
+          $item.addEventListener('click', () => {
+            navPath.push({
+              label: group.name,
+              profilePath: representative.profilePath,
+            });
+            navSelectedName = null;
+            selectedTargetId = representative.id;
+            selectedChannelPetName = null;
+            updateSubmitState();
+            renderNavLevel().catch(window.reportError);
+          });
+
+          $navList.appendChild($item);
+        }
+        return;
+      }
+
+      // Deeper level: fetch pet names from resolved powers
       const $loading = document.createElement('div');
       $loading.className = 'share-channel-loading';
       $loading.textContent = 'Loading\u2026';
-      $channelsCol.appendChild($loading);
+      $navList.appendChild($loading);
 
-      // Fetch pet names
-      const personaPowers = await resolvePersonaPowers(
-        opts.rootPowers,
-        representativeTarget.profilePath,
-      );
-      const petNames = await listPetNames(personaPowers);
+      const currentSegment = navPath[navPath.length - 1];
+      const currentProfilePath = currentSegment.profilePath;
 
-      // Remove loading
-      $loading.remove();
+      // Build the full lookup path: profilePath + any deeper petName segments
+      const deeperNames = navPath
+        .slice(1)
+        .map(seg => seg.petName)
+        .filter(/** @param {string | undefined} n @returns {n is string} */ n => n !== undefined);
 
-      /** @type {Set<string>} */
-      const knownSet = new Set();
-      for (const ch of knownChannels) {
-        if (ch.channelPetName) knownSet.add(ch.channelPetName);
+      // Resolve powers for the full path in one call
+      const fullPath = [...currentProfilePath, ...deeperNames];
+
+      /** @type {unknown} */
+      let currentPowers;
+      try {
+        currentPowers = await resolvePersonaPowers(
+          opts.rootPowers,
+          fullPath,
+        );
+      } catch {
+        $loading.textContent = 'Unable to access this location';
+        return;
       }
 
-      const $list = document.createElement('div');
-      $list.className = 'share-miller-list';
+      /** @type {string[]} */
+      let petNames;
+      try {
+        petNames = await listPetNames(currentPowers);
+      } catch {
+        petNames = [];
+      }
+
+      $loading.remove();
 
       if (petNames.length === 0) {
         const $empty = document.createElement('div');
         $empty.className = 'share-target-empty';
         $empty.textContent = 'No items found';
-        $list.appendChild($empty);
+        $navList.appendChild($empty);
+        return;
       }
 
       for (const petName of petNames) {
-        const $ch = document.createElement('button');
-        $ch.className = 'share-channel-item';
-        $ch.type = 'button';
-        if (knownSet.has(petName)) {
-          $ch.classList.add('share-channel-known');
+        const $item = document.createElement('button');
+        $item.className = 'share-nav-item';
+        $item.type = 'button';
+        if (navSelectedName === petName) {
+          $item.classList.add('share-target-selected');
         }
 
-        const $chName = document.createElement('span');
-        $chName.className = 'share-channel-name';
-        $chName.textContent = petName;
-        $ch.appendChild($chName);
+        const $name = document.createElement('span');
+        $name.className = 'share-nav-item-name';
+        $name.textContent = petName;
 
-        $ch.addEventListener('click', () => {
-          // Deselect all in this column
-          const $allSel = $list.querySelectorAll('.share-target-selected');
-          for (const $s of $allSel) $s.classList.remove('share-target-selected');
-          $ch.classList.add('share-target-selected');
-          selectedTargetId = representativeTarget.id;
+        const $chevron = document.createElement('span');
+        $chevron.className = 'share-nav-item-chevron';
+        $chevron.type = 'button';
+        $chevron.textContent = '\u203A'; // ›
+
+        $item.appendChild($name);
+        $item.appendChild($chevron);
+
+        // Click name area: select this item as the share target
+        $item.addEventListener('click', e => {
+          // If chevron was clicked, drill in instead
+          if (/** @type {HTMLElement} */ (e.target).closest(
+            '.share-nav-item-chevron',
+          )) {
+            return;
+          }
+          // Deselect previous
+          const $prev = $navList.querySelectorAll('.share-target-selected');
+          for (const $s of $prev) $s.classList.remove('share-target-selected');
+          $item.classList.add('share-target-selected');
+          navSelectedName = petName;
           selectedChannelPetName = petName;
           updateSubmitState();
         });
 
-        $list.appendChild($ch);
-      }
+        // Click chevron: drill into this item
+        $chevron.addEventListener('click', e => {
+          e.stopPropagation();
+          navPath.push({
+            label: petName,
+            profilePath: currentProfilePath,
+            petName,
+          });
+          navSelectedName = null;
+          selectedChannelPetName = null;
+          updateSubmitState();
+          renderNavLevel().catch(window.reportError);
+        });
 
-      $channelsCol.appendChild($list);
+        $navList.appendChild($item);
+      }
     };
 
-    // Populate spaces column
-    if (spaceGroups.size === 0) {
-      const $empty = document.createElement('div');
-      $empty.className = 'share-target-empty';
-      $empty.textContent = 'No spaces available';
-      $spacesCol.appendChild($empty);
-    }
+    renderNavLevel().catch(window.reportError);
 
-    for (const [, group] of spaceGroups) {
-      const representative = group.channels[0];
-
-      const $item = document.createElement('button');
-      $item.className = 'share-target-item';
-      $item.type = 'button';
-
-      const $icon = document.createElement('span');
-      $icon.className = 'share-target-icon';
-      $icon.textContent = group.icon;
-
-      const $name = document.createElement('span');
-      $name.className = 'share-target-name';
-      $name.textContent = group.name;
-
-      const $chevron = document.createElement('span');
-      $chevron.className = 'share-target-chevron';
-      $chevron.textContent = '\u203A'; // ›
-
-      $item.appendChild($icon);
-      $item.appendChild($name);
-      $item.appendChild($chevron);
-
-      $item.addEventListener('click', () => {
-        // Highlight selected space
-        const $allSel = $spacesCol.querySelectorAll('.share-target-selected');
-        for (const $s of $allSel) $s.classList.remove('share-target-selected');
-        $item.classList.add('share-target-selected');
-
-        // Clear channel selection until user picks one
-        selectedChannelPetName = null;
-        updateSubmitState();
-
-        showChannelsColumn(representative, group.channels).catch(
-          window.reportError,
-        );
-      });
-
-      $spacesCol.appendChild($item);
-    }
-
-    $miller.appendChild($spacesCol);
-    $miller.appendChild($channelsCol);
-    $targetField.appendChild($miller);
+    $targetField.appendChild($navigator);
     $form.appendChild($targetField);
 
     // Actions
@@ -497,14 +608,32 @@ export const createShareModal = $container => {
         .replace(/^-|-$/g, '');
       if (!name) return;
       if (!selectedChannelPetName) return;
+      if (navPath.length === 0) return;
 
       const policy = {
         canEdit: $editCheck.checked,
         canComment: $commentCheck.checked,
       };
 
-      const target = channelTargets.find(t => t.id === selectedTargetId);
-      if (!target) return;
+      // Build the target from the navigation path.
+      // The first navPath entry's profilePath is the persona path.
+      // Deeper entries add petName segments to the lookup path.
+      const firstSegment = navPath[0];
+      const deeperPetNames = navPath
+        .slice(1)
+        .map(seg => seg.petName)
+        .filter(/** @param {string | undefined} n @returns {n is string} */ n => n !== undefined);
+
+      /** @type {ShareTarget} */
+      const target = {
+        id: selectedTargetId || firstSegment.label,
+        name: firstSegment.label,
+        icon: '',
+        profilePath: [
+          ...firstSegment.profilePath,
+          ...deeperPetNames,
+        ],
+      };
 
       $submit.disabled = true;
       $submit.textContent = 'Sharing\u2026';

@@ -1,5 +1,5 @@
 // @ts-check
-/* global window, document, requestAnimationFrame, navigator, setTimeout */
+/* global window, document, requestAnimationFrame, navigator, setTimeout, clearTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -50,14 +50,17 @@ export const inboxComponent = async (
   const selfLocator = await E(powers).locate('@self');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     // Read DOM at animation frame to determine whether to pin scroll to bottom
-    // of the messages pane.
+    // of the messages pane. Use 80px tolerance (matching channel-component)
+    // so short messages don't cause the user to "lose" auto-scroll.
     const wasAtEnd = await new Promise(resolve =>
       requestAnimationFrame(() => {
         const scrollTop = /** @type {number} */ ($parent.scrollTop);
         const endScrollTop = /** @type {number} */ (
           $parent.scrollHeight - $parent.clientHeight
         );
-        resolve(scrollTop > endScrollTop - 10);
+        resolve(
+          endScrollTop - scrollTop < 80,
+        );
       }),
     );
 
@@ -1050,7 +1053,13 @@ export const inboxComponent = async (
         initialScrollTimer = 0;
       }, 50);
     } else if (wasAtEnd) {
-      $parent.scrollTo(0, $parent.scrollHeight);
+      requestAnimationFrame(() => {
+        if ($end) {
+          $end.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          $parent.scrollTo(0, $parent.scrollHeight);
+        }
+      });
     }
   }
 };

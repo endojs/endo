@@ -73,6 +73,7 @@ const SLASH_COMMANDS = harden([
  * @param {() => import('./send-form.js').SendFormAPI | null} [options.chatBarAPI]
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork a message's heritage into a new channel
  * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after posting a message with @-mentions
  */
 export const outlinerComponent = async (
   $parent,
@@ -89,6 +90,7 @@ export const outlinerComponent = async (
     chatBarAPI,
     onFork,
     onShare,
+    onMentionNotify,
   },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -128,6 +130,7 @@ export const outlinerComponent = async (
     replyChildren,
     nameMap,
     saveNameMap,
+    memberCache,
     getMemberInfo,
     updateAuthorChips: stateUpdateAuthorChips,
     profilePopup,
@@ -144,11 +147,22 @@ export const outlinerComponent = async (
 
   const $outlinerView = document.createElement('div');
   $outlinerView.className = 'outliner-view';
+
+  // Focus-mode breadcrumb bar (hidden when not focused)
+  const $breadcrumb = document.createElement('div');
+  $breadcrumb.className = 'outliner-breadcrumb';
+  $breadcrumb.style.display = 'none';
+
   if ($end) {
     $parent.insertBefore($outlinerView, $end);
+    $parent.insertBefore($breadcrumb, $outlinerView);
   } else {
+    $parent.appendChild($breadcrumb);
     $parent.appendChild($outlinerView);
   }
+
+  /** @type {string | undefined} */
+  let focusedKey;
 
   // ---- Node tracking state ----
 
@@ -517,6 +531,78 @@ export const outlinerComponent = async (
       current = entry.message.replyTo;
     }
     return chain;
+  };
+
+  // ---- Focus mode ----
+
+  /**
+   * Render the breadcrumb bar showing ancestry of the focused node.
+   * Each ancestor is a clickable link that re-focuses on that node.
+   * The first item is a "Home" link that unfocuses entirely.
+   */
+  const renderBreadcrumb = () => {
+    $breadcrumb.innerHTML = '';
+    if (!focusedKey) {
+      $breadcrumb.style.display = 'none';
+      return;
+    }
+    $breadcrumb.style.display = '';
+
+    // Home link
+    const $home = document.createElement('button');
+    $home.className = 'outliner-breadcrumb-item';
+    $home.type = 'button';
+    $home.textContent = '\u2302 All'; // ⌂ All
+    $home.addEventListener('click', () => {
+      focusOnNode(undefined);
+    });
+    $breadcrumb.appendChild($home);
+
+    // Ancestor chain (root-first, excluding the focused node itself)
+    const chain = getHeritageChain(focusedKey);
+    for (let i = 0; i < chain.length; i += 1) {
+      const sep = document.createElement('span');
+      sep.className = 'outliner-breadcrumb-sep';
+      sep.textContent = ' \u203A '; // ›
+      $breadcrumb.appendChild(sep);
+
+      const msg = chain[i];
+      const msgKey = String(msg.number);
+      const preview =
+        msg.strings.join('').slice(0, 30) ||
+        `#${msgKey}`;
+
+      if (i < chain.length - 1) {
+        // Ancestor — clickable
+        const $link = document.createElement('button');
+        $link.className = 'outliner-breadcrumb-item';
+        $link.type = 'button';
+        $link.textContent = preview;
+        $link.addEventListener('click', () => {
+          focusOnNode(msgKey);
+        });
+        $breadcrumb.appendChild($link);
+      } else {
+        // Current — non-clickable label
+        const $label = document.createElement('span');
+        $label.className = 'outliner-breadcrumb-current';
+        $label.textContent = preview;
+        $breadcrumb.appendChild($label);
+      }
+    }
+  };
+
+  /**
+   * Focus the outliner on a specific node, showing only its subtree.
+   * Pass `undefined` to unfocus (show all root nodes).
+   *
+   * @param {string | undefined} key
+   */
+  const focusOnNode = key => {
+    focusedKey = key;
+    renderBreadcrumb();
+    renderFull();
+    $parent.scrollTo(0, 0);
   };
 
   // ---- Selection system ----
@@ -1010,16 +1096,27 @@ export const outlinerComponent = async (
           )
         : Promise.resolve(/** @type {string[]} */ ([]));
     idsP
-      .then(ids =>
-        E(channel).post(
+      .then(ids => {
+        const postP = E(channel).post(
           parsed.strings,
           parsed.edgeNames,
           parsed.petNames,
           String(entry.message.number),
           ids,
           'edit',
-        ),
-      )
+        );
+        if (parsed.petNames.length > 0 && onMentionNotify) {
+          postP.then(() =>
+            onMentionNotify({
+              petNames: parsed.petNames,
+              edgeNames: parsed.edgeNames,
+              messageStrings: parsed.strings,
+              replyTo: String(entry.message.number),
+            }),
+          ).catch(() => {});
+        }
+        return postP;
+      })
       .catch(/** @param {Error} err */ err => {
         console.error('Failed to post edit:', err);
       });
@@ -1072,16 +1169,27 @@ export const outlinerComponent = async (
           )
         : Promise.resolve(/** @type {string[]} */ ([]));
     draftIdsP
-      .then(ids =>
-        E(channel).post(
+      .then(ids => {
+        const postP = E(channel).post(
           parsed.strings,
           parsed.edgeNames,
           parsed.petNames,
           draft.parentKey,
           ids,
           draft.replyType,
-        ),
-      )
+        );
+        if (parsed.petNames.length > 0 && onMentionNotify) {
+          postP.then(() =>
+            onMentionNotify({
+              petNames: parsed.petNames,
+              edgeNames: parsed.edgeNames,
+              messageStrings: parsed.strings,
+              replyTo: draft.parentKey,
+            }),
+          ).catch(() => {});
+        }
+        return postP;
+      })
       .catch(/** @param {Error} err */ err => {
         console.error('Failed to post draft:', err);
       });
@@ -1358,6 +1466,53 @@ export const outlinerComponent = async (
       }
     }
   };
+
+  // Delegated click handler for @handle tokens in message content.
+  // Clicking a .chat-token shows the profile popup if the name
+  // matches a channel member, otherwise falls through to showValue.
+  $outlinerView.addEventListener('click', e => {
+    const $token = /** @type {HTMLElement} */ (e.target).closest(
+      '.chat-token',
+    );
+    if (!$token) return;
+    e.stopPropagation();
+    const tokenName =
+      /** @type {HTMLElement} */ ($token).dataset.petName || '';
+    if (!tokenName) return;
+
+    // Search memberCache for a member whose invitedAs matches
+    for (const [, info] of memberCache) {
+      if (info.invitedAs === tokenName) {
+        profilePopup.show({
+          proposedName: info.proposedName,
+          pedigree: info.pedigree,
+          pedigreeMemberIds: info.pedigreeMemberIds,
+          nameMap,
+          yourName: nameMap.get(info.memberId),
+          onAssignName: name => {
+            nameMap.set(info.memberId, name);
+            saveNameMap();
+            stateUpdateAuthorChips(info.memberId);
+            updateOutlinerAuthorChips(info.memberId);
+          },
+          anchorElement: /** @type {HTMLElement} */ ($token),
+        });
+        return;
+      }
+    }
+
+    // Not a recognized member — show value if possible
+    if (powers) {
+      E(/** @type {ERef<EndoHost>} */ (powers))
+        .lookup(
+          .../** @type {[string, ...string[]]} */ (tokenName.split('/')),
+        )
+        .then(ref => {
+          showValue(ref, undefined, tokenName.split('/'));
+        })
+        .catch(() => {});
+    }
+  });
 
   /**
    * Create the metadata element for a committed node.
@@ -2153,6 +2308,24 @@ export const outlinerComponent = async (
           },
         });
       }
+      // Focus: zoom into this node's subtree
+      menuItems.push({
+        label: 'Focus',
+        icon: '\u2316', // ⌖
+        handler: () => {
+          focusOnNode(key);
+        },
+      });
+      // Delete: post a deletion reply to this message
+      menuItems.push({
+        label: 'Delete',
+        icon: '\u2717',
+        handler: () => {
+          E(channel)
+            .post([''], [], [], key, [], 'deletion')
+            .catch(window.reportError);
+        },
+      });
       if (menuItems.length > 0) {
         const $menu = createMessageMenu(menuItems);
         $menu.classList.add('outliner-node-menu');
@@ -2301,6 +2474,7 @@ export const outlinerComponent = async (
 
   /**
    * Full re-render: clear and rebuild the entire outliner DOM.
+   * Respects `focusedKey` — when set, renders only that subtree.
    */
   const renderFull = () => {
     nodeEls.clear();
@@ -2312,14 +2486,23 @@ export const outlinerComponent = async (
       blockedMemberIds,
     );
 
-    const sortedRoots = getSortedVisibleChildren(undefined, effectiveContents);
-
-    const frag = document.createDocumentFragment();
-    for (const rootKey of sortedRoots) {
-      const $node = buildNodeTree(rootKey, 0, effectiveContents);
-      if ($node) frag.appendChild($node);
+    if (focusedKey && messageIndex.has(focusedKey)) {
+      // Focus mode: render only the focused node and its children
+      const $node = buildNodeTree(focusedKey, 0, effectiveContents);
+      if ($node) $outlinerView.appendChild($node);
+    } else {
+      // Normal mode: render all roots
+      const sortedRoots = getSortedVisibleChildren(
+        undefined,
+        effectiveContents,
+      );
+      const frag = document.createDocumentFragment();
+      for (const rootKey of sortedRoots) {
+        const $node = buildNodeTree(rootKey, 0, effectiveContents);
+        if ($node) frag.appendChild($node);
+      }
+      $outlinerView.appendChild(frag);
     }
-    $outlinerView.appendChild(frag);
   };
 
   // ---- Incremental message handling ----

@@ -582,6 +582,19 @@ export const channelComponent = async (
           },
         });
       }
+      // Delete: post a deletion reply to this message
+      {
+        const delKey = String(message.number);
+        menuItems.push({
+          label: 'Delete',
+          icon: '\u2717',
+          handler: () => {
+            E(channel)
+              .post([''], [], [], delKey, [], 'deletion')
+              .catch(window.reportError);
+          },
+        });
+      }
       if (menuItems.length > 0) {
         $actions.appendChild(createMessageMenu(menuItems));
       }

@@ -1,5 +1,5 @@
 // @ts-check
-/* global window, document */
+/* global window, document, setTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -686,6 +686,9 @@ const bodyComponent = (
               chatBarAPI: () => chatBarAPI,
               onFork: handleFork,
               onShare: handleShare,
+              onMentionNotify: isChannelMode
+                ? handleMentionNotify
+                : undefined,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -913,6 +916,9 @@ const bodyComponent = (
               chatBarAPI: () => chatBarAPI,
               onFork: handleSwitchFork,
               onShare: handleSwitchShare,
+              onMentionNotify: isChannelMode
+                ? handleMentionNotify
+                : undefined,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -1247,8 +1253,188 @@ const bodyComponent = (
       };
 
       /**
+       * Send a mention notification to a pet name.
+       * Builds thread recap from channel messages and sends it
+       * as an inbox message with embedded channel + author refs.
+       *
+       * @param {string} petName - recipient pet name
+       * @param {string} channelPetName - pet name of the channel
+       * @param {boolean} alreadyInvited - whether recipient is already a member
+       */
+      const sendMentionNotification = async (
+        petName,
+        channelPetName,
+        alreadyInvited,
+      ) => {
+        const channelRef = currentChannelRef;
+        if (!channelRef) throw new Error('No channel connection');
+
+        if (!alreadyInvited) {
+          // Create a new invitation
+          const displayName =
+            window.prompt(
+              `Display name for ${petName} in this channel:`,
+              petName,
+            ) || petName;
+          await E(channelRef).createInvitation(displayName);
+        }
+
+        // Build thread recap from the channel's messages
+        const rawMessages = await E(channelRef).listMessages();
+        const channelMessages =
+          /** @type {Array<{ number: bigint, strings?: string[], names?: string[], replyTo?: string, memberId?: string }>} */ (
+            rawMessages
+          );
+
+        // Build memberId → { petName, edgeName } map.
+        // petName resolves in sender's namespace to a formula ID.
+        // edgeName is proposed to the recipient for adoption.
+        /** @type {Map<string, { petName: string, edgeName: string }>} */
+        const memberIdToRef = new Map();
+
+        // Map our own memberId: @self resolves to our identity.
+        // Use the channel's proposedName as the edge name so the
+        // recipient sees a readable author name.
+        try {
+          const ownMid = await E(
+            /** @type {{ getMemberId: () => string }} */ (
+              channelRef
+            ),
+          ).getMemberId();
+          if (ownMid) {
+            const ownName = await E(
+              /** @type {{ getProposedName: () => string }} */ (
+                channelRef
+              ),
+            ).getProposedName();
+            // Sanitize proposedName to a valid edge name
+            const safeName = ownName
+              .toLowerCase()
+              .replace(/[^a-z0-9-]/g, '-')
+              .replace(/^[^a-z]/, 'u')
+              .slice(0, 128);
+            memberIdToRef.set(ownMid, {
+              petName: '@self',
+              edgeName: safeName || 'sender',
+            });
+          }
+        } catch {
+          // getMemberId/getProposedName not available
+        }
+
+        // Map invited members: invitedAs is the pet name we used
+        // to create the invitation, and also a valid edge name.
+        try {
+          const memberList =
+            /** @type {Array<{ memberId: string, invitedAs: string }>} */ (
+              await E(channelRef).getMembers()
+            );
+          for (const m of memberList) {
+            try {
+              const mid = await E(
+                /** @type {ERef<EndoHost>} */ (resolvedPowers),
+              ).identify(m.invitedAs);
+              if (mid) {
+                memberIdToRef.set(m.memberId, {
+                  petName: m.invitedAs,
+                  edgeName: m.invitedAs,
+                });
+              }
+            } catch {
+              // Not in our namespace — skip
+            }
+          }
+        } catch {
+          // getMembers not available
+        }
+
+        // The most recent message is the one that triggered the mention
+        const lastMsg = channelMessages[channelMessages.length - 1];
+        const lastMsgKey = lastMsg
+          ? String(lastMsg.number)
+          : undefined;
+        const recap = buildThreadRecap(
+          channelMessages,
+          lastMsgKey,
+          memberIdToRef,
+        );
+
+        // Include the channel message number so the agent can
+        // reply to the specific thread, not just post to root.
+        const replyToNum = lastMsgKey || '0';
+
+        // Choose instructions based on whether the recipient
+        // is already a channel member or needs to adopt/join.
+        const edgeName = channelPetName;
+        const instructions = alreadyInvited
+          ? `\n\nReply to channel message #${replyToNum}. ` +
+            `Use exec() with this code:\n` +
+            `const ch = await E(powers).lookup("${channelPetName}");\n` +
+            `const me = await E(ch).join("YOUR_NAME");\n` +
+            `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
+            `Do NOT post internal steps or reasoning to the channel.`
+          : `\n\nReply to channel message #${replyToNum}. ` +
+            `Use exec() with this code:\n` +
+            `await E(powers).adopt(MSG_NUM, "${edgeName}", "ch-ref");\n` +
+            `const ch = await E(powers).lookup("ch-ref");\n` +
+            `const me = await E(ch).join("YOUR_NAME");\n` +
+            `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
+            `Do NOT post internal steps or reasoning to the channel.`;
+
+        // Assemble the final send() arrays.
+        // Structure: "You were mentioned in " [channel] ":\n\n"
+        //   [author1] ": msg1\n  " [author2] ": msg2\n\n..."
+        // The channel is always the first embedded reference.
+        /** @type {string[]} */
+        const sendStrings = [`You were mentioned in `];
+        /** @type {string[]} */
+        const sendEdgeNames = [edgeName];
+        /** @type {string[]} */
+        const sendPetNames = [channelPetName];
+
+        if (recap.edgeNames.length > 0) {
+          // String after the channel ref: separator + recap
+          // lead-in. recap.strings is interleaved as:
+          //   strings[0] ref[0] strings[1] ref[1] ... strings[n]
+          sendStrings.push(`:\n\n${recap.strings[0]}`);
+          const usedEdgeNames = new Set([edgeName]);
+          for (let ri = 0; ri < recap.edgeNames.length; ri++) {
+            // Ensure edge name uniqueness across the message
+            let recapEdge = recap.edgeNames[ri];
+            if (usedEdgeNames.has(recapEdge)) {
+              recapEdge = `${recapEdge}-author`;
+            }
+            usedEdgeNames.add(recapEdge);
+            sendEdgeNames.push(recapEdge);
+            sendPetNames.push(recap.petNames[ri]);
+            sendStrings.push(recap.strings[ri + 1] || '');
+          }
+          sendStrings[sendStrings.length - 1] += instructions;
+        } else if (
+          recap.strings.length > 0 &&
+          recap.strings[0]
+        ) {
+          // Recap text but no embedded refs
+          sendStrings.push(
+            `:\n\n${recap.strings[0]}${instructions}`,
+          );
+        } else {
+          sendStrings.push(instructions);
+        }
+
+        await E(
+          /** @type {ERef<EndoHost>} */ (resolvedPowers),
+        ).send(
+          petName,
+          sendStrings,
+          sendEdgeNames,
+          sendPetNames,
+        );
+      };
+
+      /**
        * Handle @-mention notifications after a channel post.
-       * Shows a prompt per valid recipient.
+       * Auto-sends for already-invited members; prompts for new ones.
        * @param {{ petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }} info
        */
       const handleMentionNotify = async info => {
@@ -1261,7 +1447,7 @@ const bodyComponent = (
         }
         const { channelPetName } = activeSpaceInfo;
 
-        // For each mentioned pet name, validate and show prompt
+        // For each mentioned pet name, validate and notify
         for (const petName of info.petNames) {
           // Check if the pet name resolves to something
           let isValid = false;
@@ -1278,223 +1464,81 @@ const bodyComponent = (
             continue;
           }
 
-          // Create a prompt for this recipient
-          const $prompt = document.createElement('div');
-          $prompt.className = 'mention-notify-prompt';
-          $prompt.innerHTML = `
-            <span class="mention-notify-text">\uD83D\uDCE8 Notify <strong>@${petName}</strong>?</span>
-            <button type="button" class="mention-notify-yes">Yes, notify</button>
-            <button type="button" class="mention-notify-no">No</button>
-          `;
-          $mentionNotifyArea.appendChild($prompt);
-
-          const $yes = /** @type {HTMLButtonElement} */ (
-            $prompt.querySelector('.mention-notify-yes')
-          );
-          const $no = /** @type {HTMLButtonElement} */ (
-            $prompt.querySelector('.mention-notify-no')
-          );
-
-          $no.addEventListener('click', () => {
-            $prompt.remove();
-          });
-
-          $yes.addEventListener('click', async () => {
-            $yes.disabled = true;
-            $yes.textContent = 'Sending\u2026';
-            try {
-              const channelRef = currentChannelRef;
-              if (!channelRef) throw new Error('No channel connection');
-
-              // Check if an invitation already exists for this name
-              let alreadyInvited = false;
-              try {
-                const members = /** @type {Array<{ invitedAs: string }>} */ (
-                  await E(channelRef).getMembers()
-                );
-                alreadyInvited = members.some(
-                  m => m.invitedAs === petName,
-                );
-              } catch {
-                // getMembers not available — try creating anyway
-              }
-
-              if (!alreadyInvited) {
-                // Create a new invitation
-                const displayName =
-                  window.prompt(
-                    `Display name for ${petName} in this channel:`,
-                    petName,
-                  ) || petName;
-                await E(channelRef).createInvitation(displayName);
-              }
-
-              // Build thread recap from the channel's messages
-              const rawMessages = await E(channelRef).listMessages();
-              const channelMessages =
-                /** @type {Array<{ number: bigint, strings?: string[], names?: string[], replyTo?: string, memberId?: string }>} */ (
-                  rawMessages
-                );
-
-              // Build memberId → { petName, edgeName } map.
-              // petName resolves in sender's namespace to a formula ID.
-              // edgeName is proposed to the recipient for adoption.
-              /** @type {Map<string, { petName: string, edgeName: string }>} */
-              const memberIdToRef = new Map();
-
-              // Map our own memberId: @self resolves to our identity.
-              // Use the channel's proposedName as the edge name so the
-              // recipient sees a readable author name.
-              try {
-                const ownMid = await E(
-                  /** @type {{ getMemberId: () => string }} */ (
-                    channelRef
-                  ),
-                ).getMemberId();
-                if (ownMid) {
-                  const ownName = await E(
-                    /** @type {{ getProposedName: () => string }} */ (
-                      channelRef
-                    ),
-                  ).getProposedName();
-                  // Sanitize proposedName to a valid edge name
-                  const safeName = ownName
-                    .toLowerCase()
-                    .replace(/[^a-z0-9-]/g, '-')
-                    .replace(/^[^a-z]/, 'u')
-                    .slice(0, 128);
-                  memberIdToRef.set(ownMid, {
-                    petName: '@self',
-                    edgeName: safeName || 'sender',
-                  });
-                }
-              } catch {
-                // getMemberId/getProposedName not available
-              }
-
-              // Map invited members: invitedAs is the pet name we used
-              // to create the invitation, and also a valid edge name.
-              try {
-                const memberList =
-                  /** @type {Array<{ memberId: string, invitedAs: string }>} */ (
-                    await E(channelRef).getMembers()
-                  );
-                for (const m of memberList) {
-                  try {
-                    const mid = await E(
-                      /** @type {ERef<EndoHost>} */ (resolvedPowers),
-                    ).identify(m.invitedAs);
-                    if (mid) {
-                      memberIdToRef.set(m.memberId, {
-                        petName: m.invitedAs,
-                        edgeName: m.invitedAs,
-                      });
-                    }
-                  } catch {
-                    // Not in our namespace — skip
-                  }
-                }
-              } catch {
-                // getMembers not available
-              }
-
-              // The most recent message is the one that triggered the mention
-              const lastMsg =
-                channelMessages[channelMessages.length - 1];
-              const lastMsgKey = lastMsg
-                ? String(lastMsg.number)
-                : undefined;
-              const recap = buildThreadRecap(
-                channelMessages,
-                lastMsgKey,
-                memberIdToRef,
+          // Check if an invitation already exists for this name
+          let alreadyInvited = false;
+          try {
+            const channelRef = currentChannelRef;
+            if (channelRef) {
+              const members = /** @type {Array<{ invitedAs: string }>} */ (
+                await E(channelRef).getMembers()
               );
-
-              // Include the channel message number so the agent can
-              // reply to the specific thread, not just post to root.
-              const replyToNum = lastMsgKey || '0';
-
-              // Choose instructions based on whether the recipient
-              // is already a channel member or needs to adopt/join.
-              const instructions = alreadyInvited
-                ? `\n\nReply to channel message #${replyToNum}. ` +
-                  `Use exec() with this code:\n` +
-                  `const ch = await E(powers).lookup("${channelPetName}");\n` +
-                  `const me = await E(ch).join("YOUR_NAME");\n` +
-                  `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
-                  `Do NOT post internal steps or reasoning to the channel.`
-                : `\n\nReply to channel message #${replyToNum}. ` +
-                  `Use exec() with this code:\n` +
-                  `await E(powers).adopt(MSG_NUM, "${edgeName}", "ch-ref");\n` +
-                  `const ch = await E(powers).lookup("ch-ref");\n` +
-                  `const me = await E(ch).join("YOUR_NAME");\n` +
-                  `await E(me).post(["YOUR_REPLY"], [], [], "${replyToNum}");\n` +
-                  `Do NOT post internal steps or reasoning to the channel.`;
-
-              // Assemble the final send() arrays.
-              // Structure: "You were mentioned in " [channel] ":\n\n"
-              //   [author1] ": msg1\n  " [author2] ": msg2\n\n..."
-              // The channel is always the first embedded reference.
-              const edgeName = channelPetName;
-              /** @type {string[]} */
-              const sendStrings = [`You were mentioned in `];
-              /** @type {string[]} */
-              const sendEdgeNames = [edgeName];
-              /** @type {string[]} */
-              const sendPetNames = [channelPetName];
-
-              if (recap.edgeNames.length > 0) {
-                // String after the channel ref: separator + recap
-                // lead-in. recap.strings is interleaved as:
-                //   strings[0] ref[0] strings[1] ref[1] ... strings[n]
-                sendStrings.push(`:\n\n${recap.strings[0]}`);
-                const usedEdgeNames = new Set([edgeName]);
-                for (let ri = 0; ri < recap.edgeNames.length; ri++) {
-                  // Ensure edge name uniqueness across the message
-                  let recapEdge = recap.edgeNames[ri];
-                  if (usedEdgeNames.has(recapEdge)) {
-                    recapEdge = `${recapEdge}-author`;
-                  }
-                  usedEdgeNames.add(recapEdge);
-                  sendEdgeNames.push(recapEdge);
-                  sendPetNames.push(recap.petNames[ri]);
-                  sendStrings.push(recap.strings[ri + 1] || '');
-                }
-                sendStrings[sendStrings.length - 1] += instructions;
-              } else if (
-                recap.strings.length > 0 &&
-                recap.strings[0]
-              ) {
-                // Recap text but no embedded refs
-                sendStrings.push(
-                  `:\n\n${recap.strings[0]}${instructions}`,
-                );
-              } else {
-                sendStrings.push(instructions);
-              }
-
-              await E(
-                /** @type {ERef<EndoHost>} */ (resolvedPowers),
-              ).send(
-                petName,
-                sendStrings,
-                sendEdgeNames,
-                sendPetNames,
-              );
-
-              $prompt.innerHTML =
-                '<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@' +
-                petName +
-                '</strong></span>';
-              setTimeout(() => $prompt.remove(), 3000);
-            } catch (err) {
-              $yes.disabled = false;
-              $yes.textContent = 'Yes, notify';
-              window.alert(
-                `Failed to send notification: ${/** @type {Error} */ (err).message}`,
+              alreadyInvited = members.some(
+                m => m.invitedAs === petName,
               );
             }
-          });
+          } catch {
+            // getMembers not available
+          }
+
+          if (alreadyInvited) {
+            // Already a member — auto-send notification silently
+            const $toast = document.createElement('div');
+            $toast.className = 'mention-notify-prompt';
+            $toast.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notified <strong>@${petName}</strong></span>`;
+            $mentionNotifyArea.appendChild($toast);
+            setTimeout(() => $toast.remove(), 3000);
+
+            sendMentionNotification(
+              petName,
+              channelPetName,
+              true,
+            ).catch(err => {
+              $toast.innerHTML = `<span class="mention-notify-text">\u2717 Failed to notify <strong>@${petName}</strong></span>`;
+              console.error('Auto-notify failed:', err);
+              setTimeout(() => $toast.remove(), 5000);
+            });
+          } else {
+            // Not yet invited — prompt the user
+            const $prompt = document.createElement('div');
+            $prompt.className = 'mention-notify-prompt';
+            $prompt.innerHTML = `
+              <span class="mention-notify-text">\uD83D\uDCE8 Invite & notify <strong>@${petName}</strong>?</span>
+              <button type="button" class="mention-notify-yes">Yes, invite</button>
+              <button type="button" class="mention-notify-no">No</button>
+            `;
+            $mentionNotifyArea.appendChild($prompt);
+
+            const $yes = /** @type {HTMLButtonElement} */ (
+              $prompt.querySelector('.mention-notify-yes')
+            );
+            const $no = /** @type {HTMLButtonElement} */ (
+              $prompt.querySelector('.mention-notify-no')
+            );
+
+            $no.addEventListener('click', () => {
+              $prompt.remove();
+            });
+
+            $yes.addEventListener('click', async () => {
+              $yes.disabled = true;
+              $yes.textContent = 'Sending\u2026';
+              try {
+                await sendMentionNotification(
+                  petName,
+                  channelPetName,
+                  false,
+                );
+                $prompt.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@${petName}</strong></span>`;
+                setTimeout(() => $prompt.remove(), 3000);
+              } catch (err) {
+                $yes.disabled = false;
+                $yes.textContent = 'Yes, invite';
+                window.alert(
+                  `Failed to send notification: ${/** @type {Error} */ (err).message}`,
+                );
+              }
+            });
+          }
         }
       };
 
