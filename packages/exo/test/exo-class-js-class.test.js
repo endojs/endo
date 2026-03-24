@@ -17,10 +17,11 @@ const DoublerI = M.interface('Doubler', {
   double: M.call(M.lte(10)).returns(M.number()),
 });
 
-// @ts-expect-error XXX makeExo expects a string index signature for the methods
-// argument, but we are passing a class prototype which is an object with method
-// names as keys.
-const doubler = makeExo('doubler', DoublerI, DoublerBehaviorClass.prototype);
+const doubler = makeExo(
+  'doubler',
+  DoublerI,
+  Object.create(DoublerBehaviorClass.prototype),
+);
 
 test('exo doubler using js classes', t => {
   t.is(passStyleOf(doubler), 'remotable');
@@ -39,19 +40,24 @@ test('exo doubler using js classes', t => {
 
 // Based on FarSubclass2 in test-far-class-instances.js
 class DoubleAdderBehaviorClass extends DoublerBehaviorClass {
+  /**
+   * @param {number} x
+   * @this {import('../src/types.js').ClassContext<{ y: number }, { double: (x: number) => number }>}
+   */
   doubleAddSelfCall(x) {
     const {
-      // @ts-expect-error no `state`
       state: { y },
-      // @ts-expect-error no `self`
       self,
     } = this;
     return self.double(x) + y;
   }
 
+  /**
+   * @param {number} x
+   * @this {import('../src/types.js').ClassContext<{ y: number }, { double: (x: number) => number }>}
+   */
   doubleAddSuperCall(x) {
     const {
-      // @ts-expect-error no `state`
       state: { y },
     } = this;
     return super.double(x) + y;
@@ -68,8 +74,7 @@ const makeDoubleAdder = defineExoClass(
   'doubleAdderClass',
   DoubleAdderI,
   y => ({ y }),
-  // @ts-expect-error no `state`
-  DoubleAdderBehaviorClass.prototype,
+  Object.create(DoubleAdderBehaviorClass.prototype),
 );
 
 test('exo inheritance self vs super call', t => {
