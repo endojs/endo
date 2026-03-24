@@ -598,7 +598,7 @@ const makePatternKit = () => {
   /**
    * @param {any} specimen
    * @param {Pattern} pattern
-   * @param {string} prefix
+   * @param {string|number|undefined} prefix
    * @param {Rejector} reject
    * @returns {boolean}
    */
