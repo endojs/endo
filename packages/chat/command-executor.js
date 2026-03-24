@@ -25,6 +25,7 @@ import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
  * @property {(message: string) => unknown} showMessage - Display a message
  * @property {(error: Error) => unknown} showError - Display an error
  * @property {() => unknown | null} [getChannelRef] - Returns channel ref when in channel mode
+ * @property {(petNamePath: string, readOnly: boolean) => Promise<void>} [openBlobViewer] - Open blob viewer/editor
  */
 
 /**
@@ -38,6 +39,7 @@ export const createCommandExecutor = ({
   showMessage,
   showError,
   getChannelRef,
+  openBlobViewer,
 }) => {
   /**
    * Execute a command with the given parameters.
@@ -686,6 +688,24 @@ export const createCommandExecutor = ({
             agentName: String(agentName),
           });
           return { success: true, message: `Guest "${agentName}" created` };
+        }
+
+        // ============ VIEWER/EDITOR ============
+        case 'view':
+        case 'cat': {
+          const { petName } = params;
+          if (openBlobViewer) {
+            await openBlobViewer(String(petName), true);
+          }
+          return { success: true };
+        }
+
+        case 'edit': {
+          const { petName } = params;
+          if (openBlobViewer) {
+            await openBlobViewer(String(petName), false);
+          }
+          return { success: true };
         }
 
         // ============ SYSTEM ============

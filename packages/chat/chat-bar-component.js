@@ -11,6 +11,7 @@ import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
 import { createCounterProposalForm } from './counter-proposal-form.js';
 import { createFormBuilder } from './form-builder.js';
+import { createBlobViewer } from './blob-viewer.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
 import {
@@ -87,6 +88,12 @@ export const chatBarComponent = (
   );
   const $formBuilderBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#form-builder-backdrop')
+  );
+  const $blobViewerContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#blob-viewer-container')
+  );
+  const $blobViewerBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#blob-viewer-backdrop')
   );
   const $inlineFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#inline-form-container')
@@ -167,6 +174,9 @@ export const chatBarComponent = (
   /** @type {import('./form-builder.js').FormBuilderAPI | null} */
   let formBuilder = null;
 
+  /** @type {import('./blob-viewer.js').BlobViewerAPI | null} */
+  let blobViewer = null;
+
   // Initialize the send form component
   const sendForm = sendFormComponent({
     $input,
@@ -199,6 +209,20 @@ export const chatBarComponent = (
       console.log(message);
     },
     getChannelRef,
+    openBlobViewer: async (petNamePath, readOnly) => {
+      if (!blobViewer) {
+        blobViewer = createBlobViewer({
+          $container: $blobViewerContainer,
+          $backdrop: $blobViewerBackdrop,
+          E,
+          powers,
+          onClose: () => {
+            sendForm.focus();
+          },
+        });
+      }
+      await blobViewer.open(petNamePath, readOnly);
+    },
     showError: error => {
       const message = error?.message || String(error) || 'Unknown error';
       // Use command error element in command mode, chat error otherwise
@@ -493,10 +517,13 @@ export const chatBarComponent = (
       return;
     }
 
-    // For js/eval: reset command line immediately so guest proposals don't block the UI.
+    // For commands that open their own modal, reset command line
+    // immediately so the modal receives focus.
     const isEval = commandName === 'js' || commandName === 'eval';
-    if (isEval) {
-      exitCommandMode(); // eslint-disable-line no-use-before-define
+    const opensModal =
+      isEval || commandName === 'view' || commandName === 'edit' || commandName === 'cat';
+    if (opensModal) {
+      exitCommandMode({ skipFocus: true }); // eslint-disable-line no-use-before-define
     } else {
       setCommandSubmitting(true);
     }
@@ -504,7 +531,7 @@ export const chatBarComponent = (
     try {
       const result = await executor.execute(commandName, data);
       if (result.success) {
-        if (!isEval) {
+        if (!opensModal) {
           exitCommandMode(); // eslint-disable-line no-use-before-define
         }
         const resultName =
@@ -523,7 +550,7 @@ export const chatBarComponent = (
         }
       }
     } finally {
-      if (!isEval) {
+      if (!opensModal) {
         setCommandSubmitting(false);
       }
     }
@@ -649,7 +676,7 @@ export const chatBarComponent = (
   /**
    * Exit command mode and return to send mode.
    */
-  const exitCommandMode = () => {
+  const exitCommandMode = ({ skipFocus = false } = {}) => {
     mode = 'send';
     currentCommand = null;
     $chatBar.classList.remove('command-mode');
@@ -658,7 +685,9 @@ export const chatBarComponent = (
     activeMessageNumberInput = null;
     inlineForm.clear();
     sendForm.clear();
-    sendForm.focus();
+    if (!skipFocus) {
+      sendForm.focus();
+    }
     $error.textContent = '';
     $commandError.textContent = '';
     updateHasContent();

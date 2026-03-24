@@ -459,6 +459,42 @@ export const COMMANDS = {
     submitLabel: 'Create',
   },
 
+  view: {
+    name: 'view',
+    label: 'View',
+    description: 'View the contents of a blob',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'path/to/file',
+      },
+    ],
+    submitLabel: 'View',
+    aliases: ['cat'],
+  },
+  edit: {
+    name: 'edit',
+    label: 'Edit',
+    description: 'Edit the contents of a blob',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'path/to/file',
+      },
+    ],
+    submitLabel: 'Edit',
+  },
+
   locate: {
     name: 'locate',
     label: 'Locate',

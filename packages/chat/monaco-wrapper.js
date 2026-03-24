@@ -79,6 +79,9 @@ harden(detectTheme);
  * @property {() => void} focus - Focus the editor
  * @property {() => void} dispose - Dispose the editor
  * @property {(callback: () => void) => void} onAddEndowment - Register callback for Cmd+E
+ * @property {(lang: string) => void} setLanguage - Set the editor language mode
+ * @property {(callback: (scrollTop: number, scrollHeight: number) => void) => void} onDidScrollChange - Register scroll change listener
+ * @property {(fraction: number) => void} setScrollFraction - Scroll to a proportional position (0–1)
  */
 
 /**
@@ -89,11 +92,12 @@ harden(detectTheme);
  * @param {(value: string) => void} options.onChange - Called when content changes
  * @param {string} [options.initialValue] - Initial editor content
  * @param {boolean} [options.darkMode] - Use dark theme
+ * @param {string} [options.language] - Language mode (default: 'javascript')
  * @returns {Promise<MonacoEditorAPI>}
  */
 export const createMonacoEditor = async (
   $container,
-  { onChange, initialValue = '', darkMode: _darkMode = false },
+  { onChange, initialValue = '', darkMode: _darkMode = false, language = 'javascript' },
 ) => {
   // Create a div for the editor to mount into
   const $editorDiv = document.createElement('div');
@@ -102,7 +106,7 @@ export const createMonacoEditor = async (
 
   const editor = monaco.editor.create($editorDiv, {
     value: initialValue,
-    language: 'javascript',
+    language,
     theme: detectTheme(),
     minimap: { enabled: false },
     lineNumbers: 'on',
@@ -190,6 +194,36 @@ export const createMonacoEditor = async (
     onAddEndowment: callback => {
       addEndowmentCallback = callback;
     },
+    setLanguage: lang => {
+      const model = editor.getModel();
+      if (model) {
+        monaco.editor.setModelLanguage(model, lang);
+      }
+    },
+    onDidScrollChange: callback => {
+      editor.onDidScrollChange(() => {
+        const scrollTop = editor.getScrollTop();
+        const scrollHeight = editor.getScrollHeight();
+        callback(scrollTop, scrollHeight);
+      });
+    },
+    setScrollFraction: fraction => {
+      const scrollHeight = editor.getScrollHeight();
+      const clientHeight = editor.getLayoutInfo().height;
+      const maxScroll = Math.max(1, scrollHeight - clientHeight);
+      editor.setScrollTop(fraction * maxScroll);
+    },
   };
 };
 harden(createMonacoEditor);
+
+/**
+ * Syntax-highlight text without creating a full editor instance.
+ *
+ * @param {string} text
+ * @param {string} language - Monaco language identifier
+ * @returns {Promise<string>} HTML string with colorized tokens
+ */
+export const colorize = async (text, language) =>
+  monaco.editor.colorize(text, language, { tabSize: 2 });
+harden(colorize);

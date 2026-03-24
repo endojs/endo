@@ -81,6 +81,9 @@ const template = `
 <div id="form-builder-backdrop"></div>
 <div id="form-builder-container"></div>
 
+<div id="blob-viewer-backdrop"></div>
+<div id="blob-viewer-container"></div>
+
 <div id="value-frame" class="frame">
   <div id="value-window" class="window">
     <div class="value-header">
