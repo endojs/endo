@@ -597,33 +597,53 @@ export const tokenAutocompleteComponent = (
 
     if (isMenuVisible) {
       // Check if trigger is still valid
-      if (node !== triggerNode || !triggerNode) {
+      if (
+        node !== triggerNode ||
+        !triggerNode ||
+        range.startOffset <= triggerOffset ||
+        (triggerNode.textContent || '')[triggerOffset] !== '@'
+      ) {
         hideMenu();
+        // Fall through to @ detection below — the user may have
+        // typed @ immediately after the old trigger became invalid.
+      } else {
+        updateFilter();
         return;
       }
+    }
 
-      const text = triggerNode.textContent || '';
-      const cursorPos = range.startOffset;
-
-      if (cursorPos <= triggerOffset || text[triggerOffset] !== '@') {
-        hideMenu();
-        return;
+    {
+      // Check if @ was typed. The cursor may be in a text node or
+      // at an element boundary (common after token insert/delete),
+      // so resolve to the actual text node first.
+      let textNode = node;
+      let cursorPos = range.startOffset;
+      if (textNode.nodeType !== Node.TEXT_NODE) {
+        // Cursor is at an element offset — find the adjacent text node
+        const child =
+          cursorPos > 0
+            ? textNode.childNodes[cursorPos - 1]
+            : textNode.childNodes[0];
+        if (child && child.nodeType === Node.TEXT_NODE) {
+          textNode = child;
+          cursorPos = (textNode.textContent || '').length;
+        }
       }
-
-      updateFilter();
-    } else if (node.nodeType === Node.TEXT_NODE) {
-      // Check if @ was typed
-      const text = node.textContent || '';
-      const cursorPos = range.startOffset;
-      if (cursorPos > 0 && text[cursorPos - 1] === '@') {
-        // Check it's not preceded by alphanumeric
-        if (cursorPos === 1 || !/[a-zA-Z0-9]/.test(text[cursorPos - 2])) {
-          triggerNode = /** @type {Text} */ (node);
-          triggerOffset = cursorPos - 1;
-          filteredNames = [...petNames];
-          selectedIndex = 0;
-          showMenu();
-          renderMenu('');
+      if (textNode.nodeType === Node.TEXT_NODE) {
+        const text = textNode.textContent || '';
+        if (cursorPos > 0 && text[cursorPos - 1] === '@') {
+          // Check it's not preceded by alphanumeric
+          if (
+            cursorPos === 1 ||
+            !/[a-zA-Z0-9]/.test(text[cursorPos - 2])
+          ) {
+            triggerNode = /** @type {Text} */ (textNode);
+            triggerOffset = cursorPos - 1;
+            filteredNames = [...petNames];
+            selectedIndex = 0;
+            showMenu();
+            renderMenu('');
+          }
         }
       }
     }
