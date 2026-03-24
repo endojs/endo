@@ -65,6 +65,7 @@ type TFTuple<T extends readonly any[]> = T extends readonly [
  */
 type TFLeafMap<Payload> = {
   any: Passable;
+  byteArray: ArrayBuffer;
   string: Payload;
   number: Payload;
   bigint: Payload;
