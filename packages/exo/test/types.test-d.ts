@@ -452,6 +452,69 @@ import type { Guarded, GuardedKit } from '../src/types.js';
   expectAssignable<Passable>(kit.public.sayHi);
 }
 
+// ===== .rest() — rest parameter inference =====
+
+// .rest(M.string()) appends ...rest: string[]
+{
+  const mg = M.call(M.nat()).rest(M.string()).returns(M.boolean());
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<(n: bigint, ...rest: string[]) => boolean>(null as unknown as Fn);
+}
+
+// .rest(M.any()) appends ...rest: Passable[]
+{
+  const mg = M.call().rest(M.any()).returns();
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<(...rest: Passable[]) => undefined>(null as unknown as Fn);
+}
+
+// .rest(M.raw()) appends ...rest: any[]
+{
+  const mg = M.call(M.string()).rest(M.raw()).returns(M.nat());
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<(s: string, ...rest: any[]) => bigint>(null as unknown as Fn);
+}
+
+// No .rest() → no rest parameter (existing behavior preserved)
+{
+  const mg = M.call(M.string()).returns(M.nat());
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<(s: string) => bigint>(null as unknown as Fn);
+}
+
+// .rest() with .optional()
+{
+  const mg = M.call(M.string())
+    .optional(M.nat())
+    .rest(M.boolean())
+    .returns(M.string());
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<(s: string, n?: bigint, ...rest: boolean[]) => string>(
+    null as unknown as Fn,
+  );
+}
+
+// .rest() negative: wrong rest element type is caught
+{
+  const FooI = M.interface('Foo', {
+    gather: M.call().rest(M.string()).returns(),
+  });
+  // @ts-expect-error -- rest args must be string[], not number[]
+  makeExo('Foo', FooI, {
+    gather(...items: number[]) {},
+  });
+}
+
+// .rest() negative: extra positional arg not in guard is caught via rest type
+{
+  const mg = M.call(M.nat()).rest(M.string()).returns(M.boolean());
+  type Fn = TypeFromMethodGuard<typeof mg>;
+  expectType<(n: bigint, goodRest: string, badRest: boolean) => boolean>(
+    // @ts-expect-error -- third positional must be string (from rest), not boolean
+    null as unknown as Fn,
+  );
+}
+
 // ===== M.callWhen: async method guards =====
 //
 // M.callWhen() is the async counterpart to M.call().  The runtime:

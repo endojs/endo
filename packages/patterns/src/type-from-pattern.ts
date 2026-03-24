@@ -267,6 +267,30 @@ type TypeFromReturnGuard<G> = G extends {
   : TypeFromPattern<G>;
 
 /**
+ * Infer rest-args type from a rest guard.
+ * - RawGuard → `any[]`
+ * - A specific pattern guard → `TypeFromPattern<G>[]`
+ *
+ * When `.rest()` is not called, `restArgGuard` defaults to `SyncValueGuard`
+ * (= `RawGuard | Pattern`).  We detect this via `[Pattern] extends [G]` —
+ * true only for the wide default, not for a specific guard like
+ * `MatcherOf<'string'>`.  The `[X] extends [Y]` form prevents TypeScript
+ * from distributing over the union.
+ */
+type TFRestArgs<G> = [G] extends [{ [Symbol.toStringTag]: 'guard:rawGuard' }]
+  ? any[]
+  : [Pattern] extends [G]
+    ? [] // wide default (SyncValueGuard) → no .rest() was called
+    : TypeFromPattern<G>[];
+
+/** Build the full args tuple: required + optional + rest (if any). */
+type TFBuildArgs<
+  Args extends readonly any[],
+  OptArgs extends readonly any[],
+  Rest,
+> = [...TFArgGuards<Args>, ...TFOptArgGuards<OptArgs>, ...TFRestArgs<Rest>];
+
+/**
  * Infer a function signature from a `MethodGuard`.
  *
  * @example
@@ -281,20 +305,21 @@ export type TypeFromMethodGuard<G> = G extends {
     callKind: infer CK;
     argGuards: infer Args extends readonly any[];
     optionalArgGuards?: infer OptArgs extends readonly any[];
+    restArgGuard?: infer Rest;
     returnGuard: infer Ret;
   };
 }
   ? OptArgs extends readonly any[]
     ? CK extends 'async'
       ? (
-          ...args: [...TFArgGuards<Args>, ...TFOptArgGuards<OptArgs>]
+          ...args: TFBuildArgs<Args, OptArgs, Rest>
         ) => Promise<TypeFromReturnGuard<Ret>>
-      : (
-          ...args: [...TFArgGuards<Args>, ...TFOptArgGuards<OptArgs>]
-        ) => TypeFromReturnGuard<Ret>
+      : (...args: TFBuildArgs<Args, OptArgs, Rest>) => TypeFromReturnGuard<Ret>
     : CK extends 'async'
-      ? (...args: TFArgGuards<Args>) => Promise<TypeFromReturnGuard<Ret>>
-      : (...args: TFArgGuards<Args>) => TypeFromReturnGuard<Ret>
+      ? (
+          ...args: TFBuildArgs<Args, [], Rest>
+        ) => Promise<TypeFromReturnGuard<Ret>>
+      : (...args: TFBuildArgs<Args, [], Rest>) => TypeFromReturnGuard<Ret>
   : (...args: any[]) => any;
 
 /**

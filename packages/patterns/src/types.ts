@@ -822,11 +822,12 @@ export type MethodGuardPayload<
   Args extends ArgGuard[] = ArgGuard[],
   OptArgs extends ArgGuard[] = ArgGuard[],
   RetGuard extends SyncValueGuard = SyncValueGuard,
+  RestGuard extends SyncValueGuard = SyncValueGuard,
 > = {
   callKind: CK;
   argGuards: Args;
   optionalArgGuards?: OptArgs;
-  restArgGuard?: SyncValueGuard;
+  restArgGuard?: RestGuard;
   returnGuard: RetGuard;
 };
 
@@ -845,9 +846,10 @@ export type MethodGuard<
   Args extends ArgGuard[] = ArgGuard[],
   OptArgs extends ArgGuard[] = ArgGuard[],
   RetGuard extends SyncValueGuard = SyncValueGuard,
+  RestGuard extends SyncValueGuard = SyncValueGuard,
 > = CopyTagged<
   'guard:methodGuard',
-  MethodGuardPayload<CK, Args, OptArgs, RetGuard>
+  MethodGuardPayload<CK, Args, OptArgs, RetGuard, RestGuard>
 >;
 
 /**
@@ -859,10 +861,11 @@ export type MethodGuardReturns<
   CK extends 'sync' | 'async' = 'sync' | 'async',
   Args extends ArgGuard[] = ArgGuard[],
   OptArgs extends ArgGuard[] = ArgGuard[],
+  RestGuard extends SyncValueGuard = SyncValueGuard,
 > = {
   returns: <RG extends SyncValueGuard = MatcherOf<'kind', 'undefined'>>(
     returnGuard?: RG,
-  ) => MethodGuard<CK, Args, OptArgs, RG>;
+  ) => MethodGuard<CK, Args, OptArgs, RG, RestGuard>;
 };
 
 /**
@@ -874,7 +877,9 @@ export type MethodGuardRest<
   Args extends ArgGuard[] = ArgGuard[],
   OptArgs extends ArgGuard[] = ArgGuard[],
 > = {
-  rest: (restArgGuard: SyncValueGuard) => MethodGuardReturns<CK, Args, OptArgs>;
+  rest: <RG extends SyncValueGuard>(
+    restArgGuard: RG,
+  ) => MethodGuardReturns<CK, Args, OptArgs, RG>;
 };
 
 /**
