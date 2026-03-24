@@ -6,6 +6,7 @@
 
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
+import { playChime } from './chime.js';
 import {
   prepareTextWithPlaceholders,
   renderMarkdown,
@@ -1031,6 +1032,10 @@ export const inboxComponent = async (
 
     $envelope.appendChild($message);
     $parent.insertBefore($envelope, $end);
+
+    if (!isSent && Date.now() - new Date(date).getTime() < 2000) {
+      playChime();
+    }
 
     if (wasAtEnd) {
       $parent.scrollTo(0, $parent.scrollHeight);
