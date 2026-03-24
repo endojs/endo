@@ -392,9 +392,9 @@ export type PatternMatchers = {
    * Promises are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  // TODO: add `label?: string` to align with `M.remotable` — requires a matching
-  // runtime change in patternMatchers.js.  Tracked separately from this type-only PR.
-  promise: <T extends Passable = any>() => MatcherOf<'promise', T>;
+  promise: <T extends Passable = any>(
+    label?: string,
+  ) => MatcherOf<'promise', T>;
 
   /**
    * Matches the exact value `undefined`.

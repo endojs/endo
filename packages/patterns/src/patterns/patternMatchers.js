@@ -1131,6 +1131,39 @@ const makePatternKit = () => {
       getPassStyleCover('remotable'),
   });
 
+  /** @type {MatchHelper<{label: string}>} */
+  const matchPromiseHelper = Far('match:promise helper', {
+    confirmMatches: (specimen, promiseDesc, reject) => {
+      if (isKind(specimen, 'promise')) {
+        return true;
+      }
+      if (!reject) {
+        return false;
+      }
+      const { label } = promiseDesc;
+      const passStyle = passStyleOf(specimen);
+      const kindDetails =
+        passStyle !== 'tagged'
+          ? b(passStyle)
+          : q(getTag(/** @type {CopyTagged<string, Passable>} */ (specimen)));
+      return (
+        reject &&
+        reject`${specimen} - Must be a promise ${b(label)}, not ${kindDetails}`
+      );
+    },
+
+    confirmIsWellFormed: (allegedPromiseDesc, reject) =>
+      confirmNestedMatches(
+        allegedPromiseDesc,
+        harden({ label: MM.string() }),
+        'match:promise payload',
+        reject,
+      ),
+
+    getRankCover: (_promiseDesc, _encodePassable) =>
+      getPassStyleCover('promise'),
+  });
+
   /** @type {MatchHelper<Key>} */
   const matchLTEHelper = Far('match:lte helper', {
     confirmMatches: (specimen, rightOperand, reject) =>
@@ -1881,6 +1914,7 @@ const makePatternKit = () => {
     'match:string': matchStringHelper,
     'match:symbol': matchSymbolHelper,
     'match:remotable': matchRemotableHelper,
+    'match:promise': matchPromiseHelper,
 
     'match:lt': matchLTHelper,
     'match:lte': matchLTEHelper,
@@ -1946,6 +1980,11 @@ const makePatternKit = () => {
     label === undefined
       ? RemotableShape
       : makeMatcher('match:remotable', harden({ label }));
+
+  const makePromiseMatcher = (label = undefined) =>
+    label === undefined
+      ? PromiseShape
+      : makeMatcher('match:promise', harden({ label }));
 
   /**
    * @template T
@@ -2032,7 +2071,7 @@ const makePatternKit = () => {
       // makeCopyMap([['x', M.number()], ['y', M.string()]]).
       remotable: makeRemotableMatcher,
       error: () => ErrorShape,
-      promise: () => PromiseShape,
+      promise: makePromiseMatcher,
       undefined: () => UndefinedShape,
       null: () => null,
 
