@@ -1,12 +1,14 @@
 /// <reference types="ses"/>
 
 import type { Rejector } from '@endo/errors/rejector.js';
-import type { Passable } from '@endo/pass-style';
+import type { CopyArray, Passable } from '@endo/pass-style';
 import type {
   MatcherNamespace,
   Pattern,
   GetRankCover,
   Kind,
+  CopyBag,
+  CopySet,
 } from '../types.js';
 
 /**
@@ -71,5 +73,10 @@ export type PatternKit = {
     reject: Rejector,
     needInResults?: boolean,
     needOutResults?: boolean,
-  ) => [any, any] | false;
+  ) =>
+    | [
+        matches: CopyArray | CopySet | CopyBag | undefined,
+        discards: CopyArray | CopySet | CopyBag | undefined,
+      ]
+    | false;
 };
