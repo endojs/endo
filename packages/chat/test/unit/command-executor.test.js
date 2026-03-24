@@ -482,7 +482,7 @@ test('execute mkdir command', async t => {
   t.is(result.message, 'Directory "new-dir" created');
 });
 
-test('execute scratch command (alias for mkscratch)', async t => {
+test('execute mktmp command calls provideScratchMount', async t => {
   /** @type {Array<{method: string, args: unknown[]}>} */
   const calls = [];
 
@@ -499,7 +499,7 @@ test('execute scratch command (alias for mkscratch)', async t => {
     showError: () => {},
   });
 
-  const result = await executor.execute('scratch', {
+  const result = await executor.execute('mktmp', {
     petName: 'my-workspace',
   });
 

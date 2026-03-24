@@ -397,14 +397,13 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'scratch':
-        case 'mkscratch': {
+        case 'mktmp': {
           const { petName } = params;
           const petNamePath = String(petName).split('/');
           await E(powers).provideScratchMount(petNamePath);
           return {
             success: true,
-            message: `Scratch mount "${petName}" created`,
+            message: `Scratch space "${petName}" created`,
           };
         }
 
