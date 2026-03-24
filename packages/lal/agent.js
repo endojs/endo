@@ -1894,12 +1894,15 @@ You should:
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         console.error('[agent] LLM error, notifying sender:', errorMessage);
-        const isValidName =
-          typeof fromId === 'string' &&
-          (/^[a-z][a-z0-9-]{0,127}$/.test(fromId) ||
-            /^[A-Z][A-Z0-9-]{0,127}$/.test(fromId));
-        if (isValidName) {
-          await E(powers).send(fromId, [errorMessage], [], []);
+        try {
+          await E(powers).reply(
+            number,
+            [`LLM provider error: ${errorMessage}`],
+            [],
+            [],
+          );
+        } catch (replyError) {
+          console.error('[agent] Failed to notify sender:', replyError);
         }
       }
 
