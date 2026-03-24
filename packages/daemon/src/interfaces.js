@@ -455,17 +455,18 @@ export const BlobInterface = M.interface('EndoBlob', {
 });
 
 const PathSegmentsShape = M.arrayOf(M.string());
+const PathArgShape = M.or(M.string(), PathSegmentsShape);
 
 export const MountInterface = M.interface('EndoMount', {
   // ReadableTree-compatible surface
   has: M.call().rest(PathSegmentsShape).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
-  lookup: M.call(M.or(M.string(), PathSegmentsShape)).returns(M.promise()),
+  lookup: M.call(PathArgShape).returns(M.promise()),
   // Mutation
-  write: M.call(PathSegmentsShape, M.any()).returns(M.promise()),
-  remove: M.call(PathSegmentsShape).returns(M.promise()),
-  move: M.call(PathSegmentsShape, PathSegmentsShape).returns(M.promise()),
-  makeDirectory: M.call(PathSegmentsShape).returns(M.promise()),
+  write: M.call(PathArgShape, M.any()).returns(M.promise()),
+  remove: M.call(PathArgShape).returns(M.promise()),
+  move: M.call(PathArgShape, PathArgShape).returns(M.promise()),
+  makeDirectory: M.call(PathArgShape).returns(M.promise()),
   // Attenuation
   readOnly: M.call().returns(M.remotable()),
   // Snapshot

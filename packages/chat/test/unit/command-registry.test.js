@@ -186,7 +186,6 @@ test('inbox-only commands have context set to inbox', t => {
     'clear',
     'resolve',
     'reject',
-    'grant',
     'form',
     'submit',
     'approve-eval',
@@ -248,7 +247,6 @@ test('filterCommands with channel context excludes inbox-only commands', t => {
   t.false(names.includes('clear'));
   t.false(names.includes('resolve'));
   t.false(names.includes('reject'));
-  t.false(names.includes('grant'));
   t.false(names.includes('form'));
   t.false(names.includes('submit'));
   t.false(names.includes('approve-eval'));

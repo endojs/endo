@@ -706,7 +706,10 @@ will appear in future listMessages() calls.
 - IMPORTANT: Only call locate() with pet names you know exist. Call list([]) first to see your directory.
 
 ### Capability Inspection
-- inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
+- inspectCapability(petNameOrPath) - Call help() on a capability and list its methods.
+  IMPORTANT: Always call inspectCapability() before using evaluate() on an unfamiliar
+  capability. The response includes method signatures with argument types. Do NOT guess
+  method names or argument shapes — read the help text first.
 
 ### Code Evaluation
 - define(source, slots) - Propose code with named slots for the host to fill (PREFERRED)
@@ -1330,11 +1333,22 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
           throw new Error('petNameOrPath is required');
         }
         const capability = await E(powers).lookup(petNameOrPath);
+        const parts = [];
         try {
-          return await E(capability).help();
+          const helpText = await E(capability).help();
+          parts.push(helpText);
         } catch {
-          return `Capability at "${petNameOrPath}" does not implement help().`;
+          parts.push(
+            `Capability at "${petNameOrPath}" does not implement help().`,
+          );
         }
+        try {
+          const methods = await E(capability).__getMethodNames__();
+          parts.push(`\nMethods: ${methods.join(', ')}`);
+        } catch {
+          // No __getMethodNames__ available.
+        }
+        return parts.join('\n');
       }
 
       // Code evaluation

@@ -171,7 +171,11 @@ const makeMountExo = ctx => {
 
   return makeExo('EndoMount', MountInterface, {
     help() {
-      return `${description}\n\n${mountHelp['']}`;
+      const methods = Object.entries(mountHelp)
+        .filter(([k]) => k !== '')
+        .map(([, v]) => v)
+        .join('\n\n');
+      return `${description}\n\n${mountHelp['']}\n\n${methods}`;
     },
 
     async has(...pathSegments) {
@@ -221,10 +225,11 @@ const makeMountExo = ctx => {
       return makeMountFileExo(target, readOnly, filePowers, confinementRoot);
     },
 
-    async write(pathSegments, value) {
+    async write(pathArg, value) {
       await null;
       assertWritable();
-      const target = resolve(pathSegments);
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
       await assertConfinedOrAncestor(target, confinementRoot, filePowers);
 
       const parent = filePowers.joinPath(target, '..');
@@ -248,28 +253,30 @@ const makeMountExo = ctx => {
       }
     },
 
-    async remove(pathSegments) {
+    async remove(pathArg) {
       await null;
       assertWritable();
-      const target = resolve(pathSegments);
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
       await assertConfined(target, confinementRoot, filePowers);
       await filePowers.removePath(target);
     },
 
-    async move(fromSegments, toSegments) {
+    async move(fromArg, toArg) {
       await null;
       assertWritable();
-      const from = resolve(fromSegments);
-      const to = resolve(toSegments);
+      const from = resolve(typeof fromArg === 'string' ? [fromArg] : fromArg);
+      const to = resolve(typeof toArg === 'string' ? [toArg] : toArg);
       await assertConfined(from, confinementRoot, filePowers);
       await assertConfinedOrAncestor(to, confinementRoot, filePowers);
       await filePowers.renamePath(from, to);
     },
 
-    async makeDirectory(pathSegments) {
+    async makeDirectory(pathArg) {
       await null;
       assertWritable();
-      const target = resolve(pathSegments);
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
       await assertConfinedOrAncestor(target, confinementRoot, filePowers);
       await filePowers.makePath(target);
     },
@@ -310,7 +317,27 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
 
   return makeExo('EndoMountFile', MountFileInterface, {
     help() {
-      return 'MountFile — A file within a mounted directory.';
+      return [
+        'MountFile — A file within a mounted directory.',
+        '',
+        'text() -> Promise<string>',
+        'Read the file content as a UTF-8 string.',
+        '',
+        'streamBase64() -> AsyncIterator<string>',
+        'Stream the file content as base64 chunks.',
+        '',
+        'json() -> Promise<any>',
+        'Read and parse the file as JSON.',
+        '',
+        'writeText(content: string) -> Promise<void>',
+        'Write a string to the file. Throws if read-only.',
+        '',
+        'writeBytes(readableRef) -> Promise<void>',
+        'Write bytes from an async iterator. Throws if read-only.',
+        '',
+        'readOnly() -> EndoMountFile',
+        'Returns a read-only view of this file.',
+      ].join('\n');
     },
 
     async text() {
@@ -373,14 +400,15 @@ help() -> string
 Get documentation for this interface.`,
 
   has: `\
-has(...path) -> Promise<boolean>
+has(...pathSegments: string[]) -> Promise<boolean>
 Check if a path exists within the mount.
-path: string[] — Path segments.`,
+Each argument is one path segment: has("dir", "file.txt").`,
 
   list: `\
-list(...path) -> Promise<string[]>
+list(...pathSegments: string[]) -> Promise<string[]>
 List directory entries at the given path.
-path: string[] — Path segments (optional, defaults to root).
+Each argument is one path segment: list("subdir").
+Call with no arguments to list the root.
 Entries with symlinks escaping the mount root are excluded.`,
 
   lookup: `\
@@ -392,25 +420,25 @@ Returns EndoMount for directories, EndoMountFile for files.`,
   write: `\
 write(path, value) -> Promise<void>
 Write content to a file at the given path.
-path: string[] — Path segments.
+path: string | string[] — Name or path segments.
 value: string | ReadableBlob — Content to write.
 Creates parent directories as needed. Throws if read-only.`,
 
   remove: `\
 remove(path) -> Promise<void>
 Remove a file or empty directory.
-path: string[] — Path segments.`,
+path: string | string[] — Name or path segments.`,
 
   move: `\
 move(from, to) -> Promise<void>
 Rename an entry within the mount.
-from: string[] — Source path segments.
-to: string[] — Destination path segments.`,
+from: string | string[] — Source name or path segments.
+to: string | string[] — Destination name or path segments.`,
 
   makeDirectory: `\
 makeDirectory(path) -> Promise<void>
 Create a directory (and missing parents).
-path: string[] — Path segments.`,
+path: string | string[] — Name or path segments.`,
 
   readOnly: `\
 readOnly() -> EndoMount

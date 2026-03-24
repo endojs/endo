@@ -78,8 +78,10 @@ Formula type: `readable-tree`.
 Live, mutable daemon-side filesystem access created by
 `provideMount(path, petName, opts)`.
 Implemented in `src/mount.js`.
-Provides the NameHub interface (`followNameChanges`, `write`,
-`remove`, etc.) plus `snapshot()` and `readOnly()`.
+Methods: `has`, `list`, `lookup`, `write`, `remove`, `move`,
+`makeDirectory`, `readOnly`, `snapshot`, `help`.
+Path arguments accept `string | string[]` (a single name or
+an array of path segments).
 
 ### ScratchMount
 
