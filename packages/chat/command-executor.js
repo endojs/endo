@@ -208,18 +208,6 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'grant':
-        case 'allow': {
-          const { messageNumber } = params;
-          await E(powers).grantEvaluate(
-            BigInt(/** @type {number} */ (messageNumber)),
-          );
-          return {
-            success: true,
-            message: `Eval-proposal #${messageNumber} granted`,
-          };
-        }
-
         case 'form': {
           const { recipient, description, fields: fieldDefs } = params;
           const recipientPath = String(recipient).split('/');

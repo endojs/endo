@@ -40,7 +40,7 @@ const MakeCapletOptionsShape = M.splitRecord(
 );
 
 // Shared method guard for evaluate (used by both Host and Guest)
-// Host.evaluate executes directly; Guest.evaluate sends an eval-proposal
+// Both execute directly in a worker, differing only in namespace
 const EvaluateMethodGuard = M.call(
   M.or(NameShape, M.undefined()),
   M.string(),
@@ -229,7 +229,7 @@ export const GuestInterface = M.interface('EndoGuest', {
   ).returns(M.promise()),
   // Internal: deliver a message
   deliver: M.call(M.record()).returns(),
-  // Propose code evaluation to host (same signature as Host.evaluate)
+  // Evaluate code directly in a worker
   evaluate: EvaluateMethodGuard,
 });
 
@@ -307,7 +307,7 @@ export const HostInterface = M.interface('EndoHost', {
   provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NameOrPathShape).returns(M.promise()),
-  // Evaluate code (Host executes directly; Guest sends eval-proposal)
+  // Evaluate code directly in a worker
   evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
   makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string())
@@ -346,17 +346,6 @@ export const HostInterface = M.interface('EndoHost', {
   // Approve a sandboxed evaluation request
   approveEvaluation: M.call(MessageNumberShape)
     .optional(M.or(NameShape, M.undefined()))
-    .returns(M.promise()),
-  // Grant an eval-proposal (execute the proposed code)
-  grantEvaluate: M.call(MessageNumberShape).returns(M.promise()),
-  // Send a counter-proposal back to the proposer
-  counterEvaluate: M.call(
-    MessageNumberShape,
-    M.string(),
-    M.arrayOf(M.string()),
-    NamesOrPathsShape,
-  )
-    .optional(M.or(NameShape, M.undefined()), NamePathShape)
     .returns(M.promise()),
   // Reply to a message
   reply: M.call(

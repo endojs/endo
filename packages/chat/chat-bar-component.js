@@ -9,7 +9,6 @@ import { makeRefIterator } from './ref-iterator.js';
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
-import { createCounterProposalForm } from './counter-proposal-form.js';
 import { createFormBuilder } from './form-builder.js';
 import { createBlobViewer } from './blob-viewer.js';
 import { createInlineCommandForm } from './inline-command-form.js';
@@ -76,12 +75,6 @@ export const chatBarComponent = (
   );
   const $evalFormBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#eval-form-backdrop')
-  );
-  const $counterProposalContainer = /** @type {HTMLElement} */ (
-    $parent.querySelector('#counter-proposal-container')
-  );
-  const $counterProposalBackdrop = /** @type {HTMLElement} */ (
-    $parent.querySelector('#counter-proposal-backdrop')
   );
   const $formBuilderContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#form-builder-container')
@@ -167,9 +160,6 @@ export const chatBarComponent = (
 
   /** @type {import('./eval-form.js').EvalFormAPI | null} */
   let evalForm = null;
-
-  /** @type {import('./counter-proposal-form.js').CounterProposalFormAPI | null} */
-  let counterProposalForm = null;
 
   /** @type {import('./form-builder.js').FormBuilderAPI | null} */
   let formBuilder = null;
@@ -1189,80 +1179,6 @@ export const chatBarComponent = (
   });
 
   /**
-   * Show the counter-proposal form with proposal data.
-   * @param {object} proposalData
-   * @param {bigint} proposalData.messageNumber
-   * @param {string} proposalData.source
-   * @param {string[]} proposalData.codeNames
-   * @param {string[]} proposalData.edgeNames
-   * @param {string} proposalData.workerName
-   * @param {string} proposalData.resultName
-   */
-  const showCounterProposalForm = async proposalData => {
-    if (!counterProposalForm) {
-      // Lazily initialize the counter-proposal form
-      counterProposalForm = await createCounterProposalForm({
-        $container: $counterProposalContainer,
-        E,
-        powers,
-        onSubmit: async data => {
-          // Call E(powers).counterEvaluate()
-          const codeNames = data.endowments.map(e => e.codeName);
-          const petNamePaths = data.endowments.map(e => e.petName.split('/'));
-          const resultNamePath = data.resultName
-            ? data.resultName.split('/')
-            : undefined;
-          const workerName = data.workerName || '@main';
-
-          await E(powers).counterEvaluate(
-            data.messageNumber,
-            data.source,
-            codeNames,
-            petNamePaths,
-            workerName,
-            resultNamePath,
-          );
-        },
-        onClose: () => {
-          hideCounterProposalForm(); // eslint-disable-line no-use-before-define
-        },
-      });
-    }
-
-    // Convert arrays to endowments format
-    const endowments = proposalData.codeNames.map((codeName, i) => ({
-      codeName,
-      petName: proposalData.edgeNames[i] || '',
-    }));
-
-    counterProposalForm.setProposal({
-      messageNumber: proposalData.messageNumber,
-      source: proposalData.source,
-      endowments,
-      workerName: proposalData.workerName,
-      resultName: proposalData.resultName,
-    });
-
-    $counterProposalBackdrop.style.display = 'block';
-    $counterProposalContainer.style.display = 'block';
-    counterProposalForm.show();
-  };
-
-  const hideCounterProposalForm = () => {
-    $counterProposalBackdrop.style.display = 'none';
-    $counterProposalContainer.style.display = 'none';
-    if (counterProposalForm) {
-      counterProposalForm.hide();
-    }
-    sendForm.focus();
-  };
-
-  // Click on backdrop closes counter-proposal form
-  $counterProposalBackdrop.addEventListener('click', () => {
-    hideCounterProposalForm();
-  });
-
-  /**
    * Show the form builder modal.
    */
   const showFormBuilder = () => {
@@ -1304,12 +1220,6 @@ export const chatBarComponent = (
   // Click on backdrop closes form builder
   $formBuilderBackdrop.addEventListener('click', () => {
     hideFormBuilder();
-  });
-
-  // Listen for counter-proposal events from message buttons
-  $parent.addEventListener('open-counter-proposal', event => {
-    const { detail } = /** @type {CustomEvent} */ (event);
-    showCounterProposalForm(detail);
   });
 
   // Command cancel button (header)

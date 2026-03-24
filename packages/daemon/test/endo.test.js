@@ -3253,71 +3253,9 @@ test('makeBundle without env option defaults to empty env', async t => {
   t.deepEqual(allEnv, {});
 });
 
-// Eval-proposal tests
+// Guest direct eval tests
 
-test('guest evaluate sends eval-proposal to host', async t => {
-  const { host } = await prepareHost(t);
-
-  const guest = await E(host).provideGuest('guest');
-  await E(host).provideWorker(['worker']);
-  await E(host).evaluate('worker', '10', [], [], ['ten']);
-
-  // Share 'ten' with the guest via a message
-  await E(host).send('guest', ['Here is a value:'], ['x'], ['ten']);
-
-  // Guest adopts the value
-  const guestMessages = await E(guest).listMessages();
-  const pkg = guestMessages.find(m => m.type === 'package');
-  await E(guest).adopt(pkg.number, 'x', ['ten']);
-
-  // Set up host message iterator BEFORE the evaluate call
-  const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = /** @type {unknown[]} */ (
-    await E(host).listMessages()
-  );
-  await drainIterator(hostIteratorRef, existingHostMessages.length);
-
-  // Guest initiates evaluation proposal
-  const evaluatePromise = E(guest).evaluate(
-    'worker',
-    'x + 1',
-    ['x'],
-    ['ten'],
-    ['result'],
-  );
-
-  // Wait for the proposal message via iterator
-  const { value: message } = await E(hostIteratorRef).next();
-
-  t.truthy(message, 'Host should have received eval-proposal');
-  t.is(message.type, 'eval-proposal-reviewer');
-  t.is(message.source, 'x + 1');
-  t.deepEqual(message.codeNames, ['x']);
-  t.is(message.workerName, 'worker');
-  t.false('resultName' in message);
-  t.is(typeof message.resultId?.then, 'function');
-  t.is(typeof message.result?.then, 'function');
-
-  // Sender should see their resultName on the proposer echo
-  const guestMessagesAfter = await E(guest).listMessages();
-  const proposerMessage = guestMessagesAfter.find(
-    m => m.type === 'eval-proposal-proposer',
-  );
-  t.truthy(proposerMessage, 'Guest should have proposer echo');
-  t.is(proposerMessage.resultName, 'result');
-
-  // Grant the proposal
-  const result = await E(host).grantEvaluate(message.number);
-  t.is(result, 11);
-
-  // Guest's evaluate promise should resolve with the result
-  const guestResult = await evaluatePromise;
-  t.is(guestResult, 11);
-  t.is(await E(guest).lookup(['result']), 11);
-  t.is(await E(host).identify('result'), undefined);
-});
-
-test('host grantEvaluate executes proposed code', async t => {
+test('guest evaluate executes code directly', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
@@ -3330,15 +3268,8 @@ test('host grantEvaluate executes proposed code', async t => {
   const pkg = guestMessages.find(m => m.type === 'package');
   await E(guest).adopt(pkg.number, 'n', ['five']);
 
-  // Set up host message iterator BEFORE the evaluate call
-  const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = /** @type {unknown[]} */ (
-    await E(host).listMessages()
-  );
-  await drainIterator(hostIteratorRef, existingHostMessages.length);
-
-  // Guest proposes evaluation
-  const evaluatePromise = E(guest).evaluate(
+  // Guest evaluates directly — no proposal, no host approval needed
+  const result = await E(guest).evaluate(
     'worker',
     'n * 2',
     ['n'],
@@ -3346,78 +3277,37 @@ test('host grantEvaluate executes proposed code', async t => {
     ['doubled'],
   );
 
-  // Wait for proposal message via iterator
-  const { value: message } = await E(hostIteratorRef).next();
-  const result = await E(host).grantEvaluate(message.number);
-
   t.is(result, 10);
-  t.is(await evaluatePromise, 10);
 
-  // Result should be stored under guest's namespace
+  // Result is stored under guest's namespace
   const storedResult = await E(guest).lookup(['doubled']);
   t.is(storedResult, 10);
+
+  // Host namespace is not affected
   t.is(await E(host).identify('doubled'), undefined);
 });
 
-test('counterEvaluate sends proposer/reviewer messages', async t => {
+test('guest evaluate ephemeral (no resultName)', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  await E(host).provideWorker(['worker']);
-  await E(host).storeValue(5, 'five');
+  await E(host).storeValue(7, 'seven');
 
-  // Share 'five' with the guest
-  await E(host).send('guest', ['Here is a value:'], ['n'], ['five']);
+  // Share with guest
+  await E(host).send('guest', ['value:'], ['x'], ['seven']);
   const guestMessages = await E(guest).listMessages();
   const pkg = guestMessages.find(m => m.type === 'package');
-  await E(guest).adopt(pkg.number, 'n', ['five']);
+  await E(guest).adopt(pkg.number, 'x', ['seven']);
 
-  // Set up host message iterator BEFORE the evaluate call
-  const hostIteratorRef = E(host).followMessages();
-  const existingHostMessages = /** @type {unknown[]} */ (
-    await E(host).listMessages()
-  );
-  await drainIterator(hostIteratorRef, existingHostMessages.length);
-
-  // Guest proposes evaluation
-  E.sendOnly(guest).evaluate('worker', 'n * 2', ['n'], ['five'], ['doubled']);
-
-  // Wait for proposal to arrive via iterator
-  const { value: proposal } = await E(hostIteratorRef).next();
-  t.truthy(proposal, 'Host should have received eval-proposal');
-
-  // Set up guest message iterator for counter-proposal
-  const guestIteratorRef = E(guest).followMessages();
-  const existingGuestMessages = /** @type {unknown[]} */ (
-    await E(guest).listMessages()
-  );
-  await drainIterator(guestIteratorRef, existingGuestMessages.length);
-
-  // Host sends counter-proposal
-  await E(host).counterEvaluate(
-    proposal.number,
-    'n * 3',
-    ['n'],
-    ['five'],
-    'worker',
-    ['tripled'],
+  // Ephemeral eval — no result name, value returned directly
+  const result = await E(guest).evaluate(
+    undefined,
+    'x + 3',
+    ['x'],
+    ['seven'],
   );
 
-  // Wait for counter-proposal to arrive at guest
-  const { value: guestCounter } = await E(guestIteratorRef).next();
-
-  // Host should have the proposer echo (delivered synchronously during counterEvaluate)
-  const hostMessagesAfter = await E(host).listMessages();
-  const hostCounter = hostMessagesAfter.find(
-    m => m.type === 'eval-proposal-proposer' && m.source === 'n * 3',
-  );
-
-  t.truthy(hostCounter, 'Host should have proposer echo for counter');
-  t.truthy(guestCounter, 'Guest should receive counter-proposal');
-  t.is(hostCounter.resultName, 'tripled');
-  t.false('resultName' in guestCounter);
-  t.is(typeof guestCounter.resultId?.then, 'function');
-  t.is(typeof guestCounter.result?.then, 'function');
+  t.is(result, 10);
 });
 
 // Tests for trusted shims

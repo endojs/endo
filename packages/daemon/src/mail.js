@@ -22,32 +22,15 @@ import {
   EnvelopeInterface,
   DismisserInterface,
   HandleInterface,
-  ResponderInterface,
 } from './interfaces.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, EvalProposalProposer, EvalProposalReviewer, EvalRequest, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, DefineRequest, Envelope, EnvelopedMessage, EvalRequest, FormulaIdentifier, FormulaNumber, Form, Handle, Mail, MakeMailbox, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NameOrPath, NamePath, PetName, Provide, Request, Responder, StampedMessage, Topic, ValueMessage } from './types.js' */
 
 /** @type {PetName} */
 const NEXT_MESSAGE_NUMBER_NAME = /** @type {PetName} */ ('next-number');
 const messageNumberNamePattern = /^(0|[1-9][0-9]*)$/;
-
-/**
- * Map a responder resolution to settled state, including Promise rejection payloads.
- * @param {Promise<string | Promise<string>>} responseIdP
- */
-const mapSettled = responseIdP =>
-  responseIdP.then(
-    id =>
-      id && typeof id === 'object'
-        ? /** @type {Promise<string>} */ (id).then(
-            () => /** @type {const} */ ('fulfilled'),
-            () => /** @type {const} */ ('rejected'),
-          )
-        : /** @type {const} */ ('fulfilled'),
-    () => /** @type {const} */ ('rejected'),
-  );
 
 /**
  * @param {string} name
@@ -388,27 +371,6 @@ export const makeMailboxMaker = ({
         });
       }
 
-      if (
-        type === 'eval-proposal-reviewer' ||
-        type === 'eval-proposal-proposer'
-      ) {
-        return /** @type {MessageFormula} */ (
-          /** @type {unknown} */ (
-            harden({
-              type: 'message',
-              ...envelopeRecord,
-
-              source: envelope.source,
-              codeNames: envelope.codeNames,
-              petNamePaths: envelope.petNamePaths,
-              edgeNames: envelope.edgeNames,
-              ids: envelope.ids,
-              workerName: envelope.workerName,
-            })
-          )
-        );
-      }
-
       throw new Error('Unknown message type');
     };
 
@@ -493,18 +455,6 @@ export const makeMailboxMaker = ({
         }
         if (typeof envelope.valueId !== 'string') {
           throw new Error('Invalid value valueId');
-        }
-        return;
-      }
-      if (
-        envelope.type === 'eval-proposal-reviewer' ||
-        envelope.type === 'eval-proposal-proposer'
-      ) {
-        if (typeof envelope.source !== 'string') {
-          throw new Error('Invalid eval-proposal source');
-        }
-        if (!Array.isArray(envelope.codeNames)) {
-          throw new Error('Invalid eval-proposal codeNames');
         }
         return;
       }
@@ -923,29 +873,18 @@ export const makeMailboxMaker = ({
       if (message === undefined) {
         throw new Error(`No such message with number ${q(messageNumber)}`);
       }
-      if (
-        message.type === 'definition' ||
-        message.type === 'eval-proposal-proposer'
-      ) {
+      if (message.type === 'definition') {
         throw new Error(
           `Cannot reject message ${q(messageNumber)} (type ${q(message.type)})`,
         );
       }
       const rejection = harden(Promise.reject(harden(new Error(reason))));
-      if (message.type === 'eval-proposal-reviewer') {
-        // Eval-proposal reviewer messages hold a live responder reference
-        // rather than a persisted resolverId.
-        const proposal =
-          /** @type {import('./types.js').EvalProposalReviewer} */ (message);
-        E.sendOnly(proposal.responder).resolveWithId(rejection);
-      } else {
-        // request / eval-request messages use a persisted resolver formula.
-        const req = /** @type {Request} */ (message);
-        const resolver = /** @type {ERef<Responder>} */ (
-          provide(req.resolverId, 'resolver')
-        );
-        E.sendOnly(resolver).resolveWithId(rejection);
-      }
+      // request / eval-request messages use a persisted resolver formula.
+      const req = /** @type {Request} */ (message);
+      const resolver = /** @type {ERef<Responder>} */ (
+        provide(req.resolverId, 'resolver')
+      );
+      E.sendOnly(resolver).resolveWithId(rejection);
     };
 
     /** @type {Mail['send']} */
@@ -1535,230 +1474,6 @@ export const makeMailboxMaker = ({
       await deliver(message);
     };
 
-    /**
-     * Send an eval-proposal to a recipient.
-     * @type {Mail['evaluate']}
-     */
-    const evaluate = async (
-      toId,
-      source,
-      codeNames,
-      petNamePaths,
-      edgeNames,
-      ids,
-      workerName,
-      resultName,
-    ) => {
-      const to = /** @type {Handle} */ (
-        await provide(/** @type {FormulaIdentifier} */ (toId))
-      );
-
-      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex256()
-      );
-
-      // Create a responder to receive the evaluation result
-      /** @type {PromiseKit<string>} */
-      const { promise: responseIdP, resolve: resolveResponseId } =
-        makePromiseKit();
-      const settled = mapSettled(responseIdP);
-      const responder = makeExo('EndoResponder', ResponderInterface, {
-        resolveWithId: resolveResponseId,
-      });
-
-      const resultId = responseIdP.catch(() => undefined);
-      const result = responseIdP
-        .then(id =>
-          typeof id === 'string'
-            ? provide(/** @type {FormulaIdentifier} */ (id))
-            : id,
-        )
-        .catch(() => undefined);
-
-      /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
-      const reviewerMessage = harden({
-        type: /** @type {const} */ ('eval-proposal-reviewer'),
-        messageId,
-        source,
-        codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerName,
-        responder,
-        settled,
-        resultId,
-        result,
-        from: /** @type {FormulaIdentifier} */ (selfId),
-        to: /** @type {FormulaIdentifier} */ (toId),
-      });
-
-      /** @type {EvalProposalProposer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
-      const proposerMessage = harden({
-        type: /** @type {const} */ ('eval-proposal-proposer'),
-        messageId,
-        source,
-        codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerName,
-        resultName,
-        // The proposer message intentionally omits settled, resultId,
-        // and result so the sender cannot observe the reviewer's
-        // endowments or actions.
-        from: /** @type {FormulaIdentifier} */ (selfId),
-        to: /** @type {FormulaIdentifier} */ (toId),
-      });
-
-      // Deliver the proposer view to our own inbox first,
-      // so it's available before the recipient sees the reviewer.
-      if (reviewerMessage.from !== reviewerMessage.to) {
-        await deliver(proposerMessage);
-      }
-
-      // Send the reviewer view to the recipient (host) via envelope.
-      const envelope = makeEnvelope();
-      outbox.set(envelope, reviewerMessage);
-      await E(to).receive(envelope, selfId);
-
-      // Wait for the response and provide the result
-      const responseId = await responseIdP;
-      if (resultName) {
-        const resultNamePath = namePathFrom(resultName.split('/'));
-        await E(directory).write(resultNamePath, responseId);
-      }
-      return provide(/** @type {FormulaIdentifier} */ (responseId));
-    };
-
-    /**
-     * Grant an eval-proposal by executing the proposed code.
-     * @type {Mail['grantEvaluate']}
-     */
-    const grantEvaluate = async (messageNumber, executeEval) => {
-      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
-      const message = messages.get(normalizedMessageNumber);
-      if (message === undefined) {
-        throw new Error(`No such message with number ${q(messageNumber)}`);
-      }
-      if (message.type !== 'eval-proposal-reviewer') {
-        throw new Error(
-          `Message ${q(messageNumber)} is not an eval-proposal, it is ${q(message.type)}`,
-        );
-      }
-      const proposal = /** @type {EvalProposalReviewer} */ (message);
-      const { source, codeNames, ids, workerName, responder } = proposal;
-
-      // Execute the evaluation using the provided executor
-      const { id, value } = await executeEval(
-        source,
-        codeNames,
-        ids,
-        workerName,
-        proposal,
-      );
-
-      E.sendOnly(responder).resolveWithId(id);
-
-      return value;
-    };
-
-    /**
-     * Send a counter-proposal back to the original proposer.
-     * @type {Mail['counterEvaluate']}
-     */
-    const counterEvaluate = async (
-      messageNumber,
-      source,
-      codeNames,
-      petNamePaths,
-      edgeNames,
-      ids,
-      workerName,
-      resultName,
-    ) => {
-      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
-      const message = messages.get(normalizedMessageNumber);
-      if (message === undefined) {
-        throw new Error(`No such message with number ${q(messageNumber)}`);
-      }
-      if (message.type !== 'eval-proposal-reviewer') {
-        throw new Error(
-          `Message ${q(messageNumber)} is not an eval-proposal, it is ${q(message.type)}`,
-        );
-      }
-      const originalProposal =
-        /** @type {EvalProposalReviewer & { from: string }} */ (message);
-      const originalSenderId = originalProposal.from;
-
-      // Send counter-proposal back to original sender
-      const to = /** @type {Handle} */ (
-        await provide(/** @type {FormulaIdentifier} */ (originalSenderId))
-      );
-
-      const counterMessageId =
-        /** @type {import('./types.js').FormulaNumber} */ (
-          await randomHex256()
-        );
-
-      // Create a responder for the counter-proposal
-      /** @type {PromiseKit<string>} */
-      const { promise: responseIdP, resolve: resolveResponseId } =
-        makePromiseKit();
-      const settled = mapSettled(responseIdP);
-      const responder = makeExo('EndoResponder', ResponderInterface, {
-        resolveWithId: resolveResponseId,
-      });
-
-      const resultId = Promise.resolve(undefined);
-      const result = Promise.resolve(undefined);
-
-      /** @type {EvalProposalReviewer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
-      const counterReviewerMessage = harden({
-        type: /** @type {const} */ ('eval-proposal-reviewer'),
-        messageId: counterMessageId,
-        source,
-        codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerName,
-        responder,
-        settled,
-        resultId,
-        result,
-        from: /** @type {FormulaIdentifier} */ (selfId),
-        to: /** @type {FormulaIdentifier} */ (originalSenderId),
-      });
-
-      /** @type {EvalProposalProposer & { from: FormulaIdentifier, to: FormulaIdentifier }} */
-      const counterProposerMessage = harden({
-        type: /** @type {const} */ ('eval-proposal-proposer'),
-        messageId: counterMessageId,
-        source,
-        codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerName,
-        resultName,
-        // Omit settled, resultId, result — proposer must not observe
-        // the reviewer's endowments or actions.
-        from: /** @type {FormulaIdentifier} */ (selfId),
-        to: /** @type {FormulaIdentifier} */ (originalSenderId),
-      });
-
-      // Deliver the counter-proposal proposer view to our own inbox first.
-      if (counterReviewerMessage.from !== counterReviewerMessage.to) {
-        await deliver(counterProposerMessage);
-      }
-
-      // Send the counter-proposal reviewer view to the original proposer.
-      const counterEnvelope = makeEnvelope();
-      outbox.set(counterEnvelope, counterReviewerMessage);
-      await E(to).receive(counterEnvelope, selfId);
-    };
-
     const handle = makeExo('Handle', HandleInterface, {
       receive,
       open,
@@ -1789,9 +1504,6 @@ export const makeMailboxMaker = ({
       submit,
       sendValue,
       deliverValueById,
-      evaluate,
-      grantEvaluate,
-      counterEvaluate,
     });
   };
 
