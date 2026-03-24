@@ -141,10 +141,8 @@ test('test defineExoClassKit', t => {
     message:
       'In "decr" method of (Counter down): arg 0?: string "foo" - Must be a number',
   });
-  // TS limitation: Guarded<M> extends Methods which has an index signature
-  // (Record<PropertyKey, CallableFunction>), so upCounter.decr is not a
-  // type error even though 'decr' is only on the down facet.
-  t.throws(() => /** @type {any} */ (upCounter).decr(3), {
+  // @ts-expect-error 'decr' is only on the down facet
+  t.throws(() => upCounter.decr(3), {
     message: 'upCounter.decr is not a function',
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);

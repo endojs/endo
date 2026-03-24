@@ -143,9 +143,42 @@ export type FarClassOptions<C, F = any> = {
 export type Farable<M extends Methods> = M &
   RemotableBrand<{}, M> &
   RemotableObject;
-export type Guarded<M extends Methods> = Farable<M & GetInterfaceGuard<M>>;
+/**
+ * Strip index-signature keys from a type, keeping only concrete known keys.
+ * This prevents `Record<PropertyKey, CallableFunction>` (from the `Methods`
+ * constraint) from leaking an index signature into `Guarded<M>`, which would
+ * make any property access (e.g. `exo.nonExistentMethod`) silently resolve
+ * to `CallableFunction` instead of being a type error.
+ *
+ * Special cases:
+ * - When `T` is `any`, pass through unchanged (avoids collapsing to `{}`).
+ * - When `T` has only index-signature keys and no concrete keys (e.g. bare
+ *   `Methods` from untyped JS), pass through unchanged so that property
+ *   access still works.
+ * - When `T` has concrete keys mixed with an index signature (e.g.
+ *   `{ incr: ... } & Methods`), strip the index signature and keep only
+ *   the concrete keys.
+ */
+type StripIndexCore<T> = {
+  [K in keyof T as string extends K
+    ? never
+    : number extends K
+      ? never
+      : symbol extends K
+        ? never
+        : K]: T[K];
+};
+type StripIndexSignature<T> = 0 extends 1 & T
+  ? T // T is any
+  : keyof StripIndexCore<T> extends never
+    ? T // no concrete keys (e.g. bare Methods) — keep as-is
+    : StripIndexCore<T>;
+export type Guarded<M extends Methods> = StripIndexSignature<M> &
+  GetInterfaceGuard<M> &
+  RemotableBrand<{}, M> &
+  RemotableObject;
 export type GuardedKit<F extends Record<string, Methods>> = {
-  [K in keyof F]: Guarded<F[K]>;
+  [K in keyof F as string extends K ? never : K]: Guarded<F[K]>;
 };
 
 /**

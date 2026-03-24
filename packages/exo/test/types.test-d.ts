@@ -253,6 +253,71 @@ import type { Guarded, GuardedKit } from '../src/types.js';
   expectType<(val: string) => undefined>(kit.admin.setData);
 }
 
+// Cross-facet method access is a type error (no index-signature leak)
+{
+  const makeKit = defineExoClassKit(
+    'MyKit',
+    undefined,
+    (x: number) => ({ x }),
+    {
+      public: {
+        getX() {
+          return this.state.x;
+        },
+      },
+      admin: {
+        setX(val: number) {
+          this.state.x = val;
+        },
+      },
+    },
+  );
+  const kit = makeKit(0);
+  // @ts-expect-error -- setX is only on the admin facet
+  kit.public.setX;
+  // @ts-expect-error -- getX is only on the public facet
+  kit.admin.getX;
+}
+
+// Non-existent method on a single exo is a type error
+{
+  const exo = makeExo('Foo', undefined, { sayHi: () => 'hi' });
+  // @ts-expect-error -- 'nope' does not exist on this exo
+  exo.nope;
+}
+
+// Cross-facet access with guards is also a type error
+{
+  const PublicI = M.interface('Public', {
+    getData: M.call().returns(M.string()),
+  });
+  const AdminI = M.interface('Admin', {
+    setData: M.call(M.string()).returns(M.undefined()),
+  });
+  const makeKit = defineExoClassKit(
+    'Store',
+    { public: PublicI, admin: AdminI },
+    (initial: string) => ({ data: initial }),
+    {
+      public: {
+        getData() {
+          return this.state.data;
+        },
+      },
+      admin: {
+        setData(val) {
+          this.state.data = val;
+        },
+      },
+    },
+  );
+  const kit = makeKit('hello');
+  // @ts-expect-error -- setData is only on admin
+  kit.public.setData;
+  // @ts-expect-error -- getData is only on public
+  kit.admin.getData;
+}
+
 // TS limitation: defineExoClassKit has a fallback overload that accepts
 // `Record<FacetName, InterfaceGuard> | undefined` without enforcing method
 // types against the guard.  When the typed overload's constraint fails,
