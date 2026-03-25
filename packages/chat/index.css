@@ -6713,6 +6713,8 @@ button.btn-spinner::after {
 .outliner-node-row {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
+  position: relative;
 }
 
 /* Bullet point */
@@ -6798,14 +6800,14 @@ button.btn-spinner::after {
   opacity: 0.6;
 }
 
-/* Meta info */
+/* Meta info (author name above message) */
 .outliner-meta {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 11px;
   color: var(--text-muted);
-  margin-top: 1px;
+  margin-bottom: 0;
   margin-left: 20px;
 }
 
@@ -6998,14 +7000,16 @@ button.btn-spinner::after {
   letter-spacing: -0.01em;
 }
 
-/* Reply button + three-dot menu on outliner nodes (hover-reveal) */
+/* Reply button + three-dot menu on outliner nodes (hover-reveal, overlay) */
 .outliner-reply-button {
   display: none;
   align-items: center;
   justify-content: center;
+  position: absolute;
+  right: 22px;
+  top: 0;
   width: 22px;
   height: 22px;
-  margin-left: 4px;
   padding: 0;
   border: none;
   background: transparent;
@@ -7014,11 +7018,12 @@ button.btn-spinner::after {
   cursor: pointer;
   border-radius: var(--radius-sm);
   opacity: 0.5;
-  flex-shrink: 0;
 }
 
 .outliner-node-row:hover .outliner-reply-button {
   display: inline-flex;
+  background: var(--bg-primary, #1e1e1e);
+  border-radius: var(--radius-sm, 4px);
 }
 
 .outliner-reply-button:hover {
@@ -7029,12 +7034,15 @@ button.btn-spinner::after {
 
 .outliner-node-menu {
   display: none;
-  margin-left: 2px;
-  flex-shrink: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .outliner-node-row:hover .outliner-node-menu {
   display: inline-flex;
+  background: var(--bg-primary, #1e1e1e);
+  border-radius: var(--radius-sm, 4px);
 }
 
 .outliner-node-menu .message-menu-trigger {
@@ -7068,6 +7076,178 @@ button.btn-spinner::after {
 .outliner-badge-fork:hover {
   background: var(--accent-primary);
   color: #ffffff;
+}
+
+/* React button on outliner nodes (hover-reveal, overlay) */
+.outliner-react-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 44px;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.5;
+}
+
+.outliner-node-row:hover .outliner-react-button {
+  display: inline-flex;
+  background: var(--bg-primary, #1e1e1e);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.outliner-react-button:hover {
+  opacity: 1;
+  background: var(--bg-active);
+}
+
+/* React pills displayed under messages */
+.outliner-reacts {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  margin-top: 2px;
+  margin-left: 20px;
+}
+
+.outliner-react-pill-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.outliner-react-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 12px;
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.1));
+  font-size: 0.8em;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.outliner-react-pill:hover {
+  background: var(--bg-active, rgba(128, 128, 128, 0.2));
+}
+
+.outliner-react-pill.outliner-react-own {
+  border-color: var(--accent-primary, #4a9eff);
+  background: rgba(74, 158, 255, 0.15);
+}
+
+/* Sub-react containers: positioned out of flow, fading with depth */
+.outliner-react-sub {
+  position: absolute;
+  top: 100%;
+  left: 8px;
+  display: flex;
+  gap: 3px;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.outliner-react-pill-wrapper:hover > .outliner-react-sub {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Quick react picker popup */
+.outliner-react-picker {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  max-width: 320px;
+}
+
+.react-picker-quick-row {
+  display: flex;
+  gap: 2px;
+  padding-bottom: 4px;
+}
+
+.react-picker-emoji {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.react-picker-emoji:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
+}
+
+.react-picker-add-btn {
+  font-size: 1.4em;
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+/* Full emoji picker panel */
+.react-picker-full {
+  border-top: 1px solid var(--border-primary, #444);
+  padding-top: 4px;
+}
+
+.react-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 6px;
+  background: var(--bg-secondary, #2a2a2a);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 0.85em;
+  outline: none;
+}
+.react-picker-search:focus {
+  border-color: var(--accent-primary, #4a9eff);
+}
+
+.react-picker-grid {
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.react-picker-category-label {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 4px 2px;
+}
+
+.react-picker-category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
 }
 
 /* Selection highlighting */

@@ -123,6 +123,54 @@ export const spawnWorkerLoop = async (
   allTools.set('reply', makeReplyTool(powers));
   allTools.set('dismiss', makeDismissTool(powers));
 
+  // Timer tool — create/manage daemon-level timers
+  const timerTool = harden({
+    schema: () =>
+      harden({
+        type: 'function',
+        function: {
+          name: 'createTimer',
+          description:
+            'Create a recurring timer that sends tick messages to your inbox at a specified interval. Use for reminders and scheduled check-ins.',
+          parameters: {
+            type: 'object',
+            properties: {
+              petName: {
+                type: 'string',
+                description:
+                  'Pet name to store the timer under (e.g. "my-reminder")',
+              },
+              intervalMinutes: {
+                type: 'number',
+                description: 'Interval in minutes between ticks',
+              },
+              label: {
+                type: 'string',
+                description:
+                  'Human-readable label for the timer (e.g. "hourly-checkin")',
+              },
+            },
+            required: ['petName', 'intervalMinutes'],
+          },
+        },
+      }),
+    execute: async args => {
+      const petName = String(args.petName || '');
+      const intervalMinutes = Number(args.intervalMinutes || 10);
+      const label = String(args.label || petName);
+      if (!petName) return 'Error: petName is required';
+      const intervalMs = intervalMinutes * 60 * 1000;
+      try {
+        await E(powers).makeTimer(petName, intervalMs, label);
+        return `Timer "${label}" created as "${petName}", firing every ${intervalMinutes} minutes.`;
+      } catch (err) {
+        return `Failed to create timer: ${err.message || err}`;
+      }
+    },
+    help: () => 'Create a daemon-level recurring timer for scheduled messages.',
+  });
+  allTools.set('createTimer', timerTool);
+
   /**
    * Create a pre-bound channelReply tool for a specific mention.
    * The channel reference must already be adopted under chRefName.
