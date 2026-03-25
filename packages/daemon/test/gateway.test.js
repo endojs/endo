@@ -38,6 +38,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -76,9 +77,6 @@ const prepareConfig = async t => {
     'tmp',
     getConfigDirectoryName(t.title, t.context.length),
   );
-
-  // Set port to 0 so the OS assigns a free port.
-  process.env.ENDO_ADDR = '127.0.0.1:0';
 
   await purge(config);
   await start(config);
@@ -145,7 +143,6 @@ test.beforeEach(t => {
 });
 
 test.afterEach.always(async t => {
-  delete process.env.ENDO_ADDR;
   delete process.env.ENDO_GATEWAY;
   delete process.env.ENDO_GATEWAY_ALLOWED_CIDRS;
   await Promise.allSettled(

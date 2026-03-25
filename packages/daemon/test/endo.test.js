@@ -197,6 +197,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -3339,7 +3340,7 @@ testShim(
       );
     }
 
-    await restart(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+    await restart(config);
 
     {
       const { host } = await makeHost(config, cancelled);

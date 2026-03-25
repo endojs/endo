@@ -27,6 +27,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -57,7 +58,7 @@ const prepareConfig = async t => {
     getConfigDirectoryName(t.title, t.context.length),
   );
   await purge(config);
-  await start(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+  await start(config);
   const contextObj = { cancel, cancelled, config };
   t.context.push(contextObj);
   return { ...contextObj };
@@ -352,7 +353,7 @@ test.serial('synced stores converge after offline changes', async t => {
   // Restart daemon A.
   const { reject: cancelA2, promise: cancelledA2 } = makePromiseKit();
   t.context.push({ cancel: cancelA2, cancelled: cancelledA2, config: configA });
-  await start(configA, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+  await start(configA);
   const { host: hostA2 } = await makeHost(configA, cancelledA2);
 
   // Reinstall test network on restarted daemon A.

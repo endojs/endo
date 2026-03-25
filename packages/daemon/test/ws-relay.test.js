@@ -4,6 +4,9 @@
 // Establish a perimeter:
 import '@endo/init/debug.js';
 
+// Enable CapTP tracing for relay debugging.
+process.env.ENDO_CAPTP_TRACE = '1';
+
 import test from 'ava';
 import url from 'url';
 import path from 'path';
@@ -122,6 +125,7 @@ const makeConfig = (...root) => ({
     process.platform === 'win32'
       ? String.raw`\\?\pipe\endo-${root.join('-')}-test.sock`
       : path.join(dirname, ...root, 'endo.sock'),
+  address: '127.0.0.1:0',
   pets: new Map(),
   values: new Map(),
 });
@@ -148,9 +152,7 @@ const prepareConfig = async t => {
     getConfigDirectoryName(t.title, t.context.configs.length),
   );
   await purge(config);
-  await start(config, {
-    env: { ENDO_ADDR: '127.0.0.1:0', ENDO_CAPTP_TRACE: '1' },
-  });
+  await start(config);
   t.context.configs.push({ cancel, cancelled, config });
   return { cancel, cancelled, config };
 };

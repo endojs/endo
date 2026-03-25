@@ -72,6 +72,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -114,10 +115,6 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
   configPathId += 1;
   return configSubDirectory;
 };
-
-// Bind APPS web server to an OS-assigned port so tests don't conflict
-// with a running daemon on the default port 8920.
-process.env.ENDO_ADDR = '127.0.0.1:0';
 
 /** @param {import('ava').ExecutionContext<any>} t */
 const prepareConfig = async t => {

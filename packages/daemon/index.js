@@ -84,6 +84,7 @@ const defaultConfig = {
   ),
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
+  address: process.env.ENDO_ADDR || '127.0.0.1:8920',
 };
 /** @typedef {typeof defaultConfig} Config */
 
@@ -95,6 +96,7 @@ const configToEnv = config => ({
   ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
   ENDO_SOCK_PATH: config.sockPath,
   ENDO_CACHE_PATH: config.cachePath,
+  ENDO_ADDR: config.address,
 });
 
 /**
@@ -108,12 +110,14 @@ const configFromEnv = env => {
       ephemeralStatePath = defaultConfig.ephemeralStatePath,
     ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
     ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
+    ENDO_ADDR: address = defaultConfig.address,
   } = env;
   return {
     statePath,
     ephemeralStatePath,
     sockPath,
     cachePath,
+    address,
   };
 };
 
@@ -259,13 +263,12 @@ const waitForMessage = child => {
  */
 export const main = async _args => {
   const config = configFromEnv(process.env);
-  const envOverrides = Object.fromEntries(filterEnv());
 
   // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
 
   const child = process.env.ENDO_BIN
-    ? await runEngo(false, config, envOverrides)
-    : await runEndo(false, config, envOverrides);
+    ? await runEngo(false, config)
+    : await runEndo(false, config);
   process.exit(await waitForExit(child));
 };
 
@@ -275,10 +278,9 @@ export const main = async _args => {
  *
  * @param {boolean} detached - if process should be detached from current stdio
  * @param {Config} config
- * @param {Record<string, string>} [envOverrides]
  * @returns {Promise<popen.ChildProcess>}
  */
-const runEngo = async (detached, config, envOverrides) => {
+const runEngo = async (detached, config) => {
   const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
@@ -292,7 +294,6 @@ const runEngo = async (detached, config, envOverrides) => {
   const env = {
     ...configToEnv(config),
     ...Object.fromEntries(filterEnv()),
-    ...envOverrides,
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
 
@@ -320,10 +321,9 @@ const runEngo = async (detached, config, envOverrides) => {
  *
  * @param {boolean} detached - if process should be detached from current stdio
  * @param {Config} config
- * @param {Record<string, string>} [envOverrides]
  * @returns {Promise<popen.ChildProcess>}
  */
-const runEndo = async (detached, config, envOverrides) => {
+const runEndo = async (detached, config) => {
   await fs.promises.mkdir(config.statePath, {
     recursive: true,
   });
@@ -344,7 +344,6 @@ const runEndo = async (detached, config, envOverrides) => {
   const env = {
     ...configToEnv(config),
     ...Object.fromEntries(filterEnv()),
-    ...envOverrides,
   };
 
   const stdio = /** @returns {popen.StdioOptions} */ (() => {
@@ -459,20 +458,15 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
 
 /**
  * @param {Config} [config]
- * @param {object} [options]
- * @param {Record<string, string>} [options.env] - overrides for process.env
  */
-export const start = async (
-  config = defaultConfig,
-  { env: envOverrides = {} } = {},
-) => {
+export const start = async (config = defaultConfig) => {
   await clean(config);
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
 
   const child = await (process.env.ENDO_BIN
-    ? runEngo(true, config, envOverrides)
-    : runEndo(true, config, envOverrides));
+    ? runEngo(true, config)
+    : runEndo(true, config));
 
   child.unref();
 };
@@ -724,11 +718,10 @@ export const stop = async (config = defaultConfig) => {
 
 /**
  * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string>, gcEnabled?: boolean, feralErrors?: boolean }} [options]
  */
-export const restart = async (config = defaultConfig, options = {}) => {
+export const restart = async (config = defaultConfig) => {
   await stop(config);
-  return start(config, options);
+  return start(config);
 };
 
 export const purge = async (config = defaultConfig) => {
