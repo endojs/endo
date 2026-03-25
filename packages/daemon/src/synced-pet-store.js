@@ -202,8 +202,8 @@ export const makeSyncedPetStore = async ({
     });
   };
 
-  /** @type {SyncedPetStore['write']} */
-  const write = async (petName, locator) => {
+  /** @type {SyncedPetStore['storeLocator']} */
+  const storeLocator = async (petName, locator) => {
     assertPetName(petName);
     if (role === 'grantee') {
       throw new Error('Grantee cannot write new entries');
@@ -360,7 +360,7 @@ export const makeSyncedPetStore = async ({
   };
 
   return harden({
-    write,
+    storeLocator,
     remove,
     has,
     lookup,

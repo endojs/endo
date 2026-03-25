@@ -231,7 +231,7 @@ test.serial(
       const greetingId = await E(hostB).identify('greeting');
 
       // Write the identifier into A's namespace (out-of-band introduction)
-      await E(hostA).write(['remote-greeting'], greetingId);
+      await E(hostA).storeLocator(['remote-greeting'], greetingId);
 
       // A looks up the value — this triggers a connection through the relay
       const value = await E(hostA).lookup(['remote-greeting']);
@@ -267,7 +267,7 @@ test.serial('round-trip remotable identity over ws-relay', async t => {
       ['echoer'],
     );
     const echoerId = await E(hostB).identify('echoer');
-    await E(hostA).write(['echoer'], echoerId);
+    await E(hostA).storeLocator(['echoer'], echoerId);
 
     // Send a Far token through the echoer and verify identity is preserved
     const survived = await E(hostA).evaluate(
@@ -307,7 +307,7 @@ test.serial('bidirectional connection over ws-relay', async t => {
     // Create value on A, read from B
     await E(hostA).evaluate('MAIN', '42', [], [], ['answer']);
     const answerId = await E(hostA).identify('answer');
-    await E(hostB).write(['remote-answer'], answerId);
+    await E(hostB).storeLocator(['remote-answer'], answerId);
     const answerValue = await E(hostB).lookup(['remote-answer']);
     t.is(answerValue, 42);
 
@@ -315,7 +315,7 @@ test.serial('bidirectional connection over ws-relay', async t => {
     await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
     await E(hostB).evaluate('MAIN', '"from B"', [], [], ['msg']);
     const msgId = await E(hostB).identify('msg');
-    await E(hostA).write(['remote-msg'], msgId);
+    await E(hostA).storeLocator(['remote-msg'], msgId);
     const msgValue = await E(hostA).lookup(['remote-msg']);
     t.is(msgValue, 'from B');
   } finally {
@@ -347,7 +347,7 @@ test.serial(
       const oneId = await E(hostA).identify('one');
       // Rewrite the locator to point at the bogus node
       const bogusId = oneId.replace(/^[^:]+/, bogusNodeId);
-      await E(hostA).write(['bogus'], bogusId);
+      await E(hostA).storeLocator(['bogus'], bogusId);
 
       // The lookup should reject, not hang indefinitely.
       // We race against a timeout to catch infinite hangs.

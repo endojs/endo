@@ -107,7 +107,7 @@ export const makePetSitter = (petStore, specialNames) => {
     return harden(names);
   };
 
-  const { write, remove, rename } = petStore;
+  const { storeIdentifier, remove, rename } = petStore;
 
   const petSitter = {
     has,
@@ -116,7 +116,7 @@ export const makePetSitter = (petStore, specialNames) => {
     list,
     followIdNameChanges,
     followNameChanges,
-    write,
+    storeIdentifier,
     remove,
     rename,
   };

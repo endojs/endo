@@ -78,7 +78,8 @@ Formula type: `readable-tree`.
 Live, mutable daemon-side filesystem access created by
 `provideMount(path, petName, opts)`.
 Implemented in `src/mount.js`.
-Methods: `has`, `list`, `lookup`, `write`, `remove`, `move`,
+Methods: `has`, `list`, `lookup`, `readText`, `maybeReadText`,
+`writeText`, `remove`, `move`,
 `makeDirectory`, `readOnly`, `snapshot`, `help`.
 Path arguments accept `string | string[]` (a single name or
 an array of path segments).

@@ -170,7 +170,7 @@ test.serial('synced stores converge via manual sync', async t => {
   // Alice (grantor) writes a new capability into the synced store.
   await E(hostA).storeValue('shared-secret', 'secret');
   const secretLocator = await E(hostA).locate('secret');
-  await E(aliceStore).write('shared-secret', secretLocator);
+  await E(aliceStore).storeLocator('shared-secret', secretLocator);
 
   // Before sync, Bob's grantee store does not have the new entry.
   const bobNamesBefore = await E(bobStore).list();
@@ -224,7 +224,7 @@ test.serial(
     // Alice writes a capability.
     await E(hostA).storeValue('revocable-thing', 'revocable');
     const revocableLocator = await E(hostA).locate('revocable');
-    await E(aliceStore).write('revocable', revocableLocator);
+    await E(aliceStore).storeLocator('revocable', revocableLocator);
 
     // Sync so Bob sees it.
     const syncStores = async () => {
@@ -279,7 +279,7 @@ test.serial('grantee can disclaim (remove) and it propagates', async t => {
   // Alice writes a capability.
   await E(hostA).storeValue('optional-thing', 'optional');
   const optionalLocator = await E(hostA).locate('optional');
-  await E(aliceStore).write('optional', optionalLocator);
+  await E(aliceStore).storeLocator('optional', optionalLocator);
 
   // Sync.
   const syncStores = async () => {
@@ -326,7 +326,7 @@ test.serial('synced stores converge after offline changes', async t => {
   // Alice writes a capability and syncs.
   await E(hostA).storeValue('pre-restart-val', 'pre-restart');
   const preRestartLocator = await E(hostA).locate('pre-restart');
-  await E(aliceStore).write('pre-restart', preRestartLocator);
+  await E(aliceStore).storeLocator('pre-restart', preRestartLocator);
 
   const syncStores = async (aStore, bStore) => {
     const aState = await E(aStore).getState();
@@ -384,7 +384,7 @@ test.serial('synced stores converge after offline changes', async t => {
   // Alice writes a new entry offline (while Bob doesn't know).
   await E(hostA2).storeValue('post-restart-val', 'post-restart');
   const postRestartLocator = await E(hostA2).locate('post-restart');
-  await E(aliceStore2).write('post-restart', postRestartLocator);
+  await E(aliceStore2).storeLocator('post-restart', postRestartLocator);
 
   // Sync the restarted Alice store with Bob's store.
   await syncStores(aliceStore2, bobStore);

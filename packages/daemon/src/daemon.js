@@ -1076,9 +1076,9 @@ const makeDaemonCore = async (
        * @param {PetName} petName
        * @param {FormulaIdentifier} id
        */
-      write: async (petName, id) => {
+      storeIdentifier: async (petName, id) => {
         const previousId = petStore.identifyLocal(petName);
-        await petStore.write(petName, id);
+        await petStore.storeIdentifier(petName, id);
         await withFormulaGraphLock(async () => {
           formulaGraph.onPetStoreWrite(petStoreId, id);
         });
@@ -1548,7 +1548,7 @@ const makeDaemonCore = async (
         pinTransient,
       );
       try {
-        await petStore.write(PROMISE_STATUS_NAME, id);
+        await petStore.storeIdentifier(PROMISE_STATUS_NAME, id);
       } finally {
         unpinTransient(id);
       }
@@ -1576,7 +1576,7 @@ const makeDaemonCore = async (
             // This must happen before writeStatus because writeStatus
             // triggers the promise to resolve, and collection may run
             // before the consumer has a chance to name the result.
-            await petStore.write(RESOLVED_VALUE_NAME, id);
+            await petStore.storeIdentifier(RESOLVED_VALUE_NAME, id);
             await writeStatus({ status: 'fulfilled', valueId: id });
           } catch (error) {
             const reason = formatRejectionReason(error);
@@ -1630,6 +1630,23 @@ const makeDaemonCore = async (
       return tailNames.reduce(
         (directory, petName) => E(directory).lookup(petName),
         lookup(headName),
+      );
+    };
+
+    const maybeLookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      const id = identifyMessage(headName);
+      if (id === undefined) {
+        return undefined;
+      }
+      const value = provide(
+        /** @type {FormulaIdentifier} */ (id),
+        'message',
+      );
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        value,
       );
     };
 
@@ -1782,7 +1799,10 @@ const makeDaemonCore = async (
     };
 
     const disallowedMutation = async () => {
-      throw new Error('not allowed');
+      throw new Error('Mailbox directory is read-only');
+    };
+    const notSupported = async () => {
+      throw new Error('Text I/O is not supported on mailbox directories');
     };
 
     mailHub = makeExo('MailHub', DirectoryInterface, {
@@ -1799,12 +1819,16 @@ const makeDaemonCore = async (
       followNameChanges: (...petNamePath) =>
         makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
+      maybeLookup,
       reverseLookup,
-      write: disallowedMutation,
+      storeLocator: disallowedMutation,
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
       makeDirectory: disallowedMutation,
+      readText: notSupported,
+      maybeReadText: notSupported,
+      writeText: disallowedMutation,
     });
 
     return mailHub;
@@ -2002,6 +2026,17 @@ const makeDaemonCore = async (
       );
     };
 
+    const maybeLookup = petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      const [headName, ...tailNames] = namePath;
+      if (tailNames.length === 0) {
+        if (!idByName.has(headName) && !valueByName.has(headName)) {
+          return undefined;
+        }
+      }
+      return lookup(petNameOrPath);
+    };
+
     /**
      * @param {string[]} petNamePath
      * @returns {Promise<{ hub: NameHub, name: Name }>}
@@ -2151,7 +2186,10 @@ const makeDaemonCore = async (
     };
 
     const disallowedMutation = async () => {
-      throw new Error('not allowed');
+      throw new Error('Message directory is read-only');
+    };
+    const notSupported = async () => {
+      throw new Error('Text I/O is not supported on message directories');
     };
 
     messageHub = makeExo('MessageHub', DirectoryInterface, {
@@ -2168,12 +2206,16 @@ const makeDaemonCore = async (
       followNameChanges: (...petNamePath) =>
         makeIteratorRef(followNameChanges(...petNamePath)),
       lookup,
+      maybeLookup,
       reverseLookup,
-      write: disallowedMutation,
+      storeLocator: disallowedMutation,
       remove: disallowedMutation,
       move: disallowedMutation,
       copy: disallowedMutation,
       makeDirectory: disallowedMutation,
+      readText: notSupported,
+      maybeReadText: notSupported,
+      writeText: disallowedMutation,
     });
 
     return messageHub;
@@ -2395,7 +2437,7 @@ const makeDaemonCore = async (
                 const { id: peerId } =
                   // eslint-disable-next-line no-use-before-define
                   await formulatePeer(networksId, nodeNumber, addresses);
-                await knownPeers.write(nodeNumber, peerId);
+                await knownPeers.storeIdentifier(nodeNumber, peerId);
                 return;
               }
             }
@@ -2408,7 +2450,7 @@ const makeDaemonCore = async (
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(networksId, nodeNumber, addresses);
-          await knownPeers.write(nodeNumber, peerId);
+          await knownPeers.storeIdentifier(nodeNumber, peerId);
         },
         listKnownPeers: async () => {
           const knownPeers = /** @type {KnownPeersStore} */ (
@@ -2474,13 +2516,17 @@ const makeDaemonCore = async (
             followNameChanges: disallowedFn,
             followLocatorNameChanges: disallowedFn,
             lookup: disallowedFn,
+            maybeLookup: disallowedSyncFn,
             lookupById: disallowedFn,
             reverseLookup: disallowedFn,
-            write: disallowedFn,
+            storeLocator: disallowedFn,
             remove: disallowedFn,
             move: disallowedFn,
             copy: disallowedFn,
             makeDirectory: disallowedFn,
+            readText: disallowedFn,
+            maybeReadText: disallowedFn,
+            writeText: disallowedFn,
             handle: disallowedSyncFn,
             listMessages: disallowedFn,
             followMessages: disallowedFn,
@@ -2496,6 +2542,7 @@ const makeDaemonCore = async (
             evaluate: disallowedFn,
             define: disallowedFn,
             form: disallowedFn,
+            storeBlob: disallowedFn,
             storeValue: disallowedFn,
             submit: disallowedFn,
             sendValue: disallowedFn,
@@ -2555,11 +2602,11 @@ const makeDaemonCore = async (
       }
       // Wrap with Far for CapTP access by the remote peer.
       return Far('SyncedPetStore', {
-        write: async (
+        storeLocator: async (
           /** @type {PetName} */ petName,
           /** @type {string} */ locator,
         ) => {
-          await store.write(petName, locator);
+          await store.storeLocator(petName, locator);
           // Add GC edge for local formula IDs.
           try {
             const formulaId = idFromLocator(locator);
@@ -3933,7 +3980,7 @@ const makeDaemonCore = async (
       loopbackType,
       localNodeNumber,
     );
-    await E(value).write(/** @type {NamePath} */ (['loop']), loopbackLocator);
+    await E(value).storeLocator(/** @type {NamePath} */ (['loop']), loopbackLocator);
     return { id, value };
   };
 
@@ -4162,13 +4209,13 @@ const makeDaemonCore = async (
 
       // Write the guest handle locator into the synced store.
       const guestHandleLocatorStr = formatLocator(guestHandleId, 'remote');
-      await E(syncedStoreValue).write(
+      await E(syncedStoreValue).storeLocator(
         /** @type {PetName} */ (guestName),
         guestHandleLocatorStr,
       );
 
       // Write the synced store into the host's pet store under guestName.
-      await E(hostAgent).write(
+      await E(hostAgent).storeLocator(
         /** @type {NamePath} */ ([guestName]),
         syncedStoreId,
       );
@@ -4192,6 +4239,7 @@ const makeDaemonCore = async (
     getIdForRef,
     getTypeForId,
     formulateDirectory,
+    formulateReadableBlob,
     pinTransient,
     unpinTransient,
   });
@@ -4225,6 +4273,7 @@ const makeDaemonCore = async (
   const makeGuest = makeGuestMaker({
     provide,
     formulateEval,
+    formulateReadableBlob,
     formulateMarshalValue,
     getFormulaForId,
     getAllNetworkAddresses,

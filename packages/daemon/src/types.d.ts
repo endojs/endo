@@ -659,7 +659,7 @@ export interface PetStore {
   followIdNameChanges(
     id: string,
   ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
-  write(petName: PetName, id: string): Promise<void>;
+  storeIdentifier(petName: PetName, id: string): Promise<void>;
   remove(petName: PetName): Promise<void>;
   rename(fromPetName: PetName, toPetName: PetName): Promise<void>;
   /**
@@ -701,8 +701,8 @@ export type SyncedPetStoreChange = {
 };
 
 export interface SyncedPetStore {
-  /** Write a name->locator entry (grantor only). */
-  write(petName: PetName, locator: string): Promise<void>;
+  /** Store a name->locator entry (grantor only). */
+  storeLocator(petName: PetName, locator: string): Promise<void>;
   /** Delete a name (tombstone). Either party can delete. */
   remove(petName: PetName): Promise<void>;
   /** Check if a non-tombstoned entry exists for the name. */
@@ -741,11 +741,11 @@ export type SyncedPetStorePowers = {
 
 export type KnownPeersStore = Omit<
   PetStore,
-  'has' | 'identifyLocal' | 'write'
+  'has' | 'identifyLocal' | 'storeIdentifier'
 > & {
   has(nodeNumber: NodeNumber): boolean;
   identifyLocal(nodeNumber: NodeNumber): string | undefined;
-  write(nodeNumber: NodeNumber, id: string): Promise<void>;
+  storeIdentifier(nodeNumber: NodeNumber, id: string): Promise<void>;
 };
 
 /**
@@ -769,8 +769,9 @@ export interface NameHub {
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(petNamePath: string | string[]): Promise<unknown>;
+  maybeLookup(petNamePath: string | string[]): unknown;
   reverseLookup(value: unknown): Array<Name>;
-  write(petNamePath: string | string[], id: string): Promise<void>;
+  storeLocator(petNamePath: string | string[], id: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -778,6 +779,9 @@ export interface NameHub {
 
 export interface EndoDirectory extends NameHub {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
+  readText(petNamePath: string | string[]): Promise<string>;
+  maybeReadText(petNamePath: string | string[]): Promise<string | undefined>;
+  writeText(petNamePath: string | string[], content: string): Promise<void>;
 }
 
 export type MakeDirectoryNode = (
@@ -988,6 +992,10 @@ export interface EndoGuest extends EndoAgent {
     description: string,
     fields: FormField[],
   ): Promise<void>;
+  storeBlob(
+    readerRef: ERef<AsyncIterableIterator<string>>,
+    petName?: string | string[],
+  ): Promise<unknown>;
   storeValue<T extends Passable>(
     value: T,
     petName: string | string[],

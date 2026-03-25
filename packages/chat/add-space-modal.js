@@ -1435,10 +1435,10 @@ export const createAddSpaceModal = ({
 
         // 3. Write the channel formula ID into the persona's pet store
         await E(
-          /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+          /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).write('general', formulaId);
+        ).storeLocator('general', formulaId);
 
         // 4. Create space config
         await onSubmit({
@@ -1506,10 +1506,10 @@ export const createAddSpaceModal = ({
 
         // Write the channel formula ID into the persona's pet store
         await E(
-          /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+          /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).write('general', formulaId);
+        ).storeLocator('general', formulaId);
 
         // No new space needed — the existing space already renders the channel
         hide();
@@ -1604,10 +1604,10 @@ export const createAddSpaceModal = ({
       ).lookup(finalAgentName);
 
       await E(
-        /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+        /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
           whylipPowers
         ),
-      ).write('fae', agentFormulaId);
+      ).storeLocator('fae', agentFormulaId);
 
       await onSubmit({
         name,

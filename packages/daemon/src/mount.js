@@ -225,32 +225,35 @@ const makeMountExo = ctx => {
       return makeMountFileExo(target, readOnly, filePowers, confinementRoot);
     },
 
-    async write(pathArg, value) {
+    async readText(pathArg) {
+      await null;
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
+      await assertConfined(target, confinementRoot, filePowers);
+      return filePowers.readFileText(target);
+    },
+
+    async maybeReadText(pathArg) {
+      await null;
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
+      try {
+        await assertConfined(target, confinementRoot, filePowers);
+        return await filePowers.readFileText(target);
+      } catch {
+        return undefined;
+      }
+    },
+
+    async writeText(pathArg, content) {
       await null;
       assertWritable();
       const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
       const target = resolve(segments);
       await assertConfinedOrAncestor(target, confinementRoot, filePowers);
-
       const parent = filePowers.joinPath(target, '..');
       await filePowers.makePath(parent);
-
-      if (typeof value === 'string') {
-        await filePowers.writeFileText(target, value);
-      } else {
-        // Assume value has streamBase64() method (ReadableBlob-like).
-        const iterator = await /** @type {any} */ (value).streamBase64();
-        const chunks = [];
-        for (;;) {
-          // eslint-disable-next-line no-await-in-loop
-          const { done, value: chunk } = await iterator.next();
-          if (done) break;
-          chunks.push(chunk);
-        }
-        const text = chunks.join('');
-        const bytes = Uint8Array.from(atob(text), c => c.charCodeAt(0));
-        await filePowers.writeFileText(target, new TextDecoder().decode(bytes));
-      }
+      await filePowers.writeFileText(target, content);
     },
 
     async remove(pathArg) {
@@ -417,11 +420,22 @@ Resolve a path within the mount.
 path: string | string[] — Name or path segments.
 Returns EndoMount for directories, EndoMountFile for files.`,
 
-  write: `\
-write(path, value) -> Promise<void>
-Write content to a file at the given path.
+  readText: `\
+readText(path) -> Promise<string>
+Read a file as UTF-8 text.
 path: string | string[] — Name or path segments.
-value: string | ReadableBlob — Content to write.
+Throws if the file does not exist.`,
+
+  maybeReadText: `\
+maybeReadText(path) -> Promise<string | undefined>
+Read a file as UTF-8 text, returning undefined if missing.
+path: string | string[] — Name or path segments.`,
+
+  writeText: `\
+writeText(path, content) -> Promise<void>
+Write UTF-8 text to a file at the given path.
+path: string | string[] — Name or path segments.
+content: string — Text content to write.
 Creates parent directories as needed. Throws if read-only.`,
 
   remove: `\

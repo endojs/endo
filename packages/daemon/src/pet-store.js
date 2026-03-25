@@ -122,8 +122,8 @@ export const makePetStoreMaker = (filePowers, config) => {
       return idsToPetNames.getKey(petName);
     };
 
-    /** @type {PetStore['write']} */
-    const write = async (petName, formulaIdentifier) => {
+    /** @type {PetStore['storeIdentifier']} */
+    const storeIdentifier = async (petName, formulaIdentifier) => {
       assertValidName(petName);
       assertValidId(formulaIdentifier);
 
@@ -291,7 +291,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       list,
       followIdNameChanges,
       followNameChanges,
-      write,
+      storeIdentifier,
       remove,
       rename,
       repairIds,

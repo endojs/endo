@@ -24,7 +24,7 @@ Pet names are strings like "my-worker", "counter", or "index.html".
 Special names are @-prefixed like "@self", "@host", or "@agent".
 
 Use lookup() to get a value by name, list() to see available names,
-and write() to store new references.`,
+and storeLocator() to store new references.`,
 
   help: `\
 help(methodName?) -> string
@@ -89,11 +89,11 @@ reverseLookup(value) -> Promise<string[]>
 Find all pet names that refer to a given value.
 Useful for discovering what names exist for an object you have.`,
 
-  write: `\
-write(petNameOrPath, formulaId) -> Promise<void>
-Store a formula identifier with a pet name.
-- write("my-name", id) stores id as "my-name"
-- write(["subdir", "name"], id) stores in a subdirectory
+  storeLocator: `\
+storeLocator(petNameOrPath, formulaId) -> Promise<void>
+Store a formula identifier or locator with a pet name.
+- storeLocator("my-name", id) stores id as "my-name"
+- storeLocator(["subdir", "name"], id) stores in a subdirectory
 Overwrites any existing value at that name.`,
 
   remove: `\
@@ -117,6 +117,27 @@ Both names will refer to the same underlying value.`,
 makeDirectory(petNamePath) -> Promise<EndoDirectory>
 Create a new subdirectory at the given path.
 Returns the new directory object.`,
+
+  readText: `\
+readText(petNameOrPath) -> Promise<string>
+Read text content by pet name or path.
+For a single name, reads the blob's text content.
+For a multi-segment path, reads through the mount.
+Example: readText(["my-blob"])
+Example: readText(["my-mount", "config.json"])`,
+
+  maybeReadText: `\
+maybeReadText(petNameOrPath) -> Promise<string | undefined>
+Read text content, returning undefined if not found.
+Same as readText but returns undefined instead of throwing.`,
+
+  writeText: `\
+writeText(petNameOrPath, content) -> Promise<void>
+Write text content by pet name or path.
+For a single name, creates a ReadableBlob and binds the name.
+For a multi-segment path, writes through the mount.
+Example: writeText(["my-blob"], "hello")
+Example: writeText(["my-mount", "output.txt"], "hello")`,
 };
 
 /** @type {HelpText} */
@@ -281,6 +302,13 @@ The form appears in the recipient's inbox. They can submit values using submit()
 
 Example: form("@host", "Configure settings", [{ name: "name", label: "Your name" }])`,
 
+  storeBlob: `\
+storeBlob(readerRef, petName?) -> Promise<EndoReadable>
+Store binary data as a blob with a pet name.
+- readerRef: An async iterator yielding base64-encoded strings
+- petName: Name to store the blob under
+Returns a readable blob reference.`,
+
   storeValue: `\
 storeValue(value, petNameOrPath) -> Promise<void>
 Store a passable value (number, string, array, record, etc.) in your directory.
@@ -307,6 +335,27 @@ Reply to any message with a retained value from your pet store.
 - petNameOrPath: Pet name (or path) of the value to send
 
 Example: sendValue(0, "my-counter")`,
+
+  readText: `\
+readText(petNameOrPath) -> Promise<string>
+Read text content by pet name or path.
+For a single name, reads the blob's text content.
+For a multi-segment path, reads through the mount.
+Example: readText(["my-blob"])
+Example: readText(["my-mount", "config.json"])`,
+
+  maybeReadText: `\
+maybeReadText(petNameOrPath) -> Promise<string | undefined>
+Read text content, returning undefined if not found.
+Same as readText but returns undefined instead of throwing.`,
+
+  writeText: `\
+writeText(petNameOrPath, content) -> Promise<void>
+Write text content by pet name or path.
+For a single name, creates a ReadableBlob and binds the name.
+For a multi-segment path, writes through the mount.
+Example: writeText(["my-blob"], "hello")
+Example: writeText(["my-mount", "output.txt"], "hello")`,
 
   // Directory operations inherit from directoryHelp
   // Mail operations inherit from mailHelp
@@ -513,6 +562,27 @@ this agent's pet store.
 - edges: Array of { sourceId, targetId, label } for each dependency
 
 Used by the Chat inventory graph space to visualize formula relationships.`,
+
+  readText: `\
+readText(petNameOrPath) -> Promise<string>
+Read text content by pet name or path.
+For a single name, reads the blob's text content.
+For a multi-segment path, reads through the mount.
+Example: readText(["my-blob"])
+Example: readText(["my-mount", "config.json"])`,
+
+  maybeReadText: `\
+maybeReadText(petNameOrPath) -> Promise<string | undefined>
+Read text content, returning undefined if not found.
+Same as readText but returns undefined instead of throwing.`,
+
+  writeText: `\
+writeText(petNameOrPath, content) -> Promise<void>
+Write text content by pet name or path.
+For a single name, creates a ReadableBlob and binds the name.
+For a multi-segment path, writes through the mount.
+Example: writeText(["my-blob"], "hello")
+Example: writeText(["my-mount", "output.txt"], "hello")`,
 };
 
 /** @type {HelpText} */

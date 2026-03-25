@@ -661,7 +661,7 @@ export const makeMailboxMaker = ({
       const messageNumberName = /** @type {PetName} */ (String(messageNumber));
       const { id } = await formulateMessage(formula, pinTransient);
       try {
-        await mailboxStore.write(messageNumberName, id);
+        await mailboxStore.storeIdentifier(messageNumberName, id);
       } finally {
         unpinTransient(id);
       }
@@ -677,7 +677,7 @@ export const makeMailboxMaker = ({
         pinTransient,
       );
       try {
-        await mailboxStore.write(NEXT_MESSAGE_NUMBER_NAME, id);
+        await mailboxStore.storeIdentifier(NEXT_MESSAGE_NUMBER_NAME, id);
       } finally {
         unpinTransient(id);
       }
@@ -1064,7 +1064,7 @@ export const makeMailboxMaker = ({
         }
         const id = /** @type {FormulaIdentifier} */ (message.valueId);
         context.thisDiesIfThatDies(id);
-        await E(directory).write(petNamePath, id);
+        await E(directory).storeLocator(petNamePath, id);
         return;
       }
       if (message.type !== 'package') {
@@ -1087,7 +1087,7 @@ export const makeMailboxMaker = ({
         );
       }
       context.thisDiesIfThatDies(id);
-      await E(directory).write(petNamePath, id);
+      await E(directory).storeLocator(petNamePath, id);
     };
 
     /** @type {Mail['request']} */
@@ -1137,7 +1137,7 @@ export const makeMailboxMaker = ({
 
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
-        await E(directory).write(responseNamePath, resolutionId);
+        await E(directory).storeLocator(responseNamePath, resolutionId);
       }
 
       return responseP;
@@ -1227,7 +1227,7 @@ export const makeMailboxMaker = ({
 
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
-        await E(directory).write(responseNamePath, resolutionId);
+        await E(directory).storeLocator(responseNamePath, resolutionId);
       }
 
       return responseP;

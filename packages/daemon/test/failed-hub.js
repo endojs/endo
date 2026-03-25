@@ -6,7 +6,7 @@ export const make = (_powers, _context, _options) => {
     'FailedHub',
     M.interface('FailedHub', {}, { defaultGuards: 'passable' }),
     {
-      write() {
+      storeLocator() {
         throw new Error('I had one job.');
       },
     },

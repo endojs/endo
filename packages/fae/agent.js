@@ -559,10 +559,10 @@ export const make = async (guestPowers, _context) => {
 
       // 3. Write capability references into the driver's namespace.
       const providerLocator = await E(powers).locate('llm-provider');
-      await E(driverGuest).write('llm-provider', providerLocator);
+      await E(driverGuest).storeLocator('llm-provider', providerLocator);
 
       const agentLocator = await E(hostAgent).locate(profileName);
-      await E(driverGuest).write('agent', agentLocator);
+      await E(driverGuest).storeLocator('agent', agentLocator);
 
       // 4. Launch the driver caplet.
       await E(hostAgent).makeUnconfined('@main', driverSpecifier, {

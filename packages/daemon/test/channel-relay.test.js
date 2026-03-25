@@ -289,7 +289,7 @@ test.serial(
       // join(ourDisplayName) but the invitation was created with a
       // different name.
       const formulaId = `${formulaNumber}:${nodeNumber}`;
-      await E(hostB).write(['wrong-name-channel'], formulaId);
+      await E(hostB).storeLocator(['wrong-name-channel'], formulaId);
 
       const remoteChannel = await E(hostB).lookup('wrong-name-channel');
 

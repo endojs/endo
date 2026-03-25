@@ -9,11 +9,12 @@ import {
   assertName,
   assertNamePath,
   assertPetName,
+  assertPetNamePath,
   namePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
-/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, EvalDeferredTaskParams, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, NamesOrPaths, Provide, WorkerDeferredTaskParams } from './types.js' */
+/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, EvalDeferredTaskParams, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, NamesOrPaths, Provide, ReadableBlobDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 import { guestHelp, makeHelp } from './help-text.js';
 
@@ -21,6 +22,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {object} args
  * @param {Provide} args.provide
  * @param {DaemonCore['formulateEval']} args.formulateEval
+ * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
@@ -34,6 +36,7 @@ import { guestHelp, makeHelp } from './help-text.js';
 export const makeGuestMaker = ({
   provide,
   formulateEval,
+  formulateReadableBlob,
   formulateMarshalValue,
   getFormulaForId,
   getAllNetworkAddresses,
@@ -126,9 +129,12 @@ export const makeGuestMaker = ({
       followNameChanges,
       followLocatorNameChanges,
       lookup,
+      maybeLookup,
       reverseLookup,
-      write,
-      writeLocator,
+      storeLocator: directoryStoreLocator,
+      readText: directoryReadText,
+      maybeReadText: directoryMaybeReadText,
+      writeText: directoryWriteText,
       move,
       remove,
       copy,
@@ -186,7 +192,7 @@ export const makeGuestMaker = ({
         assertPetName(workerName);
         const petName = workerName;
         deferTask(identifiers => {
-          return specialStore.write(petName, identifiers.workerId);
+          return specialStore.storeIdentifier(petName, identifiers.workerId);
         });
         return undefined;
       }
@@ -251,7 +257,7 @@ export const makeGuestMaker = ({
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         tasks.push(identifiers =>
-          E(directory).write(resultNamePath, identifiers.evalId),
+          E(directory).storeLocator(resultNamePath, identifiers.evalId),
         );
       }
 
@@ -289,6 +295,20 @@ export const makeGuestMaker = ({
     const sendValue = (messageNumber, petNameOrPath) =>
       mailboxSendValue(messageNumber, petNameOrPath);
 
+    /** @type {EndoGuest['storeBlob']} */
+    const storeBlob = async (readerRef, petName) => {
+      const { namePath } = assertPetNamePath(namePathFrom(petName));
+
+      /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeLocator(namePath, identifiers.readableBlobId),
+      );
+
+      const { value: blob } = await formulateReadableBlob(readerRef, tasks);
+      return blob;
+    };
+
     /** @type {EndoGuest['storeValue']} */
     const storeValue = async (value, petName) => {
       const namePath = namePathFrom(petName);
@@ -296,7 +316,7 @@ export const makeGuestMaker = ({
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.marshalId),
+        E(directory).storeLocator(namePath, identifiers.marshalId),
       );
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
       unpinTransient(id);
@@ -316,13 +336,17 @@ export const makeGuestMaker = ({
       followLocatorNameChanges,
       followNameChanges,
       lookup,
+      maybeLookup,
       lookupById,
       reverseLookup,
-      write: writeLocator,
+      storeLocator: directoryStoreLocator,
       move,
       remove,
       copy,
       makeDirectory,
+      readText: directoryReadText,
+      maybeReadText: directoryMaybeReadText,
+      writeText: directoryWriteText,
       // Mail
       handle,
       listMessages,
@@ -341,6 +365,7 @@ export const makeGuestMaker = ({
       requestEvaluation,
       define,
       form,
+      storeBlob,
       storeValue,
       submit,
       sendValue,

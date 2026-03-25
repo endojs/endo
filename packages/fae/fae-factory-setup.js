@@ -62,7 +62,7 @@ export const main = async agent => {
 
   // Write the provider reference into the factory's petstore.
   const factoryPowers = await E(agent).lookup(agentName);
-  await E(factoryPowers).write('llm-provider', providerId);
+  await E(factoryPowers).storeLocator('llm-provider', providerId);
 
   // Launch the fae-factory caplet.
   await E(agent).makeUnconfined('@main', faeFactorySpecifier, {

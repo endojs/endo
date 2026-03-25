@@ -208,7 +208,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.readableBlobId),
+        E(directory).storeLocator(namePath, identifiers.readableBlobId),
       );
 
       const { value } = await formulateReadableBlob(readerRef, tasks);
@@ -226,7 +226,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<ReadableTreeDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.readableTreeId),
+        E(directory).storeLocator(namePath, identifiers.readableTreeId),
       );
 
       const { value } = await checkinTree(remoteTree, tasks);
@@ -248,7 +248,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MountDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.mountId),
+        E(directory).storeLocator(namePath, identifiers.mountId),
       );
 
       const { value } = await formulateMount(mountPath, readOnly, tasks);
@@ -269,7 +269,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<ScratchMountDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.scratchMountId),
+        E(directory).storeLocator(namePath, identifiers.scratchMountId),
       );
 
       const { value } = await formulateScratchMount(readOnly, tasks);
@@ -284,7 +284,7 @@ export const makeHostMaker = ({
       const tasks = makeDeferredTasks();
 
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.marshalId),
+        E(directory).storeLocator(namePath, identifiers.marshalId),
       );
 
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
@@ -306,7 +306,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.workerId),
+        E(directory).storeLocator(namePath, identifiers.workerId),
       );
       const { value } = await formulateWorker(tasks);
       return value;
@@ -327,7 +327,7 @@ export const makeHostMaker = ({
         assertPetName(workerName);
         const petName = workerName;
         deferTask(identifiers => {
-          return petStore.write(petName, identifiers.workerId);
+          return petStore.storeIdentifier(petName, identifiers.workerId);
         });
         return undefined;
       }
@@ -390,7 +390,7 @@ export const makeHostMaker = ({
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         tasks.push(identifiers =>
-          E(directory).write(resultNamePath, identifiers.evalId),
+          E(directory).storeLocator(resultNamePath, identifiers.evalId),
         );
       }
 
@@ -443,13 +443,13 @@ export const makeHostMaker = ({
         assertPetName(powersName);
         const powersPetName = powersName;
         tasks.push(identifiers => {
-          return petStore.write(powersPetName, identifiers.powersId);
+          return petStore.storeIdentifier(powersPetName, identifiers.powersId);
         });
       }
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          E(directory).write(namePathFrom(resultName), identifiers.capletId),
+          E(directory).storeLocator(namePathFrom(resultName), identifiers.capletId),
         );
       }
 
@@ -531,7 +531,7 @@ export const makeHostMaker = ({
           if (introducedId === undefined) {
             return;
           }
-          await agent.write([childName], introducedId);
+          await agent.storeLocator([childName], introducedId);
         }),
       );
     };
@@ -566,14 +566,14 @@ export const makeHostMaker = ({
         assertPetName(handleName);
         const handlePetName = handleName;
         tasks.push(identifiers => {
-          return petStore.write(handlePetName, identifiers.handleId);
+          return petStore.storeIdentifier(handlePetName, identifiers.handleId);
         });
       }
       if (agentName !== undefined) {
         assertPetName(agentName);
         const agentPetName = agentName;
         tasks.push(identifiers => {
-          return petStore.write(agentPetName, identifiers.agentId);
+          return petStore.storeIdentifier(agentPetName, identifiers.agentId);
         });
       }
       return tasks;
@@ -689,7 +689,7 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.write(petName, identifiers.channelId));
+      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.channelId));
       const { value } = await formulateChannel(
         hostId,
         handleId,
@@ -715,7 +715,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<InvitationDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        petStore.write(guestName, identifiers.invitationId),
+        petStore.storeIdentifier(guestName, identifiers.invitationId),
       );
       const { value } = await formulateInvitation(
         hostId,
@@ -798,7 +798,7 @@ export const makeHostMaker = ({
       );
 
       // Write the synced store into the guest's pet store under guestName.
-      await petStore.write(guestName, syncedStoreId);
+      await petStore.storeIdentifier(guestName, syncedStoreId);
     };
 
     /** @type {EndoHost['cancel']} */
@@ -888,7 +888,7 @@ export const makeHostMaker = ({
         ),
         node: /** @type {NodeNumber} */ (nodeNumber),
       });
-      await E(directory).write(namePath, id);
+      await E(directory).storeLocator(namePath, id);
     };
 
     const { reverseIdentify } = specialStore;
@@ -896,6 +896,7 @@ export const makeHostMaker = ({
       has,
       identify,
       lookup,
+      maybeLookup,
       locate,
       reverseLocate,
       list,
@@ -908,7 +909,10 @@ export const makeHostMaker = ({
       move,
       copy,
       makeDirectory: makeDirectoryLocal,
-      writeLocator,
+      storeLocator: directoryStoreLocator,
+      readText: directoryReadText,
+      maybeReadText: directoryMaybeReadText,
+      writeText: directoryWriteText,
     } = directory;
 
     const makeDirectory = async petNameOrPath => {
@@ -1030,7 +1034,7 @@ export const makeHostMaker = ({
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         tasks.push(identifiers =>
-          E(directory).write(resultNamePath, identifiers.evalId),
+          E(directory).storeLocator(resultNamePath, identifiers.evalId),
         );
       }
 
@@ -1085,12 +1089,16 @@ export const makeHostMaker = ({
       followLocatorNameChanges,
       followNameChanges,
       lookup,
+      maybeLookup,
       reverseLookup,
-      write: writeLocator,
+      storeLocator: directoryStoreLocator,
       remove,
       move,
       copy,
       makeDirectory,
+      readText: directoryReadText,
+      maybeReadText: directoryMaybeReadText,
+      writeText: directoryWriteText,
       // Mail
       handle,
       listMessages,

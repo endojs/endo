@@ -210,7 +210,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         temporaryBanUntil: entry.temporaryBanUntil,
       });
       const formulaId = await persistValue(persistable);
-      await memberStore.write(`member-${entry.memberId}`, formulaId);
+      await memberStore.storeIdentifier(`member-${entry.memberId}`, formulaId);
     };
 
     /**
@@ -262,7 +262,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
 
       // Persist message to store for rehydration on restart
       const formulaId = await persistValue(message);
-      await messageStore.write(`msg-${String(messageNumber)}`, formulaId);
+      await messageStore.storeIdentifier(`msg-${String(messageNumber)}`, formulaId);
 
       messages.push(message);
       messagesTopic.publisher.next(message);

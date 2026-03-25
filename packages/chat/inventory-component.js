@@ -333,7 +333,7 @@ export const inventoryComponent = async (
               ).addPeerInfo({ node: nodeNumber, addresses });
             }
             const formulaId = `${formulaNumber}:${nodeNumber}`;
-            await E(powers).write(petName, formulaId);
+            await E(powers).storeLocator(petName, formulaId);
             $inlineForm.classList.remove('visible');
             $inlineForm.innerHTML = '';
             // Auto-select the new channel

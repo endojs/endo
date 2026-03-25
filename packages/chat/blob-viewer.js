@@ -1,58 +1,13 @@
 // @ts-check
-/* global document, btoa */
+/* global document */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
-import { makeExo } from '@endo/exo';
-import harden from '@endo/harden';
-import { M } from '@endo/patterns';
 import { createMonacoEditor, colorize, detectTheme } from './monaco-wrapper.js';
 import { inferLanguage } from './language-detect.js';
 import { renderMarkdownToHtml, isMarkdown } from './markdown-preview.js';
 import { keyCombo, modKey } from './platform-keys.js';
-
-const AsyncIteratorInterface = M.interface('AsyncIterator', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(M.any()).returns(M.promise()),
-  throw: M.call().optional(M.any()).returns(M.promise()),
-});
-harden(AsyncIteratorInterface);
-
-/**
- * Create a remotable async iterator that yields a string as a single
- * base64 chunk, matching the protocol that `storeBlob` expects.
- *
- * @param {string} text
- * @returns {unknown}
- */
-const makeTextReader = text => {
-  let done = false;
-  const bytes = new TextEncoder().encode(text);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const base64 = btoa(binary);
-
-  return makeExo('AsyncIterator', AsyncIteratorInterface, {
-    async next() {
-      if (done) {
-        return harden({ value: undefined, done: true });
-      }
-      done = true;
-      return harden({ value: base64, done: false });
-    },
-    async return() {
-      done = true;
-      return harden({ value: undefined, done: true });
-    },
-    async throw() {
-      done = true;
-      return harden({ value: undefined, done: true });
-    },
-  });
-};
 
 /**
  * @typedef {object} BlobViewerAPI
@@ -211,23 +166,7 @@ export const createBlobViewer = ({ $container, $backdrop, E, powers, onClose }) 
 
     try {
       const content = editor.getValue();
-      // Write to the parent directory entry.
-      // The path is split: parent segments resolve to the directory,
-      // the last segment is the entry name.
-      if (currentPath.length < 2) {
-        // Top-level pet name — store as a ReadableBlob formula.
-        // storeBlob expects a remotable async iterator of base64 chunks.
-        const reader = makeTextReader(content);
-        await E(powers).storeBlob(reader, currentPath);
-      } else {
-        // Path into a directory/mount: resolve the parent and write.
-        // Mount.write() expects (pathSegments, value) where
-        // pathSegments is an array.
-        const parentPath = currentPath.slice(0, -1);
-        const entryName = currentPath[currentPath.length - 1];
-        const parent = await E(powers).lookup(parentPath);
-        await E(parent).write([entryName], content);
-      }
+      await E(powers).writeText(currentPath, content);
       originalContent = content;
       dirty = false;
       $status.textContent = 'Saved';
@@ -280,8 +219,7 @@ export const createBlobViewer = ({ $container, $backdrop, E, powers, onClose }) 
       let text = '';
       let isNew = false;
       try {
-        const blob = await E(powers).lookup(currentPath);
-        text = await E(blob).text();
+        text = await E(powers).readText(currentPath);
       } catch (lookupErr) {
         if (readOnly) throw lookupErr;
         isNew = true;

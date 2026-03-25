@@ -69,8 +69,9 @@ export const NameHubInterface = M.interface('EndoNameHub', {
   listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.remotable()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
+  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
-  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
@@ -121,10 +122,12 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
   followNameChanges: M.call().returns(M.remotable()),
   // Resolve a name path to a value
   lookup: M.call(NameOrPathShape).returns(M.promise()),
+  // Resolve a name path, returning undefined if the head name is absent
+  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   // Get names for a value
   reverseLookup: M.call(M.any()).returns(M.promise()),
   // Store a formula identifier with a name
-  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   // Remove a name
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   // Move/rename a reference
@@ -133,6 +136,10 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   // Create a new directory
   makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
+  // Text I/O (delegated to mount)
+  readText: M.call(NameOrPathShape).returns(M.promise()),
+  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
+  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
 });
 
 export const GuestInterface = M.interface('EndoGuest', {
@@ -150,13 +157,18 @@ export const GuestInterface = M.interface('EndoGuest', {
   listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
+  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
-  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
+  // Text I/O (delegated to mount)
+  readText: M.call(NameOrPathShape).returns(M.promise()),
+  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
+  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Mail
   // Get the guest's mailbox handle
   handle: M.call().returns(M.remotable()),
@@ -215,6 +227,10 @@ export const GuestInterface = M.interface('EndoGuest', {
     M.string(), // description
     M.arrayOf(M.record()), // fields
   ).returns(M.promise()),
+  // Store a blob
+  storeBlob: M.call(M.remotable())
+    .optional(NameOrPathShape)
+    .returns(M.promise()),
   // Store a passable value
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Submit values for a form
@@ -248,13 +264,18 @@ export const HostInterface = M.interface('EndoHost', {
   listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
   lookup: M.call(NameOrPathShape).returns(M.promise()),
+  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
-  write: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
   makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
+  // Text I/O (delegated to mount)
+  readText: M.call(NameOrPathShape).returns(M.promise()),
+  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
+  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
@@ -462,8 +483,11 @@ export const MountInterface = M.interface('EndoMount', {
   has: M.call().rest(PathSegmentsShape).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
+  // Raw data I/O
+  readText: M.call(PathArgShape).returns(M.promise()),
+  maybeReadText: M.call(PathArgShape).returns(M.promise()),
+  writeText: M.call(PathArgShape, M.string()).returns(M.promise()),
   // Mutation
-  write: M.call(PathArgShape, M.any()).returns(M.promise()),
   remove: M.call(PathArgShape).returns(M.promise()),
   move: M.call(PathArgShape, PathArgShape).returns(M.promise()),
   makeDirectory: M.call(PathArgShape).returns(M.promise()),

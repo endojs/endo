@@ -160,7 +160,7 @@ test('synced store: write and lookup', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store.write('bob', 'endo://node-bob/handle:abc');
+    await store.storeLocator('bob', 'endo://node-bob/handle:abc');
     t.true(store.has('bob'));
     t.is(store.lookup('bob'), 'endo://node-bob/handle:abc');
     t.deepEqual(store.list(), ['bob']);
@@ -179,7 +179,7 @@ test('synced store: grantee cannot write', async t => {
       role: 'grantee',
     });
     await t.throwsAsync(
-      () => store.write('alice', 'endo://node-alice/handle:xyz'),
+      () => store.storeLocator('alice', 'endo://node-alice/handle:xyz'),
       {
         message: /Grantee cannot write/,
       },
@@ -198,7 +198,7 @@ test('synced store: remove creates tombstone', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store.write('bob', 'endo://node-bob/handle:abc');
+    await store.storeLocator('bob', 'endo://node-bob/handle:abc');
     t.true(store.has('bob'));
     await store.remove('bob');
     t.false(store.has('bob'));
@@ -251,8 +251,8 @@ test('synced store: persistence survives reload', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store1.write('bob', 'endo://node-bob/handle:abc');
-    await store1.write('carol', 'endo://node-carol/handle:def');
+    await store1.storeLocator('bob', 'endo://node-bob/handle:abc');
+    await store1.storeLocator('carol', 'endo://node-carol/handle:def');
     await store1.remove('carol');
 
     // Reload from disk.
@@ -282,7 +282,7 @@ test('synced store: merge remote state', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store.write('local-name', 'loc-local');
+    await store.storeLocator('local-name', 'loc-local');
 
     const changed = await store.mergeRemoteState(
       {
@@ -319,8 +319,8 @@ test('synced store: tombstone pruning', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store.write('a', 'loc-a');
-    await store.write('b', 'loc-b');
+    await store.storeLocator('a', 'loc-a');
+    await store.storeLocator('b', 'loc-b');
     await store.remove('a'); // timestamp=3
     await store.remove('b'); // timestamp=4
 
@@ -352,7 +352,7 @@ test('synced store: pruned tombstones do not survive reload', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store1.write('a', 'loc-a');
+    await store1.storeLocator('a', 'loc-a');
     await store1.remove('a');
     await store1.acknowledgeRemoteClock(2);
     await store1.pruneTombstones();
@@ -388,8 +388,8 @@ test('synced store: two replicas converge', async t => {
     });
 
     // Alice writes some entries.
-    await alice.write('shared-file', 'loc-file');
-    await alice.write('tool', 'loc-tool');
+    await alice.storeLocator('shared-file', 'loc-file');
+    await alice.storeLocator('tool', 'loc-tool');
 
     // Simulate sync: Alice -> Bob.
     const aliceState = alice.getState();
@@ -441,7 +441,7 @@ test('synced store: revocation wins over concurrent write', async t => {
     });
 
     // Alice writes an entry and syncs to Bob.
-    await alice.write('secret', 'loc-secret');
+    await alice.storeLocator('secret', 'loc-secret');
     await bob.mergeRemoteState(alice.getState(), alice.getLocalClock());
 
     // Alice revokes (timestamp=2), Bob has not yet seen it.
@@ -507,9 +507,9 @@ test('synced store: list is sorted', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store.write('zebra', 'loc-z');
-    await store.write('alpha', 'loc-a');
-    await store.write('middle', 'loc-m');
+    await store.storeLocator('zebra', 'loc-z');
+    await store.storeLocator('alpha', 'loc-a');
+    await store.storeLocator('middle', 'loc-m');
     t.deepEqual(store.list(), ['alpha', 'middle', 'zebra']);
   } finally {
     await removeTmpDir(dir);
@@ -525,8 +525,8 @@ test('synced store: overwrite updates entry', async t => {
       localNodeId: 'node-alice',
       role: 'grantor',
     });
-    await store.write('name', 'loc-old');
-    await store.write('name', 'loc-new');
+    await store.storeLocator('name', 'loc-old');
+    await store.storeLocator('name', 'loc-new');
     t.is(store.lookup('name'), 'loc-new');
     t.is(store.getLocalClock(), 2);
   } finally {

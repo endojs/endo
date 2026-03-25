@@ -1,6 +1,7 @@
 // @ts-check
 
 import harden from '@endo/harden';
+import { encodeBase64 } from '@endo/base64';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
@@ -12,11 +13,12 @@ import {
   assertPetNamePath,
   namePathFrom,
 } from './pet-name.js';
+import { makeDeferredTasks } from './deferred-tasks.js';
 import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, ReadableBlobDeferredTaskParams } from './types.js' */
 
 /**
  * @param {object} args
@@ -24,6 +26,7 @@ import { DirectoryInterface } from './interfaces.js';
  * @param {DaemonCore['getIdForRef']} args.getIdForRef
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {DaemonCore['formulateDirectory']} args.formulateDirectory
+ * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['pinTransient']} args.pinTransient
  * @param {DaemonCore['unpinTransient']} args.unpinTransient
  */
@@ -32,6 +35,7 @@ export const makeDirectoryMaker = ({
   getIdForRef,
   getTypeForId,
   formulateDirectory,
+  formulateReadableBlob,
   pinTransient,
   unpinTransient,
 }) => {
@@ -50,6 +54,22 @@ export const makeDirectoryMaker = ({
       const id = petStore.identifyLocal(headName);
       if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
+      }
+      const value = provide(/** @type {FormulaIdentifier} */ (id), 'hub');
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        value,
+      );
+    };
+
+    /** @type {EndoDirectory['maybeLookup']} */
+    const maybeLookup = petNamePath => {
+      const namePath = namePathFrom(petNamePath);
+      const [headName, ...tailNames] = namePath;
+
+      const id = petStore.identifyLocal(headName);
+      if (id === undefined) {
+        return undefined;
       }
       const value = provide(/** @type {FormulaIdentifier} */ (id), 'hub');
       return tailNames.reduce(
@@ -257,7 +277,7 @@ export const makeDirectoryMaker = ({
       }
       // First write to the "to" hub so that the original name is preserved on the
       // "from" hub in case of failure.
-      await write(toPath, id);
+      await storeIdentifier(toPath, id);
       await remove(...fromPath);
     };
 
@@ -272,36 +292,39 @@ export const makeDirectoryMaker = ({
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
-      await write(toPath, id);
+      await storeIdentifier(toPath, id);
     };
 
-    /** @type {EndoDirectory['write']} */
-    const write = async (petNamePath, id) => {
+    /**
+     * Store a formula identifier at a pet name path (internal).
+     * @param {string | string[]} petNamePath
+     * @param {string} id
+     */
+    const storeIdentifier = async (petNamePath, id) => {
       const { prefixPath, petName } = assertPetNamePath(
         namePathFrom(petNamePath),
       );
       await null;
       if (prefixPath.length === 0) {
-        await petStore.write(petName, id);
+        await petStore.storeIdentifier(petName, id);
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(prefixPath));
-      await E(hub).write([petName], id);
+      await E(hub).storeLocator([petName], id);
     };
 
     /**
      * Accepts either a locator string or a FormulaIdentifier, converts
-     * to an internal id, and delegates to write.
+     * to an internal id, and stores at the given name path.
      * @param {string | string[]} petNamePath
      * @param {string} locatorOrId
      */
-    const writeLocator = async (petNamePath, locatorOrId) => {
+    const storeLocator = async (petNamePath, locatorOrId) => {
       if (locatorOrId.startsWith('endo://')) {
         const { id } = internalizeLocator(locatorOrId, isLocalKey);
-        await write(petNamePath, id);
+        await storeIdentifier(petNamePath, id);
       } else {
-        // Already a FormulaIdentifier (internal caller through E(hub).write)
-        await write(petNamePath, locatorOrId);
+        await storeIdentifier(petNamePath, locatorOrId);
       }
     };
 
@@ -310,11 +333,59 @@ export const makeDirectoryMaker = ({
       const { value: newDirectory, id } = await formulateDirectory();
       pinTransient(id);
       try {
-        await write(directoryPetNamePath, id);
+        await storeIdentifier(directoryPetNamePath, id);
       } finally {
         unpinTransient(id);
       }
       return newDirectory;
+    };
+
+    /** @type {EndoDirectory['readText']} */
+    const readText = async petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      assertNamePath(namePath);
+      if (namePath.length < 2) {
+        const blob = await lookup(namePath);
+        return E(blob).text();
+      }
+      const { hub, name } = await lookupTailNameHub(namePath);
+      return E(hub).readText(name);
+    };
+
+    /** @type {EndoDirectory['maybeReadText']} */
+    const maybeReadText = async petNameOrPath => {
+      const namePath = namePathFrom(petNameOrPath);
+      assertNamePath(namePath);
+      if (namePath.length < 2) {
+        const blob = maybeLookup(namePath);
+        if (blob === undefined) {
+          return undefined;
+        }
+        return E(blob).text();
+      }
+      const { hub, name } = await lookupTailNameHub(namePath);
+      return E(hub).maybeReadText(name);
+    };
+
+    /** @type {EndoDirectory['writeText']} */
+    const writeText = async (petNameOrPath, content) => {
+      const namePath = namePathFrom(petNameOrPath);
+      assertNamePath(namePath);
+      if (namePath.length < 2) {
+        const bytes = new TextEncoder().encode(content);
+        const readerRef = makeIteratorRef(
+          harden([encodeBase64(bytes)])[Symbol.iterator](),
+        );
+        /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        tasks.push(identifiers =>
+          storeIdentifier(namePath, identifiers.readableBlobId),
+        );
+        await formulateReadableBlob(readerRef, tasks);
+        return;
+      }
+      const { hub, name } = await lookupTailNameHub(namePath);
+      await E(hub).writeText(name, content);
     };
 
     /** @type {EndoDirectory} */
@@ -329,13 +400,16 @@ export const makeDirectoryMaker = ({
       listLocators,
       followNameChanges,
       lookup,
+      maybeLookup,
       reverseLookup,
-      write,
-      writeLocator,
+      storeLocator,
       move,
       remove,
       copy,
       makeDirectory,
+      readText,
+      maybeReadText,
+      writeText,
     };
     return directory;
   };
@@ -395,12 +469,16 @@ export const makeDirectoryMaker = ({
       listLocators,
       followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
       lookup,
+      maybeLookup: directory.maybeLookup,
       reverseLookup,
-      write: directory.writeLocator,
+      storeLocator: directory.storeLocator,
       remove,
       move,
       copy,
       makeDirectory,
+      readText: directory.readText,
+      maybeReadText: directory.maybeReadText,
+      writeText: directory.writeText,
     });
   };
 

@@ -693,7 +693,7 @@ test('move renames value, for a single caplet name hub', async t => {
 
   await E(host).storeValue(10, 'ten');
   const tenLocator = await E(host).locate('ten');
-  await E(nameHub).write(['ten'], tenLocator);
+  await E(nameHub).storeLocator(['ten'], tenLocator);
 
   t.true(await E(nameHub).has('ten'));
 
@@ -718,7 +718,7 @@ test('move moves value, between different caplet name hubs', async t => {
 
   await E(host).storeValue(10, 'ten');
   const tenLocator = await E(host).locate('ten');
-  await E(nameHub1).write(['ten'], tenLocator);
+  await E(nameHub1).storeLocator(['ten'], tenLocator);
 
   t.true(await E(nameHub1).has('ten'));
 
@@ -1137,7 +1137,7 @@ test('rehydrated requests can be resolved after restart', async t => {
   const { value: guestMessage } = await E(guestMessages).next();
   const { promiseId: promiseIdP } = E.get(guestMessage);
   const promiseId = await promiseIdP;
-  await E(host).write(['pending'], promiseId);
+  await E(host).storeLocator(['pending'], promiseId);
 
   await restart(config);
 
@@ -1231,7 +1231,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
   await changesIterator.next();
 
   const tenLocator = await E(host).locate('ten');
-  await E(host).write(['ten'], tenLocator);
+  await E(host).storeLocator(['ten'], tenLocator);
 
   // Create a new value and observe its publication, proving that nothing was
   // published as as result of the redundant write.
@@ -1268,8 +1268,8 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
   const { host } = await prepareHost(t);
 
   const selfLocator = await E(host).locate('@self');
-  await E(host).write(['self1'], selfLocator);
-  await E(host).write(['self2'], selfLocator);
+  await E(host).storeLocator(['self1'], selfLocator);
+  await E(host).storeLocator(['self2'], selfLocator);
 
   const selfLocatorSub = makeRefIterator(
     await E(host).followLocatorNameChanges(selfLocator),
@@ -1289,7 +1289,7 @@ test('followLocatorNameChanges publishes added names', async t => {
     tenLocator,
   );
 
-  await E(host).write(['zehn'], tenLocator);
+  await E(host).storeLocator(['zehn'], tenLocator);
 
   const { value } = await changesIterator.next();
   t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
@@ -1301,7 +1301,7 @@ test('followLocatorNameChanges publishes removed names', async t => {
   await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
-  await E(host).write(['zehn'], tenLocator);
+  await E(host).storeLocator(['zehn'], tenLocator);
   const changesIterator = await prepareFollowLocatorNameChangesIterator(
     host,
     tenLocator,
@@ -1374,9 +1374,9 @@ test('followLocatorNameChanges does not notify of redundant pet store writes', a
   );
 
   // Rewrite the value's existing name.
-  await E(host).write(['ten'], tenLocator);
+  await E(host).storeLocator(['ten'], tenLocator);
   // Write an actually different name for the value.
-  await E(host).write(['zehn'], tenLocator);
+  await E(host).storeLocator(['zehn'], tenLocator);
 
   // Confirm that the redundant write is not observed.
   const { value } = await changesIterator.next();
@@ -1752,7 +1752,7 @@ test('@pins values reincarnate after cancellation', async t => {
 
   // Get counter ID and pin to @pins while keeping the host pet name for cancel
   const counterId = await E(host).identify('counter');
-  await E(host).write(['counter-pin'], counterId);
+  await E(host).storeLocator(['counter-pin'], counterId);
   await E(host).move(['counter-pin'], ['@pins', 'my-counter']);
 
   // Cancel the counter — forces deincarnation even though retained by @pins
@@ -2405,7 +2405,7 @@ test('read unknown node id', async t => {
   const numberId = /** @type {FormulaNumber} */ (number);
   const id = formatId({ node: nodeId, number: numberId });
   const locator = formatLocator(id, 'eval');
-  await E(host).write(['abc'], locator);
+  await E(host).storeLocator(['abc'], locator);
 
   // observe reification failure
   await t.throwsAsync(() => E(host).lookup(['abc']), {
@@ -2425,7 +2425,7 @@ test('read remote value', async t => {
   const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueLocator);
+  await E(hostA).storeLocator(['greetings'], hostBValueLocator);
 
   const hostAValue = await E(hostA).lookup(['greetings']);
   t.is(hostAValue, 'hello, world!');
@@ -2447,7 +2447,7 @@ test('round-trip remotable identity', async t => {
     ['echoer'],
   );
   const echoerLocator = await E(hostB).locate('echoer');
-  await E(hostA).write(['echoer'], echoerLocator);
+  await E(hostA).storeLocator(['echoer'], echoerLocator);
   const survivedEcho = await E(hostA).evaluate(
     '@main',
     `
@@ -2473,7 +2473,7 @@ test('hello from afar', async t => {
   // Induce B to connect to A
   await E(hostA).evaluate('@main', '42', [], [], ['ft']);
   const ftLocator = await E(hostA).locate('ft');
-  await E(hostB).write(['ft'], ftLocator);
+  await E(hostB).storeLocator(['ft'], ftLocator);
   const ft = await E(hostB).lookup(['ft']);
   t.is(ft, 42);
 
@@ -2485,7 +2485,7 @@ test('hello from afar', async t => {
     ['echoer'],
   );
   const echoerLocator = await E(hostB).locate('echoer');
-  await E(hostA).write(['echoer'], echoerLocator);
+  await E(hostA).storeLocator(['echoer'], echoerLocator);
   const survivedEcho = await E(hostA).evaluate(
     '@main',
     `
@@ -2538,7 +2538,7 @@ test('host and guest present different locators for the same value', async t => 
 
   // Give the guest access to the same value.
   const hostLocator = await E(host).locate('answer');
-  await E(guest).write(['answer'], hostLocator);
+  await E(guest).storeLocator(['answer'], hostLocator);
 
   // Both agents locate the same value.
   const guestLocator = await E(guest).locate('answer');
@@ -2594,7 +2594,7 @@ test('locate produces locators with connection hints from agent NETS', async t =
 
   // Create a guest — its NETS starts empty.
   const guest = await E(host).provideGuest('guest');
-  await E(guest).write(['answer'], hostLocator);
+  await E(guest).storeLocator(['answer'], hostLocator);
 
   // Guest has empty NETS, so its locator should also have no at= params.
   const guestLocator = await E(guest).locate('answer');
@@ -2622,7 +2622,7 @@ test('locate remote value', async t => {
   const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueLocator);
+  await E(hostA).storeLocator(['greetings'], hostBValueLocator);
 
   const greetingsLocator = await E(hostA).locate('greetings');
   const parsedGreetingsLocator = parseLocator(greetingsLocator);
@@ -2700,7 +2700,7 @@ test('reverse locate remote value', async t => {
   const hostBValueLocator = await E(hostB).locate('salutations');
 
   // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueLocator);
+  await E(hostA).storeLocator(['greetings'], hostBValueLocator);
 
   const greetingsLocator = await E(hostA).locate('greetings');
   const [reverseLocatedName] = await E(hostA).reverseLocate(greetingsLocator);
@@ -2911,7 +2911,7 @@ test('send with pet name path for recipient and values', async t => {
   await E(guest).makeDirectory(['my-values']);
   // Copy the answer to the guest's directory
   const answerId = await E(host).identify(...['values', 'the-answer']);
-  await E(guest).write(['my-values', 'answer'], answerId);
+  await E(guest).storeLocator(['my-values', 'answer'], answerId);
 
   // Guest sends to @host using a path for the value
   await E(guest).send(
@@ -3955,7 +3955,7 @@ test('mount external directory - write and remove', async t => {
   const mount = await E(host).lookup(['test-mount-write']);
 
   // Write a file.
-  await E(mount).write(['new-file.txt'], 'new content');
+  await E(mount).writeText(['new-file.txt'], 'new content');
   t.true(await E(mount).has('new-file.txt'));
 
   const file = await E(mount).lookup('new-file.txt');
@@ -3988,7 +3988,7 @@ test('mount external directory - write creates parent directories', async t => {
   await E(host).provideMount(mountPath, 'test-mount-mkparents');
   const mount = await E(host).lookup(['test-mount-mkparents']);
 
-  await E(mount).write(['a', 'b', 'c.txt'], 'deep content');
+  await E(mount).writeText(['a', 'b', 'c.txt'], 'deep content');
   t.true(await E(mount).has('a'));
   t.true(await E(mount).has('a', 'b'));
   t.true(await E(mount).has('a', 'b', 'c.txt'));
@@ -4077,7 +4077,7 @@ test('mount read-only rejects writes', async t => {
   t.deepEqual(entries, ['existing.txt']);
 
   // Writing should throw.
-  await t.throwsAsync(E(mount).write(['new.txt'], 'fail'), {
+  await t.throwsAsync(E(mount).writeText(['new.txt'], 'fail'), {
     message: /read-only/,
   });
   await t.throwsAsync(E(mount).remove(['existing.txt']), {
@@ -4110,7 +4110,7 @@ test('mount readOnly() attenuation', async t => {
   t.deepEqual(entries, ['file.txt']);
 
   // Writing should fail through attenuated view.
-  await t.throwsAsync(E(roMount).write(['new.txt'], 'fail'), {
+  await t.throwsAsync(E(roMount).writeText(['new.txt'], 'fail'), {
     message: /read-only/,
   });
 });
@@ -4146,7 +4146,7 @@ test('scratch mount - create and use', async t => {
   t.deepEqual(entries, []);
 
   // Write a file.
-  await E(scratch).write(['notes.txt'], 'scratch content');
+  await E(scratch).writeText(['notes.txt'], 'scratch content');
   t.true(await E(scratch).has('notes.txt'));
 
   const file = await E(scratch).lookup('notes.txt');
@@ -4166,7 +4166,7 @@ test('scratch mount persists across restart', async t => {
     const { host } = await makeHost(config, cancelled);
     await E(host).provideScratchMount('persist-scratch');
     const scratch = await E(host).lookup(['persist-scratch']);
-    await E(scratch).write(['data.txt'], 'survives restart');
+    await E(scratch).writeText(['data.txt'], 'survives restart');
   }
 
   await restart(config);

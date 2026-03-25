@@ -125,7 +125,7 @@ export const createCommandExecutor = ({
               );
             }
             // Write the formula ID into the user's pet store
-            await E(powers).write(targetNamePath, formulaId);
+            await E(powers).storeLocator(targetNamePath, formulaId);
             return { success: true, message: `Adopted as "${targetNameStr}"` };
           }
 
