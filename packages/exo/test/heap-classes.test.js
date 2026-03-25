@@ -20,7 +20,7 @@ test('what happens with extra arguments', t => {
       t.is(x, undefined);
     },
   });
-  // @ts-expect-error guard declares 0 args, passing 1 is a type error
+  // TS sees foo(x: any) from the impl, so this is valid to TS. Runtime guard rejects it.
   t.throws(() => exo.foo('an extra arg'), {
     message:
       '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
@@ -323,9 +323,11 @@ test('raw guards', t => {
   t.is(Object.isFrozen({}), Object.isFrozen(greeter2.passthrough({})));
 
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})));
+  // @ts-expect-error impl has 4 required params; guard makes last 2 optional at runtime
   t.true(Object.isFrozen(greeter2.tortuous({}, {}, {})));
 
   t.throws(
+    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous(makeBehavior(), {}, {}),
     {
       message:
@@ -334,6 +336,7 @@ test('raw guards', t => {
     'passable behavior not allowed',
   );
   t.notThrows(
+    // @ts-expect-error same: 3 args but impl has 4 required
     () => greeter2.tortuous({}, makeBehavior(), {}),
     'raw behavior allowed',
   );
@@ -388,7 +391,7 @@ test.skip('types', () => {
       return val;
     },
   });
-  // Guard makes the arg optional, so calling with 0 args is valid
+  // @ts-expect-error impl has required param from JSDoc; guard makes it optional at runtime
   guarded.incr();
   // @ts-expect-error not defined on the guarded type
   guarded.notInBehavior;
@@ -428,7 +431,7 @@ test.skip('types', () => {
     },
   );
   sloppy.incr(1);
-  // @ts-expect-error sloppy:true → InterfaceGuard<any> → falls back to impl types where val is required
+  // @ts-expect-error impl has required param from JSDoc; guard makes it optional at runtime
   sloppy.incr();
   // allowed because sloppy:true
   sloppy.notInInterface() === 0;

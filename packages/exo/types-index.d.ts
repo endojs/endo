@@ -7,23 +7,7 @@ import type {
   ClassContext,
   KitContext,
   FacetName,
-  StripIndexCore,
 } from './src/types.js';
-
-/**
- * Choose between guard types and implementation types for the return.
- * When the guard provides concrete method types (e.g. `M.interface('Foo',
- * { bar: M.call(...) })`), use the guard types — the guard is the API
- * contract.  When the guard is sloppy / passable / unresolved (only
- * index-signature keys, no concrete methods), fall back to the
- * implementation types so that callers still see the concrete methods.
- */
-type ExoGuardedReturn<
-  G extends InterfaceGuard,
-  M extends Methods,
-> = keyof StripIndexCore<TypeFromInterfaceGuard<G>> extends never
-  ? Guarded<M> // sloppy/passable guard — use impl types
-  : Guarded<TypeFromInterfaceGuard<G>>; // specific guard — use guard types
 
 /**
  * Create a singleton exo object whose methods are type-checked against
@@ -59,15 +43,24 @@ type ExoGuardedReturn<
 // Also: if `defaultGuards: 'passable'` is detected, extra methods must be
 // allowed — so tightening would require the type to be cognizant of the
 // defaultGuards option.
+//
+// Design note: The return type uses the implementation's types (Guarded<M>),
+// not the guard's (Guarded<TypeFromInterfaceGuard<G>>).  This preserves
+// real parameter names in IDE tooltips.  A consequence is that .optional()
+// in a guard does not make a parameter optional in the static type if the
+// implementation declares it as required.  This is intentional for change
+// management: a guard can use .optional() to avoid breaking old callers at
+// runtime, while the implementation's required parameter documents the
+// expectation for new code.
 export declare function makeExo<
   G extends InterfaceGuard,
   M extends TypeFromInterfaceGuard<G> & Methods,
 >(
   tag: string,
   interfaceGuard: G,
-  methods: M & ThisType<{ self: ExoGuardedReturn<G, M>; state: {} }>,
+  methods: M & ThisType<{ self: Guarded<M>; state: {} }>,
   options?: FarClassOptions<ClassContext<{}, M>>,
-): ExoGuardedReturn<G, M>;
+): Guarded<M>;
 
 // Note: `makeExo(tag, undefined, methods)` is runtime-equivalent to
 // `makeExo(tag, M.interface(x, {}, { defaultGuards: 'passable' }), methods)`.
@@ -93,11 +86,11 @@ export declare function defineExoClass<
   init: I,
   methods: M &
     ThisType<{
-      self: ExoGuardedReturn<G, M>;
+      self: Guarded<M>;
       state: ReturnType<I>;
     }>,
   options?: FarClassOptions<ClassContext<ReturnType<I>, M>>,
-): (...args: Parameters<I>) => ExoGuardedReturn<G, M>;
+): (...args: Parameters<I>) => Guarded<M>;
 
 // Passing `undefined` is runtime-equivalent to passing
 // `M.interface(x, {}, { defaultGuards: 'passable' })` — no guard enforcement.
@@ -119,23 +112,6 @@ export declare function defineExoClass<
  * When the guard kit carries typed InterfaceGuards, each facet's methods
  * are constrained to match the corresponding guard's inferred signatures.
  */
-// Helper: derive the methods record for each facet from the guard kit.
-type MethodsFromGuardKit<GK extends Record<FacetName, InterfaceGuard>> = {
-  [K in keyof GK]: TypeFromInterfaceGuard<GK[K]>;
-};
-
-// Per-facet conditional: use guard types when concrete, impl types when sloppy.
-type ExoKitReturn<
-  GK extends Record<FacetName, InterfaceGuard>,
-  F extends Record<FacetName, Methods>,
-> = GuardedKit<{
-  [K in keyof GK & keyof F]: keyof StripIndexCore<
-    TypeFromInterfaceGuard<GK[K]>
-  > extends never
-    ? F[K] // sloppy guard for this facet — use impl types
-    : TypeFromInterfaceGuard<GK[K]>; // specific guard — use guard types
-}>;
-
 export declare function defineExoClassKit<
   GK extends Record<FacetName, InterfaceGuard>,
   I extends (...args: readonly any[]) => any,
@@ -149,15 +125,15 @@ export declare function defineExoClassKit<
   methodsKit: {
     [K in keyof F]: F[K] &
       ThisType<{
-        facets: ExoKitReturn<GK, F>;
+        facets: GuardedKit<F>;
         state: ReturnType<I>;
       }>;
   },
   options?: FarClassOptions<
-    KitContext<ReturnType<I>, ExoKitReturn<GK, F>>,
-    ExoKitReturn<GK, F>
+    KitContext<ReturnType<I>, GuardedKit<F>>,
+    GuardedKit<F>
   >,
-): (...args: Parameters<I>) => ExoKitReturn<GK, F>;
+): (...args: Parameters<I>) => GuardedKit<F>;
 
 // Passing `undefined` is runtime-equivalent to passing a guard kit where every
 // facet uses `{ defaultGuards: 'passable' }` — no guard enforcement.

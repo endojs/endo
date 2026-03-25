@@ -275,42 +275,6 @@ import type { Guarded, GuardedKit } from '../src/types.js';
   expectType<() => Promise<string>>(exo.fetch);
 }
 
-// Complex guard similar to ChainStorageNode
-{
-  const StorageNodeI = M.interface('StorageNode', {
-    setValue: M.callWhen(M.string()).returns(),
-    getPath: M.call().returns(M.string()),
-    getStoreKey: M.callWhen().returns(M.record()),
-    makeChildNode: M.call(M.string())
-      .optional(M.splitRecord({}, { sequence: M.boolean() }, {}))
-      .returns(M.remotable('StorageNode')),
-  });
-  const makeNode = defineExoClass(
-    'StorageNode',
-    StorageNodeI,
-    (path: string) => ({ path, data: '' }),
-    {
-      async setValue(val) {
-        expectType<string>(val);
-        this.state.data = val;
-      },
-      getPath() {
-        return this.state.path;
-      },
-      async getStoreKey() {
-        return { storeName: 'test', storeSubkey: this.state.path } as any;
-      },
-      makeChildNode(name, _opts?) {
-        expectType<string>(name);
-        return undefined as any;
-      },
-    },
-  );
-  const node = makeNode('/root');
-  expectType<(val: string) => Promise<void>>(node.setValue);
-  expectType<() => string>(node.getPath);
-}
-
 // ===== defineExoClassKit (no guard) =====
 
 // Kit has distinct facets; each is Passable; this.facets (not this.self)
