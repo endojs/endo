@@ -31,9 +31,11 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsdoc": "^50.6.1",
     "lerna": "^8.1.8",
+    "nano-spawn": "^2.0.0",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
     "source-map": "^0.7.4",
+    "ts-blank-space": "^0.6.1",
     "tsd": "^0.31.2",
     "type-coverage": "^2.29.1",
     "typedoc": "^0.28.17",
@@ -61,7 +63,10 @@
     "test:xs": "yarn workspaces foreach --all run test:xs",
     "test262": "yarn workspaces foreach --all run test262",
     "build": "yarn workspaces foreach --all run build",
-    "build-ts": "tsc --build tsconfig.build.json"
+    "build-ts": "tsc --build tsconfig.build.json",
+    "build-ts-to-js": "scripts/packing/build-ts-to-js.mjs",
+    "prepack-package": "scripts/packing/prepack-package.mjs",
+    "postpack-package": "scripts/packing/postpack-package.mjs"
   },
   "dependencies": {
     "conventional-changelog-conventionalcommits": "^4.6.0"
