@@ -7566,6 +7566,8 @@ button.btn-spinner::after {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
+  padding: 4px;
+  margin: -4px;
 }
 
 .react-pill {
@@ -7574,10 +7576,12 @@ button.btn-spinner::after {
   padding: 1px 6px;
   border: 1px solid var(--border-primary, #444);
   border-radius: 12px;
-  background: var(--bg-tertiary, rgba(128, 128, 128, 0.1));
+  background: var(--bg-primary, #1e1e1e);
   font-size: 0.8em;
   cursor: pointer;
   line-height: 1.4;
+  position: relative;
+  z-index: 2;
 }
 
 .react-pill:hover {
@@ -7589,26 +7593,38 @@ button.btn-spinner::after {
   background: rgba(74, 158, 255, 0.15);
 }
 
-/* Sub-react containers: stacked card effect, fanning out on hover */
+/* Sub-react containers: stacked behind parent, fanning out on hover */
 .react-sub {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 6px;
+  left: 6px;
   display: flex;
-  gap: 3px;
-  opacity: 0.7;
+  gap: 0px;
+  opacity: 0.5;
   pointer-events: none;
-  z-index: -1;
-  transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, z-index 0s 0.2s;
+  z-index: 1;
+  transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, gap 0.2s ease;
+}
+
+.react-sub > * {
+  min-width: 0;
+  max-width: 0;
+  overflow: visible;
+  transition: max-width 0.2s ease;
 }
 
 .react-pill-wrapper:hover > .react-sub {
-  top: 100%;
-  left: 8px;
+  top: calc(100% + 2px);
+  left: 4px;
+  gap: 3px;
   opacity: 1;
   pointer-events: auto;
   z-index: 1;
-  transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, z-index 0s 0s;
+  transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, gap 0.2s ease;
+}
+
+.react-pill-wrapper:hover > .react-sub > * {
+  max-width: 50px;
 }
 
 /* Quick react picker popup */
