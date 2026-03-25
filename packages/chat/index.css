@@ -7625,6 +7625,26 @@ button.btn-spinner::after {
 
 .react-pill-wrapper:hover > .react-sub > * {
   max-width: 50px;
+  animation: react-spring-pop 1.5s ease-out;
+}
+
+/* ~6Hz wiggle (9 cycles over 1.5s) with exponential decay, 18deg start */
+@keyframes react-spring-pop {
+  0%     { max-width: 0;    transform: rotate(0deg); }
+  3%     { max-width: 50px; transform: rotate(0deg); }
+  5.6%   { max-width: 50px; transform: rotate(18deg); }
+  11.1%  { max-width: 50px; transform: rotate(-14deg); }
+  16.7%  { max-width: 50px; transform: rotate(10.5deg); }
+  22.2%  { max-width: 50px; transform: rotate(-7.5deg); }
+  27.8%  { max-width: 50px; transform: rotate(5deg); }
+  33.3%  { max-width: 50px; transform: rotate(-3.2deg); }
+  38.9%  { max-width: 50px; transform: rotate(1.9deg); }
+  44.4%  { max-width: 50px; transform: rotate(-1deg); }
+  50%    { max-width: 50px; transform: rotate(0.5deg); }
+  55.6%  { max-width: 50px; transform: rotate(-0.2deg); }
+  61.1%  { max-width: 50px; transform: rotate(0.08deg); }
+  66.7%  { max-width: 50px; transform: rotate(0deg); }
+  100%   { max-width: 50px; transform: rotate(0deg); }
 }
 
 /* Quick react picker popup */
