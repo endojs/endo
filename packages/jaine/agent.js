@@ -1,94 +1,118 @@
-// @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
+// @ts-nocheck — E() generics don't work well with JSDoc types for remote objects
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createProvider } from '@endo/lal/providers/index.js';
 
-import {
-  makeAdoptTool,
-  makeExecTool,
-  makeReadChannelTool,
-  makeLookupTool,
-  makeListPetnamesTool,
-  makeReplyTool,
-  makeSendTool,
-  makeDismissTool,
-} from '@endo/fae/src/tool-makers.js';
-import { discoverTools, executeTool } from '@endo/fae/src/tools.js';
-import { extractToolCallsFromContent } from '@endo/fae/src/extract-tool-calls.js';
-
-const m = makeMarshal(undefined, undefined, {
-  errorTagging: 'off',
-  serializeBodyFormat: 'smallcaps',
-});
-const decodeSmallcaps = jsonString =>
-  m.unserialize({ body: jsonString, slots: [] });
+import { makeRouter } from './router.js';
+import { makeComposer } from './composer.js';
+import { makeExecutor } from './executor.js';
 
 const JaineFactoryInterface = M.interface('JaineFactory', {
   createAgent: M.callWhen(M.string()).optional(M.record()).returns(M.string()),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 
-// ---------------------------------------------------------------------------
-// System prompts
-// ---------------------------------------------------------------------------
-
-/** Minimal prompt for the common mention-reply case. */
-const mentionSystemPrompt = `\
-You are Jaine, a channel agent. Someone mentioned you in a thread.
-Call channelReply with your response. Keep it concise and conversational.
-If you need more context, use readChannel first.`;
-
-/** Full prompt for general inbox messages. */
-const defaultSystemPrompt = `\
+/** System prompt for general inbox messages handled by the executor. */
+const inboxSystemPrompt = `\
 You are Jaine, a stateless channel agent. Each message is independent.
-When a message includes exec() code, run it. Replace placeholders.
+Use the available tools to accomplish whatever is requested.
 reply() is for private inbox responses. exec() is for code execution.`;
 
 // ---------------------------------------------------------------------------
-// Mention detection — parse the structured metadata from notifications
+// Thread context builder
 // ---------------------------------------------------------------------------
 
 /**
- * Parse channel-reply-info from a mention notification.
- * Returns null if the message is not a mention notification.
+ * Build a formatted transcript of the thread branch leading to a message.
+ * Walks the replyTo chain backward, then formats chronologically.
  *
- * @param {string} text
- * @returns {{ edge: string, join: string, replyTo: string } | null}
+ * @param {object} member - channel member handle
+ * @param {string} replyToNum - message number to trace back from
+ * @returns {Promise<string>}
  */
-const parseMentionInfo = text => {
-  const match = text.match(
-    /\[channel-reply-info:\s*edge=(\S+)\s+join=(\S+)\s+replyTo=(\S+)\]/,
-  );
-  if (!match) return null;
-  return harden({ edge: match[1], join: match[2], replyTo: match[3] });
+const buildThreadContext = async (member, replyToNum) => {
+  const allMessages = /** @type {any[]} */ (await E(member).listMessages());
+
+  /** @type {Map<string, any>} */
+  const msgMap = new Map();
+  for (const msg of allMessages) {
+    msgMap.set(String(msg.number), msg);
+  }
+
+  // Build member name map
+  /** @type {Map<string, string>} */
+  const memberNames = new Map();
+  try {
+    const members = /** @type {any[]} */ (await E(member).getMembers());
+    for (const m of members) {
+      memberNames.set(m.memberId, m.proposedName || m.invitedAs);
+    }
+  } catch {
+    // not available
+  }
+
+  // Walk the reply chain backward from the target message
+  /** @type {any[]} */
+  const threadMessages = [];
+  let current = replyToNum;
+  const visited = new Set();
+  while (current && msgMap.has(current) && !visited.has(current)) {
+    visited.add(current);
+    const msg = msgMap.get(current);
+    threadMessages.unshift(msg);
+    current = msg.replyTo;
+  }
+
+  // Also include direct children of the target message (siblings of agent reply)
+  for (const msg of allMessages) {
+    if (
+      String(msg.replyTo) === replyToNum &&
+      !visited.has(String(msg.number))
+    ) {
+      threadMessages.push(msg);
+      visited.add(String(msg.number));
+    }
+  }
+
+  // Format as text
+  const lines = threadMessages.map(msg => {
+    const author = memberNames.get(msg.memberId) || msg.memberId;
+    const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
+    const replyTag = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+    const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
+    return `[#${msg.number}] ${author}${replyTag}: ${preview}`;
+  });
+
+  return lines.join('\n');
 };
-harden(parseMentionInfo);
+harden(buildThreadContext);
 
 // ---------------------------------------------------------------------------
-// Worker loop — stateless per-message
+// Worker loop — three-layer orchestrator
 // ---------------------------------------------------------------------------
 
 /**
- * Spawn the agent loop. Each incoming message gets a fresh LLM call
- * with just the system prompt + that message + tools.
+ * Spawn the agent loop. Uses three layers:
+ * - Router: decides whether to engage
+ * - Composer: generates response text (for channel mentions)
+ * - Executor: performs capability operations
  *
- * @param {any} powers
+ * @param {any} powers - agent guest powers
  * @param {Promise<object> | object | undefined} context
  * @param {{ host: string, model: string, authToken: string }} providerConfig
- * @param {string} [systemPrompt]
+ * @param {string} [_systemPrompt] - unused, kept for driver.js compatibility
  * @returns {Promise<void>}
  */
 export const spawnWorkerLoop = async (
   powers,
   context,
   providerConfig,
-  systemPrompt,
+  _systemPrompt,
 ) => {
   const getCancelled = async () => {
     if (!context) return null;
@@ -109,338 +133,13 @@ export const spawnWorkerLoop = async (
     LAL_AUTH_TOKEN: providerConfig.authToken,
   });
 
-  const chat = (messages, toolSchemas) => provider.chat(messages, toolSchemas);
-
-  // Built-in tools — full set for general messages
-  /** @type {Map<string, object>} */
-  const allTools = new Map();
-  allTools.set('list', makeListPetnamesTool(powers));
-  allTools.set('lookup', makeLookupTool(powers));
-  allTools.set('adopt', makeAdoptTool(powers));
-  allTools.set('exec', makeExecTool(powers));
-  allTools.set('readChannel', makeReadChannelTool(powers));
-  allTools.set('send', makeSendTool(powers));
-  allTools.set('reply', makeReplyTool(powers));
-  allTools.set('dismiss', makeDismissTool(powers));
-
-  // Timer tool — create/manage daemon-level timers
-  const timerTool = harden({
-    schema: () =>
-      harden({
-        type: 'function',
-        function: {
-          name: 'createTimer',
-          description:
-            'Create a recurring timer that sends tick messages to your inbox at a specified interval. Use for reminders and scheduled check-ins.',
-          parameters: {
-            type: 'object',
-            properties: {
-              petName: {
-                type: 'string',
-                description:
-                  'Pet name to store the timer under (e.g. "my-reminder")',
-              },
-              intervalMinutes: {
-                type: 'number',
-                description: 'Interval in minutes between ticks',
-              },
-              label: {
-                type: 'string',
-                description:
-                  'Human-readable label for the timer (e.g. "hourly-checkin")',
-              },
-            },
-            required: ['petName', 'intervalMinutes'],
-          },
-        },
-      }),
-    execute: async args => {
-      const petName = String(args.petName || '');
-      const intervalMinutes = Number(args.intervalMinutes || 10);
-      const label = String(args.label || petName);
-      if (!petName) return 'Error: petName is required';
-      const intervalMs = intervalMinutes * 60 * 1000;
-      try {
-        await E(powers).makeTimer(petName, intervalMs, label);
-        return `Timer "${label}" created as "${petName}", firing every ${intervalMinutes} minutes.`;
-      } catch (err) {
-        return `Failed to create timer: ${err.message || err}`;
-      }
-    },
-    help: () => 'Create a daemon-level recurring timer for scheduled messages.',
-  });
-  allTools.set('createTimer', timerTool);
-
-  /**
-   * Create a pre-bound channelReply tool for a specific mention.
-   * The channel reference must already be adopted under chRefName.
-   *
-   * @param {string} chRefName - pet name of the pre-adopted channel ref
-   * @param {string} joinName - invitedAs name for join()
-   * @param {string} replyTo - channel message number to reply to
-   * @returns {{ schema: () => object, execute: (args: Record<string, unknown>) => Promise<string> }}
-   */
-  const makeChannelReplyTool = (chRefName, joinName, replyTo) => {
-    const schema = harden({
-      type: 'function',
-      function: {
-        name: 'channelReply',
-        description: 'Post your reply to the channel thread.',
-        parameters: {
-          type: 'object',
-          properties: {
-            text: {
-              type: 'string',
-              description: 'Your reply text.',
-            },
-          },
-          required: ['text'],
-        },
-      },
-    });
-
-    const execute = async args => {
-      const text = String(args.text || '');
-      if (!text) return 'Error: empty reply';
-
-      const ch = await E(powers).lookup(chRefName);
-      const me = await E(ch).join(joinName);
-      await E(me).post([text], [], [], replyTo);
-      return `Posted to channel (reply to #${replyTo})`;
-    };
-
-    return harden({ schema: () => schema, execute });
-  };
-
-  /**
-   * Create a pre-bound readChannel tool for a specific mention.
-   * Uses the pre-adopted channel reference so the LLM cannot pass
-   * a wrong channel name.
-   *
-   * @param {string} chRefName - pet name of the pre-adopted channel ref
-   * @param {string} joinName - invitedAs name for join()
-   * @returns {{ schema: () => object, execute: (args: Record<string, unknown>) => Promise<string> }}
-   */
-  const makeMentionReadChannelTool = (chRefName, joinName) => {
-    const schema = harden({
-      type: 'function',
-      function: {
-        name: 'readChannel',
-        description:
-          'Read recent messages from the channel for more context.',
-        parameters: {
-          type: 'object',
-          properties: {
-            count: {
-              type: 'integer',
-              description:
-                'Number of recent messages to return (default: 20).',
-            },
-          },
-        },
-      },
-    });
-
-    const execute = async args => {
-      const count = Number(args.count) || 20;
-      const ch = await E(powers).lookup(chRefName);
-      const me = await E(ch).join(joinName);
-      const rawMessages = await E(me).listMessages();
-      const messages = /** @type {any[]} */ (rawMessages);
-
-      /** @type {Map<string, string>} */
-      const memberNames = new Map();
-      try {
-        const mid = await E(me).getMemberId();
-        const mname = await E(me).getProposedName();
-        memberNames.set(mid, mname);
-      } catch {
-        // not available
-      }
-      try {
-        const members = /** @type {any[]} */ (await E(me).getMembers());
-        for (const m of members) {
-          memberNames.set(m.memberId, m.proposedName || m.invitedAs);
-        }
-      } catch {
-        // not available
-      }
-
-      const shown = messages.slice(-count);
-      const lines = [];
-      for (const msg of shown) {
-        const author = memberNames.get(msg.memberId) || msg.memberId;
-        const text = Array.isArray(msg.strings)
-          ? msg.strings.join('')
-          : '';
-        const replyTo = msg.replyTo
-          ? ` (reply to #${msg.replyTo})`
-          : '';
-        const preview =
-          text.length > 300 ? `${text.slice(0, 300)}...` : text;
-        lines.push(`[#${msg.number}] ${author}${replyTo}: ${preview}`);
-      }
-      return lines.join('\n');
-    };
-
-    return harden({ schema: () => schema, execute });
-  };
-
-  /**
-   * Process tool calls from LLM response.
-   *
-   * @param {object[]} toolCalls
-   * @param {Map<string, object>} toolMap
-   * @returns {Promise<object[]>}
-   */
-  const processToolCalls = async (toolCalls, toolMap) => {
-    /** @type {object[]} */
-    const results = [];
-    for (const toolCall of toolCalls) {
-      const { name, arguments: argsRaw } = /** @type {any} */ (toolCall)
-        .function;
-
-      /** @type {Record<string, unknown>} */
-      let args;
-      try {
-        const jsonString =
-          typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
-        args = decodeSmallcaps(jsonString);
-      } catch {
-        try {
-          const jsonString =
-            typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
-          args = JSON.parse(jsonString);
-        } catch {
-          args = {};
-        }
-      }
-
-      console.log(`[jaine][tool] ${name}(${passableAsJustin(harden(args), false)})`);
-
-      let result;
-      try {
-        result = await executeTool(name, args, toolMap);
-        console.log(`[jaine][tool] ${name} -> ${passableAsJustin(result, false)}`);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        result = harden({ error: errorMessage });
-        console.error(`[jaine][tool] ${name} error: ${errorMessage}`);
-      }
-
-      results.push({
-        role: 'tool',
-        content: passableAsJustin(result, false),
-        tool_call_id: /** @type {any} */ (toolCall).id,
-      });
-    }
-    return results;
-  };
-
-  /**
-   * Handle a single message with a fresh LLM context.
-   *
-   * @param {string} textContent - formatted message text
-   * @param {bigint} messageNumber - inbox message number
-   * @param {object[]} toolSchemas
-   * @param {Map<string, object>} toolMap
-   * @param {string} prompt - system prompt to use
-   * @returns {Promise<void>}
-   */
-  const handleMessage = async (
-    textContent,
-    messageNumber,
-    toolSchemas,
-    toolMap,
-    prompt,
-  ) => {
-    /** @type {object[]} */
-    const conversation = [
-      { role: 'system', content: prompt },
-      { role: 'user', content: textContent },
-    ];
-
-    let toolWasCalled = false;
-    /** @type {string[]} */
-    const thinkingParts = [];
-    const maxIterations = 5;
-    for (let i = 0; i < maxIterations; i += 1) {
-      console.log(
-        `[jaine] LLM call #${i + 1}, ${conversation.length} messages`,
-      );
-      const response = await chat(conversation, toolSchemas);
-      const { message: responseMessage } = response;
-      if (!responseMessage) break;
-
-      const rm = /** @type {any} */ (responseMessage);
-
-      // Extract tool calls from content if not in structured field
-      if ((!rm.tool_calls || rm.tool_calls.length === 0) && rm.content) {
-        const extracted = extractToolCallsFromContent(rm.content);
-        if (extracted.toolCalls) {
-          rm.tool_calls = extracted.toolCalls;
-          rm.content = extracted.cleanedContent;
-        }
-      }
-
-      // Collect text content for DM visibility
-      if (rm.content) {
-        thinkingParts.push(rm.content);
-      }
-
-      const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
-      if (toolCalls.length > 0) {
-        toolWasCalled = true;
-        const toolResults = await processToolCalls(toolCalls, toolMap);
-        conversation.push(responseMessage);
-        for (const tr of toolResults) {
-          conversation.push(tr);
-        }
-        // If a terminal tool (channelReply) was called, stop iterating
-        // so the LLM doesn't call it again producing a duplicate reply.
-        const calledNames = toolCalls.map(
-          tc => /** @type {any} */ (tc).function?.name,
-        );
-        if (calledNames.includes('channelReply')) break;
-        // Continue loop — LLM may want to call more tools
-      } else {
-        // Final text response — done
-        if (rm.content) {
-          console.log(`[jaine] final: ${rm.content}`);
-        }
-        break;
-      }
-    }
-
-    // Send thinking/reasoning to the DM so the user has visibility.
-    // Strip <think>...</think> tags and truncate to keep DMs readable.
-    const maxThinkingLen = 500;
-    let thinkingText = thinkingParts
-      .join('\n\n')
-      .replace(/<\/?think>/g, '')
-      .trim();
-    if (thinkingText.length > maxThinkingLen) {
-      thinkingText = `${thinkingText.slice(0, maxThinkingLen)}…`;
-    }
-    if (thinkingText) {
-      try {
-        await E(powers).reply(messageNumber, [thinkingText], [], []);
-        console.log(`[jaine] Replied to #${messageNumber} with thinking`);
-      } catch (replyErr) {
-        console.error(
-          `[jaine] Failed to reply with thinking:`,
-          replyErr instanceof Error ? replyErr.message : String(replyErr),
-        );
-      }
-    } else if (!toolWasCalled) {
-      console.log('[jaine] No tools called and no text, skipping reply');
-    }
-  };
+  // Create the three layers
+  const router = await makeRouter(powers);
+  const executor = makeExecutor(powers, provider);
+  const composer = makeComposer(provider, intent => executor.execute(intent));
 
   // --- Main loop ---
 
-  const selfLocator = await E(powers).locate('@self');
   const cancelled = await getCancelled();
   const cancelledSignal = cancelled
     ? cancelled.then(
@@ -451,8 +150,6 @@ export const spawnWorkerLoop = async (
 
   await E(powers).send('@host', ['Jaine agent ready.'], [], []);
 
-  /** @type {Set<bigint>} */
-  const processedMessages = new Set();
   const messageIterator = makeRefIterator(E(powers).followMessages());
   while (true) {
     const nextMessage = messageIterator.next();
@@ -473,102 +170,43 @@ export const spawnWorkerLoop = async (
     const { value: message, done } = raced.result;
     if (done) break;
 
-    const {
-      from: fromId,
-      number,
-      type,
-      strings,
-      names,
-    } = /** @type {any} */ (message);
-
-    // Skip own messages and already-processed messages
-    if (fromId === selfLocator) continue;
+    const { number } = /** @type {any} */ (message);
     const msgNum = BigInt(number);
-    if (processedMessages.has(msgNum)) {
-      console.log(`[jaine] Skipping duplicate message #${number}`);
+
+    // Layer 1: Route the message
+    const decision = router.route(message);
+    if (decision.action === 'ignore') {
+      if (decision.reason !== 'own message') {
+        console.log(`[jaine] Ignoring #${number}: ${decision.reason}`);
+      }
       continue;
     }
-    processedMessages.add(msgNum);
 
-    console.log(`[jaine] Message #${number} from ${fromId}`);
-
-    // Format message text
-    let textContent;
-    const namesArray = Array.isArray(names) ? names : [];
-    if (type === 'package' && Array.isArray(strings)) {
-      const parts = [];
-      for (let i = 0; i < strings.length; i += 1) {
-        parts.push(strings[i]);
-        if (i < namesArray.length) {
-          parts.push(`@${namesArray[i]}`);
-        }
-      }
-      textContent = parts.join('').trim();
-    } else {
-      textContent = `(${type || 'unknown'} message)`;
-    }
-
-    // Detect mention notifications and use streamlined flow
-    const mentionInfo = parseMentionInfo(textContent);
-
-    /** @type {object[]} */
-    let toolSchemas;
-    /** @type {Map<string, object>} */
-    let toolMap;
-    /** @type {string} */
-    let prompt;
-
-    if (mentionInfo) {
-      // Mention notification — minimal tools for fast reply
-      console.log(`[jaine] Mention detected: reply to #${mentionInfo.replyTo}`);
-
-      // Pre-adopt the channel reference NOW, before the LLM runs
-      // and before auto-dismiss removes the message.
-      const chRefName = `ch-${number}`;
-      try {
-        await E(powers).adopt(msgNum, mentionInfo.edge, chRefName);
-        console.log(`[jaine] Pre-adopted channel as ${chRefName}`);
-      } catch (adoptErr) {
-        console.error(
-          `[jaine] Pre-adopt failed:`,
-          adoptErr instanceof Error ? adoptErr.message : String(adoptErr),
-        );
-      }
-
-      // Strip the metadata line from the text the LLM sees
-      textContent = textContent
-        .replace(/\[channel-reply-info:[^\]]+\]\n?/, '')
-        .replace(/Use channelReply to respond\.\s*/, '')
-        .trim();
-
-      const replyTool = makeChannelReplyTool(
-        chRefName,
-        mentionInfo.join,
-        mentionInfo.replyTo,
-      );
-      const readTool = makeMentionReadChannelTool(
-        chRefName,
-        mentionInfo.join,
-      );
-
-      toolMap = new Map();
-      toolMap.set('channelReply', replyTool);
-      toolMap.set('readChannel', readTool);
-
-      toolSchemas = [replyTool.schema(), readTool.schema()];
-
-      prompt = systemPrompt || mentionSystemPrompt;
-    } else {
-      // General message — full toolset
-      textContent = `[Inbox message #${number}]\n\n${textContent}`;
-      const discovered = await discoverTools(powers, allTools);
-      toolSchemas = discovered.schemas;
-      toolMap = discovered.toolMap;
-      prompt = systemPrompt || defaultSystemPrompt;
-    }
+    console.log(
+      `[jaine] Engaging with #${number}${decision.mentionInfo ? ' (mention)' : ''}`,
+    );
 
     try {
-      await handleMessage(textContent, number, toolSchemas, toolMap, prompt);
+      if (decision.mentionInfo) {
+        // ---- Channel mention flow: Router → Composer → Executor ----
+        await handleMention(
+          powers,
+          composer,
+          decision.textContent,
+          decision.mentionInfo,
+          number,
+          msgNum,
+        );
+      } else {
+        // ---- General inbox flow: direct to Executor ----
+        await handleInbox(
+          powers,
+          executor,
+          provider,
+          decision.textContent,
+          number,
+        );
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -589,6 +227,184 @@ export const spawnWorkerLoop = async (
   }
 };
 harden(spawnWorkerLoop);
+
+// ---------------------------------------------------------------------------
+// Channel mention handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle a channel mention: post placeholder, pre-fetch context, compose,
+ * and edit the placeholder with the final response.
+ *
+ * @param {object} powers
+ * @param {{ compose: Function }} composer
+ * @param {string} textContent
+ * @param {{ edge: string, join: string, replyTo: string }} mentionInfo
+ * @param {bigint | number} messageNumber - inbox message number
+ * @param {bigint} msgNum
+ * @returns {Promise<void>}
+ */
+const handleMention = async (
+  powers,
+  composer,
+  textContent,
+  mentionInfo,
+  messageNumber,
+  msgNum,
+) => {
+  // Pre-adopt the channel reference before anything else
+  const chRefName = `ch-${messageNumber}`;
+  try {
+    await E(powers).adopt(msgNum, mentionInfo.edge, chRefName);
+    console.log(`[jaine] Pre-adopted channel as ${chRefName}`);
+  } catch (adoptErr) {
+    console.error(
+      `[jaine] Pre-adopt failed:`,
+      adoptErr instanceof Error ? adoptErr.message : String(adoptErr),
+    );
+  }
+
+  // Join the channel and get a member handle
+  let member;
+  try {
+    const ch = await E(powers).lookup(chRefName);
+    member = await E(ch).join(mentionInfo.join);
+  } catch (joinErr) {
+    console.error(
+      `[jaine] Channel join failed:`,
+      joinErr instanceof Error ? joinErr.message : String(joinErr),
+    );
+    // Fall back to inbox reply
+    await E(powers).reply(
+      messageNumber,
+      ['Sorry, I could not access the channel.'],
+      [],
+      [],
+    );
+    return;
+  }
+
+  // Post placeholder message
+  /** @type {bigint | undefined} */
+  let placeholderNum;
+  try {
+    placeholderNum = await E(member).post(
+      ['Thinking...'],
+      [],
+      [],
+      mentionInfo.replyTo,
+    );
+    console.log(`[jaine] Posted placeholder #${placeholderNum}`);
+  } catch (postErr) {
+    console.error(
+      `[jaine] Placeholder post failed:`,
+      postErr instanceof Error ? postErr.message : String(postErr),
+    );
+    // Continue without placeholder — response will still be posted
+  }
+
+  /**
+   * Update the placeholder message via edit.
+   *
+   * @param {string} text
+   */
+  const updatePlaceholder = async text => {
+    if (placeholderNum === undefined) return;
+    try {
+      await E(member).post(
+        [text],
+        [],
+        [],
+        String(placeholderNum),
+        [],
+        'edit',
+      );
+    } catch {
+      // Best-effort status update
+    }
+  };
+
+  // Pre-fetch thread context
+  let threadContext = '';
+  try {
+    await updatePlaceholder('Reading thread...');
+    threadContext = await buildThreadContext(member, mentionInfo.replyTo);
+    console.log(
+      `[jaine] Thread context: ${threadContext.length} chars, ${threadContext.split('\n').length} messages`,
+    );
+  } catch (ctxErr) {
+    console.error(
+      `[jaine] Thread context fetch failed:`,
+      ctxErr instanceof Error ? ctxErr.message : String(ctxErr),
+    );
+  }
+
+  // Compose the response
+  await updatePlaceholder('Composing response...');
+  const result = await composer.compose(
+    threadContext,
+    textContent,
+    updatePlaceholder,
+  );
+
+  // Final edit with the response
+  if (result.responseText) {
+    await updatePlaceholder(result.responseText);
+    console.log(
+      `[jaine] Response posted (${result.responseText.length} chars)`,
+    );
+  } else {
+    await updatePlaceholder('(No response generated)');
+    console.log('[jaine] Composer returned empty response');
+  }
+};
+harden(handleMention);
+
+// ---------------------------------------------------------------------------
+// General inbox handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle a general inbox message using the executor directly.
+ *
+ * @param {object} powers
+ * @param {{ execute: (intent: string) => Promise<object> }} executor
+ * @param {{ chat: Function }} provider
+ * @param {string} textContent
+ * @param {bigint | number} messageNumber
+ * @returns {Promise<void>}
+ */
+const handleInbox = async (
+  powers,
+  executor,
+  provider,
+  textContent,
+  messageNumber,
+) => {
+  console.log(`[jaine] Handling inbox message #${messageNumber}`);
+
+  // For general inbox messages, use the executor with its full tool set
+  const outcome = await executor.execute(textContent);
+
+  if (outcome.type === 'result' && outcome.value) {
+    try {
+      await E(powers).reply(messageNumber, [outcome.value], [], []);
+      console.log(`[jaine] Replied to inbox #${messageNumber}`);
+    } catch (replyErr) {
+      console.error(
+        `[jaine] Failed to reply:`,
+        replyErr instanceof Error ? replyErr.message : String(replyErr),
+      );
+    }
+  } else if (outcome.type === 'error') {
+    try {
+      await E(powers).reply(messageNumber, [outcome.message], [], []);
+    } catch {
+      // best effort
+    }
+  }
+};
+harden(handleInbox);
 
 // ============================================================================
 // Jaine Factory — Entry Point
