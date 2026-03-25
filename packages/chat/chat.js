@@ -932,6 +932,39 @@ const bodyComponent = (
               });
             };
 
+            /**
+             * Bookmark handler for switched channels.
+             * @param {string} threadKey
+             * @param {string} preview
+             */
+            const handleSwitchBookmark = (threadKey, preview) => {
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (!spaceId || spaceId === 'home') return;
+              const chName = activeSpaceInfo.channelPetName;
+              if (!chName) return;
+              const existing = activeSpaceInfo.bookmarks || [];
+              if (
+                existing.some(
+                  b => b.key === threadKey && b.channelPetName === chName,
+                )
+              )
+                return;
+              const updated = [
+                ...existing,
+                harden({
+                  key: threadKey,
+                  channelPetName: chName,
+                  label: preview,
+                }),
+              ];
+              activeSpaceInfo.bookmarks = updated;
+              spacesGutterAPI
+                .updateSpace(spaceId, { bookmarks: updated })
+                .catch(/** @param {Error} err */ err => {
+                  console.warn('Failed to save bookmark:', err);
+                });
+            };
+
             switchViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -966,7 +999,7 @@ const bodyComponent = (
               onMentionNotify: isChannelMode
                 ? handleMentionNotify
                 : undefined,
-              onBookmark: isChannelMode ? handleBookmark : undefined,
+              onBookmark: isChannelMode ? handleSwitchBookmark : undefined,
             }).catch(window.reportError);
           })
           .catch(err => {
