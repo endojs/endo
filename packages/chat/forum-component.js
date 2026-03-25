@@ -536,8 +536,10 @@ export const forumComponent = async (
 
   // Schedule an initial render after the first batch arrives.
   batchTimer = setTimeout(() => {
-    renderForum();
-    batchTimer = 0;
+    renderForum().then(() => {
+      $parent.scrollTo(0, $parent.scrollHeight);
+      batchTimer = 0;
+    });
   }, 200);
 
   for await (const message of messageIterator) {
@@ -601,9 +603,10 @@ export const forumComponent = async (
     if (batchTimer) {
       clearTimeout(batchTimer);
       batchTimer = setTimeout(() => {
-        renderForum();
-        scrollToBottom();
-        batchTimer = 0;
+        renderForum().then(() => {
+          $parent.scrollTo(0, $parent.scrollHeight);
+          batchTimer = 0;
+        });
       }, 50);
     } else {
       // After initial load, render incrementally

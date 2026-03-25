@@ -1857,9 +1857,9 @@ export const outlinerComponent = async (
             requestAnimationFrame(() => focusTextNode(draftEl.$text));
           }
         } else {
-          // Cursor at end or middle: commit edit, create sibling draft below
+          // Cursor at end or middle: commit edit, create child draft (reply)
           commitNodeEdit(key);
-          const draftId = createDraft(parentKey, key);
+          const draftId = createDraft(key);
           const draftEl = draftEls.get(draftId);
           if (draftEl) {
             requestAnimationFrame(() => focusTextNode(draftEl.$text));
