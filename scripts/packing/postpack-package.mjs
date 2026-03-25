@@ -40,8 +40,12 @@ if (fs.existsSync(rewriteListPath)) {
       .split('\n')
       .map(line => line.trim())
       .filter(Boolean);
-    if (entries.length > 0) {
-      run('git', ['checkout', '--', ...entries]);
+    for (const entry of entries) {
+      try {
+        run('git', ['checkout', '--', entry]);
+      } catch {
+        // file may be generated (not tracked), skip it
+      }
     }
   } catch {
     // ignore failures restoring rewritten files
@@ -53,19 +57,18 @@ if (fs.existsSync(rewriteListPath)) {
   }
 }
 
-// Step 3: Remove generated declaration files and .js files
-// git clean only removes untracked files, so committed files are safe
+// Step 3: Remove generated files (both untracked and gitignored)
+// git clean only removes untracked/ignored files, so committed files are safe
 console.log('  → cleaning generated files');
 try {
-  run('git', [
-    'clean',
-    '-f',
-    '*.d.ts',
-    '*.d.ts.map',
-    '*.js',
-    '*.d.mts',
-    '*.d.mts.map',
-  ]);
+  // Clean gitignored files (e.g. .d.ts, .d.ts.map, .tsbuildinfo) except node_modules
+  run('git', ['clean', '-fX', '-e', 'node_modules/']);
+} catch {
+  // May fail if nothing to clean
+}
+try {
+  // Clean untracked generated .js files (from build-ts-to-js)
+  run('git', ['clean', '-f', '*.js', 'src/']);
 } catch {
   // May fail if nothing to clean, which is fine
 }

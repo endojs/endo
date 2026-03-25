@@ -60,6 +60,14 @@ const usesOutDir = hasOutDir();
 
 console.log(`prepack-package: ${path.basename(packageDir)}`);
 
+// Step 0: Clean stale build artifacts (gitignored files like .d.ts from prior builds)
+console.log('  → cleaning stale build artifacts');
+try {
+  run('git', ['clean', '-fX', '-e', 'node_modules/', 'src/']);
+} catch {
+  // May fail if src/ doesn't exist
+}
+
 // Step 1: Generate .d.ts declarations (requires tsconfig.build.json)
 if (existsSync(tsconfigPath)) {
   console.log('  → tsc --build tsconfig.build.json');
