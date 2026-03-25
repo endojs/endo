@@ -284,17 +284,23 @@ const handleMention = async (
     return;
   }
 
-  // Post placeholder message
-  /** @type {bigint | undefined} */
-  let placeholderNum;
+  // Post placeholder message and discover its number via listMessages
+  /** @type {string | undefined} */
+  let placeholderKey;
   try {
-    placeholderNum = await E(member).post(
+    await E(member).post(
       ['Thinking...'],
       [],
       [],
       mentionInfo.replyTo,
     );
-    console.log(`[jaine] Posted placeholder #${placeholderNum}`);
+    // Find the placeholder's message number from the end of the message list
+    const msgs = /** @type {any[]} */ (await E(member).listMessages());
+    if (msgs.length > 0) {
+      const last = msgs[msgs.length - 1];
+      placeholderKey = String(last.number);
+    }
+    console.log(`[jaine] Posted placeholder #${placeholderKey}`);
   } catch (postErr) {
     console.error(
       `[jaine] Placeholder post failed:`,
@@ -309,13 +315,13 @@ const handleMention = async (
    * @param {string} text
    */
   const updatePlaceholder = async text => {
-    if (placeholderNum === undefined) return;
+    if (placeholderKey === undefined) return;
     try {
       await E(member).post(
         [text],
         [],
         [],
-        String(placeholderNum),
+        placeholderKey,
         [],
         'edit',
       );

@@ -1160,7 +1160,7 @@ export interface EndoChannel {
     names: string[],
     petNamesOrPaths: (string | string[])[],
     replyTo?: string,
-  ): Promise<bigint>;
+  ): Promise<void>;
   followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
   listMessages(): Promise<ChannelMessage[]>;
   createInvitation(
@@ -1246,7 +1246,7 @@ export interface EndoChannelMember {
     names: string[],
     petNamesOrPaths: (string | string[])[],
     replyTo?: string,
-  ): Promise<bigint>;
+  ): Promise<void>;
   followMessages(): AsyncGenerator<ChannelMessage, undefined, undefined>;
   listMessages(): Promise<ChannelMessage[]>;
   createInvitation(

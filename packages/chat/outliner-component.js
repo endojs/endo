@@ -2960,20 +2960,13 @@ export const outlinerComponent = async (
       }
     }
 
-    // Track reacts
-    if (typedMessage.replyType === 'react' && typedMessage.replyTo) {
-      const emoji = (typedMessage.strings[0] || '').trim();
-      if (emoji) {
-        trackReact(typedMessage.replyTo, emoji, typedMessage.memberId || '', msgKey);
-      }
-    }
-
-    // Track redact-reacts
-    if (typedMessage.replyType === 'redact-react' && typedMessage.replyTo) {
-      const emoji = (typedMessage.strings[0] || '').trim();
-      if (emoji) {
-        untrackReact(typedMessage.replyTo, emoji, typedMessage.memberId || '');
-      }
+    // Track reacts and redact-reacts via the react system
+    if (
+      (typedMessage.replyType === 'react' ||
+        typedMessage.replyType === 'redact-react') &&
+      typedMessage.replyTo
+    ) {
+      reactSystem.processReactMessage(typedMessage, msgKey);
     }
 
     // Render strategy: batch during initial load, incremental after

@@ -278,8 +278,6 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
 
       messages.push(message);
       messagesTopic.publisher.next(message);
-
-      return messageNumber;
     };
 
     /**
@@ -721,7 +719,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
           const now = Date.now();
           checkPostRate(now);
           const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-          return postInternal(entry.memberId, strings, names, ids, replyTo, replyType);
+          await postInternal(entry.memberId, strings, names, ids, replyTo, replyType);
         },
         setProposedName: async newName => {
           checkAccess();
@@ -982,7 +980,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       help: makeHelp(channelHelp),
       post: async (strings, names, petNamesOrPaths, replyTo, resolvedIds, replyType) => {
         const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
-        return postInternal(adminMemberId, strings, names, ids, replyTo, replyType);
+        await postInternal(adminMemberId, strings, names, ids, replyTo, replyType);
       },
       followMessages: async () => {
         const iterator = (async function* channelMessages() {
