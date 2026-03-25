@@ -7486,14 +7486,13 @@ button.btn-spinner::after {
   color: #ffffff;
 }
 
-/* React button on outliner nodes (hover-reveal, overlay) */
-.outliner-react-button {
+/* ---- Shared react (emoji reaction) styles ---- */
+
+/* React button (hover-reveal emoji trigger) — generic base */
+.react-button {
   display: none;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  right: 44px;
-  top: 0;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -7502,39 +7501,74 @@ button.btn-spinner::after {
   color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm, 4px);
   opacity: 0.5;
 }
 
-.outliner-node-row:hover .outliner-react-button {
-  display: inline-flex;
-  background: var(--bg-primary, #1e1e1e);
-  border-radius: var(--radius-sm, 4px);
-}
-
-.outliner-react-button:hover {
+.react-button:hover {
   opacity: 1;
   background: var(--bg-active);
 }
 
-/* React pills displayed under messages */
-.outliner-reacts {
+/* Outliner: position absolutely in node row */
+.outliner-node-row .react-button {
+  position: absolute;
+  right: 44px;
+  top: 0;
+}
+
+.outliner-node-row:hover .react-button {
+  display: inline-flex;
+  background: var(--bg-primary, #1e1e1e);
+}
+
+/* Chat/Forum: always visible inside message-actions (parent handles hover) */
+.message-actions .react-button {
+  display: inline-flex;
+  position: static;
+  opacity: 0.7;
+}
+.message-actions .react-button:hover {
+  opacity: 1;
+}
+
+/* Microblog: always visible in action bar, styled to match action btns */
+.microblog-actions .react-button {
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 14px;
+  opacity: 1;
+  color: var(--text-muted);
+}
+.microblog-actions .react-button:hover {
+  color: var(--accent-primary);
+  background: rgba(108, 140, 255, 0.08);
+}
+
+/* React pills container */
+.react-pills {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  flex-basis: 100%;
   margin-top: 2px;
+}
+
+/* Outliner-specific: full width + indent */
+.outliner-node-row .react-pills {
+  flex-basis: 100%;
   margin-left: 20px;
 }
 
-.outliner-react-pill-wrapper {
+.react-pill-wrapper {
   position: relative;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.outliner-react-pill {
+.react-pill {
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
@@ -7546,17 +7580,17 @@ button.btn-spinner::after {
   line-height: 1.4;
 }
 
-.outliner-react-pill:hover {
+.react-pill:hover {
   background: var(--bg-active, rgba(128, 128, 128, 0.2));
 }
 
-.outliner-react-pill.outliner-react-own {
+.react-pill.react-pill-own {
   border-color: var(--accent-primary, #4a9eff);
   background: rgba(74, 158, 255, 0.15);
 }
 
 /* Sub-react containers: stacked card effect, fanning out on hover */
-.outliner-react-sub {
+.react-sub {
   position: absolute;
   top: 4px;
   left: 4px;
@@ -7568,7 +7602,7 @@ button.btn-spinner::after {
   transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease, z-index 0s 0.2s;
 }
 
-.outliner-react-pill-wrapper:hover > .outliner-react-sub {
+.react-pill-wrapper:hover > .react-sub {
   top: 100%;
   left: 8px;
   opacity: 1;
@@ -7578,7 +7612,7 @@ button.btn-spinner::after {
 }
 
 /* Quick react picker popup */
-.outliner-react-picker {
+.react-picker {
   display: flex;
   flex-direction: column;
   padding: 4px 6px;

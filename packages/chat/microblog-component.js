@@ -5,6 +5,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 import { createChannelState } from './channel-utils.js';
+import { createReactSystem } from './react-utils.js';
 import {
   isVisibleReplyType,
   computeNodeContent,
@@ -71,6 +72,14 @@ export const microblogComponent = async (
     saveNameMap,
     updateAuthorChips,
   } = state;
+
+  // Shared react system
+  const reactSystem = createReactSystem({
+    channel,
+    ownMemberId,
+    nameMap,
+    getMemberInfo,
+  });
 
   /** @type {Set<string>} */
   const blockedMemberIds = new Set();
@@ -298,6 +307,9 @@ export const microblogComponent = async (
       $actions.appendChild($replyBtn);
     }
 
+    // React button
+    $actions.appendChild(reactSystem.createReactButton(key));
+
     // Comments toggle — expands/collapses replies
     const replyCount = countDescendants(key);
     const $commentsBtn = document.createElement('button');
@@ -440,6 +452,12 @@ export const microblogComponent = async (
     // Interaction bar (same as top-level posts)
     $comment.appendChild(createActionBar(childKey, childData.message, rootPostKey));
 
+    // React pills
+    {
+      const $pills = reactSystem.buildReactsContainer(childKey);
+      if ($pills) $comment.appendChild($pills);
+    }
+
     // Expanded nested replies
     if (expandedPosts.has(childKey) && countDescendants(childKey) > 0) {
       $comment.appendChild(renderCommentList(childKey, rootPostKey));
@@ -514,6 +532,12 @@ export const microblogComponent = async (
 
     // Interaction bar
     $post.appendChild(createActionBar(key, message, key));
+
+    // React pills
+    {
+      const $pills = reactSystem.buildReactsContainer(key);
+      if ($pills) $post.appendChild($pills);
+    }
 
     // Comments section (if expanded)
     if (expandedPosts.has(key) && countDescendants(key) > 0) {
@@ -703,6 +727,9 @@ export const microblogComponent = async (
         message: msg,
         $element: document.createElement('div'),
       });
+
+      // Track reacts
+      reactSystem.processReactMessage(msg, key);
 
       if (msg.replyTo) {
         const children = replyChildren.get(msg.replyTo) || [];

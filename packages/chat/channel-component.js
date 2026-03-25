@@ -13,6 +13,7 @@ import {
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 import { createMessageMenu } from './channel-utils.js';
+import { createReactSystem } from './react-utils.js';
 
 /**
  * @typedef {object} ChannelMessage
@@ -175,6 +176,14 @@ export const channelComponent = async (
       return undefined;
     }
   };
+
+  // Shared react system
+  const reactSystem = createReactSystem({
+    channel,
+    ownMemberId,
+    nameMap,
+    getMemberInfo,
+  });
 
   const scrollToBottom = () => {
     if (isNearBottom) {
@@ -595,6 +604,11 @@ export const channelComponent = async (
           },
         });
       }
+      // React button
+      $actions.appendChild(
+        reactSystem.createReactButton(String(message.number)),
+      );
+
       if (menuItems.length > 0) {
         $actions.appendChild(createMessageMenu(menuItems));
       }
@@ -873,6 +887,21 @@ export const channelComponent = async (
         message: typedMessage,
         $element: $placeholder,
       });
+      continue; // eslint-disable-line no-continue
+    }
+
+    // React / redact-react: track and update the target message's pills.
+    if (
+      typedMessage.replyType === 'react' ||
+      typedMessage.replyType === 'redact-react'
+    ) {
+      const rootKey = reactSystem.processReactMessage(typedMessage, msgKey);
+      if (rootKey) {
+        const targetEntry = messageIndex.get(rootKey);
+        if (targetEntry) {
+          reactSystem.renderReactsOnElement(rootKey, targetEntry.$element);
+        }
+      }
       continue; // eslint-disable-line no-continue
     }
 

@@ -5,6 +5,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { makeRefIterator } from './ref-iterator.js';
 import { createChannelState } from './channel-utils.js';
+import { createReactSystem } from './react-utils.js';
 import {
   isVisibleReplyType,
   computeNodeContent,
@@ -78,6 +79,14 @@ export const forumComponent = async (
   });
 
   const { messageIndex, replyChildren } = state;
+
+  // Shared react system
+  const reactSystem = createReactSystem({
+    channel,
+    ownMemberId,
+    nameMap: state.nameMap,
+    getMemberInfo: state.getMemberInfo,
+  });
 
   /** @type {Set<string>} */
   const collapsedNodes = new Set();
@@ -357,6 +366,26 @@ export const forumComponent = async (
 
       $node.appendChild(msgElements[i]);
 
+      // React button: inject into the message's action bar
+      {
+        const $msgEl = msgElements[i].querySelector('.message');
+        let $actions = $msgEl && $msgEl.querySelector('.message-actions');
+        if ($msgEl && !$actions) {
+          $actions = document.createElement('div');
+          $actions.className = 'message-actions';
+          $msgEl.appendChild($actions);
+        }
+        if ($actions) {
+          $actions.appendChild(reactSystem.createReactButton(key));
+        }
+      }
+
+      // React pills
+      {
+        const $pills = reactSystem.buildReactsContainer(key);
+        if ($pills) $node.appendChild($pills);
+      }
+
       // Show "edited by" attribution when the node has been edited
       if (ec.editedByMemberId) {
         const $edited = document.createElement('div');
@@ -524,6 +553,9 @@ export const forumComponent = async (
       message: typedMessage,
       $element: $placeholder,
     });
+
+    // Track reacts
+    reactSystem.processReactMessage(typedMessage, msgKey);
 
     // Process move messages for reparenting
     if (typedMessage.replyType === 'move' && typedMessage.replyTo) {
