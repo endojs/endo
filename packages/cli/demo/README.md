@@ -251,7 +251,7 @@ In this example, "alice" send the doubler back to us, their host.
 For a guest, the reserved name HOST refers to their host.
 For both hosts and guests, SELF is the name of their own powers object.
 
-# Familiar Chat
+# Agents
 
 The pet daemon (or familiar, if you will) maintains a petstore and mailbox for
 each agent, like you (the host), and all your guests (like the doubler-agent).
@@ -259,53 +259,9 @@ The `endo list` command shows you the pet names in your pet store.
 The `endo inbox` command (and `endo inbox --follow` command), shows
 messages from your various guests.
 
-Weblets are web page caplets.
-These are programs, like the counter and doubler above, except that
-they run in a web page.
-Each of these applications is connected to the pet daemon and can make
-the same kinds of requests for data and powers.
-Each weblet runs on a separate local HTTP port so they have independent
-origins, so they own their local storage.
-
-_Familiar Chat_ is an example application that provides a web app for
-interacting with your pet daemon.
-
-```
-> endo install cat.js --listen 8920 --powers @agent --name familiar-chat
-```
-
-This command creates a web page named familiar-chat and endows it with the
-authority to maintain your petstore and mailbox.
-You can then open that page.
-
-```
-> endo open familiar-chat
-```
-
-So, if you were to simulate a request from your cat:
-
-```
-> endo mkguest cat cat-agent
-> endo request HOST 'pet me' --as cat-agent
-```
-
-This will appear in your Familiar Chat web page, where you can resolve
-or reject that request with any value you have a pet name for.
-For example, in your web browser, you will see something like:
-
-> ## Familiar Chat
-> 1. *cat* requests "pet me" `[      ]` `[resolve]` `[reject]`
-
-If you enter the name `counter` and press `[resolve]` and return to your
-terminal, you will see that the `endo request 'pet me' --as cat` command has
-received the counter and exited.
-
-> ## Familiar Chat
-> 1. *cat* requests "pet me" _fulfilled_
-
 # Running a confined script
 
-Beyond weblets and worklets, a runlet is more like a `node` script:
+A runlet is more like a `node` script:
 it runs in your shell and interacts with you directly, not in a supervised
 worker process behind the scenes.
 But, like other caplets, it is fully confined and only receives the powers

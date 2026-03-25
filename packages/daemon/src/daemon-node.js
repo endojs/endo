@@ -22,7 +22,7 @@ import {
 } from './daemon-node-powers.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Config, Builtins } from './types.js' */
+/** @import { Config } from './types.js' */
 
 const args = process.argv.slice(2);
 if (args.length < 4) {
@@ -130,34 +130,7 @@ const main = async () => {
   await killStaleWorkers();
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
-    await makeDaemon(
-      powers,
-      daemonLabel,
-      cancel,
-      cancelled,
-      {
-        /** @param {Builtins} builtins */
-        '@apps': ({ MAIN, ENDO }) => ({
-          type: /** @type {const} */ ('make-unconfined'),
-          worker: MAIN,
-          powers: ENDO,
-          specifier:
-            process.env.ENDO_WORKER_PATH ||
-            new URL('web-server-node.js', import.meta.url).href,
-          env: {
-            ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
-            ENDO_WEB_PAGE_BUNDLE_PATH:
-              process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
-            ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
-            ENDO_GATEWAY_ALLOWED_CIDRS:
-              process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
-          },
-        }),
-      },
-      {
-        gcEnabled,
-      },
-    );
+    await makeDaemon(powers, daemonLabel, cancel, cancelled, {}, { gcEnabled });
 
   /** @param {Error} error */
   const exitWithError = error => {
