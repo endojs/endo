@@ -1634,6 +1634,12 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<ChannelDeferredTaskParams>,
   ) => FormulateResult<EndoChannel>;
 
+  formulateTimer: (
+    intervalMs: number,
+    label: string,
+    deferredTasks: DeferredTasks<{ timerId: FormulaIdentifier }>,
+  ) => FormulateResult<unknown>;
+
   formulateHost: (
     endoId: FormulaIdentifier,
     networksDirectoryId: FormulaIdentifier,

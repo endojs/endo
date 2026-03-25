@@ -91,6 +91,7 @@ export const outlinerComponent = async (
     onFork,
     onShare,
     onMentionNotify,
+    onBookmark,
   },
 ) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -969,6 +970,9 @@ export const outlinerComponent = async (
       const idx = siblings.indexOf(pos.afterKey);
       if (idx !== -1) {
         insertIdx = idx + 1;
+      } else if (pos.afterKey === newParentKey) {
+        // Gap between parent row and its first child → insert at beginning
+        insertIdx = 0;
       } else {
         // afterKey is from a different parent group — insert at end
         insertIdx = siblings.length;
@@ -1819,14 +1823,26 @@ export const outlinerComponent = async (
 
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        // Commit pending edit, then create sibling draft below
-        commitNodeEdit(key);
         const entry = messageIndex.get(key);
         const parentKey = entry?.message.replyTo;
-        const draftId = createDraft(parentKey, key);
-        const draftEl = draftEls.get(draftId);
-        if (draftEl) {
-          requestAnimationFrame(() => focusTextNode(draftEl.$text));
+        const { atStart } = getCursorPosition($text);
+
+        if (atStart) {
+          // Cursor at beginning: create draft BEFORE this node
+          commitNodeEdit(key);
+          const draftId = createDraft(parentKey, undefined, key);
+          const draftEl = draftEls.get(draftId);
+          if (draftEl) {
+            requestAnimationFrame(() => focusTextNode(draftEl.$text));
+          }
+        } else {
+          // Cursor at end or middle: commit edit, create sibling draft below
+          commitNodeEdit(key);
+          const draftId = createDraft(parentKey, key);
+          const draftEl = draftEls.get(draftId);
+          if (draftEl) {
+            requestAnimationFrame(() => focusTextNode(draftEl.$text));
+          }
         }
         return;
       }
@@ -2092,6 +2108,23 @@ export const outlinerComponent = async (
           return;
         }
 
+        // Cursor at beginning of non-empty draft: create peer before
+        if (text) {
+          const { atStart } = getCursorPosition($text);
+          if (atStart) {
+            const newDraftId = createDraft(
+              draft.parentKey,
+              undefined,
+              draftId,
+            );
+            const newEls = draftEls.get(newDraftId);
+            if (newEls) {
+              requestAnimationFrame(() => focusTextNode(newEls.$text));
+            }
+            return;
+          }
+        }
+
         // Commit current draft, create new sibling
         draft.text = text;
         commitDraft(draftId);
@@ -2308,6 +2341,17 @@ export const outlinerComponent = async (
           },
         });
       }
+      if (onBookmark) {
+        menuItems.push({
+          label: 'Bookmark',
+          icon: '\u2605', // ★
+          handler: () => {
+            const preview =
+              effective.strings.join('').slice(0, 60) || 'Bookmarked thread';
+            onBookmark(key, preview);
+          },
+        });
+      }
       // Focus: zoom into this node's subtree
       menuItems.push({
         label: 'Focus',
@@ -2378,7 +2422,7 @@ export const outlinerComponent = async (
    * @param {string | undefined} afterKey
    * @returns {string} draftId
    */
-  const createDraft = (parentKey, afterKey) => {
+  const createDraft = (parentKey, afterKey, beforeKey) => {
     draftCounter += 1;
     const draftId = `draft-${draftCounter}`;
     /** @type {DraftNode} */
@@ -2416,7 +2460,16 @@ export const outlinerComponent = async (
 
     // Insert at correct position in parent's children container
     const $container = getChildrenContainer(parentKey);
-    if (afterKey) {
+    if (beforeKey) {
+      const $beforeItem = $container.querySelector(
+        `:scope > [data-key="${beforeKey}"]`,
+      );
+      if ($beforeItem) {
+        $container.insertBefore($node, $beforeItem);
+      } else {
+        $container.appendChild($node);
+      }
+    } else if (afterKey) {
       const $afterItem = $container.querySelector(
         `:scope > [data-key="${afterKey}"]`,
       );
@@ -2793,6 +2846,7 @@ export const outlinerComponent = async (
   /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => false,
+    focusOnNode: key => focusOnNode(key),
     dispose: () => {
       disposed = true;
       if (activeIterator) {

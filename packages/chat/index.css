@@ -578,6 +578,104 @@ body.resizing * {
   background: var(--accent-primary);
 }
 
+/* Per-channel sidebar menu */
+.channel-sidebar-menu-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1em;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pet-item-row:hover .channel-sidebar-menu-btn {
+  opacity: 0.6;
+}
+
+.channel-sidebar-menu-btn:hover {
+  opacity: 1 !important;
+}
+
+.channel-sidebar-menu {
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 100px;
+}
+
+.channel-sidebar-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.channel-sidebar-menu-item:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
+}
+
+.channel-sidebar-menu-item.active {
+  font-weight: 600;
+  color: var(--accent-primary, #4a9eff);
+}
+
+/* Bookmarked thread items nested under channels */
+.bookmarked-thread-item {
+  padding: 2px 8px 2px 24px;
+  font-size: 0.85em;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 4px;
+}
+
+.bookmarked-thread-item:hover {
+  opacity: 1;
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.1));
+}
+
+.bookmark-label {
+  pointer-events: none;
+}
+
+.bookmark-context-menu {
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.bookmark-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.bookmark-context-menu button:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
+}
+
 /* Special (all-caps) items - hidden by default */
 .pet-item-wrapper.special {
   display: none;

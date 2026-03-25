@@ -70,6 +70,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {DaemonCore['formulateSyncedPetStore']} args.formulateSyncedPetStore
  * @param {DaemonCore['getPeerIdForNodeIdentifier']} args.getPeerIdForNodeIdentifier
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
+ * @param {DaemonCore['formulateTimer']} args.formulateTimer
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
@@ -101,6 +102,7 @@ export const makeHostMaker = ({
   formulateSyncedPetStore,
   getPeerIdForNodeIdentifier,
   formulateChannel,
+  formulateTimer,
   getAllNetworkAddresses,
   getTypeForId,
   getFormulaForId,
@@ -687,6 +689,26 @@ export const makeHostMaker = ({
      * @param {PetName} petName - Pet name to store the channel under.
      * @param {string} channelProposedName - Display name for the channel creator.
      */
+    /**
+     * Create a timer that fires at a specified interval.
+     *
+     * @param {PetName} petName - Pet name to store the timer under
+     * @param {number} intervalMs - Interval in milliseconds
+     * @param {string} [label] - Optional label for the timer
+     */
+    const makeTimerCmd = async (petName, intervalMs, label) => {
+      assertPetName(petName);
+      /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers => petStore.write(petName, identifiers.timerId));
+      const { value } = await formulateTimer(
+        Number(intervalMs),
+        label || petName,
+        tasks,
+      );
+      return value;
+    };
+
     const makeChannelCmd = async (petName, channelProposedName) => {
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
@@ -1259,6 +1281,7 @@ export const makeHostMaker = ({
       adoptFromLocator,
       deliver,
       makeChannel: makeChannelCmd,
+      makeTimer: makeTimerCmd,
       invite,
       accept,
       approveEvaluation,

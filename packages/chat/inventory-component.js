@@ -18,6 +18,13 @@ import { makeRefIterator } from './ref-iterator.js';
  * @property {boolean} [channelMode] - If true, show "Channels" header and channel-specific UI
  * @property {(channelPetName: string) => void} [onSelectChannel] - Called when a channel is selected
  * @property {string | null} [activeChannelPetName] - Currently active channel pet name
+ * @property {string[]} [channelOrder] - Persisted channel display order
+ * @property {(order: string[]) => void} [onChannelReorder] - Called when channels are reordered via drag
+ * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - Bookmarked threads
+ * @property {(channelPetName: string, threadKey: string) => void} [onSelectBookmark] - Navigate to bookmarked thread
+ * @property {(bookmark: {key: string, channelPetName: string, label: string}) => void} [onRemoveBookmark] - Remove a bookmark
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - Current view mode
+ * @property {(mode: 'chat' | 'forum' | 'outliner' | 'microblog') => void} [onViewModeChange] - Change view mode
  */
 
 /**
@@ -130,6 +137,13 @@ export const inventoryComponent = async (
     channelMode,
     onSelectChannel,
     activeChannelPetName,
+    channelOrder,
+    onChannelReorder,
+    bookmarks,
+    onSelectBookmark,
+    onRemoveBookmark,
+    viewMode,
+    onViewModeChange,
   },
   path = [],
 ) => {
@@ -432,7 +446,7 @@ export const inventoryComponent = async (
     $wrapper.appendChild($children);
 
     if (channelMode) {
-      // Newest channels at top
+      // Newest channels at top (reordered after type detection)
       $list.prepend($wrapper);
     } else {
       $list.appendChild($wrapper);
@@ -478,6 +492,7 @@ export const inventoryComponent = async (
         if (channelMode && type === 'channel' && onSelectChannel) {
           $wrapper.style.display = '';
           $wrapper.classList.add('channel-item');
+          $wrapper.dataset.name = name;
           $name.title = 'Switch to this channel';
           $name.classList.add('selectable');
           $name.onclick = () => {
@@ -489,6 +504,86 @@ export const inventoryComponent = async (
             name === activeChannelPetName
           ) {
             $wrapper.classList.add('active-channel');
+          }
+
+          // Per-channel three-dot menu for view mode switching
+          if (onViewModeChange) {
+            const $menuBtn = document.createElement('button');
+            $menuBtn.className = 'channel-sidebar-menu-btn';
+            $menuBtn.textContent = '\u22EE';
+            $menuBtn.title = 'Channel options';
+            $menuBtn.addEventListener('click', menuE => {
+              menuE.stopPropagation();
+              // Remove any existing sidebar menus
+              const $existing = document.querySelector(
+                '.channel-sidebar-menu',
+              );
+              if ($existing) $existing.remove();
+
+              const $menu = document.createElement('div');
+              $menu.className = 'channel-sidebar-menu';
+              const modes =
+                /** @type {Array<'chat' | 'forum' | 'outliner' | 'microblog'>} */ ([
+                  'chat',
+                  'forum',
+                  'outliner',
+                  'microblog',
+                ]);
+              for (const mode of modes) {
+                const $item = document.createElement('button');
+                $item.className = 'channel-sidebar-menu-item';
+                if (mode === viewMode) $item.classList.add('active');
+                $item.textContent =
+                  mode.charAt(0).toUpperCase() + mode.slice(1);
+                $item.addEventListener('click', () => {
+                  $menu.remove();
+                  onViewModeChange(mode);
+                });
+                $menu.appendChild($item);
+              }
+
+              // Position relative to button
+              const rect = $menuBtn.getBoundingClientRect();
+              $menu.style.position = 'fixed';
+              $menu.style.left = `${rect.right + 4}px`;
+              $menu.style.top = `${rect.top}px`;
+              document.body.appendChild($menu);
+
+              const dismiss = () => {
+                $menu.remove();
+                document.removeEventListener('click', dismiss);
+              };
+              requestAnimationFrame(() => {
+                document.addEventListener('click', dismiss);
+              });
+            });
+            $buttons.insertBefore($menuBtn, $buttons.firstChild);
+          }
+
+          // Reorder according to stored channel order
+          if (channelOrder) {
+            const orderIdx = channelOrder.indexOf(name);
+            if (orderIdx >= 0) {
+              const existingItems =
+                /** @type {NodeListOf<HTMLElement>} */ (
+                  $list.querySelectorAll('.channel-item[data-name]')
+                );
+              let reinserted = false;
+              for (const item of existingItems) {
+                if (item === $wrapper) continue;
+                const itemIdx = channelOrder.indexOf(
+                  /** @type {string} */ (item.dataset.name),
+                );
+                if (itemIdx < 0 || itemIdx > orderIdx) {
+                  $list.insertBefore($wrapper, item);
+                  reinserted = true;
+                  break;
+                }
+              }
+              if (!reinserted) {
+                $list.appendChild($wrapper);
+              }
+            }
           }
 
           // Make channel items draggable for reordering
@@ -508,6 +603,63 @@ export const inventoryComponent = async (
               $channelDropIndicator = null;
             }
           });
+
+          // Render bookmarked threads under this channel
+          if (bookmarks && bookmarks.length > 0) {
+            const channelBookmarks = bookmarks.filter(
+              b => b.channelPetName === name,
+            );
+            if (channelBookmarks.length > 0) {
+              for (const bm of channelBookmarks) {
+                const $bmItem = document.createElement('div');
+                $bmItem.className = 'bookmarked-thread-item';
+                $bmItem.dataset.key = bm.key;
+                $bmItem.dataset.channel = bm.channelPetName;
+                const $bmLabel = document.createElement('span');
+                $bmLabel.className = 'bookmark-label';
+                $bmLabel.textContent = `\u2605 ${bm.label}`;
+                $bmLabel.title = `Thread #${bm.key} in ${bm.channelPetName}`;
+                $bmItem.appendChild($bmLabel);
+                if (onSelectBookmark) {
+                  $bmItem.style.cursor = 'pointer';
+                  $bmItem.addEventListener('click', () => {
+                    onSelectBookmark(bm.channelPetName, bm.key);
+                  });
+                }
+                if (onRemoveBookmark) {
+                  $bmItem.addEventListener('contextmenu', ctxE => {
+                    ctxE.preventDefault();
+                    const $menu = document.createElement('div');
+                    $menu.className = 'bookmark-context-menu';
+                    const $removeBtn = document.createElement('button');
+                    $removeBtn.textContent = 'Remove bookmark';
+                    $removeBtn.addEventListener('click', () => {
+                      onRemoveBookmark(bm);
+                      $bmItem.remove();
+                      $menu.remove();
+                    });
+                    $menu.appendChild($removeBtn);
+                    $menu.style.position = 'fixed';
+                    $menu.style.left = `${ctxE.clientX}px`;
+                    $menu.style.top = `${ctxE.clientY}px`;
+                    document.body.appendChild($menu);
+                    const dismiss = () => {
+                      $menu.remove();
+                      document.removeEventListener('click', dismiss);
+                    };
+                    requestAnimationFrame(() => {
+                      document.addEventListener('click', dismiss);
+                    });
+                  });
+                }
+                $children.appendChild($bmItem);
+              }
+              // Show the children container and update disclosure
+              $children.style.display = '';
+              $disclosure.textContent = '\u25BC';
+              $disclosure.classList.add('expanded');
+            }
+          }
         }
 
         // Non-channel mode: detect conversable items
@@ -737,6 +889,18 @@ export const inventoryComponent = async (
       if ($channelDropIndicator) {
         $channelDropIndicator.remove();
         $channelDropIndicator = null;
+      }
+
+      // Persist the new channel order
+      if (onChannelReorder) {
+        const orderedNames = [
+          .../** @type {NodeListOf<HTMLElement>} */ (
+            $list.querySelectorAll('.channel-item')
+          ),
+        ]
+          .map(el => el.dataset.name)
+          .filter(/** @returns {n is string} */ n => typeof n === 'string');
+        onChannelReorder(orderedNames);
       }
     });
   }

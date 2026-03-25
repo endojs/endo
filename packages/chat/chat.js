@@ -655,6 +655,39 @@ const bodyComponent = (
               });
             };
 
+            /**
+             * Bookmark a thread in the current channel.
+             * @param {string} threadKey
+             * @param {string} preview
+             */
+            const handleBookmark = (threadKey, preview) => {
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (!spaceId || spaceId === 'home') return;
+              const chName = activeSpaceInfo.channelPetName;
+              if (!chName) return;
+              const existing = activeSpaceInfo.bookmarks || [];
+              if (
+                existing.some(
+                  b => b.key === threadKey && b.channelPetName === chName,
+                )
+              )
+                return;
+              const updated = [
+                ...existing,
+                harden({
+                  key: threadKey,
+                  channelPetName: chName,
+                  label: preview,
+                }),
+              ];
+              activeSpaceInfo.bookmarks = updated;
+              spacesGutterAPI
+                .updateSpace(spaceId, { bookmarks: updated })
+                .catch(/** @param {Error} err */ err => {
+                  console.warn('Failed to save bookmark:', err);
+                });
+            };
+
             channelViewFn($messages, $anchor, currentChannelRef, {
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
@@ -689,6 +722,7 @@ const bodyComponent = (
               onMentionNotify: isChannelMode
                 ? handleMentionNotify
                 : undefined,
+              onBookmark: isChannelMode ? handleBookmark : undefined,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -739,6 +773,16 @@ const bodyComponent = (
 
         // Update activeSpaceInfo
         activeSpaceInfo.channelPetName = channelPetName;
+
+        // Persist last-viewed channel to the space config
+        const spaceId = spacesGutterAPI.getActiveSpaceId();
+        if (spaceId && spaceId !== 'home') {
+          spacesGutterAPI
+            .updateSpace(spaceId, { lastChannelPetName: channelPetName })
+            .catch(/** @param {Error} err */ err => {
+              console.warn('Failed to persist last channel:', err);
+            });
+        }
 
         // Update header
         $conversationName.textContent = `#${channelPetName}`;
@@ -919,6 +963,7 @@ const bodyComponent = (
               onMentionNotify: isChannelMode
                 ? handleMentionNotify
                 : undefined,
+              onBookmark: isChannelMode ? handleBookmark : undefined,
             }).catch(window.reportError);
           })
           .catch(err => {
@@ -977,6 +1022,77 @@ const bodyComponent = (
           activeChannelPetName: isChannelMode
             ? activeSpaceInfo.channelPetName || null
             : null,
+          channelOrder: isChannelMode
+            ? activeSpaceInfo.channelOrder
+            : undefined,
+          onChannelReorder: isChannelMode
+            ? order => {
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                if (spaceId && spaceId !== 'home') {
+                  spacesGutterAPI
+                    .updateSpace(spaceId, { channelOrder: order })
+                    .catch(/** @param {Error} err */ err => {
+                      console.warn('Failed to persist channel order:', err);
+                    });
+                }
+              }
+            : undefined,
+          bookmarks: isChannelMode
+            ? activeSpaceInfo.bookmarks
+            : undefined,
+          onSelectBookmark: isChannelMode
+            ? (channelPetName, threadKey) => {
+                switchChannel(channelPetName);
+                // Focus on the thread after channel loads
+                // The channelAPI.focusOnNode is set after the view renders
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    const api = /** @type {any} */ ($messages).channelAPI;
+                    if (api && api.focusOnNode) {
+                      api.focusOnNode(threadKey);
+                    }
+                  }, 500);
+                });
+              }
+            : undefined,
+          onRemoveBookmark: isChannelMode
+            ? bm => {
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                if (!spaceId || spaceId === 'home') return;
+                const existing = activeSpaceInfo.bookmarks || [];
+                const updated = existing.filter(
+                  b =>
+                    !(
+                      b.key === bm.key &&
+                      b.channelPetName === bm.channelPetName
+                    ),
+                );
+                activeSpaceInfo.bookmarks = updated;
+                spacesGutterAPI
+                  .updateSpace(spaceId, { bookmarks: updated })
+                  .catch(/** @param {Error} err */ err => {
+                    console.warn('Failed to remove bookmark:', err);
+                  });
+              }
+            : undefined,
+          viewMode: isChannelMode
+            ? activeSpaceInfo.viewMode || 'chat'
+            : undefined,
+          onViewModeChange: isChannelMode
+            ? mode => {
+                activeSpaceInfo.viewMode = mode;
+                const spaceId = spacesGutterAPI.getActiveSpaceId();
+                if (spaceId && spaceId !== 'home') {
+                  spacesGutterAPI
+                    .updateSpace(spaceId, { viewMode: mode })
+                    .catch(/** @param {Error} err */ err => {
+                      console.warn('Failed to persist view mode:', err);
+                    });
+                }
+                // Re-render with new view mode
+                switchChannel(activeSpaceInfo.channelPetName || '');
+              }
+            : undefined,
         },
       ).catch(window.reportError);
 
@@ -1441,6 +1557,55 @@ const bodyComponent = (
       };
 
       /**
+       * Show the "Invite & notify?" prompt for a pet name.
+       * @param {string} petName
+       * @param {string} channelPetName
+       * @param {string | undefined} threadKey
+       */
+      const showInvitePrompt = (petName, channelPetName, threadKey) => {
+        const $prompt = document.createElement('div');
+        $prompt.className = 'mention-notify-prompt';
+        $prompt.innerHTML = `
+          <span class="mention-notify-text">\uD83D\uDCE8 Invite & notify <strong>@${petName}</strong>?</span>
+          <button type="button" class="mention-notify-yes">Yes, invite</button>
+          <button type="button" class="mention-notify-no">No</button>
+        `;
+        $mentionNotifyArea.appendChild($prompt);
+
+        const $yes = /** @type {HTMLButtonElement} */ (
+          $prompt.querySelector('.mention-notify-yes')
+        );
+        const $no = /** @type {HTMLButtonElement} */ (
+          $prompt.querySelector('.mention-notify-no')
+        );
+
+        $no.addEventListener('click', () => {
+          $prompt.remove();
+        });
+
+        $yes.addEventListener('click', async () => {
+          $yes.disabled = true;
+          $yes.textContent = 'Sending\u2026';
+          try {
+            await sendMentionNotification(
+              petName,
+              channelPetName,
+              false,
+              threadKey,
+            );
+            $prompt.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@${petName}</strong></span>`;
+            setTimeout(() => $prompt.remove(), 3000);
+          } catch (err) {
+            $yes.disabled = false;
+            $yes.textContent = 'Yes, invite';
+            window.alert(
+              `Failed to send notification: ${/** @type {Error} */ (err).message}`,
+            );
+          }
+        });
+      };
+
+      /**
        * Handle @-mention notifications after a channel post.
        * Auto-sends for already-invited members; prompts for new ones.
        * @param {{ petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }} info
@@ -1502,52 +1667,13 @@ const bodyComponent = (
               true,
               info.replyTo,
             ).catch(err => {
-              $toast.innerHTML = `<span class="mention-notify-text">\u2717 Failed to notify <strong>@${petName}</strong></span>`;
-              console.error('Auto-notify failed:', err);
-              setTimeout(() => $toast.remove(), 5000);
+              console.error('Auto-notify failed, falling back to invite prompt:', err);
+              $toast.remove();
+              // Fall back to the invite flow so the user can retry
+              showInvitePrompt(petName, channelPetName, info.replyTo);
             });
           } else {
-            // Not yet invited — prompt the user
-            const $prompt = document.createElement('div');
-            $prompt.className = 'mention-notify-prompt';
-            $prompt.innerHTML = `
-              <span class="mention-notify-text">\uD83D\uDCE8 Invite & notify <strong>@${petName}</strong>?</span>
-              <button type="button" class="mention-notify-yes">Yes, invite</button>
-              <button type="button" class="mention-notify-no">No</button>
-            `;
-            $mentionNotifyArea.appendChild($prompt);
-
-            const $yes = /** @type {HTMLButtonElement} */ (
-              $prompt.querySelector('.mention-notify-yes')
-            );
-            const $no = /** @type {HTMLButtonElement} */ (
-              $prompt.querySelector('.mention-notify-no')
-            );
-
-            $no.addEventListener('click', () => {
-              $prompt.remove();
-            });
-
-            $yes.addEventListener('click', async () => {
-              $yes.disabled = true;
-              $yes.textContent = 'Sending\u2026';
-              try {
-                await sendMentionNotification(
-                  petName,
-                  channelPetName,
-                  false,
-                  info.replyTo,
-                );
-                $prompt.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@${petName}</strong></span>`;
-                setTimeout(() => $prompt.remove(), 3000);
-              } catch (err) {
-                $yes.disabled = false;
-                $yes.textContent = 'Yes, invite';
-                window.alert(
-                  `Failed to send notification: ${/** @type {Error} */ (err).message}`,
-                );
-              }
-            });
+            showInvitePrompt(petName, channelPetName, info.replyTo);
           }
         }
       };
@@ -1589,6 +1715,8 @@ const bodyComponent = (
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
  * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
+ * @property {string[]} [channelOrder] - persisted channel display order
+ * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
  */
 
 /**

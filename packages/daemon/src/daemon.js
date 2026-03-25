@@ -2702,6 +2702,60 @@ const makeDaemonCore = async (
         hostHandleId,
         /** @type {import('./types.js').PetName} */ (guestName),
       ),
+    timer: async ({ intervalMs, label: timerLabel }, context) => {
+      const interval = Number(intervalMs) || 60000;
+      let tickCount = 0;
+      /** @type {Array<{ callback: object, context: string }>} */
+      const subscribers = [];
+
+      // Start the timer loop (fire-and-forget — runs until cancelled)
+      const runTimer = async () => {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          try {
+            await delay(interval, context.cancelled);
+          } catch {
+            break; // Cancelled — clean exit
+          }
+          tickCount += 1;
+          const tick = harden({
+            tick: tickCount,
+            label: timerLabel || 'timer',
+            timestamp: new Date().toISOString(),
+          });
+          for (const sub of subscribers) {
+            try {
+              await E(sub.callback).onTick(tick);
+            } catch (err) {
+              console.error(
+                `[timer] subscriber error:`,
+                /** @type {Error} */ (err).message,
+              );
+            }
+          }
+        }
+      };
+
+      runTimer();
+
+      return Far('Timer', {
+        __getMethodNames__: () =>
+          harden([
+            '__getMethodNames__',
+            'subscribe',
+            'getLabel',
+            'getInterval',
+            'help',
+          ]),
+        subscribe: callback => {
+          subscribers.push({ callback, context: '' });
+        },
+        getLabel: () => timerLabel || 'timer',
+        getInterval: () => interval,
+        help: () =>
+          `Timer "${timerLabel || 'timer'}" firing every ${interval}ms. Ticks: ${tickCount}`,
+      });
+    },
     channel: async (formula, context, id) => {
       const {
         handle: handleId,
@@ -3087,6 +3141,33 @@ const makeDaemonCore = async (
         return formulate(channelNumber, formula);
       })
     );
+  };
+
+  /**
+   * @param {number} intervalMs
+   * @param {string} label
+   * @param {import('./types.js').DeferredTasks<{ timerId: FormulaIdentifier }>} deferredTasks
+   */
+  const formulateTimer = async (intervalMs, label, deferredTasks) => {
+    return withFormulaGraphLock(async () => {
+      const timerNumber = /** @type {FormulaNumber} */ (
+        await randomHex256()
+      );
+      const timerId = formatId({
+        number: timerNumber,
+        node: LOCAL_NODE,
+      });
+
+      await deferredTasks.execute({ timerId });
+
+      const formula = harden({
+        type: 'timer',
+        intervalMs,
+        label,
+      });
+
+      return formulate(timerNumber, formula);
+    });
   };
 
   /**
@@ -4336,6 +4417,7 @@ const makeDaemonCore = async (
     getTypeForId,
     getFormulaForId,
     formulateChannel,
+    formulateTimer,
     makeMailbox,
     makeDirectoryNode,
     localNodeNumber,
