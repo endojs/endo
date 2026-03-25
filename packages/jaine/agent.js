@@ -323,6 +323,12 @@ export const spawnWorkerLoop = async (
         for (const tr of toolResults) {
           conversation.push(tr);
         }
+        // If a terminal tool (channelReply) was called, stop iterating
+        // so the LLM doesn't call it again producing a duplicate reply.
+        const calledNames = toolCalls.map(
+          tc => /** @type {any} */ (tc).function?.name,
+        );
+        if (calledNames.includes('channelReply')) break;
         // Continue loop — LLM may want to call more tools
       } else {
         // Final text response — done
