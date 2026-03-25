@@ -1,4 +1,4 @@
-import makeE from '../src/E.js';
+import makeE from '../src/E.ts';
 import { makeHandledPromise } from '../src/handled-promise.js';
 
 export const HandledPromise = makeHandledPromise();
