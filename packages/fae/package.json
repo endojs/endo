@@ -39,6 +39,7 @@
   "dependencies": {
     "@endo/conversation-tree": "workspace:^",
     "@endo/daemon": "workspace:^",
+    "@endo/init": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",

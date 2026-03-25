@@ -210,7 +210,7 @@ test('commands without context are available in both modes', t => {
     'checkin',
     'checkout',
     'mount',
-    'mkscratch',
+    'mktmp',
     'invite',
     'accept',
     'spawn',
@@ -343,10 +343,10 @@ test('checkin, checkout, and mount appear in storage category', t => {
   t.true(names.includes('mount'));
 });
 
-test('getCommand resolves scratch alias to mkscratch', t => {
-  const cmd = getCommand('scratch');
+test('mktmp command exists', t => {
+  const cmd = getCommand('mktmp');
   t.truthy(cmd);
-  t.is(cmd?.name, 'mkscratch');
+  t.is(cmd?.name, 'mktmp');
 });
 
 test('mount command has path and petName fields', t => {
@@ -361,11 +361,10 @@ test('mount command has path and petName fields', t => {
   t.true(cmd.fields[1].required);
 });
 
-test('mkscratch command has correct properties', t => {
-  const cmd = COMMANDS.mkscratch;
-  t.is(cmd.name, 'mkscratch');
+test('mktmp command has correct properties', t => {
+  const cmd = COMMANDS.mktmp;
+  t.is(cmd.name, 'mktmp');
   t.is(cmd.category, 'storage');
-  t.deepEqual(cmd.aliases, ['scratch']);
 });
 
 test('getCommandsByCategory respects context filter', t => {

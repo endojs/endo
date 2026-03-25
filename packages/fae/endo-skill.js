@@ -50,6 +50,7 @@ const makeRefIterator = iteratorRef => {
   return iterator;
 };
 
+
 /** Resolve the daemon socket path (same logic as @endo/where). */
 const getEndoSockPath = () => {
   if (process.env.ENDO_SOCK) return process.env.ENDO_SOCK;
@@ -451,6 +452,7 @@ const commands = {
       console.log(formatMessage(msg));
     }
   },
+
 
   async help() {
     console.log(`Endo Daemon Skill — Claude Code interface
