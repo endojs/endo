@@ -319,6 +319,8 @@ export const HostInterface = M.interface('EndoHost', {
     .returns(M.promise()),
   // Create a channel
   makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
+  // Create a timer
+  makeTimer: M.call(NameShape, M.number()).optional(M.string()).returns(M.promise()),
   // Cancel a value
   cancel: M.call(NameOrPathShape).optional(M.error()).returns(M.promise()),
   // Get the greeter
