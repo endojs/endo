@@ -58,9 +58,9 @@ export declare function makeExo<
 >(
   tag: string,
   interfaceGuard: G,
-  methods: M & ThisType<{ self: Guarded<M>; state: {} }>,
+  methods: M & ThisType<{ self: Guarded<M, G>; state: {} }>,
   options?: FarClassOptions<ClassContext<{}, M>>,
-): Guarded<M>;
+): Guarded<M, G>;
 
 // Note: `makeExo(tag, undefined, methods)` is runtime-equivalent to
 // `makeExo(tag, M.interface(x, {}, { defaultGuards: 'passable' }), methods)`.
@@ -86,11 +86,11 @@ export declare function defineExoClass<
   init: I,
   methods: M &
     ThisType<{
-      self: Guarded<M>;
+      self: Guarded<M, G>;
       state: ReturnType<I>;
     }>,
   options?: FarClassOptions<ClassContext<ReturnType<I>, M>>,
-): (...args: Parameters<I>) => Guarded<M>;
+): (...args: Parameters<I>) => Guarded<M, G>;
 
 // Passing `undefined` is runtime-equivalent to passing
 // `M.interface(x, {}, { defaultGuards: 'passable' })` — no guard enforcement.
@@ -125,15 +125,15 @@ export declare function defineExoClassKit<
   methodsKit: {
     [K in keyof F]: F[K] &
       ThisType<{
-        facets: GuardedKit<F>;
+        facets: GuardedKit<F, GK>;
         state: ReturnType<I>;
       }>;
   },
   options?: FarClassOptions<
-    KitContext<ReturnType<I>, GuardedKit<F>>,
-    GuardedKit<F>
+    KitContext<ReturnType<I>, GuardedKit<F, GK>>,
+    GuardedKit<F, GK>
   >,
-): (...args: Parameters<I>) => GuardedKit<F>;
+): (...args: Parameters<I>) => GuardedKit<F, GK>;
 
 // Passing `undefined` is runtime-equivalent to passing a guard kit where every
 // facet uses `{ defaultGuards: 'passable' }` — no guard enforcement.

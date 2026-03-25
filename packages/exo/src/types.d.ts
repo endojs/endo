@@ -1,6 +1,11 @@
 import type { RemotableBrand } from '@endo/eventual-send';
 import type { RemotableObject, RemotableMethodName } from '@endo/pass-style';
-import type { InterfaceGuard, MethodGuard, Pattern } from '@endo/patterns';
+import type {
+  InterfaceGuard,
+  MethodGuard,
+  Pattern,
+  TypeFromMethodGuard,
+} from '@endo/patterns';
 import type { GetInterfaceGuard } from './get-interface.js';
 
 export type MatchConfig = {
@@ -173,13 +178,63 @@ type StripIndexSignature<T> = 0 extends 1 & T
   : keyof StripIndexCore<T> extends never
     ? T // no concrete keys (e.g. bare Methods) — keep as-is
     : StripIndexCore<T>;
-export type Guarded<M extends Methods> = StripIndexSignature<M> &
-  GetInterfaceGuard<M> &
-  RemotableBrand<{}, M> &
+/**
+ * The second type parameter `G` embeds the specific InterfaceGuard type
+ * into the `__getInterfaceGuard__` method's return type.  This enables
+ * {@link GuardedMethods} to extract guard-inferred method signatures
+ * from a Guarded exo object.  When no guard is provided (unguarded
+ * overloads), `G` defaults to a generic InterfaceGuard keyed by M.
+ */
+export type Guarded<
+  M extends Methods,
+  G extends InterfaceGuard = InterfaceGuard<{
+    [K in keyof M]: MethodGuard;
+  }>,
+> = StripIndexSignature<M> & {
+  __getInterfaceGuard__?: () => G | undefined;
+} & RemotableBrand<{}, M> &
   RemotableObject;
-export type GuardedKit<F extends Record<string, Methods>> = {
-  [K in keyof F as string extends K ? never : K]: Guarded<F[K]>;
+export type GuardedKit<
+  F extends Record<string, Methods>,
+  GK extends Record<string, InterfaceGuard> = {
+    [K in keyof F]: InterfaceGuard<{ [M in keyof F[K]]: MethodGuard }>;
+  },
+> = {
+  [K in keyof F as string extends K ? never : K]: Guarded<
+    F[K],
+    K extends keyof GK ? GK[K] : InterfaceGuard
+  >;
 };
+
+/**
+ * Extract guard-inferred method types from a Guarded exo object.
+ *
+ * By default, `Guarded<M>` uses the implementation's types (preserving
+ * parameter names).  `GuardedMethods` re-derives the method signatures
+ * from the exo's embedded InterfaceGuard (via `__getInterfaceGuard__`),
+ * giving callers the guard's type contract — including `.optional()`
+ * parameters that the implementation may declare as required.
+ *
+ * Note: parameter names are NOT preserved — TypeScript has no mechanism
+ * to programmatically copy parameter names between function types.
+ * The types are correct but displayed as `args_0`, `args_1`, etc.
+ *
+ * @example
+ * ```ts
+ * const counter = makeExo('Counter', CounterI, { incr(n) { ... } });
+ * type CM = GuardedMethods<typeof counter>;
+ * // { incr: (args_0?: bigint) => bigint }  — optional from guard
+ * ```
+ */
+export type GuardedMethods<E> = E extends {
+  __getInterfaceGuard__?: () => InterfaceGuard<infer MG> | undefined;
+}
+  ? {
+      [K in keyof MG as K extends keyof E ? K : never]: TypeFromMethodGuard<
+        MG[K]
+      >;
+    }
+  : never;
 
 /**
  * Rearrange the Exo types to make a cast of the methods (M) and init function (I) to a specific type.

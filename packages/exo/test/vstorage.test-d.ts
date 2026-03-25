@@ -45,7 +45,11 @@ export type VStorageKey = {
         return this.state.path;
       },
       async getStoreKey() {
-        return { storeName: 'test', storeSubkey: this.state.path,, dataPrefixBytes: '00' };
+        return {
+          storeName: 'test',
+          storeSubkey: this.state.path,
+          dataPrefixBytes: '00',
+        };
       },
       makeChildNode(name, _opts?) {
         expectType<string>(name);
