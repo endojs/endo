@@ -10158,6 +10158,7 @@ __metadata:
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
     source-map: "npm:^0.7.4"
+    ts-blank-space: "npm:^0.6.1"
     tsd: "npm:^0.31.2"
     type-coverage: "npm:^2.29.1"
     typedoc: "npm:^0.28.17"

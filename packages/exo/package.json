@@ -24,8 +24,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
+    "prepack": "yarn run -T prepack-package",
+    "postpack": "yarn run -T postpack-package",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
