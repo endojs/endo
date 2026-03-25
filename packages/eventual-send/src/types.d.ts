@@ -6,7 +6,7 @@
 //
 
 // @ts-ignore TS1383: Only named exports may use 'export type'.
-export type * from './E.js';
+export type * from './E.ts';
 // @ts-ignore TS1383: Only named exports may use 'export type'.
 export type * from './handled-promise.js';
 // @ts-ignore TS1383: Only named exports may use 'export type'.
