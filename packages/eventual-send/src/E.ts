@@ -2,17 +2,14 @@ import harden from '@endo/harden';
 import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
+import type { HandledPromiseConstructor, RemotableBrand, Callable, Settler } from './types.js';
+
 const { details: X, quote: q, Fail, error: makeError } = assert;
 const { assign, freeze } = Object;
 
-/**
- * @import { HandledPromiseConstructor, RemotableBrand, Callable, Settler } from './types.js';
- */
-
 const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
 
-/** @type {ProxyHandler<any>} */
-const baseFreezableProxyHandler = {
+const baseFreezableProxyHandler: ProxyHandler<any> = {
   set(_target, _prop, _value) {
     return false;
   },
@@ -38,12 +35,8 @@ const baseFreezableProxyHandler = {
 
 /**
  * A Proxy handler for E(x).
- *
- * @param {any} recipient Any value passed to E(x)
- * @param {HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler<unknown>} the Proxy handler
  */
-const makeEProxyHandler = (recipient, HandledPromise) =>
+const makeEProxyHandler = (recipient: any, HandledPromise: HandledPromiseConstructor): ProxyHandler<object> =>
   harden({
     ...baseFreezableProxyHandler,
     get: (_target, propertyKey, receiver) => {
@@ -53,8 +46,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
           // In order to be `this` sensitive it is defined using concise method
           // syntax rather than as an arrow function. To ensure the function
           // is not constructable, it also avoids the `function` syntax.
-          /** @type {(...args: any[]) => Promise<unknown>} */
-          [propertyKey](...args) {
+          [propertyKey](...args: any[]): Promise<unknown> {
             if (this !== receiver) {
               // Reject the async function call
               return HandledPromise.reject(
@@ -99,12 +91,8 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
 /**
  * A Proxy handler for E.sendOnly(x)
  * It is a variant on the E(x) Proxy handler.
- *
- * @param {any} recipient Any value passed to E.sendOnly(x)
- * @param {HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler<unknown>} the Proxy handler
  */
-const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
+const makeESendOnlyProxyHandler = (recipient: any, HandledPromise: HandledPromiseConstructor): ProxyHandler<object> =>
   harden({
     ...baseFreezableProxyHandler,
     get: (_target, propertyKey, receiver) => {
@@ -114,8 +102,7 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
           // In order to be `this` sensitive it is defined using concise method
           // syntax rather than as an arrow function. To ensure the function
           // is not constructable, it also avoids the `function` syntax.
-          /** @type {(...args: any[]) => undefined} */
-          [propertyKey](...args) {
+          [propertyKey](...args: any[]): undefined {
             // Throw since the function returns nothing
             this === receiver ||
               Fail`Unexpected receiver for "${q(
@@ -156,12 +143,8 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
 /**
  * A Proxy handler for E.get(x)
  * It is a variant on the E(x) Proxy handler.
- *
- * @param {any} x Any value passed to E.get(x)
- * @param {HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler<unknown>} the Proxy handler
  */
-const makeEGetProxyHandler = (x, HandledPromise) =>
+const makeEGetProxyHandler = (x: any, HandledPromise: HandledPromiseConstructor): ProxyHandler<object> =>
   harden({
     ...baseFreezableProxyHandler,
     has: (_target, _prop) => true,
@@ -177,7 +160,6 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
 const funcTarget = freeze(() => {});
 
 /**
-/**
  * `freeze` but not `harden` the proxy target so it remains trapping.
  * Thus, it should not be shared outside this module.
  *
@@ -185,10 +167,7 @@ const funcTarget = freeze(() => {});
  */
 const objTarget = freeze({ __proto__: null });
 
-/**
- * @param {HandledPromiseConstructor} HandledPromise
- */
-const makeE = HandledPromise => {
+const makeE = (HandledPromise: HandledPromiseConstructor) => {
   return harden(
     assign(
       /**
@@ -203,65 +182,42 @@ const makeE = HandledPromise => {
        *   .catch(err => { ... });
        *
        *  See https://endojs.github.io/endo/functions/_endo_far.E.html for details.
-       *
-       * @template T
-       * @param {T} x target for method/function call
-       * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
        */
       // @ts-expect-error XXX typedef
-      x => new Proxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
+      <T>(x: T): ECallableOrMethods<RemoteFunctions<T>> => new Proxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
       {
         /**
          * E.get(x) returns a proxy on which you can get arbitrary properties.
          * Each of these properties returns a promise for the property.  The promise
          * value will be the property fetched from whatever 'x' designates (or
          * resolves to) in a future turn, not this one.
-         *
-         * @template T
-         * @param {T} x target for property get
-         * @returns {EGetters<LocalRecord<T>>} property get proxy
-         * @readonly
          */
         // @ts-expect-error XXX typedef
-        get: x => new Proxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
+        get: <T>(x: T): EGetters<LocalRecord<T>> => new Proxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is
          * shorthand for HandledPromise.resolve(x)
-         *
-         * @template T
-         * @param {T} x value to convert to a handled promise
-         * @returns {Promise<Awaited<T>>} handled promise for x
-         * @readonly
          */
-        resolve: HandledPromise.resolve,
+        resolve: HandledPromise.resolve as <T>(x: T) => Promise<Awaited<T>>,
 
         /**
          * E.sendOnly returns a proxy similar to E, but for which the results
          * are ignored (undefined is returned).
-         *
-         * @template T
-         * @param {T} x target for method/function call
-         * @returns {ESendOnlyCallableOrMethods<RemoteFunctions<T>>} method/function call proxy
-         * @readonly
          */
-        sendOnly: x =>
+        sendOnly: <T>(x: T): ESendOnlyCallableOrMethods<RemoteFunctions<T>> =>
           // @ts-expect-error XXX typedef
           new Proxy(funcTarget, makeESendOnlyProxyHandler(x, HandledPromise)),
 
         /**
          * E.when(x, res, rej) is equivalent to
          * HandledPromise.resolve(x).then(res, rej)
-         *
-         * @template T
-         * @template [U = T]
-         * @param {T|PromiseLike<T>} x value to convert to a handled promise
-         * @param {(value: T) => ERef<U>} [onfulfilled]
-         * @param {(reason: any) => ERef<U>} [onrejected]
-         * @returns {Promise<U>}
-         * @readonly
          */
-        when: (x, onfulfilled, onrejected) =>
+        when: <T, U = T>(
+          x: T | PromiseLike<T>,
+          onfulfilled?: (value: T) => ERef<U>,
+          onrejected?: (reason: any) => ERef<U>,
+        ): Promise<U> =>
           HandledPromise.resolve(x).then(
             ...trackTurns([onfulfilled, onrejected]),
           ),
@@ -272,7 +228,7 @@ const makeE = HandledPromise => {
 
 export default makeE;
 
-/** @typedef {ReturnType<makeE>} EProxy */
+export type EProxy = ReturnType<typeof makeE>;
 
 /**
  * Declare an object that is potentially a far reference of type Primary whose
@@ -280,143 +236,104 @@ export default makeE;
  * Far objects in arguments and declarations; the only creators of Far objects
  * are distributed object creator components like the `Far` or `Remotable`
  * functions.
- *
- * @template Primary The type of the primary reference.
- * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {ERef<Local & RemotableBrand<Local, Primary>>} FarRef
  */
+export type FarRef<Primary, Local = DataOnly<Primary>> = ERef<Local & RemotableBrand<Local, Primary>>;
 
 /**
  * `DataOnly<T>` means to return a record type `T2` consisting only of
  * properties that are *not* functions.
- *
- * @template T The type to be filtered.
- * @typedef {Omit<T, FilteredKeys<T, Callable>>} DataOnly
  */
+export type DataOnly<T> = Omit<T, FilteredKeys<T, Callable>>;
 
 /**
  * @see {@link https://github.com/microsoft/TypeScript/issues/31394}
- * @template T
- * @typedef {PromiseLike<T> | T} ERef
  * Declare that `T` may or may not be a Promise.  This should be used only for
  * consumers of arguments and declarations; return values should specifically be
  * `Promise<T>` or `T` itself.
  */
+export type ERef<T> = PromiseLike<T> | T;
 
 /**
  * The awaited return type of a function.
  * For the eventual result of an E call, @see {EResult} or @see {ECallableReturn}
- *
- * @template {(...args: any[]) => any} T
- * @typedef {T extends (...args: any[]) => infer R ? Awaited<R> : never} EReturn
  */
+export type EReturn<T extends (...args: any[]) => any> = T extends (...args: any[]) => infer R ? Awaited<R> : never;
 
 /**
  * An eventual value where remotable objects are recursively mapped to Remote types
- *
- * @template T
- * @typedef {Awaited<T>} EResult
  */
+export type EResult<T> = Awaited<T>;
 
 /**
  * Experimental type mapping remotable objects to Remote types
- *
- * @template T
- * @typedef {(
- *   0 extends (1 & T)                                        // If T is any
- *     ? T                                                    // Propagate the any type through the result
- *     : T extends RemotableBrand<infer L, infer P>           // If we have a Remotable
- *       ? (P | RemotableBrand<L, P>)                         // map it to its "maybe remote" form (primary behavior or remotable presence)
- *       : T extends PromiseLike<infer U>                     // If T is a promise
- *         ? Promise<EAwaitedResult<Awaited<T>>>              // map its resolution
- *         : T extends (null | undefined | string | number | boolean | symbol | bigint | Callable) // Intersections of these types with objects are not mapped
- *           ? T                                              // primitives and non-remotable functions are passed-through
- *           : T extends object                               //
- *             ? { [P in keyof T]: EAwaitedResult<T[P]>; }    // other objects are considered copy data and properties mapped
- *             : T                                            // in case anything wasn't covered, fallback to pass-through
- * )} EAwaitedResult
  */
+export type EAwaitedResult<T> =
+  0 extends (1 & T)                                        // If T is any
+    ? T                                                    // Propagate the any type through the result
+    : T extends RemotableBrand<infer L, infer P>           // If we have a Remotable
+      ? (P | RemotableBrand<L, P>)                         // map it to its "maybe remote" form (primary behavior or remotable presence)
+      : T extends PromiseLike<infer _U>                    // If T is a promise
+        ? Promise<EAwaitedResult<Awaited<T>>>              // map its resolution
+        : T extends (null | undefined | string | number | boolean | symbol | bigint | Callable) // Intersections of these types with objects are not mapped
+          ? T                                              // primitives and non-remotable functions are passed-through
+          : T extends object                               //
+            ? { [P in keyof T]: EAwaitedResult<T[P]>; }    // other objects are considered copy data and properties mapped
+            : T;                                           // in case anything wasn't covered, fallback to pass-through
 
 /**
  * The @see {EResult} return type of a remote function.
- *
- * @template {(...args: any[]) => any} T
- * @typedef {(
- *   0 extends (1 & T)                          // If T is any
- *     ? any                                    // Propagate the any type through the result
- *     : T extends (...args: any[]) => infer R  // Else infer the return type
- *       ? EResult<R>                           // In the future, map the eventual result
- *       : never
- * )} ECallableReturn
  */
+export type ECallableReturn<T extends (...args: any[]) => any> =
+  0 extends (1 & T)                          // If T is any
+    ? any                                    // Propagate the any type through the result
+    : T extends (...args: any[]) => infer R  // Else infer the return type
+      ? EResult<R>                           // In the future, map the eventual result
+      : never;
 
 // TODO: Figure out a way to map generic callable return types, or at least better detect them.
 // See https://github.com/microsoft/TypeScript/issues/61838. Without that, `E(startGovernedUpgradable)`
 // in agoric-sdk doesn't propagate the start function type.
 /**
  * Maps a callable to its remotely called type
- *
- * @template {Callable} T
- * @typedef {(
- *    ReturnType<T> extends PromiseLike<infer U>                  // Check if callable returns a promise
- *      ? T                                                       // Bypass mapping to maintain any generic
- *      : (...args: Parameters<T>) => Promise<ECallableReturn<T>> // Map it anyway to ensure promise return type
- * )} ECallable
  */
+export type ECallable<T extends Callable> =
+  ReturnType<T> extends PromiseLike<infer _U>                  // Check if callable returns a promise
+    ? T                                                       // Bypass mapping to maintain any generic
+    : (...args: Parameters<T>) => Promise<ECallableReturn<T>>; // Map it anyway to ensure promise return type
 
-/**
- * @template T
- * @typedef {{
- *   readonly [P in keyof T]: T[P] extends Callable
- *     ? ECallable<T[P]>
- *     : never;
- * }} EMethods
- */
+export type EMethods<T> = {
+  readonly [P in keyof T]: T[P] extends Callable
+    ? ECallable<T[P]>
+    : never;
+};
 
-/**
- * @template T
- * @typedef {{
- *   readonly [P in keyof T]: T[P] extends PromiseLike<infer U>
- *     ? T[P]
- *     : Promise<Awaited<T[P]>>;
- * }} EGetters
- */
+export type EGetters<T> = {
+  readonly [P in keyof T]: T[P] extends PromiseLike<infer _U>
+    ? T[P]
+    : Promise<Awaited<T[P]>>;
+};
 
-/**
- * @template {Callable} T
- * @typedef {(...args: Parameters<T>) => Promise<void>} ESendOnlyCallable
- */
+export type ESendOnlyCallable<T extends Callable> = (...args: Parameters<T>) => Promise<void>;
 
-/**
- * @template T
- * @typedef {{
- *   readonly [P in keyof T]: T[P] extends Callable
- *     ? ESendOnlyCallable<T[P]>
- *     : never;
- * }} ESendOnlyMethods
- */
+export type ESendOnlyMethods<T> = {
+  readonly [P in keyof T]: T[P] extends Callable
+    ? ESendOnlyCallable<T[P]>
+    : never;
+};
 
-/**
- * @template T
- * @typedef {(
- *   T extends Callable
- *     ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
- *     : 0 extends (1 & T)
- *       ? never
- *       : ESendOnlyMethods<Required<T>>
- * )} ESendOnlyCallableOrMethods
- */
+export type ESendOnlyCallableOrMethods<T> =
+  T extends Callable
+    ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
+    : 0 extends (1 & T)
+      ? never
+      : ESendOnlyMethods<Required<T>>;
 
-/**
- * @template T
- * @typedef {(
- *   T extends Callable
- *     ? ECallable<T> & EMethods<Required<T>>
- *     : 0 extends (1 & T)
- *       ? never
- *       : EMethods<Required<T>>
- * )} ECallableOrMethods
- */
+export type ECallableOrMethods<T> =
+  T extends Callable
+    ? ECallable<T> & EMethods<Required<T>>
+    : 0 extends (1 & T)
+      ? never
+      : EMethods<Required<T>>;
 
 /**
  * Return a union of property names/symbols/numbers P for which the record element T[P]'s type extends U.
@@ -427,71 +344,52 @@ export default makeE;
  * FilteredKeys<typeof x, string> is the type 'b'.
  * FilteredKeys<typeof x, 42 | 67> is the type 'c' | 53.
  * FilteredKeys<typeof x, boolean> is the type never.
- *
- * @template T
- * @template U
- * @typedef {{ [P in keyof T]: T[P] extends U ? P : never; }[keyof T]} FilteredKeys
  */
+export type FilteredKeys<T, U> = { [P in keyof T]: T[P] extends U ? P : never; }[keyof T];
 
 /**
  * `PickCallable<T>` means to return a single root callable or a record type
  * consisting only of properties that are functions.
- *
- * @template T
- * @typedef {(
- *   T extends Callable
- *     ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
- *     : Pick<T, FilteredKeys<T, Callable>>          // any callable methods
- * )} PickCallable
  */
+export type PickCallable<T> =
+  T extends Callable
+    ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
+    : Pick<T, FilteredKeys<T, Callable>>;          // any callable methods
 
 /**
  * `RemoteFunctions<T>` means to return the functions and properties that are remotely callable.
- *
- * @template T
- * @typedef {(
- *   T extends RemotableBrand<infer L, infer R>   // if a given T is some remote interface R
- *     ? PickCallable<R>                          // then return the callable properties of R
- *     : T extends PromiseLike<infer U>           // otherwise, if T is a promise
- *       ? RemoteFunctions<U>                     // recurse on the resolved value of T
- *       : T                                      // otherwise, return T
- * )} RemoteFunctions
  */
+export type RemoteFunctions<T> =
+  T extends RemotableBrand<infer _L, infer R>   // if a given T is some remote interface R
+    ? PickCallable<R>                          // then return the callable properties of R
+    : T extends PromiseLike<infer U>           // otherwise, if T is a promise
+      ? RemoteFunctions<U>                     // recurse on the resolved value of T
+      : T;                                     // otherwise, return T
 
-/**
- * @template T
- * @typedef {(
- *   T extends RemotableBrand<infer L, infer R>
- *     ? L
- *     : T extends PromiseLike<infer U>
- *     ? LocalRecord<U>
- *     : T
- * )} LocalRecord
- */
+export type LocalRecord<T> =
+  T extends RemotableBrand<infer L, infer _R>
+    ? L
+    : T extends PromiseLike<infer U>
+    ? LocalRecord<U>
+    : T;
 
-/**
- * @template [R = unknown]
- * @typedef {{
- *   promise: Promise<R>;
- *   settler: Settler<R>;
- * }} EPromiseKit
- */
+export type EPromiseKit<R = unknown> = {
+  promise: Promise<R>;
+  settler: Settler<R>;
+};
 
 /**
  * Declare a near object that must only be invoked with E, even locally.  It
  * supports the `T` interface but additionally permits `T`'s methods to return
  * `PromiseLike`s even if `T` declares them as only synchronous.
- *
- * @template T
- * @typedef {(
- *   T extends Callable
- *     ? (...args: Parameters<T>) => ERef<Awaited<EOnly<ReturnType<T>>>>
- *     : T extends Record<PropertyKey, Callable>
- *     ? {
- *         [K in keyof T]: T[K] extends Callable
- *           ? (...args: Parameters<T[K]>) => ERef<Awaited<EOnly<ReturnType<T[K]>>>>
- *           : T[K];
- *       }
- *     : T
- * )} EOnly
  */
+export type EOnly<T> =
+  T extends Callable
+    ? (...args: Parameters<T>) => ERef<Awaited<EOnly<ReturnType<T>>>>
+    : T extends Record<PropertyKey, Callable>
+    ? {
+        [K in keyof T]: T[K] extends Callable
+          ? (...args: Parameters<T[K]>) => ERef<Awaited<EOnly<ReturnType<T[K]>>>>
+          : T[K];
+      }
+    : T;

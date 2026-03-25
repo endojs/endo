@@ -1,8 +1,8 @@
-import makeE from './E.js';
+import makeE from './E.ts';
 
 // XXX module exports for HandledPromise fail if these aren't in scope
 /** @import {Handler, HandledExecutor} from './handled-promise.js' */
-/** @import {ECallableOrMethods, EGetters, ERef, ERemoteFunctions, ESendOnlyCallableOrMethods, LocalRecord, RemoteFunctions} from './E.js' */
+/** @import {ECallableOrMethods, EGetters, ERef, ERemoteFunctions, ESendOnlyCallableOrMethods, LocalRecord, RemoteFunctions} from './E.ts' */
 
 const hp = HandledPromise;
 
