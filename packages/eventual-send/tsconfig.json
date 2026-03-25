@@ -6,7 +6,8 @@
     "strict": true,
     "noImplicitAny": false,
     "useUnknownInCatchVariables": false,
-    "skipLibCheck": false
+    "skipLibCheck": false,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "*.js",
