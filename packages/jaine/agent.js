@@ -213,6 +213,80 @@ export const spawnWorkerLoop = async (
   };
 
   /**
+   * Create a pre-bound readChannel tool for a specific mention.
+   * Uses the pre-adopted channel reference so the LLM cannot pass
+   * a wrong channel name.
+   *
+   * @param {string} chRefName - pet name of the pre-adopted channel ref
+   * @param {string} joinName - invitedAs name for join()
+   * @returns {{ schema: () => object, execute: (args: Record<string, unknown>) => Promise<string> }}
+   */
+  const makeMentionReadChannelTool = (chRefName, joinName) => {
+    const schema = harden({
+      type: 'function',
+      function: {
+        name: 'readChannel',
+        description:
+          'Read recent messages from the channel for more context.',
+        parameters: {
+          type: 'object',
+          properties: {
+            count: {
+              type: 'integer',
+              description:
+                'Number of recent messages to return (default: 20).',
+            },
+          },
+        },
+      },
+    });
+
+    const execute = async args => {
+      const count = Number(args.count) || 20;
+      const ch = await E(powers).lookup(chRefName);
+      const me = await E(ch).join(joinName);
+      const rawMessages = await E(me).listMessages();
+      const messages = /** @type {any[]} */ (rawMessages);
+
+      /** @type {Map<string, string>} */
+      const memberNames = new Map();
+      try {
+        const mid = await E(me).getMemberId();
+        const mname = await E(me).getProposedName();
+        memberNames.set(mid, mname);
+      } catch {
+        // not available
+      }
+      try {
+        const members = /** @type {any[]} */ (await E(me).getMembers());
+        for (const m of members) {
+          memberNames.set(m.memberId, m.proposedName || m.invitedAs);
+        }
+      } catch {
+        // not available
+      }
+
+      const shown = messages.slice(-count);
+      const lines = [];
+      for (const msg of shown) {
+        const author = memberNames.get(msg.memberId) || msg.memberId;
+        const text = Array.isArray(msg.strings)
+          ? msg.strings.join('')
+          : '';
+        const replyTo = msg.replyTo
+          ? ` (reply to #${msg.replyTo})`
+          : '';
+        const preview =
+          text.length > 300 ? `${text.slice(0, 300)}...` : text;
+        lines.push(`[#${msg.number}] ${author}${replyTo}: ${preview}`);
+      }
+      return lines.join('\n');
+    };
+
+    return harden({ schema: () => schema, execute });
+  };
+
+  /**
    * Process tool calls from LLM response.
    *
    * @param {object[]} toolCalls
@@ -472,18 +546,16 @@ export const spawnWorkerLoop = async (
         mentionInfo.join,
         mentionInfo.replyTo,
       );
-      const readChannelTool = allTools.get('readChannel');
+      const readTool = makeMentionReadChannelTool(
+        chRefName,
+        mentionInfo.join,
+      );
 
       toolMap = new Map();
       toolMap.set('channelReply', replyTool);
-      if (readChannelTool) {
-        toolMap.set('readChannel', readChannelTool);
-      }
+      toolMap.set('readChannel', readTool);
 
-      toolSchemas = [replyTool.schema()];
-      if (readChannelTool) {
-        toolSchemas.push(readChannelTool.schema());
-      }
+      toolSchemas = [replyTool.schema(), readTool.schema()];
 
       prompt = systemPrompt || mentionSystemPrompt;
     } else {
