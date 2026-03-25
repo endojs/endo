@@ -33,10 +33,7 @@ const OptionalArrayI = M.interface('OptionalArray', {
 
 test('callWhen-guarded method called without optional array argument', async t => {
   const exo = makeExo('WithNoOption', OptionalArrayI, {
-    /**
-     * @param {string[]} [arr]
-     */
-    async foo(arr) {
+    async foo(arr = undefined) {
       t.is(arr, undefined);
     },
   });
@@ -386,12 +383,11 @@ test.skip('types', () => {
   unguarded.notInBehavior;
 
   const guarded = makeExo('upCounter', UpCounterI, {
-    /** @param {number} val */
-    incr(val) {
+    incr(val = 1) {
       return val;
     },
   });
-  // @ts-expect-error impl has required param from JSDoc; guard makes it optional at runtime
+  // Guard makes the arg optional; default value makes TS accept 0 args
   guarded.incr();
   // @ts-expect-error not defined on the guarded type
   guarded.notInBehavior;
@@ -402,8 +398,7 @@ test.skip('types', () => {
   // exact-type checking for object literals in generics, this could
   // become a compile-time error.
   makeExo('upCounter', UpCounterI, {
-    /** @param {number} val */
-    incr(val) {
+    incr(val = 1) {
       return val;
     },
     notInInterface() {
