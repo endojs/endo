@@ -1,5 +1,4 @@
 // @ts-check
-/* global document */
 
 /**
  * @file Markdown subset parser with chip interpolation support.

@@ -1,4 +1,5 @@
 // @ts-nocheck - Component test with happy-dom
+/* global globalThis */
 
 import 'ses';
 import '@endo/eventual-send/shim.js';
@@ -149,7 +150,11 @@ const setup = async ({ memberDelay = 0 } = {}) => {
   // Wait for async setup (getProposedName, getMember, followMessages)
   await tick(50);
 
-  /** Push a message and wait for it to render. */
+  /**
+   * Push a message and wait for it to render.
+   * @param msg
+   * @param ms
+   */
   const push = async (msg, ms = 80) => {
     pushMessage(msg);
     await tick(ms);
@@ -563,7 +568,7 @@ test.serial(
 test.serial(
   'conversation-back closes thread and stays in channel, then new thread works',
   async t => {
-    const { $parent, $end, push, threadCloseCallbacks } = await setup();
+    const { $parent, push, threadCloseCallbacks } = await setup();
 
     await push(makeMessage(1, 'Root'));
     await push(makeMessage(2, 'Reply to root', { replyTo: 1 }));

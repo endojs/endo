@@ -3,11 +3,11 @@
 
 /** @import { FilePowers } from './types.js' */
 
+import { decodeBase64 } from '@endo/base64';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { MountInterface, MountFileInterface } from './interfaces.js';
-
 
 /**
  * Validate a single path segment.
@@ -22,8 +22,14 @@ const assertValidSegment = segment => {
   if (segment === '') {
     throw new Error('Path segment must not be empty');
   }
-  if (segment.includes('/') || segment.includes('\\') || segment.includes('\0')) {
-    throw new Error(`Path segment must not contain '/', '\\', or '\\0': ${q(segment)}`);
+  if (
+    segment.includes('/') ||
+    segment.includes('\\') ||
+    segment.includes('\0')
+  ) {
+    throw new Error(
+      `Path segment must not contain '/', '\\', or '\\0': ${q(segment)}`,
+    );
   }
 };
 harden(assertValidSegment);
@@ -71,7 +77,9 @@ const assertConfined = async (candidatePath, confinementRoot, filePowers) => {
   try {
     resolved = await filePowers.realPath(candidatePath);
   } catch {
-    throw new Error(`Path does not exist and cannot be verified: ${q(candidatePath)}`);
+    throw new Error(
+      `Path does not exist and cannot be verified: ${q(candidatePath)}`,
+    );
   }
   const rootResolved = await filePowers.realPath(confinementRoot);
   if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
@@ -88,14 +96,21 @@ harden(assertConfined);
  * @param {string} confinementRoot
  * @param {FilePowers} filePowers
  */
-const assertConfinedOrAncestor = async (candidatePath, confinementRoot, filePowers) => {
+const assertConfinedOrAncestor = async (
+  candidatePath,
+  confinementRoot,
+  filePowers,
+) => {
   const rootResolved = await filePowers.realPath(confinementRoot);
   let check = candidatePath;
   for (;;) {
     try {
       // eslint-disable-next-line no-await-in-loop
       const resolved = await filePowers.realPath(check);
-      if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
+      if (
+        resolved !== rootResolved &&
+        !resolved.startsWith(`${rootResolved}/`)
+      ) {
         throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
       }
       return;
@@ -148,13 +163,8 @@ harden(isConfinedPath);
  * @returns {object}
  */
 const makeMountExo = ctx => {
-  const {
-    currentDir,
-    confinementRoot,
-    readOnly,
-    filePowers,
-    description,
-  } = ctx;
+  const { currentDir, confinementRoot, readOnly, filePowers, description } =
+    ctx;
 
   const assertWritable = () => {
     if (readOnly) {

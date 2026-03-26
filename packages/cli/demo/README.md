@@ -114,7 +114,7 @@ import { M } from '@endo/patterns';
 
 export const make = powers => {
   const counter = E(powers).request(
-    'HOST',
+    '@host',
     'a counter, suitable for doubling',
     'my-counter'
   );
@@ -204,7 +204,7 @@ and adopt the "doubler" object into our own store.
 > endo mkguest alice alice-agent
 > endo send alice 'Please enjoy this @doubler.'
 > endo inbox --as alice-agent
-0. "HOST" sent "Please enjoy this @doubler."
+0. "@host" sent "Please enjoy this @doubler."
 > endo adopt --as alice-agent 0 doubler
 > endo list alice-agent
 doubler
@@ -228,7 +228,7 @@ Then, alice adopts "counter", giving it their own name, "redoubler".
 ```
 > endo send alice 'Please enjoy this @counter:doubler.'
 > endo inbox --as alice-agent
-1. "HOST" sent "Please enjoy this @counter."
+1. "@host" sent "Please enjoy this @counter."
 > endo adopt --as alice-agent 1 counter --name redoubler
 > endo list alice-agent
 redoubler
@@ -241,15 +241,15 @@ Guests can also send their host messages.
 In this example, "alice" send the doubler back to us, their host.
 
 ```
-> endo send HOST --as alice-agent 'This is the @doubler you sent me.'
+> endo send @host --as alice-agent 'This is the @doubler you sent me.'
 > endo inbox
 0. "alice" sent "This is the @doubler you sent me."
 > endo adopt 0 doubler doubler-from-alice
 > endo dismiss 0
 ```
 
-For a guest, the reserved name HOST refers to their host.
-For both hosts and guests, SELF is the name of their own powers object.
+For a guest, the reserved name `@host` refers to their host.
+Special names are @-prefixed like `@host`, `@agent`, and `@self`.
 
 # Agents
 

@@ -1,5 +1,4 @@
 // @ts-check
-/* global WebSocket */
 
 import { makeCapTP } from '@endo/captp';
 import { E } from '@endo/far';

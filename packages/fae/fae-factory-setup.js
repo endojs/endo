@@ -1,4 +1,6 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
+/* global process, setTimeout */
 // endo run --UNCONFINED fae-factory-setup.js --powers @agent \
 //   -E PROVIDER_NAME=default -E FACTORY_NAME=fae
 

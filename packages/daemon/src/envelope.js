@@ -1,4 +1,6 @@
 // @ts-check
+/* eslint-disable no-bitwise */
+/* global Buffer */
 
 /**
  * Minimal CBOR codec for the engo envelope protocol.

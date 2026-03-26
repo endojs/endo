@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, window, requestAnimationFrame, cancelAnimationFrame, setTimeout */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -436,14 +435,15 @@ export const renderGraph = (
       /** @type {Set<string>} */
       const seen = new Set();
       for (const { name, id } of entries) {
-        if (id === agentId || seen.has(id) || hasIncoming.has(id)) continue;
-        seen.add(id);
-        edges.push({
-          source: agentId,
-          target: id,
-          label: name,
-          kind: 'petstore',
-        });
+        if (id !== agentId && !seen.has(id) && !hasIncoming.has(id)) {
+          seen.add(id);
+          edges.push({
+            source: agentId,
+            target: id,
+            label: name,
+            kind: 'petstore',
+          });
+        }
       }
     }
 
@@ -540,13 +540,13 @@ export const renderGraph = (
           n.targetX = 0;
           n.targetY = 0;
         }
-        continue;
-      }
-      const r = d * RADIAL_RING_SPACING;
-      for (let i = 0; i < ring.length; i += 1) {
-        const angle = (2 * Math.PI * i) / ring.length - Math.PI / 2;
-        ring[i].targetX = r * Math.cos(angle);
-        ring[i].targetY = r * Math.sin(angle);
+      } else {
+        const r = d * RADIAL_RING_SPACING;
+        for (let i = 0; i < ring.length; i += 1) {
+          const angle = (2 * Math.PI * i) / ring.length - Math.PI / 2;
+          ring[i].targetX = r * Math.cos(angle);
+          ring[i].targetY = r * Math.sin(angle);
+        }
       }
     }
   };
@@ -585,55 +585,58 @@ export const renderGraph = (
     const anchored = layoutMode !== 'force';
 
     for (const n of nodes) {
-      if (n === dragNode) continue;
-      let fx = 0;
-      let fy = 0;
+      if (n !== dragNode) {
+        let fx = 0;
+        let fy = 0;
 
-      for (const m of nodes) {
-        if (m === n) continue;
-        let dx = n.x - m.x;
-        let dy = n.y - m.y;
-        const distSq = dx * dx + dy * dy;
-        const dist = Math.sqrt(distSq) || 1;
-        if (dist < 1) {
-          dx = (Math.random() - 0.5) * 2;
-          dy = (Math.random() - 0.5) * 2;
+        for (const m of nodes) {
+          if (m !== n) {
+            let dx = n.x - m.x;
+            let dy = n.y - m.y;
+            const distSq = dx * dx + dy * dy;
+            const dist = Math.sqrt(distSq) || 1;
+            if (dist < 1) {
+              dx = (Math.random() - 0.5) * 2;
+              dy = (Math.random() - 0.5) * 2;
+            }
+            const repStr = anchored ? REPULSION * 0.4 : REPULSION;
+            fx += (dx / dist) * (repStr / (distSq || 1));
+            fy += (dy / dist) * (repStr / (distSq || 1));
+          }
         }
-        const repStr = anchored ? REPULSION * 0.4 : REPULSION;
-        fx += (dx / dist) * (repStr / (distSq || 1));
-        fy += (dy / dist) * (repStr / (distSq || 1));
+
+        if (anchored) {
+          if (n.targetX !== undefined && n.targetY !== undefined) {
+            fx += (n.targetX - n.x) * TARGET_K;
+            fy += (n.targetY - n.y) * TARGET_K;
+          }
+        } else {
+          for (const e of edges) {
+            /** @type {GraphNode | undefined} */
+            let other;
+            if (e.source === n.id) other = nodeMap.get(e.target);
+            else if (e.target === n.id) other = nodeMap.get(e.source);
+            if (other) {
+              const dx = other.x - n.x;
+              const dy = other.y - n.y;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              const displacement = dist - SPRING_LENGTH;
+              fx += (dx / dist) * displacement * SPRING_K;
+              fy += (dy / dist) * displacement * SPRING_K;
+            }
+          }
+
+          fx -= n.x * CENTER_GRAVITY;
+          fy -= n.y * CENTER_GRAVITY;
+        }
+
+        n.vx = (n.vx + fx * DT) * DAMPING;
+        n.vy = (n.vy + fy * DT) * DAMPING;
+        if (Math.abs(n.vx) < MIN_VELOCITY) n.vx = 0;
+        if (Math.abs(n.vy) < MIN_VELOCITY) n.vy = 0;
+        n.x += n.vx * DT;
+        n.y += n.vy * DT;
       }
-
-      if (anchored) {
-        if (n.targetX !== undefined && n.targetY !== undefined) {
-          fx += (n.targetX - n.x) * TARGET_K;
-          fy += (n.targetY - n.y) * TARGET_K;
-        }
-      } else {
-        for (const e of edges) {
-          /** @type {GraphNode | undefined} */
-          let other;
-          if (e.source === n.id) other = nodeMap.get(e.target);
-          else if (e.target === n.id) other = nodeMap.get(e.source);
-          if (!other) continue;
-          const dx = other.x - n.x;
-          const dy = other.y - n.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const displacement = dist - SPRING_LENGTH;
-          fx += (dx / dist) * displacement * SPRING_K;
-          fy += (dy / dist) * displacement * SPRING_K;
-        }
-
-        fx -= n.x * CENTER_GRAVITY;
-        fy -= n.y * CENTER_GRAVITY;
-      }
-
-      n.vx = (n.vx + fx * DT) * DAMPING;
-      n.vy = (n.vy + fy * DT) * DAMPING;
-      if (Math.abs(n.vx) < MIN_VELOCITY) n.vx = 0;
-      if (Math.abs(n.vy) < MIN_VELOCITY) n.vy = 0;
-      n.x += n.vx * DT;
-      n.y += n.vy * DT;
     }
   };
 
@@ -716,52 +719,56 @@ export const renderGraph = (
 
     // ── Edges ──
     for (const e of edges) {
-      if (e.kind === 'formula' && !showFormulaEdges) continue;
-      if (e.kind === 'petstore' && !showPetStoreEdges) continue;
-      const src = nodeMap.get(e.source);
-      const tgt = nodeMap.get(e.target);
-      if (!src || !tgt) continue;
-
-      const dx = tgt.x - src.x;
-      const dy = tgt.y - src.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const ux = dx / dist;
-      const uy = dy / dist;
-      const edgeInset = NODE_RADIUS + 6;
-      const startX = src.x + ux * NODE_RADIUS;
-      const startY = src.y + uy * NODE_RADIUS;
-      const endX = tgt.x - ux * edgeInset;
-      const endY = tgt.y - uy * edgeInset;
-
-      ctx.beginPath();
-      if (e.kind === 'formula') {
-        ctx.strokeStyle = 'rgba(255, 152, 0, 0.5)';
-        ctx.setLineDash([6, 4]);
-        ctx.lineWidth = 1.5;
+      if (e.kind === 'formula' && !showFormulaEdges) {
+        // skip
+      } else if (e.kind === 'petstore' && !showPetStoreEdges) {
+        // skip
       } else {
-        ctx.strokeStyle = 'rgba(100, 181, 246, 0.45)';
-        ctx.setLineDash([]);
-        ctx.lineWidth = 1;
-      }
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
-      ctx.setLineDash([]);
+        const src = nodeMap.get(e.source);
+        const tgt = nodeMap.get(e.target);
+        if (src && tgt) {
+          const dx = tgt.x - src.x;
+          const dy = tgt.y - src.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          const edgeInset = NODE_RADIUS + 6;
+          const startX = src.x + ux * NODE_RADIUS;
+          const startY = src.y + uy * NODE_RADIUS;
+          const endX = tgt.x - ux * edgeInset;
+          const endY = tgt.y - uy * edgeInset;
 
-      ctx.fillStyle =
-        e.kind === 'formula'
-          ? 'rgba(255, 152, 0, 0.6)'
-          : 'rgba(100, 181, 246, 0.5)';
-      drawArrow(ctx, startX, startY, endX, endY, 9);
+          ctx.beginPath();
+          if (e.kind === 'formula') {
+            ctx.strokeStyle = 'rgba(255, 152, 0, 0.5)';
+            ctx.setLineDash([6, 4]);
+            ctx.lineWidth = 1.5;
+          } else {
+            ctx.strokeStyle = 'rgba(100, 181, 246, 0.45)';
+            ctx.setLineDash([]);
+            ctx.lineWidth = 1;
+          }
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+          ctx.setLineDash([]);
 
-      if (e.label) {
-        const midX = (src.x + tgt.x) / 2;
-        const midY = (src.y + tgt.y) / 2;
-        ctx.font = '9px monospace';
-        ctx.fillStyle = 'rgba(180, 180, 180, 0.7)';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(e.label, midX, midY - 3);
+          ctx.fillStyle =
+            e.kind === 'formula'
+              ? 'rgba(255, 152, 0, 0.6)'
+              : 'rgba(100, 181, 246, 0.5)';
+          drawArrow(ctx, startX, startY, endX, endY, 9);
+
+          if (e.label) {
+            const midX = (src.x + tgt.x) / 2;
+            const midY = (src.y + tgt.y) / 2;
+            ctx.font = '9px monospace';
+            ctx.fillStyle = 'rgba(180, 180, 180, 0.7)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(e.label, midX, midY - 3);
+          }
+        }
       }
     }
 

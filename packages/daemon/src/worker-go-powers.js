@@ -1,5 +1,5 @@
 // @ts-check
-/* global process */
+/* eslint-disable no-await-in-loop */
 
 /**
  * Worker powers for workers spawned by the engo supervisor.

@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, requestAnimationFrame, setTimeout, clearTimeout */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';

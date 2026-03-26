@@ -150,6 +150,7 @@ const makeSpacesPowers = ({ storedValues = new Map() } = {}) => {
 
 /**
  * Helper: create gutter containers and import the component lazily.
+ * @param opts
  */
 const setupGutter = async (opts = {}) => {
   const $container = /** @type {HTMLElement} */ (
@@ -298,8 +299,7 @@ test.serial(
 test.serial(
   'changing home icon/scheme stores at spaces.0 with enforced name/path',
   async t => {
-    const { $container, $modalContainer, calls, storedValues } =
-      await setupGutter();
+    const { $container, $modalContainer, calls } = await setupGutter();
 
     // Open context menu on home
     const $home = $container.querySelector('.space-item.home');

@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, setInterval, setTimeout, clearTimeout */
+/* global process */
 
 import os from 'os';
 import fs from 'fs';

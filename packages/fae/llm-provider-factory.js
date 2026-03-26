@@ -1,4 +1,5 @@
 // @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
+/* eslint-disable no-await-in-loop */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -74,42 +75,41 @@ export const make = (guestPowers, _context) => {
 
       if (msg.from === selfId && msg.type === 'form') {
         formMessageId = msg.messageId;
-        continue;
-      }
+      } else if (msg.type === 'value' && msg.replyTo === formMessageId) {
+        try {
+          const config =
+            /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+              await E(powers).lookupById(msg.valueId)
+            );
 
-      if (msg.type !== 'value') continue;
-      if (msg.replyTo !== formMessageId) continue;
+          const { name, host, model, authToken } = config;
 
-      try {
-        const config =
-          /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
-            await E(powers).lookupById(msg.valueId)
+          await E(hostAgent).storeValue(
+            harden({ host, model, authToken }),
+            name,
           );
 
-        const { name, host, model, authToken } = config;
-
-        await E(hostAgent).storeValue(harden({ host, model, authToken }), name);
-
-        console.log(`[llm-provider-factory] Provider "${name}" stored.`);
-        await E(powers).reply(
-          msg.number,
-          [`Provider "${name}" created successfully.`],
-          [],
-          [],
-        );
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[llm-provider-factory] Error:', errorMessage);
-        try {
+          console.log(`[llm-provider-factory] Provider "${name}" stored.`);
           await E(powers).reply(
             msg.number,
-            [`Error creating provider: ${errorMessage}`],
+            [`Provider "${name}" created successfully.`],
             [],
             [],
           );
-        } catch {
-          // Best-effort reply.
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error('[llm-provider-factory] Error:', errorMessage);
+          try {
+            await E(powers).reply(
+              msg.number,
+              [`Error creating provider: ${errorMessage}`],
+              [],
+              [],
+            );
+          } catch {
+            // Best-effort reply.
+          }
         }
       }
     }

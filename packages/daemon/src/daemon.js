@@ -1,5 +1,6 @@
 // @ts-check
-/* global setTimeout, clearTimeout */
+/* eslint-disable no-await-in-loop */
+/* global clearTimeout, process, setTimeout */
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
@@ -49,7 +50,6 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
-import { makeSyncedPetStore } from './synced-pet-store.js';
 import {
   blobHelp,
   directoryHelp,
@@ -2234,7 +2234,7 @@ const makeDaemonCore = async (
     keypair: ({ publicKey }) => harden({ publicKey }),
     'readable-blob': ({ content }) => makeReadableBlob(content),
     'readable-tree': ({ content }) => makeReadableTree(content),
-    'mount': async ({ path: mountPath, readOnly }) => {
+    mount: async ({ path: mountPath, readOnly }) => {
       // Verify the mount path exists.
       const pathExists = await filePowers.exists(mountPath);
       if (!pathExists) {
@@ -2522,7 +2522,6 @@ const makeDaemonCore = async (
             listIdentifiers: disallowedFn,
             listLocators: disallowedFn,
             followNameChanges: disallowedFn,
-            followLocatorNameChanges: disallowedFn,
             lookup: disallowedFn,
             maybeLookup: disallowedSyncFn,
             lookupById: disallowedFn,
@@ -2669,8 +2668,7 @@ const makeDaemonCore = async (
           // Update GC edges for changed keys.
           for (const key of changed) {
             const entry = store.getState()[key];
-            if (!entry) continue;
-            if (entry.locator !== null) {
+            if (entry && entry.locator !== null) {
               try {
                 const formulaId = idFromLocator(entry.locator);
                 if (isLocalId(formulaId)) {
@@ -2730,7 +2728,7 @@ const makeDaemonCore = async (
       makePeer(networksId, nodeId, addressesId, context),
     invitation: (
       { hostAgent: hostAgentId, hostHandle: hostHandleId, guestName },
-      _context,
+      _context, // eslint-disable-line no-underscore-dangle
       id,
     ) =>
       // Behold, forward reference:
@@ -4324,13 +4322,14 @@ const makeDaemonCore = async (
 
     while (queue.length > 0) {
       const id = /** @type {FormulaIdentifier} */ (queue.shift());
-      if (visited.has(id)) continue;
-      visited.add(id);
-      const deps = formulaGraph.formulaDeps.get(id);
-      if (deps) {
-        for (const dep of deps) {
-          if (!visited.has(dep)) {
-            queue.push(dep);
+      if (!visited.has(id)) {
+        visited.add(id);
+        const deps = formulaGraph.formulaDeps.get(id);
+        if (deps) {
+          for (const dep of deps) {
+            if (!visited.has(dep)) {
+              queue.push(dep);
+            }
           }
         }
       }

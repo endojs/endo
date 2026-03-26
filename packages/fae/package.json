@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
+    "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },
   "eslintConfig": {

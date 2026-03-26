@@ -1,10 +1,12 @@
 // @ts-check
-/* global process, repairIntrinsics, hardenIntrinsics */
+/* global globalThis, process, repairIntrinsics, hardenIntrinsics */
 
 // Phase 1: Import SES to get the split lockdown API on globalThis.
 // `import 'ses'` makes repairIntrinsics/hardenIntrinsics available
 // but does NOT call them.
+// eslint-disable-next-line import/order
 import 'ses';
+// eslint-disable-next-line import/order
 import '@endo/eventual-send/shim.js';
 
 // Phase 2: Repair intrinsics (removes non-whitelisted properties,

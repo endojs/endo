@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, setTimeout */
 /* eslint-disable no-use-before-define */
 
 /** @import { ERef } from '@endo/far' */

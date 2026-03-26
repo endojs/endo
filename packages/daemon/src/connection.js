@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 
 import { makeCapTP } from '@endo/captp';
 import { makePromiseKit } from '@endo/promise-kit';

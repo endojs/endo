@@ -1,4 +1,5 @@
 // @ts-check
+/* global globalThis */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -7,7 +8,18 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { createCommandExecutor } from '../../command-executor.js';
+
+const MockTreeI = M.interface('MockTree', {
+  list: M.call().returns(M.any()),
+  lookup: M.call(M.string()).returns(M.any()),
+});
+
+const MockBlobI = M.interface('MockBlob', {
+  streamBase64: M.call().returns(M.any()),
+});
 
 /**
  * Create a mock powers object that tracks calls.
@@ -24,94 +36,96 @@ const createMockContext = () => {
   /** @type {Error[]} */
   const showErrorCalls = [];
 
-  const powers = Far('MockPowers', {
-    request: async (recipientPath, description, resultPath) => {
-      calls.push({
-        method: 'request',
-        args: [recipientPath, description, resultPath],
-      });
-    },
-    dismiss: async number => {
-      calls.push({ method: 'dismiss', args: [number] });
-    },
-    dismissAll: async () => {
-      calls.push({ method: 'dismissAll', args: [] });
-    },
-    adopt: async (number, edgeName, petName) => {
-      calls.push({ method: 'adopt', args: [number, edgeName, petName] });
-    },
-    resolve: async (number, petName) => {
-      calls.push({ method: 'resolve', args: [number, petName] });
-    },
-    reject: async (number, reason) => {
-      calls.push({ method: 'reject', args: [number, reason] });
-    },
-    evaluate: async (
-      workerName,
-      source,
-      codeNames,
-      petNamePaths,
-      resultPath,
-    ) => {
-      calls.push({
-        method: 'evaluate',
-        args: [workerName, source, codeNames, petNamePaths, resultPath],
-      });
-      return 'eval-result';
-    },
-    list: async (...pathParts) => {
-      calls.push({ method: 'list', args: pathParts });
-      return ['item1', 'item2'];
-    },
-    lookup: async (...pathParts) => {
-      calls.push({ method: 'lookup', args: pathParts });
-      return { looked: 'up' };
-    },
-    identify: async (...pathParts) => {
-      calls.push({ method: 'identify', args: pathParts });
-      return 'id:test';
-    },
-    remove: async (...pathParts) => {
-      calls.push({ method: 'remove', args: pathParts });
-    },
-    move: async (fromPath, toPath) => {
-      calls.push({ method: 'move', args: [fromPath, toPath] });
-    },
-    copy: async (fromPath, toPath) => {
-      calls.push({ method: 'copy', args: [fromPath, toPath] });
-    },
-    makeDirectory: async (...pathParts) => {
-      calls.push({ method: 'makeDirectory', args: pathParts });
-    },
-    invite: async guestName => {
-      calls.push({ method: 'invite', args: [guestName] });
-      return Far('MockInvitation', {
-        locate: async () => 'endo://invitation',
-      });
-    },
-    accept: async (locator, guestName) => {
-      calls.push({ method: 'accept', args: [locator, guestName] });
-    },
-    provideWorker: async pathParts => {
-      calls.push({ method: 'provideWorker', args: [pathParts] });
-    },
-    provideHost: async (handleName, options) => {
-      calls.push({ method: 'provideHost', args: [handleName, options] });
-    },
-    provideGuest: async (handleName, options) => {
-      calls.push({ method: 'provideGuest', args: [handleName, options] });
-    },
-    cancel: async (pathParts, error) => {
-      calls.push({ method: 'cancel', args: [pathParts, error] });
-    },
-  });
-
-  const typedPowers = /** @type {ERef<EndoHost>} */ (
-    /** @type {unknown} */ (powers)
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        request: async (recipientPath, description, resultPath) => {
+          calls.push({
+            method: 'request',
+            args: [recipientPath, description, resultPath],
+          });
+        },
+        dismiss: async number => {
+          calls.push({ method: 'dismiss', args: [number] });
+        },
+        dismissAll: async () => {
+          calls.push({ method: 'dismissAll', args: [] });
+        },
+        adopt: async (number, edgeName, petName) => {
+          calls.push({ method: 'adopt', args: [number, edgeName, petName] });
+        },
+        resolve: async (number, petName) => {
+          calls.push({ method: 'resolve', args: [number, petName] });
+        },
+        reject: async (number, reason) => {
+          calls.push({ method: 'reject', args: [number, reason] });
+        },
+        evaluate: async (
+          workerName,
+          source,
+          codeNames,
+          petNamePaths,
+          resultPath,
+        ) => {
+          calls.push({
+            method: 'evaluate',
+            args: [workerName, source, codeNames, petNamePaths, resultPath],
+          });
+          return 'eval-result';
+        },
+        list: async (...pathParts) => {
+          calls.push({ method: 'list', args: pathParts });
+          return ['item1', 'item2'];
+        },
+        lookup: async (...pathParts) => {
+          calls.push({ method: 'lookup', args: pathParts });
+          return { looked: 'up' };
+        },
+        identify: async (...pathParts) => {
+          calls.push({ method: 'identify', args: pathParts });
+          return 'id:test';
+        },
+        remove: async (...pathParts) => {
+          calls.push({ method: 'remove', args: pathParts });
+        },
+        move: async (fromPath, toPath) => {
+          calls.push({ method: 'move', args: [fromPath, toPath] });
+        },
+        copy: async (fromPath, toPath) => {
+          calls.push({ method: 'copy', args: [fromPath, toPath] });
+        },
+        makeDirectory: async (...pathParts) => {
+          calls.push({ method: 'makeDirectory', args: pathParts });
+        },
+        invite: async guestName => {
+          calls.push({ method: 'invite', args: [guestName] });
+          return Far('MockInvitation', {
+            locate: async () => 'endo://invitation',
+          });
+        },
+        accept: async (locator, guestName) => {
+          calls.push({ method: 'accept', args: [locator, guestName] });
+        },
+        provideWorker: async pathParts => {
+          calls.push({ method: 'provideWorker', args: [pathParts] });
+        },
+        provideHost: async (handleName, options) => {
+          calls.push({ method: 'provideHost', args: [handleName, options] });
+        },
+        provideGuest: async (handleName, options) => {
+          calls.push({ method: 'provideGuest', args: [handleName, options] });
+        },
+        cancel: async (pathParts, error) => {
+          calls.push({ method: 'cancel', args: [pathParts, error] });
+        },
+      },
+    )
   );
 
   return {
-    powers: typedPowers,
+    powers,
     calls,
     showValueCalls,
     showMessageCalls,
@@ -452,14 +466,20 @@ test('execute mktmp command calls provideScratchMount', async t => {
   /** @type {Array<{method: string, args: unknown[]}>} */
   const calls = [];
 
-  const powers = Far('MockPowers', {
-    provideScratchMount: async petNamePath => {
-      calls.push({ method: 'provideScratchMount', args: [petNamePath] });
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        provideScratchMount: async petNamePath => {
+          calls.push({ method: 'provideScratchMount', args: [petNamePath] });
+        },
+      },
+    )
+  );
 
   const executor = createCommandExecutor({
-    powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+    powers,
     showValue: () => {},
     showMessage: () => {},
     showError: () => {},
@@ -478,17 +498,23 @@ test('execute mount command calls provideMount', async t => {
   /** @type {Array<{method: string, args: unknown[]}>} */
   const calls = [];
 
-  const powers = Far('MockPowers', {
-    provideMount: async (mountPath, petNamePath, options) => {
-      calls.push({
-        method: 'provideMount',
-        args: [mountPath, petNamePath, options],
-      });
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        provideMount: async (mountPath, petNamePath, options) => {
+          calls.push({
+            method: 'provideMount',
+            args: [mountPath, petNamePath, options],
+          });
+        },
+      },
+    )
+  );
 
   const executor = createCommandExecutor({
-    powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+    powers,
     showValue: () => {},
     showMessage: () => {},
     showError: () => {},
@@ -635,19 +661,23 @@ test('execute unknown command returns error', async t => {
 });
 
 test('execute handles power errors', async t => {
-  const failingPowers = Far('FailingPowers', {
-    dismiss: async () => {
-      throw new Error('Permission denied');
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'FailingPowers',
+      M.interface('FailingPowers', {}, { defaultGuards: 'passable' }),
+      {
+        dismiss: async () => {
+          throw new Error('Permission denied');
+        },
+      },
+    )
+  );
 
   /** @type {Error[]} */
   const errors = [];
 
   const executor = createCommandExecutor({
-    powers: /** @type {ERef<EndoHost>} */ (
-      /** @type {unknown} */ (failingPowers)
-    ),
+    powers,
     showValue: () => {},
     showMessage: () => {},
     showError: e => errors.push(e),
@@ -667,11 +697,17 @@ test('execute checkin command calls storeTree with browser tree', async t => {
   /** @type {Array<{method: string, args: unknown[]}>} */
   const calls = [];
 
-  const powers = Far('MockPowers', {
-    storeTree: async (tree, petNamePath) => {
-      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        storeTree: async (tree, petNamePath) => {
+          calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+        },
+      },
+    )
+  );
 
   // Mock showDirectoryPicker
   const originalPicker = globalThis.showDirectoryPicker;
@@ -679,7 +715,7 @@ test('execute checkin command calls storeTree with browser tree', async t => {
     /** @type {any} */ ({
       kind: 'directory',
       name: 'test-dir',
-      keys: async function* () {
+      async *keys() {
         yield 'file.txt';
       },
       getFileHandle: async () => ({
@@ -693,7 +729,7 @@ test('execute checkin command calls storeTree with browser tree', async t => {
 
   try {
     const executor = createCommandExecutor({
-      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      powers,
       showValue: () => {},
       showMessage: () => {},
       showError: () => {},
@@ -712,7 +748,7 @@ test('execute checkin command calls storeTree with browser tree', async t => {
     if (originalPicker) {
       globalThis.showDirectoryPicker = originalPicker;
     } else {
-      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+      delete (/** @type {any} */ (globalThis).showDirectoryPicker);
     }
   }
 });
@@ -720,18 +756,25 @@ test('execute checkin command calls storeTree with browser tree', async t => {
 test('execute ci alias works like checkin', async t => {
   const calls = [];
 
-  const powers = Far('MockPowers', {
-    storeTree: async (tree, petNamePath) => {
-      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        storeTree: async (tree, petNamePath) => {
+          calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+        },
+      },
+    )
+  );
 
   const originalPicker = globalThis.showDirectoryPicker;
   globalThis.showDirectoryPicker = async () =>
     /** @type {any} */ ({
       kind: 'directory',
       name: 'test-dir',
-      keys: async function* () {},
+      // eslint-disable-next-line no-empty-function
+      async *keys() {},
       getFileHandle: async () => {
         throw new Error('Not found');
       },
@@ -742,7 +785,7 @@ test('execute ci alias works like checkin', async t => {
 
   try {
     const executor = createCommandExecutor({
-      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      powers,
       showValue: () => {},
       showMessage: () => {},
       showError: () => {},
@@ -757,7 +800,7 @@ test('execute ci alias works like checkin', async t => {
     if (originalPicker) {
       globalThis.showDirectoryPicker = originalPicker;
     } else {
-      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+      delete (/** @type {any} */ (globalThis).showDirectoryPicker);
     }
   }
 });
@@ -766,12 +809,10 @@ test('execute checkout command looks up tree and writes to directory', async t =
   const calls = [];
 
   // Mock a remote tree that the daemon would return
-  const mockRemoteTree = Far('MockTree', {
-    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
+  const mockRemoteTree = makeExo('MockTree', MockTreeI, {
     list: async () => ['hello.txt'],
     lookup: async () =>
-      Far('MockBlob', {
-        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
+      makeExo('MockBlob', MockBlobI, {
         streamBase64: () =>
           Far('MockIterator', {
             async next() {
@@ -787,12 +828,18 @@ test('execute checkout command looks up tree and writes to directory', async t =
       }),
   });
 
-  const powers = Far('MockPowers', {
-    lookup: async pathParts => {
-      calls.push({ method: 'lookup', args: [pathParts] });
-      return mockRemoteTree;
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        lookup: async pathParts => {
+          calls.push({ method: 'lookup', args: [pathParts] });
+          return mockRemoteTree;
+        },
+      },
+    )
+  );
 
   /** @type {Array<{name: string, content: Uint8Array[]}>} */
   const writtenFiles = [];
@@ -804,7 +851,10 @@ test('execute checkout command looks up tree and writes to directory', async t =
       getDirectoryHandle: async () => {
         throw new Error('Not found');
       },
-      getFileHandle: async (/** @type {string} */ name, /** @type {any} */ _opts) => ({
+      getFileHandle: async (
+        /** @type {string} */ name,
+        /** @type {any} */ _opts,
+      ) => ({
         createWritable: async () => {
           /** @type {Uint8Array[]} */
           const chunks = [];
@@ -822,7 +872,7 @@ test('execute checkout command looks up tree and writes to directory', async t =
 
   try {
     const executor = createCommandExecutor({
-      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      powers,
       showValue: () => {},
       showMessage: () => {},
       showError: () => {},
@@ -840,7 +890,7 @@ test('execute checkout command looks up tree and writes to directory', async t =
     if (originalPicker) {
       globalThis.showDirectoryPicker = originalPicker;
     } else {
-      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+      delete (/** @type {any} */ (globalThis).showDirectoryPicker);
     }
   }
 });
@@ -848,7 +898,7 @@ test('execute checkout command looks up tree and writes to directory', async t =
 test('execute checkin fails when showDirectoryPicker unavailable', async t => {
   // Ensure showDirectoryPicker is not defined
   const originalPicker = globalThis.showDirectoryPicker;
-  delete /** @type {any} */ (globalThis).showDirectoryPicker;
+  delete (/** @type {any} */ (globalThis).showDirectoryPicker);
 
   /** @type {Error[]} */
   const errors = [];
@@ -877,7 +927,7 @@ test('execute checkin fails when showDirectoryPicker unavailable', async t => {
 
 test('execute checkout fails when showDirectoryPicker unavailable', async t => {
   const originalPicker = globalThis.showDirectoryPicker;
-  delete /** @type {any} */ (globalThis).showDirectoryPicker;
+  delete (/** @type {any} */ (globalThis).showDirectoryPicker);
 
   /** @type {Error[]} */
   const errors = [];
@@ -907,18 +957,25 @@ test('execute checkout fails when showDirectoryPicker unavailable', async t => {
 test('execute checkin splits pet name path on slashes', async t => {
   const calls = [];
 
-  const powers = Far('MockPowers', {
-    storeTree: async (tree, petNamePath) => {
-      calls.push({ method: 'storeTree', args: [tree, petNamePath] });
-    },
-  });
+  const powers = /** @type {ERef<EndoHost>} */ (
+    makeExo(
+      'MockPowers',
+      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+      {
+        storeTree: async (tree, petNamePath) => {
+          calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+        },
+      },
+    )
+  );
 
   const originalPicker = globalThis.showDirectoryPicker;
   globalThis.showDirectoryPicker = async () =>
     /** @type {any} */ ({
       kind: 'directory',
       name: 'test-dir',
-      keys: async function* () {},
+      // eslint-disable-next-line no-empty-function
+      async *keys() {},
       getFileHandle: async () => {
         throw new Error('Not found');
       },
@@ -929,7 +986,7 @@ test('execute checkin splits pet name path on slashes', async t => {
 
   try {
     const executor = createCommandExecutor({
-      powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (powers)),
+      powers,
       showValue: () => {},
       showMessage: () => {},
       showError: () => {},
@@ -942,7 +999,7 @@ test('execute checkin splits pet name path on slashes', async t => {
     if (originalPicker) {
       globalThis.showDirectoryPicker = originalPicker;
     } else {
-      delete /** @type {any} */ (globalThis).showDirectoryPicker;
+      delete (/** @type {any} */ (globalThis).showDirectoryPicker);
     }
   }
 });

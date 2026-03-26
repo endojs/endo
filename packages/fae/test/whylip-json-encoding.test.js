@@ -228,7 +228,7 @@ test("JSON.parse rejects bare \\' in string values", t => {
   //
   // Build a string containing literal characters: {"k":" \' "}
   // In JS source, we write "\\'" to get a literal backslash + apostrophe
-  const invalidJson = '{"k":"' + "\\'" + '"}';
+  const invalidJson = `{"k":"\\'"}`;
   t.throws(
     () => JSON.parse(invalidJson),
     undefined,
@@ -238,7 +238,7 @@ test("JSON.parse rejects bare \\' in string values", t => {
 
 test("JSON.parse accepts \\\\' (escaped backslash + apostrophe)", t => {
   // \\' in JSON text means: escaped backslash (\) + literal apostrophe (')
-  const validJson = '{"k":"' + "\\\\'" + '"}';
+  const validJson = `{"k":"\\\\'"}`;
   const parsed = JSON.parse(validJson);
   t.is(parsed.k, "\\'", 'value should be backslash + apostrophe');
 });
@@ -275,42 +275,39 @@ test('pipeline: HTML with JS single-quote escapes via JSON.stringify', t => {
 // Pipeline tests: LLM-generated raw JSON (the bug scenario)
 // ===========================================================================
 
-test(
-  'HYPOTHESIS: ORIGINAL parser fails with bare ' + "\\' in inner JSON",
-  t => {
-    // The LLM generates an inner JSON string where the HTML contains \'
-    // (invalid JSON escape) instead of the correct \\'.
-    const innerJsonBad =
-      '{"narrative":"The moons","scene":{"title":"Moons","html":' +
-      '"<script>const f=' +
-      "'" +
-      'Sun' +
-      "\\'" +
-      's' +
-      "'" +
-      ';</script>"}}';
+test(`HYPOTHESIS: ORIGINAL parser fails with bare \\' in inner JSON`, t => {
+  // The LLM generates an inner JSON string where the HTML contains \'
+  // (invalid JSON escape) instead of the correct \\'.
+  const innerJsonBad =
+    '{"narrative":"The moons","scene":{"title":"Moons","html":' +
+    '"<script>const f=' +
+    "'" +
+    'Sun' +
+    "\\'" +
+    's' +
+    "'" +
+    ';</script>"}}';
 
-    // Confirm the inner JSON IS invalid
-    t.throws(
-      () => JSON.parse(innerJsonBad),
-      undefined,
-      "inner JSON with bare \\' should be invalid",
-    );
+  // Confirm the inner JSON IS invalid
+  t.throws(
+    () => JSON.parse(innerJsonBad),
+    undefined,
+    "inner JSON with bare \\' should be invalid",
+  );
 
-    // ORIGINAL parser: falls back to raw JSON as narrative (the bug)
-    const { parsed } = simulatePipelineRawLlmJson(innerJsonBad, {
-      useOriginal: true,
-    });
-    t.is(parsed.scene, null, 'ORIGINAL: scene is null');
-    t.is(
-      parsed.narrative,
-      innerJsonBad,
-      'ORIGINAL: raw JSON dumped as narrative',
-    );
-  },
-);
+  // ORIGINAL parser: falls back to raw JSON as narrative (the bug)
+  const { parsed } = simulatePipelineRawLlmJson(innerJsonBad, {
+    useOriginal: true,
+  });
+  t.is(parsed.scene, null, 'ORIGINAL: scene is null');
+  t.is(
+    parsed.narrative,
+    innerJsonBad,
+    'ORIGINAL: raw JSON dumped as narrative',
+  );
+});
 
-test('FIXED parser recovers from bare ' + "\\' in inner JSON", t => {
+test(`FIXED parser recovers from bare \\' in inner JSON`, t => {
   const innerJsonBad =
     '{"narrative":"The moons","scene":{"title":"Moons","html":' +
     '"<script>const f=' +
@@ -541,7 +538,7 @@ test('lenientUnescape: handles standard JSON escapes', t => {
   t.is(lenientUnescape('back\\\\slash'), 'back\\slash');
 });
 
-test('lenientUnescape: handles non-standard \\' + "' escape", t => {
+test(`lenientUnescape: handles non-standard \\' escape`, t => {
   t.is(lenientUnescape("it\\'s"), "it's");
   t.is(lenientUnescape("Sun\\'s gravity"), "Sun's gravity");
 });

@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 /// <reference types="./types.d.ts" />
 

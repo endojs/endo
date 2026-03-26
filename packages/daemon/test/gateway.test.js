@@ -2,6 +2,7 @@
 /* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 import test from 'ava';

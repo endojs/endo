@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 // endo run --UNCONFINED submit-provider.js --powers @agent \
 //   -E PROVIDER_NAME=default \
 //   -E LAL_HOST=https://api.anthropic.com \

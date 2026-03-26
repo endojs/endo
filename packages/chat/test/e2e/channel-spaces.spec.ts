@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /**
  * Channel Spaces E2E Tests
  *

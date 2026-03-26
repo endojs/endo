@@ -1,5 +1,4 @@
 // @ts-check
-/* global document */
 
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';

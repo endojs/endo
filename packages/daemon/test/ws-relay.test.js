@@ -1,7 +1,8 @@
 // @ts-check
-/* global process, setTimeout */
+/* global fetch, process, setTimeout */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 // Enable CapTP tracing for relay debugging.

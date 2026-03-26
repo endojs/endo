@@ -1293,6 +1293,7 @@ __metadata:
     "@endo/marshal": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
+    ava: "catalog:dev"
     eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -8189,6 +8190,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"eslint-import-resolver-exports@npm:^1.0.0-beta.5":
+  version: 1.0.0-beta.5
+  resolution: "eslint-import-resolver-exports@npm:1.0.0-beta.5"
+  dependencies:
+    resolve.exports: "npm:^2.0.0"
+  peerDependencies:
+    eslint: "*"
+    eslint-plugin-import: "*"
+  checksum: 10c0/e67f78ed28bd99f36f46e06be4c2628b8ac18e2e2c7d2cb35d77d19ff2566875be1e1969465f24f81712a65e14a5a45e2282431a22aec64142fb1183447ac3c4
+  languageName: node
+  linkType: hard
+
 "eslint-import-resolver-node@npm:^0.3.9":
   version: 0.3.9
   resolution: "eslint-import-resolver-node@npm:0.3.9"
@@ -14722,7 +14735,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve.exports@npm:2.0.3":
+"resolve.exports@npm:2.0.3, resolve.exports@npm:^2.0.0":
   version: 2.0.3
   resolution: "resolve.exports@npm:2.0.3"
   checksum: 10c0/1ade1493f4642a6267d0a5e68faeac20b3d220f18c28b140343feb83694d8fed7a286852aef43689d16042c61e2ddb270be6578ad4a13990769e12065191200d
@@ -15073,6 +15086,7 @@ __metadata:
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-jessie: "npm:^0.0.6"
     eslint-config-prettier: "npm:^9.1.0"
+    eslint-import-resolver-exports: "npm:^1.0.0-beta.5"
     eslint-plugin-import: "npm:^2.31.0"
     eslint-plugin-jsdoc: "npm:^50.6.1"
     lerna: "npm:^8.1.8"

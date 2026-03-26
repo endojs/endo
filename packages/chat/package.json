@@ -45,6 +45,7 @@
   "dependencies": {
     "@endo/captp": "workspace:^",
     "@endo/chat-network-view": "workspace:^",
+    "@endo/daemon": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
@@ -63,7 +64,6 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
-    "@endo/daemon": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
@@ -93,7 +93,10 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
-    ]
+    ],
+    "env": {
+      "browser": true
+    }
   },
   "ava": {
     "files": [

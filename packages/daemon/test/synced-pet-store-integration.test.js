@@ -1,7 +1,8 @@
 // @ts-check
-/* global process, setTimeout */
+/* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 import test from 'ava';
@@ -10,7 +11,7 @@ import path from 'path';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import { start, stop, restart, purge, makeEndoClient } from '../index.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 
 const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
@@ -143,7 +144,7 @@ test.serial(
     // Alice's grantor store wrote the guest handle under "bob" pet name
     // during acceptance.
     t.true(
-      aliceNames.length >= 1,
+      aliceNames.length !== 0,
       'Alice store should have at least one entry',
     );
 
@@ -260,7 +261,7 @@ test.serial(
     const prunedBob = await E(bobStore).pruneTombstones();
     // At least one side should have pruned the tombstone.
     t.true(
-      prunedAlice.length > 0 || prunedBob.length > 0,
+      prunedAlice.length !== 0 || prunedBob.length !== 0,
       'At least one side should prune the tombstone',
     );
   },

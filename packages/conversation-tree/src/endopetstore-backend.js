@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import { E } from '@endo/far';
 import harden from '@endo/harden';
@@ -41,18 +42,17 @@ export const makeEndoPetstoreBackend = powers => {
       /** @type {ConversationNode[]} */
       const children = [];
       for (const name of allNames) {
-        if (!name.startsWith(CT_PREFIX)) {
-          continue;
-        }
-        try {
-          const node = /** @type {ConversationNode} */ (
-            await E(powers).lookup(name)
-          );
-          if (node.parentId === parentId) {
-            children.push(node);
+        if (name.startsWith(CT_PREFIX)) {
+          try {
+            const node = /** @type {ConversationNode} */ (
+              await E(powers).lookup(name)
+            );
+            if (node.parentId === parentId) {
+              children.push(node);
+            }
+          } catch {
+            // skip unreadable entries
           }
-        } catch {
-          // skip unreadable entries
         }
       }
       return children;

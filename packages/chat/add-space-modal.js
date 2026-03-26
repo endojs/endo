@@ -1,6 +1,6 @@
 // @ts-check
-/* global document */
 /* eslint-disable no-use-before-define */
+/* eslint-disable no-await-in-loop */
 
 import harden from '@endo/harden';
 
@@ -1419,19 +1419,19 @@ export const createAddSpaceModal = ({
         }
 
         // 1. Create persona (host)
-        const agentName = `persona-for-${spaceName}`;
+        const personaAgentName = `persona-for-${spaceName}`;
         await E(
           /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
             powers
           ),
-        ).provideHost(spaceName, { agentName });
+        ).provideHost(spaceName, { agentName: personaAgentName });
 
         // 2. Get persona's powers
         const personaPowers = await E(
           /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
             powers
           ),
-        ).lookup(agentName);
+        ).lookup(personaAgentName);
 
         // 3. Write the channel formula ID into the persona's pet store
         await E(

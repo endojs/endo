@@ -82,6 +82,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {() => Promise<void>} [args.collectIfDirty]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
+ * @param {DaemonCore['getFormulaGraphSnapshot']} [args.getFormulaGraphSnapshot]
  */
 export const makeHostMaker = ({
   provide,
@@ -459,7 +460,7 @@ export const makeHostMaker = ({
       return {
         tasks,
         workerId,
-        powersId: /** @type {FormulaIdentifier | undefined} */ (powersId),
+        powersId,
         env,
         workerTrustedShims,
       };
@@ -760,10 +761,6 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       await addPeerInfo(peerInfo);
 
-      const guestHandleId = formatId({
-        number: remoteHandleNumber,
-        node: nodeNumber,
-      });
       const invitationId = formatId({
         number: invitationNumber,
         node: nodeNumber,
@@ -1053,7 +1050,7 @@ export const makeHostMaker = ({
       // Deliver the eval result to the host's own inbox only.
       // Using deliverValueById (not sendValue/post) ensures the value
       // message does NOT appear in the proposer's inbox.
-      await mailbox.deliverValueById(messageNumber, evalId);
+      await deliverValueById(messageNumber, evalId);
     };
 
     /**

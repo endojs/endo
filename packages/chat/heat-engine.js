@@ -1,5 +1,4 @@
 // @ts-check
-/* global requestAnimationFrame, cancelAnimationFrame */
 
 /**
  * @typedef {object} HeatConfig
