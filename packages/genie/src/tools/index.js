@@ -15,3 +15,4 @@ export {
 export { makeFileTools } from './filesystem.js';
 
 export { webFetch } from './web-fetch.js';
+export { webSearch } from './web-search.js';
