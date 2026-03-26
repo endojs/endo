@@ -8,7 +8,7 @@ import {
   matches,
   M,
   defaultLimits,
-} from '../src/patterns/patternMatchers.js';
+} from '../src/patterns/patternMatchers.ts';
 
 /**
  * @import {Passable} from '@endo/marshal'
