@@ -205,6 +205,87 @@ const baseFreezableProxyHandler: ProxyHandler<any> = {
   },
 };
 
+const makeProxy = <T>(target: object, handler: ProxyHandler<object>): T =>
+  new Proxy(target, handler) as T;
+
+const toBreakpointProperty = (
+  propertyKey: PropertyKey,
+): string | symbol | undefined =>
+  typeof propertyKey === 'number' ? `${propertyKey}` : propertyKey;
+
+const makeEMethod = (
+  recipient: any,
+  propertyKey: PropertyKey,
+  receiver: object,
+  HandledPromise: HandledPromiseConstructor,
+): ((this: unknown, ...args: any[]) => Promise<unknown>) => {
+  const methods: Record<
+    PropertyKey,
+    (this: unknown, ...args: any[]) => Promise<unknown>
+  > = {
+    [propertyKey](...args: any[]): Promise<unknown> {
+      if (this !== receiver) {
+        // Reject the async function call
+        return HandledPromise.reject(
+          makeError(
+            X`Unexpected receiver for "${q(propertyKey)}" method of E(${q(
+              recipient,
+            )})`,
+          ),
+        );
+      }
+
+      if (
+        onSend &&
+        onSend.shouldBreakpoint(recipient, toBreakpointProperty(propertyKey))
+      ) {
+        // eslint-disable-next-line no-debugger
+        debugger; // LOOK UP THE STACK
+        // Stopped at a breakpoint on eventual-send of a method-call
+        // message,
+        // so that you can walk back on the stack to see how we came to
+        // make this eventual-send
+      }
+      return HandledPromise.applyMethod(recipient, propertyKey, args);
+    },
+  };
+  return harden(methods[propertyKey]!);
+};
+
+const makeESendOnlyMethod = (
+  recipient: any,
+  propertyKey: PropertyKey,
+  receiver: object,
+  HandledPromise: HandledPromiseConstructor,
+): ((this: unknown, ...args: any[]) => undefined) => {
+  const methods: Record<
+    PropertyKey,
+    (this: unknown, ...args: any[]) => undefined
+  > = {
+    [propertyKey](...args: any[]): undefined {
+      // Throw since the function returns nothing
+      this === receiver ||
+        Fail`Unexpected receiver for "${q(
+          propertyKey,
+        )}" method of E.sendOnly(${q(recipient)})`;
+      if (
+        onSend &&
+        onSend.shouldBreakpoint(recipient, toBreakpointProperty(propertyKey))
+      ) {
+        // eslint-disable-next-line no-debugger
+        debugger; // LOOK UP THE STACK
+        // Stopped at a breakpoint on eventual-send of a method-call
+        // message,
+        // so that you can walk back on the stack to see how we came to
+        // make this eventual-send
+      }
+      HandledPromise.applyMethodSendOnly(recipient, propertyKey, args);
+      return undefined;
+    },
+  };
+  return harden(methods[propertyKey]!);
+};
+
 // E Proxy handlers pretend that any property exists on the target and returns
 // a function for their value. While this function is "bound" by context, it is
 // meant to be called as a method. For that reason, the returned function
@@ -223,39 +304,8 @@ const makeEProxyHandler = (
 ): ProxyHandler<object> =>
   harden({
     ...baseFreezableProxyHandler,
-    get: (_target, propertyKey, receiver) => {
-      return harden(
-        {
-          // This function purposely checks the `this` value (see above)
-          // In order to be `this` sensitive it is defined using concise method
-          // syntax rather than as an arrow function. To ensure the function
-          // is not constructable, it also avoids the `function` syntax.
-          [propertyKey](...args: any[]): Promise<unknown> {
-            if (this !== receiver) {
-              // Reject the async function call
-              return HandledPromise.reject(
-                makeError(
-                  X`Unexpected receiver for "${q(propertyKey)}" method of E(${q(
-                    recipient,
-                  )})`,
-                ),
-              );
-            }
-
-            if (onSend && onSend.shouldBreakpoint(recipient, propertyKey)) {
-              // eslint-disable-next-line no-debugger
-              debugger; // LOOK UP THE STACK
-              // Stopped at a breakpoint on eventual-send of a method-call
-              // message,
-              // so that you can walk back on the stack to see how we came to
-              // make this eventual-send
-            }
-            return HandledPromise.applyMethod(recipient, propertyKey, args);
-          },
-          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
-        }[propertyKey],
-      );
-    },
+    get: (_target, propertyKey, receiver) =>
+      makeEMethod(recipient, propertyKey, receiver, HandledPromise),
     apply: (_target, _thisArg, argArray = []) => {
       if (onSend && onSend.shouldBreakpoint(recipient, undefined)) {
         // eslint-disable-next-line no-debugger
@@ -282,34 +332,8 @@ const makeESendOnlyProxyHandler = (
 ): ProxyHandler<object> =>
   harden({
     ...baseFreezableProxyHandler,
-    get: (_target, propertyKey, receiver) => {
-      return harden(
-        {
-          // This function purposely checks the `this` value (see above)
-          // In order to be `this` sensitive it is defined using concise method
-          // syntax rather than as an arrow function. To ensure the function
-          // is not constructable, it also avoids the `function` syntax.
-          [propertyKey](...args: any[]): undefined {
-            // Throw since the function returns nothing
-            this === receiver ||
-              Fail`Unexpected receiver for "${q(
-                propertyKey,
-              )}" method of E.sendOnly(${q(recipient)})`;
-            if (onSend && onSend.shouldBreakpoint(recipient, propertyKey)) {
-              // eslint-disable-next-line no-debugger
-              debugger; // LOOK UP THE STACK
-              // Stopped at a breakpoint on eventual-send of a method-call
-              // message,
-              // so that you can walk back on the stack to see how we came to
-              // make this eventual-send
-            }
-            HandledPromise.applyMethodSendOnly(recipient, propertyKey, args);
-            return undefined;
-          },
-          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
-        }[propertyKey],
-      );
-    },
+    get: (_target, propertyKey, receiver) =>
+      makeESendOnlyMethod(recipient, propertyKey, receiver, HandledPromise),
     apply: (_target, _thisArg, argsArray = []) => {
       if (onSend && onSend.shouldBreakpoint(recipient, undefined)) {
         // eslint-disable-next-line no-debugger
@@ -374,8 +398,7 @@ const makeE = (HandledPromise: HandledPromiseConstructor) => {
        *  See https://endojs.github.io/endo/functions/_endo_far.E.html for details.
        */
       <T>(x: T): ECallableOrMethods<RemoteFunctions<T>> =>
-        // @ts-expect-error XXX typedef
-        new Proxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
+        makeProxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
       {
         /**
          * E.get(x) returns a proxy on which you can get arbitrary properties.
@@ -384,8 +407,7 @@ const makeE = (HandledPromise: HandledPromiseConstructor) => {
          * resolves to) in a future turn, not this one.
          */
         get: <T>(x: T): EGetters<LocalRecord<T>> =>
-          // @ts-expect-error XXX typedef
-          new Proxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
+          makeProxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is
@@ -398,8 +420,7 @@ const makeE = (HandledPromise: HandledPromiseConstructor) => {
          * are ignored (undefined is returned).
          */
         sendOnly: <T>(x: T): ESendOnlyCallableOrMethods<RemoteFunctions<T>> =>
-          // @ts-expect-error XXX typedef
-          new Proxy(funcTarget, makeESendOnlyProxyHandler(x, HandledPromise)),
+          makeProxy(funcTarget, makeESendOnlyProxyHandler(x, HandledPromise)),
 
         /**
          * E.when(x, res, rej) is equivalent to
