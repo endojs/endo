@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Cancel in-progress runs for the same branch when a new run is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
