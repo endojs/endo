@@ -300,6 +300,7 @@ const runEngo = async (detached, config, envOverrides) => {
     env,
     stdio: detached ? ['ignore', output, output] : 'inherit',
   });
+  await waitForSpawn(child);
 
   // Wait for the socket to accept connections (fast).
   await waitForSocket(config.sockPath);
@@ -360,6 +361,8 @@ const runEndo = async (detached, config, envOverrides) => {
     stdio,
   });
 
+  // waitForSpawn is unnecessary here: waitForMessage already listens
+  // for the 'error' event on the child process.
   const message = await waitForMessage(child).catch(cause => {
     throw Error(`Daemon failed to spawn ${cause.message}, see (${logPath})`);
   });
@@ -447,9 +450,9 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
   if (running) {
     console.log('Running Workers:');
     for await (const worker of runningWorkers(config)) {
-      const pid = await worker.pid;
-      if (pid !== null) {
-        console.log(`* id:${worker.id} pid:${pid}`);
+      const workerPid = await worker.pid;
+      if (workerPid !== null) {
+        console.log(`* id:${worker.id} pid:${workerPid}`);
       }
     }
   }
@@ -474,8 +477,6 @@ export const start = async (
 
   child.unref();
 };
-
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * @param {object} options
@@ -509,7 +510,9 @@ const runningWorker = ({
         if (Number.isFinite(rawPid) && rawPid > 0) {
           return rawPid;
         }
-      } catch {}
+      } catch {
+        // PID file may not exist or be readable
+      }
       return null;
     })(),
   };
@@ -547,8 +550,7 @@ const killWorkersByPidFiles = async config => {
       (async () => {
         const workerPid = await worker.pid;
         if (workerPid !== null) {
-          for await (const _ of politeEndProcess(workerPid)) {
-          }
+          await politeEndProcess(workerPid);
         }
         await fs.promises
           .rm(worker.pidPath, { force: true })
@@ -606,7 +608,7 @@ const defaultEndProcPolicy = harden([
  * @param {number} [options.pollInterval] - how long to sleep between wait-for-exit checks (within per-step timeout)
  * @param {boolean} [options.verbose=true] - whether to log signals sent
  */
-export async function* politeEndProcess(
+export async function politeEndProcess(
   pid,
   {
     waitBefore,
@@ -629,7 +631,7 @@ export async function* politeEndProcess(
   };
 
   /** @param {number} deadline */
-  async function* waitForExit(deadline) {
+  async function pollUntilExit(deadline) {
     while (Date.now() < deadline) {
       if (!isAlive()) {
         return;
@@ -658,7 +660,8 @@ export async function* politeEndProcess(
         return;
       }
     } else if ('wait' in step) {
-      yield* waitForExit(Date.now() + step.wait);
+      // eslint-disable-next-line no-await-in-loop
+      await pollUntilExit(Date.now() + step.wait);
     } else if ('notify' in step) {
       const { notify } = step;
       const message = `Zombie process ${pid} remains after SIGKILL`;
@@ -693,12 +696,11 @@ const killDaemonProcess = async config => {
   if (pid === 0) {
     return;
   }
-  for await (const _ of politeEndProcess(pid, {
+  await politeEndProcess(pid, {
     // Wait up to 5s for the process to exit on its own
     // (graceful shutdown from a prior terminate() call).
     waitBefore: 5_000,
-  })) {
-  }
+  });
 };
 
 export const clean = async (config = defaultConfig) => {

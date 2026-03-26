@@ -1,5 +1,4 @@
 // @ts-check
-/* global document */
 
 import { passStyleOf, getInterfaceOf } from '@endo/pass-style';
 import { numberFormatter } from './time-formatters.js';

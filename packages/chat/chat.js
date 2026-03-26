@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -280,6 +279,9 @@ const bodyComponent = (
     return peersComponent($parent, rootPowers, profilePath, onProfileChange);
   }
 
+  /** @type {{ dispose: () => void } | null} */
+  let chatBarRef = null;
+
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -411,7 +413,6 @@ const bodyComponent = (
     .then(resolvedPowers => {
       // To they who can avoid forward-references for entangled component
       // dependency-injection, I salute you and welcome your pull requests.
-      /* eslint-disable no-use-before-define */
       const { showValue, dismissValue } = controlsComponent($parent, {
         focusValue: (value, id, petNamePath, messageContext) =>
           focusValue(value, id, petNamePath, messageContext),
@@ -762,6 +763,7 @@ const bodyComponent = (
           getChannelRef: () => currentChannelRef,
         },
       );
+      chatBarRef = chatBarAPI;
       const { focusValue, blurValue } = valueComponent(
         $parent,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
@@ -770,11 +772,15 @@ const bodyComponent = (
           enterProfile: enterHost,
         },
       );
-      /* eslint-enable no-use-before-define */
     })
     .catch(window.reportError);
 
-  return null;
+  return () => {
+    if (chatBarRef) {
+      chatBarRef.dispose();
+      chatBarRef = null;
+    }
+  };
 };
 
 /**

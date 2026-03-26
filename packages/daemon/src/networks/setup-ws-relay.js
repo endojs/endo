@@ -1,4 +1,3 @@
-/* global harden */
 // @ts-check
 // Usage (installs the ws-relay network caplet at NETS/ws-relay):
 //   endo run --UNCONFINED packages/daemon/src/networks/setup-ws-relay.js --powers @agent

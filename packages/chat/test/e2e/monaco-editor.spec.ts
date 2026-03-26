@@ -7,7 +7,6 @@
  * - Communication is via postMessage
  * - Keyboard shortcuts need real browser events
  */
-/* global document, window, setTimeout */
 
 import { test, expect, type Page } from '@playwright/test';
 

@@ -1,5 +1,5 @@
 // @ts-check
-/* global showDirectoryPicker */
+/* eslint-disable no-await-in-loop */
 
 import { makeExo } from '@endo/exo';
 import { E } from '@endo/eventual-send';
@@ -225,6 +225,7 @@ export const checkoutToDirectory = async (tree, rootHandle, options = {}) => {
       const child = await E(node).lookup(name);
       // Use __getMethodNames__ to detect the node type without calling
       // a method that may not exist (which causes CapTP error logging).
+      // eslint-disable-next-line no-underscore-dangle
       const methods = await E(child).__getMethodNames__();
       const isTree = methods.includes('list');
       if (isTree) {

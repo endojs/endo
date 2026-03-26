@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document, requestAnimationFrame, navigator, setTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -66,30 +65,29 @@ export const inboxComponent = async (
           'replyTo' in message
             ? /** @type {string} */ (message.replyTo)
             : undefined;
-        if (
+        const isSelfReplyInThread =
           fromId === selfLocator &&
           toId === selfLocator &&
           replyTo &&
           $parent.querySelector(
             `.message-envelope[data-message-id="${CSS.escape(replyTo)}"]`,
-          )
-        ) {
-          // falls through — include in this conversation
-        } else if (conversationPetName) {
+          );
+        let matchesByPetName = false;
+        if (!isSelfReplyInThread && conversationPetName) {
           // ID didn't match directly — try matching by pet name
           // (handles peer/remote/guest formula indirection)
           // eslint-disable-next-line no-await-in-loop
           const names = await E(powers).reverseLocate(otherPartyId);
-          if (
-            !Array.isArray(names) ||
-            !names.includes(
+          matchesByPetName =
+            Array.isArray(names) &&
+            names.includes(
               /** @type {import('@endo/daemon').Name} */ (conversationPetName),
-            )
-          ) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-        } else {
+            );
+        }
+        if (!isSelfReplyInThread && !matchesByPetName) {
+          // Message does not belong to this conversation; skip it.
+          // (Wrapping the rest of the loop body would add excessive
+          // indentation, so we use a guarded skip instead.)
           // eslint-disable-next-line no-continue
           continue;
         }

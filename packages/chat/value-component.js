@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document, navigator, setTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */

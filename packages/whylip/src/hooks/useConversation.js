@@ -1,5 +1,5 @@
 // @ts-check
-/* global window */
+/* eslint-disable no-await-in-loop */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { E } from '@endo/far';
@@ -260,31 +260,31 @@ export const useConversation = powers => {
           if (cancelled) return;
 
           const { messageId, replyTo, from: fromId, strings, type } = msg;
-          if (!messageId) continue;
+          if (messageId) {
+            let text = '';
+            if (type === 'package' && Array.isArray(strings)) {
+              text = strings.join('').trim();
+            }
 
-          let text = '';
-          if (type === 'package' && Array.isArray(strings)) {
-            text = strings.join('').trim();
-          }
+            const role = fromId === selfId ? 'user' : 'assistant';
+            let parentId = null;
+            if (typeof replyTo === 'string' && messageToNodeId.has(replyTo)) {
+              parentId = messageToNodeId.get(replyTo) || null;
+            }
 
-          const role = fromId === selfId ? 'user' : 'assistant';
-          let parentId = null;
-          if (typeof replyTo === 'string' && messageToNodeId.has(replyTo)) {
-            parentId = messageToNodeId.get(replyTo) || null;
-          }
+            const node = await treeRef.current.addNode(
+              parentId,
+              [{ role, content: text }],
+              { messageId },
+            );
+            messageToNodeId.set(messageId, node.id);
 
-          const node = await treeRef.current.addNode(
-            parentId,
-            [{ role, content: text }],
-            { messageId },
-          );
-          messageToNodeId.set(messageId, node.id);
-
-          if (role === 'assistant') {
-            const parsed = parseResponse(text);
-            setActiveScene(parsed.scene);
-            setActiveNarrative(parsed.narrative);
-            setActiveNodeId(node.id);
+            if (role === 'assistant') {
+              const parsed = parseResponse(text);
+              setActiveScene(parsed.scene);
+              setActiveNarrative(parsed.narrative);
+              setActiveNodeId(node.id);
+            }
           }
         }
 
@@ -313,67 +313,65 @@ export const useConversation = powers => {
           if (cancelled) break;
 
           const { messageId, replyTo, from: fromId, strings, type } = msg;
-          if (!messageId) continue;
+          if (!messageId) {
+            // skip
+          } else if (messageToNodeId.has(messageId)) {
+            // Skip messages already processed during init
+          } else if (fromId === selfId) {
+            // Skip our own outgoing messages (already tracked on send)
+          } else {
+            let text = '';
+            if (type === 'package' && Array.isArray(strings)) {
+              text = strings.join('').trim();
+            }
 
-          // Skip messages already processed during init
-          if (messageToNodeId.has(messageId)) continue;
+            let parentId = null;
+            if (typeof replyTo === 'string' && messageToNodeId.has(replyTo)) {
+              parentId = messageToNodeId.get(replyTo) || null;
+            }
 
-          // Skip our own outgoing messages (already tracked on send)
-          if (fromId === selfId) continue;
-
-          let text = '';
-          if (type === 'package' && Array.isArray(strings)) {
-            text = strings.join('').trim();
-          }
-
-          let parentId = null;
-          if (typeof replyTo === 'string' && messageToNodeId.has(replyTo)) {
-            parentId = messageToNodeId.get(replyTo) || null;
-          }
-
-          const node = await treeRef.current.addNode(
-            parentId,
-            [{ role: 'assistant', content: text }],
-            { messageId },
-          );
-          messageToNodeId.set(messageId, node.id);
-
-          const parsed = parseResponse(text);
-
-          // If the response looks like malformed JSON and we haven't
-          // exhausted retries, send the error back to the agent so it
-          // can reformat its answer.
-          if (
-            parsed.parseError &&
-            formatRetryRef.current < MAX_FORMAT_RETRIES
-          ) {
-            formatRetryRef.current += 1;
-            console.warn(
-              '[whylip] Parse error, requesting reformat:',
-              parsed.parseError,
+            const node = await treeRef.current.addNode(
+              parentId,
+              [{ role: 'assistant', content: text }],
+              { messageId },
             );
-            setActiveNarrative('Reformatting response...');
+            messageToNodeId.set(messageId, node.id);
 
-            await E(/** @type {any} */ (powers)).send(
-              'fae',
-              [
-                `FORMAT_ERROR: ${parsed.parseError}\n\n` +
-                  'Here is your previous response that failed to parse:\n' +
-                  text,
-              ],
-              [],
-              [],
-            );
-            continue;
+            const parsed = parseResponse(text);
+
+            // If the response looks like malformed JSON and we haven't
+            // exhausted retries, send the error back to the agent so it
+            // can reformat its answer.
+            if (
+              parsed.parseError &&
+              // eslint-disable-next-line @endo/restrict-comparison-operands
+              formatRetryRef.current < MAX_FORMAT_RETRIES
+            ) {
+              formatRetryRef.current += 1;
+              console.warn(
+                '[whylip] Parse error, requesting reformat:',
+                parsed.parseError,
+              );
+              setActiveNarrative('Reformatting response...');
+
+              await E(/** @type {any} */ (powers)).send(
+                'fae',
+                [
+                  `FORMAT_ERROR: ${parsed.parseError}\n\nHere is your previous response that failed to parse:\n${text}`,
+                ],
+                [],
+                [],
+              );
+            } else {
+              setActiveScene(parsed.scene);
+              setActiveNarrative(parsed.narrative);
+              setActiveNodeId(node.id);
+              setSending(false);
+              formatRetryRef.current = 0;
+
+              await refreshNodes();
+            }
           }
-
-          setActiveScene(parsed.scene);
-          setActiveNarrative(parsed.narrative);
-          setActiveNodeId(node.id);
-          setSending(false);
-          formatRetryRef.current = 0;
-
-          await refreshNodes();
         }
       } catch (err) {
         console.error('[whylip] useConversation init error:', err);

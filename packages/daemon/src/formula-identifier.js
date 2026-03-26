@@ -82,7 +82,7 @@ export const parseId = id => {
   return {
     number: formulaNumber,
     node: nodeNumber,
-    id: /** @type {FormulaIdentifier} */ (id),
+    id,
   };
 };
 

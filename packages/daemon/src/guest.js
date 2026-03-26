@@ -120,7 +120,6 @@ export const makeGuestMaker = ({
       followLocatorNameChanges,
       lookup,
       reverseLookup,
-      write,
       writeLocator,
       move,
       remove,

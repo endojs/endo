@@ -1,5 +1,5 @@
-/* global process */
 // @ts-check
+/* global process */
 // endo run --UNCONFINED setup-with-tools.js \
 //   --powers @agent \
 //   -E PROVIDER_NAME=$PROVIDER_NAME \

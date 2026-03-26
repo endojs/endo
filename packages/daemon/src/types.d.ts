@@ -1736,6 +1736,15 @@ export interface DaemonCore {
   getAgentIdForHandleId: (
     handleId: FormulaIdentifier,
   ) => Promise<FormulaIdentifier>;
+
+  getFormulaGraphSnapshot: (seedIds: FormulaIdentifier[]) => Promise<{
+    nodes: Array<{ id: FormulaIdentifier; type: string }>;
+    edges: Array<{
+      sourceId: FormulaIdentifier;
+      targetId: FormulaIdentifier;
+      label: string;
+    }>;
+  }>;
 }
 
 export interface DaemonCoreExternal {

@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document, requestAnimationFrame, setTimeout, clearTimeout, CSS */
 
 /** @import { ERef } from '@endo/far' */
 
@@ -436,7 +435,7 @@ export const channelComponent = async (
     }
 
     $author.title =
-      pedigree.length > 0
+      pedigree.length !== 0
         ? `Invited by: ${pedigree
             .map((name, i) => {
               const mid = pedigreeMemberIds[i];

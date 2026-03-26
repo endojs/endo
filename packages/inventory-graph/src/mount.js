@@ -1,5 +1,4 @@
 // @ts-check
-/* global document */
 
 import { renderGraph } from './graph.js';
 import './graph.css';

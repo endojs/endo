@@ -1,5 +1,4 @@
 // @ts-check
-/* global document */
 
 import { renderPeers } from './peers.js';
 import './peers.css';

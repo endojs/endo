@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, window */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -266,6 +265,7 @@ export const renderPeers = ($root, { powers, onProfileChange }) => {
     try {
       const changesRef = E(host).followPeerChanges();
       const changes = makeRefIterator(changesRef);
+      // eslint-disable-next-line no-underscore-dangle
       for await (const _change of changes) {
         if (disposed) break;
         loadPeers().catch(window.reportError);

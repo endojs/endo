@@ -1,6 +1,5 @@
 // @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -1364,7 +1363,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         if (activeLeafNode !== null) {
           const transcript = await assembleTranscript(activeLeafNode.messageId);
           const depth = computeDepth(transcript);
-          if (depthStrings.length > 0) {
+          if (depthStrings.length !== 0) {
             depthStrings = [
               `[depth:${depth}] ${depthStrings[0]}`,
               ...depthStrings.slice(1),
@@ -1668,35 +1667,25 @@ The host declined to execute your proposed code. You should:
         );
         leafNode.messages.push(...toolResults);
         await putNode(leafNode);
-
-        // After processing tools, check if we have new notifications
-        // This allows the loop to continue if proposals settled
-        if (notificationQueue.length > 0) {
-          continue;
-        }
-      } else {
-        // No more tool calls - but check if we have notifications to process
-        if (notificationQueue.length > 0) {
-          continue;
-        }
-
+        // After processing tools, loop again (notifications will be picked up
+        // at the top of the next iteration by processNotifications).
+      } else if (notificationQueue.length > 0) {
+        // No tool calls, but there are notifications to process — loop again.
+      } else if (pendingProposals.size > 0) {
         // Check if we have pending proposals - wait for them to settle
-        if (pendingProposals.size > 0) {
-          console.log(
-            `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
-          );
-          // Wait for any pending proposal to settle
-          const pendingPromises = [...pendingProposals.values()].map(p =>
-            p.promise.then(
-              () => {},
-              () => {},
-            ),
-          );
-          await Promise.race(pendingPromises);
-          // Continue the loop to process the notification
-          continue;
-        }
-
+        console.log(
+          `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
+        );
+        // Wait for any pending proposal to settle
+        const pendingPromises = [...pendingProposals.values()].map(p =>
+          p.promise.then(
+            () => {},
+            () => {},
+          ),
+        );
+        await Promise.race(pendingPromises);
+        // Loop again to process the notification.
+      } else {
         // Really done
         continueLoop = false;
         await putNode(leafNode);
@@ -1838,76 +1827,79 @@ You should:
       } = inboxMessage;
 
       // Own outbound messages: index them for future reply lookups
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (fromLocator === selfLocator) {
         await handleOwnMessage(inboxMessage);
-        continue;
-      }
-
-      console.log(`[mail] New message #${number} (type: ${type || 'package'})`);
-
-      // Resolve or create the transcript chain for this message.
-      /** @type {TranscriptNode | undefined} */
-      let parentNode;
-      /** @type {string} */
-      let parentId;
-
-      if (typeof replyTo === 'string') {
-        parentNode = await getNode(replyTo);
-      }
-
-      if (parentNode !== undefined) {
-        // Continue existing conversation.
-        parentId = /** @type {string} */ (replyTo);
-        console.log(
-          `[transcript] Continuing chain from ${parentId.slice(0, 12)}...`,
-        );
       } else {
-        // New conversation — create a root node with the system prompt.
-        const rootId = makeRootNodeId();
-        /** @type {TranscriptNode} */
-        const rootNode = {
-          messageId: rootId,
-          parentMessageId: null,
-          messages: [{ role: 'system', content: systemPrompt }],
-        };
-        await putNode(rootNode);
-        parentId = rootId;
-        console.log('[transcript] Starting new conversation chain');
-      }
+        console.log(
+          `[mail] New message #${number} (type: ${type || 'package'})`,
+        );
 
-      // Create a new node for this turn, chained to the parent.
-      const userContent = formatInboundMessage(inboxMessage);
+        // Resolve or create the transcript chain for this message.
+        /** @type {TranscriptNode | undefined} */
+        let parentNode;
+        /** @type {string} */
+        let parentId;
 
-      /** @type {TranscriptNode} */
-      const turnNode = {
-        messageId: typeof messageId === 'string' ? messageId : makeRootNodeId(),
-        parentMessageId: parentId,
-        messages: [{ role: 'user', content: userContent }],
-        lastInboxNumber: number,
-      };
-      await putNode(turnNode);
-
-      // Run the agentic loop for this transcript chain
-      try {
-        await runAgenticLoop(turnNode);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[agent] LLM error, notifying sender:', errorMessage);
-        const isValidName =
-          typeof fromId === 'string' &&
-          (/^[a-z][a-z0-9-]{0,127}$/.test(fromId) ||
-            /^[A-Z][A-Z0-9-]{0,127}$/.test(fromId));
-        if (isValidName) {
-          await E(powers).send(fromId, [errorMessage], [], []);
+        if (typeof replyTo === 'string') {
+          parentNode = await getNode(replyTo);
         }
-      }
 
-      const transcriptLength = (await assembleTranscript(turnNode.messageId))
-        .length;
-      console.log(
-        `[lal] Transcript chain has ${transcriptLength} messages after processing`,
-      );
+        if (parentNode !== undefined) {
+          // Continue existing conversation.
+          parentId = /** @type {string} */ (replyTo);
+          console.log(
+            `[transcript] Continuing chain from ${parentId.slice(0, 12)}...`,
+          );
+        } else {
+          // New conversation — create a root node with the system prompt.
+          const rootId = makeRootNodeId();
+          /** @type {TranscriptNode} */
+          const rootNode = {
+            messageId: rootId,
+            parentMessageId: null,
+            messages: [{ role: 'system', content: systemPrompt }],
+          };
+          await putNode(rootNode);
+          parentId = rootId;
+          console.log('[transcript] Starting new conversation chain');
+        }
+
+        // Create a new node for this turn, chained to the parent.
+        const userContent = formatInboundMessage(inboxMessage);
+
+        /** @type {TranscriptNode} */
+        const turnNode = {
+          messageId:
+            typeof messageId === 'string' ? messageId : makeRootNodeId(),
+          parentMessageId: parentId,
+          messages: [{ role: 'user', content: userContent }],
+          lastInboxNumber: number,
+        };
+        await putNode(turnNode);
+
+        // Run the agentic loop for this transcript chain
+        try {
+          await runAgenticLoop(turnNode);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error('[agent] LLM error, notifying sender:', errorMessage);
+          const isValidName =
+            typeof fromLocator === 'string' &&
+            (/^[a-z][a-z0-9-]{0,127}$/.test(fromLocator) ||
+              /^[A-Z][A-Z0-9-]{0,127}$/.test(fromLocator));
+          if (isValidName) {
+            await E(powers).send(fromLocator, [errorMessage], [], []);
+          }
+        }
+
+        const transcriptLength = (await assembleTranscript(turnNode.messageId))
+          .length;
+        console.log(
+          `[lal] Transcript chain has ${transcriptLength} messages after processing`,
+        );
+      }
     }
   };
 
@@ -1969,6 +1961,7 @@ export const make = (guestPowers, _context) => {
       await E(powers).listMessages()
     );
     for (const msg of existingMessages) {
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (msg.from === selfLocator && msg.type === 'form') {
         formMessageId = msg.messageId;
       }
@@ -1982,79 +1975,79 @@ export const make = (guestPowers, _context) => {
       const msg = /** @type {any} */ (message);
 
       // Capture the form's messageId from our own outbound message.
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       if (msg.from === selfLocator && msg.type === 'form') {
         formMessageId = msg.messageId;
-        continue;
-      }
-
-      // Skip non-value messages and value messages not replying to our form.
-      if (msg.type !== 'value') continue;
-      if (msg.replyTo !== formMessageId) continue;
-
-      try {
-        // Resolve the submitted values from the value message.
-        const config =
-          /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
-            await E(powers).lookupById(msg.valueId)
-          );
-
-        const { name } = config;
-
-        // Skip if a worker is already running for this name.
-        if (activeWorkers.has(name)) {
-          await E(powers).reply(
-            msg.number,
-            [`Agent "${name}" already exists.`],
-            [],
-            [],
-          );
-          continue;
-        }
-
-        // Create the guest profile via the host agent.
-        // provideGuest returns the full EndoGuest (not the handle).
-        // Guard with has() — on restart the guest already exists and
-        // re-running provideGuest hits "Formula already exists".
-        let guest;
-        if (await E(agent).has(name)) {
-          guest = await E(agent).lookup(name);
-        } else {
-          guest = await E(agent).provideGuest(name, {
-            agentName: `profile-for-${name}`,
-          });
-        }
-
-        // Spawn a worker loop for this guest.
-        const workerP = spawnWorkerLoop(guest, null, {
-          LAL_HOST: config.host,
-          LAL_MODEL: config.model,
-          LAL_AUTH_TOKEN: config.authToken,
-        });
-        activeWorkers.set(name, workerP);
-        workerP.catch(error => {
-          console.error(`[lal] Worker "${name}" error:`, error);
-          activeWorkers.delete(name);
-        });
-
-        await E(powers).reply(
-          msg.number,
-          [`Agent "${name}" is now running.`],
-          [],
-          [],
-        );
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[lal] Form submission error:', errorMessage);
+      } else if (
+        msg.type === 'value' &&
+        // eslint-disable-next-line @endo/restrict-comparison-operands
+        msg.replyTo === formMessageId
+      ) {
+        // Only process value messages that reply to our form.
         try {
-          await E(powers).reply(
-            msg.number,
-            [`Error creating agent: ${errorMessage}`],
-            [],
-            [],
-          );
-        } catch {
-          // Best-effort reply.
+          // Resolve the submitted values from the value message.
+          const config =
+            /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+              await E(powers).lookupById(msg.valueId)
+            );
+
+          const { name } = config;
+
+          if (activeWorkers.has(name)) {
+            // A worker is already running for this name.
+            await E(powers).reply(
+              msg.number,
+              [`Agent "${name}" already exists.`],
+              [],
+              [],
+            );
+          } else {
+            // Create the guest profile via the host agent.
+            // provideGuest returns the full EndoGuest (not the handle).
+            // Guard with has() — on restart the guest already exists and
+            // re-running provideGuest hits "Formula already exists".
+            let guest;
+            if (await E(agent).has(name)) {
+              guest = await E(agent).lookup(name);
+            } else {
+              guest = await E(agent).provideGuest(name, {
+                agentName: `profile-for-${name}`,
+              });
+            }
+
+            // Spawn a worker loop for this guest.
+            const workerP = spawnWorkerLoop(guest, null, {
+              LAL_HOST: config.host,
+              LAL_MODEL: config.model,
+              LAL_AUTH_TOKEN: config.authToken,
+            });
+            activeWorkers.set(name, workerP);
+            workerP.catch(error => {
+              console.error(`[lal] Worker "${name}" error:`, error);
+              activeWorkers.delete(name);
+            });
+
+            await E(powers).reply(
+              msg.number,
+              [`Agent "${name}" is now running.`],
+              [],
+              [],
+            );
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error('[lal] Form submission error:', errorMessage);
+          try {
+            await E(powers).reply(
+              msg.number,
+              [`Error creating agent: ${errorMessage}`],
+              [],
+              [],
+            );
+          } catch {
+            // Best-effort reply.
+          }
         }
       }
     }

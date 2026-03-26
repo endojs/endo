@@ -1,6 +1,6 @@
 // @ts-check
-/* global document, window, globalThis */
 /* eslint-disable no-bitwise, import/no-unresolved */
+/* global globalThis */
 
 import harden from '@endo/harden';
 import * as monaco from 'monaco-editor';

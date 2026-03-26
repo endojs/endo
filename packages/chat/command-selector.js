@@ -1,8 +1,7 @@
 // @ts-check
-/* global document */
 /* eslint-disable no-use-before-define */
 
-import { filterCommands, getCommandList } from './command-registry.js';
+import { filterCommands } from './command-registry.js';
 
 /**
  * @typedef {object} CommandSelectorAPI

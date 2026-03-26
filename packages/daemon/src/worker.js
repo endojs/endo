@@ -1,5 +1,5 @@
-/* global globalThis */
 // @ts-check
+/* global globalThis */
 
 import harden from '@endo/harden';
 import { E, Far } from '@endo/far';

@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 
 import '@endo/init';
 import { makeCapTP } from '@endo/captp';
@@ -30,7 +31,7 @@ async function makeAlice(fromBob, toBob) {
   // This bit of machinery pumps messages through the pipes above.
   const send = toBob.next.bind(toBob);
 
-  const { dispatch, abort } = makeCapTP('alice', send, bootstrap);
+  const { dispatch } = makeCapTP('alice', send, bootstrap);
   for await (const message of fromBob) {
     dispatch(message);
   }
@@ -44,7 +45,7 @@ async function makeBob(fromAlice, toAlice) {
   // Bob's CapTP message pump.
   const send = toAlice.next.bind(toAlice);
 
-  const { dispatch, getBootstrap, abort } = makeCapTP('alice', send);
+  const { dispatch, getBootstrap } = makeCapTP('alice', send);
   const serve = async () => {
     for await (const message of fromAlice) {
       dispatch(message);

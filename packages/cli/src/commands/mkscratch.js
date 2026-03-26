@@ -18,7 +18,9 @@ export const mkscratch = async ({ name, agentNames, readOnly }) => {
   const parsedName = parsePetNamePath(name);
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    await E(agent).provideScratchMount(parsedName, { readOnly: readOnly || false });
+    await E(agent).provideScratchMount(parsedName, {
+      readOnly: readOnly || false,
+    });
     console.log(`Created scratch mount as ${name}`);
   });
 };

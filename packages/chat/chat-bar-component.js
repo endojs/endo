@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document, setTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -392,25 +391,23 @@ export const chatBarComponent = (
 
     for (const category of categories) {
       const commands = getCommandsByCategory(category, context);
-      if (commands.length === 0) {
-        // eslint-disable-next-line no-continue
-        continue;
+      if (commands.length !== 0) {
+        const label = CATEGORY_LABELS[category] || category;
+
+        html += '<div class="command-popover-section">';
+        html += `<div class="command-popover-category">${label}</div>`;
+
+        for (const cmd of commands) {
+          html += `
+            <div class="command-popover-item" data-command="${cmd.name}">
+              <span class="command-popover-item-name">/${cmd.name}</span>
+              <span class="command-popover-item-desc">${cmd.description}</span>
+            </div>
+          `;
+        }
+
+        html += '</div>';
       }
-      const label = CATEGORY_LABELS[category] || category;
-
-      html += '<div class="command-popover-section">';
-      html += `<div class="command-popover-category">${label}</div>`;
-
-      for (const cmd of commands) {
-        html += `
-          <div class="command-popover-item" data-command="${cmd.name}">
-            <span class="command-popover-item-name">/${cmd.name}</span>
-            <span class="command-popover-item-desc">${cmd.description}</span>
-          </div>
-        `;
-      }
-
-      html += '</div>';
     }
 
     html +=
@@ -727,8 +724,6 @@ export const chatBarComponent = (
           ancestors.push(parentIndex);
           cursor = parentIndex;
           i = parentIndex;
-          // eslint-disable-next-line no-continue
-          continue;
         }
       }
     }
@@ -792,36 +787,33 @@ export const chatBarComponent = (
     // Case 2: adjacent indented predecessor is our replyTo parent.
     // Case 3: has a replyTo but parent is not adjacent — reply indicator.
     for (let i = from; i < to; i += 1) {
-      if (!$envelopes[i].classList.contains('indented')) {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
+      if ($envelopes[i].classList.contains('indented')) {
+        const rt = $envelopes[i].dataset.replyTo;
+        const mid = $envelopes[i].dataset.messageId;
 
-      const rt = $envelopes[i].dataset.replyTo;
-      const mid = $envelopes[i].dataset.messageId;
+        // Connect upward: previous envelope is indented and is our parent
+        const prevIndented =
+          i > from && $envelopes[i - 1].classList.contains('indented');
+        const connectsUp =
+          prevIndented && rt && $envelopes[i - 1].dataset.messageId === rt;
 
-      // Connect upward: previous envelope is indented and is our parent
-      const prevIndented =
-        i > from && $envelopes[i - 1].classList.contains('indented');
-      const connectsUp =
-        prevIndented && rt && $envelopes[i - 1].dataset.messageId === rt;
+        // Connect downward: next envelope is indented and replies to us
+        const nextIndented =
+          i + 1 < to && $envelopes[i + 1].classList.contains('indented');
+        const connectsDown =
+          nextIndented && mid && $envelopes[i + 1].dataset.replyTo === mid;
 
-      // Connect downward: next envelope is indented and replies to us
-      const nextIndented =
-        i + 1 < to && $envelopes[i + 1].classList.contains('indented');
-      const connectsDown =
-        nextIndented && mid && $envelopes[i + 1].dataset.replyTo === mid;
-
-      if (connectsUp && connectsDown) {
-        $envelopes[i].classList.add('sub-through');
-      } else if (connectsUp) {
-        $envelopes[i].classList.add('sub-end');
-      } else if (connectsDown) {
-        $envelopes[i].classList.add('sub-start');
-      } else if (rt && !$envelopes[i].classList.contains('chain-tee')) {
-        // Has a replyTo but not adjacent to parent and not already
-        // gutter-connected — show a small reply indicator.
-        $envelopes[i].classList.add('sub-indicator');
+        if (connectsUp && connectsDown) {
+          $envelopes[i].classList.add('sub-through');
+        } else if (connectsUp) {
+          $envelopes[i].classList.add('sub-end');
+        } else if (connectsDown) {
+          $envelopes[i].classList.add('sub-start');
+        } else if (rt && !$envelopes[i].classList.contains('chain-tee')) {
+          // Has a replyTo but not adjacent to parent and not already
+          // gutter-connected — show a small reply indicator.
+          $envelopes[i].classList.add('sub-indicator');
+        }
       }
     }
   };
@@ -1630,5 +1622,6 @@ export const chatBarComponent = (
     clearReplyTo: sendForm.clearReplyTo,
     setDefaultReplyTo: sendForm.setDefaultReplyTo,
     clearDefaultReplyTo: sendForm.clearDefaultReplyTo,
+    dispose: sendForm.dispose,
   };
 };

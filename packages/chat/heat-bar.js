@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, setTimeout */
 
 import harden from '@endo/harden';
 import {
@@ -171,7 +170,7 @@ export const createHeatBar = ($container, $sendButton) => {
       $seg.className = `heat-bar-segment${hop.isSelf ? ' self' : ' ancestor'}`;
 
       // Width proportional to share of total heat (with minimum 2px)
-      let widthPct =
+      const widthPct =
         totalHeat > 0
           ? (hop.normalizedHeat / totalHeat) * 100
           : 100 / hops.length;

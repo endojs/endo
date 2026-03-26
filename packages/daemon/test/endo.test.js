@@ -2,6 +2,7 @@
 /* global process, setTimeout */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 import test from 'ava';
@@ -29,6 +30,7 @@ import {
   formatLocator,
   parseLocator,
   addressesFromLocator,
+  idFromLocator,
 } from '../src/locator.js';
 
 /**
@@ -3799,7 +3801,7 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
 });
 
 test.serial('formula write failure does not leak into graph', async t => {
-  const { cancelled, config, host } = await prepareHost(t);
+  const { config, host } = await prepareHost(t);
 
   // Record names before the failed operation.
   const namesBefore = await E(host).list();
@@ -3978,7 +3980,9 @@ const createMountFixture = async (basePath, files) => {
   for (const [relPath, content] of Object.entries(files)) {
     const fullPath = path.join(basePath, relPath);
     const dir = path.dirname(fullPath);
+    // eslint-disable-next-line no-await-in-loop
     await fs.promises.mkdir(dir, { recursive: true });
+    // eslint-disable-next-line no-await-in-loop
     await fs.promises.writeFile(fullPath, content, 'utf-8');
   }
 };
@@ -4084,9 +4088,7 @@ test('mount external directory - write and remove', async t => {
   t.false(await E(mount).has('new-file.txt'));
 
   // Cross-reference: file is actually gone from disk.
-  await t.throwsAsync(
-    fs.promises.access(path.join(mountPath, 'new-file.txt')),
-  );
+  await t.throwsAsync(fs.promises.access(path.join(mountPath, 'new-file.txt')));
 });
 
 test('mount external directory - write creates parent directories', async t => {
@@ -4141,9 +4143,7 @@ test('mount external directory - move', async t => {
   t.is(text, 'move me');
 
   // Cross-reference: old path gone, new path exists on disk.
-  await t.throwsAsync(
-    fs.promises.access(path.join(mountPath, 'original.txt')),
-  );
+  await t.throwsAsync(fs.promises.access(path.join(mountPath, 'original.txt')));
   const actualRenamed = await fs.promises.readFile(
     path.join(mountPath, 'renamed.txt'),
     'utf-8',
@@ -4370,14 +4370,8 @@ const createSymlinkFixture = async basePath => {
   await fs.promises.symlink('subdir', path.join(mountRoot, 'internal-rel'));
 
   // External symlinks (should be visible in readdir but rejected on use).
-  await fs.promises.symlink(
-    outsideDir,
-    path.join(mountRoot, 'escape-abs'),
-  );
-  await fs.promises.symlink(
-    '../outside',
-    path.join(mountRoot, 'escape-rel'),
-  );
+  await fs.promises.symlink(outsideDir, path.join(mountRoot, 'escape-abs'));
+  await fs.promises.symlink('../outside', path.join(mountRoot, 'escape-rel'));
   await fs.promises.symlink(
     path.join(outsideDir, 'secret.txt'),
     path.join(mountRoot, 'escape-file-abs'),
@@ -4393,7 +4387,11 @@ const createSymlinkFixture = async basePath => {
 test('mount symlink - internal absolute symlink is visible and usable', async t => {
   const { host, config } = await prepareHost(t);
 
-  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-int-abs');
+  const basePath = path.join(
+    config.statePath,
+    '..',
+    'mount-test-symlink-int-abs',
+  );
   const { mountRoot } = await createSymlinkFixture(basePath);
 
   await E(host).provideMount(mountRoot, 'sym-int-abs');
@@ -4420,7 +4418,11 @@ test('mount symlink - internal absolute symlink is visible and usable', async t 
 test('mount symlink - internal relative symlink is visible and usable', async t => {
   const { host, config } = await prepareHost(t);
 
-  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-int-rel');
+  const basePath = path.join(
+    config.statePath,
+    '..',
+    'mount-test-symlink-int-rel',
+  );
   const { mountRoot } = await createSymlinkFixture(basePath);
 
   await E(host).provideMount(mountRoot, 'sym-int-rel');
@@ -4447,7 +4449,11 @@ test('mount symlink - internal relative symlink is visible and usable', async t 
 test('mount symlink - escaping absolute dir symlink hidden from list, rejected on use', async t => {
   const { host, config } = await prepareHost(t);
 
-  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-abs');
+  const basePath = path.join(
+    config.statePath,
+    '..',
+    'mount-test-symlink-esc-abs',
+  );
   const { mountRoot } = await createSymlinkFixture(basePath);
 
   await E(host).provideMount(mountRoot, 'sym-esc-abs');
@@ -4469,7 +4475,11 @@ test('mount symlink - escaping absolute dir symlink hidden from list, rejected o
 test('mount symlink - escaping relative dir symlink hidden from list, rejected on use', async t => {
   const { host, config } = await prepareHost(t);
 
-  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-rel');
+  const basePath = path.join(
+    config.statePath,
+    '..',
+    'mount-test-symlink-esc-rel',
+  );
   const { mountRoot } = await createSymlinkFixture(basePath);
 
   await E(host).provideMount(mountRoot, 'sym-esc-rel');
@@ -4491,7 +4501,11 @@ test('mount symlink - escaping relative dir symlink hidden from list, rejected o
 test('mount symlink - escaping absolute file symlink hidden and rejected', async t => {
   const { host, config } = await prepareHost(t);
 
-  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-file-abs');
+  const basePath = path.join(
+    config.statePath,
+    '..',
+    'mount-test-symlink-esc-file-abs',
+  );
   const { mountRoot } = await createSymlinkFixture(basePath);
 
   await E(host).provideMount(mountRoot, 'sym-esc-file-abs');
@@ -4513,7 +4527,11 @@ test('mount symlink - escaping absolute file symlink hidden and rejected', async
 test('mount symlink - escaping relative file symlink hidden and rejected', async t => {
   const { host, config } = await prepareHost(t);
 
-  const basePath = path.join(config.statePath, '..', 'mount-test-symlink-esc-file-rel');
+  const basePath = path.join(
+    config.statePath,
+    '..',
+    'mount-test-symlink-esc-file-rel',
+  );
   const { mountRoot } = await createSymlinkFixture(basePath);
 
   await E(host).provideMount(mountRoot, 'sym-esc-file-rel');

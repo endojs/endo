@@ -1,6 +1,7 @@
 // @ts-check
 /* global globalThis, window, document */
 
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 import harden from '@endo/harden';
 import { makeCapTP } from '@endo/captp';
@@ -25,31 +26,29 @@ const collectPropsAndBind = target => {
     for (const [name, propDesc] of Object.entries(
       Object.getOwnPropertyDescriptors(obj),
     )) {
-      if (name in container) {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-      let value = propDesc.value;
-      if (propDesc.get) {
-        value = propDesc.get.call(target);
-      }
-      if (typeof value === 'function') {
-        // This wrapper is a bind that works for constructors as well.
-        const wrapper = function bindWrapperFn(...args) {
-          if (new.target) {
-            // eslint-disable-next-line new-cap
-            return new value(...args);
-          } else {
-            return value.call(target, ...args);
-          }
-        };
-        Object.defineProperties(
-          wrapper,
-          Object.getOwnPropertyDescriptors(value),
-        );
-        container[name] = wrapper;
-      } else {
-        container[name] = value;
+      if (!(name in container)) {
+        let value = propDesc.value;
+        if (propDesc.get) {
+          value = propDesc.get.call(target);
+        }
+        if (typeof value === 'function') {
+          // This wrapper is a bind that works for constructors as well.
+          const wrapper = function bindWrapperFn(...args) {
+            if (new.target) {
+              // eslint-disable-next-line new-cap
+              return new value(...args);
+            } else {
+              return value.call(target, ...args);
+            }
+          };
+          Object.defineProperties(
+            wrapper,
+            Object.getOwnPropertyDescriptors(value),
+          );
+          container[name] = wrapper;
+        } else {
+          container[name] = value;
+        }
       }
     }
   }

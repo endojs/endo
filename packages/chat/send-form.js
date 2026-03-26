@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -34,6 +33,7 @@ import { createHeatBar } from './heat-bar.js';
  * @property {() => boolean} isSubmitting - Check if a send is in progress
  * @property {(number: string, authorName: string, preview: string) => void} setReplyTo - Set reply context
  * @property {() => void} clearReplyTo - Clear reply context
+ * @property {() => void} dispose - Tear down polling, engines, and heat bar
  */
 
 /**
@@ -89,8 +89,8 @@ export const sendFormComponent = ({
   let heatBar = null;
   /** Guard against double-init (polling + async race) */
   let heatEngineInitialized = false;
-  /** Polling cancellation flag */
-  let heatPollingStopped = false;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let pollTimeoutId = null;
 
   // --- Reply context ---
   /** @type {ReplyContext | null} */
@@ -160,7 +160,7 @@ export const sendFormComponent = ({
     try {
       // Try composite (multi-hop) engine first
       const hopInfo = await E(channelRef).getHopInfo();
-      if (hopInfo && hopInfo.policies && hopInfo.policies.length > 0) {
+      if (hopInfo && hopInfo.policies && hopInfo.policies.length !== 0) {
         heatBar = createHeatBar(
           /** @type {HTMLElement} */ ($input.parentElement),
           $sendButton,
@@ -223,15 +223,15 @@ export const sendFormComponent = ({
       void initHeatEngine(channelRef);
     } else {
       const pollForChannelRef = () => {
-        if (heatPollingStopped || heatEngineInitialized) return;
+        if (heatEngineInitialized) return;
         const ref = getChannelRef();
         if (ref) {
           void initHeatEngine(ref);
         } else {
-          setTimeout(pollForChannelRef, 500);
+          pollTimeoutId = setTimeout(pollForChannelRef, 500);
         }
       };
-      setTimeout(pollForChannelRef, 500);
+      pollTimeoutId = setTimeout(pollForChannelRef, 500);
     }
   }
 
@@ -588,6 +588,24 @@ export const sendFormComponent = ({
       defaultReplyContext = null;
       replyContext = null;
       renderReplyContextBar();
+    },
+    dispose: () => {
+      if (pollTimeoutId !== null) {
+        clearTimeout(pollTimeoutId);
+        pollTimeoutId = null;
+      }
+      if (compositeEngine) {
+        compositeEngine.stop();
+        compositeEngine = null;
+      }
+      if (heatEngine) {
+        heatEngine.stop();
+        heatEngine = null;
+      }
+      if (heatBar) {
+        heatBar.dispose();
+        heatBar = null;
+      }
     },
   };
 };

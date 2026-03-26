@@ -841,15 +841,14 @@ export const main = async rawArgs => {
       const verbose = Number(opts.verbose);
       const { status } = await import('@endo/daemon');
       await status(undefined, {
-        verbose: isNaN(verbose) ? 0 : verbose,
+        verbose: Number.isNaN(verbose) ? 0 : verbose,
       });
     });
 
   program
     .command('start')
     .description('start the endo daemon as a background service')
-    .action(async cmd => {
-      const {} = cmd.opts();
+    .action(async () => {
       const { start } = await import('@endo/daemon');
       await start(undefined, {});
     });
@@ -866,8 +865,8 @@ export const main = async rawArgs => {
       if (feralErrors) {
         process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
       }
-      const { main } = await import('@endo/daemon');
-      await main();
+      const { main: daemonMain } = await import('@endo/daemon');
+      await daemonMain();
     });
 
   program

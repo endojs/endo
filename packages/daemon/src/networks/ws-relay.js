@@ -1,4 +1,5 @@
 // @ts-check
+/* global clearTimeout, setTimeout */
 /// <reference types="ses" />
 
 import { WebSocket } from 'ws';
@@ -9,6 +10,7 @@ import { makePipe } from '@endo/stream';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from '../connection.js';
 import { fromHex, toHex } from '../hex.js';
+// eslint-disable-next-line import/order
 import {
   MSG_CHALLENGE,
   MSG_AUTH_OK,

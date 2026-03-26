@@ -21,7 +21,9 @@ export const mount = async ({ sourcePath, name, agentNames, readOnly }) => {
   const resolvedPath = path.resolve(sourcePath);
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    await E(agent).provideMount(resolvedPath, parsedName, { readOnly: readOnly || false });
+    await E(agent).provideMount(resolvedPath, parsedName, {
+      readOnly: readOnly || false,
+    });
     console.log(`Mounted ${resolvedPath} as ${name}`);
   });
 };

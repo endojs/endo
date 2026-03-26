@@ -1,5 +1,4 @@
 // @ts-check
-/* global requestAnimationFrame, cancelAnimationFrame */
 
 import {
   deriveConstants,
@@ -237,20 +236,19 @@ const makeCompositeHeatEngine = (hopPolicies, initialStates, onUpdate) => {
         if (hop.locked) {
           anyLocked = true;
           maxLockRemaining = Math.max(maxLockRemaining, hop.lockEndTime - now);
-          continue;
-        }
+        } else {
+          hop.heat += hop.heatPerMessage;
+          hop.lastUpdateTime = now;
 
-        hop.heat += hop.heatPerMessage;
-        hop.lastUpdateTime = now;
-
-        if (hop.heat >= LOCKOUT_THRESHOLD) {
-          hop.lockEndTime = now + hop.policy.lockoutDurationMs;
-          hop.locked = true;
-          anyLocked = true;
-          maxLockRemaining = Math.max(
-            maxLockRemaining,
-            hop.policy.lockoutDurationMs,
-          );
+          if (hop.heat >= LOCKOUT_THRESHOLD) {
+            hop.lockEndTime = now + hop.policy.lockoutDurationMs;
+            hop.locked = true;
+            anyLocked = true;
+            maxLockRemaining = Math.max(
+              maxLockRemaining,
+              hop.policy.lockoutDurationMs,
+            );
+          }
         }
       }
 

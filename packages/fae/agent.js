@@ -1,6 +1,5 @@
 // @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -53,12 +52,12 @@ when you adopt a tool capability from an incoming mail message using \`adoptTool
 
 ## Communication
 
-You receive messages from other agents and the HOST. Use these tools to interact:
+You receive messages from other agents and the @host. Use these tools to interact:
 
 - **reply** — Reply to a message by number. The reply is automatically routed \
 to the original sender. **Always prefer reply over send** when responding to \
 an incoming message.
-- **send** — Send a new (unsolicited) message to a named agent (e.g., "HOST")
+- **send** — Send a new (unsolicited) message to a named agent (e.g., "@host")
 - **listMessages** — List your inbox messages
 - **dismiss** — Acknowledge and dismiss a message
 - **adoptTool** — Adopt a capability from a message into your tools/ directory
@@ -258,11 +257,11 @@ export const spawnWorkerLoop = async (
     /** @type {boolean} */
     let continueLoop = true;
     while (continueLoop) {
-      const context = await tree.getPath(currentLeafId);
+      const conversationContext = await tree.getPath(currentLeafId);
       console.log(
-        `[fae] context has ${context.length} messages, sending to LLM`,
+        `[fae] context has ${conversationContext.length} messages, sending to LLM`,
       );
-      const response = await chat(context, currentSchemas);
+      const response = await chat(conversationContext, currentSchemas);
 
       const { message: responseMessage } = response;
       if (!responseMessage) {
@@ -335,19 +334,18 @@ export const spawnWorkerLoop = async (
     try {
       const topNames = /** @type {string[]} */ (await E(powers).list());
       for (const name of topNames) {
-        if (name === 'tools' || specialNamePattern.test(name)) {
-          continue;
-        }
-        try {
-          const entry = await E(powers).lookup([name]);
-          await E(entry).schema();
-          await E(entry).help();
-          // Looks like a FaeTool — move it into tools/
-          await E(powers).copy([name], ['tools', name]);
-          await E(powers).remove(name);
-          console.log(`[fae] Moved introduced tool "${name}" into tools/`);
-        } catch {
-          // Not a FaeTool; leave it alone.
+        if (name !== 'tools' && !specialNamePattern.test(name)) {
+          try {
+            const entry = await E(powers).lookup([name]);
+            await E(entry).schema();
+            await E(entry).help();
+            // Looks like a FaeTool — move it into tools/
+            await E(powers).copy([name], ['tools', name]);
+            await E(powers).remove(name);
+            console.log(`[fae] Moved introduced tool "${name}" into tools/`);
+          } catch {
+            // Not a FaeTool; leave it alone.
+          }
         }
       }
     } catch {
@@ -409,81 +407,81 @@ export const spawnWorkerLoop = async (
         names,
       } = /** @type {any} */ (message);
 
-      if (fromId === selfLocator) {
-        continue;
-      }
+      if (fromId !== selfLocator) {
+        const { messageId, replyTo } = /** @type {any} */ (message);
 
-      const { messageId, replyTo } = /** @type {any} */ (message);
+        await rootNodeIdP;
 
-      const rootNodeId = await rootNodeIdP;
+        console.log(`[fae] New message #${number} from ${fromId}`);
 
-      console.log(`[fae] New message #${number} from ${fromId}`);
+        // Discover tools (picks up newly adopted tools each turn)
+        const { schemas: toolSchemas, toolMap } = await discoverTools(
+          powers,
+          localTools,
+        );
 
-      // Discover tools (picks up newly adopted tools each turn)
-      const { schemas: toolSchemas, toolMap } = await discoverTools(
-        powers,
-        localTools,
-      );
-
-      let textContent;
-      if (type === 'package' && Array.isArray(strings)) {
-        const parts = [];
-        const namesArray = Array.isArray(names) ? names : [];
-        for (let i = 0; i < strings.length; i += 1) {
-          parts.push(strings[i]);
-          if (i < namesArray.length) {
-            parts.push(`@${namesArray[i]}`);
-          }
-        }
-        textContent = parts.join('').trim();
-      } else {
-        textContent = `(${type || 'unknown'} message)`;
-      }
-
-      // Determine the parent node for this message:
-      //  1. If replyTo matches a node in the tree, branch from there
-      //  2. Otherwise continue from the last leaf (preserves context)
-      let parentId = lastLeafId;
-      if (typeof replyTo === 'string') {
-        const existingNode = await tree.getNode(replyTo);
-        if (existingNode !== null) {
-          parentId = replyTo;
-        }
-      }
-
-      const userNode = await tree.addNode(
-        parentId,
-        [
-          {
-            role: 'user',
-            content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
-          },
-        ],
-        { messageId },
-      );
-
-      try {
-        replyTracker.sent = false;
-        lastLeafId = await runAgenticLoop(toolSchemas, toolMap, userNode.id);
-
-        // If the LLM produced a final response without calling the reply
-        // tool, send the content as a fallback reply so the sender
-        // (e.g. a Whylip UI) actually receives it.
-        if (!replyTracker.sent) {
-          const finalNode = await tree.getNode(lastLeafId);
-          if (finalNode) {
-            const lastMsg = finalNode.messages[finalNode.messages.length - 1];
-            if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
-              console.log('[fae] No reply tool called, sending fallback reply');
-              await E(powers).reply(number, [lastMsg.content], [], []);
+        let textContent;
+        if (type === 'package' && Array.isArray(strings)) {
+          const parts = [];
+          const namesArray = Array.isArray(names) ? names : [];
+          for (let i = 0; i < strings.length; i += 1) {
+            parts.push(strings[i]);
+            if (i < namesArray.length) {
+              parts.push(`@${namesArray[i]}`);
             }
           }
+          textContent = parts.join('').trim();
+        } else {
+          textContent = `(${type || 'unknown'} message)`;
         }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[fae] LLM error, notifying sender:', errorMessage);
-        await E(powers).reply(number, [errorMessage], [], []);
+
+        // Determine the parent node for this message:
+        //  1. If replyTo matches a node in the tree, branch from there
+        //  2. Otherwise continue from the last leaf (preserves context)
+        let parentId = lastLeafId;
+        if (typeof replyTo === 'string') {
+          const existingNode = await tree.getNode(replyTo);
+          if (existingNode !== null) {
+            parentId = replyTo;
+          }
+        }
+
+        const userNode = await tree.addNode(
+          parentId,
+          [
+            {
+              role: 'user',
+              content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
+            },
+          ],
+          { messageId },
+        );
+
+        try {
+          replyTracker.sent = false;
+          lastLeafId = await runAgenticLoop(toolSchemas, toolMap, userNode.id);
+
+          // If the LLM produced a final response without calling the reply
+          // tool, send the content as a fallback reply so the sender
+          // (e.g. a Whylip UI) actually receives it.
+          if (!replyTracker.sent) {
+            const finalNode = await tree.getNode(lastLeafId);
+            if (finalNode) {
+              const lastMsg = finalNode.messages[finalNode.messages.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
+                console.log(
+                  '[fae] No reply tool called, sending fallback reply',
+                );
+                await E(powers).reply(number, [lastMsg.content], [], []);
+              }
+            }
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error('[fae] LLM error, notifying sender:', errorMessage);
+          await E(powers).reply(number, [errorMessage], [], []);
+        }
       }
     }
   };
@@ -510,6 +508,7 @@ const driverSpecifier = new URL('driver.js', import.meta.url).href;
  * @param {Promise<object> | object | undefined} _context
  * @returns {Promise<object>}
  */
+// eslint-disable-next-line no-underscore-dangle
 export const make = async (guestPowers, _context) => {
   /** @type {any} */
   const powers = guestPowers;

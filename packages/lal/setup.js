@@ -48,15 +48,16 @@ export const main = async agent => {
   console.log('Watching inbox for form from setup-lal...');
 
   for await (const message of messages) {
-    if (message.type !== 'form') continue;
-    if (message.from === selfLocator) continue;
-
-    const [fromName] = await E(agent).reverseLocate(message.from);
-    if (fromName !== 'setup-lal') continue;
-
-    console.log(`Found form at message ${message.number} — submitting...`);
-    await E(agent).submit(message.number, { name, host, model, authToken });
-    console.log('Submitted.');
+    if (message.type === 'form' && message.from !== selfLocator) {
+      // eslint-disable-next-line no-await-in-loop
+      const [fromName] = await E(agent).reverseLocate(message.from);
+      if (fromName === 'setup-lal') {
+        console.log(`Found form at message ${message.number} — submitting...`);
+        // eslint-disable-next-line no-await-in-loop
+        await E(agent).submit(message.number, { name, host, model, authToken });
+        console.log('Submitted.');
+      }
+    }
   }
 };
 harden(main);

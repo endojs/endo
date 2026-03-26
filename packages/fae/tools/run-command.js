@@ -10,6 +10,7 @@ import { makeRunCommandTool } from '../src/tool-makers.js';
  * FaeTool caplet: run shell commands with cwd as root.
  * Root is set at creation time via env.FAE_CWD (default: process.cwd()).
  */
+// eslint-disable-next-line no-underscore-dangle
 export const make = (_powers, _context, { env = {} } = {}) => {
   const cwd =
     /** @type {Record<string, string | undefined>} */ (env).FAE_CWD ||

@@ -1,5 +1,5 @@
 // @ts-check
-/* global setTimeout */
+/* global globalThis */
 
 import harden from '@endo/harden';
 

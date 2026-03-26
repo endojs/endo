@@ -1,9 +1,13 @@
 /* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import 'ses';
+// eslint-disable-next-line import/order
 import '@endo/eventual-send/shim.js';
+// eslint-disable-next-line import/order
 import '@endo/promise-kit/shim.js';
+// eslint-disable-next-line import/order
 import '@endo/lockdown/commit.js';
 
 import crypto from 'crypto';
@@ -14,7 +18,9 @@ import popen from 'child_process';
 import url from 'url';
 
 import { makePromiseKit } from '@endo/promise-kit';
+// eslint-disable-next-line import/named
 import { main } from './daemon.js';
+// eslint-disable-next-line import/no-unresolved
 import { makePowers } from './daemon-webextension-powers.js';
 
 if (process.argv.length < 5) {

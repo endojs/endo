@@ -1,6 +1,5 @@
 // @ts-check
-/* global process */
-/* eslint-disable no-void */
+/* global Buffer, process */
 
 import harden from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -473,8 +472,10 @@ export const makeDaemonicPersistencePowers = (
         // Stream to temporary file and calculate hash.
         await filePowers.makePath(storageDirectoryPath);
         const fileWriter = filePowers.makeFileWriter(temporaryStoragePath);
+        // eslint-disable-next-line no-await-in-loop
         for await (const chunk of readable) {
           digester.update(chunk);
+          // eslint-disable-next-line no-await-in-loop
           await fileWriter.next(chunk);
         }
         await fileWriter.return(undefined);

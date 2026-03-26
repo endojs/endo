@@ -4,7 +4,7 @@
 export const section = async (execa, testLine) => {
   // Guests can also send their host messages...
   await testLine(
-    execa`endo send HOST --as alice-agent ${'This is the @doubler you sent me.'}`,
+    execa`endo send @host --as alice-agent ${'This is the @doubler you sent me.'}`,
   );
   await testLine(execa`endo inbox`, {
     stdout: /3\. "alice" sent "This is the @doubler you sent me\."/,

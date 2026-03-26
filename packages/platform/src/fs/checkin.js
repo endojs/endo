@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -49,6 +50,7 @@ export const checkinTree = async (remoteTree, store, options = {}) => {
       // Use __getMethodNames__ (available on Exos and conforming Far objects)
       // to detect the node type without calling a method that may not exist,
       // which would cause CapTP to log a noisy error.
+      // eslint-disable-next-line no-underscore-dangle
       const methods = await E(child).__getMethodNames__();
       const childIsTree = methods.includes('list');
       const result = await checkinNode(child, childIsTree, depth + 1);

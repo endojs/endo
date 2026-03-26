@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
@@ -1493,7 +1494,7 @@ export const makeMailboxMaker = ({
         to: /** @type {FormulaIdentifier} */ (otherId),
         messageId,
         replyTo: parent.messageId,
-        valueId: /** @type {FormulaIdentifier} */ (valueId),
+        valueId,
       });
 
       await post(to, message);
@@ -1529,7 +1530,7 @@ export const makeMailboxMaker = ({
         to: /** @type {FormulaIdentifier} */ (selfId),
         messageId,
         replyTo: parent.messageId,
-        valueId: /** @type {FormulaIdentifier} */ (valueId),
+        valueId,
       });
 
       await deliver(message);
