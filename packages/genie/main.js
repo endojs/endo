@@ -32,6 +32,7 @@ import { makePiAgent, runAgentRound } from '@endo/genie';
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
+import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
 
@@ -81,8 +82,10 @@ export const make = (guestPowers, _context) => {
       root: workspaceDir,
     });
 
+    const searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
     const { memoryGet, memorySet, memorySearch } = makeMemoryTools({
       root: workspaceDir,
+      searchBackend,
     });
 
     const git = makeCommandTool({
