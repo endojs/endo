@@ -93,7 +93,10 @@ type MatchHelper<P extends Passable = Passable> = {
   ) => boolean;
   // Not `GetRankCover` because that types payload as `Passable`, which
   // prevents helpers from destructuring their specific payload type `P`.
-  getRankCover: (payload: P, encodePassable: KeyToDBKey) => ReturnType<GetRankCover>;
+  getRankCover: (
+    payload: P,
+    encodePassable: KeyToDBKey,
+  ) => ReturnType<GetRankCover>;
 };
 
 type PatternKit = {
