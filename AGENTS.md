@@ -50,7 +50,7 @@ export * from './types-index.js';
 
 ### `emitDeclarationOnly`
 
-The repo-wide `tsconfig-build-options.json` sets `emitDeclarationOnly: true`. `tsc` only generates `.d.ts` files, not `.js`. This means `.ts` files with runtime code (not just types) would need `build-ts-to-js` or equivalent — which this repo does not currently have. Keep `.ts` files type-only.
+The repo-wide `tsconfig-build-options.json` sets `emitDeclarationOnly: true`, so `tsc --build` only generates `.d.ts` files. Runtime `.js` for `.ts` sources is produced at pack time by [ts-node-pack](https://github.com/turadg/ts-node-pack), invoked via `yarn pack:all` — see `docs/typescript.md`. `.ts` files may contain runtime code as long as the syntax is erasable (no `enum`, `namespace`, parameter properties).
 
 ### Imports in `.js` files
 

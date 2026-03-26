@@ -52,115 +52,54 @@ files. This is intentional because:
    error TS5055: Cannot write file 'src/foo.js' because it would overwrite input file.
    ```
 
-### When `.ts` files have runtime code
+## Packing
 
-Some `.ts` files contain actual runtime code (functions, constants) rather than
-just type definitions. These files need corresponding `.js` files when published
-to npm.
+Publishable tarballs are built by [ts-node-pack][]. It runs out-of-tree —
+nothing in the working copy is mutated — and is driven from the repo root by
+`yarn pack:all`, which writes every public workspace's `.tgz` into `dist/`.
+`yarn release:npm` wraps that step and `npm publish`-es each tarball in turn,
+replacing the previous `lerna publish from-package` flow.
 
-Since `tsc` won't generate `.js` files (due to `emitDeclarationOnly`), we use
-`build-ts-to-js` to strip types and produce `.js` files.
+[ts-node-pack]: https://github.com/turadg/ts-node-pack
 
-### Using `build-ts-to-js`
+For each package ts-node-pack:
 
-The `build-ts-to-js` script (in `scripts/packing/`) uses
-[`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/) to transform
-`.ts` files into `.js` by replacing type annotations with whitespace. This
-preserves line numbers (no source maps needed) and is very fast.
+1. Copies the `npm-packlist` into a temp staging directory (same file-set
+   that `npm pack` would produce).
+2. If the package has `.ts` sources, runs `tsc` with a derived config to
+   emit `.d.ts` files alongside the staged `.js`.
+3. Strips types from staged `.ts` / `.mts` files via
+   [`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/) and renames
+   them to `.js` / `.mjs`. Line and column positions are preserved, so no
+   sourcemaps are needed for debugging.
+4. Rewrites relative `.ts` import specifiers to `.js` in the emitted `.js`
+   and `.d.ts` files (`from './foo.ts'` → `from './foo.js'`,
+   `import('./foo.ts')`, `declare module './foo.ts'`,
+   `<reference path="./foo.ts" />`).
+5. Rewrites `package.json`: `main` / `module` / `types` / `bin` / `exports` /
+   `files` get their `.ts` entries flipped to `.js` + `.d.ts`,
+   `workspace:` protocol specifiers in dependencies get resolved to concrete
+   version ranges, and `devDependencies` / `scripts` are stripped.
+6. Validates that no `.ts` specifiers remain anywhere in the staged tree.
+7. Runs `npm pack` inside the staging directory and writes the resulting
+   `.tgz` to `dist/`.
 
-## Packing scripts
+Pure JS+JSDoc packages skip step 2 and ship their `.js` sources verbatim —
+the same tarball `npm pack` would have produced before ts-node-pack, just
+with `workspace:` specifiers resolved.
 
-All packing logic lives in `scripts/packing/` with root-level yarn script
-aliases. Packages opt in with:
+### Migration path
 
-```json
-{
-  "scripts": {
-    "prepack": "yarn run -T prepack-package",
-    "postpack": "yarn run -T postpack-package"
-  }
-}
-```
+Packages are being migrated from `.js` (with JSDoc type annotations) to
+`.ts` incrementally. The steps for each package:
 
-### `prepack-package`
+1. Rename `.js` source files to `.ts` and convert JSDoc annotations to
+   TypeScript syntax.
+2. Update import specifiers from `.js` to `.ts`.
+3. Run `yarn pack:all` and spot-check the resulting `dist/<name>-*.tgz`.
 
-Runs automatically before `npm pack` (and therefore before `npm publish`).
-Performs these steps in order:
-
-1. **`tsc --build tsconfig.build.json`** — generates `.d.ts` declaration files.
-   Must run before `build-ts-to-js` because if both `.ts` and `.js` exist for
-   the same module, tsc fails with "would be overwritten by multiple input
-   files".
-
-2. **`build-ts-to-js`** — finds all `.ts` files in `src/` (excluding `.d.ts`)
-   and generates corresponding `.js` files by stripping type annotations.
-   No-op if no `.ts` files exist.
-
-3. **Delete `.ts` source files** — removes `.ts` from `src/` so only `.js` and
-   `.d.ts` are included in the published package. These are restored in
-   `postpack`.
-
-4. **Rewrite `.ts` import specifiers** — rewrites `from './foo.ts'` to
-   `from './foo.js'` in all `.js`, `.mjs`, `.cjs`, and `.d.ts` files. Tracks
-   which files were modified in `.pack-rewrite-files.txt` so `postpack` can
-   restore them.
-
-If `tsconfig.build.json` has an `outDir`, steps 2-3 are skipped because tsc
-handles the full build (source stays in `src/`, output goes to `outDir`).
-
-### `postpack-package`
-
-Runs automatically after `npm pack` completes. Cleans up the prepack
-modifications:
-
-1. **`git checkout -- src`** — restores `.ts` files deleted during prepack
-2. **Restore rewritten files** — reads `.pack-rewrite-files.txt` and runs
-   `git checkout` on each file to undo import specifier rewrites
-3. **`git clean -f`** — removes generated untracked files (`.d.ts`, `.d.ts.map`,
-   generated `.js` siblings)
-
-### Rewriting import specifiers
-
-The `rewrite-ts-import-specifiers` script handles the gap between development
-and publishing:
-
-- **Development**: code imports `./foo.ts` directly
-- **Published**: code must import `./foo.js` (since `.ts` files are removed)
-
-The script rewrites specifiers in these patterns:
-- `from './foo.ts'` → `from './foo.js'`
-- `import('./foo.ts')` → `import('./foo.js')`
-- `require('./foo.ts')` → `require('./foo.js')`
-- `declare module './foo.ts'` → `declare module './foo.js'`
-- `<reference path="./foo.ts" />` → `<reference path="./foo.js" />`
-
-It skips `.d.ts`, `.mts`, and `.d.mts` specifiers (these are not rewritten).
-
-### Why not two `tsc` passes?
-
-An alternative would be using two tsconfig files: one with `allowJs: false` to
-emit `.js` only for `.ts` files, and another for declarations. This was
-rejected because:
-
-- Requires careful management of `allowJs`/`include`/`exclude` to avoid
-  conflicts
-- More complex to maintain and understand
-- The `build-ts-to-js` approach is simpler: one tool for `.js`, one for `.d.ts`
-
-## Migration path
-
-Packages are being migrated from `.js` (with JSDoc type annotations) to `.ts`
-incrementally. The steps for each package:
-
-1. Add `"prepack": "yarn run -T prepack-package"` and
-   `"postpack": "yarn run -T postpack-package"` to `package.json` scripts
-2. Rename `.js` source files to `.ts` and convert JSDoc annotations to
-   TypeScript syntax
-3. Update import specifiers from `.js` to `.ts`
-4. Verify with `yarn prepack` / `yarn postpack` that the pack cycle works
-
-The packing scripts handle both states gracefully — packages with no `.ts`
-files just get the `tsc` declaration build as before.
+No per-package `prepack`/`postpack` wiring is required; ts-node-pack handles
+the whole pipeline at the repo level.
 
 ## Exported types
 
