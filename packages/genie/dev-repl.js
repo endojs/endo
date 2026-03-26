@@ -33,6 +33,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 import { bash, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
+import { makeFTS5Backend } from './src/tools/fts5-backend.js';
 import { webFetch } from './src/tools/web-fetch.js';
 import { webSearch } from './src/tools/web-search.js';
 
@@ -392,8 +393,13 @@ async function* runMain(args) {
   const verbose = hasFlag(args, '--verbose', '-v');
   const workspaceArg = getFlag(args, '--workspace', '-w') || process.cwd();
 
+  const searchBackend = makeFTS5Backend({ dbDir: workspaceArg });
+
   const fileTools = makeFileTools({ root: workspaceArg });
-  const memoryTools = makeMemoryTools({ root: workspaceArg });
+  const memoryTools = makeMemoryTools({
+    root: workspaceArg,
+    searchBackend,
+  });
 
   // example of targeted command execution, rather than full bash
   const git = makeCommandTool({
