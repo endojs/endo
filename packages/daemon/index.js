@@ -22,6 +22,8 @@ export { makeEndoClient } from './src/client.js';
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
 export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
 
+const tsBlankSpaceExecArgv = ['--import', 'ts-blank-space/register'];
+
 const removePath = async removalPath => {
   return fs.promises
     .rm(removalPath, { recursive: true, force: true })
@@ -91,6 +93,7 @@ export const start = async (config = defaultConfig) => {
     ],
     {
       detached: true,
+      execArgv: [...process.execArgv, ...tsBlankSpaceExecArgv],
       env,
       stdio: ['ignore', output, output, 'ipc'],
     },
