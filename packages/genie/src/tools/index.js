@@ -14,5 +14,7 @@ export {
 
 export { makeFileTools } from './filesystem.js';
 
+export { makeMemoryTools } from './memory.js';
+
 export { webFetch } from './web-fetch.js';
 export { webSearch } from './web-search.js';
