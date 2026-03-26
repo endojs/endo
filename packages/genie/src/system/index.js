@@ -221,6 +221,38 @@ function* tools(toolList) {
     ...toolList.map(({ name, summary }) => `- ${name}: ${summary}`),
   ]);
 
+  // Tool selection guide — helps small models pick the right tool.
+  const toolNames = new Set(toolList.map(({ name }) => name));
+  yield '';
+  yield* demarcatedSection(2, 'Tool Selection Guide', function* () {
+    yield 'Choose the right tool for the task:';
+    yield '';
+    if (toolNames.has('listDirectory') || toolNames.has('readFile')) {
+      yield '**See what is in a directory** → listDirectory (NOT readFile)';
+    }
+    if (toolNames.has('readFile')) {
+      yield '**Read a file\'s content** → readFile (only works on files, not directories)';
+    }
+    if (toolNames.has('stat')) {
+      yield '**Check if a path is a file or directory** → stat';
+    }
+    if (toolNames.has('writeFile')) {
+      yield '**Create a new file or fully rewrite** → writeFile';
+    }
+    if (toolNames.has('editFile')) {
+      yield '**Change part of an existing file** → editFile';
+    }
+    if (toolNames.has('bash')) {
+      yield '**Run a shell command (ls, grep, find, curl, etc.)** → bash';
+    }
+    if (toolNames.has('webSearch')) {
+      yield '**Search the internet** → webSearch';
+    }
+    if (toolNames.has('webFetch')) {
+      yield '**Download a specific URL** → webFetch';
+    }
+  });
+
   yield '';
   yield* demarcatedSection(2, 'Tool Call Style', [
     'Default: do not narrate routine, low-risk tool calls (just call the tool).',
