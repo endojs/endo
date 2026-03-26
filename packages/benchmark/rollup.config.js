@@ -1,4 +1,18 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
+import { transformSync } from 'amaro';
+
+const stripTypesPlugin = {
+  name: 'amaro-strip-types',
+  transform(code, id) {
+    if (!id.endsWith('.ts')) {
+      return undefined;
+    }
+    return {
+      code: transformSync(code, { mode: 'strip-only' }).code,
+      map: null,
+    };
+  },
+};
 
 export default {
   input: 'test/index.test.js',
@@ -8,5 +22,5 @@ export default {
     name: 'bundle',
     sourcemap: false,
   },
-  plugins: [nodeResolve()],
+  plugins: [stripTypesPlugin, nodeResolve()],
 };
