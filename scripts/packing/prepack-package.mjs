@@ -5,15 +5,15 @@
  * This script handles the prepack lifecycle for npm publishing:
  * 1. Runs tsc --build to generate .d.ts declaration files
  * 2. Runs build-ts-to-js to generate .js from .ts files (no-op if no .ts files)
- * 3. Deletes .ts source files so they're not included in the package
  *
  * Note: tsc must run BEFORE build-ts-to-js, otherwise tsc sees both .ts and .js
  * files and fails with "would be overwritten by multiple input files".
  *
- * If tsconfig.build.json has an outDir, steps 2-3 are skipped because tsc
+ * If tsconfig.build.json has an outDir, step 2 is skipped because tsc
  * handles the full build (source stays in src/, output goes to outDir).
  *
- * After npm pack completes, package-postpack.mjs restores the deleted .ts files.
+ * The .ts source files are kept in the published package alongside the
+ * generated .js files, so consumers can navigate to original source.
  *
  * Usage: yarn run -T package-prepack (from any package directory)
  */
@@ -77,23 +77,6 @@ if (usesOutDir) {
     cwd: packageDir,
     stdio: 'inherit',
   });
-
-  // Step 3: Delete .ts source files (they'll be restored in postpack)
-  // This ensures only .js files are included in the published package.
-  // Tracked .ts files will be restored by git checkout in postpack.
-  console.log('  → removing .ts source files from src/');
-  try {
-    await spawn(
-      'find',
-      ['src', '-name', '*.ts', '!', '-name', '*.d.ts', '-delete'],
-      {
-        cwd: packageDir,
-        stdio: 'inherit',
-      },
-    );
-  } catch {
-    // find may fail if src/ doesn't exist, which is fine
-  }
 }
 
 // Step 4: Rewrite .ts import specifiers to .js in published artifacts

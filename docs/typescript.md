@@ -96,16 +96,12 @@ Performs these steps in order:
    and generates corresponding `.js` files by stripping type annotations.
    No-op if no `.ts` files exist.
 
-3. **Delete `.ts` source files** — removes `.ts` from `src/` so only `.js` and
-   `.d.ts` are included in the published package. These are restored in
-   `postpack`.
-
-4. **Rewrite `.ts` import specifiers** — rewrites `from './foo.ts'` to
+3. **Rewrite `.ts` import specifiers** — rewrites `from './foo.ts'` to
    `from './foo.js'` in all `.js`, `.mjs`, `.cjs`, and `.d.ts` files. Tracks
    which files were modified in `.pack-rewrite-files.txt` so `postpack` can
    restore them.
 
-If `tsconfig.build.json` has an `outDir`, steps 2-3 are skipped because tsc
+If `tsconfig.build.json` has an `outDir`, step 2 is skipped because tsc
 handles the full build (source stays in `src/`, output goes to `outDir`).
 
 ### `postpack-package`
@@ -113,7 +109,8 @@ handles the full build (source stays in `src/`, output goes to `outDir`).
 Runs automatically after `npm pack` completes. Cleans up the prepack
 modifications:
 
-1. **`git checkout -- src`** — restores `.ts` files deleted during prepack
+1. **`git checkout -- *.ts`** — restores `.ts` files to their pre-prepack state
+   (undoing import specifier rewrites)
 2. **Restore rewritten files** — reads `.pack-rewrite-files.txt` and runs
    `git checkout` on each file to undo import specifier rewrites
 3. **`git clean -f`** — removes generated untracked files (`.d.ts`, `.d.ts.map`,
@@ -125,7 +122,7 @@ The `rewrite-ts-import-specifiers` script handles the gap between development
 and publishing:
 
 - **Development**: code imports `./foo.ts` directly
-- **Published**: code must import `./foo.js` (since `.ts` files are removed)
+- **Published**: code must import `./foo.js` (Node.js resolves `.js` at runtime)
 
 The script rewrites specifiers in these patterns:
 - `from './foo.ts'` → `from './foo.js'`

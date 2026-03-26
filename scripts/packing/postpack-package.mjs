@@ -3,7 +3,7 @@
  * @file Unified postpack script for all packages.
  *
  * This script handles cleanup after npm pack completes:
- * 1. Restores .ts files that were deleted during prepack (via git checkout)
+ * 1. Restores .ts source files to their pre-prepack state (via git checkout)
  * 2. Removes generated .d.ts, .d.ts.map, .js, and .mts files (via git clean)
  *
  * Usage: yarn run -T postpack-package (from any package directory)
@@ -18,8 +18,7 @@ const rewriteListPath = path.join(packageDir, '.pack-rewrite-files.txt');
 
 console.log(`postpack-package: ${path.basename(packageDir)}`);
 
-// Step 1: Restore any .ts files that were deleted during prepack
-// git checkout only affects tracked files, so untracked generated files stay deleted
+// Step 1: Restore .ts files to pre-prepack state (reverts import specifier rewrites)
 console.log('  → restoring .ts files');
 try {
   await spawn('git', ['checkout', '--', '*.ts'], {
