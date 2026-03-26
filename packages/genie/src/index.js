@@ -15,6 +15,8 @@ export {
   makeError,
 } from './agent/index.js';
 
+export { makeIntervalScheduler } from './interval/index.js';
+
 export { default as buildSystemPrompt } from './system/index.js';
 
 export { estimateTokens } from './utils/index.js';
