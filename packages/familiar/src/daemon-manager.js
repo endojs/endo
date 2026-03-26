@@ -147,11 +147,20 @@ const startDaemon = async () => {
         ...(resourcePaths.webPageBundlePath
           ? { ENDO_WEB_PAGE_BUNDLE_PATH: resourcePaths.webPageBundlePath }
           : {}),
-        ...(resourcePaths.endoLalPath
-          ? { ENDO_LAL_PATH: pathToFileURL(resourcePaths.endoLalPath).href }
-          : {}),
-        ...(resourcePaths.endoFaePath
-          ? { ENDO_FAE_PATH: pathToFileURL(resourcePaths.endoFaePath).href }
+        ...(resourcePaths.endoLalSetupPath ||
+        resourcePaths.endoFaeSetupPath
+          ? {
+              ENDO_EXTRA: [
+                resourcePaths.endoLalSetupPath
+                  ? pathToFileURL(resourcePaths.endoLalSetupPath).href
+                  : '',
+                resourcePaths.endoFaeSetupPath
+                  ? pathToFileURL(resourcePaths.endoFaeSetupPath).href
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(','),
+            }
           : {}),
       },
       stdio: ['ignore', output, output, 'ipc'],

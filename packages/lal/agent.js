@@ -1735,14 +1735,22 @@ export const make = (guestPowers, _context) => {
         {
           name: 'host',
           label: 'API host',
-          example: 'https://api.anthropic.com',
+          default: 'http://localhost:11434/v1',
+          example: 'https://api.anthropic.com for Anthropic',
         },
         {
           name: 'model',
           label: 'Model name',
-          example: 'claude-sonnet-4-6-20250514',
+          default: 'qwen3',
+          example: 'claude-sonnet-4-6-20250514 for Anthropic',
         },
-        { name: 'authToken', label: 'API auth token', secret: true },
+        {
+          name: 'authToken',
+          label: 'API auth token',
+          default: 'ollama',
+          example: 'sk-ant-... for Anthropic',
+          secret: true,
+        },
       ]),
     );
 

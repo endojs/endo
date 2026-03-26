@@ -22,6 +22,7 @@ import {
   makeDaemonicPowers,
   makeCryptoPowers,
 } from './daemon-node-powers.js';
+import { startWsGateway } from './ws-gateway.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
@@ -148,7 +149,20 @@ const main = async () => {
     exitWithError,
     capTpConnectionRegistrar,
   );
-  const services = [privatePathService];
+  // Start WebSocket gateway for browser clients (Chat app).
+  const addrUrl = new URL(
+    `http://${process.env.ENDO_ADDR || '127.0.0.1:8920'}`,
+  );
+  const gatewayHost = addrUrl.hostname;
+  const gatewayPort = addrUrl.port !== '' ? Number(addrUrl.port) : 8920;
+  const wsGateway = startWsGateway({
+    endoBootstrap,
+    host: gatewayHost,
+    port: gatewayPort,
+    cancelled,
+  });
+
+  const services = [privatePathService, wsGateway];
 
   // INVARIANT: The ready signal must not be sent until all services are fully
   // operational — including the CapTP socket, the host, and the APPS gateway.
@@ -162,36 +176,6 @@ const main = async () => {
     const agentId = /** @type {string} */ (await E(host).identify('@agent'));
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
-
-    // Provision bundled agents (Lal).
-    const lalSpecifier = process.env.ENDO_LAL_PATH;
-    if (lalSpecifier && !(await E(host).has('controller-for-lal'))) {
-      if (!(await E(host).has('lal'))) {
-        await E(host).provideGuest('lal', {
-          introducedNames: harden({ '@agent': 'host-agent' }),
-          agentName: 'profile-for-lal',
-        });
-      }
-      await E(host).makeUnconfined('@main', lalSpecifier, {
-        powersName: 'profile-for-lal',
-        resultName: 'controller-for-lal',
-      });
-    }
-
-    // Provision bundled agents (Fae).
-    const faeSpecifier = process.env.ENDO_FAE_PATH;
-    if (faeSpecifier && !(await E(host).has('controller-for-fae'))) {
-      if (!(await E(host).has('fae'))) {
-        await E(host).provideGuest('fae', {
-          introducedNames: harden({ '@agent': 'host-agent' }),
-          agentName: 'profile-for-fae',
-        });
-      }
-      await E(host).makeUnconfined('@main', faeSpecifier, {
-        powersName: 'profile-for-fae',
-        resultName: 'controller-for-fae',
-      });
-    }
 
     informParentWhenReady();
 
