@@ -13,3 +13,5 @@ export {
 } from './command.js';
 
 export { makeFileTools } from './filesystem.js';
+
+export { webFetch } from './web-fetch.js';
