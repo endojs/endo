@@ -219,6 +219,42 @@ export type Kind =
   | `guard:${string}`;
 
 /**
+ * A template for a template literal where the template consists of prose
+ * strings in natural language. This prose should suggest the meaning of the
+ * substitution holes to a human or LLM.
+ * All the programmatic meaning is only in the values
+ * of the substitution holes. The prose in the template, being in natural
+ * language, might be misunderstood, and so is always unreliable.
+ *
+ * A MethodGuard has optional ProseTemplate fields for the arguments
+ * and the return result. Thus, a GUI for speaking to exos can
+ * show the args in substitution holes of args prose (think "@" cards in social
+ * media), and similarly can show the response as a substitution holes in
+ * result prose.
+ *
+ * We type it as `CopyArray` rather than `TemplateStringsArray` because the
+ * prose template stored in a MethodGuard must be passable by copy,
+ * and therefore must not have the `raw` property.
+ */
+export type ProseTemplate = CopyArray;
+
+/**
+ * `LooseProseTemplate` is for uses where we want to accept a genuine
+ * template object as well, with a `raw` property we will ignore. It is to
+ * be coerced to a `ProseTemplate` by copying the indexed contents without
+ * the `raw` property.
+ */
+export type LooseProseTemplate = ProseTemplate | TemplateStringsArray;
+
+/**
+ * A template tag expecting a prose template
+ */
+export type ProseTemplateTag = (
+  proseTemplate: LooseProseTemplate,
+  ...args: any[]
+) => any;
+
+/**
  * Matchers for characterizing Passables and compound shapes.
  */
 export type PatternMatchers = {
@@ -630,6 +666,32 @@ export type GuardMakers = {
   callWhen: (...argGuards: ArgGuard[]) => MethodGuardMaker;
 
   /**
+   * Programmatically, `M.callH(argsTemplate, ...args)`
+   * means the same thing as `M.call(...args)` except that it also stores
+   * the `argsTemplate` in the method guard as unreliable guidance to humans
+   * or LLMs about the meaning of these args in this call. `M.callH` is
+   * a valid template literal tag function, as so can be callled either way.
+   * ```js
+   * // The following method guards all have the same programmatic meaning
+   * { incr: M.call(M.nat()).returns(M.nat()) }
+   * { incr: M.callH(['by ',''], M.nat()).returnsH(['new value is ',''], M.nat()) }
+   * { incr: M.callH`by ${M.nat()}`.returnsH`new value is ${M.nat()}` }
+   * ```
+   */
+  callH: (
+    argsTemplate: LooseProseTemplate,
+    ...argPatterns: SyncValueGuard[]
+  ) => MethodGuardMaker;
+
+  /**
+   * `M.callWhenH` is to `M.callWhen` as `M.callH` it to `M.call`
+   */
+  callWhenH: (
+    argsTemplate: LooseProseTemplate,
+    ...argGuards: ArgGuard[]
+  ) => MethodGuardMaker;
+
+  /**
    * Guard a positional parameter in `M.callWhen`, awaiting it and matching its
    * fulfillment against the provided pattern.
    * For example, `M.callWhen(M.await(M.nat())).returns()` will await the first
@@ -716,6 +778,82 @@ export type InterfaceGuard<
   T extends Record<PropertyKey, MethodGuard> = Record<PropertyKey, MethodGuard>,
 > = CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>;
 
+// ///////////////////////// Method Guards /////////////////////////////////////
+
+export type MethodGuardPayload = {
+  callKind: 'sync' | 'async';
+
+  argsTemplate?: ProseTemplate;
+  argGuards: ArgGuard[];
+
+  optionalArgsTemplate?: ProseTemplate;
+  optionalArgGuards?: ArgGuard[];
+
+  restArgTemplate?: ProseTemplate;
+  restArgGuard?: SyncValueGuard;
+
+  resultTemplate?: ProseTemplate;
+  returnGuard: SyncValueGuard;
+};
+
+export type PartialMethodGuard = {
+  callKind: 'sync' | 'async';
+
+  argsTemplate?: LooseProseTemplate;
+  argGuards: ArgGuard[];
+
+  optionalArgsTemplate?: LooseProseTemplate;
+  optionalArgGuards?: ArgGuard[];
+
+  restArgTemplate?: LooseProseTemplate;
+  restArgGuard?: SyncValueGuard;
+
+  resultTemplate?: LooseProseTemplate;
+  returnGuard?: SyncValueGuard;
+};
+
+/**
+ * Guard for a method's call signature and return type.
+ */
+export type MethodGuard = CopyTagged<'guard:methodGuard', MethodGuardPayload>;
+
+/**
+ * Optional arguments not guarded with `M.raw()` are automatically hardened and
+ * must be Passable.
+ */
+export type MethodGuardOptional = {
+  optional: (...optArgGuards: ArgGuard[]) => MethodGuardRestReturns;
+  optionalH: (
+    optionalArgsTemplate: LooseProseTemplate,
+    ...optArgGuards: ArgGuard[]
+  ) => MethodGuardRestReturns;
+};
+
+/**
+ * If the rest argument guard is not `M.raw()`, all rest arguments are
+ * automatically hardened and must be Passable.
+ */
+export type MethodGuardRest = {
+  rest: (restArgGuard: SyncValueGuard) => MethodGuardReturns;
+  restH: (
+    restArgTemplate: LooseProseTemplate,
+    restArgGuard: SyncValueGuard,
+  ) => MethodGuardReturns;
+};
+
+/**
+ * Arguments have been specified, now finish by creating a `MethodGuard`.
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
+ */
+export type MethodGuardReturns = {
+  returns: (returnGuard?: SyncValueGuard) => MethodGuard;
+  returnsH: (
+    resultTemplate: LooseProseTemplate,
+    returnGuard?: SyncValueGuard,
+  ) => MethodGuard;
+};
+
 /**
  * A method name and parameter/return signature like:
  * ```js
@@ -732,53 +870,12 @@ export type InterfaceGuard<
 export type MethodGuardMaker = MethodGuardOptional & MethodGuardRestReturns;
 
 /**
- * Arguments have been specified, now finish by creating a `MethodGuard`.
- * If the return guard is not `M.raw()`, the return value is automatically
- * hardened and must be Passable.
- */
-export type MethodGuardReturns = {
-  returns: (returnGuard?: SyncValueGuard) => MethodGuard;
-};
-
-/**
- * If the rest argument guard is not `M.raw()`, all rest arguments are
- * automatically hardened and must be Passable.
- */
-export type MethodGuardRest = {
-  rest: (restArgGuard: SyncValueGuard) => MethodGuardReturns;
-};
-
-/**
  * Mandatory and optional arguments have been specified, now specify `rest`, or
  * finish with `returns`.
  */
 export type MethodGuardRestReturns = MethodGuardRest & MethodGuardReturns;
 
-/**
- * Optional arguments not guarded with `M.raw()` are automatically hardened and
- * must be Passable.
- */
-export type MethodGuardOptional = {
-  optional: (...optArgGuards: ArgGuard[]) => MethodGuardRestReturns;
-};
-
-export type MethodGuardPayload = {
-  callKind: 'sync' | 'async';
-  argGuards: ArgGuard[];
-  optionalArgGuards?: ArgGuard[];
-  restArgGuard?: SyncValueGuard;
-  returnGuard: SyncValueGuard;
-};
-
-export type CopyTaggedMethodGuard = CopyTagged<
-  'guard:methodGuard',
-  MethodGuardPayload
->;
-
-/**
- * Guard for a method's call signature and return type.
- */
-export type MethodGuard = CopyTagged<'guard:methodGuard', MethodGuardPayload>;
+// ///////////////////////// Arg Guards ////////////////////////////////////////
 
 export type AwaitArgGuardPayload = {
   argGuard: Pattern;
