@@ -191,11 +191,34 @@ const main = async () => {
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
     if (await E(host).has('@apps')) {
-      const apps = /** @type {{ getAddress(): Promise<string> }} */ (
-        await E(host).lookup('@apps')
-      );
-      const address = await E(apps).getAddress();
-      console.log(`Endo gateway listening on ${address}`);
+      const appsGatewayTimeout = 10_000;
+      try {
+        const apps = /** @type {{ getAddress(): Promise<string> }} */ (
+          await Promise.race([
+            E(host).lookup('@apps'),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error('APPS gateway startup timed out')),
+                appsGatewayTimeout,
+              ),
+            ),
+          ])
+        );
+        const address = await Promise.race([
+          E(apps).getAddress(),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error('APPS gateway address timed out')),
+              appsGatewayTimeout,
+            ),
+          ),
+        ]);
+        console.log(`Endo gateway listening on ${address}`);
+      } catch (appsError) {
+        console.warn(
+          `APPS gateway not available: ${/** @type {Error} */ (appsError).message}`,
+        );
+      }
     }
 
     // Provision bundled agents (Lal).

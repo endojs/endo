@@ -291,6 +291,7 @@ const runEngo = async (detached, config, envOverrides) => {
 
   const env = {
     ...configToEnv(config),
+    ...Object.fromEntries(filterEnv()),
     ...envOverrides,
     ENDO_DAEMON_PATH: endoGoDaemonPath,
   };
@@ -343,6 +344,7 @@ const runEndo = async (detached, config, envOverrides) => {
 
   const env = {
     ...configToEnv(config),
+    ...Object.fromEntries(filterEnv()),
     ...envOverrides,
   };
 

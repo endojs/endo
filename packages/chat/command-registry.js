@@ -440,13 +440,15 @@ export const COMMANDS = {
     ],
     submitLabel: 'Mount',
   },
-  mkscratch: {
-    name: 'mkscratch',
-    label: 'Make Scratch',
-    description: 'Create a daemon-managed scratch mount',
+  mktmp: {
+    name: 'mktmp',
+    label: 'Make Temporary',
+    description:
+      'Create a portable scratch space in the daemon state directory. ' +
+      'Unlike /mount, scratch spaces migrate with the state directory. ' +
+      'Unlike /mkdir, they materialize as files on disk.',
     category: 'storage',
     mode: 'inline',
-    aliases: ['scratch'],
     fields: [
       {
         name: 'petName',
@@ -457,6 +459,42 @@ export const COMMANDS = {
       },
     ],
     submitLabel: 'Create',
+  },
+
+  view: {
+    name: 'view',
+    label: 'View',
+    description: 'View the contents of a blob',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'path/to/file',
+      },
+    ],
+    submitLabel: 'View',
+    aliases: ['cat'],
+  },
+  edit: {
+    name: 'edit',
+    label: 'Edit',
+    description: 'Edit the contents of a blob',
+    category: 'storage',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'petName',
+        label: 'Name',
+        type: 'petNamePath',
+        required: true,
+        placeholder: 'path/to/file',
+      },
+    ],
+    submitLabel: 'Edit',
   },
 
   locate: {

@@ -56,6 +56,7 @@
     "@endo/promise-kit": "workspace:^",
     "@endo/where": "workspace:^",
     "@endo/whylip": "workspace:^",
+    "marked": "^17.0.5",
     "monaco-editor": "^0.52.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

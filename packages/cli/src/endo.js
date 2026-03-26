@@ -618,18 +618,21 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('mkscratch')
-    .description('creates a daemon-managed scratch mount')
+    .command('mktmp')
+    .description(
+      'creates a portable scratch space in the daemon state directory ' +
+        '(migrates with state, unlike mount; materializes on disk, unlike mkdir)',
+    )
     .option(...commonOptions.as)
     .option(...commonOptions.requiredName)
     .option('--read-only', 'mount as read-only')
     .action(async cmd => {
       const { name, as: agentNames, readOnly } = cmd.opts();
       if (!name) {
-        throw new Error('--name is required for mkscratch');
+        throw new Error('--name is required for mktmp');
       }
-      const { mkscratch } = await import('./commands/mkscratch.js');
-      return mkscratch({ name, agentNames, readOnly });
+      const { mktmp } = await import('./commands/mktmp.js');
+      return mktmp({ name, agentNames, readOnly });
     });
 
   program
@@ -971,7 +974,7 @@ export const main = async rawArgs => {
         'checkin',
         'checkout',
         'mount',
-        'mkscratch',
+        'mktmp',
         'locate',
         'remove',
         'move',

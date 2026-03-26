@@ -952,6 +952,7 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     happy-dom: "npm:^15.0.0"
+    marked: "npm:^17.0.5"
     monaco-editor: "npm:^0.52.0"
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
@@ -11925,6 +11926,15 @@ __metadata:
   bin:
     markdown-it: bin/markdown-it.mjs
   checksum: 10c0/9a6bb444181d2db7016a4173ae56a95a62c84d4cbfb6916a399b11d3e6581bf1cc2e4e1d07a2f022ae72c25f56db90fbe1e529fca16fbf9541659dc53480d4b4
+  languageName: node
+  linkType: hard
+
+"marked@npm:^17.0.5":
+  version: 17.0.5
+  resolution: "marked@npm:17.0.5"
+  bin:
+    marked: bin/marked.js
+  checksum: 10c0/a044c59cfa14662fefa37bc840200c1f0899214fb677da779112284d49cd5b277806f9a28398195b2031b1e2c80d8daef218e8ad588d7bfa9bc8041cac777ee6
   languageName: node
   linkType: hard
 
