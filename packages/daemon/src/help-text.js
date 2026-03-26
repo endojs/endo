@@ -24,7 +24,7 @@ Pet names are strings like "my-worker", "counter", or "index.html".
 Special names are @-prefixed like "@self", "@host", or "@agent".
 
 Use lookup() to get a value by name, list() to see available names,
-and storeLocator() to store new references.`,
+and storeIdentifier() or storeLocator() to store new references.`,
 
   help: `\
 help(methodName?) -> string
@@ -89,12 +89,19 @@ reverseLookup(value) -> Promise<string[]>
 Find all pet names that refer to a given value.
 Useful for discovering what names exist for an object you have.`,
 
-  storeLocator: `\
-storeLocator(petNameOrPath, formulaId) -> Promise<void>
-Store a formula identifier or locator with a pet name.
-- storeLocator("my-name", id) stores id as "my-name"
-- storeLocator(["subdir", "name"], id) stores in a subdirectory
+  storeIdentifier: `\
+storeIdentifier(petNameOrPath, formulaId) -> Promise<void>
+Store a formula identifier with a pet name.
+- storeIdentifier("my-name", id) stores id as "my-name"
+- storeIdentifier(["subdir", "name"], id) stores in a subdirectory
 Overwrites any existing value at that name.`,
+
+  storeLocator: `\
+storeLocator(petNameOrPath, locator) -> Promise<void>
+Store an endo:// locator with a pet name.
+- storeLocator("my-name", locator) stores locator as "my-name"
+- storeLocator(["subdir", "name"], locator) stores in a subdirectory
+The locator must be an endo:// URL. Overwrites any existing value.`,
 
   remove: `\
 remove(...petNamePath) -> Promise<void>

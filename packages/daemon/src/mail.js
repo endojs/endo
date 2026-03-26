@@ -1064,7 +1064,7 @@ export const makeMailboxMaker = ({
         }
         const id = /** @type {FormulaIdentifier} */ (message.valueId);
         context.thisDiesIfThatDies(id);
-        await E(directory).storeLocator(petNamePath, id);
+        await E(directory).storeIdentifier(petNamePath, id);
         return;
       }
       if (message.type !== 'package') {
@@ -1087,7 +1087,7 @@ export const makeMailboxMaker = ({
         );
       }
       context.thisDiesIfThatDies(id);
-      await E(directory).storeLocator(petNamePath, id);
+      await E(directory).storeIdentifier(petNamePath, id);
     };
 
     /** @type {Mail['request']} */
@@ -1137,7 +1137,7 @@ export const makeMailboxMaker = ({
 
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
-        await E(directory).storeLocator(responseNamePath, resolutionId);
+        await E(directory).storeIdentifier(responseNamePath, resolutionId);
       }
 
       return responseP;
@@ -1227,7 +1227,7 @@ export const makeMailboxMaker = ({
 
       if (responseName !== undefined) {
         const responseNamePath = namePathFrom(responseName);
-        await E(directory).storeLocator(responseNamePath, resolutionId);
+        await E(directory).storeIdentifier(responseNamePath, resolutionId);
       }
 
       return responseP;

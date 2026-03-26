@@ -40,7 +40,7 @@ export const make = (_powers, _context, _options) => {
    * @param {string[]} petNamePath
    * @param {string} locator
    */
-  const storeLocator = async (petNamePath, locator) => {
+  const storeIdentifier = async (petNamePath, locator) => {
     const petName = parsePetNamePath(petNamePath);
     locatorToName.set(locator, petName);
     nameToLocator.set(petName, locator);
@@ -61,7 +61,8 @@ export const make = (_powers, _context, _options) => {
     'MoveHub',
     M.interface('MoveHub', {}, { defaultGuards: 'passable' }),
     {
-      storeLocator,
+      storeIdentifier,
+      storeLocator: storeIdentifier,
       remove,
 
       /**
@@ -90,7 +91,7 @@ export const make = (_powers, _context, _options) => {
         const toName = parsePetNamePath(toPath);
 
         await remove(/** @type {Name} */ (fromName));
-        await storeLocator([toName], locator);
+        await storeIdentifier([toName], locator);
       },
 
       /**

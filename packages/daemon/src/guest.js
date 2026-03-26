@@ -131,6 +131,7 @@ export const makeGuestMaker = ({
       lookup,
       maybeLookup,
       reverseLookup,
+      storeIdentifier: directoryStoreIdentifier,
       storeLocator: directoryStoreLocator,
       readText: directoryReadText,
       maybeReadText: directoryMaybeReadText,
@@ -257,7 +258,7 @@ export const makeGuestMaker = ({
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         tasks.push(identifiers =>
-          E(directory).storeLocator(resultNamePath, identifiers.evalId),
+          E(directory).storeIdentifier(resultNamePath, identifiers.evalId),
         );
       }
 
@@ -302,7 +303,7 @@ export const makeGuestMaker = ({
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).storeLocator(namePath, identifiers.readableBlobId),
+        E(directory).storeIdentifier(namePath, identifiers.readableBlobId),
       );
 
       const { value: blob } = await formulateReadableBlob(readerRef, tasks);
@@ -316,7 +317,7 @@ export const makeGuestMaker = ({
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).storeLocator(namePath, identifiers.marshalId),
+        E(directory).storeIdentifier(namePath, identifiers.marshalId),
       );
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
       unpinTransient(id);
@@ -339,6 +340,7 @@ export const makeGuestMaker = ({
       maybeLookup,
       lookupById,
       reverseLookup,
+      storeIdentifier: directoryStoreIdentifier,
       storeLocator: directoryStoreLocator,
       move,
       remove,

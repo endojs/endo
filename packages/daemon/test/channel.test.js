@@ -739,7 +739,7 @@ test.serial(
     await E(host).provideHost('bob-space', { agentName: bobAgentName });
     const bobPowers = await E(host).lookup(bobAgentName);
     const channelId = await E(host).identify(adminAgentName, 'general');
-    await E(bobPowers).storeLocator('channel', channelId);
+    await E(bobPowers).storeIdentifier('channel', channelId);
     const bobChannelRef = await E(bobPowers).lookup('channel');
 
     // 3. Bob joins the channel (this is what chat.js does for non-admin users)
@@ -941,7 +941,7 @@ test.serial(
     // Write the channel formula ID into Bob's pet store
     // (simulates the "Connect to Channel" locator flow)
     const channelId = await E(host).identify(adminAgentName, 'channel');
-    await E(bobPowers).storeLocator('channel', channelId);
+    await E(bobPowers).storeIdentifier('channel', channelId);
 
     // Bob looks up the channel
     const bobChannel = await E(bobPowers).lookup('channel');
@@ -1339,7 +1339,7 @@ test.serial(
     const alicePowers = await E(host).lookup(aliceAgentName);
 
     const channelId = await E(host).identify(adminAgentName, 'channel');
-    await E(alicePowers).storeLocator('channel', channelId);
+    await E(alicePowers).storeIdentifier('channel', channelId);
     const aliceChannel = await E(alicePowers).lookup('channel');
     await E(adminChannel).createInvitation('Alice');
     const aliceMember = await E(aliceChannel).join('Alice');
@@ -1349,7 +1349,7 @@ test.serial(
     await E(host).provideHost('bob-space', { agentName: bobAgentName });
     const bobPowers = await E(host).lookup(bobAgentName);
 
-    await E(bobPowers).storeLocator('channel', channelId);
+    await E(bobPowers).storeIdentifier('channel', channelId);
     const bobChannel = await E(bobPowers).lookup('channel');
     await E(adminChannel).createInvitation('Bob');
     const bobMember = await E(bobChannel).join('Bob');
@@ -1813,7 +1813,7 @@ test.serial(
     const channelFormulaId = await E(host).identify(adminAgentName, 'general');
 
     // Step 3: Write channel formula ID into joiner's pet store
-    await E(joinerPowers).storeLocator('general', channelFormulaId);
+    await E(joinerPowers).storeIdentifier('general', channelFormulaId);
 
     // === Simulate what bodyComponent does when navigating to the joiner space ===
     // resolvePowers: E(rootPowers).lookup(joinerAgentName) → joinerPowers

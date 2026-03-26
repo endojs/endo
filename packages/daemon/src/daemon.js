@@ -301,7 +301,7 @@ const makeDaemonCore = async (
     control: controlPowers,
     filePowers,
   } = powers;
-  const { randomHex256, generateEd25519Keypair } = cryptoPowers;
+  const { randomHex256, generateEd25519Keypair, ed25519Sign } = cryptoPowers;
   const contentStore = persistencePowers.makeContentStore();
   /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
@@ -567,17 +567,17 @@ const makeDaemonCore = async (
   const extractDeps = formula =>
     extractLabeledDeps(formula).map(([_label, id]) => normalizeId(id));
 
-  /** @param {string} id */
-  const isLocalId = id => {
-    const { node } = parseId(id);
-    return node === LOCAL_NODE || node === localNodeNumber;
-  };
-
   /** @type {Set<string>} */
   const localKeys = new Set([localNodeNumber]);
 
   /** @param {NodeNumber} node */
   const isLocalKey = node => localKeys.has(node);
+
+  /** @param {string} id */
+  const isLocalId = id => {
+    const { node } = parseId(id);
+    return node === LOCAL_NODE || isLocalKey(node);
+  };
 
   /**
    * Register an agent's public key so that all agents recognize it as local.
@@ -1821,6 +1821,7 @@ const makeDaemonCore = async (
       lookup,
       maybeLookup,
       reverseLookup,
+      storeIdentifier: disallowedMutation,
       storeLocator: disallowedMutation,
       remove: disallowedMutation,
       move: disallowedMutation,
@@ -2208,6 +2209,7 @@ const makeDaemonCore = async (
       lookup,
       maybeLookup,
       reverseLookup,
+      storeIdentifier: disallowedMutation,
       storeLocator: disallowedMutation,
       remove: disallowedMutation,
       move: disallowedMutation,
@@ -2292,6 +2294,11 @@ const makeDaemonCore = async (
         keypairFormula.publicKey
       );
       registerLocalKey(agentNodeNumber);
+      const agentPrivateKey = fromHex(
+        /** @type {string} */ (keypairFormula.privateKey),
+      );
+      /** @param {Uint8Array} message */
+      const agentSignBytes = message => ed25519Sign(agentPrivateKey, message);
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
@@ -2300,6 +2307,7 @@ const makeDaemonCore = async (
         hostHandleId,
         keypairId,
         agentNodeNumber,
+        agentSignBytes,
         petStoreId,
         mailboxStoreId,
         mailHubId,
@@ -2519,6 +2527,7 @@ const makeDaemonCore = async (
             maybeLookup: disallowedSyncFn,
             lookupById: disallowedFn,
             reverseLookup: disallowedFn,
+            storeIdentifier: disallowedFn,
             storeLocator: disallowedFn,
             remove: disallowedFn,
             move: disallowedFn,
@@ -4215,7 +4224,7 @@ const makeDaemonCore = async (
       );
 
       // Write the synced store into the host's pet store under guestName.
-      await E(hostAgent).storeLocator(
+      await E(hostAgent).storeIdentifier(
         /** @type {NamePath} */ ([guestName]),
         syncedStoreId,
       );

@@ -151,15 +151,15 @@ const prepareHostWithWsRelay = async (t, relayUrl, relayDomain) => {
   const servicePath = path.join(dirname, 'src', 'networks', 'ws-relay.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
 
-  await E(host).makeUnconfined('MAIN', serviceLocation, {
-    powersName: 'AGENT',
+  await E(host).makeUnconfined('@main', serviceLocation, {
+    powersName: '@agent',
     resultName: 'ws-relay-network',
     env: {
       WS_RELAY_URL: relayUrl,
       WS_RELAY_DOMAIN: relayDomain,
     },
   });
-  await E(host).move(['ws-relay-network'], ['NETS', 'ws-relay']);
+  await E(host).move(['ws-relay-network'], ['@nets', 'ws-relay']);
 
   return host;
 };
@@ -291,7 +291,7 @@ test.serial(
       // join(ourDisplayName) but the invitation was created with a
       // different name.
       const formulaId = `${formulaNumber}:${nodeNumber}`;
-      await E(hostB).storeLocator(['wrong-name-channel'], formulaId);
+      await E(hostB).storeIdentifier(['wrong-name-channel'], formulaId);
 
       const remoteChannel = await E(hostB).lookup('wrong-name-channel');
 
@@ -389,7 +389,7 @@ test.serial(
       await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
       // Host A creates a simple value
-      await E(hostA).evaluate('MAIN', '"shared value"', [], [], ['my-val']);
+      await E(hostA).evaluate('@main', '"shared value"', [], [], ['my-val']);
 
       // Host A generates locator (includes connection hints)
       const locator = await E(hostA).locateForSharing('my-val');

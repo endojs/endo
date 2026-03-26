@@ -85,6 +85,7 @@ const defaultConfig = {
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
   address: process.env.ENDO_ADDR || '127.0.0.1:8920',
+  gcEnabled: process.env.ENDO_GC === '1',
 };
 /** @typedef {typeof defaultConfig} Config */
 
@@ -97,6 +98,7 @@ const configToEnv = config => ({
   ENDO_SOCK_PATH: config.sockPath,
   ENDO_CACHE_PATH: config.cachePath,
   ENDO_ADDR: config.address,
+  ENDO_GC: config.gcEnabled ? '1' : '',
 });
 
 /**
@@ -111,6 +113,7 @@ const configFromEnv = env => {
     ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
     ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
     ENDO_ADDR: address = defaultConfig.address,
+    ENDO_GC: gcEnabledStr,
   } = env;
   return {
     statePath,
@@ -118,6 +121,7 @@ const configFromEnv = env => {
     sockPath,
     cachePath,
     address,
+    gcEnabled: gcEnabledStr === '1',
   };
 };
 
@@ -281,7 +285,7 @@ export const main = async _args => {
  * @returns {Promise<popen.ChildProcess>}
  */
 const runEngo = async (detached, config) => {
-  const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
+  const endoBin = path.resolve(/** @type {string} */ (process.env.ENDO_BIN));
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
   const logPath = path.join(config.statePath, 'endo.log');
@@ -295,6 +299,8 @@ const runEngo = async (detached, config) => {
     ...configToEnv(config),
     ...Object.fromEntries(filterEnv()),
     ENDO_DAEMON_PATH: endoGoDaemonPath,
+    // engo spawns node as a child process and needs PATH to find it.
+    PATH: process.env.PATH || '',
   };
 
   const child = popen.spawn(endoBin, ['daemon'], {

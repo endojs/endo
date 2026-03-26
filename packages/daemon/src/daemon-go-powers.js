@@ -162,6 +162,7 @@ export const makeDaemonicGoControlPowers = (
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
+   * @param {Promise<never>} _forceCancelled
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [_trustedShims]
    */
@@ -169,6 +170,7 @@ export const makeDaemonicGoControlPowers = (
     workerId,
     daemonWorkerFacet,
     cancelled,
+    _forceCancelled,
     capTpConnectionRegistrar = undefined,
     _trustedShims = undefined,
   ) => {

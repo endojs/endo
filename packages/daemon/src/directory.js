@@ -310,22 +310,22 @@ export const makeDirectoryMaker = ({
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(prefixPath));
-      await E(hub).storeLocator([petName], id);
+      await E(hub).storeIdentifier([petName], id);
     };
 
     /**
-     * Accepts either a locator string or a FormulaIdentifier, converts
-     * to an internal id, and stores at the given name path.
+     * Store a locator (endo:// URL) at a pet name path.
      * @param {string | string[]} petNamePath
-     * @param {string} locatorOrId
+     * @param {string} locator
      */
-    const storeLocator = async (petNamePath, locatorOrId) => {
-      if (locatorOrId.startsWith('endo://')) {
-        const { id } = internalizeLocator(locatorOrId, isLocalKey);
-        await storeIdentifier(petNamePath, id);
-      } else {
-        await storeIdentifier(petNamePath, locatorOrId);
+    const storeLocator = async (petNamePath, locator) => {
+      if (!locator.startsWith('endo://')) {
+        throw new Error(
+          `storeLocator requires an endo:// locator, got ${q(locator)}`,
+        );
       }
+      const { id } = internalizeLocator(locator, isLocalKey);
+      await storeIdentifier(petNamePath, id);
     };
 
     /** @type {EndoDirectory['makeDirectory']} */
@@ -402,6 +402,7 @@ export const makeDirectoryMaker = ({
       lookup,
       maybeLookup,
       reverseLookup,
+      storeIdentifier,
       storeLocator,
       move,
       remove,
@@ -471,6 +472,7 @@ export const makeDirectoryMaker = ({
       lookup,
       maybeLookup: directory.maybeLookup,
       reverseLookup,
+      storeIdentifier: directory.storeIdentifier,
       storeLocator: directory.storeLocator,
       remove,
       move,

@@ -161,37 +161,6 @@ const main = async () => {
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
-    if (await E(host).has('@apps')) {
-      const appsGatewayTimeout = 10_000;
-      try {
-        const apps = /** @type {{ getAddress(): Promise<string> }} */ (
-          await Promise.race([
-            E(host).lookup('@apps'),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error('APPS gateway startup timed out')),
-                appsGatewayTimeout,
-              ),
-            ),
-          ])
-        );
-        const address = await Promise.race([
-          E(apps).getAddress(),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error('APPS gateway address timed out')),
-              appsGatewayTimeout,
-            ),
-          ),
-        ]);
-        console.log(`Endo gateway listening on ${address}`);
-      } catch (appsError) {
-        console.warn(
-          `APPS gateway not available: ${/** @type {Error} */ (appsError).message}`,
-        );
-      }
-    }
-
     // Provision bundled agents (Lal).
     const lalSpecifier = process.env.ENDO_LAL_PATH;
     if (lalSpecifier && !(await E(host).has('controller-for-lal'))) {

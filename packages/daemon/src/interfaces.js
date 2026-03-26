@@ -71,6 +71,7 @@ export const NameHubInterface = M.interface('EndoNameHub', {
   lookup: M.call(NameOrPathShape).returns(M.promise()),
   maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
+  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
@@ -127,6 +128,8 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
   // Get names for a value
   reverseLookup: M.call(M.any()).returns(M.promise()),
   // Store a formula identifier with a name
+  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
+  // Store an endo:// locator with a name
   storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   // Remove a name
   remove: M.call().rest(NamePathShape).returns(M.promise()),
@@ -160,6 +163,7 @@ export const GuestInterface = M.interface('EndoGuest', {
   maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
+  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
@@ -267,6 +271,7 @@ export const HostInterface = M.interface('EndoHost', {
   maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   lookupById: M.call(IdShape).returns(M.promise()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
+  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   remove: M.call().rest(NamePathShape).returns(M.promise()),
   move: M.call(NamePathShape, NamePathShape).returns(M.promise()),

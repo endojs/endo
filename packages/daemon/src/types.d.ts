@@ -771,7 +771,8 @@ export interface NameHub {
   lookup(petNamePath: string | string[]): Promise<unknown>;
   maybeLookup(petNamePath: string | string[]): unknown;
   reverseLookup(value: unknown): Array<Name>;
-  storeLocator(petNamePath: string | string[], id: string): Promise<void>;
+  storeIdentifier(petNamePath: string | string[], id: string): Promise<void>;
+  storeLocator(petNamePath: string | string[], locator: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;

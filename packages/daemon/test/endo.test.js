@@ -29,6 +29,7 @@ import {
   formatLocator,
   parseLocator,
   addressesFromLocator,
+  idFromLocator,
 } from '../src/locator.js';
 
 /**
@@ -234,23 +235,21 @@ const prepareHost = async t => {
 const prepareHostWithTestNetwork = async t => {
   const { host } = await prepareHost(t);
 
+  // Store the listen address before the network service starts.
+  await E(host).storeValue('127.0.0.1:0', 'tcp-listen-addr');
+
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
-  const network = E(host).makeUnconfined('@main', serviceLocation, {
+  const network = await E(host).makeUnconfined('@main', serviceLocation, {
     powersName: '@agent',
     resultName: 'test-network',
   });
 
-  // set address via request
-  const iteratorRef = E(host).followMessages();
-  const { value: message } = await E(iteratorRef).next();
-  const { number } = E.get(message);
-  await E(host).storeValue('127.0.0.1:0', 'netport');
-  await E(host).resolve(await number, 'netport');
+  // Ensure the network module initialized successfully before moving it.
+  await network;
 
   // move test network to network dir
-  await network;
   await E(host).move(['test-network'], ['@nets', 'tcp']);
 
   return host;
@@ -325,15 +324,15 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
  * @param {object} [options]
  * @param {boolean} [options.gcEnabled]
  */
-const prepareConfig = async (t, options = {}) => {
+const prepareConfig = async (t, { gcEnabled = false } = {}) => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
-  const config = makeConfig(
-    'tmp',
-    getConfigDirectoryName(t.title, t.context.length),
-  );
+  const config = {
+    ...makeConfig('tmp', getConfigDirectoryName(t.title, t.context.length)),
+    gcEnabled,
+  };
 
   await purge(config);
-  await start(config, options);
+  await start(config);
 
   const contextObj = { cancel, cancelled, config };
   t.context.push(contextObj);
@@ -1138,7 +1137,7 @@ test('rehydrated requests can be resolved after restart', async t => {
   const { value: guestMessage } = await E(guestMessages).next();
   const { promiseId: promiseIdP } = E.get(guestMessage);
   const promiseId = await promiseIdP;
-  await E(host).storeLocator(['pending'], promiseId);
+  await E(host).storeIdentifier(['pending'], promiseId);
 
   await restart(config);
 
@@ -1753,7 +1752,7 @@ test('@pins values reincarnate after cancellation', async t => {
 
   // Get counter ID and pin to @pins while keeping the host pet name for cancel
   const counterId = await E(host).identify('counter');
-  await E(host).storeLocator(['counter-pin'], counterId);
+  await E(host).storeIdentifier(['counter-pin'], counterId);
   await E(host).move(['counter-pin'], ['@pins', 'my-counter']);
 
   // Cancel the counter — forces deincarnation even though retained by @pins
@@ -2558,26 +2557,26 @@ test('host and guest present different locators for the same value', async t => 
   );
 });
 
-test('guest has its own NETS special name', async t => {
+test('guest has its own @nets special name', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
 
-  // The guest should be able to look up NETS — it resolves to a directory.
-  const guestNetsNames = await E(guest).list('NETS');
-  t.true(Array.isArray(guestNetsNames), 'guest NETS is a directory');
+  // The guest should be able to look up @nets — it resolves to a directory.
+  const guestNetsNames = await E(guest).list('@nets');
+  t.true(Array.isArray(guestNetsNames), 'guest @nets is a directory');
   // A newly created guest starts with an empty networks directory.
-  t.is(guestNetsNames.length, 0, 'guest NETS starts empty');
+  t.is(guestNetsNames.length, 0, 'guest @nets starts empty');
 
-  // The host also has NETS; verify their locators differ (different directories).
-  const hostNetsLocator = await E(host).locate('NETS');
-  const guestNetsLocator = await E(guest).locate('NETS');
-  t.truthy(hostNetsLocator, 'host has NETS');
-  t.truthy(guestNetsLocator, 'guest has NETS');
+  // The host also has @nets; verify their locators differ (different directories).
+  const hostNetsLocator = await E(host).locate('@nets');
+  const guestNetsLocator = await E(guest).locate('@nets');
+  t.truthy(hostNetsLocator, 'host has @nets');
+  t.truthy(guestNetsLocator, 'guest has @nets');
   t.not(
     hostNetsLocator,
     guestNetsLocator,
-    'host and guest have different NETS directories',
+    'host and guest have different @nets directories',
   );
 });
 
@@ -2912,7 +2911,7 @@ test('send with pet name path for recipient and values', async t => {
   await E(guest).makeDirectory(['my-values']);
   // Copy the answer to the guest's directory
   const answerId = await E(host).identify(...['values', 'the-answer']);
-  await E(guest).storeLocator(['my-values', 'answer'], answerId);
+  await E(guest).storeIdentifier(['my-values', 'answer'], answerId);
 
   // Guest sends to @host using a path for the value
   await E(guest).send(
@@ -3369,10 +3368,10 @@ test('form happy path: guest sends form, host submits', async t => {
   await E(guest).form(
     '@host',
     'Please configure',
-    harden({
-      name: { label: 'Your name' },
-      color: { label: 'Favorite color' },
-    }),
+    harden([
+      { name: 'name', label: 'Your name' },
+      { name: 'color', label: 'Favorite color' },
+    ]),
   );
 
   // Host receives the form message
@@ -3405,10 +3404,10 @@ test('form submit rejects when a field is missing', async t => {
   await E(guest).form(
     '@host',
     'Need info',
-    harden({
-      name: { label: 'Name' },
-      email: { label: 'Email' },
-    }),
+    harden([
+      { name: 'name', label: 'Name' },
+      { name: 'email', label: 'Email' },
+    ]),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
@@ -3430,9 +3429,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
   await E(guest).form(
     '@host',
     'Typed form',
-    harden({
-      count: { label: 'Count', pattern: M.number() },
-    }),
+    harden([{ name: 'count', label: 'Count', pattern: M.number() }]),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
@@ -3454,9 +3451,7 @@ test('form submit with pattern validation accepts matching value', async t => {
   await E(guest).form(
     '@host',
     'Typed form',
-    harden({
-      count: { label: 'Count', pattern: M.number() },
-    }),
+    harden([{ name: 'count', label: 'Count', pattern: M.number() }]),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
@@ -3476,9 +3471,7 @@ test('form default pattern is M.string() — rejects non-string', async t => {
   await E(guest).form(
     '@host',
     'String form',
-    harden({
-      name: { label: 'Name' },
-    }),
+    harden([{ name: 'name', label: 'Name' }]),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
@@ -3501,9 +3494,7 @@ test('form multi-submission: same form submitted twice produces two value messag
   await E(guest).form(
     '@host',
     'Multi-submit',
-    harden({
-      answer: { label: 'Answer' },
-    }),
+    harden([{ name: 'answer', label: 'Answer' }]),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
@@ -3534,9 +3525,7 @@ test('form returns void (fire-and-forget)', async t => {
   const result = await E(guest).form(
     '@host',
     'Fire and forget',
-    harden({
-      field: { label: 'Field' },
-    }),
+    harden([{ name: 'field', label: 'Field' }]),
   );
 
   t.is(result, undefined);
@@ -3555,9 +3544,7 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   await E(host).form(
     ['alice'],
     'Survey',
-    harden({
-      favoriteColor: { label: 'Favorite color' },
-    }),
+    harden([{ name: 'favoriteColor', label: 'Favorite color' }]),
   );
 
   // Guest receives the form message
@@ -3657,9 +3644,7 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
   await E(guest).form(
     '@host',
     'Profile',
-    harden({
-      displayName: { label: 'Display Name' },
-    }),
+    harden([{ name: 'displayName', label: 'Display Name' }]),
   );
 
   const { value: formMsg } = await E(hostIteratorRef).next();
@@ -4237,6 +4222,7 @@ const createSymlinkFixture = async basePath => {
   const mountRoot = path.join(basePath, 'mount-root');
   const outsideDir = path.join(basePath, 'outside');
 
+  await fs.promises.rm(basePath, { recursive: true, force: true });
   await fs.promises.mkdir(path.join(mountRoot, 'subdir'), { recursive: true });
   await fs.promises.mkdir(outsideDir, { recursive: true });
 
