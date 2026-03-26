@@ -867,11 +867,18 @@ export const make = (guestPowers, _context) => {
         env.JAINE_SYSTEM_PROMPT = agentPrompt;
       }
       const driverResultName = `${name}-driver`;
-      await E(hostAgent).makeUnconfined('@main', driverSpecifier, {
-        powersName: driverProfileName,
-        resultName: driverResultName,
-        env,
-      });
+      const hasDriverAlready = await E(hostAgent).has(driverResultName);
+      if (!hasDriverAlready) {
+        await E(hostAgent).makeUnconfined('@main', driverSpecifier, {
+          powersName: driverProfileName,
+          resultName: driverResultName,
+          env,
+        });
+      } else {
+        console.log(
+          `[jaine-factory] Driver "${driverResultName}" already running, skipping launch`,
+        );
+      }
 
       // Pin for restart survival
       if (pin) {
