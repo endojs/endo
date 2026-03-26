@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'ava';
 import {
   isBufferImmutable,
@@ -59,6 +58,7 @@ test('Immutable ArrayBuffer ponyfill ops', t => {
 });
 
 test('Standard DataView behavior baseline', t => {
+  // @ts-expect-error testing purposeful type violation
   t.throws(() => new DataView({}), { instanceOf: TypeError });
 
   const ab1 = new ArrayBuffer(2);
@@ -98,6 +98,7 @@ test('Standard TypedArray behavior baseline', t => {
   // Unfortutanely, calling a TypeArray constructor with an object that
   // is not a TypeArray, ArrayBuffer, or Iterable just creates a useless
   // empty TypedArray, rather than throwing.
+  // @ts-expect-error testing purposeful type violation
   const ta2 = new Uint8Array({});
   t.is(ta2.byteLength, 0);
 });
