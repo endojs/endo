@@ -23,6 +23,7 @@ import {
   formatId,
 } from './formula-identifier.js';
 import { addressesFromLocator } from './locator.js';
+import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -82,6 +83,7 @@ const normalizeHostOrGuestOptions = opts => ({
  * @param {() => Promise<void>} [args.collectIfDirty]
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
+ * @param {DaemonCore['getFormulaGraphSnapshot']} [args.getFormulaGraphSnapshot]
  */
 export const makeHostMaker = ({
   provide,
@@ -123,6 +125,7 @@ export const makeHostMaker = ({
    * @param {FormulaIdentifier | undefined} hostHandleId
    * @param {FormulaIdentifier} keypairId
    * @param {NodeNumber} agentNodeNumber
+   * @param {(message: Uint8Array) => Uint8Array} agentSignBytes
    * @param {FormulaIdentifier} storeId
    * @param {FormulaIdentifier} mailboxStoreId
    * @param {FormulaIdentifier | undefined} mailHubId
@@ -141,6 +144,7 @@ export const makeHostMaker = ({
     hostHandleId,
     keypairId,
     agentNodeNumber,
+    agentSignBytes,
     storeId,
     mailboxStoreId,
     mailHubId,
@@ -210,7 +214,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.readableBlobId),
+        E(directory).storeIdentifier(namePath, identifiers.readableBlobId),
       );
 
       const { value } = await formulateReadableBlob(readerRef, tasks);
@@ -228,7 +232,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<ReadableTreeDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.readableTreeId),
+        E(directory).storeIdentifier(namePath, identifiers.readableTreeId),
       );
 
       const { value } = await checkinTree(remoteTree, tasks);
@@ -250,7 +254,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MountDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.mountId),
+        E(directory).storeIdentifier(namePath, identifiers.mountId),
       );
 
       const { value } = await formulateMount(mountPath, readOnly, tasks);
@@ -271,7 +275,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<ScratchMountDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.scratchMountId),
+        E(directory).storeIdentifier(namePath, identifiers.scratchMountId),
       );
 
       const { value } = await formulateScratchMount(readOnly, tasks);
@@ -286,7 +290,7 @@ export const makeHostMaker = ({
       const tasks = makeDeferredTasks();
 
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.marshalId),
+        E(directory).storeIdentifier(namePath, identifiers.marshalId),
       );
 
       const { id } = await formulateMarshalValue(value, tasks, pinTransient);
@@ -308,7 +312,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        E(directory).write(namePath, identifiers.workerId),
+        E(directory).storeIdentifier(namePath, identifiers.workerId),
       );
       const { value } = await formulateWorker(tasks);
       return value;
@@ -329,7 +333,7 @@ export const makeHostMaker = ({
         assertPetName(workerName);
         const petName = workerName;
         deferTask(identifiers => {
-          return petStore.write(petName, identifiers.workerId);
+          return petStore.storeIdentifier(petName, identifiers.workerId);
         });
         return undefined;
       }
@@ -338,8 +342,6 @@ export const makeHostMaker = ({
 
     /**
      * Evaluate code directly in a worker.
-     * Note: This is the Host's evaluate, which executes code immediately.
-     * Guest.evaluate instead sends an eval-proposal to the Host for approval.
      * @param {Name | undefined} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
@@ -394,7 +396,7 @@ export const makeHostMaker = ({
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         tasks.push(identifiers =>
-          E(directory).write(resultNamePath, identifiers.evalId),
+          E(directory).storeIdentifier(resultNamePath, identifiers.evalId),
         );
       }
 
@@ -447,20 +449,20 @@ export const makeHostMaker = ({
         assertPetName(powersName);
         const powersPetName = powersName;
         tasks.push(identifiers => {
-          return petStore.write(powersPetName, identifiers.powersId);
+          return petStore.storeIdentifier(powersPetName, identifiers.powersId);
         });
       }
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          E(directory).write(namePathFrom(resultName), identifiers.capletId),
+          E(directory).storeIdentifier(namePathFrom(resultName), identifiers.capletId),
         );
       }
 
       return {
         tasks,
         workerId,
-        powersId: /** @type {FormulaIdentifier | undefined} */ (powersId),
+        powersId,
         env,
         workerTrustedShims,
       };
@@ -535,7 +537,7 @@ export const makeHostMaker = ({
           if (introducedId === undefined) {
             return;
           }
-          await agent.write([childName], introducedId);
+          await agent.storeIdentifier([childName], introducedId);
         }),
       );
     };
@@ -570,14 +572,14 @@ export const makeHostMaker = ({
         assertPetName(handleName);
         const handlePetName = handleName;
         tasks.push(identifiers => {
-          return petStore.write(handlePetName, identifiers.handleId);
+          return petStore.storeIdentifier(handlePetName, identifiers.handleId);
         });
       }
       if (agentName !== undefined) {
         assertPetName(agentName);
         const agentPetName = agentName;
         tasks.push(identifiers => {
-          return petStore.write(agentPetName, identifiers.agentId);
+          return petStore.storeIdentifier(agentPetName, identifiers.agentId);
         });
       }
       return tasks;
@@ -713,7 +715,7 @@ export const makeHostMaker = ({
       assertPetName(petName);
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      tasks.push(identifiers => petStore.write(petName, identifiers.channelId));
+      tasks.push(identifiers => petStore.storeIdentifier(petName, identifiers.channelId));
       const { value } = await formulateChannel(
         hostId,
         handleId,
@@ -739,7 +741,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<InvitationDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        petStore.write(guestName, identifiers.invitationId),
+        petStore.storeIdentifier(guestName, identifiers.invitationId),
       );
       const { value } = await formulateInvitation(
         hostId,
@@ -781,10 +783,6 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       await addPeerInfo(peerInfo);
 
-      const guestHandleId = formatId({
-        number: remoteHandleNumber,
-        node: nodeNumber,
-      });
       const invitationId = formatId({
         number: invitationNumber,
         node: nodeNumber,
@@ -822,7 +820,7 @@ export const makeHostMaker = ({
       );
 
       // Write the synced store into the guest's pet store under guestName.
-      await petStore.write(guestName, syncedStoreId);
+      await petStore.storeIdentifier(guestName, syncedStoreId);
     };
 
     /** @type {EndoHost['cancel']} */
@@ -849,8 +847,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['sign']} */
     const sign = async hexBytes => {
-      const endoBootstrap = getEndoBootstrap();
-      return E(endoBootstrap).sign(hexBytes);
+      return toHex(agentSignBytes(fromHex(hexBytes)));
     };
 
     /** @type {EndoHost['addPeerInfo']} */
@@ -912,7 +909,7 @@ export const makeHostMaker = ({
         ),
         node: /** @type {NodeNumber} */ (nodeNumber),
       });
-      await E(directory).write(namePath, id);
+      await E(directory).storeIdentifier(namePath, id);
     };
 
     const { reverseIdentify } = specialStore;
@@ -920,6 +917,7 @@ export const makeHostMaker = ({
       has,
       identify,
       lookup,
+      maybeLookup,
       locate,
       reverseLocate,
       list,
@@ -932,7 +930,11 @@ export const makeHostMaker = ({
       move,
       copy,
       makeDirectory: makeDirectoryLocal,
-      writeLocator,
+      storeIdentifier: directoryStoreIdentifier,
+      storeLocator: directoryStoreLocator,
+      readText: directoryReadText,
+      maybeReadText: directoryMaybeReadText,
+      writeText: directoryWriteText,
     } = directory;
 
     const makeDirectory = async petNameOrPath => {
@@ -951,11 +953,6 @@ export const makeHostMaker = ({
       request,
       send,
       deliver,
-      // Note: We intentionally do not extract `evaluate` from mailbox.
-      // Host has its own `evaluate` method that executes code directly,
-      // whereas mailbox.evaluate sends an eval-proposal (used by Guest).
-      grantEvaluate: mailboxGrantEvaluate,
-      counterEvaluate: mailboxCounterEvaluate,
       form,
       submit,
       sendValue,
@@ -1059,7 +1056,7 @@ export const makeHostMaker = ({
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);
         tasks.push(identifiers =>
-          E(directory).write(resultNamePath, identifiers.evalId),
+          E(directory).storeIdentifier(resultNamePath, identifiers.evalId),
         );
       }
 
@@ -1075,131 +1072,7 @@ export const makeHostMaker = ({
       // Deliver the eval result to the host's own inbox only.
       // Using deliverValueById (not sendValue/post) ensures the value
       // message does NOT appear in the proposer's inbox.
-      await mailbox.deliverValueById(messageNumber, evalId);
-    };
-
-    /**
-     * Grant an eval-proposal by executing the proposed code.
-     * @param {bigint} messageNumber - The message number of the eval-proposal
-     */
-    const grantEvaluate = async messageNumber => {
-      // Create an executor callback that uses formulateEval
-      const executeEval = async (
-        source,
-        codeNames,
-        ids,
-        workerName,
-        proposal,
-      ) => {
-        /** @type {DeferredTasks<EvalDeferredTaskParams>} */
-        const tasks = makeDeferredTasks();
-
-        const workerId = prepareWorkerFormulation(workerName, tasks.push);
-
-        let nameHubId = hostId;
-        let endowmentIdsOrPaths = ids;
-
-        if (proposal?.from) {
-          const guestAgentId = await getAgentIdForHandleId(proposal.from);
-          nameHubId = guestAgentId;
-
-          if (proposal.petNamePaths) {
-            if (proposal.petNamePaths.length !== codeNames.length) {
-              throw new Error(
-                `Eval proposal must have one pet name path for each code name`,
-              );
-            }
-
-            const guestAgent = await provide(guestAgentId, 'agent');
-
-            // Resolve endowments from the guest's namespace
-            endowmentIdsOrPaths = await Promise.all(
-              proposal.petNamePaths.map(async petNamePath => {
-                if (petNamePath.length === 1) {
-                  const id = await E(guestAgent).identify(petNamePath[0]);
-                  if (id === undefined) {
-                    throw new Error(
-                      `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
-                    );
-                  }
-                  return /** @type {FormulaIdentifier} */ (id);
-                }
-                return petNamePath;
-              }),
-            );
-          }
-        }
-
-        const { id, value } = await formulateEval(
-          nameHubId,
-          source,
-          codeNames,
-          endowmentIdsOrPaths,
-          tasks,
-          workerId,
-        );
-        return { id, value };
-      };
-
-      return mailboxGrantEvaluate(messageNumber, executeEval);
-    };
-
-    /**
-     * Send a counter-proposal back to the original proposer.
-     * @param {bigint} messageNumber - The message number of the original eval-proposal
-     * @param {string} source - Modified JavaScript source code
-     * @param {string[]} codeNames - Variable names used in source
-     * @param {(string | string[])[]} petNamesOrPaths - Pet names for values (host's namespace)
-     * @param {string} [workerName] - Worker to execute on
-     * @param {string[]} [resultName] - Where to store result
-     */
-    const counterEvaluate = async (
-      messageNumber,
-      source,
-      codeNames,
-      petNamesOrPaths,
-      workerName,
-      resultName,
-    ) => {
-      const petNamePaths = petNamesOrPaths.map(namePathFrom);
-      if (petNamePaths.length !== codeNames.length) {
-        throw new Error(
-          `Counter must have the same number of code names (${q(
-            codeNames.length,
-          )}) as pet names (${q(petNamePaths.length)})`,
-        );
-      }
-
-      // Resolve all pet names to formula IDs from host's namespace
-      const ids = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          const id = await E(directory).identify(...petNamePath);
-          if (id === undefined) {
-            throw new Error(`Unknown pet name ${q(petNamePath)}`);
-          }
-          return id;
-        }),
-      );
-
-      // Create edge names from the pet names (for display in the counter-proposal)
-      const edgeNames = /** @type {import('./types.js').EdgeName[]} */ (
-        petNamePaths.map(path => (Array.isArray(path) ? path.join('/') : path))
-      );
-
-      // Get optional result name and worker name as strings
-      const resultNameStr = resultName ? resultName.join('/') : undefined;
-      const workerNameStr = workerName || undefined;
-
-      await mailboxCounterEvaluate(
-        messageNumber,
-        source,
-        codeNames,
-        petNamePaths,
-        edgeNames,
-        ids,
-        workerNameStr,
-        resultNameStr,
-      );
+      await deliverValueById(messageNumber, evalId);
     };
 
     /**
@@ -1238,12 +1111,17 @@ export const makeHostMaker = ({
       followLocatorNameChanges,
       followNameChanges,
       lookup,
+      maybeLookup,
       reverseLookup,
-      write: writeLocator,
+      storeIdentifier: directoryStoreIdentifier,
+      storeLocator: directoryStoreLocator,
       remove,
       move,
       copy,
       makeDirectory,
+      readText: directoryReadText,
+      maybeReadText: directoryMaybeReadText,
+      writeText: directoryWriteText,
       // Mail
       handle,
       listMessages,
@@ -1285,9 +1163,6 @@ export const makeHostMaker = ({
       invite,
       accept,
       approveEvaluation,
-      // Eval-proposal handling
-      grantEvaluate,
-      counterEvaluate,
       endow,
       submit,
       sendValue,
@@ -1317,7 +1192,6 @@ export const makeHostMaker = ({
       'reverseIdentify',
       'approveEvaluation',
       'endow',
-      'grantEvaluate',
       'submit',
       'sendValue',
     ]);

@@ -1,8 +1,12 @@
 // @ts-check
-/* global process, setTimeout */
+/* global fetch, process, setTimeout */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
+
+// Enable CapTP tracing for relay debugging.
+process.env.ENDO_CAPTP_TRACE = '1';
 
 import test from 'ava';
 import url from 'url';
@@ -122,6 +126,7 @@ const makeConfig = (...root) => ({
     process.platform === 'win32'
       ? String.raw`\\?\pipe\endo-${root.join('-')}-test.sock`
       : path.join(dirname, ...root, 'endo.sock'),
+  address: '127.0.0.1:0',
   pets: new Map(),
   values: new Map(),
 });
@@ -148,9 +153,7 @@ const prepareConfig = async t => {
     getConfigDirectoryName(t.title, t.context.configs.length),
   );
   await purge(config);
-  await start(config, {
-    env: { ENDO_ADDR: '127.0.0.1:0', ENDO_CAPTP_TRACE: '1' },
-  });
+  await start(config);
   t.context.configs.push({ cancel, cancelled, config });
   return { cancel, cancelled, config };
 };
@@ -175,15 +178,15 @@ const prepareHostWithWsRelay = async (t, relayUrl, relayDomain) => {
   const servicePath = path.join(dirname, 'src', 'networks', 'ws-relay.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
 
-  await E(host).makeUnconfined('MAIN', serviceLocation, {
-    powersName: 'AGENT',
+  await E(host).makeUnconfined('@main', serviceLocation, {
+    powersName: '@agent',
     resultName: 'ws-relay-network',
     env: {
       WS_RELAY_URL: relayUrl,
       WS_RELAY_DOMAIN: relayDomain,
     },
   });
-  await E(host).move(['ws-relay-network'], ['NETS', 'ws-relay']);
+  await E(host).move(['ws-relay-network'], ['@nets', 'ws-relay']);
 
   return host;
 };
@@ -227,11 +230,11 @@ test.serial(
       await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
       // Create a value on B
-      await E(hostB).evaluate('MAIN', '"hello from B"', [], [], ['greeting']);
-      const greetingId = await E(hostB).identify('greeting');
+      await E(hostB).evaluate('@main', '"hello from B"', [], [], ['greeting']);
+      const greetingLocator = await E(hostB).locate('greeting');
 
-      // Write the identifier into A's namespace (out-of-band introduction)
-      await E(hostA).write(['remote-greeting'], greetingId);
+      // Write the locator into A's namespace (out-of-band introduction)
+      await E(hostA).storeLocator(['remote-greeting'], greetingLocator);
 
       // A looks up the value — this triggers a connection through the relay
       const value = await E(hostA).lookup(['remote-greeting']);
@@ -260,18 +263,18 @@ test.serial('round-trip remotable identity over ws-relay', async t => {
 
     // Create an echoer remotable on B
     await E(hostB).evaluate(
-      'MAIN',
+      '@main',
       'Far("Echoer", { echo: value => value })',
       [],
       [],
       ['echoer'],
     );
-    const echoerId = await E(hostB).identify('echoer');
-    await E(hostA).write(['echoer'], echoerId);
+    const echoerLocator = await E(hostB).locate('echoer');
+    await E(hostA).storeLocator(['echoer'], echoerLocator);
 
     // Send a Far token through the echoer and verify identity is preserved
     const survived = await E(hostA).evaluate(
-      'MAIN',
+      '@main',
       `
         const token = Far('Token', {});
         E(echoer).echo(token).then(alleged =>
@@ -305,17 +308,17 @@ test.serial('bidirectional connection over ws-relay', async t => {
     await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
     // Create value on A, read from B
-    await E(hostA).evaluate('MAIN', '42', [], [], ['answer']);
-    const answerId = await E(hostA).identify('answer');
-    await E(hostB).write(['remote-answer'], answerId);
+    await E(hostA).evaluate('@main', '42', [], [], ['answer']);
+    const answerLocator = await E(hostA).locate('answer');
+    await E(hostB).storeLocator(['remote-answer'], answerLocator);
     const answerValue = await E(hostB).lookup(['remote-answer']);
     t.is(answerValue, 42);
 
     // Now also have A know about B and read B's value
     await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
-    await E(hostB).evaluate('MAIN', '"from B"', [], [], ['msg']);
-    const msgId = await E(hostB).identify('msg');
-    await E(hostA).write(['remote-msg'], msgId);
+    await E(hostB).evaluate('@main', '"from B"', [], [], ['msg']);
+    const msgLocator = await E(hostB).locate('msg');
+    await E(hostA).storeLocator(['remote-msg'], msgLocator);
     const msgValue = await E(hostA).lookup(['remote-msg']);
     t.is(msgValue, 'from B');
   } finally {
@@ -336,18 +339,21 @@ test.serial(
 
       // Fabricate a peer info with a bogus node ID that is not connected
       // to the relay. A should not hang — it should eventually fail.
-      const bogusNodeId = '0'.repeat(64);
+      const bogusNodeId = 'dead'.repeat(16);
       const bogusAddress = `ws-relay+captp0://${bogusNodeId}?relay=${encodeURIComponent(relay.relayUrl)}`;
       await E(hostA).addPeerInfo({
         node: bogusNodeId,
         addresses: [bogusAddress],
       });
 
-      await E(hostA).evaluate('MAIN', '1', [], [], ['one']);
-      const oneId = await E(hostA).identify('one');
+      await E(hostA).evaluate('@main', '1', [], [], ['one']);
+      const oneLocator = /** @type {string} */ (await E(hostA).locate('one'));
       // Rewrite the locator to point at the bogus node
-      const bogusId = oneId.replace(/^[^:]+/, bogusNodeId);
-      await E(hostA).write(['bogus'], bogusId);
+      const oneUrl = new URL(oneLocator);
+      const formulaNumber = oneUrl.searchParams.get('id');
+      const formulaType = oneUrl.searchParams.get('type');
+      const bogusLocator = `endo://${bogusNodeId}?id=${formulaNumber}&type=${formulaType}&at=${encodeURIComponent(bogusAddress)}`;
+      await E(hostA).storeLocator(['bogus'], bogusLocator);
 
       // The lookup should reject, not hang indefinitely.
       // We race against a timeout to catch infinite hangs.

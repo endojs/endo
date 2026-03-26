@@ -1,7 +1,11 @@
 // @ts-check
-/* global process, setTimeout */
+/* global process */
+
+/** @import { ERef } from '@endo/far' */
+/** @import { EndoHost } from '../src/types.js' */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 import test from 'ava';
@@ -72,6 +76,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -114,10 +119,6 @@ const getConfigDirectoryName = (testTitle, configNumber) => {
   configPathId += 1;
   return configSubDirectory;
 };
-
-// Bind APPS web server to an OS-assigned port so tests don't conflict
-// with a running daemon on the default port 8920.
-process.env.ENDO_ADDR = '127.0.0.1:0';
 
 /** @param {import('ava').ExecutionContext<any>} t */
 const prepareConfig = async t => {
@@ -735,14 +736,14 @@ test.serial(
     await E(host).provideHost('admin-space', { agentName: adminAgentName });
     const adminPowers = await E(host).lookup(adminAgentName);
     await E(adminPowers).makeChannel('general', 'AdminAlice');
-    const adminChannel = await E(adminPowers).lookup('general');
+    await E(adminPowers).lookup('general');
 
     // 2. Non-admin persona connects to the channel (like the UI's channel switch flow)
     const bobAgentName = 'persona-bob-ui';
     await E(host).provideHost('bob-space', { agentName: bobAgentName });
     const bobPowers = await E(host).lookup(bobAgentName);
     const channelId = await E(host).identify(adminAgentName, 'general');
-    await E(bobPowers).write('channel', channelId);
+    await E(bobPowers).storeIdentifier('channel', channelId);
     const bobChannelRef = await E(bobPowers).lookup('channel');
 
     // 3. Bob joins the channel (this is what chat.js does for non-admin users)
@@ -944,7 +945,7 @@ test.serial(
     // Write the channel formula ID into Bob's pet store
     // (simulates the "Connect to Channel" locator flow)
     const channelId = await E(host).identify(adminAgentName, 'channel');
-    await E(bobPowers).write('channel', channelId);
+    await E(bobPowers).storeIdentifier('channel', channelId);
 
     // Bob looks up the channel
     const bobChannel = await E(bobPowers).lookup('channel');
@@ -1342,7 +1343,7 @@ test.serial(
     const alicePowers = await E(host).lookup(aliceAgentName);
 
     const channelId = await E(host).identify(adminAgentName, 'channel');
-    await E(alicePowers).write('channel', channelId);
+    await E(alicePowers).storeIdentifier('channel', channelId);
     const aliceChannel = await E(alicePowers).lookup('channel');
     await E(adminChannel).createInvitation('Alice');
     const aliceMember = await E(aliceChannel).join('Alice');
@@ -1352,7 +1353,7 @@ test.serial(
     await E(host).provideHost('bob-space', { agentName: bobAgentName });
     const bobPowers = await E(host).lookup(bobAgentName);
 
-    await E(bobPowers).write('channel', channelId);
+    await E(bobPowers).storeIdentifier('channel', channelId);
     const bobChannel = await E(bobPowers).lookup('channel');
     await E(adminChannel).createInvitation('Bob');
     const bobMember = await E(bobChannel).join('Bob');
@@ -1390,6 +1391,7 @@ test.serial('channel - channel enumeration within a persona', async t => {
   // Create persona host, create 3 channels
   const agentName = 'persona-enum';
   await E(host).provideHost('enum-space', { agentName });
+  /** @type {ERef<EndoHost>} */
   const personaPowers = await E(host).lookup(agentName);
 
   await E(personaPowers).makeChannel('general', 'Alice');
@@ -1409,8 +1411,8 @@ test.serial('channel - channel enumeration within a persona', async t => {
       // eslint-disable-next-line no-await-in-loop
       const locator = await E(personaPowers).locate(name);
       if (locator) {
-        const url = new URL(/** @type {string} */ (locator));
-        const type = url.searchParams.get('type');
+        const locatorUrl = new URL(locator);
+        const type = locatorUrl.searchParams.get('type');
         if (type === 'channel') {
           channelNames.push(name);
         }
@@ -1608,11 +1610,12 @@ test.serial(
     const autoNames = new Map();
     for (const member of members) {
       // Skip self (admin has empty pedigree)
-      if (member.pedigree.length === 0) continue;
-      // The last entry in pedigree is the direct inviter's name
-      const directInviter = member.pedigree[member.pedigree.length - 1];
-      if (directInviter === ourName) {
-        autoNames.set(member.memberId, member.invitedAs);
+      if (member.pedigree.length !== 0) {
+        // The last entry in pedigree is the direct inviter's name
+        const directInviter = member.pedigree[member.pedigree.length - 1];
+        if (directInviter === ourName) {
+          autoNames.set(member.memberId, member.invitedAs);
+        }
       }
     }
 
@@ -1636,10 +1639,11 @@ test.serial(
 
     const bobAutoNames = new Map();
     for (const member of bobMembers) {
-      if (member.pedigree.length === 0) continue;
-      const directInviter = member.pedigree[member.pedigree.length - 1];
-      if (directInviter === bobName) {
-        bobAutoNames.set(member.memberId, member.invitedAs);
+      if (member.pedigree.length !== 0) {
+        const directInviter = member.pedigree[member.pedigree.length - 1];
+        if (directInviter === bobName) {
+          bobAutoNames.set(member.memberId, member.invitedAs);
+        }
       }
     }
 
@@ -1676,10 +1680,11 @@ test.serial('channel - sub-invitations auto-assign correctly', async t => {
 
   const aliceAutoNames = new Map();
   for (const member of aliceMembers) {
-    if (member.pedigree.length === 0) continue;
-    const directInviter = member.pedigree[member.pedigree.length - 1];
-    if (directInviter === aliceName) {
-      aliceAutoNames.set(member.memberId, member.invitedAs);
+    if (member.pedigree.length !== 0) {
+      const directInviter = member.pedigree[member.pedigree.length - 1];
+      if (directInviter === aliceName) {
+        aliceAutoNames.set(member.memberId, member.invitedAs);
+      }
     }
   }
 
@@ -1694,10 +1699,11 @@ test.serial('channel - sub-invitations auto-assign correctly', async t => {
 
   const bobAutoNames = new Map();
   for (const member of bobMembers) {
-    if (member.pedigree.length === 0) continue;
-    const directInviter = member.pedigree[member.pedigree.length - 1];
-    if (directInviter === bobName) {
-      bobAutoNames.set(member.memberId, member.invitedAs);
+    if (member.pedigree.length !== 0) {
+      const directInviter = member.pedigree[member.pedigree.length - 1];
+      if (directInviter === bobName) {
+        bobAutoNames.set(member.memberId, member.invitedAs);
+      }
     }
   }
 
@@ -1816,7 +1822,7 @@ test.serial(
     const channelFormulaId = await E(host).identify(adminAgentName, 'general');
 
     // Step 3: Write channel formula ID into joiner's pet store
-    await E(joinerPowers).write('general', channelFormulaId);
+    await E(joinerPowers).storeIdentifier('general', channelFormulaId);
 
     // === Simulate what bodyComponent does when navigating to the joiner space ===
     // resolvePowers: E(rootPowers).lookup(joinerAgentName) → joinerPowers
@@ -3129,6 +3135,7 @@ test.serial(
 
     // Allow some tolerance for cooling during CapTP roundtrips
     t.true(
+      // eslint-disable-next-line @endo/restrict-comparison-operands
       bobState.heat < 30,
       `Bob hop heat should be ~18 (at Bob's rate), got ${bobState.heat}`,
     );
@@ -3178,7 +3185,7 @@ test.serial('channel messages have a messageId', async t => {
   await E(channel).post(['Hello'], [], []);
   const messages = await E(channel).listMessages();
   t.is(typeof messages[0].messageId, 'string', 'messageId should be a string');
-  t.true(messages[0].messageId.length > 0, 'messageId should be non-empty');
+  t.true(messages[0].messageId.length !== 0, 'messageId should be non-empty');
 });
 
 test.serial(

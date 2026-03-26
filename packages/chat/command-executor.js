@@ -1,5 +1,5 @@
 // @ts-check
-/* global setTimeout */
+/* global globalThis */
 
 import harden from '@endo/harden';
 
@@ -125,7 +125,7 @@ export const createCommandExecutor = ({
               );
             }
             // Write the formula ID into the user's pet store
-            await E(powers).write(targetNamePath, formulaId);
+            await E(powers).storeLocator(targetNamePath, formulaId);
             return { success: true, message: `Adopted as "${targetNameStr}"` };
           }
 
@@ -205,18 +205,6 @@ export const createCommandExecutor = ({
           return {
             success: true,
             message: `Reply sent to message #${messageNumber}`,
-          };
-        }
-
-        case 'grant':
-        case 'allow': {
-          const { messageNumber } = params;
-          await E(powers).grantEvaluate(
-            BigInt(/** @type {number} */ (messageNumber)),
-          );
-          return {
-            success: true,
-            message: `Eval-proposal #${messageNumber} granted`,
           };
         }
 

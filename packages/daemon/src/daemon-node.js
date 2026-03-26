@@ -1,7 +1,9 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 /* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init';
 
 import crypto from 'crypto';
@@ -20,9 +22,10 @@ import {
   makeDaemonicPowers,
   makeCryptoPowers,
 } from './daemon-node-powers.js';
+import { startWsGateway } from './ws-gateway.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Config, Builtins } from './types.js' */
+/** @import { Config } from './types.js' */
 
 const args = process.argv.slice(2);
 if (args.length < 4) {
@@ -130,34 +133,7 @@ const main = async () => {
   await killStaleWorkers();
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
-    await makeDaemon(
-      powers,
-      daemonLabel,
-      cancel,
-      cancelled,
-      {
-        /** @param {Builtins} builtins */
-        '@apps': ({ MAIN, ENDO }) => ({
-          type: /** @type {const} */ ('make-unconfined'),
-          worker: MAIN,
-          powers: ENDO,
-          specifier:
-            process.env.ENDO_WORKER_PATH ||
-            new URL('web-server-node.js', import.meta.url).href,
-          env: {
-            ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
-            ENDO_WEB_PAGE_BUNDLE_PATH:
-              process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
-            ENDO_GATEWAY: process.env.ENDO_GATEWAY || '',
-            ENDO_GATEWAY_ALLOWED_CIDRS:
-              process.env.ENDO_GATEWAY_ALLOWED_CIDRS || '',
-          },
-        }),
-      },
-      {
-        gcEnabled,
-      },
-    );
+    await makeDaemon(powers, daemonLabel, cancel, cancelled, {}, { gcEnabled });
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -173,7 +149,20 @@ const main = async () => {
     exitWithError,
     capTpConnectionRegistrar,
   );
-  const services = [privatePathService];
+  // Start WebSocket gateway for browser clients (Chat app).
+  const addrUrl = new URL(
+    `http://${process.env.ENDO_ADDR || '127.0.0.1:8920'}`,
+  );
+  const gatewayHost = addrUrl.hostname;
+  const gatewayPort = addrUrl.port !== '' ? Number(addrUrl.port) : 8920;
+  const wsGateway = startWsGateway({
+    endoBootstrap,
+    host: gatewayHost,
+    port: gatewayPort,
+    cancelled,
+  });
+
+  const services = [privatePathService, wsGateway];
 
   // INVARIANT: The ready signal must not be sent until all services are fully
   // operational — including the CapTP socket, the host, and the APPS gateway.
@@ -187,67 +176,6 @@ const main = async () => {
     const agentId = /** @type {string} */ (await E(host).identify('@agent'));
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
-
-    if (await E(host).has('@apps')) {
-      const appsGatewayTimeout = 10_000;
-      try {
-        const apps = /** @type {{ getAddress(): Promise<string> }} */ (
-          await Promise.race([
-            E(host).lookup('@apps'),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error('APPS gateway startup timed out')),
-                appsGatewayTimeout,
-              ),
-            ),
-          ])
-        );
-        const address = await Promise.race([
-          E(apps).getAddress(),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error('APPS gateway address timed out')),
-              appsGatewayTimeout,
-            ),
-          ),
-        ]);
-        console.log(`Endo gateway listening on ${address}`);
-      } catch (appsError) {
-        console.warn(
-          `APPS gateway not available: ${/** @type {Error} */ (appsError).message}`,
-        );
-      }
-    }
-
-    // Provision bundled agents (Lal).
-    const lalSpecifier = process.env.ENDO_LAL_PATH;
-    if (lalSpecifier && !(await E(host).has('controller-for-lal'))) {
-      if (!(await E(host).has('lal'))) {
-        await E(host).provideGuest('lal', {
-          introducedNames: harden({ '@agent': 'host-agent' }),
-          agentName: 'profile-for-lal',
-        });
-      }
-      await E(host).makeUnconfined('@main', lalSpecifier, {
-        powersName: 'profile-for-lal',
-        resultName: 'controller-for-lal',
-      });
-    }
-
-    // Provision bundled agents (Fae).
-    const faeSpecifier = process.env.ENDO_FAE_PATH;
-    if (faeSpecifier && !(await E(host).has('controller-for-fae'))) {
-      if (!(await E(host).has('fae'))) {
-        await E(host).provideGuest('fae', {
-          introducedNames: harden({ '@agent': 'host-agent' }),
-          agentName: 'profile-for-fae',
-        });
-      }
-      await E(host).makeUnconfined('@main', faeSpecifier, {
-        powersName: 'profile-for-fae',
-        resultName: 'controller-for-fae',
-      });
-    }
 
     informParentWhenReady();
 

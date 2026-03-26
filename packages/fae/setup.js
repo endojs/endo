@@ -18,12 +18,14 @@ const llmProviderFactorySpecifier = new URL(
  * @param {import('@endo/eventual-send').ERef<object>} agent
  */
 export const main = async agent => {
+  if (await E(agent).has('llm-provider-factory')) {
+    console.log('Fae LLM provider factory already provisioned — skipping setup.');
+    return;
+  }
+
   const guestName = 'llm-provider-factory-handle';
   const agentName = `profile-for-${guestName}`;
 
-  // Only create the guest on first run; on restart the guest already exists
-  // and re-running provideGuest with introducedNames hits a daemon bug
-  // where the handle formula lacks the write method.
   const hasFactory = await E(agent).has(guestName);
   if (!hasFactory) {
     await E(agent).provideGuest(guestName, {

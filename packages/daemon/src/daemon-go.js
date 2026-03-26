@@ -2,6 +2,7 @@
 /* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init';
 
 import crypto from 'crypto';
@@ -27,7 +28,7 @@ import {
 } from './envelope.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Config, Builtins } from './types.js' */
+/** @import { Config } from './types.js' */
 
 // The daemon-go entry point receives its configuration as command-line
 // arguments, identical to daemon-node.js. It also opens fd 3/4 for the
@@ -139,22 +140,7 @@ const main = async () => {
   await daemonicPersistencePowers.initializePersistence();
 
   const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
-    await makeDaemon(powers, daemonLabel, cancel, cancelled, {
-      /** @param {Builtins} builtins */
-      '@apps': ({ MAIN, ENDO }) => ({
-        type: /** @type {const} */ ('make-unconfined'),
-        worker: MAIN,
-        powers: ENDO,
-        specifier:
-          process.env.ENDO_WORKER_PATH ||
-          new URL('web-server-node.js', import.meta.url).href,
-        env: {
-          ENDO_ADDR: process.env.ENDO_ADDR || '127.0.0.1:8920',
-          ENDO_WEB_PAGE_BUNDLE_PATH:
-            process.env.ENDO_WEB_PAGE_BUNDLE_PATH || '',
-        },
-      }),
-    });
+    await makeDaemon(powers, daemonLabel, cancel, cancelled);
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -180,37 +166,6 @@ const main = async () => {
     const agentId = /** @type {string} */ (await E(host).identify('@agent'));
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
-
-    if (await E(host).has('@apps')) {
-      const appsGatewayTimeout = 10_000;
-      try {
-        const apps = /** @type {{ getAddress(): Promise<string> }} */ (
-          await Promise.race([
-            E(host).lookup('@apps'),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error('APPS gateway startup timed out')),
-                appsGatewayTimeout,
-              ),
-            ),
-          ])
-        );
-        const address = await Promise.race([
-          E(apps).getAddress(),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error('APPS gateway address timed out')),
-              appsGatewayTimeout,
-            ),
-          ),
-        ]);
-        console.log(`Endo gateway listening on ${address}`);
-      } catch (appsError) {
-        console.warn(
-          `APPS gateway not available: ${/** @type {Error} */ (appsError).message}`,
-        );
-      }
-    }
 
     // Signal readiness to engo supervisor.
     await sendEnvelope(0, 'ready');

@@ -38,10 +38,10 @@ let workerSubprocessPath;
 let webPageBundlePath;
 
 /** @type {string} */
-let endoLalPath;
+let endoLalSetupPath;
 
 /** @type {string} */
-let endoFaePath;
+let endoFaeSetupPath;
 
 if (isPackaged) {
   const appRoot = path.join(
@@ -55,8 +55,8 @@ if (isPackaged) {
   endoWorkerPath = path.join(appRoot, 'bundles', 'endo-worker.cjs');
   workerSubprocessPath = path.join(appRoot, 'bundles', 'worker-node.cjs');
   webPageBundlePath = path.join(appRoot, 'bundles', 'web-page-bundle.js');
-  endoLalPath = path.join(appRoot, 'bundles', 'endo-lal.cjs');
-  endoFaePath = path.join(appRoot, 'bundles', 'endo-fae.cjs');
+  endoLalSetupPath = path.join(appRoot, 'bundles', 'endo-lal-setup.cjs');
+  endoFaeSetupPath = path.join(appRoot, 'bundles', 'endo-fae-setup.cjs');
 } else {
   const repoRoot = path.resolve(dirname, '../../..');
   nodePath = 'node';
@@ -74,8 +74,8 @@ if (isPackaged) {
   // In dev mode, web-page.js is bundled at runtime by the compartment mapper.
   webPageBundlePath = '';
   // In dev mode, agents are installed via CLI/ENDO_EXTRA.
-  endoLalPath = '';
-  endoFaePath = '';
+  endoLalSetupPath = '';
+  endoFaeSetupPath = '';
 }
 
 const resourcePaths = {
@@ -86,8 +86,8 @@ const resourcePaths = {
   endoWorkerPath,
   workerSubprocessPath,
   webPageBundlePath,
-  endoLalPath,
-  endoFaePath,
+  endoLalSetupPath,
+  endoFaeSetupPath,
 };
 if (typeof globalThis.harden === 'function') {
   globalThis.harden(resourcePaths);

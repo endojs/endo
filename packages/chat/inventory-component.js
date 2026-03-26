@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document */
 
 import harden from '@endo/harden';
 
@@ -73,13 +72,11 @@ const makeStaticNameIterator = names => {
       });
     },
     async return() {
-      if (resolveHang)
-        resolveHang(harden({ value: undefined, done: true }));
+      if (resolveHang) resolveHang(harden({ value: undefined, done: true }));
       return harden({ value: undefined, done: true });
     },
     async throw() {
-      if (resolveHang)
-        resolveHang(harden({ value: undefined, done: true }));
+      if (resolveHang) resolveHang(harden({ value: undefined, done: true }));
       return harden({ value: undefined, done: true });
     },
   });
@@ -102,16 +99,15 @@ const makeStaticTreePowers = (tree, names) => {
       /** @param {string | string[]} subPathOrName */
       lookup: subPathOrName => {
         const subPath =
-          typeof subPathOrName === 'string'
-            ? [subPathOrName]
-            : subPathOrName;
+          typeof subPathOrName === 'string' ? [subPathOrName] : subPathOrName;
         // Chain through the tree's own lookup
         return subPath.reduce(
           (node, segment) => E(node).lookup(segment),
           /** @type {unknown} */ (tree),
         );
       },
-      remove: () => Promise.reject(new Error('Cannot remove from immutable tree')),
+      remove: () =>
+        Promise.reject(new Error('Cannot remove from immutable tree')),
       identify: () => Promise.resolve(undefined),
       locate: () => Promise.resolve(undefined),
       followNameChanges: () => iterator,
@@ -347,7 +343,7 @@ export const inventoryComponent = async (
               ).addPeerInfo({ node: nodeNumber, addresses });
             }
             const formulaId = `${formulaNumber}:${nodeNumber}`;
-            await E(powers).write(petName, formulaId);
+            await E(powers).storeLocator(petName, formulaId);
             $inlineForm.classList.remove('visible');
             $inlineForm.innerHTML = '';
             // Auto-select the new channel
@@ -710,6 +706,7 @@ export const inventoryComponent = async (
           const target = await E(powers).lookup(itemPath);
           // Use __getMethodNames__ to detect the target's capabilities
           // without probing methods that may not exist (avoids CapTP noise).
+          // eslint-disable-next-line no-underscore-dangle
           const methods = await E(target).__getMethodNames__();
 
           /** @type {ERef<EndoHost> | undefined} */

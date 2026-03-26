@@ -1,5 +1,4 @@
 // @ts-check
-/* global window, document, setTimeout */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
@@ -9,7 +8,6 @@ import { makeRefIterator } from './ref-iterator.js';
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
-import { createCounterProposalForm } from './counter-proposal-form.js';
 import { createFormBuilder } from './form-builder.js';
 import { createBlobViewer } from './blob-viewer.js';
 import { createInlineCommandForm } from './inline-command-form.js';
@@ -78,12 +76,6 @@ export const chatBarComponent = (
   );
   const $evalFormBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#eval-form-backdrop')
-  );
-  const $counterProposalContainer = /** @type {HTMLElement} */ (
-    $parent.querySelector('#counter-proposal-container')
-  );
-  const $counterProposalBackdrop = /** @type {HTMLElement} */ (
-    $parent.querySelector('#counter-proposal-backdrop')
   );
   const $formBuilderContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#form-builder-container')
@@ -169,9 +161,6 @@ export const chatBarComponent = (
 
   /** @type {import('./eval-form.js').EvalFormAPI | null} */
   let evalForm = null;
-
-  /** @type {import('./counter-proposal-form.js').CounterProposalFormAPI | null} */
-  let counterProposalForm = null;
 
   /** @type {import('./form-builder.js').FormBuilderAPI | null} */
   let formBuilder = null;
@@ -419,25 +408,23 @@ export const chatBarComponent = (
 
     for (const category of categories) {
       const commands = getCommandsByCategory(category, context);
-      if (commands.length === 0) {
-        // eslint-disable-next-line no-continue
-        continue;
+      if (commands.length !== 0) {
+        const label = CATEGORY_LABELS[category] || category;
+
+        html += '<div class="command-popover-section">';
+        html += `<div class="command-popover-category">${label}</div>`;
+
+        for (const cmd of commands) {
+          html += `
+            <div class="command-popover-item" data-command="${cmd.name}">
+              <span class="command-popover-item-name">/${cmd.name}</span>
+              <span class="command-popover-item-desc">${cmd.description}</span>
+            </div>
+          `;
+        }
+
+        html += '</div>';
       }
-      const label = CATEGORY_LABELS[category] || category;
-
-      html += '<div class="command-popover-section">';
-      html += `<div class="command-popover-category">${label}</div>`;
-
-      for (const cmd of commands) {
-        html += `
-          <div class="command-popover-item" data-command="${cmd.name}">
-            <span class="command-popover-item-name">/${cmd.name}</span>
-            <span class="command-popover-item-desc">${cmd.description}</span>
-          </div>
-        `;
-      }
-
-      html += '</div>';
     }
 
     html +=
@@ -760,8 +747,6 @@ export const chatBarComponent = (
           ancestors.push(parentIndex);
           cursor = parentIndex;
           i = parentIndex;
-          // eslint-disable-next-line no-continue
-          continue;
         }
       }
     }
@@ -825,36 +810,33 @@ export const chatBarComponent = (
     // Case 2: adjacent indented predecessor is our replyTo parent.
     // Case 3: has a replyTo but parent is not adjacent — reply indicator.
     for (let i = from; i < to; i += 1) {
-      if (!$envelopes[i].classList.contains('indented')) {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
+      if ($envelopes[i].classList.contains('indented')) {
+        const rt = $envelopes[i].dataset.replyTo;
+        const mid = $envelopes[i].dataset.messageId;
 
-      const rt = $envelopes[i].dataset.replyTo;
-      const mid = $envelopes[i].dataset.messageId;
+        // Connect upward: previous envelope is indented and is our parent
+        const prevIndented =
+          i > from && $envelopes[i - 1].classList.contains('indented');
+        const connectsUp =
+          prevIndented && rt && $envelopes[i - 1].dataset.messageId === rt;
 
-      // Connect upward: previous envelope is indented and is our parent
-      const prevIndented =
-        i > from && $envelopes[i - 1].classList.contains('indented');
-      const connectsUp =
-        prevIndented && rt && $envelopes[i - 1].dataset.messageId === rt;
+        // Connect downward: next envelope is indented and replies to us
+        const nextIndented =
+          i + 1 < to && $envelopes[i + 1].classList.contains('indented');
+        const connectsDown =
+          nextIndented && mid && $envelopes[i + 1].dataset.replyTo === mid;
 
-      // Connect downward: next envelope is indented and replies to us
-      const nextIndented =
-        i + 1 < to && $envelopes[i + 1].classList.contains('indented');
-      const connectsDown =
-        nextIndented && mid && $envelopes[i + 1].dataset.replyTo === mid;
-
-      if (connectsUp && connectsDown) {
-        $envelopes[i].classList.add('sub-through');
-      } else if (connectsUp) {
-        $envelopes[i].classList.add('sub-end');
-      } else if (connectsDown) {
-        $envelopes[i].classList.add('sub-start');
-      } else if (rt && !$envelopes[i].classList.contains('chain-tee')) {
-        // Has a replyTo but not adjacent to parent and not already
-        // gutter-connected — show a small reply indicator.
-        $envelopes[i].classList.add('sub-indicator');
+        if (connectsUp && connectsDown) {
+          $envelopes[i].classList.add('sub-through');
+        } else if (connectsUp) {
+          $envelopes[i].classList.add('sub-end');
+        } else if (connectsDown) {
+          $envelopes[i].classList.add('sub-start');
+        } else if (rt && !$envelopes[i].classList.contains('chain-tee')) {
+          // Has a replyTo but not adjacent to parent and not already
+          // gutter-connected — show a small reply indicator.
+          $envelopes[i].classList.add('sub-indicator');
+        }
       }
     }
   };
@@ -1193,80 +1175,6 @@ export const chatBarComponent = (
   });
 
   /**
-   * Show the counter-proposal form with proposal data.
-   * @param {object} proposalData
-   * @param {bigint} proposalData.messageNumber
-   * @param {string} proposalData.source
-   * @param {string[]} proposalData.codeNames
-   * @param {string[]} proposalData.edgeNames
-   * @param {string} proposalData.workerName
-   * @param {string} proposalData.resultName
-   */
-  const showCounterProposalForm = async proposalData => {
-    if (!counterProposalForm) {
-      // Lazily initialize the counter-proposal form
-      counterProposalForm = await createCounterProposalForm({
-        $container: $counterProposalContainer,
-        E,
-        powers,
-        onSubmit: async data => {
-          // Call E(powers).counterEvaluate()
-          const codeNames = data.endowments.map(e => e.codeName);
-          const petNamePaths = data.endowments.map(e => e.petName.split('/'));
-          const resultNamePath = data.resultName
-            ? data.resultName.split('/')
-            : undefined;
-          const workerName = data.workerName || '@main';
-
-          await E(powers).counterEvaluate(
-            data.messageNumber,
-            data.source,
-            codeNames,
-            petNamePaths,
-            workerName,
-            resultNamePath,
-          );
-        },
-        onClose: () => {
-          hideCounterProposalForm(); // eslint-disable-line no-use-before-define
-        },
-      });
-    }
-
-    // Convert arrays to endowments format
-    const endowments = proposalData.codeNames.map((codeName, i) => ({
-      codeName,
-      petName: proposalData.edgeNames[i] || '',
-    }));
-
-    counterProposalForm.setProposal({
-      messageNumber: proposalData.messageNumber,
-      source: proposalData.source,
-      endowments,
-      workerName: proposalData.workerName,
-      resultName: proposalData.resultName,
-    });
-
-    $counterProposalBackdrop.style.display = 'block';
-    $counterProposalContainer.style.display = 'block';
-    counterProposalForm.show();
-  };
-
-  const hideCounterProposalForm = () => {
-    $counterProposalBackdrop.style.display = 'none';
-    $counterProposalContainer.style.display = 'none';
-    if (counterProposalForm) {
-      counterProposalForm.hide();
-    }
-    sendForm.focus();
-  };
-
-  // Click on backdrop closes counter-proposal form
-  $counterProposalBackdrop.addEventListener('click', () => {
-    hideCounterProposalForm();
-  });
-
-  /**
    * Show the form builder modal.
    */
   const showFormBuilder = () => {
@@ -1308,12 +1216,6 @@ export const chatBarComponent = (
   // Click on backdrop closes form builder
   $formBuilderBackdrop.addEventListener('click', () => {
     hideFormBuilder();
-  });
-
-  // Listen for counter-proposal events from message buttons
-  $parent.addEventListener('open-counter-proposal', event => {
-    const { detail } = /** @type {CustomEvent} */ (event);
-    showCounterProposalForm(detail);
   });
 
   // Command cancel button (header)
@@ -1667,5 +1569,6 @@ export const chatBarComponent = (
     getReplyType: sendForm.getReplyType,
     setText: sendForm.setText,
     focus: sendForm.focus,
+    dispose: sendForm.dispose,
   };
 };

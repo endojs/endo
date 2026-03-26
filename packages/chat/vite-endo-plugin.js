@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, setInterval, setTimeout, clearTimeout */
+/* global process */
 
 import os from 'os';
 import fs from 'fs';
@@ -31,6 +31,9 @@ const lalSetupUrl = pathToFileURL(
 ).href;
 const faeSetupUrl = pathToFileURL(
   path.join(repoRoot, 'packages/fae/setup.js'),
+).href;
+const jaineSetupUrl = pathToFileURL(
+  path.join(repoRoot, 'packages/jaine/setup.js'),
 ).href;
 
 // Path to the endo CLI in this repo
@@ -221,9 +224,9 @@ export const makeEndoPlugin = () => {
 
     async configureServer(server) {
       try {
-        // Set ENDO_EXTRA so the daemon auto-provisions lal/fae on startup.
+        // Set ENDO_EXTRA so the daemon auto-provisions lal/fae/jaine on startup.
         if (!process.env.ENDO_EXTRA) {
-          process.env.ENDO_EXTRA = `${lalSetupUrl},${faeSetupUrl}`;
+          process.env.ENDO_EXTRA = `${lalSetupUrl},${faeSetupUrl},${jaineSetupUrl}`;
         }
 
         await ensureEndoRunning();

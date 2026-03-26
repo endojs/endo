@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, window, setTimeout, clearTimeout */
 
 // Import SES to make `harden` available globally.
 // We use `ses` directly (not `@endo/init`) so that intrinsics are NOT frozen,
@@ -43,9 +42,6 @@ sessionStorage.removeItem('endo-dev-attempted');
 console.log('[Chat] Starting application...');
 console.log(`[Chat] Gateway: ${gateway}`);
 console.log(`[Chat] Agent: ${agent.slice(0, 16)}...`);
-
-/** @type {ReturnType<typeof setTimeout> | undefined} */
-let countdownTimer;
 
 /**
  * Show reconnecting UI overlay.
@@ -91,20 +87,6 @@ const setReconnectStatus = text => {
 };
 
 /**
- * Hide reconnecting UI overlay.
- */
-const hideReconnecting = () => {
-  const overlay = document.getElementById('reconnect-overlay');
-  if (overlay) {
-    overlay.style.display = 'none';
-  }
-  if (countdownTimer !== undefined) {
-    clearTimeout(countdownTimer);
-    countdownTimer = undefined;
-  }
-};
-
-/**
  * Poll /health until the Vite dev server is reachable, then navigate
  * to /dev to pick up fresh credentials for the (possibly restarted) daemon.
  *
@@ -139,7 +121,7 @@ function pollHealthThenReconnect() {
       }
       setReconnectStatus(`Retrying in ${remaining}s`);
       remaining -= 1;
-      countdownTimer = setTimeout(tick, 1000);
+      setTimeout(tick, 1000);
     };
     tick();
   };

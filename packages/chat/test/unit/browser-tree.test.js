@@ -1,11 +1,22 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
-import { E } from '@endo/far';
+import { Far, E } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makeBrowserTree, checkoutToDirectory } from '../../browser-tree.js';
+
+const MockTreeI = M.interface('MockTree', {
+  list: M.call().returns(M.any()),
+  lookup: M.call(M.string()).returns(M.any()),
+});
+
+const MockBlobI = M.interface('MockBlob', {
+  streamBase64: M.call().returns(M.any()),
+});
 
 /**
  * Create a mock FileSystemFileHandle.
@@ -35,7 +46,7 @@ const mockDirHandle = (name, entries) => {
   return /** @type {any} */ ({
     kind: 'directory',
     name,
-    keys: async function* () {
+    async *keys() {
       for (const key of entryNames) {
         yield key;
       }
@@ -199,14 +210,12 @@ test('makeBrowserTree blob streamBase64 throw() terminates iterator', async t =>
 
 test('checkoutToDirectory writes files from a remote tree', async t => {
   // Create a mock remote tree (as the daemon would provide)
-  const mockTree = Far('MockTree', {
-    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
+  const mockTree = makeExo('MockTree', MockTreeI, {
     list: async () => ['greeting.txt'],
     /** @param {string} name */
     lookup: async name => {
       t.is(name, 'greeting.txt');
-      return Far('MockBlob', {
-        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
+      return makeExo('MockBlob', MockBlobI, {
         streamBase64: () => {
           let called = false;
           return Far('MockIterator', {
@@ -237,7 +246,10 @@ test('checkoutToDirectory writes files from a remote tree', async t => {
     getDirectoryHandle: async () => {
       throw new Error('Not found');
     },
-    getFileHandle: async (/** @type {string} */ name, /** @type {any} */ _opts) => ({
+    getFileHandle: async (
+      /** @type {string} */ name,
+      /** @type {any} */ _opts,
+    ) => ({
       createWritable: async () => {
         /** @type {Uint8Array[]} */
         const chunks = [];
@@ -277,13 +289,11 @@ test('checkoutToDirectory writes files from a remote tree', async t => {
 });
 
 test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
-  const mockSubTree = Far('MockSubTree', {
-    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
+  const mockSubTree = makeExo('MockSubTree', MockTreeI, {
     list: async () => ['inner.txt'],
     /** @param {string} _name */
     lookup: async _name =>
-      Far('MockBlob', {
-        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
+      makeExo('MockBlob', MockBlobI, {
         streamBase64: () => {
           let called = false;
           return Far('MockIterator', {
@@ -305,8 +315,7 @@ test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
       }),
   });
 
-  const mockTree = Far('MockTree', {
-    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
+  const mockTree = makeExo('MockTree', MockTreeI, {
     list: async () => ['subdir'],
     /** @param {string} _name */
     lookup: async _name => mockSubTree,
@@ -323,11 +332,17 @@ test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
    */
   const makeMockDestDir = dirName => ({
     kind: 'directory',
-    getDirectoryHandle: async (/** @type {string} */ name, /** @type {any} */ _opts) => {
+    getDirectoryHandle: async (
+      /** @type {string} */ name,
+      /** @type {any} */ _opts,
+    ) => {
       createdDirs.push(`${dirName}/${name}`);
       return makeMockDestDir(`${dirName}/${name}`);
     },
-    getFileHandle: async (/** @type {string} */ name, /** @type {any} */ _opts) => {
+    getFileHandle: async (
+      /** @type {string} */ name,
+      /** @type {any} */ _opts,
+    ) => {
       writtenFileNames.push(`${dirName}/${name}`);
       return {
         createWritable: async () => ({
@@ -345,13 +360,11 @@ test('checkoutToDirectory creates subdirectories for tree nodes', async t => {
 });
 
 test('checkoutToDirectory onFile callback fires for each file', async t => {
-  const mockTree = Far('MockTree', {
-    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
+  const mockTree = makeExo('MockTree', MockTreeI, {
     list: async () => ['a.txt', 'b.txt'],
     /** @param {string} _name */
     lookup: async _name =>
-      Far('MockBlob', {
-        __getMethodNames__: () => ['__getMethodNames__', 'streamBase64', 'text', 'json'],
+      makeExo('MockBlob', MockBlobI, {
         streamBase64: () =>
           Far('MockIterator', {
             async next() {
@@ -391,8 +404,7 @@ test('checkoutToDirectory onFile callback fires for each file', async t => {
 });
 
 test('checkoutToDirectory handles empty tree', async t => {
-  const mockTree = Far('MockTree', {
-    __getMethodNames__: () => ['__getMethodNames__', 'has', 'list', 'lookup'],
+  const mockTree = makeExo('MockTree', MockTreeI, {
     list: async () => [],
     lookup: async () => {
       throw new Error('no children');

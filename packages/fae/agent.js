@@ -1,6 +1,5 @@
 // @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-continue */
 
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -67,14 +66,48 @@ reasoning, steps, logs, or recaps to a channel.
 - **adoptTool** — Install a FaeTool capability from a message.
 - **dismiss** — Dismiss a handled message.
 
-## Channel Mentions
-When mentioned in a channel, the notification includes exec() code. \
-Run it exactly as given, replacing YOUR_REPLY with your response and \
-YOUR_NAME with "fae". Example:
-  exec({ code: "const ch = await E(powers).lookup('channel-name');\\n\
-const me = await E(ch).join('fae');\\n\
-await E(me).post(['Hello!'], [], [], '42');\\n\
-return 'done';" })
+You receive messages from other agents and the @host. Use these tools to interact:
+
+- **reply** — Reply to a message by number. The reply is automatically routed \
+to the original sender. **Always prefer reply over send** when responding to \
+an incoming message.
+- **send** — Send a new (unsolicited) message to a named agent (e.g., "@host")
+- **listMessages** — List your inbox messages
+- **dismiss** — Acknowledge and dismiss a message
+- **adoptTool** — Adopt a capability from a message into your tools/ directory
+
+## Petname Directory
+
+You have a persistent directory of named references (petnames):
+
+- **list** — See all stored petnames
+- **lookup** — Retrieve a value by petname
+- **store** — Persist a JSON value under a petname
+- **remove** — Delete a petname
+
+## Adopting Values from Messages
+
+When you receive a message that contains values (the @name references in the \
+message text), you should ALWAYS adopt each value before doing anything else. \
+Choose your own pet name for it, but remember the edge name the sender used — \
+that is how the sender refers to it in the message text.
+
+For tool capabilities, use \`adoptTool\` to install them into your tools/ \
+directory. Once adopted, the tool is immediately available — try it right away.
+
+For other values, use the \`adopt\` tool to store them under a pet name in your \
+directory. You can then use \`lookup\` to retrieve them later.
+
+Example: if a message says "Here is @counter for you", adopt it:
+  adopt(messageNumber, "counter", "my-counter")
+
+## Response Guidelines
+
+- Use tools to accomplish requests. Do not fabricate results.
+- For multi-step tasks, break them down and execute step by step.
+- If a tool call fails, read the error and try a different approach.
+- When done, use **reply** (not send) to respond to the sender with a concise summary.
+- Always dismiss messages after handling them.
 `;
 
 /**
@@ -261,11 +294,11 @@ export const spawnWorkerLoop = async (
     /** @type {boolean} */
     let continueLoop = true;
     while (continueLoop) {
-      const context = await tree.getPath(currentLeafId);
+      const conversationContext = await tree.getPath(currentLeafId);
       console.log(
-        `[fae] context has ${context.length} messages, sending to LLM`,
+        `[fae] context has ${conversationContext.length} messages, sending to LLM`,
       );
-      const response = await chat(context, currentSchemas);
+      const response = await chat(conversationContext, currentSchemas);
 
       const { message: responseMessage } = response;
       if (!responseMessage) {
@@ -338,19 +371,18 @@ export const spawnWorkerLoop = async (
     try {
       const topNames = /** @type {string[]} */ (await E(powers).list());
       for (const name of topNames) {
-        if (name === 'tools' || specialNamePattern.test(name)) {
-          continue;
-        }
-        try {
-          const entry = await E(powers).lookup([name]);
-          await E(entry).schema();
-          await E(entry).help();
-          // Looks like a FaeTool — move it into tools/
-          await E(powers).copy([name], ['tools', name]);
-          await E(powers).remove(name);
-          console.log(`[fae] Moved introduced tool "${name}" into tools/`);
-        } catch {
-          // Not a FaeTool; leave it alone.
+        if (name !== 'tools' && !specialNamePattern.test(name)) {
+          try {
+            const entry = await E(powers).lookup([name]);
+            await E(entry).schema();
+            await E(entry).help();
+            // Looks like a FaeTool — move it into tools/
+            await E(powers).copy([name], ['tools', name]);
+            await E(powers).remove(name);
+            console.log(`[fae] Moved introduced tool "${name}" into tools/`);
+          } catch {
+            // Not a FaeTool; leave it alone.
+          }
         }
       }
     } catch {
@@ -412,206 +444,81 @@ export const spawnWorkerLoop = async (
         names,
       } = /** @type {any} */ (message);
 
-      if (fromId === selfLocator) {
-        continue;
-      }
+      if (fromId !== selfLocator) {
+        const { messageId, replyTo } = /** @type {any} */ (message);
 
-      const { messageId, replyTo } = /** @type {any} */ (message);
+        await rootNodeIdP;
 
-      const rootNodeId = await rootNodeIdP;
+        console.log(`[fae] New message #${number} from ${fromId}`);
 
-      console.log(`[fae] New message #${number} from ${fromId}`);
+        // Discover tools (picks up newly adopted tools each turn)
+        const { schemas: toolSchemas, toolMap } = await discoverTools(
+          powers,
+          localTools,
+        );
 
-      // Discover tools (picks up newly adopted tools each turn)
-      const { schemas: toolSchemas, toolMap } = await discoverTools(
-        powers,
-        localTools,
-      );
+        let textContent;
+        if (type === 'package' && Array.isArray(strings)) {
+          const parts = [];
+          const namesArray = Array.isArray(names) ? names : [];
+          for (let i = 0; i < strings.length; i += 1) {
+            parts.push(strings[i]);
+            if (i < namesArray.length) {
+              parts.push(`@${namesArray[i]}`);
+            }
+          }
+          textContent = parts.join('').trim();
+        } else {
+          textContent = `(${type || 'unknown'} message)`;
+        }
 
-      let textContent;
-      const namesArray = Array.isArray(names) ? names : [];
-      if (type === 'package' && Array.isArray(strings)) {
-        const parts = [];
-        for (let i = 0; i < strings.length; i += 1) {
-          parts.push(strings[i]);
-          if (i < namesArray.length) {
-            parts.push(`@${namesArray[i]}`);
+        // Determine the parent node for this message:
+        //  1. If replyTo matches a node in the tree, branch from there
+        //  2. Otherwise continue from the last leaf (preserves context)
+        let parentId = lastLeafId;
+        if (typeof replyTo === 'string') {
+          const existingNode = await tree.getNode(replyTo);
+          if (existingNode !== null) {
+            parentId = replyTo;
           }
         }
-        textContent = parts.join('').trim();
-      } else {
-        textContent = `(${type || 'unknown'} message)`;
-      }
 
-      // Determine the parent node for this message:
-      //  1. If replyTo matches a node in the tree, branch from there
-      //  2. Otherwise continue from the last leaf (preserves context)
-      let parentId = lastLeafId;
-      if (typeof replyTo === 'string') {
-        const existingNode = await tree.getNode(replyTo);
-        if (existingNode !== null) {
-          parentId = replyTo;
-        }
-      }
+        const userNode = await tree.addNode(
+          parentId,
+          [
+            {
+              role: 'user',
+              content: `[Inbox message #${number}] ${textContent}\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`,
+            },
+          ],
+          { messageId },
+        );
 
-      // Detect channel mention notifications — these include exec
-      // code that the agent should run directly.
-      const isChannelMention =
-        textContent.includes('You were mentioned in ') &&
-        textContent.includes('exec');
-      const footer = isChannelMention
-        ? `\n\nRun the exec() code above with your reply. ` +
-          `Replace YOUR_REPLY and YOUR_NAME.`
-        : `\n\nUse reply(messageNumber: ${number}, ...) to respond to this message.`;
+        try {
+          replyTracker.sent = false;
+          lastLeafId = await runAgenticLoop(toolSchemas, toolMap, userNode.id);
 
-      const userNode = await tree.addNode(
-        parentId,
-        [
-          {
-            role: 'user',
-            content: `[Inbox message #${number}] ${textContent}${footer}`,
-          },
-        ],
-        { messageId },
-      );
-
-      try {
-        replyTracker.sent = false;
-        replyTracker.anyToolCalled = false;
-        lastLeafId = await runAgenticLoop(toolSchemas, toolMap, userNode.id);
-
-        // If the LLM produced a final response without calling any
-        // tools, send the content as a fallback. If tools WERE called
-        // (e.g. exec posted to a channel), skip the fallback to avoid
-        // double-posting.
-        if (!replyTracker.sent && !replyTracker.anyToolCalled) {
-          const finalNode = await tree.getNode(lastLeafId);
-          if (finalNode) {
-            const lastMsg = finalNode.messages[finalNode.messages.length - 1];
-            if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
-              // Strip <think> blocks, tool call fragments, and
-              // reasoning text from the content.
-              let fallbackContent = lastMsg.content
-                .replace(/<think>[\s\S]*?<\/think>/g, '')
-                .replace(/<think>[\s\S]*/g, '')
-                .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-                .replace(/<function=[^>]*>[\s\S]*?(?:<\/function>|$)/g, '')
-                .trim();
-
-              // For channel posts, strip reasoning that the model
-              // outputs as plain text (not inside <think> tags).
-              // Keep only lines that look like direct communication.
-              if (isChannelMention && fallbackContent) {
-                // Strip residual HTML-like tags
-                fallbackContent = fallbackContent
-                  .replace(/<\/?think>/g, '')
-                  .trim();
-
-                const lines = fallbackContent.split('\n');
-                /* eslint-disable prettier/prettier */
-                const reasoningRe =
-                  /^([-•*] (Adopt|Look|Join|Post|Sen[dt]|Return|Perform|Call)|Thus|So |But |However|The (user|instruction|message|content|question|adopt|edge|tool|error)|We (need|should|have|can|could|attempt|perform)|Given |In (previous|earlier|the|that|this)|For (consistency|message|each|the|safety)|Now |Maybe |Possibly|Perhaps|Actually|Let('s|)|Looking|They |That (suggests|means|likely|seems)|This (suggests|means|is)|I('m| think| need| will| should| see|'ve (adopted|joined|posted))|Not sure|After adopt|Proceed|Since |Wait|Hmm|OK |Ok |The (phrase|question|safe)|Step |Recap|All steps|```)/;
-                /* eslint-enable prettier/prettier */
-                /** @type {string[]} */
-                const kept = [];
-                for (const line of lines) {
-                  const trimmedLine = line.trim();
-                  if (!trimmedLine) {
-                    // eslint-disable-next-line no-continue
-                    continue;
-                  }
-                  if (!reasoningRe.test(trimmedLine)) {
-                    kept.push(trimmedLine);
-                  }
-                }
-                fallbackContent = kept.join('\n').trim();
-                // If everything was reasoning, use a brief
-                // acknowledgment instead of posting nothing.
-                if (!fallbackContent) {
-                  fallbackContent =
-                    'Got it! I see the mention. What would you like me to help with?';
-                }
-                // Cap length for channel posts — if still long,
-                // take only the last paragraph.
-                if (fallbackContent.length > 400) {
-                  const paragraphs = fallbackContent.split(/\n\n+/);
-                  fallbackContent =
-                    paragraphs[paragraphs.length - 1].trim();
-                }
-                // Final length cap
-                if (fallbackContent.length > 500) {
-                  fallbackContent = `${fallbackContent.slice(0, 497)}...`;
-                }
-              }
-
-              if (fallbackContent && isChannelMention && namesArray.length > 0) {
-                // For channel mentions, post to the channel instead
-                // of sending an inbox reply. Adopt the channel ref
-                // from this message, then look it up and post.
-                const channelEdge = namesArray[0];
-                const channelPetName = `channel-${channelEdge}`;
-                console.log(
-                  `[fae] Channel mention fallback: posting to ${channelEdge}`,
-                );
-                try {
-                  // Adopt the channel reference (idempotent if
-                  // already adopted under this name)
-                  try {
-                    await E(powers).adopt(
-                      number,
-                      channelEdge,
-                      channelPetName,
-                    );
-                  } catch {
-                    // Already adopted — fine
-                  }
-                  const channelRef = await E(powers).lookup(channelPetName);
-                  // Always join to get our own member ref — posting
-                  // via the admin ref would attribute the message to
-                  // the admin, not to fae. join() is idempotent.
-                  const memberRef = await E(channelRef).join('fae');
-                  await E(memberRef).post(
-                    [fallbackContent],
-                    [],
-                    [],
-                  );
-                  console.log('[fae] Posted to channel as fae');
-                } catch (channelErr) {
-                  console.error(
-                    '[fae] Channel post failed, falling back to inbox reply:',
-                    channelErr,
-                  );
-                  await E(powers).reply(
-                    number,
-                    [fallbackContent],
-                    [],
-                    [],
-                  );
-                }
-              } else if (fallbackContent) {
+          // If the LLM produced a final response without calling the reply
+          // tool, send the content as a fallback reply so the sender
+          // (e.g. a Whylip UI) actually receives it.
+          if (!replyTracker.sent) {
+            const finalNode = await tree.getNode(lastLeafId);
+            if (finalNode) {
+              const lastMsg = finalNode.messages[finalNode.messages.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
                 console.log(
                   '[fae] No reply tool called, sending fallback reply',
                 );
-                await E(powers).reply(
-                  number,
-                  [fallbackContent],
-                  [],
-                  [],
-                );
-              } else {
-                console.log(
-                  '[fae] No reply tool called and content was only ' +
-                    'internal reasoning — skipping fallback reply',
-                );
+                await E(powers).reply(number, [lastMsg.content], [], []);
               }
             }
           }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error('[fae] LLM error, notifying sender:', errorMessage);
+          await E(powers).reply(number, [errorMessage], [], []);
         }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        console.error('[fae] LLM error, notifying sender:', errorMessage);
-        await E(powers).reply(number, [errorMessage], [], []);
       }
     }
   };
@@ -638,6 +545,7 @@ const driverSpecifier = new URL('driver.js', import.meta.url).href;
  * @param {Promise<object> | object | undefined} _context
  * @returns {Promise<object>}
  */
+// eslint-disable-next-line no-underscore-dangle
 export const make = async (guestPowers, _context) => {
   /** @type {any} */
   const powers = guestPowers;
@@ -687,10 +595,10 @@ export const make = async (guestPowers, _context) => {
 
       // 3. Write capability references into the driver's namespace.
       const providerLocator = await E(powers).locate('llm-provider');
-      await E(driverGuest).write('llm-provider', providerLocator);
+      await E(driverGuest).storeLocator('llm-provider', providerLocator);
 
       const agentLocator = await E(hostAgent).locate(profileName);
-      await E(driverGuest).write('agent', agentLocator);
+      await E(driverGuest).storeLocator('agent', agentLocator);
 
       // 4. Launch the driver caplet.
       await E(hostAgent).makeUnconfined('@main', driverSpecifier, {

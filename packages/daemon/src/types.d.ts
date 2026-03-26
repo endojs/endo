@@ -314,8 +314,6 @@ type MessageFormula = {
     | 'definition'
     | 'form'
     | 'value'
-    | 'eval-proposal-reviewer'
-    | 'eval-proposal-proposer';
   messageId: FormulaNumber;
   replyTo?: FormulaNumber;
   from: FormulaIdentifier;
@@ -510,42 +508,13 @@ export type ValueMessage = MessageBase & {
   valueId: FormulaIdentifier;
 };
 
-export type EvalProposalBase = {
-  messageId: FormulaNumber;
-  replyTo?: FormulaNumber;
-  source: string;
-  codeNames: Array<string>;
-  petNamePaths?: Array<NamePath>;
-  edgeNames: Array<string>;
-  ids: Array<string>;
-  workerName?: string;
-};
-
-export type EvalProposalReviewer = EvalProposalBase & {
-  type: 'eval-proposal-reviewer';
-  responder: ERef<Responder>;
-  settled: Promise<'fulfilled' | 'rejected'>;
-  resultId: Promise<string | undefined>;
-  result: Promise<unknown>;
-};
-
-// The proposer message is a sent receipt. It intentionally omits
-// settled, resultId, and result so the sender cannot observe the
-// reviewer's endowments or actions.
-export type EvalProposalProposer = EvalProposalBase & {
-  type: 'eval-proposal-proposer';
-  resultName?: string;
-};
-
 export type Message =
   | Request
   | Package
   | EvalRequest
   | DefineRequest
   | Form
-  | ValueMessage
-  | EvalProposalReviewer
-  | EvalProposalProposer;
+  | ValueMessage;
 
 export type EnvelopedMessage = Message & {
   to: FormulaIdentifier;
@@ -691,7 +660,7 @@ export interface PetStore {
   followIdNameChanges(
     id: string,
   ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
-  write(petName: PetName, id: string): Promise<void>;
+  storeIdentifier(petName: PetName, id: string): Promise<void>;
   remove(petName: PetName): Promise<void>;
   rename(fromPetName: PetName, toPetName: PetName): Promise<void>;
   /**
@@ -733,8 +702,8 @@ export type SyncedPetStoreChange = {
 };
 
 export interface SyncedPetStore {
-  /** Write a name->locator entry (grantor only). */
-  write(petName: PetName, locator: string): Promise<void>;
+  /** Store a name->locator entry (grantor only). */
+  storeLocator(petName: PetName, locator: string): Promise<void>;
   /** Delete a name (tombstone). Either party can delete. */
   remove(petName: PetName): Promise<void>;
   /** Check if a non-tombstoned entry exists for the name. */
@@ -773,11 +742,11 @@ export type SyncedPetStorePowers = {
 
 export type KnownPeersStore = Omit<
   PetStore,
-  'has' | 'identifyLocal' | 'write'
+  'has' | 'identifyLocal' | 'storeIdentifier'
 > & {
   has(nodeNumber: NodeNumber): boolean;
   identifyLocal(nodeNumber: NodeNumber): string | undefined;
-  write(nodeNumber: NodeNumber, id: string): Promise<void>;
+  storeIdentifier(nodeNumber: NodeNumber, id: string): Promise<void>;
 };
 
 /**
@@ -801,8 +770,10 @@ export interface NameHub {
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(petNamePath: string | string[]): Promise<unknown>;
+  maybeLookup(petNamePath: string | string[]): unknown;
   reverseLookup(value: unknown): Array<Name>;
-  write(petNamePath: string | string[], id: string): Promise<void>;
+  storeIdentifier(petNamePath: string | string[], id: string): Promise<void>;
+  storeLocator(petNamePath: string | string[], locator: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -810,6 +781,9 @@ export interface NameHub {
 
 export interface EndoDirectory extends NameHub {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
+  readText(petNamePath: string | string[]): Promise<string>;
+  maybeReadText(petNamePath: string | string[]): Promise<string | undefined>;
+  writeText(petNamePath: string | string[], content: string): Promise<void>;
 }
 
 export type MakeDirectoryNode = (
@@ -902,37 +876,6 @@ export interface Mail {
   deliverValueById(
     messageNumber: bigint,
     valueId: FormulaIdentifier,
-  ): Promise<void>;
-  // Eval-proposal workflow
-  evaluate(
-    toId: string,
-    source: string,
-    codeNames: Array<string>,
-    petNamePaths: Array<NamePath>,
-    edgeNames: Array<string>,
-    ids: Array<string>,
-    workerName?: string,
-    resultName?: string,
-  ): Promise<unknown>;
-  grantEvaluate(
-    messageNumber: bigint,
-    executeEval: (
-      source: string,
-      codeNames: string[],
-      ids: string[],
-      workerName: string | undefined,
-      proposal: EvalProposalReviewer,
-    ) => Promise<{ id: string; value: unknown }>,
-  ): Promise<unknown>;
-  counterEvaluate(
-    messageNumber: bigint,
-    source: string,
-    codeNames: Array<string>,
-    petNamePaths: Array<NamePath>,
-    edgeNames: Array<string>,
-    ids: Array<string>,
-    workerName?: string,
-    resultName?: string,
   ): Promise<void>;
 }
 
@@ -1034,7 +977,7 @@ export interface EndoGuest extends EndoAgent {
     petNamePaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
-  /** Propose code evaluation to host with full eval-proposal workflow */
+  /** Evaluate code directly in a worker, constrained by reachable capabilities. */
   evaluate(
     workerPetName: string | undefined,
     source: string,
@@ -1051,6 +994,10 @@ export interface EndoGuest extends EndoAgent {
     description: string,
     fields: FormField[],
   ): Promise<void>;
+  storeBlob(
+    readerRef: ERef<AsyncIterableIterator<string>>,
+    petName?: string | string[],
+  ): Promise<unknown>;
   storeValue<T extends Passable>(
     value: T,
     petName: string | string[],
@@ -1121,17 +1068,6 @@ export interface EndoHost extends EndoAgent {
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
   approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
-  /** Grant an eval-proposal by executing the proposed code. */
-  grantEvaluate(messageNumber: bigint): Promise<unknown>;
-  /** Send a counter-proposal with modified code and/or bindings. */
-  counterEvaluate(
-    messageNumber: bigint,
-    source: string,
-    codeNames: Array<string>,
-    petNamesOrPaths: Array<string | string[]>,
-    workerName?: string,
-    resultName?: string | string[],
-  ): Promise<unknown>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,
@@ -1743,6 +1679,15 @@ export interface DaemonCore {
   getAgentIdForHandleId: (
     handleId: FormulaIdentifier,
   ) => Promise<FormulaIdentifier>;
+
+  getFormulaGraphSnapshot: (seedIds: FormulaIdentifier[]) => Promise<{
+    nodes: Array<{ id: FormulaIdentifier; type: string }>;
+    edges: Array<{
+      sourceId: FormulaIdentifier;
+      targetId: FormulaIdentifier;
+      label: string;
+    }>;
+  }>;
 }
 
 export interface DaemonCoreExternal {

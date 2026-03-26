@@ -1,44 +1,197 @@
 // @ts-check
-// endo run --UNCONFINED setup.js --powers @agent
+/* global process, setTimeout */
+/* eslint-disable no-await-in-loop */
+// Comprehensive Jaine auto-provisioning.
+// Called via ENDO_EXTRA (yarn dev) or: endo run --UNCONFINED setup.js --powers @agent
 //
-// Provisions the LLM provider factory if not already present.
-// Jaine reuses fae's llm-provider-factory — no need to create a new one.
-// If the factory is already set up (from fae), this is a no-op.
+// Defaults to local Ollama. Override with env vars:
+//   ENDO_LLM_HOST=https://api.anthropic.com
+//   ENDO_LLM_MODEL=claude-sonnet-4-6-20250514
+//   ENDO_LLM_AUTH_TOKEN=sk-ant-...
 
 import { E } from '@endo/eventual-send';
 
-const llmProviderFactorySpecifier = new URL(
-  '../fae/llm-provider-factory.js',
-  import.meta.url,
-).href;
+const jaineFactorySpecifier = new URL('agent.js', import.meta.url).href;
 
 /**
- * @param {import('@endo/eventual-send').ERef<object>} agent
+ * Poll until a petname exists in the host namespace.
+ *
+ * @param {any} agent
+ * @param {string} name
+ * @param {number} [maxAttempts]
+ * @param {number} [delayMs]
+ * @returns {Promise<boolean>}
  */
-export const main = async agent => {
-  // Check if the factory already exists (e.g. from fae setup)
-  const hasResult = await E(agent).has('llm-provider-factory');
-  if (hasResult) {
-    console.log('LLM provider factory already exists (shared with fae).');
+const waitForName = async (agent, name, maxAttempts = 15, delayMs = 1000) => {
+  for (let i = 0; i < maxAttempts; i += 1) {
+    if (await E(agent).has(name)) return true;
+    if (i < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
+};
+harden(waitForName);
+
+/**
+ * Find a pending "Create LLM Provider" form in HOST's inbox, retrying
+ * since the factory caplet sends it asynchronously after launch.
+ *
+ * @param {any} agent
+ * @param {number} [maxAttempts]
+ * @param {number} [delayMs]
+ * @returns {Promise<any>}
+ */
+const findProviderForm = async (agent, maxAttempts = 10, delayMs = 1000) => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const messages = /** @type {any[]} */ (await E(agent).listMessages());
+    for (const msg of messages) {
+      if (msg.type === 'form' && msg.description === 'Create LLM Provider') {
+        return msg;
+      }
+    }
+    if (attempt < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  return null;
+};
+harden(findProviderForm);
+
+/**
+ * Submit provider config if one doesn't already exist under the given name.
+ *
+ * @param {any} agent
+ * @param {string} providerName
+ * @param {string} host
+ * @param {string} model
+ * @param {string} authToken
+ * @returns {Promise<void>}
+ */
+const ensureProvider = async (agent, providerName, host, model, authToken) => {
+  // Already exists?
+  try {
+    const id = /** @type {string} */ (await E(agent).identify(providerName));
+    if (id) {
+      console.log(`[jaine] Provider "${providerName}" already exists.`);
+      return;
+    }
+  } catch {
+    // Not found — submit the form
+  }
+
+  const form = await findProviderForm(agent);
+  if (!form) {
+    console.warn(
+      '[jaine] No "Create LLM Provider" form found — cannot auto-provision provider.',
+    );
     return;
   }
 
-  const guestName = 'llm-provider-factory-handle';
+  await E(agent).submit(
+    BigInt(form.number),
+    harden({ name: providerName, host, model, authToken }),
+  );
+  console.log(
+    `[jaine] Provider "${providerName}" submitted (host=${host}, model=${model}).`,
+  );
+};
+harden(ensureProvider);
+
+/**
+ * Resolve a provider formula ID by name, retrying until it appears.
+ *
+ * @param {any} agent
+ * @param {string} providerName
+ * @returns {Promise<string>}
+ */
+const resolveProvider = async (agent, providerName) => {
+  const maxAttempts = 10;
+  const delayMs = 1000;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const id = /** @type {string} */ (await E(agent).identify(providerName));
+      if (id) return id;
+    } catch {
+      // Not found yet
+    }
+    if (attempt < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  throw new Error(
+    `[jaine] Provider "${providerName}" not found after ${maxAttempts} attempts.`,
+  );
+};
+harden(resolveProvider);
+
+/**
+ * Auto-provision Jaine: ensure LLM provider, create factory, create
+ * default agent. Idempotent — skips if jaine-factory already exists.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} agent
+ */
+export const main = async agent => {
+  if (await E(agent).has('jaine-factory')) {
+    console.log('[jaine] Already provisioned — skipping setup.');
+    return;
+  }
+
+  const { env } = process;
+  const providerName = env.ENDO_LLM_NAME || 'default';
+  const llmHost = env.ENDO_LLM_HOST || 'http://localhost:11434/v1';
+  const llmModel = env.ENDO_LLM_MODEL || 'qwen3';
+  const llmAuthToken = env.ENDO_LLM_AUTH_TOKEN || 'ollama';
+
+  // Wait for fae's llm-provider-factory (created by fae setup.js)
+  console.log('[jaine] Waiting for llm-provider-factory...');
+  const hasProviderFactory = await waitForName(agent, 'llm-provider-factory');
+  if (!hasProviderFactory) {
+    console.warn(
+      '[jaine] llm-provider-factory not found. Ensure fae setup runs first.',
+    );
+    return;
+  }
+
+  // Ensure a provider config exists (submit form if needed)
+  await ensureProvider(agent, providerName, llmHost, llmModel, llmAuthToken);
+
+  // Resolve the provider formula ID (retries for async processing)
+  const providerId = await resolveProvider(agent, providerName);
+
+  // Create jaine-factory guest
+  const factoryName = 'jaine-factory';
+  const guestName = `${factoryName}-handle`;
   const agentName = `profile-for-${guestName}`;
 
-  const hasFactory = await E(agent).has(guestName);
-  if (!hasFactory) {
+  const hasGuest = await E(agent).has(guestName);
+  if (!hasGuest) {
     await E(agent).provideGuest(guestName, {
       introducedNames: harden({ '@agent': 'host-agent' }),
       agentName,
     });
   }
 
-  await E(agent).makeUnconfined('@main', llmProviderFactorySpecifier, {
+  // Write the provider reference into the factory's namespace
+  const factoryPowers = await E(agent).lookup(agentName);
+  await E(factoryPowers).write('llm-provider', providerId);
+
+  // Launch the jaine factory caplet
+  await E(agent).makeUnconfined('@main', jaineFactorySpecifier, {
     powersName: agentName,
-    resultName: 'llm-provider-factory',
+    resultName: factoryName,
   });
 
-  console.log('LLM provider factory created.');
+  console.log('[jaine] Factory created.');
+
+  // Create default "jaine" agent, pinned for restart survival
+  const factory = await E(agent).lookup(factoryName);
+  const profileName = await E(factory).createAgent(
+    'jaine',
+    harden({ pin: true }),
+  );
+  console.log(
+    `[jaine] Default agent "jaine" created and pinned (profile: ${profileName}).`,
+  );
 };
 harden(main);

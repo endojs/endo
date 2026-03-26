@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, window */
 /* eslint-disable no-use-before-define */
 
 import harden from '@endo/harden';

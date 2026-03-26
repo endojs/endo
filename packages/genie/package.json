@@ -16,11 +16,14 @@
   },
   "type": "module",
   "exports": {
+    ".": "./src/index.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
     "setup": "endo run --UNCONFINED setup.js --powers @agent GENIE_HOME=$GENIE_HOME",
+    "test": "ava",
+    "repl": "node dev-repl.js",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'"
@@ -30,14 +33,24 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
-    "@endo/lal": "workspace:^",
+    "@endo/far": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/patterns": "workspace:^",
-    "@endo/promise-kit": "workspace:^"
+    "@endo/promise-kit": "workspace:^",
+    "@mariozechner/pi-agent-core": "^0.60.0",
+    "@mariozechner/pi-ai": "^0.60.0"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "^7.0.0",
     "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
   },
   "eslintConfig": {
     "extends": [

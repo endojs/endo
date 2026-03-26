@@ -21,6 +21,7 @@ if [ "${1:-}" = "--full" ]; then
   echo "==> Full re-provision requested..."
   # Remove old driver so createAgent re-launches it
   "$ENDO" remove jaine-driver 2>/dev/null || true
+  "$ENDO" remove jaine-factory 2>/dev/null || true
   RUN_SETUP=true
 else
   # Check if jaine-driver exists (auto-started from pin)
@@ -34,10 +35,7 @@ else
 fi
 
 if [ "$RUN_SETUP" = true ]; then
-  echo "==> Provisioning LLM provider factory..."
-  "$ENDO" run --UNCONFINED setup.js --powers @agent
-
-  echo "==> Registering provider (reuses existing .env)..."
+  echo "==> Loading .env..."
   ENV_FILE=".env"
   if [ ! -f "$ENV_FILE" ]; then
     FAE_ENV="$(dirname "$0")/../fae/.env"
@@ -50,16 +48,12 @@ if [ "$RUN_SETUP" = true ]; then
   fi
   set -a; source "$ENV_FILE"; set +a
 
-  "$ENDO" run --UNCONFINED ../fae/submit-provider.js --powers @agent \
-    -E PROVIDER_NAME="${PROVIDER_NAME:-default}" \
-    -E LAL_HOST="${LAL_HOST:-https://api.anthropic.com}" \
-    -E LAL_MODEL="${LAL_MODEL:-claude-sonnet-4-6-20250514}" \
-    -E LAL_AUTH_TOKEN="$LAL_AUTH_TOKEN"
-
-  echo "==> Creating Jaine factory + default agent..."
-  "$ENDO" run --UNCONFINED jaine-factory-setup.js --powers @agent \
-    -E PROVIDER_NAME="${PROVIDER_NAME:-default}" \
-    -E FACTORY_NAME="${FACTORY_NAME:-jaine-factory}"
+  echo "==> Running comprehensive Jaine setup..."
+  "$ENDO" run --UNCONFINED setup.js --powers @agent \
+    -E ENDO_LLM_NAME="${PROVIDER_NAME:-default}" \
+    -E ENDO_LLM_HOST="${LAL_HOST:-https://api.anthropic.com}" \
+    -E ENDO_LLM_MODEL="${LAL_MODEL:-claude-sonnet-4-6-20250514}" \
+    -E ENDO_LLM_AUTH_TOKEN="${LAL_AUTH_TOKEN:-$ENDO_LLM_AUTH_TOKEN}"
 fi
 
 echo "==> Jaine reloaded."

@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, window */
 
 import harden from '@endo/harden';
 

@@ -1,6 +1,6 @@
 // @ts-check
-/* global document */
 /* eslint-disable no-use-before-define */
+/* eslint-disable no-await-in-loop */
 
 import harden from '@endo/harden';
 
@@ -1482,26 +1482,26 @@ export const createAddSpaceModal = ({
         }
 
         // 1. Create persona (host)
-        const agentName = `persona-for-${spaceName}`;
+        const personaAgentName = `persona-for-${spaceName}`;
         await E(
           /** @type {{ provideHost: (name: string, opts: { agentName: string }) => Promise<void> }} */ (
             powers
           ),
-        ).provideHost(spaceName, { agentName });
+        ).provideHost(spaceName, { agentName: personaAgentName });
 
         // 2. Get persona's powers
         const personaPowers = await E(
           /** @type {{ lookup: (...args: string[]) => Promise<unknown> }} */ (
             powers
           ),
-        ).lookup(agentName);
+        ).lookup(personaAgentName);
 
         // 3. Write the channel formula ID into the persona's pet store
         await E(
-          /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+          /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).write('general', formulaId);
+        ).storeLocator('general', formulaId);
 
         // 4. Create space config
         // Use the view mode from the locator if provided, else default chat.
@@ -1577,10 +1577,10 @@ export const createAddSpaceModal = ({
 
         // Write the channel formula ID into the persona's pet store
         await E(
-          /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+          /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
             personaPowers
           ),
-        ).write('general', formulaId);
+        ).storeLocator('general', formulaId);
 
         // No new space needed — the existing space already renders the channel
         hide();
@@ -1675,10 +1675,10 @@ export const createAddSpaceModal = ({
       ).lookup(finalAgentName);
 
       await E(
-        /** @type {{ write: (name: string | string[], id: string) => Promise<void> }} */ (
+        /** @type {{ storeLocator: (name: string | string[], id: string) => Promise<void> }} */ (
           whylipPowers
         ),
-      ).write('fae', agentFormulaId);
+      ).storeLocator('fae', agentFormulaId);
 
       await onSubmit({
         name,

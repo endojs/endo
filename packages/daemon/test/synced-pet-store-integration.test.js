@@ -1,7 +1,8 @@
 // @ts-check
-/* global process, setTimeout */
+/* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 import test from 'ava';
@@ -10,7 +11,7 @@ import path from 'path';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import { start, stop, restart, purge, makeEndoClient } from '../index.js';
+import { start, stop, purge, makeEndoClient } from '../index.js';
 
 const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
@@ -27,6 +28,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -57,7 +59,7 @@ const prepareConfig = async t => {
     getConfigDirectoryName(t.title, t.context.length),
   );
   await purge(config);
-  await start(config, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+  await start(config);
   const contextObj = { cancel, cancelled, config };
   t.context.push(contextObj);
   return { ...contextObj };
@@ -142,7 +144,7 @@ test.serial(
     // Alice's grantor store wrote the guest handle under "bob" pet name
     // during acceptance.
     t.true(
-      aliceNames.length >= 1,
+      aliceNames.length !== 0,
       'Alice store should have at least one entry',
     );
 
@@ -170,7 +172,7 @@ test.serial('synced stores converge via manual sync', async t => {
   // Alice (grantor) writes a new capability into the synced store.
   await E(hostA).storeValue('shared-secret', 'secret');
   const secretLocator = await E(hostA).locate('secret');
-  await E(aliceStore).write('shared-secret', secretLocator);
+  await E(aliceStore).storeLocator('shared-secret', secretLocator);
 
   // Before sync, Bob's grantee store does not have the new entry.
   const bobNamesBefore = await E(bobStore).list();
@@ -224,7 +226,7 @@ test.serial(
     // Alice writes a capability.
     await E(hostA).storeValue('revocable-thing', 'revocable');
     const revocableLocator = await E(hostA).locate('revocable');
-    await E(aliceStore).write('revocable', revocableLocator);
+    await E(aliceStore).storeLocator('revocable', revocableLocator);
 
     // Sync so Bob sees it.
     const syncStores = async () => {
@@ -259,7 +261,7 @@ test.serial(
     const prunedBob = await E(bobStore).pruneTombstones();
     // At least one side should have pruned the tombstone.
     t.true(
-      prunedAlice.length > 0 || prunedBob.length > 0,
+      prunedAlice.length !== 0 || prunedBob.length !== 0,
       'At least one side should prune the tombstone',
     );
   },
@@ -279,7 +281,7 @@ test.serial('grantee can disclaim (remove) and it propagates', async t => {
   // Alice writes a capability.
   await E(hostA).storeValue('optional-thing', 'optional');
   const optionalLocator = await E(hostA).locate('optional');
-  await E(aliceStore).write('optional', optionalLocator);
+  await E(aliceStore).storeLocator('optional', optionalLocator);
 
   // Sync.
   const syncStores = async () => {
@@ -326,7 +328,7 @@ test.serial('synced stores converge after offline changes', async t => {
   // Alice writes a capability and syncs.
   await E(hostA).storeValue('pre-restart-val', 'pre-restart');
   const preRestartLocator = await E(hostA).locate('pre-restart');
-  await E(aliceStore).write('pre-restart', preRestartLocator);
+  await E(aliceStore).storeLocator('pre-restart', preRestartLocator);
 
   const syncStores = async (aStore, bStore) => {
     const aState = await E(aStore).getState();
@@ -352,7 +354,7 @@ test.serial('synced stores converge after offline changes', async t => {
   // Restart daemon A.
   const { reject: cancelA2, promise: cancelledA2 } = makePromiseKit();
   t.context.push({ cancel: cancelA2, cancelled: cancelledA2, config: configA });
-  await start(configA, { env: { ENDO_ADDR: '127.0.0.1:0' } });
+  await start(configA);
   const { host: hostA2 } = await makeHost(configA, cancelledA2);
 
   // Reinstall test network on restarted daemon A.
@@ -384,7 +386,7 @@ test.serial('synced stores converge after offline changes', async t => {
   // Alice writes a new entry offline (while Bob doesn't know).
   await E(hostA2).storeValue('post-restart-val', 'post-restart');
   const postRestartLocator = await E(hostA2).locate('post-restart');
-  await E(aliceStore2).write('post-restart', postRestartLocator);
+  await E(aliceStore2).storeLocator('post-restart', postRestartLocator);
 
   // Sync the restarted Alice store with Bob's store.
   await syncStores(aliceStore2, bobStore);

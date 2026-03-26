@@ -3,11 +3,13 @@
 
 /** @import { FilePowers } from './types.js' */
 
-import { makeExo } from '@endo/exo';
+import { decodeBase64 } from '@endo/base64';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
-import { MountInterface, MountFileInterface } from './interfaces.js';
+import { makeExo } from '@endo/exo';
 
+import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';
+import { MountInterface, MountFileInterface } from './interfaces.js';
+import { makeIteratorRef } from './reader-ref.js';
 
 /**
  * Validate a single path segment.
@@ -22,8 +24,14 @@ const assertValidSegment = segment => {
   if (segment === '') {
     throw new Error('Path segment must not be empty');
   }
-  if (segment.includes('/') || segment.includes('\\') || segment.includes('\0')) {
-    throw new Error(`Path segment must not contain '/', '\\', or '\\0': ${q(segment)}`);
+  if (
+    segment.includes('/') ||
+    segment.includes('\\') ||
+    segment.includes('\0')
+  ) {
+    throw new Error(
+      `Path segment must not contain '/', '\\', or '\\0': ${q(segment)}`,
+    );
   }
 };
 harden(assertValidSegment);
@@ -71,7 +79,9 @@ const assertConfined = async (candidatePath, confinementRoot, filePowers) => {
   try {
     resolved = await filePowers.realPath(candidatePath);
   } catch {
-    throw new Error(`Path does not exist and cannot be verified: ${q(candidatePath)}`);
+    throw new Error(
+      `Path does not exist and cannot be verified: ${q(candidatePath)}`,
+    );
   }
   const rootResolved = await filePowers.realPath(confinementRoot);
   if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
@@ -88,14 +98,21 @@ harden(assertConfined);
  * @param {string} confinementRoot
  * @param {FilePowers} filePowers
  */
-const assertConfinedOrAncestor = async (candidatePath, confinementRoot, filePowers) => {
+const assertConfinedOrAncestor = async (
+  candidatePath,
+  confinementRoot,
+  filePowers,
+) => {
   const rootResolved = await filePowers.realPath(confinementRoot);
   let check = candidatePath;
   for (;;) {
     try {
       // eslint-disable-next-line no-await-in-loop
       const resolved = await filePowers.realPath(check);
-      if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
+      if (
+        resolved !== rootResolved &&
+        !resolved.startsWith(`${rootResolved}/`)
+      ) {
         throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
       }
       return;
@@ -148,13 +165,8 @@ harden(isConfinedPath);
  * @returns {object}
  */
 const makeMountExo = ctx => {
-  const {
-    currentDir,
-    confinementRoot,
-    readOnly,
-    filePowers,
-    description,
-  } = ctx;
+  const { currentDir, confinementRoot, readOnly, filePowers, description } =
+    ctx;
 
   const assertWritable = () => {
     if (readOnly) {
@@ -169,10 +181,10 @@ const makeMountExo = ctx => {
   const resolve = segments =>
     resolveSegments(currentDir, confinementRoot, segments, filePowers);
 
+  const help = makeHelp(mountHelp);
+
   return makeExo('EndoMount', MountInterface, {
-    help() {
-      return `${description}\n\n${mountHelp['']}`;
-    },
+    help,
 
     async has(...pathSegments) {
       await null;
@@ -221,55 +233,61 @@ const makeMountExo = ctx => {
       return makeMountFileExo(target, readOnly, filePowers, confinementRoot);
     },
 
-    async write(pathSegments, value) {
+    async readText(pathArg) {
       await null;
-      assertWritable();
-      const target = resolve(pathSegments);
-      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
+      await assertConfined(target, confinementRoot, filePowers);
+      return filePowers.readFileText(target);
+    },
 
-      const parent = filePowers.joinPath(target, '..');
-      await filePowers.makePath(parent);
-
-      if (typeof value === 'string') {
-        await filePowers.writeFileText(target, value);
-      } else {
-        // Assume value has streamBase64() method (ReadableBlob-like).
-        const iterator = await /** @type {any} */ (value).streamBase64();
-        const chunks = [];
-        for (;;) {
-          // eslint-disable-next-line no-await-in-loop
-          const { done, value: chunk } = await iterator.next();
-          if (done) break;
-          chunks.push(chunk);
-        }
-        const text = chunks.join('');
-        const bytes = Uint8Array.from(atob(text), c => c.charCodeAt(0));
-        await filePowers.writeFileText(target, new TextDecoder().decode(bytes));
+    async maybeReadText(pathArg) {
+      await null;
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
+      try {
+        await assertConfined(target, confinementRoot, filePowers);
+        return await filePowers.readFileText(target);
+      } catch {
+        return undefined;
       }
     },
 
-    async remove(pathSegments) {
+    async writeText(pathArg, content) {
       await null;
       assertWritable();
-      const target = resolve(pathSegments);
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
+      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+      const parent = filePowers.joinPath(target, '..');
+      await filePowers.makePath(parent);
+      await filePowers.writeFileText(target, content);
+    },
+
+    async remove(pathArg) {
+      await null;
+      assertWritable();
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
       await assertConfined(target, confinementRoot, filePowers);
       await filePowers.removePath(target);
     },
 
-    async move(fromSegments, toSegments) {
+    async move(fromArg, toArg) {
       await null;
       assertWritable();
-      const from = resolve(fromSegments);
-      const to = resolve(toSegments);
+      const from = resolve(typeof fromArg === 'string' ? [fromArg] : fromArg);
+      const to = resolve(typeof toArg === 'string' ? [toArg] : toArg);
       await assertConfined(from, confinementRoot, filePowers);
       await assertConfinedOrAncestor(to, confinementRoot, filePowers);
       await filePowers.renamePath(from, to);
     },
 
-    async makeDirectory(pathSegments) {
+    async makeDirectory(pathArg) {
       await null;
       assertWritable();
-      const target = resolve(pathSegments);
+      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
+      const target = resolve(segments);
       await assertConfinedOrAncestor(target, confinementRoot, filePowers);
       await filePowers.makePath(target);
     },
@@ -308,10 +326,10 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
     }
   };
 
+  const help = makeHelp(mountFileHelp);
+
   return makeExo('EndoMountFile', MountFileInterface, {
-    help() {
-      return 'MountFile — A file within a mounted directory.';
-    },
+    help,
 
     async text() {
       await null;
@@ -359,68 +377,6 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
   });
 };
 harden(makeMountFileExo);
-
-/** @type {import('./help-text.js').HelpText} */
-export const mountHelp = {
-  '': `\
-EndoMount — Live mutable access to a filesystem directory.
-
-All paths are confined to the mount root. Symlinks that escape
-the root are invisible. Use readOnly() for an attenuated view.`,
-
-  help: `\
-help() -> string
-Get documentation for this interface.`,
-
-  has: `\
-has(...path) -> Promise<boolean>
-Check if a path exists within the mount.
-path: string[] — Path segments.`,
-
-  list: `\
-list(...path) -> Promise<string[]>
-List directory entries at the given path.
-path: string[] — Path segments (optional, defaults to root).
-Entries with symlinks escaping the mount root are excluded.`,
-
-  lookup: `\
-lookup(path) -> Promise<EndoMount | EndoMountFile>
-Resolve a path within the mount.
-path: string | string[] — Name or path segments.
-Returns EndoMount for directories, EndoMountFile for files.`,
-
-  write: `\
-write(path, value) -> Promise<void>
-Write content to a file at the given path.
-path: string[] — Path segments.
-value: string | ReadableBlob — Content to write.
-Creates parent directories as needed. Throws if read-only.`,
-
-  remove: `\
-remove(path) -> Promise<void>
-Remove a file or empty directory.
-path: string[] — Path segments.`,
-
-  move: `\
-move(from, to) -> Promise<void>
-Rename an entry within the mount.
-from: string[] — Source path segments.
-to: string[] — Destination path segments.`,
-
-  makeDirectory: `\
-makeDirectory(path) -> Promise<void>
-Create a directory (and missing parents).
-path: string[] — Path segments.`,
-
-  readOnly: `\
-readOnly() -> EndoMount
-Returns a read-only view of this mount.`,
-
-  snapshot: `\
-snapshot() -> Promise<SnapshotTree>
-Capture current state as an immutable readable-tree. (Not yet implemented.)`,
-};
-harden(mountHelp);
 
 /**
  * Create a mount exo backed by a filesystem directory.

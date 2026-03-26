@@ -1,6 +1,6 @@
 // @ts-check
+/* eslint-disable no-await-in-loop, no-bitwise */
 /* global process */
-/* eslint-disable no-void */
 
 /**
  * Daemonic powers for the Go (engo) platform.
@@ -96,10 +96,7 @@ export const makeDaemonicGoControlPowers = (
             pendingSpawns.delete(env.nonce);
             pending.resolve(env);
           }
-          continue;
-        }
-
-        if (env.verb === 'error' && env.nonce > 0) {
+        } else if (env.verb === 'error' && env.nonce > 0) {
           // Error response to a spawn request.
           const pending = pendingSpawns.get(env.nonce);
           if (pending) {
@@ -113,10 +110,7 @@ export const makeDaemonicGoControlPowers = (
               }),
             );
           }
-          continue;
-        }
-
-        if (env.verb === 'captp') {
+        } else if (env.verb === 'captp') {
           // CapTP frame from a worker. The handle field has been
           // rewritten by engo to the worker's handle.
           const workerHandle = env.handle;
@@ -126,10 +120,7 @@ export const makeDaemonicGoControlPowers = (
             // The payload is the raw netstring-framed CapTP bytes.
             void entry.writer.next(env.payload);
           }
-          continue;
-        }
-
-        if (env.verb === 'exited') {
+        } else if (env.verb === 'exited') {
           // Worker exit notification from engo.
           const workerHandle = env.handle;
           const resolve = workerExitResolvers.get(workerHandle);
@@ -142,13 +133,12 @@ export const makeDaemonicGoControlPowers = (
           if (entry) {
             void entry.writer.return(undefined);
           }
-          continue;
+        } else {
+          // Unhandled envelope verb — log and continue.
+          console.error(
+            `daemon-go: unhandled envelope verb=${env.verb} handle=${env.handle}`,
+          );
         }
-
-        // Unhandled envelope verb — log and continue.
-        console.error(
-          `daemon-go: unhandled envelope verb=${env.verb} handle=${env.handle}`,
-        );
       }
     };
     void readLoop().catch(error => {
@@ -162,6 +152,7 @@ export const makeDaemonicGoControlPowers = (
    * @param {string} workerId
    * @param {DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
+   * @param {Promise<never>} _forceCancelled
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [_trustedShims]
    */
@@ -169,8 +160,9 @@ export const makeDaemonicGoControlPowers = (
     workerId,
     daemonWorkerFacet,
     cancelled,
+    _forceCancelled,
     capTpConnectionRegistrar = undefined,
-    _trustedShims = undefined,
+    _trustedShims = undefined, // eslint-disable-line no-underscore-dangle
   ) => {
     const { statePath, ephemeralStatePath } = config;
 

@@ -1,5 +1,7 @@
 // @ts-check
-// endo run --UNCONFINED fae-factory-setup.js --powers AGENT \
+/* eslint-disable no-await-in-loop */
+/* global process, setTimeout */
+// endo run --UNCONFINED fae-factory-setup.js --powers @agent \
 //   -E PROVIDER_NAME=default -E FACTORY_NAME=fae
 
 import { E } from '@endo/eventual-send';
@@ -62,7 +64,7 @@ export const main = async agent => {
 
   // Write the provider reference into the factory's petstore.
   const factoryPowers = await E(agent).lookup(agentName);
-  await E(factoryPowers).write('llm-provider', providerId);
+  await E(factoryPowers).storeLocator('llm-provider', providerId);
 
   // Launch the fae-factory caplet.
   await E(agent).makeUnconfined('@main', faeFactorySpecifier, {

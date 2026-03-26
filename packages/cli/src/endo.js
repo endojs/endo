@@ -65,69 +65,6 @@ export const main = async rawArgs => {
   program.name('endo').version(packageDescriptor.version);
 
   program
-    .command('install [filePath]')
-    .description('installs a web page (weblet)')
-    .option(...commonOptions.as)
-    .option(
-      '-l,--listen,--port <number>',
-      'Port assignment (required)',
-      (arg, previous) => {
-        if (previous !== undefined) {
-          throw `-l,--listen,--port can only be specified once`;
-        }
-        const port = parseInt(arg, 10);
-        if (Number.isNaN(port) || (port & ~0xffff) !== 0) {
-          throw `-l,--listen,--port flag must be a valid port number, got ${JSON.stringify(
-            arg,
-          )}`;
-        }
-        return port;
-      },
-    )
-    .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
-    .option(
-      '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, @none, @self, or @endo)',
-    )
-    .option(...commonOptions.requiredName)
-    .option('-o,--open', 'Open the new web page immediately (weblet)')
-    .action(async (programPath, cmd) => {
-      const {
-        name: webletName,
-        bundle: bundleName,
-        powers: powersName = '@none',
-        listen: requestedPort,
-        as: agentNames,
-        open: doOpen,
-      } = cmd.opts();
-      if (requestedPort === undefined) {
-        throw 'The -l, --listen, or --port <number> flag is required';
-      }
-      const { install } = await import('./commands/install.js');
-      return install({
-        doOpen,
-        webletName,
-        requestedPort,
-        programPath,
-        bundleName,
-        powersName,
-        agentNames,
-      });
-    });
-
-  program
-    .command('open <name>')
-    .description('opens a web page (weblet)')
-    .option(...commonOptions.as)
-    .action(async (webletName, cmd) => {
-      const { as: agentNames } = cmd.opts();
-      const { open } = await import('./commands/open.js');
-      return open({
-        webletName,
-        agentNames,
-      });
-    });
-  program
     .command('run [<file>] [<args>...]')
     .description('runs a program (runlet)')
     .option(...commonOptions.as)
@@ -844,17 +781,25 @@ export const main = async rawArgs => {
       const verbose = Number(opts.verbose);
       const { status } = await import('@endo/daemon');
       await status(undefined, {
-        verbose: isNaN(verbose) ? 0 : verbose,
+        verbose: Number.isNaN(verbose) ? 0 : verbose,
       });
     });
 
   program
     .command('start')
     .description('start the endo daemon as a background service')
+    .option(
+      '--dry-run',
+      'log what would be don, rather than doing it',
+    )
     .action(async cmd => {
-      const {} = cmd.opts();
+      const {
+        dryRun,
+      } = cmd.opts();
       const { start } = await import('@endo/daemon');
-      await start(undefined, {});
+      await start(undefined, {
+        dryRun,
+      });
     });
 
   program
@@ -869,8 +814,8 @@ export const main = async rawArgs => {
       if (feralErrors) {
         process.env.LOCKDOWN_ERROR_TAMING = 'unsafe';
       }
-      const { main } = await import('@endo/daemon');
-      await main();
+      const { main: daemonMain } = await import('@endo/daemon');
+      await daemonMain();
     });
 
   program

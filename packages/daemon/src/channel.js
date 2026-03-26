@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
@@ -213,7 +214,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         temporaryBanUntil: entry.temporaryBanUntil,
       });
       const formulaId = await persistValue(persistable);
-      await memberStore.write(`member-${entry.memberId}`, formulaId);
+      await memberStore.storeIdentifier(`member-${entry.memberId}`, formulaId);
     };
 
     /**
@@ -274,7 +275,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
 
       // Persist message to store for rehydration on restart
       const formulaId = await persistValue(message);
-      await messageStore.write(`msg-${String(messageNumber)}`, formulaId);
+      await messageStore.storeIdentifier(`msg-${String(messageNumber)}`, formulaId);
 
       messages.push(message);
       messagesTopic.publisher.next(message);
@@ -596,33 +597,32 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
         let lastSnapshotTime = Date.now();
         for await (const event of subscription) {
           // Filter to only ancestor hops
-          if (!ancestorIds.has(event.hopMemberId)) {
-            continue;
-          }
-          yield event;
+          if (ancestorIds.has(event.hopMemberId)) {
+            yield event;
 
-          // Inject periodic snapshots every ~5s
-          const now = Date.now();
-          if (now - lastSnapshotTime > 5000) {
-            lastSnapshotTime = now;
-            // Use buildHopInfo which applies passive cooling
-            const snapInfo = buildHopInfo(entry);
-            const snapChain = getAncestorChain(entry);
-            const configuredHops = snapChain.filter(h => h.heatConfig);
-            for (let si = 0; si < snapInfo.states.length; si += 1) {
-              const snapState = snapInfo.states[si];
-              const hop = configuredHops[si];
-              if (hop) {
-                yield harden({
-                  type: 'snapshot',
-                  hopMemberId: hop.memberId,
-                  heat: snapState.heat,
-                  locked: snapState.locked,
-                  lockEndTime: snapState.locked
-                    ? now + snapState.lockRemaining
-                    : 0,
-                  timestamp: now,
-                });
+            // Inject periodic snapshots every ~5s
+            const now = Date.now();
+            if (now - lastSnapshotTime > 5000) {
+              lastSnapshotTime = now;
+              // Use buildHopInfo which applies passive cooling
+              const snapInfo = buildHopInfo(entry);
+              const snapChain = getAncestorChain(entry);
+              const configuredHops = snapChain.filter(h => h.heatConfig);
+              for (let si = 0; si < snapInfo.states.length; si += 1) {
+                const snapState = snapInfo.states[si];
+                const hop = configuredHops[si];
+                if (hop) {
+                  yield harden({
+                    type: 'snapshot',
+                    hopMemberId: hop.memberId,
+                    heat: snapState.heat,
+                    locked: snapState.locked,
+                    lockEndTime: snapState.locked
+                      ? now + snapState.lockRemaining
+                      : 0,
+                    timestamp: now,
+                  });
+                }
               }
             }
           }
@@ -888,7 +888,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
             if (
               !heatConfig &&
               data.rateLimitPerSecond &&
-              data.rateLimitPerSecond > 0
+              data.rateLimitPerSecond !== 0
             ) {
               heatConfig = harden({
                 burstLimit: 5,
@@ -939,40 +939,39 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       const parentInfo = memberHandleInfo.get(entry.inviterMemberId);
       if (!parentInfo) {
         // Parent not found — skip (orphaned entry)
-        continue;
+      } else {
+        const parentCheckAccess = parentInfo.checkAccess;
+        const parentCheckPostRate = parentInfo.checkPostRate;
+
+        const checkAccess = () => {
+          parentCheckAccess();
+          checkEntryValidity(entry);
+        };
+
+        const checkPostRate = makeHeatCheckPostRate(entry, parentCheckPostRate);
+
+        const attenuator = makeAttenuator(entry);
+        const invitation = makeInvitation(
+          entry,
+          parentCheckAccess,
+          parentCheckPostRate,
+        );
+
+        const rec = { invitation, attenuator, entry };
+        parentInfo.invitations.set(entry.invitedAs, rec);
+
+        const regKey = `${entry.inviterMemberId}:${entry.invitedAs}`;
+        invitationRegistry.set(regKey, rec);
+
+        // Register this member's handle info for potential children
+        /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
+        const childInvitations = new Map();
+        memberHandleInfo.set(entry.memberId, {
+          checkAccess,
+          checkPostRate,
+          invitations: childInvitations,
+        });
       }
-
-      const parentCheckAccess = parentInfo.checkAccess;
-      const parentCheckPostRate = parentInfo.checkPostRate;
-
-      const checkAccess = () => {
-        parentCheckAccess();
-        checkEntryValidity(entry);
-      };
-
-      const checkPostRate = makeHeatCheckPostRate(entry, parentCheckPostRate);
-
-      const attenuator = makeAttenuator(entry);
-      const invitation = makeInvitation(
-        entry,
-        parentCheckAccess,
-        parentCheckPostRate,
-      );
-
-      const rec = { invitation, attenuator, entry };
-      parentInfo.invitations.set(entry.invitedAs, rec);
-
-      const regKey = `${entry.inviterMemberId}:${entry.invitedAs}`;
-      invitationRegistry.set(regKey, rec);
-
-      // Register this member's handle info for potential children
-      /** @type {Map<string, { invitation: object, attenuator: object, entry: MemberEntry }>} */
-      const childInvitations = new Map();
-      memberHandleInfo.set(entry.memberId, {
-        checkAccess,
-        checkPostRate,
-        invitations: childInvitations,
-      });
     }
 
     /** @type {EndoChannel} */
@@ -1116,6 +1115,7 @@ export const makeChannelMaker = ({ provide, persistValue, randomHex256 }) => {
       },
       followHeatEvents: async () => {
         // Admin gets an empty iterator (no hops to monitor)
+        // eslint-disable-next-line no-empty-function, require-yield
         const iterator = (async function* emptyHeatEvents() {})();
         return makeIteratorRef(iterator);
       },

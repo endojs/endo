@@ -49,7 +49,6 @@
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
     "commander": "^5.0.0",
-    "open": "^9.1.0",
     "ses": "workspace:^"
   },
   "devDependencies": {

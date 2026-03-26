@@ -84,6 +84,8 @@ const defaultConfig = {
   ),
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
+  address: process.env.ENDO_ADDR || '127.0.0.1:8920',
+  gcEnabled: process.env.ENDO_GC === '1',
 };
 /** @typedef {typeof defaultConfig} Config */
 
@@ -95,6 +97,8 @@ const configToEnv = config => ({
   ENDO_EPHEMERAL_STATE_PATH: config.ephemeralStatePath,
   ENDO_SOCK_PATH: config.sockPath,
   ENDO_CACHE_PATH: config.cachePath,
+  ENDO_ADDR: config.address,
+  ENDO_GC: config.gcEnabled ? '1' : '',
 });
 
 /**
@@ -108,12 +112,16 @@ const configFromEnv = env => {
       ephemeralStatePath = defaultConfig.ephemeralStatePath,
     ENDO_SOCK_PATH: sockPath = defaultConfig.sockPath,
     ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
+    ENDO_ADDR: address = defaultConfig.address,
+    ENDO_GC: gcEnabledStr,
   } = env;
   return {
     statePath,
     ephemeralStatePath,
     sockPath,
     cachePath,
+    address,
+    gcEnabled: gcEnabledStr === '1',
   };
 };
 
@@ -259,13 +267,12 @@ const waitForMessage = child => {
  */
 export const main = async _args => {
   const config = configFromEnv(process.env);
-  const envOverrides = Object.fromEntries(filterEnv());
 
   // TODO implement option parsing for final env toggle like GC, LOCKDOWN_ERROR_TAMING, etc
 
   const child = process.env.ENDO_BIN
-    ? await runEngo(false, config, envOverrides)
-    : await runEndo(false, config, envOverrides);
+    ? await runEngo(false, config)
+    : await runEndo(false, config);
   process.exit(await waitForExit(child));
 };
 
@@ -275,11 +282,10 @@ export const main = async _args => {
  *
  * @param {boolean} detached - if process should be detached from current stdio
  * @param {Config} config
- * @param {Record<string, string>} [envOverrides]
  * @returns {Promise<popen.ChildProcess>}
  */
-const runEngo = async (detached, config, envOverrides) => {
-  const endoBin = /** @type {string} */ (process.env.ENDO_BIN);
+const runEngo = async (detached, config) => {
+  const endoBin = path.resolve(/** @type {string} */ (process.env.ENDO_BIN));
 
   await fs.promises.mkdir(config.statePath, { recursive: true });
   const logPath = path.join(config.statePath, 'endo.log');
@@ -292,8 +298,9 @@ const runEngo = async (detached, config, envOverrides) => {
   const env = {
     ...configToEnv(config),
     ...Object.fromEntries(filterEnv()),
-    ...envOverrides,
     ENDO_DAEMON_PATH: endoGoDaemonPath,
+    // engo spawns node as a child process and needs PATH to find it.
+    PATH: process.env.PATH || '',
   };
 
   const child = popen.spawn(endoBin, ['daemon'], {
@@ -301,6 +308,7 @@ const runEngo = async (detached, config, envOverrides) => {
     env,
     stdio: detached ? ['ignore', output, output] : 'inherit',
   });
+  await waitForSpawn(child);
 
   // Wait for the socket to accept connections (fast).
   await waitForSocket(config.sockPath);
@@ -320,10 +328,9 @@ const runEngo = async (detached, config, envOverrides) => {
  *
  * @param {boolean} detached - if process should be detached from current stdio
  * @param {Config} config
- * @param {Record<string, string>} [envOverrides]
  * @returns {Promise<popen.ChildProcess>}
  */
-const runEndo = async (detached, config, envOverrides) => {
+const runEndo = async (detached, config) => {
   await fs.promises.mkdir(config.statePath, {
     recursive: true,
   });
@@ -344,7 +351,6 @@ const runEndo = async (detached, config, envOverrides) => {
   const env = {
     ...configToEnv(config),
     ...Object.fromEntries(filterEnv()),
-    ...envOverrides,
   };
 
   const stdio = /** @returns {popen.StdioOptions} */ (() => {
@@ -362,6 +368,8 @@ const runEndo = async (detached, config, envOverrides) => {
     stdio,
   });
 
+  // waitForSpawn is unnecessary here: waitForMessage already listens
+  // for the 'error' event on the child process.
   const message = await waitForMessage(child).catch(cause => {
     throw Error(`Daemon failed to spawn ${cause.message}, see (${logPath})`);
   });
@@ -449,9 +457,9 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
   if (running) {
     console.log('Running Workers:');
     for await (const worker of runningWorkers(config)) {
-      const pid = await worker.pid;
-      if (pid !== null) {
-        console.log(`* id:${worker.id} pid:${pid}`);
+      const workerPid = await worker.pid;
+      if (workerPid !== null) {
+        console.log(`* id:${worker.id} pid:${workerPid}`);
       }
     }
   }
@@ -460,24 +468,34 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
 /**
  * @param {Config} [config]
  * @param {object} [options]
- * @param {Record<string, string>} [options.env] - overrides for process.env
+ * @param {boolean} [options.dryRun] - log what would be done, don't do it
  */
 export const start = async (
   config = defaultConfig,
-  { env: envOverrides = {} } = {},
+  {
+    dryRun = false,
+  } = {},
 ) => {
-  await clean(config);
+  if (dryRun) {
+    console.log(`would clean(${config})`);
+    // TODO pushdown like await clean(config, {dryRun});
+  } else {
+    await clean(config);
+  }
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
 
+  if (dryRun) {
+    console.log(`would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
+    return;
+  }
+
   const child = await (process.env.ENDO_BIN
-    ? runEngo(true, config, envOverrides)
-    : runEndo(true, config, envOverrides));
+    ? runEngo(true, config)
+    : runEndo(true, config));
 
   child.unref();
 };
-
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * @param {object} options
@@ -511,7 +529,9 @@ const runningWorker = ({
         if (Number.isFinite(rawPid) && rawPid > 0) {
           return rawPid;
         }
-      } catch {}
+      } catch {
+        // PID file may not exist or be readable
+      }
       return null;
     })(),
   };
@@ -549,8 +569,7 @@ const killWorkersByPidFiles = async config => {
       (async () => {
         const workerPid = await worker.pid;
         if (workerPid !== null) {
-          for await (const _ of politeEndProcess(workerPid)) {
-          }
+          await politeEndProcess(workerPid);
         }
         await fs.promises
           .rm(worker.pidPath, { force: true })
@@ -608,7 +627,7 @@ const defaultEndProcPolicy = harden([
  * @param {number} [options.pollInterval] - how long to sleep between wait-for-exit checks (within per-step timeout)
  * @param {boolean} [options.verbose=true] - whether to log signals sent
  */
-export async function* politeEndProcess(
+export async function politeEndProcess(
   pid,
   {
     waitBefore,
@@ -631,7 +650,7 @@ export async function* politeEndProcess(
   };
 
   /** @param {number} deadline */
-  async function* waitForExit(deadline) {
+  async function pollUntilExit(deadline) {
     while (Date.now() < deadline) {
       if (!isAlive()) {
         return;
@@ -660,7 +679,8 @@ export async function* politeEndProcess(
         return;
       }
     } else if ('wait' in step) {
-      yield* waitForExit(Date.now() + step.wait);
+      // eslint-disable-next-line no-await-in-loop
+      await pollUntilExit(Date.now() + step.wait);
     } else if ('notify' in step) {
       const { notify } = step;
       const message = `Zombie process ${pid} remains after SIGKILL`;
@@ -695,12 +715,11 @@ const killDaemonProcess = async config => {
   if (pid === 0) {
     return;
   }
-  for await (const _ of politeEndProcess(pid, {
+  await politeEndProcess(pid, {
     // Wait up to 5s for the process to exit on its own
     // (graceful shutdown from a prior terminate() call).
     waitBefore: 5_000,
-  })) {
-  }
+  });
 };
 
 export const clean = async (config = defaultConfig) => {
@@ -724,11 +743,10 @@ export const stop = async (config = defaultConfig) => {
 
 /**
  * @param {typeof defaultConfig} [config]
- * @param {{ env?: Record<string, string>, gcEnabled?: boolean, feralErrors?: boolean }} [options]
  */
-export const restart = async (config = defaultConfig, options = {}) => {
+export const restart = async (config = defaultConfig) => {
   await stop(config);
-  return start(config, options);
+  return start(config);
 };
 
 export const purge = async (config = defaultConfig) => {

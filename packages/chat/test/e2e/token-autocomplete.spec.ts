@@ -7,7 +7,6 @@
  * - Range API for text manipulation in contenteditable
  * - DOM node splitting and insertion
  */
-/* global window */
 // @ts-nocheck - E2E test with browser globals
 
 import { test, expect, type Page } from '@playwright/test';

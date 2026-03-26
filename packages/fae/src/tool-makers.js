@@ -450,6 +450,7 @@ export const makeListPetnamesTool = host => {
     schema() {
       return toolSchema;
     },
+    // eslint-disable-next-line no-underscore-dangle
     async execute(_args) {
       const names = await E(host).list();
       return JSON.stringify(names, null, 2);
@@ -632,7 +633,7 @@ export const makeSendTool = powers => {
           recipient: {
             type: 'string',
             description:
-              'Who to send to (e.g., "HOST", or a petname for an agent).',
+              'Who to send to (e.g., "@host", or a petname for an agent).',
           },
           strings: {
             type: 'array',
@@ -781,6 +782,7 @@ export const makeListMessagesTool = powers => {
     schema() {
       return toolSchema;
     },
+    // eslint-disable-next-line no-underscore-dangle
     async execute(_args) {
       return E(powers).listMessages();
     },

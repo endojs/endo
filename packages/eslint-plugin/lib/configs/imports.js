@@ -1,4 +1,10 @@
 module.exports = {
+  settings: {
+    'import/resolver': {
+      exports: {},
+      node: {},
+    },
+  },
   rules: {
     'import/extensions': ['error', 'always', { ignorePackages: true }],
     'import/no-extraneous-dependencies': [

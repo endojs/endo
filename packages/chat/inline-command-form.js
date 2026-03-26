@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, setTimeout */
 /* eslint-disable no-use-before-define */
 
 /** @import { ERef } from '@endo/far' */
@@ -65,9 +64,6 @@ export const createInlineCommandForm = ({
   let fieldInputsByName = {};
   /** @type {import('./inline-eval.js').InlineEvalAPI | null} */
   let inlineEvalInstance = null;
-  /** @type {import('./token-autocomplete.js').TokenAutocompleteAPI | null} */
-  let tokenComponentInstance = null;
-
   /**
    * Render a single field based on its type.
    * @param {import('./command-registry.js').CommandField} field
@@ -449,19 +445,10 @@ export const createInlineCommandForm = ({
           makeRefIterator,
           powers,
         });
-        tokenComponentInstance = tokenComp;
-
         $msgInput.addEventListener('input', () => {
           const msg = tokenComp.getMessage();
           formData[field.name] = msg;
           updateValidity();
-        });
-
-        // Track disposal
-        autocompleteInstances.push({
-          dispose: () => {
-            tokenComponentInstance = null;
-          },
         });
 
         fieldElements.push(
@@ -800,7 +787,6 @@ export const createInlineCommandForm = ({
       inlineEvalInstance.dispose();
       inlineEvalInstance = null;
     }
-    tokenComponentInstance = null;
   };
 
   return {

@@ -1,4 +1,5 @@
 // @ts-check
+/* global clearInterval, clearTimeout, setInterval, setTimeout */
 import crypto from 'node:crypto';
 import { ed25519 } from '@noble/curves/ed25519';
 import {
@@ -18,7 +19,6 @@ import {
   encodeAuthFail,
   encodeIncoming,
   encodeOpened,
-  encodeOpenFailed,
   encodeData,
   encodeClose as encodeCloseFrame,
   encodePeerGone,
@@ -107,6 +107,7 @@ export const makeRelay = domain => {
       const bk = makeBridgeKey(ws, ch);
       const bridge = bridges.get(bk);
       if (bridge) {
+        // eslint-disable-next-line @endo/restrict-comparison-operands
         const other = bridge.a.ws === ws ? bridge.b : bridge.a;
         sendBinary(other.ws, encodePeerGone(other.chId));
         const otherConn = connections.get(other.ws);
@@ -272,6 +273,7 @@ export const makeRelay = domain => {
         const bk = makeBridgeKey(ws, channelId);
         const bridge = bridges.get(bk);
         if (bridge) {
+          // eslint-disable-next-line @endo/restrict-comparison-operands
           const other =
             bridge.a.ws === ws && bridge.a.chId === channelId
               ? bridge.b
@@ -286,6 +288,7 @@ export const makeRelay = domain => {
         const bk = makeBridgeKey(ws, channelId);
         const bridge = bridges.get(bk);
         if (bridge) {
+          // eslint-disable-next-line @endo/restrict-comparison-operands
           const other =
             bridge.a.ws === ws && bridge.a.chId === channelId
               ? bridge.b

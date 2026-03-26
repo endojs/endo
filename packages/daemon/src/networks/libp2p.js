@@ -1,4 +1,5 @@
 // @ts-check
+/* global clearInterval, globalThis, setInterval, setTimeout */
 
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
@@ -171,10 +172,10 @@ const formatErrorChain = error => {
     if (cursor instanceof Error) {
       parts.push(`${cursor.name}: ${cursor.message}`);
       cursor = cursor.cause;
-      continue;
+    } else {
+      parts.push(String(cursor));
+      break;
     }
-    parts.push(String(cursor));
-    break;
   }
   return parts.join(' <- ');
 };

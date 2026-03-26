@@ -1,5 +1,4 @@
 // @ts-check
-/* global document, setTimeout */
 
 import harden from '@endo/harden';
 
@@ -65,10 +64,11 @@ export const createProfilePopup = $container => {
 
     const pedigreeHtml =
       pedigree.length > 0
-        ? pedigree
+        ? `${pedigree
             .map(renderPedigreeName)
-            .join(' <span class="pedigree-arrow">\u2192</span> ') +
-          ` <span class="pedigree-arrow">\u2192</span> <span class="pedigree-name pedigree-self">\u201C${proposedName}\u201D</span>`
+            .join(
+              ' <span class="pedigree-arrow">\u2192</span> ',
+            )} <span class="pedigree-arrow">\u2192</span> <span class="pedigree-name pedigree-self">\u201C${proposedName}\u201D</span>`
         : '<span class="pedigree-creator">Channel Creator</span>';
 
     $container.innerHTML = `

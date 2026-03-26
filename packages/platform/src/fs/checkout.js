@@ -1,4 +1,5 @@
 // @ts-check
+/* eslint-disable no-await-in-loop */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
@@ -30,6 +31,7 @@ export const checkoutTree = async (tree, writer, options = {}) => {
       const childPath = [...pathSegments, name];
       // Use __getMethodNames__ to detect the node type without calling
       // a method that may not exist (which causes CapTP error logging).
+      // eslint-disable-next-line no-underscore-dangle
       const methods = await E(child).__getMethodNames__();
       const isTree = methods.includes('list');
       if (isTree) {

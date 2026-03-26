@@ -1,5 +1,4 @@
 // @ts-check
-/* global navigator */
 
 /**
  * Platform-specific keyboard modifier symbols.

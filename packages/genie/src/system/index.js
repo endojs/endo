@@ -126,11 +126,12 @@ function* breakBetween(brk, ...sections) {
   for (const section of sections) {
     const lines = section[Symbol.iterator]();
     const first = lines.next();
-    if (first.done) continue;
-    if (some) yield brk;
-    else some = true;
-    yield first.value;
-    for (const line in lines) yield line;
+    if (!first.done) {
+      if (some) yield brk;
+      else some = true;
+      yield first.value;
+      for (const line of lines) yield line;
+    }
   }
 }
 
@@ -214,8 +215,10 @@ function* tools(toolList) {
   yield* demarcatedSection(2, 'Tools', [
     'Available tools:',
     ...toolList.map(({ name, summary }) => `- ${name}: ${summary}`),
-    '',
-    '## Tool Call Style',
+  ]);
+
+  yield '';
+  yield* demarcatedSection(2, 'Tool Call Style', [
     'Default: do not narrate routine, low-risk tool calls (just call the tool).',
     'Narrate only when it helps: multi-step work, complex problems, sensitive actions ' +
       '(e.g., deletions), or when the user explicitly asks.',
@@ -274,7 +277,7 @@ function* memory(toolList) {
       'Sessions are auto-saved to memory/ when starting a new session.',
   ]);
 
-  if (toolList.some(({ name }) => name == 'memory_search')) {
+  if (toolList.some(({ name }) => name === 'memory_search')) {
     yield '';
     yield* demarcatedSection(2, 'Memory Recall', [
       'Before answering questions about prior work, decisions, dates, people, preferences, ' +
@@ -282,7 +285,7 @@ function* memory(toolList) {
       'If low confidence after search, say you checked but found no relevant notes.',
     ]);
 
-    if (toolList.some(({ name }) => name == 'memory_get')) {
+    if (toolList.some(({ name }) => name === 'memory_get')) {
       yield '';
       yield 'Then use memory_get to pull only the needed lines and keep context small.';
     }

@@ -1,27 +1,19 @@
 // @ts-check
-/* global Buffer, process */
+/* global process */
 
 // Establish a perimeter:
+// eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
 import test from 'ava';
 import url from 'url';
 import path from 'path';
 import fs from 'fs';
-import http from 'http';
 
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makePipe, mapWriter, mapReader } from '@endo/stream';
-
-import * as ws from 'ws';
 
 import { start, stop, purge, makeEndoClient } from '../index.js';
-import {
-  makeMessageCapTP,
-  messageToBytes,
-  bytesToMessage,
-} from '../src/connection.js';
 
 const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
@@ -38,6 +30,7 @@ const makeConfig = (...root) => {
       process.platform === 'win32'
         ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
         : path.join(dirname, ...root, 'endo.sock'),
+    address: '127.0.0.1:0',
     pets: new Map(),
     values: new Map(),
   };
@@ -77,9 +70,6 @@ const prepareConfig = async t => {
     getConfigDirectoryName(t.title, t.context.length),
   );
 
-  // Set port to 0 so the OS assigns a free port.
-  process.env.ENDO_ADDR = '127.0.0.1:0';
-
   await purge(config);
   await start(config);
 
@@ -109,43 +99,11 @@ const prepareHost = async t => {
   return { cancel, cancelled, config, host };
 };
 
-/**
- * Make an HTTP GET request.
- * @param {string} urlStr
- * @param {Record<string, string>} [headers]
- * @returns {Promise<{ status: number, body: string }>}
- */
-const httpGet = (urlStr, headers = {}) =>
-  new Promise((resolve, reject) => {
-    const reqUrl = new URL(urlStr);
-    const req = http.get(
-      {
-        hostname: reqUrl.hostname,
-        port: reqUrl.port,
-        path: reqUrl.pathname + reqUrl.search,
-        headers,
-      },
-      res => {
-        /** @type {Buffer[]} */
-        const chunks = [];
-        res.on('data', chunk => chunks.push(chunk));
-        res.on('end', () => {
-          resolve({
-            status: /** @type {number} */ (res.statusCode),
-            body: Buffer.concat(chunks).toString('utf-8'),
-          });
-        });
-      },
-    );
-    req.on('error', reject);
-  });
-
 test.beforeEach(t => {
   t.context = [];
 });
 
 test.afterEach.always(async t => {
-  delete process.env.ENDO_ADDR;
   delete process.env.ENDO_GATEWAY;
   delete process.env.ENDO_GATEWAY_ALLOWED_CIDRS;
   await Promise.allSettled(
@@ -161,353 +119,6 @@ test.afterEach.always(async t => {
 // Tests are serial because each forks a full daemon process (SES lockdown,
 // CapTP, HTTP server). Running them concurrently in a single ava worker
 // causes resource contention that leads to timeouts.
-
-test.serial('gateway HTTP returns info page', async t => {
-  const { host } = await prepareHost(t);
-
-  const apps = E(host).lookup('@apps');
-  const address = await E(apps).getAddress();
-  t.is(typeof address, 'string');
-  t.regex(address, /^http:\/\//);
-
-  const { status, body } = await httpGet(`${address}/`);
-  t.is(status, 200);
-  t.is(body, 'Endo Gateway');
-});
-
-test.serial('gateway WebSocket fetch(token)', async t => {
-  const { host } = await prepareHost(t);
-
-  // Store a value and get its formula identifier.
-  await E(host).evaluate('@main', '42', [], [], ['answer']);
-  const formulaId = await E(host).identify('answer');
-  t.truthy(formulaId);
-
-  // Discover the gateway address.
-  const apps = E(host).lookup('@apps');
-  const address = await E(apps).getAddress();
-
-  // Connect WebSocket.
-  const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
-  await new Promise((resolve, reject) => {
-    socket.on('open', resolve);
-    socket.on('error', reject);
-  });
-
-  t.teardown(() => socket.close());
-
-  const [reader, sink] = makePipe();
-
-  socket.on(
-    'message',
-    (/** @type {Uint8Array} */ bytes, /** @type {boolean} */ isBinary) => {
-      if (isBinary) {
-        sink.next(bytes);
-      }
-    },
-  );
-  socket.on('close', () => {
-    sink.return(undefined);
-  });
-
-  const writer = harden({
-    /** @param {Uint8Array} bytes */
-    async next(bytes) {
-      socket.send(bytes, { binary: true });
-      return harden({ done: false, value: undefined });
-    },
-    async return() {
-      socket.close();
-      return harden({ done: true, value: undefined });
-    },
-    /** @param {Error} error */
-    async throw(error) {
-      socket.close();
-      return harden({ done: true, value: error });
-    },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-  });
-
-  const messageWriter = mapWriter(writer, messageToBytes);
-  const messageReader = mapReader(reader, bytesToMessage);
-
-  const { promise: cancelled, reject: cancelCapTP } = makePromiseKit();
-  t.teardown(() => cancelCapTP(Error('test done')));
-
-  const { getBootstrap } = makeMessageCapTP(
-    'Test',
-    messageWriter,
-    messageReader,
-    cancelled,
-    undefined,
-  );
-
-  const bootstrap = getBootstrap();
-  const result = await E(bootstrap).fetch(/** @type {string} */ (formulaId));
-  t.is(result, 42);
-});
-
-test.serial(
-  'gateway: channel invite returns iterable [attenuator, proxy] via WebSocket',
-  async t => {
-    const { host } = await prepareHost(t);
-
-    // 1. Create a channel and get its formula ID
-    await E(host).makeChannel('gw-channel', 'Alice');
-    const channelFormulaId = await E(host).identify('gw-channel');
-    t.truthy(channelFormulaId);
-
-    // 2. Connect to the gateway via WebSocket (like the Electron chat UI does)
-    const apps = E(host).lookup('@apps');
-    const address = await E(apps).getAddress();
-
-    const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
-    await new Promise((resolve, reject) => {
-      socket.on('open', resolve);
-      socket.on('error', reject);
-    });
-    t.teardown(() => socket.close());
-
-    const [gwReader, gwSink] = makePipe();
-    socket.on(
-      'message',
-      (/** @type {Uint8Array} */ bytes, /** @type {boolean} */ isBinary) => {
-        if (isBinary) {
-          gwSink.next(bytes);
-        }
-      },
-    );
-    socket.on('close', () => {
-      gwSink.return(undefined);
-    });
-
-    const gwWriter = harden({
-      /** @param {Uint8Array} bytes */
-      async next(bytes) {
-        socket.send(bytes, { binary: true });
-        return harden({ done: false, value: undefined });
-      },
-      async return() {
-        socket.close();
-        return harden({ done: true, value: undefined });
-      },
-      /** @param {Error} error */
-      async throw(error) {
-        socket.close();
-        return harden({ done: true, value: error });
-      },
-      [Symbol.asyncIterator]() {
-        return this;
-      },
-    });
-
-    const gwMessageWriter = mapWriter(gwWriter, messageToBytes);
-    const gwMessageReader = mapReader(gwReader, bytesToMessage);
-
-    const { promise: gwCancelled, reject: cancelGwCapTP } = makePromiseKit();
-    t.teardown(() => cancelGwCapTP(Error('test done')));
-
-    const { getBootstrap: getGwBootstrap } = makeMessageCapTP(
-      'TestGw',
-      gwMessageWriter,
-      gwMessageReader,
-      gwCancelled,
-      undefined,
-    );
-
-    const gwBootstrap = getGwBootstrap();
-
-    // 3. Fetch the channel through the gateway (like the chat UI does)
-    const channel = await E(gwBootstrap).fetch(
-      /** @type {string} */ (channelFormulaId),
-    );
-    t.truthy(channel, 'channel should be fetchable through gateway');
-
-    // 4. Call createInvitation() — this is the exact path that triggers the UI error
-    //    The result crosses TWO CapTP boundaries: daemon→gateway→test
-    const inviteResult = await E(channel).createInvitation('Bob');
-
-    // 5. Verify the result is an iterable array
-    t.true(
-      Array.isArray(inviteResult),
-      'createInvitation result should be an Array (not a non-iterable object)',
-    );
-    t.is(
-      inviteResult.length,
-      2,
-      'createInvitation result should be [invitation, attenuator]',
-    );
-
-    // 6. Destructure and verify (this is what channel-header.js does)
-    const [invitation, attenuator] = inviteResult;
-    t.truthy(invitation, 'invitation should exist');
-    t.truthy(attenuator, 'attenuator should exist');
-
-    // 7. Join via the invitation and use the handle
-    const proxy = await E(invitation).join('Bob');
-    const bobName = await E(proxy).getProposedName();
-    t.is(bobName, 'Bob');
-
-    await E(proxy).post(['Hello from gateway Bob'], [], []);
-
-    // 8. Verify attenuator works through gateway
-    await E(attenuator).setInvitationValidity(false);
-    await t.throwsAsync(() => E(proxy).post(['Should fail'], [], []), {
-      message: /disabled/,
-    });
-  },
-);
-
-test.serial('weblet on unified server', async t => {
-  const { host } = await prepareHost(t);
-
-  // Discover the gateway address.
-  const apps = E(host).lookup('@apps');
-  const address = await E(apps).getAddress();
-
-  // Create a weblet on the unified server (no dedicated port).
-  // makeWeblet(bundle, powers, requestedPort, webletId, webletCancelled)
-  // The webletId must be >= 32 chars; the first 32 chars become the access token.
-  const webletId = 'abcdef01234567890abcdef012345678extra';
-  const accessToken = webletId.slice(0, 32);
-  const { promise: webletCancelled, reject: cancelWeblet } = makePromiseKit();
-  t.teardown(() => cancelWeblet(Error('test done')));
-
-  const weblet = E(apps).makeWeblet(
-    undefined,
-    undefined,
-    undefined,
-    webletId,
-    webletCancelled,
-  );
-
-  const location = await E(weblet).getLocation();
-  t.true(location.startsWith('localhttp://'));
-  t.true(location.includes(accessToken));
-
-  // HTTP GET with Host header set to the access token.
-  const { status, body } = await httpGet(`${address}/`, {
-    Host: accessToken,
-  });
-  t.is(status, 200);
-  t.true(body.includes('<body>'));
-
-  // HTTP GET for bootstrap.js.
-  const { status: jsStatus, body: jsBody } = await httpGet(
-    `${address}/bootstrap.js`,
-    { Host: accessToken },
-  );
-  t.is(jsStatus, 200);
-  t.true(jsBody.length > 0);
-});
-
-test.serial('weblet on dedicated port', async t => {
-  const { host } = await prepareHost(t);
-
-  const apps = E(host).lookup('@apps');
-
-  // Create a weblet with a dedicated port (port 0 = OS-assigned).
-  const webletId = 'fedcba98765432100fedcba987654321extra';
-  const accessToken = webletId.slice(0, 32);
-  const { promise: webletCancelled, reject: cancelWeblet } = makePromiseKit();
-  t.teardown(() => cancelWeblet(Error('test done')));
-
-  const weblet = E(apps).makeWeblet(
-    undefined,
-    undefined,
-    0,
-    webletId,
-    webletCancelled,
-  );
-
-  const location = await E(weblet).getLocation();
-  // Dedicated-port weblets use http://127.0.0.1:PORT/TOKEN/ format.
-  t.regex(location, /^http:\/\/127\.0\.0\.1:\d+\//);
-  t.true(location.includes(accessToken));
-
-  // HTTP GET to the weblet location.
-  const { status, body } = await httpGet(location);
-  t.is(status, 200);
-  t.true(body.includes('<body>'));
-
-  // HTTP GET for bootstrap.js via the dedicated port.
-  const bsUrl = location.replace(/\/$/, '/bootstrap.js');
-  const { status: jsStatus, body: jsBody } = await httpGet(bsUrl);
-  t.is(jsStatus, 200);
-  t.true(jsBody.length > 0);
-});
-
-test.serial('gateway allows connection when ENDO_GATEWAY=remote', async t => {
-  process.env.ENDO_GATEWAY = 'remote';
-  const { host } = await prepareHost(t);
-
-  await E(host).evaluate('@main', '99', [], [], ['val']);
-  const formulaId = await E(host).identify('val');
-  t.truthy(formulaId);
-
-  const apps = E(host).lookup('@apps');
-  const address = await E(apps).getAddress();
-
-  const socket = new ws.WebSocket(`${address.replace(/^http/, 'ws')}/`);
-  await new Promise((resolve, reject) => {
-    socket.on('open', resolve);
-    socket.on('error', reject);
-  });
-  t.teardown(() => socket.close());
-
-  const [reader, sink] = makePipe();
-  socket.on(
-    'message',
-    (/** @type {Uint8Array} */ bytes, /** @type {boolean} */ isBinary) => {
-      if (isBinary) {
-        sink.next(bytes);
-      }
-    },
-  );
-  socket.on('close', () => {
-    sink.return(undefined);
-  });
-
-  const writer = harden({
-    /** @param {Uint8Array} bytes */
-    async next(bytes) {
-      socket.send(bytes, { binary: true });
-      return harden({ done: false, value: undefined });
-    },
-    async return() {
-      socket.close();
-      return harden({ done: true, value: undefined });
-    },
-    /** @param {Error} error */
-    async throw(error) {
-      socket.close();
-      return harden({ done: true, value: error });
-    },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-  });
-
-  const messageWriter = mapWriter(writer, messageToBytes);
-  const messageReader = mapReader(reader, bytesToMessage);
-
-  const { promise: cancelled, reject: cancelCapTP } = makePromiseKit();
-  t.teardown(() => cancelCapTP(Error('test done')));
-
-  const { getBootstrap } = makeMessageCapTP(
-    'Test',
-    messageWriter,
-    messageReader,
-    cancelled,
-    undefined,
-  );
-
-  const bootstrap = getBootstrap();
-  const result = await E(bootstrap).fetch(/** @type {string} */ (formulaId));
-  t.is(result, 99);
-});
 
 test.serial('daemon writes root file matching @agent identifier', async t => {
   const { config, host } = await prepareHost(t);

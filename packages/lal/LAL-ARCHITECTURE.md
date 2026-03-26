@@ -3,8 +3,7 @@
 Reference document covering the architecture, message flow, and agent loop of
 `@endo/lal` — an LLM-powered agent plugin for the Endo daemon with Guest
 capabilities. Lal runs as an unconfined caplet inside the Endo daemon, where
-it processes messages using tool calls and can propose code evaluation to its
-HOST for approval.
+it processes messages using tool calls and can evaluate code directly.
 
 ---
 
@@ -12,26 +11,23 @@ HOST for approval.
 
 Lal follows an **event-driven, capability-oriented architecture** inside the
 Endo daemon. All communication happens through the daemon's message-passing
-(mail) system, with an additional eval-proposal mechanism for code execution.
+(mail) system. Code evaluation executes directly via `Guest.evaluate`.
 
 ```
-┌───────────────────────────────────────────────────────┐
-│                     Endo Daemon                       │
-│                                                       │
-│  ┌──────────┐     mail      ┌───────────────────┐    │
-│  │   HOST   │◀─────────────▶│    Lal Agent      │    │
-│  │ (human)  │               │  (guest caplet)   │    │
-│  └─────┬────┘               └────────┬──────────┘    │
-│        │                             │                │
-│        │  eval-proposal              │                │
-│        │  grant / reject             │                │
-│        │  counter-proposal           │                │
-│        ▼                    ┌────────▼──────────┐    │
-│  ┌──────────┐               │   LLM Provider    │    │
-│  │  Other   │               │ (Ollama/Anthropic/ │    │
-│  │  Agents  │               │  llama.cpp)        │    │
-│  └──────────┘               └───────────────────┘    │
-└───────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                     Endo Daemon                     │
+│                                                     │
+│  ┌──────────┐     mail      ┌────────────────────┐  │
+│  │   HOST   │◀─────────────▶│    Lal Agent       │  │
+│  │ (human)  │               │  (guest caplet)    │  │
+│  └─────┬────┘               └────────┬───────────┘  │
+│        │                             │              │
+│        │                    ┌────────▼───────────┐  │
+│  ┌──────────┐               │   LLM Provider     │  │
+│  │  Other   │               │ (Ollama/Anthropic/ │  │
+│  │  Agents  │               │  llama.cpp)        │  │
+│  └──────────┘               └────────────────────┘  │
+└─────────────────────────────────────────────────────┘
 ```
 
 ### Core Principles
@@ -41,9 +37,8 @@ Endo daemon. All communication happens through the daemon's message-passing
    `GuestPowers` API.
 2. **Static tool set.** Tools are defined as hardcoded OpenAI-format schemas
    backed by a `switch` dispatch. No dynamic tool discovery.
-3. **Eval-proposal workflow.** Code evaluation is mediated — Lal proposes code
-   to its HOST, who can grant, reject, or counter-propose. Lal never executes
-   code directly.
+3. **Direct code evaluation.** `Guest.evaluate` executes code directly and
+   returns the result. No proposal/grant workflow is needed.
 4. **SmallCaps encoding.** Tool arguments are decoded from SmallCaps format
    (Endo's extended JSON encoding for BigInt, undefined, etc.).
 5. **Hardened JavaScript (SES).** All objects are hardened. The agent runs
@@ -94,7 +89,6 @@ make()
   │
   ├─ createProvider(env)              # LLM provider from env vars
   ├─ Initialize transcript with system prompt
-  ├─ Initialize eval-proposal tracking (pendingProposals, notificationQueue)
   ├─ E(powers).send('HOST', [...])    # "Lal agent ready."
   ├─ E(powers).identify('SELF')      # Get own formula ID
   └─ runAgent()                       # Enter message-following loop
@@ -109,11 +103,7 @@ while (true):
     ├─ Race against cancellation signal
     ├─ Skip own messages (fromId === selfId)
     │
-    ├─ Check message type:
-    │   ├─ 'eval-proposal-reviewer' or 'eval-proposal-proposer'
-    │   │   └─ Format as counter-proposal notification → transcript
-    │   └─ Other (package, request)
-    │       └─ Push "You have new mail" → transcript
+    ├─ Push "You have new mail" → transcript
     │
     └─ runAgenticLoop()
         └─ (see iteration loop below)
@@ -130,14 +120,10 @@ cleanly returned.
 ### The Iteration Loop: `runAgenticLoop()`
 
 This is the ReAct-style loop where the LLM alternates between reasoning
-and tool use. Lal's version has additional complexity for eval-proposal
-tracking.
+and tool use.
 
 ```python
 while continueLoop:
-    # Inject pending proposal notifications
-    processNotifications()
-
     response = await chat(transcript)
 
     # Extract embedded tool calls if model used XML format
@@ -151,19 +137,7 @@ while continueLoop:
     if toolCalls.length > 0:
         toolResults = await processToolCalls(toolCalls)
         transcript.push(...toolResults)
-
-        # Continue if notifications arrived during tool execution
-        if notificationQueue.length > 0:
-            continue
     else:
-        # No tool calls — but check for pending work
-        if notificationQueue.length > 0:
-            continue                    # Process notifications
-
-        if pendingProposals.size > 0:
-            await Promise.race(...)     # Wait for any proposal to settle
-            continue                    # Process the notification
-
         continueLoop = false            # Really done
 ```
 
@@ -172,12 +146,8 @@ Key behaviors:
 - **Tool call extraction.** Some models embed tool calls as
   `<tool_call>JSON</tool_call>` in content. `extractToolCallsFromContent()`
   parses these and strips `<think>…</think>` blocks.
-- **Proposal waiting.** When the LLM has no more tool calls but proposals are
-  pending, the loop blocks on `Promise.race()` until at least one proposal
-  settles, then continues to process the notification.
-- **Notification injection.** Before each LLM call, pending proposal
-  notifications (granted/rejected) are formatted as user messages and pushed
-  onto the transcript.
+- **Direct evaluation.** The `evaluate` tool executes code directly and
+  returns the result synchronously within the tool-call round-trip.
 - **No max-iteration guard.** The loop relies on the LLM to stop calling tools
   (no hard cap on iterations).
 
@@ -208,7 +178,7 @@ const executeTool = async (name, args) => {
     case 'help':     return E(powers).help(args.methodName);
     case 'list':     return E(powers).list(...args.petNamePath);
     case 'lookup':   return E(powers).lookup(args.petNameOrPath);
-    case 'evaluate': /* proposal tracking logic */
+    case 'evaluate': /* direct code execution */
     // ...
     default: throw new Error(`Unknown tool: ${name}`);
   }
@@ -236,7 +206,7 @@ const executeTool = async (name, args) => {
 | | `reject` | Decline a request |
 | **Identity** | `identify` | Get the formula ID for a petname |
 | **Inspection** | `inspectCapability` | Call `help()` on a capability |
-| **Evaluation** | `evaluate` | Propose code to HOST for approval |
+| **Evaluation** | `evaluate` | Evaluate code directly |
 
 ### SmallCaps Decoding
 
@@ -258,69 +228,20 @@ This handles Endo-specific types:
 
 ---
 
-## Eval-Proposal System
+## Code Evaluation
 
-Lal's most distinctive feature is the eval-proposal workflow — a mediated
-code execution model where the HOST must approve all code before it runs.
-
-### Proposal Flow
+`Guest.evaluate` executes code directly and returns the result. There is no
+proposal/grant workflow — the `evaluate` tool call blocks until the code
+finishes and the result is stored under `resultName`.
 
 ```
-Lal                          HOST
- │                             │
- ├─ evaluate(source, ...)      │
- │   └─ E(powers).evaluate()  │
- │      ──────────────────────▶│
- │                             ├─ Review code
- │                             │
- │   ┌─── GRANT ──────────────┤  Code executes, result returned
- │   │                         │
- │   ├─── REJECT ─────────────┤  Error returned
- │   │                         │
- │   └─── COUNTER-PROPOSAL ───┤  Modified code sent back
- │                             │
- ├─ Notification injected      │
- │   into transcript           │
- └─ LLM decides next action   │
+Lal
+ │
+ ├─ evaluate(source, ...)
+ │   └─ E(powers).evaluate()  →  code executes  →  result returned
+ │
+ └─ LLM receives result in tool response
 ```
-
-### Proposal Tracking
-
-```javascript
-const pendingProposals = new Map();   // proposalId → PendingProposal
-const notificationQueue = [];         // ProposalNotification[]
-```
-
-When `evaluate` is called:
-1. `E(powers).evaluate()` sends the proposal to HOST
-2. A `PendingProposal` is stored with the returned promise
-3. The promise's `.then()` handler pushes a notification when it settles
-4. The tool returns immediately with `{ status: 'pending', proposalId }`
-5. The iteration loop detects the pending proposal and waits
-
-### Notification Format
-
-Granted:
-```
-"Your eval-proposal #1 was GRANTED by the HOST.
-Source: E(counter).increment()
-Result: 42
-The code was executed successfully..."
-```
-
-Rejected:
-```
-"Your eval-proposal #1 was REJECTED by the HOST.
-Source: E(counter).increment()
-Reason: Counter does not exist
-The HOST declined to execute your proposed code..."
-```
-
-### Counter-Proposals
-
-When the HOST sends a counter-proposal (an `eval-proposal-reviewer` message),
-it appears as a special message type in the inbox. The message-following loop
-formats it with the modified code and instructions for the LLM to review.
 
 ---
 
@@ -340,12 +261,8 @@ Lal uses a large, static system prompt defined inline in `agent.js`:
 ├──────────────────────────────────────┤
 │ 4. Tool Reference                    │  All 16 tools with usage notes
 ├──────────────────────────────────────┤
-│ 5. Code Evaluation Guide             │  Proposal workflow, globals
+│ 5. Code Evaluation Guide             │  Direct evaluation, globals
 │                                      │  (E, M, makeExo), examples
-├──────────────────────────────────────┤
-│ 6. Proposal Response Protocol        │  GRANTED → lookup + send
-│                                      │  REJECTED → explain + ask
-│                                      │  COUNTER → review + decide
 ├──────────────────────────────────────┤
 │ 7. Message Format for send()         │  Interleaved strings + edge names
 ├──────────────────────────────────────┤
@@ -392,7 +309,7 @@ Messages arrive as `InboxMessage` (alias for `StampedMessage`) objects with:
 |-------|-------------|
 | `from` | Formula ID of the sender |
 | `number` | Message sequence number (BigInt) |
-| `type` | `"package"`, `"request"`, `"eval-proposal-reviewer"`, etc. |
+| `type` | `"package"`, `"request"`, etc. |
 | `strings` | Text parts (for package messages) |
 | `names` | Edge names for attached capabilities |
 
@@ -524,8 +441,6 @@ so it can be read on re-incarnation without needing `process.env`.
   `LAL_AUTH_TOKEN`.
 - **SmallCaps decode errors.** If tool arguments fail to decode, an empty
   `{}` is used as fallback.
-- **Proposal errors.** Rejected proposals push a notification with the error
-  message. The LLM receives instructions to inform the original requester.
 
 ---
 
@@ -542,8 +457,6 @@ defines all the core types:
 | `ChatMessage` | Message in the transcript |
 | `ToolResult` | Tool execution result |
 | `ToolCallArgs` | Union of all possible tool arguments |
-| `PendingProposal` | Tracked in-flight eval-proposal |
-| `ProposalNotification` | Granted/rejected notification |
 | `LalEnv` | Environment variable configuration |
 | `LalContext` | Cancellation support context |
 
@@ -565,18 +478,11 @@ A complete request lifecycle:
    c. chat(transcript) → LLM calls evaluate(source: "E(counter).increment()",
       codeNames: ["counter"], edgeNames: ["my-counter"],
       resultName: "increment-result")
-   d. E(powers).evaluate(...) → proposal sent to HOST
-   e. Tool returns { status: 'pending', proposalId: 1 }
-   f. chat(transcript) → LLM has no more tool calls
-   g. Loop detects pendingProposals.size > 0
-   h. await Promise.race([...pendingPromises])
-      ... HOST reviews and grants the proposal ...
-   i. Notification: { status: 'granted', result: 42 }
-   j. processNotifications() → push user message to transcript
-   k. chat(transcript) → LLM calls lookup("increment-result")
-   l. chat(transcript) → LLM calls send("HOST", ["The counter is now 42"], [], [])
-   m. chat(transcript) → LLM calls dismiss("+5")
-   n. chat(transcript) → LLM returns no tool calls
-   o. Loop exits
+   d. E(powers).evaluate(...) → code executes, result returned
+   e. chat(transcript) → LLM calls lookup("increment-result")
+   f. chat(transcript) → LLM calls send("HOST", ["The counter is now 42"], [], [])
+   g. chat(transcript) → LLM calls dismiss("+5")
+   h. chat(transcript) → LLM returns no tool calls
+   i. Loop exits
 7. runAgent() waits for next message
 ```

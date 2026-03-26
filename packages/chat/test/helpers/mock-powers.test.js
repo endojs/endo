@@ -1,5 +1,4 @@
 // @ts-nocheck - Test file using mock powers
-/* global setTimeout */
 
 import '@endo/init/debug.js';
 
@@ -29,7 +28,7 @@ test('mock powers lookup returns value', async t => {
 });
 
 test('mock powers lookup with path', async t => {
-  const values = new Map([['dir.subdir.name', 'nested-value']]);
+  const values = new Map([['dir/subdir/name', 'nested-value']]);
   const { powers } = makeMockPowers({ values });
 
   const result = await E(powers).lookup('dir', 'subdir', 'name');
