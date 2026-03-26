@@ -39,14 +39,9 @@ const testContainerHasSplit = test.macro((t, config) => {
 
   const passStyle = passStyleOf(specimen);
   const { expectAccepted, expectRejected } = config;
-  const [accepted, rejected] = containerHasSplit(
-    specimen,
-    pattern,
-    bound,
-    Fail,
-    true,
-    true,
-  );
+  const split = containerHasSplit(specimen, pattern, bound, Fail, true, true);
+  assert(split);
+  const [accepted, rejected] = split;
   t.deepEqual(accepted, expectAccepted, 'get both results: accepted');
   t.deepEqual(rejected, expectRejected, 'get both results: rejected');
   t.is(
