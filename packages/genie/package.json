@@ -16,6 +16,7 @@
   },
   "type": "module",
   "exports": {
+    ".": "./src/index.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -30,7 +31,6 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
-    "@endo/lal": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/promise-kit": "workspace:^"
