@@ -59,7 +59,6 @@ import type {
   RawGuard,
   SyncValueGuard,
 } from '../types.js';
-import type { MatchHelper, PatternKit } from './types.js';
 
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
 import {
@@ -84,6 +83,53 @@ const { ownKeys } = Reflect;
 const patternMemo = new WeakSet<Pattern & object>();
 
 type Container = CopyArray | CopySet | CopyBag;
+
+type MatchHelper<P extends Passable = Passable> = {
+  confirmIsWellFormed: (allegedPayload: Passable, reject: Rejector) => boolean;
+  confirmMatches: (
+    specimen: Passable,
+    matcherPayload: P,
+    reject: Rejector,
+  ) => boolean;
+  // Not `GetRankCover` because that types payload as `Passable`, which
+  // prevents helpers from destructuring their specific payload type `P`.
+  getRankCover: (payload: P, encodePassable: KeyToDBKey) => ReturnType<GetRankCover>;
+};
+
+type PatternKit = {
+  confirmMatches: (
+    specimen: any,
+    patt: Pattern,
+    reject: Rejector,
+    label?: string | number,
+  ) => boolean;
+  confirmLabeledMatches: (
+    specimen: any,
+    patt: Pattern,
+    prefix: string | number,
+    reject: Rejector,
+  ) => boolean;
+  matches: (specimen: any, patt: Pattern) => boolean;
+  mustMatch: (specimen: any, patt: Pattern, label?: string | number) => void;
+  assertPattern: (patt: Pattern) => void;
+  isPattern: (patt: any) => boolean;
+  getRankCover: GetRankCover;
+  M: MatcherNamespace;
+  kindOf: (specimen: Passable) => Kind | undefined;
+  containerHasSplit: (
+    specimen: Passable,
+    elementPatt: Pattern,
+    bound: bigint,
+    reject: Rejector,
+    needInResults?: boolean,
+    needOutResults?: boolean,
+  ) =>
+    | [
+        matches: CopyArray | CopySet | CopyBag | undefined,
+        discards: CopyArray | CopySet | CopyBag | undefined,
+      ]
+    | false;
+};
 
 // /////////////////////// Match Helpers Helpers /////////////////////////////
 
