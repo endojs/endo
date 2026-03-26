@@ -49,7 +49,7 @@ export type MatchHelper<P extends Passable = Passable> = {
 export type PatternKit = {
   confirmMatches: (
     specimen: any,
-    patt: Passable,
+    patt: Pattern,
     reject: Rejector,
     label?: string | number,
   ) => boolean;

@@ -924,7 +924,8 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper<string>} */
   const matchKindHelper = Far('match:kind helper', {
-    confirmMatches: confirmKind,
+    confirmMatches: (specimen, kind, reject) =>
+      confirmKind(specimen, /** @type {Kind} */ (kind), reject),
 
     confirmIsWellFormed: (allegedKeyKind, reject) =>
       typeof allegedKeyKind === 'string' ||
@@ -1505,7 +1506,7 @@ const makePatternKit = () => {
    * throwing an error).
    *
    * @typedef {CopyArray | CopySet | CopyBag} Container
-   * @param {Container} specimen
+   * @param {Passable} specimen
    * @param {Pattern} elementPatt
    * @param {bigint} bound Must be >= 1n
    * @param {Rejector} reject
@@ -1581,28 +1582,22 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper<[Pattern, bigint, Limits?]>} */
   const matchContainerHasHelper = Far('M.containerHas helper', {
-    /**
-     * @param {CopyArray | CopySet | CopyBag} specimen
-     * @param {[Pattern, bigint, Limits?]} payload
-     * @param {Rejector} reject
-     */
     confirmMatches: (
       specimen,
       [elementPatt, bound, limits = undefined],
       reject,
     ) => {
-      const kind = confirmKindOf(specimen, reject);
+      confirmKindOf(specimen, reject);
       const { decimalDigitsLimit } = limit(limits);
-      if (
-        !applyLabelingError(
-          confirmDecimalDigitsLimit,
-          [bound, decimalDigitsLimit, reject],
-          `${kind} matches`,
-        )
-      ) {
+      if (!confirmDecimalDigitsLimit(bound, decimalDigitsLimit, reject)) {
         return false;
       }
-      return !!containerHasSplit(specimen, elementPatt, bound, reject);
+      return !!containerHasSplit(
+        /** @type {Container} */ (specimen),
+        elementPatt,
+        bound,
+        reject,
+      );
     },
 
     confirmIsWellFormed: (payload, reject) =>
@@ -1745,16 +1740,22 @@ const makePatternKit = () => {
     },
 
     /**
-     * @param {Array} splitArray
+     * @param {Passable} splitArray
      * @param {Rejector} reject
      */
     confirmIsWellFormed: (splitArray, reject) => {
-      if (
-        passStyleOf(splitArray) === 'copyArray' &&
-        (splitArray.length >= 1 || splitArray.length <= 3)
-      ) {
+      if (passStyleOf(splitArray) === 'copyArray') {
+        const typedSplitArray = /** @type {CopyArray<Passable>} */ (splitArray);
+        if (!(typedSplitArray.length >= 1 && typedSplitArray.length <= 3)) {
+          return (
+            reject &&
+            reject`Must be an array of a requiredPatt array, an optional optionalPatt array, and an optional restPatt: ${q(
+              splitArray,
+            )}`
+          );
+        }
         const [requiredPatt, optionalPatt = undefined, restPatt = undefined] =
-          splitArray;
+          typedSplitArray;
         if (
           isPattern(requiredPatt) &&
           passStyleOf(requiredPatt) === 'copyArray' &&
@@ -1861,16 +1862,22 @@ const makePatternKit = () => {
     },
 
     /**
-     * @param {Array} splitArray
+     * @param {Passable} splitArray
      * @param {Rejector} reject
      */
     confirmIsWellFormed: (splitArray, reject) => {
-      if (
-        passStyleOf(splitArray) === 'copyArray' &&
-        (splitArray.length >= 1 || splitArray.length <= 3)
-      ) {
+      if (passStyleOf(splitArray) === 'copyArray') {
+        const typedSplitArray = /** @type {CopyArray<Passable>} */ (splitArray);
+        if (!(typedSplitArray.length >= 1 && typedSplitArray.length <= 3)) {
+          return (
+            reject &&
+            reject`Must be an array of a requiredPatt record, an optional optionalPatt record, and an optional restPatt: ${q(
+              splitArray,
+            )}`
+          );
+        }
         const [requiredPatt, optionalPatt = undefined, restPatt = undefined] =
-          splitArray;
+          typedSplitArray;
         if (
           isPattern(requiredPatt) &&
           passStyleOf(requiredPatt) === 'copyRecord' &&

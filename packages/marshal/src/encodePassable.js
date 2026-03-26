@@ -568,7 +568,7 @@ const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
 
 /**
  * @param {(str: string) => string} encodeStringSuffix
- * @param {(arr: unknown[], encodeRecur: (p: Passable) => string) => string} encodeArray
+ * @param {(arr: Passable[], encodeRecur: (p: Passable) => string) => string} encodeArray
  * @param {Required<EncodeOptions> & {verifyEncoding?: (encoded: string, label: string) => void}} options
  * @returns {(p: Passable) => string}
  */
