@@ -40,8 +40,7 @@ harden(canBeMethod);
  * @returns {key is RemotableMethodName}
  */
 const canBeMethodName = key =>
-  // typeof key === 'string' || typeof key === 'symbol';
-  typeof key === 'string' || typeof key === 'symbol' || typeof key === 'number';
+  typeof key === 'string' || typeof key === 'symbol';
 harden(canBeMethodName);
 
 /**
