@@ -62,12 +62,11 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['**/*.{js,ts}'],
-    },
-    {
       files: ['**/*.ts'],
       rules: {
         'import/no-unresolved': 'off',
+        'jsdoc/no-types': 'error', // sign of an incomplete migration to TypeScript
+        'jsdoc/require-param': 'off',
         'no-unused-vars': 'off',
       },
     },
