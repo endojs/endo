@@ -215,8 +215,10 @@ function* tools(toolList) {
   yield* demarcatedSection(2, 'Tools', [
     'Available tools:',
     ...toolList.map(({ name, summary }) => `- ${name}: ${summary}`),
-    '',
-    '## Tool Call Style',
+  ]);
+
+  yield '';
+  yield* demarcatedSection(2, 'Tool Call Style', [
     'Default: do not narrate routine, low-risk tool calls (just call the tool).',
     'Narrate only when it helps: multi-step work, complex problems, sensitive actions ' +
       '(e.g., deletions), or when the user explicitly asks.',
