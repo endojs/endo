@@ -3,7 +3,6 @@
   "include": [
     "*.js",
     "src/**/*.js",
-    "src/patterns/types.ts",
     "src/type-from-pattern.ts",
     "src/types.ts",
     "test",
