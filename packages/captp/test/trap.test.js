@@ -1,4 +1,4 @@
-/* global SharedArrayBuffer */
+/* global SharedArrayBuffer, process */
 import test from '@endo/ses-ava/test.js';
 
 import { Worker } from 'worker_threads';
@@ -27,7 +27,10 @@ const makeWorkerTests = isHost => async t => {
 
   // Small shared array buffer to test iterator.
   const transferBuffer = new SharedArrayBuffer(MIN_TRANSFER_BUFFER_LENGTH);
-  const worker = new Worker(`${dirname}/worker.js`);
+  // Keep ts-blank-space until Node 22 is the least supported Node version.
+  const worker = new Worker(`${dirname}/worker.js`, {
+    execArgv: [...process.execArgv, '--import', 'ts-blank-space/register'],
+  });
   t.teardown(() => worker.terminate());
   worker.addListener('error', err => t.fail(err));
   worker.postMessage({ type: 'TEST_INIT', transferBuffer, isGuest: isHost });

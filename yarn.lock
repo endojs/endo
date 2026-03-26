@@ -429,6 +429,7 @@ __metadata:
     eslint: "catalog:dev"
     esvu: "npm:^1.2.16"
     rollup: "npm:^4.34.6"
+    ts-blank-space: "npm:^0.6.1"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown
@@ -986,6 +987,7 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
+    ts-blank-space: "npm:^0.6.1"
     tsd: "catalog:dev"
     typescript: "npm:~5.9.2"
   languageName: unknown

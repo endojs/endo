@@ -40,7 +40,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava",
+    "test": "ava --config test/_ava.config.mjs",
     "test:clean": "rm -rf tmp && yarn test"
   },
   "dependencies": {
@@ -92,12 +92,6 @@
     "extends": [
       "plugin:@endo/daemon"
     ]
-  },
-  "ava": {
-    "files": [
-      "test/**/*.test.*"
-    ],
-    "timeout": "2m"
   },
   "typeCoverage": {
     "atLeast": 97.21
