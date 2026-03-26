@@ -146,6 +146,7 @@ harden(buildRecentHistory);
  * @param {Promise<object> | object | undefined} context
  * @param {{ host: string, model: string, authToken: string }} providerConfig
  * @param {string} [_systemPrompt] - unused, kept for driver.js compatibility
+ * @param {{ host: string, model: string, authToken: string } | null} [fastProviderConfig] - optional fast model for routing decisions
  * @returns {Promise<void>}
  */
 export const spawnWorkerLoop = async (
@@ -153,6 +154,7 @@ export const spawnWorkerLoop = async (
   context,
   providerConfig,
   _systemPrompt,
+  fastProviderConfig,
 ) => {
   const getCancelled = async () => {
     if (!context) return null;
@@ -173,8 +175,23 @@ export const spawnWorkerLoop = async (
     LAL_AUTH_TOKEN: providerConfig.authToken,
   });
 
-  // Create the three layers
-  const router = await makeRouter(powers, provider);
+  // Optional fast provider for lightweight decisions (routing, triage)
+  const fastProvider = fastProviderConfig
+    ? createProvider({
+        LAL_HOST: fastProviderConfig.host,
+        LAL_MODEL: fastProviderConfig.model,
+        LAL_AUTH_TOKEN: fastProviderConfig.authToken,
+      })
+    : null;
+
+  if (fastProvider) {
+    console.log(
+      `[jaine] Fast provider: ${fastProviderConfig.host} / ${fastProviderConfig.model}`,
+    );
+  }
+
+  // Create the three layers — router uses fast provider if available
+  const router = await makeRouter(powers, fastProvider || provider);
   const executor = makeExecutor(powers, provider);
   const composer = makeComposer(provider, intent => executor.execute(intent));
 
@@ -855,6 +872,16 @@ export const make = (guestPowers, _context) => {
       const driverPowers = await E(hostAgent).lookup(driverProfileName);
       const providerId = await E(powers).identify('llm-provider');
       await E(driverPowers).write('llm-provider', providerId);
+
+      // Propagate fast provider if configured
+      try {
+        const fastProviderId = await E(powers).identify('llm-provider-fast');
+        if (fastProviderId) {
+          await E(driverPowers).write('llm-provider-fast', fastProviderId);
+        }
+      } catch {
+        // No fast provider configured — that's fine.
+      }
 
       const agentLocator = await E(hostAgent).locate(agentName);
       const agentId = await E(hostAgent).identify(agentName);

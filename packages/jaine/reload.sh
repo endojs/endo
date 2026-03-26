@@ -49,11 +49,19 @@ if [ "$RUN_SETUP" = true ]; then
   set -a; source "$ENV_FILE"; set +a
 
   echo "==> Running comprehensive Jaine setup..."
+  FAST_ARGS=""
+  if [ -n "${ENDO_LLM_FAST_MODEL:-}" ]; then
+    FAST_ARGS="-E ENDO_LLM_FAST_MODEL=$ENDO_LLM_FAST_MODEL"
+    [ -n "${ENDO_LLM_FAST_HOST:-}" ] && FAST_ARGS="$FAST_ARGS -E ENDO_LLM_FAST_HOST=$ENDO_LLM_FAST_HOST"
+    [ -n "${ENDO_LLM_FAST_AUTH_TOKEN:-}" ] && FAST_ARGS="$FAST_ARGS -E ENDO_LLM_FAST_AUTH_TOKEN=$ENDO_LLM_FAST_AUTH_TOKEN"
+  fi
+  # shellcheck disable=SC2086
   "$ENDO" run --UNCONFINED setup.js --powers @agent \
     -E ENDO_LLM_NAME="${PROVIDER_NAME:-default}" \
     -E ENDO_LLM_HOST="${LAL_HOST:-https://api.anthropic.com}" \
     -E ENDO_LLM_MODEL="${LAL_MODEL:-claude-sonnet-4-6-20250514}" \
-    -E ENDO_LLM_AUTH_TOKEN="${LAL_AUTH_TOKEN:-$ENDO_LLM_AUTH_TOKEN}"
+    -E ENDO_LLM_AUTH_TOKEN="${LAL_AUTH_TOKEN:-$ENDO_LLM_AUTH_TOKEN}" \
+    $FAST_ARGS
 fi
 
 echo "==> Jaine reloaded."

@@ -8,6 +8,11 @@
 //   ENDO_LLM_HOST=https://api.anthropic.com
 //   ENDO_LLM_MODEL=claude-sonnet-4-6-20250514
 //   ENDO_LLM_AUTH_TOKEN=sk-ant-...
+//
+// Optional fast model for routing decisions (falls back to main if unset):
+//   ENDO_LLM_FAST_MODEL=claude-haiku-4-5-20251001
+//   ENDO_LLM_FAST_HOST=...          (defaults to ENDO_LLM_HOST)
+//   ENDO_LLM_FAST_AUTH_TOKEN=...    (defaults to ENDO_LLM_AUTH_TOKEN)
 
 import { E } from '@endo/eventual-send';
 
@@ -143,6 +148,14 @@ export const main = async agent => {
   const llmModel = env.ENDO_LLM_MODEL || 'qwen3';
   const llmAuthToken = env.ENDO_LLM_AUTH_TOKEN || 'ollama';
 
+  // Optional fast model for lightweight decisions (routing, triage).
+  // Falls back to main provider values so you can just set ENDO_LLM_FAST_MODEL
+  // to use a cheaper model on the same API.
+  const fastHost = env.ENDO_LLM_FAST_HOST || llmHost;
+  const fastModel = env.ENDO_LLM_FAST_MODEL;
+  const fastAuthToken = env.ENDO_LLM_FAST_AUTH_TOKEN || llmAuthToken;
+  const hasFastConfig = Boolean(fastModel);
+
   // Wait for fae's llm-provider-factory (created by fae setup.js)
   console.log('[jaine] Waiting for llm-provider-factory...');
   const hasProviderFactory = await waitForName(agent, 'llm-provider-factory');
@@ -153,8 +166,18 @@ export const main = async agent => {
     return;
   }
 
-  // Ensure a provider config exists (submit form if needed)
+  // Ensure provider configs exist (submit forms if needed)
   await ensureProvider(agent, providerName, llmHost, llmModel, llmAuthToken);
+  const fastProviderName = `${providerName}-fast`;
+  if (hasFastConfig) {
+    await ensureProvider(
+      agent,
+      fastProviderName,
+      fastHost,
+      /** @type {string} */ (fastModel),
+      fastAuthToken,
+    );
+  }
 
   // Resolve the provider formula ID (retries for async processing)
   const providerId = await resolveProvider(agent, providerName);
@@ -172,9 +195,15 @@ export const main = async agent => {
     });
   }
 
-  // Write the provider reference into the factory's namespace
+  // Write provider references into the factory's namespace
   const factoryPowers = await E(agent).lookup(agentName);
   await E(factoryPowers).write('llm-provider', providerId);
+
+  if (hasFastConfig) {
+    const fastProviderId = await resolveProvider(agent, fastProviderName);
+    await E(factoryPowers).write('llm-provider-fast', fastProviderId);
+    console.log(`[jaine] Fast provider "${fastProviderName}" configured.`);
+  }
 
   // Launch the jaine factory caplet
   await E(agent).makeUnconfined('@main', jaineFactorySpecifier, {
