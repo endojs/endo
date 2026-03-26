@@ -3,7 +3,7 @@ import test from '@endo/ses-ava/test.js';
 import harden from '@endo/harden';
 import { q } from '@endo/errors';
 import { qp } from '@endo/marshal';
-import { M } from '../src/patterns/patternMatchers.js';
+import { M } from '../src/patterns/patternMatchers.ts';
 
 // This is a continuation of a test case in marshal-justin.test.js,
 // but is placed here because it uses patterns which don't exist at

@@ -2,7 +2,7 @@
 // Re-export matches, mustMatch, and M so they get typed declarations
 // from types-index.d.ts (which supports asserts/type-predicate signatures
 // and namespace merging that JSDoc cannot express).
-export { matches, mustMatch, M } from './src/patterns/patternMatchers.js';
+export { matches, mustMatch, M } from './src/patterns/patternMatchers.ts';
 
 // --- Subtype verification ---
 // The declare-function overlays in type-from-pattern.ts narrow the runtime
@@ -13,7 +13,7 @@ export { matches, mustMatch, M } from './src/patterns/patternMatchers.js';
 import {
   matches as _m,
   mustMatch as _mm,
-} from './src/patterns/patternMatchers.js';
+} from './src/patterns/patternMatchers.ts';
 /** @type {(specimen: unknown, patt: import('./src/types.js').Pattern) => boolean} */
 const _matchesCompat = _m;
 /** @type {(specimen: unknown, patt: import('./src/types.js').Pattern, label?: string | number) => void} */
