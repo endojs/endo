@@ -1,7 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
-import { M, mustMatch } from '../src/patterns/patternMatchers.js';
+import { M, mustMatch } from '../src/patterns/patternMatchers.ts';
 
 test('mismatch to see stack', t => {
   let err;

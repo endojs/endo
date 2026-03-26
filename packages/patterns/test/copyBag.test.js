@@ -10,7 +10,7 @@ import {
   makeCopyBagFromElements,
   getCopyBagEntries,
 } from '../src/keys/checkKey.js';
-import { matches } from '../src/patterns/patternMatchers.js';
+import { matches } from '../src/patterns/patternMatchers.ts';
 
 const assertIsCopyBag = (t, bag) => {
   t.is(passStyleOf(bag), 'tagged');

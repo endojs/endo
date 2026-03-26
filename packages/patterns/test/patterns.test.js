@@ -10,7 +10,7 @@ import {
   makeCopySet,
   getCopyMapKeys,
 } from '../src/keys/checkKey.js';
-import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
+import { mustMatch, matches, M } from '../src/patterns/patternMatchers.ts';
 
 const { stringify: q } = JSON;
 
