@@ -1,0 +1,96 @@
+// @ts-check
+/* global process, globalThis */
+
+/**
+ * Centralizes all resource path resolution with a dev/packaged switch.
+ *
+ * - In development (process.defaultApp is truthy): uses repo-relative paths
+ *   and the system Node.js binary from PATH.
+ * - In packaged builds: uses paths relative to the Electron resources directory.
+ */
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const isPackaged = !process.defaultApp;
+const nodeBinary = process.platform === 'win32' ? 'node.exe' : 'node';
+
+/** @type {string} */
+let nodePath;
+
+/** @type {string} */
+let endoCliPath;
+
+/** @type {string} */
+let chatDistPath;
+
+/** @type {string} */
+let endoDaemonPath;
+
+/** @type {string} */
+let endoWorkerPath;
+
+/** @type {string} */
+let workerSubprocessPath;
+
+/** @type {string} */
+let webPageBundlePath;
+
+/** @type {string} */
+let endoLalPath;
+
+/** @type {string} */
+let endoFaePath;
+
+if (isPackaged) {
+  const appRoot = path.join(
+    /** @type {string} */ (process.resourcesPath),
+    'app',
+  );
+  nodePath = path.join(appRoot, nodeBinary);
+  endoCliPath = path.join(appRoot, 'bundles', 'endo-cli.cjs');
+  chatDistPath = path.join(appRoot, 'dist', 'chat', 'index.html');
+  endoDaemonPath = path.join(appRoot, 'bundles', 'endo-daemon.cjs');
+  endoWorkerPath = path.join(appRoot, 'bundles', 'endo-worker.cjs');
+  workerSubprocessPath = path.join(appRoot, 'bundles', 'worker-node.cjs');
+  webPageBundlePath = path.join(appRoot, 'bundles', 'web-page-bundle.js');
+  endoLalPath = path.join(appRoot, 'bundles', 'endo-lal.cjs');
+  endoFaePath = path.join(appRoot, 'bundles', 'endo-fae.cjs');
+} else {
+  const repoRoot = path.resolve(dirname, '../../..');
+  nodePath = 'node';
+  endoCliPath = path.join(repoRoot, 'packages/cli/bin/endo.cjs');
+  chatDistPath = path.join(repoRoot, 'packages/chat/dist/index.html');
+  endoDaemonPath = path.join(repoRoot, 'packages/daemon/src/daemon-node.js');
+  endoWorkerPath = path.join(
+    repoRoot,
+    'packages/daemon/src/web-server-node.js',
+  );
+  workerSubprocessPath = path.join(
+    repoRoot,
+    'packages/daemon/src/worker-node.js',
+  );
+  // In dev mode, web-page.js is bundled at runtime by the compartment mapper.
+  webPageBundlePath = '';
+  // In dev mode, agents are installed via CLI/ENDO_EXTRA.
+  endoLalPath = '';
+  endoFaePath = '';
+}
+
+const resourcePaths = {
+  nodePath,
+  endoCliPath,
+  chatDistPath,
+  endoDaemonPath,
+  endoWorkerPath,
+  workerSubprocessPath,
+  webPageBundlePath,
+  endoLalPath,
+  endoFaePath,
+};
+if (typeof globalThis.harden === 'function') {
+  globalThis.harden(resourcePaths);
+}
+
+export { resourcePaths };

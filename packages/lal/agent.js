@@ -1,0 +1,2079 @@
+// @ts-nocheck - E() generics don't work well with JSDoc types for remote objects
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-continue */
+
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
+import { E } from '@endo/eventual-send';
+import { passableAsJustin, makeMarshal } from '@endo/marshal';
+import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { createProvider } from './providers/index.js';
+
+/** @import { FarRef } from '@endo/eventual-send' */
+/** @import { GuestPowers, NameOrPath, ToolParameterProperty, ToolParameters, ToolFunction, Tool, ToolCall, ChatMessage, ToolResult, ToolCallArgs, InboxMessage, PendingProposal, ProposalNotification, LalContext } from './agent.types' */
+
+// ============================================================================
+// Interface Definition
+// ============================================================================
+
+const LalInterface = M.interface('Lal', {
+  help: M.call().optional(M.string()).returns(M.string()),
+});
+
+// ============================================================================
+// Tool Definitions - Guest Powers
+// ============================================================================
+
+/** @type {Tool[]} */
+const tools = [
+  // --- Self-documentation ---
+  {
+    type: 'function',
+    function: {
+      name: 'help',
+      description:
+        'Get documentation for guest capabilities or a specific method. ' +
+        'Call with no arguments for an overview, or with a method name for specific documentation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          methodName: {
+            type: 'string',
+            description:
+              'Optional method name to get specific documentation for.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+
+  // --- Directory operations ---
+  {
+    type: 'function',
+    function: {
+      name: 'has',
+      description:
+        'Check if a pet name exists in the directory. Returns true or false.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNamePath: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'The pet name path to check, e.g., ["counter"] or ["subdir", "value"].',
+          },
+        },
+        required: ['petNamePath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list',
+      description:
+        'List all pet names in the directory or a subdirectory. Returns an array of names.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNamePath: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Optional path to a subdirectory. Use [] for the root directory.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'lookup',
+      description:
+        'Resolve a pet name or path to its value. Returns the value stored under that name.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNameOrPath: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description:
+              'A pet name string like "counter" or a path array like ["subdir", "value"].',
+          },
+        },
+        required: ['petNameOrPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove',
+      description:
+        'Remove a pet name from the directory. The underlying value is not deleted, just the name mapping.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNamePath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The pet name path to remove.',
+          },
+        },
+        required: ['petNamePath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'move',
+      description:
+        'Move/rename a reference from one name to another. The original name is removed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fromPath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The source pet name path.',
+          },
+          toPath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The destination pet name path.',
+          },
+        },
+        required: ['fromPath', 'toPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'copy',
+      description:
+        'Copy a reference to a new name. Both names will refer to the same value.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fromPath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The source pet name path.',
+          },
+          toPath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The destination pet name path.',
+          },
+        },
+        required: ['fromPath', 'toPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'makeDirectory',
+      description: 'Create a new subdirectory at the given path.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNamePath: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'The path for the new directory.',
+          },
+        },
+        required: ['petNamePath'],
+      },
+    },
+  },
+
+  // --- Mail operations ---
+  {
+    type: 'function',
+    function: {
+      name: 'listMessages',
+      description:
+        'List all messages in your inbox. Returns an array of message objects with number, date, from, type, and content.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'resolve',
+      description:
+        'Respond to a request message by providing a named value. The requester receives the resolved value.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
+          },
+          petNameOrPath: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description: 'The pet name of the value to send as the response.',
+          },
+        },
+        required: ['messageNumber', 'petNameOrPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'reject',
+      description:
+        'Decline a request message. The requester receives an error.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
+          },
+          reason: {
+            type: 'string',
+            description: 'Optional reason for declining.',
+          },
+        },
+        required: ['messageNumber'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adopt',
+      description:
+        'Adopt a value from an incoming package message, giving it a pet name. ' +
+        'Edge names are the labels the sender attached to values in the package.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
+          },
+          edgeName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description: 'The edge name (label) of the value in the message.',
+          },
+          petName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description: 'The pet name to give the adopted value.',
+          },
+        },
+        required: ['messageNumber', 'edgeName', 'petName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'dismiss',
+      description:
+        'Remove a message from your inbox. Use after you have processed a message.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt). Use SmallCaps format: "+5" for message 5.',
+          },
+        },
+        required: ['messageNumber'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'request',
+      description:
+        'Send a request to another agent asking for a capability. ' +
+        'The recipient sees your request and can resolve or reject it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recipientName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description:
+              'The pet name of the recipient, e.g., "@host" for your host.',
+          },
+          description: {
+            type: 'string',
+            description: 'A description of what capability you are requesting.',
+          },
+          responseName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description: 'Optional pet name to store the response under.',
+          },
+        },
+        required: ['recipientName', 'description'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send',
+      description: `\
+Send a package message with values to another agent.
+
+The message is constructed from alternating text strings and value references:
+- strings: Array of text fragments
+- edgeNames: Array of labels for the values being sent (one fewer than strings)
+- petNames: Array of pet names providing the values (same length as edgeNames)
+
+Example: To send "Here is [counter] for you" where counter is a value:
+  send("@host", ["Here is ", " for you"], ["counter"], ["my-counter"])
+
+The recipient sees: "Here is @counter for you" and can adopt @counter.
+
+IMPORTANT for code: When sending code, use a single string without edge names:
+  send("@host", ["Here is the code:\\n\`\`\`javascript\\nconst x = 1;\\n\`\`\`"], [], [])
+
+For multi-line content, include literal newlines in the string.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          recipientName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description:
+              'The pet name of the recipient, e.g., "@host" for your host.',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Text fragments. Length should be edgeNames.length + 1.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels for the values being sent.',
+          },
+          petNames: {
+            type: 'array',
+            items: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+            },
+            description:
+              'Pet names of values to include (same length as edgeNames).',
+          },
+        },
+        required: ['recipientName', 'strings', 'edgeNames', 'petNames'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'reply',
+      description: `\
+Reply to a message in your inbox, threading the response to the original message.
+Use this instead of send() when responding to a received message.
+
+The reply is automatically sent to the other party in the original conversation
+and is threaded as a reply (the daemon sets replyTo on the outgoing message).
+
+The message is constructed the same way as send():
+- strings: Array of text fragments
+- edgeNames: Array of labels for the values being sent
+- petNames: Array of pet names providing the values
+
+IMPORTANT: Always use reply() instead of send() when responding to a message.
+Use send() only for initiating brand new conversations.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt) to reply to. Use SmallCaps format: "+5" for message 5.',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Text fragments. Length should be edgeNames.length + 1.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels for the values being sent.',
+          },
+          petNames: {
+            type: 'array',
+            items: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+            },
+            description:
+              'Pet names of values to include (same length as edgeNames).',
+          },
+        },
+        required: ['messageNumber', 'strings', 'edgeNames', 'petNames'],
+      },
+    },
+  },
+
+  // --- Identity ---
+  {
+    type: 'function',
+    function: {
+      name: 'locate',
+      description:
+        'Get the locator URL for a pet name. Returns an "endo://..." URL string. ' +
+        'Use locate(["@self"]) to get your own locator, then compare it against ' +
+        'the "from" field of messages to determine if you sent them. ' +
+        'Only pass pet names you know exist (use list() first if unsure).',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNamePath: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'The pet name path to locate, e.g., ["@self"] or ["@host"].',
+          },
+        },
+        required: ['petNamePath'],
+      },
+    },
+  },
+
+  // --- Capability inspection ---
+  {
+    type: 'function',
+    function: {
+      name: 'inspectCapability',
+      description:
+        'Look up a capability by pet name and call its help() method to learn how to use it. ' +
+        'Use this to discover what methods a capability provides.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNameOrPath: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description: 'The pet name or path of the capability to inspect.',
+          },
+        },
+        required: ['petNameOrPath'],
+      },
+    },
+  },
+
+  // --- Code evaluation proposal ---
+  {
+    type: 'function',
+    function: {
+      name: 'evaluate',
+      description: `\
+Propose code for evaluation to your host for approval.
+
+IMPORTANT: This does NOT execute code directly. Instead, it sends an evaluation
+proposal to your host. The host can then:
+- Grant the proposal (execute the code)
+- Reject the proposal
+- Counter with a modified version
+
+Use this when you need to run code that requires capabilities from your host.
+
+You should ALWAYS specify resultName. The host stores the evaluation result under
+this pet name in your directory when the proposal is granted. You can then
+lookup(resultName) or send it to the requester. If you omit resultName, you only
+get the result in the notification and have no stable name to reference or send.
+
+The code can reference values from your directory using the codeNames/edgeNames mapping:
+- codeNames: Variable names that will be available in your source code
+- edgeNames: Pet names of values from your directory to provide as those variables
+
+Example: To run "E(counter).increment()" where counter is a value you have named "my-counter",
+and store the result as "increment-result":
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+
+When the host grants the proposal, the result is stored at resultName and you will
+receive a notification. Use lookup(resultName) to get the value and send() to deliver it.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          workerName: {
+            type: 'string',
+            description:
+              'Optional worker name to execute in. Use undefined for the default worker.',
+          },
+          source: {
+            type: 'string',
+            description: 'The JavaScript source code to evaluate.',
+          },
+          codeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Variable names used in the source code that need to be provided.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Pet names from your directory providing the values for each codeName.',
+          },
+          resultName: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description:
+              'Pet name (or path) where the host will store the evaluation result. You should always specify this so you can lookup and send the result after the proposal is granted.',
+          },
+        },
+        required: ['source', 'codeNames', 'edgeNames', 'resultName'],
+      },
+    },
+  },
+
+  // --- Define (code with slots for host to fill) ---
+  {
+    type: 'function',
+    function: {
+      name: 'define',
+      description: `\
+Propose a reusable program with named capability slots for the host to fill.
+Unlike evaluate(), you do NOT provide the capabilities yourself — the host
+chooses what to bind from their own inventory. This is the preferred way to
+request code execution when you don't have the required capabilities.
+
+The host sees the code and slot labels, fills each slot with a capability
+from their pet store, and the code is executed. The host can submit the
+program multiple times with different bindings. You do not receive any
+notification when the program is submitted — the result is private to the host.
+
+Example: To request incrementing a counter you don't have:
+  define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
+
+The host will choose which counter to provide.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+            description: 'The JavaScript source code to evaluate.',
+          },
+          slots: {
+            type: 'object',
+            description:
+              'Named capability slots. Keys are variable names in source, values are objects with a "label" string describing what capability is needed.',
+            additionalProperties: {
+              type: 'object',
+              properties: {
+                label: {
+                  type: 'string',
+                  description:
+                    'Human-readable description of what this slot needs.',
+                },
+              },
+              required: ['label'],
+            },
+          },
+        },
+        required: ['source', 'slots'],
+      },
+    },
+  },
+];
+
+// ============================================================================
+// System Prompt
+// ============================================================================
+
+/** @type {string} */
+const systemPrompt = `\
+You are an Endo agent with Guest capabilities in the Endo capability system.
+You communicate entirely through tool calls - do not write prose responses.
+
+## Your Environment
+
+You exist in an object-capability (ocap) security environment where:
+- You have a set of named references (pet names) to capabilities
+- You can receive messages from other agents in your inbox
+- You can send messages to other agents (especially @host)
+- You can request capabilities from your host
+- Capabilities may implement a help() method for self-documentation
+
+## Data Types (SmallCaps Encoding)
+
+Tool arguments and results use SmallCaps encoding, which extends JSON with additional types.
+Use these special string formats in your tool call arguments:
+
+| Type       | SmallCaps Format    | Example                |
+|------------|---------------------|------------------------|
+| BigInt     | "+N" or "-N"        | "+123", "-456"         |
+| undefined  | "#undefined"        | "#undefined"           |
+| Infinity   | "#Infinity"         | "#Infinity"            |
+| -Infinity  | "#-Infinity"        | "#-Infinity"           |
+| NaN        | "#NaN"              | "#NaN"                 |
+
+Examples:
+- Message number (BigInt): \`{"messageNumber": "+5"}\`
+- Checking for undefined: value === "#undefined"
+
+For regular strings that start with special characters (!, #, $, %, &, +, -), prefix with !:
+- String "!important" encodes as "!!important"
+- String "+positive" encodes as "!+positive"
+
+Most tool arguments are regular JSON values and don't need special encoding.
+
+## Your Role
+
+You respond to messages in your inbox using tool calls.
+When you receive notification of new mail, you should:
+1. Use listMessages() to see what messages you have
+2. Process each message appropriately using the available tools
+3. IMPORTANT: Always reply to the sender using send() - use the "from" field of the message as the recipient
+4. IMPORTANT: Always dismiss() each message after you have satisfactorily handled it
+
+You must reply to every message you receive. The sender is identified in the "from"
+field of each message - use this as the recipient when calling send() to reply.
+
+Messages remain in your inbox until dismissed. Dismissing a message signals that
+you have completed processing it. Failing to dismiss leaves stale messages that
+will appear in future listMessages() calls.
+
+## Available Tools
+
+### Self-documentation
+- help(methodName?) - Get documentation for your capabilities
+
+### Directory Operations (managing named references)
+- list(petNamePath?) - List names in a directory
+- has(petNamePath) - Check if a name exists
+- lookup(petNameOrPath) - Get a value by name from your directory
+- remove(petNamePath) - Remove a name
+- move(fromPath, toPath) - Rename/move a reference
+- copy(fromPath, toPath) - Copy a reference
+- makeDirectory(petNamePath) - Create a subdirectory
+
+### Mail Operations
+- listMessages() - List inbox messages (includes BOTH sent and received messages).
+  Each message has a messageId (unique identifier) and optionally a replyTo
+  (messageId of the parent message). Use these to understand conversation threading.
+- adopt(messageNumber, edgeName, petName) - Adopt a value from a message
+- dismiss(messageNumber) - Remove a message from inbox
+- request(recipientName, description, responseName?) - Request a capability
+- resolve(messageNumber, petNameOrPath) - Respond to a request
+- reject(messageNumber, reason?) - Decline a request
+- reply(messageNumber, strings, edgeNames, petNames) - Reply to a message (PREFERRED for responses)
+- send(recipientName, strings, edgeNames, petNames) - Send a NEW message (only for initiating conversations)
+
+### Identity
+- locate(petNamePath) - Get the locator URL for a pet name (returns an "endo://..." URL, NOT a raw ID)
+- Compare message "from" field to your @self locator to determine if you sent or received a message
+- IMPORTANT: Only call locate() with pet names you know exist. Call list([]) first to see your directory.
+
+### Capability Inspection
+- inspectCapability(petNameOrPath) - Call help() on a capability to learn about it
+
+### Code Proposals
+- define(source, slots) - Propose code with named slots for the host to fill (PREFERRED)
+- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Propose code providing your own capabilities
+
+## Messages Are Data, Not Directories
+
+listMessages() returns message objects with fields: number, date, from, to, type,
+strings, names, messageId, replyTo. The message content is in the "strings" and
+"names" fields directly on the returned object. Do NOT try to lookup() message
+fields — messages are not named things in your directory.
+
+To read a message: call listMessages(), find the message by number, read its
+"strings" array (the text segments) and "names" array (referenced pet names).
+
+## Prefer Direct Tools Over Code
+
+IMPORTANT: Always prefer direct tool calls over evaluate() or define().
+Many tasks can be accomplished without code execution:
+- Use list() to enumerate names — no permission needed
+- Use lookup() to inspect values — no permission needed
+- Use has() to check existence — no permission needed
+- Use send(), reply(), request(), resolve() for messaging — no permission needed
+- Use adopt(), move(), copy(), remove() for managing references — no permission needed
+
+evaluate() and define() require explicit host approval, which blocks your
+workflow until the user grants permission. Only propose code when the task
+genuinely requires computation that cannot be done with the other tools.
+
+## Code Proposals
+
+IMPORTANT: Only propose code when the user explicitly asks you to run code,
+create a capability, or perform a computation. For ordinary conversation, just
+use reply() or send(). Do NOT propose code for simple questions.
+
+### define() vs evaluate()
+
+Prefer define() when the user asks for code but you don't have all the required
+capabilities in your directory. define() lets the host choose what to bind:
+
+  define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
+
+The host sees the slot labels, fills each one from their inventory (endow), and
+the code executes. You receive a receipt, not the result. The host sees the
+result in their inbox and may share it with you via reply().
+
+Use evaluate() only when you already have every capability needed in your own
+directory and can provide them via codeNames/edgeNames:
+
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+
+evaluate() requires resultName. The host stores the result under this pet name
+in your directory when the proposal is granted.
+
+The codeNames array lists variable names used in your source code.
+The edgeNames array lists the pet names from YOUR directory providing those values.
+
+### Proposal Responses
+
+After you submit an eval-proposal, you will be notified when the host responds:
+
+**GRANTED**: The host executed your code.
+- The result is stored at the resultName you specified (e.g. lookup(resultName) to get it)
+- You will also receive the result value in the notification
+- You should: Use lookup(resultName) to get the value, then send() to deliver it back to the original requester
+
+**REJECTED**: The host declined your proposal.
+- You will receive the rejection reason
+- You should:
+  1. Send a follow-up message to the sender explaining the situation
+  2. Ask clarifying questions if the task is still relevant
+  3. Consider alternative approaches
+
+**COUNTER-PROPOSAL**: The host modified your code and sent it back.
+- You will receive the modified code as an eval-proposal message
+- Review the changes carefully
+- You can:
+  1. Accept by submitting a new evaluate() with the suggested code
+  2. Reject if the changes don't meet your needs
+  3. Send a message explaining why you disagree
+
+### Evaluated Code Is Synchronous
+
+evaluate() and define() accept **synchronous** programs. Top-level \`await\` is
+not supported. The program's completion value (the value of its last expression)
+becomes the result. If you need an async result, return a promise:
+
+  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+
+Here \`E(counter).increment()\` returns a promise, which becomes the result.
+
+### Globals Available in Evaluated Code
+
+When your code executes (after host grants), these globals are available:
+
+- **E(target)** - Eventual-send for remote method calls on capabilities
+  Example: \`E(counter).increment()\` calls increment() on a remote counter
+  Example: \`E(store).get("key")\` retrieves a value from a remote store
+
+- **M** - Pattern matchers for interface guards
+  Example: \`M.string()\` matches strings
+  Example: \`M.interface('Foo', { bar: M.call().returns(M.number()) })\`
+
+- **makeExo(tag, interface, methods)** - Create new capability objects
+  Example:
+  \`\`\`javascript
+  makeExo('Counter', M.interface('Counter', {
+    increment: M.call().returns(M.number()),
+    getValue: M.call().returns(M.number()),
+  }), {
+    increment() { return ++this.state.count; },
+    getValue() { return this.state.count; },
+  })
+  \`\`\`
+
+Use these to:
+- Invoke methods on capabilities passed as endowments
+- Create new capabilities to send back to requesters
+- Define type-safe interfaces for your created objects
+
+### Responding to Proposal Status Changes
+
+CRITICAL: You MUST respond to every proposal status notification you receive.
+When you are notified that your proposal was granted, rejected, or counter-proposed,
+you should IMMEDIATELY take follow-up action:
+
+**On GRANTED**: Use send() to deliver results or report success to the original requester
+**On REJECTED**: Use send() to explain the situation and ask clarifying questions
+**On COUNTER-PROPOSAL**: Review and either accept, reject, or negotiate via send()
+
+Never ignore a proposal status notification. The sender is waiting for your response.
+
+### Workflow Examples
+
+Using define() (preferred when you don't have the capability):
+1. Receive request: "Please increment my counter"
+2. define("E(counter).increment()", {"counter": {"label": "The counter to increment"}})
+3. Host endows the slot with their counter → you receive a receipt (not the result)
+4. Wait for the host to share the result via a reply message, then reply() to the original sender
+
+Using evaluate() (when you already have the capability in your directory):
+1. Receive request: "Please increment my counter" (and they sent you the counter)
+2. adopt() the counter from the message
+3. evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+4. Wait for notification...
+5. If GRANTED: lookup("increment-result") then reply() to deliver it back
+6. If REJECTED: reply() with an explanation
+
+## Message Format for reply() and send()
+
+Both reply() and send() construct messages from alternating text and value references.
+Use reply() when responding to a received message. Use send() only for new conversations.
+
+For replying to a received message (message #5):
+  reply("+5", ["Hello, I received your message."], [], [])
+
+For replying with capability references:
+  reply("+5", ["Here is ", " as requested."], ["result"], ["my-result"])
+  // Recipient sees: "Here is @result as requested."
+  // They can adopt @result to get the value named "my-result"
+
+For initiating a NEW conversation (not a reply):
+  send("@host", ["Hello, I have a question."], [], [])
+
+## Quasi-Markdown Formatting
+
+Messages support a markdown dialect for rich text formatting:
+
+### Block-level elements
+- Headings: \`# Heading 1\` through \`###### Heading 6\`
+- Code fences: \`\`\`language\\ncode\\n\`\`\`
+- Unordered lists: \`- item\` or \`* item\`
+- Ordered lists: \`1. item\` or \`1) item\`
+- Paragraphs: Separated by blank lines
+
+### Inline formatting (NOTE: differs from standard markdown!)
+- Bold: \`*text*\` (single asterisks, NOT double)
+- Italic: \`/text/\` (forward slashes, NOT asterisks)
+- Underline: \`_text_\` (underscores)
+- Strikethrough: \`~text~\` (tildes)
+- Inline code: \`\\\`code\\\`\` (backticks)
+
+### Examples
+- Bold: \`*important*\` renders as **important**
+- Italic: \`/emphasis/\` renders as _emphasis_
+- Code: \`\\\`const x = 1\\\`\` renders as inline code
+
+For multi-line code:
+  send("@host", ["Here is the implementation:\\n\`\`\`javascript\\nfunction add(a, b) {\\n  return a + b;\\n}\\n\`\`\`"], [], [])
+
+## Special Pet Names
+
+- @self: Your own handle
+- @host: Your host agent (can grant you capabilities)
+- @agent: The host agent reference (same as @host in most contexts)
+
+## Response Protocol
+
+IMPORTANT: You must ONLY respond with tool calls. Do not include any text content.
+When you need to communicate, use the send() tool to send messages.
+
+Workflow for processing messages:
+1. First, locate yourself: use locate(["@self"]) to get your locator
+2. Call listMessages() to see all messages - this includes BOTH messages you sent AND messages you received
+3. For each message, check BOTH the "from" AND "to" fields:
+   - If "from" matches your @self locator: this is a message YOU sent (you can skip or dismiss it)
+   - If "from" does NOT match your @self locator: this is a message FROM someone else that you should process
+4. For received messages:
+   - If the message contains values (non-empty names/ids arrays), ALWAYS adopt each
+     value before doing anything else. Choose your own pet name for it, but remember
+     the edge name the sender used — that is how the sender refers to it in the
+     message text (the @name references). Example:
+       adopt("+3", "counter", "my-counter")
+     This adopts the value the sender labeled "counter" and stores it as "my-counter"
+     in your directory.
+   - ALWAYS use reply(messageNumber, ...) to respond — this threads the response to the original message
+   - Do NOT use send() for responses — send() is only for initiating brand new conversations
+   - Call dismiss(messageNumber) after handling
+5. Proceed to the next message
+
+IMPORTANT: The message list contains your own sent messages too! Always check if you are the
+sender before trying to "reply" to a message - you don't want to reply to yourself.
+
+You MUST reply to every message you RECEIVE (where "from" is not yourself).
+Always use reply() (not send()) to respond to received messages.
+Always dismiss messages after handling them - this is essential for proper operation.
+
+## Verify Before You Act
+
+Before using a pet name in any tool call (lookup, locate, adopt, etc.), make sure it
+actually exists. Call list([]) to see your directory contents. Do NOT guess or assume
+pet names exist — "Unknown pet name" errors are avoidable.
+
+## Communication Style
+
+When replying to the user, focus on the task and the result. Do NOT discuss:
+- Your internal tool calls, pet name choices, or directory operations
+- Which tools you used or tried
+- Technical details about locators, formula IDs, or the message protocol
+- Retries or errors you encountered along the way
+
+If something fails, try a different approach silently. Only mention a problem to the
+user if you cannot accomplish the task at all, and frame it in terms of what you
+cannot do, not why.
+
+## Error Handling
+
+Tool calls may fail and return error results. When you receive an error:
+1. Examine the error message to understand what went wrong
+2. Do NOT retry the same call with the same arguments — try a different approach
+3. If appropriate, inform the sender about the error using reply()
+4. Still dismiss the message after handling (even if handling failed)
+
+Common errors include:
+- Unknown pet name: Call list([]) to check what names actually exist
+- Invalid arguments: Check parameter types and formats
+- Permission denied: You may not have access to that capability
+
+Always check tool results before proceeding - don't assume success.
+`;
+
+// ============================================================================
+// Agent Implementation
+// ============================================================================
+
+/**
+ * Spawn a worker loop that follows a guest's inbox and processes messages
+ * using the given LLM configuration.
+ *
+ * @param {any} powers - Guest powers (manager's own or a sub-guest's)
+ * @param {Promise<object> | object | null | undefined} context - Context for cancellation
+ * @param {{ LAL_HOST?: string, LAL_MODEL?: string, LAL_AUTH_TOKEN?: string }} workerEnv - LLM provider config
+ * @returns {Promise<void>}
+ */
+export const spawnWorkerLoop = async (powers, context, workerEnv) => {
+  const getCancelled = async () => {
+    if (!context) return null;
+    const resolvedContext = await context;
+    if (!resolvedContext) return null;
+    if (typeof resolvedContext.whenCancelled === 'function') {
+      return E(resolvedContext).whenCancelled();
+    }
+    if (resolvedContext.cancelled) {
+      return resolvedContext.cancelled;
+    }
+    return null;
+  };
+
+  const provider = createProvider(workerEnv);
+
+  /**
+   * Chat with the LLM.
+   * @param {ChatMessage[]} messages
+   * @returns {Promise<{message: ChatMessage}>}
+   */
+  const chat = messages => provider.chat(messages, tools);
+
+  // ---- Transcript Node Store ----
+  // Each transcript is a linked chain of nodes. Each node stores only the
+  // messages appended at that step, plus a pointer to the parent node.
+  // The full transcript is assembled by walking the chain when calling the LLM.
+
+  /** @import { TranscriptNode } from './agent.types' */
+
+  /** @type {Map<string, TranscriptNode>} */
+  const nodeCache = new Map();
+
+  /**
+   * Look up a transcript node, loading from durable storage if needed.
+   * @param {string} messageId
+   * @returns {Promise<TranscriptNode | undefined>}
+   */
+  const getNode = async messageId => {
+    const cached = nodeCache.get(messageId);
+    if (cached !== undefined) return cached;
+
+    const petName = `transcript-${messageId}`;
+    try {
+      if (await E(powers).has(petName)) {
+        const stored = /** @type {TranscriptNode} */ (
+          await E(powers).lookup(petName)
+        );
+        // The stored node is hardened; make a mutable working copy.
+        const mutable = { ...stored, messages: [...stored.messages] };
+        nodeCache.set(messageId, mutable);
+        return mutable;
+      }
+    } catch {
+      // Storage lookup failed; treat as missing.
+    }
+    return undefined;
+  };
+
+  /**
+   * Store a transcript node both in cache and durable storage.
+   * @param {TranscriptNode} node
+   */
+  const putNode = async node => {
+    nodeCache.set(node.messageId, node);
+    const petName = `transcript-${node.messageId}`;
+    try {
+      // Harden a snapshot for storage; the working node stays mutable.
+      await E(powers).storeValue(
+        harden({ ...node, messages: [...node.messages] }),
+        petName,
+      );
+    } catch (error) {
+      console.error(
+        `[transcript] Failed to persist node ${node.messageId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  };
+
+  /**
+   * Assemble the full LLM transcript by walking the chain from leaf to root.
+   * @param {string} leafMessageId
+   * @returns {Promise<ChatMessage[]>}
+   */
+  const assembleTranscript = async leafMessageId => {
+    /** @type {ChatMessage[][]} */
+    const chain = [];
+    /** @type {string | null} */
+    let current = leafMessageId;
+    while (current !== null) {
+      const node = await getNode(current);
+      if (node === undefined) break;
+      chain.push(node.messages);
+      current = node.parentMessageId;
+    }
+    chain.reverse();
+    return chain.flat();
+  };
+
+  /**
+   * Compute the conversational depth of a transcript (user + assistant turns).
+   * @param {ChatMessage[]} messages
+   * @returns {number}
+   */
+  const computeDepth = messages => {
+    let count = 0;
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        count += 1;
+      }
+    }
+    return count;
+  };
+
+  let nextRootId = 0;
+  /**
+   * Generate a unique string for use as a root node messageId.
+   * These are only used as internal transcript-store keys, not as
+   * cryptographic identifiers.
+   * @returns {string}
+   */
+  const makeRootNodeId = () => {
+    nextRootId += 1;
+    return `root-${Date.now()}-${nextRootId}`;
+  };
+
+  // ---- Eval Proposal Tracking ----
+
+  /** @type {Map<number, PendingProposal>} */
+  const pendingProposals = new Map();
+  let nextProposalId = 1;
+
+  /** @type {ProposalNotification[]} */
+  const notificationQueue = [];
+
+  /**
+   * Inject a notification about a proposal response into the transcript.
+   * @param {ProposalNotification} notification
+   */
+  const injectProposalNotification = notification => {
+    notificationQueue.push(notification);
+  };
+
+  // SmallCaps marshal for decoding LLM tool call arguments
+  const { unserialize } = makeMarshal(undefined, undefined, {
+    serializeBodyFormat: 'smallcaps',
+  });
+
+  /**
+   * Decode SmallCaps JSON string to passable value.
+   * @param {string} jsonString - Raw JSON string with SmallCaps encoding
+   * @returns {unknown}
+   */
+  const decodeSmallcaps = jsonString =>
+    unserialize({ body: `#${jsonString}`, slots: [] });
+
+  /**
+   * Extract tool calls embedded in assistant content.
+   * @param {string} content
+   * @returns {{ toolCalls: ToolCall[], cleanedContent: string }}
+   */
+  const extractToolCallsFromContent = content => {
+    /** @type {ToolCall[]} */
+    const toolCalls = [];
+    const toolCallRe = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+    const matches = content.matchAll(toolCallRe);
+    let index = 0;
+    for (const match of matches) {
+      const block = match[1].trim();
+      let name = '';
+      /** @type {string | object} */
+      let args = '{}';
+      try {
+        const parsed = JSON.parse(block);
+        if (parsed && typeof parsed === 'object') {
+          name = parsed.name || '';
+          if (parsed.arguments !== undefined) {
+            args =
+              typeof parsed.arguments === 'string'
+                ? parsed.arguments
+                : JSON.stringify(parsed.arguments);
+          }
+        }
+      } catch {
+        const nameMatch = block.match(/"name"\s*:\s*"([^"]+)"/);
+        const argsMatch = block.match(/"arguments"\s*:\s*({[\s\S]*})/);
+        name = nameMatch ? nameMatch[1] : '';
+        args = argsMatch ? argsMatch[1].trim() : '{}';
+      }
+      if (name) {
+        toolCalls.push({
+          id: `tool_${Date.now()}_${index}`,
+          function: {
+            name,
+            arguments: args,
+          },
+        });
+        index += 1;
+      }
+    }
+
+    let cleanedContent = content.replace(toolCallRe, '');
+    cleanedContent = cleanedContent.replace(/<think>[\s\S]*?<\/think>/g, '');
+    cleanedContent = cleanedContent.trim();
+
+    return { toolCalls, cleanedContent };
+  };
+
+  /**
+   * The transcript node for the currently active agentic loop.
+   * Set by runAgenticLoop before processing tool calls so that
+   * the reply tool can compute and prepend transcript depth.
+   * @type {TranscriptNode | null}
+   */
+  let activeLeafNode = null;
+
+  /**
+   * Execute a tool call and return the result.
+   *
+   * @param {string} name - Tool name
+   * @param {ToolCallArgs} args - Tool arguments
+   * @returns {Promise<unknown>} The result of the tool call
+   */
+  const executeTool = async (name, args) => {
+    switch (name) {
+      // Self-documentation
+      case 'help': {
+        const { methodName } = args;
+        return E(powers).help(methodName);
+      }
+
+      // Directory operations
+      case 'has': {
+        const { petNamePath } = args;
+        if (!petNamePath) {
+          throw new Error('petNamePath is required');
+        }
+        return E(powers).has(...petNamePath);
+      }
+      case 'list': {
+        const { petNamePath = [] } = args;
+        return E(powers).list(...petNamePath);
+      }
+      case 'lookup': {
+        const { petNameOrPath } = args;
+        if (petNameOrPath === undefined) {
+          throw new Error('petNameOrPath is required');
+        }
+        return E(powers).lookup(petNameOrPath);
+      }
+      case 'remove': {
+        const { petNamePath } = args;
+        if (!petNamePath) {
+          throw new Error('petNamePath is required');
+        }
+        return E(powers).remove(...petNamePath);
+      }
+      case 'move': {
+        const { fromPath, toPath } = args;
+        if (!fromPath || !toPath) {
+          throw new Error('fromPath and toPath are required');
+        }
+        return E(powers).move(fromPath, toPath);
+      }
+      case 'copy': {
+        const { fromPath, toPath } = args;
+        if (!fromPath || !toPath) {
+          throw new Error('fromPath and toPath are required');
+        }
+        return E(powers).copy(fromPath, toPath);
+      }
+      case 'makeDirectory': {
+        const { petNamePath } = args;
+        if (!petNamePath) {
+          throw new Error('petNamePath is required');
+        }
+        return E(powers).makeDirectory(petNamePath);
+      }
+
+      // Mail operations
+      case 'listMessages': {
+        const rawMessages = await E(powers).listMessages();
+        return harden(
+          rawMessages.map(
+            (
+              /** @type {InboxMessage & {messageId?: string, replyTo?: string}} */ msg,
+            ) => ({
+              number: msg.number,
+              date: msg.date,
+              from: msg.from,
+              to: msg.to,
+              type: msg.type,
+              strings: msg.strings,
+              names: msg.names,
+              messageId: msg.messageId,
+              replyTo: msg.replyTo,
+            }),
+          ),
+        );
+      }
+      case 'resolve': {
+        const { messageNumber, petNameOrPath } = args;
+        if (messageNumber === undefined || petNameOrPath === undefined) {
+          throw new Error('messageNumber and petNameOrPath are required');
+        }
+        return E(powers).resolve(messageNumber, petNameOrPath);
+      }
+      case 'reject': {
+        const { messageNumber, reason } = args;
+        if (messageNumber === undefined) {
+          throw new Error('messageNumber is required');
+        }
+        return E(powers).reject(messageNumber, reason);
+      }
+      case 'adopt': {
+        const { messageNumber, edgeName, petName } = args;
+        if (
+          messageNumber === undefined ||
+          edgeName === undefined ||
+          petName === undefined
+        ) {
+          throw new Error('messageNumber, edgeName, and petName are required');
+        }
+        return E(powers).adopt(messageNumber, edgeName, petName);
+      }
+      case 'dismiss': {
+        const { messageNumber } = args;
+        if (messageNumber === undefined) {
+          throw new Error('messageNumber is required');
+        }
+        return E(powers).dismiss(messageNumber);
+      }
+      case 'request': {
+        const { recipientName, description, responseName } = args;
+        if (recipientName === undefined || description === undefined) {
+          throw new Error('recipientName and description are required');
+        }
+        return E(powers).request(recipientName, description, responseName);
+      }
+      case 'send': {
+        const { recipientName, strings, edgeNames, petNames } = args;
+        if (
+          recipientName === undefined ||
+          !strings ||
+          !edgeNames ||
+          !petNames
+        ) {
+          throw new Error(
+            'recipientName, strings, edgeNames, and petNames are required',
+          );
+        }
+        return E(powers).send(recipientName, strings, edgeNames, petNames);
+      }
+      case 'reply': {
+        const { messageNumber, strings, edgeNames, petNames } = args;
+        if (
+          messageNumber === undefined ||
+          !strings ||
+          !edgeNames ||
+          !petNames
+        ) {
+          throw new Error(
+            'messageNumber, strings, edgeNames, and petNames are required',
+          );
+        }
+        // Prepend transcript depth to the first string fragment
+        let depthStrings = strings;
+        if (activeLeafNode !== null) {
+          const transcript = await assembleTranscript(activeLeafNode.messageId);
+          const depth = computeDepth(transcript);
+          if (depthStrings.length > 0) {
+            depthStrings = [
+              `[depth:${depth}] ${depthStrings[0]}`,
+              ...depthStrings.slice(1),
+            ];
+          } else {
+            depthStrings = [`[depth:${depth}]`];
+          }
+        }
+        return E(powers).reply(
+          messageNumber,
+          depthStrings,
+          edgeNames,
+          petNames,
+        );
+      }
+
+      // Identity
+      case 'locate': {
+        const { petNamePath } = args;
+        if (!petNamePath) {
+          throw new Error('petNamePath is required');
+        }
+        return E(powers).locate(...petNamePath);
+      }
+
+      // Capability inspection
+      case 'inspectCapability': {
+        const { petNameOrPath } = args;
+        if (petNameOrPath === undefined) {
+          throw new Error('petNameOrPath is required');
+        }
+        const capability = await E(powers).lookup(petNameOrPath);
+        try {
+          return await E(capability).help();
+        } catch {
+          return `Capability at "${petNameOrPath}" does not implement help().`;
+        }
+      }
+
+      // Code evaluation proposal
+      case 'evaluate': {
+        const {
+          workerName: rawWorkerName,
+          source,
+          codeNames = [],
+          edgeNames = [],
+          resultName,
+        } = args;
+        if (source === undefined) {
+          throw new Error('source is required');
+        }
+        if (resultName === undefined) {
+          throw new Error('resultName is required');
+        }
+        // Convert "undefined" string to actual undefined
+        const workerName =
+          rawWorkerName === 'undefined' || rawWorkerName === '#undefined'
+            ? undefined
+            : rawWorkerName;
+
+        // Send an eval-proposal to the host for approval
+        const proposalPromise = E(powers).evaluate(
+          workerName,
+          source,
+          harden(codeNames),
+          harden(edgeNames),
+          resultName,
+        );
+
+        // Track this proposal
+        const proposalId = nextProposalId;
+        nextProposalId += 1;
+
+        pendingProposals.set(proposalId, {
+          proposalId,
+          source,
+          codeNames,
+          edgeNames,
+          workerName,
+          promise: proposalPromise,
+        });
+
+        // Watch for the proposal to settle
+        proposalPromise.then(
+          result => {
+            console.log(
+              `[proposal] #${proposalId} granted with result:`,
+              result,
+            );
+            pendingProposals.delete(proposalId);
+            injectProposalNotification({
+              status: 'granted',
+              proposalId,
+              source,
+              result,
+            });
+          },
+          error => {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            console.log(`[proposal] #${proposalId} rejected:`, errorMessage);
+            pendingProposals.delete(proposalId);
+            injectProposalNotification({
+              status: 'rejected',
+              proposalId,
+              source,
+              error: errorMessage,
+            });
+          },
+        );
+
+        // Return immediately - the LLM will be notified when the proposal settles
+        return harden({
+          proposalId,
+          status: 'pending',
+          message: `Proposal #${proposalId} sent to host for approval. You will be notified when the host responds.`,
+          source,
+        });
+      }
+
+      // Define code with slots for host to fill
+      case 'define': {
+        const { source, slots } = args;
+        if (source === undefined) {
+          throw new Error('source is required');
+        }
+        if (slots === undefined) {
+          throw new Error('slots is required');
+        }
+        return E(powers).define(source, harden(slots));
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  };
+
+  /**
+   * Process tool calls from the LLM response.
+   *
+   * @param {ToolCall[]} toolCalls - Array of tool calls from the LLM
+   * @returns {Promise<ToolResult[]>} Array of tool results to feed back to the LLM
+   */
+  const processToolCalls = async toolCalls => {
+    /** @type {ToolResult[]} */
+    const results = [];
+
+    for (const toolCall of toolCalls) {
+      const { name, arguments: argsRaw } = toolCall.function;
+
+      // Decode SmallCaps arguments ("+7" -> 7n, "#undefined" -> undefined)
+      /** @type {ToolCallArgs} */
+      let args;
+      try {
+        const jsonString =
+          typeof argsRaw === 'string' ? argsRaw : JSON.stringify(argsRaw);
+        args = /** @type {ToolCallArgs} */ (decodeSmallcaps(jsonString));
+      } catch {
+        args = {};
+      }
+
+      console.log(`[tool] ${name}(${passableAsJustin(harden(args), false)})`);
+
+      /** @type {unknown} */
+      let result;
+      try {
+        result = await executeTool(name, args);
+        console.log(`[tool] ${name} -> ${passableAsJustin(result, false)}`);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        result = harden({ error: errorMessage });
+        console.error(`[tool] ${name} error: ${errorMessage}`);
+      }
+
+      results.push({
+        role: 'tool',
+        content: passableAsJustin(result, false),
+        tool_call_id: toolCall.id,
+      });
+    }
+
+    return results;
+  };
+
+  /**
+   * Format a proposal notification as a user message for the LLM.
+   * @param {ProposalNotification} notification
+   * @returns {string}
+   */
+  const formatProposalNotification = notification => {
+    const { status, proposalId, source } = notification;
+    const sourceText = String(source);
+    const sourcePreview =
+      sourceText.length > 100 ? `${sourceText.slice(0, 100)}...` : sourceText;
+
+    if (status === 'granted') {
+      const resultStr =
+        notification.result !== undefined
+          ? `\nResult: ${passableAsJustin(notification.result, false)}`
+          : '\nResult: (no return value)';
+      return `Your eval-proposal #${proposalId} was GRANTED by the host.
+Source: ${sourcePreview}${resultStr}
+
+The code was executed successfully. If you specified a resultName, the result is now stored there.
+You should:
+1. If you have a capability to send back, use send() to deliver it to the original requester
+2. If you were performing a task, report the outcome to the sender
+3. Continue with any follow-up actions as needed`;
+    } else {
+      return `Your eval-proposal #${proposalId} was REJECTED by the host.
+Source: ${sourcePreview}
+Reason: ${notification.error || 'No reason given'}
+
+The host declined to execute your proposed code. You should:
+1. Send a follow-up message to the sender asking for clarification or explaining the situation
+2. Consider whether a different approach might work
+3. If appropriate, propose modified code that addresses the host's concerns`;
+    }
+  };
+
+  /**
+   * Process any pending notifications and add them to a transcript node.
+   * @param {TranscriptNode} node - The current leaf node to append notifications to
+   * @returns {boolean} True if notifications were processed
+   */
+  const processNotifications = node => {
+    if (notificationQueue.length === 0) {
+      return false;
+    }
+
+    while (notificationQueue.length > 0) {
+      const notification = notificationQueue.shift();
+      if (notification) {
+        const message = formatProposalNotification(notification);
+        console.log(
+          `[notification] Proposal #${notification.proposalId} ${notification.status}`,
+        );
+        node.messages.push({
+          role: 'user',
+          content: message,
+        });
+      }
+    }
+    return true;
+  };
+
+  /**
+   * Run the agentic loop for a specific transcript node.
+   * @param {TranscriptNode} leafNode - The leaf node of the transcript chain
+   * @returns {Promise<void>}
+   */
+  const runAgenticLoop = async leafNode => {
+    activeLeafNode = leafNode;
+    let continueLoop = true;
+    while (continueLoop) {
+      // Check for pending notifications before each LLM call
+      processNotifications(leafNode);
+
+      // Assemble the full transcript from the chain
+      const transcript = await assembleTranscript(leafNode.messageId);
+
+      console.log(
+        `[lal] ${JSON.stringify(transcript[transcript.length - 1], null, 2)}`,
+      );
+      const response = await chat(transcript);
+
+      const { message: responseMessage } = response;
+      if (!responseMessage) {
+        break;
+      }
+
+      if (
+        (!responseMessage.tool_calls ||
+          responseMessage.tool_calls.length === 0) &&
+        responseMessage.content
+      ) {
+        const extracted = extractToolCallsFromContent(responseMessage.content);
+        if (extracted.toolCalls.length > 0) {
+          responseMessage.tool_calls = extracted.toolCalls;
+          responseMessage.content = extracted.cleanedContent;
+        }
+      }
+
+      // Add the assistant's response to the leaf node
+      leafNode.messages.push(/** @type {ChatMessage} */ (responseMessage));
+      console.log(
+        `[lal] sent: ${JSON.stringify(leafNode.messages[leafNode.messages.length - 1], null, 2)}`,
+      );
+
+      // Check if there are tool calls to process
+      const toolCalls = Array.isArray(responseMessage.tool_calls)
+        ? responseMessage.tool_calls
+        : [];
+      if (toolCalls.length !== 0) {
+        const toolResults = await processToolCalls(
+          /** @type {ToolCall[]} */ (toolCalls),
+        );
+        console.log(
+          `[lal] tool results: ${JSON.stringify(toolResults, null, 2)}`,
+        );
+        leafNode.messages.push(...toolResults);
+        await putNode(leafNode);
+
+        // After processing tools, check if we have new notifications
+        // This allows the loop to continue if proposals settled
+        if (notificationQueue.length > 0) {
+          continue;
+        }
+      } else {
+        // No more tool calls - but check if we have notifications to process
+        if (notificationQueue.length > 0) {
+          continue;
+        }
+
+        // Check if we have pending proposals - wait for them to settle
+        if (pendingProposals.size > 0) {
+          console.log(
+            `[lal] Waiting for ${pendingProposals.size} pending proposal(s) to settle...`,
+          );
+          // Wait for any pending proposal to settle
+          const pendingPromises = [...pendingProposals.values()].map(p =>
+            p.promise.then(
+              () => {},
+              () => {},
+            ),
+          );
+          await Promise.race(pendingPromises);
+          // Continue the loop to process the notification
+          continue;
+        }
+
+        // Really done
+        continueLoop = false;
+        await putNode(leafNode);
+        activeLeafNode = null;
+
+        // If the LLM produced text content (which it shouldn't), log it
+        if (responseMessage.content) {
+          console.log(`[assistant] ${responseMessage.content}`);
+        }
+      }
+    }
+  };
+
+  /**
+   * Build the user-role message content for an inbound message.
+   * @param {InboxMessage & {type?: string}} message
+   * @returns {string}
+   */
+  const formatInboundMessage = message => {
+    const { number, type } = message;
+
+    if (
+      type === 'eval-proposal-reviewer' ||
+      type === 'eval-proposal-proposer'
+    ) {
+      const { source, codeNames, edgeNames, workerName, resultName } =
+        /** @type {any} */ (message);
+      assert.typeof(source, 'string');
+      const sourcePreview =
+        source.length > 200 ? `${source.slice(0, 200)}...` : source;
+
+      const endowmentsDesc =
+        Array.isArray(codeNames) && codeNames.length > 0
+          ? `\nEndowments: ${codeNames.map((/** @type {string} */ cn, /** @type {number} */ i) => `${cn} <- ${edgeNames?.[i] || '?'}`).join(', ')}`
+          : '\nNo endowments';
+
+      return `You received a COUNTER-PROPOSAL from your host (message #${number}).
+
+The host has modified your proposed code and is suggesting this alternative:
+
+\`\`\`javascript
+${sourcePreview}
+\`\`\`
+${endowmentsDesc}
+${workerName ? `Worker: ${workerName}` : ''}
+${resultName ? `Result will be stored as: ${resultName}` : ''}
+
+You should:
+1. Review the counter-proposal carefully
+2. If it meets your needs, you can submit a new eval-proposal with the suggested code
+3. If you disagree, you can reject this counter-proposal and explain why, or propose different code
+4. After deciding, dismiss message #${number}`;
+    }
+
+    // Regular message (package or request)
+    return 'You have new mail. Check your messages and respond appropriately.';
+  };
+
+  /**
+   * Handle an own outbound message: create an alias so future replies
+   * to this outbound messageId find the correct transcript chain.
+   * @param {InboxMessage & {messageId?: string, replyTo?: string}} message
+   */
+  const handleOwnMessage = async message => {
+    const { messageId, replyTo } = message;
+    if (typeof messageId !== 'string' || typeof replyTo !== 'string') {
+      return;
+    }
+
+    // replyTo points to the inbound message that triggered this response.
+    // Create an alias: outboundMessageId → same node as replyTo.
+    const node = await getNode(replyTo);
+    if (node !== undefined) {
+      nodeCache.set(messageId, node);
+      const petName = `transcript-${messageId}`;
+      try {
+        await E(powers).storeValue(harden(node), petName);
+      } catch (error) {
+        console.error(
+          `[transcript] Failed to alias ${messageId}:`,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+  };
+
+  /**
+   * Run the agent loop, processing incoming messages.
+   * Each reply chain is routed to an independent transcript.
+   *
+   * @returns {Promise<void>}
+   */
+  const runAgent = async () => {
+    // Announce ourselves
+    await E(powers).send('@host', ['Lal agent ready.'], [], []);
+
+    /** @type {string | undefined} */
+    const selfLocator = await E(powers).locate('@self');
+    const cancelled = await getCancelled();
+    const cancelledSignal = cancelled
+      ? cancelled.then(
+          () => ({ cancelled: true }),
+          () => ({ cancelled: true }),
+        )
+      : null;
+
+    // Follow messages and route each to the correct transcript chain
+    const messageIterator = makeRefIterator(E(powers).followMessages());
+    while (true) {
+      const nextMessage = messageIterator.next();
+      const raced = cancelledSignal
+        ? await Promise.race([
+            cancelledSignal,
+            nextMessage.then(result => ({ cancelled: false, result })),
+          ])
+        : { cancelled: false, result: await nextMessage };
+      if (raced.cancelled) {
+        try {
+          await messageIterator.return?.();
+        } catch {
+          // ignore iterator return errors on cancellation
+        }
+        break;
+      }
+      const { value: message, done } = raced.result;
+      if (done) {
+        break;
+      }
+      const inboxMessage =
+        /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string}} */ (
+          message
+        );
+      const {
+        from: fromLocator,
+        number,
+        type,
+        messageId,
+        replyTo,
+      } = inboxMessage;
+
+      // Own outbound messages: index them for future reply lookups
+      if (fromLocator === selfLocator) {
+        await handleOwnMessage(inboxMessage);
+        continue;
+      }
+
+      console.log(`[mail] New message #${number} (type: ${type || 'package'})`);
+
+      // Resolve or create the transcript chain for this message.
+      /** @type {TranscriptNode | undefined} */
+      let parentNode;
+      /** @type {string} */
+      let parentId;
+
+      if (typeof replyTo === 'string') {
+        parentNode = await getNode(replyTo);
+      }
+
+      if (parentNode !== undefined) {
+        // Continue existing conversation.
+        parentId = /** @type {string} */ (replyTo);
+        console.log(
+          `[transcript] Continuing chain from ${parentId.slice(0, 12)}...`,
+        );
+      } else {
+        // New conversation — create a root node with the system prompt.
+        const rootId = makeRootNodeId();
+        /** @type {TranscriptNode} */
+        const rootNode = {
+          messageId: rootId,
+          parentMessageId: null,
+          messages: [{ role: 'system', content: systemPrompt }],
+        };
+        await putNode(rootNode);
+        parentId = rootId;
+        console.log('[transcript] Starting new conversation chain');
+      }
+
+      // Create a new node for this turn, chained to the parent.
+      const userContent = formatInboundMessage(inboxMessage);
+
+      /** @type {TranscriptNode} */
+      const turnNode = {
+        messageId: typeof messageId === 'string' ? messageId : makeRootNodeId(),
+        parentMessageId: parentId,
+        messages: [{ role: 'user', content: userContent }],
+        lastInboxNumber: number,
+      };
+      await putNode(turnNode);
+
+      // Run the agentic loop for this transcript chain
+      try {
+        await runAgenticLoop(turnNode);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error('[agent] LLM error, notifying sender:', errorMessage);
+        const isValidName =
+          typeof fromId === 'string' &&
+          (/^[a-z][a-z0-9-]{0,127}$/.test(fromId) ||
+            /^[A-Z][A-Z0-9-]{0,127}$/.test(fromId));
+        if (isValidName) {
+          await E(powers).send(fromId, [errorMessage], [], []);
+        }
+      }
+
+      const transcriptLength = (await assembleTranscript(turnNode.messageId))
+        .length;
+      console.log(
+        `[lal] Transcript chain has ${transcriptLength} messages after processing`,
+      );
+    }
+  };
+
+  // Start the worker loop
+  await runAgent();
+};
+harden(spawnWorkerLoop);
+
+// ============================================================================
+// Manager / Entry Point
+// ============================================================================
+
+/**
+ * Creates a Lal agent manager.
+ *
+ * Sends a configuration form to HOST on startup. Each form submission
+ * creates a new guest profile and spawns a worker loop for it.
+ *
+ * @param {FarRef<GuestPowers>} guestPowers - Guest powers from the Endo daemon
+ * @param {Promise<LalContext> | LalContext | undefined} _context - Context for cancellation support
+ * @returns {object} The Lal exo object
+ */
+export const make = (guestPowers, _context) => {
+  /** @type {any} */
+  const powers = guestPowers;
+
+  // Send the configuration form to HOST for adding agents.
+  const runManager = async () => {
+    await E(powers).form(
+      '@host',
+      'Add an agent',
+      harden([
+        { name: 'name', label: 'Agent name' },
+        {
+          name: 'host',
+          label: 'API host',
+          example: 'https://api.anthropic.com',
+        },
+        {
+          name: 'model',
+          label: 'Model name',
+          example: 'claude-sonnet-4-6-20250514',
+        },
+        { name: 'authToken', label: 'API auth token', secret: true },
+      ]),
+    );
+
+    // Resolve the host agent reference for provideGuest calls.
+    const agent = await E(powers).lookup('host-agent');
+    const selfLocator = await E(powers).locate('@self');
+    const activeWorkers = new Map();
+
+    // Pre-scan existing messages to find our latest form messageId so that
+    // old value messages (from prior sessions) that reply to an earlier form
+    // are not accidentally matched when the iterator replays history.
+    /** @type {string | undefined} */
+    let formMessageId;
+    const existingMessages = /** @type {any[]} */ (
+      await E(powers).listMessages()
+    );
+    for (const msg of existingMessages) {
+      if (msg.from === selfLocator && msg.type === 'form') {
+        formMessageId = msg.messageId;
+      }
+    }
+
+    const messageIterator = makeRefIterator(E(powers).followMessages());
+    while (true) {
+      const { value: message, done } = await messageIterator.next();
+      if (done) break;
+
+      const msg = /** @type {any} */ (message);
+
+      // Capture the form's messageId from our own outbound message.
+      if (msg.from === selfLocator && msg.type === 'form') {
+        formMessageId = msg.messageId;
+        continue;
+      }
+
+      // Skip non-value messages and value messages not replying to our form.
+      if (msg.type !== 'value') continue;
+      if (msg.replyTo !== formMessageId) continue;
+
+      try {
+        // Resolve the submitted values from the value message.
+        const config =
+          /** @type {{ name: string, host: string, model: string, authToken: string }} */ (
+            await E(powers).lookupById(msg.valueId)
+          );
+
+        const { name } = config;
+
+        // Skip if a worker is already running for this name.
+        if (activeWorkers.has(name)) {
+          await E(powers).reply(
+            msg.number,
+            [`Agent "${name}" already exists.`],
+            [],
+            [],
+          );
+          continue;
+        }
+
+        // Create the guest profile via the host agent.
+        // provideGuest returns the full EndoGuest (not the handle).
+        // Guard with has() — on restart the guest already exists and
+        // re-running provideGuest hits "Formula already exists".
+        let guest;
+        if (await E(agent).has(name)) {
+          guest = await E(agent).lookup(name);
+        } else {
+          guest = await E(agent).provideGuest(name, {
+            agentName: `profile-for-${name}`,
+          });
+        }
+
+        // Spawn a worker loop for this guest.
+        const workerP = spawnWorkerLoop(guest, null, {
+          LAL_HOST: config.host,
+          LAL_MODEL: config.model,
+          LAL_AUTH_TOKEN: config.authToken,
+        });
+        activeWorkers.set(name, workerP);
+        workerP.catch(error => {
+          console.error(`[lal] Worker "${name}" error:`, error);
+          activeWorkers.delete(name);
+        });
+
+        await E(powers).reply(
+          msg.number,
+          [`Agent "${name}" is now running.`],
+          [],
+          [],
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error('[lal] Form submission error:', errorMessage);
+        try {
+          await E(powers).reply(
+            msg.number,
+            [`Error creating agent: ${errorMessage}`],
+            [],
+            [],
+          );
+        } catch {
+          // Best-effort reply.
+        }
+      }
+    }
+  };
+
+  runManager().catch(error => {
+    console.error('[lal] Manager error:', error);
+  });
+
+  return makeExo('Lal', LalInterface, {
+    /**
+     * @param {string} [methodName]
+     * @returns {string}
+     */
+    help(methodName) {
+      if (methodName === undefined) {
+        return 'Lal agent manager. Submit the configuration form to add agents.';
+      }
+      return `No documentation for method "${methodName}".`;
+    },
+  });
+};

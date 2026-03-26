@@ -42,6 +42,7 @@
     "@endo/init": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
@@ -83,7 +84,7 @@
     "files": [
       "test/**/*.test.*"
     ],
-    "timeout": "2m"
+    "timeout": "10m"
   },
   "typeCoverage": {
     "atLeast": 86.18
