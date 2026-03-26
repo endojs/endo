@@ -13,6 +13,8 @@ import {
   makeReplyTool,
   makeSendTool,
   makeDismissTool,
+  makeReadFileTool,
+  makeListDirTool,
 } from '@endo/fae/src/tool-makers.js';
 import { discoverTools, executeTool } from '@endo/fae/src/tools.js';
 import { extractToolCallsFromContent } from '@endo/fae/src/extract-tool-calls.js';
@@ -32,10 +34,15 @@ const m = makeMarshal(undefined, undefined, {
 const decodeSmallcaps = jsonString =>
   m.unserialize({ body: jsonString, slots: [] });
 
+const projectRoot = new URL('../..', import.meta.url).pathname;
+
 const executorSystemPrompt = `\
 You are an execution agent. You receive a task description and must use the
 available tools to accomplish it. Return the final result as plain text in
-your last message. Be concise and factual.`;
+your last message. Be concise and factual.
+
+You have access to your own source code and the broader Endo project via
+readFile and listDir. Use these to understand your environment when needed.`;
 
 /**
  * Parse tool call arguments from LLM output.
@@ -125,6 +132,8 @@ export const makeExecutor = (powers, provider) => {
   allTools.set('send', makeSendTool(powers));
   allTools.set('reply', makeReplyTool(powers));
   allTools.set('dismiss', makeDismissTool(powers));
+  allTools.set('readFile', makeReadFileTool(projectRoot));
+  allTools.set('listDir', makeListDirTool(projectRoot));
 
   // Timer tool
   const timerTool = harden({
@@ -190,12 +199,13 @@ export const makeExecutor = (powers, provider) => {
       { role: 'user', content: intent },
     ];
 
-    const maxIterations = 5;
     let lastContent = '';
+    let iteration = 0;
 
-    for (let i = 0; i < maxIterations; i += 1) {
+    while (true) {
+      iteration += 1;
       console.log(
-        `[jaine][executor] LLM call #${i + 1}, ${conversation.length} messages`,
+        `[jaine][executor] LLM call #${iteration}, ${conversation.length} messages`,
       );
       const response = await provider.chat(conversation, toolSchemas);
       const { message: responseMessage } = response;

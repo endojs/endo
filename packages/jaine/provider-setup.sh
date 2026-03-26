@@ -22,7 +22,9 @@ fi
 
 set -a; source "$ENV_FILE"; set +a
 
-endo run --UNCONFINED ../fae/submit-provider.js --powers @agent \
+ENDO="${ENDO:-$(dirname "$0")/../cli/bin/endo}"
+
+"$ENDO" run --UNCONFINED ../fae/submit-provider.js --powers @agent \
   -E PROVIDER_NAME="${PROVIDER_NAME:-default}" \
   -E LAL_HOST="${LAL_HOST:-https://api.anthropic.com}" \
   -E LAL_MODEL="${LAL_MODEL:-claude-sonnet-4-6-20250514}" \

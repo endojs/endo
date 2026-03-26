@@ -92,6 +92,42 @@ const buildThreadContext = async (member, replyToNum) => {
 };
 harden(buildThreadContext);
 
+const DEFAULT_RECENT_HISTORY_COUNT = 50;
+
+/**
+ * Build a formatted transcript of the most recent channel messages.
+ *
+ * @param {object} member - channel member handle
+ * @param {number} [count] - number of recent messages to include
+ * @returns {Promise<string>}
+ */
+const buildRecentHistory = async (member, count = DEFAULT_RECENT_HISTORY_COUNT) => {
+  const allMessages = /** @type {any[]} */ (await E(member).listMessages());
+
+  /** @type {Map<string, string>} */
+  const memberNames = new Map();
+  try {
+    const members = /** @type {any[]} */ (await E(member).getMembers());
+    for (const m of members) {
+      memberNames.set(m.memberId, m.proposedName || m.invitedAs);
+    }
+  } catch {
+    // not available
+  }
+
+  const shown = allMessages.slice(-count);
+  const lines = shown.map(msg => {
+    const author = memberNames.get(msg.memberId) || msg.memberId;
+    const text = Array.isArray(msg.strings) ? msg.strings.join('') : '';
+    const replyTag = msg.replyTo ? ` (reply to #${msg.replyTo})` : '';
+    const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text;
+    return `[#${msg.number}] ${author}${replyTag}: ${preview}`;
+  });
+
+  return lines.join('\n');
+};
+harden(buildRecentHistory);
+
 // ---------------------------------------------------------------------------
 // Worker loop — three-layer orchestrator
 // ---------------------------------------------------------------------------
@@ -134,9 +170,158 @@ export const spawnWorkerLoop = async (
   });
 
   // Create the three layers
-  const router = await makeRouter(powers);
+  const router = await makeRouter(powers, provider);
   const executor = makeExecutor(powers, provider);
   const composer = makeComposer(provider, intent => executor.execute(intent));
+
+  // --- Channel watching ---
+
+  /** @type {Map<string, boolean>} */
+  const watchedChannels = new Map();
+  /** Channel message numbers already handled by the mention flow. */
+  /** @type {Set<string>} */
+  const mentionHandledMessages = new Set();
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  /**
+   * Watch a channel for new messages and route them through Layer 1.
+   * Runs as a background loop — fire-and-forget via void.
+   *
+   * @param {string} channelName - petname for the channel
+   * @param {string} channelId - canonical formula identifier
+   * @param {object} member - channel member handle
+   * @param {string | null} selfMemberId - own member ID to skip own msgs
+   */
+  const watchChannel = async (channelName, channelId, member, selfMemberId) => {
+    console.log(`[jaine][watch] Watching ${channelName}`);
+
+    // Initialize lastSeen to current latest to avoid replaying history
+    let lastSeen = 0n;
+    try {
+      const msgs = /** @type {any[]} */ (await E(member).listMessages());
+      if (msgs.length > 0) {
+        lastSeen = BigInt(msgs[msgs.length - 1].number);
+      }
+    } catch {
+      // start from 0
+    }
+
+    /** @type {Map<string, string>} */
+    let memberNames = new Map();
+
+    const refreshMemberNames = async () => {
+      /** @type {Map<string, string>} */
+      const names = new Map();
+      try {
+        const members = /** @type {any[]} */ (await E(member).getMembers());
+        for (const mbr of members) {
+          names.set(mbr.memberId, mbr.proposedName || mbr.invitedAs);
+        }
+      } catch {
+        // keep existing
+      }
+      if (names.size > 0) memberNames = names;
+    };
+
+    const POLL_INTERVAL_MS = 5000;
+
+    while (true) {
+      await delay(POLL_INTERVAL_MS);
+
+      try {
+        await refreshMemberNames();
+        const messages = /** @type {any[]} */ (
+          await E(member).listMessages()
+        );
+
+        const newMessages = messages.filter(
+          msg => BigInt(msg.number) > lastSeen,
+        );
+        if (newMessages.length === 0) continue;
+        lastSeen = BigInt(newMessages[newMessages.length - 1].number);
+
+        for (const msg of newMessages) {
+          if (msg.memberId === selfMemberId) continue;
+          // Skip messages already handled by the inbox mention flow
+          if (mentionHandledMessages.has(String(msg.number))) continue;
+
+          const authorName =
+            memberNames.get(msg.memberId) || msg.memberId;
+
+          // Build recent context for routing (last 10 messages)
+          const msgIdx = messages.indexOf(msg);
+          const contextMsgs = messages.slice(
+            Math.max(0, msgIdx - 10),
+            msgIdx,
+          );
+          const recentContext = contextMsgs
+            .map(cm => {
+              const name =
+                memberNames.get(cm.memberId) || cm.memberId;
+              const text = Array.isArray(cm.strings)
+                ? cm.strings.join('')
+                : '';
+              const preview =
+                text.length > 200
+                  ? `${text.slice(0, 200)}...`
+                  : text;
+              return `${name}: ${preview}`;
+            })
+            .join('\n');
+
+          const decision = await router.routeChannelMessage(
+            msg,
+            channelId,
+            recentContext,
+            authorName,
+          );
+
+          console.log(
+            `[jaine][watch] ${channelName} #${msg.number} by ${authorName}: ` +
+              `${decision.shouldEngage ? 'engage' : 'pass'} — ${decision.reason}`,
+          );
+
+          // Handle participation change
+          if (decision.participationChange) {
+            router.setParticipation(
+              channelId,
+              decision.participationChange.level,
+            );
+            if (decision.participationChange.acknowledgment) {
+              try {
+                await E(member).post(
+                  [decision.participationChange.acknowledgment],
+                  [],
+                  [],
+                  String(msg.number),
+                );
+              } catch {
+                // best effort
+              }
+            }
+          }
+
+          // Compose and post response
+          if (decision.shouldEngage) {
+            try {
+              await handleChannelResponse(composer, member, msg);
+            } catch (err) {
+              console.error(
+                `[jaine][watch] Response error in ${channelName}:`,
+                err instanceof Error ? err.message : String(err),
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error(
+          `[jaine][watch] Poll error in ${channelName}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+        await delay(10000);
+      }
+    }
+  };
 
   // --- Main loop ---
 
@@ -188,8 +373,10 @@ export const spawnWorkerLoop = async (
 
     try {
       if (decision.mentionInfo) {
+        // Mark the channel message so the watcher doesn't re-process it
+        mentionHandledMessages.add(decision.mentionInfo.replyTo);
         // ---- Channel mention flow: Router → Composer → Executor ----
-        await handleMention(
+        const mentionResult = await handleMention(
           powers,
           composer,
           decision.textContent,
@@ -197,6 +384,40 @@ export const spawnWorkerLoop = async (
           number,
           msgNum,
         );
+
+        // Start watching this channel if not already
+        if (mentionResult) {
+          try {
+            const channelId = await E(powers).identify(
+              mentionResult.channelName,
+            );
+            if (!watchedChannels.has(channelId)) {
+              watchedChannels.set(channelId, true);
+              const members = /** @type {any[]} */ (
+                await E(mentionResult.member).getMembers()
+              );
+              const selfEntry = members.find(
+                mbr => mbr.invitedAs === decision.mentionInfo.join,
+              );
+              const selfMemberId = selfEntry
+                ? selfEntry.memberId
+                : null;
+              void watchChannel(
+                mentionResult.channelName,
+                channelId,
+                mentionResult.member,
+                selfMemberId,
+              );
+            }
+          } catch (watchErr) {
+            console.error(
+              '[jaine] Failed to start channel watcher:',
+              watchErr instanceof Error
+                ? watchErr.message
+                : String(watchErr),
+            );
+          }
+        }
       } else {
         // ---- General inbox flow: direct to Executor ----
         await handleInbox(
@@ -242,7 +463,7 @@ harden(spawnWorkerLoop);
  * @param {{ edge: string, join: string, replyTo: string }} mentionInfo
  * @param {bigint | number} messageNumber - inbox message number
  * @param {bigint} msgNum
- * @returns {Promise<void>}
+ * @returns {Promise<{ member: object, channelName: string } | null>}
  */
 const handleMention = async (
   powers,
@@ -281,7 +502,7 @@ const handleMention = async (
       [],
       [],
     );
-    return;
+    return null;
   }
 
   // Post placeholder message and discover its number via listMessages
@@ -330,8 +551,9 @@ const handleMention = async (
     }
   };
 
-  // Pre-fetch thread context
+  // Pre-fetch thread context and recent channel history
   let threadContext = '';
+  let recentHistory = '';
   try {
     await updatePlaceholder('Reading thread...');
     threadContext = await buildThreadContext(member, mentionInfo.replyTo);
@@ -344,6 +566,17 @@ const handleMention = async (
       ctxErr instanceof Error ? ctxErr.message : String(ctxErr),
     );
   }
+  try {
+    recentHistory = await buildRecentHistory(member);
+    console.log(
+      `[jaine] Recent history: ${recentHistory.length} chars, ${recentHistory.split('\n').length} messages`,
+    );
+  } catch (histErr) {
+    console.error(
+      `[jaine] Recent history fetch failed:`,
+      histErr instanceof Error ? histErr.message : String(histErr),
+    );
+  }
 
   // Compose the response
   await updatePlaceholder('Composing response...');
@@ -351,6 +584,7 @@ const handleMention = async (
     threadContext,
     textContent,
     updatePlaceholder,
+    recentHistory,
   );
 
   // Final edit with the response
@@ -363,8 +597,89 @@ const handleMention = async (
     await updatePlaceholder('(No response generated)');
     console.log('[jaine] Composer returned empty response');
   }
+
+  return harden({ member, channelName: chRefName });
 };
 harden(handleMention);
+
+// ---------------------------------------------------------------------------
+// Channel response handler (for watched channels)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compose and post a response to a channel message from the watcher.
+ *
+ * @param {{ compose: Function }} composer
+ * @param {object} member - channel member handle
+ * @param {object} triggerMsg - the channel message to respond to
+ * @returns {Promise<void>}
+ */
+const handleChannelResponse = async (composer, member, triggerMsg) => {
+  const replyToNum = String(triggerMsg.number);
+
+  // Post placeholder as reply to the trigger message
+  /** @type {string | undefined} */
+  let placeholderKey;
+  try {
+    await E(member).post(['Thinking...'], [], [], replyToNum);
+    const msgs = /** @type {any[]} */ (await E(member).listMessages());
+    if (msgs.length > 0) {
+      placeholderKey = String(msgs[msgs.length - 1].number);
+    }
+  } catch {
+    // continue without placeholder
+  }
+
+  /** @param {string} text */
+  const updatePlaceholder = async text => {
+    if (placeholderKey === undefined) return;
+    try {
+      await E(member).post([text], [], [], placeholderKey, [], 'edit');
+    } catch {
+      // best effort
+    }
+  };
+
+  // Build context
+  let threadContext = '';
+  try {
+    threadContext = await buildThreadContext(member, replyToNum);
+  } catch {
+    // continue without
+  }
+
+  let recentHistory = '';
+  try {
+    recentHistory = await buildRecentHistory(member);
+  } catch {
+    // continue without
+  }
+
+  const msgText = Array.isArray(triggerMsg.strings)
+    ? triggerMsg.strings.join('')
+    : '';
+
+  const result = await composer.compose(
+    threadContext,
+    msgText,
+    updatePlaceholder,
+    recentHistory,
+  );
+
+  if (result.responseText) {
+    await updatePlaceholder(result.responseText);
+    console.log(
+      `[jaine][watch] Response posted (${result.responseText.length} chars)`,
+    );
+  } else if (placeholderKey !== undefined) {
+    try {
+      await E(member).post([''], [], [], placeholderKey, [], 'edit');
+    } catch {
+      // best effort
+    }
+  }
+};
+harden(handleChannelResponse);
 
 // ---------------------------------------------------------------------------
 // General inbox handler

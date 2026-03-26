@@ -71,11 +71,19 @@ export const makeComposer = (provider, executorFn) => {
    * @param {string} threadContext - pre-formatted thread transcript
    * @param {string} userMessage - the triggering message text
    * @param {(status: string) => Promise<void>} onStatus - callback for placeholder edits
+   * @param {string} [recentHistory] - recent channel messages for broader context
    * @returns {Promise<ComposerResult>}
    */
-  const compose = async (threadContext, userMessage, onStatus) => {
-    const contextBlock = threadContext
-      ? `Thread context:\n${threadContext}\n\n`
+  const compose = async (threadContext, userMessage, onStatus, recentHistory) => {
+    const contextParts = [];
+    if (recentHistory) {
+      contextParts.push(`Recent channel history:\n${recentHistory}`);
+    }
+    if (threadContext) {
+      contextParts.push(`Thread context:\n${threadContext}`);
+    }
+    const contextBlock = contextParts.length > 0
+      ? `${contextParts.join('\n\n')}\n\n`
       : '';
 
     /** @type {object[]} */
@@ -89,11 +97,12 @@ export const makeComposer = (provider, executorFn) => {
 
     /** @type {string[]} */
     const statusUpdates = [];
-    const maxIterations = 5;
+    let iteration = 0;
 
-    for (let i = 0; i < maxIterations; i += 1) {
+    while (true) {
+      iteration += 1;
       console.log(
-        `[jaine][composer] LLM call #${i + 1}, ${conversation.length} messages`,
+        `[jaine][composer] LLM call #${iteration}, ${conversation.length} messages`,
       );
       const response = await provider.chat(conversation, toolSchemas);
       const { message: responseMessage } = response;
