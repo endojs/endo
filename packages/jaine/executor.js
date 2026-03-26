@@ -18,6 +18,10 @@ import {
 } from '@endo/fae/src/tool-makers.js';
 import { discoverTools, executeTool } from '@endo/fae/src/tools.js';
 import { extractToolCallsFromContent } from '@endo/fae/src/extract-tool-calls.js';
+import { createLogger } from './logger.js';
+
+// eslint-disable-next-line no-shadow
+const console = createLogger();
 
 /**
  * @typedef {{ type: 'result', value: string }} ExecutorResult
@@ -34,12 +38,44 @@ const m = makeMarshal(undefined, undefined, {
 const decodeSmallcaps = jsonString =>
   m.unserialize({ body: jsonString, slots: [] });
 
-const projectRoot = new URL('../..', import.meta.url).pathname;
+const projectRoot = new URL('../..', import.meta.url).pathname.replace(
+  /\/$/,
+  '',
+);
 
 const executorSystemPrompt = `\
-You are an execution agent. You receive a task description and must use the
-available tools to accomplish it. Return the final result as plain text in
-your last message. Be concise and factual.
+You are an execution agent running inside Endo, a capability-secure
+JavaScript platform. You receive a task and must use the available tools
+to accomplish it. Return the final result as plain text in your last
+message. Be concise and factual.
+
+CRITICAL — Eventual Send (E):
+All objects here are REMOTE references. You CANNOT call methods directly.
+You MUST wrap every method call with E():
+
+  WRONG: powers.list()          — throws "not a function"
+  RIGHT: await E(powers).list()
+
+  WRONG: channel.join("name")
+  RIGHT: await E(channel).join("name")
+
+E() returns a Promise. Always await it. This applies to powers AND to
+every object returned from an E() call (channels, members, etc.).
+
+Common patterns:
+  const names = await E(powers).list();
+  const ch    = await E(powers).lookup("my-channel");
+  const member = await E(ch).join("jaine");
+  const msgs  = await E(member).listMessages();
+  await E(member).post(["Hello!"], [], []);
+  await E(powers).adopt(42n, "edgeName", "petName");
+  await E(powers).send("recipient", ["message text"], [], []);
+
+SES environment restrictions:
+- new Date() throws. Use Date.now() for timestamps.
+- Objects returned from E() are frozen. Do not try to mutate them.
+- Use harden() on any objects you create before passing them around.
+- BigInt literals use the n suffix: 42n, not BigInt(42).
 
 You have access to your own source code and the broader Endo project via
 readFile and listDir. Use these to understand your environment when needed.`;
@@ -201,8 +237,12 @@ export const makeExecutor = (powers, provider) => {
 
     let lastContent = '';
     let iteration = 0;
+    let lastToolSig = '';
+    let repeatCount = 0;
+    const MAX_ITERATIONS = 30;
+    const MAX_REPEATS = 3;
 
-    while (true) {
+    while (iteration < MAX_ITERATIONS) {
       iteration += 1;
       console.log(
         `[jaine][executor] LLM call #${iteration}, ${conversation.length} messages`,
@@ -224,6 +264,28 @@ export const makeExecutor = (powers, provider) => {
 
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
       if (toolCalls.length > 0) {
+        // Detect repetitive tool calls (model stuck in a loop)
+        const toolSig = toolCalls
+          .map(tc => {
+            const f = /** @type {any} */ (tc).function;
+            return `${f?.name}(${JSON.stringify(f?.arguments)})`;
+          })
+          .join(';');
+        if (toolSig === lastToolSig) {
+          repeatCount += 1;
+          if (repeatCount >= MAX_REPEATS) {
+            console.error(
+              `[jaine][executor] Breaking: same tool call repeated ${MAX_REPEATS} times`,
+            );
+            lastContent =
+              rm.content || '(Stopped: repeated the same action without progress)';
+            break;
+          }
+        } else {
+          repeatCount = 0;
+          lastToolSig = toolSig;
+        }
+
         const toolResults = await processToolCalls(toolCalls, toolMap);
         conversation.push(responseMessage);
         for (const tr of toolResults) {
@@ -234,6 +296,12 @@ export const makeExecutor = (powers, provider) => {
         lastContent = rm.content || '';
         break;
       }
+    }
+
+    if (iteration >= MAX_ITERATIONS) {
+      console.error(
+        `[jaine][executor] Hit iteration limit (${MAX_ITERATIONS})`,
+      );
     }
 
     if (lastContent) {

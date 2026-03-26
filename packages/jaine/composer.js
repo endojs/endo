@@ -2,6 +2,10 @@
 /* eslint-disable no-await-in-loop */
 
 import { extractToolCallsFromContent } from '@endo/fae/src/extract-tool-calls.js';
+import { createLogger } from './logger.js';
+
+// eslint-disable-next-line no-shadow
+const console = createLogger();
 
 /** @import { ExecutorOutcome } from './executor.js' */
 
@@ -98,8 +102,9 @@ export const makeComposer = (provider, executorFn) => {
     /** @type {string[]} */
     const statusUpdates = [];
     let iteration = 0;
+    const MAX_ITERATIONS = 15;
 
-    while (true) {
+    while (iteration < MAX_ITERATIONS) {
       iteration += 1;
       console.log(
         `[jaine][composer] LLM call #${iteration}, ${conversation.length} messages`,

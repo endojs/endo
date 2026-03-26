@@ -11,6 +11,10 @@ import { createProvider } from '@endo/lal/providers/index.js';
 import { makeRouter } from './router.js';
 import { makeComposer } from './composer.js';
 import { makeExecutor } from './executor.js';
+import { createLogger } from './logger.js';
+
+// eslint-disable-next-line no-shadow
+const console = createLogger();
 
 const JaineFactoryInterface = M.interface('JaineFactory', {
   createAgent: M.callWhen(M.string()).optional(M.record()).returns(M.string()),
@@ -241,7 +245,12 @@ export const spawnWorkerLoop = async (
         lastSeen = BigInt(newMessages[newMessages.length - 1].number);
 
         for (const msg of newMessages) {
-          if (msg.memberId === selfMemberId) continue;
+          if (
+            selfMemberId != null &&
+            String(msg.memberId) === String(selfMemberId)
+          ) {
+            continue;
+          }
           // Skip messages already handled by the inbox mention flow
           if (mentionHandledMessages.has(String(msg.number))) continue;
 
@@ -323,6 +332,79 @@ export const spawnWorkerLoop = async (
     }
   };
 
+  /**
+   * Resolve our own member ID for a channel member handle.
+   * Tries getMemberId() first, falls back to searching the members list.
+   *
+   * @param {object} member - channel member handle
+   * @param {string} joinName - the invitedAs name we joined with
+   * @returns {Promise<string | null>}
+   */
+  const resolveSelfMemberId = async (member, joinName) => {
+    // Primary: ask the member handle directly
+    try {
+      const id = await E(member).getMemberId();
+      if (id != null) return String(id);
+    } catch {
+      // not available on this handle
+    }
+    // Fallback: search the members list
+    try {
+      const members = /** @type {any[]} */ (await E(member).getMembers());
+      for (const mbr of members) {
+        if (
+          mbr.invitedAs === joinName ||
+          mbr.proposedName === joinName
+        ) {
+          return String(mbr.memberId);
+        }
+      }
+    } catch {
+      // not available
+    }
+    return null;
+  };
+
+  // --- Reconnect to previously joined channels ---
+
+  try {
+    const allNames = /** @type {string[]} */ (await E(powers).list());
+    const channelNames = allNames.filter(name => /^ch-\d+$/.test(name));
+
+    for (const chName of channelNames) {
+      try {
+        const ch = await E(powers).lookup(chName);
+        const member = await E(ch).join('jaine');
+        const channelId = await E(powers).identify(chName);
+
+        if (!watchedChannels.has(channelId)) {
+          watchedChannels.set(channelId, true);
+          const selfMemberId = await resolveSelfMemberId(member, 'jaine');
+          console.log(
+            `[jaine] Channel ${chName}: selfMemberId=${selfMemberId}`,
+          );
+          void watchChannel(chName, channelId, member, selfMemberId);
+        }
+      } catch (chErr) {
+        console.error(
+          `[jaine] Failed to reconnect to ${chName}:`,
+          chErr instanceof Error ? chErr.message : String(chErr),
+        );
+      }
+    }
+
+    if (watchedChannels.size > 0) {
+      console.log(
+        `[jaine] Reconnected to ${watchedChannels.size} channel(s)`,
+      );
+    }
+  } catch (scanErr) {
+    console.error(
+      '[jaine] Failed to scan for channels:',
+      scanErr instanceof Error ? scanErr.message : String(scanErr),
+    );
+  }
+
   // --- Main loop ---
 
   const cancelled = await getCancelled();
@@ -393,15 +475,13 @@ export const spawnWorkerLoop = async (
             );
             if (!watchedChannels.has(channelId)) {
               watchedChannels.set(channelId, true);
-              const members = /** @type {any[]} */ (
-                await E(mentionResult.member).getMembers()
+              const selfMemberId = await resolveSelfMemberId(
+                mentionResult.member,
+                decision.mentionInfo.join,
               );
-              const selfEntry = members.find(
-                mbr => mbr.invitedAs === decision.mentionInfo.join,
+              console.log(
+                `[jaine] Channel ${mentionResult.channelName}: selfMemberId=${selfMemberId}`,
               );
-              const selfMemberId = selfEntry
-                ? selfEntry.memberId
-                : null;
               void watchChannel(
                 mentionResult.channelName,
                 channelId,
