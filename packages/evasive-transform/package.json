@@ -34,7 +34,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint:eslint": "eslint .",
     "test:rebuild-fixtures": "node test/rebuild-fixtures.js"
   },
   "devDependencies": {
