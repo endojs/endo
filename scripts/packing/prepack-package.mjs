@@ -56,6 +56,18 @@ const usesOutDir = hasOutDir();
 
 console.log(`package-prepack: ${path.basename(packageDir)}`);
 
+// Step 0: Clean generated files from prior builds so tsc doesn't see
+// stale .d.ts files as inputs (TS5055 "would overwrite input file").
+console.log('  → git clean -fX -e node_modules/');
+try {
+  await spawn('git', ['clean', '-fX', '-e', 'node_modules/'], {
+    cwd: packageDir,
+    stdio: 'inherit',
+  });
+} catch {
+  // May fail outside a git repo, which is fine
+}
+
 // Step 1: Generate .d.ts declarations (requires tsconfig.build.json)
 if (existsSync(tsconfigPath)) {
   console.log('  → tsc --build tsconfig.build.json');
