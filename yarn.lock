@@ -433,6 +433,7 @@ __metadata:
     "@rollup/plugin-commonjs": "npm:^28.0.2"
     "@rollup/plugin-node-resolve": "npm:^16.0.0"
     "@types/rollup": "npm:^0.54.0"
+    amaro: "npm:^1.1.9"
     c8: "catalog:dev"
     eshost-cli: "npm:^9.0.0"
     eslint: "catalog:dev"
