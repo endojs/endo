@@ -5,5 +5,5 @@ export type * from './src/type-from-pattern.js';
 
 // Value + namespace declarations (M, matches, mustMatch) are defined in
 // src/type-from-pattern.ts and re-exported here.  The runtime code lives
-// in types-index.js which re-exports from patternMatchers.js.
+// in types-index.js which re-exports from patternMatchers.ts.
 export { M, matches, mustMatch } from './src/type-from-pattern.js';

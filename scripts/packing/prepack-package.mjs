@@ -1,0 +1,101 @@
+#!/usr/bin/env node
+/**
+ * @file Unified prepack script for all packages.
+ *
+ * This script handles the prepack lifecycle for npm publishing:
+ * 1. Runs tsc --build to generate .d.ts declaration files
+ * 2. Runs build-ts-to-js to generate .js from .ts files (no-op if no .ts files)
+ *
+ * Note: tsc must run BEFORE build-ts-to-js, otherwise tsc sees both .ts and .js
+ * files and fails with "would be overwritten by multiple input files".
+ *
+ * If tsconfig.build.json has an outDir, step 2 is skipped because tsc
+ * handles the full build (source stays in src/, output goes to outDir).
+ *
+ * The .ts source files are kept in the published package alongside the
+ * generated .js files, so consumers can navigate to original source.
+ *
+ * Usage: yarn run -T package-prepack (from any package directory)
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import spawn from 'nano-spawn';
+
+const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
+const buildTsToJs = path.join(scriptsDir, 'build-ts-to-js.mjs');
+const rewriteTsImportSpecifiers = path.join(
+  scriptsDir,
+  'rewrite-ts-import-specifiers.mjs',
+);
+
+// Package directory from INIT_CWD (set by yarn) or current directory
+const packageDir = process.env.INIT_CWD || process.cwd();
+const tsconfigPath = path.join(packageDir, 'tsconfig.build.json');
+
+/**
+ * Check if tsconfig.build.json has outDir set.
+ * If so, tsc handles the full build and we skip build-ts-to-js.
+ */
+function hasOutDir() {
+  if (!existsSync(tsconfigPath)) return false;
+  try {
+    // tsconfig files can have comments, so strip them before parsing
+    const content = readFileSync(tsconfigPath, 'utf-8')
+      .replace(/\/\/.*$/gm, '') // strip single-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '') // strip multi-line comments
+      .replace(/,(\s*[}\]])/g, '$1'); // strip trailing commas
+    const tsconfig = JSON.parse(content);
+    return Boolean(tsconfig.compilerOptions?.outDir);
+  } catch {
+    return false;
+  }
+}
+
+const usesOutDir = hasOutDir();
+
+console.log(`package-prepack: ${path.basename(packageDir)}`);
+
+// Step 0: Clean generated files from prior builds so tsc doesn't see
+// stale .d.ts files as inputs (TS5055 "would overwrite input file").
+console.log('  → git clean -fX -e node_modules/');
+try {
+  await spawn('git', ['clean', '-fX', '-e', 'node_modules/'], {
+    cwd: packageDir,
+    stdio: 'inherit',
+  });
+} catch {
+  // May fail outside a git repo, which is fine
+}
+
+// Step 1: Generate .d.ts declarations (requires tsconfig.build.json)
+if (existsSync(tsconfigPath)) {
+  console.log('  → tsc --build tsconfig.build.json');
+  await spawn('yarn', ['run', '-T', 'tsc', '--build', 'tsconfig.build.json'], {
+    cwd: packageDir,
+    stdio: 'inherit',
+  });
+} else {
+  console.log('  → skipping tsc (no tsconfig.build.json)');
+}
+
+// Steps 2-3 only apply when tsc doesn't handle the full build (no outDir)
+if (usesOutDir) {
+  console.log('  → skipping build-ts-to-js (tsc uses outDir)');
+} else {
+  // Step 2: Generate .js from .ts (no-op if no .ts files exist)
+  console.log('  → build-ts-to-js');
+  await spawn(process.execPath, [buildTsToJs], {
+    cwd: packageDir,
+    stdio: 'inherit',
+  });
+}
+
+// Step 4: Rewrite .ts import specifiers to .js in published artifacts
+console.log('  → rewrite .ts import specifiers');
+await spawn(process.execPath, [rewriteTsImportSpecifiers], {
+  cwd: packageDir,
+  stdio: 'inherit',
+});
+
+console.log('package-prepack: done');

@@ -11,7 +11,7 @@ import {
   getCopyMapEntries,
   getCopyMapEntryArray,
 } from '../src/keys/checkKey.js';
-import { matches } from '../src/patterns/patternMatchers.js';
+import { matches } from '../src/patterns/patternMatchers.ts';
 
 const assertIsCopyMap = (t, m) => {
   t.is(passStyleOf(m), 'tagged');

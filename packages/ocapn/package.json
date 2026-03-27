@@ -28,12 +28,12 @@
     "postpack": "git clean -fX -e node_modules/",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "test": "ses-ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0",
-    "test:python": "node --expose-gc ./test/python-test-suite/index.js",
+    "test:python": "node --import ts-blank-space/register --expose-gc ./test/python-test-suite/index.js",
     "test:update-snapshots": "ses-ava --update-snapshots"
   },
   "dependencies": {
@@ -45,7 +45,8 @@
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@noble/curves": "^1.9.0",
-    "@noble/hashes": "^1.8.0"
+    "@noble/hashes": "^1.8.0",
+    "ts-blank-space": "^0.6.1"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",

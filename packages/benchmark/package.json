@@ -26,7 +26,7 @@
     "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "postpack": "git clean -fX -e node_modules/",
     "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
@@ -46,6 +46,7 @@
     "eslint": "catalog:dev",
     "esvu": "^1.2.16",
     "rollup": "^4.34.6",
+    "ts-blank-space": "^0.6.1",
     "tsd": "catalog:dev",
     "typescript": "~5.9.2"
   },

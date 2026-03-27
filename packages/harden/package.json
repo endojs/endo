@@ -29,7 +29,7 @@
     "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint '**/*.js'",
+    "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "prepack": "tsc --build tsconfig.build.json",
