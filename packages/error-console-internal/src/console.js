@@ -5,6 +5,7 @@
 // debugging purposes in the declaration of `internalDebugConsole`, which is
 // normally commented out.
 
+import harden from '@endo/harden';
 import {
   WeakSet,
   arrayFilter,
