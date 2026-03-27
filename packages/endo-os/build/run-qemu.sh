@@ -4,6 +4,7 @@
 # Modes:
 #   ./run-qemu.sh           Serial console only (Ctrl-A X to quit)
 #   ./run-qemu.sh --gui     Graphical window with framebuffer + audio
+#   ./run-qemu.sh --docker  Use Docker build output (build/out/)
 #
 # Port 8920 is forwarded from localhost to the VM for the
 # WebSocket gateway (Phase 4+).
@@ -21,20 +22,29 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}"
 
-KERNEL="${BUILD_DIR}/_kernel_out/arch/x86/boot/bzImage"
-INITRAMFS="${BUILD_DIR}/initramfs.cpio.gz"
 MEMORY="${QEMU_MEMORY:-512M}"
-STORE_IMG="${BUILD_DIR}/store.img"
 
 # Parse arguments.
 GUI_MODE=false
+DOCKER_MODE=false
 USB_CAMERA=""
 for arg in "$@"; do
   case "$arg" in
     --gui) GUI_MODE=true ;;
+    --docker) DOCKER_MODE=true ;;
     --usb-camera=*) USB_CAMERA="${arg#*=}" ;;
   esac
 done
+
+# Set paths based on build mode.
+if [ "$DOCKER_MODE" = true ]; then
+  KERNEL="${BUILD_DIR}/out/bzImage"
+  INITRAMFS="${BUILD_DIR}/out/initramfs.cpio.gz"
+else
+  KERNEL="${BUILD_DIR}/_kernel_out/arch/x86/boot/bzImage"
+  INITRAMFS="${BUILD_DIR}/initramfs.cpio.gz"
+fi
+STORE_IMG="${BUILD_DIR}/store.img"
 
 # Check prerequisites.
 if [ ! -f "${KERNEL}" ]; then
