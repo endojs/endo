@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-03-21*
+*Last updated: 2026-03-27*
 
 ## Summary
 
@@ -13,7 +13,7 @@
 | [chat-invariants](chat-invariants.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-per-space-color-scheme](chat-per-space-color-scheme.md) | 2026-02-26 | 2026-02-26 | **Complete** |
 | [chat-focus-message](chat-focus-message.md) | 2026-03-04 | 2026-03-04 | Active |
-| [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-03 | Proposed |
+| [chat-markdown-render](chat-markdown-render.md) | 2026-03-03 | 2026-03-27 | Proposed |
 | [chat-pending-commands](chat-pending-commands.md) | 2026-03-11 | 2026-03-11 | Not Started |
 | [chat-rename-dismiss-to-clear](chat-rename-dismiss-to-clear.md) | 2026-03-03 | 2026-03-03 | Proposed |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-03-21 | Not Started |
@@ -30,6 +30,7 @@
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | 2026-03-17 | 2026-03-17 | Not Started |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-02-24 | Not Started |
 | [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-03-20 | Not Started |
+| [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-03-26 | Draft |
 | [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-03-20 | In Progress |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-03-18 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |

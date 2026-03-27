@@ -1475,6 +1475,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/markmdown@workspace:packages/markmdown":
+  version: 0.0.0-use.local
+  resolution: "@endo/markmdown@workspace:packages/markmdown"
+  dependencies:
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    happy-dom: "npm:^15.0.0"
+    typescript: "npm:~5.9.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
   resolution: "@endo/marshal@workspace:packages/marshal"

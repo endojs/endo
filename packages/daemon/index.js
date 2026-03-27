@@ -467,11 +467,28 @@ export const status = async (config = defaultConfig, { verbose = 0 } = {}) => {
 
 /**
  * @param {Config} [config]
+ * @param {object} [options]
+ * @param {boolean} [options.dryRun] - log what would be done, don't do it
  */
-export const start = async (config = defaultConfig) => {
-  await clean(config);
+export const start = async (
+  config = defaultConfig,
+  {
+    dryRun = false,
+  } = {},
+) => {
+  if (dryRun) {
+    console.log(`would clean(${config})`);
+    // TODO pushdown like await clean(config, {dryRun});
+  } else {
+    await clean(config);
+  }
 
   // TODO less indirection when running $ENDO_BIN, rather than going back through node just to call runEngo()
+
+  if (dryRun) {
+    console.log(`would directly fork ${process.env.ENDO_BIN ? 'engo' : 'endo'}`);
+    return;
+  }
 
   const child = await (process.env.ENDO_BIN
     ? runEngo(true, config)
