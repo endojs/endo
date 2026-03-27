@@ -22,7 +22,16 @@ const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 /**
  * @import {ProjectFixture} from './test.types.js'
- * @import {FileUrlString, MapNodeModulesOptions, MaybeReadPowers, PackageCompartmentMapDescriptor, CanonicalName, SomePolicy, PackageDescriptor, UnknownCanonicalNameHook, PackageDependenciesHook, LogFn} from '../src/types.js'
+ * @import {MapNodeModulesOptions,
+ *   MaybeReadPowers,
+ *   PackageCompartmentMapDescriptor,
+ *   CanonicalName,
+ *   SomePolicy,
+ *   UnknownCanonicalNameHook,
+ *   PackageDependenciesHook,
+ *   LogFn,
+ FileUrlString,
+ * } from '../src/types.js'
  */
 
 const { keys, values } = Object;
@@ -955,5 +964,94 @@ test('mapNodeModules - packageDataHook provides all package data', async t => {
     receivedCanonicalNames,
     expectedCanonicalNames,
     'should receive exactly the expected canonical names from the project fixture',
+  );
+});
+
+test('additionalLocations - adds package to compartment map', async t => {
+  t.plan(3);
+
+  const fixtureDir = new URL(
+    'fixtures-dynamic-ancestor/node_modules/pantspack/pantspack.js',
+    import.meta.url,
+  ).href;
+  const projectLocation = new URL(
+    'fixtures-dynamic-ancestor/node_modules/webpackish-app/',
+    import.meta.url,
+  ).href;
+
+  const compartmentMap = await mapNodeModules(readPowers, fixtureDir, {
+    dev: true,
+    additionalLocations: [
+      {
+        location: /** @type {FileUrlString} */ (projectLocation),
+        modules: ['./pantspack.config.js'],
+      },
+    ],
+  });
+
+  const projectCompartment = values(compartmentMap.compartments).find(
+    c => c.name === 'webpackish-app',
+  );
+
+  t.truthy(
+    projectCompartment,
+    'webpackish-app should appear in the compartment map when added via additionalLocations',
+  );
+  t.truthy(
+    projectCompartment?.modules?.['webpackish-app/pantspack.config.js'],
+    'should contain pantspack.config.js',
+  );
+  t.truthy(
+    projectCompartment?.modules?.pantspack,
+    'should contain reference to pantspack compartment',
+  );
+});
+
+test('additionalLocations - project package absent without the option', async t => {
+  const fixtureDir = new URL(
+    'fixtures-dynamic-ancestor/node_modules/pantspack/pantspack.js',
+    import.meta.url,
+  ).href;
+
+  const compartmentMap = await mapNodeModules(readPowers, fixtureDir, {
+    dev: true,
+  });
+
+  const projectCompartment = values(compartmentMap.compartments).find(
+    c => c.name === 'webpackish-app',
+  );
+
+  t.falsy(
+    projectCompartment,
+    'webpackish-app should NOT appear when additionalLocations is not provided',
+  );
+});
+
+test('additionalLocations - empty "modules" prop graphs the package using inferred main entry point', async t => {
+  const fixtureDir = new URL(
+    'fixtures-dynamic-ancestor/node_modules/pantspack/pantspack.js',
+    import.meta.url,
+  ).href;
+  const projectLocation = new URL(
+    'fixtures-dynamic-ancestor/node_modules/webpackish-app/',
+    import.meta.url,
+  ).href;
+
+  const compartmentMap = await mapNodeModules(readPowers, fixtureDir, {
+    dev: true,
+    additionalLocations: [
+      {
+        location: /** @type {FileUrlString} */ (projectLocation),
+      },
+    ],
+  });
+
+  const projectCompartment = values(compartmentMap.compartments).find(
+    c => c.name === 'webpackish-app',
+  );
+
+  t.truthy(
+    projectCompartment,
+    'webpackish-app should appear even without explicit modules',
   );
 });
