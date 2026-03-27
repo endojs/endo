@@ -339,6 +339,21 @@ test('makeError named', t => {
   );
 });
 
+test('makeError code', t => {
+  const err = makeError(X`<${'bar'},${q('baz')}>`, URIError, {
+    code: 'FOO_ERR',
+  });
+  t.is(err.code, 'FOO_ERR');
+});
+
+test('makeError code dropped (non-string)', t => {
+  const err = makeError(X`<${'bar'},${q('baz')}>`, URIError, {
+    // @ts-expect-error intentional bad input
+    code: 123,
+  });
+  t.is(err.code, undefined);
+});
+
 test('assert.quote', t => {
   throwsAndLogs(t, () => Fail`<${'bar'},${q('baz')}>`, /<\(a string\),"baz">/, [
     ['log', 'Caught', Error],
