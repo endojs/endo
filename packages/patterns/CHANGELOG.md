@@ -1,5 +1,20 @@
 # @endo/patterns
 
+## 1.9.0
+
+### Minor Changes
+
+- [#3067](https://github.com/endojs/endo/pull/3067) [`8195a5a`](https://github.com/endojs/endo/commit/8195a5aa8dd99d147b34e40ce8fa7328ce596e87) Thanks [@gibson042](https://github.com/gibson042)! - - Updates `containerHasSplit` to consider copyArray elements in forward order,
+  better aligning with intuition.
+
+### Patch Changes
+
+- [#3127](https://github.com/endojs/endo/pull/3127) [`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd) Thanks [@turadg](https://github.com/turadg)! - Remove stale runtime dependencies from package manifests.
+
+- Updated dependencies [[`6ada52b`](https://github.com/endojs/endo/commit/6ada52b6e6fdb19508624a1c93bd4a65c60670dd)]:
+  - @endo/marshal@1.9.1
+  - @endo/pass-style@1.7.1
+
 ## 1.8.0
 
 ### Minor Changes

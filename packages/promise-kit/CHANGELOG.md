@@ -1,5 +1,11 @@
 # @endo/promise-kit
 
+## 1.2.1
+
+### Patch Changes
+
+- [#3108](https://github.com/endojs/endo/pull/3108) [`d1d9625`](https://github.com/endojs/endo/commit/d1d96256f47c5209dfce3f3d52d3f222f266121a) Thanks [@erights](https://github.com/erights)! - `@endo/promise-kit` no longer depends on `ses`, just `@endo/harden`
+
 ## 1.2.0
 
 ### Minor Changes
