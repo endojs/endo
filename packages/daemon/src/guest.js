@@ -161,22 +161,11 @@ export const makeGuestMaker = ({
       request,
       send,
       deliver,
-      requestEvaluation: mailboxRequestEvaluation,
       define: mailboxDefine,
       form: mailboxForm,
       submit: mailboxSubmit,
       sendValue: mailboxSendValue,
     } = mailbox;
-
-    /** @type {EndoGuest['requestEvaluation']} */
-    const requestEvaluation = (source, codeNames, petNamePaths, resultName) =>
-      mailboxRequestEvaluation(
-        '@host',
-        source,
-        codeNames,
-        petNamePaths,
-        resultName,
-      );
 
     /**
      * @param {Name | undefined} workerName
@@ -363,8 +352,7 @@ export const makeGuestMaker = ({
       send,
       deliver,
       evaluate,
-      // Eval/Define/Form
-      requestEvaluation,
+      // Define/Form
       define,
       form,
       storeBlob,

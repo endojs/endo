@@ -25,12 +25,9 @@ const wsRelayUrl = pathToFileURL(
   path.join(repoRoot, 'packages/daemon/src/networks/ws-relay.js'),
 ).href;
 
-// Bootstrap specifiers for AI agent setup scripts
+// Bootstrap specifier for AI agent setup script
 const lalSetupUrl = pathToFileURL(
   path.join(repoRoot, 'packages/lal/setup.js'),
-).href;
-const faeSetupUrl = pathToFileURL(
-  path.join(repoRoot, 'packages/fae/setup.js'),
 ).href;
 
 // Path to the endo CLI in this repo
@@ -221,9 +218,9 @@ export const makeEndoPlugin = () => {
 
     async configureServer(server) {
       try {
-        // Set ENDO_EXTRA so the daemon auto-provisions lal/fae on startup.
+        // Set ENDO_EXTRA so the daemon auto-provisions lal on startup.
         if (!process.env.ENDO_EXTRA) {
-          process.env.ENDO_EXTRA = `${lalSetupUrl},${faeSetupUrl}`;
+          process.env.ENDO_EXTRA = lalSetupUrl;
         }
 
         await ensureEndoRunning();

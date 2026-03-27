@@ -63,9 +63,12 @@ const powers = makeDaemonicPowers({
 });
 const { persistence: daemonicPersistencePowers } = powers;
 
-const informParentWhenReady = () => {
+/**
+ * @param {string} [gatewayAddress]
+ */
+const informParentWhenReady = gatewayAddress => {
   if (process.send) {
-    process.send({ type: 'ready' });
+    process.send({ type: 'ready', gatewayAddress });
   }
 };
 
@@ -170,14 +173,24 @@ const main = async () => {
   // completely ready to serve. If any service fails to start, the error must
   // propagate to the parent via reportErrorToParent so start() rejects.
   try {
-    await Promise.all(services.map(({ started }) => started));
+    const serviceResults = await Promise.all(
+      services.map(({ started }) => started),
+    );
+
+    // wsGateway.started resolves to the bound address (e.g. "http://127.0.0.1:8920").
+    // It is the second service in the array.
+    const gatewayAddress = /** @type {string} */ (serviceResults[1]);
+
+    // Persist gateway address so Familiar (and other tools) can discover it.
+    const gatewayPath = filePowers.joinPath(statePath, 'gateway');
+    await filePowers.writeFileText(gatewayPath, `${gatewayAddress}\n`);
 
     const host = await E(endoBootstrap).host();
     const agentId = /** @type {string} */ (await E(host).identify('@agent'));
     const agentIdPath = filePowers.joinPath(statePath, 'root');
     await filePowers.writeFileText(agentIdPath, `${agentId}\n`);
 
-    informParentWhenReady();
+    informParentWhenReady(gatewayAddress);
 
     // Run ENDO_EXTRA bootstrap scripts (e.g., lal/fae setup for dev mode).
     const extraSpecifiers = (process.env.ENDO_EXTRA || '')

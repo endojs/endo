@@ -1962,23 +1962,6 @@ const makeDaemonCore = async (
       registerName('@slots', undefined, slots);
       registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
       registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
-    } else if (messageType === 'eval-request') {
-      if (
-        typeof source !== 'string' ||
-        promiseId === undefined ||
-        resolverId === undefined
-      ) {
-        throw new Error('Eval-request message formula is incomplete');
-      }
-      registerName('@source', undefined, source);
-      if (codeNames !== undefined) {
-        registerName('@codeNames', undefined, harden(codeNames));
-      }
-      if (petNamePaths !== undefined) {
-        registerName('@petNamePaths', undefined, harden(petNamePaths));
-      }
-      registerName(MESSAGE_PROMISE_NAME, promiseId, undefined);
-      registerName(MESSAGE_RESOLVER_NAME, resolverId, undefined);
     } else {
       throw new Error(`Unknown message type ${q(messageType)}`);
     }
@@ -2546,7 +2529,6 @@ const makeDaemonCore = async (
             reply: disallowedFn,
             request: disallowedFn,
             send: disallowedFn,
-            requestEvaluation: disallowedFn,
             evaluate: disallowedFn,
             define: disallowedFn,
             form: disallowedFn,

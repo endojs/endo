@@ -204,21 +204,6 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('approve-eval <message-number>')
-    .description('approve a sandboxed evaluation request')
-    .option(...commonOptions.as)
-    .option('-w,--worker <name>', 'Worker to use for evaluation')
-    .action(async (messageNumberText, cmd) => {
-      const { as: agentNames, worker: workerName } = cmd.opts();
-      const { approveEvalCommand } = await import('./commands/approve-eval.js');
-      return approveEvalCommand({
-        messageNumberText,
-        workerName,
-        agentNames,
-      });
-    });
-
-  program
     .command('define <source>')
     .description(
       'propose code with named capability slots for the host to endow',
@@ -939,7 +924,6 @@ export const main = async rawArgs => {
         'resolve',
         'reject',
         'adopt',
-        'approve-eval',
         'define',
         'endow',
         'form',

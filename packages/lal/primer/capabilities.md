@@ -1,0 +1,122 @@
+# Working with Capabilities
+
+## Names
+
+There are two kinds of name in your inventory:
+
+**Special names** start with `@` and are read-only and indelible
+— you cannot remove, rename, or overwrite them:
+
+- `@self` — Your own handle
+- `@host` — Your host agent (can grant you capabilities)
+- `@agent` — The host agent reference (same as @host in most
+  contexts)
+
+**Pet names** are user-chosen labels like `my-counter` or
+`project-data`. You can create, rename, copy, and remove them
+freely. They are lowercase alphanumeric with hyphens
+(`a-z0-9-`, 1–128 characters).
+
+## define() vs evaluate()
+
+IMPORTANT: Only use code evaluation when the user explicitly
+asks you to run code, create a capability, or perform a
+computation. For ordinary conversation, just use `reply()` or
+`send()`. Do NOT evaluate code for simple questions.
+
+Prefer `define()` when the user asks for code but you don't
+have all the required capabilities in your directory. `define()`
+lets the host choose what to bind:
+
+```
+define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
+```
+
+The host sees the slot labels, fills each one from their
+inventory (endow), and the code executes. You receive a receipt,
+not the result. The host sees the result in their inbox and may
+share it with you via `reply()`.
+
+Use `evaluate()` when you already have every capability needed
+in your own directory and can provide them via
+codeNames/edgeNames:
+
+```
+evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+```
+
+`evaluate()` executes the code directly and stores the result
+under resultName. You can then `lookup(resultName)` to get the
+value and send it to the requester.
+
+The codeNames array lists variable names used in your source
+code. The edgeNames array lists the pet names from YOUR
+directory providing those values.
+
+## Evaluated Code Is Synchronous
+
+`evaluate()` and `define()` accept synchronous programs.
+Top-level `await` is not supported. The program's completion
+value (the value of its last expression) becomes the result.
+If you need an async result, return a promise:
+
+```
+evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
+```
+
+Here `E(counter).increment()` returns a promise, which becomes
+the result.
+
+## Globals Available in Evaluated Code
+
+When your code executes (after host grants), these globals are
+available:
+
+- **E(target)** — Eventual-send for remote method calls on
+  capabilities.
+  Example: `E(counter).increment()` calls increment() on a
+  remote counter.
+  Example: `E(store).get("key")` retrieves a value from a
+  remote store.
+
+- **M** — Pattern matchers for interface guards.
+  Example: `M.string()` matches strings.
+  Example: `M.interface('Foo', { bar: M.call().returns(M.number()) })`
+
+- **makeExo(tag, interface, methods)** — Create new capability
+  objects. Example:
+  ```javascript
+  makeExo('Counter', M.interface('Counter', {
+    increment: M.call().returns(M.number()),
+    getValue: M.call().returns(M.number()),
+  }), {
+    increment() { return ++this.state.count; },
+    getValue() { return this.state.count; },
+  })
+  ```
+
+Use these to:
+- Invoke methods on capabilities passed as endowments
+- Create new capabilities to send back to requesters
+- Define type-safe interfaces for your created objects
+
+## Workflow Examples
+
+Using define() (preferred when you don't have the capability):
+
+1. Receive request: "Please increment my counter"
+2. `define("E(counter).increment()", {"counter": {"label": "The counter to increment"}})`
+3. Host endows the slot with their counter -> you receive a
+   receipt (not the result)
+4. Wait for the host to share the result via a reply message,
+   then `reply()` to the original sender
+
+Using evaluate() (when you already have the capability in your
+directory):
+
+1. Receive request: "Please increment my counter" (and they
+   sent you the counter)
+2. `adopt()` the counter from the message
+3. `evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")`
+4. `lookup("increment-result")` then `reply()` to deliver it
+   back

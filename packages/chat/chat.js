@@ -77,6 +77,12 @@ const template = `
 <div id="form-builder-backdrop"></div>
 <div id="form-builder-container"></div>
 
+<div id="endow-modal-backdrop"></div>
+<div id="endow-modal-container"></div>
+
+<div id="define-form-backdrop"></div>
+<div id="define-form-container"></div>
+
 <div id="blob-viewer-backdrop"></div>
 <div id="blob-viewer-container"></div>
 

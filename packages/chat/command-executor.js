@@ -236,15 +236,40 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'approve-eval': {
-          const { messageNumber, workerName } = params;
-          await E(powers).approveEvaluation(
+        case 'define': {
+          const { source, slots: slotPairs = [] } = params;
+          /** @type {Record<string, { label: string }>} */
+          const slots = {};
+          for (const pair of /** @type {Array<{codeName: string, label: string}>} */ (
+            slotPairs
+          )) {
+            slots[pair.codeName] = { label: pair.label };
+          }
+          await E(powers).define(String(source), slots);
+          return {
+            success: true,
+            message: 'Definition sent to host',
+          };
+        }
+
+        case 'endow': {
+          const { messageNumber, bindings: bindingPairs = [], resultName, workerName = '@main' } = params;
+          /** @type {Record<string, string>} */
+          const bindings = {};
+          for (const pair of /** @type {Array<{codeName: string, petName: string}>} */ (
+            bindingPairs
+          )) {
+            bindings[pair.codeName] = pair.petName;
+          }
+          await E(powers).endow(
             BigInt(/** @type {number} */ (messageNumber)),
-            workerName ? String(workerName) : undefined,
+            bindings,
+            String(workerName),
+            resultName ? String(resultName) : undefined,
           );
           return {
             success: true,
-            message: `Eval request #${messageNumber} approved`,
+            message: `Definition #${messageNumber} endowed`,
           };
         }
 

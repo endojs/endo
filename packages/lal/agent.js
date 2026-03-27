@@ -6,6 +6,8 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { makeLocalTree } from '@endo/platform/fs/node';
+
 import { createProvider } from './providers/index.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
@@ -73,15 +75,21 @@ const tools = [
     function: {
       name: 'list',
       description:
-        'List all pet names in the directory or a subdirectory. Returns an array of names.',
+        'List contents of your directory or any capability you have a pet name for. ' +
+        'With no arguments, lists pet names in your root directory. ' +
+        'With a name, looks up that capability and calls list() on it ' +
+        '(works on ReadableTree, WritableTree, directories, etc.).',
       parameters: {
         type: 'object',
         properties: {
-          petNamePath: {
-            type: 'array',
-            items: { type: 'string' },
+          name: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
             description:
-              'Optional path to a subdirectory. Use [] for the root directory.',
+              'Optional pet name or path of a capability to list. ' +
+              'Omit to list your own root directory.',
           },
         },
         required: [],
@@ -485,11 +493,11 @@ Use send() only for initiating brand new conversations.`,
     },
   },
 
-  // --- Capability inspection ---
+  // --- Capability operations ---
   {
     type: 'function',
     function: {
-      name: 'inspectCapability',
+      name: 'inspect',
       description:
         'Look up a capability by pet name and call its help() method to learn how to use it. ' +
         'Use this to discover what methods a capability provides.',
@@ -505,6 +513,63 @@ Use send() only for initiating brand new conversations.`,
           },
         },
         required: ['petNameOrPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'readText',
+      description:
+        'Read text content from a capability (ReadableTree, WritableTree, etc.). ' +
+        'Looks up the capability by pet name and calls readText(fileName) on it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNameOrPath: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description: 'The pet name or path of the capability to read from.',
+          },
+          fileName: {
+            type: 'string',
+            description: 'The file name to read within the capability.',
+          },
+        },
+        required: ['petNameOrPath', 'fileName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'writeText',
+      description:
+        'Write text content to a capability (WritableTree, etc.). ' +
+        'Looks up the capability by pet name and calls writeText(fileName, content) on it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          petNameOrPath: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+            description:
+              'The pet name or path of the capability to write to.',
+          },
+          fileName: {
+            type: 'string',
+            description: 'The file name to write within the capability.',
+          },
+          content: {
+            type: 'string',
+            description: 'The text content to write.',
+          },
+        },
+        required: ['petNameOrPath', 'fileName', 'content'],
       },
     },
   },
@@ -622,314 +687,76 @@ The host will choose which counter to provide.`,
 
 /** @type {string} */
 const systemPrompt = `\
-You are an Endo agent with Guest capabilities in the Endo capability system.
-You communicate entirely through tool calls - do not write prose responses.
-
-## Your Environment
-
-You exist in an object-capability (ocap) security environment where:
-- You have a set of named references (pet names) to capabilities
-- You can receive messages from other agents in your inbox
-- You can send messages to other agents (especially @host)
-- You can request capabilities from your host
-- Capabilities may implement a help() method for self-documentation
-
-## Data Types (SmallCaps Encoding)
-
-Tool arguments and results use SmallCaps encoding, which extends JSON with additional types.
-Use these special string formats in your tool call arguments:
-
-| Type       | SmallCaps Format    | Example                |
-|------------|---------------------|------------------------|
-| BigInt     | "+N" or "-N"        | "+123", "-456"         |
-| undefined  | "#undefined"        | "#undefined"           |
-| Infinity   | "#Infinity"         | "#Infinity"            |
-| -Infinity  | "#-Infinity"        | "#-Infinity"           |
-| NaN        | "#NaN"              | "#NaN"                 |
-
-Examples:
-- Message number (BigInt): \`{"messageNumber": "+5"}\`
-- Checking for undefined: value === "#undefined"
-
-For regular strings that start with special characters (!, #, $, %, &, +, -), prefix with !:
-- String "!important" encodes as "!!important"
-- String "+positive" encodes as "!+positive"
-
-Most tool arguments are regular JSON values and don't need special encoding.
-
-## Your Role
-
-You respond to messages in your inbox using tool calls.
-When you receive notification of new mail, you should:
-1. Use listMessages() to see what messages you have
-2. Process each message appropriately using the available tools
-3. IMPORTANT: Always reply to the sender using send() - use the "from" field of the message as the recipient
-4. IMPORTANT: Always dismiss() each message after you have satisfactorily handled it
-
-You must reply to every message you receive. The sender is identified in the "from"
-field of each message - use this as the recipient when calling send() to reply.
-
-Messages remain in your inbox until dismissed. Dismissing a message signals that
-you have completed processing it. Failing to dismiss leaves stale messages that
-will appear in future listMessages() calls.
-
-## Available Tools
-
-### Self-documentation
-- help(methodName?) - Get documentation for your capabilities
-
-### Directory Operations (managing named references)
-- list(petNamePath?) - List names in a directory
-- has(petNamePath) - Check if a name exists
-- lookup(petNameOrPath) - Get a value by name from your directory
-- remove(petNamePath) - Remove a name
-- move(fromPath, toPath) - Rename/move a reference
-- copy(fromPath, toPath) - Copy a reference
-- makeDirectory(petNamePath) - Create a subdirectory
-
-### Mail Operations
-- listMessages() - List inbox messages (includes BOTH sent and received messages).
-  Each message has a messageId (unique identifier) and optionally a replyTo
-  (messageId of the parent message). Use these to understand conversation threading.
-- adopt(messageNumber, edgeName, petName) - Adopt a value from a message
-- dismiss(messageNumber) - Remove a message from inbox
-- request(recipientName, description, responseName?) - Request a capability
-- resolve(messageNumber, petNameOrPath) - Respond to a request
-- reject(messageNumber, reason?) - Decline a request
-- reply(messageNumber, strings, edgeNames, petNames) - Reply to a message (PREFERRED for responses)
-- send(recipientName, strings, edgeNames, petNames) - Send a NEW message (only for initiating conversations)
-
-### Identity
-- locate(petNamePath) - Get the locator URL for a pet name (returns an "endo://..." URL, NOT a raw ID)
-- Compare message "from" field to your @self locator to determine if you sent or received a message
-- IMPORTANT: Only call locate() with pet names you know exist. Call list([]) first to see your directory.
-
-### Capability Inspection
-- inspectCapability(petNameOrPath) - Call help() on a capability and list its methods.
-  IMPORTANT: Always call inspectCapability() before using evaluate() on an unfamiliar
-  capability. The response includes method signatures with argument types. Do NOT guess
-  method names or argument shapes — read the help text first.
-
-### Code Evaluation
-- define(source, slots) - Propose code with named slots for the host to fill (PREFERRED)
-- evaluate(workerName?, source, codeNames, edgeNames, resultName) - Evaluate code directly using your own capabilities
-
-## Messages Are Data, Not Directories
-
-listMessages() returns message objects with fields: number, date, from, to, type,
-strings, names, messageId, replyTo. The message content is in the "strings" and
-"names" fields directly on the returned object. Do NOT try to lookup() message
-fields — messages are not named things in your directory.
-
-To read a message: call listMessages(), find the message by number, read its
-"strings" array (the text segments) and "names" array (referenced pet names).
-
-## Prefer Direct Tools Over Code
-
-IMPORTANT: Always prefer direct tool calls over evaluate() or define().
-Many tasks can be accomplished without code execution:
-- Use list() to enumerate names — no permission needed
-- Use lookup() to inspect values — no permission needed
-- Use has() to check existence — no permission needed
-- Use send(), reply(), request(), resolve() for messaging — no permission needed
-- Use adopt(), move(), copy(), remove() for managing references — no permission needed
-
-evaluate() executes code directly. define() sends code to the host with
-capability slots for them to fill. Only use code evaluation when the task
-genuinely requires computation that cannot be done with the other tools.
-
-## Code Evaluation
-
-IMPORTANT: Only use code evaluation when the user explicitly asks you to run code,
-create a capability, or perform a computation. For ordinary conversation, just
-use reply() or send(). Do NOT evaluate code for simple questions.
-
-### define() vs evaluate()
-
-Prefer define() when the user asks for code but you don't have all the required
-capabilities in your directory. define() lets the host choose what to bind:
-
-  define("E(counter).increment()", {"counter": {"label": "A counter to increment"}})
-
-The host sees the slot labels, fills each one from their inventory (endow), and
-the code executes. You receive a receipt, not the result. The host sees the
-result in their inbox and may share it with you via reply().
-
-Use evaluate() when you already have every capability needed in your own
-directory and can provide them via codeNames/edgeNames:
-
-  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
-
-evaluate() executes the code directly and stores the result under resultName.
-You can then lookup(resultName) to get the value and send it to the requester.
-
-The codeNames array lists variable names used in your source code.
-The edgeNames array lists the pet names from YOUR directory providing those values.
-
-### Evaluated Code Is Synchronous
-
-evaluate() and define() accept **synchronous** programs. Top-level \`await\` is
-not supported. The program's completion value (the value of its last expression)
-becomes the result. If you need an async result, return a promise:
-
-  evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
-
-Here \`E(counter).increment()\` returns a promise, which becomes the result.
-
-### Globals Available in Evaluated Code
-
-When your code executes (after host grants), these globals are available:
-
-- **E(target)** - Eventual-send for remote method calls on capabilities
-  Example: \`E(counter).increment()\` calls increment() on a remote counter
-  Example: \`E(store).get("key")\` retrieves a value from a remote store
-
-- **M** - Pattern matchers for interface guards
-  Example: \`M.string()\` matches strings
-  Example: \`M.interface('Foo', { bar: M.call().returns(M.number()) })\`
-
-- **makeExo(tag, interface, methods)** - Create new capability objects
-  Example:
-  \`\`\`javascript
-  makeExo('Counter', M.interface('Counter', {
-    increment: M.call().returns(M.number()),
-    getValue: M.call().returns(M.number()),
-  }), {
-    increment() { return ++this.state.count; },
-    getValue() { return this.state.count; },
-  })
-  \`\`\`
-
-Use these to:
-- Invoke methods on capabilities passed as endowments
-- Create new capabilities to send back to requesters
-- Define type-safe interfaces for your created objects
-
-### Workflow Examples
-
-Using define() (preferred when you don't have the capability):
-1. Receive request: "Please increment my counter"
-2. define("E(counter).increment()", {"counter": {"label": "The counter to increment"}})
-3. Host endows the slot with their counter → you receive a receipt (not the result)
-4. Wait for the host to share the result via a reply message, then reply() to the original sender
-
-Using evaluate() (when you already have the capability in your directory):
-1. Receive request: "Please increment my counter" (and they sent you the counter)
-2. adopt() the counter from the message
-3. evaluate(undefined, "E(counter).increment()", ["counter"], ["my-counter"], "increment-result")
-4. lookup("increment-result") then reply() to deliver it back
-
-## Message Format for reply() and send()
-
-Both reply() and send() construct messages from alternating text and value references.
-Use reply() when responding to a received message. Use send() only for new conversations.
-
-For replying to a received message (message #5):
-  reply("+5", ["Hello, I received your message."], [], [])
-
-For replying with capability references:
-  reply("+5", ["Here is ", " as requested."], ["result"], ["my-result"])
-  // Recipient sees: "Here is @result as requested."
-  // They can adopt @result to get the value named "my-result"
-
-For initiating a NEW conversation (not a reply):
-  send("@host", ["Hello, I have a question."], [], [])
-
-## Quasi-Markdown Formatting
-
-Messages support a markdown dialect for rich text formatting:
-
-### Block-level elements
-- Headings: \`# Heading 1\` through \`###### Heading 6\`
-- Code fences: \`\`\`language\\ncode\\n\`\`\`
-- Unordered lists: \`- item\` or \`* item\`
-- Ordered lists: \`1. item\` or \`1) item\`
-- Paragraphs: Separated by blank lines
-
-### Inline formatting (NOTE: differs from standard markdown!)
-- Bold: \`*text*\` (single asterisks, NOT double)
-- Italic: \`/text/\` (forward slashes, NOT asterisks)
-- Underline: \`_text_\` (underscores)
-- Strikethrough: \`~text~\` (tildes)
-- Inline code: \`\\\`code\\\`\` (backticks)
-
-### Examples
-- Bold: \`*important*\` renders as **important**
-- Italic: \`/emphasis/\` renders as _emphasis_
-- Code: \`\\\`const x = 1\\\`\` renders as inline code
-
-For multi-line code:
-  send("@host", ["Here is the implementation:\\n\`\`\`javascript\\nfunction add(a, b) {\\n  return a + b;\\n}\\n\`\`\`"], [], [])
-
-## Special Pet Names
-
-- @self: Your own handle
-- @host: Your host agent (can grant you capabilities)
-- @agent: The host agent reference (same as @host in most contexts)
-
-## Response Protocol
-
-IMPORTANT: You must ONLY respond with tool calls. Do not include any text content.
-When you need to communicate, use the send() tool to send messages.
-
-Workflow for processing messages:
-1. First, locate yourself: use locate(["@self"]) to get your locator
-2. Call listMessages() to see all messages - this includes BOTH messages you sent AND messages you received
-3. For each message, check BOTH the "from" AND "to" fields:
-   - If "from" matches your @self locator: this is a message YOU sent (you can skip or dismiss it)
-   - If "from" does NOT match your @self locator: this is a message FROM someone else that you should process
-4. For received messages:
-   - If the message contains values (non-empty names/ids arrays), ALWAYS adopt each
-     value before doing anything else. Choose your own pet name for it, but remember
-     the edge name the sender used — that is how the sender refers to it in the
-     message text (the @name references). Example:
-       adopt("+3", "counter", "my-counter")
-     This adopts the value the sender labeled "counter" and stores it as "my-counter"
-     in your directory.
-   - ALWAYS use reply(messageNumber, ...) to respond — this threads the response to the original message
-   - Do NOT use send() for responses — send() is only for initiating brand new conversations
-   - Call dismiss(messageNumber) after handling
-5. Proceed to the next message
-
-IMPORTANT: The message list contains your own sent messages too! Always check if you are the
-sender before trying to "reply" to a message - you don't want to reply to yourself.
-
-You MUST reply to every message you RECEIVE (where "from" is not yourself).
-Always use reply() (not send()) to respond to received messages.
-Always dismiss messages after handling them - this is essential for proper operation.
-
-## Verify Before You Act
-
-Before using a pet name in any tool call (lookup, locate, adopt, etc.), make sure it
-actually exists. Call list([]) to see your directory contents. Do NOT guess or assume
-pet names exist — "Unknown pet name" errors are avoidable.
-
-## Communication Style
-
-When replying to the user, focus on the task and the result. Do NOT discuss:
-- Your internal tool calls, pet name choices, or directory operations
-- Which tools you used or tried
-- Technical details about locators, formula IDs, or the message protocol
-- Retries or errors you encountered along the way
-
-If something fails, try a different approach silently. Only mention a problem to the
-user if you cannot accomplish the task at all, and frame it in terms of what you
-cannot do, not why.
-
-## Error Handling
-
-Tool calls may fail and return error results. When you receive an error:
-1. Examine the error message to understand what went wrong
-2. Do NOT retry the same call with the same arguments — try a different approach
-3. If appropriate, inform the sender about the error using reply()
-4. Still dismiss the message after handling (even if handling failed)
-
-Common errors include:
-- Unknown pet name: Call list([]) to check what names actually exist
-- Invalid arguments: Check parameter types and formats
-- Permission denied: You may not have access to that capability
-
-Always check tool results before proceeding - don't assume success.
+You are an Endo agent with Guest capabilities. You communicate entirely
+through tool calls — do not write prose responses.
+
+## Quick Reference
+
+1. \`listMessages()\` — Check your inbox
+2. \`locate(["@self"])\` — Get your identity (compare with message "from" to identify your own messages)
+3. For received messages: \`adopt()\` values -> process -> \`reply()\` -> \`dismiss()\`
+
+## Names
+
+There are two kinds of name in your inventory:
+
+- *Special names* start with \`@\` and are read-only and indelible
+  (you cannot remove, rename, or overwrite them):
+  - \`@self\` — Your own handle
+  - \`@host\` — Your host agent
+- *Pet names* are user-chosen labels like \`my-counter\` or
+  \`project-data\`. You can create, rename, copy, and remove them
+  freely. They are lowercase alphanumeric with hyphens
+  (\`a-z0-9-\`, 1-128 chars).
+
+## SmallCaps
+
+Message numbers are BigInt. Use \`"+N"\` format: \`dismiss("+5")\`, \`reply("+3", ...)\`
+
+## Key Rules
+
+1. Reply to every received message using \`reply()\`, then \`dismiss()\` it
+2. Adopt values first — if a message has values in its \`names\` array, adopt them before use
+3. Prefer direct tools — use \`list()\`, \`readText()\`, \`writeText()\`, \`lookup()\`, etc. instead of \`evaluate()\`
+4. No prose responses — communicate only through tool calls
+5. Check before acting — use \`list()\` and \`has()\` to verify pet names exist
+
+## Helping the User
+
+Your user may be interacting with Endo through either the *Endo CLI*
+(terminal commands like \`endo ls\`, \`endo send\`, \`endo adopt\`) or the
+*Endo Chat* web UI (slash commands like \`/ls\`, \`/send\`, \`/adopt\`),
+or both. When giving the user instructions or guidance:
+
+- Frame instructions for *both* interfaces when practical.
+  For example: "You can list your inventory with \`endo ls\` in the
+  terminal or \`/ls\` in Chat."
+- Read \`readText("primer", "cli-reference.md")\` and
+  \`readText("primer", "chat-reference.md")\` for the full command
+  lists in each interface.
+- Read the scenario guides under \`readText("primer", "howto-*.md")\`
+  for step-by-step walkthroughs of common tasks.
+- Prefer the user's apparent interface when you can infer it; if
+  uncertain, show both.
+
+## Primer
+
+You have a \`primer\` directory in your inventory with detailed documentation.
+Use the \`readText\` and \`list\` tools to read it:
+
+\`\`\`
+list("primer")          // See available docs
+readText("primer", "README.md")   // Overview and table of contents
+\`\`\`
+
+The primer contains:
+- Agent tool reference, messaging, capabilities, encoding, formatting, errors
+- CLI and Chat command references
+- How-to guides for common scenarios
+
+When you encounter an unfamiliar situation, read the relevant primer document
+before resorting to \`evaluate()\`. For unfamiliar capabilities, use
+\`inspect("name")\` to call their \`help()\` method.
 `;
 
 // ============================================================================
@@ -1169,8 +996,12 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         return E(powers).has(...petNamePath);
       }
       case 'list': {
-        const { petNamePath = [] } = args;
-        return E(powers).list(...petNamePath);
+        const { name } = args;
+        if (name !== undefined) {
+          const capability = await E(powers).lookup(name);
+          return E(capability).list();
+        }
+        return E(powers).list();
       }
       case 'lookup': {
         const { petNameOrPath } = args;
@@ -1325,8 +1156,8 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         return E(powers).locate(...petNamePath);
       }
 
-      // Capability inspection
-      case 'inspectCapability': {
+      // Capability operations
+      case 'inspect': {
         const { petNameOrPath } = args;
         if (petNameOrPath === undefined) {
           throw new Error('petNameOrPath is required');
@@ -1348,6 +1179,26 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
           // No __getMethodNames__ available.
         }
         return parts.join('\n');
+      }
+      case 'readText': {
+        const { petNameOrPath, fileName } = args;
+        if (petNameOrPath === undefined || fileName === undefined) {
+          throw new Error('petNameOrPath and fileName are required');
+        }
+        const capability = await E(powers).lookup(petNameOrPath);
+        return E(capability).readText(fileName);
+      }
+      case 'writeText': {
+        const { petNameOrPath, fileName, content } = args;
+        if (
+          petNameOrPath === undefined ||
+          fileName === undefined ||
+          content === undefined
+        ) {
+          throw new Error('petNameOrPath, fileName, and content are required');
+        }
+        const capability = await E(powers).lookup(petNameOrPath);
+        return E(capability).writeText(fileName, content);
       }
 
       // Code evaluation
@@ -1759,6 +1610,26 @@ export const make = (guestPowers, _context) => {
     const selfLocator = await E(powers).locate('@self');
     const activeWorkers = new Map();
 
+    // Check in the primer directory as a content-addressed readable-tree.
+    // Stored once in the host namespace; each sub-guest gets a reference.
+    const primerDirPath = new URL('./primer', import.meta.url).pathname;
+    const localPrimerTree = makeLocalTree(primerDirPath);
+    await E(agent).storeTree(localPrimerTree, 'lal-primer');
+    const primerTreeId = await E(agent).identify('lal-primer');
+    console.log(`[lal] Primer tree checked in (${primerTreeId})`);
+
+    /**
+     * Ensure the sub-guest has a `primer` reference.
+     * @param {any} guest
+     */
+    const provisionPrimer = async guest => {
+      const hasPrimer = await E(guest).has('primer');
+      if (!hasPrimer) {
+        await E(guest).storeIdentifier('primer', primerTreeId);
+        console.log('[lal] Primer provisioned for guest');
+      }
+    };
+
     // Pre-scan existing messages to find our latest form messageId so that
     // old value messages (from prior sessions) that reply to an earlier form
     // are not accidentally matched when the iterator replays history.
@@ -1821,6 +1692,9 @@ export const make = (guestPowers, _context) => {
                 agentName: `profile-for-${name}`,
               });
             }
+
+            // Ensure the sub-guest has the primer directory.
+            await provisionPrimer(guest);
 
             // Spawn a worker loop for this guest.
             const workerP = spawnWorkerLoop(guest, null, {

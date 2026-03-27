@@ -1,5 +1,5 @@
 // @ts-check
-/* global process */
+/* global process, fetch */
 // endo run --UNCONFINED setup.js --powers @agent
 // Defaults to local Ollama. Override with env vars:
 //   ENDO_LLM_HOST=https://api.anthropic.com
@@ -12,9 +12,31 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 const lalSpecifier = new URL('agent.js', import.meta.url).href;
 
 /**
- * Provision the setup-lal guest, launch the agent caplet, then watch the
- * inbox for configuration forms from setup-lal and auto-submit ENDO_LLM_
- * env vars. Returns after the first form submission.
+ * Probe whether the Ollama API is reachable.
+ *
+ * @param {string} host - The API base URL.
+ * @returns {Promise<boolean>}
+ */
+const isOllamaReachable = async host => {
+  try {
+    // Ollama's /v1/models endpoint is lightweight.
+    const modelsUrl = host.replace(/\/v1\/?$/, '/v1/models');
+    const response = await fetch(modelsUrl, {
+      signal: AbortSignal.timeout(3000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Provision the setup-lal guest and launch the agent caplet.
+ *
+ * If ENDO_LLM_HOST (or any ENDO_LLM_ var) is explicitly set, or if
+ * local Ollama is reachable, auto-submit the configuration form.
+ * Otherwise, leave the form in the HOST inbox for the user to fill
+ * in manually (e.g. via Chat or `yarn setup-lal`).
  *
  * @param {import('@endo/eventual-send').ERef<object>} agent
  */
@@ -38,10 +60,25 @@ export const main = async agent => {
   });
 
   const { env } = process;
+  const hasExplicitConfig =
+    env.ENDO_LLM_HOST || env.ENDO_LLM_MODEL || env.ENDO_LLM_AUTH_TOKEN;
+
   const host = env.ENDO_LLM_HOST || 'http://localhost:11434/v1';
   const model = env.ENDO_LLM_MODEL || 'qwen3';
   const authToken = env.ENDO_LLM_AUTH_TOKEN || 'ollama';
   const name = env.ENDO_LLM_NAME || 'lal';
+
+  if (!hasExplicitConfig) {
+    const ollamaUp = await isOllamaReachable(host);
+    if (!ollamaUp) {
+      console.log(
+        'Lal provisioned. No ENDO_LLM_ env vars set and Ollama is ' +
+          'not reachable — leaving form for manual submission.',
+      );
+      return;
+    }
+    console.log('Ollama is reachable — auto-submitting defaults.');
+  }
 
   const selfLocator = await E(agent).locate('@self');
   const messages = makeRefIterator(E(agent).followMessages());

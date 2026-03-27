@@ -8,6 +8,7 @@ import { getCommand } from './command-registry.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createInlineEval } from './inline-eval.js';
+import { createInlineDefine } from './inline-define.js';
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /**
@@ -34,6 +35,7 @@ import { tokenAutocompleteComponent } from './token-autocomplete.js';
  * @param {(isValid: boolean) => void} options.onValidityChange - Called when validity changes
  * @param {(messageNumber: number) => void} [options.onMessageNumberClick] - Called when message number clicked
  * @param {(data: import('./inline-eval.js').ParsedEval) => void} [options.onExpandEval] - Called to expand eval to modal
+ * @param {(data: import('./inline-define.js').ParsedDefine) => void} [options.onExpandDefine] - Called to expand define to modal
  * @param {(messageNumber: number) => Promise<string[]>} [options.getMessageEdgeNames] - Get edge names for a message
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
  * @returns {InlineCommandFormAPI}
@@ -47,6 +49,7 @@ export const createInlineCommandForm = ({
   onValidityChange,
   onMessageNumberClick,
   onExpandEval,
+  onExpandDefine,
   getMessageEdgeNames,
   makeRefIterator,
 }) => {
@@ -62,6 +65,8 @@ export const createInlineCommandForm = ({
   let fieldInputsByName = {};
   /** @type {import('./inline-eval.js').InlineEvalAPI | null} */
   let inlineEvalInstance = null;
+  /** @type {import('./inline-define.js').InlineDefineAPI | null} */
+  let inlineDefineInstance = null;
   /**
    * Render a single field based on its type.
    * @param {import('./command-registry.js').CommandField} field
@@ -528,6 +533,9 @@ export const createInlineCommandForm = ({
     if (inlineEvalInstance) {
       return inlineEvalInstance.isValid();
     }
+    if (inlineDefineInstance) {
+      return inlineDefineInstance.isValid();
+    }
 
     const command = getCommand(currentCommand);
     if (!command) return false;
@@ -617,6 +625,41 @@ export const createInlineCommandForm = ({
       setTimeout(() => {
         if (inlineEvalInstance) {
           inlineEvalInstance.focus();
+        }
+      }, 50);
+
+      return;
+    }
+
+    // Special handling for define command - use inline define component
+    if (command.name === 'define') {
+      $container.innerHTML = '';
+
+      const $defineContainer = document.createElement('div');
+      $defineContainer.className = 'inline-eval-container';
+      $container.appendChild($defineContainer);
+
+      inlineDefineInstance = createInlineDefine({
+        $container: $defineContainer,
+        onSubmit: data => {
+          onSubmit('define', {
+            source: data.source,
+            slots: data.slots,
+          });
+        },
+        onExpand: data => {
+          if (onExpandDefine) {
+            onExpandDefine(data);
+          }
+        },
+        onCancel,
+        onValidityChange,
+      });
+
+      // Focus after setup
+      setTimeout(() => {
+        if (inlineDefineInstance) {
+          inlineDefineInstance.focus();
         }
       }, 50);
 
@@ -714,6 +757,10 @@ export const createInlineCommandForm = ({
       inlineEvalInstance.focus();
       return;
     }
+    if (inlineDefineInstance) {
+      inlineDefineInstance.focus();
+      return;
+    }
 
     if (fieldElements.length > 0) {
       if (skipFilled) {
@@ -749,6 +796,9 @@ export const createInlineCommandForm = ({
     if (inlineEvalInstance && inlineEvalInstance.setDisabled) {
       inlineEvalInstance.setDisabled(disabled);
     }
+    if (inlineDefineInstance) {
+      inlineDefineInstance.setDisabled(disabled);
+    }
   };
 
   /**
@@ -765,6 +815,10 @@ export const createInlineCommandForm = ({
     if (inlineEvalInstance) {
       inlineEvalInstance.dispose();
       inlineEvalInstance = null;
+    }
+    if (inlineDefineInstance) {
+      inlineDefineInstance.dispose();
+      inlineDefineInstance = null;
     }
   };
 

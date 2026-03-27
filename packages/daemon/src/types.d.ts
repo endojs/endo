@@ -468,17 +468,6 @@ export type Package = MessageBase & {
   ids: Array<FormulaIdentifier>; // formula identifiers
 };
 
-export type EvalRequest = MessageBase & {
-  type: 'eval-request';
-  replyTo?: FormulaNumber;
-  source: string;
-  codeNames: Array<string>;
-  petNamePaths: Array<NamePath>;
-  promiseId: FormulaIdentifier;
-  resolverId: FormulaIdentifier;
-  settled: Promise<'fulfilled' | 'rejected'>;
-};
-
 export type DefineRequest = MessageBase & {
   type: 'definition';
   replyTo?: FormulaNumber;
@@ -510,7 +499,6 @@ export type ValueMessage = MessageBase & {
 export type Message =
   | Request
   | Package
-  | EvalRequest
   | DefineRequest
   | Form
   | ValueMessage;
@@ -827,20 +815,6 @@ export interface Mail {
     replyToMessageNumber?: bigint,
   ): Promise<void>;
   deliver(message: EnvelopedMessage): Promise<void>;
-  requestEvaluation(
-    recipientNameOrPath: string | string[],
-    source: string,
-    codeNames: Array<string>,
-    petNamePaths: Array<string | string[]>,
-    responseName?: string | string[],
-  ): Promise<unknown>;
-  getEvalRequest(messageNumber: bigint): {
-    source: string;
-    codeNames: Array<string>;
-    petNamePaths: Array<NamePath>;
-    resolverId: FormulaIdentifier;
-    guestHandleId: string;
-  };
   define(
     source: string,
     slots: Record<string, { label: string; pattern?: unknown }>,
@@ -970,12 +944,6 @@ export interface EndoAgent extends EndoDirectory {
 }
 
 export interface EndoGuest extends EndoAgent {
-  requestEvaluation(
-    source: string,
-    codeNames: Array<string>,
-    petNamePaths: Array<string | string[]>,
-    resultName?: string | string[],
-  ): Promise<unknown>;
   /** Evaluate code directly in a worker, constrained by reachable capabilities. */
   evaluate(
     workerPetName: string | undefined,
@@ -1066,7 +1034,6 @@ export interface EndoHost extends EndoAgent {
   ): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitationLocator: string, guestName: string): Promise<void>;
-  approveEvaluation(messageNumber: bigint, workerName?: string): Promise<void>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,

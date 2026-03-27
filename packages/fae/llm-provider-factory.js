@@ -54,7 +54,7 @@ export const make = (guestPowers, _context) => {
     );
 
     const hostAgent = await E(powers).lookup('host-agent');
-    const selfId = await E(powers).identify('@self');
+    const selfId = await E(powers).locate('@self');
 
     /** @type {string | undefined} */
     let formMessageId;

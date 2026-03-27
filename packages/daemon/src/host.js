@@ -944,54 +944,6 @@ export const makeHostMaker = ({
      */
     const lookupById = async id => provide(id);
 
-    /** @type {EndoHost['approveEvaluation']} */
-    const approveEvaluation = async (messageNumber, workerName) => {
-      if (workerName !== undefined) {
-        assertName(workerName);
-      }
-      const { source, codeNames, petNamePaths, resolverId, guestHandleId } =
-        mailbox.getEvalRequest(messageNumber);
-
-      assertNames(codeNames);
-
-      const guestAgentId = await getAgentIdForHandleId(
-        /** @type {FormulaIdentifier} */ (guestHandleId),
-      );
-      const guestAgent = await provide(guestAgentId, 'agent');
-
-      // Resolve endowments from the guest's namespace
-      /** @type {(FormulaIdentifier | NamePath)[]} */
-      const endowmentFormulaIdsOrPaths = await Promise.all(
-        petNamePaths.map(async petNamePath => {
-          if (petNamePath.length === 1) {
-            const id = await E(guestAgent).identify(petNamePath[0]);
-            if (id === undefined) {
-              throw new Error(
-                `Unknown pet name ${q(petNamePath[0])} in guest namespace`,
-              );
-            }
-            return /** @type {FormulaIdentifier} */ (id);
-          }
-          return petNamePath;
-        }),
-      );
-
-      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
-
-      const { id: evalId } = await formulateEval(
-        guestAgentId,
-        source,
-        codeNames,
-        endowmentFormulaIdsOrPaths,
-        tasks,
-        workerId,
-      );
-      const resolver = await provide(resolverId, 'resolver');
-      E.sendOnly(resolver).resolveWithId(evalId);
-    };
-
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
       if (workerName !== undefined) {
@@ -1139,7 +1091,6 @@ export const makeHostMaker = ({
       makeChannel: makeChannelCmd,
       invite,
       accept,
-      approveEvaluation,
       endow,
       submit,
       sendValue,
@@ -1167,7 +1118,6 @@ export const makeHostMaker = ({
     const unwrappedMethods = new Set([
       'handle',
       'reverseIdentify',
-      'approveEvaluation',
       'endow',
       'submit',
       'sendValue',

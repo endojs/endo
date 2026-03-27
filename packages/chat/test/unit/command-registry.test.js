@@ -188,7 +188,8 @@ test('inbox-only commands have context set to inbox', t => {
     'reject',
     'form',
     'submit',
-    'approve-eval',
+    'define',
+    'endow',
   ];
   for (const name of inboxOnly) {
     t.is(COMMANDS[name].context, 'inbox', `${name} should be inbox-only`);
@@ -249,7 +250,8 @@ test('filterCommands with channel context excludes inbox-only commands', t => {
   t.false(names.includes('reject'));
   t.false(names.includes('form'));
   t.false(names.includes('submit'));
-  t.false(names.includes('approve-eval'));
+  t.false(names.includes('define'));
+  t.false(names.includes('endow'));
 
   // Both-mode commands should be included
   t.true(names.includes('adopt'));

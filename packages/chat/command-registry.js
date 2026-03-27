@@ -229,30 +229,47 @@ export const COMMANDS = {
     submitLabel: 'Submit',
   },
 
-  'approve-eval': {
-    name: 'approve-eval',
-    label: 'Approve Eval',
-    description: 'Approve a sandboxed evaluation request',
+  define: {
+    name: 'define',
+    label: 'Define',
+    description: 'Propose code with named capability slots for the host to endow',
+    category: 'messaging',
+    mode: 'inline',
+    context: 'inbox',
+    fields: [
+      {
+        name: 'source',
+        label: 'Code',
+        type: 'source',
+        required: true,
+      },
+      {
+        name: 'slots',
+        label: 'Slots',
+        type: 'endowments',
+        required: true,
+      },
+    ],
+    submitLabel: 'Define',
+  },
+
+  endow: {
+    name: 'endow',
+    label: 'Endow',
+    description: 'Bind capabilities to a definition and evaluate',
     category: 'messaging',
     mode: 'inline',
     context: 'inbox',
     fields: [
       {
         name: 'messageNumber',
-        label: 'Message #',
+        label: 'Definition #',
         type: 'messageNumber',
         required: true,
         placeholder: '#',
       },
-      {
-        name: 'workerName',
-        label: 'Worker',
-        type: 'petNamePath',
-        required: false,
-        placeholder: 'worker-name',
-      },
     ],
-    submitLabel: 'Approve',
+    submitLabel: 'Endow',
   },
 
   // ============ EXECUTION ============

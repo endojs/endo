@@ -4,11 +4,10 @@
  */
 
 import '@endo/init';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { build } from 'esbuild';
 import path from 'path';
-import { pathToFileURL, fileURLToPath } from 'url';
-import { makeBundle as makeCompartmentBundle } from '@endo/compartment-mapper/bundle.js';
+import { fileURLToPath } from 'url';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const familiarRoot = path.resolve(dirname, '..');
@@ -68,28 +67,38 @@ await build({
 
 await build({
   ...shared,
-  entryPoints: [path.join(repoRoot, 'packages/daemon/src/web-server-node.js')],
-  outfile: path.join(familiarRoot, 'bundles/endo-worker.cjs'),
-  plugins: [importMetaPlugin],
-});
-
-await build({
-  ...shared,
   entryPoints: [path.join(repoRoot, 'packages/daemon/src/worker-node.js')],
   outfile: path.join(familiarRoot, 'bundles/worker-node.cjs'),
 });
 
 await build({
   ...shared,
-  entryPoints: [path.join(repoRoot, 'packages/lal/agent.js')],
-  outfile: path.join(familiarRoot, 'bundles/endo-lal.cjs'),
+  entryPoints: [path.join(repoRoot, 'packages/lal/setup.js')],
+  outfile: path.join(familiarRoot, 'bundles/endo-lal-setup.cjs'),
 });
 
+// Lal agent caplet — loaded at runtime by the daemon worker via
+// makeUnconfined.  lal/setup.js resolves it as
+// new URL('agent.js', import.meta.url).
+// Must be ESM: the worker import()s caplets as ES modules.
+// The banner polyfills `require` for CJS deps (e.g. node-fetch)
+// that esbuild cannot statically convert to ESM imports.
 await build({
   ...shared,
-  entryPoints: [path.join(repoRoot, 'packages/fae/agent.js')],
-  outfile: path.join(familiarRoot, 'bundles/endo-fae.cjs'),
+  format: 'esm',
+  banner: {
+    js: 'import { createRequire as __bundleCreateRequire } from "module"; const require = __bundleCreateRequire(import.meta.url);',
+  },
+  plugins: [],
+  entryPoints: [path.join(repoRoot, 'packages/lal/agent.js')],
+  outfile: path.join(familiarRoot, 'bundles/agent.js'),
 });
+
+// Copy primer directory alongside the agent bundle so that
+// new URL('./primer', import.meta.url) resolves correctly.
+const primerSrc = path.join(repoRoot, 'packages/lal/primer');
+const primerDest = path.join(familiarRoot, 'bundles/primer');
+await fs.cp(primerSrc, primerDest, { recursive: true });
 
 await build({
   ...shared,
@@ -98,18 +107,5 @@ await build({
   external: [...shared.external, 'electron'],
 });
 
-// Pre-bundle web-page.js using the compartment mapper.
-// The daemon's web server normally does this at runtime, but in the packaged app the
-// source files and @endo/* dependencies aren't available on disk.
-const webPagePath = path.join(repoRoot, 'packages/daemon/src/web-page.js');
-const webPageRead = async location =>
-  fs.promises.readFile(fileURLToPath(location));
-const webPageBundle = await makeCompartmentBundle(
-  webPageRead,
-  pathToFileURL(webPagePath).href,
-);
-const webPageBundlePath = path.join(familiarRoot, 'bundles/web-page-bundle.js');
-await fs.promises.writeFile(webPageBundlePath, webPageBundle);
-console.log(`  bundles/web-page-bundle.js`);
 
 console.log('Bundles created in packages/familiar/bundles/');

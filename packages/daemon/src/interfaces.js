@@ -212,14 +212,6 @@ export const GuestInterface = M.interface('EndoGuest', {
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
-  // Request sandboxed evaluation (guest -> host)
-  requestEvaluation: M.call(
-    M.string(), // source
-    M.arrayOf(M.string()), // codeNames
-    NamesOrPathsShape, // petNamePaths
-  )
-    .optional(NameOrPathShape) // resultName
-    .returns(M.promise()),
   // Define code with named slots
   define: M.call(
     M.string(), // source
@@ -369,10 +361,6 @@ export const HostInterface = M.interface('EndoHost', {
   invite: M.call(NameShape).returns(M.promise()),
   // Accept an invitation
   accept: M.call(LocatorShape, NameShape).returns(M.promise()),
-  // Approve a sandboxed evaluation request
-  approveEvaluation: M.call(MessageNumberShape)
-    .optional(M.or(NameShape, M.undefined()))
-    .returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,

@@ -60,7 +60,7 @@ Messages have different shapes per type.
 Code that resolves or rejects must branch on `message.type` before
 accessing type-specific fields:
 
-- `request` and `eval-request` messages have a `resolverId` field —
+- `request` messages have a `resolverId` field —
   a persisted formula identifier.
   Look up the resolver via `provide()`.
 - `definition` messages cannot be rejected or resolved.

@@ -228,37 +228,6 @@ export const makeMailboxMaker = ({
      * @param {FormulaIdentifier} fromId
      * @param {FormulaIdentifier} toId
      */
-    const makeEvalRequest = async (
-      source,
-      codeNames,
-      petNamePaths,
-      fromId,
-      toId,
-    ) => {
-      const messageId = /** @type {import('./types.js').FormulaNumber} */ (
-        await randomHex256()
-      );
-      const { promiseId, resolverId } = await formulatePromise(pinTransient);
-      const resolutionIdP = provide(promiseId);
-      const settled = resolutionIdP.then(
-        () => /** @type {const} */ ('fulfilled'),
-        () => /** @type {const} */ ('rejected'),
-      );
-      const request = harden({
-        type: /** @type {const} */ ('eval-request'),
-        from: fromId,
-        to: toId,
-        messageId,
-        source,
-        codeNames,
-        petNamePaths,
-        promiseId,
-        resolverId,
-        settled,
-      });
-      return harden({ request, response: resolutionIdP });
-    };
-
     /**
      * @param {string} source
      * @param {Record<string, { label: string, pattern?: unknown }>} slots
@@ -334,18 +303,6 @@ export const makeMailboxMaker = ({
         });
       }
 
-      if (type === 'eval-request') {
-        return harden({
-          type: 'message',
-          ...envelopeRecord,
-          source: envelope.source,
-          codeNames: envelope.codeNames,
-          petNamePaths: envelope.petNamePaths,
-          promiseId: /** @type {FormulaIdentifier} */ (envelope.promiseId),
-          resolverId: /** @type {FormulaIdentifier} */ (envelope.resolverId),
-        });
-      }
-
       if (type === 'definition') {
         return harden({
           type: 'message',
@@ -411,23 +368,6 @@ export const makeMailboxMaker = ({
         if (envelope.strings.length < envelope.names.length) {
           throw new Error(
             `Message must have one string before every value delivered`,
-          );
-        }
-        return;
-      }
-      if (envelope.type === 'eval-request') {
-        if (typeof envelope.source !== 'string') {
-          throw new Error('Invalid eval-request source');
-        }
-        if (!Array.isArray(envelope.codeNames)) {
-          throw new Error('Invalid eval-request codeNames');
-        }
-        if (!Array.isArray(envelope.petNamePaths)) {
-          throw new Error('Invalid eval-request petNamePaths');
-        }
-        if (envelope.codeNames.length !== envelope.petNamePaths.length) {
-          throw new Error(
-            `Eval request must have one pet name path for each code name`,
           );
         }
         return;
@@ -553,39 +493,6 @@ export const makeMailboxMaker = ({
           strings: formula.strings,
           names: formula.names,
           ids: formula.ids,
-          messageId: formula.messageId,
-          replyTo: formula.replyTo,
-          number: messageNumber,
-          date: formula.date,
-          dismissed: dismissal.promise,
-          dismisser,
-        });
-      }
-
-      if (formula.messageType === 'eval-request') {
-        if (
-          formula.source === undefined ||
-          formula.promiseId === undefined ||
-          formula.resolverId === undefined
-        ) {
-          throw new Error('Eval-request message formula is incomplete');
-        }
-        const resolutionIdP = provide(formula.promiseId);
-        /** @type {Promise<'fulfilled' | 'rejected'>} */
-        const settled = resolutionIdP.then(
-          () => /** @type {const} */ ('fulfilled'),
-          () => /** @type {const} */ ('rejected'),
-        );
-        return harden({
-          type: formula.messageType,
-          from: formula.from,
-          to: formula.to,
-          source: formula.source,
-          codeNames: /** @type {string[]} */ (formula.codeNames),
-          petNamePaths: /** @type {NamePath[]} */ (formula.petNamePaths),
-          promiseId: formula.promiseId,
-          resolverId: formula.resolverId,
-          settled,
           messageId: formula.messageId,
           replyTo: formula.replyTo,
           number: messageNumber,
@@ -880,7 +787,7 @@ export const makeMailboxMaker = ({
         );
       }
       const rejection = harden(Promise.reject(harden(new Error(reason))));
-      // request / eval-request messages use a persisted resolver formula.
+      // request messages use a persisted resolver formula.
       const req = /** @type {Request} */ (message);
       const resolver = /** @type {ERef<Responder>} */ (
         provide(req.resolverId, 'resolver')
@@ -1172,93 +1079,6 @@ export const makeMailboxMaker = ({
       await deliver(message);
     };
 
-    /** @type {Mail['requestEvaluation']} */
-    const requestEvaluation = async (
-      toNameOrPath,
-      source,
-      codeNames,
-      petNamesOrPaths,
-      responseName,
-    ) => {
-      const toPath = namePathFrom(toNameOrPath);
-      await null;
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
-        const responseId = await E(directory).identify(...responseNamePath);
-        if (responseId !== undefined) {
-          context.thisDiesIfThatDies(responseId);
-          return provide(/** @type {FormulaIdentifier} */ (responseId));
-        }
-      }
-
-      /** @type {NamePath[]} */
-      const normalizedPaths = petNamesOrPaths.map(namePathFrom);
-      if (codeNames.length !== normalizedPaths.length) {
-        throw new Error(
-          `Eval request must have one pet name path for each code name`,
-        );
-      }
-
-      const toId = await E(directory).identify(...toPath);
-      if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toPath.join('/')}`);
-      }
-      const to = await provideHandle(/** @type {FormulaIdentifier} */ (toId));
-
-      const { request: req, response: resolutionIdP } = await makeEvalRequest(
-        source,
-        codeNames,
-        normalizedPaths,
-        selfId,
-        /** @type {FormulaIdentifier} */ (toId),
-      );
-
-      await post(to, req);
-
-      const resolutionId = /** @type {FormulaIdentifier} */ (
-        await resolutionIdP
-      );
-      // Unpin after resolution to prevent collection during async wait.
-      unpinTransient(req.promiseId);
-      unpinTransient(req.resolverId);
-
-      assertValidId(resolutionId);
-      context.thisDiesIfThatDies(resolutionId);
-      const responseP = provide(resolutionId);
-
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
-        await E(directory).storeIdentifier(responseNamePath, resolutionId);
-      }
-
-      return responseP;
-    };
-
-    /** @type {Mail['getEvalRequest']} */
-    const getEvalRequest = messageNumber => {
-      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
-      const message = messages.get(normalizedMessageNumber);
-      if (message === undefined) {
-        throw new Error(`No such message with number ${q(messageNumber)}`);
-      }
-      if (message.type !== 'eval-request') {
-        throw new Error(
-          `Message ${q(messageNumber)} is not an eval-request (is ${q(message.type)})`,
-        );
-      }
-      const evalReq =
-        /** @type {EvalRequest & { from: FormulaIdentifier, resolverId: FormulaIdentifier }} */ (
-          message
-        );
-      return harden({
-        source: evalReq.source,
-        codeNames: evalReq.codeNames,
-        petNamePaths: evalReq.petNamePaths,
-        resolverId: evalReq.resolverId,
-        guestHandleId: evalReq.from,
-      });
-    };
-
     /** @type {Mail['define']} */
     const define = async (source, slots) => {
       await null;
@@ -1496,8 +1316,6 @@ export const makeMailboxMaker = ({
       dismiss,
       dismissAll,
       adopt,
-      requestEvaluation,
-      getEvalRequest,
       define,
       form,
       getDefineRequest,

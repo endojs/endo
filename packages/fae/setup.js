@@ -23,12 +23,12 @@ export const main = async agent => {
     return;
   }
 
-  const guestName = 'llm-provider-factory-handle';
-  const agentName = `profile-for-${guestName}`;
+  const name = 'llm-provider-factory';
+  const agentName = `profile-for-${name}`;
 
-  const hasFactory = await E(agent).has(guestName);
+  const hasFactory = await E(agent).has(name);
   if (!hasFactory) {
-    await E(agent).provideGuest(guestName, {
+    await E(agent).provideGuest(name, {
       introducedNames: harden({ '@agent': 'host-agent' }),
       agentName,
     });
@@ -36,7 +36,7 @@ export const main = async agent => {
 
   await E(agent).makeUnconfined('@main', llmProviderFactorySpecifier, {
     powersName: agentName,
-    resultName: 'llm-provider-factory',
+    resultName: `controller-for-${name}`,
   });
 };
 harden(main);

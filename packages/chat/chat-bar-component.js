@@ -8,8 +8,10 @@ import { makeRefIterator } from './ref-iterator.js';
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
+import { createDefineForm } from './define-form.js';
 import { createFormBuilder } from './form-builder.js';
 import { createBlobViewer } from './blob-viewer.js';
+import { createEndowModal } from './endow-modal.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
 import {
@@ -81,6 +83,18 @@ export const chatBarComponent = (
   const $formBuilderBackdrop = /** @type {HTMLElement} */ (
     $parent.querySelector('#form-builder-backdrop')
   );
+  const $endowModalContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#endow-modal-container')
+  );
+  const $endowModalBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#endow-modal-backdrop')
+  );
+  const $defineFormContainer = /** @type {HTMLElement} */ (
+    $parent.querySelector('#define-form-container')
+  );
+  const $defineFormBackdrop = /** @type {HTMLElement} */ (
+    $parent.querySelector('#define-form-backdrop')
+  );
   const $blobViewerContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#blob-viewer-container')
   );
@@ -139,6 +153,13 @@ export const chatBarComponent = (
         <span class="modeline-hint">${kbd(modKey, 'Enter')} expand to editor</span>
         <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
       `;
+    } else if (command && command.name === 'define') {
+      hints = `
+        <span class="modeline-hint"><kbd>@</kbd> add slot</span>
+        <span class="modeline-hint"><kbd>Enter</kbd> define</span>
+        <span class="modeline-hint">${kbd(modKey, 'Enter')} expand to editor</span>
+        <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
+      `;
     } else {
       hints = `
         <span class="modeline-hint"><kbd>Enter</kbd> submit</span>
@@ -160,8 +181,14 @@ export const chatBarComponent = (
   /** @type {import('./eval-form.js').EvalFormAPI | null} */
   let evalForm = null;
 
+  /** @type {import('./define-form.js').DefineFormAPI | null} */
+  let defineForm = null;
+
   /** @type {import('./form-builder.js').FormBuilderAPI | null} */
   let formBuilder = null;
+
+  /** @type {import('./endow-modal.js').EndowModalAPI | null} */
+  let endowModal = null;
 
   /** @type {import('./blob-viewer.js').BlobViewerAPI | null} */
   let blobViewer = null;
@@ -504,6 +531,13 @@ export const chatBarComponent = (
       return;
     }
 
+    if (commandName === 'endow') {
+      const { messageNumber } = /** @type {{ messageNumber: number }} */ (data);
+      exitCommandMode({ skipFocus: true }); // eslint-disable-line no-use-before-define
+      showEndowModal(BigInt(messageNumber));
+      return;
+    }
+
     // For commands that open their own modal, reset command line
     // immediately so the modal receives focus.
     const isEval = commandName === 'js' || commandName === 'eval';
@@ -584,6 +618,18 @@ export const chatBarComponent = (
           endowments: data.endowments,
           resultName: '',
           workerName: '@main',
+          cursorPosition: data.cursorPosition,
+        });
+      }
+    },
+    onExpandDefine: async data => {
+      // Expand inline define to full modal
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+      await showDefineForm(); // eslint-disable-line no-use-before-define
+      if (defineForm) {
+        defineForm.setData({
+          source: data.source,
+          slots: data.slots,
           cursorPosition: data.cursorPosition,
         });
       }
@@ -1212,6 +1258,96 @@ export const chatBarComponent = (
   // Click on backdrop closes form builder
   $formBuilderBackdrop.addEventListener('click', () => {
     hideFormBuilder();
+  });
+
+  /**
+   * Show the endow modal for a specific definition message.
+   *
+   * @param {bigint} messageNumber
+   */
+  const showEndowModal = messageNumber => {
+    if (!endowModal) {
+      endowModal = createEndowModal({
+        $container: $endowModalContainer,
+        E,
+        powers,
+        onSubmit: async data => {
+          await E(powers).endow(
+            data.messageNumber,
+            data.bindings,
+            data.workerName,
+            data.resultName,
+          );
+        },
+        onClose: () => {
+          hideEndowModal(); // eslint-disable-line no-use-before-define
+        },
+      });
+    }
+
+    mode = 'send';
+    $endowModalBackdrop.style.display = 'block';
+    $endowModalContainer.style.display = 'block';
+    endowModal.show(messageNumber);
+  };
+
+  const hideEndowModal = () => {
+    mode = 'send';
+    $endowModalBackdrop.style.display = 'none';
+    $endowModalContainer.style.display = 'none';
+    if (endowModal) {
+      endowModal.hide();
+    }
+    sendForm.focus();
+  };
+
+  // Click on backdrop closes endow modal
+  $endowModalBackdrop.addEventListener('click', () => {
+    hideEndowModal();
+  });
+
+  /**
+   * Show the define form (lazily initialize if needed).
+   */
+  const showDefineForm = async () => {
+    if (!defineForm) {
+      defineForm = await createDefineForm({
+        $container: $defineFormContainer,
+        onSubmit: async data => {
+          const slots = {};
+          for (const slot of data.slots) {
+            slots[slot.codeName] = { label: slot.label };
+          }
+          await E(powers).define(data.source, slots);
+        },
+        onClose: () => {
+          hideDefineForm(); // eslint-disable-line no-use-before-define
+        },
+      });
+    }
+
+    mode = 'js';
+    $defineFormBackdrop.style.display = 'block';
+    $defineFormContainer.style.display = 'block';
+    defineForm.show();
+  };
+
+  const hideDefineForm = () => {
+    mode = 'send';
+    $defineFormBackdrop.style.display = 'none';
+    $defineFormContainer.style.display = 'none';
+    if (defineForm) {
+      defineForm.hide();
+    }
+    sendForm.focus();
+  };
+
+  // Click on backdrop closes define form
+  $defineFormBackdrop.addEventListener('click', () => {
+    if (defineForm && defineForm.isDirty()) {
+      // Could add confirmation here
+    }
+    hideDefineForm();
   });
 
   // Command cancel button (header)

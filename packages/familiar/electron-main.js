@@ -16,18 +16,16 @@
  * The daemon outlives the Familiar.
  */
 
+import os from 'os';
 import path from 'path';
 // @ts-ignore Electron is not typed in this project
 import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
 
-import {
-  ensureDaemonRunning,
-  restartDaemon,
-  purgeDaemon,
-  getAgentId,
-  getGatewayAddress,
-} from './src/daemon-manager.js';
+import { whereEndoState } from '@endo/where';
+
+import { makeDaemonManager } from './src/daemon-manager.js';
 import { resourcePaths } from './src/resource-paths.js';
+import { makeLogger } from './src/logger.js';
 import {
   registerLocalhttpScheme,
   installLocalhttpHandler,
@@ -38,6 +36,20 @@ import {
   installExfiltrationDefenses,
   verifyExfiltrationDefenses,
 } from './src/exfiltration-defense.js';
+
+const { username, homedir } = os.userInfo();
+const temp = os.tmpdir();
+const endoInfo = { user: username, home: homedir, temp };
+const statePath = whereEndoState(process.platform, process.env, endoInfo);
+
+const logger = makeLogger(path.join(statePath, 'familiar.log'));
+const {
+  ensureDaemonRunning,
+  restartDaemon,
+  purgeDaemon,
+  getAgentId,
+  getGatewayAddress,
+} = makeDaemonManager(logger);
 
 const appRoot = app.getAppPath();
 const isDevMode = process.argv.includes('--dev');
@@ -142,22 +154,22 @@ const createWindow = () => {
     // Use 127.0.0.1 instead of localhost to avoid DNS resolution, which
     // is vulnerable to integrity attacks.
     const devUrl = `http://127.0.0.1:${vitePort}#${fragment}`;
-    console.log(`[🐈‍⬛ Familiar] Loading dev URL: ${devUrl}`);
+    logger.log(`[Familiar] Loading dev URL: ${devUrl}`);
     win.loadURL(devUrl);
     win.webContents.openDevTools();
   } else {
     // In production mode, load the built Chat dist
     const fileUrl = `file://${resourcePaths.chatDistPath}#${fragment}`;
-    console.log(`[🐈‍⬛ Familiar] Loading file URL: ${fileUrl}`);
+    logger.log(`[Familiar] Loading file URL: ${fileUrl}`);
     win.loadURL(fileUrl);
   }
 
-  // Pipe renderer console output to main process stdout for diagnostics
+  // Pipe renderer console output to main process for diagnostics
   win.webContents.on(
     'console-message',
     (_event, level, message, line, sourceId) => {
       const levelName = ['verbose', 'info', 'warning', 'error'][level] || 'log';
-      console.log(`[renderer:${levelName}] ${message} (${sourceId}:${line})`);
+      logger.log(`[renderer:${levelName}] ${message} (${sourceId}:${line})`);
     },
   );
 
@@ -175,8 +187,13 @@ const createWindow = () => {
 const handleRestartDaemon = async win => {
   await null;
   try {
-    await restartDaemon();
-    gatewayAddress = getGatewayAddress();
+    const result = await restartDaemon();
+    if (result.gatewayAddress) {
+      const parsed = new URL(result.gatewayAddress);
+      gatewayAddress = `${parsed.hostname}:${parsed.port || '8920'}`;
+    } else {
+      gatewayAddress = await getGatewayAddress();
+    }
     agentId = await getAgentId();
     if (win && !win.isDestroyed()) {
       // Pass config as a URL fragment (anchor) rather than a query string so
@@ -189,7 +206,7 @@ const handleRestartDaemon = async win => {
       }
     }
   } catch (error) {
-    console.error('[Familiar] Failed to restart daemon:', error);
+    logger.error('[Familiar] Failed to restart daemon:', error);
   }
 };
 
@@ -201,8 +218,13 @@ const handleRestartDaemon = async win => {
 const handlePurgeDaemon = async win => {
   await null;
   try {
-    await purgeDaemon();
-    gatewayAddress = getGatewayAddress();
+    const result = await purgeDaemon();
+    if (result.gatewayAddress) {
+      const parsed = new URL(result.gatewayAddress);
+      gatewayAddress = `${parsed.hostname}:${parsed.port || '8920'}`;
+    } else {
+      gatewayAddress = await getGatewayAddress();
+    }
     agentId = await getAgentId();
     if (win && !win.isDestroyed()) {
       // Pass config as a URL fragment (anchor) rather than a query string so
@@ -215,7 +237,7 @@ const handlePurgeDaemon = async win => {
       }
     }
   } catch (error) {
-    console.error('[Familiar] Failed to purge daemon:', error);
+    logger.error('[Familiar] Failed to purge daemon:', error);
   }
 };
 
@@ -231,18 +253,24 @@ const parseGatewayPort = address => {
 };
 
 const main = async () => {
-  console.log('[🐈‍⬛ Familiar] Starting...');
-  console.log(`[🐈‍⬛ Familiar] Dev mode: ${isDevMode}`);
+  logger.log('[Familiar] Starting...');
+  logger.log(`[Familiar] Dev mode: ${isDevMode}`);
 
   // Step 1: Ensure daemon is running (daemon hosts the gateway)
-  await ensureDaemonRunning();
+  const daemonResult = await ensureDaemonRunning();
 
   // Step 2: Read gateway connection info
-  gatewayAddress = getGatewayAddress();
+  // Prefer the IPC-returned address; fall back to the persisted file.
+  if (daemonResult.gatewayAddress) {
+    const parsed = new URL(daemonResult.gatewayAddress);
+    gatewayAddress = `${parsed.hostname}:${parsed.port || '8920'}`;
+  } else {
+    gatewayAddress = await getGatewayAddress();
+  }
   agentId = await getAgentId();
 
-  console.log(`[Familiar] Gateway: ${gatewayAddress}`);
-  console.log(`[Familiar] Agent ID: ${String(agentId).slice(0, 16)}...`);
+  logger.log(`[Familiar] Gateway: ${gatewayAddress}`);
+  logger.log(`[Familiar] Agent ID: ${String(agentId).slice(0, 16)}...`);
 
   // Wait for Electron to be ready
   await app.whenReady();
@@ -272,7 +300,7 @@ const main = async () => {
   // Step 7: Verify exfiltration defenses and notify renderer
   const warnings = await verifyExfiltrationDefenses();
   if (warnings.length > 0) {
-    console.warn('[Familiar] Security warnings:', warnings);
+    logger.warn('[Familiar] Security warnings:', warnings);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('familiar:security-warnings', warnings);
     }
@@ -296,6 +324,6 @@ const main = async () => {
 };
 
 main().catch(error => {
-  console.error('[🐈‍⬛ Familiar] Fatal error:', error);
+  logger.error('[Familiar] Fatal error:', error);
   process.exit(1);
 });

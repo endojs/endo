@@ -40,7 +40,9 @@
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:e2e": "playwright test",
-    "test:xs": "exit 0"
+    "test:xs": "exit 0",
+    "setup-lal": "endo run --UNCONFINED setup-lal.js --powers @agent",
+    "setup-llm-provider": "endo run --UNCONFINED setup-llm-provider.js --powers @agent"
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
