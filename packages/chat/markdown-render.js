@@ -1,14 +1,31 @@
 // @ts-check
 
 /**
- * @file Markdown subset parser with chip interpolation support.
+ * @file Chat markdown rendering with chip interpolation.
  *
- * Supports: headings (#-######), bold (*), italic (/), strikethrough (~),
- * underline (_), unordered lists (-), ordered lists (1.), inline code (`),
- * code fences (```).
- *
- * Designed to accept text with placeholders and return DOM with insertion
- * points for token chips at tracked positions.
+ * Delegates parsing and rendering to @endo/markmdown, then post-processes
+ * the resulting DOM to replace placeholder characters with chip insertion
+ * point spans. Code fences are highlighted asynchronously via Monaco.
+ */
+
+import {
+  parseBlocks,
+  parseInline as markmdownParseInline,
+  renderBlocks as markmdownRenderBlocks,
+  renderInlineTokens,
+} from '@endo/markmdown';
+
+/**
+ * @callback Colorize
+ * @param {string} text - Source text
+ * @param {string} language - Language identifier
+ * @returns {Promise<string>} HTML string with colorized tokens
+ */
+
+/**
+ * @typedef {object} ChatRenderOptions
+ * @property {Colorize} [colorize] - Async colorizer for code fences
+ *   (e.g., Monaco's colorize). When omitted, code fences stay plain text.
  */
 
 /**
@@ -17,523 +34,132 @@
  * @property {HTMLElement[]} insertionPoints - Elements where chips should be inserted
  */
 
-/**
- * @typedef {object} Token
- * @property {'text' | 'bold' | 'italic' | 'strikethrough' | 'underline' | 'code' | 'placeholder'} type
- * @property {string} content
- * @property {number} [placeholderIndex] - Index for placeholder tokens
- */
-
-/**
- * @typedef {object} Block
- * @property {'paragraph' | 'heading' | 'code-fence' | 'list-item' | 'list'} type
- * @property {number} [level] - Heading level (1-6) or list nesting
- * @property {string} [language] - Code fence language
- * @property {Token[] | string} [content] - Inline tokens for text blocks, raw string for code
- * @property {Block[]} [children] - Child blocks for lists
- * @property {boolean} [ordered] - Whether list is ordered
- */
-
 // Placeholder character for chip positions (Unicode private use area)
 const PLACEHOLDER = '\uE000';
 
 /**
- * Parse inline formatting (bold, italic, strikethrough, inline code).
- * Handles placeholder markers to track chip insertion positions.
+ * Monaco language aliases.
+ * Maps common fence tags to Monaco language identifiers.
  *
- * @param {string} text - Text to parse
- * @returns {Token[]}
+ * @param {string} lang
+ * @returns {string}
  */
-const parseInline = text => {
-  /** @type {Token[]} */
-  const tokens = [];
-  let pos = 0;
+const resolveMonacoLanguage = lang => {
+  const lower = lang.toLowerCase();
+  /** @type {Record<string, string>} */
+  const aliases = {
+    js: 'javascript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    ts: 'typescript',
+    tsx: 'typescript',
+    py: 'python',
+    rb: 'ruby',
+    rs: 'rust',
+    sh: 'shell',
+    bash: 'shell',
+    zsh: 'shell',
+    yml: 'yaml',
+    md: 'markdown',
+    json5: 'json',
+    jsonc: 'json',
+    dockerfile: 'dockerfile',
+  };
+  return aliases[lower] || lower;
+};
+
+/**
+ * Asynchronously apply syntax highlighting to all code blocks
+ * in a rendered DOM fragment.
+ *
+ * Finds all `<code>` elements inside `<pre class="md-code-fence">`,
+ * colorizes their content, and replaces their innerHTML.
+ *
+ * @param {DocumentFragment} fragment
+ * @param {Colorize} colorizeFn
+ * @returns {Promise<void>}
+ */
+const applyHighlighting = async (fragment, colorizeFn) => {
+  const codeBlocks = fragment.querySelectorAll('pre.md-code-fence > code');
+  if (codeBlocks.length === 0) return;
+
+  const jobs = Array.from(codeBlocks).map(async $code => {
+    const el = /** @type {HTMLElement} */ ($code);
+    // Extract language from class="language-xxx"
+    const langClass = Array.from(el.classList).find(c =>
+      c.startsWith('language-'),
+    );
+    if (!langClass) return;
+    const lang = langClass.slice('language-'.length);
+    const monacoLang = resolveMonacoLanguage(lang);
+    const source = el.textContent || '';
+    try {
+      const html = await colorizeFn(source, monacoLang);
+      el.innerHTML = html;
+    } catch {
+      // colorize failed — keep plain text
+    }
+  });
+
+  await Promise.all(jobs);
+};
+
+/**
+ * Walk a DOM fragment and replace placeholder characters (\uE000)
+ * in text nodes with chip insertion point spans.
+ *
+ * @param {DocumentFragment} fragment
+ * @returns {HTMLElement[]} - Insertion point elements in order
+ */
+const extractPlaceholders = fragment => {
+  /** @type {HTMLElement[]} */
+  const insertionPoints = [];
   let placeholderCount = 0;
 
   /**
-   * Add text token if non-empty.
-   * @param {string} content
+   * @param {Node} node
    */
-  const addText = content => {
-    if (content) {
-      tokens.push({ type: 'text', content });
+  const walk = node => {
+    if (node.nodeType === 3) {
+      // Text node
+      const text = node.textContent || '';
+      if (!text.includes(PLACEHOLDER)) return;
+
+      const parts = text.split(PLACEHOLDER);
+      const parent = node.parentNode;
+      if (!parent) return;
+
+      for (let i = 0; i < parts.length; i += 1) {
+        if (i > 0) {
+          // Create a span as insertion point for the chip
+          const $slot = document.createElement('span');
+          $slot.className = 'md-chip-slot';
+          $slot.dataset.placeholderIndex = String(placeholderCount);
+          placeholderCount += 1;
+          insertionPoints.push($slot);
+          parent.insertBefore($slot, node);
+        }
+        if (parts[i]) {
+          parent.insertBefore(document.createTextNode(parts[i]), node);
+        }
+      }
+      parent.removeChild(node);
+    } else if (node.nodeType === 1) {
+      // Element node — walk children (copy to array since we may mutate)
+      const children = Array.from(node.childNodes);
+      for (const child of children) {
+        walk(child);
+      }
     }
   };
 
-  while (pos < text.length) {
-    const remaining = text.slice(pos);
-    let matched = false;
-
-    // Check for placeholder
-    if (remaining[0] === PLACEHOLDER) {
-      tokens.push({
-        type: 'placeholder',
-        content: '',
-        placeholderIndex: placeholderCount,
-      });
-      placeholderCount += 1;
-      pos += 1;
-      matched = true;
-    }
-
-    // Check for inline code (backtick)
-    if (!matched) {
-      const codeMatch = remaining.match(/^`([^`]+)`/);
-      if (codeMatch) {
-        tokens.push({ type: 'code', content: codeMatch[1] });
-        pos += codeMatch[0].length;
-        matched = true;
-      }
-    }
-
-    // Check for bold (*text*)
-    if (!matched) {
-      const boldMatch = remaining.match(/^\*([^*]+)\*/);
-      if (boldMatch) {
-        tokens.push({ type: 'bold', content: boldMatch[1] });
-        pos += boldMatch[0].length;
-        matched = true;
-      }
-    }
-
-    // Check for italic (/text/)
-    if (!matched) {
-      const italicMatch = remaining.match(/^\/([^/]+)\//);
-      if (italicMatch) {
-        tokens.push({ type: 'italic', content: italicMatch[1] });
-        pos += italicMatch[0].length;
-        matched = true;
-      }
-    }
-
-    // Check for strikethrough (~text~)
-    if (!matched) {
-      const strikeMatch = remaining.match(/^~([^~]+)~/);
-      if (strikeMatch) {
-        tokens.push({ type: 'strikethrough', content: strikeMatch[1] });
-        pos += strikeMatch[0].length;
-        matched = true;
-      }
-    }
-
-    // Check for underline (_text_)
-    if (!matched) {
-      const underlineMatch = remaining.match(/^_([^_]+)_/);
-      if (underlineMatch) {
-        tokens.push({ type: 'underline', content: underlineMatch[1] });
-        pos += underlineMatch[0].length;
-        matched = true;
-      }
-    }
-
-    // Find next special character or placeholder
-    if (!matched) {
-      let nextSpecial = remaining.length;
-      const specialChars = ['`', '*', '/', '~', '_', PLACEHOLDER];
-      for (const char of specialChars) {
-        const idx = remaining.indexOf(char);
-        if (idx > 0 && idx < nextSpecial) {
-          nextSpecial = idx;
-        }
-      }
-
-      // Add plain text up to next special or end
-      if (nextSpecial > 0) {
-        addText(remaining.slice(0, nextSpecial));
-        pos += nextSpecial;
-      } else {
-        // Single special char that didn't match a pattern
-        addText(remaining[0]);
-        pos += 1;
-      }
-    }
+  const topNodes = Array.from(fragment.childNodes);
+  for (const node of topNodes) {
+    walk(node);
   }
 
-  return tokens;
-};
-
-/**
- * Parse text into block-level structures.
- *
- * @param {string} text - Markdown text
- * @returns {Block[]}
- */
-const parseBlocks = text => {
-  /** @type {Block[]} */
-  const blocks = [];
-  const lines = text.split('\n');
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    let handled = false;
-
-    // Empty line - skip
-    if (line.trim() === '') {
-      i += 1;
-      handled = true;
-    }
-
-    // Code fence
-    if (!handled) {
-      const fenceMatch = line.match(/^```(\w*)$/);
-      if (fenceMatch) {
-        const language = fenceMatch[1] || '';
-        const codeLines = [];
-        i += 1;
-        while (i < lines.length && !lines[i].startsWith('```')) {
-          codeLines.push(lines[i]);
-          i += 1;
-        }
-        i += 1; // Skip closing fence
-        blocks.push({
-          type: 'code-fence',
-          language,
-          content: codeLines.join('\n'),
-        });
-        handled = true;
-      }
-    }
-
-    // Heading
-    if (!handled) {
-      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      if (headingMatch) {
-        blocks.push({
-          type: 'heading',
-          level: headingMatch[1].length,
-          content: parseInline(headingMatch[2]),
-        });
-        i += 1;
-        handled = true;
-      }
-    }
-
-    // Unordered list item
-    if (!handled) {
-      const ulMatch = line.match(/^(\s*)[-*]\s+(.+)$/);
-      if (ulMatch) {
-        // Collect consecutive list items
-        /** @type {Block[]} */
-        const items = [];
-        while (i < lines.length) {
-          const itemMatch = lines[i].match(/^(\s*)[-*]\s+(.+)$/);
-          if (!itemMatch) break;
-          items.push({
-            type: 'list-item',
-            content: parseInline(itemMatch[2]),
-          });
-          i += 1;
-        }
-        blocks.push({
-          type: 'list',
-          ordered: false,
-          children: items,
-        });
-        handled = true;
-      }
-    }
-
-    // Ordered list item
-    if (!handled) {
-      const olMatch = line.match(/^(\s*)\d+[.)]\s+(.+)$/);
-      if (olMatch) {
-        // Collect consecutive list items
-        /** @type {Block[]} */
-        const items = [];
-        while (i < lines.length) {
-          const itemMatch = lines[i].match(/^(\s*)\d+[.)]\s+(.+)$/);
-          if (!itemMatch) break;
-          items.push({
-            type: 'list-item',
-            content: parseInline(itemMatch[2]),
-          });
-          i += 1;
-        }
-        blocks.push({
-          type: 'list',
-          ordered: true,
-          children: items,
-        });
-        handled = true;
-      }
-    }
-
-    // Paragraph - collect lines until empty line or block-level element
-    if (!handled) {
-      const paraLines = [];
-      while (i < lines.length) {
-        const l = lines[i];
-        // Stop at empty line, heading, list, or code fence
-        if (
-          l.trim() === '' ||
-          /^#{1,6}\s/.test(l) ||
-          /^[-*]\s/.test(l) ||
-          /^\d+[.)]\s/.test(l) ||
-          /^```/.test(l)
-        ) {
-          break;
-        }
-        paraLines.push(l);
-        i += 1;
-      }
-      if (paraLines.length > 0) {
-        blocks.push({
-          type: 'paragraph',
-          content: parseInline(paraLines.join('\n')),
-        });
-      }
-    }
-  }
-
-  return blocks;
-};
-
-/**
- * Render inline tokens to DOM elements.
- *
- * @param {Token[]} tokens
- * @param {HTMLElement[]} insertionPoints - Array to collect insertion point elements
- * @returns {DocumentFragment}
- */
-const renderInlineTokens = (tokens, insertionPoints) => {
-  const fragment = document.createDocumentFragment();
-
-  for (const token of tokens) {
-    switch (token.type) {
-      case 'text': {
-        // Handle newlines within text
-        const lines = token.content.split('\n');
-        for (let i = 0; i < lines.length; i += 1) {
-          if (i > 0) {
-            fragment.appendChild(document.createElement('br'));
-          }
-          if (lines[i]) {
-            fragment.appendChild(document.createTextNode(lines[i]));
-          }
-        }
-        break;
-      }
-      case 'bold': {
-        const $el = document.createElement('strong');
-        $el.textContent = token.content;
-        fragment.appendChild($el);
-        break;
-      }
-      case 'italic': {
-        const $el = document.createElement('em');
-        $el.textContent = token.content;
-        fragment.appendChild($el);
-        break;
-      }
-      case 'strikethrough': {
-        const $el = document.createElement('s');
-        $el.textContent = token.content;
-        fragment.appendChild($el);
-        break;
-      }
-      case 'underline': {
-        const $el = document.createElement('u');
-        $el.textContent = token.content;
-        fragment.appendChild($el);
-        break;
-      }
-      case 'code': {
-        const $el = document.createElement('code');
-        $el.className = 'inline-code';
-        $el.textContent = token.content;
-        fragment.appendChild($el);
-        break;
-      }
-      case 'placeholder': {
-        // Create a span as insertion point for the chip
-        const $el = document.createElement('span');
-        $el.className = 'md-chip-slot';
-        $el.dataset.placeholderIndex = String(token.placeholderIndex);
-        insertionPoints.push($el);
-        fragment.appendChild($el);
-        break;
-      }
-      default:
-        break;
-    }
-  }
-
-  return fragment;
-};
-
-/**
- * Simple syntax highlighting for code.
- * Uses basic regex patterns for common languages.
- *
- * @param {string} code
- * @param {string} language
- * @returns {DocumentFragment}
- */
-export const highlightCode = (code, language) => {
-  const fragment = document.createDocumentFragment();
-
-  // Language-specific keyword sets
-  const jsKeywords =
-    /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|class|extends|import|export|from|default|async|await|yield|typeof|instanceof|in|of|void|delete|this|super|null|undefined|true|false|NaN|Infinity)\b/g;
-  const jsStrings = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g;
-  const jsComments = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g;
-  const jsNumbers =
-    /\b(\d+\.?\d*(?:e[+-]?\d+)?|0x[0-9a-f]+|0b[01]+|0o[0-7]+)\b/gi;
-
-  if (
-    !language ||
-    !['js', 'javascript', 'ts', 'typescript'].includes(language.toLowerCase())
-  ) {
-    // No highlighting - just preserve whitespace
-    const $code = document.createElement('span');
-    $code.textContent = code;
-    fragment.appendChild($code);
-    return fragment;
-  }
-
-  // Tokenize by finding all matches and sorting by position
-  /** @type {Array<{start: number, end: number, type: string, text: string}>} */
-  const highlights = [];
-
-  // Find all matches
-  const patterns = [
-    { regex: jsComments, type: 'comment' },
-    { regex: jsStrings, type: 'string' },
-    { regex: jsKeywords, type: 'keyword' },
-    { regex: jsNumbers, type: 'number' },
-  ];
-
-  for (const { regex, type } of patterns) {
-    regex.lastIndex = 0;
-    let match = regex.exec(code);
-    while (match !== null) {
-      highlights.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        type,
-        text: match[0],
-      });
-      match = regex.exec(code);
-    }
-  }
-
-  // Sort by start position
-  highlights.sort((a, b) => a.start - b.start);
-
-  // Remove overlapping highlights (keep first/earlier match)
-  /** @type {typeof highlights} */
-  const filtered = [];
-  let lastEnd = 0;
-  for (const h of highlights) {
-    if (h.start >= lastEnd) {
-      filtered.push(h);
-      lastEnd = h.end;
-    }
-  }
-
-  // Render with highlighting
-  let pos = 0;
-  for (const h of filtered) {
-    // Add plain text before highlight
-    if (h.start > pos) {
-      fragment.appendChild(document.createTextNode(code.slice(pos, h.start)));
-    }
-    // Add highlighted span
-    const $span = document.createElement('span');
-    $span.className = `code-${h.type}`;
-    $span.textContent = h.text;
-    fragment.appendChild($span);
-    pos = h.end;
-  }
-
-  // Add remaining plain text
-  if (pos < code.length) {
-    fragment.appendChild(document.createTextNode(code.slice(pos)));
-  }
-
-  return fragment;
-};
-
-/**
- * Render blocks to DOM.
- *
- * @param {Block[]} blocks
- * @param {HTMLElement[]} insertionPoints
- * @returns {DocumentFragment}
- */
-const renderBlocks = (blocks, insertionPoints) => {
-  const fragment = document.createDocumentFragment();
-
-  for (const block of blocks) {
-    switch (block.type) {
-      case 'paragraph': {
-        const $p = document.createElement('p');
-        $p.className = 'md-paragraph';
-        if (Array.isArray(block.content)) {
-          $p.appendChild(renderInlineTokens(block.content, insertionPoints));
-        }
-        fragment.appendChild($p);
-        break;
-      }
-      case 'heading': {
-        const level = Math.min(6, Math.max(1, block.level || 1));
-        const $h = document.createElement(`h${level}`);
-        $h.className = `md-heading md-h${level}`;
-        if (Array.isArray(block.content)) {
-          $h.appendChild(renderInlineTokens(block.content, insertionPoints));
-        }
-        fragment.appendChild($h);
-        break;
-      }
-      case 'code-fence': {
-        // Wrap code fence in a paragraph for consistent structure
-        const $p = document.createElement('p');
-        $p.className = 'md-paragraph md-code-fence-wrapper';
-        const $pre = document.createElement('pre');
-        $pre.className = 'md-code-fence';
-        if (block.language) {
-          const $label = document.createElement('span');
-          $label.className = 'md-code-fence-language';
-          $label.textContent = block.language;
-          $pre.appendChild($label);
-        }
-        const $code = document.createElement('code');
-        if (block.language) {
-          $code.className = `language-${block.language}`;
-          $code.dataset.language = block.language;
-        }
-        const content = typeof block.content === 'string' ? block.content : '';
-        $code.appendChild(highlightCode(content, block.language || ''));
-        $pre.appendChild($code);
-        $p.appendChild($pre);
-        fragment.appendChild($p);
-        break;
-      }
-      case 'list': {
-        const $list = document.createElement(block.ordered ? 'ol' : 'ul');
-        $list.className = 'md-list';
-        if (block.children) {
-          for (const item of block.children) {
-            const $li = document.createElement('li');
-            $li.className = 'md-list-item';
-            if (Array.isArray(item.content)) {
-              $li.appendChild(
-                renderInlineTokens(item.content, insertionPoints),
-              );
-            }
-            $list.appendChild($li);
-          }
-        }
-        fragment.appendChild($list);
-        break;
-      }
-      default:
-        break;
-    }
-  }
-
-  return fragment;
+  return insertionPoints;
 };
 
 /**
@@ -561,15 +187,19 @@ export const prepareTextWithPlaceholders = strings => {
 /**
  * Render markdown text with chip interpolation.
  *
+ * Code fences are rendered as plain text initially.
+ * When `options.colorize` is provided, the returned `highlight` method
+ * asynchronously applies syntax highlighting to all code blocks.
+ *
  * @param {string} text - Markdown text with placeholders
- * @returns {RenderResult}
+ * @param {ChatRenderOptions} [options]
+ * @returns {RenderResult & { highlight: () => Promise<void> }}
  */
-export const renderMarkdown = text => {
-  /** @type {HTMLElement[]} */
-  const insertionPoints = [];
-
+export const renderMarkdown = (text, options) => {
   const blocks = parseBlocks(text);
-  const fragment = renderBlocks(blocks, insertionPoints);
+  const fragment = markmdownRenderBlocks(blocks);
+
+  const insertionPoints = extractPlaceholders(fragment);
 
   // Sort insertion points by their placeholder index
   insertionPoints.sort((a, b) => {
@@ -578,7 +208,15 @@ export const renderMarkdown = text => {
     return aIdx - bIdx;
   });
 
-  return { fragment, insertionPoints };
+  const colorizeFn = options && options.colorize;
+
+  return {
+    fragment,
+    insertionPoints,
+    highlight: colorizeFn
+      ? () => applyHighlighting(fragment, colorizeFn)
+      : () => Promise.resolve(),
+  };
 };
 
 /**
@@ -589,13 +227,11 @@ export const renderMarkdown = text => {
  * @returns {RenderResult}
  */
 export const renderPlainText = text => {
-  /** @type {HTMLElement[]} */
-  const insertionPoints = [];
-  const fragment = document.createDocumentFragment();
+  // Parse just for inline formatting and placeholders
+  const tokens = markmdownParseInline(text);
+  const fragment = renderInlineTokens(tokens, document);
 
-  // Parse just for placeholders
-  const tokens = parseInline(text);
-  fragment.appendChild(renderInlineTokens(tokens, insertionPoints));
+  const insertionPoints = extractPlaceholders(fragment);
 
   // Sort insertion points by their placeholder index
   insertionPoints.sort((a, b) => {

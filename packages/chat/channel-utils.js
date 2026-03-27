@@ -6,6 +6,7 @@ import {
   prepareTextWithPlaceholders,
   renderMarkdown,
 } from './markdown-render.js';
+import { colorize } from './monaco-wrapper.js';
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 
@@ -387,9 +388,12 @@ export const createChannelState = async (channel, opts) => {
 
     if (message.strings && message.strings.length > 0) {
       const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
-      const { fragment, insertionPoints } =
-        renderMarkdown(textWithPlaceholders);
+      const { fragment, insertionPoints, highlight } =
+        renderMarkdown(textWithPlaceholders, { colorize });
       $body.appendChild(fragment);
+
+      // Asynchronously apply Monaco syntax highlighting to code fences
+      highlight();
 
       for (
         let index = 0;

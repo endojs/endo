@@ -9,8 +9,8 @@ import { playChime } from './chime.js';
 import {
   prepareTextWithPlaceholders,
   renderMarkdown,
-  highlightCode,
 } from './markdown-render.js';
+import { colorize } from './monaco-wrapper.js';
 import {
   dateFormatter,
   timeFormatter,
@@ -258,8 +258,8 @@ export const inboxComponent = async (
 
       // Prepare text with placeholders for markdown rendering
       const textWithPlaceholders = prepareTextWithPlaceholders(strings);
-      const { fragment, insertionPoints } =
-        renderMarkdown(textWithPlaceholders);
+      const { fragment, insertionPoints, highlight } =
+        renderMarkdown(textWithPlaceholders, { colorize });
 
       // Inject sender chip into the first paragraph or heading
       // But NOT into code fence wrappers or lists - prepend a new paragraph instead
@@ -294,6 +294,9 @@ export const inboxComponent = async (
 
       // Append the rendered markdown
       $body.appendChild(fragment);
+
+      // Asynchronously apply Monaco syntax highlighting to code fences
+      highlight();
 
       // Create token chips for each insertion point
       for (
@@ -388,7 +391,15 @@ export const inboxComponent = async (
       const $code = document.createElement('code');
       $code.className = 'language-javascript';
       $code.dataset.language = 'javascript';
-      $code.appendChild(highlightCode(source, 'javascript'));
+      $code.textContent = source;
+      colorize(source, 'javascript').then(
+        html => {
+          $code.innerHTML = html;
+        },
+        () => {
+          // colorize failed — keep plain text
+        },
+      );
       $pre.appendChild($code);
       $codeWrapper.appendChild($pre);
       $definition.appendChild($codeWrapper);
