@@ -29,7 +29,7 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 import { makePiAgent, runAgentRound } from '@endo/genie';
 
-import { bash, makeCommandTool } from './src/tools/command.js';
+import { bash } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
@@ -78,34 +78,20 @@ export const make = (guestPowers, _context) => {
    * @returns {Record<string, Tool>}
    */
   const buildTools = workspaceDir => {
-    const { readFile, writeFile, editFile } = makeFileTools({
+    const fileTools = makeFileTools({
       root: workspaceDir,
     });
 
     const searchBackend = makeFTS5Backend({ dbDir: workspaceDir });
-    const { memoryGet, memorySet, memorySearch } = makeMemoryTools({
+    const memoryTools = makeMemoryTools({
       root: workspaceDir,
       searchBackend,
     });
 
-    const git = makeCommandTool({
-      name: 'git',
-      program: 'git',
-      description:
-        'Runs git version control commands (status, log, diff, commit, etc.).',
-      allowPath: true,
-      policies: [],
-    });
-
     return harden({
       bash,
-      readFile,
-      writeFile,
-      editFile,
-      memoryGet,
-      memorySet,
-      memorySearch,
-      git,
+      ...fileTools,
+      ...memoryTools,
       webFetch,
       webSearch,
     });
