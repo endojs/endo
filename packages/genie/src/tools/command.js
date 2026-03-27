@@ -205,6 +205,7 @@ const DANGEROUS_PATTERNS = harden([
  * @property {number}    [defaultTimeout]  - Default timeout in ms
  *   (default: 30 000).
  * @property {string}    [searchPath]      - $PATH override
+ * @property {boolean}   [shell]           - whether to execute thru a shell
  */
 
 /**
@@ -221,6 +222,7 @@ const makeCommandTool = ({
   policies = [],
   defaultTimeout = 30_000,
   searchPath = process.env.PATH || '',
+  shell = false,
 }) => {
   /**
    * @param {string} prog
@@ -344,6 +346,7 @@ const makeCommandTool = ({
               ...process.env,
               PATH: process.env.PATH,
             },
+            shell,
           });
 
           let stdout = '';
@@ -410,15 +413,31 @@ harden(makeCommandTool);
 // ---------------------------------------------------------------------------
 
 /**
+ * General-purpose system command tool with dangerous-pattern blocking.
+ */
+const exec = makeCommandTool({
+  name: 'exec',
+  description: [
+    'Runs a system command (ls, grep, find, cat, curl, etc.).',
+    'Use for general tasks not covered by other tools.',
+    'NOTE: does not execute through a shell',
+  ].join('\n'),
+  policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+});
+harden(exec);
+
+/**
  * General-purpose shell tool with dangerous-pattern blocking.
  */
 const bash = makeCommandTool({
   name: 'bash',
-  description:
-    'Runs a shell command (ls, grep, find, cat, curl, etc.). ' +
+  description: [
+    'Runs a shell command (ls, grep, find, cat, curl, etc.).',
     'Use for general tasks not covered by other tools.',
+  ].join('\n'),
   policies: [rejectPatterns(DANGEROUS_PATTERNS)],
+  shell: true,
 });
 harden(bash);
 
-export { makeCommandTool, bash, rejectPatterns, rejectFlags, enforcePath };
+export { makeCommandTool, bash, exec, rejectPatterns, rejectFlags, enforcePath };

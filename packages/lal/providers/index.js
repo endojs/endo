@@ -5,8 +5,10 @@
  */
 
 import { makeAnthropicProvider } from './anthropic.js';
+import { makeGeminiProvider } from './gemini.js';
 import { makeLlamaCppProvider } from './llamacpp.js';
 import { makeOllamaProvider } from './ollama.js';
+import { detectProviderKind, resolveModelForHost } from './config.js';
 
 /**
  * @typedef {object} Provider
@@ -33,12 +35,10 @@ import { makeOllamaProvider } from './ollama.js';
  */
 export const createProvider = env => {
   const baseURL = env.LAL_HOST || 'http://localhost:11434';
-  const isAnthropic = baseURL.includes('anthropic.com');
-  const isOpenAICompatible = baseURL.includes('/v1');
-  const defaultModel = isAnthropic ? 'claude-opus-4-5-20251101' : 'qwen3';
-  const model = env.LAL_MODEL || defaultModel;
+  const providerKind = detectProviderKind(baseURL);
+  const model = resolveModelForHost(baseURL, env.LAL_MODEL);
 
-  if (isAnthropic) {
+  if (providerKind === 'anthropic') {
     const apiKey = env.LAL_AUTH_TOKEN;
     if (!apiKey || apiKey === '') {
       throw new Error(
@@ -49,7 +49,30 @@ export const createProvider = env => {
     return makeAnthropicProvider({ apiKey, model });
   }
 
-  if (isOpenAICompatible) {
+  if (providerKind === 'gemini') {
+    const apiKey = env.LAL_AUTH_TOKEN;
+    if (!apiKey || apiKey === '') {
+      throw new Error(
+        'LAL_AUTH_TOKEN is required for Gemini. Set it to your API key.',
+      );
+    }
+    const maxTokens = env.LAL_MAX_TOKENS
+      ? parseInt(env.LAL_MAX_TOKENS, 10)
+      : 4096;
+    const maxMessages = env.LAL_MAX_MESSAGES
+      ? parseInt(env.LAL_MAX_MESSAGES, 10)
+      : undefined;
+    console.log(`[LAL] Using Gemini provider at ${baseURL} with model: ${model}`);
+    return makeGeminiProvider({
+      baseURL,
+      model,
+      apiKey,
+      maxTokens,
+      maxMessages,
+    });
+  }
+
+  if (providerKind === 'openai-compatible') {
     // Use llama.cpp (OpenAI-compatible) provider when URL contains /v1
     const apiKey = env.LAL_AUTH_TOKEN || 'ollama';
     const maxTokens = env.LAL_MAX_TOKENS
@@ -83,5 +106,6 @@ export const createProvider = env => {
 };
 
 export { makeAnthropicProvider } from './anthropic.js';
+export { makeGeminiProvider } from './gemini.js';
 export { makeLlamaCppProvider } from './llamacpp.js';
 export { makeOllamaProvider } from './ollama.js';
