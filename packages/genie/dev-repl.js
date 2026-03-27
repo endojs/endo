@@ -30,7 +30,7 @@ import { registerBuiltInApiProviders } from '@mariozechner/pi-ai';
 /** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
 
 /** @import { Tool } from './src/tools/types.js' */
-import { bash, makeCommandTool } from './src/tools/command.js';
+import { bash, exec, makeCommandTool } from './src/tools/command.js';
 import { makeFileTools } from './src/tools/filesystem.js';
 import { makeMemoryTools, makeSubstringBackend } from './src/tools/memory.js';
 import { makeFTS5Backend } from './src/tools/fts5-backend.js';
@@ -410,7 +410,7 @@ async function* runMain(args) {
     searchBackend,
   });
 
-  // example of targeted command execution, rather than full bash
+  // example of targeted command execution, rather than wide-open "any system command" (aka the exec tool)
   const git = makeCommandTool({
     name: 'git',
     program: 'git',
@@ -435,6 +435,7 @@ async function* runMain(args) {
     ? {}
     : {
       bash,
+      exec,
       git,
       ...fileTools,
       ...memoryTools,
