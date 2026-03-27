@@ -51,6 +51,12 @@ then update the resulting README.md, package.json (specifically setting
 `description` and [if appropriate] removing `"private": false`), index.js, and
 index.test.js files.
 
+### Coding Style
+
+- Prefer `/** @import */` over dynamic `import()` in JSDoc type annotations.
+  Use a top-level `/** @import {Foo} from 'bar' */` comment instead of inline
+  `{import('bar').Foo}` in `@param`, `@type`, or `@returns` tags.
+
 ### Markdown Style Guide
 
 When writing Markdown documentation:
