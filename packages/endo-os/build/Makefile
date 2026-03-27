@@ -33,7 +33,14 @@ else
 endif
 
 # Source files.
-SOURCES := $(SRC_DIR)/main.cc $(SRC_DIR)/platform.cc
+SOURCES := $(SRC_DIR)/main.cc \
+           $(SRC_DIR)/platform.cc \
+           $(SRC_DIR)/devices.cc \
+           $(SRC_DIR)/block-device.cc \
+           $(SRC_DIR)/network-device.cc \
+           $(SRC_DIR)/framebuffer.cc \
+           $(SRC_DIR)/camera.cc \
+           $(SRC_DIR)/microphone.cc
 OBJECTS := $(patsubst $(SRC_DIR)/%.cc,$(BUILD_DIR)/%.o,$(SOURCES))
 
 # JS files to embed as binary blobs.

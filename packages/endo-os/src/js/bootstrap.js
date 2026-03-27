@@ -1,32 +1,28 @@
 // Endo OS Bootstrap
 //
-// This is the first user-level code that runs after SES lockdown.
-// In Phase 0, it's a proof-of-life that validates the V8 host,
-// SES environment, and basic capabilities.
+// First user-level code after SES lockdown.  Validates the V8 host,
+// SES environment, and then probes all device capabilities.
 //
-// In later phases, this file will:
-//   - Import and instantiate the Endo daemon
-//   - Receive OS-provided capabilities (block device, network, etc.)
-//   - Call makeDaemon(osPowers) to boot the pet daemon
-//   - Start the WebSocket gateway for the Chat UI
-//   - Start the console chat interface
+// Later phases will use these capabilities to boot the Endo daemon:
+//   disk    → content-addressed formula store
+//   network → WebSocket gateway for Chat UI
+//   display → console chat shell
+//   camera  → video stream capabilities passable via chat
+//   mic     → audio stream capabilities passable via chat
 
 (function bootstrap() {
   'use strict';
 
   print('endo-os: Bootstrap starting');
 
-  // === Phase 0: Proof of life ===
+  // === SES verification ===
 
-  // 1. Verify SES lockdown works.
   lockdown({ errorTaming: 'unsafe' });
   print('endo-os: SES lockdown succeeded');
 
-  // 2. Verify harden() works.
   const greeting = harden({ message: 'Hello from Endo OS!' });
   print('endo-os: ' + greeting.message);
 
-  // 3. Verify the object is actually frozen.
   try {
     greeting.message = 'tampered';
     print('endo-os: ERROR - harden() did not freeze the object!');
@@ -34,56 +30,167 @@
     print('endo-os: harden() verified - object is frozen');
   }
 
-  // 4. Verify Compartment evaluation works.
   const c = new Compartment({ print: print });
   const result = c.evaluate('40 + 2');
   print('endo-os: Compartment.evaluate("40 + 2") = ' + result);
 
-  // 5. Test basic capability pattern — a hardened object with
-  //    methods, passed by reference.
-  const counter = harden({
-    _count: 0,
-    increment() { this._count += 1; return this._count; },
-    read() { return this._count; },
-    help() { return 'A simple counter capability'; },
+  // === Device capability probing ===
+  //
+  // Each __openXxx() call returns a capability object.  In the
+  // Endo model, these are the root capabilities — the OS hands
+  // them to the daemon, which attenuates and delegates them to
+  // guest agents via pet names and CapTP.
+
+  print('');
+  print('--- Probing device capabilities ---');
+
+  // 1. Block device (disk)
+  let disk = null;
+  try {
+    disk = __openBlockDevice('/dev/vda');
+    const diskSize = disk.size();
+    print('endo-os: [disk]    /dev/vda ' +
+          Math.round(diskSize / 1024 / 1024) + 'MB — ' + disk.help());
+  } catch (e) {
+    print('endo-os: [disk]    not available (' + e.message + ')');
+  }
+
+  // 2. Network
+  let network = null;
+  try {
+    network = __createNetworkInterface();
+    print('endo-os: [network] ready — ' + network.help());
+  } catch (e) {
+    print('endo-os: [network] not available (' + e.message + ')');
+  }
+
+  // 3. Framebuffer (display)
+  let display = null;
+  try {
+    display = __openFramebuffer('/dev/fb0');
+    print('endo-os: [display] ' + display.width() + 'x' +
+          display.height() + ' @ ' + display.bpp() + 'bpp — ' +
+          display.help());
+  } catch (e) {
+    print('endo-os: [display] not available (' + e.message + ')');
+  }
+
+  // 4. Camera
+  let camera = null;
+  try {
+    camera = __openCamera('/dev/video0');
+    print('endo-os: [camera]  ' + camera.width() + 'x' +
+          camera.height() + ' ' + camera.format() + ' — ' +
+          camera.help());
+  } catch (e) {
+    print('endo-os: [camera]  not available (' + e.message + ')');
+  }
+
+  // 5. Microphone
+  let mic = null;
+  try {
+    mic = __openMicrophone('/dev/dsp');
+    print('endo-os: [mic]     ' + mic.sampleRate() + 'Hz ' +
+          mic.channels() + 'ch ' + mic.bitsPerSample() + 'bit — ' +
+          mic.help());
+  } catch (e) {
+    print('endo-os: [mic]     not available (' + e.message + ')');
+  }
+
+  // === Capability inventory ===
+  //
+  // Collect available capabilities into a hardened powers object.
+  // This is what gets passed to makeDaemon() in later phases.
+
+  const hostPowers = harden({
+    disk,
+    network,
+    display,
+    camera,
+    mic,
+    help() {
+      const avail = [];
+      if (disk)    avail.push('disk');
+      if (network) avail.push('network');
+      if (display) avail.push('display');
+      if (camera)  avail.push('camera');
+      if (mic)     avail.push('mic');
+      return 'Endo OS host powers: ' + avail.join(', ');
+    },
   });
 
-  // In a capability OS, you'd pass `counter` to another agent
-  // via CapTP.  They could call increment() and read() but
-  // couldn't tamper with the internals.
-  print('endo-os: Counter capability created');
-  print('endo-os: counter.help() = ' + counter.help());
-
   // === Summary ===
+
   print('');
   print('========================================');
-  print(' Endo OS Phase 0: All checks passed!');
+  print(' Endo OS: All checks passed!');
   print('');
   print(' V8 engine:     OK');
   print(' SES lockdown:  OK');
   print(' harden():      OK');
   print(' Compartment:   OK');
-  print(' Capabilities:  OK');
+  print('');
+  print(' ' + hostPowers.help());
   print('');
   print(' The capability-native OS is alive.');
   print('========================================');
 
-  // === Future phases ===
+  // === Capability passing demo ===
   //
-  // Phase 1: Receive block device capability from host.
-  //   const blockDevice = hostPowers.blockDevice;
-  //   const store = makeBlockStore(blockDevice);
+  // Demonstrate the key insight: device capabilities are just
+  // objects.  You can pass them to a Compartment (sandboxed
+  // guest) and the guest can use them — but ONLY the specific
+  // capabilities you grant.
+
+  if (disk) {
+    print('');
+    print('--- Capability delegation demo ---');
+
+    // Create a read-only attenuated view of the disk.
+    const readOnlyDisk = harden({
+      read: disk.read.bind(disk),
+      size: disk.size.bind(disk),
+      help() { return 'Read-only disk capability (attenuated)'; },
+    });
+
+    // A guest Compartment receives only the read-only view.
+    const guest = new Compartment({
+      print: print,
+      disk: readOnlyDisk,
+    });
+
+    guest.evaluate(
+      "print('guest: I received a disk capability: ' + disk.help());" +
+      "print('guest: Disk size = ' + disk.size() + ' bytes');" +
+      "try { disk.write(0, new Uint8Array([1])); }" +
+      "catch(e) { print('guest: Cannot write (good!) — ' + e.message); }"
+    );
+
+    print('endo-os: Guest received attenuated disk — no write access');
+  }
+
+  // === Next steps ===
   //
-  // Phase 3: Boot the daemon.
-  //   const osPowers = makeDaemonicPowers({ store, crypto, network });
-  //   const { endoBootstrap } = await makeDaemon(osPowers, ...);
+  // Phase 1: Use disk capability to build content-addressed store.
+  //   const store = makeBlockStore(hostPowers.disk);
+  //   const persistence = makePersistence(store);
   //
-  // Phase 4: Start the gateway.
-  //   const network = hostPowers.network;
-  //   startWsGateway(network, endoBootstrap, 8920);
+  // Phase 3: Boot the daemon with all powers.
+  //   const daemon = await makeDaemon({
+  //     persistence, crypto, control, petStore, filePowers
+  //   });
   //
-  // Phase 5: Start the console chat.
-  //   const console = hostPowers.console;
-  //   startConsoleChat(console, endoBootstrap);
+  // Phase 4: Use network to serve Chat UI.
+  //   const listener = hostPowers.network.listen(8920);
+  //   startWsGateway(listener, daemon.endoBootstrap);
+  //
+  // Phase 5: Use display + keyboard for console chat.
+  //   startConsoleChatShell(hostPowers.display, keyboard, daemon);
+  //
+  // Capability passing across chat:
+  //   // Agent A has a camera, shares it with Agent B via chat:
+  //   E(agentB).send('camera', hostPowers.camera);
+  //   // Agent B shares with Agent C — stream re-routes directly:
+  //   E(agentC).send('camera', receivedCamera);
 
 })();
