@@ -35,19 +35,21 @@ export const make = (guestPowers, _context) => {
           name: 'host',
           label: 'API host',
           default: 'http://localhost:11434/v1',
-          example: 'https://api.anthropic.com for Anthropic',
+          example:
+            'Examples: http://localhost:11434/v1, https://api.anthropic.com, https://generativelanguage.googleapis.com/v1beta/openai/',
         },
         {
           name: 'model',
           label: 'Model name',
           default: 'qwen3',
-          example: 'claude-sonnet-4-6-20250514 for Anthropic',
+          example:
+            'Examples: qwen3, claude-sonnet-4-6-20250514, gemini-2.5-flash',
         },
         {
           name: 'authToken',
           label: 'API auth token',
           default: '',
-          example: 'sk-ant-... for Anthropic',
+          example: 'Examples: sk-ant-... or a Google AI Studio API key',
           secret: true,
         },
       ]),
