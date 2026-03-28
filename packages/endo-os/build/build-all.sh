@@ -1,30 +1,31 @@
 #!/bin/bash
-# Build everything for Endo OS, in order.
+# Build everything for Endo OS (native Linux build), in order.
 #
 # Steps:
-#   1. Build V8 static library (skip if already built)
+#   1. Build endo-init via Cargo (V8 is built automatically by
+#      the v8 crate — no depot_tools needed)
 #   2. Build Linux kernel (skip if already built)
-#   3. Build endo-init binary
-#   4. Assemble initramfs
+#   3. Assemble initramfs
 #
+# For macOS, use ./build/build-docker.sh instead.
 # After this, run ./build/run-qemu.sh to boot.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENDO_OS_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "========================================"
-echo " Endo OS: Full Build"
+echo " Endo OS: Full Build (Rust)"
 echo "========================================"
 echo ""
 
-# Step 1: V8
-V8_LIB="${SCRIPT_DIR}/_v8_src/out/x64.release/obj/libv8_monolith.a"
-if [ -f "${V8_LIB}" ]; then
-  echo "[skip] V8 already built at ${V8_LIB}"
-else
-  bash "${SCRIPT_DIR}/build-v8.sh"
-fi
+# Step 1: endo-init (Cargo builds V8 automatically)
+echo "--- Building endo-init (Cargo + deno_core/V8) ---"
+cd "${ENDO_OS_DIR}"
+cargo build --release
+cp target/release/endo-init "${SCRIPT_DIR}/endo-init"
+echo "endo-init: $(du -h "${SCRIPT_DIR}/endo-init" | cut -f1)"
 echo ""
 
 # Step 2: Kernel
@@ -36,12 +37,7 @@ else
 fi
 echo ""
 
-# Step 3: endo-init
-echo "--- Building endo-init ---"
-make -C "${SCRIPT_DIR}" endo-init
-echo ""
-
-# Step 4: initramfs
+# Step 3: initramfs
 bash "${SCRIPT_DIR}/build-initramfs.sh"
 
 echo ""

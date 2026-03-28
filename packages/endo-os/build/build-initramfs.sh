@@ -19,6 +19,7 @@ BUILD_DIR="${ENDO_OS_DIR}/build"
 INITRAMFS_DIR="${BUILD_DIR}/_initramfs"
 ENDO_INIT="${BUILD_DIR}/endo-init"
 SES_BUNDLE="${ENDO_OS_DIR}/src/js/ses-lockdown.js"
+DEVICES_JS="${ENDO_OS_DIR}/src/js/devices.js"
 BOOTSTRAP="${ENDO_OS_DIR}/src/js/bootstrap.js"
 
 echo "=== Endo OS: Assembling initramfs ==="
@@ -26,7 +27,7 @@ echo "=== Endo OS: Assembling initramfs ==="
 # Check that endo-init exists.
 if [ ! -f "${ENDO_INIT}" ]; then
   echo "ERROR: ${ENDO_INIT} not found."
-  echo "Run 'make -C build endo-init' first."
+  echo "Run 'cargo build --release' first."
   exit 1
 fi
 
@@ -47,6 +48,13 @@ if [ -f "${SES_BUNDLE}" ]; then
   echo "    Included: ses-lockdown.js"
 else
   echo "    WARNING: ${SES_BUNDLE} not found, SES will use embedded blob"
+fi
+
+if [ -f "${DEVICES_JS}" ]; then
+  cp "${DEVICES_JS}" "${INITRAMFS_DIR}/devices.js"
+  echo "    Included: devices.js"
+else
+  echo "    WARNING: ${DEVICES_JS} not found"
 fi
 
 if [ -f "${BOOTSTRAP}" ]; then

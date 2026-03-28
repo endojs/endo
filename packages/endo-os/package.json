@@ -5,12 +5,14 @@
   "description": "Capability-native operating system built around the Endo pet daemon",
   "license": "Apache-2.0",
   "scripts": {
-    "build:v8": "./build/build-v8.sh",
+    "build:init": "cargo build --release",
     "build:kernel": "./build/build-kernel.sh",
-    "build:init": "make -C build endo-init",
     "build:initramfs": "./build/build-initramfs.sh",
+    "build:docker": "./build/build-docker.sh",
     "build": "./build/build-all.sh",
     "start": "./build/run-qemu.sh",
+    "start:docker": "./build/run-qemu.sh --docker",
+    "start:gui": "./build/run-qemu.sh --docker --gui",
     "test": "echo 'TODO: boot test in QEMU'"
   },
   "dependencies": {},

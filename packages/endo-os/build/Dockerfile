@@ -1,10 +1,12 @@
-# Endo OS Build Environment
+# Endo OS Build Environment (Rust)
 #
 # Builds everything needed for Endo OS inside a Linux container:
-#   - V8 static library
+#   - endo-init binary (Rust + deno_core/V8, statically linked)
 #   - Minimal Linux kernel
-#   - endo-init binary (V8 + device bindings)
 #   - initramfs (bootable image)
+#
+# The V8 engine is built automatically by the `v8` crate (rusty_v8)
+# as part of `cargo build`.  No depot_tools or manual V8 build needed.
 #
 # Usage:
 #   docker build -t endo-os-builder -f build/Dockerfile .
@@ -13,170 +15,115 @@
 # Output files in build/out/:
 #   bzImage           — Linux kernel
 #   initramfs.cpio.gz — Boot image containing endo-init + JS
+#   endo-init         — The PID 1 binary (for inspection)
 
-FROM ubuntu:24.04 AS builder
+FROM rust:1.82-bookworm AS rust-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies.
+# Install build dependencies for V8 (built by the v8 crate)
+# and for cross-compiling to musl (static binary).
 RUN apt-get update && apt-get install -y \
     build-essential \
-    git \
-    curl \
-    wget \
-    python3 \
-    python3-pip \
-    pkg-config \
+    cmake \
     ninja-build \
+    python3 \
+    pkg-config \
+    libclang-dev \
+    musl-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add musl target for static linking.
+RUN rustup target add x86_64-unknown-linux-musl
+
+WORKDIR /build/endo-os
+
+# Copy Cargo manifest first for dependency caching.
+COPY Cargo.toml Cargo.toml
+
+# Create dummy src to cache dependency compilation.
+RUN mkdir -p src/bin src/devices src/js && \
+    echo 'pub mod devices;' > src/lib.rs && \
+    echo 'pub mod block_device; pub mod camera; pub mod framebuffer; pub mod microphone; pub mod network;' > src/devices/mod.rs && \
+    touch src/devices/block_device.rs src/devices/camera.rs src/devices/framebuffer.rs src/devices/microphone.rs src/devices/network.rs && \
+    echo 'fn main() { println!("dummy"); }' > src/bin/main.rs && \
+    echo '' > src/js/ses-lockdown.js && \
+    echo '' > src/js/bootstrap.js && \
+    echo '' > src/js/devices.js
+
+# Build dependencies only (cached until Cargo.toml changes).
+# This is the slow step (~15-20 min for V8) but only runs once.
+RUN cargo build --release --target x86_64-unknown-linux-gnu 2>&1 || true
+
+# Now copy actual source and rebuild (fast — only our code recompiles).
+COPY src/ src/
+RUN cargo build --release --target x86_64-unknown-linux-gnu && \
+    cp target/x86_64-unknown-linux-gnu/release/endo-init /build/endo-init && \
+    echo "endo-init size: $(du -h /build/endo-init | cut -f1)"
+
+# === Stage 2: Build Linux kernel ===
+
+FROM ubuntu:24.04 AS kernel-builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
     bc \
     flex \
     bison \
     libelf-dev \
     libssl-dev \
+    wget \
+    xz-utils \
     cpio \
     gzip \
-    xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-# === Stage 1: Build V8 ===
-# This is the slowest step (~20 min).  Docker layer caching helps.
-
-# Install depot_tools for V8 build.
-RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /depot_tools
-ENV PATH="/depot_tools:${PATH}"
-
-# Fetch V8 source.
-RUN mkdir -p /build/v8 && cd /build/v8 \
-    && fetch v8 \
-    && cd v8 \
-    && git checkout branch-heads/13.3 \
-    && gclient sync -D
-
-# Build V8 as a static monolithic library.
-RUN cd /build/v8/v8 && gn gen out/x64.release --args=' \
-    is_debug=false \
-    is_component_build=false \
-    target_cpu="x64" \
-    v8_enable_i18n_support=false \
-    v8_use_external_startup_data=false \
-    v8_enable_webassembly=false \
-    use_custom_libcxx=true \
-    v8_monolithic=true \
-    treat_warnings_as_errors=false \
-    symbol_level=0 \
-    ' \
-    && ninja -C out/x64.release v8_monolith
-
-# === Stage 2: Build Linux kernel ===
-
 # Download kernel source.
-RUN wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.8.tar.xz \
-    && tar xf linux-6.8.tar.xz \
-    && rm linux-6.8.tar.xz
+RUN wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.8.tar.xz && \
+    tar xf linux-6.8.tar.xz && \
+    rm linux-6.8.tar.xz
 
-# Copy our kernel config.
+# Copy our kernel config and build.
 COPY kernel/qemu-x86_64.config /build/linux-6.8/.config
+RUN cd /build/linux-6.8 && \
+    make olddefconfig && \
+    make -j$(nproc) bzImage
 
-# Build kernel.
-RUN cd /build/linux-6.8 \
-    && make olddefconfig \
-    && make -j$(nproc) bzImage
+# === Stage 3: Assemble initramfs ===
 
-# === Stage 3: Build endo-init ===
+FROM ubuntu:24.04 AS assembler
 
-# Copy source files.
-COPY src/v8-host/ /build/src/v8-host/
-COPY src/js/ /build/src/js/
+RUN apt-get update && apt-get install -y cpio gzip && \
+    rm -rf /var/lib/apt/lists/*
 
-# Compile C++ sources.
-RUN cd /build && \
-    V8_INCLUDE=/build/v8/v8/include && \
-    V8_LIB=/build/v8/v8/out/x64.release/obj/libv8_monolith.a && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o main.o src/v8-host/main.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o platform.o src/v8-host/platform.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o devices.o src/v8-host/devices.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o block-device.o src/v8-host/block-device.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o network-device.o src/v8-host/network-device.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o framebuffer.o src/v8-host/framebuffer.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o camera.o src/v8-host/camera.cc && \
-    g++ -std=c++17 -O2 -Wall \
-        -I${V8_INCLUDE} \
-        -DV8_COMPRESS_POINTERS \
-        -DV8_ENABLE_SANDBOX \
-        -c -o microphone.o src/v8-host/microphone.cc
+WORKDIR /build
 
-# Embed JS files as binary blobs.
-RUN cd /build && \
-    objcopy -I binary -O elf64-x86-64 -B i386:x86-64 \
-        --rename-section .data=.rodata,alloc,load,readonly,data,contents \
-        src/js/ses-lockdown.js ses-lockdown.js.o && \
-    objcopy -I binary -O elf64-x86-64 -B i386:x86-64 \
-        --rename-section .data=.rodata,alloc,load,readonly,data,contents \
-        src/js/bootstrap.js bootstrap.js.o
+COPY --from=rust-builder /build/endo-init /build/endo-init
+COPY src/js/ /build/js/
 
-# Link endo-init (static binary).
-RUN cd /build && \
-    V8_LIB=/build/v8/v8/out/x64.release/obj/libv8_monolith.a && \
-    g++ -static -o endo-init \
-        main.o platform.o devices.o \
-        block-device.o network-device.o framebuffer.o \
-        camera.o microphone.o \
-        ses-lockdown.js.o bootstrap.js.o \
-        ${V8_LIB} \
-        -pthread -ldl -lm && \
-    echo "endo-init size: $(du -h endo-init | cut -f1)"
-
-# === Stage 4: Assemble initramfs ===
-
-RUN mkdir -p /build/initramfs/{dev,proc,sys} && \
-    cp /build/endo-init /build/initramfs/endo-init && \
-    chmod 755 /build/initramfs/endo-init && \
-    ln -sf /endo-init /build/initramfs/init && \
-    cp /build/src/js/ses-lockdown.js /build/initramfs/ && \
-    cp /build/src/js/bootstrap.js /build/initramfs/ && \
-    cd /build/initramfs && \
+RUN mkdir -p initramfs/{dev,proc,sys} && \
+    cp endo-init initramfs/endo-init && \
+    chmod 755 initramfs/endo-init && \
+    ln -sf /endo-init initramfs/init && \
+    cp js/ses-lockdown.js initramfs/ && \
+    cp js/bootstrap.js initramfs/ && \
+    cp js/devices.js initramfs/ && \
+    cd initramfs && \
     find . | cpio -o -H newc 2>/dev/null | gzip > /build/initramfs.cpio.gz && \
     echo "initramfs size: $(du -h /build/initramfs.cpio.gz | cut -f1)"
 
 # === Output stage ===
-# Copy artifacts to /out (volume-mounted from host).
 
 FROM ubuntu:24.04 AS output
-COPY --from=builder /build/linux-6.8/arch/x86/boot/bzImage /artifacts/bzImage
-COPY --from=builder /build/initramfs.cpio.gz /artifacts/initramfs.cpio.gz
-COPY --from=builder /build/endo-init /artifacts/endo-init
 
-# Default command: copy artifacts to /out.
+COPY --from=kernel-builder /build/linux-6.8/arch/x86/boot/bzImage /artifacts/bzImage
+COPY --from=assembler /build/initramfs.cpio.gz /artifacts/initramfs.cpio.gz
+COPY --from=rust-builder /build/endo-init /artifacts/endo-init
+
 CMD cp -v /artifacts/* /out/ && \
     echo "=== Build artifacts in /out/ ===" && \
     ls -lh /out/
