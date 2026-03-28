@@ -165,6 +165,18 @@ The two biggest speedup opportunities are:
 
 Even a 5x speedup would make this usable (<1 min boot).
 
+### Boot time breakdown (both optimizations needed)
+
+                     | No bytecode  | With bytecode (qjsc)
+  No pre-freeze      | ~45s + >3m   | ~45s + ~1s = ~46s
+  Pre-frozen intrins  | ~1s + >3m    | ~1s + ~1s  = ~2s
+
+They solve different problems:
+  - qjsc eliminates PARSE time (lex/parse/compile JS text)
+  - pre-freeze eliminates EXECUTION time (SES freeze walk)
+
+Both together → 2 second boot. Either alone is partial.
+
 
 ## FROM: QuickJS agent (../quickjs)
 ## Last updated: 2026-03-28 (latest commit: 49dc75e)
