@@ -40,8 +40,9 @@ QJS_OBJS := $(BUILD_DIR)/quickjs.o \
             $(BUILD_DIR)/libunicode.o \
             $(BUILD_DIR)/dtoa.o
 
-# Embedded sources.
+# Embedded sources (loaded in order).
 JS_OBJS := $(BUILD_DIR)/js_ses_shim.o \
+           $(BUILD_DIR)/js_eventual_send.o \
            $(BUILD_DIR)/daemon_bytecode.o \
            $(BUILD_DIR)/js_daemon_powers.o \
            $(BUILD_DIR)/js_bootstrap.o
@@ -91,6 +92,16 @@ $(BUILD_DIR)/js_ses_shim.o: src/ses-shim.js
 	@echo "const int js_ses_shim_len = sizeof(js_ses_shim) - 1;" \
 		>> $(BUILD_DIR)/js_ses_shim.c
 	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_ses_shim.c
+
+# --- Eventual-send shim (provides HandledPromise + E) ---
+$(BUILD_DIR)/js_eventual_send.o: src/eventual-send.js
+	@mkdir -p $(BUILD_DIR)
+	@echo "const char js_eventual_send[] = {" > $(BUILD_DIR)/js_eventual_send.c
+	xxd -i < $< >> $(BUILD_DIR)/js_eventual_send.c
+	@echo ", 0x00 };" >> $(BUILD_DIR)/js_eventual_send.c
+	@echo "const int js_eventual_send_len = sizeof(js_eventual_send) - 1;" \
+		>> $(BUILD_DIR)/js_eventual_send.c
+	$(CC) $(CFLAGS) -c -o $@ $(BUILD_DIR)/js_eventual_send.c
 
 # --- Daemon bytecode (pre-compiled by qjsc) ---
 $(BUILD_DIR)/daemon_bytecode.o: src/daemon-bytecode.c

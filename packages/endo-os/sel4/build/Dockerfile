@@ -48,11 +48,12 @@ COPY packages/endo-os/sel4/build/daemon-bundle.js /build/daemon-bundle.js
 # Compile JS → bytecode C array.
 # -c generates a .c file with the bytecode as a uint8_t array.
 # -m compiles as a module (needed for IIFE with exports).
-# Post-process: stub import, strip export block, assign global.
-# The export block is the last 3 lines: "export {\n  makeDaemon\n};"
+# Post-process: stub imports, help-text, strip export, assign global.
 RUN LINES=$(wc -l < /build/daemon-bundle.js) && \
     KEEP=$((LINES - 3)) && \
     sed 's/^import fs from "fs";/var fs = {};/' /build/daemon-bundle.js | \
+    sed 's/var helpMap = readHelpTextFileSync.*/var helpMap = new Map();/' | \
+    sed 's/new URL(.*import\.meta\.url)/new URL("file:\/\/\/endo-os")/' | \
     head -${KEEP} > /build/daemon-bundle-qjsc.js && \
     echo 'globalThis.EndoDaemon = { makeDaemon };' >> /build/daemon-bundle-qjsc.js && \
     echo "Post-processed bundle: $(wc -l < /build/daemon-bundle-qjsc.js) lines"

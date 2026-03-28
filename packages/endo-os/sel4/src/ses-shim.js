@@ -63,5 +63,21 @@
     };
   }
 
+  // Provide assert global (needed by @endo/eventual-send and daemon).
+  if (typeof globalThis.assert === 'undefined') {
+    var baseAssert = function(flag, optDetails) {
+      if (!flag) throw new Error(optDetails || 'assertion failed');
+    };
+    baseAssert.typeof = function(v, t) { baseAssert(typeof v === t); };
+    baseAssert.equal = function(a, b) { baseAssert(a === b); };
+    baseAssert.string = function(v) { baseAssert(typeof v === 'string'); };
+    baseAssert.fail = function(d) { throw new Error(d || 'assertion failed'); };
+    baseAssert.note = function() {};
+    baseAssert.details = function(s) { return Array.isArray(s) ? s.join('') : String(s); };
+    baseAssert.Fail = function(s) { throw new Error(Array.isArray(s) ? s.join('') : String(s)); };
+    baseAssert.quote = function(v) { return String(v); };
+    globalThis.assert = baseAssert;
+  }
+
   print('ses: Ready (native lockdown applied from C)');
 })();
